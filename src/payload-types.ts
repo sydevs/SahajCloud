@@ -70,6 +70,7 @@ export interface Config {
     users: User;
     media: Media;
     narrators: Narrator;
+    meditations: Meditation;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -79,6 +80,7 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
+    meditations: MeditationsSelect<false> | MeditationsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -172,6 +174,33 @@ export interface Narrator {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditations".
+ */
+export interface Meditation {
+  id: string;
+  title: string;
+  slug?: string | null;
+  /**
+   * Duration in minutes
+   */
+  duration?: number | null;
+  thumbnail: string | Media;
+  audioFile: string | Media;
+  narrator: string | Narrator;
+  tags?:
+    | {
+        tag?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  musicTag?: string | null;
+  isPublished?: boolean | null;
+  publishedDate?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -188,6 +217,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'narrators';
         value: string | Narrator;
+      } | null)
+    | ({
+        relationTo: 'meditations';
+        value: string | Meditation;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -279,6 +312,29 @@ export interface NarratorsSelect<T extends boolean = true> {
   name?: T;
   slug?: T;
   gender?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditations_select".
+ */
+export interface MeditationsSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  duration?: T;
+  thumbnail?: T;
+  audioFile?: T;
+  narrator?: T;
+  tags?:
+    | T
+    | {
+        tag?: T;
+        id?: T;
+      };
+  musicTag?: T;
+  isPublished?: T;
+  publishedDate?: T;
   updatedAt?: T;
   createdAt?: T;
 }

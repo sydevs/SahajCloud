@@ -1,0 +1,334 @@
+import { getPayload, Payload } from 'payload'
+import config from '@/payload.config'
+import { describe, it, beforeAll, afterEach, expect } from 'vitest'
+import type { Meditation, Narrator, Media } from '@/payload-types'
+
+let payload: Payload
+let testNarrator: Narrator
+let testMedia: Media
+
+describe('Meditations Collection', () => {
+  beforeAll(async () => {
+    const payloadConfig = await config
+    payload = await getPayload({ config: payloadConfig })
+
+    // Create test narrator
+    testNarrator = await payload.create({
+      collection: 'narrators',
+      data: {
+        name: 'Test Narrator',
+        gender: 'male',
+      },
+    }) as Narrator
+
+    // Create test media (reuse for both thumbnail and audio in tests)
+    testMedia = await payload.create({
+      collection: 'media',
+      data: {
+        alt: 'Test media file',
+      },
+      file: {
+        data: Buffer.from('test content'),
+        mimetype: 'audio/mp3',
+        name: 'test-file.mp3',
+        size: 1000,
+      },
+    }) as Media
+  })
+
+  afterEach(async () => {
+    await payload.delete({
+      collection: 'meditations',
+      where: {},
+    })
+  })
+
+  it('creates a meditation with auto-generated slug', async () => {
+    const meditation = await payload.create({
+      collection: 'meditations',
+      data: {
+        title: 'Morning Meditation',
+        duration: 15,
+        thumbnail: testMedia.id,
+        audioFile: testMedia.id,
+        narrator: testNarrator.id,
+        tags: [{ tag: 'morning' }, { tag: 'peaceful' }],
+        musicTag: 'ambient',
+        isPublished: false,
+      },
+    }) as Meditation
+
+    expect(meditation).toBeDefined()
+    expect(meditation.title).toBe('Morning Meditation')
+    expect(meditation.slug).toBe('morning-meditation')
+    expect(meditation.duration).toBe(15)
+    expect(typeof meditation.audioFile === 'object' ? meditation.audioFile.id : meditation.audioFile).toBe(testMedia.id)
+    expect(typeof meditation.narrator === 'object' ? meditation.narrator.id : meditation.narrator).toBe(testNarrator.id)
+    expect(meditation.tags).toHaveLength(2)
+    expect(meditation.tags[0].tag).toBe('morning')
+    expect(meditation.tags[1].tag).toBe('peaceful')
+    expect(meditation.musicTag).toBe('ambient')
+    expect(meditation.isPublished).toBe(false)
+  })
+
+  it('ignores custom slug on create', async () => {
+    const meditation = await payload.create({
+      collection: 'meditations',
+      data: {
+        title: 'Evening Meditation',
+        slug: 'custom-evening-slug', // This should be ignored
+        duration: 20,
+        thumbnail: testMedia.id,
+        audioFile: testMedia.id,
+        narrator: testNarrator.id,
+      },
+    }) as Meditation
+
+    expect(meditation.slug).toBe('evening-meditation') // Auto-generated from title
+  })
+
+  it('handles special characters in slug generation', async () => {
+    const meditation = await payload.create({
+      collection: 'meditations',
+      data: {
+        title: 'Meditación: Relajación & Paz',
+        duration: 10,
+        thumbnail: testMedia.id,
+        audioFile: testMedia.id,
+        narrator: testNarrator.id,
+      },
+    }) as Meditation
+
+    expect(meditation.slug).toBe('meditaci-n-relajaci-n-paz')
+  })
+
+  it('requires required fields', async () => {
+    await expect(
+      payload.create({
+        collection: 'meditations',
+        data: {
+          title: 'Incomplete Meditation',
+          duration: 10,
+          // Missing thumbnail, audioFile, and narrator
+        },
+      })
+    ).rejects.toThrow()
+  })
+
+  it('validates duration minimum value', async () => {
+    await expect(
+      payload.create({
+        collection: 'meditations',
+        data: {
+          title: 'Invalid Duration',
+          duration: 0,
+          thumbnail: testMedia.id,
+          audioFile: testMedia.id,
+          narrator: testNarrator.id,
+        },
+      })
+    ).rejects.toThrow()
+  })
+
+  it('creates meditation with relationships', async () => {
+    const meditation = await payload.create({
+      collection: 'meditations',
+      data: {
+        title: 'Meditation with Relationships',
+        duration: 25,
+        thumbnail: testMedia.id,
+        audioFile: testMedia.id,
+        narrator: testNarrator.id,
+      },
+    }) as Meditation
+
+    // Test that relationships are set correctly (IDs)
+    expect(typeof meditation.narrator === 'object' ? meditation.narrator.id : meditation.narrator).toBe(testNarrator.id)
+    expect(typeof meditation.audioFile === 'object' ? meditation.audioFile.id : meditation.audioFile).toBe(testMedia.id)
+    expect(typeof meditation.thumbnail === 'object' ? meditation.thumbnail.id : meditation.thumbnail).toBe(testMedia.id)
+  })
+
+  it('finds meditations with filters', async () => {
+    await payload.create({
+      collection: 'meditations',
+      data: {
+        title: 'Published Meditation',
+        duration: 30,
+        thumbnail: testMedia.id,
+        audioFile: testMedia.id,
+        narrator: testNarrator.id,
+        isPublished: true,
+        publishedDate: new Date().toISOString(),
+      },
+    })
+
+    await payload.create({
+      collection: 'meditations',
+      data: {
+        title: 'Unpublished Meditation',
+        duration: 15,
+        thumbnail: testMedia.id,
+        audioFile: testMedia.id,
+        narrator: testNarrator.id,
+        isPublished: false,
+      },
+    })
+
+    const result = await payload.find({
+      collection: 'meditations',
+      where: {
+        isPublished: {
+          equals: true,
+        },
+      },
+    })
+
+    expect(result.docs).toHaveLength(1)
+    expect(result.docs[0].title).toBe('Published Meditation')
+  })
+
+  it('updates a meditation', async () => {
+    const meditation = await payload.create({
+      collection: 'meditations',
+      data: {
+        title: 'Original Title',
+        duration: 20,
+        thumbnail: testMedia.id,
+        audioFile: testMedia.id,
+        narrator: testNarrator.id,
+        isPublished: false,
+      },
+    }) as Meditation
+
+    const updated = await payload.update({
+      collection: 'meditations',
+      id: meditation.id,
+      data: {
+        title: 'Updated Title',
+        duration: 25,
+        isPublished: true,
+        publishedDate: new Date().toISOString(),
+      },
+    }) as Meditation
+
+    expect(updated.title).toBe('Updated Title')
+    expect(updated.duration).toBe(25)
+    expect(updated.isPublished).toBe(true)
+    expect(updated.publishedDate).toBeDefined()
+    expect(updated.slug).toBe('original-title') // Slug should not change on update
+  })
+
+  it('cannot update slug', async () => {
+    const meditation = await payload.create({
+      collection: 'meditations',
+      data: {
+        title: 'Original Title',
+        duration: 20,
+        thumbnail: testMedia.id,
+        audioFile: testMedia.id,
+        narrator: testNarrator.id,
+      },
+    }) as Meditation
+
+    const updated = await payload.update({
+      collection: 'meditations',
+      id: meditation.id,
+      data: {
+        slug: 'new-slug', // This should be ignored due to access control
+      },
+    }) as Meditation
+
+    expect(updated.slug).toBe('original-title') // Slug remains unchanged
+  })
+
+  it('manages tags array properly', async () => {
+    const meditation = await payload.create({
+      collection: 'meditations',
+      data: {
+        title: 'Tagged Meditation',
+        duration: 15,
+        thumbnail: testMedia.id,
+        audioFile: testMedia.id,
+        narrator: testNarrator.id,
+        tags: [
+          { tag: 'morning' },
+          { tag: 'beginner' },
+          { tag: 'breathing' },
+        ],
+      },
+    }) as Meditation
+
+    expect(meditation.tags).toHaveLength(3)
+    expect(meditation.tags.map(t => t.tag)).toEqual(['morning', 'beginner', 'breathing'])
+
+    // Update tags
+    const updated = await payload.update({
+      collection: 'meditations',
+      id: meditation.id,
+      data: {
+        tags: [
+          { tag: 'evening' },
+          { tag: 'advanced' },
+        ],
+      },
+    }) as Meditation
+
+    expect(updated.tags).toHaveLength(2)
+    expect(updated.tags.map(t => t.tag)).toEqual(['evening', 'advanced'])
+  })
+
+  it('deletes a meditation', async () => {
+    const meditation = await payload.create({
+      collection: 'meditations',
+      data: {
+        title: 'To Delete',
+        duration: 10,
+        thumbnail: testMedia.id,
+        audioFile: testMedia.id,
+        narrator: testNarrator.id,
+      },
+    }) as Meditation
+
+    await payload.delete({
+      collection: 'meditations',
+      id: meditation.id,
+    })
+
+    const result = await payload.find({
+      collection: 'meditations',
+      where: {
+        id: {
+          equals: meditation.id,
+        },
+      },
+    })
+
+    expect(result.docs).toHaveLength(0)
+  })
+
+  it('enforces unique slug constraint', async () => {
+    await payload.create({
+      collection: 'meditations',
+      data: {
+        title: 'Duplicate Test',
+        duration: 15,
+        thumbnail: testMedia.id,
+        audioFile: testMedia.id,
+        narrator: testNarrator.id,
+      },
+    })
+
+    await expect(
+      payload.create({
+        collection: 'meditations',
+        data: {
+          title: 'Duplicate Test', // Same title will generate same slug
+          duration: 20,
+          thumbnail: testMedia.id,
+          audioFile: testMedia.id,
+          narrator: testNarrator.id,
+        },
+      })
+    ).rejects.toThrow()
+  })
+})
