@@ -1,0 +1,21 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "pnpm start"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+# Health check for the application
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+
+[environments.production]
+variables = [
+  "NODE_ENV=production",
+  "DATABASE_URI",
+  "PAYLOAD_SECRET", 
+  "SENTRY_DSN",
+  "NEXT_PUBLIC_SENTRY_DSN",
+  "SENTRY_AUTH_TOKEN"
+]
