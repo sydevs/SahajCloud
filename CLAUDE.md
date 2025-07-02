@@ -41,6 +41,8 @@ Required environment variables (copy from `.env.example`):
 - **Users** (`src/collections/Users.ts`) - Authentication-enabled admin users
 - **Media** (`src/collections/Media.ts`) - File uploads with required alt text
 
+All
+
 ### Key Configuration Files
 - `src/payload.config.ts` - Main Payload CMS configuration
 - `next.config.mjs` - Next.js config with Payload integration

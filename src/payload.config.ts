@@ -10,6 +10,8 @@ import sharp from 'sharp'
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
 import { Narrators } from './collections/Narrators'
+import { Meditations } from './collections/Meditations'
+import { Tags } from './collections/Tags'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -23,12 +25,12 @@ export default buildConfig({
     components: {
       providers: [
         {
-          path: path.resolve(dirname, 'components/AdminProvider.tsx'),
+          path: './components/AdminProvider.tsx',
         },
       ],
     },
   },
-  collections: [Users, Media, Narrators],
+  collections: [Users, Media, Narrators, Meditations, Tags],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {

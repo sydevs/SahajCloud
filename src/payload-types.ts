@@ -70,15 +70,23 @@ export interface Config {
     users: User;
     media: Media;
     narrators: Narrator;
+    meditations: Meditation;
+    tags: Tag;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
   };
-  collectionsJoins: {};
+  collectionsJoins: {
+    tags: {
+      meditations: 'meditations';
+    };
+  };
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
+    meditations: MeditationsSelect<false> | MeditationsSelect<true>;
+    tags: TagsSelect<false> | TagsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -172,6 +180,46 @@ export interface Narrator {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditations".
+ */
+export interface Meditation {
+  id: string;
+  title: string;
+  slug?: string | null;
+  /**
+   * Duration in minutes
+   */
+  duration?: number | null;
+  thumbnail: string | Media;
+  audioFile: string | Media;
+  narrator: string | Narrator;
+  tags?: (string | Tag)[] | null;
+  /**
+   * Music with this tag will be offered to the seeker
+   */
+  musicTag?: (string | null) | Tag;
+  isPublished?: boolean | null;
+  publishedDate?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tags".
+ */
+export interface Tag {
+  id: string;
+  title: string;
+  meditations?: {
+    docs?: (string | Meditation)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -188,6 +236,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'narrators';
         value: string | Narrator;
+      } | null)
+    | ({
+        relationTo: 'meditations';
+        value: string | Meditation;
+      } | null)
+    | ({
+        relationTo: 'tags';
+        value: string | Tag;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -279,6 +335,34 @@ export interface NarratorsSelect<T extends boolean = true> {
   name?: T;
   slug?: T;
   gender?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditations_select".
+ */
+export interface MeditationsSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  duration?: T;
+  thumbnail?: T;
+  audioFile?: T;
+  narrator?: T;
+  tags?: T;
+  musicTag?: T;
+  isPublished?: T;
+  publishedDate?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tags_select".
+ */
+export interface TagsSelect<T extends boolean = true> {
+  title?: T;
+  meditations?: T;
   updatedAt?: T;
   createdAt?: T;
 }
