@@ -19,6 +19,13 @@ export default buildConfig({
     importMap: {
       baseDir: path.resolve(dirname),
     },
+    components: {
+      providers: [
+        {
+          path: path.resolve(dirname, 'components/AdminProvider.tsx'),
+        },
+      ],
+    },
   },
   collections: [Users, Media],
   editor: lexicalEditor(),
