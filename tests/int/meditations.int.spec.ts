@@ -65,8 +65,8 @@ describe('Meditations Collection', () => {
     expect(typeof meditation.audioFile === 'object' ? meditation.audioFile.id : meditation.audioFile).toBe(testMedia.id)
     expect(typeof meditation.narrator === 'object' ? meditation.narrator.id : meditation.narrator).toBe(testNarrator.id)
     expect(meditation.tags).toHaveLength(2)
-    expect(meditation.tags[0].tag).toBe('morning')
-    expect(meditation.tags[1].tag).toBe('peaceful')
+    expect(meditation.tags?.[0]?.tag).toBe('morning')
+    expect(meditation.tags?.[1]?.tag).toBe('peaceful')
     expect(meditation.musicTag).toBe('ambient')
     expect(meditation.isPublished).toBe(false)
   })
@@ -110,7 +110,7 @@ describe('Meditations Collection', () => {
           title: 'Incomplete Meditation',
           duration: 10,
           // Missing thumbnail, audioFile, and narrator
-        },
+        } as any, // Use any to bypass TypeScript validation for this negative test
       })
     ).rejects.toThrow()
   })
@@ -259,7 +259,7 @@ describe('Meditations Collection', () => {
     }) as Meditation
 
     expect(meditation.tags).toHaveLength(3)
-    expect(meditation.tags.map(t => t.tag)).toEqual(['morning', 'beginner', 'breathing'])
+    expect(meditation.tags?.map(t => t.tag)).toEqual(['morning', 'beginner', 'breathing'])
 
     // Update tags
     const updated = await payload.update({
@@ -274,7 +274,7 @@ describe('Meditations Collection', () => {
     }) as Meditation
 
     expect(updated.tags).toHaveLength(2)
-    expect(updated.tags.map(t => t.tag)).toEqual(['evening', 'advanced'])
+    expect(updated.tags?.map(t => t.tag)).toEqual(['evening', 'advanced'])
   })
 
   it('deletes a meditation', async () => {
