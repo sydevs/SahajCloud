@@ -24,7 +24,7 @@ export default buildConfig({
     components: {
       providers: [
         {
-          path: path.resolve(dirname, 'components/AdminProvider.tsx'),
+          path: './components/AdminProvider.tsx',
         },
       ],
     },

@@ -1,5 +1,5 @@
-import { default as default_81dd2855defa1f3558c084258e96b32b } from '../../../components/AdminProvider.tsx'
+import { default as default_ee1c7052549cb47e7e6ab9550d2c6bf0 } from '../../../components/AdminProvider.tsx'
 
 export const importMap = {
-  "/Users/devindra/Documents/Projects/sy-devs-cms/src/components/AdminProvider.tsx#default": default_81dd2855defa1f3558c084258e96b32b
+  "./components/AdminProvider.tsx#default": default_ee1c7052549cb47e7e6ab9550d2c6bf0
 }

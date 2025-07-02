@@ -43,6 +43,7 @@ export const Meditations: CollectionConfig = {
       min: 1,
       admin: {
         description: 'Duration in minutes',
+        position: 'sidebar',
       },
     },
     {
