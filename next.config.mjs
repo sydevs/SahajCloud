@@ -4,9 +4,6 @@ import { withSentryConfig } from '@sentry/nextjs'
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Your Next.js config here
-  experimental: {
-    instrumentationHook: true,
-  },
   webpack: (webpackConfig) => {
     webpackConfig.resolve.extensionAlias = {
       '.cjs': ['.cts', '.cjs'],
@@ -26,8 +23,8 @@ export default withSentryConfig(configWithPayload, {
   // For all available options, see:
   // https://github.com/getsentry/sentry-webpack-plugin#options
 
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
+  org: 'sy-developers',
+  project: 'sydevs-cms',
 
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,
@@ -53,7 +50,7 @@ export default withSentryConfig(configWithPayload, {
   hideSourceMaps: true,
 
   // Automatically tree-shake Sentry logger statements to reduce bundle size
-  disableLogger: true,
+  disableLogger: process.env.NODE_ENV !== "development",
 
   // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
   // See the following for more information:

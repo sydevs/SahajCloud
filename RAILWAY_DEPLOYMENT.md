@@ -14,6 +14,7 @@ This guide covers deploying the Meditation CMS to Railway with Sentry integratio
 Set the following environment variables in Railway:
 
 ### Required Variables
+
 ```bash
 # Application
 NODE_ENV=production
@@ -23,8 +24,6 @@ PAYLOAD_SECRET=your-super-secret-payload-key
 # Sentry Configuration
 SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
 NEXT_PUBLIC_SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
-SENTRY_ORG=your-sentry-organization
-SENTRY_PROJECT=your-sentry-project-name
 
 # Optional: For source map uploads (recommended for production)
 SENTRY_AUTH_TOKEN=your-sentry-auth-token
@@ -33,12 +32,14 @@ SENTRY_AUTH_TOKEN=your-sentry-auth-token
 ## Deployment Steps
 
 1. **Connect Repository**
+
    ```bash
    railway login
    railway link
    ```
 
 2. **Configure Environment Variables**
+
    ```bash
    # Set variables via CLI
    railway variables set NODE_ENV=production
@@ -46,8 +47,6 @@ SENTRY_AUTH_TOKEN=your-sentry-auth-token
    railway variables set PAYLOAD_SECRET="your-secret"
    railway variables set SENTRY_DSN="your-sentry-dsn"
    railway variables set NEXT_PUBLIC_SENTRY_DSN="your-sentry-dsn"
-   railway variables set SENTRY_ORG="your-org"
-   railway variables set SENTRY_PROJECT="your-project"
    ```
 
 3. **Deploy**
@@ -79,7 +78,7 @@ After deployment, test Sentry integration:
 # Test error capture
 curl "https://your-app.railway.app/api/test-sentry?type=error"
 
-# Test message capture  
+# Test message capture
 curl "https://your-app.railway.app/api/test-sentry?type=message"
 
 # Test exception capture
@@ -106,11 +105,13 @@ curl "https://your-app.railway.app/api/test-sentry?type=exception"
 ### Logs
 
 View deployment logs:
+
 ```bash
 railway logs
 ```
 
 View specific service logs:
+
 ```bash
 railway logs --service your-service-name
 ```

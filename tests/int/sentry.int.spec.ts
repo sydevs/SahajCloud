@@ -1,13 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 
 describe('Sentry Integration', () => {
-  beforeAll(() => {
-    // Ensure test environment has required variables
-    process.env.SENTRY_DSN = process.env.SENTRY_DSN || 'https://test@sentry.io/123'
-    process.env.NEXT_PUBLIC_SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN || 'https://test@sentry.io/123'
-    process.env.NODE_ENV = 'test'
-  })
-
   it('should have Sentry DSN configured', () => {
     expect(process.env.SENTRY_DSN).toBeDefined()
     expect(process.env.SENTRY_DSN).toMatch(/^https:\/\//)
@@ -20,20 +13,20 @@ describe('Sentry Integration', () => {
   it('should load Sentry configuration files without errors', async () => {
     // Test that configuration files can be imported
     expect(async () => {
-      await import('../../sentry.server.config')
+      await import('../../src/sentry.server.config')
     }).not.toThrow()
 
     expect(async () => {
-      await import('../../sentry.client.config')
+      await import('../../src/instrumentation-client')
     }).not.toThrow()
 
     expect(async () => {
-      await import('../../sentry.edge.config')
+      await import('../../src/sentry.edge.config')
     }).not.toThrow()
   })
 
   it('should have instrumentation setup', async () => {
-    const instrumentation = await import('../../instrumentation')
+    const instrumentation = await import('../../src/instrumentation')
     expect(instrumentation.register).toBeDefined()
     expect(typeof instrumentation.register).toBe('function')
     expect(instrumentation.onRequestError).toBeDefined()
