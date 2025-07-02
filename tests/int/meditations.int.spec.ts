@@ -11,6 +11,7 @@ let testTag2: Tag
 let testTag3: Tag
 let testTag4: Tag
 let testTag5: Tag
+let testMusicTag: Tag
 
 describe('Meditations Collection', () => {
   beforeAll(async () => {
@@ -75,6 +76,13 @@ describe('Meditations Collection', () => {
         title: 'evening',
       },
     }) as Tag
+
+    testMusicTag = await payload.create({
+      collection: 'tags',
+      data: {
+        title: 'ambient',
+      },
+    }) as Tag
   })
 
   afterEach(async () => {
@@ -87,7 +95,7 @@ describe('Meditations Collection', () => {
       collection: 'tags',
       where: {
         id: {
-          not_in: [testTag1.id, testTag2.id, testTag3.id, testTag4.id, testTag5.id],
+          not_in: [testTag1.id, testTag2.id, testTag3.id, testTag4.id, testTag5.id, testMusicTag.id],
         },
       },
     })
@@ -103,7 +111,7 @@ describe('Meditations Collection', () => {
         audioFile: testMedia.id,
         narrator: testNarrator.id,
         tags: [testTag1.id, testTag2.id],
-        musicTag: 'ambient',
+        musicTag: testMusicTag.id,
         isPublished: false,
       },
     }) as Meditation
@@ -121,7 +129,7 @@ describe('Meditations Collection', () => {
       : []
     expect(tagIds).toContain(testTag1.id)
     expect(tagIds).toContain(testTag2.id)
-    expect(meditation.musicTag).toBe('ambient')
+    expect(typeof meditation.musicTag === 'object' && meditation.musicTag ? meditation.musicTag.id : meditation.musicTag).toBe(testMusicTag.id)
     expect(meditation.isPublished).toBe(false)
   })
 

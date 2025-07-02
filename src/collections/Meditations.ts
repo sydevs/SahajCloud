@@ -72,7 +72,11 @@ export const Meditations: CollectionConfig = {
     },
     {
       name: 'musicTag',
-      type: 'text',
+      type: 'relationship',
+      relationTo: 'tags',
+      admin: {
+        description: 'Music with this tag will be offered to the seeker',
+      },
     },
     {
       name: 'isPublished',

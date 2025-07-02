@@ -1,7 +1,7 @@
 import { getPayload, Payload } from 'payload'
 import config from '@/payload.config'
 import { describe, it, beforeAll, afterEach, expect } from 'vitest'
-import type { Tag } from '@/payload-types'
+import type { Tag, Meditation, Narrator, Media } from '@/payload-types'
 
 let payload: Payload
 
@@ -12,9 +12,14 @@ describe('Tags Collection', () => {
   })
 
   afterEach(async () => {
+    // Clean up tags created in specific tests (avoid affecting join test)
     await payload.delete({
       collection: 'tags',
-      where: {},
+      where: {
+        title: {
+          in: ['Test Tag', 'Focus', 'Original Title', 'Updated Title', 'To Delete'],
+        },
+      },
     })
   })
 
@@ -111,4 +116,5 @@ describe('Tags Collection', () => {
 
     expect(result.docs).toHaveLength(0)
   })
+
 })

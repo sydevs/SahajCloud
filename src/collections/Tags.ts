@@ -11,5 +11,11 @@ export const Tags: CollectionConfig = {
       type: 'text',
       required: true,
     },
+    {
+      name: 'meditations',
+      type: 'join',
+      collection: 'meditations',
+      on: 'tags',
+    },
   ],
 }

@@ -76,7 +76,11 @@ export interface Config {
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
   };
-  collectionsJoins: {};
+  collectionsJoins: {
+    tags: {
+      meditations: 'meditations';
+    };
+  };
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
@@ -190,7 +194,10 @@ export interface Meditation {
   audioFile: string | Media;
   narrator: string | Narrator;
   tags?: (string | Tag)[] | null;
-  musicTag?: string | null;
+  /**
+   * Music with this tag will be offered to the seeker
+   */
+  musicTag?: (string | null) | Tag;
   isPublished?: boolean | null;
   publishedDate?: string | null;
   updatedAt: string;
@@ -203,6 +210,11 @@ export interface Meditation {
 export interface Tag {
   id: string;
   title: string;
+  meditations?: {
+    docs?: (string | Meditation)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -350,6 +362,7 @@ export interface MeditationsSelect<T extends boolean = true> {
  */
 export interface TagsSelect<T extends boolean = true> {
   title?: T;
+  meditations?: T;
   updatedAt?: T;
   createdAt?: T;
 }
