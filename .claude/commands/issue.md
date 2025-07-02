@@ -30,6 +30,7 @@ Follow these steps:
 
 # DEPLOY
 
+14. Update CLAUDE.md to reflect changes to the architecture.
 14. Open a PR from this branch into master and request a review from Ardnived
 
 Remember to use the GitHub CLI (`gh`) for all GitHub-related tasks.

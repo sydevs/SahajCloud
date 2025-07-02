@@ -71,6 +71,7 @@ export interface Config {
     media: Media;
     narrators: Narrator;
     meditations: Meditation;
+    tags: Tag;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -81,6 +82,7 @@ export interface Config {
     media: MediaSelect<false> | MediaSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
+    tags: TagsSelect<false> | TagsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -187,15 +189,20 @@ export interface Meditation {
   thumbnail: string | Media;
   audioFile: string | Media;
   narrator: string | Narrator;
-  tags?:
-    | {
-        tag?: string | null;
-        id?: string | null;
-      }[]
-    | null;
+  tags?: (string | Tag)[] | null;
   musicTag?: string | null;
   isPublished?: boolean | null;
   publishedDate?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tags".
+ */
+export interface Tag {
+  id: string;
+  title: string;
   updatedAt: string;
   createdAt: string;
 }
@@ -221,6 +228,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'meditations';
         value: string | Meditation;
+      } | null)
+    | ({
+        relationTo: 'tags';
+        value: string | Tag;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -326,15 +337,19 @@ export interface MeditationsSelect<T extends boolean = true> {
   thumbnail?: T;
   audioFile?: T;
   narrator?: T;
-  tags?:
-    | T
-    | {
-        tag?: T;
-        id?: T;
-      };
+  tags?: T;
   musicTag?: T;
   isPublished?: T;
   publishedDate?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tags_select".
+ */
+export interface TagsSelect<T extends boolean = true> {
+  title?: T;
   updatedAt?: T;
   createdAt?: T;
 }

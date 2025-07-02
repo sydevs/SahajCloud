@@ -1,11 +1,16 @@
 import { getPayload, Payload } from 'payload'
 import config from '@/payload.config'
 import { describe, it, beforeAll, afterEach, expect } from 'vitest'
-import type { Meditation, Narrator, Media } from '@/payload-types'
+import type { Meditation, Narrator, Media, Tag } from '@/payload-types'
 
 let payload: Payload
 let testNarrator: Narrator
 let testMedia: Media
+let testTag1: Tag
+let testTag2: Tag
+let testTag3: Tag
+let testTag4: Tag
+let testTag5: Tag
 
 describe('Meditations Collection', () => {
   beforeAll(async () => {
@@ -34,12 +39,57 @@ describe('Meditations Collection', () => {
         size: 1000,
       },
     }) as Media
+
+    // Create test tags
+    testTag1 = await payload.create({
+      collection: 'tags',
+      data: {
+        title: 'morning',
+      },
+    }) as Tag
+
+    testTag2 = await payload.create({
+      collection: 'tags',
+      data: {
+        title: 'peaceful',
+      },
+    }) as Tag
+
+    testTag3 = await payload.create({
+      collection: 'tags',
+      data: {
+        title: 'beginner',
+      },
+    }) as Tag
+
+    testTag4 = await payload.create({
+      collection: 'tags',
+      data: {
+        title: 'breathing',
+      },
+    }) as Tag
+
+    testTag5 = await payload.create({
+      collection: 'tags',
+      data: {
+        title: 'evening',
+      },
+    }) as Tag
   })
 
   afterEach(async () => {
     await payload.delete({
       collection: 'meditations',
       where: {},
+    })
+    // Clean up any additional tags created during tests
+    await payload.delete({
+      collection: 'tags',
+      where: {
+        id: {
+          not_in: [testTag1.id, testTag2.id, testTag3.id, testTag4.id, testTag5.id],
+        },
+      },
     })
   })
 
@@ -52,7 +102,7 @@ describe('Meditations Collection', () => {
         thumbnail: testMedia.id,
         audioFile: testMedia.id,
         narrator: testNarrator.id,
-        tags: [{ tag: 'morning' }, { tag: 'peaceful' }],
+        tags: [testTag1.id, testTag2.id],
         musicTag: 'ambient',
         isPublished: false,
       },
@@ -65,8 +115,12 @@ describe('Meditations Collection', () => {
     expect(typeof meditation.audioFile === 'object' ? meditation.audioFile.id : meditation.audioFile).toBe(testMedia.id)
     expect(typeof meditation.narrator === 'object' ? meditation.narrator.id : meditation.narrator).toBe(testNarrator.id)
     expect(meditation.tags).toHaveLength(2)
-    expect(meditation.tags?.[0]?.tag).toBe('morning')
-    expect(meditation.tags?.[1]?.tag).toBe('peaceful')
+    // Tags may be populated objects or IDs
+    const tagIds = Array.isArray(meditation.tags) 
+      ? meditation.tags.map(tag => typeof tag === 'object' && tag && 'id' in tag ? tag.id : tag)
+      : []
+    expect(tagIds).toContain(testTag1.id)
+    expect(tagIds).toContain(testTag2.id)
     expect(meditation.musicTag).toBe('ambient')
     expect(meditation.isPublished).toBe(false)
   })
@@ -241,7 +295,7 @@ describe('Meditations Collection', () => {
     expect(updated.slug).toBe('original-title') // Slug remains unchanged
   })
 
-  it('manages tags array properly', async () => {
+  it('manages tags relationships properly', async () => {
     const meditation = await payload.create({
       collection: 'meditations',
       data: {
@@ -250,31 +304,33 @@ describe('Meditations Collection', () => {
         thumbnail: testMedia.id,
         audioFile: testMedia.id,
         narrator: testNarrator.id,
-        tags: [
-          { tag: 'morning' },
-          { tag: 'beginner' },
-          { tag: 'breathing' },
-        ],
+        tags: [testTag1.id, testTag3.id, testTag4.id], // morning, beginner, breathing
       },
     }) as Meditation
 
     expect(meditation.tags).toHaveLength(3)
-    expect(meditation.tags?.map(t => t.tag)).toEqual(['morning', 'beginner', 'breathing'])
+    const tagIds = Array.isArray(meditation.tags) 
+      ? meditation.tags.map(tag => typeof tag === 'object' && tag && 'id' in tag ? tag.id : tag)
+      : []
+    expect(tagIds).toContain(testTag1.id)
+    expect(tagIds).toContain(testTag3.id)
+    expect(tagIds).toContain(testTag4.id)
 
     // Update tags
     const updated = await payload.update({
       collection: 'meditations',
       id: meditation.id,
       data: {
-        tags: [
-          { tag: 'evening' },
-          { tag: 'advanced' },
-        ],
+        tags: [testTag5.id, testTag2.id], // evening, peaceful
       },
     }) as Meditation
 
     expect(updated.tags).toHaveLength(2)
-    expect(updated.tags?.map(t => t.tag)).toEqual(['evening', 'advanced'])
+    const updatedTagIds = Array.isArray(updated.tags) 
+      ? updated.tags.map(tag => typeof tag === 'object' && tag && 'id' in tag ? tag.id : tag)
+      : []
+    expect(updatedTagIds).toContain(testTag5.id)
+    expect(updatedTagIds).toContain(testTag2.id)
   })
 
   it('deletes a meditation', async () => {
