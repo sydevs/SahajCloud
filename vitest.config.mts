@@ -7,6 +7,12 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
+    globalSetup: ['./tests/setup/globalSetup.ts'],
     include: ['tests/int/**/*.int.spec.ts'],
+    // Ensure tests run sequentially to avoid database conflicts
+    pool: 'threads',
+    maxConcurrency: 1,
+    // Increase timeout for database operations
+    testTimeout: 30000,
   },
 })

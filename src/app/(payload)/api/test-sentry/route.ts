@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
           availableTypes: ['error', 'message', 'exception'],
         }, { status: 400 })
     }
-  } catch (error) {
+  } catch (_error) {
     // This will be automatically captured by Sentry due to our configuration
     return NextResponse.json({
       error: 'Test error thrown successfully',
