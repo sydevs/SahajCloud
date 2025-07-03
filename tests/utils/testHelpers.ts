@@ -68,9 +68,9 @@ export const testDataFactory = {
       ...overrides,
     },
     file: {
-      data: Buffer.from('fake-image-content'),
-      mimetype: 'image/png',
-      name: 'test-image.png',
+      data: Buffer.from('test audio content'),
+      mimetype: 'audio/mp3',
+      name: 'test-audio.mp3',
       size: 1000,
     },
   }),

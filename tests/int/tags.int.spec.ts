@@ -1,26 +1,20 @@
-import { getPayload, Payload } from 'payload'
-import config from '@/payload.config'
-import { describe, it, beforeAll, afterEach, expect } from 'vitest'
-import type { Tag, Meditation, Narrator, Media } from '@/payload-types'
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import type { Tag } from '@/payload-types'
+import type { Payload } from 'payload'
+import { createTestEnvironment, testDataFactory } from '../utils/testHelpers'
 
-let payload: Payload
+describe('Tags Collection (Isolated)', () => {
+  let payload: Payload
+  let cleanup: () => Promise<void>
 
-describe('Tags Collection', () => {
   beforeAll(async () => {
-    const payloadConfig = await config
-    payload = await getPayload({ config: payloadConfig })
+    const testEnv = await createTestEnvironment()
+    payload = testEnv.payload
+    cleanup = testEnv.cleanup
   })
 
-  afterEach(async () => {
-    // Clean up tags created in specific tests (avoid affecting join test)
-    await payload.delete({
-      collection: 'tags',
-      where: {
-        title: {
-          in: ['Test Tag', 'Focus', 'Original Title', 'Updated Title', 'To Delete'],
-        },
-      },
-    })
+  afterAll(async () => {
+    await cleanup()
   })
 
   it('creates a tag with title', async () => {
@@ -48,16 +42,12 @@ describe('Tags Collection', () => {
   it('finds tags', async () => {
     const tag1 = await payload.create({
       collection: 'tags',
-      data: {
-        title: 'Relaxation',
-      },
+      data: testDataFactory.tag({ title: 'Relaxation' }),
     }) as Tag
 
     const tag2 = await payload.create({
       collection: 'tags',
-      data: {
-        title: 'Focus',
-      },
+      data: testDataFactory.tag({ title: 'Focus' }),
     }) as Tag
 
     const result = await payload.find({
@@ -76,9 +66,7 @@ describe('Tags Collection', () => {
   it('updates a tag', async () => {
     const tag = await payload.create({
       collection: 'tags',
-      data: {
-        title: 'Original Title',
-      },
+      data: testDataFactory.tag({ title: 'Original Title' }),
     }) as Tag
 
     const updated = await payload.update({
@@ -95,9 +83,7 @@ describe('Tags Collection', () => {
   it('deletes a tag', async () => {
     const tag = await payload.create({
       collection: 'tags',
-      data: {
-        title: 'To Delete',
-      },
+      data: testDataFactory.tag({ title: 'To Delete' }),
     }) as Tag
 
     await payload.delete({
@@ -117,4 +103,24 @@ describe('Tags Collection', () => {
     expect(result.docs).toHaveLength(0)
   })
 
+  it('demonstrates complete isolation - no data leakage', async () => {
+    // Create a tag in this test
+    const tag = await payload.create({
+      collection: 'tags',
+      data: testDataFactory.tag({ title: 'Isolation Test Tag' }),
+    }) as Tag
+
+    // Query all tags
+    const allTags = await payload.find({
+      collection: 'tags',
+    })
+
+    // Should only see tags created in this test file
+    expect(allTags.docs.length).toBeGreaterThan(0)
+    
+    // Each test suite gets a fresh database
+    const isolationTestTags = allTags.docs.filter(t => t.title === 'Isolation Test Tag')
+    expect(isolationTestTags).toHaveLength(1)
+    expect(isolationTestTags[0].id).toBe(tag.id)
+  })
 })

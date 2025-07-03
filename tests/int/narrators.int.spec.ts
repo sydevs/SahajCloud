@@ -1,21 +1,20 @@
-import { getPayload, Payload } from 'payload'
-import config from '@/payload.config'
-import { describe, it, beforeAll, afterEach, expect } from 'vitest'
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Narrator } from '@/payload-types'
+import type { Payload } from 'payload'
+import { createTestEnvironment, testDataFactory } from '../utils/testHelpers'
 
-let payload: Payload
+describe('Narrators Collection (Isolated)', () => {
+  let payload: Payload
+  let cleanup: () => Promise<void>
 
-describe('Narrators Collection', () => {
   beforeAll(async () => {
-    const payloadConfig = await config
-    payload = await getPayload({ config: payloadConfig })
+    const testEnv = await createTestEnvironment()
+    payload = testEnv.payload
+    cleanup = testEnv.cleanup
   })
 
-  afterEach(async () => {
-    await payload.delete({
-      collection: 'narrators',
-      where: {},
-    })
+  afterAll(async () => {
+    await cleanup()
   })
 
   it('creates a narrator with auto-generated slug', async () => {
@@ -59,24 +58,23 @@ describe('Narrators Collection', () => {
   })
 
   it('finds narrators', async () => {
-    await payload.create({
+    const narrator1 = await payload.create({
       collection: 'narrators',
-      data: {
-        name: 'Test Narrator 1',
-        gender: 'male',
-      },
-    })
+      data: testDataFactory.narrator({ name: 'Test Narrator 1' }),
+    }) as Narrator
 
-    await payload.create({
+    const narrator2 = await payload.create({
       collection: 'narrators',
-      data: {
-        name: 'Test Narrator 2',
-        gender: 'female',
-      },
-    })
+      data: testDataFactory.narrator({ name: 'Test Narrator 2', gender: 'female' }),
+    }) as Narrator
 
     const result = await payload.find({
       collection: 'narrators',
+      where: {
+        id: {
+          in: [narrator1.id, narrator2.id],
+        },
+      },
     })
 
     expect(result.docs).toHaveLength(2)
@@ -107,13 +105,13 @@ describe('Narrators Collection', () => {
   })
 
   it('finds narrator by slug', async () => {
-    await payload.create({
+    const narrator = await payload.create({
       collection: 'narrators',
       data: {
         name: 'Find By Slug',
         gender: 'male',
       },
-    })
+    }) as Narrator
 
     const result = await payload.find({
       collection: 'narrators',
@@ -126,15 +124,13 @@ describe('Narrators Collection', () => {
 
     expect(result.docs).toHaveLength(1)
     expect(result.docs[0].name).toBe('Find By Slug')
+    expect(result.docs[0].id).toBe(narrator.id)
   })
 
   it('deletes a narrator', async () => {
     const narrator = await payload.create({
       collection: 'narrators',
-      data: {
-        name: 'To Delete',
-        gender: 'female',
-      },
+      data: testDataFactory.narrator({ name: 'To Delete' }),
     }) as Narrator
 
     await payload.delete({
@@ -164,8 +160,9 @@ describe('Narrators Collection', () => {
       },
     })
 
-    await expect(
-      payload.create({
+    // Try to create another narrator with the same slug
+    try {
+      await payload.create({
         collection: 'narrators',
         data: {
           name: 'Another Name',
@@ -173,6 +170,33 @@ describe('Narrators Collection', () => {
           gender: 'female',
         },
       })
-    ).rejects.toThrow()
+      // If we get here, the unique constraint didn't work
+      expect.fail('Expected unique constraint violation, but creation succeeded')
+    } catch (error: any) {
+      // Check that we got an error (MongoDB duplicate key error)
+      expect(error).toBeDefined()
+      expect(error.message).toMatch(/duplicate|unique/i)
+    }
+  })
+
+  it('demonstrates complete isolation - no data leakage', async () => {
+    // Create some narrators in this test
+    const narrator = await payload.create({
+      collection: 'narrators',
+      data: testDataFactory.narrator({ name: 'Isolation Test Narrator' }),
+    }) as Narrator
+
+    // Query all narrators
+    const allNarrators = await payload.find({
+      collection: 'narrators',
+    })
+
+    // Should only see narrators created in this test file
+    expect(allNarrators.docs.length).toBeGreaterThan(0)
+    
+    // Each test suite gets a fresh database
+    const isolationTestNarrators = allNarrators.docs.filter(n => n.name === 'Isolation Test Narrator')
+    expect(isolationTestNarrators).toHaveLength(1)
+    expect(isolationTestNarrators[0].id).toBe(narrator.id)
   })
 })

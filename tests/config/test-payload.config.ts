@@ -8,6 +8,9 @@ import sharp from 'sharp'
 
 import { Users } from '../../src/collections/Users'
 import { Media } from '../../src/collections/Media'
+import { Narrators } from '../../src/collections/Narrators'
+import { Meditations } from '../../src/collections/Meditations'
+import { Tags } from '../../src/collections/Tags'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -21,7 +24,7 @@ export const createTestConfig = (mongoUri: string) => buildConfig({
     // Disable admin UI for tests
     disable: true,
   },
-  collections: [Users, Media],
+  collections: [Users, Media, Narrators, Meditations, Tags],
   editor: lexicalEditor(),
   secret: 'test-secret-key',
   typescript: {
