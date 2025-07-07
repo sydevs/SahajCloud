@@ -16,20 +16,9 @@ describe('Music Collection', () => {
     cleanup = testEnv.cleanup
 
     // Create test tags
-    testTag1 = await payload.create({
-      collection: 'tags',
-      data: testDataFactory.tag({ title: 'ambient' }),
-    }) as Tag
-
-    testTag2 = await payload.create({
-      collection: 'tags',
-      data: testDataFactory.tag({ title: 'meditation' }),
-    }) as Tag
-
-    testTag3 = await payload.create({
-      collection: 'tags',
-      data: testDataFactory.tag({ title: 'nature' }),
-    }) as Tag
+    testTag1 = await testDataFactory.createTag(payload, { title: 'ambient' })
+    testTag2 = await testDataFactory.createTag(payload, { title: 'meditation' })
+    testTag3 = await testDataFactory.createTag(payload, { title: 'nature' })
   })
 
   afterAll(async () => {
@@ -37,17 +26,11 @@ describe('Music Collection', () => {
   })
 
   it('creates a music track with auto-generated slug', async () => {
-    const musicData = testDataFactory.music({
+    const music = await testDataFactory.createMusic(payload, {
       title: 'Forest Sounds',
       tags: [testTag1.id, testTag2.id],
       credit: 'Nature Recordings Inc.',
     })
-
-    const music = await payload.create({
-      collection: 'music',
-      data: musicData.data,
-      file: musicData.file,
-    }) as Music
 
     expect(music).toBeDefined()
     expect(music.title).toBe('Forest Sounds')
@@ -67,59 +50,38 @@ describe('Music Collection', () => {
   })
 
   it('ignores custom slug on create', async () => {
-    const musicData = testDataFactory.music({
+    const music = await testDataFactory.createMusic(payload, {
       title: 'Rain Sounds',
       slug: 'custom-rain-slug', // This should be ignored
     })
-
-    const music = await payload.create({
-      collection: 'music',
-      data: musicData.data,
-      file: musicData.file,
-    }) as Music
 
     expect(music.slug).toBe('rain-sounds') // Auto-generated from title
   })
 
   it('handles special characters in slug generation', async () => {
-    const musicData = testDataFactory.music({
+    const music = await testDataFactory.createMusic(payload, {
       title: 'Música: Relajación & Paz',
     })
-
-    const music = await payload.create({
-      collection: 'music',
-      data: musicData.data,
-      file: musicData.file,
-    }) as Music
 
     expect(music.slug).toBe('m-sica-relajaci-n-paz')
   })
 
   it('requires title field', async () => {
-    const musicData = testDataFactory.music({
-      credit: 'Test Credit',
-    })
-    delete (musicData.data as any).title // Remove title to test validation
-
     await expect(
-      payload.create({
-        collection: 'music',
-        data: musicData.data as any,
-        file: musicData.file,
-      })
+      testDataFactory.createMusic(payload, {
+        credit: 'Test Credit',
+        title: undefined, // Remove title to test validation
+      } as any)
     ).rejects.toThrow()
   })
 
   it('validates audio mimeType only', async () => {
-    const imageData = testDataFactory.mediaImage({ alt: 'Invalid file type' })
-
     await expect(
-      payload.create({
-        collection: 'music',
-        data: {
-          title: 'Invalid File Type',
-        },
-        file: imageData.file, // Using image file instead of audio
+      testDataFactory.createMusicWithFormat(payload, {
+        mimetype: 'image/jpeg',
+        name: 'invalid.jpg',
+      }, {
+        title: 'Invalid File Type',
       })
     ).rejects.toThrow() // Accept any upload-related error for now
   })
@@ -145,15 +107,9 @@ describe('Music Collection', () => {
   })
 
   it('accepts valid audio file within size limit', async () => {
-    const musicData = testDataFactory.music({
+    const music = await testDataFactory.createMusic(payload, {
       title: 'Valid Audio File',
     })
-
-    const music = await payload.create({
-      collection: 'music',
-      data: musicData.data,
-      file: musicData.file,
-    }) as Music
 
     expect(music).toBeDefined()
     expect(music.title).toBe('Valid Audio File')
@@ -161,16 +117,10 @@ describe('Music Collection', () => {
   })
 
   it('updates a music track', async () => {
-    const musicData = testDataFactory.music({
+    const music = await testDataFactory.createMusic(payload, {
       title: 'Original Title',
       credit: 'Original Credit',
     })
-
-    const music = await payload.create({
-      collection: 'music',
-      data: musicData.data,
-      file: musicData.file,
-    }) as Music
 
     const updated = await payload.update({
       collection: 'music',
@@ -194,15 +144,9 @@ describe('Music Collection', () => {
   })
 
   it('preserves slug when updating other fields', async () => {
-    const musicData = testDataFactory.music({
+    const music = await testDataFactory.createMusic(payload, {
       title: 'Unique Slug Preservation Test Title',
     })
-
-    const music = await payload.create({
-      collection: 'music',
-      data: musicData.data,
-      file: musicData.file,
-    }) as Music
 
     const updated = await payload.update({
       collection: 'music',
@@ -216,16 +160,10 @@ describe('Music Collection', () => {
   })
 
   it('manages tags relationships properly', async () => {
-    const musicData = testDataFactory.music({
+    const music = await testDataFactory.createMusic(payload, {
       title: 'Tagged Music',
       tags: [testTag1.id, testTag2.id],
     })
-
-    const music = await payload.create({
-      collection: 'music',
-      data: musicData.data,
-      file: musicData.file,
-    }) as Music
 
     expect(music.tags).toHaveLength(2)
     
@@ -246,15 +184,9 @@ describe('Music Collection', () => {
   })
 
   it('deletes a music track', async () => {
-    const musicData = testDataFactory.music({
+    const music = await testDataFactory.createMusic(payload, {
       title: 'To Delete',
     })
-
-    const music = await payload.create({
-      collection: 'music',
-      data: musicData.data,
-      file: musicData.file,
-    }) as Music
 
     await payload.delete({
       collection: 'music',
@@ -275,26 +207,14 @@ describe('Music Collection', () => {
   })
 
   it('finds music with filters', async () => {
-    const ambientData = testDataFactory.music({
+    await testDataFactory.createMusic(payload, {
       title: 'Filter Test Ambient Track',
       tags: [testTag1.id], // ambient tag
     })
 
-    const natureData = testDataFactory.music({
+    await testDataFactory.createMusic(payload, {
       title: 'Filter Test Nature Track',
       tags: [testTag3.id], // nature tag
-    })
-
-    await payload.create({
-      collection: 'music',
-      data: ambientData.data,
-      file: ambientData.file,
-    })
-
-    await payload.create({
-      collection: 'music',
-      data: natureData.data,
-      file: natureData.file,
     })
 
     // Find music with ambient tag AND specific title to avoid conflicts with other tests
@@ -321,25 +241,13 @@ describe('Music Collection', () => {
   })
 
   it('enforces unique slug constraint', async () => {
-    const firstData = testDataFactory.music({
+    await testDataFactory.createMusic(payload, {
       title: 'Duplicate Test',
     })
 
-    await payload.create({
-      collection: 'music',
-      data: firstData.data,
-      file: firstData.file,
-    })
-
-    const secondData = testDataFactory.music({
-      title: 'Duplicate Test', // Same title will generate same slug
-    })
-
     await expect(
-      payload.create({
-        collection: 'music',
-        data: secondData.data,
-        file: secondData.file,
+      testDataFactory.createMusic(payload, {
+        title: 'Duplicate Test', // Same title will generate same slug
       })
     ).rejects.toThrow()
   })
@@ -354,19 +262,9 @@ describe('Music Collection', () => {
 
     for (let i = 0; i < formats.length; i++) {
       const format = formats[i]
-      const musicData = testDataFactory.music({
+      const music = await testDataFactory.createMusicWithFormat(payload, format, {
         title: `Test ${format.mimetype.split('/')[1].toUpperCase()}`,
       })
-
-      // Override the file mimetype and name for this test
-      musicData.file.mimetype = format.mimetype
-      musicData.file.name = format.name
-
-      const music = await payload.create({
-        collection: 'music',
-        data: musicData.data,
-        file: musicData.file,
-      }) as Music
 
       expect(music).toBeDefined()
       expect(music.mimeType).toBe(format.mimetype)

@@ -18,13 +18,10 @@ describe('Narrators Collection (Isolated)', () => {
   })
 
   it('creates a narrator with auto-generated slug', async () => {
-    const narrator = await payload.create({
-      collection: 'narrators',
-      data: {
-        name: 'John Smith',
-        gender: 'male',
-      },
-    }) as Narrator
+    const narrator = await testDataFactory.createNarrator(payload, {
+      name: 'John Smith',
+      gender: 'male',
+    })
 
     expect(narrator).toBeDefined()
     expect(narrator.name).toBe('John Smith')
@@ -33,40 +30,27 @@ describe('Narrators Collection (Isolated)', () => {
   })
 
   it('creates a narrator with custom slug', async () => {
-    const narrator = await payload.create({
-      collection: 'narrators',
-      data: {
-        name: 'Jane Doe',
-        slug: 'custom-jane-slug',
-        gender: 'female',
-      },
-    }) as Narrator
+    const narrator = await testDataFactory.createNarrator(payload, {
+      name: 'Jane Doe',
+      slug: 'custom-jane-slug',
+      gender: 'female',
+    })
 
     expect(narrator.slug).toBe('custom-jane-slug')
   })
 
   it('handles special characters in slug generation', async () => {
-    const narrator = await payload.create({
-      collection: 'narrators',
-      data: {
-        name: 'María García-López',
-        gender: 'female',
-      },
-    }) as Narrator
+    const narrator = await testDataFactory.createNarrator(payload, {
+      name: 'María García-López',
+      gender: 'female',
+    })
 
     expect(narrator.slug).toBe('mar-a-garc-a-l-pez')
   })
 
   it('finds narrators', async () => {
-    const narrator1 = await payload.create({
-      collection: 'narrators',
-      data: testDataFactory.narrator({ name: 'Test Narrator 1' }),
-    }) as Narrator
-
-    const narrator2 = await payload.create({
-      collection: 'narrators',
-      data: testDataFactory.narrator({ name: 'Test Narrator 2', gender: 'female' }),
-    }) as Narrator
+    const narrator1 = await testDataFactory.createNarrator(payload, { name: 'Test Narrator 1' })
+    const narrator2 = await testDataFactory.createNarrator(payload, { name: 'Test Narrator 2', gender: 'female' })
 
     const result = await payload.find({
       collection: 'narrators',
@@ -82,13 +66,10 @@ describe('Narrators Collection (Isolated)', () => {
   })
 
   it('updates a narrator', async () => {
-    const narrator = await payload.create({
-      collection: 'narrators',
-      data: {
-        name: 'Original Name',
-        gender: 'male',
-      },
-    }) as Narrator
+    const narrator = await testDataFactory.createNarrator(payload, {
+      name: 'Original Name',
+      gender: 'male',
+    })
 
     const updated = await payload.update({
       collection: 'narrators',
@@ -105,13 +86,10 @@ describe('Narrators Collection (Isolated)', () => {
   })
 
   it('finds narrator by slug', async () => {
-    const narrator = await payload.create({
-      collection: 'narrators',
-      data: {
-        name: 'Find By Slug',
-        gender: 'male',
-      },
-    }) as Narrator
+    const narrator = await testDataFactory.createNarrator(payload, {
+      name: 'Find By Slug',
+      gender: 'male',
+    })
 
     const result = await payload.find({
       collection: 'narrators',
@@ -128,10 +106,7 @@ describe('Narrators Collection (Isolated)', () => {
   })
 
   it('deletes a narrator', async () => {
-    const narrator = await payload.create({
-      collection: 'narrators',
-      data: testDataFactory.narrator({ name: 'To Delete' }),
-    }) as Narrator
+    const narrator = await testDataFactory.createNarrator(payload, { name: 'To Delete' })
 
     await payload.delete({
       collection: 'narrators',
@@ -151,24 +126,18 @@ describe('Narrators Collection (Isolated)', () => {
   })
 
   it('enforces unique slug constraint', async () => {
-    await payload.create({
-      collection: 'narrators',
-      data: {
-        name: 'Duplicate Test',
-        slug: 'duplicate-slug',
-        gender: 'male',
-      },
+    await testDataFactory.createNarrator(payload, {
+      name: 'Duplicate Test',
+      slug: 'duplicate-slug',
+      gender: 'male',
     })
 
     // Try to create another narrator with the same slug
     try {
-      await payload.create({
-        collection: 'narrators',
-        data: {
-          name: 'Another Name',
-          slug: 'duplicate-slug',
-          gender: 'female',
-        },
+      await testDataFactory.createNarrator(payload, {
+        name: 'Another Name',
+        slug: 'duplicate-slug',
+        gender: 'female',
       })
       // If we get here, the unique constraint didn't work
       expect.fail('Expected unique constraint violation, but creation succeeded')
@@ -181,10 +150,7 @@ describe('Narrators Collection (Isolated)', () => {
 
   it('demonstrates complete isolation - no data leakage', async () => {
     // Create some narrators in this test
-    const narrator = await payload.create({
-      collection: 'narrators',
-      data: testDataFactory.narrator({ name: 'Isolation Test Narrator' }),
-    }) as Narrator
+    const narrator = await testDataFactory.createNarrator(payload, { name: 'Isolation Test Narrator' })
 
     // Query all narrators
     const allNarrators = await payload.find({

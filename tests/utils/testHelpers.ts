@@ -4,6 +4,7 @@ import { MongoClient } from 'mongodb'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import type { Narrator, Media, Tag, Meditation, Music } from '@/payload-types'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -68,33 +69,30 @@ function readSampleFile(filename: string) {
 }
 
 /**
- * Test data factory functions for creating consistent test data
+ * Test data factory functions for creating test entities with payload.create()
  */
 export const testDataFactory = {
-  narrator: (overrides = {}) => ({
-    name: 'Test Narrator',
-    gender: 'male' as const,
-    ...overrides,
-  }),
+  /**
+   * Create a narrator
+   */
+  async createNarrator(payload: Payload, overrides = {}): Promise<Narrator> {
+    return await payload.create({
+      collection: 'narrators',
+      data: {
+        name: 'Test Narrator',
+        gender: 'male' as const,
+        ...overrides,
+      },
+    }) as Narrator
+  },
 
-  // Generic media factory (defaults to audio for backward compatibility)
-  media: (overrides = {}) => ({
-    data: {
-      alt: 'Test media file',
-      ...overrides,
-    },
-    file: {
-      data: Buffer.from('test audio content'),
-      mimetype: 'audio/mp3',
-      name: 'test-audio.mp3',
-      size: 1000,
-    },
-  }),
-
-  // Image media factory using sample file
-  mediaImage: (overrides = {}) => {
+  /**
+   * Create image media using sample file
+   */
+  async createMediaImage(payload: Payload, overrides = {}): Promise<Media> {
     const fileBuffer = readSampleFile('sample.jpg')
-    return {
+    return await payload.create({
+      collection: 'media',
       data: {
         alt: 'Test image file',
         ...overrides,
@@ -105,13 +103,16 @@ export const testDataFactory = {
         name: 'sample.jpg',
         size: fileBuffer.length,
       },
-    }
+    }) as Media
   },
 
-  // Audio media factory using sample file
-  mediaAudio: (overrides = {}) => {
+  /**
+   * Create audio media using sample file
+   */
+  async createMediaAudio(payload: Payload, overrides = {}): Promise<Media> {
     const fileBuffer = readSampleFile('audio.mp3')
-    return {
+    return await payload.create({
+      collection: 'media',
       data: {
         alt: 'Test audio file',
         ...overrides,
@@ -122,13 +123,16 @@ export const testDataFactory = {
         name: 'audio.mp3',
         size: fileBuffer.length,
       },
-    }
+    }) as Media
   },
 
-  // Video media factory using sample file
-  mediaVideo: (overrides = {}) => {
+  /**
+   * Create video media using sample file
+   */
+  async createMediaVideo(payload: Payload, overrides = {}): Promise<Media> {
     const fileBuffer = readSampleFile('video.mp4')
-    return {
+    return await payload.create({
+      collection: 'media',
       data: {
         alt: 'Test video file',
         ...overrides,
@@ -139,30 +143,49 @@ export const testDataFactory = {
         name: 'video.mp4',
         size: fileBuffer.length,
       },
-    }
+    }) as Media
   },
 
-  tag: (overrides = {}) => ({
-    title: 'Test Tag',
-    ...overrides,
-  }),
+  /**
+   * Create a tag
+   */
+  async createTag(payload: Payload, overrides = {}): Promise<Tag> {
+    return await payload.create({
+      collection: 'tags',
+      data: {
+        title: 'Test Tag',
+        ...overrides,
+      },
+    }) as Tag
+  },
 
-  meditation: (deps: { narrator: string; audioFile: string; thumbnail: string; tags?: string[]; musicTag?: string }, overrides = {}) => ({
-    title: 'Test Meditation',
-    duration: 15,
-    thumbnail: deps.thumbnail,
-    audioFile: deps.audioFile,
-    narrator: deps.narrator,
-    tags: deps.tags || [],
-    musicTag: deps.musicTag,
-    isPublished: false,
-    ...overrides,
-  }),
+  /**
+   * Create a meditation with required dependencies
+   */
+  async createMeditation(payload: Payload, deps: { narrator: string; audioFile: string; thumbnail: string; tags?: string[]; musicTag?: string }, overrides = {}): Promise<Meditation> {
+    return await payload.create({
+      collection: 'meditations',
+      data: {
+        title: 'Test Meditation',
+        duration: 15,
+        thumbnail: deps.thumbnail,
+        audioFile: deps.audioFile,
+        narrator: deps.narrator,
+        tags: deps.tags || [],
+        musicTag: deps.musicTag,
+        isPublished: false,
+        ...overrides,
+      },
+    }) as Meditation
+  },
 
-  // Music factory using sample audio file
-  music: (overrides = {}) => {
+  /**
+   * Create music track using sample audio file
+   */
+  async createMusic(payload: Payload, overrides = {}): Promise<Music> {
     const fileBuffer = readSampleFile('audio.mp3')
-    return {
+    return await payload.create({
+      collection: 'music',
       data: {
         title: 'Test Music Track',
         credit: 'Test Artist',
@@ -174,6 +197,28 @@ export const testDataFactory = {
         name: 'audio.mp3',
         size: fileBuffer.length,
       },
-    }
+    }) as Music
   },
+
+  /**
+   * Create music track with custom audio format
+   */
+  async createMusicWithFormat(payload: Payload, format: { mimetype: string; name: string }, overrides = {}): Promise<Music> {
+    const fileBuffer = readSampleFile('audio.mp3')
+    return await payload.create({
+      collection: 'music',
+      data: {
+        title: 'Test Music Track',
+        credit: 'Test Artist',
+        ...overrides,
+      },
+      file: {
+        data: fileBuffer,
+        mimetype: format.mimetype,
+        name: format.name,
+        size: fileBuffer.length,
+      },
+    }) as Music
+  },
+
 }

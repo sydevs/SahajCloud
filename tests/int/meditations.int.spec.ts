@@ -18,41 +18,13 @@ describe('Meditations Collection', () => {
     payload = testEnv.payload
     cleanup = testEnv.cleanup
 
-    // Create test narrator
-    testNarrator = await payload.create({
-      collection: 'narrators',
-      data: testDataFactory.narrator({ name: 'Test Narrator' }),
-    }) as Narrator
-
-    // Create test audio media for audioFile fields
-    testAudioMedia = await payload.create({
-      collection: 'media',
-      data: testDataFactory.mediaAudio({ alt: 'Test audio file' }).data,
-      file: testDataFactory.mediaAudio().file,
-    }) as Media
-
-    // Create test image media for thumbnail fields
-    testImageMedia = await payload.create({
-      collection: 'media',
-      data: testDataFactory.mediaImage({ alt: 'Test image file' }).data,
-      file: testDataFactory.mediaImage().file,
-    }) as Media
-
-    // Create test tags
-    testTag1 = await payload.create({
-      collection: 'tags',
-      data: testDataFactory.tag({ title: 'morning' }),
-    }) as Tag
-
-    testTag2 = await payload.create({
-      collection: 'tags',
-      data: testDataFactory.tag({ title: 'peaceful' }),
-    }) as Tag
-
-    testMusicTag = await payload.create({
-      collection: 'tags',
-      data: testDataFactory.tag({ title: 'ambient' }),
-    }) as Tag
+    // Create test dependencies
+    testNarrator = await testDataFactory.createNarrator(payload, { name: 'Test Narrator' })
+    testAudioMedia = await testDataFactory.createMediaAudio(payload, { alt: 'Test audio file' })
+    testImageMedia = await testDataFactory.createMediaImage(payload, { alt: 'Test image file' })
+    testTag1 = await testDataFactory.createTag(payload, { title: 'morning' })
+    testTag2 = await testDataFactory.createTag(payload, { title: 'peaceful' })
+    testMusicTag = await testDataFactory.createTag(payload, { title: 'ambient' })
   })
 
   afterAll(async () => {
@@ -60,19 +32,17 @@ describe('Meditations Collection', () => {
   })
 
   it('creates a meditation with auto-generated slug', async () => {
-    const meditation = await payload.create({
-      collection: 'meditations',
-      data: {
-        title: 'Morning Meditation',
-        duration: 15,
-        thumbnail: testImageMedia.id,
-        audioFile: testAudioMedia.id,
-        narrator: testNarrator.id,
-        tags: [testTag1.id, testTag2.id],
-        musicTag: testMusicTag.id,
-        isPublished: false,
-      },
-    }) as Meditation
+    const meditation = await testDataFactory.createMeditation(payload, {
+      narrator: testNarrator.id,
+      audioFile: testAudioMedia.id,
+      thumbnail: testImageMedia.id,
+      tags: [testTag1.id, testTag2.id],
+      musicTag: testMusicTag.id,
+    }, {
+      title: 'Morning Meditation',
+      duration: 15,
+      isPublished: false,
+    })
 
     expect(meditation).toBeDefined()
     expect(meditation.title).toBe('Morning Meditation')
@@ -92,32 +62,28 @@ describe('Meditations Collection', () => {
   })
 
   it('ignores custom slug on create', async () => {
-    const meditation = await payload.create({
-      collection: 'meditations',
-      data: {
-        title: 'Evening Meditation',
-        slug: 'custom-evening-slug', // This should be ignored
-        duration: 20,
-        thumbnail: testImageMedia.id,
-        audioFile: testAudioMedia.id,
-        narrator: testNarrator.id,
-      },
-    }) as Meditation
+    const meditation = await testDataFactory.createMeditation(payload, {
+      narrator: testNarrator.id,
+      audioFile: testAudioMedia.id,
+      thumbnail: testImageMedia.id,
+    }, {
+      title: 'Evening Meditation',
+      slug: 'custom-evening-slug', // This should be ignored
+      duration: 20,
+    })
 
     expect(meditation.slug).toBe('evening-meditation') // Auto-generated from title
   })
 
   it('handles special characters in slug generation', async () => {
-    const meditation = await payload.create({
-      collection: 'meditations',
-      data: {
-        title: 'Meditación: Relajación & Paz',
-        duration: 10,
-        thumbnail: testImageMedia.id,
-        audioFile: testAudioMedia.id,
-        narrator: testNarrator.id,
-      },
-    }) as Meditation
+    const meditation = await testDataFactory.createMeditation(payload, {
+      narrator: testNarrator.id,
+      audioFile: testAudioMedia.id,
+      thumbnail: testImageMedia.id,
+    }, {
+      title: 'Meditación: Relajación & Paz',
+      duration: 10,
+    })
 
     expect(meditation.slug).toBe('meditaci-n-relajaci-n-paz')
   })
@@ -151,40 +117,30 @@ describe('Meditations Collection', () => {
   })
 
   it('creates meditation with relationships', async () => {
-    const meditationData = testDataFactory.meditation(
-      {
-        narrator: testNarrator.id,
-        audioFile: testAudioMedia.id,
-        thumbnail: testImageMedia.id,
-        tags: [testTag1.id],
-        musicTag: testMusicTag.id,
-      },
-      {
-        title: 'Meditation with Relationships',
-        duration: 25,
-      }
-    )
-
-    const meditation = await payload.create({
-      collection: 'meditations',
-      data: meditationData,
-    }) as Meditation
+    const meditation = await testDataFactory.createMeditation(payload, {
+      narrator: testNarrator.id,
+      audioFile: testAudioMedia.id,
+      thumbnail: testImageMedia.id,
+      tags: [testTag1.id],
+      musicTag: testMusicTag.id,
+    }, {
+      title: 'Meditation with Relationships',
+      duration: 25,
+    })
 
     expect(meditation.title).toBe('Meditation with Relationships')
     expect(meditation.duration).toBe(25)
   })
 
   it('preserves slug on update', async () => {
-    const meditation = await payload.create({
-      collection: 'meditations',
-      data: {
-        title: 'Original Title',
-        duration: 15,
-        thumbnail: testImageMedia.id,
-        audioFile: testAudioMedia.id,
-        narrator: testNarrator.id,
-      },
-    }) as Meditation
+    const meditation = await testDataFactory.createMeditation(payload, {
+      narrator: testNarrator.id,
+      audioFile: testAudioMedia.id,
+      thumbnail: testImageMedia.id,
+    }, {
+      title: 'Original Title',
+      duration: 15,
+    })
 
     const originalSlug = meditation.slug
 
@@ -203,18 +159,16 @@ describe('Meditations Collection', () => {
 
   it('publishes meditation with date', async () => {
     const publishDate = new Date()
-    const meditation = await payload.create({
-      collection: 'meditations',
-      data: {
-        title: 'Published Meditation',
-        duration: 30,
-        thumbnail: testImageMedia.id,
-        audioFile: testAudioMedia.id,
-        narrator: testNarrator.id,
-        isPublished: true,
-        publishedDate: publishDate.toISOString(),
-      },
-    }) as Meditation
+    const meditation = await testDataFactory.createMeditation(payload, {
+      narrator: testNarrator.id,
+      audioFile: testAudioMedia.id,
+      thumbnail: testImageMedia.id,
+    }, {
+      title: 'Published Meditation',
+      duration: 30,
+      isPublished: true,
+      publishedDate: publishDate.toISOString(),
+    })
 
     expect(meditation.isPublished).toBe(true)
     expect(meditation.publishedDate).toBeDefined()
@@ -223,30 +177,26 @@ describe('Meditations Collection', () => {
   it('finds meditations with filters', async () => {
     // Create published meditation with unique title
     const publishedTitle = 'Filter Test Published Meditation'
-    const published = await payload.create({
-      collection: 'meditations',
-      data: {
-        title: publishedTitle,
-        duration: 20,
-        thumbnail: testImageMedia.id,
-        audioFile: testAudioMedia.id,
-        narrator: testNarrator.id,
-        isPublished: true,
-        publishedDate: new Date().toISOString(),
-      },
-    }) as Meditation
+    const published = await testDataFactory.createMeditation(payload, {
+      narrator: testNarrator.id,
+      audioFile: testAudioMedia.id,
+      thumbnail: testImageMedia.id,
+    }, {
+      title: publishedTitle,
+      duration: 20,
+      isPublished: true,
+      publishedDate: new Date().toISOString(),
+    })
 
     // Create unpublished meditation
-    await payload.create({
-      collection: 'meditations',
-      data: {
-        title: 'Filter Test Unpublished Meditation',
-        duration: 15,
-        thumbnail: testImageMedia.id,
-        audioFile: testAudioMedia.id,
-        narrator: testNarrator.id,
-        isPublished: false,
-      },
+    await testDataFactory.createMeditation(payload, {
+      narrator: testNarrator.id,
+      audioFile: testAudioMedia.id,
+      thumbnail: testImageMedia.id,
+    }, {
+      title: 'Filter Test Unpublished Meditation',
+      duration: 15,
+      isPublished: false,
     })
 
     // Find only published meditations with our specific title
@@ -274,16 +224,14 @@ describe('Meditations Collection', () => {
   })
 
   it('deletes a meditation', async () => {
-    const meditation = await payload.create({
-      collection: 'meditations',
-      data: {
-        title: 'To Delete',
-        duration: 10,
-        thumbnail: testImageMedia.id,
-        audioFile: testAudioMedia.id,
-        narrator: testNarrator.id,
-      },
-    }) as Meditation
+    const meditation = await testDataFactory.createMeditation(payload, {
+      narrator: testNarrator.id,
+      audioFile: testAudioMedia.id,
+      thumbnail: testImageMedia.id,
+    }, {
+      title: 'To Delete',
+      duration: 10,
+    })
 
     await payload.delete({
       collection: 'meditations',
@@ -320,18 +268,17 @@ describe('Meditations Collection', () => {
     // The validation code correctly accepts matching media types
   })
 
+
   it('demonstrates complete isolation - no data leakage', async () => {
     // Create a meditation in this test
-    const meditation = await payload.create({
-      collection: 'meditations',
-      data: {
-        title: 'Isolation Test Meditation',
-        duration: 15,
-        thumbnail: testImageMedia.id,
-        audioFile: testAudioMedia.id,
-        narrator: testNarrator.id,
-      },
-    }) as Meditation
+    const meditation = await testDataFactory.createMeditation(payload, {
+      narrator: testNarrator.id,
+      audioFile: testAudioMedia.id,
+      thumbnail: testImageMedia.id,
+    }, {
+      title: 'Isolation Test Meditation',
+      duration: 15,
+    })
 
     // Query all meditations
     const allMeditations = await payload.find({
