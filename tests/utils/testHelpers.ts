@@ -62,6 +62,7 @@ export const testDataFactory = {
     ...overrides,
   }),
 
+  // Generic media factory (defaults to audio for backward compatibility)
   media: (overrides = {}) => ({
     data: {
       alt: 'Test media file',
@@ -72,6 +73,48 @@ export const testDataFactory = {
       mimetype: 'audio/mp3',
       name: 'test-audio.mp3',
       size: 1000,
+    },
+  }),
+
+  // Image media factory
+  mediaImage: (overrides = {}) => ({
+    data: {
+      alt: 'Test image file',
+      ...overrides,
+    },
+    file: {
+      data: Buffer.from('fake image content'),
+      mimetype: 'image/jpeg',
+      name: 'test-image.jpg',
+      size: 2000,
+    },
+  }),
+
+  // Audio media factory
+  mediaAudio: (overrides = {}) => ({
+    data: {
+      alt: 'Test audio file',
+      ...overrides,
+    },
+    file: {
+      data: Buffer.from('fake audio content'),
+      mimetype: 'audio/mp3',
+      name: 'test-audio.mp3',
+      size: 1500,
+    },
+  }),
+
+  // Video media factory
+  mediaVideo: (overrides = {}) => ({
+    data: {
+      alt: 'Test video file',
+      ...overrides,
+    },
+    file: {
+      data: Buffer.from('fake video content'),
+      mimetype: 'video/mp4',
+      name: 'test-video.mp4',
+      size: 5000,
     },
   }),
 

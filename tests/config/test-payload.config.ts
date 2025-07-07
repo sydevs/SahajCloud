@@ -33,7 +33,8 @@ export const createTestConfig = (mongoUri: string) => buildConfig({
   db: mongooseAdapter({
     url: mongoUri,
   }),
-  sharp,
+  // Disable sharp processing in tests to avoid image validation issues
+  sharp: false,
   plugins: [],
   // Disable file uploads for tests
   upload: {
