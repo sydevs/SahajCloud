@@ -18,7 +18,7 @@ Follow these steps:
 
 6. Create a new branch for the issue
 7. Solve the issue in small manageable steps, according to your plan
-8. Commit your changes after each step.
+8. Commit your changes after each step. Run `pnpm run generate:types` before each commit.
 
 # TEST
 
@@ -31,6 +31,6 @@ Follow these steps:
 # DEPLOY
 
 14. Update CLAUDE.md to reflect changes to the architecture.
-14. Open a PR from this branch into master and request a review from Ardnived
+15. Open a PR from this branch into master and request a review from Ardnived. The PR should include "Closes #$ARGUMENTS" so that it closes this issue.
 
 Remember to use the GitHub CLI (`gh`) for all GitHub-related tasks.

@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, Validate } from 'payload'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
@@ -51,12 +51,48 @@ export const Meditations: CollectionConfig = {
       type: 'upload',
       relationTo: 'media',
       required: true,
+      validate: (async (value, { req }) => {
+        if (!value) return true // Required validation handles this
+        
+        try {
+          const media = await req.payload.findByID({
+            collection: 'media',
+            id: value,
+          })
+          
+          if (!media.mimeType || !media.mimeType.startsWith('image/')) {
+            return 'Thumbnail must be an image file'
+          }
+          
+          return true
+        } catch (_error) {
+          return 'Invalid media file'
+        }
+      }) as Validate,
     },
     {
       name: 'audioFile',
       type: 'upload',
       relationTo: 'media',
       required: true,
+      validate: (async (value, { req }) => {
+        if (!value) return true // Required validation handles this
+        
+        try {
+          const media = await req.payload.findByID({
+            collection: 'media',
+            id: value,
+          })
+          
+          if (!media.mimeType || !media.mimeType.startsWith('audio/')) {
+            return 'Audio file must be an audio file'
+          }
+          
+          return true
+        } catch (_error) {
+          return 'Invalid media file'
+        }
+      }) as Validate,
     },
     {
       name: 'narrator',
