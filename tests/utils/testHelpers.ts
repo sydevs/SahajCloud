@@ -1,6 +1,13 @@
 import { getPayload, Payload } from 'payload'
 import { createTestConfig } from '../config/test-payload.config'
 import { MongoClient } from 'mongodb'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 
 /**
  * Creates an isolated test database and Payload instance for a test suite
@@ -53,6 +60,14 @@ export async function createTestEnvironment(): Promise<{
 }
 
 /**
+ * Helper function to read sample files for tests
+ */
+function readSampleFile(filename: string) {
+  const filePath = path.join(SAMPLE_FILES_DIR, filename)
+  return fs.readFileSync(filePath)
+}
+
+/**
  * Test data factory functions for creating consistent test data
  */
 export const testDataFactory = {
@@ -76,47 +91,56 @@ export const testDataFactory = {
     },
   }),
 
-  // Image media factory
-  mediaImage: (overrides = {}) => ({
-    data: {
-      alt: 'Test image file',
-      ...overrides,
-    },
-    file: {
-      data: Buffer.from('fake image content'),
-      mimetype: 'image/jpeg',
-      name: 'test-image.jpg',
-      size: 2000,
-    },
-  }),
+  // Image media factory using sample file
+  mediaImage: (overrides = {}) => {
+    const fileBuffer = readSampleFile('sample.jpg')
+    return {
+      data: {
+        alt: 'Test image file',
+        ...overrides,
+      },
+      file: {
+        data: fileBuffer,
+        mimetype: 'image/jpeg',
+        name: 'sample.jpg',
+        size: fileBuffer.length,
+      },
+    }
+  },
 
-  // Audio media factory
-  mediaAudio: (overrides = {}) => ({
-    data: {
-      alt: 'Test audio file',
-      ...overrides,
-    },
-    file: {
-      data: Buffer.from('fake audio content'),
-      mimetype: 'audio/mp3',
-      name: 'test-audio.mp3',
-      size: 1500,
-    },
-  }),
+  // Audio media factory using sample file
+  mediaAudio: (overrides = {}) => {
+    const fileBuffer = readSampleFile('audio.mp3')
+    return {
+      data: {
+        alt: 'Test audio file',
+        ...overrides,
+      },
+      file: {
+        data: fileBuffer,
+        mimetype: 'audio/mp3',
+        name: 'audio.mp3',
+        size: fileBuffer.length,
+      },
+    }
+  },
 
-  // Video media factory
-  mediaVideo: (overrides = {}) => ({
-    data: {
-      alt: 'Test video file',
-      ...overrides,
-    },
-    file: {
-      data: Buffer.from('fake video content'),
-      mimetype: 'video/mp4',
-      name: 'test-video.mp4',
-      size: 5000,
-    },
-  }),
+  // Video media factory using sample file
+  mediaVideo: (overrides = {}) => {
+    const fileBuffer = readSampleFile('video.mp4')
+    return {
+      data: {
+        alt: 'Test video file',
+        ...overrides,
+      },
+      file: {
+        data: fileBuffer,
+        mimetype: 'video/mp4',
+        name: 'video.mp4',
+        size: fileBuffer.length,
+      },
+    }
+  },
 
   tag: (overrides = {}) => ({
     title: 'Test Tag',
@@ -134,4 +158,22 @@ export const testDataFactory = {
     isPublished: false,
     ...overrides,
   }),
+
+  // Music factory using sample audio file
+  music: (overrides = {}) => {
+    const fileBuffer = readSampleFile('audio.mp3')
+    return {
+      data: {
+        title: 'Test Music Track',
+        credit: 'Test Artist',
+        ...overrides,
+      },
+      file: {
+        data: fileBuffer,
+        mimetype: 'audio/mp3',
+        name: 'audio.mp3',
+        size: fileBuffer.length,
+      },
+    }
+  },
 }

@@ -11,6 +11,7 @@ import { Media } from '../../src/collections/Media'
 import { Narrators } from '../../src/collections/Narrators'
 import { Meditations } from '../../src/collections/Meditations'
 import { Tags } from '../../src/collections/Tags'
+import { Music } from '../../src/collections/Music'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -24,7 +25,7 @@ export const createTestConfig = (mongoUri: string) => buildConfig({
     // Disable admin UI for tests
     disable: true,
   },
-  collections: [Users, Media, Narrators, Meditations, Tags],
+  collections: [Users, Media, Narrators, Meditations, Tags, Music],
   editor: lexicalEditor(),
   secret: 'test-secret-key',
   typescript: {

@@ -14,7 +14,7 @@ export const Music: CollectionConfig = {
   },
   hooks: {
     beforeChange: [
-      ({ data, operation, originalDoc, req }) => {
+      ({ data, operation, originalDoc }) => {
         // Generate slug from title
         if (operation === 'create' && data.title) {
           data.slug = data.title

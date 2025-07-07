@@ -8,6 +8,7 @@ describe('Meditations Collection', () => {
   let cleanup: () => Promise<void>
   let testNarrator: Narrator
   let testAudioMedia: Media
+  let testImageMedia: Media
   let testTag1: Tag
   let testTag2: Tag
   let testMusicTag: Tag
@@ -28,6 +29,13 @@ describe('Meditations Collection', () => {
       collection: 'media',
       data: testDataFactory.mediaAudio({ alt: 'Test audio file' }).data,
       file: testDataFactory.mediaAudio().file,
+    }) as Media
+
+    // Create test image media for thumbnail fields
+    testImageMedia = await payload.create({
+      collection: 'media',
+      data: testDataFactory.mediaImage({ alt: 'Test image file' }).data,
+      file: testDataFactory.mediaImage().file,
     }) as Media
 
     // Create test tags
@@ -57,7 +65,7 @@ describe('Meditations Collection', () => {
       data: {
         title: 'Morning Meditation',
         duration: 15,
-        thumbnail: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
         audioFile: testAudioMedia.id,
         narrator: testNarrator.id,
         tags: [testTag1.id, testTag2.id],
@@ -90,7 +98,7 @@ describe('Meditations Collection', () => {
         title: 'Evening Meditation',
         slug: 'custom-evening-slug', // This should be ignored
         duration: 20,
-        thumbnail: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
         audioFile: testAudioMedia.id,
         narrator: testNarrator.id,
       },
@@ -105,7 +113,7 @@ describe('Meditations Collection', () => {
       data: {
         title: 'Meditación: Relajación & Paz',
         duration: 10,
-        thumbnail: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
         audioFile: testAudioMedia.id,
         narrator: testNarrator.id,
       },
@@ -134,7 +142,7 @@ describe('Meditations Collection', () => {
         data: {
           title: 'Invalid Duration',
           duration: 0,
-          thumbnail: testAudioMedia.id,
+          thumbnail: testImageMedia.id,
           audioFile: testAudioMedia.id,
           narrator: testNarrator.id,
         },
@@ -147,7 +155,7 @@ describe('Meditations Collection', () => {
       {
         narrator: testNarrator.id,
         audioFile: testAudioMedia.id,
-        thumbnail: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
         tags: [testTag1.id],
         musicTag: testMusicTag.id,
       },
@@ -172,7 +180,7 @@ describe('Meditations Collection', () => {
       data: {
         title: 'Original Title',
         duration: 15,
-        thumbnail: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
         audioFile: testAudioMedia.id,
         narrator: testNarrator.id,
       },
@@ -200,7 +208,7 @@ describe('Meditations Collection', () => {
       data: {
         title: 'Published Meditation',
         duration: 30,
-        thumbnail: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
         audioFile: testAudioMedia.id,
         narrator: testNarrator.id,
         isPublished: true,
@@ -220,7 +228,7 @@ describe('Meditations Collection', () => {
       data: {
         title: publishedTitle,
         duration: 20,
-        thumbnail: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
         audioFile: testAudioMedia.id,
         narrator: testNarrator.id,
         isPublished: true,
@@ -234,7 +242,7 @@ describe('Meditations Collection', () => {
       data: {
         title: 'Filter Test Unpublished Meditation',
         duration: 15,
-        thumbnail: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
         audioFile: testAudioMedia.id,
         narrator: testNarrator.id,
         isPublished: false,
@@ -271,7 +279,7 @@ describe('Meditations Collection', () => {
       data: {
         title: 'To Delete',
         duration: 10,
-        thumbnail: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
         audioFile: testAudioMedia.id,
         narrator: testNarrator.id,
       },
@@ -319,7 +327,7 @@ describe('Meditations Collection', () => {
       data: {
         title: 'Isolation Test Meditation',
         duration: 15,
-        thumbnail: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
         audioFile: testAudioMedia.id,
         narrator: testNarrator.id,
       },
