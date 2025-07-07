@@ -72,6 +72,7 @@ export interface Config {
     narrators: Narrator;
     meditations: Meditation;
     tags: Tag;
+    music: Music;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -79,6 +80,7 @@ export interface Config {
   collectionsJoins: {
     tags: {
       meditations: 'meditations';
+      music: 'music';
     };
   };
   collectionsSelect: {
@@ -87,6 +89,7 @@ export interface Config {
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
     tags: TagsSelect<false> | TagsSelect<true>;
+    music: MusicSelect<false> | MusicSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -215,8 +218,43 @@ export interface Tag {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  music?: {
+    docs?: (string | Music)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "music".
+ */
+export interface Music {
+  id: string;
+  title: string;
+  slug?: string | null;
+  /**
+   * Duration in minutes (auto-populated)
+   */
+  duration?: number | null;
+  tags?: (string | Tag)[] | null;
+  /**
+   * Attribution or credit information
+   */
+  credit?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+  sizes?: {};
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -244,6 +282,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'tags';
         value: string | Tag;
+      } | null)
+    | ({
+        relationTo: 'music';
+        value: string | Music;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -363,8 +405,32 @@ export interface MeditationsSelect<T extends boolean = true> {
 export interface TagsSelect<T extends boolean = true> {
   title?: T;
   meditations?: T;
+  music?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "music_select".
+ */
+export interface MusicSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  duration?: T;
+  tags?: T;
+  credit?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+  sizes?: T | {};
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

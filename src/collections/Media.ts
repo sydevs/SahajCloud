@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { getStorageConfig } from '@/lib/storage'
 
 export const Media: CollectionConfig = {
   slug: 'media',
@@ -12,5 +13,5 @@ export const Media: CollectionConfig = {
       required: true,
     },
   ],
-  upload: true,
+  upload: getStorageConfig(),
 }

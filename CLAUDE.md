@@ -46,8 +46,10 @@ If necessary, you should also run `pnpm run generate:types`
 ### Collections
 - **Users** (`src/collections/Users.ts`) - Authentication-enabled admin users with email/password
 - **Media** (`src/collections/Media.ts`) - File uploads with required alt text for accessibility
-
-All
+- **Narrators** (`src/collections/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
+- **Meditations** (`src/collections/Meditations.ts`) - Guided meditation content with audio files, tags, and metadata
+- **Tags** (`src/collections/Tags.ts`) - Categorization system for meditations and music with bidirectional relationships
+- **Music** (`src/collections/Music.ts`) - Background music tracks with direct audio upload, tags, and metadata
 
 ### Key Configuration Files
 - `src/payload.config.ts` - Main Payload CMS configuration with collections, database, and plugins
