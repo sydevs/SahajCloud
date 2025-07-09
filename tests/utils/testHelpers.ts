@@ -29,10 +29,6 @@ export async function createTestEnvironment(): Promise<{
   const mongoUri = `${baseUri}${testDbName}?retryWrites=true&w=majority`
 
   console.log(`🧪 Creating test environment with database: ${testDbName}`)
-  
-  // Ensure local storage is enabled for tests
-  const originalNodeEnv = process.env.NODE_ENV
-  process.env.NODE_ENV = 'development'
 
   const config = payloadConfig({
     db: mongooseAdapter({
@@ -64,9 +60,6 @@ export async function createTestEnvironment(): Promise<{
     } finally {
       await client.close()
     }
-    
-    // Restore original NODE_ENV
-    process.env.NODE_ENV = originalNodeEnv
   }
 
   return { payload, cleanup }
