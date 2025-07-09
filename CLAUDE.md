@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Overall instructions
+- Always ask me before editing, creating, or closing a GitHub issue or PR
+
 ## Project Overview
 
 This is a **Next.js 15** application integrated with **Payload CMS 3.0**, providing a headless content management system. The project uses TypeScript, MongoDB, and is configured for both development and production deployment.
@@ -50,6 +53,7 @@ If necessary, you should also run `pnpm run generate:types`
 - **Meditations** (`src/collections/Meditations.ts`) - Guided meditation content with audio files, tags, and metadata
 - **Tags** (`src/collections/Tags.ts`) - Categorization system for meditations and music with bidirectional relationships
 - **Music** (`src/collections/Music.ts`) - Background music tracks with direct audio upload, tags, and metadata
+- **Frames** (`src/collections/Frames.ts`) - Meditation pose files with mixed media upload (images/videos), tags filtering, and imageSet selection
 
 ### Key Configuration Files
 - `src/payload.config.ts` - Main Payload CMS configuration with collections, database, and plugins

@@ -1,10 +1,11 @@
 import { getPayload, Payload } from 'payload'
-import { createTestConfig } from '../config/test-payload.config'
+import payloadConfig from '../../src/payload.config'
+import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { MongoClient } from 'mongodb'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import type { Narrator, Media, Tag, Meditation, Music } from '@/payload-types'
+import type { Narrator, Media, Tag, Meditation, Music, Frame } from '@/payload-types'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -28,8 +29,16 @@ export async function createTestEnvironment(): Promise<{
   const mongoUri = `${baseUri}${testDbName}?retryWrites=true&w=majority`
 
   console.log(`🧪 Creating test environment with database: ${testDbName}`)
+  
+  // Ensure local storage is enabled for tests
+  const originalNodeEnv = process.env.NODE_ENV
+  process.env.NODE_ENV = 'development'
 
-  const config = createTestConfig(mongoUri)
+  const config = payloadConfig({
+    db: mongooseAdapter({
+      url: mongoUri,
+    }),
+  })
   const payload = await getPayload({ config })
 
   const cleanup = async () => {
@@ -55,17 +64,12 @@ export async function createTestEnvironment(): Promise<{
     } finally {
       await client.close()
     }
+    
+    // Restore original NODE_ENV
+    process.env.NODE_ENV = originalNodeEnv
   }
 
   return { payload, cleanup }
-}
-
-/**
- * Helper function to read sample files for tests
- */
-function readSampleFile(filename: string) {
-  const filePath = path.join(SAMPLE_FILES_DIR, filename)
-  return fs.readFileSync(filePath)
 }
 
 /**
@@ -89,8 +93,10 @@ export const testDataFactory = {
   /**
    * Create image media using sample file
    */
-  async createMediaImage(payload: Payload, overrides = {}): Promise<Media> {
-    const fileBuffer = readSampleFile('sample.jpg')
+  async createMediaImage(payload: Payload, overrides = {}, sampleFile = 'image-1050x700.jpg'): Promise<Media> {
+    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
+    const fileBuffer = fs.readFileSync(filePath)
+    
     return await payload.create({
       collection: 'media',
       data: {
@@ -99,18 +105,20 @@ export const testDataFactory = {
       },
       file: {
         data: fileBuffer,
-        mimetype: 'image/jpeg',
-        name: 'sample.jpg',
+        mimetype: `image/${path.extname(sampleFile).slice(1)}`,
+        name: sampleFile,
         size: fileBuffer.length,
-      },
+      }
     }) as Media
   },
 
   /**
    * Create audio media using sample file
    */
-  async createMediaAudio(payload: Payload, overrides = {}): Promise<Media> {
-    const fileBuffer = readSampleFile('audio.mp3')
+  async createMediaAudio(payload: Payload, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<Media> {
+    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
+    const fileBuffer = fs.readFileSync(filePath)
+    
     return await payload.create({
       collection: 'media',
       data: {
@@ -119,18 +127,20 @@ export const testDataFactory = {
       },
       file: {
         data: fileBuffer,
-        mimetype: 'audio/mp3',
-        name: 'audio.mp3',
+        mimetype: path.extname(sampleFile).slice(1) === 'mp3' ? 'audio/mpeg' : `audio/${path.extname(sampleFile).slice(1)}`,
+        name: sampleFile,
         size: fileBuffer.length,
-      },
+      }
     }) as Media
   },
 
   /**
    * Create video media using sample file
    */
-  async createMediaVideo(payload: Payload, overrides = {}): Promise<Media> {
-    const fileBuffer = readSampleFile('video.mp4')
+  async createMediaVideo(payload: Payload, overrides = {}, sampleFile = 'video-30s.mp4'): Promise<Media> {
+    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
+    const fileBuffer = fs.readFileSync(filePath)
+    
     return await payload.create({
       collection: 'media',
       data: {
@@ -139,10 +149,10 @@ export const testDataFactory = {
       },
       file: {
         data: fileBuffer,
-        mimetype: 'video/mp4',
-        name: 'video.mp4',
+        mimetype: `video/${path.extname(sampleFile).slice(1)}`,
+        name: sampleFile,
         size: fileBuffer.length,
-      },
+      }
     }) as Media
   },
 
@@ -182,8 +192,10 @@ export const testDataFactory = {
   /**
    * Create music track using sample audio file
    */
-  async createMusic(payload: Payload, overrides = {}): Promise<Music> {
-    const fileBuffer = readSampleFile('audio.mp3')
+  async createMusic(payload: Payload, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<Music> {
+    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
+    const fileBuffer = fs.readFileSync(filePath)
+    
     return await payload.create({
       collection: 'music',
       data: {
@@ -193,32 +205,55 @@ export const testDataFactory = {
       },
       file: {
         data: fileBuffer,
-        mimetype: 'audio/mp3',
-        name: 'audio.mp3',
+        mimetype: path.extname(sampleFile).slice(1) === 'mp3' ? 'audio/mpeg' : `audio/${path.extname(sampleFile).slice(1)}`,
+        name: sampleFile,
         size: fileBuffer.length,
-      },
+      }
     }) as Music
   },
 
   /**
-   * Create music track with custom audio format
+   * Create frame with image file
    */
-  async createMusicWithFormat(payload: Payload, format: { mimetype: string; name: string }, overrides = {}): Promise<Music> {
-    const fileBuffer = readSampleFile('audio.mp3')
+  async createFrame(payload: Payload, overrides = {}, sampleFile = 'image-1050x700.jpg'): Promise<Frame> {
+    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
+    const fileBuffer = fs.readFileSync(filePath)
+    
+    // Get correct mimetype based on file extension
+    const extension = path.extname(sampleFile).slice(1).toLowerCase()
+    let mimetype: string
+    if (['jpg', 'jpeg'].includes(extension)) {
+      mimetype = 'image/jpeg'
+    } else if (extension === 'png') {
+      mimetype = 'image/png'
+    } else if (extension === 'webp') {
+      mimetype = 'image/webp'
+    } else if (extension === 'gif') {
+      mimetype = 'image/gif'
+    } else if (extension === 'mp4') {
+      mimetype = 'video/mp4'
+    } else if (extension === 'webm') {
+      mimetype = 'video/webm'
+    } else if (extension === 'mov') {
+      mimetype = 'video/quicktime'
+    } else {
+      mimetype = `image/${extension}`
+    }
+    
     return await payload.create({
-      collection: 'music',
+      collection: 'frames',
       data: {
-        title: 'Test Music Track',
-        credit: 'Test Artist',
+        name: 'Test Frame Image',
+        imageSet: 'male' as const,
         ...overrides,
       },
       file: {
         data: fileBuffer,
-        mimetype: format.mimetype,
-        name: format.name,
+        mimetype: mimetype,
+        name: sampleFile,
         size: fileBuffer.length,
-      },
-    }) as Music
+      }
+    }) as Frame
   },
-
+  
 }

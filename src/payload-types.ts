@@ -73,6 +73,7 @@ export interface Config {
     meditations: Meditation;
     tags: Tag;
     music: Music;
+    frames: Frame;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -90,6 +91,7 @@ export interface Config {
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
     tags: TagsSelect<false> | TagsSelect<true>;
     music: MusicSelect<false> | MusicSelect<true>;
+    frames: FramesSelect<false> | FramesSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -258,6 +260,47 @@ export interface Music {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "frames".
+ */
+export interface Frame {
+  id: string;
+  name: string;
+  slug?: string | null;
+  /**
+   * Whether this frame is for male or female meditation poses
+   */
+  imageSet: 'male' | 'female';
+  tags?: (string | Tag)[] | null;
+  /**
+   * Auto-populated dimensions for images (width/height)
+   */
+  dimensions?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Auto-populated duration for videos (in seconds)
+   */
+  duration?: number | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -286,6 +329,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'music';
         value: string | Music;
+      } | null)
+    | ({
+        relationTo: 'frames';
+        value: string | Frame;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -431,6 +478,29 @@ export interface MusicSelect<T extends boolean = true> {
   focalX?: T;
   focalY?: T;
   sizes?: T | {};
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "frames_select".
+ */
+export interface FramesSelect<T extends boolean = true> {
+  name?: T;
+  slug?: T;
+  imageSet?: T;
+  tags?: T;
+  dimensions?: T;
+  duration?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

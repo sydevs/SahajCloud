@@ -5,7 +5,7 @@ export const Music: CollectionConfig = {
   slug: 'music',
   upload: {
     staticDir: 'media/music',
-    mimeTypes: ['audio/*'],
+    mimeTypes: ['audio/mpeg'],
     imageSizes: [], // Disable image processing for audio files
     ...getStorageConfig(), // Apply production-aware storage configuration
   },

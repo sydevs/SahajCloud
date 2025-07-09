@@ -14,5 +14,10 @@ export default defineConfig({
     maxConcurrency: 1,
     // Increase timeout for database operations
     testTimeout: 30000,
+    // Set NODE_ENV=test for conditional config logic
+    env: {
+      NODE_ENV: 'test',
+      PAYLOAD_SECRET: 'test-secret-key',
+    },
   },
 })
