@@ -41,7 +41,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { User, Payload } from '@/payload-types'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-describe('My Collection (Isolated)', () => {
+describe('My Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 

@@ -47,7 +47,7 @@ If necessary, you should also run `pnpm run generate:types`
 - `src/app/(payload)/api/` - Auto-generated API endpoints including GraphQL
 
 ### Collections
-- **Users** (`src/collections/Users.ts`) - Authentication-enabled admin users with email/password
+- **Users** (`src/collections/Users.ts`) - Authentication-enabled admin users with email/password authentication using default Payload email templates
 - **Media** (`src/collections/Media.ts`) - File uploads with required alt text for accessibility
 - **Narrators** (`src/collections/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
 - **Meditations** (`src/collections/Meditations.ts`) - Guided meditation content with audio files, tags, and metadata
@@ -56,13 +56,47 @@ If necessary, you should also run `pnpm run generate:types`
 - **Frames** (`src/collections/Frames.ts`) - Meditation pose files with mixed media upload (images/videos), tags filtering, and imageSet selection
 
 ### Key Configuration Files
-- `src/payload.config.ts` - Main Payload CMS configuration with collections, database, and plugins
+- `src/payload.config.ts` - Main Payload CMS configuration with collections, database, email, and plugins
 - `next.config.mjs` - Next.js configuration with Payload integration
 - `src/payload-types.ts` - Auto-generated TypeScript types (do not edit manually)
 - `tsconfig.json` - TypeScript configuration with path aliases
 - `eslint.config.mjs` - ESLint configuration for code quality
 - `vitest.config.mts` - Vitest configuration for integration tests
 - `playwright.config.ts` - Playwright configuration for E2E tests
+
+### Email Configuration
+
+The application includes environment-specific email configuration using `@payloadcms/email-nodemailer`:
+
+#### Development Environment
+- **Provider**: Ethereal Email (automatic test email service)
+- **Features**: Captures all outbound emails for testing
+- **Configuration**: No setup required - automatically configured when no transport options are provided
+- **Testing**: Access mock emails at https://ethereal.email using generated credentials
+
+#### Production Environment
+- **Provider**: Gmail SMTP
+- **Configuration**: Requires environment variables for Gmail authentication
+- **Email Address**: contact@sydevelopers.com
+
+#### Test Environment
+- **Provider**: Disabled (email configuration is disabled in test environment to prevent model conflicts)
+- **Testing**: Email logic is tested separately without full Payload initialization
+
+#### Environment Variables
+```env
+# Production Gmail SMTP
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=contact@sydevelopers.com
+SMTP_PASS=your-gmail-app-password-here
+SMTP_FROM=contact@sydevelopers.com
+```
+
+#### Authentication Features
+- **Email Verification**: Uses Payload's default email verification flow
+- **Password Reset**: Uses Payload's default password reset functionality
+- **Automatic Emails**: Sent for user registration and password reset requests using default templates
 
 ### Sentry Integration Files
 - `src/instrumentation.ts` - Server-side Sentry instrumentation
@@ -112,7 +146,7 @@ import type { User } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-describe('My Collection (Isolated)', () => {
+describe('My Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
@@ -163,7 +197,7 @@ src/
 └── payload-types.ts        # Auto-generated types
 
 tests/
-├── int/                    # Integration tests (isolated)
+├── int/                    # Integration tests
 ├── e2e/                    # End-to-end tests
 ├── config/                 # Test configurations
 ├── setup/                  # Test environment setup

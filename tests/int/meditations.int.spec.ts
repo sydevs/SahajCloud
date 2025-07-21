@@ -1,7 +1,8 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Meditation, Narrator, Media, Tag } from '@/payload-types'
 import type { Payload } from 'payload'
-import { createTestEnvironment, testDataFactory } from '../utils/testHelpers'
+import { createTestEnvironment } from '../utils/testHelpers'
+import { testDataFactory } from '../utils/testDataFactory'
 
 describe('Meditations Collection', () => {
   let payload: Payload

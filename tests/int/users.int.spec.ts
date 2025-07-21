@@ -3,7 +3,7 @@ import type { User } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-describe('Users Collection (Isolated)', () => {
+describe('Users Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
