@@ -50,10 +50,11 @@ If necessary, you should also run `pnpm run generate:types`
 - **Users** (`src/collections/Users.ts`) - Authentication-enabled admin users with email/password authentication using default Payload email templates
 - **Media** (`src/collections/Media.ts`) - File uploads with required alt text for accessibility
 - **Narrators** (`src/collections/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
-- **Meditations** (`src/collections/Meditations.ts`) - Guided meditation content with audio files, tags, and metadata
+- **Meditations** (`src/collections/Meditations.ts`) - Guided meditation content with audio files, tags, metadata, and frame relationships with timestamps
 - **Tags** (`src/collections/Tags.ts`) - Categorization system for meditations and music with bidirectional relationships
 - **Music** (`src/collections/Music.ts`) - Background music tracks with direct audio upload, tags, and metadata
 - **Frames** (`src/collections/Frames.ts`) - Meditation pose files with mixed media upload (images/videos), tags filtering, and imageSet selection
+- **MeditationFrames** (`src/collections/MeditationFrames.ts`) - Join table for meditation-frame relationships with timestamps (hidden from admin UI)
 
 ### Key Configuration Files
 - `src/payload.config.ts` - Main Payload CMS configuration with collections, database, email, and plugins
@@ -104,6 +105,42 @@ SMTP_FROM=contact@sydevelopers.com
 - `src/sentry.server.config.ts` - Sentry server configuration
 - `src/sentry.edge.config.ts` - Sentry edge runtime configuration
 - `src/app/global-error.tsx` - Global error boundary with Sentry integration
+
+### Meditation-Frame Relationships Architecture
+
+The system implements a dual-approach for managing meditation-frame relationships with timestamps:
+
+#### Collections Structure
+- **MeditationFrames Collection**: Hidden join table that stores the actual relationships
+  - `meditation`: Required relationship to meditations collection
+  - `frame`: Required relationship to frames collection  
+  - `timestamp`: Required number field (seconds) with uniqueness validation per meditation
+  - Hidden from admin panel navigation (`admin.hidden: true`)
+  - Includes field-level indexes for efficient querying
+
+- **Meditations Collection**: Includes `frames` array field for admin interface management
+  - Each frame entry contains: `frame` (relationship) and `timestamp` (number)
+  - Automatically sorts frames by timestamp using `beforeChange` hook
+  - Syncs with MeditationFrames collection via `afterChange` and `afterDelete` hooks
+
+#### Data Flow
+1. **Create/Update**: When a meditation is saved with frame relationships:
+   - Meditation frames array is sorted by timestamp
+   - Existing MeditationFrames records are deleted
+   - New MeditationFrames records are created from the frames array
+
+2. **Delete**: When a meditation is deleted:
+   - All associated MeditationFrames records are automatically cleaned up
+
+3. **Validation**: Timestamp uniqueness is enforced per meditation:
+   - Custom validation in MeditationFrames collection prevents duplicate timestamps
+   - Clear error messages guide users to resolve conflicts
+
+#### Benefits
+- **Admin UX**: Frames are managed directly within meditation interface
+- **Data Integrity**: Separate join table ensures referential integrity
+- **Performance**: Indexed relationships enable efficient queries
+- **Flexibility**: Both collections can be queried independently as needed
 
 ### Component Architecture
 - `src/components/AdminProvider.tsx` - Payload admin UI provider component

@@ -21,6 +21,71 @@ export const Meditations: CollectionConfig = {
         return data
       },
     ],
+    afterChange: [
+      async ({ doc, req }) => {
+        // Sync frame relationships with MeditationFrames collection
+        if (doc.frames && Array.isArray(doc.frames)) {
+          try {
+            // Delete existing frame relationships for this meditation
+            await req.payload.delete({
+              collection: 'meditationFrames',
+              where: {
+                meditation: {
+                  equals: doc.id,
+                },
+              },
+            })
+
+            // Create new frame relationships
+            for (const frameData of doc.frames) {
+              if (frameData.frame && typeof frameData.timestamp === 'number') {
+                await req.payload.create({
+                  collection: 'meditationFrames',
+                  data: {
+                    meditation: doc.id,
+                    frame: frameData.frame,
+                    timestamp: frameData.timestamp,
+                  },
+                })
+              }
+            }
+          } catch (error) {
+            req.payload.logger.error({
+              msg: 'Failed to sync meditation frame relationships',
+              err: error,
+              meditationId: doc.id,
+              meditationTitle: doc.title,
+              framesCount: doc.frames.length,
+            })
+            // Re-throw to prevent silent failures
+            throw error
+          }
+        }
+      },
+    ],
+    afterDelete: [
+      async ({ doc, req }) => {
+        try {
+          await req.payload.delete({
+            collection: 'meditationFrames',
+            where: {
+              meditation: {
+                equals: doc.id,
+              },
+            },
+          })
+        } catch (error) {
+          req.payload.logger.error({
+            msg: 'Failed to cleanup meditation frame relationships on deletion',
+            err: error,
+            meditationId: doc.id,
+            meditationTitle: doc.title,
+          })
+          // Re-throw to prevent silent failures
+          throw error
+        }
+      },
+    ],
   },
   fields: [
     {
@@ -130,6 +195,40 @@ export const Meditations: CollectionConfig = {
         date: {
           pickerAppearance: 'dayOnly',
         },
+      },
+    },
+    {
+      name: 'frames',
+      type: 'array',
+      admin: {
+        description: 'Frames associated with this meditation, ordered by timestamp',
+      },
+      fields: [
+        {
+          name: 'frame',
+          type: 'relationship',
+          relationTo: 'frames',
+          required: true,
+        },
+        {
+          name: 'timestamp',
+          type: 'number',
+          min: 0,
+          required: true,
+          admin: {
+            description: 'Time in seconds when this frame should appear',
+          },
+        },
+      ],
+      hooks: {
+        beforeChange: [
+          ({ value }) => {
+            if (!value || !Array.isArray(value)) return value
+            
+            // Sort frames by timestamp for consistent ordering
+            return [...value].sort((a, b) => a.timestamp - b.timestamp)
+          },
+        ],
       },
     },
   ],

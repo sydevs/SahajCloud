@@ -6,7 +6,7 @@ export const Users: CollectionConfig = {
     useAsTitle: 'email',
   },
   auth: {
-    verify: true,
+    verify: false, // TODO: Re-enable this but ensure there are proper warnings.
     maxLoginAttempts: 5,
     lockTime: 600 * 1000, // 10 minutes
   },

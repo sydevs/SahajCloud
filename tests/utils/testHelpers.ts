@@ -159,17 +159,15 @@ export async function createTestEnvironmentWithEmail(): Promise<{
   
   // Enhance the email adapter function to expose the adapter instance for testing
   const originalFn = emailAdapterFn
-  const enhancedFn = (args?: any) => {
-    const result = originalFn(args)
+  const enhancedFn = () => {
+    const result = originalFn()
     result.adapter = emailAdapter
     return result
   }
 
   // Create config with email adapter
   const config = createBaseTestConfig(mongoUri, enhancedFn)
-
   const payload = await getPayload({ config })
-
   const cleanup = () => cleanupTestEnvironment(payload, baseUri, testDbName)
 
   return { payload, cleanup, emailAdapter }

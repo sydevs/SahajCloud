@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import type { Narrator, Media, Tag, Meditation, Music, Frame, User } from '@/payload-types'
+import type { Narrator, Media, Tag, Meditation, Music, Frame, User, MeditationFrame } from '@/payload-types'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -33,6 +33,9 @@ export const testDataFactory = {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
     
+    // Convert Buffer to Uint8Array for file-type compatibility
+    const uint8Array = new Uint8Array(fileBuffer)
+    
     return await payload.create({
       collection: 'media',
       data: {
@@ -40,10 +43,10 @@ export const testDataFactory = {
         ...overrides,
       },
       file: {
-        data: fileBuffer,
+        data: uint8Array as any, // Type assertion for Payload compatibility
         mimetype: `image/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
-        size: fileBuffer.length,
+        size: uint8Array.length,
       }
     }) as Media
   },
@@ -55,6 +58,9 @@ export const testDataFactory = {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
     
+    // Convert Buffer to Uint8Array for file-type compatibility
+    const uint8Array = new Uint8Array(fileBuffer)
+    
     return await payload.create({
       collection: 'media',
       data: {
@@ -62,10 +68,10 @@ export const testDataFactory = {
         ...overrides,
       },
       file: {
-        data: fileBuffer,
+        data: uint8Array as any, // Type assertion for Payload compatibility
         mimetype: path.extname(sampleFile).slice(1) === 'mp3' ? 'audio/mpeg' : `audio/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
-        size: fileBuffer.length,
+        size: uint8Array.length,
       }
     }) as Media
   },
@@ -77,6 +83,9 @@ export const testDataFactory = {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
     
+    // Convert Buffer to Uint8Array for file-type compatibility
+    const uint8Array = new Uint8Array(fileBuffer)
+    
     return await payload.create({
       collection: 'media',
       data: {
@@ -84,10 +93,10 @@ export const testDataFactory = {
         ...overrides,
       },
       file: {
-        data: fileBuffer,
+        data: uint8Array as any, // Type assertion for Payload compatibility
         mimetype: `video/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
-        size: fileBuffer.length,
+        size: uint8Array.length,
       }
     }) as Media
   },
@@ -132,6 +141,9 @@ export const testDataFactory = {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
     
+    // Convert Buffer to Uint8Array for file-type compatibility
+    const uint8Array = new Uint8Array(fileBuffer)
+    
     return await payload.create({
       collection: 'music',
       data: {
@@ -140,10 +152,10 @@ export const testDataFactory = {
         ...overrides,
       },
       file: {
-        data: fileBuffer,
+        data: uint8Array as any, // Type assertion for Payload compatibility
         mimetype: path.extname(sampleFile).slice(1) === 'mp3' ? 'audio/mpeg' : `audio/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
-        size: fileBuffer.length,
+        size: uint8Array.length,
       }
     }) as Music
   },
@@ -154,6 +166,9 @@ export const testDataFactory = {
   async createFrame(payload: Payload, overrides = {}, sampleFile = 'image-1050x700.jpg'): Promise<Frame> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
+    
+    // Convert Buffer to Uint8Array for file-type compatibility
+    const uint8Array = new Uint8Array(fileBuffer)
     
     // Get correct mimetype based on file extension
     const extension = path.extname(sampleFile).slice(1).toLowerCase()
@@ -184,10 +199,10 @@ export const testDataFactory = {
         ...overrides,
       },
       file: {
-        data: fileBuffer,
+        data: uint8Array as any, // Type assertion for Payload compatibility
         mimetype: mimetype,
         name: sampleFile,
-        size: fileBuffer.length,
+        size: uint8Array.length,
       }
     }) as Frame
   },
@@ -204,5 +219,20 @@ export const testDataFactory = {
         ...overrides,
       },
     }) as User
+  },
+
+  /**
+   * Create a meditation frame relationship
+   */
+  async createMeditationFrame(payload: Payload, deps: { meditation: string; frame: string }, overrides = {}): Promise<MeditationFrame> {
+    return await payload.create({
+      collection: 'meditationFrames',
+      data: {
+        meditation: deps.meditation,
+        frame: deps.frame,
+        timestamp: 10.5, // Default timestamp of 10.5 seconds
+        ...overrides,
+      },
+    }) as MeditationFrame
   },
 }

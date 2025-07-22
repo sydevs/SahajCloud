@@ -10,7 +10,7 @@ Follow these steps:
 4. Understand the prior art for this issue
    - Search the scratchpads for previous thoughts related to the issue
    - Search PRs to find history related to the issue
-   - Search the codebase for related issues
+   - Search the codebase for related patterns and use similar solutions when planning
    - Search the (Payload CMS documentation)[https://payloadcms.com/docs/] for information that could help implement this feature
 5. Think harder about how to break the issue down into a series of small, manageable tasks
 6. Ask me for clarification on any questions you might have.

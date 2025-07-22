@@ -1,5 +1,5 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Meditation, Narrator, Media, Tag } from '@/payload-types'
+import type { Meditation, Narrator, Media, Tag, Frame } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
 import { testDataFactory } from '../utils/testDataFactory'
@@ -13,6 +13,8 @@ describe('Meditations Collection', () => {
   let testTag1: Tag
   let testTag2: Tag
   let testMusicTag: Tag
+  let testFrame1: Frame
+  let testFrame2: Frame
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
@@ -26,6 +28,8 @@ describe('Meditations Collection', () => {
     testTag1 = await testDataFactory.createTag(payload, { title: 'morning' })
     testTag2 = await testDataFactory.createTag(payload, { title: 'peaceful' })
     testMusicTag = await testDataFactory.createTag(payload, { title: 'ambient' })
+    testFrame1 = await testDataFactory.createFrame(payload, { name: 'Test Frame 1' })
+    testFrame2 = await testDataFactory.createFrame(payload, { name: 'Test Frame 2' })
   })
 
   afterAll(async () => {
@@ -293,5 +297,301 @@ describe('Meditations Collection', () => {
     const isolationTestMeditations = allMeditations.docs.filter(m => m.title === 'Isolation Test Meditation')
     expect(isolationTestMeditations).toHaveLength(1)
     expect(isolationTestMeditations[0].id).toBe(meditation.id)
+  })
+
+  describe('Meditation-Frame Relationships', () => {
+    it('creates meditation with frame relationships', async () => {
+      const meditation = await testDataFactory.createMeditation(payload, {
+        narrator: testNarrator.id,
+        audioFile: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
+      }, {
+        title: 'Meditation with Frames',
+        duration: 30,
+        frames: [
+          {
+            frame: testFrame1.id,
+            timestamp: 5.0,
+          },
+          {
+            frame: testFrame2.id,
+            timestamp: 15.0,
+          },
+        ],
+      })
+
+      expect(meditation.frames).toBeDefined()
+      expect(meditation.frames).toHaveLength(2)
+      
+      // Check that frames are sorted by timestamp
+      expect(meditation.frames?.[0]?.timestamp).toBe(5.0)
+      expect(meditation.frames?.[1]?.timestamp).toBe(15.0)
+      
+      const frame1Id = typeof meditation.frames?.[0]?.frame === 'object' ? meditation.frames[0].frame.id : meditation.frames?.[0]?.frame
+      const frame2Id = typeof meditation.frames?.[1]?.frame === 'object' ? meditation.frames[1].frame.id : meditation.frames?.[1]?.frame
+      
+      expect(frame1Id).toBe(testFrame1.id)
+      expect(frame2Id).toBe(testFrame2.id)
+    })
+
+    it('automatically sorts frames by timestamp', async () => {
+      // Create frames out of chronological order
+      const meditation = await testDataFactory.createMeditation(payload, {
+        narrator: testNarrator.id,
+        audioFile: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
+      }, {
+        title: 'Meditation with Unsorted Frames',
+        duration: 30,
+        frames: [
+          {
+            frame: testFrame2.id,
+            timestamp: 20.0,
+          },
+          {
+            frame: testFrame1.id,
+            timestamp: 5.0,
+          },
+        ],
+      })
+
+      expect(meditation.frames).toHaveLength(2)
+      
+      // Should be automatically sorted by timestamp
+      expect(meditation.frames?.[0]?.timestamp).toBe(5.0)
+      expect(meditation.frames?.[1]?.timestamp).toBe(20.0)
+    })
+
+    it('syncs meditation frames with MeditationFrames collection on create', async () => {
+      const meditation = await testDataFactory.createMeditation(payload, {
+        narrator: testNarrator.id,
+        audioFile: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
+      }, {
+        title: 'Meditation with Sync Test',
+        duration: 30,
+        frames: [
+          {
+            frame: testFrame1.id,
+            timestamp: 10.0,
+          },
+          {
+            frame: testFrame2.id,
+            timestamp: 25.0,
+          },
+        ],
+      })
+
+      // Check that corresponding MeditationFrames records were created
+      const meditationFrames = await payload.find({
+        collection: 'meditationFrames',
+        where: {
+          meditation: {
+            equals: meditation.id,
+          },
+        },
+        sort: 'timestamp',
+      })
+
+      expect(meditationFrames.docs).toHaveLength(2)
+      expect(meditationFrames.docs[0].timestamp).toBe(10.0)
+      expect(meditationFrames.docs[1].timestamp).toBe(25.0)
+      
+      const frame1Id = typeof meditationFrames.docs[0].frame === 'object' ? meditationFrames.docs[0].frame.id : meditationFrames.docs[0].frame
+      const frame2Id = typeof meditationFrames.docs[1].frame === 'object' ? meditationFrames.docs[1].frame.id : meditationFrames.docs[1].frame
+      
+      expect(frame1Id).toBe(testFrame1.id)
+      expect(frame2Id).toBe(testFrame2.id)
+    })
+
+    it('syncs meditation frames with MeditationFrames collection on update', async () => {
+      // Create meditation without frames
+      const meditation = await testDataFactory.createMeditation(payload, {
+        narrator: testNarrator.id,
+        audioFile: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
+      }, {
+        title: 'Meditation for Update Sync Test',
+        duration: 30,
+      })
+
+      // Update with frames
+      const updated = await payload.update({
+        collection: 'meditations',
+        id: meditation.id,
+        data: {
+          frames: [
+            {
+              frame: testFrame1.id,
+              timestamp: 8.0,
+            },
+          ],
+        },
+      }) as Meditation
+
+      // Check meditation frames field
+      expect(updated.frames).toHaveLength(1)
+      expect(updated.frames?.[0]?.timestamp).toBe(8.0)
+
+      // Check that MeditationFrames record was created
+      const meditationFrames = await payload.find({
+        collection: 'meditationFrames',
+        where: {
+          meditation: {
+            equals: meditation.id,
+          },
+        },
+      })
+
+      expect(meditationFrames.docs).toHaveLength(1)
+      expect(meditationFrames.docs[0].timestamp).toBe(8.0)
+    })
+
+    it('replaces old frames when meditation is updated', async () => {
+      // Create meditation with initial frames
+      const meditation = await testDataFactory.createMeditation(payload, {
+        narrator: testNarrator.id,
+        audioFile: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
+      }, {
+        title: 'Meditation for Replace Test',
+        duration: 30,
+        frames: [
+          {
+            frame: testFrame1.id,
+            timestamp: 5.0,
+          },
+          {
+            frame: testFrame2.id,
+            timestamp: 15.0,
+          },
+        ],
+      })
+
+      // Update with different frames
+      await payload.update({
+        collection: 'meditations',
+        id: meditation.id,
+        data: {
+          frames: [
+            {
+              frame: testFrame2.id,
+              timestamp: 12.0,
+            },
+          ],
+        },
+      })
+
+      // Check that old frames were replaced
+      const meditationFrames = await payload.find({
+        collection: 'meditationFrames',
+        where: {
+          meditation: {
+            equals: meditation.id,
+          },
+        },
+      })
+
+      expect(meditationFrames.docs).toHaveLength(1)
+      expect(meditationFrames.docs[0].timestamp).toBe(12.0)
+      
+      const frameId = typeof meditationFrames.docs[0].frame === 'object' ? meditationFrames.docs[0].frame.id : meditationFrames.docs[0].frame
+      expect(frameId).toBe(testFrame2.id)
+    })
+
+    it('cleans up MeditationFrames when meditation is deleted', async () => {
+      const meditation = await testDataFactory.createMeditation(payload, {
+        narrator: testNarrator.id,
+        audioFile: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
+      }, {
+        title: 'Meditation for Delete Test',
+        duration: 30,
+        frames: [
+          {
+            frame: testFrame1.id,
+            timestamp: 7.0,
+          },
+        ],
+      })
+
+      // Verify frame relationship exists
+      const beforeDelete = await payload.find({
+        collection: 'meditationFrames',
+        where: {
+          meditation: {
+            equals: meditation.id,
+          },
+        },
+      })
+      expect(beforeDelete.docs).toHaveLength(1)
+
+      // Delete meditation
+      await payload.delete({
+        collection: 'meditations',
+        id: meditation.id,
+      })
+
+      // Verify frame relationships were cleaned up
+      const afterDelete = await payload.find({
+        collection: 'meditationFrames',
+        where: {
+          meditation: {
+            equals: meditation.id,
+          },
+        },
+      })
+      expect(afterDelete.docs).toHaveLength(0)
+    })
+
+    it('handles empty frames array', async () => {
+      const meditation = await testDataFactory.createMeditation(payload, {
+        narrator: testNarrator.id,
+        audioFile: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
+      }, {
+        title: 'Meditation with No Frames',
+        duration: 15,
+        frames: [],
+      })
+
+      expect(meditation.frames).toEqual([])
+
+      // Should not create any MeditationFrames records
+      const meditationFrames = await payload.find({
+        collection: 'meditationFrames',
+        where: {
+          meditation: {
+            equals: meditation.id,
+          },
+        },
+      })
+
+      expect(meditationFrames.docs).toHaveLength(0)
+    })
+
+    it('handles meditation without frames field', async () => {
+      const meditation = await testDataFactory.createMeditation(payload, {
+        narrator: testNarrator.id,
+        audioFile: testAudioMedia.id,
+        thumbnail: testImageMedia.id,
+      }, {
+        title: 'Meditation without Frames Field',
+        duration: 15,
+        // No frames field
+      })
+
+      // Should not create any MeditationFrames records
+      const meditationFrames = await payload.find({
+        collection: 'meditationFrames',
+        where: {
+          meditation: {
+            equals: meditation.id,
+          },
+        },
+      })
+
+      expect(meditationFrames.docs).toHaveLength(0)
+    })
   })
 })
