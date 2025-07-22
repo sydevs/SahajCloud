@@ -1,13 +1,13 @@
 import type { CollectionConfig } from 'payload'
+import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { getStorageConfig } from '@/lib/storage'
 
 export const Music: CollectionConfig = {
   slug: 'music',
   upload: {
     staticDir: 'media/music',
-    mimeTypes: ['audio/mpeg'],
-    imageSizes: [], // Disable image processing for audio files
-    ...getStorageConfig(), // Apply production-aware storage configuration
+    mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
+    ...getStorageConfig(),
   },
   admin: {
     useAsTitle: 'title',
@@ -25,13 +25,38 @@ export const Music: CollectionConfig = {
           data.slug = originalDoc.slug
         }
 
-        // TODO: Add file size and duration validation
-        // For now, relying on Payload's built-in mimeType validation
+        return data
+      },
+      async ({ data, req }) => {
+        // Audio file validation and duration extraction
+        if (req.file && req.file.data) {
+          try {
+            // Validate file size (50MB limit)
+            const fileSizeValidation = validateAudioFileSize(req.file.size || 0, 50)
+            if (fileSizeValidation !== true) {
+              throw new Error(fileSizeValidation)
+            }
 
-        // TODO: Extract and validate audio duration
-        // For now, this would require audio metadata extraction
-        // which needs additional libraries like node-ffprobe or similar
+            // Extract and validate audio duration
+            const duration = await getAudioDuration(req.file.data)
+            const durationValidation = validateAudioDuration(duration, 15) // 15 minutes max
+            if (durationValidation !== true) {
+              throw new Error(durationValidation)
+            }
 
+            // Auto-populate duration in minutes
+            data.duration = Math.round(duration) // Round to nearest second
+          } catch (error) {
+            req.payload.logger.error({
+              msg: 'Music file validation failed',
+              err: error,
+              fileName: req.file.name,
+              fileSize: req.file.size,
+            })
+            throw error
+          }
+        }
+        
         return data
       },
     ],
@@ -55,7 +80,7 @@ export const Music: CollectionConfig = {
       name: 'duration',
       type: 'number',
       admin: {
-        description: 'Duration in minutes (auto-populated)',
+        description: 'Duration in seconds',
         position: 'sidebar',
         readOnly: true,
       },

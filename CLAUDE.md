@@ -29,9 +29,28 @@ This is a **Next.js 15** application integrated with **Payload CMS 3.0**, provid
 
 ## Environment Setup
 
-Required environment variables (copy from `.env.example`):
+### Required Environment Variables
+Copy from `.env.example` and configure:
+
+**Core Configuration**
 - `DATABASE_URI` - MongoDB connection string
 - `PAYLOAD_SECRET` - Secret key for authentication
+
+**Email Configuration (Production)**
+- `SMTP_HOST` - SMTP server host (default: smtp.gmail.com)
+- `SMTP_PORT` - SMTP server port (default: 587)
+- `SMTP_USER` - SMTP username
+- `SMTP_PASS` - SMTP password  
+- `SMTP_FROM` - From email address (default: contact@sydevelopers.com)
+
+**MinIO S3-Compatible Storage (Optional)**
+- `S3_ENDPOINT` - MinIO server endpoint (e.g., https://minio.yourdomain.com)
+- `S3_ACCESS_KEY_ID` - MinIO access key
+- `S3_SECRET_ACCESS_KEY` - MinIO secret key
+- `S3_BUCKET_NAME` - Storage bucket name
+- `S3_REGION` - Region (default: us-east-1)
+
+**Note**: If MinIO variables are not configured, the system automatically falls back to local file storage.
 
 ## Code editing
 
@@ -48,7 +67,7 @@ If necessary, you should also run `pnpm run generate:types`
 
 ### Collections
 - **Users** (`src/collections/Users.ts`) - Authentication-enabled admin users with email/password authentication using default Payload email templates
-- **Media** (`src/collections/Media.ts`) - File uploads with required alt text for accessibility
+- **Media** (`src/collections/Media.ts`) - **Image-only collection** with automatic WEBP conversion, tags, credit info, and dimensions metadata
 - **Narrators** (`src/collections/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
 - **Meditations** (`src/collections/Meditations.ts`) - Guided meditation content with audio files, tags, metadata, and frame relationships with timestamps
 - **Tags** (`src/collections/Tags.ts`) - Categorization system for meditations and music with bidirectional relationships

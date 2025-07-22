@@ -16,8 +16,10 @@ Documentation: Has the code been properly documented, including updates to relev
 - Concurrency: If applicable, is parallel programming handled safely and correctly?
 
 Use the following steps:
-1. Review the code using the considerations above
-2. Change the code the fix the issues
+1. Review the code using the considerations above, and come up with a list of potential changes and fixes
+2. Ask me which changes to proceed with and which to discard.
+3. Change the code the fix the issues
+4. Fix all typescript errors in files you modify.
 3. Run the tests and make sure they still pass.
 4. Provide an explanation of all the changes before committing.
 5. If I ask you for changes, repeat steps 2 - 4.

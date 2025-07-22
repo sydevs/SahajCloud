@@ -83,6 +83,8 @@ export interface Config {
     tags: {
       meditations: 'meditations';
       music: 'music';
+      media: 'media';
+      frames: 'frames';
     };
   };
   collectionsSelect: {
@@ -161,6 +163,26 @@ export interface User {
 export interface Media {
   id: string;
   alt: string;
+  /**
+   * Tags to categorize this image
+   */
+  tags?: (string | Tag)[] | null;
+  /**
+   * Attribution or copyright information
+   */
+  credit?: string | null;
+  /**
+   * Auto-populated image dimensions (width/height)
+   */
+  dimensions?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -172,16 +194,60 @@ export interface Media {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+  sizes?: {
+    thumbnail?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    card?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    tablet?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "narrators".
+ * via the `definition` "tags".
  */
-export interface Narrator {
+export interface Tag {
   id: string;
-  name: string;
-  slug?: string | null;
-  gender?: ('male' | 'female') | null;
+  title: string;
+  meditations?: {
+    docs?: (string | Meditation)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  music?: {
+    docs?: (string | Music)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  media?: {
+    docs?: (string | Media)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  frames?: {
+    docs?: (string | Frame)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -193,12 +259,11 @@ export interface Meditation {
   id: string;
   title: string;
   slug?: string | null;
+  thumbnail: string | Media;
   /**
-   * Duration in minutes
+   * Duration in seconds
    */
   duration?: number | null;
-  thumbnail: string | Media;
-  audioFile: string | Media;
   narrator: string | Narrator;
   tags?: (string | Tag)[] | null;
   /**
@@ -222,46 +287,6 @@ export interface Meditation {
     | null;
   updatedAt: string;
   createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "tags".
- */
-export interface Tag {
-  id: string;
-  title: string;
-  meditations?: {
-    docs?: (string | Meditation)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  music?: {
-    docs?: (string | Music)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "music".
- */
-export interface Music {
-  id: string;
-  title: string;
-  slug?: string | null;
-  /**
-   * Duration in minutes (auto-populated)
-   */
-  duration?: number | null;
-  tags?: (string | Tag)[] | null;
-  /**
-   * Attribution or credit information
-   */
-  credit?: string | null;
-  updatedAt: string;
-  createdAt: string;
   url?: string | null;
   thumbnailURL?: string | null;
   filename?: string | null;
@@ -271,7 +296,18 @@ export interface Music {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-  sizes?: {};
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "narrators".
+ */
+export interface Narrator {
+  id: string;
+  name: string;
+  slug?: string | null;
+  gender?: ('male' | 'female') | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -301,6 +337,35 @@ export interface Frame {
    * Auto-populated duration for videos (in seconds)
    */
   duration?: number | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "music".
+ */
+export interface Music {
+  id: string;
+  title: string;
+  slug?: string | null;
+  /**
+   * Duration in seconds
+   */
+  duration?: number | null;
+  tags?: (string | Tag)[] | null;
+  /**
+   * Attribution or credit information
+   */
+  credit?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -437,6 +502,9 @@ export interface UsersSelect<T extends boolean = true> {
  */
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
+  tags?: T;
+  credit?: T;
+  dimensions?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -448,6 +516,40 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+  sizes?:
+    | T
+    | {
+        thumbnail?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        card?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        tablet?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -467,9 +569,8 @@ export interface NarratorsSelect<T extends boolean = true> {
 export interface MeditationsSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
-  duration?: T;
   thumbnail?: T;
-  audioFile?: T;
+  duration?: T;
   narrator?: T;
   tags?: T;
   musicTag?: T;
@@ -484,6 +585,15 @@ export interface MeditationsSelect<T extends boolean = true> {
       };
   updatedAt?: T;
   createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -493,6 +603,8 @@ export interface TagsSelect<T extends boolean = true> {
   title?: T;
   meditations?: T;
   music?: T;
+  media?: T;
+  frames?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -517,7 +629,6 @@ export interface MusicSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
-  sizes?: T | {};
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

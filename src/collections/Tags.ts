@@ -23,5 +23,17 @@ export const Tags: CollectionConfig = {
       collection: 'music',
       on: 'tags',
     },
+    {
+      name: 'media',
+      type: 'join',
+      collection: 'media',
+      on: 'tags',
+    },
+    {
+      name: 'frames',
+      type: 'join',
+      collection: 'frames',
+      on: 'tags',
+    },
   ],
 }

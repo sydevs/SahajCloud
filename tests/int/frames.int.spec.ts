@@ -67,10 +67,9 @@ describe('Frames Collection', () => {
     expect(frame.mimeType).toBe('video/mp4') // Original format preserved for now
     expect(frame.filename).toMatch(/^video-30s(-\d+)?\.mp4$/)
     expect(frame.filesize).toBeGreaterThan(0)
-    // Duration is not automatically extracted yet
-    expect(frame.duration).toBeUndefined()
-    expect(frame.width).toBeUndefined() // No dimensions for videos
-    expect(frame.height).toBeUndefined() // No dimensions for videos
+    // Duration and dimensions are now automatically extracted
+    expect(frame.duration).toBe(29.5) // Mock duration from test environment
+    expect(frame.dimensions).toEqual({ width: 1920, height: 1080 }) // Mock dimensions from test environment
 
     // Check tags relationship
     const tagIds = Array.isArray(frame.tags) 
@@ -329,8 +328,7 @@ describe('Frames Collection', () => {
     expect(imageFrame.duration).toBeUndefined()
 
     expect(videoFrame.mimeType).toBe('video/mp4')
-    expect(videoFrame.duration).toBeUndefined() // Not yet implemented
-    expect(videoFrame.width).toBeUndefined()
-    expect(videoFrame.height).toBeUndefined()
+    expect(videoFrame.duration).toBe(29.5) // Mock duration from test environment
+    expect(videoFrame.dimensions).toEqual({ width: 1920, height: 1080 }) // Mock dimensions from test environment
   })
 })

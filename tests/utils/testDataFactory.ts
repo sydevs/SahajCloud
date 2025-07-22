@@ -52,56 +52,6 @@ export const testDataFactory = {
   },
 
   /**
-   * Create audio media using sample file
-   */
-  async createMediaAudio(payload: Payload, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<Media> {
-    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    const fileBuffer = fs.readFileSync(filePath)
-    
-    // Convert Buffer to Uint8Array for file-type compatibility
-    const uint8Array = new Uint8Array(fileBuffer)
-    
-    return await payload.create({
-      collection: 'media',
-      data: {
-        alt: 'Test audio file',
-        ...overrides,
-      },
-      file: {
-        data: uint8Array as any, // Type assertion for Payload compatibility
-        mimetype: path.extname(sampleFile).slice(1) === 'mp3' ? 'audio/mpeg' : `audio/${path.extname(sampleFile).slice(1)}`,
-        name: sampleFile,
-        size: uint8Array.length,
-      }
-    }) as Media
-  },
-
-  /**
-   * Create video media using sample file
-   */
-  async createMediaVideo(payload: Payload, overrides = {}, sampleFile = 'video-30s.mp4'): Promise<Media> {
-    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    const fileBuffer = fs.readFileSync(filePath)
-    
-    // Convert Buffer to Uint8Array for file-type compatibility
-    const uint8Array = new Uint8Array(fileBuffer)
-    
-    return await payload.create({
-      collection: 'media',
-      data: {
-        alt: 'Test video file',
-        ...overrides,
-      },
-      file: {
-        data: uint8Array as any, // Type assertion for Payload compatibility
-        mimetype: `video/${path.extname(sampleFile).slice(1)}`,
-        name: sampleFile,
-        size: uint8Array.length,
-      }
-    }) as Media
-  },
-
-  /**
    * Create a tag
    */
   async createTag(payload: Payload, overrides = {}): Promise<Tag> {
@@ -115,22 +65,52 @@ export const testDataFactory = {
   },
 
   /**
-   * Create a meditation with required dependencies
+   * Create a meditation with required dependencies (without audio file)
    */
-  async createMeditation(payload: Payload, deps: { narrator: string; audioFile: string; thumbnail: string; tags?: string[]; musicTag?: string }, overrides = {}): Promise<Meditation> {
+  async createMeditation(payload: Payload, deps: { narrator: string; thumbnail: string; tags?: string[]; musicTag?: string }, overrides = {}): Promise<Meditation> {
     return await payload.create({
       collection: 'meditations',
       data: {
         title: 'Test Meditation',
         duration: 15,
         thumbnail: deps.thumbnail,
-        audioFile: deps.audioFile,
         narrator: deps.narrator,
         tags: deps.tags || [],
         musicTag: deps.musicTag,
         isPublished: false,
         ...overrides,
       },
+    }) as Meditation
+  },
+
+  /**
+   * Create a meditation with direct audio upload
+   */
+  async createMeditationWithAudio(payload: Payload, deps: { narrator: string; thumbnail: string; tags?: string[]; musicTag?: string }, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<Meditation> {
+    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
+    const fileBuffer = fs.readFileSync(filePath)
+    
+    // Convert Buffer to Uint8Array for file-type compatibility
+    const uint8Array = new Uint8Array(fileBuffer)
+    
+    return await payload.create({
+      collection: 'meditations',
+      data: {
+        title: 'Test Meditation with Audio',
+        duration: 15,
+        thumbnail: deps.thumbnail,
+        narrator: deps.narrator,
+        tags: deps.tags || [],
+        musicTag: deps.musicTag,
+        isPublished: false,
+        ...overrides,
+      },
+      file: {
+        data: uint8Array as any, // Type assertion for Payload compatibility
+        mimetype: path.extname(sampleFile).slice(1) === 'mp3' ? 'audio/mpeg' : `audio/${path.extname(sampleFile).slice(1)}`,
+        name: sampleFile,
+        size: uint8Array.length,
+      }
     }) as Meditation
   },
 
@@ -161,7 +141,7 @@ export const testDataFactory = {
   },
 
   /**
-   * Create frame with image file
+   * Create frame with image file (default) or video file
    */
   async createFrame(payload: Payload, overrides = {}, sampleFile = 'image-1050x700.jpg'): Promise<Frame> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)

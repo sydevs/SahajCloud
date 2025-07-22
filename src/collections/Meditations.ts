@@ -1,13 +1,21 @@
 import type { CollectionConfig, Validate } from 'payload'
+import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
+import { getStorageConfig } from '@/lib/storage'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
+  upload: {
+    staticDir: 'media/meditations',
+    mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
+    ...getStorageConfig(),
+  },
   admin: {
     useAsTitle: 'title',
   },
   hooks: {
     beforeChange: [
       ({ data, operation, originalDoc }) => {
+        // Generate slug from title
         if (operation === 'create' && data.title) {
           // Always generate slug on create, ignore any provided slug
           data.slug = data.title
@@ -18,6 +26,38 @@ export const Meditations: CollectionConfig = {
           // Preserve original slug on update
           data.slug = originalDoc.slug
         }
+        return data
+      },
+      async ({ data, req }) => {
+        // Audio file validation and duration extraction
+        if (req.file && req.file.data) {
+          try {
+            // Validate file size (50MB limit)
+            const fileSizeValidation = validateAudioFileSize(req.file.size || 0, 50)
+            if (fileSizeValidation !== true) {
+              throw new Error(fileSizeValidation)
+            }
+
+            // Extract and validate audio duration
+            const duration = await getAudioDuration(req.file.data)
+            const durationValidation = validateAudioDuration(duration, 15) // 15 minutes max
+            if (durationValidation !== true) {
+              throw new Error(durationValidation)
+            }
+
+            // Auto-populate duration in seconds
+            data.duration = Math.round(duration) // Round to nearest second
+          } catch (error) {
+            req.payload.logger.error({
+              msg: 'Audio file validation failed',
+              err: error,
+              fileName: req.file.name,
+              fileSize: req.file.size,
+            })
+            throw error
+          }
+        }
+        
         return data
       },
     ],
@@ -103,15 +143,6 @@ export const Meditations: CollectionConfig = {
       },
     },
     {
-      name: 'duration',
-      type: 'number',
-      min: 1,
-      admin: {
-        description: 'Duration in minutes',
-        position: 'sidebar',
-      },
-    },
-    {
       name: 'thumbnail',
       type: 'upload',
       relationTo: 'media',
@@ -136,28 +167,13 @@ export const Meditations: CollectionConfig = {
       }) as Validate,
     },
     {
-      name: 'audioFile',
-      type: 'upload',
-      relationTo: 'media',
-      required: true,
-      validate: (async (value, { req }) => {
-        if (!value) return true // Required validation handles this
-        
-        try {
-          const media = await req.payload.findByID({
-            collection: 'media',
-            id: value,
-          })
-          
-          if (!media.mimeType || !media.mimeType.startsWith('audio/')) {
-            return 'Audio file must be an audio file'
-          }
-          
-          return true
-        } catch (_error) {
-          return 'Invalid media file'
-        }
-      }) as Validate,
+      name: 'duration',
+      type: 'number',
+      admin: {
+        description: 'Duration in seconds',
+        position: 'sidebar',
+        readOnly: true,
+      },
     },
     {
       name: 'narrator',
