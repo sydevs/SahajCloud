@@ -1,11 +1,6 @@
 /**
  * Audio processing utilities for duration validation and metadata extraction
  */
-import ffprobe from 'node-ffprobe'
-import ffprobeStatic from 'ffprobe-static'
-
-// Set the path to the ffprobe binary
-ffprobe.FFPROBE_PATH = ffprobeStatic.path
 
 /**
  * Extract audio duration from file buffer
@@ -19,6 +14,15 @@ export async function getAudioDuration(fileBuffer: Buffer): Promise<number> {
   }
   
   try {
+    // Dynamic imports to avoid webpack bundling issues with native dependencies
+    const ffprobe = (await import('node-ffprobe')).default
+    const ffprobeStatic = (await import('ffprobe-static')).default
+    
+    // Set the path to the ffprobe binary
+    if (typeof ffprobe === 'function' && ffprobeStatic?.path) {
+      ;(ffprobe as any).FFPROBE_PATH = ffprobeStatic.path
+    }
+    
     // Create a temporary file path (ffprobe needs a file path, not a buffer)
     // We'll use a workaround by creating a temporary file
     const fs = await import('fs')

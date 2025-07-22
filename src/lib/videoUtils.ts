@@ -1,11 +1,6 @@
 /**
  * Video processing utilities for duration validation and format conversion
  */
-import ffprobe from 'node-ffprobe'
-import ffprobeStatic from 'ffprobe-static'
-
-// Set the path to the ffprobe binary
-ffprobe.FFPROBE_PATH = ffprobeStatic.path
 
 /**
  * Extract video duration from file buffer
@@ -19,6 +14,15 @@ export async function getVideoDuration(fileBuffer: Buffer): Promise<number> {
   }
   
   try {
+    // Dynamic imports to avoid webpack bundling issues with native dependencies
+    const ffprobe = (await import('node-ffprobe')).default
+    const ffprobeStatic = (await import('ffprobe-static')).default
+    
+    // Set the path to the ffprobe binary
+    if (typeof ffprobe === 'function' && ffprobeStatic?.path) {
+      ;(ffprobe as any).FFPROBE_PATH = ffprobeStatic.path
+    }
+    
     // Create a temporary file path (ffprobe needs a file path, not a buffer)
     const fs = await import('fs')
     const path = await import('path')
@@ -65,6 +69,7 @@ export async function getVideoDimensions(fileBuffer: Buffer): Promise<{ width: n
   }
   
   try {
+    
     // Create a temporary file path (ffprobe needs a file path, not a buffer)
     const fs = await import('fs')
     const path = await import('path')
