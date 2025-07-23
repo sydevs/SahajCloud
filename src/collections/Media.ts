@@ -4,6 +4,9 @@ import { getStorageConfig } from '@/lib/storage'
 
 export const Media: CollectionConfig = {
   slug: 'media',
+  admin: {
+    group: 'Utility',
+  },
   access: {
     read: () => true,
   },
@@ -55,7 +58,7 @@ export const Media: CollectionConfig = {
       async ({ data, req }) => {
         // Auto-convert JPG/PNG to WEBP format for main file
         if (req.file && req.file.data) {
-          const { mimeType } = req.file
+          const { mimetype: mimeType } = req.file
           
           // Only process JPG and PNG files (WEBP files are kept as-is)
           if (mimeType === 'image/jpeg' || mimeType === 'image/png') {

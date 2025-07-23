@@ -2,6 +2,12 @@
  * Video processing utilities for duration validation and format conversion
  */
 
+import ffmpeg from 'fluent-ffmpeg'
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
+import crypto from 'crypto'
+
 /**
  * Extract video duration from file buffer
  * @param fileBuffer - Video file buffer
@@ -14,21 +20,6 @@ export async function getVideoDuration(fileBuffer: Buffer): Promise<number> {
   }
   
   try {
-    // Dynamic imports to avoid webpack bundling issues with native dependencies
-    const ffprobe = (await import('node-ffprobe')).default
-    const ffprobeStatic = (await import('ffprobe-static')).default
-    
-    // Set the path to the ffprobe binary
-    if (typeof ffprobe === 'function' && ffprobeStatic?.path) {
-      ;(ffprobe as any).FFPROBE_PATH = ffprobeStatic.path
-    }
-    
-    // Create a temporary file path (ffprobe needs a file path, not a buffer)
-    const fs = await import('fs')
-    const path = await import('path')
-    const os = await import('os')
-    const crypto = await import('crypto')
-    
     const tempDir = os.tmpdir()
     const tempFileName = `temp_video_${crypto.randomBytes(16).toString('hex')}.tmp`
     const tempFilePath = path.join(tempDir, tempFileName)
@@ -37,14 +28,24 @@ export async function getVideoDuration(fileBuffer: Buffer): Promise<number> {
     fs.writeFileSync(tempFilePath, fileBuffer)
     
     try {
-      // Get metadata using ffprobe
-      const metadata = await ffprobe(tempFilePath)
-      const duration = metadata.streams[0]?.duration || 0
+      // Get metadata using fluent-ffmpeg's ffprobe
+      const duration = await new Promise<number>((resolve, reject) => {
+        ffmpeg.ffprobe(tempFilePath, (err, metadata) => {
+          if (err) {
+            reject(err)
+            return
+          }
+          
+          // Extract duration from metadata
+          const duration = metadata.format?.duration || 0
+          resolve(parseFloat(duration.toString()))
+        })
+      })
       
       // Clean up temporary file
       fs.unlinkSync(tempFilePath)
       
-      return parseFloat(duration.toString())
+      return duration
     } catch (error) {
       // Clean up temporary file even if ffprobe fails
       if (fs.existsSync(tempFilePath)) {
@@ -69,13 +70,6 @@ export async function getVideoDimensions(fileBuffer: Buffer): Promise<{ width: n
   }
   
   try {
-    
-    // Create a temporary file path (ffprobe needs a file path, not a buffer)
-    const fs = await import('fs')
-    const path = await import('path')
-    const os = await import('os')
-    const crypto = await import('crypto')
-    
     const tempDir = os.tmpdir()
     const tempFileName = `temp_video_${crypto.randomBytes(16).toString('hex')}.tmp`
     const tempFilePath = path.join(tempDir, tempFileName)
@@ -84,21 +78,33 @@ export async function getVideoDimensions(fileBuffer: Buffer): Promise<{ width: n
     fs.writeFileSync(tempFilePath, fileBuffer)
     
     try {
-      // Get metadata using ffprobe
-      const metadata = await ffprobe(tempFilePath)
-      const videoStream = metadata.streams.find(stream => stream.codec_type === 'video')
+      // Get metadata using fluent-ffmpeg's ffprobe
+      const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+        ffmpeg.ffprobe(tempFilePath, (err, metadata) => {
+          if (err) {
+            reject(err)
+            return
+          }
+          
+          // Find video stream
+          const videoStream = metadata.streams.find(stream => stream.codec_type === 'video')
+          
+          if (!videoStream || !videoStream.width || !videoStream.height) {
+            reject(new Error('Could not extract video dimensions'))
+            return
+          }
+          
+          resolve({
+            width: parseInt(videoStream.width.toString()),
+            height: parseInt(videoStream.height.toString()),
+          })
+        })
+      })
       
       // Clean up temporary file
       fs.unlinkSync(tempFilePath)
       
-      if (!videoStream || !videoStream.width || !videoStream.height) {
-        throw new Error('Could not extract video dimensions')
-      }
-      
-      return {
-        width: parseInt(videoStream.width.toString()),
-        height: parseInt(videoStream.height.toString()),
-      }
+      return dimensions
     } catch (error) {
       // Clean up temporary file even if ffprobe fails
       if (fs.existsSync(tempFilePath)) {

@@ -10,6 +10,7 @@ export const Meditations: CollectionConfig = {
     ...getStorageConfig(),
   },
   admin: {
+    group: 'Resources',
     useAsTitle: 'title',
   },
   hooks: {
@@ -215,27 +216,46 @@ export const Meditations: CollectionConfig = {
     },
     {
       name: 'frames',
-      type: 'array',
+      type: 'json', // Changed from array to json to use custom component
       admin: {
-        description: 'Frames associated with this meditation, ordered by timestamp',
+        description: 'Frames associated with this meditation with audio-synchronized editing',
+        components: {
+          Field: '/components/admin/MeditationFrameEditor/index.tsx#default',
+        },
       },
-      fields: [
-        {
-          name: 'frame',
-          type: 'relationship',
-          relationTo: 'frames',
-          required: true,
-        },
-        {
-          name: 'timestamp',
-          type: 'number',
-          min: 0,
-          required: true,
-          admin: {
-            description: 'Time in seconds when this frame should appear',
-          },
-        },
-      ],
+      validate: (value) => {
+        // Validate that value is an array of frame objects
+        if (!value) return true // Allow empty/null values
+        
+        if (!Array.isArray(value)) {
+          return 'Frames must be an array'
+        }
+        
+        for (let i = 0; i < value.length; i++) {
+          const frame = value[i]
+          
+          if (!frame || typeof frame !== 'object') {
+            return `Frame ${i + 1} must be an object`
+          }
+          
+          if (!frame.frame || typeof frame.frame !== 'string') {
+            return `Frame ${i + 1} must have a valid frame relationship ID`
+          }
+          
+          if (typeof frame.timestamp !== 'number' || frame.timestamp < 0 || isNaN(frame.timestamp)) {
+            return `Frame ${i + 1} must have a valid timestamp (number >= 0)`
+          }
+        }
+        
+        // Check for duplicate timestamps
+        const timestamps = value.map((f: { timestamp: number }) => f.timestamp)
+        const uniqueTimestamps = new Set(timestamps)
+        if (timestamps.length !== uniqueTimestamps.size) {
+          return 'Duplicate timestamps are not allowed. Each frame must have a unique timestamp.'
+        }
+        
+        return true
+      },
       hooks: {
         beforeChange: [
           ({ value }) => {

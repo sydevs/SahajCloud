@@ -67,14 +67,14 @@ export interface Config {
   };
   blocks: {};
   collections: {
-    users: User;
-    media: Media;
-    narrators: Narrator;
     meditations: Meditation;
-    tags: Tag;
     music: Music;
     frames: Frame;
     meditationFrames: MeditationFrame;
+    media: Media;
+    narrators: Narrator;
+    users: User;
+    tags: Tag;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -88,14 +88,14 @@ export interface Config {
     };
   };
   collectionsSelect: {
-    users: UsersSelect<false> | UsersSelect<true>;
-    media: MediaSelect<false> | MediaSelect<true>;
-    narrators: NarratorsSelect<false> | NarratorsSelect<true>;
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
-    tags: TagsSelect<false> | TagsSelect<true>;
     music: MusicSelect<false> | MusicSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
     meditationFrames: MeditationFramesSelect<false> | MeditationFramesSelect<true>;
+    media: MediaSelect<false> | MediaSelect<true>;
+    narrators: NarratorsSelect<false> | NarratorsSelect<true>;
+    users: UsersSelect<false> | UsersSelect<true>;
+    tags: TagsSelect<false> | TagsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -134,27 +134,48 @@ export interface UserAuthOperations {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users".
+ * via the `definition` "meditations".
  */
-export interface User {
+export interface Meditation {
   id: string;
+  title: string;
+  slug?: string | null;
+  thumbnail: string | Media;
+  /**
+   * Duration in seconds
+   */
+  duration?: number | null;
+  narrator: string | Narrator;
+  tags?: (string | Tag)[] | null;
+  /**
+   * Music with this tag will be offered to the seeker
+   */
+  musicTag?: (string | null) | Tag;
+  isPublished?: boolean | null;
+  publishedDate?: string | null;
+  /**
+   * Frames associated with this meditation with audio-synchronized editing
+   */
+  frames?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
-  email: string;
-  resetPasswordToken?: string | null;
-  resetPasswordExpiration?: string | null;
-  salt?: string | null;
-  hash?: string | null;
-  loginAttempts?: number | null;
-  lockUntil?: string | null;
-  sessions?:
-    | {
-        id: string;
-        createdAt?: string | null;
-        expiresAt: string;
-      }[]
-    | null;
-  password?: string | null;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -253,38 +274,21 @@ export interface Tag {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditations".
+ * via the `definition` "music".
  */
-export interface Meditation {
+export interface Music {
   id: string;
   title: string;
   slug?: string | null;
-  thumbnail: string | Media;
   /**
    * Duration in seconds
    */
   duration?: number | null;
-  narrator: string | Narrator;
   tags?: (string | Tag)[] | null;
   /**
-   * Music with this tag will be offered to the seeker
+   * Attribution or credit information
    */
-  musicTag?: (string | null) | Tag;
-  isPublished?: boolean | null;
-  publishedDate?: string | null;
-  /**
-   * Frames associated with this meditation, ordered by timestamp
-   */
-  frames?:
-    | {
-        frame: string | Frame;
-        /**
-         * Time in seconds when this frame should appear
-         */
-        timestamp: number;
-        id?: string | null;
-      }[]
-    | null;
+  credit?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -296,18 +300,6 @@ export interface Meditation {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "narrators".
- */
-export interface Narrator {
-  id: string;
-  name: string;
-  slug?: string | null;
-  gender?: ('male' | 'female') | null;
-  updatedAt: string;
-  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -351,32 +343,15 @@ export interface Frame {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "music".
+ * via the `definition` "narrators".
  */
-export interface Music {
+export interface Narrator {
   id: string;
-  title: string;
+  name: string;
   slug?: string | null;
-  /**
-   * Duration in seconds
-   */
-  duration?: number | null;
-  tags?: (string | Tag)[] | null;
-  /**
-   * Attribution or credit information
-   */
-  credit?: string | null;
+  gender?: ('male' | 'female') | null;
   updatedAt: string;
   createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -395,30 +370,38 @@ export interface MeditationFrame {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "users".
+ */
+export interface User {
+  id: string;
+  updatedAt: string;
+  createdAt: string;
+  email: string;
+  resetPasswordToken?: string | null;
+  resetPasswordExpiration?: string | null;
+  salt?: string | null;
+  hash?: string | null;
+  loginAttempts?: number | null;
+  lockUntil?: string | null;
+  sessions?:
+    | {
+        id: string;
+        createdAt?: string | null;
+        expiresAt: string;
+      }[]
+    | null;
+  password?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
   id: string;
   document?:
     | ({
-        relationTo: 'users';
-        value: string | User;
-      } | null)
-    | ({
-        relationTo: 'media';
-        value: string | Media;
-      } | null)
-    | ({
-        relationTo: 'narrators';
-        value: string | Narrator;
-      } | null)
-    | ({
         relationTo: 'meditations';
         value: string | Meditation;
-      } | null)
-    | ({
-        relationTo: 'tags';
-        value: string | Tag;
       } | null)
     | ({
         relationTo: 'music';
@@ -431,6 +414,22 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'meditationFrames';
         value: string | MeditationFrame;
+      } | null)
+    | ({
+        relationTo: 'media';
+        value: string | Media;
+      } | null)
+    | ({
+        relationTo: 'narrators';
+        value: string | Narrator;
+      } | null)
+    | ({
+        relationTo: 'users';
+        value: string | User;
+      } | null)
+    | ({
+        relationTo: 'tags';
+        value: string | Tag;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -476,25 +475,85 @@ export interface PayloadMigration {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users_select".
+ * via the `definition` "meditations_select".
  */
-export interface UsersSelect<T extends boolean = true> {
+export interface MeditationsSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  thumbnail?: T;
+  duration?: T;
+  narrator?: T;
+  tags?: T;
+  musicTag?: T;
+  isPublished?: T;
+  publishedDate?: T;
+  frames?: T;
   updatedAt?: T;
   createdAt?: T;
-  email?: T;
-  resetPasswordToken?: T;
-  resetPasswordExpiration?: T;
-  salt?: T;
-  hash?: T;
-  loginAttempts?: T;
-  lockUntil?: T;
-  sessions?:
-    | T
-    | {
-        id?: T;
-        createdAt?: T;
-        expiresAt?: T;
-      };
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "music_select".
+ */
+export interface MusicSelect<T extends boolean = true> {
+  title?: T;
+  slug?: T;
+  duration?: T;
+  tags?: T;
+  credit?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "frames_select".
+ */
+export interface FramesSelect<T extends boolean = true> {
+  name?: T;
+  imageSet?: T;
+  tags?: T;
+  dimensions?: T;
+  duration?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditationFrames_select".
+ */
+export interface MeditationFramesSelect<T extends boolean = true> {
+  meditation?: T;
+  frame?: T;
+  timestamp?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -564,36 +623,25 @@ export interface NarratorsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditations_select".
+ * via the `definition` "users_select".
  */
-export interface MeditationsSelect<T extends boolean = true> {
-  title?: T;
-  slug?: T;
-  thumbnail?: T;
-  duration?: T;
-  narrator?: T;
-  tags?: T;
-  musicTag?: T;
-  isPublished?: T;
-  publishedDate?: T;
-  frames?:
-    | T
-    | {
-        frame?: T;
-        timestamp?: T;
-        id?: T;
-      };
+export interface UsersSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
-  url?: T;
-  thumbnailURL?: T;
-  filename?: T;
-  mimeType?: T;
-  filesize?: T;
-  width?: T;
-  height?: T;
-  focalX?: T;
-  focalY?: T;
+  email?: T;
+  resetPasswordToken?: T;
+  resetPasswordExpiration?: T;
+  salt?: T;
+  hash?: T;
+  loginAttempts?: T;
+  lockUntil?: T;
+  sessions?:
+    | T
+    | {
+        id?: T;
+        createdAt?: T;
+        expiresAt?: T;
+      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -605,61 +653,6 @@ export interface TagsSelect<T extends boolean = true> {
   music?: T;
   media?: T;
   frames?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "music_select".
- */
-export interface MusicSelect<T extends boolean = true> {
-  title?: T;
-  slug?: T;
-  duration?: T;
-  tags?: T;
-  credit?: T;
-  updatedAt?: T;
-  createdAt?: T;
-  url?: T;
-  thumbnailURL?: T;
-  filename?: T;
-  mimeType?: T;
-  filesize?: T;
-  width?: T;
-  height?: T;
-  focalX?: T;
-  focalY?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "frames_select".
- */
-export interface FramesSelect<T extends boolean = true> {
-  name?: T;
-  imageSet?: T;
-  tags?: T;
-  dimensions?: T;
-  duration?: T;
-  updatedAt?: T;
-  createdAt?: T;
-  url?: T;
-  thumbnailURL?: T;
-  filename?: T;
-  mimeType?: T;
-  filesize?: T;
-  width?: T;
-  height?: T;
-  focalX?: T;
-  focalY?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditationFrames_select".
- */
-export interface MeditationFramesSelect<T extends boolean = true> {
-  meditation?: T;
-  frame?: T;
-  timestamp?: T;
   updatedAt?: T;
   createdAt?: T;
 }

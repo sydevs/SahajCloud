@@ -20,6 +20,7 @@ export const Frames: CollectionConfig = {
     ...getStorageConfig(),
   },
   admin: {
+    group: 'Resources',
     useAsTitle: 'name',
   },
   hooks: {

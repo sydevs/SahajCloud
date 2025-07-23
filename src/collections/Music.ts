@@ -10,6 +10,7 @@ export const Music: CollectionConfig = {
     ...getStorageConfig(),
   },
   admin: {
+    group: 'Resources',
     useAsTitle: 'title',
   },
   hooks: {

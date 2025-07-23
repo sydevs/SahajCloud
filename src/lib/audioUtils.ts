@@ -2,6 +2,12 @@
  * Audio processing utilities for duration validation and metadata extraction
  */
 
+import ffmpeg from 'fluent-ffmpeg'
+import fs from 'fs'
+import path from 'path'
+import os from 'os'
+import crypto from 'crypto'
+
 /**
  * Extract audio duration from file buffer
  * @param fileBuffer - Audio file buffer
@@ -14,22 +20,6 @@ export async function getAudioDuration(fileBuffer: Buffer): Promise<number> {
   }
   
   try {
-    // Dynamic imports to avoid webpack bundling issues with native dependencies
-    const ffprobe = (await import('node-ffprobe')).default
-    const ffprobeStatic = (await import('ffprobe-static')).default
-    
-    // Set the path to the ffprobe binary
-    if (typeof ffprobe === 'function' && ffprobeStatic?.path) {
-      ;(ffprobe as any).FFPROBE_PATH = ffprobeStatic.path
-    }
-    
-    // Create a temporary file path (ffprobe needs a file path, not a buffer)
-    // We'll use a workaround by creating a temporary file
-    const fs = await import('fs')
-    const path = await import('path')
-    const os = await import('os')
-    const crypto = await import('crypto')
-    
     const tempDir = os.tmpdir()
     const tempFileName = `temp_audio_${crypto.randomBytes(16).toString('hex')}.tmp`
     const tempFilePath = path.join(tempDir, tempFileName)
@@ -38,14 +28,24 @@ export async function getAudioDuration(fileBuffer: Buffer): Promise<number> {
     fs.writeFileSync(tempFilePath, fileBuffer)
     
     try {
-      // Get metadata using ffprobe
-      const metadata = await ffprobe(tempFilePath)
-      const duration = metadata.streams[0]?.duration || 0
+      // Get metadata using fluent-ffmpeg's ffprobe
+      const duration = await new Promise<number>((resolve, reject) => {
+        ffmpeg.ffprobe(tempFilePath, (err, metadata) => {
+          if (err) {
+            reject(err)
+            return
+          }
+          
+          // Extract duration from metadata
+          const duration = metadata.format?.duration || 0
+          resolve(parseFloat(duration.toString()))
+        })
+      })
       
       // Clean up temporary file
       fs.unlinkSync(tempFilePath)
       
-      return parseFloat(duration.toString())
+      return duration
     } catch (error) {
       // Clean up temporary file even if ffprobe fails
       if (fs.existsSync(tempFilePath)) {

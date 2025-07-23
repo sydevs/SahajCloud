@@ -9,14 +9,16 @@ import { MeditationFrames } from './MeditationFrames'
 
 // Export all collections as an array
 export const collections = [
-  Users,
-  Media,
-  Narrators,
+  // Resources
   Meditations,
-  Tags,
   Music,
   Frames,
   MeditationFrames,
+  // Utility
+  Media,
+  Narrators,
+  Users,
+  Tags,
 ]
 
 // Re-export each collection individually

@@ -3,6 +3,7 @@ import type { CollectionConfig } from 'payload'
 export const Narrators: CollectionConfig = {
   slug: 'narrators',
   admin: {
+    group: 'Utility',
     useAsTitle: 'name',
   },
   hooks: {
