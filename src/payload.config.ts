@@ -14,6 +14,7 @@ const dirname = path.dirname(filename)
 
 const isTestEnvironment = process.env.NODE_ENV === 'test'
 const isProduction = process.env.NODE_ENV === 'production'
+const publicUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
 
 // Create MinIO storage plugin if configured (only in production/staging)
 const minioStoragePlugin = !isTestEnvironment && isMinIOConfigured() ? createMinIOStorage() : null
@@ -45,20 +46,18 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     db: mongooseAdapter({
       url: process.env.DATABASE_URI || '',
     }),
-    // API Configuration
-    cors: isTestEnvironment ? undefined : (process.env.PAYLOAD_PUBLIC_CORS_ORIGINS || '*').split(','),
-    csrf: isTestEnvironment ? undefined : (isProduction ? ['https://sydevelopers.com'] : ['http://localhost:3000']),
-    rateLimit: {
-      window: 15 * 60 * 1000, // 15 minutes
-      max: isProduction ? 100 : 10000, // limit each IP to 100 requests per windowMs in production
-      trustProxy: true, // Trust proxy headers for rate limiting in production
-      skip: () => !isProduction, // Skip rate limiting in development
+    serverURL: publicUrl,
+    cors: {
+      origins: [
+        publicUrl,
+      ],
     },
+    csrf: [
+      publicUrl,
+    ],
     graphQL: {
       disable: true, // GraphQL is disabled - using REST API only
     },
-    // API Key configuration for secure external access
-    serverURL: process.env.PAYLOAD_PUBLIC_SERVER_URL || 'http://localhost:3000',
     // Email configuration (disabled in test environment to avoid model conflicts)
     ...(isTestEnvironment ? {} : {
       email: nodemailerAdapter(

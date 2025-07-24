@@ -18,7 +18,7 @@ export class TagsImporter extends BaseImporter {
           required: false,
           type: 'string',
           pattern: /^[a-z0-9-]+$/,
-          custom: (value, data) => {
+          custom: (value, _data) => {
             // If slug is provided, validate it
             if (value && !/^[a-z0-9-]+$/.test(value)) {
               return 'Slug must contain only lowercase letters, numbers, and hyphens'

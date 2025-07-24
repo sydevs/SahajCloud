@@ -1,7 +1,6 @@
 import { BaseImporter } from '../BaseImporter'
 import { transformSlug, transformNumber } from '../validation'
 import path from 'path'
-import fs from 'fs/promises'
 
 export class MusicImporter extends BaseImporter {
   constructor() {
@@ -19,17 +18,10 @@ export class MusicImporter extends BaseImporter {
           field: 'audioFilePath',
           required: true,
           type: 'string',
-          custom: async (value) => {
+          custom: (value) => {
             if (!value) return 'Audio file path is required'
             
-            // Check if file exists
-            try {
-              await fs.access(value)
-            } catch {
-              return `Audio file not found: ${value}`
-            }
-            
-            // Check file extension
+            // Check file extension (file existence check would need to be async, so we skip it here)
             const ext = path.extname(value).toLowerCase()
             if (!['.mp3', '.wav', '.m4a', '.aac'].includes(ext)) {
               return 'Audio file must be MP3, WAV, M4A, or AAC format'

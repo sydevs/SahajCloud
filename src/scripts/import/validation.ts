@@ -144,8 +144,8 @@ export function transformNumber(value: any): number {
 export function transformSlug(value: string): string {
   return value
     .toLowerCase()
+    .trim()
     .replace(/[^\w\s-]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
-    .trim()
 }

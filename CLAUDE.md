@@ -61,10 +61,6 @@ Copy from `.env.example` and configure:
 - `S3_BUCKET_NAME` - Storage bucket name
 - `S3_REGION` - Region (default: us-east-1)
 
-**API Configuration**
-- `PAYLOAD_PUBLIC_SERVER_URL` - Server URL for API access (default: http://localhost:3000)
-- `PAYLOAD_PUBLIC_CORS_ORIGINS` - Comma-separated list of allowed CORS origins
-
 **Note**: If MinIO variables are not configured, the system automatically falls back to local file storage.
 
 ## Code editing
@@ -334,10 +330,6 @@ The application uses REST API for all external integrations:
 #### REST API
 - **Endpoints**: Auto-generated at `/api/*` for all collections
 - **Authentication**: JWT-based authentication with login endpoint at `/api/users/login`
-- **CORS**: Configurable via `PAYLOAD_PUBLIC_CORS_ORIGINS` environment variable
-- **Rate Limiting**: 
-  - Development: 10,000 requests per 15 minutes
-  - Production: 100 requests per 15 minutes
 - **Features**: Full CRUD operations, pagination, filtering, sorting
 
 #### API Testing

@@ -44,19 +44,6 @@ The REST API uses JWT-based authentication:
 2. **Token**: The response includes a JWT token
 3. **Headers**: Include the token in subsequent requests as `Authorization: JWT <token>`
 
-## CORS Configuration
-
-For external clients, ensure CORS is properly configured in the Payload config:
-
-```typescript
-cors: process.env.PAYLOAD_PUBLIC_CORS_ORIGINS?.split(',') || '*'
-```
-
-Set the `PAYLOAD_PUBLIC_CORS_ORIGINS` environment variable to specify allowed origins:
-```
-PAYLOAD_PUBLIC_CORS_ORIGINS=http://localhost:3001,https://myapp.com
-```
-
 ## Rate Limiting
 
 The API includes rate limiting to prevent abuse:

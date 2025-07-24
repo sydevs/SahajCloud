@@ -2,12 +2,10 @@ import { getPayload } from 'payload'
 import type { Payload } from 'payload'
 import configPromise from '@payload-config'
 import fs from 'fs/promises'
-import path from 'path'
-import csv from 'csv-parse'
+import { parse } from 'csv-parse'
 import { DataValidator } from './validation'
 import type { 
   ImportResult, 
-  ImportError, 
   ImportOptions, 
   CollectionImportConfig 
 } from './types'
@@ -196,7 +194,7 @@ export abstract class BaseImporter {
         }
 
         await this.payload.create({
-          collection: this.config.collection,
+          collection: this.config.collection as any,
           data: transformedData,
         })
 
@@ -216,11 +214,11 @@ export abstract class BaseImporter {
 
   private async parseCSV(content: string): Promise<Record<string, any>[]> {
     return new Promise((resolve, reject) => {
-      csv.parse(content, {
+      parse(content, {
         columns: true,
         skip_empty_lines: true,
         trim: true,
-      }, (err, records) => {
+      }, (err: any, records: any) => {
         if (err) {
           reject(err)
         } else {
