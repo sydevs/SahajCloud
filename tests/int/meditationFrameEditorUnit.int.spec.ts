@@ -293,33 +293,25 @@ describe('MeditationFrameEditor Unit Tests', () => {
   })
 
   describe('Audio URL Construction', () => {
-    const constructAudioUrl = (filename: string): string => {
-      const baseUrl = process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : ''
+    const constructAudioUrl = (filename: string, env?: string): string => {
+      const baseUrl = env === 'development' ? 'http://localhost:3000' : ''
       return `${baseUrl}/media/meditations/${filename}`
     }
 
-    beforeEach(() => {
-      delete process.env.NODE_ENV
-    })
+    // Test different environments by passing env parameter
 
     it('should construct URL for development environment', () => {
-      process.env.NODE_ENV = 'development'
-      
-      const url = constructAudioUrl('test-audio.mp3')
+      const url = constructAudioUrl('test-audio.mp3', 'development')
       expect(url).toBe('http://localhost:3000/media/meditations/test-audio.mp3')
     })
 
     it('should construct URL for production environment', () => {
-      process.env.NODE_ENV = 'production'
-      
-      const url = constructAudioUrl('test-audio.mp3')
+      const url = constructAudioUrl('test-audio.mp3', 'production')
       expect(url).toBe('/media/meditations/test-audio.mp3')
     })
 
     it('should handle filenames with special characters', () => {
-      process.env.NODE_ENV = 'development'
-      
-      const url = constructAudioUrl('test audio-42s.mp3')
+      const url = constructAudioUrl('test audio-42s.mp3', 'development')
       expect(url).toBe('http://localhost:3000/media/meditations/test audio-42s.mp3')
     })
   })

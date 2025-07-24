@@ -1,21 +1,16 @@
 #!/usr/bin/env tsx
 
 /**
- * Example of using the Payload CMS REST API from an external client
+ * Example of using the Payload CMS REST API with API Key authentication
  * 
  * Usage:
- * pnpm tsx src/scripts/api-examples/rest-api-example.ts
+ * API_KEY="your-api-key-here" pnpm tsx src/scripts/api-examples/rest-api-example.ts
  */
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000/api'
-const API_EMAIL = process.env.API_EMAIL || 'contact@sydevelopers.com'
-const API_PASSWORD = process.env.API_PASSWORD || 'evk1VTH5dxz_nhg-mzk'
+const API_KEY = process.env.API_KEY || 'your-api-key-here'
 
-interface AuthResponse {
-  token: string
-  user: any
-  exp: number
-}
+// API Key authentication doesn't require login, just pass the key in headers
 
 interface PaginatedResponse<T> {
   docs: T[]
@@ -28,42 +23,20 @@ interface PaginatedResponse<T> {
 
 class PayloadAPIClient {
   private baseURL: string
-  private authToken: string | null = null
+  private apiKey: string
 
-  constructor(baseURL: string) {
+  constructor(baseURL: string, apiKey: string) {
     this.baseURL = baseURL
+    this.apiKey = apiKey
   }
 
-  async authenticate(email: string, password: string): Promise<void> {
-    console.log('🔐 Authenticating...')
-    
-    const response = await fetch(`${this.baseURL}/users/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`Authentication failed: ${response.statusText}`)
-    }
-
-    const data: AuthResponse = await response.json()
-    this.authToken = data.token
-    console.log('✅ Authentication successful')
-  }
+  // API Key authentication is handled via headers, no login required
 
   private getHeaders(): HeadersInit {
-    const headers: HeadersInit = {
+    return {
       'Content-Type': 'application/json',
+      'Authorization': `clients API-Key ${this.apiKey}`,
     }
-
-    if (this.authToken) {
-      headers['Authorization'] = `JWT ${this.authToken}`
-    }
-
-    return headers
   }
 
   async get<T>(endpoint: string): Promise<T> {
@@ -120,11 +93,11 @@ class PayloadAPIClient {
 }
 
 async function demonstrateAPIUsage() {
-  const client = new PayloadAPIClient(API_BASE_URL)
+  const client = new PayloadAPIClient(API_BASE_URL, API_KEY)
 
   try {
-    // 1. Authenticate
-    await client.authenticate(API_EMAIL, API_PASSWORD)
+    console.log('🔑 Using API Key authentication')
+    console.log('📝 Note: API clients have read-only access')
 
     // 2. Get all tags
     console.log('\n📋 Fetching all tags...')
@@ -134,20 +107,18 @@ async function demonstrateAPIUsage() {
       console.log(`  - ${tag.title} (${tag.slug})`)
     })
 
-    // 3. Create a new tag
-    console.log('\n➕ Creating a new tag...')
-    const newTag = await client.post<{ doc: any }>('/tags', {
-      title: 'API Test Tag',
-      slug: 'api-test-tag',
-    })
-    console.log(`Created tag: ${newTag.doc.title} (ID: ${newTag.doc.id})`)
+    // 3. Demonstrate read-only access
+    console.log('\n🚫 Attempting to create a tag (should fail - read only)...')
+    try {
+      await client.post('/tags', {
+        title: 'API Test Tag',
+      })
+    } catch (_error) {
+      console.log('✅ Create operation blocked as expected (read-only access)')
+    }
 
-    // 4. Update the tag
-    console.log('\n✏️  Updating the tag...')
-    const updatedTag = await client.patch<{ doc: any }>(`/tags/${newTag.doc.id}`, {
-      title: 'Updated API Test Tag',
-    })
-    console.log(`Updated tag title: ${updatedTag.doc.title}`)
+    // 4. Demonstrate update is blocked
+    console.log('\n🚫 Update operations are not allowed for API clients')
 
     // 5. Get narrators with filtering
     console.log('\n👥 Fetching male narrators...')
@@ -174,10 +145,8 @@ async function demonstrateAPIUsage() {
       console.log(`  - ${tag.title}`)
     })
 
-    // 8. Clean up - delete the test tag
-    console.log('\n🗑️  Cleaning up...')
-    await client.delete(`/tags/${newTag.doc.id}`)
-    console.log('Test tag deleted')
+    // 8. Delete operations not allowed
+    console.log('\n🚫 Delete operations are not allowed for API clients')
 
     console.log('\n✅ API demonstration completed successfully!')
 

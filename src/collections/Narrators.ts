@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { applyClientAccessControl, addAPIUsageTracking } from '../lib/clientAccessControl'
 
 export const Narrators: CollectionConfig = {
   slug: 'narrators',
@@ -6,7 +7,8 @@ export const Narrators: CollectionConfig = {
     group: 'Utility',
     useAsTitle: 'name',
   },
-  hooks: {
+  access: applyClientAccessControl(),
+  hooks: addAPIUsageTracking({
     beforeChange: [
       ({ data, operation }) => {
         if (operation === 'create' || (operation === 'update' && data.name)) {
@@ -20,7 +22,7 @@ export const Narrators: CollectionConfig = {
         return data
       },
     ],
-  },
+  }),
   fields: [
     {
       name: 'name',

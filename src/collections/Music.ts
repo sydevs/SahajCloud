@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { getStorageConfig } from '@/lib/storage'
+import { applyClientAccessControl, addAPIUsageTracking } from '../lib/clientAccessControl'
 
 export const Music: CollectionConfig = {
   slug: 'music',
@@ -13,7 +14,8 @@ export const Music: CollectionConfig = {
     group: 'Resources',
     useAsTitle: 'title',
   },
-  hooks: {
+  access: applyClientAccessControl(),
+  hooks: addAPIUsageTracking({
     beforeChange: [
       ({ data, operation, originalDoc }) => {
         // Generate slug from title
@@ -61,7 +63,7 @@ export const Music: CollectionConfig = {
         return data
       },
     ],
-  },
+  }),
   fields: [
     {
       name: 'title',

@@ -1,4 +1,5 @@
 import type { CollectionConfig, Validate } from 'payload'
+import { applyClientAccessControl, addAPIUsageTracking } from '../lib/clientAccessControl'
 
 export const MeditationFrames: CollectionConfig = {
   slug: 'meditationFrames',
@@ -6,6 +7,8 @@ export const MeditationFrames: CollectionConfig = {
     hidden: true, // Hide from admin panel navigation
     useAsTitle: 'id', // Use the auto-generated ID as the title
   },
+  access: applyClientAccessControl(),
+  hooks: addAPIUsageTracking(),
   fields: [
     {
       name: 'meditation',

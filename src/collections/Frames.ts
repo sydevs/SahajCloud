@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 import sharp from 'sharp'
 import { getVideoDuration, getVideoDimensions, validateVideoDuration, validateVideoFileSize } from '@/lib/videoUtils'
 import { getStorageConfig } from '@/lib/storage'
+import { applyClientAccessControl, addAPIUsageTracking } from '../lib/clientAccessControl'
 
 export const Frames: CollectionConfig = {
   slug: 'frames',
@@ -23,7 +24,8 @@ export const Frames: CollectionConfig = {
     group: 'Resources',
     useAsTitle: 'name',
   },
-  hooks: {
+  access: applyClientAccessControl(),
+  hooks: addAPIUsageTracking({
     beforeValidate: [
       async ({ data, req }) => {
         // Validate file size based on file type
@@ -106,7 +108,7 @@ export const Frames: CollectionConfig = {
         return data
       },
     ],
-  },
+  }),
   fields: [
     {
       name: 'name',

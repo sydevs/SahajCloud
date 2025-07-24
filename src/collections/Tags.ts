@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { applyClientAccessControl, addAPIUsageTracking } from '../lib/clientAccessControl'
 
 export const Tags: CollectionConfig = {
   slug: 'tags',
@@ -6,6 +7,8 @@ export const Tags: CollectionConfig = {
     group: 'Utility',
     useAsTitle: 'title',
   },
+  access: applyClientAccessControl(),
+  hooks: addAPIUsageTracking(),
   fields: [
     {
       name: 'title',

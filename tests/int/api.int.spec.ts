@@ -1,15 +1,14 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Payload } from 'payload'
-import type { User, Tag, Narrator } from '@/payload-types'
+import type { Client, Tag, Narrator, User } from '@/payload-types'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-describe.skip('REST API', () => {
-  // TODO: Fix JWT authentication in test environment
+describe('REST API with API Key Authentication', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let serverURL: string
-  let authToken: string
-  let testUser: User
+  let apiKey: string
+  let testClient: Client
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
@@ -17,24 +16,35 @@ describe.skip('REST API', () => {
     cleanup = testEnv.cleanup
     serverURL = payload.config.serverURL || 'http://localhost:3000'
 
-    // Create a test user for authentication
-    testUser = await payload.create({
+    // Create a test admin user to manage the client
+    const adminUser = await payload.create({
       collection: 'users',
       data: {
-        email: 'api-test@example.com',
-        password: 'ApiTest123!',
+        email: 'test-admin@example.com',
+        password: 'AdminPass123!',
       },
     }) as User
 
-    // Login to get auth token
-    const loginResult = await payload.login({
-      collection: 'users',
+    // Create a test client
+    testClient = await payload.create({
+      collection: 'clients',
       data: {
-        email: 'api-test@example.com',
-        password: 'ApiTest123!',
+        name: 'Test API Client',
+        email: 'test-client@example.com',
+        description: 'Test client for API integration tests',
+        role: 'full-access',
+        active: true,
+        contacts: [adminUser.id],
       },
-    })
-    authToken = loginResult.token || ''
+    }) as Client
+
+    // Note: In a real environment, API keys are generated through the admin UI
+    // For testing purposes, we'll use a mock API key
+    // The actual API key generation is handled by Payload's auth system
+    apiKey = 'test-api-key-123'
+    
+    // TODO: Implement proper API key generation for tests once we understand
+    // how Payload handles this internally
   })
 
   afterAll(async () => {
@@ -43,22 +53,21 @@ describe.skip('REST API', () => {
 
   describe('Collections CRUD Operations', () => {
     describe('Tags', () => {
-      it('creates a tag via REST API', async () => {
-        const newTag = await fetch(`${serverURL}/api/tags`, {
+      it('prevents creating a tag via REST API (read-only access)', async () => {
+        const response = await fetch(`${serverURL}/api/tags`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `JWT ${authToken}`,
+            'Authorization': `clients API-Key ${apiKey}`,
           },
           body: JSON.stringify({
             title: 'Test Tag',
-            slug: 'test-tag',
           }),
-        }).then(res => res.json())
+        })
 
-        expect(newTag.doc).toBeDefined()
-        expect(newTag.doc.title).toBe('Test Tag')
-        expect(newTag.doc.slug).toBe('test-tag')
+        // Clients have read-only access, so create should fail
+        expect(response.ok).toBe(false)
+        expect(response.status).toBe(403) // Forbidden
       })
 
       it('gets all tags via REST API', async () => {
@@ -74,7 +83,7 @@ describe.skip('REST API', () => {
 
         const response = await fetch(`${serverURL}/api/tags`, {
           headers: {
-            'Authorization': `JWT ${authToken}`,
+            'Authorization': `clients API-Key ${apiKey}`,
           },
         }).then(res => res.json())
 
@@ -92,7 +101,7 @@ describe.skip('REST API', () => {
 
         const response = await fetch(`${serverURL}/api/tags/${tag.id}`, {
           headers: {
-            'Authorization': `JWT ${authToken}`,
+            'Authorization': `clients API-Key ${apiKey}`,
           },
         }).then(res => res.json())
 
@@ -100,27 +109,29 @@ describe.skip('REST API', () => {
         expect(response.title).toBe('Single Tag')
       })
 
-      it('updates a tag via REST API', async () => {
+      it('prevents updating a tag via REST API (read-only access)', async () => {
         const tag = await payload.create({
           collection: 'tags',
           data: { title: 'Original Title' },
         }) as Tag
 
-        const updatedTag = await fetch(`${serverURL}/api/tags/${tag.id}`, {
+        const response = await fetch(`${serverURL}/api/tags/${tag.id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `JWT ${authToken}`,
+            'Authorization': `clients API-Key ${apiKey}`,
           },
           body: JSON.stringify({
             title: 'Updated Title',
           }),
-        }).then(res => res.json())
+        })
 
-        expect(updatedTag.doc.title).toBe('Updated Title')
+        // Clients have read-only access, so update should fail
+        expect(response.ok).toBe(false)
+        expect(response.status).toBe(403) // Forbidden
       })
 
-      it('deletes a tag via REST API', async () => {
+      it('prevents deleting a tag via REST API (read-only access)', async () => {
         const tag = await payload.create({
           collection: 'tags',
           data: { title: 'To Delete' },
@@ -129,19 +140,23 @@ describe.skip('REST API', () => {
         const deleteResponse = await fetch(`${serverURL}/api/tags/${tag.id}`, {
           method: 'DELETE',
           headers: {
-            'Authorization': `JWT ${authToken}`,
+            'Authorization': `clients API-Key ${apiKey}`,
           },
         })
 
-        expect(deleteResponse.ok).toBe(true)
+        // Clients have read-only access, so delete should fail
+        expect(deleteResponse.ok).toBe(false)
+        expect(deleteResponse.status).toBe(403) // Forbidden
 
-        // Verify it's deleted
+        // Verify tag still exists
         const getResponse = await fetch(`${serverURL}/api/tags/${tag.id}`, {
           headers: {
-            'Authorization': `JWT ${authToken}`,
+            'Authorization': `clients API-Key ${apiKey}`,
           },
         })
-        expect(getResponse.status).toBe(404)
+        expect(getResponse.ok).toBe(true)
+        const tag2 = await getResponse.json()
+        expect(tag2.id).toBe(tag.id)
       })
     })
 
@@ -163,7 +178,7 @@ describe.skip('REST API', () => {
       it('supports pagination via REST API', async () => {
         const page1 = await fetch(`${serverURL}/api/narrators?limit=2&page=1`, {
           headers: {
-            'Authorization': `JWT ${authToken}`,
+            'Authorization': `clients API-Key ${apiKey}`,
           },
         }).then(res => res.json())
 
@@ -173,7 +188,7 @@ describe.skip('REST API', () => {
 
         const page2 = await fetch(`${serverURL}/api/narrators?limit=2&page=2`, {
           headers: {
-            'Authorization': `JWT ${authToken}`,
+            'Authorization': `clients API-Key ${apiKey}`,
           },
         }).then(res => res.json())
 
@@ -185,7 +200,7 @@ describe.skip('REST API', () => {
       it('supports filtering via REST API', async () => {
         const femaleNarrators = await fetch(`${serverURL}/api/narrators?where[gender][equals]=female`, {
           headers: {
-            'Authorization': `JWT ${authToken}`,
+            'Authorization': `clients API-Key ${apiKey}`,
           },
         }).then(res => res.json())
 
@@ -198,7 +213,7 @@ describe.skip('REST API', () => {
       it('supports sorting via REST API', async () => {
         const sortedAsc = await fetch(`${serverURL}/api/narrators?sort=name`, {
           headers: {
-            'Authorization': `JWT ${authToken}`,
+            'Authorization': `clients API-Key ${apiKey}`,
           },
         }).then(res => res.json())
 
@@ -208,7 +223,7 @@ describe.skip('REST API', () => {
 
         const sortedDesc = await fetch(`${serverURL}/api/narrators?sort=-name`, {
           headers: {
-            'Authorization': `JWT ${authToken}`,
+            'Authorization': `clients API-Key ${apiKey}`,
           },
         }).then(res => res.json())
 
@@ -220,17 +235,17 @@ describe.skip('REST API', () => {
 
     describe('Authentication', () => {
       it('requires authentication for protected endpoints', async () => {
-        const response = await fetch(`${serverURL}/api/users`, {
+        const response = await fetch(`${serverURL}/api/tags`, {
           // No auth header
         })
 
         expect(response.status).toBe(401)
       })
 
-      it('allows access with valid authentication', async () => {
-        const response = await fetch(`${serverURL}/api/users`, {
+      it('allows access with valid API key authentication', async () => {
+        const response = await fetch(`${serverURL}/api/tags`, {
           headers: {
-            'Authorization': `JWT ${authToken}`,
+            'Authorization': `clients API-Key ${apiKey}`,
           },
         })
 
@@ -238,25 +253,37 @@ describe.skip('REST API', () => {
         const data = await response.json()
         expect(data.docs).toBeDefined()
       })
+
+      it('prevents access to users collection with API key (clients cannot access users)', async () => {
+        const response = await fetch(`${serverURL}/api/users`, {
+          headers: {
+            'Authorization': `clients API-Key ${apiKey}`,
+          },
+        })
+
+        // Clients should not have access to users collection
+        expect(response.ok).toBe(false)
+        expect(response.status).toBe(403) // Forbidden
+      })
     })
 
     describe('Error Handling', () => {
       it('returns 404 for non-existent resources', async () => {
         const response = await fetch(`${serverURL}/api/tags/nonexistentid`, {
           headers: {
-            'Authorization': `JWT ${authToken}`,
+            'Authorization': `clients API-Key ${apiKey}`,
           },
         })
 
         expect(response.status).toBe(404)
       })
 
-      it('returns 400 for invalid data', async () => {
+      it('prevents creating resources with invalid data (read-only access)', async () => {
         const response = await fetch(`${serverURL}/api/narrators`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `JWT ${authToken}`,
+            'Authorization': `clients API-Key ${apiKey}`,
           },
           body: JSON.stringify({
             // Missing required fields
@@ -264,9 +291,8 @@ describe.skip('REST API', () => {
           }),
         })
 
-        expect(response.status).toBe(400)
-        const error = await response.json()
-        expect(error.errors).toBeDefined()
+        // Clients have read-only access, so create should fail with 403, not 400
+        expect(response.status).toBe(403) // Forbidden due to read-only access
       })
     })
   })

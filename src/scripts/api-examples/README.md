@@ -9,46 +9,54 @@ This directory contains example scripts demonstrating how to interact with the P
    pnpm dev
    ```
 
-2. Make sure you have a valid user account. The default credentials are:
-   - Email: `contact@sydevelopers.com`
-   - Password: `evk1VTH5dxz_nhg-mzk`
+2. Obtain an API key from your administrator:
+   - API keys are generated through the Payload admin panel
+   - Navigate to the Clients collection and create/manage API clients
+   - Each client can generate their own API key
 
 ## REST API Example
 
 The REST API example demonstrates:
-- Authentication
-- CRUD operations (Create, Read, Update, Delete)
+- API Key authentication
+- Read operations (GET requests)
 - Pagination
 - Filtering
 - Sorting
+- Read-only access restrictions
 
 ### Running the REST API Example
 
 ```bash
-pnpm tsx src/scripts/api-examples/rest-api-example.ts
+API_KEY="your-api-key-here" pnpm tsx src/scripts/api-examples/rest-api-example.ts
 ```
 
-### Environment Variables (Optional)
+### Environment Variables
 
 ```bash
-API_BASE_URL=http://localhost:3000/api
-API_EMAIL=contact@sydevelopers.com
-API_PASSWORD=evk1VTH5dxz_nhg-mzk
+API_BASE_URL=http://localhost:3000/api  # Optional, defaults to localhost
+API_KEY=your-api-key-here               # Required
 ```
 
 ## API Authentication
 
-The REST API uses JWT-based authentication:
+The REST API uses API Key authentication for third-party clients:
 
-1. **Login**: POST to `/api/users/login` with email and password
-2. **Token**: The response includes a JWT token
-3. **Headers**: Include the token in subsequent requests as `Authorization: JWT <token>`
+1. **API Key**: Obtained from the admin panel for each client
+2. **Headers**: Include the key in requests as `Authorization: clients API-Key <YOUR_KEY>`
+3. **Access**: All API clients have read-only access to non-restricted collections
 
-## Rate Limiting
+## Access Control
 
-The API includes rate limiting to prevent abuse:
-- Development: 10,000 requests per 15 minutes
-- Production: 100 requests per 15 minutes
+- **Read-Only Access**: API clients can only perform GET requests
+- **Restricted Collections**: Clients cannot access Users or Clients collections
+- **Allowed Collections**: Tags, Narrators, Music, Meditations, Frames, Media
+
+## API Usage Tracking
+
+API usage is automatically tracked for each client:
+- Total requests and daily request counts
+- Last usage timestamp
+- High usage alerts in the admin panel (>1000 requests/day)
 
 ## Error Handling
 

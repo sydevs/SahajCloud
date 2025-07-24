@@ -1,15 +1,16 @@
 import type { CollectionConfig } from 'payload'
 import sharp from 'sharp'
 import { getStorageConfig } from '@/lib/storage'
+import { applyClientAccessControl, addAPIUsageTracking } from '../lib/clientAccessControl'
 
 export const Media: CollectionConfig = {
   slug: 'media',
   admin: {
     group: 'Utility',
   },
-  access: {
+  access: applyClientAccessControl({
     read: () => true,
-  },
+  }),
   upload: {
     staticDir: 'media/images',
     mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
@@ -53,7 +54,7 @@ export const Media: CollectionConfig = {
     ],
     ...getStorageConfig(),
   },
-  hooks: {
+  hooks: addAPIUsageTracking({
     beforeChange: [
       async ({ data, req }) => {
         // Auto-convert JPG/PNG to WEBP format for main file
@@ -113,7 +114,7 @@ export const Media: CollectionConfig = {
         return data
       },
     ],
-  },
+  }),
   fields: [
     {
       name: 'alt',

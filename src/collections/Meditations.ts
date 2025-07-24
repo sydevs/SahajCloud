@@ -1,6 +1,7 @@
 import type { CollectionConfig, Validate } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { getStorageConfig } from '@/lib/storage'
+import { applyClientAccessControl, addAPIUsageTracking } from '../lib/clientAccessControl'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
@@ -13,7 +14,8 @@ export const Meditations: CollectionConfig = {
     group: 'Resources',
     useAsTitle: 'title',
   },
-  hooks: {
+  access: applyClientAccessControl(),
+  hooks: addAPIUsageTracking({
     beforeChange: [
       ({ data, operation, originalDoc }) => {
         // Generate slug from title
@@ -127,7 +129,7 @@ export const Meditations: CollectionConfig = {
         }
       },
     ],
-  },
+  }),
   fields: [
     {
       name: 'title',

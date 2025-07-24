@@ -310,11 +310,12 @@ describe('Meditations Collection', () => {
       expect(meditation.frames).toHaveLength(2)
       
       // Check that frames are sorted by timestamp
-      expect(meditation.frames?.[0]?.timestamp).toBe(5.0)
-      expect(meditation.frames?.[1]?.timestamp).toBe(15.0)
+      const framesArray = meditation.frames as any[]
+      expect(framesArray[0]?.timestamp).toBe(5.0)
+      expect(framesArray[1]?.timestamp).toBe(15.0)
       
-      const frame1Id = typeof meditation.frames?.[0]?.frame === 'object' ? meditation.frames[0].frame.id : meditation.frames?.[0]?.frame
-      const frame2Id = typeof meditation.frames?.[1]?.frame === 'object' ? meditation.frames[1].frame.id : meditation.frames?.[1]?.frame
+      const frame1Id = typeof framesArray[0]?.frame === 'object' ? framesArray[0].frame.id : framesArray[0]?.frame
+      const frame2Id = typeof framesArray[1]?.frame === 'object' ? framesArray[1].frame.id : framesArray[1]?.frame
       
       expect(frame1Id).toBe(testFrame1.id)
       expect(frame2Id).toBe(testFrame2.id)
@@ -343,8 +344,9 @@ describe('Meditations Collection', () => {
       expect(meditation.frames).toHaveLength(2)
       
       // Should be automatically sorted by timestamp
-      expect(meditation.frames?.[0]?.timestamp).toBe(5.0)
-      expect(meditation.frames?.[1]?.timestamp).toBe(20.0)
+      const framesArray = meditation.frames as any[]
+      expect(framesArray[0]?.timestamp).toBe(5.0)
+      expect(framesArray[1]?.timestamp).toBe(20.0)
     })
 
     it('syncs meditation frames with MeditationFrames collection on create', async () => {
@@ -414,7 +416,8 @@ describe('Meditations Collection', () => {
 
       // Check meditation frames field
       expect(updated.frames).toHaveLength(1)
-      expect(updated.frames?.[0]?.timestamp).toBe(8.0)
+      const updatedFramesArray = updated.frames as any[]
+      expect(updatedFramesArray[0]?.timestamp).toBe(8.0)
 
       // Check that MeditationFrames record was created
       const meditationFrames = await payload.find({

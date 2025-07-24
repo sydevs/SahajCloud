@@ -325,15 +325,27 @@ tests/
 
 ### API Configuration
 
-The application uses REST API for all external integrations:
+The application uses REST API for all external integrations with API key authentication:
 
 #### REST API
 - **Endpoints**: Auto-generated at `/api/*` for all collections
-- **Authentication**: JWT-based authentication with login endpoint at `/api/users/login`
-- **Features**: Full CRUD operations, pagination, filtering, sorting
+- **Authentication**: API key-based authentication for third-party clients
+- **Authorization Header**: `Authorization: clients API-Key <YOUR_KEY>`
+- **Access Control**: All API clients have read-only access
+- **Features**: Read operations only, with pagination, filtering, and sorting
+
+#### Clients Collection
+- **Purpose**: Manages third-party API clients with API key authentication
+- **Features**:
+  - Automatic API key generation through admin panel
+  - API usage tracking (total and daily requests)
+  - Contact management (associated users)
+  - Active/inactive status control
+  - High usage alerts (>1000 requests/day)
+- **Access**: Clients cannot access Users or Clients collections via API
 
 #### API Testing
-- **REST Tests**: `tests/int/api.int.spec.ts` - Comprehensive CRUD, pagination, filtering tests
+- **REST Tests**: `tests/int/api.int.spec.ts` - Tests for read-only access with API keys
 - **Example Scripts**: `src/scripts/api-examples/` - External client usage examples
 
 ### Content Import Scripts

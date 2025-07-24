@@ -64,6 +64,7 @@ export type SupportedTimezones =
 export interface Config {
   auth: {
     users: UserAuthOperations;
+    clients: ClientAuthOperations;
   };
   blocks: {};
   collections: {
@@ -74,6 +75,7 @@ export interface Config {
     media: Media;
     narrators: Narrator;
     users: User;
+    clients: Client;
     tags: Tag;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -95,6 +97,7 @@ export interface Config {
     media: MediaSelect<false> | MediaSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
+    clients: ClientsSelect<false> | ClientsSelect<true>;
     tags: TagsSelect<false> | TagsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -106,15 +109,37 @@ export interface Config {
   globals: {};
   globalsSelect: {};
   locale: null;
-  user: User & {
-    collection: 'users';
-  };
+  user:
+    | (User & {
+        collection: 'users';
+      })
+    | (Client & {
+        collection: 'clients';
+      });
   jobs: {
     tasks: unknown;
     workflows: unknown;
   };
 }
 export interface UserAuthOperations {
+  forgotPassword: {
+    email: string;
+    password: string;
+  };
+  login: {
+    email: string;
+    password: string;
+  };
+  registerFirstUser: {
+    email: string;
+    password: string;
+  };
+  unlock: {
+    email: string;
+    password: string;
+  };
+}
+export interface ClientAuthOperations {
   forgotPassword: {
     email: string;
     password: string;
@@ -394,6 +419,63 @@ export interface User {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "clients".
+ */
+export interface Client {
+  id: string;
+  /**
+   * Unique name to identify this API client
+   */
+  name: string;
+  /**
+   * Contact email for this API client
+   */
+  email: string;
+  /**
+   * Describe the purpose and usage of this API client
+   */
+  description?: string | null;
+  /**
+   * Access level for this client (all clients have read-only access)
+   */
+  role: 'full-access';
+  /**
+   * Deactivate to temporarily disable API access
+   */
+  active?: boolean | null;
+  /**
+   * Users who manage and receive notifications for this client
+   */
+  contacts?: (string | User)[] | null;
+  /**
+   * Last time this API key was used
+   */
+  lastUsed?: string | null;
+  /**
+   * API usage statistics
+   */
+  apiUsage?: {
+    /**
+     * Total API requests made by this client
+     */
+    totalRequests?: number | null;
+    /**
+     * API requests made today
+     */
+    dailyRequests?: number | null;
+    /**
+     * Last date when daily counter was reset
+     */
+    lastResetDate?: string | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+  enableAPIKey?: boolean | null;
+  apiKey?: string | null;
+  apiKeyIndex?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -428,14 +510,23 @@ export interface PayloadLockedDocument {
         value: string | User;
       } | null)
     | ({
+        relationTo: 'clients';
+        value: string | Client;
+      } | null)
+    | ({
         relationTo: 'tags';
         value: string | Tag;
       } | null);
   globalSlug?: string | null;
-  user: {
-    relationTo: 'users';
-    value: string | User;
-  };
+  user:
+    | {
+        relationTo: 'users';
+        value: string | User;
+      }
+    | {
+        relationTo: 'clients';
+        value: string | Client;
+      };
   updatedAt: string;
   createdAt: string;
 }
@@ -445,10 +536,15 @@ export interface PayloadLockedDocument {
  */
 export interface PayloadPreference {
   id: string;
-  user: {
-    relationTo: 'users';
-    value: string | User;
-  };
+  user:
+    | {
+        relationTo: 'users';
+        value: string | User;
+      }
+    | {
+        relationTo: 'clients';
+        value: string | Client;
+      };
   key?: string | null;
   value?:
     | {
@@ -642,6 +738,31 @@ export interface UsersSelect<T extends boolean = true> {
         createdAt?: T;
         expiresAt?: T;
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "clients_select".
+ */
+export interface ClientsSelect<T extends boolean = true> {
+  name?: T;
+  email?: T;
+  description?: T;
+  role?: T;
+  active?: T;
+  contacts?: T;
+  lastUsed?: T;
+  apiUsage?:
+    | T
+    | {
+        totalRequests?: T;
+        dailyRequests?: T;
+        lastResetDate?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  enableAPIKey?: T;
+  apiKey?: T;
+  apiKeyIndex?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
