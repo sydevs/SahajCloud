@@ -329,7 +329,7 @@ tests/
 
 ### API Configuration
 
-The application includes comprehensive API configuration for both REST and GraphQL endpoints:
+The application uses REST API for all external integrations:
 
 #### REST API
 - **Endpoints**: Auto-generated at `/api/*` for all collections
@@ -340,16 +340,8 @@ The application includes comprehensive API configuration for both REST and Graph
   - Production: 100 requests per 15 minutes
 - **Features**: Full CRUD operations, pagination, filtering, sorting
 
-#### GraphQL API
-- **Endpoint**: `/api/graphql`
-- **Playground**: `/api/graphql-playground` (disabled in production)
-- **Schema**: Auto-generated at `graphql-schema.graphql`
-- **Complexity Limit**: 1000 to prevent overly complex queries
-- **Authentication**: Same JWT tokens as REST API
-
 #### API Testing
 - **REST Tests**: `tests/int/api.int.spec.ts` - Comprehensive CRUD, pagination, filtering tests
-- **GraphQL Tests**: `tests/int/graphql.int.spec.ts` - Query, mutation, and fragment tests
 - **Example Scripts**: `src/scripts/api-examples/` - External client usage examples
 
 ### Content Import Scripts

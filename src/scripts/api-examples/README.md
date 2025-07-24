@@ -1,6 +1,6 @@
 # API Examples
 
-This directory contains example scripts demonstrating how to interact with the Payload CMS API from external clients.
+This directory contains example scripts demonstrating how to interact with the Payload CMS REST API from external clients.
 
 ## Prerequisites
 
@@ -36,40 +36,13 @@ API_EMAIL=contact@sydevelopers.com
 API_PASSWORD=evk1VTH5dxz_nhg-mzk
 ```
 
-## GraphQL API Example
-
-The GraphQL API example demonstrates:
-- Authentication via GraphQL
-- Query operations
-- Mutations
-- Filtering with where clauses
-- Complex queries with relationships
-- Using GraphQL fragments
-
-### Running the GraphQL API Example
-
-```bash
-pnpm tsx src/scripts/api-examples/graphql-api-example.ts
-```
-
-### Environment Variables (Optional)
-
-```bash
-GRAPHQL_ENDPOINT=http://localhost:3000/api/graphql
-API_EMAIL=contact@sydevelopers.com
-API_PASSWORD=evk1VTH5dxz_nhg-mzk
-```
-
 ## API Authentication
 
-Both examples demonstrate how to authenticate with the API:
+The REST API uses JWT-based authentication:
 
-1. **REST API**: POST to `/api/users/login` with email and password
-2. **GraphQL**: Use the `loginUser` mutation
-
-The authentication response includes a JWT token that must be included in subsequent requests:
-- REST: `Authorization: JWT <token>`
-- GraphQL: Same header format
+1. **Login**: POST to `/api/users/login` with email and password
+2. **Token**: The response includes a JWT token
+3. **Headers**: Include the token in subsequent requests as `Authorization: JWT <token>`
 
 ## CORS Configuration
 
