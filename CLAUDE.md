@@ -34,6 +34,10 @@ The admin panel can be accessed at http://localhost:3000/admin/login once the de
 - `pnpm test:int` - Run integration tests (Vitest)
 - `pnpm test:e2e` - Run E2E tests (Playwright)
 
+### Content Import
+- `pnpm tsx src/scripts/import/import.ts <collection> <file>` - Import data from CSV/JSON
+- Options: `--dry-run`, `--validate-only`, `--batch-size <n>`, `--report <path>`
+
 ## Environment Setup
 
 ### Required Environment Variables
@@ -56,6 +60,10 @@ Copy from `.env.example` and configure:
 - `S3_SECRET_ACCESS_KEY` - MinIO secret key
 - `S3_BUCKET_NAME` - Storage bucket name
 - `S3_REGION` - Region (default: us-east-1)
+
+**API Configuration**
+- `PAYLOAD_PUBLIC_SERVER_URL` - Server URL for API access (default: http://localhost:3000)
+- `PAYLOAD_PUBLIC_CORS_ORIGINS` - Comma-separated list of allowed CORS origins
 
 **Note**: If MinIO variables are not configured, the system automatically falls back to local file storage.
 
@@ -318,3 +326,59 @@ tests/
 ├── setup/                  # Test environment setup
 └── utils/                  # Test utilities & factories
 ```
+
+### API Configuration
+
+The application includes comprehensive API configuration for both REST and GraphQL endpoints:
+
+#### REST API
+- **Endpoints**: Auto-generated at `/api/*` for all collections
+- **Authentication**: JWT-based authentication with login endpoint at `/api/users/login`
+- **CORS**: Configurable via `PAYLOAD_PUBLIC_CORS_ORIGINS` environment variable
+- **Rate Limiting**: 
+  - Development: 10,000 requests per 15 minutes
+  - Production: 100 requests per 15 minutes
+- **Features**: Full CRUD operations, pagination, filtering, sorting
+
+#### GraphQL API
+- **Endpoint**: `/api/graphql`
+- **Playground**: `/api/graphql-playground` (disabled in production)
+- **Schema**: Auto-generated at `graphql-schema.graphql`
+- **Complexity Limit**: 1000 to prevent overly complex queries
+- **Authentication**: Same JWT tokens as REST API
+
+#### API Testing
+- **REST Tests**: `tests/int/api.int.spec.ts` - Comprehensive CRUD, pagination, filtering tests
+- **GraphQL Tests**: `tests/int/graphql.int.spec.ts` - Query, mutation, and fragment tests
+- **Example Scripts**: `src/scripts/api-examples/` - External client usage examples
+
+### Content Import Scripts
+
+The project includes a robust content import system for bulk data operations:
+
+#### Architecture
+- **Base Importer**: `src/scripts/import/BaseImporter.ts` - Abstract class handling CSV/JSON parsing
+- **Validation**: `src/scripts/import/validation.ts` - Type checking and data validation utilities
+- **Collection Importers**: Individual importers for each collection with specific validation rules
+
+#### Features
+- **File Formats**: Support for both CSV and JSON imports
+- **Validation**: Comprehensive field validation with type checking
+- **Batch Processing**: Configurable batch sizes for large imports
+- **Progress Tracking**: Real-time progress updates during import
+- **Dry Run Mode**: Test imports without writing to database
+- **Error Reporting**: Detailed error messages with row numbers
+
+#### Usage Example
+```bash
+# Import tags from CSV
+pnpm tsx src/scripts/import/import.ts tags ./data/tags.csv
+
+# Dry run with validation only
+pnpm tsx src/scripts/import/import.ts narrators ./data/narrators.json --dry-run --report ./report.txt
+```
+
+#### Available Importers
+- **TagsImporter**: Imports tags with automatic slug generation
+- **NarratorsImporter**: Imports narrator profiles with gender validation
+- **MusicImporter**: Imports music tracks (file upload support pending)
