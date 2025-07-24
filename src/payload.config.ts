@@ -45,6 +45,23 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     db: mongooseAdapter({
       url: process.env.DATABASE_URI || '',
     }),
+    // API Configuration
+    cors: isTestEnvironment ? false : (process.env.PAYLOAD_PUBLIC_CORS_ORIGINS || '*').split(','),
+    csrf: isTestEnvironment ? false : (isProduction ? ['https://sydevelopers.com'] : ['http://localhost:3000']),
+    rateLimit: {
+      window: 15 * 60 * 1000, // 15 minutes
+      max: isProduction ? 100 : 10000, // limit each IP to 100 requests per windowMs in production
+      trustProxy: true, // Trust proxy headers for rate limiting in production
+      skip: () => !isProduction, // Skip rate limiting in development
+    },
+    graphQL: {
+      disable: false,
+      schemaOutputFile: path.resolve(dirname, 'graphql-schema.graphql'),
+      disablePlaygroundInProduction: true,
+      maxComplexity: 1000, // Prevent overly complex queries
+    },
+    // API Key configuration for secure external access
+    serverURL: process.env.PAYLOAD_PUBLIC_SERVER_URL || 'http://localhost:3000',
     // Email configuration (disabled in test environment to avoid model conflicts)
     ...(isTestEnvironment ? {} : {
       email: nodemailerAdapter(

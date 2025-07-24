@@ -1,0 +1,20 @@
+[
+  {
+    "name": "John Smith",
+    "gender": "male",
+    "slug": "john-smith"
+  },
+  {
+    "name": "Sarah Johnson",
+    "gender": "female",
+    "slug": "sarah-johnson"
+  },
+  {
+    "name": "Michael Chen",
+    "gender": "male"
+  },
+  {
+    "name": "Emily Williams",
+    "gender": "female"
+  }
+]
