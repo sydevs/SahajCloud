@@ -7,16 +7,6 @@ export const isAPIClient = (user: TypedUser | null) => {
   return user?.collection === 'clients'
 }
 
-export const accessControl = (access: CollectionConfig['access'] = {}): CollectionConfig['access'] => {
-  return {
-    ...access,
-    read: ({ req }) => basicAccess(req, access?.read || true),
-    create: ({ req }) => !isAPIClient(req.user) && basicAccess(req, access?.create || true),
-    update: ({ req }) => !isAPIClient(req.user) && basicAccess(req, access?.update || true),
-    delete: ({ req }) => !isAPIClient(req.user) && basicAccess(req, access?.delete || true),
-  }
-}
-
 export const readApiAccess = (access: CollectionConfig['access'] = {}): CollectionConfig['access'] => {
   return {
     ...access,
