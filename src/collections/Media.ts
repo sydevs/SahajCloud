@@ -1,15 +1,15 @@
 import type { CollectionConfig } from 'payload'
 import sharp from 'sharp'
 import { getStorageConfig } from '@/lib/storage'
+import { readApiAccess } from '@/lib/accessControl'
+import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Media: CollectionConfig = {
   slug: 'media',
   admin: {
     group: 'Utility',
   },
-  access: {
-    read: () => true,
-  },
+  access: readApiAccess(),
   upload: {
     staticDir: 'media/images',
     mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
@@ -112,6 +112,9 @@ export const Media: CollectionConfig = {
         
         return data
       },
+    ],
+    afterRead: [
+      trackClientUsageHook,
     ],
   },
   fields: [

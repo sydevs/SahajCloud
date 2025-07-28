@@ -21,6 +21,7 @@ describe('API', () => {
     await payload.create({
       collection: 'users',
       data: {
+        name: 'Test User',
         email: 'test@example.com',
         password: 'password123',
       },

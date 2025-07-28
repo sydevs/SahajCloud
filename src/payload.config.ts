@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 
 import { collections, Users } from './collections'
+import { tasks } from './jobs'
 import { createMinIOStorage, isMinIOConfigured } from './lib/minioAdapter'
 
 const filename = fileURLToPath(import.meta.url)
@@ -39,6 +40,19 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     collections,
     editor: lexicalEditor(),
     secret: process.env.PAYLOAD_SECRET || '',
+    jobs: {
+      tasks,
+      deleteJobOnComplete: true,
+      autoRun: [
+        {
+          cron: '0 * * * *', // Runs every hour
+          queue: 'nightly',
+        },
+      ],
+    },
+    graphQL: {
+      disable: true, // Disable GraphQL as per requirements
+    },
     typescript: {
       outputFile: path.resolve(dirname, 'payload-types.ts'),
     },

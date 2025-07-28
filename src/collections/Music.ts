@@ -1,9 +1,12 @@
 import type { CollectionConfig } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { getStorageConfig } from '@/lib/storage'
+import { readApiAccess } from '@/lib/accessControl'
+import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Music: CollectionConfig = {
   slug: 'music',
+  access: readApiAccess(),
   upload: {
     staticDir: 'media/music',
     mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
@@ -14,6 +17,7 @@ export const Music: CollectionConfig = {
     useAsTitle: 'title',
   },
   hooks: {
+    afterRead: [trackClientUsageHook],
     beforeChange: [
       ({ data, operation, originalDoc }) => {
         // Generate slug from title

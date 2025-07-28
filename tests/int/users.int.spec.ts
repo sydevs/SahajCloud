@@ -19,6 +19,7 @@ describe('Users Collection', () => {
 
   it('creates a user with email and password', async () => {
     const userData = {
+      name: 'Test User',
       email: 'test@example.com',
       password: 'password123',
     }
@@ -40,6 +41,7 @@ describe('Users Collection', () => {
       payload.create({
         collection: 'users',
         data: {
+          name: 'Test User',
           password: 'password123',
         } as any,
       })
@@ -48,6 +50,7 @@ describe('Users Collection', () => {
 
   it('requires unique email', async () => {
     const userData = {
+      name: 'Unique User',
       email: 'unique@example.com',
       password: 'password123',
     }
@@ -71,6 +74,7 @@ describe('Users Collection', () => {
     const user1 = await payload.create({
       collection: 'users',
       data: {
+        name: 'User 1',
         email: 'user1@example.com',
         password: 'password123',
       },
@@ -79,6 +83,7 @@ describe('Users Collection', () => {
     const user2 = await payload.create({
       collection: 'users',
       data: {
+        name: 'User 2',
         email: 'user2@example.com',
         password: 'password123',
       },
@@ -101,6 +106,7 @@ describe('Users Collection', () => {
     const user = await payload.create({
       collection: 'users',
       data: {
+        name: 'Update User',
         email: 'update@example.com',
         password: 'password123',
       },
@@ -121,6 +127,7 @@ describe('Users Collection', () => {
     const user = await payload.create({
       collection: 'users',
       data: {
+        name: 'Delete User',
         email: 'delete@example.com',
         password: 'password123',
       },
@@ -148,6 +155,7 @@ describe('Users Collection', () => {
     const testUser = await payload.create({
       collection: 'users',
       data: {
+        name: 'Isolation Test User',
         email: 'isolation-test@example.com',
         password: 'password123',
       },

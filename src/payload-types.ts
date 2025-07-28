@@ -64,17 +64,19 @@ export type SupportedTimezones =
 export interface Config {
   auth: {
     users: UserAuthOperations;
+    clients: ClientAuthOperations;
   };
   blocks: {};
   collections: {
     meditations: Meditation;
     music: Music;
     frames: Frame;
-    meditationFrames: MeditationFrame;
     media: Media;
     narrators: Narrator;
-    users: User;
     tags: Tag;
+    users: User;
+    clients: Client;
+    'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -91,11 +93,12 @@ export interface Config {
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
     music: MusicSelect<false> | MusicSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
-    meditationFrames: MeditationFramesSelect<false> | MeditationFramesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
-    users: UsersSelect<false> | UsersSelect<true>;
     tags: TagsSelect<false> | TagsSelect<true>;
+    users: UsersSelect<false> | UsersSelect<true>;
+    clients: ClientsSelect<false> | ClientsSelect<true>;
+    'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -103,18 +106,51 @@ export interface Config {
   db: {
     defaultIDType: string;
   };
-  globals: {};
-  globalsSelect: {};
-  locale: null;
-  user: User & {
-    collection: 'users';
+  globals: {
+    'payload-jobs-stats': PayloadJobsStat;
   };
+  globalsSelect: {
+    'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
+  };
+  locale: null;
+  user:
+    | (User & {
+        collection: 'users';
+      })
+    | (Client & {
+        collection: 'clients';
+      });
   jobs: {
-    tasks: unknown;
+    tasks: {
+      resetClientUsage: TaskResetClientUsage;
+      trackClientUsage: TaskTrackClientUsage;
+      inline: {
+        input: unknown;
+        output: unknown;
+      };
+    };
     workflows: unknown;
   };
 }
 export interface UserAuthOperations {
+  forgotPassword: {
+    email: string;
+    password: string;
+  };
+  login: {
+    email: string;
+    password: string;
+  };
+  registerFirstUser: {
+    email: string;
+    password: string;
+  };
+  unlock: {
+    email: string;
+    password: string;
+  };
+}
+export interface ClientAuthOperations {
   forgotPassword: {
     email: string;
     password: string;
@@ -355,25 +391,19 @@ export interface Narrator {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditationFrames".
- */
-export interface MeditationFrame {
-  id: string;
-  meditation: string | Meditation;
-  frame: string | Frame;
-  /**
-   * Timestamp in seconds - used for ordering frames within a meditation
-   */
-  timestamp: number;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users".
  */
 export interface User {
   id: string;
+  name: string;
+  /**
+   * Access level for this client (currently only Full Access)
+   */
+  role: 'super-admin';
+  /**
+   * Enable or disable this user
+   */
+  active?: boolean | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -391,6 +421,176 @@ export interface User {
       }[]
     | null;
   password?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "clients".
+ */
+export interface Client {
+  id: string;
+  /**
+   * Client organization or application name
+   */
+  name: string;
+  /**
+   * Purpose and usage notes for this client
+   */
+  notes?: string | null;
+  /**
+   * Access level for this client (currently only Full Access)
+   */
+  role: 'full-access';
+  /**
+   * Users who can manage this client
+   */
+  managers: (string | User)[];
+  /**
+   * Primary user contact for this client
+   */
+  primaryContact: string | User;
+  /**
+   * What domains are associated with this client. Put each domain on a new line.
+   */
+  domains?: string | null;
+  /**
+   * Enable or disable API access for this client
+   */
+  active?: boolean | null;
+  /**
+   * Timestamp of last API key generation
+   */
+  keyGeneratedAt?: string | null;
+  /**
+   * API usage statistics
+   */
+  usageStats?: {
+    /**
+     * All-time request count
+     */
+    totalRequests?: number | null;
+    /**
+     * Today's request count
+     */
+    dailyRequests?: number | null;
+    /**
+     * Maximum historical request count
+     */
+    maxDailyRequests?: number | null;
+    /**
+     * Last API call timestamp
+     */
+    lastRequestAt?: string | null;
+    /**
+     * Indicates if daily limit exceeded (>1000 requests)
+     */
+    highUsageAlert?: boolean | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+  enableAPIKey?: boolean | null;
+  apiKey?: string | null;
+  apiKeyIndex?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs".
+ */
+export interface PayloadJob {
+  id: string;
+  /**
+   * Input data provided to the job
+   */
+  input?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  taskStatus?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  completedAt?: string | null;
+  totalTried?: number | null;
+  /**
+   * If hasError is true this job will not be retried
+   */
+  hasError?: boolean | null;
+  /**
+   * If hasError is true, this is the error that caused it
+   */
+  error?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Task execution log
+   */
+  log?:
+    | {
+        executedAt: string;
+        completedAt: string;
+        taskSlug: 'inline' | 'resetClientUsage' | 'trackClientUsage';
+        taskID: string;
+        input?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        output?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        state: 'failed' | 'succeeded';
+        error?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        id?: string | null;
+      }[]
+    | null;
+  taskSlug?: ('inline' | 'resetClientUsage' | 'trackClientUsage') | null;
+  queue?: string | null;
+  waitUntil?: string | null;
+  processing?: boolean | null;
+  meta?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -412,10 +612,6 @@ export interface PayloadLockedDocument {
         value: string | Frame;
       } | null)
     | ({
-        relationTo: 'meditationFrames';
-        value: string | MeditationFrame;
-      } | null)
-    | ({
         relationTo: 'media';
         value: string | Media;
       } | null)
@@ -424,18 +620,31 @@ export interface PayloadLockedDocument {
         value: string | Narrator;
       } | null)
     | ({
+        relationTo: 'tags';
+        value: string | Tag;
+      } | null)
+    | ({
         relationTo: 'users';
         value: string | User;
       } | null)
     | ({
-        relationTo: 'tags';
-        value: string | Tag;
+        relationTo: 'clients';
+        value: string | Client;
+      } | null)
+    | ({
+        relationTo: 'payload-jobs';
+        value: string | PayloadJob;
       } | null);
   globalSlug?: string | null;
-  user: {
-    relationTo: 'users';
-    value: string | User;
-  };
+  user:
+    | {
+        relationTo: 'users';
+        value: string | User;
+      }
+    | {
+        relationTo: 'clients';
+        value: string | Client;
+      };
   updatedAt: string;
   createdAt: string;
 }
@@ -445,10 +654,15 @@ export interface PayloadLockedDocument {
  */
 export interface PayloadPreference {
   id: string;
-  user: {
-    relationTo: 'users';
-    value: string | User;
-  };
+  user:
+    | {
+        relationTo: 'users';
+        value: string | User;
+      }
+    | {
+        relationTo: 'clients';
+        value: string | Client;
+      };
   key?: string | null;
   value?:
     | {
@@ -546,17 +760,6 @@ export interface FramesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditationFrames_select".
- */
-export interface MeditationFramesSelect<T extends boolean = true> {
-  meditation?: T;
-  frame?: T;
-  timestamp?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "media_select".
  */
 export interface MediaSelect<T extends boolean = true> {
@@ -623,9 +826,25 @@ export interface NarratorsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tags_select".
+ */
+export interface TagsSelect<T extends boolean = true> {
+  title?: T;
+  meditations?: T;
+  music?: T;
+  media?: T;
+  frames?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
+  name?: T;
+  role?: T;
+  active?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -645,14 +864,61 @@ export interface UsersSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "tags_select".
+ * via the `definition` "clients_select".
  */
-export interface TagsSelect<T extends boolean = true> {
-  title?: T;
-  meditations?: T;
-  music?: T;
-  media?: T;
-  frames?: T;
+export interface ClientsSelect<T extends boolean = true> {
+  name?: T;
+  notes?: T;
+  role?: T;
+  managers?: T;
+  primaryContact?: T;
+  domains?: T;
+  active?: T;
+  keyGeneratedAt?: T;
+  usageStats?:
+    | T
+    | {
+        totalRequests?: T;
+        dailyRequests?: T;
+        maxDailyRequests?: T;
+        lastRequestAt?: T;
+        highUsageAlert?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  enableAPIKey?: T;
+  apiKey?: T;
+  apiKeyIndex?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs_select".
+ */
+export interface PayloadJobsSelect<T extends boolean = true> {
+  input?: T;
+  taskStatus?: T;
+  completedAt?: T;
+  totalTried?: T;
+  hasError?: T;
+  error?: T;
+  log?:
+    | T
+    | {
+        executedAt?: T;
+        completedAt?: T;
+        taskSlug?: T;
+        taskID?: T;
+        input?: T;
+        output?: T;
+        state?: T;
+        error?: T;
+        id?: T;
+      };
+  taskSlug?: T;
+  queue?: T;
+  waitUntil?: T;
+  processing?: T;
+  meta?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -687,6 +953,52 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   batch?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs-stats".
+ */
+export interface PayloadJobsStat {
+  id: string;
+  stats?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs-stats_select".
+ */
+export interface PayloadJobsStatsSelect<T extends boolean = true> {
+  stats?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskResetClientUsage".
+ */
+export interface TaskResetClientUsage {
+  input?: unknown;
+  output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskTrackClientUsage".
+ */
+export interface TaskTrackClientUsage {
+  input: {
+    clientId: string;
+  };
+  output?: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

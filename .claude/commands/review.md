@@ -1,4 +1,4 @@
-You are an expert programmer conducting a code review for the GitHub issue: $ARGUMENTS.
+You are an expert programmer conducting a code review for the GitHub pull request: $ARGUMENTS.
 
 Think hard about the PR you are reviewing and review all changes. Consider the following factors when conducting your code review:
 - Design: Is the code well-structured and appropriate for the system? 

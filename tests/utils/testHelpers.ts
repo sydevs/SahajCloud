@@ -13,6 +13,7 @@ import type { PayloadRequest, UploadConfig, CollectionConfig } from 'payload'
 
 // Project imports
 import { collections, Users } from '../../src/collections'
+import { tasks } from '../../src/jobs'
 import { EmailTestAdapter } from './emailTestAdapter'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -20,7 +21,7 @@ const __dirname = path.dirname(__filename)
 
 // Constants
 const DEFAULT_EMAIL_TIMEOUT = 5000
-const UPLOAD_COLLECTIONS = ['media', 'frames'] as const
+const UPLOAD_COLLECTIONS: readonly string[] = ['media', 'frames']
 
 /**
  * Creates test-specific collections with image resizing disabled.
@@ -32,7 +33,7 @@ const UPLOAD_COLLECTIONS = ['media', 'frames'] as const
 function getTestCollections(): CollectionConfig[] {
   return collections.map(collection => {
     // Disable image resizing for upload collections in tests
-    if (UPLOAD_COLLECTIONS.includes(collection.slug as any)) {
+    if (UPLOAD_COLLECTIONS.includes(collection.slug)) {
       return {
         ...collection,
         upload: {
@@ -67,6 +68,10 @@ function createBaseTestConfig(mongoUri: string, emailConfig?: any) {
     db: mongooseAdapter({
       url: mongoUri,
     }),
+    jobs: {
+      tasks,
+      deleteJobOnComplete: true,
+    },
     email: emailConfig || nodemailerAdapter({
       defaultFromAddress: 'no-reply@test.com',
       defaultFromName: 'Test Suite',
@@ -205,4 +210,105 @@ export async function waitForEmail(
   timeout: number = DEFAULT_EMAIL_TIMEOUT
 ): Promise<void> {
   await emailAdapter.waitForEmail(timeout)
+}
+
+/**
+ * Creates a test user for use in tests
+ * @param payload The Payload instance
+ * @param overrides Optional field overrides
+ */
+export async function createTestUser(
+  payload: Payload,
+  overrides: Partial<any> = {}
+): Promise<any> {
+  const defaultData = {
+    email: `test-user-${Date.now()}@example.com`,
+    password: 'password123',
+  }
+  
+  return await payload.create({
+    collection: 'users',
+    data: { ...defaultData, ...overrides },
+  })
+}
+
+/**
+ * Creates a test client for API authentication tests
+ * @param payload The Payload instance
+ * @param managers Array of user IDs who can manage this client
+ * @param primaryContact User ID of the primary contact
+ * @param overrides Optional field overrides
+ */
+export async function createTestClient(
+  payload: Payload,
+  managers: string[],
+  primaryContact: string,
+  overrides: Partial<any> = {}
+): Promise<any> {
+  const defaultData = {
+    name: `Test Client ${Date.now()}`,
+    notes: 'Test client for automated testing',
+    role: 'full-access' as const,
+    managers,
+    primaryContact,
+    active: true,
+  }
+  
+  return await payload.create({
+    collection: 'clients',
+    data: { ...defaultData, ...overrides },
+  })
+}
+
+/**
+ * Creates a test client with a manager user
+ * @param payload The Payload instance
+ * @param overrides Optional overrides for client or user
+ */
+export async function createTestClientWithManager(
+  payload: Payload,
+  overrides: {
+    user?: Partial<any>
+    client?: Partial<any>
+  } = {}
+): Promise<{
+  user: any
+  client: any
+}> {
+  // Create manager user
+  const user = await createTestUser(payload, overrides.user)
+  
+  // Create client with this user as manager and primary contact
+  const client = await createTestClient(
+    payload,
+    [user.id],
+    user.id,
+    overrides.client
+  )
+  
+  return { user, client }
+}
+
+/**
+ * Creates an authenticated request for a client (API key auth)
+ * @param clientId The client ID
+ * @param apiKey The API key for the client
+ */
+export function createClientAuthenticatedRequest(
+  clientId: string,
+  apiKey: string
+): Partial<PayloadRequest> {
+  // Create a minimal request object for testing
+  // The headers type in PayloadRequest is complex, so we use a type assertion
+  const headers = new Headers()
+  headers.set('authorization', `clients API-Key ${apiKey}`)
+  
+  return {
+    headers: headers as PayloadRequest['headers'],
+    user: {
+      id: clientId,
+      collection: 'clients' as const,
+      active: true,
+    } as PayloadRequest['user'],
+  }
 }

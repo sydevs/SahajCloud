@@ -1,12 +1,16 @@
 import type { CollectionConfig } from 'payload'
+import { readApiAccess } from '@/lib/accessControl'
+import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Narrators: CollectionConfig = {
   slug: 'narrators',
+  access: readApiAccess(),
   admin: {
     group: 'Utility',
     useAsTitle: 'name',
   },
   hooks: {
+    afterRead: [trackClientUsageHook],
     beforeChange: [
       ({ data, operation }) => {
         if (operation === 'create' || (operation === 'update' && data.name)) {
