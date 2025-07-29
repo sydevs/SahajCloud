@@ -74,14 +74,47 @@ If necessary, you should also run `pnpm run generate:types`
 
 ### Collections
 - **Users** (`src/collections/Users.ts`) - Authentication-enabled admin users with email/password authentication using default Payload email templates
-- **Media** (`src/collections/Media.ts`) - **Image-only collection** with automatic WEBP conversion, tags, credit info, and dimensions metadata
+- **Media** (`src/collections/Media.ts`) - **Image-only collection** with automatic WEBP conversion, tags, credit info, and dimensions metadata (alt and credit fields are localized)
 - **Narrators** (`src/collections/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
-- **Meditations** (`src/collections/Meditations.ts`) - Guided meditation content with audio files, tags, metadata, and frame relationships with timestamps
-- **Tags** (`src/collections/Tags.ts`) - Categorization system for meditations and music with bidirectional relationships
-- **Music** (`src/collections/Music.ts`) - Background music tracks with direct audio upload, tags, and metadata
+- **Meditations** (`src/collections/Meditations.ts`) - Guided meditation content with audio files, tags, metadata, frame relationships with timestamps, and locale-specific content filtering
+- **Tags** (`src/collections/Tags.ts`) - Categorization system for meditations and music with bidirectional relationships (title field is localized)
+- **Music** (`src/collections/Music.ts`) - Background music tracks with direct audio upload, tags, and metadata (title and credit fields are localized)
 - **Frames** (`src/collections/Frames.ts`) - Meditation pose files with mixed media upload (images/videos), tags filtering, and imageSet selection
 - **MeditationFrames** (`src/collections/MeditationFrames.ts`) - Join table for meditation-frame relationships with timestamps (hidden from admin UI)
 - **Clients** (`src/collections/Clients.ts`) - API client management with authentication keys, usage tracking, role-based access, and high-usage alerts
+
+### Localization Architecture
+
+The application supports comprehensive localization for English (`en`) and Italian (`it`) locales.
+
+#### Global Configuration
+- Configured in `src/payload.config.ts` with `locales: ['en', 'it']` and `defaultLocale: 'en'`
+- Payload CMS automatically handles locale switching in the admin UI
+
+#### Field-Level Localization
+Collections with localized fields:
+- **Tags**: `title` field is localized
+- **Media**: `alt` and `credit` fields are localized  
+- **Music**: `title` and `credit` fields are localized
+
+#### Meditations Locale Handling
+The Meditations collection uses a different approach - each meditation belongs to a single locale:
+- `locale` field: Select field with options for 'en' (English) and 'it' (Italian)
+- Default value: 'en'
+- Locale-based filtering implemented via `beforeFind` and `beforeCount` hooks
+- API queries respect `?locale=en` or `?locale=it` parameters
+
+#### API Usage Examples
+```bash
+# Get English tags
+GET /api/tags?locale=en
+
+# Get Italian meditations
+GET /api/meditations?locale=it
+
+# Get music with Italian titles
+GET /api/music?locale=it
+```
 
 ### Key Configuration Files
 - `src/payload.config.ts` - Main Payload CMS configuration with collections, database, email, and plugins

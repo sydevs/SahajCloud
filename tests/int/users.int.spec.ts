@@ -2,6 +2,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { User } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
+import { testDataFactory } from '../utils/testDataFactory'
 
 describe('Users Collection', () => {
   let payload: Payload
@@ -25,10 +26,7 @@ describe('Users Collection', () => {
       role: 'super-admin' as const,
     }
     
-    const user = await payload.create({
-      collection: 'users',
-      data: userData,
-    }) as User
+    const user = await testDataFactory.createUser(payload, userData)
 
     expect(user).toBeDefined()
     expect(user.email).toBe('test@example.com')
@@ -58,40 +56,26 @@ describe('Users Collection', () => {
     }
 
     // Create first user
-    await payload.create({
-      collection: 'users',
-      data: userData,
-    })
+    await testDataFactory.createUser(payload, userData)
 
     // Try to create second user with same email
     await expect(
-      payload.create({
-        collection: 'users',
-        data: userData,
-      })
+      testDataFactory.createUser(payload, userData)
     ).rejects.toThrow()
   })
 
   it('finds users', async () => {
-    const user1 = await payload.create({
-      collection: 'users',
-      data: {
-        name: 'User 1',
-        email: 'user1@example.com',
-        password: 'password123',
-        role: 'super-admin' as const,
-      },
-    }) as User
+    const user1 = await testDataFactory.createUser(payload, {
+      name: 'User 1',
+      email: 'user1@example.com',
+      password: 'password123',
+    })
 
-    const user2 = await payload.create({
-      collection: 'users',
-      data: {
-        name: 'User 2',
-        email: 'user2@example.com',
-        password: 'password123',
-        role: 'super-admin' as const,
-      },
-    }) as User
+    const user2 = await testDataFactory.createUser(payload, {
+      name: 'User 2',
+      email: 'user2@example.com',
+      password: 'password123',
+    })
 
     const result = await payload.find({
       collection: 'users',
@@ -107,15 +91,11 @@ describe('Users Collection', () => {
   })
 
   it('updates a user', async () => {
-    const user = await payload.create({
-      collection: 'users',
-      data: {
-        name: 'Update User',
-        email: 'update@example.com',
-        password: 'password123',
-        role: 'super-admin' as const,
-      },
-    }) as User
+    const user = await testDataFactory.createUser(payload, {
+      name: 'Update User',
+      email: 'update@example.com',
+      password: 'password123',
+    })
 
     const updated = await payload.update({
       collection: 'users',
@@ -129,15 +109,11 @@ describe('Users Collection', () => {
   })
 
   it('deletes a user', async () => {
-    const user = await payload.create({
-      collection: 'users',
-      data: {
-        name: 'Delete User',
-        email: 'delete@example.com',
-        password: 'password123',
-        role: 'super-admin' as const,
-      },
-    }) as User
+    const user = await testDataFactory.createUser(payload, {
+      name: 'Delete User',
+      email: 'delete@example.com',
+      password: 'password123',
+    })
 
     await payload.delete({
       collection: 'users',
@@ -158,15 +134,11 @@ describe('Users Collection', () => {
 
   it('demonstrates complete isolation - no data leakage', async () => {
     // Create a user with a unique identifier
-    const testUser = await payload.create({
-      collection: 'users',
-      data: {
-        name: 'Isolation Test User',
-        email: 'isolation-test@example.com',
-        password: 'password123',
-        role: 'super-admin' as const,
-      },
-    }) as User
+    const testUser = await testDataFactory.createUser(payload, {
+      name: 'Isolation Test User',
+      email: 'isolation-test@example.com',
+      password: 'password123',
+    })
 
     // This test should only see its own data in the isolated database
     const allUsers = await payload.find({

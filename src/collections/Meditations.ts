@@ -1,4 +1,4 @@
-import type { CollectionConfig, Validate } from 'payload'
+import type { CollectionConfig, Validate, Where } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { getStorageConfig } from '@/lib/storage'
 import { readApiAccess } from '@/lib/accessControl'
@@ -6,7 +6,15 @@ import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
-  access: readApiAccess(),
+  access: readApiAccess({
+    read: ({ req }) => {
+      return {
+        locale: {
+          equals: req.query?.locale || req.locale,
+        },
+      } as Where
+    },
+  }),
   trash: true,
   upload: {
     staticDir: 'media/meditations',
@@ -76,8 +84,16 @@ export const Meditations: CollectionConfig = {
     },
     {
       name: 'locale',
-      type: 'text',
+      type: 'select',
+      options: [
+        { label: 'English', value: 'en' },
+        { label: 'Italian', value: 'it' }
+      ],
       required: true,
+      defaultValue: 'en',
+      admin: {
+        position: 'sidebar'
+      }
     },
     {
       name: 'slug',

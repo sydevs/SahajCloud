@@ -2,6 +2,7 @@ import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 import type { Client, User } from '@/payload-types'
 import type { Payload, PayloadRequest, TypedUser } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
+import { testDataFactory } from '../utils/testDataFactory'
 
 // For testing access control functions, we only need minimal user objects
 // These partial types are sufficient for testing the access control logic
@@ -20,28 +21,22 @@ describe('API Authentication', () => {
     cleanup = testEnv.cleanup
 
     // Create test user
-    testUser = await payload.create({
-      collection: 'users',
-      data: {
-        name: 'API Test Manager',
-        email: 'api-test-manager@example.com',
-        password: 'password123',
-        role: 'super-admin' as const,
-      },
-    }) as User
+    testUser = await testDataFactory.createUser(payload, {
+      name: 'API Test Manager',
+      email: 'api-test-manager@example.com',
+      password: 'password123',
+    })
 
     // Create test client
-    testClient = await payload.create({
-      collection: 'clients',
-      data: {
-        name: 'API Test Client',
-        notes: 'Client for API authentication testing',
-        role: 'full-access',
-        managers: [testUser.id],
-        primaryContact: testUser.id,
-        active: true,
-      },
-    }) as Client
+    testClient = await testDataFactory.createClient(payload, {
+      managers: [testUser.id],
+      primaryContact: testUser.id,
+    }, {
+      name: 'API Test Client',
+      notes: 'Client for API authentication testing',
+      role: 'full-access',
+      active: true,
+    })
 
     // Generate API key for the client
     const response = await payload.update({
@@ -83,16 +78,14 @@ describe('API Authentication', () => {
     })
 
     it('rejects inactive clients', async () => {
-      const inactiveClient = await payload.create({
-        collection: 'clients',
-        data: {
-          name: 'Inactive Client',
-          role: 'full-access',
-          managers: [testUser.id],
-          primaryContact: testUser.id,
-          active: false,
-        },
-      }) as Client
+      const inactiveClient = await testDataFactory.createClient(payload, {
+        managers: [testUser.id],
+        primaryContact: testUser.id,
+      }, {
+        name: 'Inactive Client',
+        role: 'full-access',
+        active: false,
+      })
 
       // Inactive clients should not be able to authenticate
       expect(inactiveClient.active).toBe(false)
@@ -104,11 +97,8 @@ describe('API Authentication', () => {
 
     beforeAll(async () => {
       // Create test data - using tags instead of meditations since meditations require file upload
-      testTag = await payload.create({
-        collection: 'tags',
-        data: {
-          title: 'Test Tag for API Access',
-        },
+      testTag = await testDataFactory.createTag(payload, {
+        title: 'Test Tag for API Access',
       })
     })
 
@@ -482,22 +472,20 @@ describe('API Authentication', () => {
 
     it('only resets clients with daily requests > 0', async () => {
       // Create a client with 0 daily requests
-      const zeroUsageClient = await payload.create({
-        collection: 'clients',
-        data: {
-          name: 'Zero Usage Client',
-          role: 'full-access',
-          managers: [testUser.id],
-          primaryContact: testUser.id,
-          active: true,
-          usageStats: {
-            totalRequests: 50,
-            dailyRequests: 0,
-            maxDailyRequests: 10,
-            lastRequestAt: new Date().toISOString(),
-          },
+      const zeroUsageClient = await testDataFactory.createClient(payload, {
+        managers: [testUser.id],
+        primaryContact: testUser.id,
+      }, {
+        name: 'Zero Usage Client',
+        role: 'full-access',
+        active: true,
+        usageStats: {
+          totalRequests: 50,
+          dailyRequests: 0,
+          maxDailyRequests: 10,
+          lastRequestAt: new Date().toISOString(),
         },
-      }) as Client
+      })
 
       // Run reset job
       const resetTask = payload.config.jobs?.tasks?.find(t => t.slug === 'resetClientUsage')
@@ -529,22 +517,20 @@ describe('API Authentication', () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       // Create a client with high usage
-      const highUsageClient = await payload.create({
-        collection: 'clients',
-        data: {
-          name: 'High Usage Client',
-          role: 'full-access',
-          managers: [testUser.id],
-          primaryContact: testUser.id,
-          active: true,
-          usageStats: {
-            totalRequests: 5000,
-            dailyRequests: 1001,
-            maxDailyRequests: 900,
-            lastRequestAt: new Date().toISOString(),
-          },
+      const highUsageClient = await testDataFactory.createClient(payload, {
+        managers: [testUser.id],
+        primaryContact: testUser.id,
+      }, {
+        name: 'High Usage Client',
+        role: 'full-access',
+        active: true,
+        usageStats: {
+          totalRequests: 5000,
+          dailyRequests: 1001,
+          maxDailyRequests: 900,
+          lastRequestAt: new Date().toISOString(),
         },
-      }) as Client
+      })
 
       // Verify console warning was triggered
       expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -558,20 +544,18 @@ describe('API Authentication', () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       // Create a client with high maxDailyRequests
-      await payload.create({
-        collection: 'clients',
-        data: {
-          name: 'High Max Usage Client',
-          role: 'full-access',
-          managers: [testUser.id],
-          primaryContact: testUser.id,
-          active: true,
-          usageStats: {
-            totalRequests: 5000,
-            dailyRequests: 500,
-            maxDailyRequests: 1001,
-            lastRequestAt: new Date().toISOString(),
-          },
+      await testDataFactory.createClient(payload, {
+        managers: [testUser.id],
+        primaryContact: testUser.id,
+      }, {
+        name: 'High Max Usage Client',
+        role: 'full-access',
+        active: true,
+        usageStats: {
+          totalRequests: 5000,
+          dailyRequests: 500,
+          maxDailyRequests: 1001,
+          lastRequestAt: new Date().toISOString(),
         },
       })
 
@@ -585,20 +569,18 @@ describe('API Authentication', () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       // Create a client with normal usage
-      await payload.create({
-        collection: 'clients',
-        data: {
-          name: 'Normal Usage Client',
-          role: 'full-access',
-          managers: [testUser.id],
-          primaryContact: testUser.id,
-          active: true,
-          usageStats: {
-            totalRequests: 500,
-            dailyRequests: 999,
-            maxDailyRequests: 800,
-            lastRequestAt: new Date().toISOString(),
-          },
+      await testDataFactory.createClient(payload, {
+        managers: [testUser.id],
+        primaryContact: testUser.id,
+      }, {
+        name: 'Normal Usage Client',
+        role: 'full-access',
+        active: true,
+        usageStats: {
+          totalRequests: 500,
+          dailyRequests: 999,
+          maxDailyRequests: 800,
+          lastRequestAt: new Date().toISOString(),
         },
       })
 

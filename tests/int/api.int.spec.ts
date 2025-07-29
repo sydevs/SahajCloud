@@ -1,6 +1,7 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
+import { testDataFactory } from '../utils/testDataFactory'
 
 describe('API', () => {
   let payload: Payload
@@ -18,14 +19,10 @@ describe('API', () => {
 
   it('fetches users', async () => {
     // Create a test user first
-    await payload.create({
-      collection: 'users',
-      data: {
-        name: 'Test User',
-        email: 'test@example.com',
-        password: 'password123',
-        role: 'super-admin' as const,
-      },
+    await testDataFactory.createUser(payload, {
+      name: 'Test User',
+      email: 'test@example.com',
+      password: 'password123',
     })
 
     const users = await payload.find({

@@ -18,6 +18,7 @@ export const Tags: CollectionConfig = {
       name: 'title',
       type: 'text',
       required: true,
+      localized: true,
     },
     {
       name: 'meditations',
