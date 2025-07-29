@@ -6,6 +6,10 @@ import { readApiAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Frames: CollectionConfig = {
+  labels: {
+    plural: "Meditation Frames",
+    singular: "Meditation Frame"
+  },
   slug: 'frames',
   access: readApiAccess(),
   upload: {

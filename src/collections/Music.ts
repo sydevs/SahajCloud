@@ -7,13 +7,14 @@ import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 export const Music: CollectionConfig = {
   slug: 'music',
   access: readApiAccess(),
+  trash: true,
   upload: {
     staticDir: 'media/music',
     mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
     ...getStorageConfig(),
   },
   admin: {
-    group: 'Resources',
+    group: 'Content',
     useAsTitle: 'title',
   },
   hooks: {

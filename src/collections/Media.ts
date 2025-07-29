@@ -7,7 +7,7 @@ import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 export const Media: CollectionConfig = {
   slug: 'media',
   admin: {
-    group: 'Utility',
+    group: 'Resources',
   },
   access: readApiAccess(),
   upload: {

@@ -9,11 +9,11 @@ import { Clients } from './Clients'
 
 // Export all collections as an array
 export const collections = [
-  // Resources
+  // Content
   Meditations,
   Music,
   Frames,
-  // Utility
+  // Resources
   Media,
   Narrators,
   Tags,
