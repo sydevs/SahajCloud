@@ -65,7 +65,7 @@ export const TrackUsage: TaskConfig<'trackClientUsage'> = {
       required: true,
     }
   ],
-  handler: async ({ input, _job, req }) => {
+  handler: async ({ input, req }) => {
     const client = await req.payload.findByID({
       collection: 'clients',
       id: input.clientId,
