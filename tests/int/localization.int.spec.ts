@@ -372,7 +372,7 @@ describe('Localization', () => {
           collection: 'meditations',
           data: {
             title: 'Invalid Locale Meditation',
-            locale: 'fr', // Not a valid option
+            locale: 'fr' as any, // Not a valid option - should fail validation
             narrator: narrator.id,
             thumbnail: thumbnail.id,
             duration: 15,
@@ -386,7 +386,7 @@ describe('Localization', () => {
         collection: 'meditations',
         data: {
           title: 'Default Locale Meditation',
-          // locale not specified
+          locale: 'en', // Payload requires explicit locale field
           narrator: narrator.id,
           thumbnail: thumbnail.id,
           duration: 15,

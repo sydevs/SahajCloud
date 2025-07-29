@@ -95,6 +95,7 @@ describe('Meditations Collection', () => {
         data: {
           title: 'Incomplete Meditation',
           duration: 10,
+          locale: 'en',
           // Missing thumbnail, audioFile, and narrator
         } as any,
       })

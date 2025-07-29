@@ -2,6 +2,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Client, User } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
+import { testDataFactory } from '../utils/testDataFactory'
 
 describe('Clients Collection', () => {
   let payload: Payload
@@ -15,25 +16,17 @@ describe('Clients Collection', () => {
     cleanup = testEnv.cleanup
 
     // Create test users
-    testUser = await payload.create({
-      collection: 'users',
-      data: {
-        name: 'Client Manager',
-        email: 'client-manager@example.com',
-        password: 'password123',
-        role: 'super-admin' as const,
-      },
-    }) as User
+    testUser = await testDataFactory.createUser(payload, {
+      name: 'Client Manager',
+      email: 'client-manager@example.com',
+      password: 'password123',
+    })
 
-    testUser2 = await payload.create({
-      collection: 'users',
-      data: {
-        name: 'Client Manager 2',
-        email: 'client-manager2@example.com',
-        password: 'password123',
-        role: 'super-admin' as const,
-      },
-    }) as User
+    testUser2 = await testDataFactory.createUser(payload, {
+      name: 'Client Manager 2',
+      email: 'client-manager2@example.com',
+      password: 'password123',
+    })
   })
 
   afterAll(async () => {
@@ -42,19 +35,15 @@ describe('Clients Collection', () => {
 
   describe('CRUD Operations', () => {
     it('creates a client with all required fields', async () => {
-      const clientData = {
+      const client = await testDataFactory.createClient(payload, {
+        managers: [testUser.id],
+        primaryContact: testUser.id,
+      }, {
         name: 'Test Client App',
         notes: 'A test client application',
         role: 'full-access' as const,
-        managers: [testUser.id],
-        primaryContact: testUser.id,
         active: true,
-      }
-
-      const client = await payload.create({
-        collection: 'clients',
-        data: clientData,
-      }) as Client
+      })
 
       expect(client).toBeDefined()
       expect(client.name).toBe('Test Client App')
@@ -82,18 +71,14 @@ describe('Clients Collection', () => {
     })
 
     it('enforces primary contact is in managers list', async () => {
-      const clientData = {
-        name: 'Test Client App 2',
-        role: 'full-access' as const,
+      const client = await testDataFactory.createClient(payload, {
         managers: [testUser.id],
         primaryContact: testUser2.id, // Different from managers
+      }, {
+        name: 'Test Client App 2',
+        role: 'full-access' as const,
         active: true,
-      }
-
-      const client = await payload.create({
-        collection: 'clients',
-        data: clientData,
-      }) as Client
+      })
 
       // Primary contact should be automatically added to managers
       const managerIds = Array.isArray(client.managers) 
@@ -109,16 +94,14 @@ describe('Clients Collection', () => {
     })
 
     it('updates client information', async () => {
-      const client = await payload.create({
-        collection: 'clients',
-        data: {
-          name: 'Update Test Client',
-          role: 'full-access',
-          managers: [testUser.id],
-          primaryContact: testUser.id,
-          active: true,
-        },
-      }) as Client
+      const client = await testDataFactory.createClient(payload, {
+        managers: [testUser.id],
+        primaryContact: testUser.id,
+      }, {
+        name: 'Update Test Client',
+        role: 'full-access',
+        active: true,
+      })
 
       const updated = await payload.update({
         collection: 'clients',
@@ -134,16 +117,14 @@ describe('Clients Collection', () => {
     })
 
     it('deletes a client', async () => {
-      const client = await payload.create({
-        collection: 'clients',
-        data: {
-          name: 'Delete Test Client',
-          role: 'full-access',
-          managers: [testUser.id],
-          primaryContact: testUser.id,
-          active: true,
-        },
-      }) as Client
+      const client = await testDataFactory.createClient(payload, {
+        managers: [testUser.id],
+        primaryContact: testUser.id,
+      }, {
+        name: 'Delete Test Client',
+        role: 'full-access',
+        active: true,
+      })
 
       await payload.delete({
         collection: 'clients',
@@ -176,16 +157,14 @@ describe('Clients Collection', () => {
     })
 
     it('uses default role when not specified', async () => {
-      const client = await payload.create({
-        collection: 'clients',
-        data: {
-          name: 'Client with Default Role',
-          role: 'full-access' as const,
-          managers: [testUser.id],
-          primaryContact: testUser.id,
-          active: true,
-        },
-      }) as Client
+      const client = await testDataFactory.createClient(payload, {
+        managers: [testUser.id],
+        primaryContact: testUser.id,
+      }, {
+        name: 'Client with Default Role',
+        role: 'full-access' as const,
+        active: true,
+      })
       
       expect(client.role).toBe('full-access') // Default value
     })
@@ -221,16 +200,14 @@ describe('Clients Collection', () => {
 
   describe('Manager Association', () => {
     it('allows multiple managers', async () => {
-      const client = await payload.create({
-        collection: 'clients',
-        data: {
-          name: 'Multi-Manager Client',
-          role: 'full-access',
-          managers: [testUser.id, testUser2.id],
-          primaryContact: testUser.id,
-          active: true,
-        },
-      }) as Client
+      const client = await testDataFactory.createClient(payload, {
+        managers: [testUser.id, testUser2.id],
+        primaryContact: testUser.id,
+      }, {
+        name: 'Multi-Manager Client',
+        role: 'full-access',
+        active: true,
+      })
 
       const managerIds = Array.isArray(client.managers) 
         ? client.managers.map(m => typeof m === 'string' ? m : m.id)
@@ -241,16 +218,14 @@ describe('Clients Collection', () => {
     })
 
     it('maintains primary contact relationship', async () => {
-      const client = await payload.create({
-        collection: 'clients',
-        data: {
-          name: 'Primary Contact Test',
-          role: 'full-access',
-          managers: [testUser.id, testUser2.id],
-          primaryContact: testUser2.id,
-          active: true,
-        },
-      }) as Client
+      const client = await testDataFactory.createClient(payload, {
+        managers: [testUser.id, testUser2.id],
+        primaryContact: testUser2.id,
+      }, {
+        name: 'Primary Contact Test',
+        role: 'full-access',
+        active: true,
+      })
 
       const primaryContactId = typeof client.primaryContact === 'string' 
         ? client.primaryContact 
@@ -266,16 +241,14 @@ describe('Clients Collection', () => {
 
   describe('Usage Stats', () => {
     it('initializes usage stats on creation', async () => {
-      const client = await payload.create({
-        collection: 'clients',
-        data: {
-          name: 'Usage Stats Test',
-          role: 'full-access',
-          managers: [testUser.id],
-          primaryContact: testUser.id,
-          active: true,
-        },
-      }) as Client
+      const client = await testDataFactory.createClient(payload, {
+        managers: [testUser.id],
+        primaryContact: testUser.id,
+      }, {
+        name: 'Usage Stats Test',
+        role: 'full-access',
+        active: true,
+      })
 
       expect(client.usageStats).toBeDefined()
       expect(client.usageStats?.totalRequests).toBe(0)

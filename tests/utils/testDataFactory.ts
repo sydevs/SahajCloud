@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import type { Narrator, Media, Tag, Meditation, Music, Frame, User } from '@/payload-types'
+import type { Narrator, Media, Tag, Meditation, Music, Frame, User, Client } from '@/payload-types'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -203,5 +203,22 @@ export const testDataFactory = {
         ...overrides,
       },
     }) as User
+  },
+
+  /**
+   * Create a client with required user dependencies
+   */
+  async createClient(payload: Payload, deps: { managers: string[]; primaryContact: string }, overrides = {}): Promise<Client> {
+    return await payload.create({
+      collection: 'clients',
+      data: {
+        name: 'Test Client',
+        role: 'full-access' as const,
+        managers: deps.managers,
+        primaryContact: deps.primaryContact,
+        active: true,
+        ...overrides,
+      },
+    }) as Client
   },
 }
