@@ -112,7 +112,7 @@ export interface Config {
   globalsSelect: {
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
-  locale: null;
+  locale: 'en' | 'it';
   user:
     | (User & {
         collection: 'users';
@@ -175,6 +175,7 @@ export interface ClientAuthOperations {
 export interface Meditation {
   id: string;
   title: string;
+  locale: string;
   slug?: string | null;
   thumbnail: string | Media;
   /**
@@ -693,6 +694,7 @@ export interface PayloadMigration {
  */
 export interface MeditationsSelect<T extends boolean = true> {
   title?: T;
+  locale?: T;
   slug?: T;
   thumbnail?: T;
   duration?: T;

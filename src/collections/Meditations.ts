@@ -74,6 +74,11 @@ export const Meditations: CollectionConfig = {
       required: true,
     },
     {
+      name: 'locale',
+      type: 'text',
+      required: true,
+    },
+    {
       name: 'slug',
       type: 'text',
       unique: true,

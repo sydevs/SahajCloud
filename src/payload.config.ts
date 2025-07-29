@@ -21,6 +21,10 @@ const minioStoragePlugin = !isTestEnvironment && isMinIOConfigured() ? createMin
 
 const payloadConfig = (overrides?: Partial<Config>) => {
   return buildConfig({
+    localization: {
+      locales: ['en', 'it'],
+      defaultLocale: 'en',
+    },
     admin: {
       user: Users.slug,
       importMap: {

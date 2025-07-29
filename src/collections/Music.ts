@@ -71,6 +71,7 @@ export const Music: CollectionConfig = {
       name: 'title',
       type: 'text',
       required: true,
+      localized: true,
     },
     {
       name: 'slug',
@@ -99,6 +100,7 @@ export const Music: CollectionConfig = {
     {
       name: 'credit',
       type: 'text',
+      localized: true,
       admin: {
         description: 'Attribution or credit information',
       },
