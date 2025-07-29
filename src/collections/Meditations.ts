@@ -18,6 +18,34 @@ export const Meditations: CollectionConfig = {
   },
   hooks: {
     afterRead: [trackClientUsageHook],
+    beforeFind: [
+      ({ args, req }) => {
+        // Filter by locale if provided in query
+        const locale = req.query?.locale || req.locale
+        if (locale) {
+          // Ensure where clause exists
+          args.where = args.where || {}
+          args.where.locale = {
+            equals: locale
+          }
+        }
+        return args
+      }
+    ],
+    beforeCount: [
+      ({ args, req }) => {
+        // Filter by locale if provided in query (for count operations)
+        const locale = req.query?.locale || req.locale
+        if (locale) {
+          // Ensure where clause exists
+          args.where = args.where || {}
+          args.where.locale = {
+            equals: locale
+          }
+        }
+        return args
+      }
+    ],
     beforeChange: [
       ({ data, operation, originalDoc }) => {
         // Generate slug from title
@@ -75,8 +103,16 @@ export const Meditations: CollectionConfig = {
     },
     {
       name: 'locale',
-      type: 'text',
+      type: 'select',
+      options: [
+        { label: 'English', value: 'en' },
+        { label: 'Italian', value: 'it' }
+      ],
       required: true,
+      defaultValue: 'en',
+      admin: {
+        position: 'sidebar'
+      }
     },
     {
       name: 'slug',

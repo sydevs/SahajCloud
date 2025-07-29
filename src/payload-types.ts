@@ -175,7 +175,7 @@ export interface ClientAuthOperations {
 export interface Meditation {
   id: string;
   title: string;
-  locale: string;
+  locale: 'en' | 'it';
   slug?: string | null;
   thumbnail: string | Media;
   /**

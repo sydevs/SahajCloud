@@ -122,6 +122,7 @@ export const Media: CollectionConfig = {
       name: 'alt',
       type: 'text',
       required: true,
+      localized: true,
     },
     {
       name: 'tags',
@@ -135,6 +136,7 @@ export const Media: CollectionConfig = {
     {
       name: 'credit',
       type: 'text',
+      localized: true,
       admin: {
         description: 'Attribution or copyright information',
       },
