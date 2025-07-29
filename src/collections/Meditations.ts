@@ -1,4 +1,4 @@
-import type { CollectionConfig, Validate } from 'payload'
+import type { CollectionConfig, Validate, Where } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { getStorageConfig } from '@/lib/storage'
 import { readApiAccess } from '@/lib/accessControl'
@@ -6,7 +6,15 @@ import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
-  access: readApiAccess(),
+  access: readApiAccess({
+    read: ({ req }) => {
+      return {
+        locale: {
+          equals: req.query?.locale || req.locale,
+        },
+      } as Where
+    },
+  }),
   upload: {
     staticDir: 'media/meditations',
     mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
@@ -18,34 +26,6 @@ export const Meditations: CollectionConfig = {
   },
   hooks: {
     afterRead: [trackClientUsageHook],
-    beforeFind: [
-      ({ args, req }) => {
-        // Filter by locale if provided in query
-        const locale = req.query?.locale || req.locale
-        if (locale) {
-          // Ensure where clause exists
-          args.where = args.where || {}
-          args.where.locale = {
-            equals: locale
-          }
-        }
-        return args
-      }
-    ],
-    beforeCount: [
-      ({ args, req }) => {
-        // Filter by locale if provided in query (for count operations)
-        const locale = req.query?.locale || req.locale
-        if (locale) {
-          // Ensure where clause exists
-          args.where = args.where || {}
-          args.where.locale = {
-            equals: locale
-          }
-        }
-        return args
-      }
-    ],
     beforeChange: [
       ({ data, operation, originalDoc }) => {
         // Generate slug from title
