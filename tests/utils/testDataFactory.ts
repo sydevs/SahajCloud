@@ -78,6 +78,7 @@ export const testDataFactory = {
         tags: deps.tags || [],
         musicTag: deps.musicTag,
         isPublished: false,
+        locale: 'en',
         ...overrides,
       },
     }) as Meditation
@@ -103,6 +104,7 @@ export const testDataFactory = {
         tags: deps.tags || [],
         musicTag: deps.musicTag,
         isPublished: false,
+        locale: 'en',
         ...overrides,
       },
       file: {
@@ -197,6 +199,7 @@ export const testDataFactory = {
         name: 'Test User',
         email: 'test@example.com',
         password: 'password123',
+        role: 'super-admin',
         ...overrides,
       },
     }) as User

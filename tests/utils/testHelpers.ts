@@ -222,8 +222,10 @@ export async function createTestUser(
   overrides: Partial<any> = {}
 ): Promise<any> {
   const defaultData = {
+    name: `Test User ${Date.now()}`,
     email: `test-user-${Date.now()}@example.com`,
     password: 'password123',
+    role: 'super-admin' as const,
   }
   
   return await payload.create({

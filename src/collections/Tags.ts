@@ -9,7 +9,7 @@ export const Tags: CollectionConfig = {
     afterRead: [trackClientUsageHook],
   },
   admin: {
-    group: 'Utility',
+    group: 'Resources',
     useAsTitle: 'title',
     hidden: true,
   },

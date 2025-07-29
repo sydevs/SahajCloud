@@ -26,6 +26,7 @@ describe('API Authentication', () => {
         name: 'API Test Manager',
         email: 'api-test-manager@example.com',
         password: 'password123',
+        role: 'super-admin' as const,
       },
     }) as User
 
@@ -292,11 +293,13 @@ describe('API Authentication', () => {
       const trackUsageTask = payload.config.jobs?.tasks?.find(t => t.slug === 'trackClientUsage')
       expect(trackUsageTask).toBeDefined()
 
-      if (trackUsageTask) {
+      if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
         await trackUsageTask.handler({
           input: { clientId: testClient.id },
           job: {} as any,
           req: { payload } as any,
+          inlineTask: (() => {}) as any,
+          tasks: {} as any,
         })
       }
 
@@ -328,11 +331,15 @@ describe('API Authentication', () => {
       const trackUsageTask = payload.config.jobs?.tasks?.find(t => t.slug === 'trackClientUsage')
       
       for (let i = 0; i < 5; i++) {
-        await trackUsageTask?.handler({
-          input: { clientId: testClient.id },
-          _job: {} as any,
-          req: { payload } as any,
-        })
+        if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
+          await trackUsageTask.handler({
+            input: { clientId: testClient.id },
+            job: {} as any,
+            req: { payload } as any,
+            inlineTask: (() => {}) as any,
+            tasks: {} as any,
+          })
+        }
       }
 
       // Verify incremental updates
@@ -350,11 +357,15 @@ describe('API Authentication', () => {
       
       // Track some usage
       for (let i = 0; i < 3; i++) {
-        await trackUsageTask?.handler({
-          input: { clientId: testClient.id },
-          _job: {} as any,
-          req: { payload } as any,
-        })
+        if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
+          await trackUsageTask.handler({
+            input: { clientId: testClient.id },
+            job: {} as any,
+            req: { payload } as any,
+            inlineTask: (() => {}) as any,
+            tasks: {} as any,
+          })
+        }
       }
 
       // Verify usage was tracked
@@ -370,11 +381,15 @@ describe('API Authentication', () => {
       const resetTask = payload.config.jobs?.tasks?.find(t => t.slug === 'resetClientUsage')
       expect(resetTask).toBeDefined()
       
-      await resetTask?.handler({
-        input: {},
-        _job: {} as any,
-        req: { payload } as any,
-      })
+      if (resetTask && typeof resetTask.handler === 'function') {
+        await resetTask.handler({
+          input: {},
+          job: {} as any,
+          req: { payload } as any,
+          inlineTask: (() => {}) as any,
+          tasks: {} as any,
+        })
+      }
 
       // Verify counters were reset
       const clientAfterReset = await payload.findByID({
@@ -408,11 +423,15 @@ describe('API Authentication', () => {
 
       // Run reset job
       const resetTask = payload.config.jobs?.tasks?.find(t => t.slug === 'resetClientUsage')
-      await resetTask?.handler({
-        input: {},
-        _job: {} as any,
-        req: { payload } as any,
-      })
+      if (resetTask && typeof resetTask.handler === 'function') {
+        await resetTask.handler({
+          input: {},
+          job: {} as any,
+          req: { payload } as any,
+          inlineTask: (() => {}) as any,
+          tasks: {} as any,
+        })
+      }
 
       // Verify maxDailyRequests is preserved
       const client = await payload.findByID({
@@ -441,11 +460,15 @@ describe('API Authentication', () => {
 
       // Run reset job
       const resetTask = payload.config.jobs?.tasks?.find(t => t.slug === 'resetClientUsage')
-      await resetTask?.handler({
-        input: {},
-        _job: {} as any,
-        req: { payload } as any,
-      })
+      if (resetTask && typeof resetTask.handler === 'function') {
+        await resetTask.handler({
+          input: {},
+          job: {} as any,
+          req: { payload } as any,
+          inlineTask: (() => {}) as any,
+          tasks: {} as any,
+        })
+      }
 
       // Verify maxDailyRequests was updated
       const client = await payload.findByID({
@@ -478,11 +501,15 @@ describe('API Authentication', () => {
 
       // Run reset job
       const resetTask = payload.config.jobs?.tasks?.find(t => t.slug === 'resetClientUsage')
-      await resetTask?.handler({
-        input: {},
-        _job: {} as any,
-        req: { payload } as any,
-      })
+      if (resetTask && typeof resetTask.handler === 'function') {
+        await resetTask.handler({
+          input: {},
+          job: {} as any,
+          req: { payload } as any,
+          inlineTask: (() => {}) as any,
+          tasks: {} as any,
+        })
+      }
 
       // Verify the client wasn't touched
       const client = await payload.findByID({
@@ -584,9 +611,10 @@ describe('API Authentication', () => {
     it('virtual field highUsageAlert reflects high usage state', async () => {
       // Test the virtual field logic
       const clientsCollection = payload.config.collections.find(c => c.slug === 'clients')
-      const highUsageAlertField = clientsCollection?.fields.find(
+      const usageStatsField = clientsCollection?.fields.find(
         (f: any) => f.name === 'usageStats'
-      )?.fields?.find((f: any) => f.name === 'highUsageAlert')
+      ) as any
+      const highUsageAlertField = usageStatsField?.fields?.find((f: any) => f.name === 'highUsageAlert')
 
       expect(highUsageAlertField).toBeDefined()
       expect(highUsageAlertField?.virtual).toBe(true)

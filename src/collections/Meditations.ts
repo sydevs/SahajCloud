@@ -15,13 +15,14 @@ export const Meditations: CollectionConfig = {
       } as Where
     },
   }),
+  trash: true,
   upload: {
     staticDir: 'media/meditations',
     mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
     ...getStorageConfig(),
   },
   admin: {
-    group: 'Resources',
+    group: 'Content',
     useAsTitle: 'title',
   },
   hooks: {

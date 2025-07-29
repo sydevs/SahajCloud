@@ -6,8 +6,9 @@ export const Narrators: CollectionConfig = {
   slug: 'narrators',
   access: readApiAccess(),
   admin: {
-    group: 'Utility',
+    group: 'Resources',
     useAsTitle: 'name',
+    hidden: true,
   },
   hooks: {
     afterRead: [trackClientUsageHook],
