@@ -35,7 +35,7 @@ describe('Meditations Collection', () => {
   })
 
   it('creates a meditation with auto-generated slug', async () => {
-    const meditation = await testDataFactory.createMeditationWithAudio(payload, {
+    const meditation = await testDataFactory.createMeditation(payload, {
       narrator: testNarrator.id,
       thumbnail: testImageMedia.id,
       tags: [testTag1.id, testTag2.id],
@@ -64,7 +64,7 @@ describe('Meditations Collection', () => {
   })
 
   it('ignores custom slug on create', async () => {
-    const meditation = await testDataFactory.createMeditationWithAudio(payload, {
+    const meditation = await testDataFactory.createMeditation(payload, {
       narrator: testNarrator.id,
             thumbnail: testImageMedia.id,
     }, {
@@ -77,7 +77,7 @@ describe('Meditations Collection', () => {
   })
 
   it('handles special characters in slug generation', async () => {
-    const meditation = await testDataFactory.createMeditationWithAudio(payload, {
+    const meditation = await testDataFactory.createMeditation(payload, {
       narrator: testNarrator.id,
             thumbnail: testImageMedia.id,
     }, {
@@ -118,7 +118,7 @@ describe('Meditations Collection', () => {
   })
 
   it('creates meditation with relationships', async () => {
-    const meditation = await testDataFactory.createMeditationWithAudio(payload, {
+    const meditation = await testDataFactory.createMeditation(payload, {
       narrator: testNarrator.id,
             thumbnail: testImageMedia.id,
       tags: [testTag1.id],
@@ -133,7 +133,7 @@ describe('Meditations Collection', () => {
   })
 
   it('preserves slug on update', async () => {
-    const meditation = await testDataFactory.createMeditationWithAudio(payload, {
+    const meditation = await testDataFactory.createMeditation(payload, {
       narrator: testNarrator.id,
             thumbnail: testImageMedia.id,
     }, {
@@ -158,7 +158,7 @@ describe('Meditations Collection', () => {
 
   it('publishes meditation with date', async () => {
     const publishDate = new Date()
-    const meditation = await testDataFactory.createMeditationWithAudio(payload, {
+    const meditation = await testDataFactory.createMeditation(payload, {
       narrator: testNarrator.id,
             thumbnail: testImageMedia.id,
     }, {
@@ -175,7 +175,7 @@ describe('Meditations Collection', () => {
   it('finds meditations with filters', async () => {
     // Create published meditation with unique title
     const publishedTitle = 'Filter Test Published Meditation'
-    const published = await testDataFactory.createMeditationWithAudio(payload, {
+    const published = await testDataFactory.createMeditation(payload, {
       narrator: testNarrator.id,
             thumbnail: testImageMedia.id,
     }, {
@@ -186,7 +186,7 @@ describe('Meditations Collection', () => {
     })
 
     // Create unpublished meditation
-    await testDataFactory.createMeditationWithAudio(payload, {
+    await testDataFactory.createMeditation(payload, {
       narrator: testNarrator.id,
             thumbnail: testImageMedia.id,
     }, {
@@ -220,7 +220,7 @@ describe('Meditations Collection', () => {
   })
 
   it('deletes a meditation', async () => {
-    const meditation = await testDataFactory.createMeditationWithAudio(payload, {
+    const meditation = await testDataFactory.createMeditation(payload, {
       narrator: testNarrator.id,
             thumbnail: testImageMedia.id,
     }, {
@@ -266,7 +266,7 @@ describe('Meditations Collection', () => {
 
   it('demonstrates complete isolation - no data leakage', async () => {
     // Create a meditation in this test
-    const meditation = await testDataFactory.createMeditationWithAudio(payload, {
+    const meditation = await testDataFactory.createMeditation(payload, {
       narrator: testNarrator.id,
             thumbnail: testImageMedia.id,
     }, {
@@ -290,7 +290,7 @@ describe('Meditations Collection', () => {
 
   describe('Meditation-Frame Relationships', () => {
     it('creates meditation with frame relationships', async () => {
-      const meditation = await testDataFactory.createMeditationWithAudio(payload, {
+      const meditation = await testDataFactory.createMeditation(payload, {
         narrator: testNarrator.id,
         thumbnail: testImageMedia.id,
       }, {
@@ -325,7 +325,7 @@ describe('Meditations Collection', () => {
 
     it('automatically sorts frames by timestamp', async () => {
       // Create frames out of chronological order
-      const meditation = await testDataFactory.createMeditationWithAudio(payload, {
+      const meditation = await testDataFactory.createMeditation(payload, {
         narrator: testNarrator.id,
         thumbnail: testImageMedia.id,
       }, {

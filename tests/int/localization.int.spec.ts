@@ -382,16 +382,10 @@ describe('Localization', () => {
     })
 
     it('defaults to en locale when not specified', async () => {
-      const meditation = await payload.create({
-        collection: 'meditations',
-        data: {
-          title: 'Default Locale Meditation',
-          locale: 'en', // Payload requires explicit locale field
-          narrator: narrator.id,
-          thumbnail: thumbnail.id,
-          duration: 15,
-        },
-      }) as Meditation
+      const meditation = await testDataFactory.createMeditation(payload, {
+        narrator: narrator.id,
+        thumbnail: thumbnail.id,
+      })
 
       expect(meditation.locale).toBe('en')
     })

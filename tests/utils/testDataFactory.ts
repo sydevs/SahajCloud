@@ -65,29 +65,9 @@ export const testDataFactory = {
   },
 
   /**
-   * Create a meditation with required dependencies (without audio file)
-   */
-  async createMeditation(payload: Payload, deps: { narrator: string; thumbnail: string; tags?: string[]; musicTag?: string }, overrides = {}): Promise<Meditation> {
-    return await payload.create({
-      collection: 'meditations',
-      data: {
-        title: 'Test Meditation',
-        duration: 15,
-        thumbnail: deps.thumbnail,
-        narrator: deps.narrator,
-        tags: deps.tags || [],
-        musicTag: deps.musicTag,
-        isPublished: false,
-        locale: 'en',
-        ...overrides,
-      },
-    }) as Meditation
-  },
-
-  /**
    * Create a meditation with direct audio upload
    */
-  async createMeditationWithAudio(payload: Payload, deps: { narrator: string; thumbnail: string; tags?: string[]; musicTag?: string }, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<Meditation> {
+  async createMeditation(payload: Payload, deps: { narrator: string; thumbnail: string; tags?: string[]; musicTag?: string }, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<Meditation> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
     
