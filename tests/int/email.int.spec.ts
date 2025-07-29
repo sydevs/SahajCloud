@@ -29,8 +29,10 @@ describe('Email Sending', () => {
   describe('User System', () => {
     it.skip('should send verification email when user is created', async () => {
       const userData = {
+        name: 'Verify User',
         email: 'verify@test.com',
         password: 'TestPassword123!',
+        role: 'super-admin' as const,
       }
 
       // Clear any existing emails

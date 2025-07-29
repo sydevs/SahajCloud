@@ -21,6 +21,7 @@ describe('Clients Collection', () => {
         name: 'Client Manager',
         email: 'client-manager@example.com',
         password: 'password123',
+        role: 'super-admin' as const,
       },
     }) as User
 
@@ -30,6 +31,7 @@ describe('Clients Collection', () => {
         name: 'Client Manager 2',
         email: 'client-manager2@example.com',
         password: 'password123',
+        role: 'super-admin' as const,
       },
     }) as User
   })

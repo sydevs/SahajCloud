@@ -22,6 +22,7 @@ describe('Users Collection', () => {
       name: 'Test User',
       email: 'test@example.com',
       password: 'password123',
+      role: 'super-admin' as const,
     }
     
     const user = await payload.create({
@@ -53,6 +54,7 @@ describe('Users Collection', () => {
       name: 'Unique User',
       email: 'unique@example.com',
       password: 'password123',
+      role: 'super-admin' as const,
     }
 
     // Create first user
@@ -77,6 +79,7 @@ describe('Users Collection', () => {
         name: 'User 1',
         email: 'user1@example.com',
         password: 'password123',
+        role: 'super-admin' as const,
       },
     }) as User
 
@@ -86,6 +89,7 @@ describe('Users Collection', () => {
         name: 'User 2',
         email: 'user2@example.com',
         password: 'password123',
+        role: 'super-admin' as const,
       },
     }) as User
 
@@ -109,6 +113,7 @@ describe('Users Collection', () => {
         name: 'Update User',
         email: 'update@example.com',
         password: 'password123',
+        role: 'super-admin' as const,
       },
     }) as User
 
@@ -130,6 +135,7 @@ describe('Users Collection', () => {
         name: 'Delete User',
         email: 'delete@example.com',
         password: 'password123',
+        role: 'super-admin' as const,
       },
     }) as User
 
@@ -158,6 +164,7 @@ describe('Users Collection', () => {
         name: 'Isolation Test User',
         email: 'isolation-test@example.com',
         password: 'password123',
+        role: 'super-admin' as const,
       },
     }) as User
 

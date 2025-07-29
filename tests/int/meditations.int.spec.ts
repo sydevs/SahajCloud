@@ -110,6 +110,7 @@ describe('Meditations Collection', () => {
           duration: 0,
           thumbnail: testImageMedia.id,
           narrator: testNarrator.id,
+          locale: 'en',
         },
       })
     ).rejects.toThrow()
