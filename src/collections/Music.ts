@@ -1,12 +1,12 @@
 import type { CollectionConfig } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { getStorageConfig } from '@/lib/storage'
-import { readApiAccess } from '@/lib/accessControl'
+import { permissionBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Music: CollectionConfig = {
   slug: 'music',
-  access: readApiAccess(),
+  access: permissionBasedAccess('music'),
   trash: true,
   upload: {
     staticDir: 'media/music',
@@ -73,6 +73,7 @@ export const Music: CollectionConfig = {
       type: 'text',
       required: true,
       localized: true,
+      access: createFieldAccess('music', 'title'),
     },
     {
       name: 'slug',

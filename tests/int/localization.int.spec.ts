@@ -2,7 +2,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Tag, Media, Meditation, Music, Narrator } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
-import { testDataFactory } from '../utils/testDataFactory'
+import { testData } from '../utils/testData'
 
 describe('Localization', () => {
   let payload: Payload
@@ -161,7 +161,7 @@ describe('Localization', () => {
   describe('Music Collection', () => {
     it.skip('creates and retrieves localized music fields - Payload behavior differs from test expectations', async () => {
       // Create music with English fields
-      const music = await testDataFactory.createMusic(payload, {
+      const music = await testData.createMusic(payload, {
         title: 'Peaceful Morning',
         credit: 'Music Studio',
       })
@@ -205,16 +205,16 @@ describe('Localization', () => {
 
     beforeAll(async () => {
       // Create shared test data
-      narrator = await testDataFactory.createNarrator(payload, {
+      narrator = await testData.createNarrator(payload, {
         name: 'Test Narrator for Localization',
       })
-      thumbnail = await testDataFactory.createMediaImage(payload, {
+      thumbnail = await testData.createMediaImage(payload, {
         alt: 'Test Thumbnail',
       })
     })
 
     it.skip('creates meditation with locale select field - File upload issues in test environment', async () => {
-      const meditation = await testDataFactory.createMeditation(payload, {
+      const meditation = await testData.createMeditation(payload, {
         narrator: narrator.id,
         thumbnail: thumbnail.id,
       }, {
@@ -229,7 +229,7 @@ describe('Localization', () => {
 
     it.skip('filters meditations by locale in find operations - File upload issues in test environment', async () => {
       // Create English meditation
-      const enMeditation = await testDataFactory.createMeditation(payload, {
+      const enMeditation = await testData.createMeditation(payload, {
         narrator: narrator.id,
         thumbnail: thumbnail.id,
       }, {
@@ -238,7 +238,7 @@ describe('Localization', () => {
       })
 
       // Create Italian meditation  
-      const itMeditation = await testDataFactory.createMeditation(payload, {
+      const itMeditation = await testData.createMeditation(payload, {
         narrator: narrator.id,
         thumbnail: thumbnail.id,
       }, {
@@ -277,7 +277,7 @@ describe('Localization', () => {
 
     it.skip('filters meditations by locale using query parameter - File upload issues in test environment', async () => {
       // Create meditations in different locales
-      const enMeditation = await testDataFactory.createMeditation(payload, {
+      const enMeditation = await testData.createMeditation(payload, {
         narrator: narrator.id,
         thumbnail: thumbnail.id,
       }, {
@@ -285,7 +285,7 @@ describe('Localization', () => {
         locale: 'en',
       })
 
-      const itMeditation = await testDataFactory.createMeditation(payload, {
+      const itMeditation = await testData.createMeditation(payload, {
         narrator: narrator.id,
         thumbnail: thumbnail.id,
       }, {
@@ -323,7 +323,7 @@ describe('Localization', () => {
     it.skip('filters meditations by locale in count operations - File upload issues in test environment', async () => {
       // Create multiple meditations
       for (let i = 0; i < 3; i++) {
-        await testDataFactory.createMeditation(payload, {
+        await testData.createMeditation(payload, {
           narrator: narrator.id,
           thumbnail: thumbnail.id,
         }, {
@@ -333,7 +333,7 @@ describe('Localization', () => {
       }
 
       for (let i = 0; i < 2; i++) {
-        await testDataFactory.createMeditation(payload, {
+        await testData.createMeditation(payload, {
           narrator: narrator.id,
           thumbnail: thumbnail.id,
         }, {
@@ -382,7 +382,7 @@ describe('Localization', () => {
     })
 
     it.skip('defaults to en locale when not specified - File upload issues in test environment', async () => {
-      const meditation = await testDataFactory.createMeditation(payload, {
+      const meditation = await testData.createMeditation(payload, {
         narrator: narrator.id,
         thumbnail: thumbnail.id,
       })
@@ -392,7 +392,7 @@ describe('Localization', () => {
 
     it.skip('uses req.locale for filtering when no query locale specified - File upload issues in test environment', async () => {
       // Create test meditations
-      const enMeditation = await testDataFactory.createMeditation(payload, {
+      const enMeditation = await testData.createMeditation(payload, {
         narrator: narrator.id,
         thumbnail: thumbnail.id,
       }, {
@@ -400,7 +400,7 @@ describe('Localization', () => {
         locale: 'en',
       })
 
-      const itMeditation = await testDataFactory.createMeditation(payload, {
+      const itMeditation = await testData.createMeditation(payload, {
         narrator: narrator.id,
         thumbnail: thumbnail.id,
       }, {

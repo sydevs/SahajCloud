@@ -3,7 +3,7 @@ import type { Payload } from 'payload'
 import type { Narrator, Frame, Meditation, Tag } from '@/payload-types'
 import type { FrameData } from '@/components/admin/MeditationFrameEditor/types'
 import { createTestEnvironment } from '../utils/testHelpers'
-import { testDataFactory } from '../utils/testDataFactory'
+import { testData } from '../utils/testData'
 
 /**
  * Integration tests for MeditationFrameEditor functionality
@@ -24,29 +24,29 @@ describe('MeditationFrameEditor Integration', () => {
     cleanup = testEnv.cleanup
 
     // Create test narrator
-    narrator = await testDataFactory.createNarrator(payload, {
+    narrator = await testData.createNarrator(payload, {
       name: 'Test Male Narrator',
       gender: 'male' as const,
     })
 
     // Create test tags
-    const morningTag = await testDataFactory.createTag(payload, { title: 'morning' })
-    const breathingTag = await testDataFactory.createTag(payload, { title: 'breathing' })
-    const peacefulTag = await testDataFactory.createTag(payload, { title: 'peaceful' })
+    const morningTag = await testData.createTag(payload, { title: 'morning' })
+    const breathingTag = await testData.createTag(payload, { title: 'breathing' })
+    const peacefulTag = await testData.createTag(payload, { title: 'peaceful' })
     tags = [morningTag, breathingTag, peacefulTag]
 
     // Create male frames for the narrator's gender
-    const maleFrame1 = await testDataFactory.createFrame(payload, {
+    const maleFrame1 = await testData.createFrame(payload, {
       name: 'Male Agnya',
       imageSet: 'male',
       tags: [morningTag.id, breathingTag.id],
     })
-    const maleFrame2 = await testDataFactory.createFrame(payload, {
+    const maleFrame2 = await testData.createFrame(payload, {
       name: 'Male Right Heart',
       imageSet: 'male',
       tags: [peacefulTag.id],
     })
-    const maleFrame3 = await testDataFactory.createFrame(payload, {
+    const maleFrame3 = await testData.createFrame(payload, {
       name: 'Male Back Agnya',
       imageSet: 'male',
       tags: [morningTag.id],
@@ -54,7 +54,7 @@ describe('MeditationFrameEditor Integration', () => {
     maleFrames = [maleFrame1, maleFrame2, maleFrame3]
 
     // Create female frames (should not appear for male narrator)
-    const femaleFrame = await testDataFactory.createFrame(payload, {
+    const femaleFrame = await testData.createFrame(payload, {
       name: 'Female Agnya',
       imageSet: 'female',
       tags: [morningTag.id],
@@ -62,8 +62,8 @@ describe('MeditationFrameEditor Integration', () => {
     femaleFrames = [femaleFrame]
 
     // Create test meditation with audio
-    const thumbnail = await testDataFactory.createMediaImage(payload)
-    meditation = await testDataFactory.createMeditation(
+    const thumbnail = await testData.createMediaImage(payload)
+    meditation = await testData.createMeditation(
       payload,
       {
         narrator: narrator.id,
@@ -358,7 +358,7 @@ describe('MeditationFrameEditor Integration', () => {
     })
 
     it('should handle narrator without frames', async () => {
-      const femaleNarrator = await testDataFactory.createNarrator(payload, {
+      const femaleNarrator = await testData.createNarrator(payload, {
         name: 'Female Narrator',
         gender: 'female',
       })

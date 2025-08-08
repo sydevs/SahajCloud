@@ -1,4 +1,5 @@
-import { adminOnlyAccess } from '@/lib/accessControl'
+import { PermissionRowLabel } from '@/components/admin/PermissionRowLabel'
+import { adminOnlyAccess, createPermissionsField, getAvailableCollections } from '@/lib/accessControl'
 import type { CollectionConfig } from 'payload'
 
 export const Users: CollectionConfig = {
@@ -12,7 +13,7 @@ export const Users: CollectionConfig = {
   admin: {
     group: 'Access',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'email', 'active', 'role'],
+    defaultColumns: ['name', 'email', 'active', 'admin'],
   },
   fields: [
     {
@@ -21,21 +22,14 @@ export const Users: CollectionConfig = {
       required: true,
     },
     {
-      name: 'role',
-      type: 'select',
-      required: true,
-      defaultValue: 'super-admin',
-      options: [
-        {
-          label: 'Full Access',
-          value: 'super-admin',
-        },
-        // Future roles can be added here
-      ],
+      name: 'admin',
+      type: 'checkbox',
+      defaultValue: false,
       admin: {
-        description: 'Access level for this client (currently only Full Access)',
+        description: 'Admin users bypass all permission restrictions and have complete access to all collections and features.',
       },
     },
+    createPermissionsField({ excludedLevels: ['read'] }),
     {
       name: 'active',
       type: 'checkbox',

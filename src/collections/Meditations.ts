@@ -1,20 +1,12 @@
 import type { CollectionConfig, Validate, Where } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { getStorageConfig } from '@/lib/storage'
-import { readApiAccess } from '@/lib/accessControl'
+import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
-  access: readApiAccess({
-    read: ({ req }) => {
-      return {
-        locale: {
-          equals: req.query?.locale || req.locale,
-        },
-      } as Where
-    },
-  }),
+  access: permissionBasedAccess('meditations'),
   trash: true,
   upload: {
     staticDir: 'media/meditations',
@@ -181,7 +173,7 @@ export const Meditations: CollectionConfig = {
       admin: {
         description: 'Frames associated with this meditation with audio-synchronized editing',
         components: {
-          Field: '/components/admin/MeditationFrameEditor/index.tsx#default',
+          Field: '@/components/admin/MeditationFrameEditor/index.tsx#default',
         },
       },
       validate: (value) => {

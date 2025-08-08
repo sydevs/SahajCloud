@@ -2,7 +2,7 @@ import { describe, it, beforeAll, afterAll, beforeEach, expect } from 'vitest'
 import type { User } from '@/payload-types'
 import type { Payload } from 'payload'
 import { EmailTestAdapter } from '../utils/emailTestAdapter'
-import { testDataFactory } from '../utils/testDataFactory'
+import { testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from 'tests/utils/testHelpers'
 
 describe('Email Sending', () => {
@@ -32,7 +32,7 @@ describe('Email Sending', () => {
         name: 'Verify User',
         email: 'verify@test.com',
         password: 'TestPassword123!',
-        role: 'super-admin' as const,
+        admin: true,
       }
 
       // Clear any existing emails
@@ -60,7 +60,7 @@ describe('Email Sending', () => {
       // Clear any existing emails first
       emailAdapter.clearCapturedEmails()
       
-      await testDataFactory.createUser(payload, { email })
+      await testData.createUser(payload, { email })
 
       // Wait for verification email from user creation
       await new Promise(resolve => setTimeout(resolve, 2000))
@@ -119,7 +119,7 @@ describe('Email Sending', () => {
 
       // Create user
       const emailAddress = "content-check@example.com"
-      await testDataFactory.createUser(payload, { email: emailAddress })
+      await testData.createUser(payload, { email: emailAddress })
 
       // Wait for email to be sent
       await new Promise(resolve => setTimeout(resolve, 2000))

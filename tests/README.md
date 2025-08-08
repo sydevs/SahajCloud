@@ -69,10 +69,10 @@ describe('My Collection', () => {
 ### Test Data Factories
 
 ```typescript
-import { testDataFactory } from '../utils/testHelpers'
+import { testData } from '../utils/testHelpers'
 
 // Create test data with consistent defaults and overrides
-const userData = testDataFactory.user({ email: 'custom@example.com' })
+const userData = testData.user({ email: 'custom@example.com' })
 ```
 
 ## Benefits

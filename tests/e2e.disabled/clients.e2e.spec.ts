@@ -70,7 +70,6 @@ test.describe('Clients Management UI', () => {
       await expect(page.locator('text=High Usage Alert').or(page.locator('[data-field="highUsageAlert"]'))).toBeVisible()
     } else {
       // If not visible, that's expected for low-usage clients
-      console.log('High usage alert not visible - this is expected for low-usage clients')
     }
   })
 

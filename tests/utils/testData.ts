@@ -1,8 +1,9 @@
-import type { Payload } from 'payload'
+import type { Payload, TypedUser } from 'payload'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import type { Narrator, Media, Tag, Meditation, Music, Frame, User, Client } from '@/payload-types'
+import { TEST_ADMIN_ID } from './testHelpers'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -11,7 +12,7 @@ const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 /**
  * Test data factory functions for creating test entities with payload.create()
  */
-export const testDataFactory = {
+export const testData = {
   /**
    * Create a narrator
    */
@@ -170,35 +171,57 @@ export const testDataFactory = {
   },
 
   /**
-   * Create a user
+   * Create a user with default admin privileges
    */
-  async createUser(payload: Payload, overrides = {}): Promise<User> {
-    return await payload.create({
+  async createUser(payload: Payload, overrides: Partial<User> = {}) {
+    const testEmail = `test_${Date.now()}_${Math.random().toString(36).substring(7)}`
+
+    const user = await payload.create({
       collection: 'users',
       data: {
         name: 'Test User',
-        email: 'test@example.com',
+        email: `${testEmail}@example.com`,
         password: 'password123',
-        role: 'super-admin',
+        active: true,
+        admin: false,
         ...overrides,
       },
-    }) as User
+    })
+
+    return {
+      collection: 'users',
+      ...user,
+    } as User & { collection: "users" }
   },
 
   /**
-   * Create a client with required user dependencies
+   * Create an API client with specific permissions
    */
-  async createClient(payload: Payload, deps: { managers: string[]; primaryContact: string }, overrides = {}): Promise<Client> {
-    return await payload.create({
+  async createClient(payload: Payload, overrides = {}) {
+    const client = await payload.create({
       collection: 'clients',
       data: {
         name: 'Test Client',
-        role: 'full-access' as const,
-        managers: deps.managers,
-        primaryContact: deps.primaryContact,
-        active: true,
+        managers: [TEST_ADMIN_ID],
+        primaryContact: TEST_ADMIN_ID,
         ...overrides,
       },
-    }) as Client
+    })
+
+    return {
+      collection: 'clients',
+      ...client,
+    } as Client & { collection: "clients" }
   },
+
+  dummyUser(collection: 'users' | 'clients', overrides: Partial<User | Client> = {}) {
+    return {
+      collection,
+      admin: false,
+      active: true,
+      permissions: [],
+      ...overrides,
+    } as any
+  }
+
 }

@@ -2,7 +2,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Tag } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
-import { testDataFactory } from '../utils/testDataFactory'
+import { testData } from '../utils/testData'
 
 describe('Tags Collection', () => {
   let payload: Payload
@@ -19,7 +19,7 @@ describe('Tags Collection', () => {
   })
 
   it('creates a tag with title', async () => {
-    const tag = await testDataFactory.createTag(payload, {
+    const tag = await testData.createTag(payload, {
       title: 'Mindfulness',
     })
 
@@ -38,8 +38,8 @@ describe('Tags Collection', () => {
   })
 
   it('finds tags', async () => {
-    const tag1 = await testDataFactory.createTag(payload, { title: 'Relaxation' })
-    const tag2 = await testDataFactory.createTag(payload, { title: 'Focus' })
+    const tag1 = await testData.createTag(payload, { title: 'Relaxation' })
+    const tag2 = await testData.createTag(payload, { title: 'Focus' })
 
     const result = await payload.find({
       collection: 'tags',
@@ -55,7 +55,7 @@ describe('Tags Collection', () => {
   })
 
   it('updates a tag', async () => {
-    const tag = await testDataFactory.createTag(payload, { title: 'Original Title' })
+    const tag = await testData.createTag(payload, { title: 'Original Title' })
 
     const updated = await payload.update({
       collection: 'tags',
@@ -69,7 +69,7 @@ describe('Tags Collection', () => {
   })
 
   it('deletes a tag', async () => {
-    const tag = await testDataFactory.createTag(payload, { title: 'To Delete' })
+    const tag = await testData.createTag(payload, { title: 'To Delete' })
 
     await payload.delete({
       collection: 'tags',
@@ -90,7 +90,7 @@ describe('Tags Collection', () => {
 
   it('demonstrates complete isolation - no data leakage', async () => {
     // Create a tag in this test
-    const tag = await testDataFactory.createTag(payload, { title: 'Isolation Test Tag' })
+    const tag = await testData.createTag(payload, { title: 'Isolation Test Tag' })
 
     // Query all tags
     const allTags = await payload.find({

@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { validateClientData, checkHighUsageAlert } from '@/hooks/clientHooks'
-import { adminOnlyAccess } from '@/lib/accessControl'
+import { adminOnlyAccess, createPermissionsField } from '@/lib/accessControl'
 
 export const Clients: CollectionConfig = {
   slug: 'clients',
@@ -11,7 +11,7 @@ export const Clients: CollectionConfig = {
   admin: {
     group: 'Access',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'active', 'role'],
+    defaultColumns: ['name', 'active'],
   },
   access: adminOnlyAccess(),
   fields: [
@@ -32,22 +32,7 @@ export const Clients: CollectionConfig = {
         description: 'Purpose and usage notes for this client',
       },
     },
-    {
-      name: 'role',
-      type: 'select',
-      required: true,
-      defaultValue: 'full-access',
-      options: [
-        {
-          label: 'Full Access',
-          value: 'full-access',
-        },
-        // Future roles can be added here
-      ],
-      admin: {
-        description: 'Access level for this client (currently only Full Access)',
-      },
-    },
+    createPermissionsField({ excludedLevels: ['translate'] }),
     {
       name: 'managers',
       type: 'relationship',

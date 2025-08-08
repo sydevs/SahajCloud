@@ -33,7 +33,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       components: {
         providers: [
           {
-            path: './components/AdminProvider.tsx',
+            path: '@/components/AdminProvider.tsx',
           },
         ],
       },

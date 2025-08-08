@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import sharp from 'sharp'
 import { getStorageConfig } from '@/lib/storage'
-import { readApiAccess } from '@/lib/accessControl'
+import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Media: CollectionConfig = {
@@ -9,7 +9,7 @@ export const Media: CollectionConfig = {
   admin: {
     group: 'Resources',
   },
-  access: readApiAccess(),
+  access: permissionBasedAccess('media'),
   upload: {
     staticDir: 'media/images',
     mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],

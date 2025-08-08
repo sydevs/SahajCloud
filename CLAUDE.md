@@ -73,15 +73,15 @@ If necessary, you should also run `pnpm run generate:types`
 - `src/app/(payload)/api/` - Auto-generated API endpoints including GraphQL
 
 ### Collections
-- **Users** (`src/collections/Users.ts`) - Authentication-enabled admin users with email/password authentication using default Payload email templates
-- **Media** (`src/collections/Media.ts`) - **Image-only collection** with automatic WEBP conversion, tags, credit info, and dimensions metadata (alt and credit fields are localized)
+- **Users** (`src/collections/Users.ts`) - Authentication-enabled admin users with email/password authentication, admin toggle for complete access bypass, and granular collection/locale-based permissions array
+- **Media** (`src/collections/Media.ts`) - **Image-only collection** with automatic WEBP conversion, tags, credit info, and dimensions metadata
 - **Narrators** (`src/collections/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
 - **Meditations** (`src/collections/Meditations.ts`) - Guided meditation content with audio files, tags, metadata, frame relationships with timestamps, and locale-specific content filtering
 - **Tags** (`src/collections/Tags.ts`) - Categorization system for meditations and music with bidirectional relationships (title field is localized)
 - **Music** (`src/collections/Music.ts`) - Background music tracks with direct audio upload, tags, and metadata (title and credit fields are localized)
 - **Frames** (`src/collections/Frames.ts`) - Meditation pose files with mixed media upload (images/videos), tags filtering, and imageSet selection
 - **MeditationFrames** (`src/collections/MeditationFrames.ts`) - Join table for meditation-frame relationships with timestamps (hidden from admin UI)
-- **Clients** (`src/collections/Clients.ts`) - API client management with authentication keys, usage tracking, role-based access, and high-usage alerts
+- **Clients** (`src/collections/Clients.ts`) - API client management with authentication keys, usage tracking, granular collection/locale-based permissions, and high-usage alerts
 
 ### Localization Architecture
 
@@ -282,8 +282,9 @@ The system implements secure REST API authentication for third-party clients wit
 5. Batch updates persist usage stats to database
 
 #### Security Features
-- **Read-Only Access**: API clients can only read data, not create/update/delete
-- **Collection Restrictions**: Users and Clients collections completely blocked
+- **Permission-Based Access**: API clients require explicit collection/locale permissions (Read or Manage levels)
+- **No Delete Access**: API clients never get delete access, even with Manage permissions
+- **Collection Restrictions**: Users and Clients collections completely blocked for API clients
 - **Active Status**: Only active clients can authenticate
 - **Encrypted Keys**: API keys encrypted with PAYLOAD_SECRET
 - **GraphQL Disabled**: All API access through REST endpoints only
@@ -299,6 +300,51 @@ The system implements secure REST API authentication for third-party clients wit
 - **API Auth Tests** (`tests/int/api-auth.int.spec.ts`): Authentication flow
 - **E2E Tests** (`tests/e2e/clients.e2e.spec.ts`): Admin UI functionality
 - **Test Helpers**: Factory functions for creating test clients and requests
+
+### Collection and Locale-Based Permissions System
+
+The CMS implements a granular permission system that provides per-collection and per-locale access control for both Users and API Clients, replacing the previous simple role-based approach with a flexible array-based permissions model.
+
+#### Permission Structure
+Each permission entry contains:
+- **Collection**: Select from available collections (excluding Users, Clients, and hidden collections)
+- **Permission Level**: 
+  - **Users**: "Translate" or "Manage"
+  - **API Clients**: "Read" or "Manage"
+- **Locales**: Multi-select from configured locales (`en`, `it`) with option to select "All Locales"
+
+#### User Permissions
+- **Admin Toggle**: Complete bypass of all permission restrictions when enabled
+- **Read Access**: All collections (automatic, no configuration needed)
+- **Collection Visibility**: Collections only appear in admin UI if they have Translate or Manage permissions
+- **Translate Permission**: 
+  - Cannot create documents
+  - Can only edit fields with `localized: true` attribute
+  - Restricted to specified locales
+- **Manage Permission**:
+  - Can create, update, delete documents within specified locales only
+  - Can delete documents only if collection has `trash: true` (soft delete)
+  - Full field access within specified locales
+
+#### API Client Permissions
+- **No Default Access**: Must be explicitly granted via permissions array
+- **Read Permission**: Read-only access to specified collections/locales
+- **Manage Permission**: Can create, update within specified locales only (never delete, even soft delete)
+- **Collection Restrictions**: Users and Clients collections are completely blocked
+- **Locale Filtering**: Automatic filtering based on granted locale permissions
+
+#### Access Control Implementation
+- **Permission-Based Access Control**: Use `permissionBasedAccess()` function to implement access control
+- **Dynamic Collection Discovery**: Automatically detects available collections from payload config
+- **Field-Level Restrictions**: `createFieldAccess()` function for Translate users
+- **Locale-Aware Filtering**: `createLocaleFilter()` function for query-based access control
+- **"All Locales" Support**: Special permission option that bypasses locale restrictions
+
+#### Key Files
+- `src/lib/accessControl.ts` - Core permission system with utility functions
+- `src/collections/Users.ts` - Updated with permissions array and admin toggle
+- `src/collections/Clients.ts` - Updated with permissions array
+- All content collections - Updated to use `permissionBasedAccess()`
 
 ## Development Workflow
 

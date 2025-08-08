@@ -2,7 +2,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Frame, Tag } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
-import { testDataFactory } from '../utils/testDataFactory'
+import { testData } from '../utils/testData'
 
 describe('Frames Collection', () => {
   let payload: Payload
@@ -17,9 +17,9 @@ describe('Frames Collection', () => {
     cleanup = testEnv.cleanup
 
     // Create test tags
-    testTag1 = await testDataFactory.createTag(payload, { title: 'yoga' })
-    testTag2 = await testDataFactory.createTag(payload, { title: 'poses' })
-    testTag3 = await testDataFactory.createTag(payload, { title: 'beginner' })
+    testTag1 = await testData.createTag(payload, { title: 'yoga' })
+    testTag2 = await testData.createTag(payload, { title: 'poses' })
+    testTag3 = await testData.createTag(payload, { title: 'beginner' })
   })
 
   afterAll(async () => {
@@ -27,7 +27,7 @@ describe('Frames Collection', () => {
   })
 
   it('creates a frame with image', async () => {
-    const frame = await testDataFactory.createFrame(payload, {
+    const frame = await testData.createFrame(payload, {
       name: 'Mountain Pose',
       imageSet: 'male',
       tags: [testTag1.id, testTag2.id],
@@ -54,7 +54,7 @@ describe('Frames Collection', () => {
   })
 
   it('creates a frame with video', async () => {
-    const frame = await testDataFactory.createFrame(payload, {
+    const frame = await testData.createFrame(payload, {
       name: 'Warrior Pose Flow',
       imageSet: 'female',
       tags: [testTag2.id, testTag3.id],
@@ -81,7 +81,7 @@ describe('Frames Collection', () => {
 
   it('requires name field', async () => {
     await expect(
-      testDataFactory.createFrame(payload, {
+      testData.createFrame(payload, {
         imageSet: 'male',
         name: undefined, // Remove name to test validation
       } as any)
@@ -90,7 +90,7 @@ describe('Frames Collection', () => {
 
   it('requires imageSet field', async () => {
     await expect(
-      testDataFactory.createFrame(payload, {
+      testData.createFrame(payload, {
         name: 'Test Frame',
         imageSet: undefined, // Remove imageSet to test validation
       } as any)
@@ -99,7 +99,7 @@ describe('Frames Collection', () => {
 
   it('validates imageSet options', async () => {
     await expect(
-      testDataFactory.createFrame(payload, {
+      testData.createFrame(payload, {
         name: 'Test Frame',
         imageSet: 'invalid' as any, // Invalid option
       })
@@ -117,7 +117,7 @@ describe('Frames Collection', () => {
 
     for (let i = 0; i < formats.length; i++) {
       const format = formats[i]
-      const frame = await testDataFactory.createFrame(payload, {
+      const frame = await testData.createFrame(payload, {
         title: `Test ${format.mimetype.split('/')[1].toUpperCase()}`,
       }, format.name)
 
@@ -172,7 +172,7 @@ describe('Frames Collection', () => {
   })
 
   it('updates a frame', async () => {
-    const frame = await testDataFactory.createFrame(payload, {
+    const frame = await testData.createFrame(payload, {
       name: 'Original Name',
       imageSet: 'male',
     })
@@ -198,7 +198,7 @@ describe('Frames Collection', () => {
   })
 
   it('manages tags relationships properly', async () => {
-    const frame = await testDataFactory.createFrame(payload, {
+    const frame = await testData.createFrame(payload, {
       name: 'Tagged Frame',
       tags: [testTag1.id, testTag2.id],
     })
@@ -222,7 +222,7 @@ describe('Frames Collection', () => {
   })
 
   it('deletes a frame', async () => {
-    const frame = await testDataFactory.createFrame(payload, {
+    const frame = await testData.createFrame(payload, {
       name: 'To Delete',
     })
 
@@ -245,13 +245,13 @@ describe('Frames Collection', () => {
   })
 
   it('finds frames with filters', async () => {
-    await testDataFactory.createFrame(payload, {
+    await testData.createFrame(payload, {
       name: 'Filter Test Yoga Frame',
       tags: [testTag1.id], // yoga tag
       imageSet: 'male',
     })
 
-    await testDataFactory.createFrame(payload, {
+    await testData.createFrame(payload, {
       name: 'Filter Test Beginner Frame',
       tags: [testTag3.id], // beginner tag
       imageSet: 'female',
@@ -281,12 +281,12 @@ describe('Frames Collection', () => {
   })
 
   it('finds frames by imageSet', async () => {
-    await testDataFactory.createFrame(payload, {
+    await testData.createFrame(payload, {
       name: 'Male Frame Test',
       imageSet: 'male',
     })
 
-    await testDataFactory.createFrame(payload, {
+    await testData.createFrame(payload, {
       name: 'Female Frame Test',
       imageSet: 'female',
     }, 'video-30s.mp4')
@@ -314,11 +314,11 @@ describe('Frames Collection', () => {
   })
 
   it('supports mixed media types in same collection', async () => {
-    const imageFrame = await testDataFactory.createFrame(payload, {
+    const imageFrame = await testData.createFrame(payload, {
       name: 'Mixed Test Image',
     })
 
-    const videoFrame = await testDataFactory.createFrame(payload, {
+    const videoFrame = await testData.createFrame(payload, {
       name: 'Mixed Test Video',
     }, 'video-30s.mp4')
 

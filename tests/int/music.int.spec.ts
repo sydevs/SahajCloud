@@ -2,7 +2,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Music, Tag } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
-import { testDataFactory } from '../utils/testDataFactory'
+import { testData } from '../utils/testData'
 
 describe('Music Collection', () => {
   let payload: Payload
@@ -17,9 +17,9 @@ describe('Music Collection', () => {
     cleanup = testEnv.cleanup
 
     // Create test tags
-    testTag1 = await testDataFactory.createTag(payload, { title: 'ambient' })
-    testTag2 = await testDataFactory.createTag(payload, { title: 'meditation' })
-    testTag3 = await testDataFactory.createTag(payload, { title: 'nature' })
+    testTag1 = await testData.createTag(payload, { title: 'ambient' })
+    testTag2 = await testData.createTag(payload, { title: 'meditation' })
+    testTag3 = await testData.createTag(payload, { title: 'nature' })
   })
 
   afterAll(async () => {
@@ -27,7 +27,7 @@ describe('Music Collection', () => {
   })
 
   it('creates a music track with auto-generated slug', async () => {
-    const music = await testDataFactory.createMusic(payload, {
+    const music = await testData.createMusic(payload, {
       title: 'Forest Sounds',
       tags: [testTag1.id, testTag2.id],
       credit: 'Nature Recordings Inc.',
@@ -51,7 +51,7 @@ describe('Music Collection', () => {
   })
 
   it('ignores custom slug on create', async () => {
-    const music = await testDataFactory.createMusic(payload, {
+    const music = await testData.createMusic(payload, {
       title: 'Rain Sounds',
       slug: 'custom-rain-slug', // This should be ignored
     })
@@ -60,7 +60,7 @@ describe('Music Collection', () => {
   })
 
   it('handles special characters in slug generation', async () => {
-    const music = await testDataFactory.createMusic(payload, {
+    const music = await testData.createMusic(payload, {
       title: 'Música: Relajación & Paz',
     })
 
@@ -69,7 +69,7 @@ describe('Music Collection', () => {
 
   it('requires title field', async () => {
     await expect(
-      testDataFactory.createMusic(payload, {
+      testData.createMusic(payload, {
         credit: 'Test Credit',
         title: undefined, // Remove title to test validation
       } as any)
@@ -78,7 +78,7 @@ describe('Music Collection', () => {
 
   it('validates audio mimeType only', async () => {
     await expect(
-      testDataFactory.createMusic(payload, {
+      testData.createMusic(payload, {
         name: 'invalid.jpg',
       }, 'image-1050x700.jpg')
     ).rejects.toThrow() // Accept any upload-related error for now
@@ -106,7 +106,7 @@ describe('Music Collection', () => {
   // })
 
   it('accepts valid audio file within size limit', async () => {
-    const music = await testDataFactory.createMusic(payload, {
+    const music = await testData.createMusic(payload, {
       title: 'Valid Audio File',
     })
 
@@ -116,7 +116,7 @@ describe('Music Collection', () => {
   })
 
   it('updates a music track', async () => {
-    const music = await testDataFactory.createMusic(payload, {
+    const music = await testData.createMusic(payload, {
       title: 'Original Title',
       credit: 'Original Credit',
     })
@@ -143,7 +143,7 @@ describe('Music Collection', () => {
   })
 
   it('preserves slug when updating other fields', async () => {
-    const music = await testDataFactory.createMusic(payload, {
+    const music = await testData.createMusic(payload, {
       title: 'Unique Slug Preservation Test Title',
     })
 
@@ -159,7 +159,7 @@ describe('Music Collection', () => {
   })
 
   it('manages tags relationships properly', async () => {
-    const music = await testDataFactory.createMusic(payload, {
+    const music = await testData.createMusic(payload, {
       title: 'Tagged Music',
       tags: [testTag1.id, testTag2.id],
     })
@@ -183,7 +183,7 @@ describe('Music Collection', () => {
   })
 
   it('deletes a music track', async () => {
-    const music = await testDataFactory.createMusic(payload, {
+    const music = await testData.createMusic(payload, {
       title: 'To Delete',
     })
 
@@ -206,12 +206,12 @@ describe('Music Collection', () => {
   })
 
   it('finds music with filters', async () => {
-    await testDataFactory.createMusic(payload, {
+    await testData.createMusic(payload, {
       title: 'Filter Test Ambient Track',
       tags: [testTag1.id], // ambient tag
     })
 
-    await testDataFactory.createMusic(payload, {
+    await testData.createMusic(payload, {
       title: 'Filter Test Nature Track',
       tags: [testTag3.id], // nature tag
     })
@@ -240,12 +240,12 @@ describe('Music Collection', () => {
   })
 
   it('enforces unique slug constraint', async () => {
-    await testDataFactory.createMusic(payload, {
+    await testData.createMusic(payload, {
       title: 'Duplicate Test',
     })
 
     await expect(
-      testDataFactory.createMusic(payload, {
+      testData.createMusic(payload, {
         title: 'Duplicate Test', // Same title will generate same slug
       })
     ).rejects.toThrow()
@@ -261,7 +261,7 @@ describe('Music Collection', () => {
 
     for (let i = 0; i < formats.length; i++) {
       const format = formats[i]
-      const music = await testDataFactory.createMusic(payload, {
+      const music = await testData.createMusic(payload, {
         title: `Test ${format.mimetype.split('/')[1].toUpperCase()}`,
       }, format.name)
 

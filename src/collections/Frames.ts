@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 import sharp from 'sharp'
 import { getVideoDuration, getVideoDimensions, validateVideoDuration, validateVideoFileSize } from '@/lib/videoUtils'
 import { getStorageConfig } from '@/lib/storage'
-import { readApiAccess } from '@/lib/accessControl'
+import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Frames: CollectionConfig = {
@@ -11,7 +11,7 @@ export const Frames: CollectionConfig = {
     singular: "Meditation Frame"
   },
   slug: 'frames',
-  access: readApiAccess(),
+  access: permissionBasedAccess('frames'),
   upload: {
     staticDir: 'media/frames',
     mimeTypes: [

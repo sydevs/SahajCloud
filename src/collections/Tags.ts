@@ -1,10 +1,10 @@
 import type { CollectionConfig } from 'payload'
-import { readApiAccess } from '@/lib/accessControl'
+import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const Tags: CollectionConfig = {
   slug: 'tags',
-  access: readApiAccess(),
+  access: permissionBasedAccess('tags'),
   hooks: {
     afterRead: [trackClientUsageHook],
   },

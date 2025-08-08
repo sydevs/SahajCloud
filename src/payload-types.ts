@@ -400,9 +400,29 @@ export interface User {
   id: string;
   name: string;
   /**
-   * Access level for this client (currently only Full Access)
+   * Admin users bypass all permission restrictions and have complete access to all collections and features.
    */
-  role: 'super-admin';
+  admin?: boolean | null;
+  /**
+   * Granular permissions for specific collections and locales. Adding the same collection multiple times may cause inconsistent behaviour.
+   */
+  permissions?:
+    | {
+        /**
+         * Select the collection to grant permissions for
+         */
+        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'narrators' | 'tags';
+        /**
+         * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
+         */
+        level: 'translate' | 'manage';
+        /**
+         * Select which locales this permission applies to. "All Locales" grants unrestricted locale access.
+         */
+        locales: ('all' | 'en' | 'it' | 'fr')[];
+        id?: string | null;
+      }[]
+    | null;
   /**
    * Enable or disable this user
    */
@@ -440,9 +460,25 @@ export interface Client {
    */
   notes?: string | null;
   /**
-   * Access level for this client (currently only Full Access)
+   * Granular permissions for specific collections and locales. Adding the same collection multiple times may cause inconsistent behaviour.
    */
-  role: 'full-access';
+  permissions?:
+    | {
+        /**
+         * Select the collection to grant permissions for
+         */
+        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'narrators' | 'tags';
+        /**
+         * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
+         */
+        level: 'read' | 'manage';
+        /**
+         * Select which locales this permission applies to. "All Locales" grants unrestricted locale access.
+         */
+        locales: ('all' | 'en' | 'it' | 'fr')[];
+        id?: string | null;
+      }[]
+    | null;
   /**
    * Users who can manage this client
    */
@@ -849,7 +885,15 @@ export interface TagsSelect<T extends boolean = true> {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
-  role?: T;
+  admin?: T;
+  permissions?:
+    | T
+    | {
+        allowedCollection?: T;
+        level?: T;
+        locales?: T;
+        id?: T;
+      };
   active?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -875,7 +919,14 @@ export interface UsersSelect<T extends boolean = true> {
 export interface ClientsSelect<T extends boolean = true> {
   name?: T;
   notes?: T;
-  role?: T;
+  permissions?:
+    | T
+    | {
+        allowedCollection?: T;
+        level?: T;
+        locales?: T;
+        id?: T;
+      };
   managers?: T;
   primaryContact?: T;
   domains?: T;

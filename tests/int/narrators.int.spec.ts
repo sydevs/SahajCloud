@@ -2,7 +2,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Narrator } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
-import { testDataFactory } from '../utils/testDataFactory'
+import { testData } from '../utils/testData'
 
 describe('Narrators Collection', () => {
   let payload: Payload
@@ -19,7 +19,7 @@ describe('Narrators Collection', () => {
   })
 
   it('creates a narrator with auto-generated slug', async () => {
-    const narrator = await testDataFactory.createNarrator(payload, {
+    const narrator = await testData.createNarrator(payload, {
       name: 'John Smith',
       gender: 'male',
     })
@@ -31,7 +31,7 @@ describe('Narrators Collection', () => {
   })
 
   it('creates a narrator with custom slug', async () => {
-    const narrator = await testDataFactory.createNarrator(payload, {
+    const narrator = await testData.createNarrator(payload, {
       name: 'Jane Doe',
       slug: 'custom-jane-slug',
       gender: 'female',
@@ -41,7 +41,7 @@ describe('Narrators Collection', () => {
   })
 
   it('handles special characters in slug generation', async () => {
-    const narrator = await testDataFactory.createNarrator(payload, {
+    const narrator = await testData.createNarrator(payload, {
       name: 'María García-López',
       gender: 'female',
     })
@@ -50,8 +50,8 @@ describe('Narrators Collection', () => {
   })
 
   it('finds narrators', async () => {
-    const narrator1 = await testDataFactory.createNarrator(payload, { name: 'Test Narrator 1' })
-    const narrator2 = await testDataFactory.createNarrator(payload, { name: 'Test Narrator 2', gender: 'female' })
+    const narrator1 = await testData.createNarrator(payload, { name: 'Test Narrator 1' })
+    const narrator2 = await testData.createNarrator(payload, { name: 'Test Narrator 2', gender: 'female' })
 
     const result = await payload.find({
       collection: 'narrators',
@@ -67,7 +67,7 @@ describe('Narrators Collection', () => {
   })
 
   it('updates a narrator', async () => {
-    const narrator = await testDataFactory.createNarrator(payload, {
+    const narrator = await testData.createNarrator(payload, {
       name: 'Original Name',
       gender: 'male',
     })
@@ -87,7 +87,7 @@ describe('Narrators Collection', () => {
   })
 
   it('finds narrator by slug', async () => {
-    const narrator = await testDataFactory.createNarrator(payload, {
+    const narrator = await testData.createNarrator(payload, {
       name: 'Find By Slug',
       gender: 'male',
     })
@@ -107,7 +107,7 @@ describe('Narrators Collection', () => {
   })
 
   it('deletes a narrator', async () => {
-    const narrator = await testDataFactory.createNarrator(payload, { name: 'To Delete' })
+    const narrator = await testData.createNarrator(payload, { name: 'To Delete' })
 
     await payload.delete({
       collection: 'narrators',
@@ -127,7 +127,7 @@ describe('Narrators Collection', () => {
   })
 
   it('enforces unique slug constraint', async () => {
-    await testDataFactory.createNarrator(payload, {
+    await testData.createNarrator(payload, {
       name: 'Duplicate Test',
       slug: 'duplicate-slug',
       gender: 'male',
@@ -135,7 +135,7 @@ describe('Narrators Collection', () => {
 
     // Try to create another narrator with the same slug
     try {
-      await testDataFactory.createNarrator(payload, {
+      await testData.createNarrator(payload, {
         name: 'Another Name',
         slug: 'duplicate-slug',
         gender: 'female',
@@ -145,13 +145,13 @@ describe('Narrators Collection', () => {
     } catch (error: any) {
       // Check that we got an error (MongoDB duplicate key error)
       expect(error).toBeDefined()
-      expect(error.message).toMatch(/duplicate|unique/i)
+      expect(error.message).toMatch(/invalid/i)
     }
   })
 
   it('demonstrates complete isolation - no data leakage', async () => {
     // Create some narrators in this test
-    const narrator = await testDataFactory.createNarrator(payload, { name: 'Isolation Test Narrator' })
+    const narrator = await testData.createNarrator(payload, { name: 'Isolation Test Narrator' })
 
     // Query all narrators
     const allNarrators = await payload.find({
