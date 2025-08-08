@@ -50,14 +50,14 @@ Copy from `.env.example` and configure:
 - `SMTP_PASS` - SMTP password  
 - `SMTP_FROM` - From email address (default: contact@sydevelopers.com)
 
-**MinIO S3-Compatible Storage (Optional)**
-- `S3_ENDPOINT` - MinIO server endpoint (e.g., https://minio.yourdomain.com)
-- `S3_ACCESS_KEY_ID` - MinIO access key
-- `S3_SECRET_ACCESS_KEY` - MinIO secret key
+**Cloudflare R2 S3-Compatible Storage (Optional)**
+- `S3_ENDPOINT` - Cloudflare R2 server endpoint
+- `S3_ACCESS_KEY_ID` - Cloudflare R2 access key
+- `S3_SECRET_ACCESS_KEY` - Cloudflare R2 secret key
 - `S3_BUCKET_NAME` - Storage bucket name
 - `S3_REGION` - Region (default: us-east-1)
 
-**Note**: If MinIO variables are not configured, the system automatically falls back to local file storage.
+**Note**: If Cloudflare R2 variables are not configured, the system automatically falls back to local file storage.
 
 ## Code editing
 

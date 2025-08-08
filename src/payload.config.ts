@@ -8,16 +8,13 @@ import sharp from 'sharp'
 
 import { collections, Users } from './collections'
 import { tasks } from './jobs'
-import { createMinIOStorage, isMinIOConfigured } from './lib/minioAdapter'
+import { storagePlugin } from './lib/storage'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 const isTestEnvironment = process.env.NODE_ENV === 'test'
 const isProduction = process.env.NODE_ENV === 'production'
-
-// Create MinIO storage plugin if configured (only in production/staging)
-const minioStoragePlugin = !isTestEnvironment && isMinIOConfigured() ? createMinIOStorage() : null
 
 const payloadConfig = (overrides?: Partial<Config>) => {
   return buildConfig({
@@ -87,9 +84,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     }),
     sharp,
     plugins: [
-      // Add MinIO S3 storage plugin if configured
-      ...(minioStoragePlugin ? [minioStoragePlugin] : []),
-    ],
+      // Add file storage plugin if configured
+      storagePlugin(),
+    ].filter(v => !!v),
     upload: {
       limits: {
         fileSize: 104857600, // 100MB global limit, written in bytes (collections will have their own limits)

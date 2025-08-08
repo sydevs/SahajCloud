@@ -1,6 +1,5 @@
 import type { CollectionConfig } from 'payload'
 import sharp from 'sharp'
-import { getStorageConfig } from '@/lib/storage'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
@@ -51,7 +50,6 @@ export const Media: CollectionConfig = {
         },
       },
     ],
-    ...getStorageConfig(),
   },
   hooks: {
     beforeChange: [

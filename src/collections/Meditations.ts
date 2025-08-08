@@ -1,6 +1,5 @@
 import type { CollectionConfig, Validate, Where } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
-import { getStorageConfig } from '@/lib/storage'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
@@ -11,7 +10,6 @@ export const Meditations: CollectionConfig = {
   upload: {
     staticDir: 'media/meditations',
     mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
-    ...getStorageConfig(),
   },
   admin: {
     group: 'Content',

@@ -7,7 +7,7 @@ This guide covers deploying the Meditation CMS to Railway with Sentry integratio
 1. Railway account and CLI installed
 2. Sentry account and project created
 3. MongoDB database (can be deployed on Railway)
-4. MinIO instance for file storage (can be deployed on Railway)
+4. Cloudflare R2 bucket for file storage
 
 ## Environment Variables
 

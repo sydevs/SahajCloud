@@ -1,31 +1,41 @@
 /**
- * Storage configuration utilities for Payload collections
+ * MinIO S3-compatible storage configuration for Payload CMS
  */
+import { s3Storage } from '@payloadcms/storage-s3'
 
 /**
- * Detect production environment for storage configuration
- * Returns true if running in production and should use cloud storage
- * Returns false if running in development and should use local storage
+ * Create MinIO storage configuration for S3-compatible storage
+ * Automatically configures based on environment variables
  */
-export const isProductionEnvironment = (): boolean => {
-  // Check multiple indicators of production environment
-  return (
-    process.env.NODE_ENV === 'production' ||
-    // Payload Cloud deployment
-    process.env.PAYLOAD_CLOUD === 'true' ||
-    // Railway/other cloud platforms
-    process.env.RAILWAY_ENVIRONMENT === 'production'
-  )
+export const storagePlugin = () => {
+  // Check if storage configuration is available
+  const endpoint = process.env.S3_ENDPOINT
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY
+  const bucketName = process.env.S3_BUCKET_NAME
+
+  // If not configured, return null to use local storage
+  if (!endpoint || !accessKeyId || !secretAccessKey || !bucketName) {
+    return null
+  }
+
+  return s3Storage({
+    collections: {
+      media: true,
+      music: true,
+      frames: true,
+      meditations: true,
+    },
+    bucket: bucketName,
+    config: {
+      endpoint,
+      region: process.env.S3_REGION || 'us-east-1',
+      credentials: {
+        accessKeyId,
+        secretAccessKey,
+      },
+      // Critical for MinIO compatibility
+      forcePathStyle: true,
+    },
+  })
 }
-
-/**
- * Get storage configuration for upload collections
- * Automatically disables local storage in production environments
- */
-export const getStorageConfig = () => ({
-  // Automatically disable local storage in production environments
-  // This allows cloud storage adapters (S3, MinIO, etc.) to take over
-  // In development: uses local file system for easier testing
-  // In production: relies on configured cloud storage adapters
-  disableLocalStorage: isProductionEnvironment(),
-})
