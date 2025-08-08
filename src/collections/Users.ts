@@ -1,5 +1,4 @@
-import { PermissionRowLabel } from '@/components/admin/PermissionRowLabel'
-import { adminOnlyAccess, createPermissionsField, getAvailableCollections } from '@/lib/accessControl'
+import { adminOnlyAccess, createPermissionsField } from '@/lib/accessControl'
 import type { CollectionConfig } from 'payload'
 
 export const Users: CollectionConfig = {

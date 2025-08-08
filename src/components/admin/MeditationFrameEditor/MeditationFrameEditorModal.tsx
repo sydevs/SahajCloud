@@ -7,6 +7,7 @@ import FrameLibrary from './FrameLibrary'
 import FrameManager from './FrameManager'
 import type { FrameData } from './types'
 import type { Narrator, Frame } from '@/payload-types'
+import Image from 'next/image'
 
 interface MeditationFrameEditorModalProps {
   initialFrames: FrameData[]
@@ -215,7 +216,7 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
                                 muted
                               />
                             ) : (
-                              <img
+                              <Image
                                 src={frame.url}
                                 alt={frame.name}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}

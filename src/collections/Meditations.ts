@@ -1,4 +1,4 @@
-import type { CollectionConfig, Validate, Where } from 'payload'
+import type { CollectionConfig, Validate } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'

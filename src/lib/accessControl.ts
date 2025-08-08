@@ -66,7 +66,7 @@ export const hasPermission = ({
   user: TypedUser | null,
   collection: string,
   operation: Operation,
-  field?: any,
+  field?: Partial<Field>,
   locale?: AvailableLocale
 }): boolean => {
   const isClient = user?.collection === 'clients'
@@ -123,7 +123,7 @@ export const hasPermission = ({
 /**
  * Create field-level access control function for use in collection field definitions
  */
-export const createFieldAccess = (collection: string, field: any): FieldBase['access'] => {
+export const createFieldAccess = (collection: string, field: Partial<Field>): FieldBase['access'] => {
   return {
     read: ({ req: { user } }: { req: PayloadRequest }) => {
       return hasPermission({ operation: 'read', user, collection, field })
