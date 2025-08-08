@@ -1,11 +1,11 @@
-import { Users } from './Users'
-import { Media } from './Media'
-import { Narrators } from './Narrators'
-import { Meditations } from './Meditations'
-import { Tags } from './Tags'
-import { Music } from './Music'
-import { Frames } from './Frames'
-import { Clients } from './Clients'
+import { Users } from './access/Users'
+import { Media } from './resources/Media'
+import { Narrators } from './resources/Narrators'
+import { Meditations } from './content/Meditations'
+import { Tags } from './resources/Tags'
+import { Music } from './content/Music'
+import { Frames } from './resources/Frames'
+import { Clients } from './access/Clients'
 
 // Export all collections as an array
 export const collections = [
