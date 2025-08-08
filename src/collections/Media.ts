@@ -7,6 +7,8 @@ export const Media: CollectionConfig = {
   slug: 'media',
   admin: {
     group: 'Resources',
+    useAsTitle: 'filename',
+    defaultColumns: ['filename', 'alt', 'credit', 'tags'],
   },
   access: permissionBasedAccess('media'),
   upload: {

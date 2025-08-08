@@ -220,6 +220,8 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
                                 src={frame.url}
                                 alt={frame.name}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                width={frame.width || undefined}
+                                height={frame.height || undefined}
                               />
                             )
                           ) : (

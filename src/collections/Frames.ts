@@ -27,6 +27,7 @@ export const Frames: CollectionConfig = {
   admin: {
     group: 'Resources',
     useAsTitle: 'name',
+    defaultColumns: ['filename', 'name', 'tags'],
   },
   hooks: {
     afterRead: [trackClientUsageHook],
