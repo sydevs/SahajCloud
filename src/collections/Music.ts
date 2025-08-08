@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, Field } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { permissionBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
@@ -71,7 +71,7 @@ export const Music: CollectionConfig = {
       type: 'text',
       required: true,
       localized: true,
-      access: createFieldAccess('music', 'title'),
+      access: createFieldAccess('music', true),
     },
     {
       name: 'slug',
@@ -105,5 +105,5 @@ export const Music: CollectionConfig = {
         description: 'Attribution or credit information',
       },
     },
-  ],
+  ].map((field) => { return { access: createFieldAccess('music', false), ...field } as Field }),
 }

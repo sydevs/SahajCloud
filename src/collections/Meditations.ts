@@ -167,7 +167,7 @@ export const Meditations: CollectionConfig = {
     },
     {
       name: 'frames',
-      type: 'json', // Changed from array to json to use custom component
+      type: 'json',
       admin: {
         description: 'Frames associated with this meditation with audio-synchronized editing',
         components: {
