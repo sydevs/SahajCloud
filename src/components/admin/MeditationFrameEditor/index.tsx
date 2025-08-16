@@ -30,8 +30,8 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
         // Get audio URL from the meditation's upload field
         if (audioField.value) {
           // In Payload, uploaded files have their URL accessible via the filename
-          // For now, we'll construct a basic URL - this may need adjustment based on storage config
-          const baseUrl = process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : ''
+          // Use the current window location to get the correct port in development
+          const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
           setAudioUrl(`${baseUrl}/media/meditations/${audioField.value}`)
         }
 

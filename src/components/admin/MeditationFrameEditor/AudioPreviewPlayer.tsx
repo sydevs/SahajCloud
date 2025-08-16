@@ -12,6 +12,7 @@ interface AudioPreviewPlayerProps {
   size?: 'small' | 'large'
   className?: string
   _onPause?: () => void
+  enableHotkeys?: boolean
 }
 
 export interface AudioPreviewPlayerRef {
@@ -26,6 +27,7 @@ const AudioPreviewPlayer = forwardRef<AudioPreviewPlayerRef, AudioPreviewPlayerP
   size = 'large',
   className = '',
   _onPause,
+  enableHotkeys = false,
 }, ref) => {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -138,10 +140,10 @@ const AudioPreviewPlayer = forwardRef<AudioPreviewPlayerRef, AudioPreviewPlayerP
     }
   }), [isPlaying])
 
-  // Keyboard navigation (only for large size)
+  // Keyboard navigation (only for large size and when hotkeys are enabled)
   useEffect(() => {
-    // Disable keyboard shortcuts for collapsed/small view
-    if (size === 'small') return
+    // Disable keyboard shortcuts for collapsed/small view or when hotkeys are disabled
+    if (size === 'small' || !enableHotkeys) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!audioRef.current || !duration) return
@@ -197,7 +199,7 @@ const AudioPreviewPlayer = forwardRef<AudioPreviewPlayerRef, AudioPreviewPlayerP
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [currentTime, duration, togglePlayPause, size])
+  }, [currentTime, duration, togglePlayPause, size, enableHotkeys])
 
   // Audio event handlers
   const handleLoadedMetadata = () => {
@@ -463,7 +465,7 @@ const AudioPreviewPlayer = forwardRef<AudioPreviewPlayerRef, AudioPreviewPlayerP
     </div>
       
     {/* Keyboard shortcuts help - outside the frame */}
-    {size === 'large' && audioUrl && (
+    {size === 'large' && audioUrl && enableHotkeys && (
       <div style={{
         fontSize: '0.75rem',
         color: '#6b7280',

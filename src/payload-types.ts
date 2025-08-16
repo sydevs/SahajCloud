@@ -202,6 +202,15 @@ export interface Meditation {
     | number
     | boolean
     | null;
+  frameData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -742,6 +751,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   isPublished?: T;
   publishedDate?: T;
   frames?: T;
+  frameData?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;

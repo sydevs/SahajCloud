@@ -30,6 +30,7 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
   const [tempFrames, setTempFrames] = useState<FrameData[]>(initialFrames)
   const [currentTime, setCurrentTime] = useState(0)
   const [frameDetails, setFrameDetails] = useState<{ [key: string]: Frame }>({})
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const audioPlayerRef = useRef<AudioPreviewPlayerRef>(null)
 
   // Load frame details for thumbnail display
@@ -72,23 +73,47 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
     loadFrameDetails()
   }, [initialFrames, frameDetails])
 
+  const pauseAllAudio = () => {
+    // Pause all audio elements on the page
+    const audioElements = document.querySelectorAll('audio')
+    audioElements.forEach(audio => {
+      if (!audio.paused) {
+        audio.pause()
+      }
+    })
+    
+    // Also pause any video elements that might be playing
+    const videoElements = document.querySelectorAll('video')
+    videoElements.forEach(video => {
+      if (!video.paused) {
+        video.pause()
+      }
+    })
+  }
+
   const handleOpenModal = () => {
+    // Pause all currently playing audio on the page
+    pauseAllAudio()
+    
     // Reset temp state to current saved state when opening
     setTempFrames([...initialFrames])
     setCurrentTime(0)
+    setIsModalOpen(true)
     openModal(MODAL_SLUG)
   }
 
   const handleSave = () => {
-    // Pause audio in collapsed view
-    audioPlayerRef.current?.pause()
+    // Pause all audio on the page when closing modal
+    pauseAllAudio()
+    setIsModalOpen(false)
     onSave([...tempFrames])
     closeModal(MODAL_SLUG)
   }
 
   const handleCancel = () => {
-    // Pause audio in collapsed view
-    audioPlayerRef.current?.pause()
+    // Pause all audio on the page when closing modal
+    pauseAllAudio()
+    setIsModalOpen(false)
     // Reset temp state and close without saving
     setTempFrames([...initialFrames])
     closeModal(MODAL_SLUG)
@@ -150,6 +175,7 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
           audioUrl={audioUrl}
           frames={initialFrames}
           size="small"
+          enableHotkeys={false}
         />
 
         {/* Right Side - Selected Frames and Edit Button */}
@@ -381,6 +407,7 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
               onTimeChange={handleTimeChange}
               onSeek={(time) => setCurrentTime(time)}
               size="large"
+              enableHotkeys={isModalOpen}
             />
             
             {/* Instructions */}

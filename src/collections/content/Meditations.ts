@@ -218,5 +218,46 @@ export const Meditations: CollectionConfig = {
         ],
       },
     },
+    {
+      name: 'frameData',
+      type: 'json',
+      virtual: true,
+      admin: {
+        hidden: true,
+      },
+      hooks: {
+        afterRead: [
+          async ({ data, req }) => {
+            const frames = data?.frames || []
+            if (frames.length === 0) return []
+            
+            const frameIds = frames.map((f: any) => f?.frame).filter(Boolean)
+            if (frameIds.length === 0) return []
+            
+            const frameDocs = await req.payload.find({
+              collection: 'frames',
+              where: { id: { in: frameIds } },
+              limit: frameIds.length,
+            })
+            
+            const frameMap = Object.fromEntries(
+              frameDocs.docs.map((frame: any) => [frame.id, frame])
+            )
+            
+            return frames
+              .map((item: any) => {
+                const frameDoc = frameMap[item.frame]
+                if (!frameDoc?.url) {
+                  req.payload.logger.warn(`Frame ${item.frame} not found for meditation ${data?.id}`)
+                  return null
+                }
+                return { url: frameDoc.url, timestamp: item.timestamp }
+              })
+              .filter(Boolean)
+              .sort((a: any, b: any) => a.timestamp - b.timestamp)
+          },
+        ],
+      },
+    },
   ],
 }
