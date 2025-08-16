@@ -8,9 +8,10 @@ export class DataValidator {
       return 'Missing required field: title'
     }
 
+    // During migration, we accept either string or object format
     if (typeof data.title === 'object') {
-      if (!data.title.en) {
-        return 'Missing required field: title.en'
+      if (!data.title.en && !data.title.it) {
+        return 'Missing required field: title must have at least one locale'
       }
     } else if (typeof data.title !== 'string') {
       return 'Invalid title format'
