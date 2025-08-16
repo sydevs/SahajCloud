@@ -51,9 +51,6 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         },
       ],
     },
-    graphQL: {
-      disable: true, // Disable GraphQL as per requirements
-    },
     typescript: {
       outputFile: path.resolve(dirname, 'payload-types.ts'),
     },
