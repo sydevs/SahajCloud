@@ -39,7 +39,7 @@ describe('Email Sending', () => {
       emailAdapter.clearCapturedEmails()
 
       // Create user
-      const user = await testDataFactory.createUser(payload, userData)
+      const user = await testData.createUser(payload, userData)
 
       expect(user.email).toBe(userData.email)
 

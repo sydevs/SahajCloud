@@ -1,9 +1,10 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Payload } from 'payload'
-import type { Narrator, Frame, Meditation, Tag } from '@/payload-types'
+import type { Narrator, Frame, Meditation } from '@/payload-types'
 import type { FrameData } from '@/components/admin/MeditationFrameEditor/types'
 import { createTestEnvironment } from '../utils/testHelpers'
 import { testData } from '../utils/testData'
+import { FRAME_TAGS } from '@/collections/resources/Frames'
 
 /**
  * Integration tests for MeditationFrameEditor functionality
@@ -15,7 +16,6 @@ describe('MeditationFrameEditor Integration', () => {
   let narrator: Narrator
   let maleFrames: Frame[]
   let femaleFrames: Frame[]
-  let tags: Tag[]
   let meditation: Meditation
 
   beforeAll(async () => {
@@ -29,27 +29,21 @@ describe('MeditationFrameEditor Integration', () => {
       gender: 'male' as const,
     })
 
-    // Create test tags
-    const morningTag = await testData.createTag(payload, { title: 'morning' })
-    const breathingTag = await testData.createTag(payload, { title: 'breathing' })
-    const peacefulTag = await testData.createTag(payload, { title: 'peaceful' })
-    tags = [morningTag, breathingTag, peacefulTag]
-
     // Create male frames for the narrator's gender
     const maleFrame1 = await testData.createFrame(payload, {
       name: 'Male Agnya',
       imageSet: 'male',
-      tags: [morningTag.id, breathingTag.id],
+      tags: [FRAME_TAGS[0], FRAME_TAGS[1]],
     })
     const maleFrame2 = await testData.createFrame(payload, {
       name: 'Male Right Heart',
       imageSet: 'male',
-      tags: [peacefulTag.id],
+      tags: [FRAME_TAGS[2]],
     })
     const maleFrame3 = await testData.createFrame(payload, {
       name: 'Male Back Agnya',
       imageSet: 'male',
-      tags: [morningTag.id],
+      tags: [FRAME_TAGS[0]],
     })
     maleFrames = [maleFrame1, maleFrame2, maleFrame3]
 
@@ -57,7 +51,7 @@ describe('MeditationFrameEditor Integration', () => {
     const femaleFrame = await testData.createFrame(payload, {
       name: 'Female Agnya',
       imageSet: 'female',
-      tags: [morningTag.id],
+      tags: [FRAME_TAGS[0]],
     })
     femaleFrames = [femaleFrame]
 
@@ -68,7 +62,6 @@ describe('MeditationFrameEditor Integration', () => {
       {
         narrator: narrator.id,
         thumbnail: thumbnail.id,
-        tags: [morningTag.id],
       },
       {
         title: 'Test Meditation with Frames',
@@ -126,7 +119,7 @@ describe('MeditationFrameEditor Integration', () => {
             },
             {
               tags: {
-                in: [tags[0].id], // morning tag
+                in: [FRAME_TAGS[0]],
               },
             },
           ],
@@ -151,7 +144,7 @@ describe('MeditationFrameEditor Integration', () => {
             },
             {
               tags: {
-                in: [tags[2].id], // peaceful tag
+                in: [FRAME_TAGS[2]],
               },
             },
           ],

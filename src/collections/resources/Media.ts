@@ -127,7 +127,7 @@ export const Media: CollectionConfig = {
     {
       name: 'tags',
       type: 'relationship',
-      relationTo: 'tags',
+      relationTo: 'media-tags',
       hasMany: true,
       admin: {
         description: 'Tags to categorize this image',

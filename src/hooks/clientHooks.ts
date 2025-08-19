@@ -32,7 +32,7 @@ export const validateClientData: CollectionBeforeChangeHook = async ({ data, ope
  */
 export const checkHighUsageAlert: CollectionAfterChangeHook = async ({ doc }) => {
   // Virtual field highUsageAlert will be computed based on dailyRequests
-  if (doc?.usageStats?.dailyRequests > 1000 || doc?.usageStats?.maxDailyRequests > 1000) {
+  if (doc?.usageStats?.dailyRequests > 1000) {
     // The field component will handle the visual alert
     // Log for monitoring
     console.warn(`High usage alert for client ${doc.name}: ${doc.usageStats.dailyRequests} requests today`)

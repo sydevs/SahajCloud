@@ -9,7 +9,7 @@ export const Clients: CollectionConfig = {
     disableLocalStrategy: true, // Only API key authentication
   },
   admin: {
-    group: 'Access',
+    group: 'System',
     useAsTitle: 'name',
     defaultColumns: ['name', 'active'],
   },

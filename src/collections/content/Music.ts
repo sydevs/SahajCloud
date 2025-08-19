@@ -94,7 +94,7 @@ export const Music: CollectionConfig = {
     {
       name: 'tags',
       type: 'relationship',
-      relationTo: 'tags',
+      relationTo: 'music-tags',
       hasMany: true,
     },
     {

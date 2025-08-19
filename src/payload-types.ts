@@ -73,7 +73,9 @@ export interface Config {
     frames: Frame;
     media: Media;
     narrators: Narrator;
-    tags: Tag;
+    'media-tags': MediaTag;
+    'meditation-tags': MeditationTag;
+    'music-tags': MusicTag;
     users: User;
     clients: Client;
     'payload-jobs': PayloadJob;
@@ -82,11 +84,14 @@ export interface Config {
     'payload-migrations': PayloadMigration;
   };
   collectionsJoins: {
-    tags: {
-      meditations: 'meditations';
-      music: 'music';
+    'media-tags': {
       media: 'media';
-      frames: 'frames';
+    };
+    'meditation-tags': {
+      meditations: 'meditations';
+    };
+    'music-tags': {
+      music: 'music';
     };
   };
   collectionsSelect: {
@@ -95,7 +100,9 @@ export interface Config {
     frames: FramesSelect<false> | FramesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
-    tags: TagsSelect<false> | TagsSelect<true>;
+    'media-tags': MediaTagsSelect<false> | MediaTagsSelect<true>;
+    'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
+    'music-tags': MusicTagsSelect<false> | MusicTagsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
     clients: ClientsSelect<false> | ClientsSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
@@ -176,6 +183,7 @@ export interface Meditation {
   id: string;
   title: string;
   locale: 'en' | 'it';
+  publishAt?: string | null;
   slug?: string | null;
   thumbnail: string | Media;
   /**
@@ -183,13 +191,11 @@ export interface Meditation {
    */
   duration?: number | null;
   narrator: string | Narrator;
-  tags?: (string | Tag)[] | null;
+  tags?: (string | MeditationTag)[] | null;
   /**
    * Music with this tag will be offered to the seeker
    */
-  musicTag?: (string | null) | Tag;
-  isPublished?: boolean | null;
-  publishedDate?: string | null;
+  musicTag?: (string | null) | MusicTag;
   /**
    * Frames associated with this meditation with audio-synchronized editing
    */
@@ -234,7 +240,7 @@ export interface Media {
   /**
    * Tags to categorize this image
    */
-  tags?: (string | Tag)[] | null;
+  tags?: (string | MediaTag)[] | null;
   /**
    * Attribution or copyright information
    */
@@ -291,28 +297,68 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "tags".
+ * via the `definition` "media-tags".
  */
-export interface Tag {
+export interface MediaTag {
   id: string;
+  label: string;
+  media?: {
+    docs?: (string | Media)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "narrators".
+ */
+export interface Narrator {
+  id: string;
+  name: string;
+  gender: 'male' | 'female';
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditation-tags".
+ */
+export interface MeditationTag {
+  id: string;
+  /**
+   * This label will be used in the editor
+   */
+  label: string;
+  /**
+   * This localized title will be shown to public users
+   */
   title: string;
   meditations?: {
     docs?: (string | Meditation)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "music-tags".
+ */
+export interface MusicTag {
+  id: string;
+  /**
+   * This label will be used in the editor
+   */
+  label: string;
+  /**
+   * This localized title will be shown to public users
+   */
+  title: string;
   music?: {
     docs?: (string | Music)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  media?: {
-    docs?: (string | Media)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  frames?: {
-    docs?: (string | Frame)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -331,7 +377,7 @@ export interface Music {
    * Duration in seconds
    */
   duration?: number | null;
-  tags?: (string | Tag)[] | null;
+  tags?: (string | MusicTag)[] | null;
   /**
    * Attribution or credit information
    */
@@ -356,11 +402,22 @@ export interface Music {
 export interface Frame {
   id: string;
   name: string;
-  /**
-   * Whether this frame is for male or female meditation poses
-   */
   imageSet: 'male' | 'female';
-  tags?: (string | Tag)[] | null;
+  tags?:
+    | (
+        | 'mooladhara'
+        | 'swadhistan'
+        | 'nabhi'
+        | 'anahat'
+        | 'vishuddhi'
+        | 'agnya'
+        | 'sahasrara'
+        | 'left'
+        | 'right'
+        | 'center'
+        | 'misc'
+      )[]
+    | null;
   /**
    * Auto-populated dimensions for images (width/height)
    */
@@ -391,18 +448,6 @@ export interface Frame {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "narrators".
- */
-export interface Narrator {
-  id: string;
-  name: string;
-  slug?: string | null;
-  gender?: ('male' | 'female') | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users".
  */
 export interface User {
@@ -420,7 +465,7 @@ export interface User {
         /**
          * Select the collection to grant permissions for
          */
-        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'narrators' | 'tags';
+        allowedCollection: 'meditations' | 'music' | 'frames' | 'media';
         /**
          * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
          */
@@ -476,7 +521,7 @@ export interface Client {
         /**
          * Select the collection to grant permissions for
          */
-        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'narrators' | 'tags';
+        allowedCollection: 'meditations' | 'music' | 'frames' | 'media';
         /**
          * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
          */
@@ -668,8 +713,16 @@ export interface PayloadLockedDocument {
         value: string | Narrator;
       } | null)
     | ({
-        relationTo: 'tags';
-        value: string | Tag;
+        relationTo: 'media-tags';
+        value: string | MediaTag;
+      } | null)
+    | ({
+        relationTo: 'meditation-tags';
+        value: string | MeditationTag;
+      } | null)
+    | ({
+        relationTo: 'music-tags';
+        value: string | MusicTag;
       } | null)
     | ({
         relationTo: 'users';
@@ -742,14 +795,13 @@ export interface PayloadMigration {
 export interface MeditationsSelect<T extends boolean = true> {
   title?: T;
   locale?: T;
+  publishAt?: T;
   slug?: T;
   thumbnail?: T;
   duration?: T;
   narrator?: T;
   tags?: T;
   musicTag?: T;
-  isPublished?: T;
-  publishedDate?: T;
   frames?: T;
   frameData?: T;
   updatedAt?: T;
@@ -871,21 +923,39 @@ export interface MediaSelect<T extends boolean = true> {
  */
 export interface NarratorsSelect<T extends boolean = true> {
   name?: T;
-  slug?: T;
   gender?: T;
   updatedAt?: T;
   createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "tags_select".
+ * via the `definition` "media-tags_select".
  */
-export interface TagsSelect<T extends boolean = true> {
+export interface MediaTagsSelect<T extends boolean = true> {
+  label?: T;
+  media?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditation-tags_select".
+ */
+export interface MeditationTagsSelect<T extends boolean = true> {
+  label?: T;
   title?: T;
   meditations?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "music-tags_select".
+ */
+export interface MusicTagsSelect<T extends boolean = true> {
+  label?: T;
+  title?: T;
   music?: T;
-  media?: T;
-  frames?: T;
   updatedAt?: T;
   createdAt?: T;
 }
