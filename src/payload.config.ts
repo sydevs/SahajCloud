@@ -5,6 +5,7 @@ import path from 'path'
 import { buildConfig, Config } from 'payload'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
+import { adminOnlyAccess } from '@/lib/accessControl'
 
 import { collections, Users } from './collections'
 import { tasks } from './jobs'
@@ -50,6 +51,15 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           queue: 'nightly',
         },
       ],
+      jobsCollectionOverrides: ({ defaultJobsCollection }) => {
+        if (!defaultJobsCollection.admin) {
+          defaultJobsCollection.admin = {}
+        }
+
+        defaultJobsCollection.admin.hidden = false
+        defaultJobsCollection.access = adminOnlyAccess()
+        return defaultJobsCollection
+      },
     },
     typescript: {
       outputFile: path.resolve(dirname, 'payload-types.ts'),
@@ -58,32 +68,36 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       url: process.env.DATABASE_URI || '',
     }),
     // Email configuration (disabled in test environment to avoid model conflicts)
-    ...(isTestEnvironment ? {} : {
-      email: nodemailerAdapter(
-        isProduction ? {
-          defaultFromAddress: process.env.SMTP_FROM || 'contact@sydevelopers.com',
-          defaultFromName: 'SY Developers',
-          transportOptions: {
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: Number(process.env.SMTP_PORT) || 587,
-            secure: false, // Use STARTTLS
-            auth: {
-              user: process.env.SMTP_USER,
-              pass: process.env.SMTP_PASS,
-            },
-          },
-        } : {
-          defaultFromAddress: 'dev@sydevelopers.com',
-          defaultFromName: 'SY Developers (Dev)',
-          // No transportOptions - uses Ethereal Email in development
-        }
-      )
-    }),
+    ...(isTestEnvironment
+      ? {}
+      : {
+          email: nodemailerAdapter(
+            isProduction
+              ? {
+                  defaultFromAddress: process.env.SMTP_FROM || 'contact@sydevelopers.com',
+                  defaultFromName: 'SY Developers',
+                  transportOptions: {
+                    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+                    port: Number(process.env.SMTP_PORT) || 587,
+                    secure: false, // Use STARTTLS
+                    auth: {
+                      user: process.env.SMTP_USER,
+                      pass: process.env.SMTP_PASS,
+                    },
+                  },
+                }
+              : {
+                  defaultFromAddress: 'dev@sydevelopers.com',
+                  defaultFromName: 'SY Developers (Dev)',
+                  // No transportOptions - uses Ethereal Email in development
+                },
+          ),
+        }),
     sharp,
     plugins: [
       // Add file storage plugin if configured
       storagePlugin(),
-    ].filter(v => !!v),
+    ].filter((v) => !!v),
     upload: {
       limits: {
         fileSize: 104857600, // 100MB global limit, written in bytes (collections will have their own limits)

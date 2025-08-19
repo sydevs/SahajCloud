@@ -1,25 +1,18 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Frame, Tag } from '@/payload-types'
+import type { Frame } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
 import { testData } from '../utils/testData'
+import { FRAME_TAGS } from '@/collections/resources/Frames'
 
 describe('Frames Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let testTag1: Tag
-  let testTag2: Tag
-  let testTag3: Tag
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
     payload = testEnv.payload
     cleanup = testEnv.cleanup
-
-    // Create test tags
-    testTag1 = await testData.createTag(payload, { title: 'yoga' })
-    testTag2 = await testData.createTag(payload, { title: 'poses' })
-    testTag3 = await testData.createTag(payload, { title: 'beginner' })
   })
 
   afterAll(async () => {
@@ -30,7 +23,7 @@ describe('Frames Collection', () => {
     const frame = await testData.createFrame(payload, {
       name: 'Mountain Pose',
       imageSet: 'male',
-      tags: [testTag1.id, testTag2.id],
+      tags: [FRAME_TAGS[0], FRAME_TAGS[1]],
     })
 
     expect(frame).toBeDefined()
@@ -46,18 +39,16 @@ describe('Frames Collection', () => {
     expect(frame.duration).toBeUndefined() // No duration for images
 
     // Check tags relationship
-    const tagIds = Array.isArray(frame.tags) 
-      ? frame.tags.map(tag => typeof tag === 'object' && tag && 'id' in tag ? tag.id : tag)
-      : []
-    expect(tagIds).toContain(testTag1.id)
-    expect(tagIds).toContain(testTag2.id)
+    const tags = frame.tags || []
+    expect(tags).toContain(FRAME_TAGS[0])
+    expect(tags).toContain(FRAME_TAGS[1])
   })
 
   it('creates a frame with video', async () => {
     const frame = await testData.createFrame(payload, {
       name: 'Warrior Pose Flow',
       imageSet: 'female',
-      tags: [testTag2.id, testTag3.id],
+      tags: [FRAME_TAGS[1], FRAME_TAGS[2]],
     }, 'video-30s.mp4')
 
     expect(frame).toBeDefined()
@@ -72,11 +63,9 @@ describe('Frames Collection', () => {
     expect(frame.dimensions).toEqual({ width: 1920, height: 1080 }) // Mock dimensions from test environment
 
     // Check tags relationship
-    const tagIds = Array.isArray(frame.tags) 
-      ? frame.tags.map(tag => typeof tag === 'object' && tag && 'id' in tag ? tag.id : tag)
-      : []
-    expect(tagIds).toContain(testTag2.id)
-    expect(tagIds).toContain(testTag3.id)
+    const tags = frame.tags || []
+    expect(tags).toContain(FRAME_TAGS[1])
+    expect(tags).toContain(FRAME_TAGS[2])
   })
 
   it('requires name field', async () => {
@@ -183,24 +172,20 @@ describe('Frames Collection', () => {
       data: {
         name: 'Updated Name',
         imageSet: 'female',
-        tags: [testTag3.id],
+        tags: [FRAME_TAGS[2]],
       },
     }) as Frame
 
     expect(updated.name).toBe('Updated Name')
     expect(updated.imageSet).toBe('female')
     expect(updated.tags).toHaveLength(1)
-    
-    const tagIds = Array.isArray(updated.tags) 
-      ? updated.tags.map(tag => typeof tag === 'object' && tag && 'id' in tag ? tag.id : tag)
-      : []
-    expect(tagIds).toContain(testTag3.id)
+    expect(updated.tags).toContain(FRAME_TAGS[2])
   })
 
   it('manages tags relationships properly', async () => {
     const frame = await testData.createFrame(payload, {
       name: 'Tagged Frame',
-      tags: [testTag1.id, testTag2.id],
+      tags: [FRAME_TAGS[0], FRAME_TAGS[1]],
     })
 
     expect(frame.tags).toHaveLength(2)
@@ -210,15 +195,12 @@ describe('Frames Collection', () => {
       collection: 'frames',
       id: frame.id,
       data: {
-        tags: [testTag3.id],
+        tags: [FRAME_TAGS[2]],
       },
     }) as Frame
 
     expect(updated.tags).toHaveLength(1)
-    const updatedTagIds = Array.isArray(updated.tags) 
-      ? updated.tags.map(tag => typeof tag === 'object' && tag && 'id' in tag ? tag.id : tag)
-      : []
-    expect(updatedTagIds).toContain(testTag3.id)
+    expect(updated.tags).toContain(FRAME_TAGS[2])
   })
 
   it('deletes a frame', async () => {
@@ -247,13 +229,13 @@ describe('Frames Collection', () => {
   it('finds frames with filters', async () => {
     await testData.createFrame(payload, {
       name: 'Filter Test Yoga Frame',
-      tags: [testTag1.id], // yoga tag
+      tags: [FRAME_TAGS[0]], // yoga tag
       imageSet: 'male',
     })
 
     await testData.createFrame(payload, {
       name: 'Filter Test Beginner Frame',
-      tags: [testTag3.id], // beginner tag
+      tags: [FRAME_TAGS[2]], // beginner tag
       imageSet: 'female',
     }, 'video-30s.mp4')
 
@@ -264,7 +246,7 @@ describe('Frames Collection', () => {
         and: [
           {
             tags: {
-              in: [testTag1.id],
+              in: [FRAME_TAGS[0]],
             },
           },
           {

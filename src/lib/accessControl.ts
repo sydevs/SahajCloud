@@ -4,16 +4,12 @@ import type { CollectionConfig, Field, FieldBase, Operation, PayloadRequest, Typ
 const PERMISSION_LEVELS = ['read', 'translate', 'manage'] as const
 type PermissionLevel = typeof PERMISSION_LEVELS[number]
 
-const PERMISSION_COLLECTIONS = [
-  // Content
-  "Meditations",
-  "Music",
-  "Frames",
-  // Resources
-  "Media",
-  "Narrators",
-  "Tags",
-]
+export const PERMISSION_COLLECTIONS = [
+  "meditations",
+  "music",
+  "frames",
+  "media",
+] as const
 type PermissionCollection = typeof PERMISSION_COLLECTIONS[number]
 
 type AvailableLocale = 'en' | 'it' | 'fr'
@@ -216,8 +212,8 @@ export const createPermissionsField = ({
           required: true,
           options: PERMISSION_COLLECTIONS.map((v) => {
             return {
-              label: v,
-              value: v.toLowerCase(),
+              label: v.charAt(0).toUpperCase + v.slice(1),
+              value: v,
             }
           }),
           admin: {

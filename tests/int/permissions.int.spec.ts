@@ -43,7 +43,9 @@ describe('Permission System Tests', () => {
         const client = testData.dummyUser('clients', {
           permissions: [
             { allowedCollection: 'music', level: 'manage', locales: ['all'] },
+            // @ts-expect-error
             { allowedCollection: 'users', level: 'manage', locales: ['all'] },
+            // @ts-expect-error
             { allowedCollection: 'clients', level: 'manage', locales: ['all'] },
           ]
         })

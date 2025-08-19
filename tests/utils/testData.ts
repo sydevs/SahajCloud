@@ -2,7 +2,7 @@ import type { Payload, TypedUser } from 'payload'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import type { Narrator, Media, Tag, Meditation, Music, Frame, User, Client } from '@/payload-types'
+import type { Narrator, Media, Meditation, Music, Frame, User, Client, MeditationTag, MediaTag } from '@/payload-types'
 import { TEST_ADMIN_ID } from './testHelpers'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -55,20 +55,48 @@ export const testData = {
   /**
    * Create a tag
    */
-  async createTag(payload: Payload, overrides = {}): Promise<Tag> {
+  async createMeditationTag(payload: Payload, overrides: Partial<MeditationTag> = {}): Promise<MeditationTag> {
     return await payload.create({
-      collection: 'tags',
+      collection: 'meditation-tags',
       data: {
+        label: 'test-tag',
         title: 'Test Tag',
         ...overrides,
       },
-    }) as Tag
+    }) as MeditationTag
+  },
+
+  /**
+   * Create a tag
+   */
+  async createMusicTag(payload: Payload, overrides: Partial<MeditationTag> = {}): Promise<MeditationTag> {
+    return await payload.create({
+      collection: 'music-tags',
+      data: {
+        label: 'test-tag',
+        title: 'Test Tag',
+        ...overrides,
+      },
+    }) as MeditationTag
+  },
+
+  /**
+   * Create a tag
+   */
+  async createMediaTag(payload: Payload, overrides: Partial<MediaTag> = {}): Promise<MediaTag> {
+    return await payload.create({
+      collection: 'media-tags',
+      data: {
+        label: 'test-tag',
+        ...overrides,
+      },
+    }) as MediaTag
   },
 
   /**
    * Create a meditation with direct audio upload
    */
-  async createMeditation(payload: Payload, deps: { narrator: string; thumbnail: string; tags?: string[]; musicTag?: string }, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<Meditation> {
+  async createMeditation(payload: Payload, deps: { narrator: string; thumbnail: string }, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<Meditation> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
     
@@ -82,8 +110,7 @@ export const testData = {
         duration: 15,
         thumbnail: deps.thumbnail,
         narrator: deps.narrator,
-        tags: deps.tags || [],
-        musicTag: deps.musicTag,
+        tags: [],
         isPublished: false,
         locale: 'en',
         ...overrides,
@@ -197,13 +224,14 @@ export const testData = {
   /**
    * Create an API client with specific permissions
    */
-  async createClient(payload: Payload, overrides = {}) {
+  async createClient(payload: Payload, overrides: Partial<Client> = {}) {
     const client = await payload.create({
       collection: 'clients',
       data: {
         name: 'Test Client',
         managers: [TEST_ADMIN_ID],
         primaryContact: TEST_ADMIN_ID,
+        enableAPIKey: true,
         ...overrides,
       },
     })

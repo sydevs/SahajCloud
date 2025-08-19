@@ -2,10 +2,12 @@ import { Users } from './access/Users'
 import { Media } from './resources/Media'
 import { Narrators } from './resources/Narrators'
 import { Meditations } from './content/Meditations'
-import { Tags } from './resources/Tags'
 import { Music } from './content/Music'
 import { Frames } from './resources/Frames'
 import { Clients } from './access/Clients'
+import { MeditationTags } from './tags/MeditationTags'
+import { MediaTags } from './tags/MediaTags'
+import { MusicTags } from './tags/MusicTags'
 
 // Export all collections as an array
 export const collections = [
@@ -16,19 +18,28 @@ export const collections = [
   // Resources
   Media,
   Narrators,
-  Tags,
+  // Tags
+  MediaTags,
+  MeditationTags,
+  MusicTags,
   // Access
   Users,
   Clients,
 ]
 
 export {
-  Users,
-  Media,
-  Narrators,
+  // Content
   Meditations,
-  Tags,
   Music,
   Frames,
+  // Resources
+  Media,
+  Narrators,
+  // Tags
+  MediaTags,
+  MeditationTags,
+  MusicTags,
+  // Access
+  Users,
   Clients,
 }

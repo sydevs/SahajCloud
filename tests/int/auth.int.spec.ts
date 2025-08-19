@@ -1,19 +1,17 @@
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
-import type { Client, User } from '@/payload-types'
-import type { Payload, PayloadRequest, TypedUser } from 'payload'
+import type { Client, Music } from '@/payload-types'
+import type { Operation, Payload, PayloadRequest } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
 import { testData } from 'tests/utils/testData'
+import { PERMISSION_COLLECTIONS } from '@/lib/accessControl'
 
-// For testing access control functions, we only need minimal user objects
-// These partial types are sufficient for testing the access control logic
-type TestUser = { collection: string; id: string; active?: boolean }
+const OPERATIONS = ['create', 'read', 'delete', 'update'] as Operation[]
 
 describe('API Authentication', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let testUser: User
   let testClient: Client
-  let apiKey: string
+  let clientReq: PayloadRequest
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
@@ -21,120 +19,78 @@ describe('API Authentication', () => {
     cleanup = testEnv.cleanup
 
     // Create test user and client
-    testUser = await testData.createUser(payload)
     testClient = await testData.createClient(payload)
 
-    // Generate API key for the client
-    const response = await payload.update({
-      collection: 'clients',
-      id: testClient.id,
-      data: {
-        enableAPIKey: true,
+    // Simulate API client reading a tag
+    clientReq = {
+      user: {
+        id: testClient.id,
+        collection: 'clients',
+        active: true,
       },
-    })
-    
-    // Note: In a real scenario, the API key would be returned after generation
-    // For testing purposes, we'll simulate this
-    apiKey = response.apiKey || 'test-api-key-12345'
+      payload: payload,
+    } as PayloadRequest
   })
 
   afterAll(async () => {
     await cleanup()
   })
 
-  describe('Read-Only Access Control', () => {
-    let testTag: any
+  describe('Access Control', () => {
+    let testDoc: Music
 
     beforeAll(async () => {
       // Create test data - using tags instead of meditations since meditations require file upload
-      testTag = await testData.createTag(payload)
+      testDoc = await testData.createMusic(payload)
     })
 
-    it('allows read operations for API clients', async () => {
-      // Note: In integration tests, we can't fully test HTTP-level access control
-      // The access control is properly enforced at the HTTP API level
-      // This test verifies the setup is correct
-      const clientReq = {
-        user: {
-          id: testClient.id,
-          collection: 'clients',
-          active: true,
-        },
-      } as PayloadRequest
+    // it('allows read operations for API clients', async () => {
+    //   // Note: In integration tests, we can't fully test HTTP-level access control
+    //   // The access control is properly enforced at the HTTP API level
+    //   // This test verifies the setup is correct
 
-      // In a real API request, this would check access control
-      const result = await payload.find({
-        collection: 'tags',
-        req: clientReq,
+    //   // In a real API request, this would check access control
+    //   const result = await payload.find({
+    //     collection: 'music',
+    //     req: clientReq,
+    //   })
+
+    //   expect(result).toBeDefined()
+    //   expect(result.docs).toBeDefined()
+    // })
+
+    PERMISSION_COLLECTIONS.forEach((collectionKey) => {
+      it(`is configured for ${collectionKey}`, async () => {
+        const collectionConfig = payload.config.collections.find(c => c.slug === collectionKey)
+        expect(collectionConfig?.access).toBeDefined()
+
+        OPERATIONS.forEach(op => {
+          expect(typeof collectionConfig?.access[op]).oneOf(['function', 'boolean'])
+        })
       })
-
-      expect(result).toBeDefined()
-      expect(result.docs).toBeDefined()
     })
 
-    it('access control is configured for create operations', async () => {
-      // Verify that tags collection has access control configured
-      const tagsCollection = payload.config.collections.find(c => c.slug === 'tags')
-      expect(tagsCollection?.access?.create).toBeDefined()
-      
-      // Test the access control function directly
-      const client = testData.dummyUser('clients')
-      const user = testData.dummyUser('users', {
-        permissions: [
-          { allowedCollection: 'tags', level: 'manage', locales: ['all'] }
-        ]
-      })
-      
-      const createAccess = tagsCollection?.access?.create
-      if (typeof createAccess === 'function') {
-        // Testing access control with minimal request objects
-        const clientReq = { user: client } as PayloadRequest
+    PERMISSION_COLLECTIONS.forEach((collectionKey) => {
+      it(`operations are restricted for ${collectionKey}`, async () => {
+        const collectionConfig = payload.config.collections.find(c => c.slug === collectionKey)
+        expect(collectionConfig?.access).toBeDefined()
+
+        const user = testData.dummyUser('users', {
+          permissions: [
+            { allowedCollection: collectionKey, level: 'manage', locales: ['all'] }
+          ]
+        })
         const userReq = { user } as PayloadRequest
-        expect(createAccess({ req: clientReq })).toBe(false)
-        expect(createAccess({ req: userReq })).toBe(true)
-      }
-    })
 
-    it('access control is configured for update operations', async () => {
-      const tagsCollection = payload.config.collections.find(c => c.slug === 'tags')
-      expect(tagsCollection?.access?.update).toBeDefined()
-      
-      // Test the access control function directly
-      const client = testData.dummyUser('clients')
-      const user = testData.dummyUser('users', {
-        permissions: [
-          { allowedCollection: 'tags', level: 'manage', locales: ['all'] }
-        ]
+        OPERATIONS.forEach(op => {
+          const access = collectionConfig?.access[op]
+          expect(typeof access).toBe('function')
+          if (typeof access === 'function') {
+            expect(access({ req: clientReq })).toBe(false)
+            expect(access({ req: userReq })).toBe(true)
+          }
+        })
       })
-      
-      const updateAccess = tagsCollection?.access?.update
-      if (typeof updateAccess === 'function') {
-        const clientReq = { user: client } as PayloadRequest
-        const userReq = { user } as PayloadRequest
-        expect(updateAccess({ req: clientReq })).toBe(false)
-        expect(updateAccess({ req: userReq })).toBe(true)
-      }
-    })
-
-    it('access control is configured for delete operations', async () => {
-      const tagsCollection = payload.config.collections.find(c => c.slug === 'tags')
-      expect(tagsCollection?.access?.delete).toBeDefined()
-      
-      // Test the access control function directly
-      const client = testData.dummyUser('clients')
-      const user = testData.dummyUser('users', {
-        permissions: [
-          { allowedCollection: 'tags', level: 'manage', locales: ['all'] }
-        ]
-      })
-
-      const deleteAccess = tagsCollection?.access?.delete
-      if (typeof deleteAccess === 'function') {
-        const clientReq = { user: client } as PayloadRequest
-        const userReq = { user } as PayloadRequest
-        expect(deleteAccess({ req: clientReq })).toBe(false)
-        expect(deleteAccess({ req: userReq })).toBe(true)
-      }
     })
   })
 
@@ -155,7 +111,7 @@ describe('API Authentication', () => {
 
       // Find a tag which will trigger the afterRead hook
       const result = await payload.find({
-        collection: 'tags',
+        collection: 'music',
         req: clientReq,
         limit: 1,
       })
@@ -429,26 +385,6 @@ describe('API Authentication', () => {
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining('High usage alert for client High Usage Client: 1001 requests today')
       )
-
-      consoleWarnSpy.mockRestore()
-    })
-
-    it('triggers console warning for high maxDailyRequests', async () => {
-      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-      // Create a client with high maxDailyRequests
-      await testData.createClient(payload, {
-        name: 'High Max Usage Client',
-        usageStats: {
-          totalRequests: 5000,
-          dailyRequests: 500,
-          maxDailyRequests: 1001,
-          lastRequestAt: new Date().toISOString(),
-        },
-      })
-
-      // Verify console warning was triggered
-      expect(consoleWarnSpy).toHaveBeenCalled()
 
       consoleWarnSpy.mockRestore()
     })

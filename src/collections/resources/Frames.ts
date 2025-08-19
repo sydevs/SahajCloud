@@ -1,13 +1,19 @@
 import type { CollectionConfig } from 'payload'
 import sharp from 'sharp'
-import { getVideoDuration, getVideoDimensions, validateVideoDuration, validateVideoFileSize } from '@/lib/videoUtils'
+import {
+  getVideoDuration,
+  getVideoDimensions,
+  validateVideoDuration,
+  validateVideoFileSize,
+} from '@/lib/videoUtils'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { FRAME_TAGS, GENDER_OPTIONS } from '@/lib/data'
 
 export const Frames: CollectionConfig = {
   labels: {
-    plural: "Meditation Frames",
-    singular: "Meditation Frame"
+    plural: 'Meditation Frames',
+    singular: 'Meditation Frame',
   },
   slug: 'frames',
   access: permissionBasedAccess('frames'),
@@ -16,8 +22,8 @@ export const Frames: CollectionConfig = {
     mimeTypes: [
       // Images
       'image/jpeg',
-      'image/jpg', 
-      'image/png', 
+      'image/jpg',
+      'image/png',
       'image/webp',
       // Videos
       'video/mp4',
@@ -36,10 +42,11 @@ export const Frames: CollectionConfig = {
         // Validate file size based on file type
         if (req.file && req.file.data && req.file.mimetype) {
           const { mimetype, size } = req.file
-          
+
           if (mimetype.startsWith('image/')) {
             // Validate image file size (10MB limit)
-            if (size && size > 10485760) { // 10MB in bytes
+            if (size && size > 10485760) {
+              // 10MB in bytes
               throw new Error('Image file size must be 10MB or less')
             }
           } else if (mimetype.startsWith('video/')) {
@@ -50,7 +57,7 @@ export const Frames: CollectionConfig = {
             }
           }
         }
-        
+
         return data
       },
     ],
@@ -59,7 +66,7 @@ export const Frames: CollectionConfig = {
         // Auto-populate metadata based on file type
         if (req.file && req.file.data && req.file.mimetype) {
           const { mimetype } = req.file
-          
+
           try {
             if (mimetype.startsWith('image/')) {
               // For images, extract dimensions using Sharp
@@ -67,13 +74,11 @@ export const Frames: CollectionConfig = {
               if (width && height) {
                 data.dimensions = { width, height }
               }
-              
+
               // Auto-convert JPG to WEBP at 95% quality (similar to Media collection)
               if (mimetype === 'image/jpeg' || mimetype === 'image/png') {
-                const webpBuffer = await sharp(req.file.data)
-                  .webp({ quality: 95 })
-                  .toBuffer()
-                
+                const webpBuffer = await sharp(req.file.data).webp({ quality: 95 }).toBuffer()
+
                 // Update the file data
                 req.file.data = webpBuffer
                 req.file.mimetype = 'image/webp'
@@ -83,17 +88,17 @@ export const Frames: CollectionConfig = {
               // For videos, extract duration and dimensions
               const duration = await getVideoDuration(req.file.data)
               const dimensions = await getVideoDimensions(req.file.data)
-              
+
               // Validate video duration (30 seconds max)
               const durationValidation = validateVideoDuration(duration, 30)
               if (durationValidation !== true) {
                 throw new Error(durationValidation)
               }
-              
+
               // Auto-populate metadata
               data.duration = Math.round(duration * 100) / 100 // Round to 2 decimal places
               data.dimensions = dimensions
-              
+
               // TODO: Video conversion to WEBM would go here
               // For now, we'll keep the original format
               // In production, this would convert MP4 to WEBM with optimization
@@ -109,7 +114,7 @@ export const Frames: CollectionConfig = {
             throw error
           }
         }
-        
+
         return data
       },
     ],
@@ -123,17 +128,14 @@ export const Frames: CollectionConfig = {
     {
       name: 'imageSet',
       type: 'select',
-      options: ['male', 'female'],
+      options: GENDER_OPTIONS,
       required: true,
-      admin: {
-        description: 'Whether this frame is for male or female meditation poses',
-      },
     },
     {
       name: 'tags',
-      type: 'relationship',
-      relationTo: 'tags',
+      type: 'select',
       hasMany: true,
+      options: [...FRAME_TAGS],
     },
     {
       name: 'dimensions',
