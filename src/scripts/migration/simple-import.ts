@@ -63,9 +63,12 @@ class SimpleImporter {
   private cacheDir: string
   private dryRun: boolean
   private idMapsFile: string
+  private placeholderMediaId: string | null = null
+  private pathPlaceholderMediaId: string | null = null
   private idMaps = {
     meditationTags: new Map<number, string>(),
     musicTags: new Map<number, string>(),
+    frameTags: new Map<string, string>(), // tag name -> frame-tag ID
     frames: new Map<string, string>(),
     meditations: new Map<number, string>(),
     musics: new Map<number, string>(),
@@ -78,6 +81,7 @@ class SimpleImporter {
     narrators: { created: 0, existing: 0, updated: 0 },
     meditationTags: { created: 0, existing: 0, updated: 0 },
     musicTags: { created: 0, existing: 0, updated: 0 },
+    frameTags: { created: 0, existing: 0, updated: 0 },
     frames: { created: 0, existing: 0, updated: 0, skipped: 0 },
     music: { created: 0, existing: 0, updated: 0 },
     meditations: { created: 0, existing: 0, updated: 0 },
@@ -188,11 +192,17 @@ class SimpleImporter {
       // 5. Load existing data into idMaps for resumability
       await this.loadExistingData(data)
 
-      // 6. Import in order and save ID mappings after each step
+      // 6. Upload placeholder images for missing thumbnails
+      await this.uploadPlaceholderImages()
+
+      // 7. Import in order and save ID mappings after each step
       await this.importNarrators()
       await this.saveIdMappingsToCache()
 
       await this.importTags(data.tags)
+      await this.saveIdMappingsToCache()
+
+      await this.importFrameTags(data.frames)
       await this.saveIdMappingsToCache()
 
       await this.importFrames(data.frames, data.attachments, data.blobs)
@@ -207,6 +217,7 @@ class SimpleImporter {
         data.taggings,
         data.attachments,
         data.blobs,
+        data.tags,
       )
       await this.saveIdMappingsToCache()
 
@@ -300,6 +311,11 @@ class SimpleImporter {
           Object.entries(cached.musicTags).map(([k, v]) => [parseInt(k), v as string]),
         )
       }
+      if (cached.frameTags) {
+        this.idMaps.frameTags = new Map(
+          Object.entries(cached.frameTags).map(([k, v]) => [k, v as string])
+        )
+      }
       if (cached.frames) {
         this.idMaps.frames = new Map(
           Object.entries(cached.frames).map(([k, v]) => [k, v as string]),
@@ -335,6 +351,7 @@ class SimpleImporter {
     const cache = {
       meditationTags: Object.fromEntries(this.idMaps.meditationTags),
       musicTags: Object.fromEntries(this.idMaps.musicTags),
+      frameTags: Object.fromEntries(this.idMaps.frameTags),
       frames: Object.fromEntries(this.idMaps.frames),
       meditations: Object.fromEntries(this.idMaps.meditations),
       musics: Object.fromEntries(this.idMaps.musics),
@@ -668,6 +685,30 @@ class SimpleImporter {
     return mimeTypes[ext] || 'application/octet-stream'
   }
 
+  private mapFrameCategory(oldCategory: string): string | null {
+    // Map old categories to new lowercase versions
+    // Special case: "Heart" maps to "anahat"
+    const categoryMap: Record<string, string> = {
+      'heart': 'anahat',
+      'mooladhara': 'mooladhara',
+      'swadhistan': 'swadhistan', 
+      'nabhi': 'nabhi',
+      'void': 'void',
+      'anahat': 'anahat',
+      'vishuddhi': 'vishuddhi',
+      'agnya': 'agnya',
+      'sahasrara': 'sahasrara',
+      'clearing': 'clearing',
+      'kundalini': 'kundalini',
+      'meditate': 'meditate',
+      'ready': 'ready',
+      'namaste': 'namaste',
+    }
+    
+    const normalized = oldCategory.toLowerCase().trim()
+    return categoryMap[normalized] || null
+  }
+
   private getAttachmentsForRecord(
     recordType: string,
     recordId: number,
@@ -681,6 +722,76 @@ class SimpleImporter {
         return blob ? { ...att, blob } : null
       })
       .filter(Boolean)
+  }
+
+  private async uploadPlaceholderImages() {
+    console.log('\nUploading placeholder images...')
+    
+    // Check if placeholder images already exist in media collection
+    const [existingPlaceholder, existingPathPlaceholder] = await Promise.all([
+      this.payload.find({
+        collection: 'media',
+        where: {
+          filename: {
+            equals: 'placeholder.jpg',
+          },
+        },
+        limit: 1,
+      }),
+      this.payload.find({
+        collection: 'media',
+        where: {
+          filename: {
+            equals: 'path.jpg',
+          },
+        },
+        limit: 1,
+      }),
+    ])
+
+    // Upload or reuse placeholder.jpg
+    if (existingPlaceholder.docs.length > 0) {
+      this.placeholderMediaId = String(existingPlaceholder.docs[0].id)
+      console.log('    ✓ Found existing placeholder.jpg media')
+    } else {
+      const placeholderPath = path.join(this.cacheDir, 'placeholder.jpg')
+      try {
+        await fs.access(placeholderPath)
+        const placeholderMedia = await this.uploadToPayload(placeholderPath, 'media', {
+          alt: 'Meditation placeholder image',
+        })
+        if (placeholderMedia) {
+          this.placeholderMediaId = String(placeholderMedia.id)
+          console.log('    ✓ Uploaded placeholder.jpg')
+        }
+      } catch (error) {
+        this.addWarning('placeholder.jpg not found in migration-cache folder')
+      }
+    }
+
+    // Upload or reuse path.jpg
+    if (existingPathPlaceholder.docs.length > 0) {
+      this.pathPlaceholderMediaId = String(existingPathPlaceholder.docs[0].id)
+      console.log('    ✓ Found existing path.jpg media')
+    } else {
+      const pathPlaceholderPath = path.join(this.cacheDir, 'path.jpg')
+      try {
+        await fs.access(pathPlaceholderPath)
+        const pathMedia = await this.uploadToPayload(pathPlaceholderPath, 'media', {
+          alt: 'Path meditation placeholder image',
+        })
+        if (pathMedia) {
+          this.pathPlaceholderMediaId = String(pathMedia.id)
+          console.log('    ✓ Uploaded path.jpg')
+        }
+      } catch (error) {
+        this.addWarning('path.jpg not found in migration-cache folder')
+      }
+    }
+
+    if (!this.placeholderMediaId && !this.pathPlaceholderMediaId) {
+      this.addWarning('No placeholder images available - meditations without thumbnails may fail')
+    }
   }
 
   private async importNarrators() {
@@ -807,6 +918,74 @@ class SimpleImporter {
     )
   }
 
+  private async importFrameTags(frames: ImportedData['frames']) {
+    console.log('\nImporting frame tags...')
+
+    // Collect all unique frame tags from the old data
+    const uniqueTags = new Set<string>()
+    frames.forEach((frame) => {
+      if (frame.tags) {
+        const tags = frame.tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean)
+        tags.forEach(tag => uniqueTags.add(tag))
+      }
+    })
+
+    // Load existing frame tags
+    const existingFrameTags = await this.payload.find({
+      collection: 'frame-tags',
+      limit: 1000,
+    })
+
+    const existingByName = new Map<string, any>()
+    existingFrameTags.docs.forEach((tag: any) => {
+      // Handle both localized and non-localized name fields
+      const name = typeof tag.name === 'string' ? tag.name : tag.name?.en
+      if (name) {
+        existingByName.set(name.toLowerCase(), tag)
+      }
+    })
+
+    let createdCount = 0
+    let foundCount = 0
+
+    // Create frame tags
+    const tagNamesArray = Array.from(uniqueTags)
+    for (const tagName of tagNamesArray) {
+      // Rename "anahat" to "heart" for frame tags
+      const displayName = tagName === 'anahat' ? 'heart' : tagName
+      
+      const existing = existingByName.get(displayName)
+      
+      if (existing) {
+        // Map the original tag name to the ID for later use
+        this.idMaps.frameTags.set(tagName, String(existing.id))
+        console.log(`    ✓ Found existing frame tag: ${displayName}`)
+        foundCount++
+      } else {
+        try {
+          const created = await this.payload.create({
+            collection: 'frame-tags',
+            data: {
+              name: displayName, // Will be handled as localized field by Payload
+            },
+          })
+          // Map the original tag name to the ID for later use
+          this.idMaps.frameTags.set(tagName, String(created.id))
+          console.log(`    ✓ Created frame tag: ${displayName}`)
+          createdCount++
+        } catch (error: any) {
+          this.addWarning(`Failed to create frame tag ${displayName}: ${error.message}`)
+        }
+      }
+    }
+
+    // Update summary
+    this.summary.frameTags.created = createdCount
+    this.summary.frameTags.existing = foundCount
+
+    console.log(`✓ Processed ${uniqueTags.size} frame tags (${createdCount} created, ${foundCount} existing)`)
+  }
+
   private async importFrames(frames: ImportedData['frames'], attachments: any[], blobs: any[]) {
     console.log('\nImporting frames...')
 
@@ -816,27 +995,13 @@ class SimpleImporter {
       limit: 1000,
     })
 
-    // Build map of existing frames by name+imageSet combination
-    const existingByKey = new Map<string, any>()
+    // Build map of existing frames by filename
+    const existingByFilename = new Map<string, any>()
     existingFrames.docs.forEach((frame: any) => {
-      const key = `${frame.name}-${frame.imageSet}`
-      existingByKey.set(key, frame)
+      if (frame.filename) {
+        existingByFilename.set(frame.filename, frame)
+      }
     })
-
-    // Valid frame tag values from FRAME_CATEGORIES constant
-    const validFrameTags = [
-      'mooladhara',
-      'swadhistan',
-      'nabhi',
-      'anahat',
-      'vishuddhi',
-      'agnya',
-      'sahasrara',
-      'left',
-      'right',
-      'center',
-      'misc',
-    ]
 
     let createdCount = 0
     let foundCount = 0
@@ -844,7 +1009,15 @@ class SimpleImporter {
     let skippedCount = 0
 
     for (const frame of frames) {
-      // Parse comma-separated tags and filter to valid values
+      // Map the old category to new category
+      const mappedCategory = this.mapFrameCategory(frame.category)
+      if (!mappedCategory) {
+        this.addWarning(`Unknown frame category "${frame.category}", skipping frame`)
+        skippedCount++
+        continue
+      }
+
+      // Parse comma-separated tags and get their IDs
       const frameTagNames = frame.tags
         ? frame.tags
             .split(',')
@@ -852,9 +1025,10 @@ class SimpleImporter {
             .filter(Boolean)
         : []
 
-      // Filter to only valid frame tags
-      const validTags = frameTagNames.filter((tag) => validFrameTags.includes(tag))
-      const frameName = `${frame.category} frame`
+      // Convert tag names to tag IDs for relationships
+      const tagIds = frameTagNames
+        .map(tagName => this.idMaps.frameTags.get(tagName))
+        .filter(Boolean)
 
       // Get frame attachments (should have both male and female)
       const frameAttachments = this.getAttachmentsForRecord('Frame', frame.id, attachments, blobs)
@@ -863,13 +1037,13 @@ class SimpleImporter {
 
       // Process male frame if attachment exists
       if (maleAttachment) {
-        const maleFrameKey = `${frameName}-male`
-        const existingMaleFrame = existingByKey.get(maleFrameKey)
+        const maleFilename = maleAttachment.blob.filename
+        const existingMaleFrame = existingByFilename.get(maleFilename)
 
         const frameData = {
-          name: frameName,
           imageSet: 'male' as const,
-          tags: validTags,
+          category: mappedCategory,
+          tags: tagIds, // Now using relationship IDs
         }
 
         if (existingMaleFrame && UPDATE_EXISTING_RECORDS) {
@@ -881,15 +1055,15 @@ class SimpleImporter {
               data: frameData,
             })
             this.idMaps.frames.set(`${frame.id}_male`, String(existingMaleFrame.id))
-            console.log(`    ✓ Updated male frame: ${frameData.name}`)
+            console.log(`    ✓ Updated male frame: ${maleFilename}`)
             updatedCount++
           } catch (error: any) {
-            this.addWarning(`Failed to update male frame ${frameName}: ${error.message}`)
+            this.addWarning(`Failed to update male frame ${maleFilename}: ${error.message}`)
             this.idMaps.frames.set(`${frame.id}_male`, String(existingMaleFrame.id))
             foundCount++
           }
         } else if (existingMaleFrame && !UPDATE_EXISTING_RECORDS) {
-          console.log(`    ✓ Found existing male frame: ${existingMaleFrame.name} (skipping)`)
+          console.log(`    ✓ Found existing male frame: ${maleFilename} (skipping)`)
           this.idMaps.frames.set(`${frame.id}_male`, String(existingMaleFrame.id))
           foundCount++
         } else {
@@ -902,7 +1076,7 @@ class SimpleImporter {
             const uploaded = await this.uploadToPayload(localPath, 'frames', frameData)
             if (uploaded) {
               this.idMaps.frames.set(`${frame.id}_male`, String(uploaded.id))
-              console.log(`    ✓ Created male frame: ${uploaded.name}`)
+              console.log(`    ✓ Created male frame: ${maleFilename}`)
               createdCount++
             }
           }
@@ -911,33 +1085,33 @@ class SimpleImporter {
 
       // Process female frame if attachment exists
       if (femaleAttachment) {
-        const femaleFrameKey = `${frameName}-female`
-        const existingFemaleFrame = existingByKey.get(femaleFrameKey)
+        const femaleFilename = femaleAttachment.blob.filename
+        const existingFemaleFrame = existingByFilename.get(femaleFilename)
 
         const frameData = {
-          name: frameName,
           imageSet: 'female' as const,
-          tags: validTags,
+          category: mappedCategory,
+          tags: tagIds, // Now using relationship IDs
         }
 
         if (existingFemaleFrame && UPDATE_EXISTING_RECORDS) {
           // Update existing female frame metadata (not file)
           try {
-            const updated = await this.payload.update({
+            await this.payload.update({
               collection: 'frames',
               id: existingFemaleFrame.id,
               data: frameData,
             })
-            this.idMaps.frames.set(`${frame.id}_female`, String(updated.id))
-            console.log(`    ✓ Updated female frame: ${updated.name}`)
+            this.idMaps.frames.set(`${frame.id}_female`, String(existingFemaleFrame.id))
+            console.log(`    ✓ Updated female frame: ${femaleFilename}`)
             updatedCount++
           } catch (error: any) {
-            this.addWarning(`Failed to update female frame ${frameName}: ${error.message}`)
+            this.addWarning(`Failed to update female frame ${femaleFilename}: ${error.message}`)
             this.idMaps.frames.set(`${frame.id}_female`, String(existingFemaleFrame.id))
             foundCount++
           }
         } else if (existingFemaleFrame && !UPDATE_EXISTING_RECORDS) {
-          console.log(`    ✓ Found existing female frame: ${existingFemaleFrame.name} (skipping)`)
+          console.log(`    ✓ Found existing female frame: ${femaleFilename} (skipping)`)
           this.idMaps.frames.set(`${frame.id}_female`, String(existingFemaleFrame.id))
           foundCount++
         } else {
@@ -950,7 +1124,7 @@ class SimpleImporter {
             const uploaded = await this.uploadToPayload(localPath, 'frames', frameData)
             if (uploaded) {
               this.idMaps.frames.set(`${frame.id}_female`, String(uploaded.id))
-              console.log(`    ✓ Created female frame: ${uploaded.name}`)
+              console.log(`    ✓ Created female frame: ${femaleFilename}`)
               createdCount++
             }
           }
@@ -1124,12 +1298,28 @@ class SimpleImporter {
     console.log(`✓ Processed ${musics.length} music tracks (${statusParts.join(', ')})`)
   }
 
+  private checkMeditationHasPathTag(
+    meditationId: number,
+    meditationTaggings: any[],
+    allTags: ImportedData['tags']
+  ): boolean {
+    // Check if any of the meditation's tags has the name "path"
+    for (const tagging of meditationTaggings) {
+      const tag = allTags.find(t => t.id === tagging.tag_id)
+      if (tag && tag.name.toLowerCase() === 'path') {
+        return true
+      }
+    }
+    return false
+  }
+
   private async importMeditations(
     meditations: ImportedData['meditations'],
     keyframes: ImportedData['keyframes'],
     taggings: ImportedData['taggings'],
     attachments: any[],
     blobs: any[],
+    allTags: ImportedData['tags'],
   ) {
     console.log('\nImporting meditations...')
 
@@ -1281,7 +1471,7 @@ class SimpleImporter {
       const audioAttachment = meditationAttachments.find((att) => att.name === 'audio')
       const artAttachment = meditationAttachments.find((att) => att.name === 'art')
 
-      let thumbnailId: string | null
+      let thumbnailId: string | null = null
 
       // Upload thumbnail if available (with deduplication)
       if (artAttachment) {
@@ -1293,6 +1483,22 @@ class SimpleImporter {
           thumbnailId = await this.uploadMediaWithDeduplication(localPath, {
             alt: `${meditation.title} thumbnail`,
           })
+        }
+      }
+
+      // If no thumbnail was uploaded, use placeholder
+      if (!thumbnailId) {
+        // Check if meditation has "path" tag to determine which placeholder to use
+        const hasPathTag = this.checkMeditationHasPathTag(meditation.id, meditationTaggings, allTags)
+
+        if (hasPathTag && this.pathPlaceholderMediaId) {
+          thumbnailId = this.pathPlaceholderMediaId
+          console.log(`    ℹ️  Using path placeholder for meditation: ${meditation.title}`)
+        } else if (this.placeholderMediaId) {
+          thumbnailId = this.placeholderMediaId
+          console.log(`    ℹ️  Using default placeholder for meditation: ${meditation.title}`)
+        } else {
+          this.addWarning(`No thumbnail or placeholder available for meditation: ${meditation.title}`)
         }
       }
 
@@ -1333,7 +1539,7 @@ class SimpleImporter {
               meditationData,
             )
             if (updated) {
-              this.idMaps.meditations.set(meditation.id, String(updated.id))
+              this.idMaps.meditations.set(meditation.id, String(existingMeditation.id))
               console.log(
                 `    ✓ Updated meditation with audio (narrator: ${narratorGender}): ${meditation.title}`,
               )
@@ -1416,6 +1622,7 @@ class SimpleImporter {
       this.summary.narrators.created +
       this.summary.meditationTags.created +
       this.summary.musicTags.created +
+      this.summary.frameTags.created +
       this.summary.frames.created +
       this.summary.music.created +
       this.summary.meditations.created
@@ -1428,6 +1635,7 @@ class SimpleImporter {
       this.summary.narrators.existing +
       this.summary.meditationTags.existing +
       this.summary.musicTags.existing +
+      this.summary.frameTags.existing +
       this.summary.frames.existing +
       this.summary.music.existing +
       this.summary.meditations.existing
@@ -1444,6 +1652,9 @@ class SimpleImporter {
     )
     console.log(
       `  🏷️  Music Tags:       ${this.summary.musicTags.created} created, ${this.summary.musicTags.existing} existing`,
+    )
+    console.log(
+      `  🏷️  Frame Tags:       ${this.summary.frameTags.created} created, ${this.summary.frameTags.existing} existing`,
     )
 
     const framesParts = [`${this.summary.frames.created} created`]
