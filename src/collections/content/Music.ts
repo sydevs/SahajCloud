@@ -43,7 +43,7 @@ export const Music: CollectionConfig = {
 
             // Extract and validate audio duration
             const duration = await getAudioDuration(req.file.data)
-            const durationValidation = validateAudioDuration(duration, 15) // 15 minutes max
+            const durationValidation = validateAudioDuration(duration, 20) // 15 minutes max
             if (durationValidation !== true) {
               throw new Error(durationValidation)
             }
@@ -60,7 +60,7 @@ export const Music: CollectionConfig = {
             throw error
           }
         }
-        
+
         return data
       },
     ],
@@ -105,5 +105,7 @@ export const Music: CollectionConfig = {
         description: 'Attribution or credit information',
       },
     },
-  ].map((field) => { return { access: createFieldAccess('music', false), ...field } as Field }),
+  ].map((field) => {
+    return { access: createFieldAccess('music', false), ...field } as Field
+  }),
 }
