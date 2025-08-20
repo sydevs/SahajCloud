@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import type { Frame, Narrator } from '@/payload-types'
-import { FRAME_TAGS } from '@/lib/data'
+import { FRAME_CATEGORIES } from '@/lib/data'
 
 interface FrameLibraryProps {
   narrator: Narrator | null
@@ -144,7 +144,7 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
       {/* Tag Filters */}
       <div className="tag-filters" style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
-          {FRAME_TAGS.map((tag) => (
+          {FRAME_CATEGORIES.map((tag) => (
             <button
               key={tag}
               type="button"

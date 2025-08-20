@@ -42,6 +42,9 @@ next-env.d.ts
 
 /media
 
+# Migration cache
+/migration-cache
+
 # Playwright
 node_modules/
 /test-results/

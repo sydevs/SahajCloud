@@ -8,6 +8,7 @@ import { Clients } from './access/Clients'
 import { MeditationTags } from './tags/MeditationTags'
 import { MediaTags } from './tags/MediaTags'
 import { MusicTags } from './tags/MusicTags'
+import { FrameTags } from './tags/FrameTags'
 
 // Export all collections as an array
 export const collections = [
@@ -22,6 +23,7 @@ export const collections = [
   MediaTags,
   MeditationTags,
   MusicTags,
+  FrameTags,
   // Access
   Users,
   Clients,
@@ -39,6 +41,7 @@ export {
   MediaTags,
   MeditationTags,
   MusicTags,
+  FrameTags,
   // Access
   Users,
   Clients,
