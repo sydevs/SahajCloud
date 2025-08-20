@@ -6,12 +6,12 @@ export const MediaTags: CollectionConfig = {
   access: permissionBasedAccess('frames'),
   admin: {
     group: 'Tags',
-    useAsTitle: 'label',
+    useAsTitle: 'name',
     hidden: true,
   },
   fields: [
     {
-      name: 'label',
+      name: 'name',
       type: 'text',
       required: true,
       localized: true,

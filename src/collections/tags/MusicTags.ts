@@ -6,17 +6,17 @@ export const MusicTags: CollectionConfig = {
   access: permissionBasedAccess('music'),
   admin: {
     group: 'Tags',
-    useAsTitle: 'label',
+    useAsTitle: 'name',
     hidden: true,
   },
   fields: [
     {
-      name: 'label',
+      name: 'name',
       type: 'text',
       required: true,
       admin: {
-        description: "This label will be used in the editor"
-      }
+        description: 'This label will be used in the editor',
+      },
     },
     {
       name: 'title',
@@ -24,8 +24,8 @@ export const MusicTags: CollectionConfig = {
       required: true,
       localized: true,
       admin: {
-        description: "This localized title will be shown to public users"
-      }
+        description: 'This localized title will be shown to public users',
+      },
     },
     {
       name: 'music',

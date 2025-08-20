@@ -21,8 +21,7 @@ export const Meditations: CollectionConfig = {
     beforeChange: [
       ({ data, operation, originalDoc }) => {
         // Generate slug from title
-        if (operation === 'create' && data.title) {
-          // Always generate slug on create, ignore any provided slug
+        if (operation === 'create' && data.title && !data.slug) {
           data.slug = data.title
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, '-')
@@ -45,7 +44,7 @@ export const Meditations: CollectionConfig = {
 
             // Extract and validate audio duration
             const duration = await getAudioDuration(req.file.data)
-            const durationValidation = validateAudioDuration(duration, 15) // 15 minutes max
+            const durationValidation = validateAudioDuration(duration, 20) // 15 minutes max
             if (durationValidation !== true) {
               throw new Error(durationValidation)
             }

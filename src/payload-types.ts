@@ -301,7 +301,7 @@ export interface Media {
  */
 export interface MediaTag {
   id: string;
-  label: string;
+  name: string;
   media?: {
     docs?: (string | Media)[];
     hasNextPage?: boolean;
@@ -330,7 +330,7 @@ export interface MeditationTag {
   /**
    * This label will be used in the editor
    */
-  label: string;
+  name: string;
   /**
    * This localized title will be shown to public users
    */
@@ -352,7 +352,7 @@ export interface MusicTag {
   /**
    * This label will be used in the editor
    */
-  label: string;
+  name: string;
   /**
    * This localized title will be shown to public users
    */
@@ -932,7 +932,7 @@ export interface NarratorsSelect<T extends boolean = true> {
  * via the `definition` "media-tags_select".
  */
 export interface MediaTagsSelect<T extends boolean = true> {
-  label?: T;
+  name?: T;
   media?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -942,7 +942,7 @@ export interface MediaTagsSelect<T extends boolean = true> {
  * via the `definition` "meditation-tags_select".
  */
 export interface MeditationTagsSelect<T extends boolean = true> {
-  label?: T;
+  name?: T;
   title?: T;
   meditations?: T;
   updatedAt?: T;
@@ -953,7 +953,7 @@ export interface MeditationTagsSelect<T extends boolean = true> {
  * via the `definition` "music-tags_select".
  */
 export interface MusicTagsSelect<T extends boolean = true> {
-  label?: T;
+  name?: T;
   title?: T;
   music?: T;
   updatedAt?: T;
