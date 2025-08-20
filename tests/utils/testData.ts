@@ -184,7 +184,6 @@ export const testData = {
     return await payload.create({
       collection: 'frames',
       data: {
-        name: 'Test Frame Image',
         imageSet: 'male' as const,
         ...overrides,
       },

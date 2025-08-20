@@ -14,6 +14,7 @@ export const Music: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'title',
+    defaultColumns: ['title', 'duration', 'tags'],
   },
   hooks: {
     afterRead: [trackClientUsageHook],
@@ -43,7 +44,7 @@ export const Music: CollectionConfig = {
 
             // Extract and validate audio duration
             const duration = await getAudioDuration(req.file.data)
-            const durationValidation = validateAudioDuration(duration, 20) // 15 minutes max
+            const durationValidation = validateAudioDuration(duration, 30) // 30 minutes max
             if (durationValidation !== true) {
               throw new Error(durationValidation)
             }

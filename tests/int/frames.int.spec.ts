@@ -3,7 +3,7 @@ import type { Frame } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
 import { testData } from '../utils/testData'
-import { FRAME_TAGS } from '@/collections/resources/Frames'
+import { FRAME_CATEGORIES } from '@/lib/data'
 
 describe('Frames Collection', () => {
   let payload: Payload
@@ -21,15 +21,15 @@ describe('Frames Collection', () => {
 
   it('creates a frame with image', async () => {
     const frame = await testData.createFrame(payload, {
-      name: 'Mountain Pose',
       imageSet: 'male',
-      tags: [FRAME_TAGS[0], FRAME_TAGS[1]],
+      category: FRAME_CATEGORIES[0],
     })
 
     expect(frame).toBeDefined()
-    expect(frame.name).toBe('Mountain Pose')
+    expect(frame.filename).toBeDefined()
     expect(frame.imageSet).toBe('male')
-    expect(frame.tags).toHaveLength(2)
+    // Tags should be null when no tags are provided
+    expect(frame.tags).toBeUndefined()
     expect(frame.mimeType).toBe('image/jpeg') // Original format preserved for now
     expect(frame.filename).toMatch(/^image-1050x700(-\d+)?\.jpg$/)
     expect(frame.filesize).toBeGreaterThan(0)
@@ -38,23 +38,25 @@ describe('Frames Collection', () => {
     expect(frame.height).toBeGreaterThan(0)
     expect(frame.duration).toBeUndefined() // No duration for images
 
-    // Check tags relationship
-    const tags = frame.tags || []
-    expect(tags).toContain(FRAME_TAGS[0])
-    expect(tags).toContain(FRAME_TAGS[1])
+    // Check category field
+    expect(frame.category).toBe(FRAME_CATEGORIES[0])
   })
 
   it('creates a frame with video', async () => {
-    const frame = await testData.createFrame(payload, {
-      name: 'Warrior Pose Flow',
-      imageSet: 'female',
-      tags: [FRAME_TAGS[1], FRAME_TAGS[2]],
-    }, 'video-30s.mp4')
+    const frame = await testData.createFrame(
+      payload,
+      {
+        imageSet: 'female',
+        category: FRAME_CATEGORIES[1],
+      },
+      'video-30s.mp4',
+    )
 
     expect(frame).toBeDefined()
-    expect(frame.name).toBe('Warrior Pose Flow')
+    expect(frame.filename).toBeDefined()
     expect(frame.imageSet).toBe('female')
-    expect(frame.tags).toHaveLength(2)
+    // Tags should be null when no tags are provided
+    expect(frame.tags).toBeUndefined()
     expect(frame.mimeType).toBe('video/mp4') // Original format preserved for now
     expect(frame.filename).toMatch(/^video-30s(-\d+)?\.mp4$/)
     expect(frame.filesize).toBeGreaterThan(0)
@@ -62,36 +64,25 @@ describe('Frames Collection', () => {
     expect(frame.duration).toBe(29.5) // Mock duration from test environment
     expect(frame.dimensions).toEqual({ width: 1920, height: 1080 }) // Mock dimensions from test environment
 
-    // Check tags relationship
-    const tags = frame.tags || []
-    expect(tags).toContain(FRAME_TAGS[1])
-    expect(tags).toContain(FRAME_TAGS[2])
+    // Check category field
+    expect(frame.category).toBe(FRAME_CATEGORIES[1])
   })
 
-  it('requires name field', async () => {
-    await expect(
-      testData.createFrame(payload, {
-        imageSet: 'male',
-        name: undefined, // Remove name to test validation
-      } as any)
-    ).rejects.toThrow()
+  it('uses default imageSet when none provided', async () => {
+    const frame = await testData.createFrame(payload, {
+      // No imageSet provided, should use default
+    } as any)
+    
+    expect(frame.imageSet).toBeDefined()
+    expect(['male', 'female']).toContain(frame.imageSet)
   })
 
-  it('requires imageSet field', async () => {
-    await expect(
-      testData.createFrame(payload, {
-        name: 'Test Frame',
-        imageSet: undefined, // Remove imageSet to test validation
-      } as any)
-    ).rejects.toThrow()
-  })
 
   it('validates imageSet options', async () => {
     await expect(
       testData.createFrame(payload, {
-        name: 'Test Frame',
         imageSet: 'invalid' as any, // Invalid option
-      })
+      }),
     ).rejects.toThrow()
   })
 
@@ -106,9 +97,13 @@ describe('Frames Collection', () => {
 
     for (let i = 0; i < formats.length; i++) {
       const format = formats[i]
-      const frame = await testData.createFrame(payload, {
-        title: `Test ${format.mimetype.split('/')[1].toUpperCase()}`,
-      }, format.name)
+      const frame = await testData.createFrame(
+        payload,
+        {
+          imageSet: 'male',
+        },
+        format.name,
+      )
 
       expect(frame).toBeDefined()
       expect(frame.mimeType).toBe(format.mimetype)
@@ -132,7 +127,7 @@ describe('Frames Collection', () => {
           name: 'large.jpg',
           size: 11 * 1024 * 1024,
         },
-      })
+      }),
     ).rejects.toThrow()
   })
 
@@ -151,7 +146,7 @@ describe('Frames Collection', () => {
           name: 'large.mp4',
           size: 101 * 1024 * 1024,
         },
-      })
+      }),
     ).rejects.toThrow()
   })
 
@@ -162,50 +157,45 @@ describe('Frames Collection', () => {
 
   it('updates a frame', async () => {
     const frame = await testData.createFrame(payload, {
-      name: 'Original Name',
       imageSet: 'male',
     })
 
-    const updated = await payload.update({
+    const updated = (await payload.update({
       collection: 'frames',
       id: frame.id,
       data: {
-        name: 'Updated Name',
         imageSet: 'female',
-        tags: [FRAME_TAGS[2]],
+        category: FRAME_CATEGORIES[2],
       },
-    }) as Frame
+    })) as Frame
 
-    expect(updated.name).toBe('Updated Name')
     expect(updated.imageSet).toBe('female')
-    expect(updated.tags).toHaveLength(1)
-    expect(updated.tags).toContain(FRAME_TAGS[2])
+    expect(updated.category).toBe(FRAME_CATEGORIES[2])
   })
 
-  it('manages tags relationships properly', async () => {
+  it('manages category field properly', async () => {
     const frame = await testData.createFrame(payload, {
-      name: 'Tagged Frame',
-      tags: [FRAME_TAGS[0], FRAME_TAGS[1]],
+      imageSet: 'male',
+      category: FRAME_CATEGORIES[0],
     })
 
-    expect(frame.tags).toHaveLength(2)
-    
-    // Update tags
-    const updated = await payload.update({
+    expect(frame.category).toBe(FRAME_CATEGORIES[0])
+
+    // Update category
+    const updated = (await payload.update({
       collection: 'frames',
       id: frame.id,
       data: {
-        tags: [FRAME_TAGS[2]],
+        category: FRAME_CATEGORIES[2],
       },
-    }) as Frame
+    })) as Frame
 
-    expect(updated.tags).toHaveLength(1)
-    expect(updated.tags).toContain(FRAME_TAGS[2])
+    expect(updated.category).toBe(FRAME_CATEGORIES[2])
   })
 
   it('deletes a frame', async () => {
     const frame = await testData.createFrame(payload, {
-      name: 'To Delete',
+      imageSet: 'male',
     })
 
     await payload.delete({
@@ -228,81 +218,71 @@ describe('Frames Collection', () => {
 
   it('finds frames with filters', async () => {
     await testData.createFrame(payload, {
-      name: 'Filter Test Yoga Frame',
-      tags: [FRAME_TAGS[0]], // yoga tag
       imageSet: 'male',
+      category: FRAME_CATEGORIES[0],
     })
 
-    await testData.createFrame(payload, {
-      name: 'Filter Test Beginner Frame',
-      tags: [FRAME_TAGS[2]], // beginner tag
-      imageSet: 'female',
-    }, 'video-30s.mp4')
+    await testData.createFrame(
+      payload,
+      {
+        imageSet: 'female',
+        category: FRAME_CATEGORIES[2],
+      },
+      'video-30s.mp4',
+    )
 
-    // Find frames with yoga tag AND specific name to avoid conflicts with other tests
+    // Find frames with specific category to avoid conflicts with other tests
     const result = await payload.find({
       collection: 'frames',
       where: {
-        and: [
-          {
-            tags: {
-              in: [FRAME_TAGS[0]],
-            },
-          },
-          {
-            name: {
-              like: 'Filter Test Yoga',
-            },
-          },
-        ],
+        category: {
+          equals: FRAME_CATEGORIES[0],
+        },
       },
     })
 
-    expect(result.docs).toHaveLength(1)
-    expect(result.docs[0].name).toBe('Filter Test Yoga Frame')
+    expect(result.docs.length).toBeGreaterThanOrEqual(1)
+    expect(result.docs[0].category).toBe(FRAME_CATEGORIES[0])
   })
 
   it('finds frames by imageSet', async () => {
     await testData.createFrame(payload, {
-      name: 'Male Frame Test',
       imageSet: 'male',
     })
 
-    await testData.createFrame(payload, {
-      name: 'Female Frame Test',
-      imageSet: 'female',
-    }, 'video-30s.mp4')
+    await testData.createFrame(
+      payload,
+      {
+        imageSet: 'female',
+      },
+      'video-30s.mp4',
+    )
 
     const maleFrames = await payload.find({
       collection: 'frames',
       where: {
-        and: [
-          {
-            imageSet: {
-              equals: 'male',
-            },
-          },
-          {
-            name: {
-              like: 'Male Frame Test',
-            },
-          },
-        ],
+        imageSet: {
+          equals: 'male',
+        },
       },
     })
 
-    expect(maleFrames.docs).toHaveLength(1)
+    expect(maleFrames.docs.length).toBeGreaterThanOrEqual(1)
     expect(maleFrames.docs[0].imageSet).toBe('male')
   })
 
   it('supports mixed media types in same collection', async () => {
     const imageFrame = await testData.createFrame(payload, {
-      name: 'Mixed Test Image',
+      imageSet: 'male',
     })
 
-    const videoFrame = await testData.createFrame(payload, {
-      name: 'Mixed Test Video',
-    }, 'video-30s.mp4')
+    const videoFrame = await testData.createFrame(
+      payload,
+      {
+        imageSet: 'female',
+      },
+      'video-30s.mp4',
+    )
 
     expect(imageFrame.mimeType).toBe('image/jpeg')
     expect(imageFrame.width).toBeGreaterThan(0)

@@ -1,15 +1,17 @@
-export const FRAME_TAGS = [
+export const FRAME_CATEGORIES = [
   'mooladhara',
   'swadhistan',
   'nabhi',
+  'void',
   'anahat',
   'vishuddhi',
   'agnya',
   'sahasrara',
-  'left',
-  'right',
-  'center',
-  'misc',
+  'clearing',
+  'kundalini',
+  'meditate',
+  'ready',
+  'namaste',
 ] as const
 
 export const GENDER_OPTIONS = [

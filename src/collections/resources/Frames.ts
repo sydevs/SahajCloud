@@ -8,7 +8,7 @@ import {
 } from '@/lib/videoUtils'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { FRAME_TAGS, GENDER_OPTIONS } from '@/lib/data'
+import { FRAME_CATEGORIES, GENDER_OPTIONS } from '@/lib/data'
 
 export const Frames: CollectionConfig = {
   labels: {
@@ -32,8 +32,8 @@ export const Frames: CollectionConfig = {
   },
   admin: {
     group: 'Resources',
-    useAsTitle: 'name',
-    defaultColumns: ['filename', 'name', 'tags'],
+    useAsTitle: 'filename',
+    defaultColumns: ['filename', 'imageSet', 'category', 'tags'],
   },
   hooks: {
     afterRead: [trackClientUsageHook],
@@ -89,8 +89,8 @@ export const Frames: CollectionConfig = {
               const duration = await getVideoDuration(req.file.data)
               const dimensions = await getVideoDimensions(req.file.data)
 
-              // Validate video duration (30 seconds max)
-              const durationValidation = validateVideoDuration(duration, 30)
+              // Validate video duration (62 seconds max)
+              const durationValidation = validateVideoDuration(duration, 62)
               if (durationValidation !== true) {
                 throw new Error(durationValidation)
               }
@@ -121,21 +121,22 @@ export const Frames: CollectionConfig = {
   },
   fields: [
     {
-      name: 'name',
-      type: 'text',
-      required: true,
-    },
-    {
       name: 'imageSet',
       type: 'select',
       options: GENDER_OPTIONS,
       required: true,
     },
     {
-      name: 'tags',
+      name: 'category',
       type: 'select',
+      options: [...FRAME_CATEGORIES],
+      required: true,
+    },
+    {
+      name: 'tags',
+      type: 'relationship',
+      relationTo: 'frame-tags',
       hasMany: true,
-      options: [...FRAME_TAGS],
     },
     {
       name: 'dimensions',
