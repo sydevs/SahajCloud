@@ -26,14 +26,20 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     isLoading: true,
   })
 
-  // Update current time and notify parent
-  const updateCurrentTime = useCallback(() => {
+  // Stable reference to the latest onTimeChange without causing re-renders
+  const onTimeChangeRef = useRef(onTimeChange)
+  useEffect(() => {
+    onTimeChangeRef.current = onTimeChange
+  }, [onTimeChange])
+
+  // Stable update function that doesn't depend on external callbacks
+  const stableUpdateCurrentTime = useCallback(() => {
     if (audioRef.current) {
       const currentTime = Math.floor(audioRef.current.currentTime) // Whole seconds
       setState(prev => ({ ...prev, currentTime }))
-      onTimeChange?.(currentTime)
+      onTimeChangeRef.current?.(currentTime)
     }
-  }, [onTimeChange])
+  }, [])
 
   // Handle audio events
   useEffect(() => {
@@ -53,7 +59,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }))
     }
 
-    const handleTimeUpdate = updateCurrentTime
+    const handleTimeUpdate = stableUpdateCurrentTime
 
     const handlePlay = () => {
       setState(prev => ({ ...prev, isPlaying: true }))
@@ -90,7 +96,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       audio.removeEventListener('ended', handleEnded)
       audio.removeEventListener('error', handleError)
     }
-  }, [updateCurrentTime])
+  }, [stableUpdateCurrentTime])
 
   // Play/Pause toggle
   const togglePlayPause = () => {
@@ -107,8 +113,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const seekTo = (time: number) => {
     if (audioRef.current && state.isLoaded) {
       const clampedTime = Math.max(0, Math.min(time, state.duration))
+      
+      // Set the audio time first
       audioRef.current.currentTime = clampedTime
+      
+      // Update state immediately to prevent visual flicker
       setState(prev => ({ ...prev, currentTime: Math.floor(clampedTime) }))
+      
+      // Notify parent of the seek operation
       onSeek?.(Math.floor(clampedTime))
     }
   }
@@ -120,9 +132,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const rect = timelineRef.current.getBoundingClientRect()
     const clickX = event.clientX - rect.left
     const timelineWidth = rect.width
+    
+    // Ensure we have valid dimensions
+    if (timelineWidth <= 0 || clickX < 0 || clickX > timelineWidth) return
+    
     const clickTime = (clickX / timelineWidth) * state.duration
-
-    seekTo(clickTime)
+    
+    // Clamp the click time to valid range
+    const clampedClickTime = Math.max(0, Math.min(clickTime, state.duration))
+    
+    seekTo(clampedClickTime)
   }
 
   // Format time display (MM:SS)

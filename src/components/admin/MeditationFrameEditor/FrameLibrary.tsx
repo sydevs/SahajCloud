@@ -16,7 +16,7 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
   disabled = false,
 }) => {
   const [frames, setFrames] = useState<Frame[]>([])
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [clickedFrameId, setClickedFrameId] = useState<string | null>(null)
@@ -48,24 +48,24 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
     loadData()
   }, [narrator?.gender])
 
-  // Filter frames by selected tags
+  // Filter frames by selected categories
   const filteredFrames = useMemo(() => {
-    if (selectedTags.length === 0) return frames
+    if (selectedCategories.length === 0) return frames
 
     return frames.filter((frame) => {
-      const frameTags = frame.tags || []
-      return selectedTags.some((selectedTagId) => frameTags.some((tag) => tag === selectedTagId))
+      // Filter by frame.category which matches FRAME_CATEGORIES
+      return selectedCategories.includes(frame.category)
     })
-  }, [frames, selectedTags])
+  }, [frames, selectedCategories])
 
-  const handleTagToggle = (tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((id) => id !== tag) : [...prev, tag],
+  const handleCategoryToggle = (category: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(category) ? prev.filter((id) => id !== category) : [...prev, category],
     )
   }
 
-  const clearTagFilters = () => {
-    setSelectedTags([])
+  const clearCategoryFilters = () => {
+    setSelectedCategories([])
   }
 
   const handleFrameClick = (frame: Frame) => {
@@ -141,34 +141,34 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
         )}
       </h4>
 
-      {/* Tag Filters */}
-      <div className="tag-filters" style={{ marginBottom: '16px' }}>
+      {/* Category Filters */}
+      <div className="category-filters" style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
-          {FRAME_CATEGORIES.map((tag) => (
+          {FRAME_CATEGORIES.map((category) => (
             <button
-              key={tag}
+              key={category}
               type="button"
-              onClick={() => handleTagToggle(tag)}
+              onClick={() => handleCategoryToggle(category)}
               disabled={disabled}
               style={{
                 padding: '0.25rem 0.5rem',
                 fontSize: '0.75rem',
                 border: '1px solid #ddd',
                 borderRadius: '12px',
-                backgroundColor: selectedTags.includes(tag) ? '#007bff' : '#fff',
-                color: selectedTags.includes(tag) ? '#fff' : '#333',
+                backgroundColor: selectedCategories.includes(category) ? '#007bff' : '#fff',
+                color: selectedCategories.includes(category) ? '#fff' : '#333',
                 cursor: disabled ? 'not-allowed' : 'pointer',
                 opacity: disabled ? 0.6 : 1,
               }}
             >
-              {tag}
+              {category}
             </button>
           ))}
         </div>
-        {selectedTags.length > 0 && (
+        {selectedCategories.length > 0 && (
           <button
             type="button"
-            onClick={clearTagFilters}
+            onClick={clearCategoryFilters}
             disabled={disabled}
             style={{
               padding: '0.25rem 0.5rem',
@@ -196,14 +196,16 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
             borderRadius: '4px',
           }}
         >
-          {selectedTags.length > 0 ? 'No frames found with selected tags.' : 'No frames available.'}
+          {selectedCategories.length > 0
+            ? 'No frames found with selected categories.'
+            : 'No frames available.'}
         </div>
       ) : (
         <div
           className="frames-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
             gap: '16px',
             maxHeight: '400px',
             overflowY: 'auto',
@@ -215,11 +217,15 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
         >
           {filteredFrames.map((frame) => {
             const isClicked = clickedFrameId === frame.id
+            // Use small size for images, fallback to full URL
+            const imageUrl = frame.sizes?.small?.url || frame.url
+            
             return (
               <div
                 key={frame.id}
                 className="frame-item"
                 style={{
+                  maxWidth: '160px',
                   border: isClicked ? '2px solid #28a745' : '1px solid #ddd',
                   borderRadius: '4px',
                   backgroundColor: isClicked ? '#f8fff9' : '#fff',
@@ -248,14 +254,15 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
                 <div
                   style={{
                     position: 'relative',
-                    paddingBottom: '100%',
+                    width: '160px',
+                    height: '160px',
                     backgroundColor: '#f0f0f0',
                   }}
                 >
-                  {frame.url ? (
+                  {imageUrl ? (
                     frame.mimeType?.startsWith('video/') ? (
                       <video
-                        src={frame.url}
+                        src={frame.url || undefined}
                         style={{
                           position: 'absolute',
                           top: 0,
@@ -272,8 +279,8 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
                       />
                     ) : (
                       <img
-                        src={frame.url}
-                        alt={frame.name}
+                        src={imageUrl}
+                        alt={frame.category || undefined}
                         style={{
                           position: 'absolute',
                           top: 0,
@@ -303,7 +310,9 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
                 {/* Frame Info */}
                 <div style={{ padding: '0.5rem' }}>
                   <div style={{ fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>
-                    {frame.name}
+                    {frame.category}
+                    <br />
+                    {frame.tags?.map((f) => (typeof f === 'string' ? f : f.name)).join(', ')}
                   </div>
                   {frame.mimeType?.startsWith('video/') && frame.duration && (
                     <div style={{ fontSize: '0.75rem', color: '#666' }}>

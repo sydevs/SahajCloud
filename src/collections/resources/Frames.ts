@@ -8,7 +8,7 @@ import {
 } from '@/lib/videoUtils'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { FRAME_CATEGORIES, GENDER_OPTIONS } from '@/lib/data'
+import { FRAME_CATEGORY_OPTIONS, GENDER_OPTIONS } from '@/lib/data'
 
 export const Frames: CollectionConfig = {
   labels: {
@@ -29,11 +29,32 @@ export const Frames: CollectionConfig = {
       'video/mp4',
       'video/webm',
     ],
+    adminThumbnail: 'small',
+    imageSizes: [
+      {
+        name: 'small',
+        width: 160,
+        height: 160,
+        position: 'centre',
+      },
+      {
+        name: 'medium',
+        width: 320,
+        height: 320,
+        position: 'centre',
+      },
+      {
+        name: 'full',
+        width: 1000,
+        height: 1000,
+        position: 'centre',
+      },
+    ],
   },
   admin: {
     group: 'Resources',
     useAsTitle: 'filename',
-    defaultColumns: ['filename', 'imageSet', 'category', 'tags'],
+    defaultColumns: ['category', 'tags', 'preview', 'imageSet'],
   },
   hooks: {
     afterRead: [trackClientUsageHook],
@@ -121,6 +142,17 @@ export const Frames: CollectionConfig = {
   },
   fields: [
     {
+      name: 'preview',
+      type: 'text',
+      virtual: true,
+      admin: {
+        hidden: true,
+        components: {
+          Cell: '@/components/admin/ThumbnailCell',
+        },
+      },
+    },
+    {
       name: 'imageSet',
       type: 'select',
       options: GENDER_OPTIONS,
@@ -129,7 +161,7 @@ export const Frames: CollectionConfig = {
     {
       name: 'category',
       type: 'select',
-      options: [...FRAME_CATEGORIES],
+      options: [...FRAME_CATEGORY_OPTIONS],
       required: true,
     },
     {

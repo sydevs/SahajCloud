@@ -115,6 +115,17 @@ export const Meditations: CollectionConfig = {
       type: 'upload',
       relationTo: 'media',
       required: true,
+      admin: {
+        components: {
+          Cell: {
+            path: '@/components/admin/ThumbnailCell#default',
+            clientProps: {
+              aspectRatio: '16:9',
+              size: 'large',
+            },
+          },
+        },
+      },
       validate: (async (value, { req }) => {
         if (!value) return true // Required validation handles this
 
