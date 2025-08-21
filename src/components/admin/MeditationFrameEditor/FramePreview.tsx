@@ -23,9 +23,9 @@ const FramePreview: React.FC<FramePreviewProps> = ({
   // Load frame details
   useEffect(() => {
     const loadFrameDetails = async () => {
-      const frameIds = frames.map(f => f.frame)
-      const missingIds = frameIds.filter(id => !frameDetails[id])
-      
+      const frameIds = frames.map((f) => f.frame)
+      const missingIds = frameIds.filter((id) => !frameDetails[id])
+
       if (missingIds.length === 0) return
 
       setIsLoading(true)
@@ -45,13 +45,13 @@ const FramePreview: React.FC<FramePreviewProps> = ({
 
         const results = await Promise.all(promises)
         const newFrameDetails = { ...frameDetails }
-        
-        results.forEach(result => {
+
+        results.forEach((result) => {
           if (result) {
             newFrameDetails[result.id] = result.frame
           }
         })
-        
+
         setFrameDetails(newFrameDetails)
       } catch (error) {
         console.error('Failed to load frame details:', error)
@@ -69,7 +69,7 @@ const FramePreview: React.FC<FramePreviewProps> = ({
 
     // Sort frames by timestamp
     const sortedFrames = [...frames].sort((a, b) => a.timestamp - b.timestamp)
-    
+
     // Find the latest frame that should be showing at the current time
     let activeFrame = null
     for (const frame of sortedFrames) {
@@ -79,7 +79,7 @@ const FramePreview: React.FC<FramePreviewProps> = ({
         break // Frames are sorted, so we can stop here
       }
     }
-    
+
     return activeFrame
   }, [frames, currentTime])
 
@@ -168,11 +168,10 @@ const FramePreview: React.FC<FramePreviewProps> = ({
           }}
         >
           <div style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>⏱️</div>
-          <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>
-            No frame at {currentTime}s
-          </div>
+          <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>No frame at {currentTime}s</div>
           <div style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
-            Next frame at {Math.min(...frames.filter(f => f.timestamp > currentTime).map(f => f.timestamp))}s
+            Next frame at{' '}
+            {Math.min(...frames.filter((f) => f.timestamp > currentTime).map((f) => f.timestamp))}s
           </div>
         </div>
       </div>
@@ -184,11 +183,18 @@ const FramePreview: React.FC<FramePreviewProps> = ({
     <div className="frame-preview">
       <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>
         Live Preview
-        <span style={{ fontSize: '0.875rem', fontWeight: 'normal', color: '#666', marginLeft: '0.5rem' }}>
+        <span
+          style={{
+            fontSize: '0.875rem',
+            fontWeight: 'normal',
+            color: '#666',
+            marginLeft: '0.5rem',
+          }}
+        >
           ({currentTime}s)
         </span>
       </h4>
-      
+
       <div
         style={{
           width: `${width}px`,
@@ -215,8 +221,8 @@ const FramePreview: React.FC<FramePreviewProps> = ({
             />
           ) : (
             <img
-              src={currentFrameDetails.url}
-              alt={currentFrameDetails.name}
+              src={currentFrameDetails.sizes?.medium?.url || currentFrameDetails.url}
+              alt={currentFrameDetails.category}
               style={{
                 width: '100%',
                 height: '100%',
@@ -225,15 +231,17 @@ const FramePreview: React.FC<FramePreviewProps> = ({
             />
           )
         ) : (
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            color: '#fff',
-            textAlign: 'center',
-            fontSize: '0.875rem'
-          }}>
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              color: '#fff',
+              textAlign: 'center',
+              fontSize: '0.875rem',
+            }}
+          >
             {isLoading ? 'Loading...' : 'Frame not available'}
           </div>
         )}
@@ -252,13 +260,13 @@ const FramePreview: React.FC<FramePreviewProps> = ({
           }}
         >
           <div style={{ fontWeight: '500' }}>
-            {currentFrameDetails?.name || 'Unknown Frame'}
+            {currentFrameDetails?.category || 'Unknown Frame'}
           </div>
           <div style={{ opacity: 0.8 }}>
-            Frame {frames.findIndex(f => f === currentFrame) + 1} of {frames.length} • {currentFrame.timestamp}s
-            {currentFrameDetails?.mimeType?.startsWith('video/') && currentFrameDetails.duration && (
-              <span> • {currentFrameDetails.duration}s video</span>
-            )}
+            Frame {frames.findIndex((f) => f === currentFrame) + 1} of {frames.length} •{' '}
+            {currentFrame.timestamp}s
+            {currentFrameDetails?.mimeType?.startsWith('video/') &&
+              currentFrameDetails.duration && <span> • {currentFrameDetails.duration}s video</span>}
           </div>
         </div>
       </div>
@@ -267,21 +275,25 @@ const FramePreview: React.FC<FramePreviewProps> = ({
       <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#666' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
           <span>Timeline:</span>
-          <span>{frames.length} frame{frames.length !== 1 ? 's' : ''}</span>
+          <span>
+            {frames.length} frame{frames.length !== 1 ? 's' : ''}
+          </span>
         </div>
-        <div style={{ 
-          width: '100%', 
-          height: '4px', 
-          backgroundColor: '#e9ecef', 
-          borderRadius: '2px',
-          position: 'relative'
-        }}>
+        <div
+          style={{
+            width: '100%',
+            height: '4px',
+            backgroundColor: '#e9ecef',
+            borderRadius: '2px',
+            position: 'relative',
+          }}
+        >
           {/* Frame position indicators */}
           {frames.map((frame, index) => {
-            const maxTime = Math.max(...frames.map(f => f.timestamp), 60) // At least 60s for visualization
+            const maxTime = Math.max(...frames.map((f) => f.timestamp), 60) // At least 60s for visualization
             const position = (frame.timestamp / maxTime) * 100
             const isActive = frame === currentFrame
-            
+
             return (
               <div
                 key={`${frame.frame}-${frame.timestamp}`}
@@ -296,16 +308,16 @@ const FramePreview: React.FC<FramePreviewProps> = ({
                   transform: 'translateX(-2px)',
                   zIndex: isActive ? 2 : 1,
                 }}
-                title={`Frame ${index + 1}: ${frame.timestamp}s - ${currentFrameDetails?.name || 'Unknown'}`}
+                title={`Frame ${index + 1}: ${frame.timestamp}s - ${currentFrameDetails?.category || 'Unknown'}`}
               />
             )
           })}
-          
+
           {/* Current time indicator */}
           <div
             style={{
               position: 'absolute',
-              left: `${(currentTime / Math.max(...frames.map(f => f.timestamp), 60)) * 100}%`,
+              left: `${(currentTime / Math.max(...frames.map((f) => f.timestamp), 60)) * 100}%`,
               top: '-2px',
               width: '2px',
               height: '8px',

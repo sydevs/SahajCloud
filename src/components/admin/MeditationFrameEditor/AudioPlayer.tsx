@@ -26,14 +26,20 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     isLoading: true,
   })
 
-  // Update current time and notify parent
-  const updateCurrentTime = useCallback(() => {
+  // Stable reference to the latest onTimeChange without causing re-renders
+  const onTimeChangeRef = useRef(onTimeChange)
+  useEffect(() => {
+    onTimeChangeRef.current = onTimeChange
+  }, [onTimeChange])
+
+  // Stable update function that doesn't depend on external callbacks
+  const stableUpdateCurrentTime = useCallback(() => {
     if (audioRef.current) {
       const currentTime = Math.floor(audioRef.current.currentTime) // Whole seconds
       setState(prev => ({ ...prev, currentTime }))
-      onTimeChange?.(currentTime)
+      onTimeChangeRef.current?.(currentTime)
     }
-  }, [onTimeChange])
+  }, [])
 
   // Handle audio events
   useEffect(() => {
@@ -53,7 +59,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }))
     }
 
-    const handleTimeUpdate = updateCurrentTime
+    const handleTimeUpdate = stableUpdateCurrentTime
 
     const handlePlay = () => {
       setState(prev => ({ ...prev, isPlaying: true }))
@@ -90,7 +96,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       audio.removeEventListener('ended', handleEnded)
       audio.removeEventListener('error', handleError)
     }
-  }, [updateCurrentTime])
+  }, [stableUpdateCurrentTime])
 
   // Play/Pause toggle
   const togglePlayPause = () => {
@@ -107,8 +113,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const seekTo = (time: number) => {
     if (audioRef.current && state.isLoaded) {
       const clampedTime = Math.max(0, Math.min(time, state.duration))
+      
+      // Set the audio time first
       audioRef.current.currentTime = clampedTime
+      
+      // Update state immediately to prevent visual flicker
       setState(prev => ({ ...prev, currentTime: Math.floor(clampedTime) }))
+      
+      // Notify parent of the seek operation
       onSeek?.(Math.floor(clampedTime))
     }
   }
@@ -120,9 +132,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const rect = timelineRef.current.getBoundingClientRect()
     const clickX = event.clientX - rect.left
     const timelineWidth = rect.width
+    
+    // Ensure we have valid dimensions
+    if (timelineWidth <= 0 || clickX < 0 || clickX > timelineWidth) return
+    
     const clickTime = (clickX / timelineWidth) * state.duration
-
-    seekTo(clickTime)
+    
+    // Clamp the click time to valid range
+    const clampedClickTime = Math.max(0, Math.min(clickTime, state.duration))
+    
+    seekTo(clampedClickTime)
   }
 
   // Format time display (MM:SS)
@@ -154,22 +173,22 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           style={{
             padding: '0.5rem 1rem',
             marginRight: '1rem',
-            backgroundColor: state.isLoaded ? '#0066cc' : '#ccc',
-            color: 'white',
+            backgroundColor: state.isLoaded ? 'var(--theme-success-400)' : 'var(--theme-elevation-200)',
+            color: state.isLoaded ? 'white' : 'var(--theme-elevation-600)',
             border: 'none',
-            borderRadius: '4px',
+            borderRadius: 'var(--style-radius-m)',
             cursor: state.isLoaded ? 'pointer' : 'not-allowed',
           }}
         >
           {state.isLoading ? '...' : state.isPlaying ? 'Pause' : 'Play'}
         </button>
 
-        <span className="time-display" style={{ marginRight: '1rem', fontFamily: 'monospace' }}>
+        <span className="time-display" style={{ marginRight: '1rem', fontFamily: 'monospace', color: 'var(--theme-text)' }}>
           {formatTime(state.currentTime)} / {formatTime(state.duration)}
         </span>
 
         {state.isLoaded && (
-          <span className="current-time-display" style={{ fontSize: '0.875rem', color: '#666' }}>
+          <span className="current-time-display" style={{ fontSize: '0.875rem', color: 'var(--theme-elevation-600)' }}>
             Current: {state.currentTime}s
           </span>
         )}
@@ -184,11 +203,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           style={{
             width: '100%',
             height: '30px',
-            backgroundColor: '#e0e0e0',
+            backgroundColor: 'var(--theme-elevation-100)',
             borderRadius: '15px',
             position: 'relative',
             cursor: state.isLoaded ? 'pointer' : 'not-allowed',
-            border: '1px solid #ccc',
+            border: '1px solid var(--theme-border-color)',
           }}
         >
           {/* Progress bar */}
@@ -197,7 +216,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             style={{
               width: `${progressPercentage}%`,
               height: '100%',
-              backgroundColor: '#0066cc',
+              backgroundColor: 'var(--theme-success-400)',
               borderRadius: '15px',
               transition: 'width 0.1s ease',
             }}
@@ -216,7 +235,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   top: '0',
                   width: '2px',
                   height: '100%',
-                  backgroundColor: '#ff6600',
+                  backgroundColor: 'var(--theme-warning-400)',
                   zIndex: 2,
                 }}
                 title={`Frame ${index + 1} at ${frame.timestamp}s`}
@@ -233,7 +252,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               top: '-5px',
               width: '2px',
               height: '40px',
-              backgroundColor: '#ff0000',
+              backgroundColor: 'var(--theme-error-400)',
               zIndex: 3,
               transform: 'translateX(-1px)',
             }}
@@ -241,7 +260,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </div>
 
         {/* Timeline labels */}
-        <div className="timeline-labels" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', fontSize: '0.75rem', color: '#666' }}>
+        <div className="timeline-labels" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--theme-elevation-600)' }}>
           <span>0:00</span>
           <span>{formatTime(state.duration)}</span>
         </div>
@@ -249,12 +268,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
       {/* Status */}
       {state.isLoading && (
-        <div className="loading-status" style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#666' }}>
+        <div className="loading-status" style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--theme-elevation-600)' }}>
           Loading audio...
         </div>
       )}
       {!state.isLoaded && !state.isLoading && (
-        <div className="error-status" style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#cc0000' }}>
+        <div className="error-status" style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--theme-error-400)' }}>
           Failed to load audio file
         </div>
       )}

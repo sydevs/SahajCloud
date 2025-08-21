@@ -25,7 +25,8 @@ export const Users: CollectionConfig = {
       type: 'checkbox',
       defaultValue: false,
       admin: {
-        description: 'Admin users bypass all permission restrictions and have complete access to all collections and features.',
+        description:
+          'Admin users bypass all permission restrictions and have complete access to all collections and features.',
       },
     },
     createPermissionsField({ excludedLevels: ['read'] }),

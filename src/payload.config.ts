@@ -37,7 +37,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       },
       // Disable admin UI in test environment
       disable: isTestEnvironment,
-      autoLogin: isTestEnvironment ? { email: 'contact@sydevelopers.com' } : false,
+      autoLogin: !isProduction ? { email: 'contact@sydevelopers.com' } : false,
     },
     collections,
     editor: lexicalEditor(),
