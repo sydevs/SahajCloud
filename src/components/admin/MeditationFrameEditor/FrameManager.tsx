@@ -96,18 +96,22 @@ const FrameManager: React.FC<FrameManagerProps> = ({
 
   if (frames.length === 0) {
     return (
-      <div className="frame-manager">
-        <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>
+      <div className="frame-manager" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600', flexShrink: 0, color: 'var(--theme-text)' }}>
           Current Frames (0)
         </h4>
         <div
           style={{
             padding: '2rem',
             textAlign: 'center',
-            backgroundColor: '#f8f9fa',
-            border: '1px dashed #ccc',
-            borderRadius: '4px',
-            color: '#666',
+            backgroundColor: 'var(--theme-elevation-50)',
+            border: '1px dashed var(--theme-border-color)',
+            borderRadius: 'var(--style-radius-m)',
+            color: 'var(--theme-elevation-600)',
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
           No frames added yet. Select frames from the library below to add them at the current audio
@@ -118,19 +122,20 @@ const FrameManager: React.FC<FrameManagerProps> = ({
   }
 
   return (
-    <div className="frame-manager">
-      <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>
+    <div className="frame-manager" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600', flexShrink: 0, color: 'var(--theme-text)' }}>
         Current Frames ({frames.length})
       </h4>
 
       <div
         className="frames-list"
         style={{
-          backgroundColor: '#f8f9fa',
-          border: '1px solid #ddd',
-          borderRadius: '4px',
-          maxHeight: '400px',
+          backgroundColor: 'var(--theme-elevation-50)',
+          border: '1px solid var(--theme-border-color)',
+          borderRadius: 'var(--style-radius-m)',
+          flex: 1,
           overflowY: 'auto',
+          minHeight: 0, // Allow list to shrink below content size
         }}
       >
         {frames.map((frameData, index) => {
@@ -144,7 +149,7 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 padding: '0.75rem',
-                borderBottom: index < frames.length - 1 ? '1px solid #ddd' : 'none',
+                borderBottom: index < frames.length - 1 ? '1px solid var(--theme-border-color)' : 'none',
                 gap: '0.5rem',
               }}
             >
@@ -153,12 +158,12 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                 style={{
                   width: '40px',
                   height: '40px',
-                  backgroundColor: '#f0f0f0',
-                  borderRadius: '4px',
+                  backgroundColor: 'var(--theme-elevation-100)',
+                  borderRadius: 'var(--style-radius-m)',
                   overflow: 'hidden',
                   flexShrink: 0,
                   position: 'relative',
-                  border: '1px solid #ccc',
+                  border: '1px solid var(--theme-border-color)',
                 }}
               >
                 {frame?.url ? (
@@ -182,7 +187,7 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                       top: '50%',
                       left: '50%',
                       transform: 'translate(-50%, -50%)',
-                      color: '#999',
+                      color: 'var(--theme-elevation-500)',
                       fontSize: '0.625rem',
                     }}
                   >
@@ -193,11 +198,11 @@ const FrameManager: React.FC<FrameManagerProps> = ({
 
               {/* Frame Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: '500', marginBottom: '0.25rem' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: '500', marginBottom: '0.25rem', color: 'var(--theme-text)' }}>
                   {frame?.category || `Frame ${frameData.frame}`}
                 </div>
                 {frame?.mimeType?.startsWith('video/') && frame.duration && (
-                  <div style={{ fontSize: '0.7rem', color: '#666' }}>{frame.duration}s video</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--theme-elevation-600)' }}>{frame.duration}s video</div>
                 )}
               </div>
 
@@ -229,19 +234,21 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                       width: '40px',
                       height: '28px',
                       padding: '0.4rem 0.2rem',
-                      border: `1px solid ${getTimestampError(frameData.timestamp, index) ? '#dc3545' : '#ddd'}`,
-                      borderRadius: '2px',
+                      border: `1px solid ${getTimestampError(frameData.timestamp, index) ? 'var(--theme-error-400)' : 'var(--theme-border-color)'}`,
+                      borderRadius: 'var(--style-radius-s)',
                       fontSize: '0.75rem',
                       textAlign: 'center',
+                      backgroundColor: 'var(--theme-bg)',
+                      color: 'var(--theme-text)',
                     }}
                   />
-                  <span style={{ fontSize: '0.7rem', color: '#666' }}>s</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--theme-elevation-600)' }}>s</span>
                 </div>
                 {getTimestampError(frameData.timestamp, index) && (
                   <div
                     style={{
                       fontSize: '0.6rem',
-                      color: '#dc3545',
+                      color: 'var(--theme-error-400)',
                       maxWidth: '100px',
                       textAlign: 'right',
                       lineHeight: 1.2,
@@ -259,10 +266,10 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                 disabled={readOnly}
                 style={{
                   padding: '0.2rem 0.4rem',
-                  backgroundColor: readOnly ? '#ccc' : '#dc3545',
-                  color: 'white',
+                  backgroundColor: readOnly ? 'var(--theme-elevation-200)' : 'var(--theme-error-400)',
+                  color: readOnly ? 'var(--theme-elevation-600)' : 'white',
                   border: 'none',
-                  borderRadius: '2px',
+                  borderRadius: 'var(--style-radius-s)',
                   cursor: readOnly ? 'not-allowed' : 'pointer',
                   fontSize: '0.7rem',
                   flexShrink: 0,

@@ -5,9 +5,9 @@ import { FullscreenModal, useModal } from '@payloadcms/ui'
 import AudioPreviewPlayer, { type AudioPreviewPlayerRef } from './AudioPreviewPlayer'
 import FrameLibrary from './FrameLibrary'
 import FrameManager from './FrameManager'
+import FrameItem from './FrameItem'
 import type { FrameData } from './types'
 import type { Narrator, Frame } from '@/payload-types'
-import Image from 'next/image'
 
 interface MeditationFrameEditorModalProps {
   initialFrames: FrameData[]
@@ -167,9 +167,9 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
           gap: '1rem',
           alignItems: 'flex-start',
           padding: '1rem',
-          border: '1px solid #e0e0e0',
-          borderRadius: '8px',
-          backgroundColor: '#fafafa',
+          border: '1px solid var(--theme-border-color)',
+          borderRadius: 'var(--style-radius-l)',
+          backgroundColor: 'var(--theme-elevation-50)',
         }}
       >
         {/* Unified Audio Preview Player */}
@@ -196,16 +196,16 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
             <div
               style={{
                 padding: '0.75rem',
-                backgroundColor: '#fff',
-                border: '1px solid #e0e0e0',
-                borderRadius: '6px',
+                backgroundColor: 'var(--theme-bg)',
+                border: '1px solid var(--theme-border-color)',
+                borderRadius: 'var(--style-radius-m)',
               }}
             >
               <div
                 style={{
                   fontSize: '0.75rem',
                   fontWeight: '600',
-                  color: '#374151',
+                  color: 'var(--theme-text)',
                   marginBottom: '0.5rem',
                 }}
               >
@@ -215,7 +215,6 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
                 style={{
                   display: 'flex',
                   gap: '8px',
-                  height: '140px',
                   overflowX: 'auto',
                   overflowY: 'hidden',
                   paddingBottom: '4px',
@@ -225,101 +224,15 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
                   .sort((a, b) => a.timestamp - b.timestamp)
                   .map((frameData, index) => {
                     const frame = frameDetails[frameData.frame]
-                    return (
-                      <div
-                        key={`${frameData.frame}-${frameData.timestamp}-${index}`}
-                        style={{
-                          position: 'relative',
-                          width: '120px',
-                          height: '140px',
-                          backgroundColor: '#f3f4f6',
-                          borderRadius: '4px',
-                          overflow: 'hidden',
-                          border: '1px solid #d1d5db',
-                          flexShrink: 0,
-                          display: 'flex',
-                          flexDirection: 'column',
-                        }}
-                      >
-                        {/* Image/Video container - Square */}
-                        <div
-                          style={{
-                            width: '100%',
-                            height: '120px',
-                            position: 'relative',
-                            backgroundColor: '#f9fafb',
-                          }}
-                        >
-                          {frame?.url ? (
-                            frame.mimeType?.startsWith('video/') ? (
-                              <video
-                                src={frame.url}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                muted
-                              />
-                            ) : (
-                              <Image
-                                src={frame.sizes?.small?.url || frame.url}
-                                alt={frame.category}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                width={frame.sizes?.small?.width || frame.width || undefined}
-                                height={frame.sizes?.small?.height || frame.height || undefined}
-                              />
-                            )
-                          ) : (
-                            <div
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '0.5rem',
-                                color: '#6b7280',
-                              }}
-                            >
-                              ...
-                            </div>
-                          )}
-                          {/* Timestamp overlay */}
-                          <div
-                            style={{
-                              position: 'absolute',
-                              bottom: '4px',
-                              right: '4px',
-                              backgroundColor: 'rgba(0,0,0,0.85)',
-                              color: 'white',
-                              fontSize: '0.875rem',
-                              padding: '4px 8px',
-                              borderRadius: '4px',
-                              lineHeight: 1,
-                              fontWeight: '600',
-                            }}
-                          >
-                            {frameData.timestamp}s
-                          </div>
-                        </div>
+                    if (!frame) return null
 
-                        {/* Frame name */}
-                        <div
-                          style={{
-                            padding: '2px 4px',
-                            fontSize: '0.6rem',
-                            color: '#374151',
-                            lineHeight: 1.1,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            height: '20px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            textAlign: 'center',
-                          }}
-                        >
-                          {frame?.filename || `Frame ${frameData.frame}`}
-                        </div>
-                      </div>
+                    return (
+                      <FrameItem
+                        key={`${frameData.frame}-${frameData.timestamp}-${index}`}
+                        frame={frame}
+                        size={120}
+                        overlayValue={frameData.timestamp}
+                      />
                     )
                   })}
               </div>
@@ -334,10 +247,10 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
               disabled={!audioUrl || readOnly}
               style={{
                 padding: '0.75rem 1.5rem',
-                backgroundColor: !audioUrl || readOnly ? '#ccc' : '#007bff',
-                color: 'white',
+                backgroundColor: !audioUrl || readOnly ? 'var(--theme-elevation-200)' : 'var(--theme-success-400)',
+                color: !audioUrl || readOnly ? 'var(--theme-elevation-600)' : 'white',
                 border: 'none',
-                borderRadius: '4px',
+                borderRadius: 'var(--style-radius-m)',
                 cursor: !audioUrl || readOnly ? 'not-allowed' : 'pointer',
                 fontSize: '0.875rem',
                 fontWeight: '500',
@@ -348,7 +261,7 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
             </button>
 
             {!audioUrl && (
-              <div style={{ fontSize: '0.75rem', color: '#666' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--theme-elevation-600)' }}>
                 Please upload an audio file first to edit frames.
               </div>
             )}
@@ -362,14 +275,14 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
         <div
           style={{
             padding: '1.5rem 1.5rem 1rem 1.5rem',
-            borderBottom: '1px solid #e0e0e0',
+            borderBottom: '1px solid var(--theme-border-color)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            backgroundColor: '#fff',
+            backgroundColor: 'var(--theme-bg)',
           }}
         >
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600', color: 'var(--theme-text)' }}>
             Create Meditation Video
           </h2>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -378,10 +291,10 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
               onClick={handleCancel}
               style={{
                 padding: '0.5rem 1rem',
-                backgroundColor: '#6c757d',
-                color: 'white',
+                backgroundColor: 'var(--theme-elevation-300)',
+                color: 'var(--theme-text)',
                 border: 'none',
-                borderRadius: '4px',
+                borderRadius: 'var(--style-radius-m)',
                 cursor: 'pointer',
                 fontSize: '0.875rem',
               }}
@@ -393,16 +306,39 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
               onClick={handleSave}
               style={{
                 padding: '0.5rem 1rem',
-                backgroundColor: '#28a745',
+                backgroundColor: 'var(--theme-success-400)',
                 color: 'white',
                 border: 'none',
-                borderRadius: '4px',
+                borderRadius: 'var(--style-radius-m)',
                 cursor: 'pointer',
                 fontSize: '0.875rem',
               }}
             >
               Save
             </button>
+          </div>
+        </div>
+
+        {/* Mobile Warning - Show on small screens */}
+        <div
+          style={{
+            display: 'block',
+            padding: '2rem',
+            textAlign: 'center',
+            backgroundColor: 'var(--theme-warning-50)',
+            border: '1px solid var(--theme-warning-300)',
+            borderRadius: 'var(--style-radius-l)',
+            margin: '1.5rem',
+            color: 'var(--theme-warning-950)',
+          }}
+          className="mobile-warning"
+        >
+          <div style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem' }}>
+            📱 Screen Too Small
+          </div>
+          <div style={{ fontSize: '0.875rem' }}>
+            The Meditation Frame Editor requires a larger screen (tablet or desktop) for optimal
+            use. Please use a device with a wider display to access this feature.
           </div>
         </div>
 
@@ -414,9 +350,11 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
             gap: '1.5rem',
             padding: '1.5rem',
             overflow: 'hidden',
-            backgroundColor: '#fff',
+            backgroundColor: 'var(--theme-bg)',
             height: 'calc(100vh - 120px)',
+            minHeight: '600px', // Ensure minimum viable height
           }}
+          className="modal-content"
         >
           {/* Left Column - Audio Preview */}
           <div
@@ -424,8 +362,9 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
               flex: '0 0 350px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '1.5rem',
+              gap: '1rem',
               overflow: 'hidden',
+              height: '100%',
             }}
           >
             {/* Unified Audio Preview Player */}
@@ -443,24 +382,60 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
               <div
                 style={{
                   fontSize: '0.75rem',
-                  color: '#6b7280',
+                  color: 'var(--theme-elevation-600)',
                   textAlign: 'center',
-                  padding: '0.75rem',
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: '6px',
-                  border: '1px solid #e5e7eb',
+                  padding: '1rem',
+                  backgroundColor: 'var(--theme-elevation-50)',
+                  borderRadius: 'var(--style-radius-m)',
+                  border: '1px solid var(--theme-border-color)',
                   width: '320px',
+                  flexShrink: 0,
                 }}
               >
+                <div style={{ fontWeight: '600', marginBottom: '0.5rem', color: 'var(--theme-text)' }}>
+                  📍 Quick Instructions
+                </div>
                 Click any frame to add it at the current audio time ({Math.round(currentTime)}s)
                 {tempFrames.length === 0 && (
                   <>
                     <br />
-                    Your first frame will be set to 0 seconds
+                    <span style={{ fontWeight: '500', color: 'var(--theme-success-400)' }}>
+                      Your first frame will be set to 0 seconds
+                    </span>
                   </>
                 )}
               </div>
             )}
+
+            {/* Frame Count Summary */}
+            {tempFrames.length > 0 && (
+              <div
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--theme-text)',
+                  textAlign: 'center',
+                  padding: '0.75rem',
+                  backgroundColor: 'var(--theme-success-50)',
+                  borderRadius: 'var(--style-radius-m)',
+                  border: '1px solid var(--theme-success-300)',
+                  width: '320px',
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{ fontWeight: '600', marginBottom: '0.25rem', color: 'var(--theme-success-700)' }}>
+                  📊 Progress
+                </div>
+                <div style={{ fontSize: '0.875rem', fontWeight: '500', color: 'var(--theme-success-700)' }}>
+                  {tempFrames.length} frame{tempFrames.length !== 1 ? 's' : ''} added
+                </div>
+                <div style={{ fontSize: '0.625rem', color: 'var(--theme-success-600)', marginTop: '0.25rem' }}>
+                  Longest: {Math.max(...tempFrames.map((f) => f.timestamp))}s
+                </div>
+              </div>
+            )}
+
+            {/* Spacer to push content to top */}
+            <div style={{ flex: 1 }} />
           </div>
 
           {/* Middle Column - Frame Library */}
@@ -470,15 +445,14 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
+              height: '100%',
             }}
           >
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <FrameLibrary
-                narrator={narrator}
-                onFrameSelect={handleFrameSelect}
-                disabled={readOnly}
-              />
-            </div>
+            <FrameLibrary
+              narrator={narrator}
+              onFrameSelect={handleFrameSelect}
+              disabled={readOnly}
+            />
           </div>
 
           {/* Right Column - Current Frames */}
@@ -488,6 +462,7 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden',
+              height: '100%',
             }}
           >
             <FrameManager
@@ -498,6 +473,27 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
           </div>
         </div>
       </FullscreenModal>
+
+      {/* CSS for responsive mobile handling */}
+      <style jsx>{`
+        @media (max-width: 1024px) {
+          .mobile-warning {
+            display: block !important;
+          }
+          .modal-content {
+            display: none !important;
+          }
+        }
+
+        @media (min-width: 1025px) {
+          .mobile-warning {
+            display: none !important;
+          }
+          .modal-content {
+            display: flex !important;
+          }
+        }
+      `}</style>
     </>
   )
 }

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import type { Frame, Narrator } from '@/payload-types'
 import { FRAME_CATEGORIES } from '@/lib/data'
+import FrameItem from './FrameItem'
 
 interface FrameLibraryProps {
   narrator: Narrator | null
@@ -86,15 +87,16 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
   if (isLoading) {
     return (
       <div className="frame-library loading">
-        <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>
+        <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600', color: 'var(--theme-text)' }}>
           Frame Library
         </h4>
         <div
           style={{
             padding: '2rem',
             textAlign: 'center',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '4px',
+            backgroundColor: 'var(--theme-elevation-50)',
+            borderRadius: 'var(--style-radius-m)',
+            color: 'var(--theme-text)',
           }}
         >
           Loading frames...
@@ -106,15 +108,15 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
   if (error) {
     return (
       <div className="frame-library error">
-        <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>
+        <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600', color: 'var(--theme-text)' }}>
           Frame Library
         </h4>
         <div
           style={{
             padding: '1rem',
-            backgroundColor: '#f8d7da',
-            color: '#721c24',
-            borderRadius: '4px',
+            backgroundColor: 'var(--theme-error-50)',
+            color: 'var(--theme-error-950)',
+            borderRadius: 'var(--style-radius-m)',
           }}
         >
           Error: {error}
@@ -124,15 +126,18 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
   }
 
   return (
-    <div className="frame-library">
-      <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>
+    <div
+      className="frame-library"
+      style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+    >
+      <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600', flexShrink: 0, color: 'var(--theme-text)' }}>
         Frame Library ({filteredFrames.length} frames)
         {narrator?.gender && (
           <span
             style={{
               fontSize: '0.875rem',
               fontWeight: 'normal',
-              color: '#666',
+              color: 'var(--theme-elevation-600)',
               marginLeft: '0.5rem',
             }}
           >
@@ -142,8 +147,8 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
       </h4>
 
       {/* Category Filters */}
-      <div className="category-filters" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+      <div className="category-filters" style={{ marginBottom: '16px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
           {FRAME_CATEGORIES.map((category) => (
             <button
               key={category}
@@ -153,10 +158,10 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
               style={{
                 padding: '0.25rem 0.5rem',
                 fontSize: '0.75rem',
-                border: '1px solid #ddd',
+                border: '1px solid var(--theme-border-color)',
                 borderRadius: '12px',
-                backgroundColor: selectedCategories.includes(category) ? '#007bff' : '#fff',
-                color: selectedCategories.includes(category) ? '#fff' : '#333',
+                backgroundColor: selectedCategories.includes(category) ? 'var(--theme-success-400)' : 'var(--theme-bg)',
+                color: selectedCategories.includes(category) ? 'white' : 'var(--theme-text)',
                 cursor: disabled ? 'not-allowed' : 'pointer',
                 opacity: disabled ? 0.6 : 1,
               }}
@@ -164,25 +169,26 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
               {category}
             </button>
           ))}
+          {selectedCategories.length > 0 && (
+            <button
+              type="button"
+              onClick={clearCategoryFilters}
+              disabled={disabled}
+              style={{
+                padding: '0.25rem 0.5rem',
+                fontSize: '0.75rem',
+                backgroundColor: 'transparent',
+                color: 'var(--theme-error-400)',
+                border: 'none',
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                textDecoration: 'underline',
+                marginLeft: '4px',
+              }}
+            >
+              Clear filters
+            </button>
+          )}
         </div>
-        {selectedCategories.length > 0 && (
-          <button
-            type="button"
-            onClick={clearCategoryFilters}
-            disabled={disabled}
-            style={{
-              padding: '0.25rem 0.5rem',
-              fontSize: '0.75rem',
-              backgroundColor: 'transparent',
-              color: '#dc3545',
-              border: 'none',
-              cursor: disabled ? 'not-allowed' : 'pointer',
-              textDecoration: 'underline',
-            }}
-          >
-            Clear filters
-          </button>
-        )}
       </div>
 
       {/* Frames Grid */}
@@ -191,9 +197,14 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
           style={{
             padding: '2rem',
             textAlign: 'center',
-            backgroundColor: '#f8f9fa',
-            border: '1px dashed #ccc',
-            borderRadius: '4px',
+            backgroundColor: 'var(--theme-elevation-50)',
+            border: '1px dashed var(--theme-border-color)',
+            borderRadius: 'var(--style-radius-m)',
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--theme-elevation-600)',
           }}
         >
           {selectedCategories.length > 0
@@ -207,120 +218,29 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
             gap: '16px',
-            maxHeight: '400px',
+            flex: 1,
             overflowY: 'auto',
             padding: '16px',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '4px',
-            border: '1px solid #e0e0e0',
+            backgroundColor: 'var(--theme-elevation-50)',
+            borderRadius: 'var(--style-radius-m)',
+            border: '1px solid var(--theme-border-color)',
+            minHeight: 0, // Allow grid to shrink below content size
           }}
         >
           {filteredFrames.map((frame) => {
             const isClicked = clickedFrameId === frame.id
-            // Use small size for images, fallback to full URL
-            const imageUrl = frame.sizes?.small?.url || frame.url
-            
-            return (
-              <div
-                key={frame.id}
-                className="frame-item"
-                style={{
-                  maxWidth: '160px',
-                  border: isClicked ? '2px solid #28a745' : '1px solid #ddd',
-                  borderRadius: '4px',
-                  backgroundColor: isClicked ? '#f8fff9' : '#fff',
-                  overflow: 'hidden',
-                  cursor: disabled ? 'not-allowed' : 'pointer',
-                  opacity: disabled ? 0.6 : 1,
-                  transition: 'all 0.2s ease-in-out',
-                  transform: isClicked ? 'scale(1.08)' : 'scale(1)',
-                  boxShadow: isClicked ? '0 6px 12px rgba(40, 167, 69, 0.3)' : 'none',
-                }}
-                onClick={() => handleFrameClick(frame)}
-                onMouseEnter={(e) => {
-                  if (!disabled && !isClicked) {
-                    e.currentTarget.style.transform = 'scale(1.05)'
-                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!disabled && !isClicked) {
-                    e.currentTarget.style.transform = 'scale(1)'
-                    e.currentTarget.style.boxShadow = 'none'
-                  }
-                }}
-              >
-                {/* Frame Preview - Square aspect ratio */}
-                <div
-                  style={{
-                    position: 'relative',
-                    width: '160px',
-                    height: '160px',
-                    backgroundColor: '#f0f0f0',
-                  }}
-                >
-                  {imageUrl ? (
-                    frame.mimeType?.startsWith('video/') ? (
-                      <video
-                        src={frame.url || undefined}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
-                        muted
-                        loop
-                        autoPlay={false}
-                        onMouseEnter={(e) => e.currentTarget.play()}
-                        onMouseLeave={(e) => e.currentTarget.pause()}
-                      />
-                    ) : (
-                      <img
-                        src={imageUrl}
-                        alt={frame.category || undefined}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
-                      />
-                    )
-                  ) : (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        color: '#999',
-                        fontSize: '0.75rem',
-                      }}
-                    >
-                      No preview
-                    </div>
-                  )}
-                </div>
 
-                {/* Frame Info */}
-                <div style={{ padding: '0.5rem' }}>
-                  <div style={{ fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.25rem' }}>
-                    {frame.category}
-                    <br />
-                    {frame.tags?.map((f) => (typeof f === 'string' ? f : f.name)).join(', ')}
-                  </div>
-                  {frame.mimeType?.startsWith('video/') && frame.duration && (
-                    <div style={{ fontSize: '0.75rem', color: '#666' }}>
-                      {frame.duration}s video
-                    </div>
-                  )}
-                </div>
-              </div>
+            return (
+              <FrameItem
+                key={frame.id}
+                frame={frame}
+                size={160}
+                overlayValue={frame.mimeType?.startsWith('video/') ? Math.round(frame.duration || 0) : undefined}
+                playOnHover={true}
+                onClick={() => handleFrameClick(frame)}
+                isSelected={isClicked}
+                disabled={disabled}
+              />
             )
           })}
         </div>
