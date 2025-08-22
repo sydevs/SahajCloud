@@ -353,51 +353,6 @@ Each permission entry contains:
 3. **Admin Access**: Available at `/admin` route with user authentication
 4. **API Access**: REST API at `/api/*` (GraphQL is disabled)
 
-## Data Migration
-
-### PostgreSQL to Payload CMS Migration Tool
-
-The project includes a comprehensive migration tool (`src/scripts/migration/`) for transferring data from a PostgreSQL database to Payload CMS. This tool handles:
-
-- **Schema Analysis**: Automatically analyzes PostgreSQL database structure
-- **Interactive Mapping**: Field-by-field mapping with user confirmation
-- **Data Transformation**: Converts comma-separated tags to individual documents
-- **Media Transfer**: Downloads and re-uploads media files to Payload storage
-- **Relationship Mapping**: Maintains foreign key relationships as Payload references
-- **Progress Tracking**: Real-time progress with detailed reporting
-
-#### Quick Start
-
-```bash
-# Interactive migration with mapping configuration
-pnpm tsx src/scripts/migration/index.ts
-
-# Dry run to preview changes
-pnpm tsx src/scripts/migration/index.ts --dry-run
-
-# Schema analysis only
-pnpm tsx src/scripts/migration/index.ts --analyze-only
-```
-
-#### Environment Variables for Migration
-
-```env
-# PostgreSQL Source Database
-PG_HOST=localhost
-PG_PORT=5432
-PG_DATABASE=old_cms
-PG_USER=postgres
-PG_PASSWORD=your_password
-
-# Media Source
-MEDIA_BASE_URL=https://old-site.com/uploads
-
-# Migration Options
-MIGRATION_BATCH_SIZE=100
-```
-
-See `src/scripts/migration/README.md` for comprehensive documentation.
-
 ## Testing Strategy
 
 This project uses a comprehensive testing approach with complete test isolation:
