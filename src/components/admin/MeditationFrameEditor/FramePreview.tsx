@@ -1,8 +1,18 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import type { FrameData } from './types'
-import type { Frame } from '@/payload-types'
+import { useFrameDetails } from './hooks/useFrameDetails'
+import { getCurrentFrame, getNextFrameTimestamp, isVideoFile, getMediaUrl, createFrameKey } from './utils'
+import { COLORS } from './constants'
+import { 
+  ComponentHeader,
+  ComponentHeaderCount,
+  LoadingState,
+  PreviewContainer,
+  TimelineTrack,
+  TimelineMarker
+} from './styled'
 
 interface FramePreviewProps {
   frames: FrameData[]
@@ -17,81 +27,34 @@ const FramePreview: React.FC<FramePreviewProps> = ({
   width = 300,
   height = 225,
 }) => {
-  const [frameDetails, setFrameDetails] = useState<{ [key: string]: Frame }>({})
-  const [isLoading, setIsLoading] = useState(false)
-
-  // Load frame details
-  useEffect(() => {
-    const loadFrameDetails = async () => {
-      const frameIds = frames.map((f) => f.frame)
-      const missingIds = frameIds.filter((id) => !frameDetails[id])
-
-      if (missingIds.length === 0) return
-
-      setIsLoading(true)
-      try {
-        const promises = missingIds.map(async (id) => {
-          try {
-            const response = await fetch(`/api/frames/${id}`)
-            if (response.ok) {
-              const frame = await response.json()
-              return { id, frame }
-            }
-          } catch (error) {
-            console.error(`Failed to load frame ${id}:`, error)
-          }
-          return null
-        })
-
-        const results = await Promise.all(promises)
-        const newFrameDetails = { ...frameDetails }
-
-        results.forEach((result) => {
-          if (result) {
-            newFrameDetails[result.id] = result.frame
-          }
-        })
-
-        setFrameDetails(newFrameDetails)
-      } catch (error) {
-        console.error('Failed to load frame details:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadFrameDetails()
-  }, [frames, frameDetails])
+  const frameIds = frames.map(f => f.frame)
+  const { frameDetails, isLoading } = useFrameDetails(frameIds)
 
   // Find the current frame based on audio timestamp
-  const currentFrame = useMemo(() => {
-    if (frames.length === 0) return null
-
-    // Sort frames by timestamp
-    const sortedFrames = [...frames].sort((a, b) => a.timestamp - b.timestamp)
-
-    // Find the latest frame that should be showing at the current time
-    let activeFrame = null
-    for (const frame of sortedFrames) {
-      if (frame.timestamp <= currentTime) {
-        activeFrame = frame
-      } else {
-        break // Frames are sorted, so we can stop here
-      }
-    }
-
-    return activeFrame
-  }, [frames, currentTime])
-
+  const currentFrame = getCurrentFrame(frames, currentTime)
   const currentFrameDetails = currentFrame ? frameDetails[currentFrame.frame] : null
+  const nextFrameTime = getNextFrameTimestamp(frames, currentTime)
+
+  // Timeline visualization
+  const timelineConfig = useMemo(() => {
+    const maxTime = Math.max(...frames.map((f) => f.timestamp), 60)
+    return {
+      maxTime,
+      currentTimePosition: (currentTime / maxTime) * 100,
+      framePositions: frames.map((frame, index) => ({
+        frame,
+        index,
+        position: (frame.timestamp / maxTime) * 100,
+        isActive: frame === currentFrame,
+      })),
+    }
+  }, [frames, currentTime, currentFrame])
 
   // No frames available
   if (frames.length === 0) {
     return (
-      <div className="frame-preview">
-        <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>
-          Live Preview
-        </h4>
+      <div>
+        <ComponentHeader>Live Preview</ComponentHeader>
         <div
           style={{
             width: `${width}px`,
@@ -121,25 +84,11 @@ const FramePreview: React.FC<FramePreviewProps> = ({
   // Loading frame details
   if (isLoading && Object.keys(frameDetails).length === 0) {
     return (
-      <div className="frame-preview">
-        <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>
-          Live Preview
-        </h4>
-        <div
-          style={{
-            width: `${width}px`,
-            height: `${height}px`,
-            backgroundColor: '#f8f9fa',
-            border: '1px solid #dee2e6',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#6c757d',
-          }}
-        >
+      <div>
+        <ComponentHeader>Live Preview</ComponentHeader>
+        <LoadingState style={{ width: `${width}px`, height: `${height}px` }}>
           Loading frames...
-        </div>
+        </LoadingState>
       </div>
     )
   }
@@ -147,10 +96,8 @@ const FramePreview: React.FC<FramePreviewProps> = ({
   // No current frame at this timestamp
   if (!currentFrame) {
     return (
-      <div className="frame-preview">
-        <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>
-          Live Preview
-        </h4>
+      <div>
+        <ComponentHeader>Live Preview</ComponentHeader>
         <div
           style={{
             width: `${width}px`,
@@ -168,11 +115,12 @@ const FramePreview: React.FC<FramePreviewProps> = ({
           }}
         >
           <div style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>⏱️</div>
-          <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>No frame at {currentTime}s</div>
-          <div style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
-            Next frame at{' '}
-            {Math.min(...frames.filter((f) => f.timestamp > currentTime).map((f) => f.timestamp))}s
-          </div>
+          <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>No frame at {Math.round(currentTime)}s</div>
+          {nextFrameTime && (
+            <div style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+              Next frame at {nextFrameTime}s
+            </div>
+          )}
         </div>
       </div>
     )
@@ -180,36 +128,22 @@ const FramePreview: React.FC<FramePreviewProps> = ({
 
   // Show current frame
   return (
-    <div className="frame-preview">
-      <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600' }}>
+    <div>
+      <ComponentHeader>
         Live Preview
-        <span
-          style={{
-            fontSize: '0.875rem',
-            fontWeight: 'normal',
-            color: '#666',
-            marginLeft: '0.5rem',
-          }}
-        >
-          ({currentTime}s)
-        </span>
-      </h4>
+        <ComponentHeaderCount>
+          ({Math.round(currentTime)}s)
+        </ComponentHeaderCount>
+      </ComponentHeader>
 
-      <div
-        style={{
-          width: `${width}px`,
-          height: `${height}px`,
-          backgroundColor: '#000',
-          borderRadius: '8px',
-          overflow: 'hidden',
-          position: 'relative',
-          border: '1px solid #dee2e6',
-        }}
+      <PreviewContainer
+        $width={width}
+        $height={height}
       >
         {currentFrameDetails?.url ? (
-          currentFrameDetails.mimeType?.startsWith('video/') ? (
+          isVideoFile(currentFrameDetails.mimeType || undefined) ? (
             <video
-              src={currentFrameDetails.url}
+              src={currentFrameDetails.url || ''}
               style={{
                 width: '100%',
                 height: '100%',
@@ -221,7 +155,7 @@ const FramePreview: React.FC<FramePreviewProps> = ({
             />
           ) : (
             <img
-              src={currentFrameDetails.sizes?.medium?.url || currentFrameDetails.url}
+              src={getMediaUrl(currentFrameDetails, 'medium') || currentFrameDetails.url || ''}
               alt={currentFrameDetails.category}
               style={{
                 width: '100%',
@@ -265,11 +199,12 @@ const FramePreview: React.FC<FramePreviewProps> = ({
           <div style={{ opacity: 0.8 }}>
             Frame {frames.findIndex((f) => f === currentFrame) + 1} of {frames.length} •{' '}
             {currentFrame.timestamp}s
-            {currentFrameDetails?.mimeType?.startsWith('video/') &&
-              currentFrameDetails.duration && <span> • {currentFrameDetails.duration}s video</span>}
+            {currentFrameDetails && isVideoFile(currentFrameDetails.mimeType || undefined) && currentFrameDetails.duration && (
+              <span> • {currentFrameDetails.duration}s video</span>
+            )}
           </div>
         </div>
-      </div>
+      </PreviewContainer>
 
       {/* Frame timeline indicator */}
       <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#666' }}>
@@ -279,54 +214,31 @@ const FramePreview: React.FC<FramePreviewProps> = ({
             {frames.length} frame{frames.length !== 1 ? 's' : ''}
           </span>
         </div>
-        <div
-          style={{
-            width: '100%',
-            height: '4px',
-            backgroundColor: '#e9ecef',
-            borderRadius: '2px',
-            position: 'relative',
-          }}
-        >
+        <TimelineTrack>
           {/* Frame position indicators */}
-          {frames.map((frame, index) => {
-            const maxTime = Math.max(...frames.map((f) => f.timestamp), 60) // At least 60s for visualization
-            const position = (frame.timestamp / maxTime) * 100
-            const isActive = frame === currentFrame
-
-            return (
-              <div
-                key={`${frame.frame}-${frame.timestamp}`}
-                style={{
-                  position: 'absolute',
-                  left: `${position}%`,
-                  top: 0,
-                  width: '4px',
-                  height: '4px',
-                  backgroundColor: isActive ? '#007bff' : '#6c757d',
-                  borderRadius: '2px',
-                  transform: 'translateX(-2px)',
-                  zIndex: isActive ? 2 : 1,
-                }}
-                title={`Frame ${index + 1}: ${frame.timestamp}s - ${currentFrameDetails?.category || 'Unknown'}`}
-              />
-            )
-          })}
+          {timelineConfig.framePositions.map(({ frame, index, position, isActive }) => (
+            <TimelineMarker
+              key={createFrameKey(frame.frame, frame.timestamp)}
+              $left={position}
+              $isActive={isActive}
+              title={`Frame ${index + 1}: ${frame.timestamp}s - ${frameDetails[frame.frame]?.category || 'Unknown'}`}
+            />
+          ))}
 
           {/* Current time indicator */}
           <div
             style={{
               position: 'absolute',
-              left: `${(currentTime / Math.max(...frames.map((f) => f.timestamp), 60)) * 100}%`,
+              left: `${timelineConfig.currentTimePosition}%`,
               top: '-2px',
               width: '2px',
               height: '8px',
-              backgroundColor: '#dc3545',
+              backgroundColor: COLORS.ERROR,
               transform: 'translateX(-1px)',
               zIndex: 3,
             }}
           />
-        </div>
+        </TimelineTrack>
       </div>
     </div>
   )

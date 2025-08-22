@@ -1,284 +1,459 @@
 'use client'
 
-import React, { useRef, useEffect, useState, useCallback } from 'react'
-import type { AudioPlayerState, FrameData } from './types'
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useImperativeHandle,
+  useCallback,
+  forwardRef,
+} from 'react'
+import type { FrameData } from './types'
+import { useFrameDetails } from './hooks/useFrameDetails'
+import {
+  getCurrentFrame,
+  isVideoFile,
+  getMediaUrl,
+} from './utils'
+import { SIZES } from './constants'
+import {
+  AudioPlayerContainer,
+  AudioPreview,
+  EmptyState,
+} from './styled'
 
 interface AudioPlayerProps {
-  audioUrl: string
+  audioUrl: string | null
   frames: FrameData[]
-  onTimeChange?: (currentTime: number) => void
+  onTimeChange?: (time: number) => void
   onSeek?: (time: number) => void
+  size?: 'small' | 'large'
+  className?: string
+  enableHotkeys?: boolean
+  showPreview?: boolean
 }
 
-const AudioPlayer: React.FC<AudioPlayerProps> = ({
-  audioUrl,
-  frames,
-  onTimeChange,
-  onSeek,
-}) => {
-  const audioRef = useRef<HTMLAudioElement>(null)
-  const timelineRef = useRef<HTMLDivElement>(null)
-  const [state, setState] = useState<AudioPlayerState>({
-    isPlaying: false,
-    currentTime: 0,
-    duration: 0,
-    isLoaded: false,
-    isLoading: true,
-  })
+export interface AudioPlayerRef {
+  pause: () => void
+}
 
-  // Stable reference to the latest onTimeChange without causing re-renders
-  const onTimeChangeRef = useRef(onTimeChange)
-  useEffect(() => {
-    onTimeChangeRef.current = onTimeChange
-  }, [onTimeChange])
+const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
+  (
+    {
+      audioUrl,
+      frames,
+      onTimeChange,
+      onSeek,
+      size = 'large',
+      className = '',
+      enableHotkeys = false,
+      showPreview = false,
+    },
+    ref,
+  ) => {
+    const audioRef = useRef<HTMLAudioElement>(null)
+    const progressRef = useRef<HTMLDivElement>(null)
+    const [isPlaying, setIsPlaying] = useState(false)
+    const [currentTime, setCurrentTime] = useState(0)
+    const [duration, setDuration] = useState(0)
+    const [isLoaded, setIsLoaded] = useState(false)
+    const [audioBlob, setAudioBlob] = useState<string | null>(null)
+    const [loadingBlob, setLoadingBlob] = useState(false)
 
-  // Stable update function that doesn't depend on external callbacks
-  const stableUpdateCurrentTime = useCallback(() => {
-    if (audioRef.current) {
-      const currentTime = Math.floor(audioRef.current.currentTime) // Whole seconds
-      setState(prev => ({ ...prev, currentTime }))
-      onTimeChangeRef.current?.(currentTime)
-    }
-  }, [])
+    const frameIds = frames.map((f) => f.frame)
+    const { frameDetails } = useFrameDetails(frameIds)
 
-  // Handle audio events
-  useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) return
+    // Size configurations
+    const config = {
+      small: {
+        preview: SIZES.SMALL_PREVIEW,
+        fontSize: '0.75rem',
+      },
+      large: {
+        preview: SIZES.LARGE_PREVIEW,
+        fontSize: '0.875rem',
+      },
+    }[size]
 
-    const handleLoadStart = () => {
-      setState(prev => ({ ...prev, isLoading: true, isLoaded: false }))
-    }
+    // Find current frame
+    const currentFrame = getCurrentFrame(frames, currentTime)
+    const currentFrameDetails = currentFrame ? frameDetails[currentFrame.frame] : null
 
+    // Load audio as blob to enable proper seeking
+    useEffect(() => {
+      if (!audioUrl) return
+
+      // Don't reload if already loading the same URL
+      if (loadingBlob) return
+
+      const loadAudioBlob = async () => {
+        setLoadingBlob(true)
+        try {
+          const response = await fetch(audioUrl)
+          if (!response.ok) throw new Error('Failed to load audio')
+          
+          const blob = await response.blob()
+          const blobUrl = URL.createObjectURL(blob)
+          setAudioBlob(blobUrl)
+        } catch (error) {
+          console.warn('Failed to load audio as blob, using direct URL:', error)
+          setAudioBlob(audioUrl) // Fallback to direct URL
+        } finally {
+          setLoadingBlob(false)
+        }
+      }
+
+      loadAudioBlob()
+
+      // Cleanup blob URL on unmount or URL change
+      return () => {
+        // We'll clean up the previous blob URL when setting a new one
+      }
+    }, [audioUrl, loadingBlob])
+
+    // Cleanup blob URL when component unmounts
+    useEffect(() => {
+      return () => {
+        if (audioBlob && audioBlob.startsWith('blob:')) {
+          URL.revokeObjectURL(audioBlob)
+        }
+      }
+    }, [audioBlob])
+
+    // Expose pause function via ref
+    useImperativeHandle(
+      ref,
+      () => ({
+        pause: () => {
+          if (audioRef.current && isPlaying) {
+            audioRef.current.pause()
+          }
+        },
+      }),
+      [isPlaying],
+    )
+
+    // Audio event handlers
     const handleLoadedMetadata = () => {
-      setState(prev => ({
-        ...prev,
-        duration: Math.floor(audio.duration),
-        isLoaded: true,
-        isLoading: false,
-      }))
+      if (audioRef.current) {
+        setDuration(audioRef.current.duration)
+        setIsLoaded(true)
+      }
     }
 
-    const handleTimeUpdate = stableUpdateCurrentTime
-
-    const handlePlay = () => {
-      setState(prev => ({ ...prev, isPlaying: true }))
+    const handleTimeUpdate = () => {
+      if (audioRef.current) {
+        const time = audioRef.current.currentTime
+        setCurrentTime(time)
+        onTimeChange?.(time)
+      }
     }
 
-    const handlePause = () => {
-      setState(prev => ({ ...prev, isPlaying: false }))
+    const handlePlay = () => setIsPlaying(true)
+    const handlePause = () => setIsPlaying(false)
+    const handleEnded = () => setIsPlaying(false)
+
+    // Seeking with retry mechanism
+    const seekTo = useCallback(async (newTime: number) => {
+      if (!audioRef.current || !duration) return
+
+      const clampedTime = Math.max(0, Math.min(newTime, duration))
+      
+      try {
+        // Wait for audio to be ready if needed
+        if (audioRef.current.readyState < 2) {
+          await new Promise<void>((resolve) => {
+            const handleCanPlay = () => {
+              audioRef.current?.removeEventListener('canplay', handleCanPlay)
+              resolve()
+            }
+            audioRef.current?.addEventListener('canplay', handleCanPlay)
+          })
+        }
+
+        audioRef.current.currentTime = clampedTime
+        setCurrentTime(clampedTime)
+        onSeek?.(clampedTime)
+      } catch (error) {
+        console.warn('Seek failed:', error)
+      }
+    }, [duration, onSeek])
+
+    // Progress bar click handler
+    const handleProgressClick = (e: React.MouseEvent) => {
+      if (!progressRef.current || !duration) return
+
+      const rect = progressRef.current.getBoundingClientRect()
+      const percentage = (e.clientX - rect.left) / rect.width
+      const newTime = percentage * duration
+      seekTo(newTime)
     }
 
-    const handleEnded = () => {
-      setState(prev => ({ ...prev, isPlaying: false, currentTime: 0 }))
+    // Frame marker click handler
+    const handleMarkerClick = (timestamp: number) => {
+      seekTo(timestamp)
     }
 
-    const handleError = () => {
-      setState(prev => ({ ...prev, isLoading: false, isLoaded: false }))
-    }
+    // Toggle play/pause
+    const togglePlayPause = useCallback(() => {
+      if (!audioRef.current) return
 
-    // Add event listeners
-    audio.addEventListener('loadstart', handleLoadStart)
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
-    audio.addEventListener('timeupdate', handleTimeUpdate)
-    audio.addEventListener('play', handlePlay)
-    audio.addEventListener('pause', handlePause)
-    audio.addEventListener('ended', handleEnded)
-    audio.addEventListener('error', handleError)
-
-    return () => {
-      // Cleanup event listeners
-      audio.removeEventListener('loadstart', handleLoadStart)
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
-      audio.removeEventListener('timeupdate', handleTimeUpdate)
-      audio.removeEventListener('play', handlePlay)
-      audio.removeEventListener('pause', handlePause)
-      audio.removeEventListener('ended', handleEnded)
-      audio.removeEventListener('error', handleError)
-    }
-  }, [stableUpdateCurrentTime])
-
-  // Play/Pause toggle
-  const togglePlayPause = () => {
-    if (audioRef.current) {
-      if (state.isPlaying) {
+      if (isPlaying) {
         audioRef.current.pause()
       } else {
         audioRef.current.play()
       }
+    }, [isPlaying])
+
+    // Format time display
+    const formatTime = (time: number) => {
+      if (!isFinite(time)) return '0:00'
+      const minutes = Math.floor(time / 60)
+      const seconds = Math.floor(time % 60).toString().padStart(2, '0')
+      return `${minutes}:${seconds}`
     }
-  }
 
-  // Seek to specific time
-  const seekTo = (time: number) => {
-    if (audioRef.current && state.isLoaded) {
-      const clampedTime = Math.max(0, Math.min(time, state.duration))
-      
-      // Set the audio time first
-      audioRef.current.currentTime = clampedTime
-      
-      // Update state immediately to prevent visual flicker
-      setState(prev => ({ ...prev, currentTime: Math.floor(clampedTime) }))
-      
-      // Notify parent of the seek operation
-      onSeek?.(Math.floor(clampedTime))
+    // Keyboard shortcuts
+    useEffect(() => {
+      if (size === 'small' || !enableHotkeys) return
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (!audioRef.current || !duration) return
+
+        // Don't handle if user is typing in an input
+        const target = event.target as Element
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+
+        switch (event.code) {
+          case 'Space':
+            event.preventDefault()
+            togglePlayPause()
+            break
+          case 'ArrowLeft':
+            event.preventDefault()
+            seekTo(Math.max(0, currentTime - 5))
+            break
+          case 'ArrowRight':
+            event.preventDefault()
+            seekTo(Math.min(duration, currentTime + 5))
+            break
+        }
+      }
+
+      document.addEventListener('keydown', handleKeyDown)
+      return () => document.removeEventListener('keydown', handleKeyDown)
+    }, [currentTime, duration, enableHotkeys, size, seekTo, togglePlayPause])
+
+    if (!audioUrl) {
+      return (
+        <AudioPlayerContainer className={className} $width={config.preview}>
+          <EmptyState $fontSize={config.fontSize}>No audio file uploaded</EmptyState>
+        </AudioPlayerContainer>
+      )
     }
-  }
 
-  // Handle timeline click
-  const handleTimelineClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!timelineRef.current || !state.isLoaded) return
+    const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0
 
-    const rect = timelineRef.current.getBoundingClientRect()
-    const clickX = event.clientX - rect.left
-    const timelineWidth = rect.width
-    
-    // Ensure we have valid dimensions
-    if (timelineWidth <= 0 || clickX < 0 || clickX > timelineWidth) return
-    
-    const clickTime = (clickX / timelineWidth) * state.duration
-    
-    // Clamp the click time to valid range
-    const clampedClickTime = Math.max(0, Math.min(clickTime, state.duration))
-    
-    seekTo(clampedClickTime)
-  }
+    return (
+      <>
+        <AudioPlayerContainer className={className} $width={config.preview}>
+          {/* Preview Area */}
+          {showPreview && (
+            <AudioPreview $width={config.preview} $height={config.preview}>
+              {currentFrameDetails ? (
+                isVideoFile(currentFrameDetails.mimeType || undefined) ? (
+                  <video
+                    src={currentFrameDetails.url || ''}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                    loop
+                    muted
+                    autoPlay
+                    playsInline
+                  />
+                ) : (
+                  <img
+                    src={getMediaUrl(currentFrameDetails, 'medium') || undefined}
+                    alt={currentFrameDetails.category}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                )
+              ) : (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    color: '#6c757d',
+                    fontSize: config.fontSize,
+                    padding: '1rem',
+                  }}
+                >
+                  {frames.length === 0 ? 'No frames added' : 'Loading...'}
+                </div>
+              )}
 
-  // Format time display (MM:SS)
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
+              {/* Frame info overlay */}
+              {currentFrameDetails && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)',
+                    padding: '0.5rem',
+                    color: 'white',
+                    fontSize: config.fontSize,
+                  }}
+                >
+                  <div style={{ fontWeight: '500' }}>{currentFrameDetails.category}</div>
+                  {frames.length > 1 && (
+                    <div style={{ fontSize: '0.625rem', opacity: 0.8 }}>
+                      Frame{' '}
+                      {frames.findIndex(
+                        (f) => frameDetails[f.frame]?.id === currentFrameDetails.id,
+                      ) + 1}{' '}
+                      of {frames.length}
+                    </div>
+                  )}
+                </div>
+              )}
+            </AudioPreview>
+          )}
 
-  // Calculate progress percentage
-  const progressPercentage = state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0
-
-  return (
-    <div className="audio-player">
-      <audio
-        ref={audioRef}
-        src={audioUrl}
-        preload="metadata"
-        style={{ display: 'none' }}
-      />
-
-      {/* Controls */}
-      <div className="audio-controls">
-        <button
-          type="button"
-          onClick={togglePlayPause}
-          disabled={!state.isLoaded}
-          className="play-pause-btn"
-          style={{
-            padding: '0.5rem 1rem',
-            marginRight: '1rem',
-            backgroundColor: state.isLoaded ? 'var(--theme-success-400)' : 'var(--theme-elevation-200)',
-            color: state.isLoaded ? 'white' : 'var(--theme-elevation-600)',
-            border: 'none',
-            borderRadius: 'var(--style-radius-m)',
-            cursor: state.isLoaded ? 'pointer' : 'not-allowed',
-          }}
-        >
-          {state.isLoading ? '...' : state.isPlaying ? 'Pause' : 'Play'}
-        </button>
-
-        <span className="time-display" style={{ marginRight: '1rem', fontFamily: 'monospace', color: 'var(--theme-text)' }}>
-          {formatTime(state.currentTime)} / {formatTime(state.duration)}
-        </span>
-
-        {state.isLoaded && (
-          <span className="current-time-display" style={{ fontSize: '0.875rem', color: 'var(--theme-elevation-600)' }}>
-            Current: {state.currentTime}s
-          </span>
-        )}
-      </div>
-
-      {/* Timeline */}
-      <div className="timeline-container" style={{ marginTop: '1rem' }}>
-        <div
-          ref={timelineRef}
-          className="timeline"
-          onClick={handleTimelineClick}
-          style={{
-            width: '100%',
-            height: '30px',
-            backgroundColor: 'var(--theme-elevation-100)',
-            borderRadius: '15px',
-            position: 'relative',
-            cursor: state.isLoaded ? 'pointer' : 'not-allowed',
-            border: '1px solid var(--theme-border-color)',
-          }}
-        >
-          {/* Progress bar */}
+          {/* Audio Player Controls */}
           <div
-            className="timeline-progress"
             style={{
-              width: `${progressPercentage}%`,
-              height: '100%',
-              backgroundColor: 'var(--theme-success-400)',
-              borderRadius: '15px',
-              transition: 'width 0.1s ease',
+              padding: '1rem',
+              backgroundColor: '#f9fafb',
+              border: '1px solid #e5e7eb',
+              borderRadius: '0.5rem',
             }}
-          />
+          >
+            <audio
+              ref={audioRef}
+              src={audioBlob || audioUrl}
+              onLoadedMetadata={handleLoadedMetadata}
+              onTimeUpdate={handleTimeUpdate}
+              onPlay={handlePlay}
+              onPause={handlePause}
+              onEnded={handleEnded}
+              preload="metadata"
+            />
 
-          {/* Frame markers */}
-          {state.isLoaded && frames.map((frame, index) => {
-            const markerPosition = (frame.timestamp / state.duration) * 100
-            return (
-              <div
-                key={`marker-${frame.frame}-${frame.timestamp}`}
-                className="frame-marker"
+            {/* Controls Row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={togglePlayPause}
+                disabled={!isLoaded || loadingBlob}
                 style={{
-                  position: 'absolute',
-                  left: `${markerPosition}%`,
-                  top: '0',
-                  width: '2px',
-                  height: '100%',
-                  backgroundColor: 'var(--theme-warning-400)',
-                  zIndex: 2,
+                  width: size === 'large' ? '48px' : '36px',
+                  height: size === 'large' ? '48px' : '36px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  fontSize: size === 'large' ? '1.5rem' : '1rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
-                title={`Frame ${index + 1} at ${frame.timestamp}s`}
+              >
+                {loadingBlob ? '...' : isPlaying ? '⏸' : '▶'}
+              </button>
+
+              <div style={{ fontSize: config.fontSize, color: '#4b5563' }}>
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div
+              ref={progressRef}
+              onClick={handleProgressClick}
+              style={{
+                position: 'relative',
+                height: size === 'large' ? '8px' : '6px',
+                backgroundColor: '#e5e7eb',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
+            >
+              {/* Progress Fill */}
+              <div
+                style={{
+                  width: `${progressPercentage}%`,
+                  height: '100%',
+                  backgroundColor: '#3b82f6',
+                  borderRadius: '4px',
+                  transition: 'width 0.1s ease',
+                }}
               />
-            )
-          })}
 
-          {/* Current time indicator */}
+              {/* Frame Markers */}
+              {duration > 0 &&
+                frames.map((frame, index) => (
+                  <div
+                    key={`${frame.frame}-${frame.timestamp}-${index}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleMarkerClick(frame.timestamp)
+                    }}
+                    title={`Frame at ${frame.timestamp}s`}
+                    style={{
+                      position: 'absolute',
+                      left: `${(frame.timestamp / duration) * 100}%`,
+                      top: '-4px',
+                      width: '3px',
+                      height: '16px',
+                      backgroundColor: '#f97316',
+                      cursor: 'pointer',
+                      transform: 'translateX(-50%)',
+                      opacity: 0.85,
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.opacity = '1'
+                      e.currentTarget.style.transform = 'translateX(-50%) scale(1.2)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.opacity = '0.85'
+                      e.currentTarget.style.transform = 'translateX(-50%) scale(1)'
+                    }}
+                  />
+                ))}
+            </div>
+          </div>
+        </AudioPlayerContainer>
+
+        {/* Keyboard shortcuts help */}
+        {size === 'large' && audioUrl && enableHotkeys && (
           <div
-            className="time-indicator"
             style={{
-              position: 'absolute',
-              left: `${progressPercentage}%`,
-              top: '-5px',
-              width: '2px',
-              height: '40px',
-              backgroundColor: 'var(--theme-error-400)',
-              zIndex: 3,
-              transform: 'translateX(-1px)',
+              fontSize: '0.75rem',
+              color: '#6c757d',
+              marginTop: '0.5rem',
+              fontStyle: 'italic',
             }}
-          />
-        </div>
+          >
+            <strong>Keyboard Shortcuts:</strong>
+            <br />
+            Space: Play/Pause • ←→: ±5s
+          </div>
+        )}
+      </>
+    )
+  },
+)
 
-        {/* Timeline labels */}
-        <div className="timeline-labels" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--theme-elevation-600)' }}>
-          <span>0:00</span>
-          <span>{formatTime(state.duration)}</span>
-        </div>
-      </div>
-
-      {/* Status */}
-      {state.isLoading && (
-        <div className="loading-status" style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--theme-elevation-600)' }}>
-          Loading audio...
-        </div>
-      )}
-      {!state.isLoaded && !state.isLoading && (
-        <div className="error-status" style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--theme-error-400)' }}>
-          Failed to load audio file
-        </div>
-      )}
-    </div>
-  )
-}
+AudioPlayer.displayName = 'AudioPlayer'
 
 export default AudioPlayer

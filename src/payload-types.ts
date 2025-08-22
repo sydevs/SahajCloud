@@ -76,7 +76,6 @@ export interface Config {
     'media-tags': MediaTag;
     'meditation-tags': MeditationTag;
     'music-tags': MusicTag;
-    'frame-tags': FrameTag;
     users: User;
     clients: Client;
     'payload-jobs': PayloadJob;
@@ -94,9 +93,6 @@ export interface Config {
     'music-tags': {
       music: 'music';
     };
-    'frame-tags': {
-      frames: 'frames';
-    };
   };
   collectionsSelect: {
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
@@ -107,7 +103,6 @@ export interface Config {
     'media-tags': MediaTagsSelect<false> | MediaTagsSelect<true>;
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
     'music-tags': MusicTagsSelect<false> | MusicTagsSelect<true>;
-    'frame-tags': FrameTagsSelect<false> | FrameTagsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
     clients: ClientsSelect<false> | ClientsSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
@@ -422,7 +417,35 @@ export interface Frame {
     | 'meditate'
     | 'ready'
     | 'namaste';
-  tags?: (string | FrameTag)[] | null;
+  tags?:
+    | (
+        | 'anahat'
+        | 'back'
+        | 'bandhan'
+        | 'both hands'
+        | 'center'
+        | 'channel'
+        | 'earth'
+        | 'ego'
+        | 'feel'
+        | 'ham ksham'
+        | 'hamsa'
+        | 'hand'
+        | 'hands'
+        | 'ida'
+        | 'left'
+        | 'lefthanded'
+        | 'massage'
+        | 'pingala'
+        | 'raise'
+        | 'right'
+        | 'righthanded'
+        | 'rising'
+        | 'silent'
+        | 'superego'
+        | 'tapping'
+      )[]
+    | null;
   /**
    * Auto-populated dimensions for images (width/height)
    */
@@ -476,21 +499,6 @@ export interface Frame {
       filename?: string | null;
     };
   };
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "frame-tags".
- */
-export interface FrameTag {
-  id: string;
-  name: string;
-  frames?: {
-    docs?: (string | Frame)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  updatedAt: string;
-  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -771,10 +779,6 @@ export interface PayloadLockedDocument {
         value: string | MusicTag;
       } | null)
     | ({
-        relationTo: 'frame-tags';
-        value: string | FrameTag;
-      } | null)
-    | ({
         relationTo: 'users';
         value: string | User;
       } | null)
@@ -1041,16 +1045,6 @@ export interface MusicTagsSelect<T extends boolean = true> {
   name?: T;
   title?: T;
   music?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "frame-tags_select".
- */
-export interface FrameTagsSelect<T extends boolean = true> {
-  name?: T;
-  frames?: T;
   updatedAt?: T;
   createdAt?: T;
 }
