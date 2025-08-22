@@ -68,7 +68,6 @@ class SimpleImporter {
   private idMaps = {
     meditationTags: new Map<number, string>(),
     musicTags: new Map<number, string>(),
-    frameTags: new Map<string, string>(), // tag name -> frame-tag ID
     frames: new Map<string, string>(),
     meditations: new Map<number, string>(),
     musics: new Map<number, string>(),
@@ -81,7 +80,6 @@ class SimpleImporter {
     narrators: { created: 0, existing: 0, updated: 0 },
     meditationTags: { created: 0, existing: 0, updated: 0 },
     musicTags: { created: 0, existing: 0, updated: 0 },
-    frameTags: { created: 0, existing: 0, updated: 0 },
     frames: { created: 0, existing: 0, updated: 0, skipped: 0 },
     music: { created: 0, existing: 0, updated: 0 },
     meditations: { created: 0, existing: 0, updated: 0 },
@@ -202,8 +200,7 @@ class SimpleImporter {
       await this.importTags(data.tags)
       await this.saveIdMappingsToCache()
 
-      await this.importFrameTags(data.frames)
-      await this.saveIdMappingsToCache()
+      // Frame tags are now handled as multi-select values, no separate collection needed
 
       await this.importFrames(data.frames, data.attachments, data.blobs)
       await this.saveIdMappingsToCache()
@@ -311,11 +308,6 @@ class SimpleImporter {
           Object.entries(cached.musicTags).map(([k, v]) => [parseInt(k), v as string]),
         )
       }
-      if (cached.frameTags) {
-        this.idMaps.frameTags = new Map(
-          Object.entries(cached.frameTags).map(([k, v]) => [k, v as string]),
-        )
-      }
       if (cached.frames) {
         this.idMaps.frames = new Map(
           Object.entries(cached.frames).map(([k, v]) => [k, v as string]),
@@ -351,7 +343,6 @@ class SimpleImporter {
     const cache = {
       meditationTags: Object.fromEntries(this.idMaps.meditationTags),
       musicTags: Object.fromEntries(this.idMaps.musicTags),
-      frameTags: Object.fromEntries(this.idMaps.frameTags),
       frames: Object.fromEntries(this.idMaps.frames),
       meditations: Object.fromEntries(this.idMaps.meditations),
       musics: Object.fromEntries(this.idMaps.musics),
@@ -964,79 +955,6 @@ class SimpleImporter {
     )
   }
 
-  private async importFrameTags(frames: ImportedData['frames']) {
-    console.log('\nImporting frame tags...')
-
-    // Collect all unique frame tags from the old data
-    const uniqueTags = new Set<string>()
-    frames.forEach((frame) => {
-      if (frame.tags) {
-        const tags = frame.tags
-          .split(',')
-          .map((t) => t.trim().toLowerCase())
-          .filter(Boolean)
-        tags.forEach((tag) => uniqueTags.add(tag))
-      }
-    })
-
-    // Load existing frame tags
-    const existingFrameTags = await this.payload.find({
-      collection: 'frame-tags',
-      limit: 1000,
-    })
-
-    const existingByName = new Map<string, any>()
-    existingFrameTags.docs.forEach((tag: any) => {
-      // Handle both localized and non-localized name fields
-      const name = typeof tag.name === 'string' ? tag.name : tag.name?.en
-      if (name) {
-        existingByName.set(name.toLowerCase(), tag)
-      }
-    })
-
-    let createdCount = 0
-    let foundCount = 0
-
-    // Create frame tags
-    const tagNamesArray = Array.from(uniqueTags)
-    for (const tagName of tagNamesArray) {
-      // Rename "anahat" to "heart" for frame tags
-      const displayName = tagName === 'anahat' ? 'heart' : tagName
-
-      const existing = existingByName.get(displayName)
-
-      if (existing) {
-        // Map the original tag name to the ID for later use
-        this.idMaps.frameTags.set(tagName, String(existing.id))
-        console.log(`    ✓ Found existing frame tag: ${displayName}`)
-        foundCount++
-      } else {
-        try {
-          const created = await this.payload.create({
-            collection: 'frame-tags',
-            data: {
-              name: displayName, // Will be handled as localized field by Payload
-            },
-          })
-          // Map the original tag name to the ID for later use
-          this.idMaps.frameTags.set(tagName, String(created.id))
-          console.log(`    ✓ Created frame tag: ${displayName}`)
-          createdCount++
-        } catch (error: any) {
-          this.addWarning(`Failed to create frame tag ${displayName}: ${error.message}`)
-        }
-      }
-    }
-
-    // Update summary
-    this.summary.frameTags.created = createdCount
-    this.summary.frameTags.existing = foundCount
-
-    console.log(
-      `✓ Processed ${uniqueTags.size} frame tags (${createdCount} created, ${foundCount} existing)`,
-    )
-  }
-
   private async importFrames(frames: ImportedData['frames'], attachments: any[], blobs: any[]) {
     console.log('\nImporting frames...')
 
@@ -1076,10 +994,8 @@ class SimpleImporter {
             .filter(Boolean)
         : []
 
-      // Convert tag names to tag IDs for relationships
-      const tagIds = frameTagNames
-        .map((tagName) => this.idMaps.frameTags.get(tagName))
-        .filter(Boolean)
+      // Frame tags are now stored directly as values (multi-select field)
+      const tagValues = frameTagNames
 
       // Get frame attachments (should have both male and female)
       const frameAttachments = this.getAttachmentsForRecord('Frame', frame.id, attachments, blobs)
@@ -1094,7 +1010,7 @@ class SimpleImporter {
         const frameData = {
           imageSet: 'male' as const,
           category: mappedCategory,
-          tags: tagIds, // Now using relationship IDs
+          tags: tagValues, // Now using direct string values
         }
 
         if (existingMaleFrame && UPDATE_EXISTING_RECORDS) {
@@ -1142,7 +1058,7 @@ class SimpleImporter {
         const frameData = {
           imageSet: 'female' as const,
           category: mappedCategory,
-          tags: tagIds, // Now using relationship IDs
+          tags: tagValues, // Now using direct string values
         }
 
         if (existingFemaleFrame && UPDATE_EXISTING_RECORDS) {
@@ -1688,7 +1604,6 @@ class SimpleImporter {
       this.summary.narrators.created +
       this.summary.meditationTags.created +
       this.summary.musicTags.created +
-      this.summary.frameTags.created +
       this.summary.frames.created +
       this.summary.music.created +
       this.summary.meditations.created
@@ -1701,7 +1616,6 @@ class SimpleImporter {
       this.summary.narrators.existing +
       this.summary.meditationTags.existing +
       this.summary.musicTags.existing +
-      this.summary.frameTags.existing +
       this.summary.frames.existing +
       this.summary.music.existing +
       this.summary.meditations.existing
@@ -1718,9 +1632,6 @@ class SimpleImporter {
     )
     console.log(
       `  🏷️  Music Tags:       ${this.summary.musicTags.created} created, ${this.summary.musicTags.existing} existing`,
-    )
-    console.log(
-      `  🏷️  Frame Tags:       ${this.summary.frameTags.created} created, ${this.summary.frameTags.existing} existing`,
     )
 
     const framesParts = [`${this.summary.frames.created} created`]
