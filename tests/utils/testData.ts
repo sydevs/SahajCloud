@@ -2,7 +2,17 @@ import type { Payload, TypedUser } from 'payload'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import type { Narrator, Media, Meditation, Music, Frame, User, Client, MeditationTag, MediaTag } from '@/payload-types'
+import type {
+  Narrator,
+  Media,
+  Meditation,
+  Music,
+  Frame,
+  User,
+  Client,
+  MeditationTag,
+  MediaTag,
+} from '@/payload-types'
 import { TEST_ADMIN_ID } from './testHelpers'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -17,27 +27,31 @@ export const testData = {
    * Create a narrator
    */
   async createNarrator(payload: Payload, overrides = {}): Promise<Narrator> {
-    return await payload.create({
+    return (await payload.create({
       collection: 'narrators',
       data: {
         name: 'Test Narrator',
         gender: 'male' as const,
         ...overrides,
       },
-    }) as Narrator
+    })) as Narrator
   },
 
   /**
    * Create image media using sample file
    */
-  async createMediaImage(payload: Payload, overrides = {}, sampleFile = 'image-1050x700.jpg'): Promise<Media> {
+  async createMediaImage(
+    payload: Payload,
+    overrides = {},
+    sampleFile = 'image-1050x700.jpg',
+  ): Promise<Media> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
-    
+
     // Convert Buffer to Uint8Array for file-type compatibility
     const uint8Array = new Uint8Array(fileBuffer)
-    
-    return await payload.create({
+
+    return (await payload.create({
       collection: 'media',
       data: {
         alt: 'Test image file',
@@ -48,62 +62,73 @@ export const testData = {
         mimetype: `image/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
         size: uint8Array.length,
-      }
-    }) as Media
+      },
+    })) as Media
   },
 
   /**
    * Create a tag
    */
-  async createMeditationTag(payload: Payload, overrides: Partial<MeditationTag> = {}): Promise<MeditationTag> {
-    return await payload.create({
+  async createMeditationTag(
+    payload: Payload,
+    overrides: Partial<MeditationTag> = {},
+  ): Promise<MeditationTag> {
+    return (await payload.create({
       collection: 'meditation-tags',
       data: {
-        label: 'test-tag',
+        name: 'test-tag',
         title: 'Test Tag',
         ...overrides,
       },
-    }) as MeditationTag
+    })) as MeditationTag
   },
 
   /**
    * Create a tag
    */
-  async createMusicTag(payload: Payload, overrides: Partial<MeditationTag> = {}): Promise<MeditationTag> {
-    return await payload.create({
+  async createMusicTag(
+    payload: Payload,
+    overrides: Partial<MeditationTag> = {},
+  ): Promise<MeditationTag> {
+    return (await payload.create({
       collection: 'music-tags',
       data: {
-        label: 'test-tag',
+        name: 'test-tag',
         title: 'Test Tag',
         ...overrides,
       },
-    }) as MeditationTag
+    })) as MeditationTag
   },
 
   /**
    * Create a tag
    */
   async createMediaTag(payload: Payload, overrides: Partial<MediaTag> = {}): Promise<MediaTag> {
-    return await payload.create({
+    return (await payload.create({
       collection: 'media-tags',
       data: {
-        label: 'test-tag',
+        name: 'test-tag',
         ...overrides,
       },
-    }) as MediaTag
+    })) as MediaTag
   },
 
   /**
    * Create a meditation with direct audio upload
    */
-  async createMeditation(payload: Payload, deps: { narrator: string; thumbnail: string }, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<Meditation> {
+  async createMeditation(
+    payload: Payload,
+    deps: { narrator: string; thumbnail: string },
+    overrides = {},
+    sampleFile = 'audio-42s.mp3',
+  ): Promise<Meditation> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
-    
+
     // Convert Buffer to Uint8Array for file-type compatibility
     const uint8Array = new Uint8Array(fileBuffer)
-    
-    return await payload.create({
+
+    return (await payload.create({
       collection: 'meditations',
       data: {
         title: 'Test Meditation with Audio',
@@ -111,30 +136,36 @@ export const testData = {
         thumbnail: deps.thumbnail,
         narrator: deps.narrator,
         tags: [],
-        isPublished: false,
         locale: 'en',
         ...overrides,
       },
       file: {
         data: uint8Array as any, // Type assertion for Payload compatibility
-        mimetype: path.extname(sampleFile).slice(1) === 'mp3' ? 'audio/mpeg' : `audio/${path.extname(sampleFile).slice(1)}`,
+        mimetype:
+          path.extname(sampleFile).slice(1) === 'mp3'
+            ? 'audio/mpeg'
+            : `audio/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
         size: uint8Array.length,
-      }
-    }) as Meditation
+      },
+    })) as Meditation
   },
 
   /**
    * Create music track using sample audio file
    */
-  async createMusic(payload: Payload, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<Music> {
+  async createMusic(
+    payload: Payload,
+    overrides = {},
+    sampleFile = 'audio-42s.mp3',
+  ): Promise<Music> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
-    
+
     // Convert Buffer to Uint8Array for file-type compatibility
     const uint8Array = new Uint8Array(fileBuffer)
-    
-    return await payload.create({
+
+    return (await payload.create({
       collection: 'music',
       data: {
         title: 'Test Music Track',
@@ -143,23 +174,30 @@ export const testData = {
       },
       file: {
         data: uint8Array as any, // Type assertion for Payload compatibility
-        mimetype: path.extname(sampleFile).slice(1) === 'mp3' ? 'audio/mpeg' : `audio/${path.extname(sampleFile).slice(1)}`,
+        mimetype:
+          path.extname(sampleFile).slice(1) === 'mp3'
+            ? 'audio/mpeg'
+            : `audio/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
         size: uint8Array.length,
-      }
-    }) as Music
+      },
+    })) as Music
   },
 
   /**
    * Create frame with image file (default) or video file
    */
-  async createFrame(payload: Payload, overrides = {}, sampleFile = 'image-1050x700.jpg'): Promise<Frame> {
+  async createFrame(
+    payload: Payload,
+    overrides = {},
+    sampleFile = 'image-1050x700.jpg',
+  ): Promise<Frame> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
-    
+
     // Convert Buffer to Uint8Array for file-type compatibility
     const uint8Array = new Uint8Array(fileBuffer)
-    
+
     // Get correct mimetype based on file extension
     const extension = path.extname(sampleFile).slice(1).toLowerCase()
     let mimetype: string
@@ -180,11 +218,12 @@ export const testData = {
     } else {
       mimetype = `image/${extension}`
     }
-    
-    return await payload.create({
+
+    return (await payload.create({
       collection: 'frames',
       data: {
         imageSet: 'male' as const,
+        category: 'mooladhara' as const,
         ...overrides,
       },
       file: {
@@ -192,8 +231,8 @@ export const testData = {
         mimetype: mimetype,
         name: sampleFile,
         size: uint8Array.length,
-      }
-    }) as Frame
+      },
+    })) as Frame
   },
 
   /**
@@ -217,7 +256,7 @@ export const testData = {
     return {
       collection: 'users',
       ...user,
-    } as User & { collection: "users" }
+    } as User & { collection: 'users' }
   },
 
   /**
@@ -238,7 +277,7 @@ export const testData = {
     return {
       collection: 'clients',
       ...client,
-    } as Client & { collection: "clients" }
+    } as Client & { collection: 'clients' }
   },
 
   dummyUser(collection: 'users' | 'clients', overrides: Partial<User | Client> = {}) {
@@ -249,6 +288,5 @@ export const testData = {
       permissions: [],
       ...overrides,
     } as any
-  }
-
+  },
 }

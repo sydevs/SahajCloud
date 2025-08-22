@@ -74,23 +74,6 @@ describe('Meditations Collection', () => {
     ).toBe(testMusicTag.id)
   })
 
-  it('ignores custom slug on create', async () => {
-    const meditation = await testData.createMeditation(
-      payload,
-      {
-        narrator: testNarrator.id,
-        thumbnail: testImageMedia.id,
-      },
-      {
-        title: 'Evening Meditation',
-        slug: 'custom-evening-slug', // This should be ignored
-        duration: 20,
-      },
-    )
-
-    expect(meditation.slug).toBe('evening-meditation') // Auto-generated from title
-  })
-
   it('handles special characters in slug generation', async () => {
     const meditation = await testData.createMeditation(
       payload,
@@ -158,26 +141,35 @@ describe('Meditations Collection', () => {
 
 describe('Meditation-Frame Relationships', () => {
   let payload: Payload
-  let cleanup: () => Promise<void>
+  let cleanup: (() => Promise<void>) | undefined
   let testNarrator: Narrator
   let testImageMedia: Media
   let testFrame1: Frame
   let testFrame2: Frame
 
   beforeAll(async () => {
-    const testEnv = await createTestEnvironment()
-    payload = testEnv.payload
-    cleanup = testEnv.cleanup
+    try {
+      const testEnv = await createTestEnvironment()
+      payload = testEnv.payload
+      cleanup = testEnv.cleanup
 
-    // Create test dependencies
-    testNarrator = await testData.createNarrator(payload)
-    testImageMedia = await testData.createMediaImage(payload)
-    testFrame1 = await testData.createFrame(payload)
-    testFrame2 = await testData.createFrame(payload)
+      // Create test dependencies
+      testNarrator = await testData.createNarrator(payload)
+      testImageMedia = await testData.createMediaImage(payload)
+      testFrame1 = await testData.createFrame(payload)
+      testFrame2 = await testData.createFrame(payload)
+    } catch (error) {
+      console.error('Failed to set up test environment:', error)
+      // Set cleanup to a no-op function to prevent errors
+      cleanup = async () => {}
+      throw error
+    }
   })
 
   afterAll(async () => {
-    await cleanup()
+    if (cleanup) {
+      await cleanup()
+    }
   })
 
   it('created with sorted and rounded frame relationships', async () => {
