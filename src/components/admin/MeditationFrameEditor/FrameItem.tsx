@@ -174,11 +174,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
         >
           {frame.category}
         </div>
-        {frame.tags && frame.tags.length > 0 && (
-          <FrameTags>
-            {frame.tags.map((tag) => (typeof tag === 'string' ? tag : tag.name)).join(', ')}
-          </FrameTags>
-        )}
+        {frame.tags && frame.tags.length > 0 && <FrameTags>{frame.tags.join(', ')}</FrameTags>}
       </div>
     </FrameItemContainer>
   )
