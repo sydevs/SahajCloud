@@ -1,8 +1,30 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useCallback } from 'react'
 import type { FrameData } from './types'
-import type { Frame } from '@/payload-types'
+import { useFrameDetails } from './hooks/useFrameDetails'
+import {
+  validateTimestamp,
+  sortFramesByTimestamp,
+  isVideoFile,
+  getMediaUrl,
+  createFrameKey,
+} from './utils'
+import { SIZES } from './constants'
+import {
+  ComponentContainer,
+  ComponentHeader,
+  FrameManagerList,
+  FrameManagerItem,
+  FrameThumbnail,
+  FrameInfo,
+  FrameInfoTitle,
+  FrameInfoSubtext,
+  TimestampInput,
+  TimestampError,
+  Button,
+  EmptyState,
+} from './styled'
 
 interface FrameManagerProps {
   frames: FrameData[]
@@ -15,167 +37,72 @@ const FrameManager: React.FC<FrameManagerProps> = ({
   onFramesChange,
   readOnly = false,
 }) => {
-  const [frameDetails, setFrameDetails] = useState<{ [key: string]: Frame }>({})
-  const [isLoading, setIsLoading] = useState(false)
+  const frameIds = frames.map((f) => f.frame)
+  const { frameDetails, isLoading } = useFrameDetails(frameIds)
 
-  // Load frame details for display
-  useEffect(() => {
-    const loadFrameDetails = async () => {
-      const frameIds = frames.map((f) => f.frame)
-      const missingIds = frameIds.filter((id) => !frameDetails[id])
+  const handleTimestampChange = useCallback(
+    (index: number, newTimestamp: number) => {
+      const updatedFrames = [...frames]
+      updatedFrames[index] = { ...updatedFrames[index], timestamp: newTimestamp }
+      onFramesChange(sortFramesByTimestamp(updatedFrames))
+    },
+    [frames, onFramesChange],
+  )
 
-      if (missingIds.length === 0) return
+  const handleRemoveFrame = useCallback(
+    (index: number) => {
+      const updatedFrames = frames.filter((_, i) => i !== index)
+      onFramesChange(updatedFrames)
+    },
+    [frames, onFramesChange],
+  )
 
-      setIsLoading(true)
-      try {
-        // Load frame details in batches
-        const promises = missingIds.map(async (id) => {
-          try {
-            const response = await fetch(`/api/frames/${id}`)
-            if (response.ok) {
-              const frame = await response.json()
-              return { id, frame }
-            }
-          } catch (error) {
-            console.error(`Failed to load frame ${id}:`, error)
-          }
-          return null
-        })
-
-        const results = await Promise.all(promises)
-        const newFrameDetails = { ...frameDetails }
-
-        results.forEach((result) => {
-          if (result) {
-            newFrameDetails[result.id] = result.frame
-          }
-        })
-
-        setFrameDetails(newFrameDetails)
-      } catch (error) {
-        console.error('Failed to load frame details:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadFrameDetails()
-  }, [frames, frameDetails])
-
-  const handleTimestampChange = (index: number, newTimestamp: number) => {
-    const updatedFrames = [...frames]
-    updatedFrames[index] = { ...updatedFrames[index], timestamp: newTimestamp }
-
-    // Sort frames by timestamp
-    const sortedFrames = updatedFrames.sort((a, b) => a.timestamp - b.timestamp)
-    onFramesChange(sortedFrames)
-  }
-
-  const handleRemoveFrame = (index: number) => {
-    const updatedFrames = frames.filter((_, i) => i !== index)
-    onFramesChange(updatedFrames)
-  }
-
-  const validateTimestamp = (timestamp: number, currentIndex: number): string | null => {
-    if (timestamp < 0) return 'Timestamp must be 0 or greater'
-    if (!Number.isInteger(timestamp)) return 'Timestamp must be a whole number'
-    if (timestamp > 3600) return 'Timestamp cannot exceed 1 hour (3600s)'
-
-    // Check for duplicates (excluding current frame)
-    const otherFrames = frames.filter((_, index) => index !== currentIndex)
-    if (otherFrames.some((f) => f.timestamp === timestamp)) {
-      return `Timestamp ${timestamp}s is already used by another frame`
-    }
-
-    return null
-  }
-
-  const getTimestampError = (timestamp: number, currentIndex: number): string | null => {
-    return validateTimestamp(timestamp, currentIndex)
-  }
+  const getTimestampError = useCallback(
+    (timestamp: number, currentIndex: number): string | null => {
+      const existingTimestamps = frames.map((f) => f.timestamp)
+      return validateTimestamp(timestamp, existingTimestamps, currentIndex)
+    },
+    [frames],
+  )
 
   if (frames.length === 0) {
     return (
-      <div className="frame-manager" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600', flexShrink: 0, color: 'var(--theme-text)' }}>
-          Current Frames (0)
-        </h4>
-        <div
-          style={{
-            padding: '2rem',
-            textAlign: 'center',
-            backgroundColor: 'var(--theme-elevation-50)',
-            border: '1px dashed var(--theme-border-color)',
-            borderRadius: 'var(--style-radius-m)',
-            color: 'var(--theme-elevation-600)',
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
+      <ComponentContainer>
+        <ComponentHeader>Current Frames (0)</ComponentHeader>
+        <EmptyState>
           No frames added yet. Select frames from the library below to add them at the current audio
           timestamp.
-        </div>
-      </div>
+        </EmptyState>
+      </ComponentContainer>
     )
   }
 
   return (
-    <div className="frame-manager" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <h4 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: '600', flexShrink: 0, color: 'var(--theme-text)' }}>
-        Current Frames ({frames.length})
-      </h4>
+    <ComponentContainer>
+      <ComponentHeader>Current Frames ({frames.length})</ComponentHeader>
 
-      <div
-        className="frames-list"
-        style={{
-          backgroundColor: 'var(--theme-elevation-50)',
-          border: '1px solid var(--theme-border-color)',
-          borderRadius: 'var(--style-radius-m)',
-          flex: 1,
-          overflowY: 'auto',
-          minHeight: 0, // Allow list to shrink below content size
-        }}
-      >
+      <FrameManagerList>
         {frames.map((frameData, index) => {
           const frame = frameDetails[frameData.frame]
+          const timestampError = getTimestampError(frameData.timestamp, index)
 
           return (
-            <div
-              key={`${frameData.frame}-${frameData.timestamp}-${index}`}
-              className="frame-item"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0.75rem',
-                borderBottom: index < frames.length - 1 ? '1px solid var(--theme-border-color)' : 'none',
-                gap: '0.5rem',
-              }}
+            <FrameManagerItem
+              key={createFrameKey(frameData.frame, frameData.timestamp, index)}
+              $isLast={index === frames.length - 1}
             >
-              {/* Frame Preview - Square */}
-              <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  backgroundColor: 'var(--theme-elevation-100)',
-                  borderRadius: 'var(--style-radius-m)',
-                  overflow: 'hidden',
-                  flexShrink: 0,
-                  position: 'relative',
-                  border: '1px solid var(--theme-border-color)',
-                }}
-              >
+              {/* Frame Preview */}
+              <FrameThumbnail $size={SIZES.FRAME_THUMBNAIL}>
                 {frame?.url ? (
-                  frame.mimeType?.startsWith('video/') ? (
+                  isVideoFile(frame.mimeType || undefined) ? (
                     <video
-                      src={frame.url}
+                      src={frame.url || ''}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       muted
                     />
                   ) : (
                     <img
-                      src={frame.sizes?.small?.url || frame.url}
+                      src={getMediaUrl(frame, 'small') || frame.url || ''}
                       alt={frame.category}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
@@ -194,17 +121,15 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                     {isLoading ? '...' : 'N/A'}
                   </div>
                 )}
-              </div>
+              </FrameThumbnail>
 
               {/* Frame Info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: '500', marginBottom: '0.25rem', color: 'var(--theme-text)' }}>
-                  {frame?.category || `Frame ${frameData.frame}`}
-                </div>
-                {frame?.mimeType?.startsWith('video/') && frame.duration && (
-                  <div style={{ fontSize: '0.7rem', color: 'var(--theme-elevation-600)' }}>{frame.duration}s video</div>
+              <FrameInfo>
+                <FrameInfoTitle>{frame?.category || `Frame ${frameData.frame}`}</FrameInfoTitle>
+                {frame && isVideoFile(frame.mimeType || undefined) && frame.duration && (
+                  <FrameInfoSubtext>{frame.duration}s video</FrameInfoSubtext>
                 )}
-              </div>
+              </FrameInfo>
 
               {/* Timestamp Input */}
               <div
@@ -216,7 +141,7 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                  <input
+                  <TimestampInput
                     type="number"
                     min="0"
                     max="3600"
@@ -230,47 +155,21 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                       }
                     }}
                     disabled={readOnly}
-                    style={{
-                      width: '40px',
-                      height: '28px',
-                      padding: '0.4rem 0.2rem',
-                      border: `1px solid ${getTimestampError(frameData.timestamp, index) ? 'var(--theme-error-400)' : 'var(--theme-border-color)'}`,
-                      borderRadius: 'var(--style-radius-s)',
-                      fontSize: '0.75rem',
-                      textAlign: 'center',
-                      backgroundColor: 'var(--theme-bg)',
-                      color: 'var(--theme-text)',
-                    }}
+                    $hasError={!!timestampError}
                   />
                   <span style={{ fontSize: '0.7rem', color: 'var(--theme-elevation-600)' }}>s</span>
                 </div>
-                {getTimestampError(frameData.timestamp, index) && (
-                  <div
-                    style={{
-                      fontSize: '0.6rem',
-                      color: 'var(--theme-error-400)',
-                      maxWidth: '100px',
-                      textAlign: 'right',
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {getTimestampError(frameData.timestamp, index)}
-                  </div>
-                )}
+                {timestampError && <TimestampError>{timestampError}</TimestampError>}
               </div>
 
               {/* Remove Button */}
-              <button
+              <Button
                 type="button"
                 onClick={() => handleRemoveFrame(index)}
                 disabled={readOnly}
+                variant={readOnly ? 'disabled' : 'error'}
                 style={{
                   padding: '0.2rem 0.4rem',
-                  backgroundColor: readOnly ? 'var(--theme-elevation-200)' : 'var(--theme-error-400)',
-                  color: readOnly ? 'var(--theme-elevation-600)' : 'white',
-                  border: 'none',
-                  borderRadius: 'var(--style-radius-s)',
-                  cursor: readOnly ? 'not-allowed' : 'pointer',
                   fontSize: '0.7rem',
                   flexShrink: 0,
                   minWidth: '24px',
@@ -282,12 +181,12 @@ const FrameManager: React.FC<FrameManagerProps> = ({
                 title="Remove frame"
               >
                 ×
-              </button>
-            </div>
+              </Button>
+            </FrameManagerItem>
           )
         })}
-      </div>
-    </div>
+      </FrameManagerList>
+    </ComponentContainer>
   )
 }
 

@@ -1,8 +1,11 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, memo } from 'react'
 import Image from 'next/image'
 import type { Frame } from '@/payload-types'
+import { isVideoFile, getMediaUrl } from './utils'
+import { LIMITS } from './constants'
+import { FrameItemContainer, FrameTags } from './styled'
 
 export interface FrameItemProps {
   frame: Frame
@@ -31,16 +34,14 @@ const FrameItem: React.FC<FrameItemProps> = ({
 }) => {
   const [isClicked, setIsClicked] = useState(false)
 
-  // Use small size for images, fallback to full URL
-  const imageUrl = frame.sizes?.small?.url || frame.url
-  const isVideo = frame.mimeType?.startsWith('video/')
+  const imageUrl = getMediaUrl(frame, 'small')
+  const isVideo = isVideoFile(frame.mimeType || undefined)
 
   const handleClick = () => {
     if (disabled || !onClick) return
 
-    // Trigger click animation for interactive frames
     setIsClicked(true)
-    setTimeout(() => setIsClicked(false), 300)
+    setTimeout(() => setIsClicked(false), LIMITS.CLICK_ANIMATION_DURATION)
 
     onClick()
   }
@@ -48,14 +49,12 @@ const FrameItem: React.FC<FrameItemProps> = ({
   const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
     onMouseEnter?.()
 
-    // Scale effect for interactive frames
     if (onClick && !disabled && !isClicked) {
       const target = e.currentTarget as HTMLElement
       target.style.transform = 'scale(1.05)'
       target.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)'
     }
 
-    // Play video on hover
     if (playOnHover && isVideo) {
       const video = e.currentTarget.querySelector('video')
       video?.play()
@@ -65,34 +64,16 @@ const FrameItem: React.FC<FrameItemProps> = ({
   const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
     onMouseLeave?.()
 
-    // Reset scale effect for interactive frames
     if (onClick && !disabled && !isClicked) {
       const target = e.currentTarget as HTMLElement
       target.style.transform = 'scale(1)'
       target.style.boxShadow = 'none'
     }
 
-    // Pause video on hover leave
     if (playOnHover && isVideo) {
       const video = e.currentTarget.querySelector('video')
       video?.pause()
     }
-  }
-
-  const containerStyle: React.CSSProperties = {
-    position: 'relative',
-    cursor: disabled ? 'not-allowed' : onClick ? 'pointer' : 'default',
-    opacity: disabled ? 0.6 : 1,
-    width: `${size}px`,
-    border: isSelected || isClicked ? '2px solid #28a745' : '1px solid #ddd',
-    borderRadius: '4px',
-    backgroundColor: isSelected || isClicked ? '#f8fff9' : '#fff',
-    transition: 'all 0.2s ease-in-out',
-    transform: isClicked ? 'scale(1.08)' : 'scale(1)',
-    boxShadow: isSelected || isClicked ? '0 6px 12px rgba(40, 167, 69, 0.3)' : 'none',
-    display: 'flex',
-    flexDirection: 'column',
-    flexShrink: 0,
   }
 
   const imageContainerStyle: React.CSSProperties = {
@@ -111,7 +92,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
             left: '50%',
             transform: 'translate(-50%, -50%)',
             color: '#6b7280',
-            fontSize: '0.25rem',
+            fontSize: '0.75rem',
           }}
         >
           No preview
@@ -122,7 +103,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
     if (isVideo) {
       return (
         <video
-          src={frame.url || undefined}
+          src={frame.url || ''}
           style={{
             width: '100%',
             height: '100%',
@@ -140,25 +121,27 @@ const FrameItem: React.FC<FrameItemProps> = ({
         src={imageUrl}
         alt={frame.category || 'Frame'}
         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-        width={frame.sizes?.small?.width || frame.width || 160}
-        height={frame.sizes?.small?.height || frame.height || 160}
+        width={frame.sizes?.small?.width || frame.width || size}
+        height={frame.sizes?.small?.height || frame.height || size}
       />
     )
   }
 
   return (
-    <div
+    <FrameItemContainer
       className={`frame-item ${className}`}
-      style={containerStyle}
+      $size={size}
+      $disabled={disabled}
+      $clickable={!!onClick}
+      $selected={isSelected || isClicked}
+      $clicked={isClicked}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Image/Video container */}
       <div style={imageContainerStyle}>
         {renderMedia()}
 
-        {/* Overlay with value */}
         {overlayValue !== undefined && (
           <div
             style={{
@@ -179,7 +162,6 @@ const FrameItem: React.FC<FrameItemProps> = ({
         )}
       </div>
 
-      {/* Category and tags info */}
       <div style={{ padding: '0.125rem', flexShrink: 0 }}>
         <div
           style={{
@@ -193,19 +175,14 @@ const FrameItem: React.FC<FrameItemProps> = ({
           {frame.category}
         </div>
         {frame.tags && frame.tags.length > 0 && (
-          <div
-            style={{
-              fontSize: '0.75rem',
-              color: '#6b7280',
-              textAlign: 'center',
-            }}
-          >
+          <FrameTags>
             {frame.tags.map((tag) => (typeof tag === 'string' ? tag : tag.name)).join(', ')}
-          </div>
+          </FrameTags>
         )}
       </div>
-    </div>
+    </FrameItemContainer>
   )
 }
 
-export default FrameItem
+// Memoize component for performance
+export default memo(FrameItem)
