@@ -59,7 +59,7 @@ export const testData = {
     return await payload.create({
       collection: 'meditation-tags',
       data: {
-        label: 'test-tag',
+        name: 'test-tag',
         title: 'Test Tag',
         ...overrides,
       },
@@ -73,7 +73,7 @@ export const testData = {
     return await payload.create({
       collection: 'music-tags',
       data: {
-        label: 'test-tag',
+        name: 'test-tag',
         title: 'Test Tag',
         ...overrides,
       },
@@ -87,7 +87,7 @@ export const testData = {
     return await payload.create({
       collection: 'media-tags',
       data: {
-        label: 'test-tag',
+        name: 'Test Tag',
         ...overrides,
       },
     }) as MediaTag
@@ -111,7 +111,6 @@ export const testData = {
         thumbnail: deps.thumbnail,
         narrator: deps.narrator,
         tags: [],
-        isPublished: false,
         locale: 'en',
         ...overrides,
       },
@@ -185,6 +184,7 @@ export const testData = {
       collection: 'frames',
       data: {
         imageSet: 'male' as const,
+        category: 'ready' as const,
         ...overrides,
       },
       file: {

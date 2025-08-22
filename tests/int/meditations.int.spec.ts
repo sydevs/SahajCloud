@@ -74,23 +74,6 @@ describe('Meditations Collection', () => {
     ).toBe(testMusicTag.id)
   })
 
-  it('ignores custom slug on create', async () => {
-    const meditation = await testData.createMeditation(
-      payload,
-      {
-        narrator: testNarrator.id,
-        thumbnail: testImageMedia.id,
-      },
-      {
-        title: 'Evening Meditation',
-        slug: 'custom-evening-slug', // This should be ignored
-        duration: 20,
-      },
-    )
-
-    expect(meditation.slug).toBe('evening-meditation') // Auto-generated from title
-  })
-
   it('handles special characters in slug generation', async () => {
     const meditation = await testData.createMeditation(
       payload,

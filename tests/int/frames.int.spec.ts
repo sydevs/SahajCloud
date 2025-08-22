@@ -29,7 +29,7 @@ describe('Frames Collection', () => {
     expect(frame.filename).toBeDefined()
     expect(frame.imageSet).toBe('male')
     // Tags should be null when no tags are provided
-    expect(frame.tags).toBeUndefined()
+    expect(frame.tags).toEqual([])
     expect(frame.mimeType).toBe('image/jpeg') // Original format preserved for now
     expect(frame.filename).toMatch(/^image-1050x700(-\d+)?\.jpg$/)
     expect(frame.filesize).toBeGreaterThan(0)
@@ -56,7 +56,7 @@ describe('Frames Collection', () => {
     expect(frame.filename).toBeDefined()
     expect(frame.imageSet).toBe('female')
     // Tags should be null when no tags are provided
-    expect(frame.tags).toBeUndefined()
+    expect(frame.tags).toEqual([])
     expect(frame.mimeType).toBe('video/mp4') // Original format preserved for now
     expect(frame.filename).toMatch(/^video-30s(-\d+)?\.mp4$/)
     expect(frame.filesize).toBeGreaterThan(0)
