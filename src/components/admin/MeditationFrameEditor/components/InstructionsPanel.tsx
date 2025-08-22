@@ -3,14 +3,7 @@
 import React from 'react'
 import type { FrameData } from '../types'
 import type { Narrator } from '@/payload-types'
-import { 
-  InstructionsPanel as StyledInstructionsPanel,
-  InstructionsTitle,
-  ProgressPanel,
-  ProgressTitle,
-  ProgressValue,
-  ProgressSubtext
-} from '../styled'
+import { InstructionsPanel as StyledInstructionsPanel, InstructionsTitle } from '../styled'
 
 interface InstructionsPanelProps {
   narrator: Narrator | null
@@ -18,19 +11,13 @@ interface InstructionsPanelProps {
   frames: FrameData[]
 }
 
-const InstructionsPanel: React.FC<InstructionsPanelProps> = ({
-  narrator,
-  currentTime,
-  frames,
-}) => {
+const InstructionsPanel: React.FC<InstructionsPanelProps> = ({ narrator, currentTime, frames }) => {
   return (
     <>
       {/* Instructions */}
       {narrator && (
         <StyledInstructionsPanel>
-          <InstructionsTitle>
-            📍 Quick Instructions
-          </InstructionsTitle>
+          <InstructionsTitle>📍 Quick Instructions</InstructionsTitle>
           Click any frame to add it at the current audio time ({Math.round(currentTime)}s)
           {frames.length === 0 && (
             <>
@@ -41,21 +28,6 @@ const InstructionsPanel: React.FC<InstructionsPanelProps> = ({
             </>
           )}
         </StyledInstructionsPanel>
-      )}
-
-      {/* Frame Count Summary */}
-      {frames.length > 0 && (
-        <ProgressPanel>
-          <ProgressTitle>
-            📊 Progress
-          </ProgressTitle>
-          <ProgressValue>
-            {frames.length} frame{frames.length !== 1 ? 's' : ''} added
-          </ProgressValue>
-          <ProgressSubtext>
-            Longest: {Math.max(...frames.map((f) => f.timestamp))}s
-          </ProgressSubtext>
-        </ProgressPanel>
       )}
     </>
   )

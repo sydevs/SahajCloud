@@ -144,17 +144,19 @@ const buttonBase = css`
   font-size: 0.875rem;
   font-weight: 500;
   transition: background-color 0.2s;
-  
+
   &:disabled {
     cursor: not-allowed;
   }
 `
 
-export const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'error' | 'cancel' | 'save' | 'disabled' }>`
+export const Button = styled.button<{
+  variant?: 'primary' | 'secondary' | 'error' | 'cancel' | 'save' | 'disabled'
+}>`
   ${buttonBase}
   padding: 0.5rem 1rem;
-  
-  ${props => {
+
+  ${(props) => {
     switch (props.variant) {
       case 'primary':
         return css`
@@ -201,17 +203,17 @@ export const EditButton = styled.button<{ disabled?: boolean }>`
   ${buttonBase}
   padding: 0.75rem 1.5rem;
   width: 100%;
-  
-  ${props => props.disabled 
-    ? css`
-        background-color: ${COLORS.ELEVATION_200};
-        color: ${COLORS.ELEVATION_600};
-      `
-    : css`
-        background-color: ${COLORS.SUCCESS};
-        color: white;
-      `
-  }
+
+  ${(props) =>
+    props.disabled
+      ? css`
+          background-color: ${COLORS.ELEVATION_200};
+          color: ${COLORS.ELEVATION_600};
+        `
+      : css`
+          background-color: ${COLORS.SUCCESS};
+          color: white;
+        `}
 `
 
 export const EditButtonMessage = styled.div`
@@ -224,13 +226,13 @@ export const AudioPlayerContainer = styled.div<{ $width: number }>`
   background-color: #f8f9fa;
   border-radius: 8px;
   overflow: hidden;
-  width: ${props => props.$width}px;
+  width: ${(props) => props.$width}px;
   border: 1px solid #e0e0e0;
 `
 
 export const AudioPreview = styled.div<{ $width: number; $height: number }>`
-  width: ${props => props.$width}px;
-  height: ${props => props.$height}px;
+  width: ${(props) => props.$width}px;
+  height: ${(props) => props.$height}px;
   background-color: #f0f0f0;
   position: relative;
   display: flex;
@@ -255,9 +257,9 @@ export const AudioControlsRow = styled.div`
 `
 
 export const PlayButton = styled.button<{ $size: number; $fontSize: string }>`
-  width: ${props => props.$size}px;
-  height: ${props => props.$size}px;
-  font-size: ${props => props.$fontSize};
+  width: ${(props) => props.$size}px;
+  height: ${(props) => props.$size}px;
+  font-size: ${(props) => props.$fontSize};
   border-radius: 50%;
   background-color: #007bff;
   color: white;
@@ -281,14 +283,14 @@ export const PlayButton = styled.button<{ $size: number; $fontSize: string }>`
 
 export const TimeDisplay = styled.div<{ $fontSize: string }>`
   color: #495057;
-  font-size: ${props => props.$fontSize};
+  font-size: ${(props) => props.$fontSize};
   font-family: monospace;
 `
 
 export const ProgressBar = styled.div<{ $height: number }>`
   position: relative;
   width: 100%;
-  height: ${props => props.$height}px;
+  height: ${(props) => props.$height}px;
   background-color: #e9ecef;
   border-radius: 3px;
   cursor: pointer;
@@ -301,20 +303,20 @@ export const ProgressFill = styled.div<{ $width: number; $transition?: boolean }
   left: 0;
   top: 0;
   height: 100%;
-  width: ${props => props.$width}%;
-  transition: ${props => props.$transition ? 'width 0.1s' : 'none'};
+  width: ${(props) => props.$width}%;
+  transition: ${(props) => (props.$transition ? 'width 0.1s' : 'none')};
   background-color: #007bff;
   border-radius: 3px;
 `
 
 export const ProgressPlayhead = styled.div<{ $left: number; $size: number; $transition?: boolean }>`
   position: absolute;
-  left: ${props => props.$left}%;
+  left: ${(props) => props.$left}%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: ${props => props.$size}px;
-  height: ${props => props.$size}px;
-  transition: ${props => props.$transition ? 'left 0.1s' : 'none'};
+  width: ${(props) => props.$size}px;
+  height: ${(props) => props.$size}px;
+  transition: ${(props) => (props.$transition ? 'left 0.1s' : 'none')};
   border-radius: 50%;
   background-color: #ffffff;
   border: 2px solid #007bff;
@@ -322,15 +324,55 @@ export const ProgressPlayhead = styled.div<{ $left: number; $size: number; $tran
   // transition handled by the $transition prop above
 `
 
+export const AudioPlayerWrapper = styled.div`
+  position: relative;
+  width: 100%;
+`
+
+export const FrameMarkersOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+
+  /* Target the progress bar area of react-h5-audio-player */
+  & > div {
+    pointer-events: auto;
+  }
+`
+
 export const FrameMarker = styled.div<{ $left: number }>`
   position: absolute;
-  left: ${props => props.$left}%;
-  top: -6px;
+  left: ${(props) => props.$left}%;
+  top: 50%;
+  transform: translateY(-50%);
   width: 3px;
-  height: calc(100% + 12px);
+  height: 16px;
   background-color: #f97316;
   opacity: 0.85;
-  pointer-events: none;
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+
+  &:hover {
+    opacity: 1;
+    transform: translateY(-50%) scale(1.2);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 32px;
+    cursor: pointer;
+  }
 `
 
 // Instructions Panel
@@ -350,36 +392,6 @@ export const InstructionsTitle = styled.div`
   font-weight: 600;
   margin-bottom: 0.5rem;
   color: ${COLORS.TEXT};
-`
-
-export const ProgressPanel = styled.div`
-  font-size: 0.75rem;
-  color: ${COLORS.TEXT};
-  text-align: center;
-  padding: 0.75rem;
-  background-color: var(--theme-success-50);
-  border-radius: var(--style-radius-m);
-  border: 1px solid var(--theme-success-300);
-  width: 320px;
-  flex-shrink: 0;
-`
-
-export const ProgressTitle = styled.div`
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  color: var(--theme-success-700);
-`
-
-export const ProgressValue = styled.div`
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--theme-success-700);
-`
-
-export const ProgressSubtext = styled.div`
-  font-size: 0.625rem;
-  color: var(--theme-success-600);
-  margin-top: 0.25rem;
 `
 
 // Keyboard Shortcuts
@@ -425,7 +437,7 @@ export const EmptyState = styled.div<{ $fontSize?: string }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: ${props => props.$fontSize || '1rem'};
+  font-size: ${(props) => props.$fontSize || '1rem'};
 `
 
 // Component Headers
@@ -447,8 +459,8 @@ export const ComponentHeaderCount = styled.span`
 // Grid Components
 export const FramesGrid = styled.div<{ $columns: string; $gap: string }>`
   display: grid;
-  grid-template-columns: ${props => props.$columns};
-  gap: ${props => props.$gap};
+  grid-template-columns: ${(props) => props.$columns};
+  gap: ${(props) => props.$gap};
   flex: 1;
   overflow-y: auto;
   padding: ${GRID_CONFIG.GAP};
@@ -471,7 +483,7 @@ export const FrameManagerItem = styled.div<{ $isLast?: boolean }>`
   display: flex;
   align-items: center;
   padding: 0.75rem;
-  border-bottom: ${props => props.$isLast ? 'none' : `1px solid ${COLORS.BORDER}`};
+  border-bottom: ${(props) => (props.$isLast ? 'none' : `1px solid ${COLORS.BORDER}`)};
   gap: 0.5rem;
 `
 
@@ -496,7 +508,8 @@ export const TimestampInput = styled.input<{ $hasError?: boolean }>`
   width: 40px;
   height: 28px;
   padding: 0.4rem 0.2rem;
-  border: ${props => props.$hasError ? `1px solid ${COLORS.ERROR}` : `1px solid ${COLORS.BORDER}`};
+  border: ${(props) =>
+    props.$hasError ? `1px solid ${COLORS.ERROR}` : `1px solid ${COLORS.BORDER}`};
   border-radius: var(--style-radius-s);
   font-size: 0.75rem;
   text-align: center;
@@ -526,23 +539,24 @@ export const CategoryFilterRow = styled.div`
 `
 
 export const CategoryButton = styled.button<{ $selected?: boolean; $disabled?: boolean }>`
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.8rem;
   border: 1px solid ${COLORS.BORDER};
   border-radius: 12px;
-  cursor: ${props => props.$disabled ? 'not-allowed' : 'pointer'};
-  opacity: ${props => props.$disabled ? 0.6 : 1};
-  
-  ${props => props.$selected 
-    ? css`
-        background-color: ${COLORS.SUCCESS};
-        color: white;
-      `
-    : css`
-        background-color: ${COLORS.BG};
-        color: ${COLORS.TEXT};
-      `
-  }
+  margin: 0.1rem;
+  cursor: ${(props) => (props.$disabled ? 'not-allowed' : 'pointer')};
+  opacity: ${(props) => (props.$disabled ? 0.6 : 1)};
+
+  ${(props) =>
+    props.$selected
+      ? css`
+          background-color: ${COLORS.SUCCESS};
+          color: white;
+        `
+      : css`
+          background-color: ${COLORS.BG};
+          color: ${COLORS.TEXT};
+        `}
 `
 
 export const ClearFiltersButton = styled.button<{ $disabled?: boolean }>`
@@ -551,7 +565,7 @@ export const ClearFiltersButton = styled.button<{ $disabled?: boolean }>`
   background-color: transparent;
   color: ${COLORS.ERROR};
   border: none;
-  cursor: ${props => props.$disabled ? 'not-allowed' : 'pointer'};
+  cursor: ${(props) => (props.$disabled ? 'not-allowed' : 'pointer')};
   text-decoration: underline;
   margin-left: 4px;
 `
@@ -570,13 +584,13 @@ export const FrameItemRow = styled.div<{ isLast?: boolean }>`
   display: flex;
   align-items: center;
   padding: 0.75rem;
-  border-bottom: ${props => props.isLast ? 'none' : `1px solid ${COLORS.BORDER}`};
+  border-bottom: ${(props) => (props.isLast ? 'none' : `1px solid ${COLORS.BORDER}`)};
   gap: 0.5rem;
 `
 
 export const FrameThumbnail = styled.div<{ $size: number }>`
-  width: ${props => props.$size}px;
-  height: ${props => props.$size}px;
+  width: ${(props) => props.$size}px;
+  height: ${(props) => props.$size}px;
   background-color: ${COLORS.ELEVATION_100};
   border-radius: var(--style-radius-m);
   overflow: hidden;
@@ -585,11 +599,10 @@ export const FrameThumbnail = styled.div<{ $size: number }>`
   border: 1px solid ${COLORS.BORDER};
 `
 
-
 // Frame Preview Components
 export const PreviewContainer = styled.div<{ $width: number; $height: number }>`
-  width: ${props => props.$width}px;
-  height: ${props => props.$height}px;
+  width: ${(props) => props.$width}px;
+  height: ${(props) => props.$height}px;
   background-color: #000;
   border-radius: 8px;
   overflow: hidden;
@@ -619,19 +632,19 @@ export const TimelineTrack = styled.div`
 
 export const TimelineMarker = styled.div<{ $left: number; $isActive?: boolean }>`
   position: absolute;
-  left: ${props => props.$left}%;
+  left: ${(props) => props.$left}%;
   top: 0;
   width: 4px;
   height: 4px;
-  background-color: ${props => props.$isActive ? '#007bff' : '#6c757d'};
+  background-color: ${(props) => (props.$isActive ? '#007bff' : '#6c757d')};
   border-radius: 2px;
   transform: translateX(-2px);
-  z-index: ${props => props.$isActive ? 2 : 1};
+  z-index: ${(props) => (props.$isActive ? 2 : 1)};
 `
 
 export const TimelineIndicator = styled.div<{ $left: number }>`
   position: absolute;
-  left: ${props => props.$left}%;
+  left: ${(props) => props.$left}%;
   top: -2px;
   width: 2px;
   height: 8px;
@@ -640,29 +653,31 @@ export const TimelineIndicator = styled.div<{ $left: number }>`
   z-index: 3;
 `
 
-// Frame Item Components  
+// Frame Item Components
 export const FrameItemContainer = styled.div<{
-  $size: number;
-  $disabled: boolean;
-  $clickable: boolean;
-  $selected: boolean;
-  $clicked: boolean;
+  $size: number
+  $disabled: boolean
+  $clickable: boolean
+  $selected: boolean
+  $clicked: boolean
 }>`
   position: relative;
-  cursor: ${props => props.$disabled ? 'not-allowed' : props.$clickable ? 'pointer' : 'default'};
-  opacity: ${props => props.$disabled ? 0.6 : 1};
-  width: ${props => props.$size}px;
-  border: ${props => props.$selected || props.$clicked ? `2px solid ${COLORS.SUCCESS}` : '1px solid #ddd'};
+  cursor: ${(props) =>
+    props.$disabled ? 'not-allowed' : props.$clickable ? 'pointer' : 'default'};
+  opacity: ${(props) => (props.$disabled ? 0.6 : 1)};
+  width: ${(props) => props.$size}px;
+  border: ${(props) =>
+    props.$selected || props.$clicked ? `2px solid ${COLORS.SUCCESS}` : '1px solid #ddd'};
   border-radius: 4px;
-  background-color: ${props => props.$selected || props.$clicked ? '#f8fff9' : '#fff'};
+  background-color: ${(props) => (props.$selected || props.$clicked ? '#f8fff9' : '#fff')};
   transition: all 0.2s ease-in-out;
-  transform: ${props => props.$clicked ? 'scale(1.08)' : 'scale(1)'};
-  box-shadow: ${props => props.$selected || props.$clicked ? '0 6px 12px rgba(40, 167, 69, 0.3)' : 'none'};
+  transform: ${(props) => (props.$clicked ? 'scale(1.08)' : 'scale(1)')};
+  box-shadow: ${(props) =>
+    props.$selected || props.$clicked ? '0 6px 12px rgba(40, 167, 69, 0.3)' : 'none'};
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
 `
-
 
 export const FrameTags = styled.div`
   font-size: 0.75rem;
@@ -682,7 +697,7 @@ export const MediaOverlay = styled.div`
   bottom: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(transparent, rgba(0,0,0,0.7));
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
   color: #fff;
   padding: 1rem 0.75rem 0.5rem;
   font-size: 0.75rem;

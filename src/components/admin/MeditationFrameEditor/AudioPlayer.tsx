@@ -4,27 +4,22 @@ import React, {
   useState,
   useRef,
   useEffect,
-  useCallback,
   useImperativeHandle,
+  useCallback,
   forwardRef,
 } from 'react'
 import type { FrameData } from './types'
 import { useFrameDetails } from './hooks/useFrameDetails'
-import { formatTime, getCurrentFrame, getProgressPercentage, clampValue, isVideoFile, getMediaUrl, isInputElement } from './utils'
-import { SIZES, KEYBOARD_SHORTCUTS, LIMITS } from './constants'
-import { 
+import {
+  getCurrentFrame,
+  isVideoFile,
+  getMediaUrl,
+} from './utils'
+import { SIZES } from './constants'
+import {
   AudioPlayerContainer,
   AudioPreview,
-  AudioControls,
-  AudioControlsRow,
-  PlayButton,
-  TimeDisplay,
-  ProgressBar,
-  ProgressFill,
-  FrameMarker,
-  ProgressPlayhead,
-  KeyboardShortcuts,
-  EmptyState
+  EmptyState,
 } from './styled'
 
 interface AudioPlayerProps {
@@ -57,14 +52,15 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
     ref,
   ) => {
     const audioRef = useRef<HTMLAudioElement>(null)
+    const progressRef = useRef<HTMLDivElement>(null)
     const [isPlaying, setIsPlaying] = useState(false)
     const [currentTime, setCurrentTime] = useState(0)
     const [duration, setDuration] = useState(0)
     const [isLoaded, setIsLoaded] = useState(false)
-    const [isLoading, setIsLoading] = useState(false)
-    const [isSeeking, setIsSeeking] = useState(false)
+    const [audioBlob, setAudioBlob] = useState<string | null>(null)
+    const [loadingBlob, setLoadingBlob] = useState(false)
 
-    const frameIds = frames.map(f => f.frame)
+    const frameIds = frames.map((f) => f.frame)
     const { frameDetails } = useFrameDetails(frameIds)
 
     // Size configurations
@@ -72,14 +68,10 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
       small: {
         preview: SIZES.SMALL_PREVIEW,
         fontSize: '0.75rem',
-        buttonSize: SIZES.BUTTON_SMALL,
-        progressHeight: SIZES.PROGRESS_HEIGHT_SMALL,
       },
       large: {
         preview: SIZES.LARGE_PREVIEW,
         fontSize: '0.875rem',
-        buttonSize: SIZES.BUTTON_LARGE,
-        progressHeight: SIZES.PROGRESS_HEIGHT_LARGE,
       },
     }[size]
 
@@ -87,15 +79,46 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
     const currentFrame = getCurrentFrame(frames, currentTime)
     const currentFrameDetails = currentFrame ? frameDetails[currentFrame.frame] : null
 
-    const togglePlayPause = useCallback(() => {
-      if (!audioRef.current) return
+    // Load audio as blob to enable proper seeking
+    useEffect(() => {
+      if (!audioUrl) return
 
-      if (isPlaying) {
-        audioRef.current.pause()
-      } else {
-        audioRef.current.play()
+      // Don't reload if already loading the same URL
+      if (loadingBlob) return
+
+      const loadAudioBlob = async () => {
+        setLoadingBlob(true)
+        try {
+          const response = await fetch(audioUrl)
+          if (!response.ok) throw new Error('Failed to load audio')
+          
+          const blob = await response.blob()
+          const blobUrl = URL.createObjectURL(blob)
+          setAudioBlob(blobUrl)
+        } catch (error) {
+          console.warn('Failed to load audio as blob, using direct URL:', error)
+          setAudioBlob(audioUrl) // Fallback to direct URL
+        } finally {
+          setLoadingBlob(false)
+        }
       }
-    }, [isPlaying])
+
+      loadAudioBlob()
+
+      // Cleanup blob URL on unmount or URL change
+      return () => {
+        // We'll clean up the previous blob URL when setting a new one
+      }
+    }, [audioUrl, loadingBlob])
+
+    // Cleanup blob URL when component unmounts
+    useEffect(() => {
+      return () => {
+        if (audioBlob && audioBlob.startsWith('blob:')) {
+          URL.revokeObjectURL(audioBlob)
+        }
+      }
+    }, [audioBlob])
 
     // Expose pause function via ref
     useImperativeHandle(
@@ -110,68 +133,16 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
       [isPlaying],
     )
 
-    // Keyboard navigation
-    useEffect(() => {
-      if (size === 'small' || !enableHotkeys) return
-
-      const handleKeyDown = (event: KeyboardEvent) => {
-        if (!audioRef.current || !duration) return
-
-        const activeElement = document.activeElement
-        if (activeElement && isInputElement(activeElement)) return
-
-        switch (event.code) {
-          case KEYBOARD_SHORTCUTS.SPACE:
-            event.preventDefault()
-            togglePlayPause()
-            break
-          case KEYBOARD_SHORTCUTS.ARROW_LEFT:
-            event.preventDefault()
-            audioRef.current.currentTime = Math.max(0, currentTime - LIMITS.SEEK_STEP_SMALL)
-            break
-          case KEYBOARD_SHORTCUTS.ARROW_RIGHT:
-            event.preventDefault()
-            audioRef.current.currentTime = Math.min(duration, currentTime + LIMITS.SEEK_STEP_SMALL)
-            break
-          case KEYBOARD_SHORTCUTS.ARROW_UP:
-            event.preventDefault()
-            audioRef.current.currentTime = Math.max(0, currentTime - LIMITS.SEEK_STEP_LARGE)
-            break
-          case KEYBOARD_SHORTCUTS.ARROW_DOWN:
-            event.preventDefault()
-            audioRef.current.currentTime = Math.min(duration, currentTime + LIMITS.SEEK_STEP_LARGE)
-            break
-          case KEYBOARD_SHORTCUTS.HOME:
-            event.preventDefault()
-            audioRef.current.currentTime = 0
-            break
-          case KEYBOARD_SHORTCUTS.END:
-            event.preventDefault()
-            audioRef.current.currentTime = duration
-            break
-        }
-      }
-
-      document.addEventListener('keydown', handleKeyDown)
-      return () => document.removeEventListener('keydown', handleKeyDown)
-    }, [currentTime, duration, togglePlayPause, size, enableHotkeys])
-
     // Audio event handlers
-    const handleLoadStart = () => {
-      setIsLoading(true)
-      setIsLoaded(false)
-    }
-
     const handleLoadedMetadata = () => {
       if (audioRef.current) {
         setDuration(audioRef.current.duration)
         setIsLoaded(true)
-        setIsLoading(false)
       }
     }
 
     const handleTimeUpdate = () => {
-      if (audioRef.current && !isSeeking) {
+      if (audioRef.current) {
         const time = audioRef.current.currentTime
         setCurrentTime(time)
         onTimeChange?.(time)
@@ -181,50 +152,114 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
     const handlePlay = () => setIsPlaying(true)
     const handlePause = () => setIsPlaying(false)
     const handleEnded = () => setIsPlaying(false)
-    
-    const handleError = () => {
-      setIsLoading(false)
-      setIsLoaded(false)
-    }
 
-    const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Seeking with retry mechanism
+    const seekTo = useCallback(async (newTime: number) => {
       if (!audioRef.current || !duration) return
 
-      const rect = e.currentTarget.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const percentage = x / rect.width
-      const newTime = percentage * duration
-      const clampedTime = clampValue(newTime, 0, duration)
+      const clampedTime = Math.max(0, Math.min(newTime, duration))
+      
+      try {
+        // Wait for audio to be ready if needed
+        if (audioRef.current.readyState < 2) {
+          await new Promise<void>((resolve) => {
+            const handleCanPlay = () => {
+              audioRef.current?.removeEventListener('canplay', handleCanPlay)
+              resolve()
+            }
+            audioRef.current?.addEventListener('canplay', handleCanPlay)
+          })
+        }
 
-      audioRef.current.currentTime = clampedTime
-      setCurrentTime(clampedTime)
-      onSeek?.(clampedTime)
+        audioRef.current.currentTime = clampedTime
+        setCurrentTime(clampedTime)
+        onSeek?.(clampedTime)
+      } catch (error) {
+        console.warn('Seek failed:', error)
+      }
+    }, [duration, onSeek])
+
+    // Progress bar click handler
+    const handleProgressClick = (e: React.MouseEvent) => {
+      if (!progressRef.current || !duration) return
+
+      const rect = progressRef.current.getBoundingClientRect()
+      const percentage = (e.clientX - rect.left) / rect.width
+      const newTime = percentage * duration
+      seekTo(newTime)
     }
 
-    const handleProgressMouseDown = () => setIsSeeking(true)
-    const handleProgressMouseUp = () => setIsSeeking(false)
+    // Frame marker click handler
+    const handleMarkerClick = (timestamp: number) => {
+      seekTo(timestamp)
+    }
 
-    const progressPercentage = getProgressPercentage(currentTime, duration)
+    // Toggle play/pause
+    const togglePlayPause = useCallback(() => {
+      if (!audioRef.current) return
+
+      if (isPlaying) {
+        audioRef.current.pause()
+      } else {
+        audioRef.current.play()
+      }
+    }, [isPlaying])
+
+    // Format time display
+    const formatTime = (time: number) => {
+      if (!isFinite(time)) return '0:00'
+      const minutes = Math.floor(time / 60)
+      const seconds = Math.floor(time % 60).toString().padStart(2, '0')
+      return `${minutes}:${seconds}`
+    }
+
+    // Keyboard shortcuts
+    useEffect(() => {
+      if (size === 'small' || !enableHotkeys) return
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (!audioRef.current || !duration) return
+
+        // Don't handle if user is typing in an input
+        const target = event.target as Element
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+
+        switch (event.code) {
+          case 'Space':
+            event.preventDefault()
+            togglePlayPause()
+            break
+          case 'ArrowLeft':
+            event.preventDefault()
+            seekTo(Math.max(0, currentTime - 5))
+            break
+          case 'ArrowRight':
+            event.preventDefault()
+            seekTo(Math.min(duration, currentTime + 5))
+            break
+        }
+      }
+
+      document.addEventListener('keydown', handleKeyDown)
+      return () => document.removeEventListener('keydown', handleKeyDown)
+    }, [currentTime, duration, enableHotkeys, size, seekTo, togglePlayPause])
 
     if (!audioUrl) {
       return (
         <AudioPlayerContainer className={className} $width={config.preview}>
-          <EmptyState $fontSize={config.fontSize}>
-            No audio file uploaded
-          </EmptyState>
+          <EmptyState $fontSize={config.fontSize}>No audio file uploaded</EmptyState>
         </AudioPlayerContainer>
       )
     }
+
+    const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0
 
     return (
       <>
         <AudioPlayerContainer className={className} $width={config.preview}>
           {/* Preview Area */}
           {showPreview && (
-            <AudioPreview
-              $width={config.preview}
-              $height={config.preview}
-            >
+            <AudioPreview $width={config.preview} $height={config.preview}>
               {currentFrameDetails ? (
                 isVideoFile(currentFrameDetails.mimeType || undefined) ? (
                   <video
@@ -281,8 +316,10 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
                   {frames.length > 1 && (
                     <div style={{ fontSize: '0.625rem', opacity: 0.8 }}>
                       Frame{' '}
-                      {frames.findIndex((f) => frameDetails[f.frame]?.id === currentFrameDetails.id) + 1} of{' '}
-                      {frames.length}
+                      {frames.findIndex(
+                        (f) => frameDetails[f.frame]?.id === currentFrameDetails.id,
+                      ) + 1}{' '}
+                      of {frames.length}
                     </div>
                   )}
                 </div>
@@ -290,75 +327,127 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
             </AudioPreview>
           )}
 
-          {/* Audio Controls */}
-          <AudioControls>
+          {/* Audio Player Controls */}
+          <div
+            style={{
+              padding: '1rem',
+              backgroundColor: '#f9fafb',
+              border: '1px solid #e5e7eb',
+              borderRadius: '0.5rem',
+            }}
+          >
             <audio
               ref={audioRef}
-              src={audioUrl}
-              onLoadStart={handleLoadStart}
+              src={audioBlob || audioUrl}
               onLoadedMetadata={handleLoadedMetadata}
               onTimeUpdate={handleTimeUpdate}
               onPlay={handlePlay}
               onPause={handlePause}
               onEnded={handleEnded}
-              onError={handleError}
+              preload="metadata"
             />
 
-            <AudioControlsRow>
-              <PlayButton
+            {/* Controls Row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
+              <button
                 type="button"
                 onClick={togglePlayPause}
-                disabled={!isLoaded}
-                $size={config.buttonSize}
-                $fontSize={size === 'small' ? '0.875rem' : '1rem'}
+                disabled={!isLoaded || loadingBlob}
+                style={{
+                  width: size === 'large' ? '48px' : '36px',
+                  height: size === 'large' ? '48px' : '36px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  fontSize: size === 'large' ? '1.5rem' : '1rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
-                {isLoading ? '...' : isPlaying ? '❚❚' : '▶'}
-              </PlayButton>
+                {loadingBlob ? '...' : isPlaying ? '⏸' : '▶'}
+              </button>
 
-              <TimeDisplay $fontSize={config.fontSize}>
+              <div style={{ fontSize: config.fontSize, color: '#4b5563' }}>
                 {formatTime(currentTime)} / {formatTime(duration)}
-              </TimeDisplay>
-            </AudioControlsRow>
+              </div>
+            </div>
 
-            {/* Progress bar with frame markers */}
-            <ProgressBar
-              $height={config.progressHeight}
+            {/* Progress Bar */}
+            <div
+              ref={progressRef}
               onClick={handleProgressClick}
-              onMouseDown={handleProgressMouseDown}
-              onMouseUp={handleProgressMouseUp}
+              style={{
+                position: 'relative',
+                height: size === 'large' ? '8px' : '6px',
+                backgroundColor: '#e5e7eb',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
             >
-              <ProgressFill
-                $width={progressPercentage}
-                $transition={!isSeeking}
+              {/* Progress Fill */}
+              <div
+                style={{
+                  width: `${progressPercentage}%`,
+                  height: '100%',
+                  backgroundColor: '#3b82f6',
+                  borderRadius: '4px',
+                  transition: 'width 0.1s ease',
+                }}
               />
 
-              {/* Frame markers */}
+              {/* Frame Markers */}
               {duration > 0 &&
                 frames.map((frame, index) => (
-                  <FrameMarker
+                  <div
                     key={`${frame.frame}-${frame.timestamp}-${index}`}
-                    $left={(frame.timestamp / duration) * 100}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleMarkerClick(frame.timestamp)
+                    }}
                     title={`Frame at ${frame.timestamp}s`}
+                    style={{
+                      position: 'absolute',
+                      left: `${(frame.timestamp / duration) * 100}%`,
+                      top: '-4px',
+                      width: '3px',
+                      height: '16px',
+                      backgroundColor: '#f97316',
+                      cursor: 'pointer',
+                      transform: 'translateX(-50%)',
+                      opacity: 0.85,
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.opacity = '1'
+                      e.currentTarget.style.transform = 'translateX(-50%) scale(1.2)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.opacity = '0.85'
+                      e.currentTarget.style.transform = 'translateX(-50%) scale(1)'
+                    }}
                   />
                 ))}
-
-              {/* Playhead */}
-              <ProgressPlayhead
-                $left={progressPercentage}
-                $size={size === 'small' ? 12 : 14}
-                $transition={!isSeeking}
-              />
-            </ProgressBar>
-          </AudioControls>
+            </div>
+          </div>
         </AudioPlayerContainer>
 
         {/* Keyboard shortcuts help */}
         {size === 'large' && audioUrl && enableHotkeys && (
-          <KeyboardShortcuts>
+          <div
+            style={{
+              fontSize: '0.75rem',
+              color: '#6c757d',
+              marginTop: '0.5rem',
+              fontStyle: 'italic',
+            }}
+          >
             <strong>Keyboard Shortcuts:</strong>
             <br />
-            Space: Play/Pause • ←→: ±5s • ↑↓: ±10s • Home/End: Start/End
-          </KeyboardShortcuts>
+            Space: Play/Pause • ←→: ±5s
+          </div>
         )}
       </>
     )
