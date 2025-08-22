@@ -28,7 +28,7 @@ describe('Frames Collection', () => {
     expect(frame).toBeDefined()
     expect(frame.filename).toBeDefined()
     expect(frame.imageSet).toBe('male')
-    // Tags should be null when no tags are provided
+    // Tags should be empty array when no tags are provided
     expect(frame.tags).toEqual([])
     expect(frame.mimeType).toBe('image/jpeg') // Original format preserved for now
     expect(frame.filename).toMatch(/^image-1050x700(-\d+)?\.jpg$/)
@@ -55,7 +55,7 @@ describe('Frames Collection', () => {
     expect(frame).toBeDefined()
     expect(frame.filename).toBeDefined()
     expect(frame.imageSet).toBe('female')
-    // Tags should be null when no tags are provided
+    // Tags should be empty array when no tags are provided
     expect(frame.tags).toEqual([])
     expect(frame.mimeType).toBe('video/mp4') // Original format preserved for now
     expect(frame.filename).toMatch(/^video-30s(-\d+)?\.mp4$/)
@@ -72,11 +72,10 @@ describe('Frames Collection', () => {
     const frame = await testData.createFrame(payload, {
       // No imageSet provided, should use default
     } as any)
-    
+
     expect(frame.imageSet).toBeDefined()
     expect(['male', 'female']).toContain(frame.imageSet)
   })
-
 
   it('validates imageSet options', async () => {
     await expect(
@@ -118,7 +117,7 @@ describe('Frames Collection', () => {
       payload.create({
         collection: 'frames',
         data: {
-          name: 'Large Image',
+          category: 'mooladhara' as const,
           imageSet: 'male',
         },
         file: {
@@ -137,7 +136,7 @@ describe('Frames Collection', () => {
       payload.create({
         collection: 'frames',
         data: {
-          name: 'Large Video',
+          category: 'mooladhara' as const,
           imageSet: 'female',
         },
         file: {
