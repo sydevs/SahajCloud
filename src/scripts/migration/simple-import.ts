@@ -313,7 +313,7 @@ class SimpleImporter {
       }
       if (cached.frameTags) {
         this.idMaps.frameTags = new Map(
-          Object.entries(cached.frameTags).map(([k, v]) => [k, v as string])
+          Object.entries(cached.frameTags).map(([k, v]) => [k, v as string]),
         )
       }
       if (cached.frames) {
@@ -586,9 +586,30 @@ class SimpleImporter {
       // Check if media with this filename already exists
       const existingMediaId = this.idMaps.media.get(filename)
       if (existingMediaId) {
-        this.summary.media.reused++
-        console.log(`    ✓ Reusing existing media: ${filename}`)
-        return existingMediaId
+        // Validate that the media actually exists before reusing
+        try {
+          const existingMedia = await this.payload.findByID({
+            collection: 'media',
+            id: existingMediaId,
+          })
+          if (existingMedia && existingMedia.filename === filename) {
+            this.summary.media.reused++
+            console.log(`    ✓ Reusing existing media: ${filename}`)
+            return existingMediaId
+          } else {
+            // Media doesn't exist or filename doesn't match, remove from cache
+            console.log(
+              `    ⚠️  Cached media ID ${existingMediaId} for ${filename} is invalid, will re-upload`,
+            )
+            this.idMaps.media.delete(filename)
+          }
+        } catch (error) {
+          // Media doesn't exist, remove from cache
+          console.log(
+            `    ⚠️  Cached media ID ${existingMediaId} for ${filename} not found, will re-upload`,
+          )
+          this.idMaps.media.delete(filename)
+        }
       }
 
       // Upload new media file
@@ -689,22 +710,22 @@ class SimpleImporter {
     // Map old categories to new lowercase versions
     // Special case: "Heart" maps to "anahat"
     const categoryMap: Record<string, string> = {
-      'heart': 'anahat',
-      'mooladhara': 'mooladhara',
-      'swadhistan': 'swadhistan', 
-      'nabhi': 'nabhi',
-      'void': 'void',
-      'anahat': 'anahat',
-      'vishuddhi': 'vishuddhi',
-      'agnya': 'agnya',
-      'sahasrara': 'sahasrara',
-      'clearing': 'clearing',
-      'kundalini': 'kundalini',
-      'meditate': 'meditate',
-      'ready': 'ready',
-      'namaste': 'namaste',
+      heart: 'anahat',
+      mooladhara: 'mooladhara',
+      swadhistan: 'swadhistan',
+      nabhi: 'nabhi',
+      void: 'void',
+      anahat: 'anahat',
+      vishuddhi: 'vishuddhi',
+      agnya: 'agnya',
+      sahasrara: 'sahasrara',
+      clearing: 'clearing',
+      kundalini: 'kundalini',
+      meditate: 'meditate',
+      ready: 'ready',
+      namaste: 'namaste',
     }
-    
+
     const normalized = oldCategory.toLowerCase().trim()
     return categoryMap[normalized] || null
   }
@@ -726,7 +747,7 @@ class SimpleImporter {
 
   private async uploadPlaceholderImages() {
     console.log('\nUploading placeholder images...')
-    
+
     // Check if placeholder images already exist in media collection
     const [existingPlaceholder, existingPathPlaceholder] = await Promise.all([
       this.payload.find({
@@ -752,7 +773,7 @@ class SimpleImporter {
     // Upload or reuse placeholder.jpg
     if (existingPlaceholder.docs.length > 0) {
       this.placeholderMediaId = String(existingPlaceholder.docs[0].id)
-      console.log('    ✓ Found existing placeholder.jpg media')
+      console.log(`    ✓ Found existing placeholder.jpg media (ID: ${this.placeholderMediaId})`)
     } else {
       const placeholderPath = path.join(this.cacheDir, 'placeholder.jpg')
       try {
@@ -762,7 +783,7 @@ class SimpleImporter {
         })
         if (placeholderMedia) {
           this.placeholderMediaId = String(placeholderMedia.id)
-          console.log('    ✓ Uploaded placeholder.jpg')
+          console.log(`    ✓ Uploaded placeholder.jpg (ID: ${this.placeholderMediaId})`)
         }
       } catch (error) {
         this.addWarning('placeholder.jpg not found in migration-cache folder')
@@ -772,7 +793,7 @@ class SimpleImporter {
     // Upload or reuse path.jpg
     if (existingPathPlaceholder.docs.length > 0) {
       this.pathPlaceholderMediaId = String(existingPathPlaceholder.docs[0].id)
-      console.log('    ✓ Found existing path.jpg media')
+      console.log(`    ✓ Found existing path.jpg media (ID: ${this.pathPlaceholderMediaId})`)
     } else {
       const pathPlaceholderPath = path.join(this.cacheDir, 'path.jpg')
       try {
@@ -782,7 +803,7 @@ class SimpleImporter {
         })
         if (pathMedia) {
           this.pathPlaceholderMediaId = String(pathMedia.id)
-          console.log('    ✓ Uploaded path.jpg')
+          console.log(`    ✓ Uploaded path.jpg (ID: ${this.pathPlaceholderMediaId})`)
         }
       } catch (error) {
         this.addWarning('path.jpg not found in migration-cache folder')
@@ -850,6 +871,28 @@ class SimpleImporter {
   private async importTags(tags: ImportedData['tags']) {
     console.log('\nImporting tags...')
 
+    // First, we need to determine which tags are used for meditations vs music
+    // by examining the taggings table
+    const taggingsQuery = await this.tempDb.query(
+      "SELECT tag_id, taggable_type FROM taggings WHERE context = 'tags'",
+    )
+    const taggings = taggingsQuery.rows
+
+    // Build sets of tag IDs that are used by each type
+    const meditationTagIds = new Set<number>()
+    const musicTagIds = new Set<number>()
+
+    taggings.forEach((tagging: any) => {
+      if (tagging.taggable_type === 'Meditation') {
+        meditationTagIds.add(tagging.tag_id)
+      } else if (tagging.taggable_type === 'Music') {
+        musicTagIds.add(tagging.tag_id)
+      }
+    })
+
+    console.log(`    ℹ️  Found ${meditationTagIds.size} unique tags used by meditations`)
+    console.log(`    ℹ️  Found ${musicTagIds.size} unique tags used by music`)
+
     // Load all existing tags to avoid duplicates
     const [existingMeditationTags, existingMusicTags] = await Promise.all([
       this.payload.find({ collection: 'meditation-tags', limit: 1000 }),
@@ -868,43 +911,46 @@ class SimpleImporter {
     let musicCreated = 0,
       musicFound = 0
 
-    // Note: We'll create tags in both meditation-tags and music-tags collections
-    // since the old system didn't distinguish between them
+    // Process tags based on their actual usage
     for (const tag of tags) {
       const tagData = {
         name: tag.name,
         title: tag.name, // Simple string, not localized object
       }
 
-      // Handle meditation-tags
-      let meditationTag = existingMeditationByName.get(tag.name)
-      if (meditationTag) {
-        console.log(`    ✓ Found existing meditation tag: ${meditationTag.name}`)
-        meditationFound++
-      } else {
-        meditationTag = await this.payload.create({
-          collection: 'meditation-tags',
-          data: tagData,
-        })
-        console.log(`    ✓ Created meditation tag: ${meditationTag.name}`)
-        meditationCreated++
+      // Handle meditation-tags (only if used by meditations)
+      if (meditationTagIds.has(tag.id)) {
+        let meditationTag = existingMeditationByName.get(tag.name)
+        if (meditationTag) {
+          console.log(`    ✓ Found existing meditation tag: ${meditationTag.name}`)
+          meditationFound++
+        } else {
+          meditationTag = await this.payload.create({
+            collection: 'meditation-tags',
+            data: tagData,
+          })
+          console.log(`    ✓ Created meditation tag: ${meditationTag.name}`)
+          meditationCreated++
+        }
+        this.idMaps.meditationTags.set(tag.id, String(meditationTag.id))
       }
-      this.idMaps.meditationTags.set(tag.id, String(meditationTag.id))
 
-      // Handle music-tags
-      let musicTag = existingMusicByName.get(tag.name)
-      if (musicTag) {
-        console.log(`    ✓ Found existing music tag: ${musicTag.name}`)
-        musicFound++
-      } else {
-        musicTag = await this.payload.create({
-          collection: 'music-tags',
-          data: tagData,
-        })
-        console.log(`    ✓ Created music tag: ${musicTag.name}`)
-        musicCreated++
+      // Handle music-tags (only if used by music)
+      if (musicTagIds.has(tag.id)) {
+        let musicTag = existingMusicByName.get(tag.name)
+        if (musicTag) {
+          console.log(`    ✓ Found existing music tag: ${musicTag.name}`)
+          musicFound++
+        } else {
+          musicTag = await this.payload.create({
+            collection: 'music-tags',
+            data: tagData,
+          })
+          console.log(`    ✓ Created music tag: ${musicTag.name}`)
+          musicCreated++
+        }
+        this.idMaps.musicTags.set(tag.id, String(musicTag.id))
       }
-      this.idMaps.musicTags.set(tag.id, String(musicTag.id))
     }
 
     // Update summary
@@ -914,7 +960,7 @@ class SimpleImporter {
     this.summary.musicTags.existing = musicFound
 
     console.log(
-      `✓ Processed ${tags.length} tags (meditation: ${meditationCreated} created, ${meditationFound} existing | music: ${musicCreated} created, ${musicFound} existing)`,
+      `✓ Processed tags (meditation: ${meditationCreated} created, ${meditationFound} existing | music: ${musicCreated} created, ${musicFound} existing)`,
     )
   }
 
@@ -925,8 +971,11 @@ class SimpleImporter {
     const uniqueTags = new Set<string>()
     frames.forEach((frame) => {
       if (frame.tags) {
-        const tags = frame.tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean)
-        tags.forEach(tag => uniqueTags.add(tag))
+        const tags = frame.tags
+          .split(',')
+          .map((t) => t.trim().toLowerCase())
+          .filter(Boolean)
+        tags.forEach((tag) => uniqueTags.add(tag))
       }
     })
 
@@ -953,9 +1002,9 @@ class SimpleImporter {
     for (const tagName of tagNamesArray) {
       // Rename "anahat" to "heart" for frame tags
       const displayName = tagName === 'anahat' ? 'heart' : tagName
-      
+
       const existing = existingByName.get(displayName)
-      
+
       if (existing) {
         // Map the original tag name to the ID for later use
         this.idMaps.frameTags.set(tagName, String(existing.id))
@@ -983,7 +1032,9 @@ class SimpleImporter {
     this.summary.frameTags.created = createdCount
     this.summary.frameTags.existing = foundCount
 
-    console.log(`✓ Processed ${uniqueTags.size} frame tags (${createdCount} created, ${foundCount} existing)`)
+    console.log(
+      `✓ Processed ${uniqueTags.size} frame tags (${createdCount} created, ${foundCount} existing)`,
+    )
   }
 
   private async importFrames(frames: ImportedData['frames'], attachments: any[], blobs: any[]) {
@@ -1027,7 +1078,7 @@ class SimpleImporter {
 
       // Convert tag names to tag IDs for relationships
       const tagIds = frameTagNames
-        .map(tagName => this.idMaps.frameTags.get(tagName))
+        .map((tagName) => this.idMaps.frameTags.get(tagName))
         .filter(Boolean)
 
       // Get frame attachments (should have both male and female)
@@ -1301,11 +1352,11 @@ class SimpleImporter {
   private checkMeditationHasPathTag(
     meditationId: number,
     meditationTaggings: any[],
-    allTags: ImportedData['tags']
+    allTags: ImportedData['tags'],
   ): boolean {
     // Check if any of the meditation's tags has the name "path"
     for (const tagging of meditationTaggings) {
-      const tag = allTags.find(t => t.id === tagging.tag_id)
+      const tag = allTags.find((t) => t.id === tagging.tag_id)
       if (tag && tag.name.toLowerCase() === 'path') {
         return true
       }
@@ -1363,7 +1414,7 @@ class SimpleImporter {
       // Get narrator ID and gender to select appropriate frames
       const narratorIndex = meditation.narrator // This is the narrator index (0 or 1)
       const narratorId = this.idMaps.narrators.get(narratorIndex)
-      const narratorGender = narratorIndex === 0 ? 'female' : 'male'
+      const narratorGender = narratorIndex === 0 ? 'male' : 'female'
 
       // Build frames array from keyframes, selecting gender-appropriate frames
       const meditationKeyframes = keyframes.filter((kf) => kf.media_id === meditation.id)
@@ -1489,7 +1540,11 @@ class SimpleImporter {
       // If no thumbnail was uploaded, use placeholder
       if (!thumbnailId) {
         // Check if meditation has "path" tag to determine which placeholder to use
-        const hasPathTag = this.checkMeditationHasPathTag(meditation.id, meditationTaggings, allTags)
+        const hasPathTag = this.checkMeditationHasPathTag(
+          meditation.id,
+          meditationTaggings,
+          allTags,
+        )
 
         if (hasPathTag && this.pathPlaceholderMediaId) {
           thumbnailId = this.pathPlaceholderMediaId
@@ -1498,7 +1553,9 @@ class SimpleImporter {
           thumbnailId = this.placeholderMediaId
           console.log(`    ℹ️  Using default placeholder for meditation: ${meditation.title}`)
         } else {
-          this.addWarning(`No thumbnail or placeholder available for meditation: ${meditation.title}`)
+          this.addWarning(
+            `No thumbnail or placeholder available for meditation: ${meditation.title}`,
+          )
         }
       }
 
@@ -1512,7 +1569,16 @@ class SimpleImporter {
         musicTag: musicTagId,
         // If published, set publishAt to today's date so it's immediately published
         publishAt: meditation.published ? new Date().toISOString() : undefined,
-        thumbnail: thumbnailId,
+      }
+
+      // Only include thumbnail if we have a valid ID
+      if (thumbnailId) {
+        meditationData.thumbnail = thumbnailId
+      } else {
+        // Thumbnail is required, so we need to have a valid one
+        this.addWarning(
+          `No valid thumbnail available for meditation: ${meditation.title}, will likely fail`,
+        )
       }
 
       // Only include frames if we have valid frames
