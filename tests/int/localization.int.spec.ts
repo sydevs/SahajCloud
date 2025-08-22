@@ -1,5 +1,5 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Tag, Media, Music, Narrator } from '@/payload-types'
+import type { MeditationTag, Media, Music, Narrator } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
 import { testData } from '../utils/testData'
@@ -18,20 +18,21 @@ describe('Localization', () => {
     await cleanup()
   })
 
-  describe('Tags Collection', () => {
+  describe('Meditation Tags Collection', () => {
     it.skip('creates and retrieves localized tag titles - Payload behavior differs from test expectations', async () => {
       // Create tag with English title
       const enTag = await payload.create({
-        collection: 'tags',
+        collection: 'meditation-tags',
         data: {
+          name: 'mindfulness',
           title: 'Mindfulness',
         },
         locale: 'en',
-      }) as Tag
+      }) as MeditationTag
 
       // Update tag with Italian title
       await payload.update({
-        collection: 'tags',
+        collection: 'meditation-tags',
         id: enTag.id,
         data: {
           title: 'Consapevolezza',
@@ -41,19 +42,19 @@ describe('Localization', () => {
 
       // Retrieve English version
       const enResult = await payload.findByID({
-        collection: 'tags',
+        collection: 'meditation-tags',
         id: enTag.id,
         locale: 'en',
-      }) as Tag
+      }) as MeditationTag
 
       expect(enResult.title).toBe('Mindfulness')
 
       // Retrieve Italian version
       const itResult = await payload.findByID({
-        collection: 'tags',
+        collection: 'meditation-tags',
         id: enTag.id,
         locale: 'it',
-      }) as Tag
+      }) as MeditationTag
 
       expect(itResult.title).toBe('Consapevolezza')
     })
@@ -61,15 +62,16 @@ describe('Localization', () => {
     it.skip('supports localized queries with find operations - Payload behavior differs from test expectations', async () => {
       // Create tag with different titles for each locale
       const tag = await payload.create({
-        collection: 'tags',
+        collection: 'meditation-tags',
         data: {
+          name: 'relaxation',
           title: 'Relaxation',
         },
         locale: 'en',
-      }) as Tag
+      }) as MeditationTag
 
       await payload.update({
-        collection: 'tags',
+        collection: 'meditation-tags',
         id: tag.id,
         data: {
           title: 'Rilassamento',
@@ -79,7 +81,7 @@ describe('Localization', () => {
 
       // Query with English locale
       const enResults = await payload.find({
-        collection: 'tags',
+        collection: 'meditation-tags',
         where: {
           title: {
             equals: 'Relaxation',
@@ -93,7 +95,7 @@ describe('Localization', () => {
 
       // Query with Italian locale
       const itResults = await payload.find({
-        collection: 'tags',
+        collection: 'meditation-tags',
         where: {
           title: {
             equals: 'Rilassamento',
@@ -440,15 +442,16 @@ describe('Localization', () => {
     it.skip('returns default locale content when no locale is specified - Payload behavior differs from test expectations', async () => {
       // Create tag with both locales
       const tag = await payload.create({
-        collection: 'tags',
+        collection: 'meditation-tags',
         data: {
+          name: 'default-tag',
           title: 'Default English',
         },
         locale: 'en',
-      }) as Tag
+      }) as MeditationTag
 
       await payload.update({
-        collection: 'tags',
+        collection: 'meditation-tags',
         id: tag.id,
         data: {
           title: 'Default Italian',
@@ -458,10 +461,10 @@ describe('Localization', () => {
 
       // Query without locale should return default (en)
       const defaultResult = await payload.findByID({
-        collection: 'tags',
+        collection: 'meditation-tags',
         id: tag.id,
         // No locale specified
-      }) as Tag
+      }) as MeditationTag
 
       expect(defaultResult.title).toBe('Default English')
     })

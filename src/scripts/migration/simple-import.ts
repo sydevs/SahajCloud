@@ -810,8 +810,8 @@ class SimpleImporter {
     console.log('\nImporting narrators...')
 
     const narrators = [
-      { name: 'Female Narrator', gender: 'female' },
-      { name: 'Male Narrator', gender: 'male' },
+      { name: 'Female Narrator', gender: 'female' as const },
+      { name: 'Male Narrator', gender: 'male' as const },
     ]
 
     // First, load all existing narrators to populate idMaps
@@ -995,7 +995,19 @@ class SimpleImporter {
         : []
 
       // Frame tags are now stored directly as values (multi-select field)
-      const tagValues = frameTagNames
+      // Filter to only include valid enum values
+      const validFrameTags = [
+        'anahat', 'back', 'bandhan', 'both hands', 'center', 'channel', 'earth',
+        'ego', 'feel', 'ham ksham', 'hamsa', 'hand', 'hands', 'ida', 'left',
+        'lefthanded', 'massage', 'pingala', 'raise', 'right', 'righthanded',
+        'rising', 'silent', 'superego', 'tapping'
+      ]
+      const tagValues = frameTagNames.filter(tag => validFrameTags.includes(tag)) as Array<
+        | 'anahat' | 'back' | 'bandhan' | 'both hands' | 'center' | 'channel' | 'earth'
+        | 'ego' | 'feel' | 'ham ksham' | 'hamsa' | 'hand' | 'hands' | 'ida' | 'left'
+        | 'lefthanded' | 'massage' | 'pingala' | 'raise' | 'right' | 'righthanded'
+        | 'rising' | 'silent' | 'superego' | 'tapping'
+      >
 
       // Get frame attachments (should have both male and female)
       const frameAttachments = this.getAttachmentsForRecord('Frame', frame.id, attachments, blobs)
@@ -1009,7 +1021,7 @@ class SimpleImporter {
 
         const frameData = {
           imageSet: 'male' as const,
-          category: mappedCategory,
+          category: mappedCategory as 'mooladhara' | 'swadhistan' | 'nabhi' | 'void' | 'anahat' | 'vishuddhi' | 'agnya' | 'sahasrara' | 'clearing' | 'kundalini' | 'meditate' | 'ready' | 'namaste',
           tags: tagValues, // Now using direct string values
         }
 
@@ -1057,7 +1069,7 @@ class SimpleImporter {
 
         const frameData = {
           imageSet: 'female' as const,
-          category: mappedCategory,
+          category: mappedCategory as 'mooladhara' | 'swadhistan' | 'nabhi' | 'void' | 'anahat' | 'vishuddhi' | 'agnya' | 'sahasrara' | 'clearing' | 'kundalini' | 'meditate' | 'ready' | 'namaste',
           tags: tagValues, // Now using direct string values
         }
 
@@ -1177,7 +1189,7 @@ class SimpleImporter {
       )
       const musicTagIds = musicTaggings
         .map((tagging) => this.idMaps.musicTags.get(tagging.tag_id))
-        .filter(Boolean)
+        .filter((id): id is string => Boolean(id))
 
       if (musicTagIds.length > 0) {
         console.log(`    ℹ️  Music "${music.title}" has ${musicTagIds.length} tags`)
@@ -1353,7 +1365,7 @@ class SimpleImporter {
             timestamp: timestamp,
           }
         })
-        .filter(Boolean) // Remove null entries
+        .filter((frame): frame is NonNullable<typeof frame> => frame !== null) // Remove null entries with type guard
 
       // Sort by timestamp
       frames.sort((a, b) => a.timestamp - b.timestamp)
