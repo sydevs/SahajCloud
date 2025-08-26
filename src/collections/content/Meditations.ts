@@ -3,6 +3,7 @@ import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { FrameData } from '@/components/admin/MeditationFrameEditor/types'
+import { generateSlug, sanitizeFilename } from '@/lib/fieldUtils'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
@@ -18,21 +19,10 @@ export const Meditations: CollectionConfig = {
     defaultColumns: ['thumbnail', 'title', 'publishAt', 'duration', 'tags'],
   },
   hooks: {
+    beforeOperation: [sanitizeFilename],
     afterRead: [trackClientUsageHook],
     beforeChange: [
-      ({ data, operation, originalDoc }) => {
-        // Generate slug from title
-        if (operation === 'create' && data.title && !data.slug) {
-          data.slug = data.title
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '')
-        } else if (operation === 'update' && originalDoc) {
-          // Preserve original slug on update
-          data.slug = originalDoc.slug
-        }
-        return data
-      },
+      generateSlug,
       async ({ data, req }) => {
         // Audio file validation and duration extraction
         if (req.file && req.file.data) {

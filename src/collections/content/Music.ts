@@ -2,6 +2,7 @@ import type { CollectionConfig, Field } from 'payload'
 import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { permissionBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { generateSlug, sanitizeFilename } from '@/lib/fieldUtils'
 
 export const Music: CollectionConfig = {
   slug: 'music',
@@ -17,21 +18,10 @@ export const Music: CollectionConfig = {
     defaultColumns: ['title', 'duration', 'tags'],
   },
   hooks: {
+    beforeOperation: [sanitizeFilename],
     afterRead: [trackClientUsageHook],
     beforeChange: [
-      ({ data, operation, originalDoc }) => {
-        // Generate slug from title
-        if (operation === 'create' && data.title) {
-          data.slug = data.title
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '')
-        } else if (operation === 'update' && originalDoc) {
-          data.slug = originalDoc.slug
-        }
-
-        return data
-      },
+      generateSlug,
       async ({ data, req }) => {
         // Audio file validation and duration extraction
         if (req.file && req.file.data) {
