@@ -54,7 +54,7 @@ Copy from `.env.example` and configure:
 - `S3_ENDPOINT` - Cloudflare R2 server endpoint
 - `S3_ACCESS_KEY_ID` - Cloudflare R2 access key
 - `S3_SECRET_ACCESS_KEY` - Cloudflare R2 secret key
-- `S3_BUCKET_NAME` - Storage bucket name
+- `S3_BUCKET` - Storage bucket name
 - `S3_REGION` - Region (default: us-east-1)
 
 **Note**: If Cloudflare R2 variables are not configured, the system automatically falls back to local file storage.
