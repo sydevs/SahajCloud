@@ -1,9 +1,8 @@
 import type { CollectionConfig, Validate } from 'payload'
-import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { FrameData } from '@/components/admin/MeditationFrameEditor/types'
-import { generateSlug, sanitizeFilename } from '@/lib/fieldUtils'
+import { convertFile, generateSlug, processFile, sanitizeFilename } from '@/lib/fieldUtils'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
@@ -20,42 +19,9 @@ export const Meditations: CollectionConfig = {
   },
   hooks: {
     beforeOperation: [sanitizeFilename],
+    beforeValidate: [processFile({})],
+    beforeChange: [generateSlug, convertFile],
     afterRead: [trackClientUsageHook],
-    beforeChange: [
-      generateSlug,
-      async ({ data, req }) => {
-        // Audio file validation and duration extraction
-        if (req.file && req.file.data) {
-          try {
-            // Validate file size (50MB limit)
-            const fileSizeValidation = validateAudioFileSize(req.file.size || 0, 50)
-            if (fileSizeValidation !== true) {
-              throw new Error(fileSizeValidation)
-            }
-
-            // Extract and validate audio duration
-            const duration = await getAudioDuration(req.file.data)
-            const durationValidation = validateAudioDuration(duration, 30) // 30 minutes max
-            if (durationValidation !== true) {
-              throw new Error(durationValidation)
-            }
-
-            // Auto-populate duration in seconds
-            data.duration = Math.round(duration) // Round to nearest second
-          } catch (error) {
-            req.payload.logger.error({
-              msg: 'Audio file validation failed',
-              err: error,
-              fileName: req.file.name,
-              fileSize: req.file.size,
-            })
-            throw error
-          }
-        }
-
-        return data
-      },
-    ],
   },
   fields: [
     {
@@ -267,6 +233,14 @@ export const Meditations: CollectionConfig = {
               .sort((a: any, b: any) => a.timestamp - b.timestamp)
           },
         ],
+      },
+    },
+    {
+      name: 'fileMetadata',
+      type: 'json',
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
       },
     },
   ],

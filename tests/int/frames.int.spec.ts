@@ -31,12 +31,17 @@ describe('Frames Collection', () => {
     // Tags should be empty array when no tags are provided
     expect(frame.tags).toEqual([])
     expect(frame.mimeType).toBe('image/jpeg') // Original format preserved for now
-    expect(frame.filename).toMatch(/^image-1050x700(-\d+)?\.jpg$/)
+    expect(frame.filename).toMatch(/^image-1050x700(-\d+)?-.+\.jpg$/)
     expect(frame.filesize).toBeGreaterThan(0)
     // Dimensions should be auto-populated by Payload for images
     expect(frame.width).toBeGreaterThan(0)
     expect(frame.height).toBeGreaterThan(0)
-    expect(frame.duration).toBeUndefined() // No duration for images
+    expect(frame.fileMetadata).toEqual({
+      dimensions: {
+        width: 1050,
+        height: 700,
+      },
+    })
 
     // Check category field
     expect(frame.category).toBe(FRAME_CATEGORIES[0])
@@ -58,11 +63,13 @@ describe('Frames Collection', () => {
     // Tags should be empty array when no tags are provided
     expect(frame.tags).toEqual([])
     expect(frame.mimeType).toBe('video/mp4') // Original format preserved for now
-    expect(frame.filename).toMatch(/^video-30s(-\d+)?\.mp4$/)
+    expect(frame.filename).toMatch(/^video-30s(-\d+)?-.+\.mp4$/)
     expect(frame.filesize).toBeGreaterThan(0)
     // Duration and dimensions are now automatically extracted
-    expect(frame.duration).toBe(29.5) // Mock duration from test environment
-    expect(frame.dimensions).toEqual({ width: 1920, height: 1080 }) // Mock dimensions from test environment
+    expect(frame.fileMetadata).toEqual({
+      duration: 30.5,
+      dimensions: { width: 480, height: 270 },
+    })
 
     // Check category field
     expect(frame.category).toBe(FRAME_CATEGORIES[1])
@@ -71,7 +78,7 @@ describe('Frames Collection', () => {
   it('uses default imageSet when none provided', async () => {
     const frame = await testData.createFrame(payload, {
       // No imageSet provided, should use default
-    } as any)
+    })
 
     expect(frame.imageSet).toBeDefined()
     expect(['male', 'female']).toContain(frame.imageSet)
@@ -80,7 +87,7 @@ describe('Frames Collection', () => {
   it('validates imageSet options', async () => {
     await expect(
       testData.createFrame(payload, {
-        imageSet: 'invalid' as any, // Invalid option
+        imageSet: 'invalid', // Invalid option
       }),
     ).rejects.toThrow()
   })
@@ -106,7 +113,7 @@ describe('Frames Collection', () => {
 
       expect(frame).toBeDefined()
       expect(frame.mimeType).toBe(format.mimetype)
-      expect(frame.filename).toMatch(new RegExp(`^${format.name.replace('.', '(-\\d+)?\\.')}$`))
+      expect(frame.filename).toMatch(new RegExp(`^${format.name.replace('.', '(-\\d+)?-.+\\.')}$`))
     }
   })
 
@@ -286,10 +293,14 @@ describe('Frames Collection', () => {
     expect(imageFrame.mimeType).toBe('image/jpeg')
     expect(imageFrame.width).toBeGreaterThan(0)
     expect(imageFrame.height).toBeGreaterThan(0)
-    expect(imageFrame.duration).toBeUndefined()
+    expect(imageFrame.fileMetadata).toEqual({
+      dimensions: { width: 1050, height: 700 },
+    })
 
     expect(videoFrame.mimeType).toBe('video/mp4')
-    expect(videoFrame.duration).toBe(29.5) // Mock duration from test environment
-    expect(videoFrame.dimensions).toEqual({ width: 1920, height: 1080 }) // Mock dimensions from test environment
+    expect(videoFrame.fileMetadata).toEqual({
+      duration: 30.5,
+      dimensions: { width: 480, height: 270 },
+    })
   })
 })
