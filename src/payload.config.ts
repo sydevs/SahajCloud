@@ -95,9 +95,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         }),
     sharp,
     plugins: [
-      // Add file storage plugin if configured
-      storagePlugin(),
-    ].filter((v) => !!v),
+      storagePlugin(), // Handles file storage
+    ],
     upload: {
       limits: {
         fileSize: 104857600, // 100MB global limit, written in bytes (collections will have their own limits)

@@ -9,18 +9,14 @@ import { s3Storage } from '@payloadcms/storage-s3'
  */
 export const storagePlugin = () => {
   // Check if storage configuration is available
-  const endpoint = process.env.S3_ENDPOINT
-  const accessKeyId = process.env.S3_ACCESS_KEY_ID
-  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY
-  const bucketName = process.env.S3_BUCKET
-
-  // If not configured, return null to use local storage
-  if (!endpoint || !accessKeyId || !secretAccessKey || !bucketName) {
-    console.log('S3 Bucket not configured, missing some env vars')
-    return null
-  }
+  const endpoint = process.env.S3_ENDPOINT || ''
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID || ''
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || ''
+  const bucketName = process.env.S3_BUCKET || ''
+  const isConfigured = Boolean(endpoint && accessKeyId && secretAccessKey && bucketName)
 
   return s3Storage({
+    enabled: isConfigured,
     collections: {
       media: true,
       music: true,
@@ -35,7 +31,6 @@ export const storagePlugin = () => {
         accessKeyId,
         secretAccessKey,
       },
-      // Critical for MinIO compatibility
       forcePathStyle: true,
     },
   })
