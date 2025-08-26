@@ -63,9 +63,9 @@ export const processFile: ProcessFileHook = ({ maxMB, maxMinutes }) => {
 
     // Validate file size
     const fileSize = req.file.size / 1024 / 1024 || 0
-    if (req.file.size > maxMB) {
+    if (req.file.size > maxMB * 1024 * 1024) {
       throw new Error(
-        `File size (${Math.round(fileSize)}MB) exceeds maximum allowed size of ${maxMB}MB`,
+        `File size (${(fileSize / 1024 / 1024).toFixed(2)}MB) exceeds maximum allowed size of ${maxMB}MB`,
       )
     }
 

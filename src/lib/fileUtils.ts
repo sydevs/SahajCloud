@@ -19,6 +19,7 @@ export const extractFileMetadata = async (file: NonNullable<PayloadRequest['file
       return getMediaMetadata(data)
     } else if (mimetype.startsWith('image/')) {
       const { width, height, orientation } = await sharp(data).metadata()
+
       return {
         orientation,
         width,
