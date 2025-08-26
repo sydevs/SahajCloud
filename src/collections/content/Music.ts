@@ -1,8 +1,7 @@
 import type { CollectionConfig, Field } from 'payload'
-import { getAudioDuration, validateAudioDuration, validateAudioFileSize } from '@/lib/audioUtils'
 import { permissionBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { generateSlug, sanitizeFilename } from '@/lib/fieldUtils'
+import { convertFile, generateSlug, processFile, sanitizeFilename } from '@/lib/fieldUtils'
 
 export const Music: CollectionConfig = {
   slug: 'music',
@@ -19,42 +18,9 @@ export const Music: CollectionConfig = {
   },
   hooks: {
     beforeOperation: [sanitizeFilename],
+    beforeValidate: [processFile({})],
+    beforeChange: [generateSlug, convertFile],
     afterRead: [trackClientUsageHook],
-    beforeChange: [
-      generateSlug,
-      async ({ data, req }) => {
-        // Audio file validation and duration extraction
-        if (req.file && req.file.data) {
-          try {
-            // Validate file size (50MB limit)
-            const fileSizeValidation = validateAudioFileSize(req.file.size || 0, 50)
-            if (fileSizeValidation !== true) {
-              throw new Error(fileSizeValidation)
-            }
-
-            // Extract and validate audio duration
-            const duration = await getAudioDuration(req.file.data)
-            const durationValidation = validateAudioDuration(duration, 30) // 30 minutes max
-            if (durationValidation !== true) {
-              throw new Error(durationValidation)
-            }
-
-            // Auto-populate duration in minutes
-            data.duration = Math.round(duration) // Round to nearest second
-          } catch (error) {
-            req.payload.logger.error({
-              msg: 'Music file validation failed',
-              err: error,
-              fileName: req.file.name,
-              fileSize: req.file.size,
-            })
-            throw error
-          }
-        }
-
-        return data
-      },
-    ],
   },
   fields: [
     {
@@ -74,15 +40,6 @@ export const Music: CollectionConfig = {
       },
     },
     {
-      name: 'duration',
-      type: 'number',
-      admin: {
-        description: 'Duration in seconds',
-        position: 'sidebar',
-        readOnly: true,
-      },
-    },
-    {
       name: 'tags',
       type: 'relationship',
       relationTo: 'music-tags',
@@ -94,6 +51,14 @@ export const Music: CollectionConfig = {
       localized: true,
       admin: {
         description: 'Attribution or credit information',
+      },
+    },
+    {
+      name: 'fileMetadata',
+      type: 'json',
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
       },
     },
   ].map((field) => {

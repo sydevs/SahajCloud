@@ -217,6 +217,15 @@ export interface Meditation {
     | number
     | boolean
     | null;
+  fileMetadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -245,10 +254,7 @@ export interface Media {
    * Attribution or copyright information
    */
   credit?: string | null;
-  /**
-   * Auto-populated image dimensions (width/height)
-   */
-  dimensions?:
+  fileMetadata?:
     | {
         [k: string]: unknown;
       }
@@ -373,15 +379,20 @@ export interface Music {
   id: string;
   title: string;
   slug?: string | null;
-  /**
-   * Duration in seconds
-   */
-  duration?: number | null;
   tags?: (string | MusicTag)[] | null;
   /**
    * Attribution or credit information
    */
   credit?: string | null;
+  fileMetadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -446,10 +457,7 @@ export interface Frame {
         | 'tapping'
       )[]
     | null;
-  /**
-   * Auto-populated dimensions for images (width/height)
-   */
-  dimensions?:
+  fileMetadata?:
     | {
         [k: string]: unknown;
       }
@@ -458,10 +466,6 @@ export interface Frame {
     | number
     | boolean
     | null;
-  /**
-   * Auto-populated duration for videos (in seconds)
-   */
-  duration?: number | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -858,6 +862,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   musicTag?: T;
   frames?: T;
   frameData?: T;
+  fileMetadata?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -878,9 +883,9 @@ export interface MeditationsSelect<T extends boolean = true> {
 export interface MusicSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
-  duration?: T;
   tags?: T;
   credit?: T;
+  fileMetadata?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -903,8 +908,7 @@ export interface FramesSelect<T extends boolean = true> {
   imageSet?: T;
   category?: T;
   tags?: T;
-  dimensions?: T;
-  duration?: T;
+  fileMetadata?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -959,7 +963,7 @@ export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   tags?: T;
   credit?: T;
-  dimensions?: T;
+  fileMetadata?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;

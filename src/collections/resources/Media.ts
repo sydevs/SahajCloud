@@ -1,8 +1,7 @@
 import type { CollectionConfig } from 'payload'
-import sharp from 'sharp'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { sanitizeFilename } from '@/lib/fieldUtils'
+import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
 
 export const Media: CollectionConfig = {
   slug: 'media',
@@ -55,65 +54,9 @@ export const Media: CollectionConfig = {
     ],
   },
   hooks: {
-    beforeChange: [
-      async ({ data, req }) => {
-        // Auto-convert JPG/PNG to WEBP format for main file
-        if (req.file && req.file.data) {
-          const { mimetype: mimeType } = req.file
-
-          // Only process JPG and PNG files (WEBP files are kept as-is)
-          if (mimeType === 'image/jpeg' || mimeType === 'image/png') {
-            try {
-              // Convert to WEBP with 95% quality
-              const webpBuffer = await sharp(req.file.data).webp({ quality: 95 }).toBuffer()
-
-              // Update the file data
-              req.file.data = webpBuffer
-              req.file.mimetype = 'image/webp'
-              req.file.name = req.file.name.replace(/\.(jpe?g|png)$/i, '.webp')
-
-              // Auto-populate dimensions
-              const { width, height } = await sharp(webpBuffer).metadata()
-              data.dimensions = { width, height }
-            } catch (error) {
-              req.payload.logger.error({
-                msg: 'Failed to convert image to WEBP',
-                err: error,
-                fileName: req.file.name,
-                mimeType: req.file.mimetype,
-              })
-              // Let the upload continue with original format if conversion fails
-            }
-          } else if (mimeType === 'image/webp') {
-            // For WEBP files, just extract dimensions
-            try {
-              const { width, height } = await sharp(req.file.data).metadata()
-              data.dimensions = { width, height }
-            } catch (error) {
-              req.payload.logger.error({
-                msg: 'Failed to extract WEBP image dimensions',
-                err: error,
-                fileName: req.file.name,
-              })
-            }
-          }
-        }
-
-        return data
-      },
-    ],
-    beforeValidate: [
-      async ({ data, req }) => {
-        // Validate file size (10MB limit)
-        if (req.file && req.file.size && req.file.size > 10485760) {
-          // 10MB in bytes
-          throw new Error('Image file size must be 10MB or less')
-        }
-
-        return data
-      },
-    ],
     beforeOperation: [sanitizeFilename],
+    beforeValidate: [processFile({})],
+    beforeChange: [convertFile],
     afterRead: [trackClientUsageHook],
   },
   fields: [
@@ -141,10 +84,9 @@ export const Media: CollectionConfig = {
       },
     },
     {
-      name: 'dimensions',
+      name: 'fileMetadata',
       type: 'json',
       admin: {
-        description: 'Auto-populated image dimensions (width/height)',
         position: 'sidebar',
         readOnly: true,
       },
