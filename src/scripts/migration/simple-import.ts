@@ -147,6 +147,9 @@ class SimpleImporter {
         this.payload = await getPayload({ config: payloadConfig })
         console.log('✓ Payload CMS initialized')
 
+        // 2.1. Reset Payload CMS database
+        // await this.resetPayloadDatabase()
+
         // 3. Setup file handling and load ID mappings
         await this.setupFileDirectory()
         await this.loadIdMappingsFromCache()
@@ -246,6 +249,64 @@ class SimpleImporter {
       console.error('Failed to setup temp database:', error)
       throw error
     }
+  }
+
+  private async resetPayloadDatabase() {
+    console.log('\n🗑️  Resetting Payload CMS database...')
+
+    const collections = [
+      'meditation-frames',
+      'meditations',
+      'frames',
+      'music',
+      'meditation-tags',
+      'music-tags',
+      'narrators',
+      'media',
+    ]
+
+    let totalDeleted = 0
+
+    for (const collection of collections) {
+      try {
+        // Find all documents in the collection
+        const docs = await this.payload.find({
+          collection: collection as CollectionSlug,
+          limit: 1000, // Adjust if you have more than 1000 docs in any collection
+        })
+
+        if (docs.docs.length > 0) {
+          console.log(`  Deleting ${docs.docs.length} documents from ${collection}...`)
+
+          // Delete all documents
+          for (const doc of docs.docs) {
+            await this.payload.delete({
+              collection: collection as CollectionSlug,
+              id: doc.id,
+            })
+          }
+
+          totalDeleted += docs.docs.length
+          console.log(`  ✓ Cleared ${collection}`)
+        } else {
+          console.log(`  ✓ ${collection} already empty`)
+        }
+      } catch (error: any) {
+        console.warn(`  ⚠️  Could not clear ${collection}: ${error.message}`)
+      }
+    }
+
+    console.log(`✓ Database reset complete - deleted ${totalDeleted} documents total`)
+
+    // Clear ID mappings cache since database is reset
+    this.idMaps.meditationTags.clear()
+    this.idMaps.musicTags.clear()
+    this.idMaps.frames.clear()
+    this.idMaps.meditations.clear()
+    this.idMaps.musics.clear()
+    this.idMaps.narrators.clear()
+    this.idMaps.media.clear()
+    console.log('✓ Cleared ID mappings cache')
   }
 
   private async loadData(): Promise<ImportedData> {
@@ -997,16 +1058,58 @@ class SimpleImporter {
       // Frame tags are now stored directly as values (multi-select field)
       // Filter to only include valid enum values
       const validFrameTags = [
-        'anahat', 'back', 'bandhan', 'both hands', 'center', 'channel', 'earth',
-        'ego', 'feel', 'ham ksham', 'hamsa', 'hand', 'hands', 'ida', 'left',
-        'lefthanded', 'massage', 'pingala', 'raise', 'right', 'righthanded',
-        'rising', 'silent', 'superego', 'tapping'
+        'anahat',
+        'back',
+        'bandhan',
+        'both hands',
+        'center',
+        'channel',
+        'earth',
+        'ego',
+        'feel',
+        'ham ksham',
+        'hamsa',
+        'hand',
+        'hands',
+        'ida',
+        'left',
+        'lefthanded',
+        'massage',
+        'pingala',
+        'raise',
+        'right',
+        'righthanded',
+        'rising',
+        'silent',
+        'superego',
+        'tapping',
       ]
-      const tagValues = frameTagNames.filter(tag => validFrameTags.includes(tag)) as Array<
-        | 'anahat' | 'back' | 'bandhan' | 'both hands' | 'center' | 'channel' | 'earth'
-        | 'ego' | 'feel' | 'ham ksham' | 'hamsa' | 'hand' | 'hands' | 'ida' | 'left'
-        | 'lefthanded' | 'massage' | 'pingala' | 'raise' | 'right' | 'righthanded'
-        | 'rising' | 'silent' | 'superego' | 'tapping'
+      const tagValues = frameTagNames.filter((tag) => validFrameTags.includes(tag)) as Array<
+        | 'anahat'
+        | 'back'
+        | 'bandhan'
+        | 'both hands'
+        | 'center'
+        | 'channel'
+        | 'earth'
+        | 'ego'
+        | 'feel'
+        | 'ham ksham'
+        | 'hamsa'
+        | 'hand'
+        | 'hands'
+        | 'ida'
+        | 'left'
+        | 'lefthanded'
+        | 'massage'
+        | 'pingala'
+        | 'raise'
+        | 'right'
+        | 'righthanded'
+        | 'rising'
+        | 'silent'
+        | 'superego'
+        | 'tapping'
       >
 
       // Get frame attachments (should have both male and female)
@@ -1021,7 +1124,20 @@ class SimpleImporter {
 
         const frameData = {
           imageSet: 'male' as const,
-          category: mappedCategory as 'mooladhara' | 'swadhistan' | 'nabhi' | 'void' | 'anahat' | 'vishuddhi' | 'agnya' | 'sahasrara' | 'clearing' | 'kundalini' | 'meditate' | 'ready' | 'namaste',
+          category: mappedCategory as
+            | 'mooladhara'
+            | 'swadhistan'
+            | 'nabhi'
+            | 'void'
+            | 'anahat'
+            | 'vishuddhi'
+            | 'agnya'
+            | 'sahasrara'
+            | 'clearing'
+            | 'kundalini'
+            | 'meditate'
+            | 'ready'
+            | 'namaste',
           tags: tagValues, // Now using direct string values
         }
 
@@ -1069,7 +1185,20 @@ class SimpleImporter {
 
         const frameData = {
           imageSet: 'female' as const,
-          category: mappedCategory as 'mooladhara' | 'swadhistan' | 'nabhi' | 'void' | 'anahat' | 'vishuddhi' | 'agnya' | 'sahasrara' | 'clearing' | 'kundalini' | 'meditate' | 'ready' | 'namaste',
+          category: mappedCategory as
+            | 'mooladhara'
+            | 'swadhistan'
+            | 'nabhi'
+            | 'void'
+            | 'anahat'
+            | 'vishuddhi'
+            | 'agnya'
+            | 'sahasrara'
+            | 'clearing'
+            | 'kundalini'
+            | 'meditate'
+            | 'ready'
+            | 'namaste',
           tags: tagValues, // Now using direct string values
         }
 
