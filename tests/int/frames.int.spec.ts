@@ -37,10 +37,8 @@ describe('Frames Collection', () => {
     expect(frame.width).toBeGreaterThan(0)
     expect(frame.height).toBeGreaterThan(0)
     expect(frame.fileMetadata).toEqual({
-      dimensions: {
-        width: 1050,
-        height: 700,
-      },
+      width: 1050,
+      height: 700,
     })
 
     // Check category field
@@ -68,7 +66,8 @@ describe('Frames Collection', () => {
     // Duration and dimensions are now automatically extracted
     expect(frame.fileMetadata).toEqual({
       duration: 30.5,
-      dimensions: { width: 480, height: 270 },
+      width: 480,
+      height: 270,
     })
 
     // Check category field
@@ -294,13 +293,15 @@ describe('Frames Collection', () => {
     expect(imageFrame.width).toBeGreaterThan(0)
     expect(imageFrame.height).toBeGreaterThan(0)
     expect(imageFrame.fileMetadata).toEqual({
-      dimensions: { width: 1050, height: 700 },
+      width: 1050,
+      height: 700,
     })
 
     expect(videoFrame.mimeType).toBe('video/mp4')
     expect(videoFrame.fileMetadata).toEqual({
       duration: 30.5,
-      dimensions: { width: 480, height: 270 },
+      width: 480,
+      height: 270,
     })
   })
 })

@@ -5,7 +5,8 @@ import fs from 'fs'
 import tmp from 'tmp'
 
 export type FileMetadata = {
-  dimensions?: { width: number; height: number }
+  width?: number
+  height?: number
   duration?: number
   orientation?: number
 }
@@ -20,7 +21,8 @@ export const extractFileMetadata = async (file: NonNullable<PayloadRequest['file
       const { width, height, orientation } = await sharp(data).metadata()
       return {
         orientation,
-        dimensions: { width, height },
+        width,
+        height,
       } as FileMetadata
     }
   }
@@ -48,12 +50,11 @@ const getMediaMetadata = (fileBuffer: Buffer) => {
       const videoStream = metadata.streams.find((stream) => stream.codec_type === 'video')
 
       if (videoStream && videoStream.width && videoStream.height) {
-        const dimensions = {
+        resolve({
+          duration,
           width: parseInt(videoStream.width.toString()),
           height: parseInt(videoStream.height.toString()),
-        }
-
-        resolve({ duration, dimensions })
+        })
       } else {
         resolve({ duration })
       }
