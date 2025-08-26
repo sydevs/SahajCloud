@@ -1,15 +1,29 @@
-import { BeforeChangeHook } from 'node_modules/payload/dist/collections/config/types'
+import { CollectionBeforeChangeHook, CollectionBeforeOperationHook } from 'payload'
+import { PayloadRequest } from 'payload'
+import slugify from 'slugify'
 
-export const generateSlug: BeforeChangeHook = ({ data, operation, originalDoc }) => {
+export const sanitizeFilename: CollectionBeforeOperationHook = async ({
+  req,
+}: {
+  req: PayloadRequest
+}) => {
+  const file = req.file
+  if (typeof file?.name === 'string') {
+    file.name =
+      (Math.random() + 1).toString(36).substring(2) +
+      slugify(file.name, { strict: true, lower: true })
+  }
+}
+
+export const generateSlug: CollectionBeforeChangeHook = async ({
+  data,
+  operation,
+  originalDoc,
+}) => {
   // Generate slug from title
-  if (operation === 'create' && data.title) {
-    // Always generate slug on create, ignore any provided slug
-    data.slug = data.title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
+  if (operation === 'create' && data.title && !data.slug) {
+    data.slug = slugify(data.title, { strict: true, lower: true })
   } else if (operation === 'update' && originalDoc) {
-    // Preserve original slug on update
     data.slug = originalDoc.slug
   }
 

@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 import sharp from 'sharp'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { sanitizeFilename } from '@/lib/fieldUtils'
 
 export const Media: CollectionConfig = {
   slug: 'media',
@@ -59,20 +60,18 @@ export const Media: CollectionConfig = {
         // Auto-convert JPG/PNG to WEBP format for main file
         if (req.file && req.file.data) {
           const { mimetype: mimeType } = req.file
-          
+
           // Only process JPG and PNG files (WEBP files are kept as-is)
           if (mimeType === 'image/jpeg' || mimeType === 'image/png') {
             try {
               // Convert to WEBP with 95% quality
-              const webpBuffer = await sharp(req.file.data)
-                .webp({ quality: 95 })
-                .toBuffer()
-              
+              const webpBuffer = await sharp(req.file.data).webp({ quality: 95 }).toBuffer()
+
               // Update the file data
               req.file.data = webpBuffer
               req.file.mimetype = 'image/webp'
               req.file.name = req.file.name.replace(/\.(jpe?g|png)$/i, '.webp')
-              
+
               // Auto-populate dimensions
               const { width, height } = await sharp(webpBuffer).metadata()
               data.dimensions = { width, height }
@@ -99,23 +98,23 @@ export const Media: CollectionConfig = {
             }
           }
         }
-        
+
         return data
       },
     ],
     beforeValidate: [
       async ({ data, req }) => {
         // Validate file size (10MB limit)
-        if (req.file && req.file.size && req.file.size > 10485760) { // 10MB in bytes
+        if (req.file && req.file.size && req.file.size > 10485760) {
+          // 10MB in bytes
           throw new Error('Image file size must be 10MB or less')
         }
-        
+
         return data
       },
     ],
-    afterRead: [
-      trackClientUsageHook,
-    ],
+    beforeOperation: [sanitizeFilename],
+    afterRead: [trackClientUsageHook],
   },
   fields: [
     {
