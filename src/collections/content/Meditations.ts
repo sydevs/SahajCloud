@@ -34,7 +34,7 @@ export const Meditations: CollectionConfig = {
       type: 'select',
       options: [
         { label: 'English', value: 'en' },
-        { label: 'Italian', value: 'it' },
+        { label: 'Czech', value: 'cs' },
       ],
       required: true,
       defaultValue: 'en',
