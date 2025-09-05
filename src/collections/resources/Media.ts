@@ -12,7 +12,7 @@ export const Media: CollectionConfig = {
   },
   access: permissionBasedAccess('media'),
   upload: {
-    staticDir: 'media/images',
+    hideRemoveFile: true,
     mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
     imageSizes: [
       {

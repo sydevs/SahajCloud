@@ -12,7 +12,9 @@ export const Frames: CollectionConfig = {
   slug: 'frames',
   access: permissionBasedAccess('frames'),
   upload: {
-    staticDir: 'media/frames',
+    hideRemoveFile: true,
+    disableLocalStorage: true,
+    adminThumbnail: 'small',
     mimeTypes: [
       // Images
       'image/jpeg',
@@ -23,7 +25,6 @@ export const Frames: CollectionConfig = {
       'video/mp4',
       'video/webm',
     ],
-    adminThumbnail: 'small',
     imageSizes: [
       {
         name: 'small',

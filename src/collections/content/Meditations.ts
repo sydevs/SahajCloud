@@ -9,7 +9,8 @@ export const Meditations: CollectionConfig = {
   access: permissionBasedAccess('meditations'),
   trash: true,
   upload: {
-    staticDir: 'media/meditations',
+    bulkUpload: false,
+    hideRemoveFile: true,
     mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
   },
   admin: {
