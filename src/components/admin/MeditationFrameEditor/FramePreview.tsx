@@ -3,15 +3,21 @@
 import React, { useMemo } from 'react'
 import type { FrameData } from './types'
 import { useFrameDetails } from './hooks/useFrameDetails'
-import { getCurrentFrame, getNextFrameTimestamp, isVideoFile, getMediaUrl, createFrameKey } from './utils'
+import {
+  getCurrentFrame,
+  getNextFrameTimestamp,
+  isVideoFile,
+  getMediaUrl,
+  createFrameKey,
+} from './utils'
 import { COLORS } from './constants'
-import { 
+import {
   ComponentHeader,
   ComponentHeaderCount,
   LoadingState,
   PreviewContainer,
   TimelineTrack,
-  TimelineMarker
+  TimelineMarker,
 } from './styled'
 
 interface FramePreviewProps {
@@ -27,7 +33,7 @@ const FramePreview: React.FC<FramePreviewProps> = ({
   width = 300,
   height = 225,
 }) => {
-  const frameIds = frames.map(f => f.frame)
+  const frameIds = frames.map((f) => f.frame)
   const { frameDetails, isLoading } = useFrameDetails(frameIds)
 
   // Find the current frame based on audio timestamp
@@ -115,7 +121,9 @@ const FramePreview: React.FC<FramePreviewProps> = ({
           }}
         >
           <div style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>⏱️</div>
-          <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>No frame at {Math.round(currentTime)}s</div>
+          <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>
+            No frame at {Math.round(currentTime)}s
+          </div>
           {nextFrameTime && (
             <div style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
               Next frame at {nextFrameTime}s
@@ -131,15 +139,10 @@ const FramePreview: React.FC<FramePreviewProps> = ({
     <div>
       <ComponentHeader>
         Live Preview
-        <ComponentHeaderCount>
-          ({Math.round(currentTime)}s)
-        </ComponentHeaderCount>
+        <ComponentHeaderCount>({Math.round(currentTime)}s)</ComponentHeaderCount>
       </ComponentHeader>
 
-      <PreviewContainer
-        $width={width}
-        $height={height}
-      >
+      <PreviewContainer $width={width} $height={height}>
         {currentFrameDetails?.url ? (
           isVideoFile(currentFrameDetails.mimeType || undefined) ? (
             <video
@@ -199,9 +202,9 @@ const FramePreview: React.FC<FramePreviewProps> = ({
           <div style={{ opacity: 0.8 }}>
             Frame {frames.findIndex((f) => f === currentFrame) + 1} of {frames.length} •{' '}
             {currentFrame.timestamp}s
-            {currentFrameDetails && isVideoFile(currentFrameDetails.mimeType || undefined) && currentFrameDetails.duration && (
-              <span> • {currentFrameDetails.duration}s video</span>
-            )}
+            {currentFrameDetails &&
+              isVideoFile(currentFrameDetails.mimeType || undefined) &&
+              currentFrameDetails.duration && <span> • {currentFrameDetails.duration}s video</span>}
           </div>
         </div>
       </PreviewContainer>

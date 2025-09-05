@@ -212,7 +212,7 @@ export const createPermissionsField = ({
         required: true,
         options: PERMISSION_COLLECTIONS.map((v) => {
           return {
-            label: v.charAt(0).toUpperCase + v.slice(1),
+            label: v.charAt(0).toUpperCase() + v.slice(1),
             value: v,
           }
         }),

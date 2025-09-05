@@ -457,6 +457,7 @@ export interface Frame {
         | 'tapping'
       )[]
     | null;
+  duration?: number | null;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -908,6 +909,7 @@ export interface FramesSelect<T extends boolean = true> {
   imageSet?: T;
   category?: T;
   tags?: T;
+  duration?: T;
   fileMetadata?: T;
   updatedAt?: T;
   createdAt?: T;

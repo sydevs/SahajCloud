@@ -113,6 +113,21 @@ export const Frames: CollectionConfig = {
       ],
     },
     {
+      name: 'duration',
+      type: 'number',
+      hooks: {
+        afterRead: [
+          async ({ data }) => {
+            return data &&
+              typeof data.fileMetadata === 'object' &&
+              typeof data.fileMetadata.duration === 'number'
+              ? Math.round(data.fileMetadata.duration)
+              : undefined
+          },
+        ],
+      },
+    },
+    {
       name: 'fileMetadata',
       type: 'json',
       defaultValue: {},
