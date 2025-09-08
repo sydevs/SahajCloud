@@ -119,7 +119,7 @@ export interface Config {
   globalsSelect: {
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
-  locale: 'en' | 'it';
+  locale: 'en' | 'cs';
   user:
     | (User & {
         collection: 'users';
@@ -182,7 +182,7 @@ export interface ClientAuthOperations {
 export interface Meditation {
   id: string;
   title: string;
-  locale: 'en' | 'it';
+  locale: 'en' | 'cs';
   publishAt?: string | null;
   slug?: string | null;
   thumbnail: string | Media;
@@ -457,6 +457,7 @@ export interface Frame {
         | 'tapping'
       )[]
     | null;
+  duration?: number | null;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -531,7 +532,7 @@ export interface User {
         /**
          * Select which locales this permission applies to. "All Locales" grants unrestricted locale access.
          */
-        locales: ('all' | 'en' | 'it' | 'fr')[];
+        locales: ('all' | 'en' | 'cs')[];
         id?: string | null;
       }[]
     | null;
@@ -587,7 +588,7 @@ export interface Client {
         /**
          * Select which locales this permission applies to. "All Locales" grants unrestricted locale access.
          */
-        locales: ('all' | 'en' | 'it' | 'fr')[];
+        locales: ('all' | 'en' | 'cs')[];
         id?: string | null;
       }[]
     | null;
@@ -908,6 +909,7 @@ export interface FramesSelect<T extends boolean = true> {
   imageSet?: T;
   category?: T;
   tags?: T;
+  duration?: T;
   fileMetadata?: T;
   updatedAt?: T;
   createdAt?: T;

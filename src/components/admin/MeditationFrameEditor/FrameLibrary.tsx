@@ -6,7 +6,7 @@ import { FRAME_CATEGORIES } from '@/lib/data'
 import FrameItem from './FrameItem'
 import { isVideoFile } from './utils'
 import { LIMITS, GRID_CONFIG, SIZES } from './constants'
-import { 
+import {
   ComponentContainer,
   ComponentHeader,
   ComponentHeaderCount,
@@ -16,7 +16,7 @@ import {
   FramesGrid,
   LoadingState,
   ErrorState,
-  EmptyState
+  EmptyState,
 } from './styled'
 
 interface FrameLibraryProps {
@@ -50,7 +50,7 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
 
         const response = await fetch(framesUrl)
         if (!response.ok) throw new Error('Failed to load frames')
-        
+
         const data = await response.json()
         setFrames(data.docs || [])
       } catch (err) {
@@ -71,9 +71,7 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
 
   const handleCategoryToggle = useCallback((category: string) => {
     setSelectedCategories((prev) =>
-      prev.includes(category) 
-        ? prev.filter((id) => id !== category) 
-        : [...prev, category]
+      prev.includes(category) ? prev.filter((id) => id !== category) : [...prev, category],
     )
   }, [])
 
@@ -81,13 +79,16 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
     setSelectedCategories([])
   }, [])
 
-  const handleFrameClick = useCallback((frame: Frame) => {
-    if (disabled) return
+  const handleFrameClick = useCallback(
+    (frame: Frame) => {
+      if (disabled) return
 
-    setClickedFrameId(frame.id)
-    setTimeout(() => setClickedFrameId(null), LIMITS.CLICK_ANIMATION_DURATION)
-    onFrameSelect(frame)
-  }, [disabled, onFrameSelect])
+      setClickedFrameId(frame.id)
+      setTimeout(() => setClickedFrameId(null), LIMITS.CLICK_ANIMATION_DURATION)
+      onFrameSelect(frame)
+    },
+    [disabled, onFrameSelect],
+  )
 
   if (isLoading) {
     return (
@@ -112,9 +113,7 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
       <ComponentHeader>
         Frame Library ({filteredFrames.length} frames)
         {narrator?.gender && (
-          <ComponentHeaderCount>
-            Filtered for {narrator.gender} poses
-          </ComponentHeaderCount>
+          <ComponentHeaderCount>Filtered for {narrator.gender} poses</ComponentHeaderCount>
         )}
       </ComponentHeader>
 
@@ -158,7 +157,9 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
               key={frame.id}
               frame={frame}
               size={SIZES.FRAME_ITEM}
-              overlayValue={isVideoFile(frame.mimeType || undefined) && frame.duration ? Math.round(frame.duration) : undefined}
+              overlayValue={
+                (isVideoFile(frame.mimeType || undefined) && frame.duration) || undefined
+              }
               playOnHover={true}
               onClick={() => handleFrameClick(frame)}
               isSelected={clickedFrameId === frame.id}

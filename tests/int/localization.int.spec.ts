@@ -21,14 +21,14 @@ describe('Localization', () => {
   describe('Meditation Tags Collection', () => {
     it.skip('creates and retrieves localized tag titles - Payload behavior differs from test expectations', async () => {
       // Create tag with English title
-      const enTag = await payload.create({
+      const enTag = (await payload.create({
         collection: 'meditation-tags',
         data: {
           name: 'mindfulness',
           title: 'Mindfulness',
         },
         locale: 'en',
-      }) as MeditationTag
+      })) as MeditationTag
 
       // Update tag with Italian title
       await payload.update({
@@ -37,38 +37,38 @@ describe('Localization', () => {
         data: {
           title: 'Consapevolezza',
         },
-        locale: 'it',
+        locale: 'cs',
       })
 
       // Retrieve English version
-      const enResult = await payload.findByID({
+      const enResult = (await payload.findByID({
         collection: 'meditation-tags',
         id: enTag.id,
         locale: 'en',
-      }) as MeditationTag
+      })) as MeditationTag
 
       expect(enResult.title).toBe('Mindfulness')
 
       // Retrieve Italian version
-      const itResult = await payload.findByID({
+      const itResult = (await payload.findByID({
         collection: 'meditation-tags',
         id: enTag.id,
-        locale: 'it',
-      }) as MeditationTag
+        locale: 'cs',
+      })) as MeditationTag
 
       expect(itResult.title).toBe('Consapevolezza')
     })
 
     it.skip('supports localized queries with find operations - Payload behavior differs from test expectations', async () => {
       // Create tag with different titles for each locale
-      const tag = await payload.create({
+      const tag = (await payload.create({
         collection: 'meditation-tags',
         data: {
           name: 'relaxation',
           title: 'Relaxation',
         },
         locale: 'en',
-      }) as MeditationTag
+      })) as MeditationTag
 
       await payload.update({
         collection: 'meditation-tags',
@@ -76,7 +76,7 @@ describe('Localization', () => {
         data: {
           title: 'Rilassamento',
         },
-        locale: 'it',
+        locale: 'cs',
       })
 
       // Query with English locale
@@ -101,7 +101,7 @@ describe('Localization', () => {
             equals: 'Rilassamento',
           },
         },
-        locale: 'it',
+        locale: 'cs',
       })
 
       expect(itResults.docs.length).toBeGreaterThan(0)
@@ -112,7 +112,7 @@ describe('Localization', () => {
   describe('Media Collection', () => {
     it.skip('creates and retrieves localized media fields - File upload issues in test environment', async () => {
       // Create media with English fields
-      const media = await payload.create({
+      const media = (await payload.create({
         collection: 'media',
         data: {
           alt: 'Test Image',
@@ -125,7 +125,7 @@ describe('Localization', () => {
           size: 100,
         },
         locale: 'en',
-      }) as Media
+      })) as Media
 
       // Update with Italian fields
       await payload.update({
@@ -135,25 +135,25 @@ describe('Localization', () => {
           alt: 'Immagine di Prova',
           credit: 'Fotografo di Prova',
         },
-        locale: 'it',
+        locale: 'cs',
       })
 
       // Retrieve English version
-      const enResult = await payload.findByID({
+      const enResult = (await payload.findByID({
         collection: 'media',
         id: media.id,
         locale: 'en',
-      }) as Media
+      })) as Media
 
       expect(enResult.alt).toBe('Test Image')
       expect(enResult.credit).toBe('Test Photographer')
 
       // Retrieve Italian version
-      const itResult = await payload.findByID({
+      const itResult = (await payload.findByID({
         collection: 'media',
         id: media.id,
-        locale: 'it',
-      }) as Media
+        locale: 'cs',
+      })) as Media
 
       expect(itResult.alt).toBe('Immagine di Prova')
       expect(itResult.credit).toBe('Fotografo di Prova')
@@ -176,25 +176,25 @@ describe('Localization', () => {
           title: 'Mattino Tranquillo',
           credit: 'Studio Musicale',
         },
-        locale: 'it',
+        locale: 'cs',
       })
 
       // Retrieve English version
-      const enResult = await payload.findByID({
+      const enResult = (await payload.findByID({
         collection: 'music',
         id: music.id,
         locale: 'en',
-      }) as Music
+      })) as Music
 
       expect(enResult.title).toBe('Peaceful Morning')
       expect(enResult.credit).toBe('Music Studio')
 
-      // Retrieve Italian version  
-      const itResult = await payload.findByID({
+      // Retrieve Italian version
+      const itResult = (await payload.findByID({
         collection: 'music',
         id: music.id,
-        locale: 'it',
-      }) as Music
+        locale: 'cs',
+      })) as Music
 
       expect(itResult.title).toBe('Mattino Tranquillo')
       expect(itResult.credit).toBe('Studio Musicale')
@@ -216,13 +216,17 @@ describe('Localization', () => {
     })
 
     it.skip('creates meditation with locale select field - File upload issues in test environment', async () => {
-      const meditation = await testData.createMeditation(payload, {
-        narrator: narrator.id,
-        thumbnail: thumbnail.id,
-      }, {
-        title: 'English Meditation',
-        locale: 'en',
-      })
+      const meditation = await testData.createMeditation(
+        payload,
+        {
+          narrator: narrator.id,
+          thumbnail: thumbnail.id,
+        },
+        {
+          title: 'English Meditation',
+          locale: 'en',
+        },
+      )
 
       expect(meditation).toBeDefined()
       expect(meditation.locale).toBe('en')
@@ -231,22 +235,30 @@ describe('Localization', () => {
 
     it.skip('filters meditations by locale in find operations - File upload issues in test environment', async () => {
       // Create English meditation
-      const enMeditation = await testData.createMeditation(payload, {
-        narrator: narrator.id,
-        thumbnail: thumbnail.id,
-      }, {
-        title: 'English Meditation for Filter Test',
-        locale: 'en',
-      })
+      const enMeditation = await testData.createMeditation(
+        payload,
+        {
+          narrator: narrator.id,
+          thumbnail: thumbnail.id,
+        },
+        {
+          title: 'English Meditation for Filter Test',
+          locale: 'en',
+        },
+      )
 
-      // Create Italian meditation  
-      const itMeditation = await testData.createMeditation(payload, {
-        narrator: narrator.id,
-        thumbnail: thumbnail.id,
-      }, {
-        title: 'Italian Meditation for Filter Test',
-        locale: 'it',
-      })
+      // Create Italian meditation
+      const itMeditation = await testData.createMeditation(
+        payload,
+        {
+          narrator: narrator.id,
+          thumbnail: thumbnail.id,
+        },
+        {
+          title: 'Italian Meditation for Filter Test',
+          locale: 'cs',
+        },
+      )
 
       // Find English meditations
       const enResult = await payload.find({
@@ -258,7 +270,7 @@ describe('Localization', () => {
         },
       })
 
-      const enIds = enResult.docs.map(doc => doc.id)
+      const enIds = enResult.docs.map((doc) => doc.id)
       expect(enIds).toContain(enMeditation.id)
       expect(enIds).not.toContain(itMeditation.id)
 
@@ -267,57 +279,65 @@ describe('Localization', () => {
         collection: 'meditations',
         where: {
           locale: {
-            equals: 'it',
+            equals: 'cs',
           },
         },
       })
 
-      const itIds = itResult.docs.map(doc => doc.id)
+      const itIds = itResult.docs.map((doc) => doc.id)
       expect(itIds).toContain(itMeditation.id)
       expect(itIds).not.toContain(enMeditation.id)
     })
 
     it.skip('filters meditations by locale using query parameter - File upload issues in test environment', async () => {
       // Create meditations in different locales
-      const enMeditation = await testData.createMeditation(payload, {
-        narrator: narrator.id,
-        thumbnail: thumbnail.id,
-      }, {
-        title: 'Query Param Test English',
-        locale: 'en',
-      })
+      const enMeditation = await testData.createMeditation(
+        payload,
+        {
+          narrator: narrator.id,
+          thumbnail: thumbnail.id,
+        },
+        {
+          title: 'Query Param Test English',
+          locale: 'en',
+        },
+      )
 
-      const itMeditation = await testData.createMeditation(payload, {
-        narrator: narrator.id,
-        thumbnail: thumbnail.id,
-      }, {
-        title: 'Query Param Test Italian',
-        locale: 'it',
-      })
+      const itMeditation = await testData.createMeditation(
+        payload,
+        {
+          narrator: narrator.id,
+          thumbnail: thumbnail.id,
+        },
+        {
+          title: 'Query Param Test Italian',
+          locale: 'cs',
+        },
+      )
 
       // Simulate API request with locale query parameter
       const enApiResult = await payload.find({
         collection: 'meditations',
-        req: { 
+        req: {
           query: { locale: 'en' },
-          locale: undefined // Ensure req.locale is not set
+          locale: undefined, // Ensure req.locale is not set
         } as any,
       })
 
-      const enApiIds = enApiResult.docs.map(doc => doc.id)
+      const enApiIds = enApiResult.docs.map((doc) => doc.id)
       expect(enApiIds).toContain(enMeditation.id)
       expect(enApiIds).not.toContain(itMeditation.id)
 
       // Simulate API request with Italian locale query parameter
       const itApiResult = await payload.find({
         collection: 'meditations',
-        req: { 
-          query: { locale: 'it' },
-          locale: undefined // Ensure req.locale is not set
+        req: {
+          query: { locale: 'cs' },
+          locale: undefined, // Ensure req.locale is not set
         } as any,
       })
 
-      const itApiIds = itApiResult.docs.map(doc => doc.id)
+      const itApiIds = itApiResult.docs.map((doc) => doc.id)
       expect(itApiIds).toContain(itMeditation.id)
       expect(itApiIds).not.toContain(enMeditation.id)
     })
@@ -325,23 +345,31 @@ describe('Localization', () => {
     it.skip('filters meditations by locale in count operations - File upload issues in test environment', async () => {
       // Create multiple meditations
       for (let i = 0; i < 3; i++) {
-        await testData.createMeditation(payload, {
-          narrator: narrator.id,
-          thumbnail: thumbnail.id,
-        }, {
-          title: `Count Test English ${i}`,
-          locale: 'en',
-        })
+        await testData.createMeditation(
+          payload,
+          {
+            narrator: narrator.id,
+            thumbnail: thumbnail.id,
+          },
+          {
+            title: `Count Test English ${i}`,
+            locale: 'en',
+          },
+        )
       }
 
       for (let i = 0; i < 2; i++) {
-        await testData.createMeditation(payload, {
-          narrator: narrator.id,
-          thumbnail: thumbnail.id,
-        }, {
-          title: `Count Test Italian ${i}`,
-          locale: 'it',
-        })
+        await testData.createMeditation(
+          payload,
+          {
+            narrator: narrator.id,
+            thumbnail: thumbnail.id,
+          },
+          {
+            title: `Count Test Italian ${i}`,
+            locale: 'cs',
+          },
+        )
       }
 
       // Count by locale using where clause
@@ -358,7 +386,7 @@ describe('Localization', () => {
         collection: 'meditations',
         where: {
           locale: {
-            equals: 'it',
+            equals: 'cs',
           },
         },
       })
@@ -379,7 +407,7 @@ describe('Localization', () => {
             thumbnail: thumbnail.id,
             duration: 15,
           },
-        })
+        }),
       ).rejects.toThrow()
     })
 
@@ -394,45 +422,53 @@ describe('Localization', () => {
 
     it.skip('uses req.locale for filtering when no query locale specified - File upload issues in test environment', async () => {
       // Create test meditations
-      const enMeditation = await testData.createMeditation(payload, {
-        narrator: narrator.id,
-        thumbnail: thumbnail.id,
-      }, {
-        title: 'Req Locale Test English',
-        locale: 'en',
-      })
+      const enMeditation = await testData.createMeditation(
+        payload,
+        {
+          narrator: narrator.id,
+          thumbnail: thumbnail.id,
+        },
+        {
+          title: 'Req Locale Test English',
+          locale: 'en',
+        },
+      )
 
-      const itMeditation = await testData.createMeditation(payload, {
-        narrator: narrator.id,
-        thumbnail: thumbnail.id,
-      }, {
-        title: 'Req Locale Test Italian',
-        locale: 'it',
-      })
+      const itMeditation = await testData.createMeditation(
+        payload,
+        {
+          narrator: narrator.id,
+          thumbnail: thumbnail.id,
+        },
+        {
+          title: 'Req Locale Test Italian',
+          locale: 'cs',
+        },
+      )
 
       // Test with req.locale set to 'en'
       const enReqResult = await payload.find({
         collection: 'meditations',
-        req: { 
+        req: {
           locale: 'en',
-          query: {} // No query locale
+          query: {}, // No query locale
         } as any,
       })
 
-      const enReqIds = enReqResult.docs.map(doc => doc.id)
+      const enReqIds = enReqResult.docs.map((doc) => doc.id)
       expect(enReqIds).toContain(enMeditation.id)
       expect(enReqIds).not.toContain(itMeditation.id)
 
-      // Test with req.locale set to 'it'
+      // Test with req.locale set to 'cs'
       const itReqResult = await payload.find({
         collection: 'meditations',
-        req: { 
-          locale: 'it',
-          query: {} // No query locale
+        req: {
+          locale: 'cs',
+          query: {}, // No query locale
         } as any,
       })
 
-      const itReqIds = itReqResult.docs.map(doc => doc.id)
+      const itReqIds = itReqResult.docs.map((doc) => doc.id)
       expect(itReqIds).toContain(itMeditation.id)
       expect(itReqIds).not.toContain(enMeditation.id)
     })
@@ -441,14 +477,14 @@ describe('Localization', () => {
   describe('Default locale behavior', () => {
     it.skip('returns default locale content when no locale is specified - Payload behavior differs from test expectations', async () => {
       // Create tag with both locales
-      const tag = await payload.create({
+      const tag = (await payload.create({
         collection: 'meditation-tags',
         data: {
-          name: 'default-tag',
+          name: 'default-english',
           title: 'Default English',
         },
         locale: 'en',
-      }) as MeditationTag
+      })) as MeditationTag
 
       await payload.update({
         collection: 'meditation-tags',
@@ -456,15 +492,15 @@ describe('Localization', () => {
         data: {
           title: 'Default Italian',
         },
-        locale: 'it',
+        locale: 'cs',
       })
 
       // Query without locale should return default (en)
-      const defaultResult = await payload.findByID({
+      const defaultResult = (await payload.findByID({
         collection: 'meditation-tags',
         id: tag.id,
         // No locale specified
-      }) as MeditationTag
+      })) as MeditationTag
 
       expect(defaultResult.title).toBe('Default English')
     })

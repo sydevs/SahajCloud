@@ -6,7 +6,7 @@ import FrameItem from '../FrameItem'
 import type { FrameData } from '../types'
 import { useFrameDetails } from '../hooks/useFrameDetails'
 import { sortFramesByTimestamp } from '../utils'
-import { 
+import {
   CollapsedView as StyledCollapsedView,
   CollapsedRight,
   SelectedFramesContainer,
@@ -14,7 +14,7 @@ import {
   SelectedFramesGrid,
   EditButtonContainer,
   EditButton,
-  EditButtonMessage
+  EditButtonMessage,
 } from '../styled'
 
 interface CollapsedViewProps {
@@ -30,7 +30,7 @@ const CollapsedView: React.FC<CollapsedViewProps> = ({
   onEditClick,
   readOnly = false,
 }) => {
-  const frameIds = frames.map(f => f.frame)
+  const frameIds = frames.map((f) => f.frame)
   const { frameDetails } = useFrameDetails(frameIds)
   const sortedFrames = sortFramesByTimestamp(frames)
 
@@ -50,9 +50,7 @@ const CollapsedView: React.FC<CollapsedViewProps> = ({
         {/* Selected Frames Thumbnail Grid */}
         {frames.length > 0 && (
           <SelectedFramesContainer>
-            <SelectedFramesTitle>
-              Selected Frames ({frames.length})
-            </SelectedFramesTitle>
+            <SelectedFramesTitle>Selected Frames ({frames.length})</SelectedFramesTitle>
             <SelectedFramesGrid>
               {sortedFrames.map((frameData, index) => {
                 const frame = frameDetails[frameData.frame]
@@ -73,17 +71,12 @@ const CollapsedView: React.FC<CollapsedViewProps> = ({
 
         {/* Edit Button and Info */}
         <EditButtonContainer>
-          <EditButton
-            disabled={!audioUrl || readOnly}
-            onClick={onEditClick}
-          >
+          <EditButton type="button" disabled={!audioUrl || readOnly} onClick={onEditClick}>
             Edit Video
           </EditButton>
 
           {!audioUrl && (
-            <EditButtonMessage>
-              Please upload an audio file first to edit frames.
-            </EditButtonMessage>
+            <EditButtonMessage>Please upload an audio file first to edit frames.</EditButtonMessage>
           )}
         </EditButtonContainer>
       </CollapsedRight>

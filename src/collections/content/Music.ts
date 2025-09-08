@@ -8,7 +8,7 @@ export const Music: CollectionConfig = {
   access: permissionBasedAccess('music'),
   trash: true,
   upload: {
-    staticDir: 'media/music',
+    hideRemoveFile: true,
     mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
   },
   admin: {
