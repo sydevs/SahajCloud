@@ -44,6 +44,7 @@
     "tmp": "^0.2.5"
   },
   "devDependencies": {
+    "@payloadcms/plugin-cloud-storage": "^3.54.0",
     "@playwright/test": "1.50.0",
     "@testing-library/react": "16.3.0",
     "@types/node": "^22.17.2",

@@ -222,7 +222,7 @@ export const createPermissionsField = ({
       },
       {
         name: 'level',
-        type: 'select',
+        type: 'radio',
         required: true,
         options: permissionLevels,
         admin: {
