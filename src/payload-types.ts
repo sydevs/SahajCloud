@@ -208,15 +208,6 @@ export interface Meditation {
     | number
     | boolean
     | null;
-  frameData?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -412,7 +403,7 @@ export interface Music {
  */
 export interface Frame {
   id: string;
-  preview?: string | null;
+  previewUrl?: string | null;
   imageSet: 'male' | 'female';
   category:
     | 'mooladhara'
@@ -457,6 +448,10 @@ export interface Frame {
         | 'tapping'
       )[]
     | null;
+  /**
+   * Auto-generated thumbnail for video frames
+   */
+  thumbnail?: (string | null) | Media;
   duration?: number | null;
   fileMetadata?:
     | {
@@ -862,7 +857,6 @@ export interface MeditationsSelect<T extends boolean = true> {
   tags?: T;
   musicTag?: T;
   frames?: T;
-  frameData?: T;
   fileMetadata?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -905,10 +899,11 @@ export interface MusicSelect<T extends boolean = true> {
  * via the `definition` "frames_select".
  */
 export interface FramesSelect<T extends boolean = true> {
-  preview?: T;
+  previewUrl?: T;
   imageSet?: T;
   category?: T;
   tags?: T;
+  thumbnail?: T;
   duration?: T;
   fileMetadata?: T;
   updatedAt?: T;

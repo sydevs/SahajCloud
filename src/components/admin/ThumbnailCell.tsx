@@ -41,10 +41,64 @@ const DirectUploadThumbnail: React.FC<{ rowData: RowData; cellData: any }> = ({
   const altText = rowData?.filename || 'Upload'
 
   if (!fileUrl) {
-    return <div style={{ width: '60px', height: '60px', backgroundColor: '#f5f5f5', borderRadius: '4px' }} />
+    return (
+      <div
+        style={{ width: '60px', height: '60px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}
+      />
+    )
   }
 
   if (mimeType?.startsWith('video/')) {
+    // Check if we have a generated thumbnail in the sizes object
+    const thumbnailUrl = rowData?.sizes?.small?.url
+
+    if (thumbnailUrl) {
+      // Display generated thumbnail with play button overlay
+      return (
+        <div
+          style={{
+            position: 'relative',
+            width: '60px',
+            height: '60px',
+            overflow: 'hidden',
+            borderRadius: '4px',
+            backgroundColor: '#f5f5f5',
+          }}
+        >
+          <Image
+            src={thumbnailUrl}
+            alt={altText}
+            fill
+            style={{
+              objectFit: 'cover',
+            }}
+            sizes="60px"
+          />
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              color: 'white',
+              fontSize: '20px',
+              textShadow: '0 0 4px rgba(0,0,0,0.5)',
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ▶
+          </div>
+        </div>
+      )
+    }
+
+    // Fallback to original video element if no thumbnail
     return (
       <div
         style={{
@@ -168,25 +222,78 @@ const RelationshipThumbnail: React.FC<{
 export const ThumbnailCell: React.FC<
   DefaultCellComponentProps & { aspectRatio?: string; size?: 'small' | 'medium' | 'large' }
 > = ({ cellData, rowData, link, collectionSlug, aspectRatio = '1:1', size = 'medium' }) => {
-  // Determine if this is a direct upload thumbnail or a relationship field
-  // For direct upload collections showing the upload itself (like Frames), we use rowData
-  // For relationship fields (like Meditations.thumbnail), we use cellData to fetch from media collection
+  const dimensions = getThumbailDimensions(aspectRatio, size)
 
-  // Check if cellData is a string ID (relationship) vs rowData having image/video mimeType (direct upload)
-  const hasRelationshipData = typeof cellData === 'string' && cellData.length > 0
-  const isDirectUploadImage =
+  // Determine the type of cell data we're dealing with
+  const isPreviewUrl =
+    typeof cellData === 'string' && (cellData.startsWith('/') || cellData.startsWith('http'))
+  const isMediaRelationship =
+    typeof cellData === 'string' &&
+    !cellData.startsWith('/') &&
+    !cellData.startsWith('http') &&
+    cellData.length > 10
+  const isDirectUpload =
     rowData?.url &&
     (rowData.mimeType?.startsWith('image/') || rowData.mimeType?.startsWith('video/'))
 
   let content: React.ReactNode
 
-  if (isDirectUploadImage) {
-    content = <DirectUploadThumbnail rowData={rowData} cellData={cellData} />
-  } else if (!hasRelationshipData) {
-    const dimensions = getThumbailDimensions(aspectRatio, size)
-    content = <div style={{ ...dimensions, backgroundColor: '#f5f5f5', borderRadius: '4px' }} />
-  } else {
+  if (isPreviewUrl) {
+    // For previewUrl field - cellData contains the URL directly
+    const isVideo = rowData?.mimeType?.startsWith('video/')
+
+    content = (
+      <div
+        style={{
+          position: 'relative',
+          ...dimensions,
+          overflow: 'hidden',
+          borderRadius: '4px',
+          backgroundColor: '#f5f5f5',
+        }}
+      >
+        <Image
+          src={cellData}
+          alt={rowData?.filename || 'Preview'}
+          fill
+          style={{
+            objectFit: 'cover',
+          }}
+          sizes={`${dimensions.width}`}
+        />
+        {isVideo && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              color: 'white',
+              fontSize: '16px',
+              textShadow: '0 0 4px rgba(0,0,0,0.5)',
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              borderRadius: '50%',
+              width: '24px',
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            ▶
+          </div>
+        )}
+      </div>
+    )
+  } else if (isMediaRelationship) {
+    // For thumbnail relationship - cellData contains Media ID
     content = <RelationshipThumbnail cellData={cellData} aspectRatio={aspectRatio} size={size} />
+  } else if (isDirectUpload) {
+    // For direct upload thumbnails (backward compatibility)
+    content = <DirectUploadThumbnail rowData={rowData} cellData={cellData} />
+  } else {
+    // Fallback for no data
+    content = <div style={{ ...dimensions, backgroundColor: '#f5f5f5', borderRadius: '4px' }} />
   }
 
   // Wrap in Link if cell should be linked

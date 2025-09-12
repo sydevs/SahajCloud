@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { FrameData } from '@/components/admin/MeditationFrameEditor/types'
+import { describe, it, expect } from 'vitest'
+import type { KeyframeData } from '@/components/admin/MeditationFrameEditor/types'
 
 /**
  * Unit tests for MeditationFrameEditor component logic
@@ -7,24 +7,28 @@ import type { FrameData } from '@/components/admin/MeditationFrameEditor/types'
  */
 describe('MeditationFrameEditor Unit Tests', () => {
   describe('Frame Validation Logic', () => {
-    const validateTimestamp = (timestamp: number, currentIndex: number, frames: FrameData[]): string | null => {
+    const validateTimestamp = (
+      timestamp: number,
+      currentIndex: number,
+      frames: KeyframeData[],
+    ): string | null => {
       if (timestamp < 0) return 'Timestamp must be 0 or greater'
       if (!Number.isInteger(timestamp)) return 'Timestamp must be a whole number'
       if (timestamp > 3600) return 'Timestamp cannot exceed 1 hour (3600s)'
-      
+
       // Check for duplicates (excluding current frame)
       const otherFrames = frames.filter((_, index) => index !== currentIndex)
-      if (otherFrames.some(f => f.timestamp === timestamp)) {
+      if (otherFrames.some((f) => f.timestamp === timestamp)) {
         return `Timestamp ${timestamp}s is already used by another frame`
       }
-      
+
       return null
     }
 
     it('should accept valid timestamps', () => {
-      const frames: FrameData[] = [
-        { frame: 'frame1', timestamp: 10 },
-        { frame: 'frame2', timestamp: 20 },
+      const frames: KeyframeData[] = [
+        { id: 'frame1', timestamp: 10 },
+        { id: 'frame2', timestamp: 20 },
       ]
 
       expect(validateTimestamp(0, -1, frames)).toBeNull()
@@ -33,139 +37,139 @@ describe('MeditationFrameEditor Unit Tests', () => {
     })
 
     it('should reject negative timestamps', () => {
-      const frames: FrameData[] = []
+      const frames: KeyframeData[] = []
       expect(validateTimestamp(-1, -1, frames)).toBe('Timestamp must be 0 or greater')
       expect(validateTimestamp(-10, -1, frames)).toBe('Timestamp must be 0 or greater')
     })
 
     it('should reject non-integer timestamps', () => {
-      const frames: FrameData[] = []
+      const frames: KeyframeData[] = []
       expect(validateTimestamp(10.5, -1, frames)).toBe('Timestamp must be a whole number')
       expect(validateTimestamp(0.1, -1, frames)).toBe('Timestamp must be a whole number')
     })
 
     it('should reject timestamps over 1 hour', () => {
-      const frames: FrameData[] = []
+      const frames: KeyframeData[] = []
       expect(validateTimestamp(3601, -1, frames)).toBe('Timestamp cannot exceed 1 hour (3600s)')
       expect(validateTimestamp(7200, -1, frames)).toBe('Timestamp cannot exceed 1 hour (3600s)')
     })
 
     it('should detect duplicate timestamps', () => {
-      const frames: FrameData[] = [
-        { frame: 'frame1', timestamp: 10 },
-        { frame: 'frame2', timestamp: 20 },
-        { frame: 'frame3', timestamp: 30 },
+      const frames: KeyframeData[] = [
+        { id: 'frame1', timestamp: 10 },
+        { id: 'frame2', timestamp: 20 },
+        { id: 'frame3', timestamp: 30 },
       ]
 
-      expect(validateTimestamp(10, -1, frames)).toBe('Timestamp 10s is already used by another frame')
-      expect(validateTimestamp(20, -1, frames)).toBe('Timestamp 20s is already used by another frame')
+      expect(validateTimestamp(10, -1, frames)).toBe(
+        'Timestamp 10s is already used by another frame',
+      )
+      expect(validateTimestamp(20, -1, frames)).toBe(
+        'Timestamp 20s is already used by another frame',
+      )
       expect(validateTimestamp(15, -1, frames)).toBeNull() // Not a duplicate
     })
 
     it('should allow editing existing frame timestamp', () => {
-      const frames: FrameData[] = [
-        { frame: 'frame1', timestamp: 10 },
-        { frame: 'frame2', timestamp: 20 },
-        { frame: 'frame3', timestamp: 30 },
+      const frames: KeyframeData[] = [
+        { id: 'frame1', timestamp: 10 },
+        { id: 'frame2', timestamp: 20 },
+        { id: 'frame3', timestamp: 30 },
       ]
 
       // Editing frame at index 1 (timestamp 20) to keep same timestamp
       expect(validateTimestamp(20, 1, frames)).toBeNull()
-      
+
       // Editing frame at index 1 to a new timestamp
       expect(validateTimestamp(25, 1, frames)).toBeNull()
-      
+
       // Editing frame at index 1 to a duplicate timestamp
-      expect(validateTimestamp(10, 1, frames)).toBe('Timestamp 10s is already used by another frame')
+      expect(validateTimestamp(10, 1, frames)).toBe(
+        'Timestamp 10s is already used by another frame',
+      )
     })
   })
 
   describe('Frame Selection Logic', () => {
     const handleFrameSelect = (
-      frames: FrameData[],
+      frames: KeyframeData[],
       newFrameId: string,
-      currentTime: number
-    ): { success: boolean; error?: string; newFrames?: FrameData[] } => {
-      const newFrameData: FrameData = {
-        frame: newFrameId,
+      currentTime: number,
+    ): { success: boolean; error?: string; newFrames?: KeyframeData[] } => {
+      const newKeyframeData: KeyframeData = {
+        id: newFrameId,
         timestamp: currentTime,
       }
 
       // Apply first frame rule: if this is the first frame, set timestamp to 0
       if (frames.length === 0) {
-        newFrameData.timestamp = 0
+        newKeyframeData.timestamp = 0
       }
 
       // Check for duplicate timestamp
-      const existingFrameAtTime = frames.find(f => f.timestamp === newFrameData.timestamp)
+      const existingFrameAtTime = frames.find((f) => f.timestamp === newKeyframeData.timestamp)
       if (existingFrameAtTime) {
-        const timeToShow = newFrameData.timestamp === 0 ? '0 (first frame rule)' : newFrameData.timestamp
+        const timeToShow =
+          newKeyframeData.timestamp === 0 ? '0 (first frame rule)' : newKeyframeData.timestamp
         return {
           success: false,
-          error: `A frame already exists at ${timeToShow} seconds. Please choose a different time or remove the existing frame first.`
+          error: `A frame already exists at ${timeToShow} seconds. Please choose a different time or remove the existing frame first.`,
         }
       }
 
-      const newFrames = [...frames, newFrameData]
+      const newFrames = [...frames, newKeyframeData]
       return { success: true, newFrames }
     }
 
     it('should apply first frame rule', () => {
       const result = handleFrameSelect([], 'frame1', 15)
-      
+
       expect(result.success).toBe(true)
       expect(result.newFrames).toHaveLength(1)
       expect(result.newFrames![0].timestamp).toBe(0) // First frame forced to 0
-      expect(result.newFrames![0].frame).toBe('frame1')
+      expect(result.newFrames![0].id).toBe('frame1')
     })
 
     it('should use current time for subsequent frames', () => {
-      const existingFrames: FrameData[] = [
-        { frame: 'frame1', timestamp: 0 }
-      ]
-      
+      const existingFrames: KeyframeData[] = [{ id: 'frame1', timestamp: 0 }]
+
       const result = handleFrameSelect(existingFrames, 'frame2', 20)
-      
+
       expect(result.success).toBe(true)
       expect(result.newFrames).toHaveLength(2)
       expect(result.newFrames![1].timestamp).toBe(20)
-      expect(result.newFrames![1].frame).toBe('frame2')
+      expect(result.newFrames![1].id).toBe('frame2')
     })
 
     it('should replace existing frame at same timestamp', () => {
-      const existingFrames: FrameData[] = [
-        { frame: 'frame1', timestamp: 0 },
-        { frame: 'frame2', timestamp: 20 }
+      const existingFrames: KeyframeData[] = [
+        { id: 'frame1', timestamp: 0 },
+        { id: 'frame2', timestamp: 20 },
       ]
-      
+
       // Updated logic to replace instead of error
       const newFrameId = 'frame3'
       const targetTime = 20
-      
-      const existingIndex = existingFrames.findIndex(f => f.timestamp === targetTime)
-      let newFrames: FrameData[]
-      
+
+      const existingIndex = existingFrames.findIndex((f) => f.timestamp === targetTime)
+      let newFrames: KeyframeData[]
+
       if (existingIndex !== -1) {
         newFrames = [...existingFrames]
-        newFrames[existingIndex] = { frame: newFrameId, timestamp: targetTime }
+        newFrames[existingIndex] = { id: newFrameId, timestamp: targetTime }
       } else {
-        newFrames = [...existingFrames, { frame: newFrameId, timestamp: targetTime }]
+        newFrames = [...existingFrames, { id: newFrameId, timestamp: targetTime }]
       }
-      
+
       expect(existingIndex).toBe(1) // Second frame should be replaced
       expect(newFrames).toHaveLength(2) // Same number of frames
-      expect(newFrames[1].frame).toBe('frame3') // Frame replaced
+      expect(newFrames[1].id).toBe('frame3') // Frame replaced
       expect(newFrames[1].timestamp).toBe(20) // Timestamp unchanged
     })
 
     it('should handle first frame rule collision', () => {
-      const existingFrames: FrameData[] = [
-        { frame: 'frame1', timestamp: 0 }
-      ]
-      
-      // Trying to add another frame when no frames exist should be caught by first frame rule
       const result = handleFrameSelect([], 'frame2', 10)
-      
+
       expect(result.success).toBe(true)
       expect(result.newFrames![0].timestamp).toBe(0)
     })
@@ -173,42 +177,40 @@ describe('MeditationFrameEditor Unit Tests', () => {
 
   describe('Frame Sorting Logic', () => {
     it('should sort frames by timestamp ascending', () => {
-      const unsortedFrames: FrameData[] = [
-        { frame: 'frame3', timestamp: 30 },
-        { frame: 'frame1', timestamp: 0 },
-        { frame: 'frame2', timestamp: 15 },
+      const unsortedFrames: KeyframeData[] = [
+        { id: 'frame3', timestamp: 30 },
+        { id: 'frame1', timestamp: 0 },
+        { id: 'frame2', timestamp: 15 },
       ]
 
       const sortedFrames = [...unsortedFrames].sort((a, b) => a.timestamp - b.timestamp)
 
       expect(sortedFrames).toEqual([
-        { frame: 'frame1', timestamp: 0 },
-        { frame: 'frame2', timestamp: 15 },
-        { frame: 'frame3', timestamp: 30 },
+        { id: 'frame1', timestamp: 0 },
+        { id: 'frame2', timestamp: 15 },
+        { id: 'frame3', timestamp: 30 },
       ])
     })
 
     it('should handle empty frames array', () => {
-      const emptyFrames: FrameData[] = []
+      const emptyFrames: KeyframeData[] = []
       const sortedFrames = [...emptyFrames].sort((a, b) => a.timestamp - b.timestamp)
-      
+
       expect(sortedFrames).toEqual([])
     })
 
     it('should handle single frame', () => {
-      const singleFrame: FrameData[] = [
-        { frame: 'frame1', timestamp: 10 }
-      ]
+      const singleFrame: KeyframeData[] = [{ id: 'frame1', timestamp: 10 }]
       const sortedFrames = [...singleFrame].sort((a, b) => a.timestamp - b.timestamp)
-      
+
       expect(sortedFrames).toEqual(singleFrame)
     })
 
     it('should maintain stable sort for equal timestamps', () => {
-      const framesWithEqualTimestamps: FrameData[] = [
-        { frame: 'frame1', timestamp: 10 },
-        { frame: 'frame2', timestamp: 10 },
-        { frame: 'frame3', timestamp: 5 },
+      const framesWithEqualTimestamps: KeyframeData[] = [
+        { id: 'frame1', timestamp: 10 },
+        { id: 'frame2', timestamp: 10 },
+        { id: 'frame3', timestamp: 5 },
       ]
 
       const sortedFrames = [...framesWithEqualTimestamps].sort((a, b) => a.timestamp - b.timestamp)
@@ -217,21 +219,21 @@ describe('MeditationFrameEditor Unit Tests', () => {
       expect(sortedFrames[1].timestamp).toBe(10)
       expect(sortedFrames[2].timestamp).toBe(10)
       // Order of equal timestamps should be preserved
-      expect(sortedFrames[1].frame).toBe('frame1')
-      expect(sortedFrames[2].frame).toBe('frame2')
+      expect(sortedFrames[1].id).toBe('frame1')
+      expect(sortedFrames[2].id).toBe('frame2')
     })
   })
 
   describe('Current Frame Detection Logic', () => {
-    const getCurrentFrame = (currentTime: number, frames: FrameData[]): FrameData | null => {
+    const getCurrentFrame = (currentTime: number, frames: KeyframeData[]): KeyframeData | null => {
       if (frames.length === 0) return null
-      
+
       // Sort frames by timestamp
       const sortedFrames = [...frames].sort((a, b) => a.timestamp - b.timestamp)
-      
+
       // Find the frame that should be displayed at current time
       let currentFrame = sortedFrames[0]
-      
+
       for (const frame of sortedFrames) {
         if (frame.timestamp <= currentTime) {
           currentFrame = frame
@@ -239,7 +241,7 @@ describe('MeditationFrameEditor Unit Tests', () => {
           break
         }
       }
-      
+
       return currentFrame
     }
 
@@ -248,47 +250,47 @@ describe('MeditationFrameEditor Unit Tests', () => {
     })
 
     it('should return first frame for time before first timestamp', () => {
-      const frames: FrameData[] = [
-        { frame: 'frame1', timestamp: 10 },
-        { frame: 'frame2', timestamp: 20 },
+      const frames: KeyframeData[] = [
+        { id: 'frame1', timestamp: 10 },
+        { id: 'frame2', timestamp: 20 },
       ]
 
-      expect(getCurrentFrame(5, frames)?.frame).toBe('frame1')
+      expect(getCurrentFrame(5, frames)?.id).toBe('frame1')
     })
 
     it('should return correct frame for exact timestamp match', () => {
-      const frames: FrameData[] = [
-        { frame: 'frame1', timestamp: 0 },
-        { frame: 'frame2', timestamp: 15 },
-        { frame: 'frame3', timestamp: 30 },
+      const frames: KeyframeData[] = [
+        { id: 'frame1', timestamp: 0 },
+        { id: 'frame2', timestamp: 15 },
+        { id: 'frame3', timestamp: 30 },
       ]
 
-      expect(getCurrentFrame(0, frames)?.frame).toBe('frame1')
-      expect(getCurrentFrame(15, frames)?.frame).toBe('frame2')
-      expect(getCurrentFrame(30, frames)?.frame).toBe('frame3')
+      expect(getCurrentFrame(0, frames)?.id).toBe('frame1')
+      expect(getCurrentFrame(15, frames)?.id).toBe('frame2')
+      expect(getCurrentFrame(30, frames)?.id).toBe('frame3')
     })
 
     it('should return correct frame for time between timestamps', () => {
-      const frames: FrameData[] = [
-        { frame: 'frame1', timestamp: 0 },
-        { frame: 'frame2', timestamp: 15 },
-        { frame: 'frame3', timestamp: 30 },
+      const frames: KeyframeData[] = [
+        { id: 'frame1', timestamp: 0 },
+        { id: 'frame2', timestamp: 15 },
+        { id: 'frame3', timestamp: 30 },
       ]
 
-      expect(getCurrentFrame(10, frames)?.frame).toBe('frame1')
-      expect(getCurrentFrame(25, frames)?.frame).toBe('frame2')
-      expect(getCurrentFrame(45, frames)?.frame).toBe('frame3')
+      expect(getCurrentFrame(10, frames)?.id).toBe('frame1')
+      expect(getCurrentFrame(25, frames)?.id).toBe('frame2')
+      expect(getCurrentFrame(45, frames)?.id).toBe('frame3')
     })
 
     it('should handle unsorted frame input', () => {
-      const unsortedFrames: FrameData[] = [
-        { frame: 'frame3', timestamp: 30 },
-        { frame: 'frame1', timestamp: 0 },
-        { frame: 'frame2', timestamp: 15 },
+      const unsortedFrames: KeyframeData[] = [
+        { id: 'frame3', timestamp: 30 },
+        { id: 'frame1', timestamp: 0 },
+        { id: 'frame2', timestamp: 15 },
       ]
 
-      expect(getCurrentFrame(10, unsortedFrames)?.frame).toBe('frame1')
-      expect(getCurrentFrame(25, unsortedFrames)?.frame).toBe('frame2')
+      expect(getCurrentFrame(10, unsortedFrames)?.id).toBe('frame1')
+      expect(getCurrentFrame(25, unsortedFrames)?.id).toBe('frame2')
     })
   })
 
@@ -303,19 +305,19 @@ describe('MeditationFrameEditor Unit Tests', () => {
     const filterFrames = (
       frames: MockFrame[],
       gender: 'male' | 'female' | null,
-      selectedTags: string[]
+      selectedTags: string[],
     ): MockFrame[] => {
       let filtered = frames
 
       // Filter by gender (imageSet)
       if (gender) {
-        filtered = filtered.filter(frame => frame.imageSet === gender)
+        filtered = filtered.filter((frame) => frame.imageSet === gender)
       }
 
       // Filter by tags
       if (selectedTags.length > 0) {
-        filtered = filtered.filter(frame => 
-          selectedTags.some(tagId => frame.tags.includes(tagId))
+        filtered = filtered.filter((frame) =>
+          selectedTags.some((tagId) => frame.tags.includes(tagId)),
         )
       }
 
@@ -332,7 +334,7 @@ describe('MeditationFrameEditor Unit Tests', () => {
     it('should filter frames by gender', () => {
       const maleFrames = filterFrames(mockFrames, 'male', [])
       expect(maleFrames).toHaveLength(3)
-      expect(maleFrames.map(f => f.name)).toEqual(['Male Agnya', 'Male Heart', 'Male Back'])
+      expect(maleFrames.map((f) => f.name)).toEqual(['Male Agnya', 'Male Heart', 'Male Back'])
 
       const femaleFrames = filterFrames(mockFrames, 'female', [])
       expect(femaleFrames).toHaveLength(1)
@@ -342,7 +344,7 @@ describe('MeditationFrameEditor Unit Tests', () => {
     it('should filter frames by tags', () => {
       const morningFrames = filterFrames(mockFrames, null, ['morning'])
       expect(morningFrames).toHaveLength(3)
-      expect(morningFrames.map(f => f.name)).toEqual(['Male Agnya', 'Female Agnya', 'Male Back'])
+      expect(morningFrames.map((f) => f.name)).toEqual(['Male Agnya', 'Female Agnya', 'Male Back'])
 
       const peacefulFrames = filterFrames(mockFrames, null, ['peaceful'])
       expect(peacefulFrames).toHaveLength(1)
@@ -352,7 +354,7 @@ describe('MeditationFrameEditor Unit Tests', () => {
     it('should combine gender and tag filters', () => {
       const maleMorningFrames = filterFrames(mockFrames, 'male', ['morning'])
       expect(maleMorningFrames).toHaveLength(2)
-      expect(maleMorningFrames.map(f => f.name)).toEqual(['Male Agnya', 'Male Back'])
+      expect(maleMorningFrames.map((f) => f.name)).toEqual(['Male Agnya', 'Male Back'])
 
       const femalePeacefulFrames = filterFrames(mockFrames, 'female', ['peaceful'])
       expect(femalePeacefulFrames).toHaveLength(0)
@@ -375,7 +377,7 @@ describe('MeditationFrameEditor Unit Tests', () => {
   })
 
   describe('Modal State Management', () => {
-    const createModalState = (initialFrames: FrameData[]) => {
+    const createModalState = (initialFrames: KeyframeData[]) => {
       let tempFrames = [...initialFrames]
       let isOpen = false
 
@@ -387,7 +389,7 @@ describe('MeditationFrameEditor Unit Tests', () => {
         close: () => {
           isOpen = false
         },
-        save: (onSave: (frames: FrameData[]) => void) => {
+        save: (onSave: (frames: KeyframeData[]) => void) => {
           onSave([...tempFrames])
           isOpen = false
         },
@@ -395,7 +397,7 @@ describe('MeditationFrameEditor Unit Tests', () => {
           tempFrames = [...initialFrames] // Reset without saving
           isOpen = false
         },
-        setTempFrames: (frames: FrameData[]) => {
+        setTempFrames: (frames: KeyframeData[]) => {
           tempFrames = [...frames]
         },
         getTempFrames: () => [...tempFrames],
@@ -404,17 +406,17 @@ describe('MeditationFrameEditor Unit Tests', () => {
     }
 
     it('should reset temp state when opening modal', () => {
-      const savedFrames: FrameData[] = [
-        { frame: 'frame1', timestamp: 0 },
-        { frame: 'frame2', timestamp: 15 },
+      const savedFrames: KeyframeData[] = [
+        { id: 'frame1', timestamp: 0 },
+        { id: 'frame2', timestamp: 15 },
       ]
-      
+
       const modal = createModalState(savedFrames)
-      
+
       // Modify temp state
-      modal.setTempFrames([{ frame: 'frame1', timestamp: 0 }])
+      modal.setTempFrames([{ id: 'frame1', timestamp: 0 }])
       expect(modal.getTempFrames()).toHaveLength(1)
-      
+
       // Open modal should reset to saved state
       modal.open()
       expect(modal.getTempFrames()).toHaveLength(2)
@@ -422,40 +424,38 @@ describe('MeditationFrameEditor Unit Tests', () => {
     })
 
     it('should save temp state when saving', () => {
-      const savedFrames: FrameData[] = []
+      const savedFrames: KeyframeData[] = []
       const modal = createModalState(savedFrames)
-      
-      let savedResult: FrameData[] = []
-      const onSave = (frames: FrameData[]) => {
+
+      let savedResult: KeyframeData[] = []
+      const onSave = (frames: KeyframeData[]) => {
         savedResult = frames
       }
-      
+
       modal.open()
-      modal.setTempFrames([{ frame: 'frame1', timestamp: 0 }])
+      modal.setTempFrames([{ id: 'frame1', timestamp: 0 }])
       modal.save(onSave)
-      
+
       expect(savedResult).toHaveLength(1)
-      expect(savedResult[0].frame).toBe('frame1')
+      expect(savedResult[0].id).toBe('frame1')
       expect(modal.isOpen()).toBe(false)
     })
 
     it('should discard temp state when canceling', () => {
-      const savedFrames: FrameData[] = [
-        { frame: 'frame1', timestamp: 0 }
-      ]
-      
+      const savedFrames: KeyframeData[] = [{ id: 'frame1', timestamp: 0 }]
+
       const modal = createModalState(savedFrames)
-      
+
       modal.open()
-      modal.setTempFrames([{ frame: 'frame2', timestamp: 15 }])
-      expect(modal.getTempFrames()[0].frame).toBe('frame2')
-      
+      modal.setTempFrames([{ id: 'frame2', timestamp: 15 }])
+      expect(modal.getTempFrames()[0].id).toBe('frame2')
+
       modal.cancel()
       expect(modal.isOpen()).toBe(false)
-      
+
       // Reopen should show saved state, not discarded temp state
       modal.open()
-      expect(modal.getTempFrames()[0].frame).toBe('frame1')
+      expect(modal.getTempFrames()[0].id).toBe('frame1')
     })
   })
 })

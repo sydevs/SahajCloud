@@ -2,16 +2,18 @@
 
 import React, { useState, memo } from 'react'
 import Image from 'next/image'
-import type { Frame } from '@/payload-types'
 import { isVideoFile, getMediaUrl } from './utils'
 import { LIMITS } from './constants'
 import { FrameItemContainer, FrameTags } from './styled'
+import { KeyframeData } from './types'
 
 export interface FrameItemProps {
-  frame: Frame
+  frame: Omit<KeyframeData, 'timestamp'> & Partial<Pick<KeyframeData, 'timestamp'>>
   size?: number
-  overlayValue?: number // Value to show in the overlay (timestamp for selected frames, duration for library)
+  overlayValue?: string // Value to show in the overlay (timestamp for selected frames, duration for library)
   playOnHover?: boolean // Enable video play on hover
+  usePreviewUrl?: boolean // Use previewUrl instead of original media - defaults to true
+  showVideoOnHover?: boolean // Show video element on hover for video frames - defaults to false
   onClick?: () => void
   onMouseEnter?: () => void
   onMouseLeave?: () => void
@@ -25,6 +27,8 @@ const FrameItem: React.FC<FrameItemProps> = ({
   size = 160,
   overlayValue,
   playOnHover = false,
+  usePreviewUrl = true,
+  showVideoOnHover = false,
   onClick,
   onMouseEnter,
   onMouseLeave,
@@ -33,8 +37,11 @@ const FrameItem: React.FC<FrameItemProps> = ({
   className = '',
 }) => {
   const [isClicked, setIsClicked] = useState(false)
+  const [showVideo, setShowVideo] = useState(false)
+  const [imageError, setImageError] = useState(false)
 
   const imageUrl = getMediaUrl(frame, 'small')
+  const previewUrl = frame.previewUrl || imageUrl
   const isVideo = isVideoFile(frame.mimeType || undefined)
 
   const handleClick = () => {
@@ -59,6 +66,10 @@ const FrameItem: React.FC<FrameItemProps> = ({
       const video = e.currentTarget.querySelector('video')
       video?.play()
     }
+
+    if (showVideoOnHover && isVideo) {
+      setShowVideo(true)
+    }
   }
 
   const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -74,6 +85,10 @@ const FrameItem: React.FC<FrameItemProps> = ({
       const video = e.currentTarget.querySelector('video')
       video?.pause()
     }
+
+    if (showVideoOnHover && isVideo) {
+      setShowVideo(false)
+    }
   }
 
   const imageContainerStyle: React.CSSProperties = {
@@ -83,47 +98,127 @@ const FrameItem: React.FC<FrameItemProps> = ({
   }
 
   const renderMedia = () => {
-    if (!imageUrl) {
+    const displayUrl = usePreviewUrl ? previewUrl : imageUrl
+
+    if (!displayUrl || imageError) {
       return (
         <div
           style={{
             position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
+            top: '0',
+            left: '0',
+            right: '0',
+            bottom: '0',
+            backgroundColor: '#f3f4f6',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
             color: '#6b7280',
             fontSize: '0.75rem',
+            textAlign: 'center',
           }}
         >
-          No preview
+          <div style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>🧘</div>
+          <div>{frame.category}</div>
         </div>
       )
     }
 
-    if (isVideo) {
+    // For video frames with showVideoOnHover enabled, show video when hovering
+    if (isVideo && showVideoOnHover && showVideo) {
       return (
-        <video
-          src={frame.url || ''}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-          }}
-          muted
-          loop
-          autoPlay={false}
-        />
+        <>
+          {/* Show preview image as background while video loads */}
+          <Image
+            src={displayUrl}
+            alt={frame.category || 'Video Frame'}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              position: 'absolute',
+            }}
+            width={frame.sizes?.small?.width || size}
+            height={frame.sizes?.small?.height || size}
+            onError={() => setImageError(true)}
+          />
+          {/* Loading spinner */}
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            <path
+              d="M2,12A11.2,11.2,0,0,1,13,1.05C12.67,1,12.34,1,12,1a11,11,0,0,0,0,22c.34,0,.67,0,1-.05C6,23,2,17.74,2,12Z"
+              fill="white"
+            >
+              <animateTransform
+                attributeName="transform"
+                type="rotate"
+                dur="0.6s"
+                values="0 12 12;360 12 12"
+                repeatCount="indefinite"
+              />
+            </path>
+          </svg>
+          {/* Video element on top */}
+          <video
+            src={frame.url || ''}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+            }}
+            muted
+            loop
+            autoPlay={playOnHover}
+          />
+        </>
       )
     }
 
+    // Default case: show preview image
     return (
-      <Image
-        src={imageUrl}
-        alt={frame.category || 'Frame'}
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-        width={frame.sizes?.small?.width || frame.width || size}
-        height={frame.sizes?.small?.height || frame.height || size}
-      />
+      <>
+        <Image
+          src={displayUrl}
+          alt={frame.category || (isVideo ? 'Video Frame' : 'Frame')}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute' }}
+          width={frame.sizes?.small?.width || frame.width || size}
+          height={frame.sizes?.small?.height || frame.height || size}
+          onError={() => setImageError(true)}
+        />
+        {/* Play button overlay for video indication when using preview */}
+        {isVideo && usePreviewUrl && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '4px',
+              left: '4px',
+              backgroundColor: 'rgba(0,0,0,0.45)',
+              color: 'white',
+              fontSize: '0.875rem',
+              padding: '4px',
+              borderRadius: '4px',
+              lineHeight: 1,
+              fontWeight: '600',
+            }}
+          >
+            ▶
+          </div>
+        )}
+      </>
     )
   }
 
@@ -142,7 +237,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
       <div style={imageContainerStyle}>
         {renderMedia()}
 
-        {overlayValue !== undefined && (
+        {overlayValue && (
           <div
             style={{
               position: 'absolute',
@@ -157,7 +252,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
               fontWeight: '600',
             }}
           >
-            {overlayValue}s
+            {overlayValue}
           </div>
         )}
       </div>

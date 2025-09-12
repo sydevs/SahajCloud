@@ -8,25 +8,25 @@ import FrameManager from './FrameManager'
 import ModalHeader from './components/ModalHeader'
 import CollapsedView from './components/CollapsedView'
 import InstructionsPanel from './components/InstructionsPanel'
-import type { FrameData } from './types'
+import type { KeyframeData } from './types'
 import type { Narrator, Frame } from '@/payload-types'
 import { pauseAllMedia, roundToNearestSecond, sortFramesByTimestamp } from './utils'
 import { MODAL_CONFIG } from './constants'
-import { 
+import {
   MobileWarning,
   MobileWarningTitle,
   MobileWarningText,
   ModalContent,
   LeftColumn,
   MiddleColumn,
-  RightColumn
+  RightColumn,
 } from './styled'
 
 interface MeditationFrameEditorModalProps {
-  initialFrames: FrameData[]
+  initialFrames: KeyframeData[]
   audioUrl: string | null
   narrator: Narrator | null
-  onSave: (frames: FrameData[]) => void
+  onSave: (frames: KeyframeData[]) => void
   readOnly?: boolean
 }
 
@@ -38,11 +38,10 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
   readOnly = false,
 }) => {
   const { openModal, closeModal } = useModal()
-  const [tempFrames, setTempFrames] = useState<FrameData[]>(initialFrames)
+  const [tempFrames, setTempFrames] = useState<KeyframeData[]>(initialFrames)
   const [currentTime, setCurrentTime] = useState(0)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const audioPlayerRef = useRef<AudioPlayerRef>(null)
-
 
   const handleOpenModal = useCallback(() => {
     pauseAllMedia()
@@ -66,7 +65,7 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
     closeModal(MODAL_CONFIG.SLUG)
   }, [initialFrames, closeModal])
 
-  const handleFramesChange = useCallback((newFrames: FrameData[]) => {
+  const handleFramesChange = useCallback((newFrames: KeyframeData[]) => {
     setTempFrames(newFrames)
   }, [])
 
@@ -74,23 +73,29 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
     setCurrentTime(time)
   }, [])
 
-  const handleFrameSelect = useCallback((frame: Frame) => {
-    const roundedTime = roundToNearestSecond(currentTime)
+  const handleFrameSelect = useCallback(
+    (frame: Frame) => {
+      const roundedTime = roundToNearestSecond(currentTime)
 
-    const newFrameData: FrameData = {
-      frame: frame.id,
-      timestamp: tempFrames.length === 0 ? 0 : roundedTime,
-    }
+      const newKeyframeData: KeyframeData = {
+        id: frame.id,
+        timestamp: tempFrames.length === 0 ? 0 : roundedTime,
+      }
 
-    // Check for existing frame at this timestamp and replace it
-    const existingFrameIndex = tempFrames.findIndex((f) => f.timestamp === newFrameData.timestamp)
+      // Check for existing frame at this timestamp and replace it
+      const existingFrameIndex = tempFrames.findIndex(
+        (f) => f.timestamp === newKeyframeData.timestamp,
+      )
 
-    const newFrames: FrameData[] = existingFrameIndex !== -1
-      ? tempFrames.map((f, index) => index === existingFrameIndex ? newFrameData : f)
-      : [...tempFrames, newFrameData]
+      const newFrames: KeyframeData[] =
+        existingFrameIndex !== -1
+          ? tempFrames.map((f, index) => (index === existingFrameIndex ? newKeyframeData : f))
+          : [...tempFrames, newKeyframeData]
 
-    handleFramesChange(newFrames)
-  }, [currentTime, tempFrames, handleFramesChange])
+      handleFramesChange(newFrames)
+    },
+    [currentTime, tempFrames, handleFramesChange],
+  )
 
   return (
     <>
@@ -130,11 +135,7 @@ const MeditationFrameEditorModal: React.FC<MeditationFrameEditorModalProps> = ({
               showPreview={true}
             />
 
-            <InstructionsPanel
-              narrator={narrator}
-              currentTime={currentTime}
-              frames={tempFrames}
-            />
+            <InstructionsPanel narrator={narrator} currentTime={currentTime} frames={tempFrames} />
 
             {/* Spacer */}
             <div style={{ flex: 1 }} />

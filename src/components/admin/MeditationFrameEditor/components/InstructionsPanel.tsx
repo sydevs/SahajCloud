@@ -1,14 +1,15 @@
 'use client'
 
 import React from 'react'
-import type { FrameData } from '../types'
+import type { KeyframeData } from '../types'
 import type { Narrator } from '@/payload-types'
 import { InstructionsPanel as StyledInstructionsPanel, InstructionsTitle } from '../styled'
+import { formatTime } from '../utils'
 
 interface InstructionsPanelProps {
   narrator: Narrator | null
   currentTime: number
-  frames: FrameData[]
+  frames: KeyframeData[]
 }
 
 const InstructionsPanel: React.FC<InstructionsPanelProps> = ({ narrator, currentTime, frames }) => {
@@ -18,7 +19,8 @@ const InstructionsPanel: React.FC<InstructionsPanelProps> = ({ narrator, current
       {narrator && (
         <StyledInstructionsPanel>
           <InstructionsTitle>📍 Quick Instructions</InstructionsTitle>
-          Click any frame to add it at the current audio time ({Math.round(currentTime)}s)
+          Click any frame to add it at the current audio time ({formatTime(Math.round(currentTime))}
+          )
           {frames.length === 0 && (
             <>
               <br />
@@ -27,6 +29,11 @@ const InstructionsPanel: React.FC<InstructionsPanelProps> = ({ narrator, current
               </span>
             </>
           )}
+          <div style={{ lineHeight: '1.5em', marginTop: '0.5em' }}>
+            <strong>Keyboard Shortcuts:</strong>
+            <br />
+            {' SPACE to play/pause; ←→Arrows for ±5s'}
+          </div>
         </StyledInstructionsPanel>
       )}
     </>

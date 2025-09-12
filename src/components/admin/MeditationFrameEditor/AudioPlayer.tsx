@@ -8,23 +8,14 @@ import React, {
   useCallback,
   forwardRef,
 } from 'react'
-import type { FrameData } from './types'
-import { useFrameDetails } from './hooks/useFrameDetails'
-import {
-  getCurrentFrame,
-  isVideoFile,
-  getMediaUrl,
-} from './utils'
+import type { KeyframeData } from './types'
+import { getCurrentFrame, isVideoFile, getMediaUrl } from './utils'
 import { SIZES } from './constants'
-import {
-  AudioPlayerContainer,
-  AudioPreview,
-  EmptyState,
-} from './styled'
+import { AudioPlayerContainer, AudioPreview, EmptyState } from './styled'
 
 interface AudioPlayerProps {
   audioUrl: string | null
-  frames: FrameData[]
+  frames: KeyframeData[]
   onTimeChange?: (time: number) => void
   onSeek?: (time: number) => void
   size?: 'small' | 'large'
@@ -53,15 +44,13 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
   ) => {
     const audioRef = useRef<HTMLAudioElement>(null)
     const progressRef = useRef<HTMLDivElement>(null)
+    const currentBlobRef = useRef<string | null>(null)
     const [isPlaying, setIsPlaying] = useState(false)
     const [currentTime, setCurrentTime] = useState(0)
     const [duration, setDuration] = useState(0)
     const [isLoaded, setIsLoaded] = useState(false)
     const [audioBlob, setAudioBlob] = useState<string | null>(null)
     const [loadingBlob, setLoadingBlob] = useState(false)
-
-    const frameIds = frames.map((f) => f.frame)
-    const { frameDetails } = useFrameDetails(frameIds)
 
     // Size configurations
     const config = {
@@ -77,26 +66,39 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
 
     // Find current frame
     const currentFrame = getCurrentFrame(frames, currentTime)
-    const currentFrameDetails = currentFrame ? frameDetails[currentFrame.frame] : null
 
     // Load audio as blob to enable proper seeking
     useEffect(() => {
-      if (!audioUrl) return
-
-      // Don't reload if already loading the same URL
-      if (loadingBlob) return
+      if (!audioUrl) {
+        // Clean up previous blob URL if it exists
+        if (currentBlobRef.current && currentBlobRef.current.startsWith('blob:')) {
+          URL.revokeObjectURL(currentBlobRef.current)
+        }
+        currentBlobRef.current = null
+        setAudioBlob(null)
+        setLoadingBlob(false)
+        return
+      }
 
       const loadAudioBlob = async () => {
         setLoadingBlob(true)
         try {
           const response = await fetch(audioUrl)
           if (!response.ok) throw new Error('Failed to load audio')
-          
+
           const blob = await response.blob()
           const blobUrl = URL.createObjectURL(blob)
+
+          // Clean up previous blob URL if it exists
+          if (currentBlobRef.current && currentBlobRef.current.startsWith('blob:')) {
+            URL.revokeObjectURL(currentBlobRef.current)
+          }
+
+          currentBlobRef.current = blobUrl
           setAudioBlob(blobUrl)
         } catch (error) {
           console.warn('Failed to load audio as blob, using direct URL:', error)
+          currentBlobRef.current = audioUrl
           setAudioBlob(audioUrl) // Fallback to direct URL
         } finally {
           setLoadingBlob(false)
@@ -104,21 +106,16 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
       }
 
       loadAudioBlob()
-
-      // Cleanup blob URL on unmount or URL change
-      return () => {
-        // We'll clean up the previous blob URL when setting a new one
-      }
-    }, [audioUrl, loadingBlob])
+    }, [audioUrl])
 
     // Cleanup blob URL when component unmounts
     useEffect(() => {
       return () => {
-        if (audioBlob && audioBlob.startsWith('blob:')) {
-          URL.revokeObjectURL(audioBlob)
+        if (currentBlobRef.current && currentBlobRef.current.startsWith('blob:')) {
+          URL.revokeObjectURL(currentBlobRef.current)
         }
       }
-    }, [audioBlob])
+    }, [])
 
     // Expose pause function via ref
     useImperativeHandle(
@@ -154,30 +151,33 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
     const handleEnded = () => setIsPlaying(false)
 
     // Seeking with retry mechanism
-    const seekTo = useCallback(async (newTime: number) => {
-      if (!audioRef.current || !duration) return
+    const seekTo = useCallback(
+      async (newTime: number) => {
+        if (!audioRef.current || !duration) return
 
-      const clampedTime = Math.max(0, Math.min(newTime, duration))
-      
-      try {
-        // Wait for audio to be ready if needed
-        if (audioRef.current.readyState < 2) {
-          await new Promise<void>((resolve) => {
-            const handleCanPlay = () => {
-              audioRef.current?.removeEventListener('canplay', handleCanPlay)
-              resolve()
-            }
-            audioRef.current?.addEventListener('canplay', handleCanPlay)
-          })
+        const clampedTime = Math.max(0, Math.min(newTime, duration))
+
+        try {
+          // Wait for audio to be ready if needed
+          if (audioRef.current.readyState < 2) {
+            await new Promise<void>((resolve) => {
+              const handleCanPlay = () => {
+                audioRef.current?.removeEventListener('canplay', handleCanPlay)
+                resolve()
+              }
+              audioRef.current?.addEventListener('canplay', handleCanPlay)
+            })
+          }
+
+          audioRef.current.currentTime = clampedTime
+          setCurrentTime(clampedTime)
+          onSeek?.(clampedTime)
+        } catch (error) {
+          console.warn('Seek failed:', error)
         }
-
-        audioRef.current.currentTime = clampedTime
-        setCurrentTime(clampedTime)
-        onSeek?.(clampedTime)
-      } catch (error) {
-        console.warn('Seek failed:', error)
-      }
-    }, [duration, onSeek])
+      },
+      [duration, onSeek],
+    )
 
     // Progress bar click handler
     const handleProgressClick = (e: React.MouseEvent) => {
@@ -209,7 +209,9 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
     const formatTime = (time: number) => {
       if (!isFinite(time)) return '0:00'
       const minutes = Math.floor(time / 60)
-      const seconds = Math.floor(time % 60).toString().padStart(2, '0')
+      const seconds = Math.floor(time % 60)
+        .toString()
+        .padStart(2, '0')
       return `${minutes}:${seconds}`
     }
 
@@ -260,10 +262,10 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
           {/* Preview Area */}
           {showPreview && (
             <AudioPreview $width={config.preview} $height={config.preview}>
-              {currentFrameDetails ? (
-                isVideoFile(currentFrameDetails.mimeType || undefined) ? (
+              {currentFrame ? (
+                isVideoFile(currentFrame.mimeType || undefined) ? (
                   <video
-                    src={currentFrameDetails.url || ''}
+                    src={currentFrame.url || ''}
                     style={{
                       width: '100%',
                       height: '100%',
@@ -276,8 +278,8 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
                   />
                 ) : (
                   <img
-                    src={getMediaUrl(currentFrameDetails, 'medium') || undefined}
-                    alt={currentFrameDetails.category}
+                    src={getMediaUrl(currentFrame, 'medium') || undefined}
+                    alt={currentFrame.category}
                     style={{
                       width: '100%',
                       height: '100%',
@@ -299,7 +301,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
               )}
 
               {/* Frame info overlay */}
-              {currentFrameDetails && (
+              {currentFrame && (
                 <div
                   style={{
                     position: 'absolute',
@@ -312,14 +314,11 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
                     fontSize: config.fontSize,
                   }}
                 >
-                  <div style={{ fontWeight: '500' }}>{currentFrameDetails.category}</div>
+                  <div style={{ fontWeight: '500' }}>{currentFrame.category}</div>
                   {frames.length > 1 && (
                     <div style={{ fontSize: '0.625rem', opacity: 0.8 }}>
-                      Frame{' '}
-                      {frames.findIndex(
-                        (f) => frameDetails[f.frame]?.id === currentFrameDetails.id,
-                      ) + 1}{' '}
-                      of {frames.length}
+                      Frame {frames.findIndex((f) => f.id === currentFrame.id) + 1} of{' '}
+                      {frames.length}
                     </div>
                   )}
                 </div>
@@ -348,7 +347,14 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
             />
 
             {/* Controls Row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '1rem',
+                marginBottom: '0.75rem',
+              }}
+            >
               <button
                 type="button"
                 onClick={togglePlayPause}
@@ -402,7 +408,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
               {duration > 0 &&
                 frames.map((frame, index) => (
                   <div
-                    key={`${frame.frame}-${frame.timestamp}-${index}`}
+                    key={`${frame.id}-${frame.timestamp}-${index}`}
                     onClick={(e) => {
                       e.stopPropagation()
                       handleMarkerClick(frame.timestamp)
@@ -433,22 +439,6 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
             </div>
           </div>
         </AudioPlayerContainer>
-
-        {/* Keyboard shortcuts help */}
-        {size === 'large' && audioUrl && enableHotkeys && (
-          <div
-            style={{
-              fontSize: '0.75rem',
-              color: '#6c757d',
-              marginTop: '0.5rem',
-              fontStyle: 'italic',
-            }}
-          >
-            <strong>Keyboard Shortcuts:</strong>
-            <br />
-            Space: Play/Pause • ←→: ±5s
-          </div>
-        )}
       </>
     )
   },

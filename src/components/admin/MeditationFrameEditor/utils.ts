@@ -1,4 +1,5 @@
 import { LIMITS } from './constants'
+import type { KeyframeData } from './types'
 
 export const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60)
@@ -7,19 +8,21 @@ export const formatTime = (seconds: number): string => {
 }
 
 export const validateTimestamp = (
-  timestamp: number, 
-  existingTimestamps: number[], 
-  currentIndex?: number
+  timestamp: number,
+  existingTimestamps: number[],
+  currentIndex?: number,
 ): string | null => {
   if (timestamp < 0) return 'Timestamp must be 0 or greater'
   if (!Number.isInteger(timestamp)) return 'Timestamp must be a whole number'
-  if (timestamp > LIMITS.MAX_TIMESTAMP) return `Timestamp cannot exceed 1 hour (${LIMITS.MAX_TIMESTAMP}s)`
+  if (timestamp > LIMITS.MAX_TIMESTAMP)
+    return `Timestamp cannot exceed 1 hour (${LIMITS.MAX_TIMESTAMP}s)`
 
   // Check for duplicates (excluding current frame if provided)
-  const otherTimestamps = currentIndex !== undefined 
-    ? existingTimestamps.filter((_, index) => index !== currentIndex)
-    : existingTimestamps
-    
+  const otherTimestamps =
+    currentIndex !== undefined
+      ? existingTimestamps.filter((_, index) => index !== currentIndex)
+      : existingTimestamps
+
   if (otherTimestamps.includes(timestamp)) {
     return `Timestamp ${timestamp}s is already used by another frame`
   }
@@ -45,7 +48,10 @@ export const pauseAllMedia = (): void => {
   })
 }
 
-export const getCurrentFrame = (frames: Array<{timestamp: number, frame: string}>, currentTime: number) => {
+export const getCurrentFrame = (
+  frames: KeyframeData[],
+  currentTime: number,
+): KeyframeData | null => {
   if (frames.length === 0) return null
 
   const sortedFrames = [...frames].sort((a, b) => a.timestamp - b.timestamp)
@@ -75,31 +81,31 @@ export const isVideoFile = (mimeType?: string): boolean => {
   return mimeType?.startsWith('video/') || false
 }
 
-export const getMediaUrl = (frame: any, size: 'small' | 'medium' | 'large' = 'medium'): string | undefined => {
+export const getMediaUrl = (
+  frame: any,
+  size: 'small' | 'medium' | 'large' = 'medium',
+): string | undefined => {
   return frame?.sizes?.[size]?.url || frame?.url
-}
-
-export const createFrameKey = (frameId: string, timestamp: number, index?: number): string => {
-  return index !== undefined 
-    ? `${frameId}-${timestamp}-${index}`
-    : `${frameId}-${timestamp}`
 }
 
 export const roundToNearestSecond = (time: number): number => {
   return Math.round(time)
 }
 
-export const getNextFrameTimestamp = (frames: Array<{timestamp: number}>, currentTime: number): number | null => {
-  const futureFrames = frames.filter(f => f.timestamp > currentTime)
+export const getNextFrameTimestamp = (
+  frames: KeyframeData[],
+  currentTime: number,
+): number | null => {
+  const futureFrames = frames.filter((f) => f.timestamp > currentTime)
   if (futureFrames.length === 0) return null
-  
-  return Math.min(...futureFrames.map(f => f.timestamp))
+
+  return Math.min(...futureFrames.map((f) => f.timestamp))
 }
 
 export const isInputElement = (element: Element): boolean => {
   return element.tagName === 'INPUT' || element.tagName === 'TEXTAREA'
 }
 
-export const sortFramesByTimestamp = <T extends {timestamp: number}>(frames: T[]): T[] => {
+export const sortFramesByTimestamp = <T extends { timestamp: number }>(frames: T[]): T[] => {
   return [...frames].sort((a, b) => a.timestamp - b.timestamp)
 }

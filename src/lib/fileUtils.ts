@@ -3,6 +3,7 @@ import sharp from 'sharp'
 import ffmpeg from 'fluent-ffmpeg'
 import fs from 'fs'
 import tmp from 'tmp'
+import path from 'path'
 
 export type FileMetadata = {
   width?: number
@@ -60,5 +61,49 @@ const getMediaMetadata = (fileBuffer: Buffer) => {
         resolve({ duration })
       }
     })
+  })
+}
+
+export const extractVideoThumbnail = async (videoBuffer: Buffer): Promise<Buffer> => {
+  return new Promise((resolve, reject) => {
+    const inputFile = tmp.fileSync({ postfix: '.mp4' })
+    const outputFile = tmp.fileSync({ postfix: '.png' })
+
+    try {
+      fs.writeFileSync(inputFile.fd, videoBuffer)
+
+      ffmpeg(inputFile.name)
+        .on('end', async () => {
+          try {
+            const thumbnailBuffer = await sharp(outputFile.name)
+              .resize(320, 320, { fit: 'cover' })
+              .webp({ quality: 95 })
+              .toBuffer()
+
+            inputFile.removeCallback()
+            outputFile.removeCallback()
+            resolve(thumbnailBuffer)
+          } catch (error) {
+            inputFile.removeCallback()
+            outputFile.removeCallback()
+            reject(error)
+          }
+        })
+        .on('error', (err) => {
+          inputFile.removeCallback()
+          outputFile.removeCallback()
+          reject(err)
+        })
+        .screenshots({
+          timestamps: [0.1],
+          filename: path.basename(outputFile.name),
+          folder: path.dirname(outputFile.name),
+          size: '320x320',
+        })
+    } catch (error) {
+      inputFile.removeCallback()
+      outputFile.removeCallback()
+      reject(error)
+    }
   })
 }

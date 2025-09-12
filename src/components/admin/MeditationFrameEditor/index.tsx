@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { useField } from '@payloadcms/ui'
 import MeditationFrameEditorModal from './MeditationFrameEditorModal'
-import type { MeditationFrameEditorProps, FrameData } from './types'
+import type { MeditationFrameEditorProps, KeyframeData } from './types'
 import type { Narrator } from '@/payload-types'
 import { sortFramesByTimestamp } from './utils'
 import { LoadingState } from './styled'
@@ -15,7 +15,7 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
   required,
   readOnly,
 }) => {
-  const { value, setValue } = useField<FrameData[]>({ path })
+  const { value, setValue } = useField<KeyframeData[]>({ path })
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [narrator, setNarrator] = useState<Narrator | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -65,7 +65,7 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
   }, [audioField.value, narratorField.value])
 
   const handleSave = useCallback(
-    (newFrames: FrameData[]) => {
+    (newFrames: KeyframeData[]) => {
       setValue(sortFramesByTimestamp(newFrames))
     },
     [setValue],

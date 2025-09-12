@@ -42,7 +42,7 @@ export const storagePlugin = () => {
 const collectionStorageConfig = (collection: CollectionSlug): Partial<CollectionOptions> => {
   return {
     prefix: collection,
-    disableLocalStorage: true,
+    disableLocalStorage: process.env.S3_PUBLIC_ENDPOINT !== undefined,
     disablePayloadAccessControl: process.env.S3_PUBLIC_ENDPOINT !== undefined ? true : undefined,
     generateFileURL: ({ filename, prefix }) => {
       return `https://${process.env.S3_PUBLIC_ENDPOINT}/${prefix}/${filename}`

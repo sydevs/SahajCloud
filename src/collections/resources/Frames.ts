@@ -2,7 +2,14 @@ import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { FRAME_CATEGORY_OPTIONS, GENDER_OPTIONS } from '@/lib/data'
-import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
+import {
+  convertFile,
+  processFile,
+  sanitizeFilename,
+  generateVideoThumbnailHook,
+  deleteThumbnailHook,
+  setPreviewUrlHook,
+} from '@/lib/fieldUtils'
 
 export const Frames: CollectionConfig = {
   labels: {
@@ -12,8 +19,8 @@ export const Frames: CollectionConfig = {
   slug: 'frames',
   access: permissionBasedAccess('frames'),
   upload: {
+    staticDir: 'media/frames',
     hideRemoveFile: true,
-    disableLocalStorage: true,
     adminThumbnail: 'small',
     mimeTypes: [
       // Images
@@ -49,17 +56,19 @@ export const Frames: CollectionConfig = {
   admin: {
     group: 'Resources',
     useAsTitle: 'filename',
-    defaultColumns: ['category', 'tags', 'preview', 'imageSet'],
+    defaultColumns: ['category', 'tags', 'previewUrl', 'imageSet'],
   },
   hooks: {
     beforeOperation: [sanitizeFilename],
-    afterRead: [trackClientUsageHook],
+    afterRead: [trackClientUsageHook, setPreviewUrlHook],
     beforeValidate: [processFile({})],
     beforeChange: [convertFile],
+    afterChange: [generateVideoThumbnailHook],
+    afterDelete: [deleteThumbnailHook],
   },
   fields: [
     {
-      name: 'preview',
+      name: 'previewUrl',
       type: 'text',
       virtual: true,
       admin: {
@@ -112,6 +121,16 @@ export const Frames: CollectionConfig = {
         { label: 'Superego', value: 'superego' },
         { label: 'Tapping', value: 'tapping' },
       ],
+    },
+    {
+      name: 'thumbnail',
+      type: 'upload',
+      relationTo: 'media',
+      admin: {
+        readOnly: true,
+        description: 'Auto-generated thumbnail for video frames',
+        condition: (data) => data?.mimeType?.startsWith('video/'),
+      },
     },
     {
       name: 'duration',

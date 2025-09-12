@@ -31,7 +31,7 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
   disabled = false,
 }) => {
   const [frames, setFrames] = useState<Frame[]>([])
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [clickedFrameId, setClickedFrameId] = useState<string | null>(null)
@@ -63,20 +63,18 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
     loadFrames()
   }, [narrator?.gender])
 
-  // Filter frames by selected categories
+  // Filter frames by selected category
   const filteredFrames = useMemo(() => {
-    if (selectedCategories.length === 0) return frames
-    return frames.filter((frame) => selectedCategories.includes(frame.category))
-  }, [frames, selectedCategories])
+    if (!selectedCategory) return frames
+    return frames.filter((frame) => frame.category === selectedCategory)
+  }, [frames, selectedCategory])
 
-  const handleCategoryToggle = useCallback((category: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(category) ? prev.filter((id) => id !== category) : [...prev, category],
-    )
+  const handleCategorySelect = useCallback((category: string) => {
+    setSelectedCategory((prev) => (prev === category ? null : category))
   }, [])
 
-  const clearCategoryFilters = useCallback(() => {
-    setSelectedCategories([])
+  const clearCategoryFilter = useCallback(() => {
+    setSelectedCategory(null)
   }, [])
 
   const handleFrameClick = useCallback(
@@ -123,22 +121,22 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
           <CategoryButton
             key={category}
             type="button"
-            onClick={() => handleCategoryToggle(category)}
+            onClick={() => handleCategorySelect(category)}
             disabled={disabled}
-            $selected={selectedCategories.includes(category)}
+            $selected={selectedCategory === category}
             $disabled={disabled}
           >
             {category}
           </CategoryButton>
         ))}
-        {selectedCategories.length > 0 && (
+        {selectedCategory && (
           <ClearFiltersButton
             type="button"
-            onClick={clearCategoryFilters}
+            onClick={clearCategoryFilter}
             disabled={disabled}
             $disabled={disabled}
           >
-            Clear filters
+            Clear filter
           </ClearFiltersButton>
         )}
       </CategoryFilters>
@@ -146,8 +144,8 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
       {/* Frames Grid */}
       {filteredFrames.length === 0 ? (
         <EmptyState>
-          {selectedCategories.length > 0
-            ? 'No frames found with selected categories.'
+          {selectedCategory
+            ? 'No frames found with selected category.'
             : 'No frames available.'}
         </EmptyState>
       ) : (
@@ -158,9 +156,11 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
               frame={frame}
               size={SIZES.FRAME_ITEM}
               overlayValue={
-                (isVideoFile(frame.mimeType || undefined) && frame.duration) || undefined
+                (isVideoFile(frame.mimeType || undefined) && `${frame.duration}s`) || undefined
               }
               playOnHover={true}
+              usePreviewUrl={true}
+              showVideoOnHover={true}
               onClick={() => handleFrameClick(frame)}
               isSelected={clickedFrameId === frame.id}
               disabled={disabled}
