@@ -130,7 +130,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
       return (
         <>
           {/* Show preview image as background while video loads */}
-          <Image
+          <img
             src={displayUrl}
             alt={frame.category || 'Video Frame'}
             style={{
@@ -191,7 +191,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
     // Default case: show preview image
     return (
       <>
-        <Image
+        <img
           src={displayUrl}
           alt={frame.category || (isVideo ? 'Video Frame' : 'Frame')}
           style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute' }}

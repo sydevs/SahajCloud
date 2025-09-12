@@ -65,10 +65,9 @@ const DirectUploadThumbnail: React.FC<{ rowData: RowData; cellData: any }> = ({
             backgroundColor: '#f5f5f5',
           }}
         >
-          <Image
+          <img
             src={thumbnailUrl}
             alt={altText}
-            fill
             style={{
               objectFit: 'cover',
             }}
@@ -151,10 +150,9 @@ const DirectUploadThumbnail: React.FC<{ rowData: RowData; cellData: any }> = ({
         backgroundColor: '#f5f5f5',
       }}
     >
-      <Image
+      <img
         src={fileUrl}
         alt={altText || ''}
-        fill
         style={{
           objectFit: 'cover',
         }}
@@ -206,10 +204,9 @@ const RelationshipThumbnail: React.FC<{
         backgroundColor: '#f5f5f5',
       }}
     >
-      <Image
+      <img
         src={fileUrl}
         alt={altText || ''}
-        fill
         style={{
           objectFit: 'cover',
         }}
@@ -252,10 +249,9 @@ export const ThumbnailCell: React.FC<
           backgroundColor: '#f5f5f5',
         }}
       >
-        <Image
+        <img
           src={cellData}
           alt={rowData?.filename || 'Preview'}
-          fill
           style={{
             objectFit: 'cover',
           }}
