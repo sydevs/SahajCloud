@@ -61,5 +61,6 @@ export default withSentryConfig(configWithPayload, {
   images: {
     // Allow images to be loaded from our asset server
     domains: ['assets.sydevelopers.com'],
+    unoptimized: true, // TODO: Undo this and try to get the benefit of next images
   },
 })
