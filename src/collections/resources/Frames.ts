@@ -35,18 +35,12 @@ export const Frames: CollectionConfig = {
     imageSizes: [
       {
         name: 'small',
-        width: 160,
-        height: 160,
-        position: 'centre',
-      },
-      {
-        name: 'medium',
         width: 320,
         height: 320,
         position: 'centre',
       },
       {
-        name: 'full',
+        name: 'large',
         width: 1000,
         height: 1000,
         position: 'centre',
