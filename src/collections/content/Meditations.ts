@@ -1,13 +1,7 @@
 import type { CollectionConfig, Validate } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import {
-  buildKeyframeData,
-  convertFile,
-  generateSlug,
-  processFile,
-  sanitizeFilename,
-} from '@/lib/fieldUtils'
+import { convertFile, generateSlug, processFile, sanitizeFilename } from '@/lib/fieldUtils'
 import { KeyframeData, KeyframeDefinition } from '@/components/admin/MeditationFrameEditor/types'
 
 export const Meditations: CollectionConfig = {

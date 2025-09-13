@@ -6,7 +6,7 @@ export type KeyframeDefinition = {
 }
 
 // Types that are not defined in payload-types.ts
-export type KeyframeData = KeyframeDefinition & Frame
+export type KeyframeData = KeyframeDefinition & Partial<Frame>
 
 export interface AudioPlayerState {
   isPlaying: boolean
