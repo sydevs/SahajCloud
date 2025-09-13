@@ -9,3 +9,5 @@ Use the following steps to evaluate and address the issue:
 4. Ask me any questions you need to to clarify the fix. If it's relevant, ask me if we need to be concerned about backwards compatibility.
 5. Think hard about how to solve the issue and come up with one or more suggestions for the fix.
 6. After getting approval from me for one of the possible fixes, implement the fix.
+
+Don't commit or stage any changes.

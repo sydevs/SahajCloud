@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
-import { useField } from '@payloadcms/ui'
+import { useField, useForm } from '@payloadcms/ui'
 import MeditationFrameEditorModal from './MeditationFrameEditorModal'
 import type { MeditationFrameEditorProps, KeyframeData } from './types'
 import type { Narrator } from '@/payload-types'
@@ -20,8 +20,10 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
   const [narrator, setNarrator] = useState<Narrator | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Get the meditation's audio file and narrator from sibling fields
-  const audioField = useField<string>({ path: 'filename' })
+  // Get form data which includes the complete upload data with URL
+  const { getData } = useForm()
+
+  // Get the narrator field
   const narratorField = useField<string>({ path: 'narrator' })
 
   useEffect(() => {
@@ -29,10 +31,16 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
       try {
         setIsLoading(true)
 
-        // Get audio URL from the meditation's upload field
-        if (audioField.value) {
+        // Get the complete form data which includes the upload URL
+        const formData = getData()
+
+        // Get audio URL from the form data (Payload automatically includes it for uploads)
+        if (formData?.url) {
+          setAudioUrl(formData.url)
+        } else if (formData?.filename) {
+          // Fallback to constructing URL if for some reason url field is not present
           const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-          setAudioUrl(`${baseUrl}/media/meditations/${audioField.value}`)
+          setAudioUrl(`${baseUrl}/media/meditations/${formData.filename}`)
         } else {
           setAudioUrl(null)
         }
@@ -62,7 +70,7 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
     }
 
     loadMeditationData()
-  }, [audioField.value, narratorField.value])
+  }, [getData, narratorField.value])
 
   const handleSave = useCallback(
     (newFrames: KeyframeData[]) => {
