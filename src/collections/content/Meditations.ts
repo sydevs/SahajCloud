@@ -8,6 +8,7 @@ import {
   processFile,
   sanitizeFilename,
 } from '@/lib/fieldUtils'
+import { KeyframeData, KeyframeDefinition } from '@/components/admin/MeditationFrameEditor/types'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
@@ -184,7 +185,44 @@ export const Meditations: CollectionConfig = {
         return true
       },
       hooks: {
-        beforeChange: [buildKeyframeData],
+        beforeChange: [
+          async ({ value }) => {
+            if (!value || !Array.isArray(value)) return []
+
+            return value
+              .map((v) => {
+                return { id: v.id, timestamp: v.timestamp } as KeyframeDefinition
+              })
+              .sort((a, b) => a.timestamp - b.timestamp)
+          },
+        ],
+        afterRead: [
+          async ({ value, req }) => {
+            if (!value || !Array.isArray(value)) return []
+            const frames = value as KeyframeData[]
+
+            const frameIds = frames.map((f) => f.id)
+            if (frameIds.length === 0) return []
+
+            const frameDocs = await req.payload.find({
+              collection: 'frames',
+              where: { id: { in: frameIds } },
+              limit: frameIds.length,
+            })
+
+            // Create map of relevant frame data
+            const frameMap = Object.fromEntries(frameDocs.docs.map((frame) => [frame.id, frame]))
+
+            // Add data to each frame and sort by timestamp
+            return frames.map((v) => {
+              return {
+                ...v,
+                ...frameMap[v.id],
+                timestamp: Math.round(v.timestamp),
+              } as KeyframeData
+            })
+          },
+        ],
       },
     },
     {

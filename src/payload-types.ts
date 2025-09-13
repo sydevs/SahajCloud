@@ -482,15 +482,7 @@ export interface Frame {
       filesize?: number | null;
       filename?: string | null;
     };
-    medium?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-    full?: {
+    large?: {
       url?: string | null;
       width?: number | null;
       height?: number | null;
@@ -930,17 +922,7 @@ export interface FramesSelect<T extends boolean = true> {
               filesize?: T;
               filename?: T;
             };
-        medium?:
-          | T
-          | {
-              url?: T;
-              width?: T;
-              height?: T;
-              mimeType?: T;
-              filesize?: T;
-              filename?: T;
-            };
-        full?:
+        large?:
           | T
           | {
               url?: T;
