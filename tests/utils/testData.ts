@@ -285,21 +285,36 @@ export const testData = {
    * Create a page
    */
   async createPage(payload: Payload, overrides: Partial<Page> = {}): Promise<Page> {
-    // Create a default thumbnail if not provided
-    let thumbnailId = overrides.thumbnail
-    if (!thumbnailId) {
-      const thumbnail = await testData.createMediaImage(payload)
-      thumbnailId = thumbnail.id
-    }
-
     return (await payload.create({
       collection: 'pages',
       data: {
         title: 'Test Page',
-        thumbnail: thumbnailId,
         category: 'knowledge',
         tags: ['wisdom'],
-        content: [],
+        content: {
+          root: {
+            type: 'root',
+            children: [
+              {
+                type: 'paragraph',
+                version: 1,
+                children: [{
+                  type: 'text',
+                  version: 1,
+                  text: 'Test content',
+                  format: 0,
+                  detail: 0,
+                  mode: 'normal',
+                  style: '',
+                }],
+              },
+            ],
+            direction: 'ltr',
+            format: '',
+            indent: 0,
+            version: 1,
+          },
+        },
         ...overrides,
       },
     })) as Page

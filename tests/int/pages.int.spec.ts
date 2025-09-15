@@ -7,7 +7,6 @@ import { testData } from '../utils/testData'
 describe('Pages Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let testThumbnail: Media
   let testShowcaseMedia1: Media
   let testShowcaseMedia2: Media
 
@@ -16,8 +15,7 @@ describe('Pages Collection', () => {
     payload = testEnv.payload
     cleanup = testEnv.cleanup
 
-    // Create test media for thumbnail and showcase
-    testThumbnail = await testData.createMediaImage(payload, { alt: 'Page thumbnail' })
+    // Create test media for showcase
     testShowcaseMedia1 = await testData.createMediaImage(payload, { alt: 'Showcase media 1' })
     testShowcaseMedia2 = await testData.createMediaImage(payload, { alt: 'Showcase media 2' })
   })
@@ -30,7 +28,6 @@ describe('Pages Collection', () => {
     it('creates a page with auto-generated slug', async () => {
       const page = await testData.createPage(payload, {
         title: 'My First Page',
-        thumbnail: testThumbnail.id,
         category: 'technique',
         tags: ['living', 'creativity'],
       })
@@ -64,7 +61,6 @@ describe('Pages Collection', () => {
           data: {
             title: 'Different Title',
             slug: 'unique-page', // Try to use the same slug
-            thumbnail: testThumbnail.id,
             category: 'knowledge',
           },
         })
@@ -259,7 +255,6 @@ describe('Pages Collection', () => {
           collection: 'pages',
           data: {
             title: 'Page without Category',
-            thumbnail: testThumbnail.id,
             // category is missing
             content: [],
           },

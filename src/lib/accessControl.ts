@@ -1,4 +1,4 @@
-import { User } from '@/payload-types'
+import { Manager } from '@/payload-types'
 import type {
   CollectionConfig,
   Field,
@@ -67,10 +67,10 @@ export const hasPermission = ({
   // Block inactive or null users
   if (!user?.active) return false
   // Admin users bypass all restrictions
-  if (!isClient && (user as User).admin) return true
+  if (!isClient && (user as Manager).admin) return true
   // Block access to Managers and Clients for non-admins
   if (collection === 'managers' || collection === 'clients') return false
-  // Users have read access by default
+  // Managers have read access by default
   if (!isClient && operation === 'read') return true
 
   // Find permission for this collection
@@ -96,19 +96,19 @@ export const hasPermission = ({
         return false
     }
   } else {
-    // User permissions
+    // Manager permissions
     switch (permission.level) {
       case 'translate':
-        // Translate users cannot create or delete
+        // Translate managers cannot create or delete
         if (field) {
           return field.localized && operation !== 'delete'
         } else {
           return operation === 'read' || operation === 'update'
         }
       case 'manage':
-        return true // Full access for manage users
+        return true // Full access for manage managers
       default:
-        return operation === 'read' // Default read access for users
+        return operation === 'read' // Default read access for managers
     }
   }
 }
@@ -165,7 +165,7 @@ export const permissionBasedAccess = (
 }
 
 /**
- * Access control for Users and Clients collections (admin only)
+ * Access control for Managers and Clients collections (admin only)
  */
 export const adminOnlyAccess = (
   access: CollectionConfig['access'] = {},
@@ -256,7 +256,7 @@ export const createLocaleFilter = (user: TypedUser | null, collection: string) =
   const permissions = user.permissions || []
   const permission = permissions.find((p) => p.allowedCollection === collection)
 
-  // If no permission is found, only give user clients access
+  // If no permission is found, only give managers access
   if (!permission) return !isAPIClient(user)
   // If user has 'all' locales permission, no filtering needed
   if (permission?.locales.includes('all')) return true

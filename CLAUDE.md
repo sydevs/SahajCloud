@@ -483,6 +483,19 @@ Each permission entry contains:
 2. **Database**: Uses MongoDB with auto-generated collections based on Payload schema
 3. **Admin Access**: Available at `/admin` route with user authentication
 4. **API Access**: REST API at `/api/*` (GraphQL is disabled)
+5. **Migrations**: Database migrations are stored in `src/migrations/` and can be run with `pnpm payload migrate`
+
+### Database Migrations
+
+The project uses PayloadCMS's built-in migration system for database schema changes:
+
+- **Location**: `src/migrations/`
+- **Running Migrations**: `pnpm payload migrate`
+- **Rolling Back**: `pnpm payload migrate:down`
+- **Creating New Migrations**: Create a new file in `src/migrations/` with format `[timestamp]_description.ts`
+
+Example migrations:
+- `20240115_migrate_users_to_managers.ts` - Migrates data from the old `users` collection to the new `managers` collection
 
 ## Testing Strategy
 
@@ -575,6 +588,7 @@ src/
 │       ├── MeditationTags.ts # Tags for meditations
 │       └── MusicTags.ts    # Tags for music tracks
 ├── components/             # Reusable React components
+├── migrations/             # Database migrations
 ├── instrumentation*.ts     # Sentry monitoring setup
 ├── sentry*.config.ts       # Sentry configuration files
 ├── payload.config.ts       # Main Payload CMS config

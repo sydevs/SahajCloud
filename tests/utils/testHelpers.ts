@@ -135,7 +135,7 @@ export async function createTestEnvironment(): Promise<{
 
   const config = createBaseTestConfig(mongoUri)
   const payload = await getPayload({ config })
-  await testData.createUser(payload, {
+  await testData.createManager(payload, {
     id: TEST_ADMIN_ID,
     email: 'admin@example.com',
   })
@@ -193,7 +193,7 @@ export async function createAuthenticatedRequest(
   userId: string
 ): Promise<PayloadRequest> {
   const user = await payload.findByID({
-    collection: 'users',
+    collection: 'managers',
     id: userId,
   })
 
@@ -236,7 +236,7 @@ export async function createTestUser(
   }
   
   return await payload.create({
-    collection: 'users',
+    collection: 'managers',
     data: { ...defaultData, ...overrides },
   })
 }
