@@ -1,10 +1,10 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Article, Media } from '@/payload-types'
+import type { Page, Media } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
 import { testData } from '../utils/testData'
 
-describe('Articles Collection', () => {
+describe('Pages Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let testThumbnail: Media
@@ -17,7 +17,7 @@ describe('Articles Collection', () => {
     cleanup = testEnv.cleanup
 
     // Create test media for thumbnail and showcase
-    testThumbnail = await testData.createMediaImage(payload, { alt: 'Article thumbnail' })
+    testThumbnail = await testData.createMediaImage(payload, { alt: 'Page thumbnail' })
     testShowcaseMedia1 = await testData.createMediaImage(payload, { alt: 'Showcase media 1' })
     testShowcaseMedia2 = await testData.createMediaImage(payload, { alt: 'Showcase media 2' })
   })
@@ -26,44 +26,44 @@ describe('Articles Collection', () => {
     await cleanup()
   })
 
-  describe('Basic Article Operations', () => {
-    it('creates an article with auto-generated slug', async () => {
-      const article = await testData.createArticle(payload, {
-        title: 'My First Article',
+  describe('Basic Page Operations', () => {
+    it('creates a page with auto-generated slug', async () => {
+      const page = await testData.createPage(payload, {
+        title: 'My First Page',
         thumbnail: testThumbnail.id,
         category: 'technique',
         tags: ['living', 'creativity'],
       })
 
-      expect(article).toBeDefined()
-      expect(article.title).toBe('My First Article')
-      expect(article.slug).toBe('my-first-article')
-      expect(article.category).toBe('technique')
-      expect(article.tags).toEqual(['living', 'creativity'])
+      expect(page).toBeDefined()
+      expect(page.title).toBe('My First Page')
+      expect(page.slug).toBe('my-first-page')
+      expect(page.category).toBe('technique')
+      expect(page.tags).toEqual(['living', 'creativity'])
     })
 
     it('handles special characters in slug generation', async () => {
-      const article = await testData.createArticle(payload, {
-        title: 'Article: Testing & Validation!',
+      const page = await testData.createPage(payload, {
+        title: 'Page: Testing & Validation!',
         category: 'event',
       })
 
-      expect(article.slug).toBe('article-testing-and-validation')
+      expect(page.slug).toBe('page-testing-and-validation')
     })
 
     it('enforces slug uniqueness', async () => {
-      const article1 = await testData.createArticle(payload, {
-        title: 'Unique Article',
+      const page1 = await testData.createPage(payload, {
+        title: 'Unique Page',
       })
       
-      expect(article1.slug).toBe('unique-article')
+      expect(page1.slug).toBe('unique-page')
 
       await expect(
         payload.create({
-          collection: 'articles',
+          collection: 'pages',
           data: {
             title: 'Different Title',
-            slug: 'unique-article', // Try to use the same slug
+            slug: 'unique-page', // Try to use the same slug
             thumbnail: testThumbnail.id,
             category: 'knowledge',
           },
@@ -73,9 +73,9 @@ describe('Articles Collection', () => {
   })
 
   describe('Block System', () => {
-    it('creates article with ContentBlock', async () => {
-      const article = await testData.createArticle(payload, {
-        title: 'Article with Content Block',
+    it('creates page with ContentBlock', async () => {
+      const page = await testData.createPage(payload, {
+        title: 'Page with Content Block',
         content: [
           {
             blockType: 'content',
@@ -87,8 +87,8 @@ describe('Articles Collection', () => {
         ],
       })
 
-      expect(article.content).toHaveLength(1)
-      const block = article.content![0]
+      expect(page.content).toHaveLength(1)
+      const block = page.content![0]
       expect(block.blockType).toBe('content')
       expect(block).toHaveProperty('title', 'Welcome Section')
       expect(block).toHaveProperty('text', '<p>This is a content block with some text.</p>')
@@ -100,8 +100,8 @@ describe('Articles Collection', () => {
       const longText = '<p>' + 'a'.repeat(260) + '</p>' // Create text longer than 250 chars
 
       await expect(
-        testData.createArticle(payload, {
-          title: 'Article with Long Content',
+        testData.createPage(payload, {
+          title: 'Page with Long Content',
           content: [
             {
               blockType: 'content',
@@ -112,9 +112,9 @@ describe('Articles Collection', () => {
       ).rejects.toThrow()
     })
 
-    it('creates article with ImageBlock', async () => {
-      const article = await testData.createArticle(payload, {
-        title: 'Article with Image Block',
+    it('creates page with ImageBlock', async () => {
+      const page = await testData.createPage(payload, {
+        title: 'Page with Image Block',
         content: [
           {
             blockType: 'image',
@@ -125,8 +125,8 @@ describe('Articles Collection', () => {
         ],
       })
 
-      expect(article.content).toHaveLength(1)
-      const block = article.content![0]
+      expect(page.content).toHaveLength(1)
+      const block = page.content![0]
       expect(block.blockType).toBe('image')
       // Image will be populated as an object, so check if it's the right media
       expect(typeof block.image).toBe('object')
@@ -135,9 +135,9 @@ describe('Articles Collection', () => {
       expect(block).toHaveProperty('display', 'full')
     })
 
-    it('creates article with TextBlock', async () => {
-      const article = await testData.createArticle(payload, {
-        title: 'Article with Text Block',
+    it('creates page with TextBlock', async () => {
+      const page = await testData.createPage(payload, {
+        title: 'Page with Text Block',
         content: [
           {
             blockType: 'text',
@@ -165,16 +165,16 @@ describe('Articles Collection', () => {
         ],
       })
 
-      expect(article.content).toHaveLength(1)
-      const block = article.content![0]
+      expect(page.content).toHaveLength(1)
+      const block = page.content![0]
       expect(block.blockType).toBe('text')
       expect(block).toHaveProperty('title', 'Introduction')
       expect(block.text).toBeDefined()
     })
 
-    it('creates article with LayoutBlock', async () => {
-      const article = await testData.createArticle(payload, {
-        title: 'Article with Layout Block',
+    it('creates page with LayoutBlock', async () => {
+      const page = await testData.createPage(payload, {
+        title: 'Page with Layout Block',
         content: [
           {
             blockType: 'layout',
@@ -195,17 +195,17 @@ describe('Articles Collection', () => {
         ],
       })
 
-      expect(article.content).toHaveLength(1)
-      const block = article.content![0]
+      expect(page.content).toHaveLength(1)
+      const block = page.content![0]
       expect(block.blockType).toBe('layout')
       expect(block).toHaveProperty('style', 'grid')
       expect(block).toHaveProperty('items')
       expect(block.items).toHaveLength(2)
     })
 
-    it('creates article with ShowcaseBlock for media collection', async () => {
-      const article = await testData.createArticle(payload, {
-        title: 'Article with Media Showcase',
+    it('creates page with ShowcaseBlock for media collection', async () => {
+      const page = await testData.createPage(payload, {
+        title: 'Page with Media Showcase',
         content: [
           {
             blockType: 'showcase',
@@ -219,8 +219,8 @@ describe('Articles Collection', () => {
         ],
       })
 
-      expect(article.content).toHaveLength(1)
-      const block = article.content![0]
+      expect(page.content).toHaveLength(1)
+      const block = page.content![0]
       expect(block.blockType).toBe('showcase')
       expect(block).toHaveProperty('title', 'Featured Images')
       expect(block).toHaveProperty('collectionType', 'media')
@@ -237,8 +237,8 @@ describe('Articles Collection', () => {
       )
 
       await expect(
-        testData.createArticle(payload, {
-          title: 'Article with Too Many Showcase Items',
+        testData.createPage(payload, {
+          title: 'Page with Too Many Showcase Items',
           content: [
             {
               blockType: 'showcase',
@@ -256,9 +256,9 @@ describe('Articles Collection', () => {
     it('validates required category field', async () => {
       await expect(
         payload.create({
-          collection: 'articles',
+          collection: 'pages',
           data: {
-            title: 'Article without Category',
+            title: 'Page without Category',
             thumbnail: testThumbnail.id,
             // category is missing
             content: [],
@@ -268,31 +268,31 @@ describe('Articles Collection', () => {
     })
 
     it('allows multiple tags selection', async () => {
-      const article = await testData.createArticle(payload, {
-        title: 'Multi-tagged Article',
+      const page = await testData.createPage(payload, {
+        title: 'Multi-tagged Page',
         tags: ['living', 'creativity', 'wisdom', 'stories'],
       })
 
-      expect(article.tags).toHaveLength(4)
-      expect(article.tags).toContain('living')
-      expect(article.tags).toContain('creativity')
-      expect(article.tags).toContain('wisdom')
-      expect(article.tags).toContain('stories')
+      expect(page.tags).toHaveLength(4)
+      expect(page.tags).toContain('living')
+      expect(page.tags).toContain('creativity')
+      expect(page.tags).toContain('wisdom')
+      expect(page.tags).toContain('stories')
     })
   })
 
   describe('Publish Functionality', () => {
-    it('creates article with publishAt date', async () => {
+    it('creates page with publishAt date', async () => {
       const futureDate = new Date()
       futureDate.setDate(futureDate.getDate() + 7) // 7 days in the future
 
-      const article = await testData.createArticle(payload, {
-        title: 'Scheduled Article',
+      const page = await testData.createPage(payload, {
+        title: 'Scheduled Page',
         publishAt: futureDate.toISOString(),
       })
 
-      expect(article.publishAt).toBeDefined()
-      const publishDate = new Date(article.publishAt!)
+      expect(page.publishAt).toBeDefined()
+      const publishDate = new Date(page.publishAt!)
       expect(publishDate.getTime()).toBeGreaterThanOrEqual(Date.now())
     })
   })

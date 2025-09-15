@@ -70,7 +70,7 @@ export interface Config {
   collections: {
     meditations: Meditation;
     music: Music;
-    articles: Article;
+    pages: Page;
     frames: Frame;
     media: Media;
     narrators: Narrator;
@@ -100,7 +100,7 @@ export interface Config {
   collectionsSelect: {
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
     music: MusicSelect<false> | MusicSelect<true>;
-    articles: ArticlesSelect<false> | ArticlesSelect<true>;
+    pages: PagesSelect<false> | PagesSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
@@ -405,9 +405,9 @@ export interface Music {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "articles".
+ * via the `definition` "pages".
  */
-export interface Article {
+export interface Page {
   id: string;
   title: string;
   content?: {
@@ -984,8 +984,8 @@ export interface PayloadLockedDocument {
         value: string | Music;
       } | null)
     | ({
-        relationTo: 'articles';
-        value: string | Article;
+        relationTo: 'pages';
+        value: string | Page;
       } | null)
     | ({
         relationTo: 'frames';
@@ -1137,9 +1137,9 @@ export interface MusicSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "articles_select".
+ * via the `definition` "pages_select".
  */
-export interface ArticlesSelect<T extends boolean = true> {
+export interface PagesSelect<T extends boolean = true> {
   title?: T;
   content?: T;
   meta?:

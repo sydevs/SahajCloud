@@ -5,9 +5,9 @@ import { fullRichTextEditor } from '@/lib/richEditor'
 import { TextBoxBlock, LayoutBlock, GalleryBlock, ButtonBlock } from '@/blocks'
 import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 
-export const Articles: CollectionConfig = {
-  slug: 'articles',
-  access: permissionBasedAccess('articles'),
+export const Pages: CollectionConfig = {
+  slug: 'pages',
+  access: permissionBasedAccess('pages'),
   trash: true,
   admin: {
     group: 'Content',

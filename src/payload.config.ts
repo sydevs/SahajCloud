@@ -100,7 +100,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     plugins: [
       storagePlugin(), // Handles file storage
       seoPlugin({
-        collections: ['articles'],
+        collections: ['pages'],
         uploadsCollection: 'media',
         generateTitle: ({ doc }) => `We Meditate — ${doc.title}`,
         generateDescription: ({ doc }) => doc.content,

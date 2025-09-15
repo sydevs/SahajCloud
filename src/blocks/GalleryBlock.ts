@@ -29,8 +29,8 @@ export const GalleryBlock: Block = {
           value: 'meditations',
         },
         {
-          label: 'Articles',
-          value: 'articles',
+          label: 'Pages',
+          value: 'pages',
         },
       ],
       admin: {
@@ -42,7 +42,7 @@ export const GalleryBlock: Block = {
       type: 'relationship',
       hasMany: true,
       maxRows: 10,
-      relationTo: ['media', 'meditations', 'articles'],
+      relationTo: ['media', 'meditations', 'pages'],
       validate: ((value: unknown) => {
         if (!value) return true
         

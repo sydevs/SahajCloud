@@ -37,7 +37,7 @@ export const fullRichTextEditor = (blocks?: Block[]) =>
       InlineToolbarFeature(),
       HeadingFeature({ enabledHeadingSizes: ['h1', 'h2'] }),
       RelationshipFeature({
-        enabledCollections: ['meditations', 'music', 'articles', 'forms'],
+        enabledCollections: ['meditations', 'music', 'pages', 'forms'],
         maxDepth: 1,
       }),
       ...(blocks ? [BlocksFeature({ blocks })] : []),

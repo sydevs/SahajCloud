@@ -12,7 +12,7 @@ import type {
   Client,
   MeditationTag,
   MediaTag,
-  Article,
+  Page,
 } from '@/payload-types'
 import { TEST_ADMIN_ID } from './testHelpers'
 
@@ -282,9 +282,9 @@ export const testData = {
   },
 
   /**
-   * Create an article
+   * Create a page
    */
-  async createArticle(payload: Payload, overrides: Partial<Article> = {}): Promise<Article> {
+  async createPage(payload: Payload, overrides: Partial<Page> = {}): Promise<Page> {
     // Create a default thumbnail if not provided
     let thumbnailId = overrides.thumbnail
     if (!thumbnailId) {
@@ -293,16 +293,16 @@ export const testData = {
     }
 
     return (await payload.create({
-      collection: 'articles',
+      collection: 'pages',
       data: {
-        title: 'Test Article',
+        title: 'Test Page',
         thumbnail: thumbnailId,
         category: 'knowledge',
         tags: ['wisdom'],
         content: [],
         ...overrides,
       },
-    })) as Article
+    })) as Page
   },
 
   dummyUser(collection: 'managers' | 'clients', overrides: Partial<Manager | Client> = {}) {
