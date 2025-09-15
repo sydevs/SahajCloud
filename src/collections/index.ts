@@ -3,6 +3,7 @@ import { Media } from './resources/Media'
 import { Narrators } from './resources/Narrators'
 import { Meditations } from './content/Meditations'
 import { Music } from './content/Music'
+import { Articles } from './content/Articles'
 import { Frames } from './resources/Frames'
 import { Clients } from './access/Clients'
 import { MeditationTags } from './tags/MeditationTags'
@@ -14,6 +15,7 @@ export const collections = [
   // Content
   Meditations,
   Music,
+  Articles,
   Frames,
   // Resources
   Media,
@@ -31,6 +33,7 @@ export {
   // Content
   Meditations,
   Music,
+  Articles,
   Frames,
   // Resources
   Media,
