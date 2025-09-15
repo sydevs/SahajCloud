@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 
 import { adminOnlyAccess, permissionBasedAccess } from '@/lib/accessControl'
-import { collections, Users } from './collections'
+import { collections, Managers } from './collections'
 import { tasks } from './jobs'
 
 const filename = fileURLToPath(import.meta.url)
@@ -27,7 +27,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       defaultLocale: 'en',
     },
     admin: {
-      user: Users.slug,
+      user: Managers.slug,
       importMap: {
         baseDir: path.resolve(dirname),
       },

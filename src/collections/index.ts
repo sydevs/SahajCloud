@@ -1,4 +1,4 @@
-import { Users } from './access/Users'
+import { Managers } from './access/Managers'
 import { Media } from './resources/Media'
 import { Narrators } from './resources/Narrators'
 import { Meditations } from './content/Meditations'
@@ -25,7 +25,7 @@ export const collections = [
   MeditationTags,
   MusicTags,
   // Access
-  Users,
+  Managers,
   Clients,
 ]
 
@@ -43,6 +43,6 @@ export {
   MeditationTags,
   MusicTags,
   // Access
-  Users,
+  Managers,
   Clients,
 }

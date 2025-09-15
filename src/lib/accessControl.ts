@@ -68,8 +68,8 @@ export const hasPermission = ({
   if (!user?.active) return false
   // Admin users bypass all restrictions
   if (!isClient && (user as User).admin) return true
-  // Block access to Users and Clients for non-admins
-  if (collection === 'users' || collection === 'clients') return false
+  // Block access to Managers and Clients for non-admins
+  if (collection === 'managers' || collection === 'clients') return false
   // Users have read access by default
   if (!isClient && operation === 'read') return true
 

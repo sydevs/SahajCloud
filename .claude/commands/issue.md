@@ -29,6 +29,7 @@ Follow these steps:
 12. Run the full test suite to ensure you haven't broken anything
 13. If tests fail, fix them and repeat steps 9-11
 14. Ensure that all tests pass before continuing
+15. Run `pnpm build` and ensure that all errors are fixed. You should also fix warnings if possible.
 
 # DEPLOY
 

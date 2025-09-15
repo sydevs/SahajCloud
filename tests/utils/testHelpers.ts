@@ -12,7 +12,7 @@ import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import type { PayloadRequest, UploadConfig, CollectionConfig } from 'payload'
 
 // Project imports
-import { collections, Users } from '../../src/collections'
+import { collections, Managers } from '../../src/collections'
 import { tasks } from '../../src/jobs'
 import { EmailTestAdapter } from './emailTestAdapter'
 import { expect } from 'vitest'
@@ -59,7 +59,7 @@ function getTestCollections(): CollectionConfig[] {
 function createBaseTestConfig(mongoUri: string, emailConfig?: any) {
   return buildConfig({
     admin: {
-      user: Users.slug,
+      user: Managers.slug,
       disable: true, // Disable admin UI in tests
     },
     collections: getTestCollections(),

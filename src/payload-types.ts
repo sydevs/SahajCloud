@@ -63,7 +63,7 @@ export type SupportedTimezones =
 
 export interface Config {
   auth: {
-    users: UserAuthOperations;
+    managers: ManagerAuthOperations;
     clients: ClientAuthOperations;
   };
   blocks: {};
@@ -77,7 +77,7 @@ export interface Config {
     'media-tags': MediaTag;
     'meditation-tags': MeditationTag;
     'music-tags': MusicTag;
-    users: User;
+    managers: Manager;
     clients: Client;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -107,7 +107,7 @@ export interface Config {
     'media-tags': MediaTagsSelect<false> | MediaTagsSelect<true>;
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
     'music-tags': MusicTagsSelect<false> | MusicTagsSelect<true>;
-    users: UsersSelect<false> | UsersSelect<true>;
+    managers: ManagersSelect<false> | ManagersSelect<true>;
     clients: ClientsSelect<false> | ClientsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -127,8 +127,8 @@ export interface Config {
   };
   locale: 'en' | 'cs';
   user:
-    | (User & {
-        collection: 'users';
+    | (Manager & {
+        collection: 'managers';
       })
     | (Client & {
         collection: 'clients';
@@ -145,7 +145,7 @@ export interface Config {
     workflows: unknown;
   };
 }
-export interface UserAuthOperations {
+export interface ManagerAuthOperations {
   forgotPassword: {
     email: string;
     password: string;
@@ -540,9 +540,9 @@ export interface Frame {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users".
+ * via the `definition` "managers".
  */
-export interface User {
+export interface Manager {
   id: string;
   name: string;
   /**
@@ -628,11 +628,11 @@ export interface Client {
   /**
    * Users who can manage this client
    */
-  managers: (string | User)[];
+  managers: (string | Manager)[];
   /**
    * Primary user contact for this client
    */
-  primaryContact: string | User;
+  primaryContact: string | Manager;
   /**
    * What domains are associated with this client. Put each domain on a new line.
    */
@@ -1012,8 +1012,8 @@ export interface PayloadLockedDocument {
         value: string | MusicTag;
       } | null)
     | ({
-        relationTo: 'users';
-        value: string | User;
+        relationTo: 'managers';
+        value: string | Manager;
       } | null)
     | ({
         relationTo: 'clients';
@@ -1034,8 +1034,8 @@ export interface PayloadLockedDocument {
   globalSlug?: string | null;
   user:
     | {
-        relationTo: 'users';
-        value: string | User;
+        relationTo: 'managers';
+        value: string | Manager;
       }
     | {
         relationTo: 'clients';
@@ -1052,8 +1052,8 @@ export interface PayloadPreference {
   id: string;
   user:
     | {
-        relationTo: 'users';
-        value: string | User;
+        relationTo: 'managers';
+        value: string | Manager;
       }
     | {
         relationTo: 'clients';
@@ -1306,9 +1306,9 @@ export interface MusicTagsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users_select".
+ * via the `definition` "managers_select".
  */
-export interface UsersSelect<T extends boolean = true> {
+export interface ManagersSelect<T extends boolean = true> {
   name?: T;
   admin?: T;
   permissions?:

@@ -23,7 +23,7 @@ describe('Permission System Tests', () => {
   describe('Permission Logic Tests', () => {
     describe('hasPermission function', () => {
       it('allows admin users full access', () => {
-        const user = testData.dummyUser('users', { admin: true })
+        const user = testData.dummyUser('managers', { admin: true })
 
         OPERATIONS.forEach((operation) => {
           expect(hasPermission({ collection: 'music', user, operation })).toBe(true)
@@ -31,26 +31,26 @@ describe('Permission System Tests', () => {
       })
 
       it('denies inactive users access', () => {
-        const user = testData.dummyUser('users', { active: false })
+        const user = testData.dummyUser('managers', { active: false })
 
         OPERATIONS.forEach((operation) => {
-          expect(hasPermission({ collection: 'users', user, operation })).toBe(false)
+          expect(hasPermission({ collection: 'managers', user, operation })).toBe(false)
           expect(hasPermission({ collection: 'clients', user, operation })).toBe(false)
         })
       })
 
-      it('blocks API clients from users/clients collections', () => {
+      it('blocks API clients from managers/clients collections', () => {
         const client = testData.dummyUser('clients', {
           permissions: [
             { allowedCollection: 'music', level: 'manage', locales: ['all'] },
-            // @ts-expect-error Test the 'users' collection which normally is not allowed for permissions
-            { allowedCollection: 'users', level: 'manage', locales: ['all'] },
+            // @ts-expect-error Test the 'managers' collection which normally is not allowed for permissions
+            { allowedCollection: 'managers', level: 'manage', locales: ['all'] },
             // @ts-expect-error Test the 'clients' collection which normally is not allowed for permissions
             { allowedCollection: 'clients', level: 'manage', locales: ['all'] },
           ],
         })
 
-        const COLLECTIONS = ['users', 'clients']
+        const COLLECTIONS = ['managers', 'clients']
         COLLECTIONS.forEach((collection) => {
           OPERATIONS.forEach((operation) => {
             expect(hasPermission({ collection, user: client, operation })).toBe(false)
@@ -60,7 +60,7 @@ describe('Permission System Tests', () => {
 
       it('handles translate user permissions correctly', () => {
         const collection = 'music'
-        const user = testData.dummyUser('users', {
+        const user = testData.dummyUser('managers', {
           permissions: [{ allowedCollection: 'music', level: 'translate', locales: ['en'] }],
         })
 
@@ -71,7 +71,7 @@ describe('Permission System Tests', () => {
       })
 
       it('handles manage user permissions correctly', () => {
-        const user = testData.dummyUser('users', {
+        const user = testData.dummyUser('managers', {
           permissions: [{ allowedCollection: 'music', level: 'manage', locales: ['en'] }],
         })
 
@@ -107,7 +107,7 @@ describe('Permission System Tests', () => {
       it('respects locale restrictions', () => {
         const operation = 'update'
         const collection = 'music'
-        const user = testData.dummyUser('users', {
+        const user = testData.dummyUser('managers', {
           permissions: [{ allowedCollection: 'music', level: 'manage', locales: ['en'] }],
         })
 
@@ -118,7 +118,7 @@ describe('Permission System Tests', () => {
       it('handles "all" locales permission', () => {
         const operation = 'read'
         const collection = 'music'
-        const user = testData.dummyUser('users', {
+        const user = testData.dummyUser('managers', {
           permissions: [{ allowedCollection: 'music', level: 'read', locales: ['all'] }],
         })
 
@@ -128,7 +128,7 @@ describe('Permission System Tests', () => {
 
       it('provides default read access for users without specific permissions', () => {
         const collection = 'music'
-        const user = testData.dummyUser('users', {
+        const user = testData.dummyUser('managers', {
           permissions: [],
         })
 
@@ -148,7 +148,7 @@ describe('Permission System Tests', () => {
 
       it('allows admin users full field access', () => {
         const collection = 'music'
-        const user = testData.dummyUser('users', { admin: true })
+        const user = testData.dummyUser('managers', { admin: true })
         const field = { localized: false }
 
         expect(hasPermission({ user, collection, operation: 'read', field })).toBe(true)
@@ -157,7 +157,7 @@ describe('Permission System Tests', () => {
 
       it('restricts translate users to localized fields for updates', () => {
         const collection = 'music'
-        const user = testData.dummyUser('users', {
+        const user = testData.dummyUser('managers', {
           permissions: [{ allowedCollection: 'music', level: 'translate', locales: ['en'] }],
         })
 
@@ -177,7 +177,7 @@ describe('Permission System Tests', () => {
 
       it('allows manage users full field access', () => {
         const collection = 'music'
-        const user = testData.dummyUser('users', {
+        const user = testData.dummyUser('managers', {
           permissions: [{ allowedCollection: 'music', level: 'manage', locales: ['en'] }],
         })
 
@@ -202,13 +202,13 @@ describe('Permission System Tests', () => {
 
     describe('createLocaleFilter function', () => {
       it('returns true for admin users', () => {
-        const user = testData.dummyUser('users', { admin: true })
+        const user = testData.dummyUser('managers', { admin: true })
         const filter = createLocaleFilter(user, 'music')
         expect(filter).toBe(true)
       })
 
       it('returns true for "all" locales permission', () => {
-        const user = testData.dummyUser('users', {
+        const user = testData.dummyUser('managers', {
           permissions: [{ allowedCollection: 'music', level: 'manage', locales: ['all'] }],
         })
 
@@ -217,7 +217,7 @@ describe('Permission System Tests', () => {
       })
 
       it('creates locale filter for specific locales', () => {
-        const user = testData.dummyUser('users', {
+        const user = testData.dummyUser('managers', {
           permissions: [{ allowedCollection: 'music', level: 'manage', locales: ['en', 'cs'] }],
         })
 

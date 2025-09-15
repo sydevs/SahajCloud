@@ -8,7 +8,7 @@ import type {
   Meditation,
   Music,
   Frame,
-  User,
+  Manager,
   Client,
   MeditationTag,
   MediaTag,
@@ -237,15 +237,15 @@ export const testData = {
   },
 
   /**
-   * Create a user with default admin privileges
+   * Create a manager with default admin privileges
    */
-  async createUser(payload: Payload, overrides: Partial<User> = {}) {
+  async createManager(payload: Payload, overrides: Partial<Manager> = {}) {
     const testEmail = `test_${Date.now()}_${Math.random().toString(36).substring(7)}`
 
-    const user = await payload.create({
-      collection: 'users',
+    const manager = await payload.create({
+      collection: 'managers',
       data: {
-        name: 'Test User',
+        name: 'Test Manager',
         email: `${testEmail}@example.com`,
         password: 'password123',
         active: true,
@@ -255,9 +255,9 @@ export const testData = {
     })
 
     return {
-      collection: 'users',
-      ...user,
-    } as User & { collection: 'users' }
+      collection: 'managers',
+      ...manager,
+    } as Manager & { collection: 'managers' }
   },
 
   /**
@@ -305,7 +305,7 @@ export const testData = {
     })) as Article
   },
 
-  dummyUser(collection: 'users' | 'clients', overrides: Partial<User | Client> = {}) {
+  dummyUser(collection: 'managers' | 'clients', overrides: Partial<Manager | Client> = {}) {
     return {
       collection,
       admin: false,

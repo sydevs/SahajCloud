@@ -1,8 +1,8 @@
 import { adminOnlyAccess, createPermissionsField } from '@/lib/accessControl'
 import type { CollectionConfig } from 'payload'
 
-export const Users: CollectionConfig = {
-  slug: 'users',
+export const Managers: CollectionConfig = {
+  slug: 'managers',
   access: adminOnlyAccess(),
   auth: {
     verify: false, // TODO: Re-enable this but ensure there are proper warnings.

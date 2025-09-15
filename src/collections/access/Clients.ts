@@ -36,7 +36,7 @@ export const Clients: CollectionConfig = {
     {
       name: 'managers',
       type: 'relationship',
-      relationTo: 'users',
+      relationTo: 'managers',
       hasMany: true,
       required: true,
       admin: {
@@ -46,7 +46,7 @@ export const Clients: CollectionConfig = {
     {
       name: 'primaryContact',
       type: 'relationship',
-      relationTo: 'users',
+      relationTo: 'managers',
       hasMany: false,
       required: true,
       admin: {
