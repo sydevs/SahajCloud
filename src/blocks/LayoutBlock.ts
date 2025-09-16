@@ -1,4 +1,5 @@
 import { Block } from 'payload'
+import { MediaField } from '@/fields'
 
 export const LayoutBlock: Block = {
   slug: 'layout',
@@ -37,14 +38,13 @@ export const LayoutBlock: Block = {
         plural: 'Items',
       },
       fields: [
-        {
+        MediaField({
           name: 'image',
-          type: 'upload',
-          relationTo: 'media',
+          orientation: 'landscape',
           admin: {
             description: 'Optional image for this item',
           },
-        },
+        }),
         {
           name: 'title',
           type: 'text',

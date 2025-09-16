@@ -5,7 +5,6 @@ import {
   CollectionBeforeChangeHook,
   CollectionBeforeOperationHook,
   CollectionBeforeValidateHook,
-  FieldHook,
 } from 'payload'
 import { PayloadRequest } from 'payload'
 import sharp from 'sharp'
@@ -13,7 +12,6 @@ import slugify from 'slugify'
 import { extractFileMetadata, extractVideoThumbnail } from './fileUtils'
 import tmp from 'tmp'
 import fs from 'fs'
-import { KeyframeData } from '@/components/admin/MeditationFrameEditor/types'
 
 type FileType = 'image' | 'audio' | 'video'
 
@@ -141,6 +139,7 @@ export const generateVideoThumbnailHook: CollectionAfterChangeHook = async ({
       collection: 'media',
       data: {
         alt: `Thumbnail for ${doc.filename}`,
+        hidden: true,
       },
       filePath: tmpFile.name,
     })

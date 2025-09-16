@@ -264,6 +264,10 @@ export interface Media {
     | number
     | boolean
     | null;
+  /**
+   * Hide from selection in upload fields (e.g., for auto-generated thumbnails)
+   */
+  hidden?: boolean | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1321,6 +1325,7 @@ export interface MediaSelect<T extends boolean = true> {
   tags?: T;
   credit?: T;
   fileMetadata?: T;
+  hidden?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;

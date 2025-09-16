@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { ColourTextField } from '@nouance/payload-better-fields-plugin/ColourText'
+import { MediaField } from '@/fields'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
@@ -74,13 +75,12 @@ export const Lessons: CollectionConfig = {
             placeholder: 'Describe the content, instructions, or guidance for this section',
           },
         },
-        {
+        MediaField({
           name: 'image',
           label: 'Background Image',
-          type: 'upload',
-          relationTo: 'media',
           required: true,
-        },
+          orientation: 'portrait',
+        }),
       ],
     },
     // ===== SIDEBAR FIELDS ===== //
@@ -130,15 +130,14 @@ export const Lessons: CollectionConfig = {
         },
       ],
     },
-    {
+    MediaField({
       name: 'icon',
-      type: 'upload',
-      relationTo: 'media',
       required: true,
+      orientation: 'square',
       admin: {
         position: 'sidebar',
       },
-    },
+    }),
     ...ColourTextField({
       name: 'color',
       required: true,
