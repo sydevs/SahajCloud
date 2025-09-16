@@ -1,8 +1,7 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, FieldHook } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { sanitizeFilename, processFile, convertFile } from '@/lib/fieldUtils'
-import type { FieldHook } from 'payload'
+import { processFile, convertFile } from '@/lib/fieldUtils'
 
 const validateOrderUniqueness: FieldHook = async ({ value, data, req }) => {
   if (value == null || !data?.unit) return value
@@ -35,7 +34,6 @@ export const Lessons: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'unit', 'order', 'publishAt'],
     listSearchableFields: ['title'],
-    defaultSort: 'order',
   },
   upload: {
     adminThumbnail: 'thumbnail',
@@ -81,10 +79,11 @@ export const Lessons: CollectionConfig = {
           },
         },
       },
-      validate: (value?: string) => {
-        if (!value) return true
+      validate: (value: string | string[] | null | undefined) => {
+        const strValue = Array.isArray(value) ? value[0] : value
+        if (!strValue) return true
         const hexPattern = /^#[0-9A-Fa-f]{6}$/
-        if (!hexPattern.test(value)) {
+        if (!hexPattern.test(strValue)) {
           return 'Color: Please enter a valid hex color (e.g., #FF0000)'
         }
         return true
@@ -177,9 +176,6 @@ export const Lessons: CollectionConfig = {
     {
       name: 'filename',
       type: 'text',
-      hooks: {
-        beforeChange: [sanitizeFilename],
-      },
       admin: {
         readOnly: true,
         hidden: true,

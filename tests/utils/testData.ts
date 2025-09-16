@@ -342,12 +342,25 @@ export const testData = {
   async createLesson(payload: Payload, overrides: Partial<Lesson> = {}, sampleFile = 'audio-42s.mp3'): Promise<Lesson> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
-    const uint8Array = new Uint8Array(fileBuffer)
 
     // Create a default media if panels need images and they're not provided
     let defaultMedia: Media | undefined
     if (!overrides.panels || overrides.panels.length === 0) {
       defaultMedia = await testData.createMediaImage(payload)
+    }
+
+    // Create thumbnail if not provided
+    let thumbnail = overrides.thumbnail
+    if (!thumbnail) {
+      const thumbMedia = await testData.createMediaImage(payload, { alt: 'Lesson thumbnail' })
+      thumbnail = thumbMedia.id
+    }
+
+    // Create unit if not provided
+    let unit = overrides.unit
+    if (!unit) {
+      const defaultUnit = await testData.createLessonUnit(payload)
+      unit = defaultUnit.id
     }
 
     const panelsData = overrides.panels || [
@@ -358,20 +371,24 @@ export const testData = {
       },
     ]
 
+    const { thumbnail: _, unit: __, ...restOverrides } = overrides
+
     return (await payload.create({
       collection: 'lessons',
       data: {
         title: 'Test Lesson',
         color: '#00FF00',
         order: 0,
-        ...overrides,
+        ...restOverrides,
+        thumbnail,
+        unit,
         panels: panelsData,
-        file: {
-          data: uint8Array,
-          mimetype: 'audio/mpeg',
-          name: sampleFile,
-          size: uint8Array.length,
-        },
+      },
+      file: {
+        data: Buffer.from(fileBuffer),
+        mimetype: 'audio/mpeg',
+        name: sampleFile,
+        size: fileBuffer.length,
       },
     })) as Lesson
   },
