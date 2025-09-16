@@ -39,31 +39,31 @@ describe('Email Sending', () => {
       emailAdapter.clearCapturedEmails()
 
       // Create user
-      const user = await testData.createUser(payload, userData)
+      const user = await testData.createManager(payload, userData)
 
       expect(user.email).toBe(userData.email)
 
       // Check email was sent and captured by Ethereal
       const emails = emailAdapter.getCapturedEmails()
       expect(emails).toHaveLength(1)
-      
+
       const verificationEmail = emails[0]
       expect(verificationEmail.to).toContain(userData.email)
       expect(verificationEmail.subject).toBeTruthy()
-      
+
       // Verification email successfully captured
     })
-    
+
     it('should send password reset email when requested', async () => {
-      const email = "password-reset@example.com"
-      
+      const email = 'password-reset@example.com'
+
       // Clear any existing emails first
       emailAdapter.clearCapturedEmails()
-      
-      await testData.createUser(payload, { email })
+
+      await testData.createManager(payload, { email })
 
       // Wait for verification email from user creation
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      await new Promise((resolve) => setTimeout(resolve, 2000))
       emailAdapter.clearCapturedEmails()
 
       // Request password reset
@@ -76,14 +76,14 @@ describe('Email Sending', () => {
       })
 
       // Wait for password reset email
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      await new Promise((resolve) => setTimeout(resolve, 2000))
       const emails = emailAdapter.getCapturedEmails()
       expect(emails).toHaveLength(1)
-      
+
       const resetEmail = emails[0]
       expect(resetEmail.to).toContain(email)
       expect(resetEmail.subject).toBe('Reset Your Password')
-      
+
       // Password reset email successfully captured
     })
 
@@ -118,20 +118,20 @@ describe('Email Sending', () => {
       emailAdapter.clearCapturedEmails()
 
       // Create user
-      const emailAddress = "content-check@example.com"
-      await testData.createUser(payload, { email: emailAddress })
+      const emailAddress = 'content-check@example.com'
+      await testData.createManager(payload, { email: emailAddress })
 
       // Wait for email to be sent
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      await new Promise((resolve) => setTimeout(resolve, 2000))
       const email = emailAdapter.getLatestEmail()
-      
+
       // Verify email structure
       expect(email).toBeDefined()
       expect(email?.to).toContain(emailAddress)
       expect(email?.from).toBeTruthy()
       expect(email?.subject).toBeTruthy()
       expect(email?.html || email?.text).toBeTruthy()
-      
+
       // Verify Ethereal captured the email
       expect(emailAdapter.account.web).toBeTruthy()
       // Email successfully captured by Ethereal

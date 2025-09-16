@@ -5,7 +5,7 @@ import { Meditations } from './content/Meditations'
 import { Music } from './content/Music'
 import { Pages } from './content/Pages'
 import { Lessons } from './content/Lessons'
-import { LessonUnits } from './content/LessonUnits'
+import { LessonUnits } from './tags/LessonUnits'
 import { Frames } from './resources/Frames'
 import { Clients } from './access/Clients'
 import { MeditationTags } from './tags/MeditationTags'
@@ -19,7 +19,6 @@ export const collections = [
   Music,
   Pages,
   Lessons,
-  LessonUnits,
   Frames,
   // Resources
   Media,
@@ -28,6 +27,7 @@ export const collections = [
   MediaTags,
   MeditationTags,
   MusicTags,
+  LessonUnits,
   // Access
   Managers,
   Clients,
@@ -39,7 +39,6 @@ export {
   Music,
   Pages,
   Lessons,
-  LessonUnits,
   Frames,
   // Resources
   Media,
@@ -48,6 +47,7 @@ export {
   MediaTags,
   MeditationTags,
   MusicTags,
+  LessonUnits,
   // Access
   Managers,
   Clients,

@@ -1,29 +1,7 @@
-import type { CollectionConfig, FieldHook } from 'payload'
+import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { processFile, convertFile } from '@/lib/fieldUtils'
-
-const validateOrderUniqueness: FieldHook = async ({ value, data, req }) => {
-  if (value == null || !data?.unit) return value
-  
-  const existingLessons = await req.payload.find({
-    collection: 'lessons',
-    where: {
-      and: [
-        { unit: { equals: data.unit } },
-        { order: { equals: value } },
-        { id: { not_equals: data.id } },
-      ],
-    },
-    limit: 1,
-  })
-  
-  if (existingLessons.totalDocs > 0) {
-    throw new Error(`Another lesson in this unit already has order ${value}`)
-  }
-  
-  return value
-}
+import { ColourTextField } from '@nouance/payload-better-fields-plugin/ColourText'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
@@ -36,10 +14,8 @@ export const Lessons: CollectionConfig = {
     listSearchableFields: ['title'],
   },
   upload: {
-    adminThumbnail: 'thumbnail',
+    staticDir: 'media/lessons',
     mimeTypes: ['audio/*'],
-    disableLocalStorage: false,
-    resizeOptions: undefined,
     crop: false,
     focalPoint: false,
   },
@@ -48,67 +24,6 @@ export const Lessons: CollectionConfig = {
       name: 'title',
       type: 'text',
       required: true,
-      admin: {
-        description: 'The name of this lesson',
-      },
-    },
-    {
-      name: 'thumbnail',
-      type: 'upload',
-      relationTo: 'media',
-      required: true,
-      admin: {
-        description: 'Visual thumbnail for the lesson',
-      },
-    },
-    {
-      name: 'color',
-      type: 'text',
-      required: true,
-      admin: {
-        description: 'Theme color for this lesson (hex format, e.g., #FF0000)',
-        placeholder: '#000000',
-        components: {
-          Field: {
-            clientProps: {
-              type: 'hex',
-              expanded: false,
-              showPreview: true,
-            },
-            path: '@nouance/payload-better-fields-plugin/ColourPicker/client#ColourPickerComponent',
-          },
-        },
-      },
-      validate: (value: string | string[] | null | undefined) => {
-        const strValue = Array.isArray(value) ? value[0] : value
-        if (!strValue) return true
-        const hexPattern = /^#[0-9A-Fa-f]{6}$/
-        if (!hexPattern.test(strValue)) {
-          return 'Color: Please enter a valid hex color (e.g., #FF0000)'
-        }
-        return true
-      },
-    },
-    {
-      name: 'unit',
-      type: 'relationship',
-      relationTo: 'lesson-units',
-      required: true,
-      admin: {
-        description: 'The unit this lesson belongs to',
-      },
-    },
-    {
-      name: 'order',
-      type: 'number',
-      required: true,
-      min: 0,
-      hooks: {
-        beforeValidate: [validateOrderUniqueness],
-      },
-      admin: {
-        description: 'Order within the unit (must be unique per unit)',
-      },
     },
     {
       name: 'meditation',
@@ -116,7 +31,7 @@ export const Lessons: CollectionConfig = {
       relationTo: 'meditations',
       required: false,
       admin: {
-        description: 'Optional related guided meditation',
+        description: 'Link to a related guided meditation that complements this lesson content.',
       },
     },
     {
@@ -126,7 +41,8 @@ export const Lessons: CollectionConfig = {
       label: 'Deep Dive Article',
       required: false,
       admin: {
-        description: 'Optional related article for deeper exploration of lesson topics',
+        description:
+          'Link to a related article page that provides deeper exploration of the lesson topics and concepts.',
       },
     },
     {
@@ -135,27 +51,39 @@ export const Lessons: CollectionConfig = {
       required: true,
       minRows: 1,
       admin: {
-        description: 'Content panels for this lesson',
+        isSortable: true,
+        description: 'Story panels to introduce this lesson.',
+        components: {
+          RowLabel: '@/components/admin/TitleRowLabel',
+        },
       },
       fields: [
         {
           name: 'title',
           type: 'text',
           required: true,
+          admin: {
+            placeholder: 'e.g., Introduction, Main Teaching, Practice Exercise',
+          },
         },
         {
           name: 'text',
           type: 'text',
           required: true,
+          admin: {
+            placeholder: 'Describe the content, instructions, or guidance for this section',
+          },
         },
         {
           name: 'image',
+          label: 'Background Image',
           type: 'upload',
           relationTo: 'media',
           required: true,
         },
       ],
     },
+    // ===== SIDEBAR FIELDS ===== //
     {
       name: 'publishAt',
       type: 'date',
@@ -174,50 +102,52 @@ export const Lessons: CollectionConfig = {
       },
     },
     {
-      name: 'filename',
-      type: 'text',
-      admin: {
-        readOnly: true,
-        hidden: true,
-      },
-    },
-    {
-      name: 'alt',
-      type: 'text',
-      admin: {
-        hidden: true,
-      },
-    },
-    {
-      name: 'fileMetadata',
-      type: 'json',
-      admin: {
-        readOnly: true,
-        hidden: true,
-      },
-    },
-    {
-      name: 'createdAt',
-      type: 'date',
+      type: 'row',
       admin: {
         position: 'sidebar',
-        readOnly: true,
       },
+      fields: [
+        {
+          name: 'unit',
+          type: 'relationship',
+          relationTo: 'lesson-units',
+          required: true,
+          admin: {
+            description:
+              'Select the unit this lesson belongs to. Lessons are organized by units for better content structure.',
+          },
+        },
+        {
+          name: 'order',
+          type: 'number',
+          required: true,
+          min: 0,
+          admin: {
+            description:
+              'Numeric order within the selected unit. Each lesson must have a unique order number within its unit (e.g., 0, 1, 2...).',
+            step: 1,
+          },
+        },
+      ],
     },
     {
-      name: 'updatedAt',
-      type: 'date',
+      name: 'icon',
+      type: 'upload',
+      relationTo: 'media',
+      required: true,
       admin: {
         position: 'sidebar',
-        readOnly: true,
       },
     },
+    ...ColourTextField({
+      name: 'color',
+      required: true,
+      admin: {
+        position: 'sidebar',
+      },
+    }),
   ],
   hooks: {
     afterRead: [trackClientUsageHook],
-    beforeChange: [
-      processFile({}),
-      convertFile,
-    ],
   },
 }

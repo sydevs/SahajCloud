@@ -243,7 +243,7 @@ describe('Permission System Tests', () => {
 
   describe('Integration Tests with Payload', () => {
     it('allows admin user to access all collections', async () => {
-      const adminUser = await testData.createUser(payload, {
+      const adminUser = await testData.createManager(payload, {
         admin: true,
       })
 
@@ -262,7 +262,7 @@ describe('Permission System Tests', () => {
     })
 
     it('blocks non-admin user without permissions from accessing collections', async () => {
-      const regularUser = await testData.createUser(payload)
+      const regularUser = await testData.createManager(payload)
 
       // Mock request with regular user
       const req = { user: regularUser } as any
@@ -287,7 +287,7 @@ describe('Permission System Tests', () => {
     })
 
     it('allows translate user to read but not create', async () => {
-      const translateUser = await testData.createUser(payload, {
+      const translateUser = await testData.createManager(payload, {
         permissions: [{ allowedCollection: 'music', level: 'translate', locales: ['en'] }],
       })
 
@@ -313,7 +313,7 @@ describe('Permission System Tests', () => {
     })
 
     it('allows manage user to create, read, update, delete', async () => {
-      const manageUser = await testData.createUser(payload, {
+      const manageUser = await testData.createManager(payload, {
         permissions: [{ allowedCollection: 'music', level: 'manage', locales: ['all'] }],
       })
 

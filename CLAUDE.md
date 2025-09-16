@@ -185,12 +185,11 @@ The system provides meditation lesson organization through two related collectio
 - **Purpose**: Groups meditation lessons into organized units
 - **Fields**:
   - `title` (text, required) - Unit name
-  - `color` (text with color picker, required) - Theme color in hex format
-  - `lessonCount` (virtual field) - Automatically calculated count of lessons in the unit
+  - `color` (text, required) - Theme color in hex format with validation
 - **Features**:
-  - Color picker component for visual theme selection (uses `@nouance/payload-better-fields-plugin`)
-  - Virtual field shows lesson count in admin interface
+  - Hex color validation with user-friendly error messages
   - Soft delete support (trash functionality)
+  - Clean admin interface optimized for performance
 
 #### Lessons Collection
 - **Purpose**: Individual meditation lessons with audio content and visual panels
@@ -210,16 +209,18 @@ The system provides meditation lesson organization through two related collectio
   - `publishAt` (date, optional, localized) - Schedule publishing
 - **Features**:
   - Direct audio upload support (mimeTypes: audio/*)
-  - Order validation ensures unique ordering within each unit
-  - Multiple panels for structured content presentation
+  - Robust order validation with race condition protection and detailed error messages
+  - Multiple panels for structured content presentation with clear labeling
   - Optional relationships to existing meditations and articles
   - Publishing schedule support like other content collections
+  - Enhanced user experience with descriptive field guidance
 
 #### Key Implementation Notes
 - Both collections use `permissionBasedAccess()` for consistent access control
-- Color fields use hex validation pattern `/^#[0-9A-Fa-f]{6}$/`
+- Color fields use hex validation pattern `/^#[0-9A-Fa-f]{6}$/` with user-friendly error messages
+- Order validation includes unit context and prevents race conditions
 - Lessons are grouped by unit in admin interface for better organization
-- Virtual `lessonCount` field provides quick overview in LessonUnits list
+- Enhanced type safety with proper TypeScript validation hooks
 
 ### Rich Text Editor Configuration
 

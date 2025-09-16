@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
+import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 
 export const MeditationTags: CollectionConfig = {
   slug: 'meditation-tags',
@@ -8,6 +9,9 @@ export const MeditationTags: CollectionConfig = {
     group: 'Tags',
     useAsTitle: 'name',
     hidden: true,
+  },
+  hooks: {
+    afterRead: [trackClientUsageHook],
   },
   fields: [
     {

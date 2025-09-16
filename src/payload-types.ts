@@ -72,13 +72,13 @@ export interface Config {
     music: Music;
     pages: Page;
     lessons: Lesson;
-    'lesson-units': LessonUnit;
     frames: Frame;
     media: Media;
     narrators: Narrator;
     'media-tags': MediaTag;
     'meditation-tags': MeditationTag;
     'music-tags': MusicTag;
+    'lesson-units': LessonUnit;
     managers: Manager;
     clients: Client;
     forms: Form;
@@ -104,13 +104,13 @@ export interface Config {
     music: MusicSelect<false> | MusicSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
     lessons: LessonsSelect<false> | LessonsSelect<true>;
-    'lesson-units': LessonUnitsSelect<false> | LessonUnitsSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
     'media-tags': MediaTagsSelect<false> | MediaTagsSelect<true>;
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
     'music-tags': MusicTagsSelect<false> | MusicTagsSelect<true>;
+    'lesson-units': LessonUnitsSelect<false> | LessonUnitsSelect<true>;
     managers: ManagersSelect<false> | ManagersSelect<true>;
     clients: ClientsSelect<false> | ClientsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
@@ -453,36 +453,17 @@ export interface Page {
  */
 export interface Lesson {
   id: string;
-  /**
-   * The name of this lesson
-   */
   title: string;
   /**
-   * Visual thumbnail for the lesson
-   */
-  thumbnail: string | Media;
-  /**
-   * Theme color for this lesson (hex format, e.g., #FF0000)
-   */
-  color: string;
-  /**
-   * The unit this lesson belongs to
-   */
-  unit: string | LessonUnit;
-  /**
-   * Order within the unit (must be unique per unit)
-   */
-  order: number;
-  /**
-   * Optional related guided meditation
+   * Link to a related guided meditation that complements this lesson content.
    */
   meditation?: (string | null) | Meditation;
   /**
-   * Optional related article for deeper exploration of lesson topics
+   * Link to a related article page that provides deeper exploration of the lesson topics and concepts.
    */
   article?: (string | null) | Page;
   /**
-   * Content panels for this lesson
+   * Story panels to introduce this lesson.
    */
   panels: {
     title: string;
@@ -494,18 +475,18 @@ export interface Lesson {
    * Schedule when this lesson should be published
    */
   publishAt?: string | null;
-  alt?: string | null;
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  createdAt: string;
+  /**
+   * Select the unit this lesson belongs to. Lessons are organized by units for better content structure.
+   */
+  unit: string | LessonUnit;
+  /**
+   * Numeric order within the selected unit. Each lesson must have a unique order number within its unit (e.g., 0, 1, 2...).
+   */
+  order: number;
+  icon: string | Media;
+  color: string;
   updatedAt: string;
+  createdAt: string;
   deletedAt?: string | null;
   url?: string | null;
   thumbnailURL?: string | null;
@@ -521,18 +502,8 @@ export interface Lesson {
  */
 export interface LessonUnit {
   id: string;
-  /**
-   * The name of this lesson unit
-   */
   title: string;
-  /**
-   * Theme color for this lesson unit (hex format, e.g., #FF0000)
-   */
   color: string;
-  /**
-   * Number of lessons in this unit
-   */
-  lessonCount?: number | null;
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;
@@ -651,7 +622,7 @@ export interface Manager {
         /**
          * Select the collection to grant permissions for
          */
-        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'lessons' | 'lesson-units' | 'pages';
+        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'lessons' | 'pages';
         /**
          * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
          */
@@ -707,7 +678,7 @@ export interface Client {
         /**
          * Select the collection to grant permissions for
          */
-        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'lessons' | 'lesson-units' | 'pages';
+        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'lessons' | 'pages';
         /**
          * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
          */
@@ -1086,10 +1057,6 @@ export interface PayloadLockedDocument {
         value: string | Lesson;
       } | null)
     | ({
-        relationTo: 'lesson-units';
-        value: string | LessonUnit;
-      } | null)
-    | ({
         relationTo: 'frames';
         value: string | Frame;
       } | null)
@@ -1112,6 +1079,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'music-tags';
         value: string | MusicTag;
+      } | null)
+    | ({
+        relationTo: 'lesson-units';
+        value: string | LessonUnit;
       } | null)
     | ({
         relationTo: 'managers';
@@ -1267,10 +1238,6 @@ export interface PagesSelect<T extends boolean = true> {
  */
 export interface LessonsSelect<T extends boolean = true> {
   title?: T;
-  thumbnail?: T;
-  color?: T;
-  unit?: T;
-  order?: T;
   meditation?: T;
   article?: T;
   panels?:
@@ -1282,10 +1249,12 @@ export interface LessonsSelect<T extends boolean = true> {
         id?: T;
       };
   publishAt?: T;
-  alt?: T;
-  fileMetadata?: T;
-  createdAt?: T;
+  unit?: T;
+  order?: T;
+  icon?: T;
+  color?: T;
   updatedAt?: T;
+  createdAt?: T;
   deletedAt?: T;
   url?: T;
   thumbnailURL?: T;
@@ -1294,18 +1263,6 @@ export interface LessonsSelect<T extends boolean = true> {
   filesize?: T;
   width?: T;
   height?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "lesson-units_select".
- */
-export interface LessonUnitsSelect<T extends boolean = true> {
-  title?: T;
-  color?: T;
-  lessonCount?: T;
-  createdAt?: T;
-  updatedAt?: T;
-  deletedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1451,6 +1408,17 @@ export interface MusicTagsSelect<T extends boolean = true> {
   music?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lesson-units_select".
+ */
+export interface LessonUnitsSelect<T extends boolean = true> {
+  title?: T;
+  color?: T;
+  createdAt?: T;
+  updatedAt?: T;
+  deletedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

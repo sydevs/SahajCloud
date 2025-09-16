@@ -32,6 +32,8 @@ import { MetaDescriptionComponent as MetaDescriptionComponent_a8a977ebc872c5d5ea
 import { MetaImageComponent as MetaImageComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
 import { PreviewComponent as PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
 import { SlugComponent as SlugComponent_da067efb33f077846c194de60ea0fbe0 } from '@nouance/payload-better-fields-plugin/Slug/client'
+import { default as default_345cc36b753b24c60bd03f24be09a143 } from '@/components/admin/TitleRowLabel'
+import { ColourTextComponent as ColourTextComponent_5eca6d89486e7fecc5e5204e28af0de5 } from '@nouance/payload-better-fields-plugin/ColourText/client'
 import { default as default_f28c41f0cddfc783c32ab0f807bb5d2d } from '@/components/admin/PermissionRowLabel'
 import { default as default_e2e03d4215a583971e90a375f6eb68f9 } from '@/components/admin/HighUsageAlert'
 import { default as default_70d6a18357c47b1a9d8a541fcd53f95f } from '@/components/AdminProvider.tsx'
@@ -72,6 +74,8 @@ export const importMap = {
   "@payloadcms/plugin-seo/client#MetaImageComponent": MetaImageComponent_a8a977ebc872c5d5ea7ee689724c0860,
   "@payloadcms/plugin-seo/client#PreviewComponent": PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860,
   "@nouance/payload-better-fields-plugin/Slug/client#SlugComponent": SlugComponent_da067efb33f077846c194de60ea0fbe0,
+  "@/components/admin/TitleRowLabel#default": default_345cc36b753b24c60bd03f24be09a143,
+  "@nouance/payload-better-fields-plugin/ColourText/client#ColourTextComponent": ColourTextComponent_5eca6d89486e7fecc5e5204e28af0de5,
   "@/components/admin/PermissionRowLabel#default": default_f28c41f0cddfc783c32ab0f807bb5d2d,
   "@/components/admin/HighUsageAlert#default": default_e2e03d4215a583971e90a375f6eb68f9,
   "@/components/AdminProvider.tsx#default": default_70d6a18357c47b1a9d8a541fcd53f95f,

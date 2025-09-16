@@ -300,15 +300,17 @@ export const testData = {
               {
                 type: 'paragraph',
                 version: 1,
-                children: [{
-                  type: 'text',
-                  version: 1,
-                  text: 'Test content',
-                  format: 0,
-                  detail: 0,
-                  mode: 'normal',
-                  style: '',
-                }],
+                children: [
+                  {
+                    type: 'text',
+                    version: 1,
+                    text: 'Test content',
+                    format: 0,
+                    detail: 0,
+                    mode: 'normal',
+                    style: '',
+                  },
+                ],
               },
             ],
             direction: 'ltr',
@@ -325,7 +327,10 @@ export const testData = {
   /**
    * Create a lesson unit
    */
-  async createLessonUnit(payload: Payload, overrides: Partial<LessonUnit> = {}): Promise<LessonUnit> {
+  async createLessonUnit(
+    payload: Payload,
+    overrides: Partial<LessonUnit> = {},
+  ): Promise<LessonUnit> {
     return (await payload.create({
       collection: 'lesson-units',
       data: {
@@ -339,9 +344,16 @@ export const testData = {
   /**
    * Create a lesson with audio file
    */
-  async createLesson(payload: Payload, overrides: Partial<Lesson> = {}, sampleFile = 'audio-42s.mp3'): Promise<Lesson> {
+  async createLesson(
+    payload: Payload,
+    overrides: Partial<Lesson> = {},
+    sampleFile = 'audio-42s.mp3',
+  ): Promise<Lesson> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
+
+    // Convert Buffer to Uint8Array for file-type compatibility
+    const uint8Array = new Uint8Array(fileBuffer)
 
     // Create a default media if panels need images and they're not provided
     let defaultMedia: Media | undefined
@@ -385,12 +397,17 @@ export const testData = {
         panels: panelsData,
       },
       file: {
-        data: Buffer.from(fileBuffer),
+        data: uint8Array as any, // Type assertion for Payload compatibility
         mimetype: 'audio/mpeg',
         name: sampleFile,
-        size: fileBuffer.length,
+        size: uint8Array.length,
       },
     })) as Lesson
+  },
+
+  // Alias for createManager to maintain backward compatibility with tests
+  async createUser(payload: Payload, overrides: Partial<Manager> = {}) {
+    return this.createManager(payload, overrides)
   },
 
   dummyUser(collection: 'managers' | 'clients', overrides: Partial<Manager | Client> = {}) {
