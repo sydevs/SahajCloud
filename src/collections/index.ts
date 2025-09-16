@@ -4,6 +4,8 @@ import { Narrators } from './resources/Narrators'
 import { Meditations } from './content/Meditations'
 import { Music } from './content/Music'
 import { Pages } from './content/Pages'
+import { Lessons } from './content/Lessons'
+import { LessonUnits } from './content/LessonUnits'
 import { Frames } from './resources/Frames'
 import { Clients } from './access/Clients'
 import { MeditationTags } from './tags/MeditationTags'
@@ -16,6 +18,8 @@ export const collections = [
   Meditations,
   Music,
   Pages,
+  Lessons,
+  LessonUnits,
   Frames,
   // Resources
   Media,
@@ -34,6 +38,8 @@ export {
   Meditations,
   Music,
   Pages,
+  Lessons,
+  LessonUnits,
   Frames,
   // Resources
   Media,

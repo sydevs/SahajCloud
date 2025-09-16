@@ -71,6 +71,8 @@ export interface Config {
     meditations: Meditation;
     music: Music;
     pages: Page;
+    lessons: Lesson;
+    'lesson-units': LessonUnit;
     frames: Frame;
     media: Media;
     narrators: Narrator;
@@ -101,6 +103,8 @@ export interface Config {
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
     music: MusicSelect<false> | MusicSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
+    lessons: LessonsSelect<false> | LessonsSelect<true>;
+    'lesson-units': LessonUnitsSelect<false> | LessonUnitsSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
@@ -445,6 +449,96 @@ export interface Page {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lessons".
+ */
+export interface Lesson {
+  id: string;
+  /**
+   * The name of this lesson
+   */
+  title: string;
+  /**
+   * Visual thumbnail for the lesson
+   */
+  thumbnail: string | Media;
+  /**
+   * Theme color for this lesson (hex format, e.g., #FF0000)
+   */
+  color: string;
+  /**
+   * The unit this lesson belongs to
+   */
+  unit: string | LessonUnit;
+  /**
+   * Order within the unit (must be unique per unit)
+   */
+  order: number;
+  /**
+   * Optional related guided meditation
+   */
+  meditation?: (string | null) | Meditation;
+  /**
+   * Optional related article for deeper exploration of lesson topics
+   */
+  article?: (string | null) | Page;
+  /**
+   * Content panels for this lesson
+   */
+  panels: {
+    title: string;
+    text: string;
+    image: string | Media;
+    id?: string | null;
+  }[];
+  /**
+   * Schedule when this lesson should be published
+   */
+  publishAt?: string | null;
+  alt?: string | null;
+  fileMetadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lesson-units".
+ */
+export interface LessonUnit {
+  id: string;
+  /**
+   * The name of this lesson unit
+   */
+  title: string;
+  /**
+   * Theme color for this lesson unit (hex format, e.g., #FF0000)
+   */
+  color: string;
+  /**
+   * Number of lessons in this unit
+   */
+  lessonCount?: number | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "frames".
  */
 export interface Frame {
@@ -557,7 +651,7 @@ export interface Manager {
         /**
          * Select the collection to grant permissions for
          */
-        allowedCollection: 'meditations' | 'music' | 'frames' | 'media';
+        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'lessons' | 'lesson-units' | 'pages';
         /**
          * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
          */
@@ -613,7 +707,7 @@ export interface Client {
         /**
          * Select the collection to grant permissions for
          */
-        allowedCollection: 'meditations' | 'music' | 'frames' | 'media';
+        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'lessons' | 'lesson-units' | 'pages';
         /**
          * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
          */
@@ -988,6 +1082,14 @@ export interface PayloadLockedDocument {
         value: string | Page;
       } | null)
     | ({
+        relationTo: 'lessons';
+        value: string | Lesson;
+      } | null)
+    | ({
+        relationTo: 'lesson-units';
+        value: string | LessonUnit;
+      } | null)
+    | ({
         relationTo: 'frames';
         value: string | Frame;
       } | null)
@@ -1158,6 +1260,52 @@ export interface PagesSelect<T extends boolean = true> {
   createdAt?: T;
   deletedAt?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lessons_select".
+ */
+export interface LessonsSelect<T extends boolean = true> {
+  title?: T;
+  thumbnail?: T;
+  color?: T;
+  unit?: T;
+  order?: T;
+  meditation?: T;
+  article?: T;
+  panels?:
+    | T
+    | {
+        title?: T;
+        text?: T;
+        image?: T;
+        id?: T;
+      };
+  publishAt?: T;
+  alt?: T;
+  fileMetadata?: T;
+  createdAt?: T;
+  updatedAt?: T;
+  deletedAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lesson-units_select".
+ */
+export interface LessonUnitsSelect<T extends boolean = true> {
+  title?: T;
+  color?: T;
+  lessonCount?: T;
+  createdAt?: T;
+  updatedAt?: T;
+  deletedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

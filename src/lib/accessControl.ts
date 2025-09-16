@@ -11,7 +11,7 @@ import type {
 const PERMISSION_LEVELS = ['read', 'translate', 'manage'] as const
 type PermissionLevel = (typeof PERMISSION_LEVELS)[number]
 
-export const PERMISSION_COLLECTIONS = ['meditations', 'music', 'frames', 'media'] as const
+export const PERMISSION_COLLECTIONS = ['meditations', 'music', 'frames', 'media', 'lessons', 'lesson-units', 'pages'] as const
 type PermissionCollection = (typeof PERMISSION_COLLECTIONS)[number]
 
 type AvailableLocale = 'en' | 'cs'
