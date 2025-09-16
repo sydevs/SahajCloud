@@ -13,6 +13,8 @@ import type {
   MeditationTag,
   MediaTag,
   Page,
+  LessonUnit,
+  Lesson,
 } from '@/payload-types'
 import { TEST_ADMIN_ID } from './testHelpers'
 
@@ -320,6 +322,60 @@ export const testData = {
     })) as Page
   },
 
+  /**
+   * Create a lesson unit
+   */
+  async createLessonUnit(payload: Payload, overrides: Partial<LessonUnit> = {}): Promise<LessonUnit> {
+    return (await payload.create({
+      collection: 'lesson-units',
+      data: {
+        title: 'Test Lesson Unit',
+        color: '#FF0000',
+        ...overrides,
+      },
+    })) as LessonUnit
+  },
+
+  /**
+   * Create a lesson with audio file
+   */
+  async createLesson(payload: Payload, overrides: Partial<Lesson> = {}, sampleFile = 'audio-42s.mp3'): Promise<Lesson> {
+    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
+    const fileBuffer = fs.readFileSync(filePath)
+    const uint8Array = new Uint8Array(fileBuffer)
+
+    // Create a default media if panels need images and they're not provided
+    let defaultMedia: Media | undefined
+    if (!overrides.panels || overrides.panels.length === 0) {
+      defaultMedia = await testData.createMediaImage(payload)
+    }
+
+    const panelsData = overrides.panels || [
+      {
+        title: 'Default Panel',
+        text: 'Default panel text',
+        image: defaultMedia!.id,
+      },
+    ]
+
+    return (await payload.create({
+      collection: 'lessons',
+      data: {
+        title: 'Test Lesson',
+        color: '#00FF00',
+        order: 0,
+        ...overrides,
+        panels: panelsData,
+        file: {
+          data: uint8Array,
+          mimetype: 'audio/mpeg',
+          name: sampleFile,
+          size: uint8Array.length,
+        },
+      },
+    })) as Lesson
+  },
+
   dummyUser(collection: 'managers' | 'clients', overrides: Partial<Manager | Client> = {}) {
     return {
       collection,
@@ -327,6 +383,6 @@ export const testData = {
       active: true,
       permissions: [],
       ...overrides,
-    } as any
+    } as TypedUser
   },
 }

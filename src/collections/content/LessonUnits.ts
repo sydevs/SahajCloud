@@ -41,11 +41,11 @@ export const LessonUnits: CollectionConfig = {
           },
         },
       },
-      validate: (value: string) => {
+      validate: (value?: string) => {
         if (!value) return true
         const hexPattern = /^#[0-9A-Fa-f]{6}$/
         if (!hexPattern.test(value)) {
-          return 'Please enter a valid hex color (e.g., #FF0000)'
+          return 'Color: Please enter a valid hex color (e.g., #FF0000)'
         }
         return true
       },

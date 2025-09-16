@@ -37,9 +37,6 @@ export const Lessons: CollectionConfig = {
     listSearchableFields: ['title'],
     defaultSort: 'order',
   },
-  hooks: {
-    afterRead: [trackClientUsageHook],
-  },
   upload: {
     adminThumbnail: 'thumbnail',
     mimeTypes: ['audio/*'],
@@ -84,11 +81,11 @@ export const Lessons: CollectionConfig = {
           },
         },
       },
-      validate: (value: string) => {
+      validate: (value?: string) => {
         if (!value) return true
         const hexPattern = /^#[0-9A-Fa-f]{6}$/
         if (!hexPattern.test(value)) {
-          return 'Please enter a valid hex color (e.g., #FF0000)'
+          return 'Color: Please enter a valid hex color (e.g., #FF0000)'
         }
         return true
       },
@@ -221,6 +218,7 @@ export const Lessons: CollectionConfig = {
     },
   ],
   hooks: {
+    afterRead: [trackClientUsageHook],
     beforeChange: [
       processFile({}),
       convertFile,
