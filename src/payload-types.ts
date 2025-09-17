@@ -68,9 +68,9 @@ export interface Config {
   };
   blocks: {};
   collections: {
+    pages: Page;
     meditations: Meditation;
     music: Music;
-    pages: Page;
     lessons: Lesson;
     frames: Frame;
     media: Media;
@@ -100,9 +100,9 @@ export interface Config {
     };
   };
   collectionsSelect: {
+    pages: PagesSelect<false> | PagesSelect<true>;
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
     music: MusicSelect<false> | MusicSelect<true>;
-    pages: PagesSelect<false> | PagesSelect<true>;
     lessons: LessonsSelect<false> | LessonsSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
@@ -187,58 +187,43 @@ export interface ClientAuthOperations {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditations".
+ * via the `definition` "pages".
  */
-export interface Meditation {
+export interface Page {
   id: string;
   title: string;
-  locale: 'en' | 'cs';
-  publishAt?: string | null;
+  content?: {
+    root: {
+      type: string;
+      children: {
+        type: string;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  meta?: {
+    title?: string | null;
+    description?: string | null;
+    /**
+     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
+     */
+    image?: (string | null) | Media;
+  };
   slug?: string | null;
-  thumbnail: string | Media;
-  /**
-   * Duration in seconds
-   */
-  duration?: number | null;
-  narrator: string | Narrator;
-  tags?: (string | MeditationTag)[] | null;
-  /**
-   * Music with this tag will be offered to the seeker
-   */
-  musicTag?: (string | null) | MusicTag;
-  /**
-   * Frames associated with this meditation with audio-synchronized editing
-   */
-  frames?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  slugLock?: boolean | null;
+  publishAt?: string | null;
+  category: 'technique' | 'artwork' | 'event' | 'knowledge';
+  tags?: ('living' | 'creativity' | 'wisdom' | 'stories' | 'events')[] | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -248,13 +233,13 @@ export interface Media {
   id: string;
   alt: string;
   /**
-   * Tags to categorize this image
-   */
-  tags?: (string | MediaTag)[] | null;
-  /**
    * Attribution or copyright information
    */
   credit?: string | null;
+  /**
+   * Tags to categorize this image
+   */
+  tags?: (string | MediaTag)[] | null;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -320,6 +305,61 @@ export interface MediaTag {
   };
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditations".
+ */
+export interface Meditation {
+  id: string;
+  title: string;
+  locale: 'en' | 'cs';
+  publishAt?: string | null;
+  slug?: string | null;
+  thumbnail: string | Media;
+  /**
+   * Duration in seconds
+   */
+  duration?: number | null;
+  narrator: string | Narrator;
+  tags?: (string | MeditationTag)[] | null;
+  /**
+   * Music with this tag will be offered to the seeker
+   */
+  musicTag?: (string | null) | MusicTag;
+  /**
+   * Frames associated with this meditation with audio-synchronized editing
+   */
+  frames?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  fileMetadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -413,11 +453,48 @@ export interface Music {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "pages".
+ * via the `definition` "lessons".
  */
-export interface Page {
+export interface Lesson {
   id: string;
   title: string;
+  /**
+   * Story panels to introduce this lesson.
+   */
+  panels: (
+    | {
+        url: string;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'video';
+      }
+    | {
+        title: string;
+        text: string;
+        image: string | Media;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'text';
+      }
+  )[];
+  /**
+   * Link to a related guided meditation that complements this lesson content.
+   */
+  meditation: string | Meditation;
+  /**
+   * Link to a related guided meditation that complements this lesson content.
+   */
+  audio?: (string | null) | Media;
+  subtitles?: {
+    captions: {
+      duration: number;
+      content: string;
+      startOfParagraph: null;
+      startTime: string;
+      [k: string]: unknown;
+    }[];
+    [k: string]: unknown;
+  };
   content?: {
     root: {
       type: string;
@@ -433,65 +510,10 @@ export interface Page {
     };
     [k: string]: unknown;
   } | null;
-  meta?: {
-    title?: string | null;
-    description?: string | null;
-    /**
-     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
-     */
-    image?: (string | null) | Media;
-  };
-  slug?: string | null;
-  slugLock?: boolean | null;
-  publishAt?: string | null;
-  category: 'technique' | 'artwork' | 'event' | 'knowledge';
-  tags?: ('living' | 'creativity' | 'wisdom' | 'stories' | 'events')[] | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
   _status?: ('draft' | 'published') | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "lessons".
- */
-export interface Lesson {
-  id: string;
-  title: string;
-  /**
-   * Link to a related guided meditation that complements this lesson content.
-   */
-  meditation?: (string | null) | Meditation;
-  /**
-   * Link to a related article page that provides deeper exploration of the lesson topics and concepts.
-   */
-  article?: (string | null) | Page;
-  /**
-   * Story panels to introduce this lesson.
-   */
-  panels: {
-    title: string;
-    text: string;
-    image: string | Media;
-    id?: string | null;
-  }[];
-  /**
-   * Schedule when this lesson should be published
-   */
-  publishAt?: string | null;
-  /**
-   * Select the unit this lesson belongs to. Lessons are organized by units for better content structure.
-   */
-  unit: string | LessonUnit;
-  /**
-   * Numeric order within the selected unit. Each lesson must have a unique order number within its unit (e.g., 0, 1, 2...).
-   */
-  order: number;
-  icon: string | Media;
-  color: string;
-  updatedAt: string;
-  createdAt: string;
-  deletedAt?: string | null;
   url?: string | null;
   thumbnailURL?: string | null;
   filename?: string | null;
@@ -499,18 +521,8 @@ export interface Lesson {
   filesize?: number | null;
   width?: number | null;
   height?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "lesson-units".
- */
-export interface LessonUnit {
-  id: string;
-  title: string;
-  color: string;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt?: string | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -606,6 +618,26 @@ export interface Frame {
       filename?: string | null;
     };
   };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lesson-units".
+ */
+export interface LessonUnit {
+  id: string;
+  title: string;
+  color: string;
+  position: number;
+  steps?:
+    | {
+        lesson?: (string | null) | Lesson;
+        icon: string | Media;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1045,16 +1077,16 @@ export interface PayloadLockedDocument {
   id: string;
   document?:
     | ({
+        relationTo: 'pages';
+        value: string | Page;
+      } | null)
+    | ({
         relationTo: 'meditations';
         value: string | Meditation;
       } | null)
     | ({
         relationTo: 'music';
         value: string | Music;
-      } | null)
-    | ({
-        relationTo: 'pages';
-        value: string | Page;
       } | null)
     | ({
         relationTo: 'lessons';
@@ -1162,6 +1194,30 @@ export interface PayloadMigration {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pages_select".
+ */
+export interface PagesSelect<T extends boolean = true> {
+  title?: T;
+  content?: T;
+  meta?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        image?: T;
+      };
+  slug?: T;
+  slugLock?: T;
+  publishAt?: T;
+  category?: T;
+  tags?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "meditations_select".
  */
 export interface MeditationsSelect<T extends boolean = true> {
@@ -1214,52 +1270,38 @@ export interface MusicSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "pages_select".
- */
-export interface PagesSelect<T extends boolean = true> {
-  title?: T;
-  content?: T;
-  meta?:
-    | T
-    | {
-        title?: T;
-        description?: T;
-        image?: T;
-      };
-  slug?: T;
-  slugLock?: T;
-  publishAt?: T;
-  category?: T;
-  tags?: T;
-  updatedAt?: T;
-  createdAt?: T;
-  deletedAt?: T;
-  _status?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lessons_select".
  */
 export interface LessonsSelect<T extends boolean = true> {
   title?: T;
-  meditation?: T;
-  article?: T;
   panels?:
     | T
     | {
-        title?: T;
-        text?: T;
-        image?: T;
-        id?: T;
+        video?:
+          | T
+          | {
+              url?: T;
+              id?: T;
+              blockName?: T;
+            };
+        text?:
+          | T
+          | {
+              title?: T;
+              text?: T;
+              image?: T;
+              id?: T;
+              blockName?: T;
+            };
       };
-  publishAt?: T;
-  unit?: T;
-  order?: T;
-  icon?: T;
-  color?: T;
+  meditation?: T;
+  audio?: T;
+  subtitles?: T;
+  content?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
+  _status?: T;
   url?: T;
   thumbnailURL?: T;
   filename?: T;
@@ -1267,6 +1309,8 @@ export interface LessonsSelect<T extends boolean = true> {
   filesize?: T;
   width?: T;
   height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1322,8 +1366,8 @@ export interface FramesSelect<T extends boolean = true> {
  */
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
-  tags?: T;
   credit?: T;
+  tags?: T;
   fileMetadata?: T;
   hidden?: T;
   updatedAt?: T;
@@ -1421,8 +1465,16 @@ export interface MusicTagsSelect<T extends boolean = true> {
 export interface LessonUnitsSelect<T extends boolean = true> {
   title?: T;
   color?: T;
-  createdAt?: T;
+  position?: T;
+  steps?:
+    | T
+    | {
+        lesson?: T;
+        icon?: T;
+        id?: T;
+      };
   updatedAt?: T;
+  createdAt?: T;
   deletedAt?: T;
 }
 /**

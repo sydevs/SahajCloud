@@ -3,10 +3,6 @@ import { MediaField } from '@/fields'
 
 export const LayoutBlock: Block = {
   slug: 'layout',
-  labels: {
-    singular: 'Layout',
-    plural: 'Layouts',
-  },
   fields: [
     {
       name: 'style',

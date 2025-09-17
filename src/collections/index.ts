@@ -15,9 +15,9 @@ import { MusicTags } from './tags/MusicTags'
 // Export all collections as an array
 export const collections = [
   // Content
+  Pages,
   Meditations,
   Music,
-  Pages,
   Lessons,
   Frames,
   // Resources
@@ -35,9 +35,9 @@ export const collections = [
 
 export {
   // Content
+  Pages,
   Meditations,
   Music,
-  Pages,
   Lessons,
   Frames,
   // Resources

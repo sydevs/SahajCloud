@@ -55,12 +55,6 @@ export const Media: CollectionConfig = {
       },
     ],
   },
-  hooks: {
-    beforeOperation: [sanitizeFilename],
-    beforeValidate: [processFile({})],
-    beforeChange: [convertFile],
-    afterRead: [trackClientUsageHook],
-  },
   fields: [
     {
       name: 'alt',
@@ -69,20 +63,20 @@ export const Media: CollectionConfig = {
       localized: true,
     },
     {
+      name: 'credit',
+      type: 'text',
+      localized: true,
+      admin: {
+        description: 'Attribution or copyright information',
+      },
+    },
+    {
       name: 'tags',
       type: 'relationship',
       relationTo: 'media-tags',
       hasMany: true,
       admin: {
         description: 'Tags to categorize this image',
-      },
-    },
-    {
-      name: 'credit',
-      type: 'text',
-      localized: true,
-      admin: {
-        description: 'Attribution or copyright information',
       },
     },
     {
@@ -104,4 +98,10 @@ export const Media: CollectionConfig = {
       },
     },
   ],
+  hooks: {
+    beforeOperation: [sanitizeFilename],
+    beforeValidate: [processFile({})],
+    beforeChange: [convertFile],
+    afterRead: [trackClientUsageHook],
+  },
 }

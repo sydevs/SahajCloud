@@ -2,42 +2,62 @@ import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { ColourTextField } from '@nouance/payload-better-fields-plugin/ColourText'
+import { MediaField } from '@/fields'
 
 export const LessonUnits: CollectionConfig = {
   slug: 'lesson-units',
   access: permissionBasedAccess('lessons'),
   trash: true,
+  labels: {
+    singular: 'Path Step',
+    plural: 'Path Steps',
+  },
   admin: {
-    hidden: true,
-    group: 'Tags',
+    group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'color', 'createdAt'],
+    defaultColumns: ['title', 'color'],
   },
   fields: [
     {
       name: 'title',
       type: 'text',
       required: true,
+      admin: {
+        position: 'sidebar',
+      },
     },
     ...ColourTextField({
       name: 'color',
       required: true,
-    }),
-    {
-      name: 'createdAt',
-      type: 'date',
       admin: {
         position: 'sidebar',
-        readOnly: true,
+      },
+    }),
+    {
+      name: 'position',
+      type: 'number',
+      required: true,
+      min: 1,
+      admin: {
+        position: 'sidebar',
+        step: 1,
       },
     },
     {
-      name: 'updatedAt',
-      type: 'date',
-      admin: {
-        position: 'sidebar',
-        readOnly: true,
-      },
+      name: 'steps',
+      type: 'array',
+      fields: [
+        {
+          name: 'lesson',
+          type: 'relationship',
+          relationTo: 'lessons',
+        },
+        MediaField({
+          name: 'icon',
+          required: true,
+          // orientation: 'square',
+        }),
+      ],
     },
   ],
   hooks: {
