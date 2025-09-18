@@ -1,6 +1,6 @@
 import type { UploadField } from 'payload'
 
-export type MediaFieldOptions = {
+export type FileFieldOptions = {
   /** Field name */
   name: string
   /** Field label */
@@ -14,10 +14,10 @@ export type MediaFieldOptions = {
 }
 
 /**
- * Creates a standardized media upload field with ThumbnailCell component
- * and filtering for hidden media documents
+ * Creates a standardized file upload field that relates to the 'files' collection.
+ * Files are owned by the parent document and will be deleted when the owner is deleted.
  */
-export function MediaField(options: MediaFieldOptions): UploadField {
+export function FileField(options: FileFieldOptions): UploadField {
   const { name, label, required = false, localized = false, admin = {} } = options
 
   return {
@@ -26,7 +26,7 @@ export function MediaField(options: MediaFieldOptions): UploadField {
     required,
     localized,
     type: 'upload',
-    relationTo: 'media',
+    relationTo: 'files',
     admin,
   }
 }

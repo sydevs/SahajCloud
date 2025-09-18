@@ -1,4 +1,5 @@
-import type { Block, Condition } from 'payload'
+import type { Block } from 'payload'
+import { FileField } from '@/fields'
 
 export const VideoStoryBlock: Block = {
   slug: 'video',
@@ -7,16 +8,14 @@ export const VideoStoryBlock: Block = {
     plural: 'Video Panels',
   },
   fields: [
-    {
+    FileField({
       name: 'video',
-      type: 'upload',
-      relationTo: 'files',
       admin: {
         condition: ({ data, blockData }) => {
           console.log('Set Video Story', data, blockData)
           return data.owner === blockData.id
         },
       },
-    },
+    }),
   ],
 }

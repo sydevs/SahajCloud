@@ -6,6 +6,7 @@ import { fullRichTextEditor } from '@/lib/richEditor'
 import { QuoteBlock } from '@/blocks/pages'
 import subtitleSchema from '@/lib/subtitlesSchema.json'
 import { TextStoryBlock, VideoStoryBlock } from '@/blocks/stories'
+import { FileField } from '@/fields'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
@@ -62,16 +63,14 @@ export const Lessons: CollectionConfig = {
                   'Link to a related guided meditation that complements this lesson content.',
               },
             },
-            {
+            FileField({
               name: 'audio',
-              type: 'upload',
-              relationTo: 'files',
               label: 'Intro Audio',
               admin: {
                 description:
                   'Link to a related guided meditation that complements this lesson content.',
               },
-            },
+            }),
             {
               name: 'subtitles',
               type: 'json',
