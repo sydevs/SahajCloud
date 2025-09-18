@@ -1,4 +1,4 @@
-import { Block } from 'payload'
+import type { Block, Condition } from 'payload'
 
 export const VideoStoryBlock: Block = {
   slug: 'video',
@@ -8,9 +8,15 @@ export const VideoStoryBlock: Block = {
   },
   fields: [
     {
-      name: 'url',
-      type: 'text',
-      required: true,
+      name: 'video',
+      type: 'upload',
+      relationTo: 'files',
+      admin: {
+        condition: ({ data, blockData }) => {
+          console.log('Set Video Story', data, blockData)
+          return data.owner === blockData.id
+        },
+      },
     },
   ],
 }

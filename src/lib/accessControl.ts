@@ -147,7 +147,6 @@ export const permissionBasedAccess = (
   access: CollectionConfig['access'] = {},
 ): CollectionConfig['access'] => {
   return {
-    ...access,
     read: ({ req: { user } }) => {
       const hasAccess = hasPermission({ operation: 'read', user, collection })
       if (!hasAccess) return false
@@ -168,6 +167,7 @@ export const permissionBasedAccess = (
     delete: ({ req: { user } }) => {
       return hasPermission({ operation: 'delete', user, collection })
     },
+    ...access,
   }
 }
 

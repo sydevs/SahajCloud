@@ -18,10 +18,6 @@ export const Lessons: CollectionConfig = {
     defaultColumns: ['title', 'unit', 'order', 'publishAt'],
     listSearchableFields: ['title'],
   },
-  upload: {
-    staticDir: 'media/lessons',
-    mimeTypes: ['audio/*'],
-  },
   versions: {
     maxPerDoc: 50,
     drafts: true,
@@ -69,7 +65,7 @@ export const Lessons: CollectionConfig = {
             {
               name: 'audio',
               type: 'upload',
-              relationTo: 'media',
+              relationTo: 'files',
               label: 'Intro Audio',
               admin: {
                 description:

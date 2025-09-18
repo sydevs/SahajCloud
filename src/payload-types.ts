@@ -70,15 +70,17 @@ export interface Config {
   collections: {
     pages: Page;
     meditations: Meditation;
-    music: Music;
+    'lesson-units': LessonUnit;
     lessons: Lesson;
+    music: Music;
+    films: Film;
     frames: Frame;
-    media: Media;
     narrators: Narrator;
+    media: Media;
+    files: File;
     'media-tags': MediaTag;
     'meditation-tags': MeditationTag;
     'music-tags': MusicTag;
-    'lesson-units': LessonUnit;
     managers: Manager;
     clients: Client;
     forms: Form;
@@ -102,15 +104,17 @@ export interface Config {
   collectionsSelect: {
     pages: PagesSelect<false> | PagesSelect<true>;
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
-    music: MusicSelect<false> | MusicSelect<true>;
+    'lesson-units': LessonUnitsSelect<false> | LessonUnitsSelect<true>;
     lessons: LessonsSelect<false> | LessonsSelect<true>;
+    music: MusicSelect<false> | MusicSelect<true>;
+    films: FilmsSelect<false> | FilmsSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
-    media: MediaSelect<false> | MediaSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
+    media: MediaSelect<false> | MediaSelect<true>;
+    files: FilesSelect<false> | FilesSelect<true>;
     'media-tags': MediaTagsSelect<false> | MediaTagsSelect<true>;
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
     'music-tags': MusicTagsSelect<false> | MusicTagsSelect<true>;
-    'lesson-units': LessonUnitsSelect<false> | LessonUnitsSelect<true>;
     managers: ManagersSelect<false> | ManagersSelect<true>;
     clients: ClientsSelect<false> | ClientsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
@@ -453,6 +457,26 @@ export interface Music {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lesson-units".
+ */
+export interface LessonUnit {
+  id: string;
+  title: string;
+  color: string;
+  position: number;
+  steps?:
+    | {
+        lesson?: (string | null) | Lesson;
+        icon: string | Media;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lessons".
  */
 export interface Lesson {
@@ -463,7 +487,7 @@ export interface Lesson {
    */
   panels: (
     | {
-        url: string;
+        video?: (string | null) | File;
         id?: string | null;
         blockName?: string | null;
         blockType: 'video';
@@ -484,7 +508,7 @@ export interface Lesson {
   /**
    * Link to a related guided meditation that complements this lesson content.
    */
-  audio?: (string | null) | Media;
+  audio?: (string | null) | File;
   subtitles?: {
     captions: {
       duration: number;
@@ -514,6 +538,21 @@ export interface Lesson {
   createdAt: string;
   deletedAt?: string | null;
   _status?: ('draft' | 'published') | null;
+}
+/**
+ * These are files uploaded to support other collections. These should not be reused and will be deleted whenever their owner is deletet.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "files".
+ */
+export interface File {
+  id: string;
+  owner: {
+    relationTo: 'lessons';
+    value: string | Lesson;
+  };
+  createdAt: string;
+  updatedAt: string;
   url?: string | null;
   thumbnailURL?: string | null;
   filename?: string | null;
@@ -523,6 +562,18 @@ export interface Lesson {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "films".
+ */
+export interface Film {
+  id: string;
+  title: string;
+  thumbnail: string | Media;
+  videoUrl: string;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -618,26 +669,6 @@ export interface Frame {
       filename?: string | null;
     };
   };
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "lesson-units".
- */
-export interface LessonUnit {
-  id: string;
-  title: string;
-  color: string;
-  position: number;
-  steps?:
-    | {
-        lesson?: (string | null) | Lesson;
-        icon: string | Media;
-        id?: string | null;
-      }[]
-    | null;
-  updatedAt: string;
-  createdAt: string;
-  deletedAt?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1085,24 +1116,36 @@ export interface PayloadLockedDocument {
         value: string | Meditation;
       } | null)
     | ({
-        relationTo: 'music';
-        value: string | Music;
+        relationTo: 'lesson-units';
+        value: string | LessonUnit;
       } | null)
     | ({
         relationTo: 'lessons';
         value: string | Lesson;
       } | null)
     | ({
+        relationTo: 'music';
+        value: string | Music;
+      } | null)
+    | ({
+        relationTo: 'films';
+        value: string | Film;
+      } | null)
+    | ({
         relationTo: 'frames';
         value: string | Frame;
+      } | null)
+    | ({
+        relationTo: 'narrators';
+        value: string | Narrator;
       } | null)
     | ({
         relationTo: 'media';
         value: string | Media;
       } | null)
     | ({
-        relationTo: 'narrators';
-        value: string | Narrator;
+        relationTo: 'files';
+        value: string | File;
       } | null)
     | ({
         relationTo: 'media-tags';
@@ -1115,10 +1158,6 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'music-tags';
         value: string | MusicTag;
-      } | null)
-    | ({
-        relationTo: 'lesson-units';
-        value: string | LessonUnit;
       } | null)
     | ({
         relationTo: 'managers';
@@ -1247,6 +1286,60 @@ export interface MeditationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lesson-units_select".
+ */
+export interface LessonUnitsSelect<T extends boolean = true> {
+  title?: T;
+  color?: T;
+  position?: T;
+  steps?:
+    | T
+    | {
+        lesson?: T;
+        icon?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lessons_select".
+ */
+export interface LessonsSelect<T extends boolean = true> {
+  title?: T;
+  panels?:
+    | T
+    | {
+        video?:
+          | T
+          | {
+              video?: T;
+              id?: T;
+              blockName?: T;
+            };
+        text?:
+          | T
+          | {
+              title?: T;
+              text?: T;
+              image?: T;
+              id?: T;
+              blockName?: T;
+            };
+      };
+  meditation?: T;
+  audio?: T;
+  subtitles?: T;
+  content?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "music_select".
  */
 export interface MusicSelect<T extends boolean = true> {
@@ -1270,47 +1363,14 @@ export interface MusicSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "lessons_select".
+ * via the `definition` "films_select".
  */
-export interface LessonsSelect<T extends boolean = true> {
+export interface FilmsSelect<T extends boolean = true> {
   title?: T;
-  panels?:
-    | T
-    | {
-        video?:
-          | T
-          | {
-              url?: T;
-              id?: T;
-              blockName?: T;
-            };
-        text?:
-          | T
-          | {
-              title?: T;
-              text?: T;
-              image?: T;
-              id?: T;
-              blockName?: T;
-            };
-      };
-  meditation?: T;
-  audio?: T;
-  subtitles?: T;
-  content?: T;
+  thumbnail?: T;
+  videoUrl?: T;
   updatedAt?: T;
   createdAt?: T;
-  deletedAt?: T;
-  _status?: T;
-  url?: T;
-  thumbnailURL?: T;
-  filename?: T;
-  mimeType?: T;
-  filesize?: T;
-  width?: T;
-  height?: T;
-  focalX?: T;
-  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1359,6 +1419,16 @@ export interface FramesSelect<T extends boolean = true> {
               filename?: T;
             };
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "narrators_select".
+ */
+export interface NarratorsSelect<T extends boolean = true> {
+  name?: T;
+  gender?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1418,13 +1488,21 @@ export interface MediaSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "narrators_select".
+ * via the `definition` "files_select".
  */
-export interface NarratorsSelect<T extends boolean = true> {
-  name?: T;
-  gender?: T;
-  updatedAt?: T;
+export interface FilesSelect<T extends boolean = true> {
+  owner?: T;
   createdAt?: T;
+  updatedAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1457,25 +1535,6 @@ export interface MusicTagsSelect<T extends boolean = true> {
   music?: T;
   updatedAt?: T;
   createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "lesson-units_select".
- */
-export interface LessonUnitsSelect<T extends boolean = true> {
-  title?: T;
-  color?: T;
-  position?: T;
-  steps?:
-    | T
-    | {
-        lesson?: T;
-        icon?: T;
-        id?: T;
-      };
-  updatedAt?: T;
-  createdAt?: T;
-  deletedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
