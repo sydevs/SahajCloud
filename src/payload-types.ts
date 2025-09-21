@@ -145,6 +145,7 @@ export interface Config {
     tasks: {
       resetClientUsage: TaskResetClientUsage;
       trackClientUsage: TaskTrackClientUsage;
+      cleanupOrphanedFiles: TaskCleanupOrphanedFiles;
       inline: {
         input: unknown;
         output: unknown;
@@ -482,6 +483,7 @@ export interface LessonUnit {
 export interface Lesson {
   id: string;
   title: string;
+  shriMatajiQuote: string;
   /**
    * Story panels to introduce this lesson.
    */
@@ -508,8 +510,8 @@ export interface Lesson {
   /**
    * Link to a related guided meditation that complements this lesson content.
    */
-  audio?: (string | null) | FileAttachment;
-  subtitles?: {
+  introAudio?: (string | null) | FileAttachment;
+  introSubtitles?: {
     captions: {
       duration: number;
       content: string;
@@ -519,7 +521,7 @@ export interface Lesson {
     }[];
     [k: string]: unknown;
   };
-  content?: {
+  article?: {
     root: {
       type: string;
       children: {
@@ -1053,7 +1055,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'resetClientUsage' | 'trackClientUsage';
+        taskSlug: 'inline' | 'resetClientUsage' | 'trackClientUsage' | 'cleanupOrphanedFiles';
         taskID: string;
         input?:
           | {
@@ -1086,7 +1088,7 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'resetClientUsage' | 'trackClientUsage') | null;
+  taskSlug?: ('inline' | 'resetClientUsage' | 'trackClientUsage' | 'cleanupOrphanedFiles') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -1311,6 +1313,7 @@ export interface LessonUnitsSelect<T extends boolean = true> {
  */
 export interface LessonsSelect<T extends boolean = true> {
   title?: T;
+  shriMatajiQuote?: T;
   panels?:
     | T
     | {
@@ -1332,9 +1335,9 @@ export interface LessonsSelect<T extends boolean = true> {
             };
       };
   meditation?: T;
-  audio?: T;
-  subtitles?: T;
-  content?: T;
+  introAudio?: T;
+  introSubtitles?: T;
+  article?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -1866,6 +1869,17 @@ export interface TaskTrackClientUsage {
     clientId: string;
   };
   output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskCleanupOrphanedFiles".
+ */
+export interface TaskCleanupOrphanedFiles {
+  input?: unknown;
+  output: {
+    deletedCount: number;
+    skippedCount: number;
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

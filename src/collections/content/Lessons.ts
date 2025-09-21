@@ -41,6 +41,11 @@ export const Lessons: CollectionConfig = {
           label: 'Intro',
           fields: [
             {
+              name: 'shriMatajiQuote',
+              type: 'textarea',
+              required: true,
+            },
+            {
               name: 'panels',
               type: 'blocks',
               required: true,
@@ -68,7 +73,7 @@ export const Lessons: CollectionConfig = {
               },
             },
             FileAttachmentField({
-              name: 'audio',
+              name: 'introAudio',
               label: 'Intro Audio',
               ownerCollection: 'lessons',
               admin: {
@@ -77,7 +82,7 @@ export const Lessons: CollectionConfig = {
               },
             }),
             {
-              name: 'subtitles',
+              name: 'introSubtitles',
               type: 'json',
               label: 'Intro Subtitles',
               jsonSchema: {
@@ -93,7 +98,7 @@ export const Lessons: CollectionConfig = {
           label: 'Deep Dive',
           fields: [
             {
-              name: 'content',
+              name: 'article',
               type: 'richText',
               localized: true,
               editor: fullRichTextEditor([QuoteBlock]),
