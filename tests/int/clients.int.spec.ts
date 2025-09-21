@@ -1,5 +1,5 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Client, User } from '@/payload-types'
+import type { Client, Manager } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
 import { testData } from '../utils/testData'
@@ -7,8 +7,8 @@ import { testData } from '../utils/testData'
 describe('Clients Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let testUser: User
-  let testUser2: User
+  let testUser: Manager
+  let testUser2: Manager
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()

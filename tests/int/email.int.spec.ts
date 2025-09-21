@@ -1,5 +1,4 @@
 import { describe, it, beforeAll, afterAll, beforeEach, expect } from 'vitest'
-import type { User } from '@/payload-types'
 import type { Payload } from 'payload'
 import { EmailTestAdapter } from '../utils/emailTestAdapter'
 import { testData } from '../utils/testData'
@@ -68,7 +67,7 @@ describe('Email Sending', () => {
 
       // Request password reset
       await payload.forgotPassword({
-        collection: 'users',
+        collection: 'managers',
         data: {
           email: email,
         },
@@ -93,7 +92,7 @@ describe('Email Sending', () => {
 
       // Try to reset password for non-existent user
       await payload.forgotPassword({
-        collection: 'users',
+        collection: 'managers',
         data: {
           email: 'nonexistent@test.com',
         },

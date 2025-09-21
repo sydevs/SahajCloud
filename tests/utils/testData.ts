@@ -121,8 +121,8 @@ export const testData = {
    */
   async createMeditation(
     payload: Payload,
-    deps: { narrator: string; thumbnail: string },
-    overrides = {},
+    deps?: { narrator?: string; thumbnail?: string },
+    overrides: any = {},
     sampleFile = 'audio-42s.mp3',
   ): Promise<Meditation> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
@@ -131,15 +131,36 @@ export const testData = {
     // Convert Buffer to Uint8Array for file-type compatibility
     const uint8Array = new Uint8Array(fileBuffer)
 
+    // Create dependencies if not provided
+    let thumbnail = deps?.thumbnail
+    let narrator = deps?.narrator
+
+    if (!thumbnail) {
+      const thumbMedia = await testData.createMediaImage(payload, {
+        alt: 'Meditation thumbnail',
+        hidden: false, // Explicitly ensure it's not hidden
+        fileMetadata: {
+          width: 1050,
+          height: 700,
+        }
+      })
+      thumbnail = thumbMedia.id
+    }
+
+    if (!narrator) {
+      const defaultNarrator = await testData.createNarrator(payload, { name: 'Test Narrator' })
+      narrator = defaultNarrator.id
+    }
+
     return (await payload.create({
       collection: 'meditations',
       data: {
-        title: 'Test Meditation with Audio',
-        duration: 15,
-        thumbnail: deps.thumbnail,
-        narrator: deps.narrator,
-        tags: [],
-        locale: 'en',
+        title: overrides.title || 'Test Meditation with Audio',
+        duration: overrides.duration || 15,
+        thumbnail: thumbnail,
+        narrator: narrator,
+        tags: overrides.tags || [],
+        locale: overrides.locale || 'en',
         ...overrides,
       },
       file: {
@@ -336,6 +357,7 @@ export const testData = {
       data: {
         title: 'Test Lesson Unit',
         color: '#FF0000',
+        position: overrides.position || 1,
         ...overrides,
       },
     })) as LessonUnit
@@ -347,13 +369,13 @@ export const testData = {
   async createLesson(
     payload: Payload,
     overrides: Partial<Lesson> = {},
-    sampleFile = 'audio-42s.mp3',
   ): Promise<Lesson> {
-    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    const fileBuffer = fs.readFileSync(filePath)
-
-    // Convert Buffer to Uint8Array for file-type compatibility
-    const uint8Array = new Uint8Array(fileBuffer)
+    // Create a default meditation if not provided
+    let meditation = overrides.meditation
+    if (!meditation) {
+      const defaultMeditation = await testData.createMeditation(payload)
+      meditation = defaultMeditation.id
+    }
 
     // Create a default media if panels need images and they're not provided
     let defaultMedia: Media | undefined
@@ -361,46 +383,40 @@ export const testData = {
       defaultMedia = await testData.createMediaImage(payload)
     }
 
-    // Create thumbnail if not provided
-    let thumbnail = overrides.thumbnail
-    if (!thumbnail) {
-      const thumbMedia = await testData.createMediaImage(payload, { alt: 'Lesson thumbnail' })
-      thumbnail = thumbMedia.id
-    }
-
-    // Create unit if not provided
-    let unit = overrides.unit
-    if (!unit) {
-      const defaultUnit = await testData.createLessonUnit(payload)
-      unit = defaultUnit.id
-    }
-
+    // Ensure panels have the correct structure with blockType
     const panelsData = overrides.panels || [
       {
+        blockType: 'text' as const,
         title: 'Default Panel',
         text: 'Default panel text',
         image: defaultMedia!.id,
       },
     ]
 
-    const { thumbnail: _, unit: __, ...restOverrides } = overrides
+    // Add blockType to panels if missing
+    const formattedPanels = panelsData.map((panel: any) => {
+      if (!panel.blockType) {
+        // Default to text block if it has title/text/image fields
+        if ('title' in panel || 'text' in panel || 'image' in panel) {
+          return { ...panel, blockType: 'text' as const }
+        }
+        // Default to video block if it has video field
+        if ('video' in panel) {
+          return { ...panel, blockType: 'video' as const }
+        }
+      }
+      return panel
+    })
 
     return (await payload.create({
       collection: 'lessons',
       data: {
-        title: 'Test Lesson',
-        color: '#00FF00',
-        order: 0,
-        ...restOverrides,
-        thumbnail,
-        unit,
-        panels: panelsData,
-      },
-      file: {
-        data: uint8Array as any, // Type assertion for Payload compatibility
-        mimetype: 'audio/mpeg',
-        name: sampleFile,
-        size: uint8Array.length,
+        title: overrides.title || 'Test Lesson',
+        panels: formattedPanels,
+        meditation: meditation as string,
+        audio: overrides.audio || null,
+        subtitles: overrides.subtitles || undefined,
+        content: overrides.content || null,
       },
     })) as Lesson
   },

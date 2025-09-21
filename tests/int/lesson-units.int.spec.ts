@@ -32,13 +32,21 @@ describe('LessonUnits Collection', () => {
       expect(unit.updatedAt).toBeDefined()
     })
 
-    it('validates hex color format', async () => {
-      await expect(
-        testData.createLessonUnit(payload, {
-          title: 'Invalid Color Unit',
-          color: 'red', // Invalid format
-        })
-      ).rejects.toThrow('Color')
+    it('accepts valid color formats', async () => {
+      // The ColourTextField plugin accepts both hex codes and color names
+      const unit1 = await testData.createLessonUnit(payload, {
+        title: 'Color Name Unit',
+        color: 'red', // Valid color name
+        position: 2,
+      })
+      expect(unit1.color).toBe('red')
+
+      const unit2 = await testData.createLessonUnit(payload, {
+        title: 'Hex Color Unit',
+        color: '#FF0000', // Valid hex code
+        position: 3,
+      })
+      expect(unit2.color).toBe('#FF0000')
     })
 
     it('validates hex color with proper format', async () => {

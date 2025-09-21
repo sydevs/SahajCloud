@@ -73,11 +73,11 @@ export interface Config {
     'lesson-units': LessonUnit;
     lessons: Lesson;
     music: Music;
-    films: Film;
+    'external-videos': ExternalVideo;
     frames: Frame;
     narrators: Narrator;
     media: Media;
-    files: File;
+    'file-attachments': FileAttachment;
     'media-tags': MediaTag;
     'meditation-tags': MeditationTag;
     'music-tags': MusicTag;
@@ -107,11 +107,11 @@ export interface Config {
     'lesson-units': LessonUnitsSelect<false> | LessonUnitsSelect<true>;
     lessons: LessonsSelect<false> | LessonsSelect<true>;
     music: MusicSelect<false> | MusicSelect<true>;
-    films: FilmsSelect<false> | FilmsSelect<true>;
+    'external-videos': ExternalVideosSelect<false> | ExternalVideosSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
-    files: FilesSelect<false> | FilesSelect<true>;
+    'file-attachments': FileAttachmentsSelect<false> | FileAttachmentsSelect<true>;
     'media-tags': MediaTagsSelect<false> | MediaTagsSelect<true>;
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
     'music-tags': MusicTagsSelect<false> | MusicTagsSelect<true>;
@@ -487,7 +487,7 @@ export interface Lesson {
    */
   panels: (
     | {
-        video?: (string | null) | File;
+        video?: (string | null) | FileAttachment;
         id?: string | null;
         blockName?: string | null;
         blockType: 'video';
@@ -508,7 +508,7 @@ export interface Lesson {
   /**
    * Link to a related guided meditation that complements this lesson content.
    */
-  audio?: (string | null) | File;
+  audio?: (string | null) | FileAttachment;
   subtitles?: {
     captions: {
       duration: number;
@@ -540,17 +540,17 @@ export interface Lesson {
   _status?: ('draft' | 'published') | null;
 }
 /**
- * These are files uploaded to support other collections. These should not be reused and will be deleted whenever their owner is deletet.
+ * These are file attachments uploaded to support other collections. These should not be reused and will be deleted whenever their owner is deleted.
  *
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "files".
+ * via the `definition` "file-attachments".
  */
-export interface File {
+export interface FileAttachment {
   id: string;
-  owner: {
+  owner?: {
     relationTo: 'lessons';
     value: string | Lesson;
-  };
+  } | null;
   createdAt: string;
   updatedAt: string;
   url?: string | null;
@@ -565,13 +565,15 @@ export interface File {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "films".
+ * via the `definition` "external-videos".
  */
-export interface Film {
+export interface ExternalVideo {
   id: string;
   title: string;
   thumbnail: string | Media;
   videoUrl: string;
+  subtitlesUrl?: string | null;
+  category?: ('shri-mataji' | 'techniques' | 'other')[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -629,7 +631,7 @@ export interface Frame {
   /**
    * Auto-generated thumbnail for video frames
    */
-  thumbnail?: (string | null) | Media;
+  thumbnail?: (string | null) | FileAttachment;
   duration?: number | null;
   fileMetadata?:
     | {
@@ -689,7 +691,7 @@ export interface Manager {
         /**
          * Select the collection to grant permissions for
          */
-        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'lessons' | 'pages';
+        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'lessons' | 'pages' | 'external-videos';
         /**
          * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
          */
@@ -745,7 +747,7 @@ export interface Client {
         /**
          * Select the collection to grant permissions for
          */
-        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'lessons' | 'pages';
+        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'lessons' | 'pages' | 'external-videos';
         /**
          * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
          */
@@ -1128,8 +1130,8 @@ export interface PayloadLockedDocument {
         value: string | Music;
       } | null)
     | ({
-        relationTo: 'films';
-        value: string | Film;
+        relationTo: 'external-videos';
+        value: string | ExternalVideo;
       } | null)
     | ({
         relationTo: 'frames';
@@ -1144,8 +1146,8 @@ export interface PayloadLockedDocument {
         value: string | Media;
       } | null)
     | ({
-        relationTo: 'files';
-        value: string | File;
+        relationTo: 'file-attachments';
+        value: string | FileAttachment;
       } | null)
     | ({
         relationTo: 'media-tags';
@@ -1363,12 +1365,14 @@ export interface MusicSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "films_select".
+ * via the `definition` "external-videos_select".
  */
-export interface FilmsSelect<T extends boolean = true> {
+export interface ExternalVideosSelect<T extends boolean = true> {
   title?: T;
   thumbnail?: T;
   videoUrl?: T;
+  subtitlesUrl?: T;
+  category?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1488,9 +1492,9 @@ export interface MediaSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "files_select".
+ * via the `definition` "file-attachments_select".
  */
-export interface FilesSelect<T extends boolean = true> {
+export interface FileAttachmentsSelect<T extends boolean = true> {
   owner?: T;
   createdAt?: T;
   updatedAt?: T;

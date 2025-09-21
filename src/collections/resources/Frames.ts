@@ -119,7 +119,7 @@ export const Frames: CollectionConfig = {
     {
       name: 'thumbnail',
       type: 'upload',
-      relationTo: 'media',
+      relationTo: 'file-attachments',
       admin: {
         readOnly: true,
         description: 'Auto-generated thumbnail for video frames',

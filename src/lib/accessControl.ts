@@ -1,6 +1,7 @@
 import { Manager } from '@/payload-types'
 import type {
   CollectionConfig,
+  CollectionSlug,
   Field,
   FieldBase,
   Operation,
@@ -18,6 +19,7 @@ export const PERMISSION_COLLECTIONS = [
   'media',
   'lessons',
   'pages',
+  'external-videos',
 ] as const
 type PermissionCollection = (typeof PERMISSION_COLLECTIONS)[number]
 
@@ -143,7 +145,7 @@ export const createFieldAccess = (collection: string, localized: boolean): Field
  * New permission-based access control for collections that should be accessible to API clients
  */
 export const permissionBasedAccess = (
-  collection: string,
+  collection: CollectionSlug,
   access: CollectionConfig['access'] = {},
 ): CollectionConfig['access'] => {
   return {

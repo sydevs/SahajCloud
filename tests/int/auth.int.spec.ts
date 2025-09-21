@@ -75,7 +75,7 @@ describe('API Authentication', () => {
         const collectionConfig = payload.config.collections.find(c => c.slug === collectionKey)
         expect(collectionConfig?.access).toBeDefined()
 
-        const user = testData.dummyUser('users', {
+        const user = testData.dummyUser('managers', {
           permissions: [
             { allowedCollection: collectionKey, level: 'manage', locales: ['all'] }
           ]

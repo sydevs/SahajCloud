@@ -1,6 +1,6 @@
 import { Managers } from './access/Managers'
 import { Media } from './resources/Media'
-import { Films } from './content/Films'
+import { ExternalVideos } from './content/ExternalVideos'
 import { Narrators } from './resources/Narrators'
 import { Meditations } from './content/Meditations'
 import { Music } from './content/Music'
@@ -12,7 +12,7 @@ import { Clients } from './access/Clients'
 import { MeditationTags } from './tags/MeditationTags'
 import { MediaTags } from './tags/MediaTags'
 import { MusicTags } from './tags/MusicTags'
-import { Files } from './resources/Files'
+import { FileAttachments } from './resources/FileAttachments'
 
 // Export all collections as an array
 export const collections = [
@@ -23,11 +23,11 @@ export const collections = [
   Lessons,
   // Resources
   Music,
-  Films,
+  ExternalVideos,
   Frames,
   Narrators,
   Media,
-  Files,
+  FileAttachments,
   // Tags
   MediaTags,
   MeditationTags,
@@ -45,11 +45,11 @@ export {
   Lessons,
   // Resources
   Music,
-  Films,
+  ExternalVideos,
   Frames,
   Narrators,
   Media,
-  Files,
+  FileAttachments,
   // Tags
   MediaTags,
   MeditationTags,

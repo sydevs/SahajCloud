@@ -1,9 +1,9 @@
 import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 
-export const Files: CollectionConfig = {
-  slug: 'files',
-  access: permissionBasedAccess('files', {
+export const FileAttachments: CollectionConfig = {
+  slug: 'file-attachments',
+  access: permissionBasedAccess('file-attachments', {
     update: () => false,
   }),
   disableDuplicate: true,
@@ -11,7 +11,7 @@ export const Files: CollectionConfig = {
     group: 'Resources',
     useAsTitle: 'filename',
     description:
-      'These are files uploaded to support other collections. These should not be reused and will be deleted whenever their owner is deletet.',
+      'These are file attachments uploaded to support other collections. These should not be reused and will be deleted whenever their owner is deleted.',
     defaultColumns: ['filename', 'createdAt'],
   },
   upload: {
@@ -23,7 +23,7 @@ export const Files: CollectionConfig = {
       name: 'owner',
       type: 'relationship',
       relationTo: ['lessons'],
-      required: true,
+      required: false, // Changed to false to allow orphan files temporarily
       maxDepth: 0,
     },
     {

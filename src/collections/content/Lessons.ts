@@ -5,15 +5,19 @@ import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { QuoteBlock } from '@/blocks/pages'
 import subtitleSchema from '@/lib/subtitlesSchema.json'
-import { TextStoryBlock, VideoStoryBlock } from '@/blocks/stories'
-import { FileField } from '@/fields'
+import { TextStoryBlock, VideoStoryBlock } from '@/blocks/lessons'
+import { FileAttachmentField } from '@/fields'
+import {
+  deleteFileAttachmentsHook,
+  claimOrphanFileAttachmentsHook,
+} from '@/fields/FileAttachmentField'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
   access: permissionBasedAccess('lessons'),
   trash: true,
   admin: {
-    hidden: true,
+    // hidden: true,
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'unit', 'order', 'publishAt'],
@@ -63,9 +67,10 @@ export const Lessons: CollectionConfig = {
                   'Link to a related guided meditation that complements this lesson content.',
               },
             },
-            FileField({
+            FileAttachmentField({
               name: 'audio',
               label: 'Intro Audio',
+              ownerCollection: 'lessons',
               admin: {
                 description:
                   'Link to a related guided meditation that complements this lesson content.',
@@ -100,5 +105,7 @@ export const Lessons: CollectionConfig = {
   ],
   hooks: {
     afterRead: [trackClientUsageHook],
+    afterChange: [claimOrphanFileAttachmentsHook],
+    afterDelete: [deleteFileAttachmentsHook],
   },
 }

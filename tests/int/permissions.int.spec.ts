@@ -228,7 +228,7 @@ describe('Permission System Tests', () => {
       })
 
       it('returns true for users without specific permissions (default read)', () => {
-        const user = testData.dummyUser('users')
+        const user = testData.dummyUser('managers')
         const filter = createLocaleFilter(user, 'music')
         expect(filter).toBe(true)
       })
