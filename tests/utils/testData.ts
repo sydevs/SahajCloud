@@ -412,11 +412,12 @@ export const testData = {
       collection: 'lessons',
       data: {
         title: overrides.title || 'Test Lesson',
+        shriMatajiQuote: overrides.shriMatajiQuote || 'Test quote from Shri Mataji',
         panels: formattedPanels,
         meditation: meditation as string,
-        audio: overrides.audio || null,
-        subtitles: overrides.subtitles || undefined,
-        content: overrides.content || null,
+        introAudio: overrides.introAudio || undefined,
+        introSubtitles: overrides.introSubtitles || undefined,
+        article: overrides.article || undefined,
       },
     })) as Lesson
   },

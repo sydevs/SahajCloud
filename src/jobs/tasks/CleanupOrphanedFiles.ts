@@ -51,7 +51,7 @@ export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
           },
         },
         limit: maxDeletions + 100, // Get a bit more to account for validation
-        depth: 1, // Include owner relationship data
+        depth: 0, // Don't populate relationships to avoid type issues
       })
 
       logger.info(`Found ${orphanedFiles.docs.length} file attachments older than ${gracePeriodHours} hours`)
@@ -73,20 +73,29 @@ export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
         } else {
           // Check if the owner relationship points to a non-existent document
           try {
+            // Extract ID from the owner value (could be string or populated object)
+            const ownerId = typeof fileAttachment.owner.value === 'string'
+              ? fileAttachment.owner.value
+              : fileAttachment.owner.value.id
+
             const ownerExists = await req.payload.findByID({
               collection: fileAttachment.owner.relationTo,
-              id: fileAttachment.owner.value,
+              id: ownerId,
               depth: 0, // Just check existence, don't need full data
             })
 
             if (!ownerExists) {
               shouldDelete = true
-              reason = `Owner ${fileAttachment.owner.relationTo}:${fileAttachment.owner.value} does not exist`
+              reason = `Owner ${fileAttachment.owner.relationTo}:${ownerId} does not exist`
             }
           } catch (error) {
             // If findByID throws an error, the document doesn't exist
             shouldDelete = true
-            reason = `Owner ${fileAttachment.owner.relationTo}:${fileAttachment.owner.value} does not exist (error: ${error.message})`
+            const ownerId = typeof fileAttachment.owner.value === 'string'
+              ? fileAttachment.owner.value
+              : fileAttachment.owner.value.id
+            const errorMessage = error instanceof Error ? error.message : String(error)
+            reason = `Owner ${fileAttachment.owner.relationTo}:${ownerId} does not exist (error: ${errorMessage})`
           }
         }
 
@@ -104,9 +113,10 @@ export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
               createdAt: fileAttachment.createdAt,
             })
           } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error)
             logger.error(`Failed to delete file attachment ${fileAttachment.id}`, {
               filename: fileAttachment.filename,
-              error: error.message,
+              error: errorMessage,
               reason,
             })
             skippedCount++
@@ -129,8 +139,9 @@ export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
         },
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       logger.error('Error during orphaned file attachment cleanup', {
-        error: error.message,
+        error: errorMessage,
         deletedCount,
         skippedCount,
       })
