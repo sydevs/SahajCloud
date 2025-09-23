@@ -10,6 +10,7 @@ import {
   deleteThumbnailHook,
   setPreviewUrlHook,
 } from '@/lib/fieldUtils'
+import { FileAttachmentField } from '@/fields'
 
 export const Frames: CollectionConfig = {
   labels: {
@@ -116,16 +117,16 @@ export const Frames: CollectionConfig = {
         { label: 'Tapping', value: 'tapping' },
       ],
     },
-    {
+    FileAttachmentField({
       name: 'thumbnail',
-      type: 'upload',
-      relationTo: 'file-attachments',
+      ownerCollection: 'frames',
+      required: true,
       admin: {
         readOnly: true,
         description: 'Auto-generated thumbnail for video frames',
         condition: (data) => data?.mimeType?.startsWith('video/'),
       },
-    },
+    }),
     {
       name: 'duration',
       type: 'number',

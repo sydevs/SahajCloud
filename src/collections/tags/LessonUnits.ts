@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { ColourTextField } from '@nouance/payload-better-fields-plugin/ColourText'
-import { MediaField } from '@/fields'
+import { FileAttachmentField } from '@/fields'
 
 export const LessonUnits: CollectionConfig = {
   slug: 'lesson-units',
@@ -52,10 +52,13 @@ export const LessonUnits: CollectionConfig = {
           type: 'relationship',
           relationTo: 'lessons',
         },
-        MediaField({
+        FileAttachmentField({
           name: 'icon',
+          ownerCollection: 'lesson-units',
           required: true,
-          // orientation: 'square',
+          admin: {
+            condition: (data) => data?.mimeType?.startsWith('image/'),
+          },
         }),
       ],
     },

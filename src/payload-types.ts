@@ -468,7 +468,7 @@ export interface LessonUnit {
   steps?:
     | {
         lesson?: (string | null) | Lesson;
-        icon: string | Media;
+        icon?: (string | null) | FileAttachment;
         id?: string | null;
       }[]
     | null;
@@ -549,10 +549,15 @@ export interface Lesson {
  */
 export interface FileAttachment {
   id: string;
-  owner?: {
-    relationTo: 'lessons';
-    value: string | Lesson;
-  } | null;
+  owner?:
+    | ({
+        relationTo: 'lessons';
+        value: string | Lesson;
+      } | null)
+    | ({
+        relationTo: 'lesson-units';
+        value: string | LessonUnit;
+      } | null);
   createdAt: string;
   updatedAt: string;
   url?: string | null;

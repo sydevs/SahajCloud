@@ -10,7 +10,9 @@ export const Media: CollectionConfig = {
     useAsTitle: 'filename',
     defaultColumns: ['filename', 'alt', 'credit', 'tags'],
   },
-  access: permissionBasedAccess('media'),
+  access: permissionBasedAccess('media', {
+    delete: () => false,
+  }),
   upload: {
     staticDir: 'media/media',
     hideRemoveFile: true,

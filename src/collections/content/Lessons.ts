@@ -17,7 +17,7 @@ export const Lessons: CollectionConfig = {
   access: permissionBasedAccess('lessons'),
   trash: true,
   admin: {
-    // hidden: true,
+    hidden: true,
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'unit', 'order', 'publishAt'],
@@ -79,6 +79,7 @@ export const Lessons: CollectionConfig = {
               admin: {
                 description:
                   'Link to a related guided meditation that complements this lesson content.',
+                condition: (data) => data?.mimeType?.startsWith('audio/'),
               },
             }),
             {

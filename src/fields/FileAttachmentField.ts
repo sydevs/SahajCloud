@@ -17,7 +17,7 @@ export type FileAttachmentFieldOptions = {
   /** Whether field should be localized */
   localized?: boolean
   /** The collection that owns these file attachments */
-  ownerCollection: CollectionSlug
+  ownerCollection?: CollectionSlug
   /** Admin configuration overrides */
   admin?: Partial<UploadField['admin']>
 }
@@ -37,7 +37,7 @@ export function FileAttachmentField(options: FileAttachmentFieldOptions): Upload
     label,
     required = false,
     localized = false,
-    ownerCollection,
+    ownerCollection = 'lessons',
     admin = {},
   } = options
 

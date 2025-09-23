@@ -1,13 +1,17 @@
 import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 
+export const FileAttachmentOwnerSlugs = ['lessons', 'lesson-units']
+
 export const FileAttachments: CollectionConfig = {
   slug: 'file-attachments',
   access: permissionBasedAccess('file-attachments', {
     update: () => false,
+    delete: () => false,
   }),
   disableDuplicate: true,
   admin: {
+    hidden: true,
     group: 'Resources',
     useAsTitle: 'filename',
     description:
@@ -22,7 +26,7 @@ export const FileAttachments: CollectionConfig = {
     {
       name: 'owner',
       type: 'relationship',
-      relationTo: ['lessons'],
+      relationTo: ['lessons', 'lesson-units'],
       required: false, // Changed to false to allow orphan files temporarily
       maxDepth: 0,
     },
