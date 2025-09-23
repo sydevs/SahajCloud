@@ -59,7 +59,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           defaultJobsCollection.admin = {}
         }
 
-        defaultJobsCollection.admin.hidden = false
+        defaultJobsCollection.admin.hidden = ({ user }) => !user?.admin
         defaultJobsCollection.access = adminOnlyAccess()
         return defaultJobsCollection
       },
@@ -115,7 +115,13 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           },
         },
         formSubmissionOverrides: {
+          access: {
+            update: () => false,
+            create: () => false,
+            delete: () => false,
+          },
           admin: {
+            hidden: ({ user }) => !user?.admin,
             group: 'System',
           },
         },

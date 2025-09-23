@@ -49,7 +49,8 @@ export const Frames: CollectionConfig = {
     ],
   },
   admin: {
-    group: 'Resources',
+    hidden: ({ user }) => !user?.admin,
+    group: 'System',
     useAsTitle: 'filename',
     defaultColumns: ['category', 'tags', 'previewUrl', 'imageSet'],
   },

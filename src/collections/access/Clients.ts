@@ -9,7 +9,8 @@ export const Clients: CollectionConfig = {
     disableLocalStrategy: true, // Only API key authentication
   },
   admin: {
-    group: 'System',
+    hidden: ({ user }) => !user?.admin,
+    group: 'Access',
     useAsTitle: 'name',
     defaultColumns: ['name', 'active'],
   },
@@ -74,7 +75,7 @@ export const Clients: CollectionConfig = {
       admin: {
         readOnly: true,
         description: 'Timestamp of last API key generation',
-        position: "sidebar",
+        position: 'sidebar',
       },
     },
     {
@@ -82,7 +83,7 @@ export const Clients: CollectionConfig = {
       type: 'group',
       admin: {
         description: 'API usage statistics',
-        position: "sidebar",
+        position: 'sidebar',
       },
       fields: [
         {
@@ -109,7 +110,7 @@ export const Clients: CollectionConfig = {
           defaultValue: 0,
           admin: {
             readOnly: true,
-            description: "Maximum historical request count",
+            description: 'Maximum historical request count',
           },
         },
         {
@@ -141,11 +142,7 @@ export const Clients: CollectionConfig = {
     },
   ],
   hooks: {
-    beforeChange: [
-      validateClientData,
-    ],
-    afterChange: [
-      checkHighUsageAlert,
-    ],
+    beforeChange: [validateClientData],
+    afterChange: [checkHighUsageAlert],
   },
 }

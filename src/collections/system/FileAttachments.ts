@@ -11,8 +11,8 @@ export const FileAttachments: CollectionConfig = {
   }),
   disableDuplicate: true,
   admin: {
-    hidden: true,
-    group: 'Resources',
+    hidden: ({ user }) => !user?.admin,
+    group: 'System',
     useAsTitle: 'filename',
     description:
       'These are file attachments uploaded to support other collections. These should not be reused and will be deleted whenever their owner is deleted.',

@@ -10,7 +10,7 @@ export const ExternalVideos: CollectionConfig = {
     plural: 'External Videos',
   },
   admin: {
-    group: 'Content',
+    group: 'Resources',
     useAsTitle: 'title',
   },
   fields: [
