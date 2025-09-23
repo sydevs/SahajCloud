@@ -32,7 +32,7 @@ export function MediaField(options: MediaFieldOptions): UploadField {
   // Add orientation filter if specified
   // Note: Path-based comparisons in filterOptions only work for UI filtering,
   // not for validation. Temporarily disabled to prevent validation errors.
-  let filterOptions = baseFilter
+  // let filterOptions = baseFilter
   // if (orientation) {
   //   const orientationFilters = getOrientationFilter(orientation)
   //   if (orientationFilters.length > 0) {
@@ -54,7 +54,7 @@ export function MediaField(options: MediaFieldOptions): UploadField {
     localized,
     type: 'upload',
     relationTo: 'media',
-    filterOptions,
+    // filterOptions,
     admin: {
       components: {
         Cell: '@/components/admin/ThumbnailCell',
