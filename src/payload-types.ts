@@ -321,6 +321,7 @@ export interface Meditation {
   locale: 'en' | 'cs';
   publishAt?: string | null;
   slug?: string | null;
+  slugLock?: boolean | null;
   thumbnail: string | Media;
   /**
    * Duration in seconds
@@ -429,6 +430,7 @@ export interface Music {
   id: string;
   title: string;
   slug?: string | null;
+  slugLock?: boolean | null;
   tags?: (string | MusicTag)[] | null;
   /**
    * Attribution or credit information
@@ -638,7 +640,7 @@ export interface Frame {
   /**
    * Auto-generated thumbnail for video frames
    */
-  thumbnail?: (string | null) | FileAttachment;
+  thumbnail?: (string | null) | Media;
   duration?: number | null;
   fileMetadata?:
     | {
@@ -1273,6 +1275,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   locale?: T;
   publishAt?: T;
   slug?: T;
+  slugLock?: T;
   thumbnail?: T;
   duration?: T;
   narrator?: T;
@@ -1355,6 +1358,7 @@ export interface LessonsSelect<T extends boolean = true> {
 export interface MusicSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
+  slugLock?: T;
   tags?: T;
   credit?: T;
   fileMetadata?: T;

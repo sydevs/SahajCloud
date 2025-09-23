@@ -30,20 +30,22 @@ export function MediaField(options: MediaFieldOptions): UploadField {
   } as any
 
   // Add orientation filter if specified
+  // Note: Path-based comparisons in filterOptions only work for UI filtering,
+  // not for validation. Temporarily disabled to prevent validation errors.
   let filterOptions = baseFilter
-  if (orientation) {
-    const orientationFilters = getOrientationFilter(orientation)
-    if (orientationFilters.length > 0) {
-      filterOptions = {
-        and: [
-          baseFilter,
-          {
-            or: orientationFilters,
-          },
-        ],
-      }
-    }
-  }
+  // if (orientation) {
+  //   const orientationFilters = getOrientationFilter(orientation)
+  //   if (orientationFilters.length > 0) {
+  //     filterOptions = {
+  //       and: [
+  //         baseFilter,
+  //         {
+  //           or: orientationFilters,
+  //         },
+  //       ],
+  //     }
+  //   }
+  // }
 
   return {
     name,

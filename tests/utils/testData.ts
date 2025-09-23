@@ -15,6 +15,7 @@ import type {
   Page,
   LessonUnit,
   Lesson,
+  FileAttachment,
 } from '@/payload-types'
 import { TEST_ADMIN_ID } from './testHelpers'
 
@@ -67,6 +68,32 @@ export const testData = {
         size: uint8Array.length,
       },
     })) as Media
+  },
+
+  /**
+   * Create a FileAttachment using sample image file
+   */
+  async createFileAttachment(
+    payload: Payload,
+    overrides = {},
+    sampleFile = 'image-1050x700.webp',
+  ): Promise<FileAttachment> {
+    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
+    const fileBuffer = fs.readFileSync(filePath)
+    const uint8Array = new Uint8Array(fileBuffer)
+
+    return (await payload.create({
+      collection: 'file-attachments',
+      data: {
+        ...overrides,
+      },
+      file: {
+        data: uint8Array as any,
+        mimetype: `image/${path.extname(sampleFile).slice(1)}`,
+        name: sampleFile,
+        size: uint8Array.length,
+      },
+    })) as FileAttachment
   },
 
   /**
@@ -139,11 +166,7 @@ export const testData = {
       const thumbMedia = await testData.createMediaImage(payload, {
         alt: 'Meditation thumbnail',
         hidden: false, // Explicitly ensure it's not hidden
-        fileMetadata: {
-          width: 1050,
-          height: 700,
-        }
-      })
+      }, 'image-1050x700.webp') // Use landscape image
       thumbnail = thumbMedia.id
     }
 

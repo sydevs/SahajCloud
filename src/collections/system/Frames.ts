@@ -10,7 +10,7 @@ import {
   deleteThumbnailHook,
   setPreviewUrlHook,
 } from '@/lib/fieldUtils'
-import { FileAttachmentField } from '@/fields'
+import { MediaField } from '@/fields'
 
 export const Frames: CollectionConfig = {
   labels: {
@@ -118,10 +118,9 @@ export const Frames: CollectionConfig = {
         { label: 'Tapping', value: 'tapping' },
       ],
     },
-    FileAttachmentField({
+    MediaField({
       name: 'thumbnail',
-      ownerCollection: 'frames',
-      required: true,
+      required: false,
       admin: {
         readOnly: true,
         description: 'Auto-generated thumbnail for video frames',

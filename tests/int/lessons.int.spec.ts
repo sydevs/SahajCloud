@@ -111,7 +111,7 @@ describe('Lessons Collection', () => {
       const lesson = await testData.createLesson(payload, {
         title: 'Content Lesson',
         meditation: testMeditation.id,
-        content: {
+        article: {
           root: {
             type: 'root',
             children: [
@@ -143,7 +143,7 @@ describe('Lessons Collection', () => {
         ],
       })
 
-      expect(lesson.content).toBeDefined()
+      expect(lesson.article).toBeDefined()
       expect(lesson.meditation).toBe(testMeditation.id)
     })
 

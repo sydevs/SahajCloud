@@ -87,7 +87,12 @@ describe('API Authentication', () => {
           expect(typeof access).toBe('function')
           if (typeof access === 'function') {
             expect(access({ req: clientReq })).toBe(false)
-            expect(access({ req: userReq })).toBe(true)
+            // Media collection forbids deletion for everyone, so skip delete check
+            if (collectionKey === 'media' && op === 'delete') {
+              expect(access({ req: userReq })).toBe(false)
+            } else {
+              expect(access({ req: userReq })).toBe(true)
+            }
           }
         })
       })

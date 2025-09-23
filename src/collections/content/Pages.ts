@@ -1,6 +1,5 @@
 import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
-import { generateSlug } from '@/lib/fieldUtils'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { TextBoxBlock, LayoutBlock, GalleryBlock, ButtonBlock, QuoteBlock } from '@/blocks/pages'
 import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
@@ -47,7 +46,14 @@ export const Pages: CollectionConfig = {
         },
       ],
     },
-    ...SlugField('title'),
+    ...SlugField('title', {
+      slugOverrides: {
+        unique: true,
+        admin: {
+          position: 'sidebar',
+        },
+      },
+    }),
     {
       name: 'publishAt',
       type: 'date',
@@ -121,7 +127,4 @@ export const Pages: CollectionConfig = {
       },
     },
   ],
-  hooks: {
-    beforeChange: [generateSlug],
-  },
 }

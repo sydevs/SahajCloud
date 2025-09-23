@@ -1,9 +1,10 @@
 import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { convertFile, generateSlug, processFile, sanitizeFilename } from '@/lib/fieldUtils'
+import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
 import { KeyframeData, KeyframeDefinition } from '@/components/admin/MeditationFrameEditor/types'
 import { MediaField } from '@/fields'
+import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
@@ -23,7 +24,7 @@ export const Meditations: CollectionConfig = {
   hooks: {
     beforeOperation: [sanitizeFilename],
     beforeValidate: [processFile({})],
-    beforeChange: [generateSlug, convertFile],
+    beforeChange: [convertFile],
     afterRead: [trackClientUsageHook],
   },
   fields: [
@@ -60,15 +61,14 @@ export const Meditations: CollectionConfig = {
         },
       },
     },
-    {
-      name: 'slug',
-      type: 'text',
-      unique: true,
-      admin: {
-        position: 'sidebar',
-        readOnly: true,
+    ...SlugField('title', {
+      slugOverrides: {
+        unique: true,
+        admin: {
+          position: 'sidebar',
+        },
       },
-    },
+    }),
     MediaField({
       name: 'thumbnail',
       required: true,

@@ -2,7 +2,6 @@ import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { GENDER_OPTIONS } from '@/lib/data'
-import { generateSlug } from '@/lib/fieldUtils'
 
 export const Narrators: CollectionConfig = {
   slug: 'narrators',
@@ -14,7 +13,6 @@ export const Narrators: CollectionConfig = {
   },
   hooks: {
     afterRead: [trackClientUsageHook],
-    beforeChange: [generateSlug],
   },
   fields: [
     {
