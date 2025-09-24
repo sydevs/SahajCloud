@@ -1,12 +1,14 @@
 import { getPayload } from 'payload'
 import config from '@/payload.config'
-import fs from 'fs/promises'
-import path from 'path'
+import * as fs from 'fs/promises'
+import { createWriteStream } from 'fs'
+import * as path from 'path'
 import { fileURLToPath } from 'url'
-import https from 'https'
-import http from 'http'
+import * as https from 'https'
+import * as http from 'http'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Lesson, LessonUnit, Media, ExternalVideo, FileAttachment } from '@/payload-types'
-import sharp from 'sharp'
+import * as sharp from 'sharp'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -21,7 +23,7 @@ interface StoryblokStory {
   name: string
   slug: string
   full_slug: string
-  content: any
+  content: Record<string, unknown>
 }
 
 interface StoryblokResponse {
@@ -48,7 +50,7 @@ interface ScriptOptions {
 
 class StoryblokImporter {
   private token: string
-  private payload: any
+  private payload!: Awaited<ReturnType<typeof getPayload>>
   private state: ImportState
   private options: ScriptOptions
 
@@ -84,7 +86,7 @@ class StoryblokImporter {
       const data = await fs.readFile(STATE_FILE, 'utf-8')
       this.state = JSON.parse(data)
       await this.log(`Loaded state from ${STATE_FILE}`)
-    } catch (error) {
+    } catch {
       await this.log('No previous state found, starting fresh')
     }
   }
@@ -124,7 +126,7 @@ class StoryblokImporter {
               return
             }
 
-            const fileStream = require('fs').createWriteStream(destPath)
+            const fileStream = createWriteStream(destPath)
             response.pipe(fileStream)
             fileStream.on('finish', () => {
               fileStream.close()
@@ -148,7 +150,7 @@ class StoryblokImporter {
     })
   }
 
-  async fetchStoryblokData(endpoint: string): Promise<any> {
+  async fetchStoryblokData(endpoint: string): Promise<StoryblokResponse> {
     const url = `https://api.storyblok.com/v2/cdn/${endpoint}${endpoint.includes('?') ? '&' : '?'}token=${this.token}`
     const response = await fetch(url)
     if (!response.ok) {
@@ -176,13 +178,17 @@ class StoryblokImporter {
 
     if (fileExists) {
       const data = await fs.readFile(cacheFile, 'utf-8')
-      return JSON.parse(data).story
+      return JSON.parse(data).story as StoryblokStory
     }
 
     await this.log(`Fetching video story ${uuid}...`)
-    const response = await this.fetchStoryblokData(`stories/${uuid}?find_by=uuid`)
-    await fs.writeFile(cacheFile, JSON.stringify(response, null, 2))
-    return response.story
+    const response = await fetch(`https://api.storyblok.com/v2/cdn/stories/${uuid}?find_by=uuid&token=${this.token}`)
+    if (!response.ok) {
+      throw new Error(`Storyblok API error: ${response.statusText}`)
+    }
+    const responseData = await response.json()
+    await fs.writeFile(cacheFile, JSON.stringify(responseData, null, 2))
+    return responseData.story as StoryblokStory
   }
 
   async convertImageToWebp(imagePath: string): Promise<string> {
@@ -198,7 +204,7 @@ class StoryblokImporter {
       .catch(() => false)
 
     if (!fileExists) {
-      await sharp(imagePath).webp({ quality: 90 }).toFile(webpPath)
+      await sharp.default(imagePath).webp({ quality: 90 }).toFile(webpPath)
       await this.log(`Converted ${path.basename(imagePath)} to WebP`)
     }
 
@@ -226,7 +232,7 @@ class StoryblokImporter {
       },
     })
 
-    return media.id
+    return media.id as string
   }
 
   async createFileAttachment(
@@ -279,10 +285,10 @@ class StoryblokImporter {
       },
     })
 
-    return attachment.id
+    return attachment.id as string
   }
 
-  async parseSubtitles(url: string): Promise<any> {
+  async parseSubtitles(url: string): Promise<Record<string, unknown>> {
     const filename = path.basename(url.split('?')[0])
     const destPath = path.join(CACHE_DIR, 'assets/subtitles', filename)
 
@@ -305,30 +311,31 @@ class StoryblokImporter {
     })
 
     if (result.docs.length > 0) {
-      return result.docs[0].id
+      return result.docs[0].id as string
     }
 
     return null
   }
 
-  async convertLexicalBlocks(blocks: any[]): Promise<any> {
-    const sortedBlocks = blocks.sort((a, b) => (a.Order || 0) - (b.Order || 0))
-    const children: any[] = []
+  async convertLexicalBlocks(blocks: Record<string, unknown>[]): Promise<Record<string, unknown>> {
+    const sortedBlocks = blocks.sort((a, b) => ((a.Order as number) || 0) - ((b.Order as number) || 0))
+    const children: Record<string, unknown>[] = []
 
     for (const block of sortedBlocks) {
       switch (block.component) {
         case 'DD_Main_video': {
           if (block.Video_UUID) {
-            const videoStory = await this.fetchStoryByUuid(block.Video_UUID)
+            const videoStory = await this.fetchStoryByUuid(block.Video_UUID as string)
+            const content = videoStory.content as Record<string, any>
             const externalVideo = await this.payload.create({
               collection: 'external-videos',
               data: {
                 title: videoStory.name,
                 thumbnail: await this.createMediaFromUrl(
-                  videoStory.content.Thumbnail?.filename || '',
+                  content.Thumbnail?.filename || '',
                 ),
-                videoUrl: videoStory.content.Video_URL || '',
-                subtitlesUrl: videoStory.content.Subtitles?.filename || '',
+                videoUrl: content.Video_URL || '',
+                subtitlesUrl: content.Subtitles?.filename || '',
                 category: ['shri-mataji'],
               },
             })
@@ -354,7 +361,7 @@ class StoryblokImporter {
               {
                 type: 'text',
                 version: 1,
-                text: block.Text || '',
+                text: (block.Text as string) || '',
               },
             ],
           })
@@ -369,7 +376,7 @@ class StoryblokImporter {
               {
                 type: 'text',
                 version: 1,
-                text: block.Text || '',
+                text: (block.Text as string) || '',
               },
             ],
           })
@@ -383,7 +390,7 @@ class StoryblokImporter {
               {
                 type: 'text',
                 version: 1,
-                text: block.Text || '',
+                text: (block.Text as string) || '',
               },
             ],
           })
@@ -394,9 +401,9 @@ class StoryblokImporter {
             type: 'block',
             fields: {
               blockType: 'quote',
-              text: block.Text || '',
-              author: block.Author_name || '',
-              subtitle: block.Author_who_is || '',
+              text: (block.Text as string) || '',
+              author: (block.Author_name as string) || '',
+              subtitle: (block.Author_who_is as string) || '',
             },
             version: 1,
           })
@@ -405,9 +412,10 @@ class StoryblokImporter {
 
         case 'DD_Image':
         case 'DD_wide_image': {
-          const imageUrl = block.Image_link?.url || block.Image_URL?.url
+          const blockData = block as Record<string, any>
+          const imageUrl = blockData.Image_link?.url || blockData.Image_URL?.url
           if (imageUrl) {
-            const mediaId = await this.createMediaFromUrl(imageUrl)
+            const mediaId = await this.createMediaFromUrl(imageUrl as string)
             children.push({
               type: 'upload',
               relationTo: 'media',
@@ -442,13 +450,14 @@ class StoryblokImporter {
     const units = new Map<number, { stories: StoryblokStory[]; color: string }>()
 
     for (const story of stories) {
+      const content = story.content as Record<string, any>
       const unitNumber =
-        story.content.Step_info?.[0]?.Unit_number || this.extractUnitFromSlug(story.slug)
+        content.Step_info?.[0]?.Unit_number || this.extractUnitFromSlug(story.slug)
 
       if (!units.has(unitNumber)) {
         units.set(unitNumber, {
           stories: [],
-          color: story.content.Audio_intro?.[0]?.Background_color || '#000000',
+          color: content.Audio_intro?.[0]?.Background_color || '#000000',
         })
       }
       units.get(unitNumber)!.stories.push(story)
@@ -475,7 +484,7 @@ class StoryblokImporter {
         },
       })
 
-      this.state.unitsCreated[`unit-${unitNumber}`] = unit.id
+      this.state.unitsCreated[`unit-${unitNumber}`] = unit.id as string
       await this.saveState()
       await this.log(`✓ Created Unit ${unitNumber} (ID: ${unit.id})`)
     }
@@ -502,13 +511,14 @@ class StoryblokImporter {
           continue
         }
 
+        const content = story.content as Record<string, any>
         const unitNumber =
-          story.content.Step_info?.[0]?.Unit_number || this.extractUnitFromSlug(stepSlug)
+          content.Step_info?.[0]?.Unit_number || this.extractUnitFromSlug(stepSlug)
 
-        const introStories = story.content.Intro_stories || []
+        const introStories = content.Intro_stories || []
         const sortedPanels = introStories.sort((a: any, b: any) => a.Order_number - b.Order_number)
 
-        const panels: any[] = []
+        const panels: Record<string, unknown>[] = []
         const lessonId = 'temp-' + Date.now()
 
         for (const panel of sortedPanels) {
@@ -531,8 +541,8 @@ class StoryblokImporter {
         }
 
         let meditationId = null
-        if (story.content.Meditation_reference?.[0]) {
-          const meditationTitle = story.content.Meditation_reference[0]
+        if (content.Meditation_reference?.[0]) {
+          const meditationTitle = content.Meditation_reference[0]
           meditationId = await this.findMeditationByTitle(meditationTitle)
           if (!meditationId) {
             await this.log(
@@ -543,19 +553,19 @@ class StoryblokImporter {
         }
 
         let introAudioId = null
-        if (story.content.Audio_intro?.[0]?.Audio_track?.filename) {
+        if (content.Audio_intro?.[0]?.Audio_track?.filename) {
           introAudioId = await this.createFileAttachment(
-            story.content.Audio_intro[0].Audio_track.filename,
+            content.Audio_intro[0].Audio_track.filename,
             'lessons',
             lessonId,
           )
         }
 
         let introSubtitles = null
-        if (story.content.Audio_intro?.[0]?.Subtitles?.filename) {
+        if (content.Audio_intro?.[0]?.Subtitles?.filename) {
           try {
             introSubtitles = await this.parseSubtitles(
-              story.content.Audio_intro[0].Subtitles.filename,
+              content.Audio_intro[0].Subtitles.filename,
             )
           } catch (error) {
             await this.log(
@@ -566,15 +576,15 @@ class StoryblokImporter {
         }
 
         let article = null
-        if (story.content.Delving_deeper_article?.[0]?.Blocks) {
-          article = await this.convertLexicalBlocks(story.content.Delving_deeper_article[0].Blocks)
+        if (content.Delving_deeper_article?.[0]?.Blocks) {
+          article = await this.convertLexicalBlocks(content.Delving_deeper_article[0].Blocks)
         }
 
         const lesson = await this.payload.create({
           collection: 'lessons',
           data: {
             title: story.name,
-            shriMatajiQuote: story.content.Intro_quote || '',
+            shriMatajiQuote: content.Intro_quote || '',
             panels,
             meditation: meditationId,
             introAudio: introAudioId,
@@ -590,7 +600,7 @@ class StoryblokImporter {
             data: {
               owner: {
                 relationTo: 'lessons',
-                value: lesson.id,
+                value: lesson.id as string,
               },
             },
           })
@@ -604,21 +614,21 @@ class StoryblokImporter {
               data: {
                 owner: {
                   relationTo: 'lessons',
-                  value: lesson.id,
+                  value: lesson.id as string,
                 },
               },
             })
           }
         }
 
-        this.state.lessonsCreated[stepSlug] = lesson.id
+        this.state.lessonsCreated[stepSlug] = lesson.id as string
         await this.saveState()
         await this.log(`✓ Created lesson: ${story.name} (ID: ${lesson.id})`)
 
         const unitId = this.state.unitsCreated[`unit-${unitNumber}`]
-        if (unitId && story.content.Step_info?.[0]?.Step_Image?.url) {
+        if (unitId && content.Step_info?.[0]?.Step_Image?.url) {
           const iconId = await this.createFileAttachment(
-            story.content.Step_info[0].Step_Image.url,
+            content.Step_info[0].Step_Image.url,
             'lesson-units',
             unitId,
           )
@@ -630,7 +640,7 @@ class StoryblokImporter {
 
           const steps = unit.steps || []
           steps.push({
-            lesson: lesson.id,
+            lesson: lesson.id as string,
             icon: iconId,
           })
 
@@ -761,6 +771,8 @@ async function main() {
   const token = process.env.STORYBLOK_ACCESS_TOKEN
   if (!token) {
     console.error('Error: STORYBLOK_ACCESS_TOKEN environment variable is required')
+    console.error('Please set the token in your environment to use this script.')
+    console.error('This script is designed to import data from Storyblok CMS.')
     process.exit(1)
   }
 
