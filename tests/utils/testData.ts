@@ -13,6 +13,9 @@ import type {
   MeditationTag,
   MediaTag,
   Page,
+  LessonUnit,
+  Lesson,
+  FileAttachment,
 } from '@/payload-types'
 import { TEST_ADMIN_ID } from './testHelpers'
 
@@ -68,6 +71,32 @@ export const testData = {
   },
 
   /**
+   * Create a FileAttachment using sample image file
+   */
+  async createFileAttachment(
+    payload: Payload,
+    overrides = {},
+    sampleFile = 'image-1050x700.webp',
+  ): Promise<FileAttachment> {
+    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
+    const fileBuffer = fs.readFileSync(filePath)
+    const uint8Array = new Uint8Array(fileBuffer)
+
+    return (await payload.create({
+      collection: 'file-attachments',
+      data: {
+        ...overrides,
+      },
+      file: {
+        data: uint8Array as any,
+        mimetype: `image/${path.extname(sampleFile).slice(1)}`,
+        name: sampleFile,
+        size: uint8Array.length,
+      },
+    })) as FileAttachment
+  },
+
+  /**
    * Create a tag
    */
   async createMeditationTag(
@@ -119,8 +148,8 @@ export const testData = {
    */
   async createMeditation(
     payload: Payload,
-    deps: { narrator: string; thumbnail: string },
-    overrides = {},
+    deps?: { narrator?: string; thumbnail?: string },
+    overrides: any = {},
     sampleFile = 'audio-42s.mp3',
   ): Promise<Meditation> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
@@ -129,15 +158,32 @@ export const testData = {
     // Convert Buffer to Uint8Array for file-type compatibility
     const uint8Array = new Uint8Array(fileBuffer)
 
+    // Create dependencies if not provided
+    let thumbnail = deps?.thumbnail
+    let narrator = deps?.narrator
+
+    if (!thumbnail) {
+      const thumbMedia = await testData.createMediaImage(payload, {
+        alt: 'Meditation thumbnail',
+        hidden: false, // Explicitly ensure it's not hidden
+      }, 'image-1050x700.webp') // Use landscape image
+      thumbnail = thumbMedia.id
+    }
+
+    if (!narrator) {
+      const defaultNarrator = await testData.createNarrator(payload, { name: 'Test Narrator' })
+      narrator = defaultNarrator.id
+    }
+
     return (await payload.create({
       collection: 'meditations',
       data: {
-        title: 'Test Meditation with Audio',
-        duration: 15,
-        thumbnail: deps.thumbnail,
-        narrator: deps.narrator,
-        tags: [],
-        locale: 'en',
+        title: overrides.title || 'Test Meditation with Audio',
+        duration: overrides.duration || 15,
+        thumbnail: thumbnail,
+        narrator: narrator,
+        tags: overrides.tags || [],
+        locale: overrides.locale || 'en',
         ...overrides,
       },
       file: {
@@ -298,15 +344,17 @@ export const testData = {
               {
                 type: 'paragraph',
                 version: 1,
-                children: [{
-                  type: 'text',
-                  version: 1,
-                  text: 'Test content',
-                  format: 0,
-                  detail: 0,
-                  mode: 'normal',
-                  style: '',
-                }],
+                children: [
+                  {
+                    type: 'text',
+                    version: 1,
+                    text: 'Test content',
+                    format: 0,
+                    detail: 0,
+                    mode: 'normal',
+                    style: '',
+                  },
+                ],
               },
             ],
             direction: 'ltr',
@@ -320,6 +368,88 @@ export const testData = {
     })) as Page
   },
 
+  /**
+   * Create a lesson unit
+   */
+  async createLessonUnit(
+    payload: Payload,
+    overrides: Partial<LessonUnit> = {},
+  ): Promise<LessonUnit> {
+    return (await payload.create({
+      collection: 'lesson-units',
+      data: {
+        title: 'Test Lesson Unit',
+        color: '#FF0000',
+        position: overrides.position || 1,
+        ...overrides,
+      },
+    })) as LessonUnit
+  },
+
+  /**
+   * Create a lesson with audio file
+   */
+  async createLesson(
+    payload: Payload,
+    overrides: Partial<Lesson> = {},
+  ): Promise<Lesson> {
+    // Create a default meditation if not provided
+    let meditation = overrides.meditation
+    if (!meditation) {
+      const defaultMeditation = await testData.createMeditation(payload)
+      meditation = defaultMeditation.id
+    }
+
+    // Create a default media if panels need images and they're not provided
+    let defaultMedia: Media | undefined
+    if (!overrides.panels || overrides.panels.length === 0) {
+      defaultMedia = await testData.createMediaImage(payload)
+    }
+
+    // Ensure panels have the correct structure with blockType
+    const panelsData = overrides.panels || [
+      {
+        blockType: 'text' as const,
+        title: 'Default Panel',
+        text: 'Default panel text',
+        image: defaultMedia!.id,
+      },
+    ]
+
+    // Add blockType to panels if missing
+    const formattedPanels = panelsData.map((panel: any) => {
+      if (!panel.blockType) {
+        // Default to text block if it has title/text/image fields
+        if ('title' in panel || 'text' in panel || 'image' in panel) {
+          return { ...panel, blockType: 'text' as const }
+        }
+        // Default to video block if it has video field
+        if ('video' in panel) {
+          return { ...panel, blockType: 'video' as const }
+        }
+      }
+      return panel
+    })
+
+    return (await payload.create({
+      collection: 'lessons',
+      data: {
+        title: overrides.title || 'Test Lesson',
+        shriMatajiQuote: overrides.shriMatajiQuote || 'Test quote from Shri Mataji',
+        panels: formattedPanels,
+        meditation: meditation as string,
+        introAudio: overrides.introAudio || undefined,
+        introSubtitles: overrides.introSubtitles || undefined,
+        article: overrides.article || undefined,
+      },
+    })) as Lesson
+  },
+
+  // Alias for createManager to maintain backward compatibility with tests
+  async createUser(payload: Payload, overrides: Partial<Manager> = {}) {
+    return this.createManager(payload, overrides)
+  },
+
   dummyUser(collection: 'managers' | 'clients', overrides: Partial<Manager | Client> = {}) {
     return {
       collection,
@@ -327,6 +457,6 @@ export const testData = {
       active: true,
       permissions: [],
       ...overrides,
-    } as any
+    } as TypedUser
   },
 }

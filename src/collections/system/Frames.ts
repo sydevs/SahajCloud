@@ -10,6 +10,7 @@ import {
   deleteThumbnailHook,
   setPreviewUrlHook,
 } from '@/lib/fieldUtils'
+import { MediaField } from '@/fields'
 
 export const Frames: CollectionConfig = {
   labels: {
@@ -48,7 +49,8 @@ export const Frames: CollectionConfig = {
     ],
   },
   admin: {
-    group: 'Resources',
+    hidden: ({ user }) => !user?.admin,
+    group: 'System',
     useAsTitle: 'filename',
     defaultColumns: ['category', 'tags', 'previewUrl', 'imageSet'],
   },
@@ -116,16 +118,15 @@ export const Frames: CollectionConfig = {
         { label: 'Tapping', value: 'tapping' },
       ],
     },
-    {
+    MediaField({
       name: 'thumbnail',
-      type: 'upload',
-      relationTo: 'media',
+      required: false,
       admin: {
         readOnly: true,
         description: 'Auto-generated thumbnail for video frames',
         condition: (data) => data?.mimeType?.startsWith('video/'),
       },
-    },
+    }),
     {
       name: 'duration',
       type: 'number',

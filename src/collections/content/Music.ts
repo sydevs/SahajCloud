@@ -1,7 +1,8 @@
 import type { CollectionConfig, Field } from 'payload'
 import { permissionBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { convertFile, generateSlug, processFile, sanitizeFilename } from '@/lib/fieldUtils'
+import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
+import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 
 export const Music: CollectionConfig = {
   slug: 'music',
@@ -20,7 +21,7 @@ export const Music: CollectionConfig = {
   hooks: {
     beforeOperation: [sanitizeFilename],
     beforeValidate: [processFile({})],
-    beforeChange: [generateSlug, convertFile],
+    beforeChange: [convertFile],
     afterRead: [trackClientUsageHook],
   },
   fields: [
@@ -31,15 +32,14 @@ export const Music: CollectionConfig = {
       localized: true,
       access: createFieldAccess('music', true),
     },
-    {
-      name: 'slug',
-      type: 'text',
-      unique: true,
-      admin: {
-        position: 'sidebar',
-        readOnly: true,
+    ...SlugField('title', {
+      slugOverrides: {
+        unique: true,
+        admin: {
+          position: 'sidebar',
+        },
       },
-    },
+    }),
     {
       name: 'tags',
       type: 'relationship',

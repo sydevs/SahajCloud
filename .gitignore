@@ -44,6 +44,7 @@ next-env.d.ts
 
 # Migration cache
 /migration-cache
+/import-storyblok
 
 # Playwright
 node_modules/

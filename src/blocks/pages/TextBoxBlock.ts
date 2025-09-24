@@ -1,5 +1,6 @@
 import { Block } from 'payload'
 import { validateCharacterCount } from '@/lib/validators/characterCount'
+import { MediaField } from '@/fields'
 
 export const TextBoxBlock: Block = {
   slug: 'textbox',
@@ -53,14 +54,13 @@ export const TextBoxBlock: Block = {
         description: 'Main content text (max 250 characters)',
       },
     },
-    {
+    MediaField({
       name: 'image',
-      type: 'upload',
-      relationTo: 'media',
+      orientation: 'portrait',
       admin: {
         description: 'Optional image to accompany the content',
       },
-    },
+    }),
     {
       name: 'link',
       type: 'text',

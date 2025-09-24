@@ -59,7 +59,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           defaultJobsCollection.admin = {}
         }
 
-        defaultJobsCollection.admin.hidden = false
+        defaultJobsCollection.admin.hidden = ({ user }) => !user?.admin
         defaultJobsCollection.access = adminOnlyAccess()
         return defaultJobsCollection
       },
@@ -74,27 +74,27 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     ...(isTestEnvironment
       ? {}
       : {
-          email: nodemailerAdapter(
-            isProduction
-              ? {
-                  defaultFromAddress: process.env.SMTP_FROM || 'contact@sydevelopers.com',
-                  defaultFromName: 'SY Developers',
-                  transportOptions: {
-                    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-                    port: Number(process.env.SMTP_PORT) || 587,
-                    secure: false, // Use STARTTLS
-                    auth: {
-                      user: process.env.SMTP_USER,
-                      pass: process.env.SMTP_PASS,
-                    },
-                  },
-                }
-              : {
-                  defaultFromAddress: 'dev@sydevelopers.com',
-                  defaultFromName: 'SY Developers (Dev)',
-                  // No transportOptions - uses Ethereal Email in development
-                },
-          ),
+          // email: nodemailerAdapter(
+          //   isProduction
+          //     ? {
+          //         defaultFromAddress: process.env.SMTP_FROM || 'contact@sydevelopers.com',
+          //         defaultFromName: 'SY Developers',
+          //         transportOptions: {
+          //           host: process.env.SMTP_HOST || 'smtp.gmail.com',
+          //           port: Number(process.env.SMTP_PORT) || 587,
+          //           secure: false, // Use STARTTLS
+          //           auth: {
+          //             user: process.env.SMTP_USER,
+          //             pass: process.env.SMTP_PASS,
+          //           },
+          //         },
+          //       }
+          //     : {
+          //         defaultFromAddress: 'dev@sydevelopers.com',
+          //         defaultFromName: 'SY Developers (Dev)',
+          //         // No transportOptions - uses Ethereal Email in development
+          //       },
+          // ),
         }),
     sharp,
     plugins: [
@@ -115,7 +115,13 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           },
         },
         formSubmissionOverrides: {
+          access: {
+            update: () => false,
+            create: () => false,
+            delete: () => false,
+          },
           admin: {
+            hidden: ({ user }) => !user?.admin,
             group: 'System',
           },
         },

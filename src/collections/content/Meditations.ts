@@ -1,8 +1,10 @@
-import type { CollectionConfig, Validate } from 'payload'
+import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { convertFile, generateSlug, processFile, sanitizeFilename } from '@/lib/fieldUtils'
+import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
 import { KeyframeData, KeyframeDefinition } from '@/components/admin/MeditationFrameEditor/types'
+import { MediaField } from '@/fields'
+import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
@@ -22,7 +24,7 @@ export const Meditations: CollectionConfig = {
   hooks: {
     beforeOperation: [sanitizeFilename],
     beforeValidate: [processFile({})],
-    beforeChange: [generateSlug, convertFile],
+    beforeChange: [convertFile],
     afterRead: [trackClientUsageHook],
   },
   fields: [
@@ -59,50 +61,19 @@ export const Meditations: CollectionConfig = {
         },
       },
     },
-    {
-      name: 'slug',
-      type: 'text',
-      unique: true,
-      admin: {
-        position: 'sidebar',
-        readOnly: true,
-      },
-    },
-    {
-      name: 'thumbnail',
-      type: 'upload',
-      relationTo: 'media',
-      required: true,
-      admin: {
-        components: {
-          Cell: {
-            path: '@/components/admin/ThumbnailCell#default',
-            clientProps: {
-              aspectRatio: '16:9',
-              size: 'large',
-            },
-          },
+    ...SlugField('title', {
+      slugOverrides: {
+        unique: true,
+        admin: {
+          position: 'sidebar',
         },
       },
-      validate: (async (value, { req }) => {
-        if (!value) return true // Required validation handles this
-
-        try {
-          const media = await req.payload.findByID({
-            collection: 'media',
-            id: value,
-          })
-
-          if (!media.mimeType || !media.mimeType.startsWith('image/')) {
-            return 'Thumbnail must be an image file'
-          }
-
-          return true
-        } catch (_error) {
-          return 'Invalid media file'
-        }
-      }) as Validate,
-    },
+    }),
+    MediaField({
+      name: 'thumbnail',
+      required: true,
+      orientation: 'landscape',
+    }),
     {
       name: 'duration',
       type: 'number',

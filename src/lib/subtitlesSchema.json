@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "properties": {
+    "captions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "duration": {
+            "type": "integer"
+          },
+          "content": {
+            "type": "string"
+          },
+          "startOfParagraph": {
+            "type": "null"
+          },
+          "startTime": {
+            "type": "string"
+          }
+        },
+        "required": ["duration", "content", "startOfParagraph", "startTime"]
+      }
+    }
+  },
+  "required": ["captions"]
+}

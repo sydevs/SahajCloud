@@ -68,12 +68,16 @@ export interface Config {
   };
   blocks: {};
   collections: {
-    meditations: Meditation;
-    music: Music;
     pages: Page;
+    meditations: Meditation;
+    'lesson-units': LessonUnit;
+    lessons: Lesson;
+    music: Music;
+    'external-videos': ExternalVideo;
     frames: Frame;
-    media: Media;
     narrators: Narrator;
+    media: Media;
+    'file-attachments': FileAttachment;
     'media-tags': MediaTag;
     'meditation-tags': MeditationTag;
     'music-tags': MusicTag;
@@ -98,12 +102,16 @@ export interface Config {
     };
   };
   collectionsSelect: {
-    meditations: MeditationsSelect<false> | MeditationsSelect<true>;
-    music: MusicSelect<false> | MusicSelect<true>;
     pages: PagesSelect<false> | PagesSelect<true>;
+    meditations: MeditationsSelect<false> | MeditationsSelect<true>;
+    'lesson-units': LessonUnitsSelect<false> | LessonUnitsSelect<true>;
+    lessons: LessonsSelect<false> | LessonsSelect<true>;
+    music: MusicSelect<false> | MusicSelect<true>;
+    'external-videos': ExternalVideosSelect<false> | ExternalVideosSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
-    media: MediaSelect<false> | MediaSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
+    media: MediaSelect<false> | MediaSelect<true>;
+    'file-attachments': FileAttachmentsSelect<false> | FileAttachmentsSelect<true>;
     'media-tags': MediaTagsSelect<false> | MediaTagsSelect<true>;
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
     'music-tags': MusicTagsSelect<false> | MusicTagsSelect<true>;
@@ -137,6 +145,7 @@ export interface Config {
     tasks: {
       resetClientUsage: TaskResetClientUsage;
       trackClientUsage: TaskTrackClientUsage;
+      cleanupOrphanedFiles: TaskCleanupOrphanedFiles;
       inline: {
         input: unknown;
         output: unknown;
@@ -183,58 +192,43 @@ export interface ClientAuthOperations {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditations".
+ * via the `definition` "pages".
  */
-export interface Meditation {
+export interface Page {
   id: string;
   title: string;
-  locale: 'en' | 'cs';
-  publishAt?: string | null;
+  content?: {
+    root: {
+      type: string;
+      children: {
+        type: string;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  meta?: {
+    title?: string | null;
+    description?: string | null;
+    /**
+     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
+     */
+    image?: (string | null) | Media;
+  };
   slug?: string | null;
-  thumbnail: string | Media;
-  /**
-   * Duration in seconds
-   */
-  duration?: number | null;
-  narrator: string | Narrator;
-  tags?: (string | MeditationTag)[] | null;
-  /**
-   * Music with this tag will be offered to the seeker
-   */
-  musicTag?: (string | null) | MusicTag;
-  /**
-   * Frames associated with this meditation with audio-synchronized editing
-   */
-  frames?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  slugLock?: boolean | null;
+  publishAt?: string | null;
+  category: 'technique' | 'artwork' | 'event' | 'knowledge';
+  tags?: ('living' | 'creativity' | 'wisdom' | 'stories' | 'events')[] | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -244,13 +238,13 @@ export interface Media {
   id: string;
   alt: string;
   /**
-   * Tags to categorize this image
-   */
-  tags?: (string | MediaTag)[] | null;
-  /**
    * Attribution or copyright information
    */
   credit?: string | null;
+  /**
+   * Tags to categorize this image
+   */
+  tags?: (string | MediaTag)[] | null;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -260,6 +254,10 @@ export interface Media {
     | number
     | boolean
     | null;
+  /**
+   * Hide from selection in upload fields (e.g., for auto-generated thumbnails)
+   */
+  hidden?: boolean | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -312,6 +310,62 @@ export interface MediaTag {
   };
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditations".
+ */
+export interface Meditation {
+  id: string;
+  title: string;
+  locale: 'en' | 'cs';
+  publishAt?: string | null;
+  slug?: string | null;
+  slugLock?: boolean | null;
+  thumbnail: string | Media;
+  /**
+   * Duration in seconds
+   */
+  duration?: number | null;
+  narrator: string | Narrator;
+  tags?: (string | MeditationTag)[] | null;
+  /**
+   * Music with this tag will be offered to the seeker
+   */
+  musicTag?: (string | null) | MusicTag;
+  /**
+   * Frames associated with this meditation with audio-synchronized editing
+   */
+  frames?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  fileMetadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -376,6 +430,7 @@ export interface Music {
   id: string;
   title: string;
   slug?: string | null;
+  slugLock?: boolean | null;
   tags?: (string | MusicTag)[] | null;
   /**
    * Attribution or credit information
@@ -405,12 +460,70 @@ export interface Music {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "pages".
+ * via the `definition` "lesson-units".
  */
-export interface Page {
+export interface LessonUnit {
   id: string;
   title: string;
-  content?: {
+  color: string;
+  position: number;
+  steps?:
+    | {
+        lesson?: (string | null) | Lesson;
+        icon: string | FileAttachment;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lessons".
+ */
+export interface Lesson {
+  id: string;
+  title: string;
+  shriMatajiQuote: string;
+  /**
+   * Story panels to introduce this lesson.
+   */
+  panels: (
+    | {
+        video?: (string | null) | FileAttachment;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'video';
+      }
+    | {
+        title: string;
+        text: string;
+        image: string | Media;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'text';
+      }
+  )[];
+  /**
+   * Link to a related guided meditation that complements this lesson content.
+   */
+  meditation: string | Meditation;
+  /**
+   * Link to a related guided meditation that complements this lesson content.
+   */
+  introAudio?: (string | null) | FileAttachment;
+  introSubtitles?: {
+    captions: {
+      duration: number;
+      content: string;
+      startOfParagraph: null;
+      startTime: string;
+      [k: string]: unknown;
+    }[];
+    [k: string]: unknown;
+  };
+  article?: {
     root: {
       type: string;
       children: {
@@ -425,23 +538,53 @@ export interface Page {
     };
     [k: string]: unknown;
   } | null;
-  meta?: {
-    title?: string | null;
-    description?: string | null;
-    /**
-     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
-     */
-    image?: (string | null) | Media;
-  };
-  slug?: string | null;
-  slugLock?: boolean | null;
-  publishAt?: string | null;
-  category: 'technique' | 'artwork' | 'event' | 'knowledge';
-  tags?: ('living' | 'creativity' | 'wisdom' | 'stories' | 'events')[] | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
   _status?: ('draft' | 'published') | null;
+}
+/**
+ * These are file attachments uploaded to support other collections. These should not be reused and will be deleted whenever their owner is deleted.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "file-attachments".
+ */
+export interface FileAttachment {
+  id: string;
+  owner?:
+    | ({
+        relationTo: 'lessons';
+        value: string | Lesson;
+      } | null)
+    | ({
+        relationTo: 'lesson-units';
+        value: string | LessonUnit;
+      } | null);
+  createdAt: string;
+  updatedAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "external-videos".
+ */
+export interface ExternalVideo {
+  id: string;
+  title: string;
+  thumbnail: string | Media;
+  videoUrl: string;
+  subtitlesUrl?: string | null;
+  category?: ('shri-mataji' | 'techniques' | 'other')[] | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -557,7 +700,7 @@ export interface Manager {
         /**
          * Select the collection to grant permissions for
          */
-        allowedCollection: 'meditations' | 'music' | 'frames' | 'media';
+        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'lessons' | 'pages' | 'external-videos';
         /**
          * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
          */
@@ -613,7 +756,7 @@ export interface Client {
         /**
          * Select the collection to grant permissions for
          */
-        allowedCollection: 'meditations' | 'music' | 'frames' | 'media';
+        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'lessons' | 'pages' | 'external-videos';
         /**
          * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
          */
@@ -919,7 +1062,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'resetClientUsage' | 'trackClientUsage';
+        taskSlug: 'inline' | 'resetClientUsage' | 'trackClientUsage' | 'cleanupOrphanedFiles';
         taskID: string;
         input?:
           | {
@@ -952,7 +1095,7 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'resetClientUsage' | 'trackClientUsage') | null;
+  taskSlug?: ('inline' | 'resetClientUsage' | 'trackClientUsage' | 'cleanupOrphanedFiles') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -976,28 +1119,44 @@ export interface PayloadLockedDocument {
   id: string;
   document?:
     | ({
+        relationTo: 'pages';
+        value: string | Page;
+      } | null)
+    | ({
         relationTo: 'meditations';
         value: string | Meditation;
+      } | null)
+    | ({
+        relationTo: 'lesson-units';
+        value: string | LessonUnit;
+      } | null)
+    | ({
+        relationTo: 'lessons';
+        value: string | Lesson;
       } | null)
     | ({
         relationTo: 'music';
         value: string | Music;
       } | null)
     | ({
-        relationTo: 'pages';
-        value: string | Page;
+        relationTo: 'external-videos';
+        value: string | ExternalVideo;
       } | null)
     | ({
         relationTo: 'frames';
         value: string | Frame;
       } | null)
     | ({
+        relationTo: 'narrators';
+        value: string | Narrator;
+      } | null)
+    | ({
         relationTo: 'media';
         value: string | Media;
       } | null)
     | ({
-        relationTo: 'narrators';
-        value: string | Narrator;
+        relationTo: 'file-attachments';
+        value: string | FileAttachment;
       } | null)
     | ({
         relationTo: 'media-tags';
@@ -1085,6 +1244,30 @@ export interface PayloadMigration {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pages_select".
+ */
+export interface PagesSelect<T extends boolean = true> {
+  title?: T;
+  content?: T;
+  meta?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        image?: T;
+      };
+  slug?: T;
+  slugLock?: T;
+  publishAt?: T;
+  category?: T;
+  tags?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "meditations_select".
  */
 export interface MeditationsSelect<T extends boolean = true> {
@@ -1092,6 +1275,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   locale?: T;
   publishAt?: T;
   slug?: T;
+  slugLock?: T;
   thumbnail?: T;
   duration?: T;
   narrator?: T;
@@ -1114,11 +1298,67 @@ export interface MeditationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lesson-units_select".
+ */
+export interface LessonUnitsSelect<T extends boolean = true> {
+  title?: T;
+  color?: T;
+  position?: T;
+  steps?:
+    | T
+    | {
+        lesson?: T;
+        icon?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lessons_select".
+ */
+export interface LessonsSelect<T extends boolean = true> {
+  title?: T;
+  shriMatajiQuote?: T;
+  panels?:
+    | T
+    | {
+        video?:
+          | T
+          | {
+              video?: T;
+              id?: T;
+              blockName?: T;
+            };
+        text?:
+          | T
+          | {
+              title?: T;
+              text?: T;
+              image?: T;
+              id?: T;
+              blockName?: T;
+            };
+      };
+  meditation?: T;
+  introAudio?: T;
+  introSubtitles?: T;
+  article?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "music_select".
  */
 export interface MusicSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
+  slugLock?: T;
   tags?: T;
   credit?: T;
   fileMetadata?: T;
@@ -1137,27 +1377,16 @@ export interface MusicSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "pages_select".
+ * via the `definition` "external-videos_select".
  */
-export interface PagesSelect<T extends boolean = true> {
+export interface ExternalVideosSelect<T extends boolean = true> {
   title?: T;
-  content?: T;
-  meta?:
-    | T
-    | {
-        title?: T;
-        description?: T;
-        image?: T;
-      };
-  slug?: T;
-  slugLock?: T;
-  publishAt?: T;
+  thumbnail?: T;
+  videoUrl?: T;
+  subtitlesUrl?: T;
   category?: T;
-  tags?: T;
   updatedAt?: T;
   createdAt?: T;
-  deletedAt?: T;
-  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1209,13 +1438,24 @@ export interface FramesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "narrators_select".
+ */
+export interface NarratorsSelect<T extends boolean = true> {
+  name?: T;
+  gender?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "media_select".
  */
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
-  tags?: T;
   credit?: T;
+  tags?: T;
   fileMetadata?: T;
+  hidden?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -1264,13 +1504,21 @@ export interface MediaSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "narrators_select".
+ * via the `definition` "file-attachments_select".
  */
-export interface NarratorsSelect<T extends boolean = true> {
-  name?: T;
-  gender?: T;
-  updatedAt?: T;
+export interface FileAttachmentsSelect<T extends boolean = true> {
+  owner?: T;
   createdAt?: T;
+  updatedAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1630,6 +1878,17 @@ export interface TaskTrackClientUsage {
     clientId: string;
   };
   output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskCleanupOrphanedFiles".
+ */
+export interface TaskCleanupOrphanedFiles {
+  input?: unknown;
+  output: {
+    deletedCount: number;
+    skippedCount: number;
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

@@ -1,6 +1,7 @@
 import { Manager } from '@/payload-types'
 import type {
   CollectionConfig,
+  CollectionSlug,
   Field,
   FieldBase,
   Operation,
@@ -11,7 +12,15 @@ import type {
 const PERMISSION_LEVELS = ['read', 'translate', 'manage'] as const
 type PermissionLevel = (typeof PERMISSION_LEVELS)[number]
 
-export const PERMISSION_COLLECTIONS = ['meditations', 'music', 'frames', 'media'] as const
+export const PERMISSION_COLLECTIONS = [
+  'meditations',
+  'music',
+  'frames',
+  'media',
+  'lessons',
+  'pages',
+  'external-videos',
+] as const
 type PermissionCollection = (typeof PERMISSION_COLLECTIONS)[number]
 
 type AvailableLocale = 'en' | 'cs'
@@ -136,11 +145,10 @@ export const createFieldAccess = (collection: string, localized: boolean): Field
  * New permission-based access control for collections that should be accessible to API clients
  */
 export const permissionBasedAccess = (
-  collection: string,
+  collection: CollectionSlug,
   access: CollectionConfig['access'] = {},
 ): CollectionConfig['access'] => {
   return {
-    ...access,
     read: ({ req: { user } }) => {
       const hasAccess = hasPermission({ operation: 'read', user, collection })
       if (!hasAccess) return false
@@ -161,6 +169,7 @@ export const permissionBasedAccess = (
     delete: ({ req: { user } }) => {
       return hasPermission({ operation: 'delete', user, collection })
     },
+    ...access,
   }
 }
 

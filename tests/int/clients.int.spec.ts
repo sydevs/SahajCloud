@@ -1,5 +1,5 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Client, User } from '@/payload-types'
+import type { Client, Manager } from '@/payload-types'
 import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
 import { testData } from '../utils/testData'
@@ -7,8 +7,8 @@ import { testData } from '../utils/testData'
 describe('Clients Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let testUser: User
-  let testUser2: User
+  let testUser: Manager
+  let testUser2: Manager
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
@@ -16,13 +16,13 @@ describe('Clients Collection', () => {
     cleanup = testEnv.cleanup
 
     // Create test users
-    testUser = await testData.createUser(payload, {
+    testUser = await testData.createManager(payload, {
       name: 'Client Manager',
       email: 'client-manager@example.com',
       password: 'password123',
     })
 
-    testUser2 = await testData.createUser(payload, {
+    testUser2 = await testData.createManager(payload, {
       name: 'Client Manager 2',
       email: 'client-manager2@example.com',
       password: 'password123',
@@ -47,19 +47,20 @@ describe('Clients Collection', () => {
       expect(client.notes).toBe('A test client application')
       expect(client.permissions).toBeDefined()
       expect(client.active).toBe(true)
-      
+
       // Check managers - may be populated objects or IDs
-      const managerIds = Array.isArray(client.managers) 
-        ? client.managers.map(m => typeof m === 'string' ? m : m.id)
+      const managerIds = Array.isArray(client.managers)
+        ? client.managers.map((m) => (typeof m === 'string' ? m : m.id))
         : []
       expect(managerIds).toContain(testUser.id)
-      
+
       // Check primary contact - may be populated object or ID
-      const primaryContactId = typeof client.primaryContact === 'string' 
-        ? client.primaryContact 
-        : client.primaryContact?.id
+      const primaryContactId =
+        typeof client.primaryContact === 'string'
+          ? client.primaryContact
+          : client.primaryContact?.id
       expect(primaryContactId).toBe(testUser.id)
-      
+
       // API key should not be generated yet
       expect(client.apiKey).toBeNull()
       expect(client.usageStats).toBeDefined()
@@ -74,29 +75,30 @@ describe('Clients Collection', () => {
       })
 
       // Primary contact should be automatically added to managers
-      const managerIds = Array.isArray(client.managers) 
-        ? client.managers.map(m => typeof m === 'string' ? m : m.id)
+      const managerIds = Array.isArray(client.managers)
+        ? client.managers.map((m) => (typeof m === 'string' ? m : m.id))
         : []
       expect(managerIds).toContain(testUser.id)
       expect(managerIds).toContain(testUser2.id)
-      
-      const primaryContactId = typeof client.primaryContact === 'string' 
-        ? client.primaryContact 
-        : client.primaryContact?.id
+
+      const primaryContactId =
+        typeof client.primaryContact === 'string'
+          ? client.primaryContact
+          : client.primaryContact?.id
       expect(primaryContactId).toBe(testUser2.id)
     })
 
     it('updates client information', async () => {
-      const client = await testData.createClient(payload,)
+      const client = await testData.createClient(payload)
 
-      const updated = await payload.update({
+      const updated = (await payload.update({
         collection: 'clients',
         id: client.id,
         data: {
           name: 'Updated Client Name',
           active: false,
         },
-      }) as Client
+      })) as Client
 
       expect(updated.name).toBe('Updated Client Name')
       expect(updated.active).toBe(false)
@@ -115,7 +117,7 @@ describe('Clients Collection', () => {
         payload.findByID({
           collection: 'clients',
           id: client.id,
-        })
+        }),
       ).rejects.toThrow()
     })
   })
@@ -131,7 +133,7 @@ describe('Clients Collection', () => {
             primaryContact: testUser.id,
             active: true,
           } as any,
-        })
+        }),
       ).rejects.toThrow()
     })
 
@@ -145,7 +147,7 @@ describe('Clients Collection', () => {
             primaryContact: testUser.id,
             active: true,
           } as any,
-        })
+        }),
       ).rejects.toThrow()
     })
 
@@ -159,7 +161,7 @@ describe('Clients Collection', () => {
             managers: [testUser.id],
             active: true,
           } as any,
-        })
+        }),
       ).rejects.toThrow()
     })
   })
@@ -171,13 +173,14 @@ describe('Clients Collection', () => {
         primaryContact: testUser2.id,
       })
 
-      const primaryContactId = typeof client.primaryContact === 'string' 
-        ? client.primaryContact 
-        : client.primaryContact?.id
+      const primaryContactId =
+        typeof client.primaryContact === 'string'
+          ? client.primaryContact
+          : client.primaryContact?.id
       expect(primaryContactId).toBe(testUser2.id)
-      
-      const managerIds = Array.isArray(client.managers) 
-        ? client.managers.map(m => typeof m === 'string' ? m : m.id)
+
+      const managerIds = Array.isArray(client.managers)
+        ? client.managers.map((m) => (typeof m === 'string' ? m : m.id))
         : []
       expect(managerIds).toContain(testUser2.id)
     })
@@ -186,7 +189,7 @@ describe('Clients Collection', () => {
   describe('Usage Stats', () => {
     it('initializes usage stats on creation', async () => {
       const client = await testData.createClient(payload)
-      
+
       expect(client.usageStats).toBeDefined()
       expect(client.usageStats?.totalRequests).toBe(0)
       expect(client.usageStats?.dailyRequests).toBe(0)

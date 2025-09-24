@@ -5,7 +5,6 @@ import {
   CollectionBeforeChangeHook,
   CollectionBeforeOperationHook,
   CollectionBeforeValidateHook,
-  FieldHook,
 } from 'payload'
 import { PayloadRequest } from 'payload'
 import sharp from 'sharp'
@@ -13,7 +12,6 @@ import slugify from 'slugify'
 import { extractFileMetadata, extractVideoThumbnail } from './fileUtils'
 import tmp from 'tmp'
 import fs from 'fs'
-import { KeyframeData } from '@/components/admin/MeditationFrameEditor/types'
 
 type FileType = 'image' | 'audio' | 'video'
 
@@ -141,6 +139,7 @@ export const generateVideoThumbnailHook: CollectionAfterChangeHook = async ({
       collection: 'media',
       data: {
         alt: `Thumbnail for ${doc.filename}`,
+        hidden: true,
       },
       filePath: tmpFile.name,
     })
@@ -214,19 +213,4 @@ export const setPreviewUrlHook: CollectionAfterReadHook = async ({ doc, req }) =
   }
 
   return doc
-}
-
-export const generateSlug: CollectionBeforeChangeHook = async ({
-  data,
-  operation,
-  originalDoc,
-}) => {
-  // Generate slug from title
-  if (operation === 'create' && data.title && !data.slug) {
-    data.slug = slugify(data.title, { strict: true, lower: true })
-  } else if (operation === 'update' && originalDoc) {
-    data.slug = originalDoc.slug
-  }
-
-  return data
 }

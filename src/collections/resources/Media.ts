@@ -10,7 +10,10 @@ export const Media: CollectionConfig = {
     useAsTitle: 'filename',
     defaultColumns: ['filename', 'alt', 'credit', 'tags'],
   },
-  access: permissionBasedAccess('media'),
+  access: permissionBasedAccess('media', {
+    delete: () => false,
+  }),
+  disableDuplicate: true,
   upload: {
     staticDir: 'media/media',
     hideRemoveFile: true,
@@ -55,18 +58,20 @@ export const Media: CollectionConfig = {
       },
     ],
   },
-  hooks: {
-    beforeOperation: [sanitizeFilename],
-    beforeValidate: [processFile({})],
-    beforeChange: [convertFile],
-    afterRead: [trackClientUsageHook],
-  },
   fields: [
     {
       name: 'alt',
       type: 'text',
       required: true,
       localized: true,
+    },
+    {
+      name: 'credit',
+      type: 'text',
+      localized: true,
+      admin: {
+        description: 'Attribution or copyright information',
+      },
     },
     {
       name: 'tags',
@@ -78,14 +83,6 @@ export const Media: CollectionConfig = {
       },
     },
     {
-      name: 'credit',
-      type: 'text',
-      localized: true,
-      admin: {
-        description: 'Attribution or copyright information',
-      },
-    },
-    {
       name: 'fileMetadata',
       type: 'json',
       admin: {
@@ -93,5 +90,21 @@ export const Media: CollectionConfig = {
         readOnly: true,
       },
     },
+    {
+      name: 'hidden',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        readOnly: true,
+        description: 'Hide from selection in upload fields (e.g., for auto-generated thumbnails)',
+        position: 'sidebar',
+      },
+    },
   ],
+  hooks: {
+    beforeOperation: [sanitizeFilename],
+    beforeValidate: [processFile({})],
+    beforeChange: [convertFile],
+    afterRead: [trackClientUsageHook],
+  },
 }

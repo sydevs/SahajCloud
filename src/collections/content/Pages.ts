@@ -1,8 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
-import { generateSlug } from '@/lib/fieldUtils'
 import { fullRichTextEditor } from '@/lib/richEditor'
-import { TextBoxBlock, LayoutBlock, GalleryBlock, ButtonBlock } from '@/blocks'
+import { TextBoxBlock, LayoutBlock, GalleryBlock, ButtonBlock, QuoteBlock } from '@/blocks/pages'
 import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 
 export const Pages: CollectionConfig = {
@@ -13,9 +12,6 @@ export const Pages: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'category', 'publishAt'],
-  },
-  hooks: {
-    beforeChange: [generateSlug],
   },
   versions: {
     maxPerDoc: 50,
@@ -38,13 +34,26 @@ export const Pages: CollectionConfig = {
               name: 'content',
               type: 'richText',
               localized: true,
-              editor: fullRichTextEditor([TextBoxBlock, LayoutBlock, GalleryBlock, ButtonBlock]),
+              editor: fullRichTextEditor([
+                TextBoxBlock,
+                LayoutBlock,
+                GalleryBlock,
+                ButtonBlock,
+                QuoteBlock,
+              ]),
             },
           ],
         },
       ],
     },
-    ...SlugField('title'),
+    ...SlugField('title', {
+      slugOverrides: {
+        unique: true,
+        admin: {
+          position: 'sidebar',
+        },
+      },
+    }),
     {
       name: 'publishAt',
       type: 'date',

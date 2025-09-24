@@ -10,6 +10,7 @@ import {
   BlocksFeature,
   RelationshipFeature,
   HeadingFeature,
+  UploadFeature,
 } from '@payloadcms/richtext-lexical'
 import { Block } from 'payload'
 
@@ -37,8 +38,14 @@ export const fullRichTextEditor = (blocks?: Block[]) =>
       InlineToolbarFeature(),
       HeadingFeature({ enabledHeadingSizes: ['h1', 'h2'] }),
       RelationshipFeature({
-        enabledCollections: ['meditations', 'music', 'pages', 'forms'],
+        enabledCollections: ['meditations', 'pages', 'forms'],
         maxDepth: 1,
+      }),
+      UploadFeature({
+        collections: {
+          media: { fields: [] },
+          music: { fields: [] },
+        },
       }),
       ...(blocks ? [BlocksFeature({ blocks })] : []),
     ],
