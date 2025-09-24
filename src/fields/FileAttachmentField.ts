@@ -52,7 +52,7 @@ export function FileAttachmentField(options: FileAttachmentFieldOptions): Upload
     type: 'upload',
     relationTo: 'file-attachments',
     filterOptions: ({ data }): Where => {
-      // Only show file attachments owned by the current document
+      // Only show file attachments owned by the current document or orphan files
       // For new documents (no ID), show no existing file attachments
       // This allows upload but prevents selection of existing file attachments
       if (!data?.id) {
@@ -61,13 +61,24 @@ export function FileAttachmentField(options: FileAttachmentFieldOptions): Upload
         }
       }
 
-      const ownerFilter = {
-        'owner.value': {
-          equals: data.id,
-        },
-        'owner.relationTo': {
-          equals: ownerCollection, // Ensure we only get file attachments owned by the correct collection
-        },
+      const ownerFilter: Where = {
+        or: [
+          {
+            // Files owned by this document
+            'owner.value': {
+              equals: data.id,
+            },
+            'owner.relationTo': {
+              equals: ownerCollection,
+            },
+          },
+          {
+            // Orphan files (no owner set yet)
+            owner: {
+              exists: false,
+            },
+          },
+        ],
       }
 
       // If fileType is specified, add mimeType filtering
@@ -152,59 +163,42 @@ export const claimOrphanFileAttachmentsHook: CollectionAfterChangeHook = async (
   if (operation !== 'create' && operation !== 'update') {
     return
   }
-  console.log(
-    `Claiming ${orphanFileAttachments.length} orphan file attachments for ${operation} operation on ${collection.slug}:${doc.id}`,
-  )
 
-  try {
-    // Claim each orphan file attachment for this document
-    for (const fileId of orphanFileAttachments) {
-      await req.payload.update({
-        collection: 'file-attachments',
-        id: fileId,
-        data: {
-          owner: {
-            relationTo: collection.slug as any,
-            value: doc.id,
-          },
+  // Claim each orphan file attachment for this document
+  for (const fileId of orphanFileAttachments) {
+    await req.payload.update({
+      collection: 'file-attachments',
+      id: fileId,
+      data: {
+        owner: {
+          relationTo: collection.slug as any,
+          value: doc.id,
         },
-      })
-      console.log(`Claimed orphan file attachment ${fileId} for ${collection.slug}:${doc.id}`)
-    }
-
-    // Clear the context after claiming
-    req.context.orphanFiles = []
-  } catch (error) {
-    req.payload.logger.error(
-      `Error claiming orphan file attachments for ${collection.slug}:${doc.id}: ${error}`,
-    )
+      },
+    })
+    console.log(`Claimed orphan file attachment ${fileId} for ${collection.slug}:${doc.id}`)
   }
+
+  // Clear the context after claiming
+  req.context.orphanFiles = []
 }
 
 // Hook for cascade deletion of file attachments when owner is deleted
 export const deleteFileAttachmentsHook: CollectionAfterDeleteHook = async ({ id, req }) => {
-  try {
-    const fileAttachmentsToDelete = await req.payload.find({
-      collection: 'file-attachments',
-      where: {
-        'owner.value': {
-          equals: id,
-        },
+  const fileAttachmentsToDelete = await req.payload.find({
+    collection: 'file-attachments',
+    where: {
+      'owner.value': {
+        equals: id,
       },
-      limit: 1000,
+    },
+    limit: 1000,
+  })
+
+  for (const fileAttachment of fileAttachmentsToDelete.docs) {
+    await req.payload.delete({
+      collection: 'file-attachments',
+      id: fileAttachment.id,
     })
-
-    console.log(
-      `Cascade deleting ${fileAttachmentsToDelete.docs.length} file attachments for deleted document ${id}`,
-    )
-
-    for (const fileAttachment of fileAttachmentsToDelete.docs) {
-      await req.payload.delete({
-        collection: 'file-attachments',
-        id: fileAttachment.id,
-      })
-    }
-  } catch (error) {
-    req.payload.logger.error(`Error deleting file attachments for document ${id}: ${error}`)
   }
 }

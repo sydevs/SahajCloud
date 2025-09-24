@@ -3,6 +3,10 @@ import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { ColourTextField } from '@nouance/payload-better-fields-plugin/ColourText'
 import { FileAttachmentField } from '@/fields'
+import {
+  deleteFileAttachmentsHook,
+  claimOrphanFileAttachmentsHook,
+} from '@/fields/FileAttachmentField'
 
 export const LessonUnits: CollectionConfig = {
   slug: 'lesson-units',
@@ -64,5 +68,7 @@ export const LessonUnits: CollectionConfig = {
   ],
   hooks: {
     afterRead: [trackClientUsageHook],
+    afterChange: [claimOrphanFileAttachmentsHook],
+    afterDelete: [deleteFileAttachmentsHook],
   },
 }

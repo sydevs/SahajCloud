@@ -13,6 +13,7 @@ export const Media: CollectionConfig = {
   access: permissionBasedAccess('media', {
     delete: () => false,
   }),
+  disableDuplicate: true,
   upload: {
     staticDir: 'media/media',
     hideRemoveFile: true,

@@ -6,7 +6,6 @@ export const FileAttachmentOwnerSlugs = ['lessons', 'lesson-units']
 export const FileAttachments: CollectionConfig = {
   slug: 'file-attachments',
   access: permissionBasedAccess('file-attachments', {
-    update: () => false,
     delete: () => false,
   }),
   disableDuplicate: true,
@@ -19,6 +18,7 @@ export const FileAttachments: CollectionConfig = {
     defaultColumns: ['filename', 'createdAt'],
   },
   upload: {
+    hideRemoveFile: true,
     staticDir: 'media/files',
     mimeTypes: ['application/pdf', 'audio/mpeg', 'video/mpeg', 'image/webp'],
   },
@@ -27,8 +27,11 @@ export const FileAttachments: CollectionConfig = {
       name: 'owner',
       type: 'relationship',
       relationTo: ['lessons', 'lesson-units'],
-      required: false, // Changed to false to allow orphan files temporarily
+      required: false, // Allow orphan files temporarily until claimed by parent document
       maxDepth: 0,
+      admin: {
+        readOnly: true, // Prevent manual changes - owner is set automatically via hooks
+      },
     },
     {
       name: 'createdAt',
@@ -36,9 +39,6 @@ export const FileAttachments: CollectionConfig = {
       label: 'Uploaded At',
       admin: {
         readOnly: true,
-        date: {
-          displayFormat: 'MMM dd, yyyy h:mm a',
-        },
       },
     },
   ],
