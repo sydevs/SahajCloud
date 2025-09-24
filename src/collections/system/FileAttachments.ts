@@ -20,7 +20,7 @@ export const FileAttachments: CollectionConfig = {
   upload: {
     hideRemoveFile: true,
     staticDir: 'media/files',
-    mimeTypes: ['application/pdf', 'audio/mpeg', 'video/mpeg', 'image/webp'],
+    mimeTypes: ['application/pdf', 'audio/mpeg', 'video/mpeg', 'video/mp4', 'image/webp'],
   },
   fields: [
     {
