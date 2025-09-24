@@ -11,9 +11,7 @@ export const VideoStoryBlock: Block = {
     FileAttachmentField({
       name: 'video',
       ownerCollection: 'lessons',
-      admin: {
-        condition: (data) => data?.mimeType?.startsWith('video/'),
-      },
+      fileType: 'video',
     }),
   ],
 }

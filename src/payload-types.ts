@@ -470,7 +470,7 @@ export interface LessonUnit {
   steps?:
     | {
         lesson?: (string | null) | Lesson;
-        icon?: (string | null) | FileAttachment;
+        icon: string | FileAttachment;
         id?: string | null;
       }[]
     | null;

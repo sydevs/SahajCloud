@@ -18,6 +18,8 @@ export type FileAttachmentFieldOptions = {
   localized?: boolean
   /** The collection that owns these file attachments */
   ownerCollection?: CollectionSlug
+  /** Filter attachments by file type (image, audio, or video) */
+  fileType?: 'image' | 'audio' | 'video'
   /** Admin configuration overrides */
   admin?: Partial<UploadField['admin']>
 }
@@ -38,6 +40,7 @@ export function FileAttachmentField(options: FileAttachmentFieldOptions): Upload
     required = false,
     localized = false,
     ownerCollection = 'lessons',
+    fileType,
     admin = {},
   } = options
 
@@ -58,7 +61,7 @@ export function FileAttachmentField(options: FileAttachmentFieldOptions): Upload
         }
       }
 
-      return {
+      const ownerFilter = {
         'owner.value': {
           equals: data.id,
         },
@@ -66,6 +69,22 @@ export function FileAttachmentField(options: FileAttachmentFieldOptions): Upload
           equals: ownerCollection, // Ensure we only get file attachments owned by the correct collection
         },
       }
+
+      // If fileType is specified, add mimeType filtering
+      if (fileType) {
+        return {
+          and: [
+            ownerFilter,
+            {
+              mimeType: {
+                contains: `${fileType}/`, // e.g., 'audio/' matches 'audio/mpeg'
+              },
+            },
+          ],
+        }
+      }
+
+      return ownerFilter
     },
     hooks: {
       afterChange: [setFileOwnerHook],

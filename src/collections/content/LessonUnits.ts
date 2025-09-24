@@ -12,10 +12,11 @@ export const LessonUnits: CollectionConfig = {
     singular: 'Path Step',
     plural: 'Path Steps',
   },
+  defaultSort: 'position',
   admin: {
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'color'],
+    defaultColumns: ['title', 'color', 'position'],
   },
   fields: [
     {
@@ -56,9 +57,7 @@ export const LessonUnits: CollectionConfig = {
           name: 'icon',
           ownerCollection: 'lesson-units',
           required: true,
-          admin: {
-            condition: (data) => data?.mimeType?.startsWith('image/'),
-          },
+          fileType: 'image',
         }),
       ],
     },

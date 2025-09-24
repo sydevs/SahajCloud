@@ -76,10 +76,10 @@ export const Lessons: CollectionConfig = {
               name: 'introAudio',
               label: 'Intro Audio',
               ownerCollection: 'lessons',
+              fileType: 'audio',
               admin: {
                 description:
                   'Link to a related guided meditation that complements this lesson content.',
-                condition: (data) => data?.mimeType?.startsWith('audio/'),
               },
             }),
             {
