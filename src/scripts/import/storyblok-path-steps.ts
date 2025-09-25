@@ -6,12 +6,15 @@ import * as path from 'path'
 import { fileURLToPath } from 'url'
 import * as https from 'https'
 import * as http from 'http'
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { Lesson, LessonUnit, Media, ExternalVideo, FileAttachment } from '@/payload-types'
 import * as sharp from 'sharp'
+import * as dotenv from 'dotenv'
+import type { Payload } from 'payload'
+import type { Meditation } from '@/payload-types'
+
+// Load environment variables
+dotenv.config()
 
 const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 const CACHE_DIR = path.resolve(process.cwd(), 'import-cache/storyblok')
 const STATE_FILE = path.join(CACHE_DIR, 'import-state.json')
@@ -50,7 +53,7 @@ interface ScriptOptions {
 
 class StoryblokImporter {
   private token: string
-  private payload!: Awaited<ReturnType<typeof getPayload>>
+  private payload!: Payload
   private state: ImportState
   private options: ScriptOptions
 
@@ -518,7 +521,13 @@ class StoryblokImporter {
         const introStories = content.Intro_stories || []
         const sortedPanels = introStories.sort((a: any, b: any) => a.Order_number - b.Order_number)
 
-        const panels: Record<string, unknown>[] = []
+        const panels: Array<{
+          blockType: 'text' | 'video'
+          title?: string
+          text?: string
+          image?: string
+          video?: string
+        }> = []
         const lessonId = 'temp-' + Date.now()
 
         for (const panel of sortedPanels) {
@@ -526,13 +535,13 @@ class StoryblokImporter {
             const videoUrl = panel.Video.filename
             const videoId = await this.createFileAttachment(videoUrl, 'lessons', lessonId)
             panels.push({
-              blockType: 'video',
+              blockType: 'video' as const,
               video: videoId,
             })
           } else {
             const imageId = await this.createMediaFromUrl(panel.Image?.url || '', panel.Title)
             panels.push({
-              blockType: 'text',
+              blockType: 'text' as const,
               title: panel.Title || '',
               text: (panel.Text || '').replace(/\\n/g, '\n'),
               image: imageId,
@@ -540,11 +549,13 @@ class StoryblokImporter {
           }
         }
 
-        let meditationId = null
+        let meditationId: string | undefined = undefined
         if (content.Meditation_reference?.[0]) {
           const meditationTitle = content.Meditation_reference[0]
-          meditationId = await this.findMeditationByTitle(meditationTitle)
-          if (!meditationId) {
+          const foundId = await this.findMeditationByTitle(meditationTitle)
+          if (foundId) {
+            meditationId = foundId
+          } else {
             await this.log(
               `Warning: Meditation "${meditationTitle}" not found for ${story.name}`,
               true,
@@ -561,7 +572,7 @@ class StoryblokImporter {
           )
         }
 
-        let introSubtitles = null
+        let introSubtitles: Record<string, unknown> | undefined = undefined
         if (content.Audio_intro?.[0]?.Subtitles?.filename) {
           try {
             introSubtitles = await this.parseSubtitles(
@@ -575,7 +586,7 @@ class StoryblokImporter {
           }
         }
 
-        let article = null
+        let article: Record<string, unknown> | undefined = undefined
         if (content.Delving_deeper_article?.[0]?.Blocks) {
           article = await this.convertLexicalBlocks(content.Delving_deeper_article[0].Blocks)
         }
@@ -585,11 +596,11 @@ class StoryblokImporter {
           data: {
             title: story.name,
             shriMatajiQuote: content.Intro_quote || '',
-            panels,
-            meditation: meditationId,
-            introAudio: introAudioId,
-            introSubtitles,
-            article,
+            panels: panels as any,
+            meditation: meditationId || undefined,
+            introAudio: introAudioId || undefined,
+            introSubtitles: introSubtitles || undefined,
+            article: article || undefined,
           },
         })
 
@@ -610,7 +621,7 @@ class StoryblokImporter {
           if (panel.blockType === 'video' && panel.video) {
             await this.payload.update({
               collection: 'file-attachments',
-              id: panel.video,
+              id: panel.video as string,
               data: {
                 owner: {
                   relationTo: 'lessons',
@@ -673,7 +684,8 @@ class StoryblokImporter {
   async resetCollections() {
     await this.log('\n=== Resetting Collections ===')
 
-    const collections = ['lessons', 'lesson-units', 'file-attachments', 'external-videos']
+    const collections: Array<'lessons' | 'lesson-units' | 'file-attachments' | 'external-videos'> =
+      ['lessons', 'lesson-units', 'file-attachments', 'external-videos']
 
     for (const collection of collections) {
       await this.log(`Deleting all documents from ${collection}...`)
@@ -737,11 +749,13 @@ class StoryblokImporter {
     let filteredStories = stories
     if (this.options.unit) {
       const unitNum = parseInt(this.options.unit, 10)
-      filteredStories = stories.filter(
-        (s) =>
-          s.content.Step_info?.[0]?.Unit_number === unitNum ||
-          this.extractUnitFromSlug(s.slug) === unitNum,
-      )
+      filteredStories = stories.filter((s) => {
+        const content = s.content as Record<string, any>
+        return (
+          content.Step_info?.[0]?.Unit_number === unitNum ||
+          this.extractUnitFromSlug(s.slug) === unitNum
+        )
+      })
       await this.log(`Filtered to ${filteredStories.length} stories for unit ${unitNum}`)
     }
 
