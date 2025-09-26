@@ -135,11 +135,12 @@ const setFileOwnerHook: FieldHook = async ({ value, data, req, collection }) => 
     }
     const orphanFiles = req.context.orphanFiles as string[]
 
-    // Only add if not already tracked
-    if (!orphanFiles.includes(value as string)) {
-      orphanFiles.push(value as string)
+    // Handle both string IDs and full objects
+    const fileId = typeof value === 'string' ? value : (value as any)?.id
+    if (fileId && !orphanFiles.includes(fileId)) {
+      orphanFiles.push(fileId)
       console.log(
-        `FileAttachmentField: Tracked orphan file attachment ${value} for later assignment`,
+        `FileAttachmentField: Tracked orphan file attachment ${fileId} for later assignment`,
       )
     }
   }

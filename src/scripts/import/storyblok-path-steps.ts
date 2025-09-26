@@ -1,5 +1,9 @@
+import * as dotenv from 'dotenv'
+// Load environment variables FIRST before importing anything else
+dotenv.config()
+
 import { getPayload } from 'payload'
-import config from '@/payload.config'
+import { payloadConfig } from '@/payload.config'
 import * as fs from 'fs/promises'
 import { createWriteStream } from 'fs'
 import * as path from 'path'
@@ -7,12 +11,7 @@ import { fileURLToPath } from 'url'
 import * as https from 'https'
 import * as http from 'http'
 import * as sharp from 'sharp'
-import * as dotenv from 'dotenv'
 import type { Payload } from 'payload'
-import type { Meditation } from '@/payload-types'
-
-// Load environment variables
-dotenv.config()
 
 const __filename = fileURLToPath(import.meta.url)
 
@@ -185,7 +184,9 @@ class StoryblokImporter {
     }
 
     await this.log(`Fetching video story ${uuid}...`)
-    const response = await fetch(`https://api.storyblok.com/v2/cdn/stories/${uuid}?find_by=uuid&token=${this.token}`)
+    const response = await fetch(
+      `https://api.storyblok.com/v2/cdn/stories/${uuid}?find_by=uuid&token=${this.token}`,
+    )
     if (!response.ok) {
       throw new Error(`Storyblok API error: ${response.statusText}`)
     }
@@ -215,6 +216,9 @@ class StoryblokImporter {
   }
 
   async createMediaFromUrl(url: string, alt?: string): Promise<string> {
+    if (!url) {
+      throw new Error('URL is required for creating media')
+    }
     const filename = path.basename(url.split('?')[0])
     const destPath = path.join(CACHE_DIR, 'assets/images', filename)
 
@@ -240,9 +244,12 @@ class StoryblokImporter {
 
   async createFileAttachment(
     url: string,
-    ownerCollection: 'lessons' | 'lesson-units',
-    ownerId: string,
+    ownerCollection?: 'lessons' | 'lesson-units',
+    ownerId?: string,
   ): Promise<string> {
+    if (!url) {
+      throw new Error('URL is required for creating file attachment')
+    }
     const filename = path.basename(url.split('?')[0])
     const ext = path.extname(filename).toLowerCase()
     let destPath: string
@@ -272,14 +279,19 @@ class StoryblokImporter {
     }
 
     const fileBuffer = await fs.readFile(destPath)
+    const data: any = {}
+
+    // Only set owner if we have valid owner info and ownerId is not a temporary ID
+    if (ownerCollection && ownerId && !ownerId.startsWith('temp-')) {
+      data.owner = {
+        relationTo: ownerCollection,
+        value: ownerId,
+      }
+    }
+
     const attachment = await this.payload.create({
       collection: 'file-attachments',
-      data: {
-        owner: {
-          relationTo: ownerCollection,
-          value: ownerId,
-        },
-      },
+      data,
       file: {
         data: fileBuffer,
         name: path.basename(destPath),
@@ -291,7 +303,27 @@ class StoryblokImporter {
     return attachment.id as string
   }
 
+  async updateFileAttachmentOwner(
+    attachmentId: string,
+    ownerCollection: 'lessons' | 'lesson-units',
+    ownerId: string,
+  ): Promise<void> {
+    await this.payload.update({
+      collection: 'file-attachments',
+      id: attachmentId,
+      data: {
+        owner: {
+          relationTo: ownerCollection,
+          value: ownerId,
+        },
+      },
+    })
+  }
+
   async parseSubtitles(url: string): Promise<Record<string, unknown>> {
+    if (!url) {
+      throw new Error('URL is required for parsing subtitles')
+    }
     const filename = path.basename(url.split('?')[0])
     const destPath = path.join(CACHE_DIR, 'assets/subtitles', filename)
 
@@ -303,7 +335,8 @@ class StoryblokImporter {
   }
 
   async findMeditationByTitle(title: string): Promise<string | null> {
-    const result = await this.payload.find({
+    // First try exact match
+    let result = await this.payload.find({
       collection: 'meditations',
       where: {
         title: {
@@ -317,11 +350,37 @@ class StoryblokImporter {
       return result.docs[0].id as string
     }
 
+    // Get all meditations and filter in memory for more precise matching
+    result = await this.payload.find({
+      collection: 'meditations',
+      limit: 200, // Get all meditations
+    })
+
+    // Find meditation that starts with the title followed by a non-digit character
+    // This prevents "Step 1" from matching "Step 16" by requiring the number to be followed by : or - or space
+    const meditation = result.docs.find((doc) => {
+      const titleLower = doc.title?.toLowerCase() || ''
+      const searchLower = title.toLowerCase()
+
+      // Check if it starts with our search term followed by a non-digit character
+      return (
+        titleLower.startsWith(searchLower) &&
+        (titleLower.length === searchLower.length ||
+          !/\d/.test(titleLower.charAt(searchLower.length)))
+      )
+    })
+
+    if (meditation) {
+      return meditation.id as string
+    }
+
     return null
   }
 
   async convertLexicalBlocks(blocks: Record<string, unknown>[]): Promise<Record<string, unknown>> {
-    const sortedBlocks = blocks.sort((a, b) => ((a.Order as number) || 0) - ((b.Order as number) || 0))
+    const sortedBlocks = blocks.sort(
+      (a, b) => ((a.Order as number) || 0) - ((b.Order as number) || 0),
+    )
     const children: Record<string, unknown>[] = []
 
     for (const block of sortedBlocks) {
@@ -334,9 +393,7 @@ class StoryblokImporter {
               collection: 'external-videos',
               data: {
                 title: videoStory.name,
-                thumbnail: await this.createMediaFromUrl(
-                  content.Thumbnail?.filename || '',
-                ),
+                thumbnail: await this.createMediaFromUrl(content.Thumbnail?.filename || ''),
                 videoUrl: content.Video_URL || '',
                 subtitlesUrl: content.Subtitles?.filename || '',
                 category: ['shri-mataji'],
@@ -364,7 +421,11 @@ class StoryblokImporter {
               {
                 type: 'text',
                 version: 1,
-                text: (block.Text as string) || '',
+                text: this.processTextareaField((block.Text as string) || ''), // Rich text content
+                format: 0,
+                detail: 0,
+                mode: 'normal',
+                style: '',
               },
             ],
           })
@@ -379,7 +440,11 @@ class StoryblokImporter {
               {
                 type: 'text',
                 version: 1,
-                text: (block.Text as string) || '',
+                text: this.processTextareaField((block.Text as string) || ''), // Rich text content
+                format: 0,
+                detail: 0,
+                mode: 'normal',
+                style: '',
               },
             ],
           })
@@ -393,22 +458,53 @@ class StoryblokImporter {
               {
                 type: 'text',
                 version: 1,
-                text: (block.Text as string) || '',
+                text: this.processTextareaField((block.Text as string) || ''), // Rich text content
+                format: 0,
+                detail: 0,
+                mode: 'normal',
+                style: '',
               },
             ],
           })
           break
 
         case 'DD_Quote': {
+          // Convert quote blocks to blockquote paragraphs instead of custom blocks
           children.push({
-            type: 'block',
-            fields: {
-              blockType: 'quote',
-              text: (block.Text as string) || '',
-              author: (block.Author_name as string) || '',
-              subtitle: (block.Author_who_is as string) || '',
-            },
+            type: 'quote',
             version: 1,
+            children: [
+              {
+                type: 'paragraph',
+                version: 1,
+                children: [
+                  {
+                    type: 'text',
+                    version: 1,
+                    text: this.processTextareaField((block.Text as string) || ''), // Rich text content
+                    format: 0,
+                    detail: 0,
+                    mode: 'normal',
+                    style: '',
+                  },
+                ],
+              },
+              {
+                type: 'paragraph',
+                version: 1,
+                children: [
+                  {
+                    type: 'text',
+                    version: 1,
+                    text: `— ${this.processTextField((block.Author_name as string) || '')}, ${this.processTextField((block.Author_who_is as string) || '')}`, // Author names as text fields
+                    format: 2, // italic
+                    detail: 0,
+                    mode: 'normal',
+                    style: '',
+                  },
+                ],
+              },
+            ],
           })
           break
         }
@@ -419,14 +515,25 @@ class StoryblokImporter {
           const imageUrl = blockData.Image_link?.url || blockData.Image_URL?.url
           if (imageUrl) {
             const mediaId = await this.createMediaFromUrl(imageUrl as string)
-            children.push({
+            const captionText = this.processTextField((blockData.Caption_text as string) || '')
+
+            const uploadNode: Record<string, unknown> = {
               type: 'upload',
               relationTo: 'media',
               value: {
                 id: mediaId,
               },
               version: 1,
-            })
+            }
+
+            // Add caption field if caption text exists
+            if (captionText.trim()) {
+              uploadNode.fields = {
+                caption: captionText,
+              }
+            }
+
+            children.push(uploadNode)
           }
           break
         }
@@ -437,7 +544,7 @@ class StoryblokImporter {
       root: {
         type: 'root',
         children,
-        direction: null,
+        direction: 'ltr',
         format: '',
         indent: 0,
         version: 1,
@@ -454,8 +561,7 @@ class StoryblokImporter {
 
     for (const story of stories) {
       const content = story.content as Record<string, any>
-      const unitNumber =
-        content.Step_info?.[0]?.Unit_number || this.extractUnitFromSlug(story.slug)
+      const unitNumber = content.Step_info?.[0]?.Unit_number || this.extractUnitFromSlug(story.slug)
 
       if (!units.has(unitNumber)) {
         units.set(unitNumber, {
@@ -515,120 +621,161 @@ class StoryblokImporter {
         }
 
         const content = story.content as Record<string, any>
-        const unitNumber =
-          content.Step_info?.[0]?.Unit_number || this.extractUnitFromSlug(stepSlug)
+        const unitNumber = content.Step_info?.[0]?.Unit_number || this.extractUnitFromSlug(stepSlug)
 
         const introStories = content.Intro_stories || []
         const sortedPanels = introStories.sort((a: any, b: any) => a.Order_number - b.Order_number)
 
         const panels: Array<{
-          blockType: 'text' | 'video'
+          blockType: 'text' | 'video' | 'cover'
           title?: string
           text?: string
+          quote?: string
           image?: string
           video?: string
         }> = []
-        const lessonId = 'temp-' + Date.now()
-
         for (const panel of sortedPanels) {
-          if (panel.Video) {
-            const videoUrl = panel.Video.filename
-            const videoId = await this.createFileAttachment(videoUrl, 'lessons', lessonId)
-            panels.push({
-              blockType: 'video' as const,
-              video: videoId,
-            })
-          } else {
-            const imageId = await this.createMediaFromUrl(panel.Image?.url || '', panel.Title)
-            panels.push({
-              blockType: 'text' as const,
-              title: panel.Title || '',
-              text: (panel.Text || '').replace(/\\n/g, '\n'),
-              image: imageId,
-            })
+          try {
+            if (panel.Video && panel.Video.filename) {
+              const videoUrl = panel.Video.filename
+              const videoId = await this.createFileAttachment(videoUrl)
+              panels.push({
+                blockType: 'video' as const,
+                video: videoId,
+              })
+            } else if (panel.Image && panel.Image.url) {
+              const imageId = await this.createMediaFromUrl(panel.Image.url, panel.Title)
+              panels.push({
+                blockType: 'text' as const,
+                title: this.processTextField(panel.Title || ''), // Process as text field
+                text: this.processTextareaField(panel.Text || ''), // Process as textarea field
+                image: imageId,
+              })
+            } else {
+              await this.log(`Warning: Panel missing both video and image for ${story.name}`)
+            }
+          } catch (error) {
+            await this.log(`Error processing panel for ${story.name}: ${error}`, true)
           }
         }
 
         let meditationId: string | undefined = undefined
         if (content.Meditation_reference?.[0]) {
-          const meditationTitle = content.Meditation_reference[0]
-          const foundId = await this.findMeditationByTitle(meditationTitle)
-          if (foundId) {
-            meditationId = foundId
+          // Extract step number from story slug (e.g., "step-1" -> "1")
+          const stepMatch = stepSlug.match(/step-(\d+)/)
+          if (stepMatch) {
+            const stepNumber = stepMatch[1]
+            const expectedMeditationTitle = `Step ${stepNumber}`
+
+            const foundId = await this.findMeditationByTitle(expectedMeditationTitle)
+            if (foundId) {
+              meditationId = foundId
+              // Get the full meditation details to retrieve the actual title
+              await this.payload.findByID({
+                collection: 'meditations',
+                id: foundId,
+              })
+              await this.log(`✓ Found meditation: ${expectedMeditationTitle}`)
+            } else {
+              await this.log(
+                `Warning: Meditation "${expectedMeditationTitle}" not found for ${story.name}`,
+                true,
+              )
+              meditationId = undefined
+            }
           } else {
             await this.log(
-              `Warning: Meditation "${meditationTitle}" not found for ${story.name}`,
+              `Warning: Could not extract step number from slug "${stepSlug}" for ${story.name}`,
               true,
             )
+            meditationId = undefined
           }
         }
 
-        let introAudioId = null
+        let introAudioId: string | undefined = undefined
         if (content.Audio_intro?.[0]?.Audio_track?.filename) {
-          introAudioId = await this.createFileAttachment(
-            content.Audio_intro[0].Audio_track.filename,
-            'lessons',
-            lessonId,
-          )
+          try {
+            introAudioId = await this.createFileAttachment(
+              content.Audio_intro[0].Audio_track.filename,
+            )
+          } catch (error) {
+            await this.log(
+              `Warning: Failed to create audio attachment for ${story.name}: ${error}`,
+              true,
+            )
+          }
         }
 
         let introSubtitles: Record<string, unknown> | undefined = undefined
         if (content.Audio_intro?.[0]?.Subtitles?.filename) {
           try {
-            introSubtitles = await this.parseSubtitles(
-              content.Audio_intro[0].Subtitles.filename,
-            )
+            introSubtitles = await this.parseSubtitles(content.Audio_intro[0].Subtitles.filename)
           } catch (error) {
-            await this.log(
-              `Warning: Failed to parse subtitles for ${story.name}: ${error}`,
-              true,
-            )
+            await this.log(`Warning: Failed to parse subtitles for ${story.name}: ${error}`, true)
           }
         }
 
         let article: Record<string, unknown> | undefined = undefined
         if (content.Delving_deeper_article?.[0]?.Blocks) {
-          article = await this.convertLexicalBlocks(content.Delving_deeper_article[0].Blocks)
+          try {
+            article = await this.convertLexicalBlocks(content.Delving_deeper_article[0].Blocks)
+          } catch (error) {
+            await this.log(`Warning: Failed to convert article for ${story.name}: ${error}`, true)
+          }
+        }
+
+        // Add CoverStoryBlock as the first panel for every lesson
+        const coverPanel = {
+          blockType: 'cover' as const,
+          title: story.name, // Preserve \\n as literal text in cover panel title
+          quote: this.processTextareaField(content.Intro_quote || ''), // Process as textarea field
+        }
+        // Insert at the beginning
+        panels.unshift(coverPanel)
+
+        // Ensure we have at least one panel
+        if (panels.length === 0) {
+          await this.log(
+            `Error: No valid panels found for ${story.name}, skipping lesson creation`,
+            true,
+          )
+          continue
+        }
+
+        const lessonData: any = {
+          title: this.processTextField(story.name), // Process as text field - converts \\n to spaces
+          panels: panels as any,
+        }
+
+        // Only add fields that have valid values
+        if (meditationId) {
+          lessonData.meditation = meditationId
+        }
+        if (introSubtitles) {
+          lessonData.introSubtitles = introSubtitles
+        }
+        if (article) {
+          lessonData.article = article
         }
 
         const lesson = await this.payload.create({
           collection: 'lessons',
-          data: {
-            title: story.name,
-            shriMatajiQuote: content.Intro_quote || '',
-            panels: panels as any,
-            meditation: meditationId || undefined,
-            introAudio: introAudioId || undefined,
-            introSubtitles: introSubtitles || undefined,
-            article: article || undefined,
-          },
+          data: lessonData,
         })
 
+        // Update lesson with intro audio after creation to avoid validation issues
         if (introAudioId) {
-          await this.payload.update({
-            collection: 'file-attachments',
-            id: introAudioId,
-            data: {
-              owner: {
-                relationTo: 'lessons',
-                value: lesson.id as string,
-              },
-            },
-          })
-        }
-
-        for (const panel of panels) {
-          if (panel.blockType === 'video' && panel.video) {
+          try {
             await this.payload.update({
-              collection: 'file-attachments',
-              id: panel.video as string,
+              collection: 'lessons',
+              id: lesson.id as string,
               data: {
-                owner: {
-                  relationTo: 'lessons',
-                  value: lesson.id as string,
-                },
+                introAudio: introAudioId,
               },
             })
+            await this.log(`✓ Added intro audio to lesson`)
+          } catch (error) {
+            await this.log(`Warning: Failed to add intro audio to lesson: ${error}`, true)
           }
         }
 
@@ -681,6 +828,44 @@ class StoryblokImporter {
     return 3
   }
 
+  /**
+   * Process text for text fields - converts various \\n patterns to spaces and handles other escape sequences
+   */
+  private processTextField(text: string): string {
+    return text
+      .replace(/\\\\n/g, ' ') // Convert \\\\n to spaces for text fields
+      .replace(/\\\n/g, ' ') // Convert \\\n to spaces for text fields
+      .replace(/\\n/g, ' ') // Convert \\n to spaces for text fields
+      .replace(/\\\\t/g, ' ') // Convert \\\\t to spaces
+      .replace(/\\\t/g, ' ') // Convert \\\t to spaces
+      .replace(/\\t/g, ' ') // Convert \\t to spaces
+      .replace(/\\\\r/g, ' ') // Convert \\\\r to spaces
+      .replace(/\\\r/g, ' ') // Convert \\\r to spaces
+      .replace(/\\r/g, ' ') // Convert \\r to spaces
+      .replace(/\\\\/g, '\\') // Convert \\\\ to single backslash
+      .replace(/\\"/g, '"') // Convert \\" to quote
+      .replace(/\\'/g, "'") // Convert \\' to apostrophe
+  }
+
+  /**
+   * Process text for textarea fields - converts various \\n patterns to newlines and handles other escape sequences
+   */
+  private processTextareaField(text: string): string {
+    return text
+      .replace(/\\\\n/g, '\n') // Convert \\\\n to actual newlines for textareas
+      .replace(/\\\n/g, '\n') // Convert \\\n to actual newlines for textareas
+      .replace(/\\n/g, '\n') // Convert \\n to actual newlines for textareas
+      .replace(/\\\\t/g, '\t') // Convert \\\\t to tabs
+      .replace(/\\\t/g, '\t') // Convert \\\t to tabs
+      .replace(/\\t/g, '\t') // Convert \\t to tabs
+      .replace(/\\\\r/g, '\r') // Convert \\\\r to carriage returns
+      .replace(/\\\r/g, '\r') // Convert \\\r to carriage returns
+      .replace(/\\r/g, '\r') // Convert \\r to carriage returns
+      .replace(/\\\\/g, '\\') // Convert \\\\ to single backslash
+      .replace(/\\"/g, '"') // Convert \\" to quote
+      .replace(/\\'/g, "'") // Convert \\' to apostrophe
+  }
+
   async resetCollections() {
     await this.log('\n=== Resetting Collections ===')
 
@@ -716,7 +901,7 @@ class StoryblokImporter {
   }
 
   async run() {
-    this.payload = await getPayload({ config })
+    this.payload = await getPayload({ config: payloadConfig() })
 
     if (!this.token) {
       throw new Error('STORYBLOK_ACCESS_TOKEN environment variable is required')

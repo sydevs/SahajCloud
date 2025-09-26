@@ -485,11 +485,17 @@ export interface LessonUnit {
 export interface Lesson {
   id: string;
   title: string;
-  shriMatajiQuote: string;
   /**
-   * Story panels to introduce this lesson.
+   * Story panels to introduce this lesson. First panel must be a Cover Panel.
    */
   panels: (
+    | {
+        title: string;
+        quote: string;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'cover';
+      }
     | {
         video?: (string | null) | FileAttachment;
         id?: string | null;
@@ -508,7 +514,7 @@ export interface Lesson {
   /**
    * Link to a related guided meditation that complements this lesson content.
    */
-  meditation: string | Meditation;
+  meditation?: (string | null) | Meditation;
   /**
    * Link to a related guided meditation that complements this lesson content.
    */
@@ -1321,10 +1327,17 @@ export interface LessonUnitsSelect<T extends boolean = true> {
  */
 export interface LessonsSelect<T extends boolean = true> {
   title?: T;
-  shriMatajiQuote?: T;
   panels?:
     | T
     | {
+        cover?:
+          | T
+          | {
+              title?: T;
+              quote?: T;
+              id?: T;
+              blockName?: T;
+            };
         video?:
           | T
           | {
