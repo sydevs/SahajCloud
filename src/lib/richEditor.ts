@@ -43,7 +43,14 @@ export const fullRichTextEditor = (blocks?: Block[]) =>
       }),
       UploadFeature({
         collections: {
-          media: { fields: [] },
+          media: {
+            fields: [
+              {
+                name: 'caption',
+                type: 'text',
+              },
+            ],
+          },
           music: { fields: [] },
         },
       }),

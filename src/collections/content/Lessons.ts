@@ -5,7 +5,7 @@ import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { QuoteBlock } from '@/blocks/pages'
 import subtitleSchema from '@/lib/subtitlesSchema.json'
-import { TextStoryBlock, VideoStoryBlock } from '@/blocks/lessons'
+import { TextStoryBlock, VideoStoryBlock, CoverStoryBlock } from '@/blocks/lessons'
 import { FileAttachmentField } from '@/fields'
 import {
   deleteFileAttachmentsHook,
@@ -17,7 +17,7 @@ export const Lessons: CollectionConfig = {
   access: permissionBasedAccess('lessons'),
   trash: true,
   admin: {
-    hidden: true,
+    // hidden: true,
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'unit', 'order', 'publishAt'],
@@ -41,20 +41,36 @@ export const Lessons: CollectionConfig = {
           label: 'Intro',
           fields: [
             {
-              name: 'shriMatajiQuote',
-              type: 'textarea',
-              required: true,
-            },
-            {
               name: 'panels',
               type: 'blocks',
               required: true,
-              minRows: 1,
+              minRows: 2,
               admin: {
                 isSortable: true,
-                description: 'Story panels to introduce this lesson.',
+                description: 'Story panels to introduce this lesson. First panel must be a Cover Panel.',
               },
-              blocks: [VideoStoryBlock, TextStoryBlock],
+              blocks: [CoverStoryBlock, VideoStoryBlock, TextStoryBlock],
+              defaultValue: [
+                {
+                  blockType: 'cover',
+                  title: '',
+                  quote: '',
+                },
+                {
+                  blockType: 'text',
+                  title: '',
+                  text: '',
+                },
+              ],
+              validate: (value: unknown) => {
+                if (!Array.isArray(value) || value.length === 0) {
+                  return 'At least one panel is required'
+                }
+                if (value[0]?.blockType !== 'cover') {
+                  return 'First panel must be a Cover Panel'
+                }
+                return true
+              },
             },
           ],
         },
@@ -66,7 +82,7 @@ export const Lessons: CollectionConfig = {
               name: 'meditation',
               type: 'relationship',
               relationTo: 'meditations',
-              required: true,
+              required: false,
               admin: {
                 description:
                   'Link to a related guided meditation that complements this lesson content.',
