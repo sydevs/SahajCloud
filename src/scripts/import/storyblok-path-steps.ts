@@ -742,8 +742,18 @@ class StoryblokImporter {
           continue
         }
 
+        // Extract step number from slug (e.g., "step-1" -> 1)
+        const stepMatch = stepSlug.match(/step-(\d+)/)
+        const stepNumber = stepMatch ? parseInt(stepMatch[1], 10) : 1
+
+        // Extract color from audio intro or use default
+        const color = content.Audio_intro?.[0]?.Background_color || '#000000'
+
         const lessonData: any = {
           title: this.processTextField(story.name), // Process as text field - converts \\n to spaces
+          unit: unitNumber,
+          step: stepNumber,
+          color: color,
           panels: panels as any,
         }
 

@@ -184,6 +184,9 @@ describe('Lessons Collection', () => {
           collection: 'lessons',
           data: {
             title: 'No Panels',
+            unit: 1,
+            step: 1,
+            color: '#FF0000',
             meditation: testMeditation.id,
             panels: [], // Empty panels array
           },

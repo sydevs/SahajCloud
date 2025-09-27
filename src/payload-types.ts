@@ -485,6 +485,9 @@ export interface LessonUnit {
 export interface Lesson {
   id: string;
   title: string;
+  unit: number;
+  step: number;
+  color: string;
   /**
    * Story panels to introduce this lesson. First panel must be a Cover Panel.
    */
@@ -1327,6 +1330,9 @@ export interface LessonUnitsSelect<T extends boolean = true> {
  */
 export interface LessonsSelect<T extends boolean = true> {
   title?: T;
+  unit?: T;
+  step?: T;
+  color?: T;
   panels?:
     | T
     | {

@@ -441,6 +441,9 @@ export const testData = {
       collection: 'lessons',
       data: {
         title: overrides.title || 'Test Lesson',
+        unit: overrides.unit || 1,
+        step: overrides.step || 1,
+        color: overrides.color || '#FF0000',
         panels: formattedPanels,
         meditation: meditation as string,
         introAudio: overrides.introAudio || undefined,

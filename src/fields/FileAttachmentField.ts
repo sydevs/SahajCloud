@@ -139,9 +139,6 @@ const setFileOwnerHook: FieldHook = async ({ value, data, req, collection }) => 
     const fileId = typeof value === 'string' ? value : (value as any)?.id
     if (fileId && !orphanFiles.includes(fileId)) {
       orphanFiles.push(fileId)
-      console.log(
-        `FileAttachmentField: Tracked orphan file attachment ${fileId} for later assignment`,
-      )
     }
   }
 }
@@ -177,7 +174,6 @@ export const claimOrphanFileAttachmentsHook: CollectionAfterChangeHook = async (
         },
       },
     })
-    console.log(`Claimed orphan file attachment ${fileId} for ${collection.slug}:${doc.id}`)
   }
 
   // Clear the context after claiming

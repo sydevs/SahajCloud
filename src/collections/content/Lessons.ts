@@ -11,16 +11,19 @@ import {
   deleteFileAttachmentsHook,
   claimOrphanFileAttachmentsHook,
 } from '@/fields/FileAttachmentField'
+import { ColourTextField } from '@nouance/payload-better-fields-plugin/ColourText'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
   access: permissionBasedAccess('lessons'),
   trash: true,
+  defaultSort: ['unit', 'step'],
   admin: {
     // hidden: true,
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'unit', 'order', 'publishAt'],
+    defaultColumns: ['title', 'unit', 'step'],
+    groupBy: true,
     listSearchableFields: ['title'],
   },
   versions: {
@@ -32,6 +35,25 @@ export const Lessons: CollectionConfig = {
       name: 'title',
       type: 'text',
       required: true,
+    },
+    {
+      type: 'row',
+      fields: [
+        {
+          name: 'unit',
+          type: 'number',
+          required: true,
+        },
+        {
+          name: 'step',
+          type: 'number',
+          required: true,
+        },
+        ...ColourTextField({
+          name: 'color',
+          required: true,
+        }),
+      ],
     },
     // ===== INTRODUCTION ===== //
     {
@@ -47,7 +69,8 @@ export const Lessons: CollectionConfig = {
               minRows: 2,
               admin: {
                 isSortable: true,
-                description: 'Story panels to introduce this lesson. First panel must be a Cover Panel.',
+                description:
+                  'Story panels to introduce this lesson. First panel must be a Cover Panel.',
               },
               blocks: [CoverStoryBlock, VideoStoryBlock, TextStoryBlock],
               defaultValue: [
