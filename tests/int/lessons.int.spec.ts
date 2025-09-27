@@ -46,8 +46,13 @@ describe('Lessons Collection', () => {
         meditation: testMeditation.id,
         panels: [
           {
-            blockType: 'text' as const,
+            blockType: 'cover' as const,
             title: 'Welcome',
+            quote: 'Learn the basics of breathing meditation',
+          },
+          {
+            blockType: 'text' as const,
+            title: 'Introduction',
             text: 'Learn the basics of breathing meditation',
             image: testPanelImage1.id,
           },
@@ -57,10 +62,14 @@ describe('Lessons Collection', () => {
       expect(lesson).toBeDefined()
       expect(lesson.title).toBe('Introduction to Breathing')
       expect(lesson.meditation).toBe(testMeditation.id)
-      expect(lesson.panels).toHaveLength(1)
-      expect(lesson.panels[0].blockType).toBe('text')
-      const textPanel = lesson.panels[0] as any
-      expect(textPanel.title).toBe('Welcome')
+      expect(lesson.panels).toHaveLength(2)
+      expect(lesson.panels[0].blockType).toBe('cover')
+      const coverPanel = lesson.panels[0] as any
+      expect(coverPanel.title).toBe('Welcome')
+      expect(coverPanel.quote).toBe('Learn the basics of breathing meditation')
+      expect(lesson.panels[1].blockType).toBe('text')
+      const textPanel = lesson.panels[1] as any
+      expect(textPanel.title).toBe('Introduction')
       expect(textPanel.text).toBe('Learn the basics of breathing meditation')
     })
 
@@ -70,14 +79,20 @@ describe('Lessons Collection', () => {
         meditation: testMeditation.id,
         panels: [
           {
+            blockType: 'cover' as const,
+            title: 'Video Lesson',
+            quote: 'Welcome to our video lesson',
+          },
+          {
             blockType: 'video' as const,
             video: null, // Would be a FileAttachment ID
           },
         ],
       })
 
-      expect(lesson.panels).toHaveLength(1)
-      expect(lesson.panels[0].blockType).toBe('video')
+      expect(lesson.panels).toHaveLength(2)
+      expect(lesson.panels[0].blockType).toBe('cover')
+      expect(lesson.panels[1].blockType).toBe('video')
     })
 
     it('creates a lesson with multiple panels', async () => {
@@ -86,10 +101,9 @@ describe('Lessons Collection', () => {
         meditation: testMeditation.id,
         panels: [
           {
-            blockType: 'text' as const,
-            title: 'Panel 1',
-            text: 'First panel text',
-            image: testPanelImage1.id,
+            blockType: 'cover' as const,
+            title: 'Multi-Panel Lesson',
+            quote: 'Welcome to our multi-panel lesson',
           },
           {
             blockType: 'text' as const,
@@ -103,7 +117,7 @@ describe('Lessons Collection', () => {
       expect(lesson.panels).toHaveLength(2)
       const panel1 = lesson.panels[0] as any
       const panel2 = lesson.panels[1] as any
-      expect(panel1.title).toBe('Panel 1')
+      expect(panel1.title).toBe('Multi-Panel Lesson')
       expect(panel2.title).toBe('Panel 2')
     })
 
@@ -134,6 +148,11 @@ describe('Lessons Collection', () => {
           },
         },
         panels: [
+          {
+            blockType: 'cover' as const,
+            title: 'Content Lesson',
+            quote: 'Welcome to our content lesson',
+          },
           {
             blockType: 'text' as const,
             title: 'Content',
@@ -180,6 +199,11 @@ describe('Lessons Collection', () => {
         meditation: testMeditation.id,
         panels: [
           {
+            blockType: 'cover' as const,
+            title: 'Original Title',
+            quote: 'Welcome to the lesson',
+          },
+          {
             blockType: 'text' as const,
             title: 'Panel',
             text: 'Text',
@@ -205,6 +229,11 @@ describe('Lessons Collection', () => {
         meditation: testMeditation.id,
         panels: [
           {
+            blockType: 'cover' as const,
+            title: 'Panel Update Test',
+            quote: 'Welcome to the lesson',
+          },
+          {
             blockType: 'text' as const,
             title: 'Original',
             text: 'Original text',
@@ -219,6 +248,11 @@ describe('Lessons Collection', () => {
         data: {
           panels: [
             {
+              blockType: 'cover' as const,
+              title: 'Updated Cover',
+              quote: 'Updated welcome message',
+            },
+            {
               blockType: 'text' as const,
               title: 'Updated',
               text: 'Updated text',
@@ -228,10 +262,12 @@ describe('Lessons Collection', () => {
         },
       })
 
-      expect(updated.panels).toHaveLength(1)
-      const panel = updated.panels[0] as any
-      expect(panel.title).toBe('Updated')
-      expect(panel.text).toBe('Updated text')
+      expect(updated.panels).toHaveLength(2)
+      const coverPanel = updated.panels[0] as any
+      const textPanel = updated.panels[1] as any
+      expect(coverPanel.title).toBe('Updated Cover')
+      expect(textPanel.title).toBe('Updated')
+      expect(textPanel.text).toBe('Updated text')
     })
   })
 
@@ -241,6 +277,11 @@ describe('Lessons Collection', () => {
         title: 'To Be Deleted',
         meditation: testMeditation.id,
         panels: [
+          {
+            blockType: 'cover' as const,
+            title: 'To Be Deleted',
+            quote: 'Welcome to the lesson',
+          },
           {
             blockType: 'text' as const,
             title: 'Delete me',
@@ -317,7 +358,7 @@ describe('Lessons Collection', () => {
       })
 
       expect(result.meditation).toBeDefined()
-      if (typeof result.meditation === 'object') {
+      if (typeof result.meditation === 'object' && result.meditation !== null) {
         expect(result.meditation.id).toBe(testMeditation.id)
       }
     })
