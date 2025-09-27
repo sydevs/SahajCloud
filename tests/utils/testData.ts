@@ -407,12 +407,18 @@ export const testData = {
     }
 
     // Ensure panels have the correct structure with blockType
+    // First panel must be a CoverStoryBlock
     const panelsData = overrides.panels || [
+      {
+        blockType: 'cover' as const,
+        title: 'Test Lesson Title',
+        quote: 'Test quote from Shri Mataji',
+      },
       {
         blockType: 'text' as const,
         title: 'Default Panel',
         text: 'Default panel text',
-        image: defaultMedia!.id,
+        image: defaultMedia?.id,
       },
     ]
 
@@ -435,7 +441,6 @@ export const testData = {
       collection: 'lessons',
       data: {
         title: overrides.title || 'Test Lesson',
-        shriMatajiQuote: overrides.shriMatajiQuote || 'Test quote from Shri Mataji',
         panels: formattedPanels,
         meditation: meditation as string,
         introAudio: overrides.introAudio || undefined,
