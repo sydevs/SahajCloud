@@ -13,8 +13,8 @@ export const LessonUnits: CollectionConfig = {
   access: permissionBasedAccess('lessons'),
   trash: true,
   labels: {
-    singular: 'Path Step',
-    plural: 'Path Steps',
+    singular: 'Path Unit',
+    plural: 'Path Steps (By Unit)',
   },
   defaultSort: 'position',
   admin: {

@@ -18,6 +18,10 @@ export const Lessons: CollectionConfig = {
   access: permissionBasedAccess('lessons'),
   trash: true,
   defaultSort: ['unit', 'step'],
+  labels: {
+    singular: 'Path Step',
+    plural: 'Path Steps (By Lesson)',
+  },
   admin: {
     // hidden: true,
     group: 'Content',
