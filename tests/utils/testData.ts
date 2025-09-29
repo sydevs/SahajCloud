@@ -400,6 +400,9 @@ export const testData = {
       meditation = defaultMeditation.id
     }
 
+    // Icon is optional in test environment
+    let icon = overrides.icon
+
     // Create a default media if panels need images and they're not provided
     let defaultMedia: Media | undefined
     if (!overrides.panels || overrides.panels.length === 0) {
@@ -437,20 +440,29 @@ export const testData = {
       return panel
     })
 
-    return (await payload.create({
+    const lessonData: any = {
+      title: overrides.title || 'Test Lesson',
+      unit: overrides.unit || 1,
+      step: overrides.step || 1,
+      color: overrides.color || '#FF0000',
+      panels: formattedPanels,
+      meditation: meditation as string,
+      introAudio: overrides.introAudio || undefined,
+      introSubtitles: overrides.introSubtitles || undefined,
+      article: overrides.article || undefined,
+    }
+
+    // Only add icon if provided
+    if (icon) {
+      lessonData.icon = icon
+    }
+
+    const lesson = (await payload.create({
       collection: 'lessons',
-      data: {
-        title: overrides.title || 'Test Lesson',
-        unit: overrides.unit || 1,
-        step: overrides.step || 1,
-        color: overrides.color || '#FF0000',
-        panels: formattedPanels,
-        meditation: meditation as string,
-        introAudio: overrides.introAudio || undefined,
-        introSubtitles: overrides.introSubtitles || undefined,
-        article: overrides.article || undefined,
-      },
+      data: lessonData,
     })) as Lesson
+
+    return lesson
   },
 
   // Alias for createManager to maintain backward compatibility with tests

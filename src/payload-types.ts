@@ -488,6 +488,7 @@ export interface Lesson {
   unit: number;
   step: number;
   color: string;
+  icon?: (string | null) | FileAttachment;
   /**
    * Story panels to introduce this lesson. First panel must be a Cover Panel.
    */
@@ -1333,6 +1334,7 @@ export interface LessonsSelect<T extends boolean = true> {
   unit?: T;
   step?: T;
   color?: T;
+  icon?: T;
   panels?:
     | T
     | {

@@ -57,6 +57,12 @@ export const Lessons: CollectionConfig = {
           name: 'color',
           required: true,
         }),
+        FileAttachmentField({
+          name: 'icon',
+          ownerCollection: 'lessons',
+          required: false,
+          fileType: 'image',
+        }),
       ],
     },
     // ===== INTRODUCTION ===== //

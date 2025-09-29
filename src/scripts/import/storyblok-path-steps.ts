@@ -773,6 +773,32 @@ class StoryblokImporter {
           data: lessonData,
         })
 
+        // Create and attach icon after lesson creation
+        if (content.Step_info?.[0]?.Step_Image?.url) {
+          try {
+            const iconId = await this.createFileAttachment(
+              content.Step_info[0].Step_Image.url,
+              'lessons',
+              lesson.id as string,
+            )
+            await this.log(`✓ Created icon attachment for lesson`)
+
+            // Update lesson with icon
+            await this.payload.update({
+              collection: 'lessons',
+              id: lesson.id as string,
+              data: {
+                icon: iconId,
+              },
+            })
+            await this.log(`✓ Added icon to lesson`)
+          } catch (error) {
+            await this.log(`Warning: Failed to create/attach icon: ${error}`, true)
+          }
+        } else {
+          await this.log(`Warning: Missing Step_Image for lesson: ${story.name}`, true)
+        }
+
         // Update lesson with intro audio after creation to avoid validation issues
         if (introAudioId) {
           try {
