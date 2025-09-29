@@ -9,6 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a **Next.js 15** application integrated with **Payload CMS 3.0**, providing a headless content management system. The project uses TypeScript, MongoDB, and is configured for both development and production deployment.
 
+The PayloadCMS documentation can be accessed at https://payloadcms.com/llms-full.txt
+
 ## Admin Access
 There is a default user with the following credentials which can be used to access the admin panel in the dev server.
 Username: contact@sydevelopers.com
