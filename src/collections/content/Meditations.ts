@@ -18,8 +18,8 @@ export const Meditations: CollectionConfig = {
   },
   admin: {
     group: 'Content',
-    useAsTitle: 'title',
-    defaultColumns: ['thumbnail', 'title', 'publishAt', 'duration', 'tags'],
+    useAsTitle: 'label',
+    defaultColumns: ['thumbnail', 'label', 'publishAt', 'tags', 'fileMetadata'],
   },
   hooks: {
     beforeOperation: [sanitizeFilename],
@@ -31,6 +31,13 @@ export const Meditations: CollectionConfig = {
     {
       name: 'title',
       type: 'text',
+      label: 'Public Title',
+      required: true,
+    },
+    {
+      name: 'label',
+      type: 'text',
+      label: 'Internal Name',
       required: true,
     },
     {
@@ -74,15 +81,6 @@ export const Meditations: CollectionConfig = {
       required: true,
       orientation: 'landscape',
     }),
-    {
-      name: 'duration',
-      type: 'number',
-      admin: {
-        description: 'Duration in seconds',
-        position: 'sidebar',
-        readOnly: true,
-      },
-    },
     {
       name: 'narrator',
       type: 'relationship',

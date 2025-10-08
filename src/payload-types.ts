@@ -316,15 +316,12 @@ export interface MediaTag {
 export interface Meditation {
   id: string;
   title: string;
+  label: string;
   locale: 'en' | 'cs';
   publishAt?: string | null;
   slug?: string | null;
   slugLock?: boolean | null;
   thumbnail: string | Media;
-  /**
-   * Duration in seconds
-   */
-  duration?: number | null;
   narrator: string | Narrator;
   tags?: (string | MeditationTag)[] | null;
   /**
@@ -1253,12 +1250,12 @@ export interface PagesSelect<T extends boolean = true> {
  */
 export interface MeditationsSelect<T extends boolean = true> {
   title?: T;
+  label?: T;
   locale?: T;
   publishAt?: T;
   slug?: T;
   slugLock?: T;
   thumbnail?: T;
-  duration?: T;
   narrator?: T;
   tags?: T;
   musicTag?: T;
