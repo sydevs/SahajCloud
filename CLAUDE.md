@@ -452,6 +452,39 @@ The system implements a dual-approach for managing meditation-frame relationship
 - `src/app/(payload)/` - Payload CMS admin interface and API routes
 - `src/app/(frontend)/` - Public-facing Next.js pages
 
+### We Meditate Branding
+
+The application features custom branding for We Meditate throughout both the admin panel and public-facing pages.
+
+#### Admin Panel Branding
+- **Logo Component** (`src/components/branding/Logo.tsx`) - We Meditate coral square logo displayed on login/signup pages using Next.js Image component
+- **Icon Component** (`src/components/branding/Icon.tsx`) - Lotus SVG icon in admin navigation with theme-adaptive coloring:
+  - Dark theme: white/light fill (#ffffff)
+  - Light theme: dark fill (#1a1a1a)
+  - Uses CSS with `[data-theme]` selectors for automatic theme adaptation
+- **Configuration** - Registered in `src/payload.config.ts` as path-based components in `admin.components.graphics`
+
+#### Frontend Splash Page
+- **Location**: `src/app/(frontend)/page.tsx`
+- **Features**:
+  - We Meditate coral square logo with subtle floating animation
+  - "We Meditate Admin" title
+  - Coral color scheme (#F07855) with gradient animations
+  - Simplified background with two animated gradient orbs
+  - "Enter Admin Panel" button with coral gradient
+  - Footer: "We Meditate • Powered by Payload CMS"
+- **Metadata**: Updated in `src/app/(frontend)/layout.tsx` with "We Meditate Admin" title
+
+#### Color Palette
+- **Primary Coral**: `#F07855`
+- **Coral Light**: `#FF9477`
+- **Coral Dark**: `#D86545`
+- **Gradients**: Linear gradients using coral variations
+
+#### External Image Configuration
+- **Next.js Config** (`next.config.mjs`) - Configured to allow images from `raw.githubusercontent.com` for We Meditate logo assets
+- **Assets Source**: Logos sourced from We Meditate GitHub repository
+
 ### MeditationFrameEditor Architecture
 
 The **Audio-Synchronized Frame Editor** is a sophisticated custom field component for the Meditations collection that provides audio-synchronized frame management with a rich admin interface.

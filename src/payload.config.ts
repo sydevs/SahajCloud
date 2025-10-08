@@ -37,6 +37,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
             path: '@/components/AdminProvider.tsx',
           },
         ],
+        graphics: {
+          Logo: '@/components/branding/Logo',
+          Icon: '@/components/branding/Icon',
+        },
       },
       // Disable admin UI in test environment
       disable: isTestEnvironment,
