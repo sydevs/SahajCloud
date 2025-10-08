@@ -13,7 +13,6 @@ import type {
   MeditationTag,
   MediaTag,
   Page,
-  LessonUnit,
   Lesson,
   FileAttachment,
 } from '@/payload-types'
@@ -369,24 +368,6 @@ export const testData = {
   },
 
   /**
-   * Create a lesson unit
-   */
-  async createLessonUnit(
-    payload: Payload,
-    overrides: Partial<LessonUnit> = {},
-  ): Promise<LessonUnit> {
-    return (await payload.create({
-      collection: 'lesson-units',
-      data: {
-        title: 'Test Lesson Unit',
-        color: '#FF0000',
-        position: overrides.position || 1,
-        ...overrides,
-      },
-    })) as LessonUnit
-  },
-
-  /**
    * Create a lesson with audio file
    */
   async createLesson(
@@ -442,9 +423,8 @@ export const testData = {
 
     const lessonData: any = {
       title: overrides.title || 'Test Lesson',
-      unit: overrides.unit || 1,
+      unit: overrides.unit || 'Unit 1',
       step: overrides.step || 1,
-      color: overrides.color || '#FF0000',
       panels: formattedPanels,
       meditation: meditation as string,
       introAudio: overrides.introAudio || undefined,

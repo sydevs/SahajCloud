@@ -11,7 +11,6 @@ import {
   deleteFileAttachmentsHook,
   claimOrphanFileAttachmentsHook,
 } from '@/fields/FileAttachmentField'
-import { ColourTextField } from '@nouance/payload-better-fields-plugin/ColourText'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
@@ -20,10 +19,9 @@ export const Lessons: CollectionConfig = {
   defaultSort: ['unit', 'step'],
   labels: {
     singular: 'Path Step',
-    plural: 'Path Steps (By Lesson)',
+    plural: 'Path Steps',
   },
   admin: {
-    // hidden: true,
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'unit', 'step'],
@@ -39,31 +37,6 @@ export const Lessons: CollectionConfig = {
       name: 'title',
       type: 'text',
       required: true,
-    },
-    {
-      type: 'row',
-      fields: [
-        {
-          name: 'unit',
-          type: 'number',
-          required: true,
-        },
-        {
-          name: 'step',
-          type: 'number',
-          required: true,
-        },
-        ...ColourTextField({
-          name: 'color',
-          required: true,
-        }),
-        FileAttachmentField({
-          name: 'icon',
-          ownerCollection: 'lessons',
-          required: false,
-          fileType: 'image',
-        }),
-      ],
     },
     // ===== INTRODUCTION ===== //
     {
@@ -153,6 +126,31 @@ export const Lessons: CollectionConfig = {
               localized: true,
               editor: fullRichTextEditor([QuoteBlock]),
             },
+          ],
+        },
+        // ===== APPEARANCE ===== //
+        {
+          label: 'Appearance',
+          fields: [
+            {
+              name: 'unit',
+              type: 'select',
+              required: true,
+              options: Array.from({ length: 4 }, (_, i) => `Unit ${i + 1}`),
+            },
+            {
+              name: 'step',
+              type: 'number',
+              required: true,
+              admin: {
+                description: 'This will determine the order of the path steps',
+              },
+            },
+            FileAttachmentField({
+              name: 'icon',
+              ownerCollection: 'lessons',
+              fileType: 'image',
+            }),
           ],
         },
       ],

@@ -37,7 +37,6 @@ interface StoryblokResponse {
 interface ImportState {
   lastUpdated: string
   phase: string
-  unitsCreated: Record<string, string>
   lessonsCreated: Record<string, string>
   failed: string[]
 }
@@ -62,7 +61,6 @@ class StoryblokImporter {
     this.state = {
       lastUpdated: new Date().toISOString(),
       phase: 'initializing',
-      unitsCreated: {},
       lessonsCreated: {},
       failed: [],
     }
@@ -244,7 +242,7 @@ class StoryblokImporter {
 
   async createFileAttachment(
     url: string,
-    ownerCollection?: 'lessons' | 'lesson-units',
+    ownerCollection?: 'lessons',
     ownerId?: string,
   ): Promise<string> {
     if (!url) {
@@ -305,7 +303,7 @@ class StoryblokImporter {
 
   async updateFileAttachmentOwner(
     attachmentId: string,
-    ownerCollection: 'lessons' | 'lesson-units',
+    ownerCollection: 'lessons',
     ownerId: string,
   ): Promise<void> {
     await this.payload.update({
@@ -552,53 +550,6 @@ class StoryblokImporter {
     }
   }
 
-  async createLessonUnits(stories: StoryblokStory[]): Promise<void> {
-    await this.log('\n=== Creating Lesson Units ===')
-    this.state.phase = 'creating-units'
-    await this.saveState()
-
-    const units = new Map<number, { stories: StoryblokStory[]; color: string }>()
-
-    for (const story of stories) {
-      const content = story.content as Record<string, any>
-      const unitNumber = content.Step_info?.[0]?.Unit_number || this.extractUnitFromSlug(story.slug)
-
-      if (!units.has(unitNumber)) {
-        units.set(unitNumber, {
-          stories: [],
-          color: content.Audio_intro?.[0]?.Background_color || '#000000',
-        })
-      }
-      units.get(unitNumber)!.stories.push(story)
-    }
-
-    for (const [unitNumber, { color }] of units) {
-      if (this.state.unitsCreated[`unit-${unitNumber}`]) {
-        await this.log(`Unit ${unitNumber} already created, skipping`)
-        continue
-      }
-
-      if (this.options.dryRun) {
-        await this.log(`[DRY RUN] Would create Unit ${unitNumber} with color ${color}`)
-        continue
-      }
-
-      const unit = await this.payload.create({
-        collection: 'lesson-units',
-        data: {
-          title: `Unit ${unitNumber}`,
-          color,
-          position: unitNumber,
-          steps: [],
-        },
-      })
-
-      this.state.unitsCreated[`unit-${unitNumber}`] = unit.id as string
-      await this.saveState()
-      await this.log(`✓ Created Unit ${unitNumber} (ID: ${unit.id})`)
-    }
-  }
-
   async createLessons(stories: StoryblokStory[]): Promise<void> {
     await this.log('\n=== Creating Lessons ===')
     this.state.phase = 'importing-lessons'
@@ -746,14 +697,10 @@ class StoryblokImporter {
         const stepMatch = stepSlug.match(/step-(\d+)/)
         const stepNumber = stepMatch ? parseInt(stepMatch[1], 10) : 1
 
-        // Extract color from audio intro or use default
-        const color = content.Audio_intro?.[0]?.Background_color || '#000000'
-
         const lessonData: any = {
           title: this.processTextField(story.name), // Process as text field - converts \\n to spaces
-          unit: unitNumber,
+          unit: `Unit ${unitNumber}`,
           step: stepNumber,
-          color: color,
           panels: panels as any,
         }
 
@@ -818,36 +765,6 @@ class StoryblokImporter {
         this.state.lessonsCreated[stepSlug] = lesson.id as string
         await this.saveState()
         await this.log(`✓ Created lesson: ${story.name} (ID: ${lesson.id})`)
-
-        const unitId = this.state.unitsCreated[`unit-${unitNumber}`]
-        if (unitId && content.Step_info?.[0]?.Step_Image?.url) {
-          const iconId = await this.createFileAttachment(
-            content.Step_info[0].Step_Image.url,
-            'lesson-units',
-            unitId,
-          )
-
-          const unit = await this.payload.findByID({
-            collection: 'lesson-units',
-            id: unitId,
-          })
-
-          const steps = unit.steps || []
-          steps.push({
-            lesson: lesson.id as string,
-            icon: iconId,
-          })
-
-          await this.payload.update({
-            collection: 'lesson-units',
-            id: unitId,
-            data: {
-              steps,
-            },
-          })
-
-          await this.log(`✓ Added step to Unit ${unitNumber}`)
-        }
       } catch (error) {
         await this.log(`Error creating lesson ${stepSlug}: ${error}`, true)
       }
@@ -905,8 +822,8 @@ class StoryblokImporter {
   async resetCollections() {
     await this.log('\n=== Resetting Collections ===')
 
-    const collections: Array<'lessons' | 'lesson-units' | 'file-attachments' | 'external-videos'> =
-      ['lessons', 'lesson-units', 'file-attachments', 'external-videos']
+    const collections: Array<'lessons' | 'file-attachments' | 'external-videos'> =
+      ['lessons', 'file-attachments', 'external-videos']
 
     for (const collection of collections) {
       await this.log(`Deleting all documents from ${collection}...`)
@@ -928,7 +845,6 @@ class StoryblokImporter {
     this.state = {
       lastUpdated: new Date().toISOString(),
       phase: 'initializing',
-      unitsCreated: {},
       lessonsCreated: {},
       failed: [],
     }
@@ -980,11 +896,9 @@ class StoryblokImporter {
       await this.log(`Filtered to ${filteredStories.length} stories for unit ${unitNum}`)
     }
 
-    await this.createLessonUnits(filteredStories)
     await this.createLessons(filteredStories)
 
     await this.log('\n=== Import Complete ===')
-    await this.log(`Created ${Object.keys(this.state.unitsCreated).length} units`)
     await this.log(`Created ${Object.keys(this.state.lessonsCreated).length} lessons`)
     if (this.state.failed.length > 0) {
       await this.log(`\nFailed operations: ${this.state.failed.length}`)
