@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import type { JSONSchema4 } from 'json-schema'
-import { permissionBasedAccess } from '@/lib/accessControl'
+import { permissionBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { QuoteBlock } from '@/blocks/pages'
@@ -24,7 +24,7 @@ export const Lessons: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'unit', 'step'],
+    defaultColumns: ['title', 'step'],
     groupBy: true,
     listSearchableFields: ['title'],
   },
@@ -137,6 +137,7 @@ export const Lessons: CollectionConfig = {
               type: 'select',
               required: true,
               options: Array.from({ length: 4 }, (_, i) => `Unit ${i + 1}`),
+              access: createFieldAccess('lessons', false),
             },
             {
               name: 'step',
@@ -145,11 +146,13 @@ export const Lessons: CollectionConfig = {
               admin: {
                 description: 'This will determine the order of the path steps',
               },
+              access: createFieldAccess('lessons', false),
             },
             FileAttachmentField({
               name: 'icon',
               ownerCollection: 'lessons',
               fileType: 'image',
+              access: createFieldAccess('lessons', false),
             }),
           ],
         },

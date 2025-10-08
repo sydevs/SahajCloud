@@ -184,9 +184,8 @@ describe('Lessons Collection', () => {
           collection: 'lessons',
           data: {
             title: 'No Panels',
-            unit: 1,
+            unit: 'Unit 1',
             step: 1,
-            color: '#FF0000',
             meditation: testMeditation.id,
             panels: [], // Empty panels array
           },
@@ -384,6 +383,126 @@ describe('Lessons Collection', () => {
       })
 
       expect(draft._status).toBe('draft')
+    })
+  })
+
+  describe('Field-Level Access Control', () => {
+    let testLesson: Lesson
+    let translateManager: any
+    let manageManager: any
+
+    beforeAll(async () => {
+      // Create a test lesson
+      testLesson = await testData.createLesson(payload, {
+        title: 'Access Control Test Lesson',
+        meditation: testMeditation.id,
+        unit: 'Unit 1',
+        step: 1,
+      })
+
+      // Create a manager with "translate" permission for lessons
+      translateManager = await testData.createManager(payload, {
+        email: `translate_${Date.now()}@example.com`,
+        name: 'Translate Manager',
+        admin: false,
+        permissions: [
+          {
+            allowedCollection: 'lessons',
+            level: 'translate',
+            locales: ['all'],
+          },
+        ],
+      })
+
+      // Create a manager with "manage" permission for lessons
+      manageManager = await testData.createManager(payload, {
+        email: `manage_${Date.now()}@example.com`,
+        name: 'Manage Manager',
+        admin: false,
+        permissions: [
+          {
+            allowedCollection: 'lessons',
+            level: 'manage',
+            locales: ['all'],
+          },
+        ],
+      })
+    })
+
+    it('prevents translate managers from updating unit field', async () => {
+      // Attempt to update the unit field as a translate manager
+      const updated = await payload.update({
+        collection: 'lessons',
+        id: testLesson.id,
+        data: {
+          unit: 'Unit 2', // Try to change from Unit 1 to Unit 2
+        },
+        user: translateManager,
+        overrideAccess: false, // Ensure access control is enforced
+      })
+
+      // The unit field should remain unchanged (translate managers can't edit non-localized fields)
+      expect(updated.unit).toBe('Unit 1')
+    })
+
+    it('prevents translate managers from updating step field', async () => {
+      const updated = await payload.update({
+        collection: 'lessons',
+        id: testLesson.id,
+        data: {
+          step: 99, // Try to change from 1 to 99
+        },
+        user: translateManager,
+        overrideAccess: false, // Ensure access control is enforced
+      })
+
+      // The step field should remain unchanged
+      expect(updated.step).toBe(1)
+    })
+
+    it('allows manage managers to update unit field', async () => {
+      const updated = await payload.update({
+        collection: 'lessons',
+        id: testLesson.id,
+        data: {
+          unit: 'Unit 3',
+        },
+        user: manageManager,
+        overrideAccess: false,
+      })
+
+      // The unit field should be updated
+      expect(updated.unit).toBe('Unit 3')
+    })
+
+    it('allows manage managers to update step field', async () => {
+      const updated = await payload.update({
+        collection: 'lessons',
+        id: testLesson.id,
+        data: {
+          step: 5,
+        },
+        user: manageManager,
+        overrideAccess: false,
+      })
+
+      // The step field should be updated
+      expect(updated.step).toBe(5)
+    })
+
+    it('allows translate managers to update title field (non-restricted field)', async () => {
+      const updated = await payload.update({
+        collection: 'lessons',
+        id: testLesson.id,
+        data: {
+          title: 'Updated by Translate Manager',
+        },
+        user: translateManager,
+        overrideAccess: false,
+      })
+
+      // Title field should be updated (translate managers can edit non-localized fields that don't have field access restrictions)
+      expect(updated.title).toBe('Updated by Translate Manager')
     })
   })
 })

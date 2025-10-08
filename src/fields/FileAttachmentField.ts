@@ -5,6 +5,7 @@ import type {
   CollectionAfterChangeHook,
   FieldHook,
   CollectionSlug,
+  FieldBase,
 } from 'payload'
 
 export type FileAttachmentFieldOptions = {
@@ -22,6 +23,8 @@ export type FileAttachmentFieldOptions = {
   fileType?: 'image' | 'audio' | 'video'
   /** Admin configuration overrides */
   admin?: Partial<UploadField['admin']>
+  /** Field-level access control */
+  access?: FieldBase['access']
 }
 
 /**
@@ -42,6 +45,7 @@ export function FileAttachmentField(options: FileAttachmentFieldOptions): Upload
     ownerCollection = 'lessons',
     fileType,
     admin = {},
+    access,
   } = options
 
   return {
@@ -51,6 +55,7 @@ export function FileAttachmentField(options: FileAttachmentFieldOptions): Upload
     localized,
     type: 'upload',
     relationTo: 'file-attachments',
+    access,
     filterOptions: ({ data }): Where => {
       // Only show file attachments owned by the current document or orphan files
       // For new documents (no ID), show no existing file attachments
