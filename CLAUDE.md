@@ -90,6 +90,7 @@ If necessary, you should also run `pnpm run generate:types`
 - **MediaTags** (`src/collections/tags/MediaTags.ts`) - Tag system for media files with slug-based identification
 - **MeditationTags** (`src/collections/tags/MeditationTags.ts`) - Tag system for meditations with bidirectional relationships (title field is localized)
 - **MusicTags** (`src/collections/tags/MusicTags.ts`) - Tag system for music tracks with bidirectional relationships (title field is localized)
+- **PageTags** (`src/collections/tags/PageTags.ts`) - Tag system for pages with bidirectional relationships (title field is localized)
 - **Clients** (`src/collections/access/Clients.ts`) - API client management with authentication keys, usage tracking, granular collection/locale-based permissions, and high-usage alerts
 - **Lessons** (`src/collections/content/Lessons.ts`) - Meditation lessons (also called "Path Steps" in admin UI) with audio upload, panels array for content sections, unit selection (Unit 1-4), step number, icon, optional meditation relationship, and rich text article field
 - **FileAttachments** (`src/collections/system/FileAttachments.ts`) - File upload system supporting PDFs, audio (MP3), video (MP4/MPEG), and images (WebP) with owner relationships for cascade deletion
@@ -109,7 +110,7 @@ The **Pages Collection** uses Payload's Lexical rich text editor with embedded b
   - `content` (richText, localized) - Main content area using Lexical editor with embedded blocks
   - `publishAt` (date, optional, localized) - Schedule publishing date (uses PublishStateCell component)
   - `category` (select, required) - Page category: technique, artwork, event, knowledge
-  - `tags` (select, hasMany, optional) - Page tags: living, creativity, wisdom, stories, events
+  - `tags` (relationship, hasMany, optional) - Relationship to page-tags collection for flexible tag management
 
 #### Embedded Block Components (`src/blocks/pages/`)
 The system provides 5 block types that can be embedded within the rich text editor:
@@ -189,6 +190,48 @@ GET /api/meditations?locale=cs
 # Get music with Czech titles
 GET /api/music?locale=cs
 ```
+
+### Global Configuration Architecture
+
+The application uses PayloadCMS Global Configs to manage centralized content configuration for the We Meditate website.
+
+#### We Meditate Web Settings Global
+
+- **Location**: `src/globals/WeMeditateWebSettings.ts`
+- **Slug**: `we-meditate-web-settings`
+- **Admin Group**: Configuration
+- **Access Control**: Admin-only using `adminOnlyAccess()`
+- **Purpose**: Centrally manage static page assignments, featured navigation, and tag filters for the We Meditate website
+
+##### Tabs and Fields
+
+**Static Pages Tab**:
+- `homePage` (relationship to pages, required) - Home page content
+- `musicPage` (relationship to pages, required) - Music page content
+- `classesPage` (relationship to pages, required) - Classes page content
+- `subtleSystemPage` (relationship to pages, required) - Subtle System page content
+- `techniquesPage` (relationship to pages, required) - Techniques page content
+- `inspirationPage` (relationship to pages, required) - Inspiration page content
+
+**Navigation Tab**:
+- `featuredPages` (relationship to pages, hasMany, minRows: 3, maxRows: 7, required) - Featured pages in website menu with drag-to-reorder capability
+
+**Tag Filters Tab**:
+- `inspirationPageTags` (relationship to page-tags, hasMany, minRows: 3, maxRows: 5, required) - Page tags displayed on Inspiration page
+- `musicPageTags` (relationship to music-tags, hasMany, minRows: 3, maxRows: 5, required) - Music tags displayed on Music page
+
+##### Key Features
+- **Admin-Only Access**: Only users with `admin: true` can view and modify the settings
+- **Required Relationships**: All static page fields must be populated
+- **Validation Constraints**: Featured pages (3-7 items) and tag filters (3-5 items each) enforce min/max row counts
+- **Drag-to-Reorder**: Featured pages can be reordered in the admin interface
+- **Centralized Management**: Single source of truth for website content configuration
+
+##### Implementation Details
+- Defined in `src/globals/WeMeditateWebSettings.ts`
+- Exported via `src/globals/index.ts` along with other global configs
+- Registered in `src/payload.config.ts` via the `globals` array
+- Uses tabs for organized field grouping (Static Pages, Navigation, Tag Filters)
 
 ### Lessons Collection Architecture
 
@@ -738,8 +781,12 @@ src/
 │   └── tags/               # Tag collections
 │       ├── MediaTags.ts    # Tags for media files
 │       ├── MeditationTags.ts # Tags for meditations
-│       └── MusicTags.ts    # Tags for music tracks
+│       ├── MusicTags.ts    # Tags for music tracks
+│       └── PageTags.ts     # Tags for pages
 ├── components/             # Reusable React components
+├── globals/                # Global configurations
+│   ├── WeMeditateWebSettings.ts # We Meditate web settings
+│   └── index.ts            # Globals export
 ├── migrations/             # Database migrations
 ├── instrumentation*.ts     # Sentry monitoring setup
 ├── sentry*.config.ts       # Sentry configuration files

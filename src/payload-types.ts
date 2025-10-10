@@ -80,6 +80,7 @@ export interface Config {
     'media-tags': MediaTag;
     'meditation-tags': MeditationTag;
     'music-tags': MusicTag;
+    'page-tags': PageTag;
     managers: Manager;
     clients: Client;
     forms: Form;
@@ -99,6 +100,9 @@ export interface Config {
     'music-tags': {
       music: 'music';
     };
+    'page-tags': {
+      pages: 'pages';
+    };
   };
   collectionsSelect: {
     pages: PagesSelect<false> | PagesSelect<true>;
@@ -113,6 +117,7 @@ export interface Config {
     'media-tags': MediaTagsSelect<false> | MediaTagsSelect<true>;
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
     'music-tags': MusicTagsSelect<false> | MusicTagsSelect<true>;
+    'page-tags': PageTagsSelect<false> | PageTagsSelect<true>;
     managers: ManagersSelect<false> | ManagersSelect<true>;
     clients: ClientsSelect<false> | ClientsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
@@ -126,9 +131,11 @@ export interface Config {
     defaultIDType: string;
   };
   globals: {
+    'we-meditate-web-settings': WeMeditateWebSetting;
     'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
+    'we-meditate-web-settings': WeMeditateWebSettingsSelect<false> | WeMeditateWebSettingsSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale: 'en' | 'cs';
@@ -222,7 +229,7 @@ export interface Page {
   slugLock?: boolean | null;
   publishAt?: string | null;
   category: 'technique' | 'artwork' | 'event' | 'knowledge';
-  tags?: ('living' | 'creativity' | 'wisdom' | 'stories' | 'events')[] | null;
+  tags?: (string | PageTag)[] | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -303,6 +310,28 @@ export interface MediaTag {
   name: string;
   media?: {
     docs?: (string | Media)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "page-tags".
+ */
+export interface PageTag {
+  id: string;
+  /**
+   * This label will be used in the editor
+   */
+  name: string;
+  /**
+   * This localized title will be shown to public users
+   */
+  title: string;
+  pages?: {
+    docs?: (string | Page)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -1155,6 +1184,10 @@ export interface PayloadLockedDocument {
         value: string | MusicTag;
       } | null)
     | ({
+        relationTo: 'page-tags';
+        value: string | PageTag;
+      } | null)
+    | ({
         relationTo: 'managers';
         value: string | Manager;
       } | null)
@@ -1529,6 +1562,17 @@ export interface MusicTagsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "page-tags_select".
+ */
+export interface PageTagsSelect<T extends boolean = true> {
+  name?: T;
+  title?: T;
+  pages?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "managers_select".
  */
 export interface ManagersSelect<T extends boolean = true> {
@@ -1810,6 +1854,60 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "we-meditate-web-settings".
+ */
+export interface WeMeditateWebSetting {
+  id: string;
+  /**
+   * Select the page content for the home page
+   */
+  homePage: string | Page;
+  /**
+   * Select 3-7 pages to feature in the website menu. Drag to reorder.
+   */
+  featuredPages: (string | Page)[];
+  /**
+   * Select 3-5 pages to display in the website footer
+   */
+  footerPages: (string | Page)[];
+  musicPage: string | Page;
+  /**
+   * Select 3-5 music tags to display on the Music page
+   */
+  musicPageTags: (string | MusicTag)[];
+  subtleSystemPage: string | Page;
+  left: string | Page;
+  right: string | Page;
+  center: string | Page;
+  mooladhara: string | Page;
+  kundalini: string | Page;
+  swadhistan: string | Page;
+  nabhi: string | Page;
+  void: string | Page;
+  anahat: string | Page;
+  vishuddhi: string | Page;
+  agnya: string | Page;
+  sahasrara: string | Page;
+  techniquesPage: string | Page;
+  /**
+   * Select the page tag that represents all technique pages
+   */
+  techniquePageTag: string | PageTag;
+  inspirationPage: string | Page;
+  /**
+   * Select 3-5 page tags to display on the Inspiration page
+   */
+  inspirationPageTags: (string | PageTag)[];
+  classesPage: string | Page;
+  /**
+   * Select the page for live meditation classes
+   */
+  liveMeditationsPage: string | Page;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats".
  */
 export interface PayloadJobsStat {
@@ -1825,6 +1923,39 @@ export interface PayloadJobsStat {
     | null;
   updatedAt?: string | null;
   createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "we-meditate-web-settings_select".
+ */
+export interface WeMeditateWebSettingsSelect<T extends boolean = true> {
+  homePage?: T;
+  featuredPages?: T;
+  footerPages?: T;
+  musicPage?: T;
+  musicPageTags?: T;
+  subtleSystemPage?: T;
+  left?: T;
+  right?: T;
+  center?: T;
+  mooladhara?: T;
+  kundalini?: T;
+  swadhistan?: T;
+  nabhi?: T;
+  void?: T;
+  anahat?: T;
+  vishuddhi?: T;
+  agnya?: T;
+  sahasrara?: T;
+  techniquesPage?: T;
+  techniquePageTag?: T;
+  inspirationPage?: T;
+  inspirationPageTags?: T;
+  classesPage?: T;
+  liveMeditationsPage?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
