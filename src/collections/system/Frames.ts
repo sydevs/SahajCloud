@@ -53,6 +53,7 @@ export const Frames: CollectionConfig = {
     group: 'System',
     useAsTitle: 'filename',
     defaultColumns: ['category', 'tags', 'previewUrl', 'imageSet'],
+    groupBy: true,
   },
   hooks: {
     beforeOperation: [sanitizeFilename],

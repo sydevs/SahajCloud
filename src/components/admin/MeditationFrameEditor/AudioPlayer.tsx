@@ -11,7 +11,20 @@ import React, {
 import type { KeyframeData } from './types'
 import { getCurrentFrame, isVideoFile, getMediaUrl } from './utils'
 import { SIZES } from './constants'
-import { AudioPlayerContainer, AudioPreview, EmptyState } from './styled'
+import {
+  AudioPlayerContainer,
+  AudioPreview,
+  AudioPlayerOverlay,
+  AudioPlayPauseButton,
+  AudioProgressOverlay,
+  AudioProgressBar,
+  AudioProgressFill,
+  AudioFrameMarker,
+  AudioInfoText,
+  AudioInfoLeft,
+  AudioInfoRight,
+  EmptyState,
+} from './styled'
 
 interface AudioPlayerProps {
   audioUrl: string | null
@@ -20,12 +33,12 @@ interface AudioPlayerProps {
   onSeek?: (time: number) => void
   size?: 'small' | 'large'
   className?: string
-  enableHotkeys?: boolean
   showPreview?: boolean
 }
 
 export interface AudioPlayerRef {
   pause: () => void
+  seek: (time: number) => void
 }
 
 const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
@@ -37,13 +50,13 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
       onSeek,
       size = 'large',
       className = '',
-      enableHotkeys = false,
       showPreview = false,
     },
     ref,
   ) => {
     const audioRef = useRef<HTMLAudioElement>(null)
     const progressRef = useRef<HTMLDivElement>(null)
+    const videoRef = useRef<HTMLVideoElement>(null)
     const currentBlobRef = useRef<string | null>(null)
     const [isPlaying, setIsPlaying] = useState(false)
     const [currentTime, setCurrentTime] = useState(0)
@@ -51,6 +64,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
     const [isLoaded, setIsLoaded] = useState(false)
     const [audioBlob, setAudioBlob] = useState<string | null>(null)
     const [loadingBlob, setLoadingBlob] = useState(false)
+    const [isHovered, setIsHovered] = useState(false)
 
     // Size configurations
     const config = {
@@ -66,6 +80,9 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
 
     // Find current frame
     const currentFrame = getCurrentFrame(frames, currentTime)
+    const currentFrameIndex = currentFrame
+      ? frames.findIndex((f) => f.id === currentFrame.id && f.timestamp === currentFrame.timestamp)
+      : -1
 
     // Load audio as blob to enable proper seeking
     useEffect(() => {
@@ -117,19 +134,6 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
       }
     }, [])
 
-    // Expose pause function via ref
-    useImperativeHandle(
-      ref,
-      () => ({
-        pause: () => {
-          if (audioRef.current && isPlaying) {
-            audioRef.current.pause()
-          }
-        },
-      }),
-      [isPlaying],
-    )
-
     // Audio event handlers
     const handleLoadedMetadata = () => {
       if (audioRef.current) {
@@ -179,6 +183,20 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
       [duration, onSeek],
     )
 
+    // Expose pause and seek functions via ref
+    useImperativeHandle(
+      ref,
+      () => ({
+        pause: () => {
+          if (audioRef.current && isPlaying) {
+            audioRef.current.pause()
+          }
+        },
+        seek: seekTo,
+      }),
+      [isPlaying, seekTo],
+    )
+
     // Progress bar click handler
     const handleProgressClick = (e: React.MouseEvent) => {
       if (!progressRef.current || !duration) return
@@ -190,7 +208,8 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
     }
 
     // Frame marker click handler
-    const handleMarkerClick = (timestamp: number) => {
+    const handleMarkerClick = (timestamp: number, e: React.MouseEvent) => {
+      e.stopPropagation()
       seekTo(timestamp)
     }
 
@@ -215,10 +234,21 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
       return `${minutes}:${seconds}`
     }
 
+    // Sync video playback with audio player state and when frame changes
+    useEffect(() => {
+      if (!videoRef.current) return
+
+      if (isPlaying) {
+        videoRef.current.play().catch(() => {
+          // Video might not be ready yet, that's ok
+        })
+      } else {
+        videoRef.current.pause()
+      }
+    }, [isPlaying, currentFrame])
+
     // Keyboard shortcuts
     useEffect(() => {
-      if (size === 'small' || !enableHotkeys) return
-
       const handleKeyDown = (event: KeyboardEvent) => {
         if (!audioRef.current || !duration) return
 
@@ -244,7 +274,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
 
       document.addEventListener('keydown', handleKeyDown)
       return () => document.removeEventListener('keydown', handleKeyDown)
-    }, [currentTime, duration, enableHotkeys, size, seekTo, togglePlayPause])
+    }, [currentTime, duration, seekTo, togglePlayPause])
 
     if (!audioUrl) {
       return (
@@ -257,189 +287,157 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
     const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0
 
     return (
-      <>
-        <AudioPlayerContainer className={className} $width={config.preview}>
-          {/* Preview Area */}
-          {showPreview && (
-            <AudioPreview $width={config.preview} $height={config.preview}>
-              {currentFrame ? (
-                isVideoFile(currentFrame.mimeType || undefined) ? (
-                  <video
-                    src={currentFrame.url || ''}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                    }}
-                    loop
-                    muted
-                    autoPlay
-                    playsInline
-                  />
-                ) : (
-                  <img
-                    src={getMediaUrl(currentFrame, 'medium') || undefined}
-                    alt={currentFrame.category}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                    }}
-                  />
-                )
-              ) : (
-                <div
-                  style={{
-                    textAlign: 'center',
-                    color: '#6c757d',
-                    fontSize: config.fontSize,
-                    padding: '1rem',
-                  }}
-                >
-                  {frames.length === 0 ? 'No frames added' : 'Loading...'}
-                </div>
-              )}
+      <AudioPlayerContainer className={className} $width={config.preview}>
+        {/* Hidden audio element */}
+        <audio
+          ref={audioRef}
+          src={audioBlob || audioUrl}
+          onLoadedMetadata={handleLoadedMetadata}
+          onTimeUpdate={handleTimeUpdate}
+          onPlay={handlePlay}
+          onPause={handlePause}
+          onEnded={handleEnded}
+          preload="metadata"
+        />
 
-              {/* Frame info overlay */}
-              {currentFrame && (
-                <div
+        {/* Square Preview with Overlay */}
+        <AudioPreview
+          $width={config.preview}
+          $height={config.preview}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          {/* Frame Image/Video */}
+          {showPreview && currentFrame ? (
+            isVideoFile(currentFrame.mimeType || undefined) ? (
+              <>
+                {/* Show preview image as background while video loads */}
+                <img
+                  src={currentFrame.previewUrl || getMediaUrl(currentFrame, 'small') || undefined}
+                  alt={currentFrame.category}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    position: 'absolute',
+                  }}
+                />
+                {/* Loading spinner - behind video so it disappears when video renders */}
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
                   style={{
                     position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)',
-                    padding: '0.5rem',
-                    color: 'white',
-                    fontSize: config.fontSize,
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 0,
                   }}
                 >
-                  <div style={{ fontWeight: '500' }}>{currentFrame.category}</div>
-                  {frames.length > 1 && (
-                    <div style={{ fontSize: '0.625rem', opacity: 0.8 }}>
-                      Frame {frames.findIndex((f) => f.id === currentFrame.id) + 1} of{' '}
-                      {frames.length}
-                    </div>
-                  )}
-                </div>
-              )}
-            </AudioPreview>
-          )}
-
-          {/* Audio Player Controls */}
-          <div
-            style={{
-              padding: '1rem',
-              backgroundColor: '#f9fafb',
-              border: '1px solid #e5e7eb',
-              borderRadius: '0.5rem',
-            }}
-          >
-            <audio
-              ref={audioRef}
-              src={audioBlob || audioUrl}
-              onLoadedMetadata={handleLoadedMetadata}
-              onTimeUpdate={handleTimeUpdate}
-              onPlay={handlePlay}
-              onPause={handlePause}
-              onEnded={handleEnded}
-              preload="metadata"
-            />
-
-            {/* Controls Row */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                marginBottom: '0.75rem',
-              }}
-            >
-              <button
-                type="button"
-                onClick={togglePlayPause}
-                disabled={!isLoaded || loadingBlob}
+                  <path
+                    d="M2,12A11.2,11.2,0,0,1,13,1.05C12.67,1,12.34,1,12,1a11,11,0,0,0,0,22c.34,0,.67,0,1-.05C6,23,2,17.74,2,12Z"
+                    fill="white"
+                  >
+                    <animateTransform
+                      attributeName="transform"
+                      type="rotate"
+                      dur="0.6s"
+                      values="0 12 12;360 12 12"
+                      repeatCount="indefinite"
+                    />
+                  </path>
+                </svg>
+                {/* Video element on top - will naturally cover preview + spinner once loaded */}
+                <video
+                  ref={videoRef}
+                  src={currentFrame.url || ''}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    zIndex: 1,
+                  }}
+                  loop
+                  muted
+                  playsInline
+                />
+              </>
+            ) : (
+              <img
+                src={getMediaUrl(currentFrame, 'medium') || undefined}
+                alt={currentFrame.category}
                 style={{
-                  width: size === 'large' ? '48px' : '36px',
-                  height: size === 'large' ? '48px' : '36px',
-                  borderRadius: '50%',
-                  border: 'none',
-                  backgroundColor: '#3b82f6',
-                  color: 'white',
-                  fontSize: size === 'large' ? '1.5rem' : '1rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {loadingBlob ? '...' : isPlaying ? '⏸' : '▶'}
-              </button>
-
-              <div style={{ fontSize: config.fontSize, color: '#4b5563' }}>
-                {formatTime(currentTime)} / {formatTime(duration)}
-              </div>
-            </div>
-
-            {/* Progress Bar */}
-            <div
-              ref={progressRef}
-              onClick={handleProgressClick}
-              style={{
-                position: 'relative',
-                height: size === 'large' ? '8px' : '6px',
-                backgroundColor: '#e5e7eb',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-            >
-              {/* Progress Fill */}
-              <div
-                style={{
-                  width: `${progressPercentage}%`,
+                  width: '100%',
                   height: '100%',
-                  backgroundColor: '#3b82f6',
-                  borderRadius: '4px',
-                  transition: 'width 0.1s ease',
+                  objectFit: 'cover',
                 }}
               />
-
-              {/* Frame Markers */}
-              {duration > 0 &&
-                frames.map((frame, index) => (
-                  <div
-                    key={`${frame.id}-${frame.timestamp}-${index}`}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleMarkerClick(frame.timestamp)
-                    }}
-                    title={`Frame at ${frame.timestamp}s`}
-                    style={{
-                      position: 'absolute',
-                      left: `${(frame.timestamp / duration) * 100}%`,
-                      top: '-4px',
-                      width: '3px',
-                      height: '16px',
-                      backgroundColor: '#f97316',
-                      cursor: 'pointer',
-                      transform: 'translateX(-50%)',
-                      opacity: 0.85,
-                      transition: 'all 0.2s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.opacity = '1'
-                      e.currentTarget.style.transform = 'translateX(-50%) scale(1.2)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.opacity = '0.85'
-                      e.currentTarget.style.transform = 'translateX(-50%) scale(1)'
-                    }}
-                  />
-                ))}
+            )
+          ) : (
+            <div
+              style={{
+                textAlign: 'center',
+                color: '#6c757d',
+                fontSize: config.fontSize,
+                padding: '1rem',
+              }}
+            >
+              {frames.length === 0 ? 'No frames added' : 'Loading...'}
             </div>
-          </div>
-        </AudioPlayerContainer>
-      </>
+          )}
+
+          {/* Overlay with Controls */}
+          <AudioPlayerOverlay $isHovered={isHovered}>
+            {/* Center Play/Pause Button (visible on hover) */}
+            <AudioPlayPauseButton
+              type="button"
+              onClick={togglePlayPause}
+              disabled={!isLoaded || loadingBlob}
+              $isHovered={isHovered}
+              $isPlaying={isPlaying}
+            >
+              {loadingBlob ? '...' : isPlaying ? '⏸' : '▶'}
+            </AudioPlayPauseButton>
+
+            {/* Bottom Progress Bar with Gradient */}
+            <AudioProgressOverlay>
+              <AudioProgressBar ref={progressRef} onClick={handleProgressClick}>
+                <AudioProgressFill $percentage={progressPercentage} />
+
+                {/* Frame Markers */}
+                {duration > 0 &&
+                  frames.map((frame, index) => (
+                    <AudioFrameMarker
+                      key={`${frame.id}-${frame.timestamp}-${index}`}
+                      $left={(frame.timestamp / duration) * 100}
+                      onClick={(e) => handleMarkerClick(frame.timestamp, e)}
+                      title={`Frame at ${frame.timestamp}s`}
+                    />
+                  ))}
+              </AudioProgressBar>
+            </AudioProgressOverlay>
+          </AudioPlayerOverlay>
+        </AudioPreview>
+
+        {/* Info Text Below the Square */}
+        <AudioInfoText>
+          <AudioInfoLeft>
+            {currentFrame && currentFrameIndex >= 0
+              ? `${currentFrame.category} ${currentFrameIndex + 1}/${frames.length}`
+              : frames.length > 0
+                ? `Frame 1/${frames.length}`
+                : 'No frames'}
+          </AudioInfoLeft>
+          <AudioInfoRight>
+            {formatTime(currentTime)} / {formatTime(duration)}
+          </AudioInfoRight>
+        </AudioInfoText>
+      </AudioPlayerContainer>
     )
   },
 )

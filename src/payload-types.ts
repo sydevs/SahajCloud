@@ -315,23 +315,17 @@ export interface MediaTag {
  */
 export interface Meditation {
   id: string;
-  title: string;
   label: string;
   locale: 'en' | 'cs';
-  publishAt?: string | null;
-  slug?: string | null;
-  slugLock?: boolean | null;
-  thumbnail: string | Media;
+  /**
+   * This should be the name of the yogi who did the recording. We need this for dynamic followup audio clips.
+   */
   narrator: string | Narrator;
-  tags?: (string | MeditationTag)[] | null;
   /**
    * Music with this tag will be offered to the seeker
    */
   musicTag?: (string | null) | MusicTag;
-  /**
-   * Frames associated with this meditation with audio-synchronized editing
-   */
-  frames?:
+  fileMetadata?:
     | {
         [k: string]: unknown;
       }
@@ -340,7 +334,19 @@ export interface Meditation {
     | number
     | boolean
     | null;
-  fileMetadata?:
+  publishAt?: string | null;
+  title?: string | null;
+  slug?: string | null;
+  slugLock?: boolean | null;
+  thumbnail?: (string | null) | Media;
+  /**
+   * Categorize this meditation for seekers to find it
+   */
+  tags?: (string | MeditationTag)[] | null;
+  /**
+   * Frames associated with this meditation with audio-synchronized editing
+   */
+  frames?:
     | {
         [k: string]: unknown;
       }
@@ -370,28 +376,6 @@ export interface Narrator {
   id: string;
   name: string;
   gender: 'male' | 'female';
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditation-tags".
- */
-export interface MeditationTag {
-  id: string;
-  /**
-   * This label will be used in the editor
-   */
-  name: string;
-  /**
-   * This localized title will be shown to public users
-   */
-  title: string;
-  meditations?: {
-    docs?: (string | Meditation)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
   updatedAt: string;
   createdAt: string;
 }
@@ -452,6 +436,28 @@ export interface Music {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditation-tags".
+ */
+export interface MeditationTag {
+  id: string;
+  /**
+   * This label will be used in the editor
+   */
+  name: string;
+  /**
+   * This localized title will be shown to public users
+   */
+  title: string;
+  meditations?: {
+    docs?: (string | Meditation)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1249,18 +1255,18 @@ export interface PagesSelect<T extends boolean = true> {
  * via the `definition` "meditations_select".
  */
 export interface MeditationsSelect<T extends boolean = true> {
-  title?: T;
   label?: T;
   locale?: T;
+  narrator?: T;
+  musicTag?: T;
+  fileMetadata?: T;
   publishAt?: T;
+  title?: T;
   slug?: T;
   slugLock?: T;
   thumbnail?: T;
-  narrator?: T;
   tags?: T;
-  musicTag?: T;
   frames?: T;
-  fileMetadata?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;

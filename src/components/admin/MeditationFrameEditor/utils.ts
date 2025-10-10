@@ -77,7 +77,7 @@ export const getProgressPercentage = (currentTime: number, duration: number): nu
   return (currentTime / duration) * 100
 }
 
-export const isVideoFile = (mimeType?: string): boolean => {
+export const isVideoFile = (mimeType?: string | null): boolean => {
   return mimeType?.startsWith('video/') || false
 }
 

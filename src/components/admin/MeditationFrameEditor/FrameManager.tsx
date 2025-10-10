@@ -2,7 +2,6 @@
 
 import React, { useCallback } from 'react'
 import type { KeyframeData } from './types'
-import FrameItem from './FrameItem'
 import { validateTimestamp, sortFramesByTimestamp, isVideoFile } from './utils'
 import { SIZES } from './constants'
 import {
@@ -10,13 +9,10 @@ import {
   ComponentHeader,
   FrameManagerList,
   FrameManagerItem,
-  FrameThumbnail,
-  FrameInfo,
-  FrameInfoTitle,
-  FrameInfoSubtext,
-  TimestampInput,
-  TimestampError,
-  Button,
+  FrameManagerPillIcon,
+  FrameManagerPillTitle,
+  FrameManagerPillTimestamp,
+  FrameManagerPillRemove,
   EmptyState,
 } from './styled'
 
@@ -33,16 +29,53 @@ const TrashIcon: React.FC<{ size?: number }> = ({ size = 16 }) => (
   </svg>
 )
 
+const ImageIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <polyline points="21 15 16 10 5 21" />
+  </svg>
+)
+
+const VideoIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polygon points="23 7 16 12 23 17 23 7" />
+    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+  </svg>
+)
+
 interface FrameManagerProps {
   frames: KeyframeData[]
   onFramesChange: (frames: KeyframeData[]) => void
   readOnly?: boolean
+  currentTime?: number
+  onSeekToFrame?: (timestamp: number) => void
 }
 
 const FrameManager: React.FC<FrameManagerProps> = ({
   frames,
   onFramesChange,
   readOnly = false,
+  currentTime = 0,
+  onSeekToFrame,
 }) => {
   const handleTimestampChange = useCallback(
     (index: number, newTimestamp: number) => {
@@ -69,17 +102,43 @@ const FrameManager: React.FC<FrameManagerProps> = ({
     [frames],
   )
 
+  const handlePillClick = useCallback(
+    (timestamp: number) => {
+      if (onSeekToFrame && !readOnly) {
+        onSeekToFrame(timestamp)
+      }
+    },
+    [onSeekToFrame, readOnly],
+  )
+
+  // Determine which frame is currently active based on currentTime
+  const getActiveFrameIndex = useCallback((): number => {
+    if (frames.length === 0) return -1
+
+    // Find the frame with the largest timestamp that is <= currentTime
+    let activeIndex = 0
+    for (let i = 0; i < frames.length; i++) {
+      if (frames[i].timestamp <= currentTime) {
+        activeIndex = i
+      } else {
+        break
+      }
+    }
+    return activeIndex
+  }, [frames, currentTime])
+
   if (frames.length === 0) {
     return (
       <ComponentContainer>
         <ComponentHeader>Current Frames (0)</ComponentHeader>
         <EmptyState>
-          No frames added yet. Select frames from the library below to add them at the current audio
-          timestamp.
+          No frames added yet. Select your first frame from the library on the right.
         </EmptyState>
       </ComponentContainer>
     )
   }
+
+  const activeFrameIndex = getActiveFrameIndex()
 
   return (
     <ComponentContainer>
@@ -88,81 +147,73 @@ const FrameManager: React.FC<FrameManagerProps> = ({
       <FrameManagerList>
         {frames.map((frameData, index) => {
           const timestampError = getTimestampError(frameData.timestamp, index)
+          const isActive = index === activeFrameIndex
+
+          // Check if frame is video
+          const isVideo = isVideoFile(frameData.mimeType)
+
+          // Format tags for display (truncate if needed)
+          const tagsText =
+            frameData.tags && frameData.tags.length > 0 ? frameData.tags.join(', ') : ''
+
+          // Create title with category and tags
+          const displayTitle = frameData.category || `Frame ${frameData.id}`
+          const fullTitle = tagsText ? `${displayTitle} • ${tagsText}` : displayTitle
 
           return (
             <FrameManagerItem
               key={`${frameData?.id}-${frameData.timestamp}`}
               $isLast={index === frames.length - 1}
+              $isActive={isActive}
+              $isClickable={!!onSeekToFrame && !readOnly}
+              onClick={() => handlePillClick(frameData.timestamp)}
             >
-              {/* Frame Preview */}
-              <FrameThumbnail $size={SIZES.FRAME_THUMBNAIL}>
-                <FrameItem
-                  frame={frameData}
-                  size={SIZES.FRAME_THUMBNAIL}
-                  usePreviewUrl={true}
-                  showVideoOnHover={false}
-                  playOnHover={false}
-                />
-              </FrameThumbnail>
+              {/* Icon - Left side of pill */}
+              <FrameManagerPillIcon>
+                {isVideo ? <VideoIcon size={14} /> : <ImageIcon size={14} />}
+              </FrameManagerPillIcon>
 
-              {/* Frame Info */}
-              <FrameInfo>
-                <FrameInfoTitle>{frameData.category || `Frame ${frameData.id}`}</FrameInfoTitle>
-                {frameData &&
-                  isVideoFile(frameData.mimeType || undefined) &&
-                  frameData.duration && (
-                    <FrameInfoSubtext>{frameData.duration}s video</FrameInfoSubtext>
-                  )}
-              </FrameInfo>
+              {/* Title with Tags - Center of pill */}
+              <FrameManagerPillTitle title={fullTitle}>
+                <span style={{ fontWeight: 500 }}>{displayTitle}</span>
+                {tagsText && (
+                  <span style={{ opacity: 0.6, fontSize: '0.75rem', marginLeft: '0.5rem' }}>
+                    • {tagsText}
+                  </span>
+                )}
+              </FrameManagerPillTitle>
 
-              {/* Timestamp Input */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-end',
-                  gap: '0.125rem',
+              {/* Timestamp - Right-center of pill */}
+              <FrameManagerPillTimestamp
+                type="number"
+                min="0"
+                max="3600"
+                step="1"
+                value={frameData.timestamp}
+                onChange={(e) => {
+                  const newTimestamp = parseInt(e.target.value) || 0
+                  const error = getTimestampError(newTimestamp, index)
+                  if (!error) {
+                    handleTimestampChange(index, newTimestamp)
+                  }
                 }}
-              >
-                <TimestampInput
-                  type="number"
-                  min="0"
-                  max="3600"
-                  step="1"
-                  value={frameData.timestamp}
-                  onChange={(e) => {
-                    const newTimestamp = parseInt(e.target.value) || 0
-                    const error = getTimestampError(newTimestamp, index)
-                    if (!error) {
-                      handleTimestampChange(index, newTimestamp)
-                    }
-                  }}
-                  disabled={readOnly}
-                  $hasError={!!timestampError}
-                />
-                {timestampError && <TimestampError>{timestampError}</TimestampError>}
-              </div>
-
-              {/* Remove Button */}
-              <Button
-                type="button"
-                onClick={() => handleRemoveFrame(index)}
+                onClick={(e) => e.stopPropagation()}
                 disabled={readOnly}
-                variant={readOnly ? 'disabled' : 'error'}
-                style={{
-                  padding: '0.25rem',
-                  flexShrink: 0,
-                  minWidth: '24px',
-                  height: '24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: '0.75rem',
+                title={timestampError || 'Frame will be shown at this second'}
+              />
+
+              {/* Remove Button - Right side of pill */}
+              <FrameManagerPillRemove
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleRemoveFrame(index)
                 }}
+                disabled={readOnly}
                 title="Remove frame"
               >
-                <TrashIcon size={14} />
-              </Button>
+                <TrashIcon size={12} />
+              </FrameManagerPillRemove>
             </FrameManagerItem>
           )
         })}

@@ -141,15 +141,15 @@ class SimpleImporter {
     const updateMode = UPDATE_EXISTING_RECORDS ? ' [UPDATE MODE]' : ' [SKIP MODE]'
     const resetText = this.reset ? ' [RESET]' : ''
     console.log(
-      colorize('blue', `\n🚀 Simple Migration from Heroku Postgres Dump${modeText}${updateMode}${resetText}\n`),
+      colorize(
+        'blue',
+        `\n🚀 Simple Migration from Heroku Postgres Dump${modeText}${updateMode}${resetText}\n`,
+      ),
     )
 
     if (this.reset) {
       console.log(
-        colorize(
-          'red',
-          '⚠️  RESET MODE: Meditations collection will be erased before import',
-        ),
+        colorize('red', '⚠️  RESET MODE: Meditations collection will be erased before import'),
       )
     }
 
@@ -887,7 +887,9 @@ class SimpleImporter {
 
     if (existingTag.docs.length > 0) {
       this.meditationThumbnailTagId = String(existingTag.docs[0].id)
-      console.log(`    ✓ Found existing meditation-thumbnail tag (ID: ${this.meditationThumbnailTagId})`)
+      console.log(
+        `    ✓ Found existing meditation-thumbnail tag (ID: ${this.meditationThumbnailTagId})`,
+      )
     } else {
       // Create the tag
       const newTag = await this.payload.create({
@@ -1636,7 +1638,7 @@ class SimpleImporter {
           }
 
           return {
-            frame: frameId,
+            id: frameId,
             timestamp: timestamp,
           }
         })
@@ -1647,9 +1649,9 @@ class SimpleImporter {
 
       // Validate frames array structure and filter out invalid entries
       const validFrames = frames.filter((frame) => {
-        if (!frame.frame || typeof frame.frame !== 'string') {
+        if (!frame.id || typeof frame.id !== 'string') {
           this.addWarning(
-            `Removing invalid frame ID for meditation ${meditation.title}: ${frame.frame}`,
+            `Removing invalid frame ID for meditation ${meditation.title}: ${frame.id}`,
           )
           return false
         }

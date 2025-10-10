@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState, useCallback } from 'react'
 import { useField, useForm } from '@payloadcms/ui'
-import MeditationFrameEditorModal from './MeditationFrameEditorModal'
+import InlineLayout from './InlineLayout'
 import type { MeditationFrameEditorProps, KeyframeData } from './types'
 import type { Narrator } from '@/payload-types'
 import { sortFramesByTimestamp } from './utils'
-import { LoadingState } from './styled'
+import { LoadingState, EmptyState } from './styled'
 
 const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
   path,
@@ -72,7 +72,7 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
     loadMeditationData()
   }, [getData, narratorField.value])
 
-  const handleSave = useCallback(
+  const handleFramesChange = useCallback(
     (newFrames: KeyframeData[]) => {
       setValue(sortFramesByTimestamp(newFrames))
     },
@@ -83,34 +83,25 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
   const frames = value || []
 
   if (isLoading) {
+    return <LoadingState>Loading meditation data...</LoadingState>
+  }
+
+  if (!audioUrl) {
     return (
-      <div className="field-type">
-        <label className="field-label">
-          {label || 'Meditation Video'}
-          {required && <span className="required">*</span>}
-        </label>
-        {description && <div className="field-description">{description}</div>}
-        <LoadingState>Loading meditation data...</LoadingState>
-      </div>
+      <EmptyState>
+        Please upload an audio file and save the meditation before editing the video frames.
+      </EmptyState>
     )
   }
 
   return (
-    <div className="field-type">
-      <label className="field-label">
-        {label || 'Meditation Video'}
-        {required && <span className="required">*</span>}
-      </label>
-      {description && <div className="field-description">{description}</div>}
-
-      <MeditationFrameEditorModal
-        initialFrames={frames}
-        audioUrl={audioUrl}
-        narrator={narrator}
-        onSave={handleSave}
-        readOnly={readOnly}
-      />
-    </div>
+    <InlineLayout
+      audioUrl={audioUrl}
+      narrator={narrator}
+      frames={frames}
+      onFramesChange={handleFramesChange}
+      readOnly={readOnly}
+    />
   )
 }
 

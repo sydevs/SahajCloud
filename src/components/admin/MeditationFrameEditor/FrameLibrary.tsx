@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import type { Frame, Narrator } from '@/payload-types'
+import type { KeyframeData } from './types'
 import { FRAME_CATEGORIES } from '@/lib/data'
 import FrameItem from './FrameItem'
-import { isVideoFile } from './utils'
+import { isVideoFile, formatTime } from './utils'
 import { LIMITS, GRID_CONFIG, SIZES } from './constants'
 import {
   ComponentContainer,
@@ -17,18 +18,23 @@ import {
   LoadingState,
   ErrorState,
   EmptyState,
+  InstructionsPanel,
 } from './styled'
 
 interface FrameLibraryProps {
   narrator: Narrator | null
   onFrameSelect: (frame: Frame) => void
   disabled?: boolean
+  currentTime: number
+  frames: KeyframeData[]
 }
 
 const FrameLibrary: React.FC<FrameLibraryProps> = ({
   narrator,
   onFrameSelect,
   disabled = false,
+  currentTime,
+  frames: currentFrames,
 }) => {
   const [frames, setFrames] = useState<Frame[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -115,6 +121,18 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
         )}
       </ComponentHeader>
 
+      {/* Instructions */}
+      {narrator && (
+        <InstructionsPanel>
+          <strong>📍 Instructions:</strong> Click any frame to add at{' '}
+          {formatTime(Math.round(currentTime))}.{' '}
+          {currentFrames.length === 0 && (
+            <span style={{ color: 'var(--theme-success-400)' }}>First frame → 0s.</span>
+          )}{' '}
+          <strong>Keys:</strong> SPACE=play/pause, ←→=±5s
+        </InstructionsPanel>
+      )}
+
       {/* Category Filters */}
       <CategoryFilters>
         {FRAME_CATEGORIES.map((category) => (
@@ -144,9 +162,7 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
       {/* Frames Grid */}
       {filteredFrames.length === 0 ? (
         <EmptyState>
-          {selectedCategory
-            ? 'No frames found with selected category.'
-            : 'No frames available.'}
+          {selectedCategory ? 'No frames found with selected category.' : 'No frames available.'}
         </EmptyState>
       ) : (
         <FramesGrid $columns={GRID_CONFIG.FRAME_LIBRARY_COLUMNS} $gap={GRID_CONFIG.GAP}>

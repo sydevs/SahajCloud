@@ -35,7 +35,6 @@ import { default as default_87bd5cef84cb6775cdc8956c9ed40dda } from '@/component
 import { default as default_f28c41f0cddfc783c32ab0f807bb5d2d } from '@/components/admin/PermissionRowLabel'
 import { default as default_e2e03d4215a583971e90a375f6eb68f9 } from '@/components/admin/HighUsageAlert'
 import { default as default_7b4ba381140135af5cae014b3533be0b } from '@/components/branding/Icon'
-import { default as default_742835b254059f88bfb2f781ea75df90 } from '@/components/branding/Logo'
 import { default as default_70d6a18357c47b1a9d8a541fcd53f95f } from '@/components/AdminProvider.tsx'
 import { S3ClientUploadHandler as S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24 } from '@payloadcms/storage-s3/client'
 
@@ -77,7 +76,6 @@ export const importMap = {
   "@/components/admin/PermissionRowLabel#default": default_f28c41f0cddfc783c32ab0f807bb5d2d,
   "@/components/admin/HighUsageAlert#default": default_e2e03d4215a583971e90a375f6eb68f9,
   "@/components/branding/Icon#default": default_7b4ba381140135af5cae014b3533be0b,
-  "@/components/branding/Logo#default": default_742835b254059f88bfb2f781ea75df90,
   "@/components/AdminProvider.tsx#default": default_70d6a18357c47b1a9d8a541fcd53f95f,
   "@payloadcms/storage-s3/client#S3ClientUploadHandler": S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24
 }

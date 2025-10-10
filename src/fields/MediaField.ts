@@ -1,4 +1,4 @@
-import type { UploadField } from 'payload'
+import type { UploadField, Where } from 'payload'
 
 export type MediaFieldOptions = {
   /** Field name */
@@ -11,6 +11,8 @@ export type MediaFieldOptions = {
   localized?: boolean
   /** Constrain selection to specific image orientation */
   orientation?: 'landscape' | 'portrait' | 'square'
+  /** Filter by tag name (e.g., 'meditation-thumbnail') */
+  tagName?: string
   /** Admin configuration overrides */
   admin?: Partial<UploadField['admin']>
 }
@@ -20,32 +22,53 @@ export type MediaFieldOptions = {
  * and filtering for hidden media documents
  */
 export function MediaField(options: MediaFieldOptions): UploadField {
-  const { name, label, required = false, localized = false, orientation, admin = {} } = options
+  const { name, label, required = false, localized = false, tagName, admin = {} } = options
 
   // Base filter to exclude hidden media
-  const baseFilter = {
+  const baseFilter: Where = {
     hidden: {
       not_equals: true,
     },
-  } as any
+  }
 
-  // Add orientation filter if specified
-  // Note: Path-based comparisons in filterOptions only work for UI filtering,
-  // not for validation. Temporarily disabled to prevent validation errors.
-  // let filterOptions = baseFilter
-  // if (orientation) {
-  //   const orientationFilters = getOrientationFilter(orientation)
-  //   if (orientationFilters.length > 0) {
-  //     filterOptions = {
-  //       and: [
-  //         baseFilter,
-  //         {
-  //           or: orientationFilters,
-  //         },
-  //       ],
-  //     }
-  //   }
-  // }
+  // Build filter options based on tagName
+  const filterOptions = tagName
+    ? async ({ req }: { req: any }): Promise<Where> => {
+        // Look up the tag by name to get its ID
+        const tagResult = await req.payload.find({
+          collection: 'media-tags',
+          where: {
+            name: {
+              equals: tagName,
+            },
+          },
+          limit: 1,
+        })
+
+        if (tagResult.docs.length === 0) {
+          // No tag found with this name, return a filter that matches nothing
+          return {
+            id: {
+              equals: 'non-existent-id',
+            },
+          }
+        }
+
+        const tagId = tagResult.docs[0].id
+
+        // Return filter for media with this tag ID
+        return {
+          and: [
+            baseFilter,
+            {
+              tags: {
+                contains: tagId,
+              },
+            },
+          ],
+        }
+      }
+    : baseFilter
 
   return {
     name,
@@ -54,7 +77,7 @@ export function MediaField(options: MediaFieldOptions): UploadField {
     localized,
     type: 'upload',
     relationTo: 'media',
-    // filterOptions,
+    filterOptions,
     admin: {
       components: {
         Cell: '@/components/admin/ThumbnailCell',
