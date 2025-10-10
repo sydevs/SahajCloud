@@ -6,7 +6,6 @@ import { Meditations } from './content/Meditations'
 import { Music } from './content/Music'
 import { Pages } from './content/Pages'
 import { Lessons } from './content/Lessons'
-import { LessonUnits } from './content/LessonUnits'
 import { Frames } from './system/Frames'
 import { Clients } from './access/Clients'
 import { MeditationTags } from './tags/MeditationTags'
@@ -19,7 +18,6 @@ export const collections = [
   // Content
   Pages,
   Meditations,
-  LessonUnits,
   Lessons,
   // Resources
   Music,
@@ -41,7 +39,6 @@ export {
   // Content
   Pages,
   Meditations,
-  LessonUnits,
   Lessons,
   // Resources
   Music,

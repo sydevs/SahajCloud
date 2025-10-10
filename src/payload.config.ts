@@ -38,7 +38,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           },
         ],
         graphics: {
-          Logo: '@/components/branding/Logo',
+          Logo: '@/components/branding/Icon',
           Icon: '@/components/branding/Icon',
         },
       },

@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import type { JSONSchema4 } from 'json-schema'
-import { permissionBasedAccess } from '@/lib/accessControl'
+import { permissionBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { QuoteBlock } from '@/blocks/pages'
@@ -11,7 +11,6 @@ import {
   deleteFileAttachmentsHook,
   claimOrphanFileAttachmentsHook,
 } from '@/fields/FileAttachmentField'
-import { ColourTextField } from '@nouance/payload-better-fields-plugin/ColourText'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
@@ -20,13 +19,12 @@ export const Lessons: CollectionConfig = {
   defaultSort: ['unit', 'step'],
   labels: {
     singular: 'Path Step',
-    plural: 'Path Steps (By Lesson)',
+    plural: 'Path Steps',
   },
   admin: {
-    // hidden: true,
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'unit', 'step'],
+    defaultColumns: ['title', 'step'],
     groupBy: true,
     listSearchableFields: ['title'],
   },
@@ -39,31 +37,6 @@ export const Lessons: CollectionConfig = {
       name: 'title',
       type: 'text',
       required: true,
-    },
-    {
-      type: 'row',
-      fields: [
-        {
-          name: 'unit',
-          type: 'number',
-          required: true,
-        },
-        {
-          name: 'step',
-          type: 'number',
-          required: true,
-        },
-        ...ColourTextField({
-          name: 'color',
-          required: true,
-        }),
-        FileAttachmentField({
-          name: 'icon',
-          ownerCollection: 'lessons',
-          required: false,
-          fileType: 'image',
-        }),
-      ],
     },
     // ===== INTRODUCTION ===== //
     {
@@ -153,6 +126,34 @@ export const Lessons: CollectionConfig = {
               localized: true,
               editor: fullRichTextEditor([QuoteBlock]),
             },
+          ],
+        },
+        // ===== APPEARANCE ===== //
+        {
+          label: 'Appearance',
+          fields: [
+            {
+              name: 'unit',
+              type: 'select',
+              required: true,
+              options: Array.from({ length: 4 }, (_, i) => `Unit ${i + 1}`),
+              access: createFieldAccess('lessons', false),
+            },
+            {
+              name: 'step',
+              type: 'number',
+              required: true,
+              admin: {
+                description: 'This will determine the order of the path steps',
+              },
+              access: createFieldAccess('lessons', false),
+            },
+            FileAttachmentField({
+              name: 'icon',
+              ownerCollection: 'lessons',
+              fileType: 'image',
+              access: createFieldAccess('lessons', false),
+            }),
           ],
         },
       ],

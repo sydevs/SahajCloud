@@ -70,7 +70,6 @@ export interface Config {
   collections: {
     pages: Page;
     meditations: Meditation;
-    'lesson-units': LessonUnit;
     lessons: Lesson;
     music: Music;
     'external-videos': ExternalVideo;
@@ -104,7 +103,6 @@ export interface Config {
   collectionsSelect: {
     pages: PagesSelect<false> | PagesSelect<true>;
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
-    'lesson-units': LessonUnitsSelect<false> | LessonUnitsSelect<true>;
     lessons: LessonsSelect<false> | LessonsSelect<true>;
     music: MusicSelect<false> | MusicSelect<true>;
     'external-videos': ExternalVideosSelect<false> | ExternalVideosSelect<true>;
@@ -317,26 +315,17 @@ export interface MediaTag {
  */
 export interface Meditation {
   id: string;
-  title: string;
+  label: string;
   locale: 'en' | 'cs';
-  publishAt?: string | null;
-  slug?: string | null;
-  slugLock?: boolean | null;
-  thumbnail: string | Media;
   /**
-   * Duration in seconds
+   * This should be the name of the yogi who did the recording. We need this for dynamic followup audio clips.
    */
-  duration?: number | null;
   narrator: string | Narrator;
-  tags?: (string | MeditationTag)[] | null;
   /**
    * Music with this tag will be offered to the seeker
    */
   musicTag?: (string | null) | MusicTag;
-  /**
-   * Frames associated with this meditation with audio-synchronized editing
-   */
-  frames?:
+  fileMetadata?:
     | {
         [k: string]: unknown;
       }
@@ -345,7 +334,19 @@ export interface Meditation {
     | number
     | boolean
     | null;
-  fileMetadata?:
+  publishAt?: string | null;
+  title?: string | null;
+  slug?: string | null;
+  slugLock?: boolean | null;
+  thumbnail?: (string | null) | Media;
+  /**
+   * Categorize this meditation for seekers to find it
+   */
+  tags?: (string | MeditationTag)[] | null;
+  /**
+   * Frames associated with this meditation with audio-synchronized editing
+   */
+  frames?:
     | {
         [k: string]: unknown;
       }
@@ -375,28 +376,6 @@ export interface Narrator {
   id: string;
   name: string;
   gender: 'male' | 'female';
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditation-tags".
- */
-export interface MeditationTag {
-  id: string;
-  /**
-   * This label will be used in the editor
-   */
-  name: string;
-  /**
-   * This localized title will be shown to public users
-   */
-  title: string;
-  meditations?: {
-    docs?: (string | Meditation)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
   updatedAt: string;
   createdAt: string;
 }
@@ -460,23 +439,25 @@ export interface Music {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "lesson-units".
+ * via the `definition` "meditation-tags".
  */
-export interface LessonUnit {
+export interface MeditationTag {
   id: string;
+  /**
+   * This label will be used in the editor
+   */
+  name: string;
+  /**
+   * This localized title will be shown to public users
+   */
   title: string;
-  color: string;
-  position: number;
-  steps?:
-    | {
-        lesson?: (string | null) | Lesson;
-        icon: string | FileAttachment;
-        id?: string | null;
-      }[]
-    | null;
+  meditations?: {
+    docs?: (string | Meditation)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   updatedAt: string;
   createdAt: string;
-  deletedAt?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -485,10 +466,6 @@ export interface LessonUnit {
 export interface Lesson {
   id: string;
   title: string;
-  unit: number;
-  step: number;
-  color: string;
-  icon?: (string | null) | FileAttachment;
   /**
    * Story panels to introduce this lesson. First panel must be a Cover Panel.
    */
@@ -548,6 +525,12 @@ export interface Lesson {
     };
     [k: string]: unknown;
   } | null;
+  unit: 'Unit 1' | 'Unit 2' | 'Unit 3' | 'Unit 4';
+  /**
+   * This will determine the order of the path steps
+   */
+  step: number;
+  icon?: (string | null) | FileAttachment;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -561,15 +544,10 @@ export interface Lesson {
  */
 export interface FileAttachment {
   id: string;
-  owner?:
-    | ({
-        relationTo: 'lessons';
-        value: string | Lesson;
-      } | null)
-    | ({
-        relationTo: 'lesson-units';
-        value: string | LessonUnit;
-      } | null);
+  owner?: {
+    relationTo: 'lessons';
+    value: string | Lesson;
+  } | null;
   createdAt: string;
   updatedAt: string;
   url?: string | null;
@@ -1137,10 +1115,6 @@ export interface PayloadLockedDocument {
         value: string | Meditation;
       } | null)
     | ({
-        relationTo: 'lesson-units';
-        value: string | LessonUnit;
-      } | null)
-    | ({
         relationTo: 'lessons';
         value: string | Lesson;
       } | null)
@@ -1281,18 +1255,18 @@ export interface PagesSelect<T extends boolean = true> {
  * via the `definition` "meditations_select".
  */
 export interface MeditationsSelect<T extends boolean = true> {
-  title?: T;
+  label?: T;
   locale?: T;
+  narrator?: T;
+  musicTag?: T;
+  fileMetadata?: T;
   publishAt?: T;
+  title?: T;
   slug?: T;
   slugLock?: T;
   thumbnail?: T;
-  duration?: T;
-  narrator?: T;
   tags?: T;
-  musicTag?: T;
   frames?: T;
-  fileMetadata?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -1308,33 +1282,10 @@ export interface MeditationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "lesson-units_select".
- */
-export interface LessonUnitsSelect<T extends boolean = true> {
-  title?: T;
-  color?: T;
-  position?: T;
-  steps?:
-    | T
-    | {
-        lesson?: T;
-        icon?: T;
-        id?: T;
-      };
-  updatedAt?: T;
-  createdAt?: T;
-  deletedAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lessons_select".
  */
 export interface LessonsSelect<T extends boolean = true> {
   title?: T;
-  unit?: T;
-  step?: T;
-  color?: T;
-  icon?: T;
   panels?:
     | T
     | {
@@ -1367,6 +1318,9 @@ export interface LessonsSelect<T extends boolean = true> {
   introAudio?: T;
   introSubtitles?: T;
   article?: T;
+  unit?: T;
+  step?: T;
+  icon?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
