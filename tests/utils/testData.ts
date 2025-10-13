@@ -12,6 +12,7 @@ import type {
   Client,
   MeditationTag,
   MediaTag,
+  PageTag,
   Page,
   Lesson,
   FileAttachment,
@@ -140,6 +141,20 @@ export const testData = {
         ...overrides,
       },
     })) as MediaTag
+  },
+
+  /**
+   * Create a page tag
+   */
+  async createPageTag(payload: Payload, overrides: Partial<PageTag> = {}): Promise<PageTag> {
+    return (await payload.create({
+      collection: 'page-tags',
+      data: {
+        name: 'test-tag',
+        title: 'Test Tag',
+        ...overrides,
+      },
+    })) as PageTag
   },
 
   /**
@@ -335,7 +350,7 @@ export const testData = {
       data: {
         title: 'Test Page',
         category: 'knowledge',
-        tags: ['wisdom'],
+        tags: [],
         content: {
           root: {
             type: 'root',

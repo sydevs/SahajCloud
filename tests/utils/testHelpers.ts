@@ -13,6 +13,7 @@ import type { PayloadRequest, UploadConfig, CollectionConfig } from 'payload'
 
 // Project imports
 import { collections, Managers } from '../../src/collections'
+import { globals } from '../../src/globals'
 import { tasks } from '../../src/jobs'
 import { EmailTestAdapter } from './emailTestAdapter'
 import { expect } from 'vitest'
@@ -63,6 +64,7 @@ function createBaseTestConfig(mongoUri: string, emailConfig?: any) {
       disable: true, // Disable admin UI in tests
     },
     collections: getTestCollections(),
+    globals,
     editor: lexicalEditor(),
     secret: process.env.PAYLOAD_SECRET || 'test-secret-key',
     typescript: {

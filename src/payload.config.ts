@@ -12,6 +12,7 @@ import sharp from 'sharp'
 
 import { adminOnlyAccess, permissionBasedAccess } from '@/lib/accessControl'
 import { collections, Managers } from './collections'
+import { globals } from './globals'
 import { tasks } from './jobs'
 
 const filename = fileURLToPath(import.meta.url)
@@ -47,6 +48,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       autoLogin: !isProduction ? { email: 'contact@sydevelopers.com' } : false,
     },
     collections,
+    globals,
     editor: lexicalEditor(),
     secret: process.env.PAYLOAD_SECRET || '',
     jobs: {

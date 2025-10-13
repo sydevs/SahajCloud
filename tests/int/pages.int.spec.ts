@@ -1,17 +1,27 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Payload } from 'payload'
+import type { PageTag } from '@/payload-types'
 import { createTestEnvironment } from '../utils/testHelpers'
 import { testData } from '../utils/testData'
 
 describe('Pages Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
+  let livingTag: PageTag
+  let creativityTag: PageTag
+  let wisdomTag: PageTag
+  let storiesTag: PageTag
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
     payload = testEnv.payload
     cleanup = testEnv.cleanup
 
+    // Create page tags for testing
+    livingTag = await testData.createPageTag(payload, { name: 'living', title: 'Living' })
+    creativityTag = await testData.createPageTag(payload, { name: 'creativity', title: 'Creativity' })
+    wisdomTag = await testData.createPageTag(payload, { name: 'wisdom', title: 'Wisdom' })
+    storiesTag = await testData.createPageTag(payload, { name: 'stories', title: 'Stories' })
   })
 
   afterAll(async () => {
@@ -23,14 +33,17 @@ describe('Pages Collection', () => {
       const page = await testData.createPage(payload, {
         title: 'My First Page',
         category: 'technique',
-        tags: ['living', 'creativity'],
+        tags: [livingTag.id, creativityTag.id],
       })
 
       expect(page).toBeDefined()
       expect(page.title).toBe('My First Page')
       expect(page.slug).toBe('my-first-page')
       expect(page.category).toBe('technique')
-      expect(page.tags).toEqual(['living', 'creativity'])
+      expect(page.tags).toHaveLength(2)
+      const tagIds = page.tags?.map((tag) => (typeof tag === 'object' && tag ? tag.id : tag)) || []
+      expect(tagIds).toContain(livingTag.id)
+      expect(tagIds).toContain(creativityTag.id)
     })
 
     it('handles special characters in slug generation', async () => {
@@ -96,14 +109,15 @@ describe('Pages Collection', () => {
     it('allows multiple tags selection', async () => {
       const page = await testData.createPage(payload, {
         title: 'Multi-tagged Page',
-        tags: ['living', 'creativity', 'wisdom', 'stories'],
+        tags: [livingTag.id, creativityTag.id, wisdomTag.id, storiesTag.id],
       })
 
       expect(page.tags).toHaveLength(4)
-      expect(page.tags).toContain('living')
-      expect(page.tags).toContain('creativity')
-      expect(page.tags).toContain('wisdom')
-      expect(page.tags).toContain('stories')
+      const tagIds = page.tags?.map((tag) => (typeof tag === 'object' && tag ? tag.id : tag)) || []
+      expect(tagIds).toContain(livingTag.id)
+      expect(tagIds).toContain(creativityTag.id)
+      expect(tagIds).toContain(wisdomTag.id)
+      expect(tagIds).toContain(storiesTag.id)
     })
   })
 

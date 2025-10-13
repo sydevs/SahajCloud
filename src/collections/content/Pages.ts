@@ -98,30 +98,9 @@ export const Pages: CollectionConfig = {
     },
     {
       name: 'tags',
-      type: 'select',
+      type: 'relationship',
+      relationTo: 'page-tags',
       hasMany: true,
-      options: [
-        {
-          label: 'Living',
-          value: 'living',
-        },
-        {
-          label: 'Creativity',
-          value: 'creativity',
-        },
-        {
-          label: 'Wisdom',
-          value: 'wisdom',
-        },
-        {
-          label: 'Stories',
-          value: 'stories',
-        },
-        {
-          label: 'Events',
-          value: 'events',
-        },
-      ],
       admin: {
         position: 'sidebar',
       },

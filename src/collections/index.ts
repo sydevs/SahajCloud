@@ -11,6 +11,7 @@ import { Clients } from './access/Clients'
 import { MeditationTags } from './tags/MeditationTags'
 import { MediaTags } from './tags/MediaTags'
 import { MusicTags } from './tags/MusicTags'
+import { PageTags } from './tags/PageTags'
 import { FileAttachments } from './system/FileAttachments'
 
 // Export all collections as an array
@@ -30,6 +31,7 @@ export const collections = [
   MediaTags,
   MeditationTags,
   MusicTags,
+  PageTags,
   // Access
   Managers,
   Clients,
@@ -51,6 +53,7 @@ export {
   MediaTags,
   MeditationTags,
   MusicTags,
+  PageTags,
   // Access
   Managers,
   Clients,
