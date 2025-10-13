@@ -66,7 +66,8 @@ interface ImportedData {
   }>
 }
 
-// Configuration constant to control update behavior
+// Configuration constants
+const IMPORT_TAG = 'import-meditations' // Tag for all imported documents and media
 const UPDATE_EXISTING_RECORDS = true // Set to true to update existing records instead of skipping them
 
 class SimpleImporter {
@@ -79,6 +80,7 @@ class SimpleImporter {
   private placeholderMediaId: string | null = null
   private pathPlaceholderMediaId: string | null = null
   private meditationThumbnailTagId: string | null = null
+  private importMediaTagId: string | null = null
   private idMaps = {
     meditationTags: new Map<number, string>(),
     musicTags: new Map<number, string>(),
@@ -323,6 +325,9 @@ class SimpleImporter {
   private async resetPayloadDatabase() {
     console.log('\n🗑️  Resetting Payload CMS database...')
 
+    // Ensure import tag is set up for media filtering
+    await this.setupMeditationThumbnailTag()
+
     const collections = [
       'meditation-frames',
       'meditations',
@@ -338,11 +343,24 @@ class SimpleImporter {
 
     for (const collection of collections) {
       try {
-        // Find all documents in the collection
-        const docs = await this.payload.find({
-          collection: collection as CollectionSlug,
-          limit: 1000, // Adjust if you have more than 1000 docs in any collection
-        })
+        // For media collection, filter by import tag
+        let docs
+        if (collection === 'media' && this.importMediaTagId) {
+          console.log(`  Finding media with ${IMPORT_TAG} tag...`)
+          docs = await this.payload.find({
+            collection: collection as CollectionSlug,
+            where: {
+              tags: { contains: this.importMediaTagId },
+            },
+            limit: 1000,
+          })
+        } else {
+          // For other collections, find all documents
+          docs = await this.payload.find({
+            collection: collection as CollectionSlug,
+            limit: 1000, // Adjust if you have more than 1000 docs in any collection
+          })
+        }
 
         if (docs.docs.length > 0) {
           console.log(`  Deleting ${docs.docs.length} documents from ${collection}...`)
@@ -872,10 +890,10 @@ class SimpleImporter {
   }
 
   private async setupMeditationThumbnailTag() {
-    console.log('\nSetting up meditation thumbnail tag...')
+    console.log('\nSetting up meditation thumbnail and import tags...')
 
-    // Check if "meditation-thumbnail" media tag already exists
-    const existingTag = await this.payload.find({
+    // Setup meditation-thumbnail tag
+    const existingThumbnailTag = await this.payload.find({
       collection: 'media-tags',
       where: {
         name: {
@@ -885,13 +903,12 @@ class SimpleImporter {
       limit: 1,
     })
 
-    if (existingTag.docs.length > 0) {
-      this.meditationThumbnailTagId = String(existingTag.docs[0].id)
+    if (existingThumbnailTag.docs.length > 0) {
+      this.meditationThumbnailTagId = String(existingThumbnailTag.docs[0].id)
       console.log(
         `    ✓ Found existing meditation-thumbnail tag (ID: ${this.meditationThumbnailTagId})`,
       )
     } else {
-      // Create the tag
       const newTag = await this.payload.create({
         collection: 'media-tags',
         data: {
@@ -901,10 +918,35 @@ class SimpleImporter {
       this.meditationThumbnailTagId = String(newTag.id)
       console.log(`    ✓ Created meditation-thumbnail tag (ID: ${this.meditationThumbnailTagId})`)
     }
+
+    // Setup import tag
+    const existingImportTag = await this.payload.find({
+      collection: 'media-tags',
+      where: {
+        name: {
+          equals: IMPORT_TAG,
+        },
+      },
+      limit: 1,
+    })
+
+    if (existingImportTag.docs.length > 0) {
+      this.importMediaTagId = String(existingImportTag.docs[0].id)
+      console.log(`    ✓ Found existing ${IMPORT_TAG} tag (ID: ${this.importMediaTagId})`)
+    } else {
+      const newTag = await this.payload.create({
+        collection: 'media-tags',
+        data: {
+          name: IMPORT_TAG,
+        },
+      })
+      this.importMediaTagId = String(newTag.id)
+      console.log(`    ✓ Created ${IMPORT_TAG} tag (ID: ${this.importMediaTagId})`)
+    }
   }
 
   private async ensureMeditationThumbnailTag(mediaId: string) {
-    if (!this.meditationThumbnailTagId) {
+    if (!this.meditationThumbnailTagId && !this.importMediaTagId) {
       return
     }
 
@@ -915,21 +957,29 @@ class SimpleImporter {
         id: mediaId,
       })
 
-      // Check if it already has the meditation-thumbnail tag
+      // Check which tags need to be added
       const currentTags = Array.isArray(media.tags)
         ? media.tags.map((tag: string | { id: string }) => (typeof tag === 'string' ? tag : tag.id))
         : []
 
-      if (!currentTags.includes(this.meditationThumbnailTagId)) {
-        // Add the tag
+      const tagsToAdd = []
+      if (this.meditationThumbnailTagId && !currentTags.includes(this.meditationThumbnailTagId)) {
+        tagsToAdd.push(this.meditationThumbnailTagId)
+      }
+      if (this.importMediaTagId && !currentTags.includes(this.importMediaTagId)) {
+        tagsToAdd.push(this.importMediaTagId)
+      }
+
+      if (tagsToAdd.length > 0) {
+        // Add the tags
         await this.payload.update({
           collection: 'media',
           id: mediaId,
           data: {
-            tags: [...currentTags, this.meditationThumbnailTagId],
+            tags: [...currentTags, ...tagsToAdd],
           },
         })
-        console.log(`    ✓ Added meditation-thumbnail tag to media (ID: ${mediaId})`)
+        console.log(`    ✓ Added tags to media (ID: ${mediaId})`)
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -973,9 +1023,12 @@ class SimpleImporter {
       const placeholderPath = path.join(this.cacheDir, 'placeholder.jpg')
       try {
         await fs.access(placeholderPath)
+        const tags = []
+        if (this.meditationThumbnailTagId) tags.push(this.meditationThumbnailTagId)
+        if (this.importMediaTagId) tags.push(this.importMediaTagId)
         const placeholderMedia = await this.uploadToPayload(placeholderPath, 'media', {
           alt: 'Meditation placeholder image',
-          tags: this.meditationThumbnailTagId ? [this.meditationThumbnailTagId] : [],
+          tags,
         })
         if (placeholderMedia) {
           this.placeholderMediaId = String(placeholderMedia.id)
@@ -997,9 +1050,12 @@ class SimpleImporter {
       const pathPlaceholderPath = path.join(this.cacheDir, 'path.jpg')
       try {
         await fs.access(pathPlaceholderPath)
+        const tags = []
+        if (this.meditationThumbnailTagId) tags.push(this.meditationThumbnailTagId)
+        if (this.importMediaTagId) tags.push(this.importMediaTagId)
         const pathMedia = await this.uploadToPayload(pathPlaceholderPath, 'media', {
           alt: 'Path meditation placeholder image',
-          tags: this.meditationThumbnailTagId ? [this.meditationThumbnailTagId] : [],
+          tags,
         })
         if (pathMedia) {
           this.pathPlaceholderMediaId = String(pathMedia.id)
@@ -1736,9 +1792,12 @@ class SimpleImporter {
           artAttachment.blob.filename,
         )
         if (localPath) {
+          const tags = []
+          if (this.meditationThumbnailTagId) tags.push(this.meditationThumbnailTagId)
+          if (this.importMediaTagId) tags.push(this.importMediaTagId)
           thumbnailId = await this.uploadMediaWithDeduplication(localPath, {
             alt: `${meditation.title} thumbnail`,
-            tags: this.meditationThumbnailTagId ? [this.meditationThumbnailTagId] : [],
+            tags,
           })
         }
       }

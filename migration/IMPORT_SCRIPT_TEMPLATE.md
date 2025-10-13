@@ -28,6 +28,12 @@ All import scripts MUST meet these requirements:
 - **State reset** - Clear all cached state and ID mappings
 - **Idempotent** - Can be run multiple times safely
 
+### 5. Import Tagging
+- **Tagged documents** - All created documents tagged with `import-<source-name>`
+- **Tagged media** - Media files tagged with `import-<source-name>` for tracking
+- **Easy cleanup** - Reset can delete all documents with the import tag
+- **Isolated imports** - Different import scripts don't interfere with each other
+
 ## File Structure
 
 ### Required Files
@@ -66,6 +72,7 @@ import * as path from 'path'
 // CONFIGURATION
 // ============================================================================
 
+const IMPORT_TAG = 'import-<source-name>' // Tag for all imported documents and media
 const CACHE_DIR = path.resolve(process.cwd(), 'migration/cache/<source-name>')
 const STATE_FILE = path.join(CACHE_DIR, 'import-state.json')
 const ID_MAPS_FILE = path.join(CACHE_DIR, 'id-mappings.json')
@@ -215,6 +222,43 @@ class YourImporter {
   }
 
   // ============================================================================
+  // HELPER METHODS
+  // ============================================================================
+
+  async ensureImportTag(collection: string): Promise<string | null> {
+    // Ensure import tag exists in the appropriate tag collection
+    const tagCollections: Record<string, string> = {
+      media: 'media-tags',
+      meditations: 'meditation-tags',
+      music: 'music-tags',
+      pages: 'page-tags',
+    }
+
+    const tagCollection = tagCollections[collection]
+    if (!tagCollection) return null
+
+    // Check if tag exists
+    const existing = await this.payload.find({
+      collection: tagCollection as any,
+      where: { name: { equals: IMPORT_TAG } },
+      limit: 1,
+    })
+
+    if (existing.docs.length > 0) {
+      return existing.docs[0].id as string
+    }
+
+    // Create tag
+    const tag = await this.payload.create({
+      collection: tagCollection as any,
+      data: { name: IMPORT_TAG, title: IMPORT_TAG },
+    })
+
+    await this.log(`✓ Created import tag: ${IMPORT_TAG}`)
+    return tag.id as string
+  }
+
+  // ============================================================================
   // RESET FUNCTIONALITY
   // ============================================================================
 
@@ -224,15 +268,29 @@ class YourImporter {
     const collections = ['collection1', 'collection2'] // List collections to reset
 
     for (const collection of collections) {
-      await this.log(`Deleting all documents from ${collection}...`)
-      const result = await this.payload.find({
-        collection,
-        limit: 1000,
-      })
+      await this.log(`Deleting documents with tag ${IMPORT_TAG} from ${collection}...`)
+
+      // Try to find documents with import tag
+      let result
+      try {
+        result = await this.payload.find({
+          collection: collection as any,
+          where: {
+            tags: { contains: IMPORT_TAG },
+          },
+          limit: 1000,
+        })
+      } catch {
+        // Collection may not have tags field, delete all
+        result = await this.payload.find({
+          collection: collection as any,
+          limit: 1000,
+        })
+      }
 
       for (const doc of result.docs) {
         await this.payload.delete({
-          collection,
+          collection: collection as any,
           id: doc.id,
         })
       }
@@ -391,7 +449,25 @@ pnpm tsx migration/<source>/import.ts --clear-cache --reset
 
 ## Best Practices
 
-### 1. Error Handling
+### 1. Import Tagging
+```typescript
+// Always tag imported documents for easy cleanup
+const importTagId = await this.ensureImportTag('media')
+
+const media = await this.payload.create({
+  collection: 'media',
+  data: {
+    alt: 'Image',
+    tags: importTagId ? [importTagId] : [],
+  },
+  file: fileData,
+})
+
+// For collections without tag fields, track in state
+this.state.itemsCreated[`item-${sourceId}`] = media.id
+```
+
+### 2. Error Handling
 ```typescript
 try {
   // Import operation
@@ -401,14 +477,14 @@ try {
 }
 ```
 
-### 2. Progress Tracking
+### 3. Progress Tracking
 ```typescript
 // Save state after each significant operation
 await this.saveState()
 await this.saveIdMappings()
 ```
 
-### 3. Deduplication
+### 4. Deduplication
 ```typescript
 // Check if item already exists before creating
 if (this.state.itemsCreated[uniqueKey]) {
@@ -417,7 +493,7 @@ if (this.state.itemsCreated[uniqueKey]) {
 }
 ```
 
-### 4. File Caching
+### 5. File Caching
 ```typescript
 // Always check cache before downloading
 const cachedPath = path.join(CACHE_DIR, 'assets', filename)
@@ -428,7 +504,7 @@ if (exists) {
 // Otherwise download
 ```
 
-### 5. Relationship Mapping
+### 6. Relationship Mapping
 ```typescript
 // Use ID maps to convert source IDs to Payload IDs
 const payloadId = this.idMaps.collectionName.get(sourceId)

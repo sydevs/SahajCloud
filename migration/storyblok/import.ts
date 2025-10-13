@@ -15,6 +15,7 @@ import type { Payload } from 'payload'
 
 const __filename = fileURLToPath(import.meta.url)
 
+const IMPORT_TAG = 'import-storyblok' // Tag for all imported documents and media
 const CACHE_DIR = path.resolve(process.cwd(), 'migration/cache/storyblok')
 const STATE_FILE = path.join(CACHE_DIR, 'import-state.json')
 const LOG_FILE = path.join(CACHE_DIR, 'import.log')
@@ -54,6 +55,7 @@ class StoryblokImporter {
   private payload!: Payload
   private state: ImportState
   private options: ScriptOptions
+  private mediaTagId: string | null = null
 
   constructor(token: string, options: ScriptOptions) {
     this.token = token
@@ -88,6 +90,29 @@ class StoryblokImporter {
       await this.log(`Loaded state from ${STATE_FILE}`)
     } catch {
       await this.log('No previous state found, starting fresh')
+    }
+  }
+
+  async ensureMediaTag(): Promise<void> {
+    // Ensure import tag exists in media-tags collection
+    if (this.mediaTagId) return // Already initialized
+
+    const existing = await this.payload.find({
+      collection: 'media-tags',
+      where: { name: { equals: IMPORT_TAG } },
+      limit: 1,
+    })
+
+    if (existing.docs.length > 0) {
+      this.mediaTagId = existing.docs[0].id as string
+      await this.log(`Found existing media tag: ${IMPORT_TAG}`)
+    } else {
+      const tag = await this.payload.create({
+        collection: 'media-tags',
+        data: { name: IMPORT_TAG },
+      })
+      this.mediaTagId = tag.id as string
+      await this.log(`Created media tag: ${IMPORT_TAG}`)
     }
   }
 
@@ -223,11 +248,15 @@ class StoryblokImporter {
     await this.downloadFile(url, destPath)
     const webpPath = await this.convertImageToWebp(destPath)
 
+    // Ensure media tag exists
+    await this.ensureMediaTag()
+
     const fileBuffer = await fs.readFile(webpPath)
     const media = await this.payload.create({
       collection: 'media',
       data: {
         alt: alt || filename,
+        tags: this.mediaTagId ? [this.mediaTagId] : [],
       },
       file: {
         data: fileBuffer,
@@ -822,15 +851,32 @@ class StoryblokImporter {
   async resetCollections() {
     await this.log('\n=== Resetting Collections ===')
 
-    const collections: Array<'lessons' | 'file-attachments' | 'external-videos'> =
-      ['lessons', 'file-attachments', 'external-videos']
+    const collections: Array<'lessons' | 'file-attachments' | 'external-videos' | 'media'> =
+      ['lessons', 'file-attachments', 'external-videos', 'media']
+
+    // Ensure media tag exists for filtering
+    await this.ensureMediaTag()
 
     for (const collection of collections) {
-      await this.log(`Deleting all documents from ${collection}...`)
-      const result = await this.payload.find({
-        collection,
-        limit: 1000,
-      })
+      await this.log(`Deleting documents with tag ${IMPORT_TAG} from ${collection}...`)
+
+      // For media collection, filter by tag
+      let result
+      if (collection === 'media' && this.mediaTagId) {
+        result = await this.payload.find({
+          collection,
+          where: {
+            tags: { contains: this.mediaTagId },
+          },
+          limit: 1000,
+        })
+      } else {
+        // For other collections, delete all (they're owned by lessons)
+        result = await this.payload.find({
+          collection,
+          limit: 1000,
+        })
+      }
 
       for (const doc of result.docs) {
         await this.payload.delete({
