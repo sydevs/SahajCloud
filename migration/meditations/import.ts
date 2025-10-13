@@ -2,7 +2,7 @@
 
 import 'dotenv/config'
 import { CollectionSlug, getPayload, Payload } from 'payload'
-import configPromise from '../../payload.config'
+import configPromise from '../../src/payload.config'
 import { execSync } from 'child_process'
 import { Client } from 'pg'
 import { promises as fs } from 'fs'
@@ -116,7 +116,7 @@ class SimpleImporter {
       password: '',
     })
     // Use persistent cache directory (git-ignored)
-    this.cacheDir = path.join(process.cwd(), 'migration-cache')
+    this.cacheDir = path.join(process.cwd(), 'migration/cache/meditations')
     this.idMapsFile = path.join(this.cacheDir, 'id-mappings.json')
   }
 
@@ -272,7 +272,7 @@ class SimpleImporter {
 
       // Import the dump (ignore role errors which are just ownership issues)
       execSync(
-        `pg_restore -d temp_migration --no-owner --no-privileges --clean --if-exists src/scripts/migration/data.bin 2>/dev/null || true`,
+        `pg_restore -d temp_migration --no-owner --no-privileges --clean --if-exists migration/meditations/data.bin 2>/dev/null || true`,
       )
 
       // Connect to temp database

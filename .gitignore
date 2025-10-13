@@ -42,10 +42,8 @@ next-env.d.ts
 
 /media
 
-# Migration cache
-/migration-cache
-/import-storyblok
-/import-cache
+# Migration cache (contains import data and files)
+/migration/cache
 
 # Playwright
 node_modules/

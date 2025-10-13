@@ -15,7 +15,7 @@ import type { Payload } from 'payload'
 
 const __filename = fileURLToPath(import.meta.url)
 
-const CACHE_DIR = path.resolve(process.cwd(), 'import-cache/storyblok')
+const CACHE_DIR = path.resolve(process.cwd(), 'migration/cache/storyblok')
 const STATE_FILE = path.join(CACHE_DIR, 'import-state.json')
 const LOG_FILE = path.join(CACHE_DIR, 'import.log')
 
