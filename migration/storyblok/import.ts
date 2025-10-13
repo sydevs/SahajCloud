@@ -5,20 +5,16 @@ dotenv.config()
 import { getPayload } from 'payload'
 import { payloadConfig } from '@/payload.config'
 import * as fs from 'fs/promises'
-import { createWriteStream } from 'fs'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
-import * as https from 'https'
-import * as http from 'http'
 import * as sharp from 'sharp'
 import type { Payload } from 'payload'
+import { Logger, StateManager, FileUtils, TagManager } from '../lib'
 
 const __filename = fileURLToPath(import.meta.url)
 
 const IMPORT_TAG = 'import-storyblok' // Tag for all imported documents and media
 const CACHE_DIR = path.resolve(process.cwd(), 'migration/cache/storyblok')
-const STATE_FILE = path.join(CACHE_DIR, 'import-state.json')
-const LOG_FILE = path.join(CACHE_DIR, 'import.log')
 
 interface StoryblokStory {
   id: number
@@ -35,13 +31,6 @@ interface StoryblokResponse {
   rels?: StoryblokStory[]
 }
 
-interface ImportState {
-  lastUpdated: string
-  phase: string
-  lessonsCreated: Record<string, string>
-  failed: string[]
-}
-
 interface ScriptOptions {
   dryRun: boolean
   clearCache: boolean
@@ -53,126 +42,52 @@ interface ScriptOptions {
 class StoryblokImporter {
   private token: string
   private payload!: Payload
-  private state: ImportState
   private options: ScriptOptions
+  private logger!: Logger
+  private stateManager!: StateManager
+  private fileUtils!: FileUtils
+  private tagManager!: TagManager
   private mediaTagId: string | null = null
 
   constructor(token: string, options: ScriptOptions) {
     this.token = token
     this.options = options
-    this.state = {
-      lastUpdated: new Date().toISOString(),
-      phase: 'initializing',
-      lessonsCreated: {},
-      failed: [],
-    }
+  }
+
+  private async initialize() {
+    this.logger = new Logger(CACHE_DIR)
+    this.stateManager = new StateManager(CACHE_DIR)
+    this.fileUtils = new FileUtils(this.logger)
+    this.tagManager = new TagManager(this.payload, this.logger)
   }
 
   async log(message: string, isError = false) {
-    const timestamp = new Date().toISOString()
-    const logMessage = `[${timestamp}] ${message}\n`
-    console.log(message)
-    await fs.appendFile(LOG_FILE, logMessage)
+    await this.logger.log(message, isError)
     if (isError) {
-      this.state.failed.push(message)
+      this.stateManager.addFailed(message)
     }
   }
 
   async saveState() {
-    this.state.lastUpdated = new Date().toISOString()
-    await fs.writeFile(STATE_FILE, JSON.stringify(this.state, null, 2))
+    await this.stateManager.save()
   }
 
   async loadState() {
-    try {
-      const data = await fs.readFile(STATE_FILE, 'utf-8')
-      this.state = JSON.parse(data)
-      await this.log(`Loaded state from ${STATE_FILE}`)
-    } catch {
+    const loaded = await this.stateManager.load()
+    if (loaded) {
+      await this.log('Loaded state from previous run')
+    } else {
       await this.log('No previous state found, starting fresh')
     }
   }
 
   async ensureMediaTag(): Promise<void> {
-    // Ensure import tag exists in media-tags collection
-    if (this.mediaTagId) return // Already initialized
-
-    const existing = await this.payload.find({
-      collection: 'media-tags',
-      where: { name: { equals: IMPORT_TAG } },
-      limit: 1,
-    })
-
-    if (existing.docs.length > 0) {
-      this.mediaTagId = existing.docs[0].id as string
-      await this.log(`Found existing media tag: ${IMPORT_TAG}`)
-    } else {
-      const tag = await this.payload.create({
-        collection: 'media-tags',
-        data: { name: IMPORT_TAG },
-      })
-      this.mediaTagId = tag.id as string
-      await this.log(`Created media tag: ${IMPORT_TAG}`)
-    }
+    if (this.mediaTagId) return
+    this.mediaTagId = await this.tagManager.ensureMediaTag(IMPORT_TAG)
   }
 
   async downloadFile(url: string, destPath: string): Promise<void> {
-    const fileExists = await fs
-      .access(destPath)
-      .then(() => true)
-      .catch(() => false)
-
-    if (fileExists) {
-      const stats = await fs.stat(destPath)
-      if (stats.size > 0) {
-        return
-      }
-    }
-
-    return new Promise((resolve, reject) => {
-      const protocol = url.startsWith('https') ? https : http
-      let attempts = 0
-      const maxAttempts = 3
-
-      const attemptDownload = () => {
-        attempts++
-        protocol
-          .get(url, (response) => {
-            if (response.statusCode === 301 || response.statusCode === 302) {
-              if (response.headers.location) {
-                url = response.headers.location
-                attemptDownload()
-                return
-              }
-            }
-
-            if (response.statusCode !== 200) {
-              reject(new Error(`Failed to download: ${response.statusCode}`))
-              return
-            }
-
-            const fileStream = createWriteStream(destPath)
-            response.pipe(fileStream)
-            fileStream.on('finish', () => {
-              fileStream.close()
-              resolve()
-            })
-            fileStream.on('error', (err: Error) => {
-              fs.unlink(destPath).catch(() => {})
-              reject(err)
-            })
-          })
-          .on('error', (err: Error) => {
-            if (attempts < maxAttempts) {
-              setTimeout(attemptDownload, 1000 * Math.pow(2, attempts))
-            } else {
-              reject(err)
-            }
-          })
-      }
-
-      attemptDownload()
-    })
+    await this.fileUtils.downloadFileFetch(url, destPath)
   }
 
   async fetchStoryblokData(endpoint: string): Promise<StoryblokResponse> {
@@ -581,13 +496,13 @@ class StoryblokImporter {
 
   async createLessons(stories: StoryblokStory[]): Promise<void> {
     await this.log('\n=== Creating Lessons ===')
-    this.state.phase = 'importing-lessons'
+    this.stateManager.setPhase('importing-lessons')
     await this.saveState()
 
     for (const story of stories) {
       const stepSlug = story.slug
 
-      if (this.state.lessonsCreated[stepSlug]) {
+      if (this.stateManager.hasItemCreated(stepSlug)) {
         await this.log(`Lesson ${stepSlug} already created, skipping`)
         continue
       }
@@ -791,7 +706,7 @@ class StoryblokImporter {
           }
         }
 
-        this.state.lessonsCreated[stepSlug] = lesson.id as string
+        this.stateManager.addItemCreated(stepSlug, lesson.id as string)
         await this.saveState()
         await this.log(`✓ Created lesson: ${story.name} (ID: ${lesson.id})`)
       } catch (error) {
@@ -905,18 +820,28 @@ class StoryblokImporter {
       throw new Error('STORYBLOK_ACCESS_TOKEN environment variable is required')
     }
 
+    // Initialize utilities
+    await this.initialize()
+
     await this.log('=== Storyblok Path Steps Import ===')
     await this.log(`Options: ${JSON.stringify(this.options)}`)
 
+    // Setup cache directories
+    await this.fileUtils.ensureDir(CACHE_DIR)
+    await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'videos'))
+    await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/audio'))
+    await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/images'))
+    await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/videos'))
+    await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/subtitles'))
+
     if (this.options.clearCache) {
       await this.log('Clearing cache...')
-      await fs.rm(CACHE_DIR, { recursive: true, force: true })
-      await fs.mkdir(CACHE_DIR, { recursive: true })
-      await fs.mkdir(path.join(CACHE_DIR, 'videos'), { recursive: true })
-      await fs.mkdir(path.join(CACHE_DIR, 'assets/audio'), { recursive: true })
-      await fs.mkdir(path.join(CACHE_DIR, 'assets/images'), { recursive: true })
-      await fs.mkdir(path.join(CACHE_DIR, 'assets/videos'), { recursive: true })
-      await fs.mkdir(path.join(CACHE_DIR, 'assets/subtitles'), { recursive: true })
+      await this.fileUtils.clearDir(CACHE_DIR)
+      await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'videos'))
+      await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/audio'))
+      await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/images'))
+      await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/videos'))
+      await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/subtitles'))
     }
 
     if (this.options.reset) {
@@ -945,10 +870,11 @@ class StoryblokImporter {
     await this.createLessons(filteredStories)
 
     await this.log('\n=== Import Complete ===')
-    await this.log(`Created ${Object.keys(this.state.lessonsCreated).length} lessons`)
-    if (this.state.failed.length > 0) {
-      await this.log(`\nFailed operations: ${this.state.failed.length}`)
-      this.state.failed.forEach((msg) => this.log(`  - ${msg}`))
+    const state = this.stateManager.getState()
+    await this.log(`Created ${Object.keys(state.itemsCreated).length} lessons`)
+    if (state.failed.length > 0) {
+      await this.log(`\nFailed operations: ${state.failed.length}`)
+      state.failed.forEach((msg) => this.log(`  - ${msg}`))
     }
   }
 }

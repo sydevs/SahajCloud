@@ -7,8 +7,9 @@ import { execSync } from 'child_process'
 import { Client } from 'pg'
 import { promises as fs } from 'fs'
 import * as path from 'path'
+import { Logger, FileUtils, TagManager, PayloadHelpers } from '../lib'
 
-// ANSI color codes
+// ANSI color codes for summary output
 const colors = {
   reset: '\x1b[0m',
   blue: '\x1b[34m',
@@ -72,6 +73,11 @@ const UPDATE_EXISTING_RECORDS = true // Set to true to update existing records i
 
 class SimpleImporter {
   private payload!: Payload
+  private logger!: Logger
+  private fileUtils!: FileUtils
+  private tagManager!: TagManager
+  private payloadHelpers!: PayloadHelpers
+
   private tempDb: Client
   private cacheDir: string
   private dryRun: boolean
@@ -176,6 +182,12 @@ class SimpleImporter {
         const payloadConfig = await configPromise
         this.payload = await getPayload({ config: payloadConfig })
         console.log('✓ Payload CMS initialized')
+
+        // Initialize utility classes
+        this.logger = new Logger(this.cacheDir)
+        this.fileUtils = new FileUtils(this.logger)
+        this.tagManager = new TagManager(this.payload, this.logger)
+        this.payloadHelpers = new PayloadHelpers(this.payload, this.logger)
 
         // 2.1. Reset Meditations collection if requested
         if (this.reset) {
@@ -290,24 +302,10 @@ class SimpleImporter {
     console.log('\n🗑️  Resetting Meditations collection...')
 
     try {
-      // Find all documents in the meditations collection
-      const docs = await this.payload.find({
-        collection: 'meditations',
-        limit: 1000, // Adjust if you have more than 1000 meditations
-      })
+      const deletedCount = await this.payloadHelpers.resetCollection('meditations')
 
-      if (docs.docs.length > 0) {
-        console.log(`  Deleting ${docs.docs.length} meditations...`)
-
-        // Delete all documents
-        for (const doc of docs.docs) {
-          await this.payload.delete({
-            collection: 'meditations',
-            id: doc.id,
-          })
-        }
-
-        console.log(`  ✓ Cleared meditations collection (${docs.docs.length} documents deleted)`)
+      if (deletedCount > 0) {
+        console.log(`  ✓ Cleared meditations collection (${deletedCount} documents deleted)`)
       } else {
         console.log(`  ✓ Meditations collection already empty`)
       }
@@ -344,37 +342,20 @@ class SimpleImporter {
     for (const collection of collections) {
       try {
         // For media collection, filter by import tag
-        let docs
-        if (collection === 'media' && this.importMediaTagId) {
+        const where =
+          collection === 'media' && this.importMediaTagId
+            ? { tags: { contains: this.importMediaTagId } }
+            : undefined
+
+        if (where) {
           console.log(`  Finding media with ${IMPORT_TAG} tag...`)
-          docs = await this.payload.find({
-            collection: collection as CollectionSlug,
-            where: {
-              tags: { contains: this.importMediaTagId },
-            },
-            limit: 1000,
-          })
-        } else {
-          // For other collections, find all documents
-          docs = await this.payload.find({
-            collection: collection as CollectionSlug,
-            limit: 1000, // Adjust if you have more than 1000 docs in any collection
-          })
         }
 
-        if (docs.docs.length > 0) {
-          console.log(`  Deleting ${docs.docs.length} documents from ${collection}...`)
+        const deletedCount = await this.payloadHelpers.resetCollection(collection, where)
 
-          // Delete all documents
-          for (const doc of docs.docs) {
-            await this.payload.delete({
-              collection: collection as CollectionSlug,
-              id: doc.id,
-            })
-          }
-
-          totalDeleted += docs.docs.length
-          console.log(`  ✓ Cleared ${collection}`)
+        if (deletedCount > 0) {
+          totalDeleted += deletedCount
+          console.log(`  ✓ Cleared ${collection} (${deletedCount} documents)`)
         } else {
           console.log(`  ✓ ${collection} already empty`)
         }
@@ -436,7 +417,7 @@ class SimpleImporter {
   }
 
   private async setupFileDirectory() {
-    await fs.mkdir(this.cacheDir, { recursive: true })
+    await this.fileUtils.ensureDir(this.cacheDir)
     console.log(`✓ Using cache directory: ${this.cacheDir}`)
   }
 
@@ -577,12 +558,9 @@ class SimpleImporter {
       const cachedPath = path.join(this.cacheDir, `${sanitizedKey}_${filename}`)
 
       // Check if file already exists in cache
-      try {
-        await fs.access(cachedPath)
+      if (await this.fileUtils.fileExists(cachedPath)) {
         console.log(`  ✓ Using cached: ${filename}`)
         return cachedPath
-      } catch {
-        // File doesn't exist, need to download
       }
 
       // You'll need to replace this URL pattern with your actual storage URL
@@ -593,38 +571,13 @@ class SimpleImporter {
 
       console.log(`  Downloading: ${filename}`)
 
-      // Add timeout to fetch
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+      // Download file using FileUtils
+      await this.fileUtils.downloadFileFetch(fileUrl, cachedPath)
+      console.log(`  ✓ Downloaded and cached: ${filename}`)
 
-      try {
-        const response = await fetch(fileUrl, {
-          signal: controller.signal,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; PayloadMigration/1.0)',
-          },
-        })
-        clearTimeout(timeoutId)
-
-        if (!response.ok) {
-          this.addWarning(`Failed to download ${filename}: ${response.status}`)
-          return null
-        }
-
-        const buffer = await response.arrayBuffer()
-        await fs.writeFile(cachedPath, Buffer.from(buffer))
-        console.log(`  ✓ Downloaded and cached: ${filename}`)
-
-        return cachedPath
-      } finally {
-        clearTimeout(timeoutId)
-      }
+      return cachedPath
     } catch (error: any) {
-      if (error.name === 'AbortError') {
-        this.addWarning(`Timeout downloading ${filename}`)
-      } else {
-        this.addWarning(`Error downloading ${filename}: ${error.message || error}`)
-      }
+      this.addWarning(`Error downloading ${filename}: ${error.message || error}`)
       return null
     }
   }
@@ -893,56 +846,12 @@ class SimpleImporter {
     console.log('\nSetting up meditation thumbnail and import tags...')
 
     // Setup meditation-thumbnail tag
-    const existingThumbnailTag = await this.payload.find({
-      collection: 'media-tags',
-      where: {
-        name: {
-          equals: 'meditation-thumbnail',
-        },
-      },
-      limit: 1,
-    })
-
-    if (existingThumbnailTag.docs.length > 0) {
-      this.meditationThumbnailTagId = String(existingThumbnailTag.docs[0].id)
-      console.log(
-        `    ✓ Found existing meditation-thumbnail tag (ID: ${this.meditationThumbnailTagId})`,
-      )
-    } else {
-      const newTag = await this.payload.create({
-        collection: 'media-tags',
-        data: {
-          name: 'meditation-thumbnail',
-        },
-      })
-      this.meditationThumbnailTagId = String(newTag.id)
-      console.log(`    ✓ Created meditation-thumbnail tag (ID: ${this.meditationThumbnailTagId})`)
-    }
+    this.meditationThumbnailTagId = await this.tagManager.ensureMediaTag('meditation-thumbnail')
+    console.log(`    ✓ Meditation-thumbnail tag ready (ID: ${this.meditationThumbnailTagId})`)
 
     // Setup import tag
-    const existingImportTag = await this.payload.find({
-      collection: 'media-tags',
-      where: {
-        name: {
-          equals: IMPORT_TAG,
-        },
-      },
-      limit: 1,
-    })
-
-    if (existingImportTag.docs.length > 0) {
-      this.importMediaTagId = String(existingImportTag.docs[0].id)
-      console.log(`    ✓ Found existing ${IMPORT_TAG} tag (ID: ${this.importMediaTagId})`)
-    } else {
-      const newTag = await this.payload.create({
-        collection: 'media-tags',
-        data: {
-          name: IMPORT_TAG,
-        },
-      })
-      this.importMediaTagId = String(newTag.id)
-      console.log(`    ✓ Created ${IMPORT_TAG} tag (ID: ${this.importMediaTagId})`)
-    }
+    this.importMediaTagId = await this.tagManager.ensureMediaTag(IMPORT_TAG)
+    console.log(`    ✓ Import tag ready (ID: ${this.importMediaTagId})`)
   }
 
   private async ensureMeditationThumbnailTag(mediaId: string) {
@@ -951,39 +860,17 @@ class SimpleImporter {
     }
 
     try {
-      // Get current media document
-      const media = await this.payload.findByID({
-        collection: 'media',
-        id: mediaId,
-      })
-
-      // Check which tags need to be added
-      const currentTags = Array.isArray(media.tags)
-        ? media.tags.map((tag: string | { id: string }) => (typeof tag === 'string' ? tag : tag.id))
-        : []
-
       const tagsToAdd = []
-      if (this.meditationThumbnailTagId && !currentTags.includes(this.meditationThumbnailTagId)) {
-        tagsToAdd.push(this.meditationThumbnailTagId)
-      }
-      if (this.importMediaTagId && !currentTags.includes(this.importMediaTagId)) {
-        tagsToAdd.push(this.importMediaTagId)
-      }
+      if (this.meditationThumbnailTagId) tagsToAdd.push(this.meditationThumbnailTagId)
+      if (this.importMediaTagId) tagsToAdd.push(this.importMediaTagId)
 
       if (tagsToAdd.length > 0) {
-        // Add the tags
-        await this.payload.update({
-          collection: 'media',
-          id: mediaId,
-          data: {
-            tags: [...currentTags, ...tagsToAdd],
-          },
-        })
+        await this.tagManager.addTagsToMedia(mediaId, tagsToAdd)
         console.log(`    ✓ Added tags to media (ID: ${mediaId})`)
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      this.addWarning(`Failed to add meditation-thumbnail tag to media ${mediaId}: ${message}`)
+      this.addWarning(`Failed to add tags to media ${mediaId}: ${message}`)
     }
   }
 
