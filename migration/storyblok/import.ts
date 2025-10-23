@@ -472,6 +472,9 @@ class StoryblokImporter {
             const mediaId = await this.createMediaFromUrl(imageUrl as string)
             const captionText = this.processTextField((blockData.Caption_text as string) || '')
 
+            // Determine alignment based on block type
+            const align = block.component === 'DD_wide_image' ? 'wide' : 'center'
+
             const uploadNode: Record<string, unknown> = {
               type: 'upload',
               relationTo: 'media',
@@ -479,13 +482,10 @@ class StoryblokImporter {
                 id: mediaId,
               },
               version: 1,
-            }
-
-            // Add caption field if caption text exists
-            if (captionText.trim()) {
-              uploadNode.fields = {
-                caption: captionText,
-              }
+              fields: {
+                align,
+                ...(captionText.trim() ? { caption: captionText } : {}),
+              },
             }
 
             children.push(uploadNode)
@@ -673,6 +673,7 @@ class StoryblokImporter {
         const lesson = await this.payload.create({
           collection: 'lessons',
           data: lessonData,
+          locale: 'en',
         })
 
         // Create and attach icon after lesson creation
@@ -762,6 +763,10 @@ class StoryblokImporter {
         this.summary.lessonsCreated++
         await this.logger.success(`✓ Created lesson: ${story.name} (ID: ${lesson.id})`)
       } catch (error) {
+        // Log full error details for debugging
+        if (error instanceof Error && (error as any).data) {
+          console.error('Full error details:', JSON.stringify((error as any).data, null, 2))
+        }
         this.addError(`Creating lesson ${stepSlug}`, error as Error)
         continue // Keep going!
       }
