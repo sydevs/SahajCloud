@@ -57,7 +57,7 @@ const LOCALES = [
   'fa',
   'bg',
   'tr',
-]
+] as const
 const DB_NAME = 'temp_wemeditate_import'
 
 // ============================================================================
@@ -385,7 +385,7 @@ class WeMeditateImporter {
               title: localizedData[locale].title,
               description: localizedData[locale].description,
             },
-            locale,
+            locale: locale as (typeof LOCALES)[number],
           })
         }
 
@@ -475,7 +475,7 @@ class WeMeditateImporter {
             data: {
               title: localizedData[locale].title,
             },
-            locale,
+            locale: locale as (typeof LOCALES)[number],
           })
         }
 
@@ -801,7 +801,7 @@ class WeMeditateImporter {
               title: localeVersion.name,
               publishAt: localeVersion.published_at || undefined,
             },
-            locale: localeVersion.locale,
+            locale: localeVersion.locale as (typeof LOCALES)[number],
           })
         }
 
@@ -1542,7 +1542,7 @@ class WeMeditateImporter {
           const existingPage = await this.payload.findByID({
             collection: 'pages',
             id: pageId,
-            locale,
+            locale: locale as (typeof LOCALES)[number],
           })
 
           // Update page with content
@@ -1553,7 +1553,7 @@ class WeMeditateImporter {
               title: existingPage.title, // Preserve existing title to pass validation
               content: lexicalContent as any,
             },
-            locale,
+            locale: locale as (typeof LOCALES)[number],
           })
         }
 
