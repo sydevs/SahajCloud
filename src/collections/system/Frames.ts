@@ -7,10 +7,13 @@ import {
   processFile,
   sanitizeFilename,
   generateVideoThumbnailHook,
-  deleteThumbnailHook,
   setPreviewUrlHook,
 } from '@/lib/fieldUtils'
-import { MediaField } from '@/fields'
+import { FileAttachmentField } from '@/fields'
+import {
+  claimOrphanFileAttachmentsHook,
+  deleteFileAttachmentsHook,
+} from '@/fields/FileAttachmentField'
 
 export const Frames: CollectionConfig = {
   labels: {
@@ -60,8 +63,8 @@ export const Frames: CollectionConfig = {
     afterRead: [trackClientUsageHook, setPreviewUrlHook],
     beforeValidate: [processFile({})],
     beforeChange: [convertFile],
-    afterChange: [generateVideoThumbnailHook],
-    afterDelete: [deleteThumbnailHook],
+    afterChange: [generateVideoThumbnailHook, claimOrphanFileAttachmentsHook],
+    afterDelete: [deleteFileAttachmentsHook],
   },
   fields: [
     {
@@ -119,9 +122,11 @@ export const Frames: CollectionConfig = {
         { label: 'Tapping', value: 'tapping' },
       ],
     },
-    MediaField({
+    FileAttachmentField({
       name: 'thumbnail',
       required: false,
+      ownerCollection: 'frames',
+      fileType: 'image',
       admin: {
         readOnly: true,
         description: 'Auto-generated thumbnail for video frames',

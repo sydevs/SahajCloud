@@ -255,25 +255,35 @@ export const Meditations: CollectionConfig = {
                     const frameIds = frames.map((f) => f.id)
                     if (frameIds.length === 0) return []
 
-                    const frameDocs = await req.payload.find({
-                      collection: 'frames',
-                      where: { id: { in: frameIds } },
-                      limit: frameIds.length,
-                    })
+                    try {
+                      const frameDocs = await req.payload.find({
+                        collection: 'frames',
+                        where: { id: { in: frameIds } },
+                        limit: frameIds.length,
+                      })
 
-                    // Create map of relevant frame data
-                    const frameMap = Object.fromEntries(
-                      frameDocs.docs.map((frame) => [frame.id, frame]),
-                    )
+                      // Create map of relevant frame data
+                      const frameMap = Object.fromEntries(
+                        frameDocs.docs.map((frame) => [frame.id, frame]),
+                      )
 
-                    // Add data to each frame and sort by timestamp
-                    return frames.map((v) => {
-                      return {
+                      // Add data to each frame and sort by timestamp
+                      return frames.map((v) => {
+                        return {
+                          ...v,
+                          ...frameMap[v.id],
+                          timestamp: Math.round(v.timestamp),
+                        } as KeyframeData
+                      })
+                    } catch (_error) {
+                      // If frames have thumbnails that reference deleted media, gracefully skip frame enrichment
+                      // This can happen during import operations with --reset when media is deleted
+                      // Return basic frame data without enrichment
+                      return frames.map((v) => ({
                         ...v,
-                        ...frameMap[v.id],
                         timestamp: Math.round(v.timestamp),
-                      } as KeyframeData
-                    })
+                      })) as KeyframeData[]
+                    }
                   },
                 ],
               },

@@ -32,14 +32,12 @@ describe('Pages Collection', () => {
     it('creates a page with auto-generated slug', async () => {
       const page = await testData.createPage(payload, {
         title: 'My First Page',
-        category: 'technique',
         tags: [livingTag.id, creativityTag.id],
       })
 
       expect(page).toBeDefined()
       expect(page.title).toBe('My First Page')
       expect(page.slug).toBe('my-first-page')
-      expect(page.category).toBe('technique')
       expect(page.tags).toHaveLength(2)
       const tagIds = page.tags?.map((tag) => (typeof tag === 'object' && tag ? tag.id : tag)) || []
       expect(tagIds).toContain(livingTag.id)
@@ -49,7 +47,6 @@ describe('Pages Collection', () => {
     it('handles special characters in slug generation', async () => {
       const page = await testData.createPage(payload, {
         title: 'Page: Testing & Validation!',
-        category: 'event',
       })
 
       expect(page.slug).toBe('page-testing--validation')

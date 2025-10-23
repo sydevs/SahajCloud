@@ -10,7 +10,6 @@ export const GalleryBlock: Block = {
     {
       name: 'title',
       type: 'text',
-      localized: true,
       admin: {
         description: 'Optional title for this gallery',
       },
@@ -41,19 +40,19 @@ export const GalleryBlock: Block = {
       name: 'items',
       type: 'relationship',
       hasMany: true,
-      maxRows: 10,
+      maxRows: 15,
       relationTo: ['media', 'meditations', 'pages'],
       validate: ((value: unknown) => {
         if (!value) return true
-        
-        if (Array.isArray(value) && value.length > 10) {
-          return 'Maximum 10 items allowed'
+
+        if (Array.isArray(value) && value.length > 15) {
+          return 'Maximum 15 items allowed'
         }
-        
+
         return true
       }) as Validate,
       admin: {
-        description: 'Select items to display in gallery (max 10)',
+        description: 'Select items to display in gallery (max 15)',
         condition: (_, siblingData) => Boolean(siblingData?.collectionType),
       },
     },

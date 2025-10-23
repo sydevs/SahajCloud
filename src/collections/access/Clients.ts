@@ -8,6 +8,10 @@ export const Clients: CollectionConfig = {
     useAPIKey: true,
     disableLocalStrategy: true, // Only API key authentication
   },
+  labels: {
+    singular: 'Service',
+    plural: 'Services',
+  },
   admin: {
     hidden: ({ user }) => !user?.admin,
     group: 'Access',

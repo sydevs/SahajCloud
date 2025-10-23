@@ -6,7 +6,6 @@ export const ButtonBlock: Block = {
     {
       name: 'text',
       type: 'text',
-      localized: true,
     },
     {
       name: 'url',

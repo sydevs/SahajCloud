@@ -36,9 +36,9 @@ export const fullRichTextEditor = (blocks?: Block[]) =>
       LinkFeature(),
       BlockquoteFeature(),
       InlineToolbarFeature(),
-      HeadingFeature({ enabledHeadingSizes: ['h1', 'h2'] }),
+      HeadingFeature({ enabledHeadingSizes: ['h2', 'h3'] }),
       RelationshipFeature({
-        enabledCollections: ['meditations', 'pages', 'forms'],
+        enabledCollections: ['meditations', 'pages', 'forms', 'external-videos'],
         maxDepth: 1,
       }),
       UploadFeature({
@@ -48,6 +48,29 @@ export const fullRichTextEditor = (blocks?: Block[]) =>
               {
                 name: 'caption',
                 type: 'text',
+              },
+              {
+                name: 'align',
+                type: 'select',
+                required: true,
+                options: [
+                  {
+                    label: 'Center',
+                    value: 'center',
+                  },
+                  {
+                    label: 'Left',
+                    value: 'left',
+                  },
+                  {
+                    label: 'Right',
+                    value: 'right',
+                  },
+                  {
+                    label: 'Wide',
+                    value: 'wide',
+                  },
+                ],
               },
             ],
           },

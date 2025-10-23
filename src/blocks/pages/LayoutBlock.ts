@@ -1,5 +1,6 @@
 import { Block } from 'payload'
 import { MediaField } from '@/fields'
+import { basicRichTextEditor } from '@/lib/richEditor'
 
 export const LayoutBlock: Block = {
   slug: 'layout',
@@ -44,7 +45,6 @@ export const LayoutBlock: Block = {
         {
           name: 'title',
           type: 'text',
-          localized: true,
           admin: {
             description: 'Optional title for this item',
           },
@@ -52,7 +52,7 @@ export const LayoutBlock: Block = {
         {
           name: 'text',
           type: 'richText',
-          localized: true,
+          editor: basicRichTextEditor,
           admin: {
             description: 'Optional text content for this item',
           },

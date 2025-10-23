@@ -402,10 +402,10 @@ describe('Localization', () => {
           collection: 'meditations',
           data: {
             title: 'Invalid Locale Meditation',
-            locale: 'fr' as any, // Not a valid option - should fail validation
+            label: 'Invalid Locale',
+            locale: 'jk' as any, // Not a valid option - should fail validation
             narrator: narrator.id,
             thumbnail: thumbnail.id,
-            duration: 15,
           },
         }),
       ).rejects.toThrow()

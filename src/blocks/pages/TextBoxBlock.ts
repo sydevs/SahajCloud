@@ -1,5 +1,4 @@
 import { Block } from 'payload'
-import { validateCharacterCount } from '@/lib/validators/characterCount'
 import { MediaField } from '@/fields'
 
 export const TextBoxBlock: Block = {
@@ -31,6 +30,10 @@ export const TextBoxBlock: Block = {
           label: 'Overlay',
           value: 'overlay',
         },
+        {
+          label: 'Overlay Dark',
+          value: 'overlayDark',
+        },
       ],
       admin: {
         description: 'Display style for the text box',
@@ -39,19 +42,22 @@ export const TextBoxBlock: Block = {
     {
       name: 'title',
       type: 'text',
-      localized: true,
       admin: {
         description: 'Optional title for this text box',
       },
     },
     {
-      name: 'text',
-      type: 'richText',
-      required: true,
-      localized: true,
-      validate: validateCharacterCount(250),
+      name: 'subtitle',
+      type: 'text',
       admin: {
-        description: 'Main content text (max 250 characters)',
+        description: 'Optional subtitle for this text box',
+      },
+    },
+    {
+      name: 'text',
+      type: 'textarea',
+      admin: {
+        description: 'Main content text',
       },
     },
     MediaField({
@@ -71,10 +77,18 @@ export const TextBoxBlock: Block = {
     {
       name: 'actionText',
       type: 'text',
-      localized: true,
       admin: {
         description: 'Call-to-action text for the link',
         condition: (_, siblingData) => Boolean(siblingData?.link),
+      },
+    },
+    {
+      name: 'importData',
+      type: 'json',
+      admin: {
+        readOnly: true,
+        hidden: true,
+        description: 'Original import data (background, color, position, spacing, decorations)',
       },
     },
   ],

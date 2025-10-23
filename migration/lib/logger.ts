@@ -1,35 +1,75 @@
 /**
  * Logger
  *
- * Provides logging to both console and file with timestamps
+ * Provides logging to both console and file with timestamps and optional colors
  */
 
 import { promises as fs } from 'fs'
 import * as path from 'path'
 
+// ANSI color codes
+const colors = {
+  reset: '\x1b[0m',
+  red: '\x1b[31m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  blue: '\x1b[34m',
+  cyan: '\x1b[36m',
+  gray: '\x1b[90m',
+}
+
+export type LogColor = keyof typeof colors
+
+export interface LogOptions {
+  isError?: boolean
+  color?: LogColor
+}
+
 export class Logger {
   private logFile: string
+  private onWarning?: (message: string) => void
 
-  constructor(cacheDir: string) {
+  constructor(cacheDir: string, onWarning?: (message: string) => void) {
     this.logFile = path.join(cacheDir, 'import.log')
+    this.onWarning = onWarning
   }
 
-  async log(message: string, isError = false): Promise<void> {
+  setWarningCallback(callback: (message: string) => void): void {
+    this.onWarning = callback
+  }
+
+  async log(message: string, options: LogOptions = {}): Promise<void> {
     const timestamp = new Date().toISOString()
     const logMessage = `[${timestamp}] ${message}\n`
-    console.log(message)
+
+    // Console output with optional color
+    if (options.color) {
+      console.log(`${colors[options.color]}${message}${colors.reset}`)
+    } else {
+      console.log(message)
+    }
+
+    // File output without colors
     await fs.appendFile(this.logFile, logMessage)
   }
 
   async error(message: string): Promise<void> {
-    await this.log(`ERROR: ${message}`, true)
+    await this.log(`ERROR: ${message}`, { isError: true, color: 'red' })
   }
 
   async warn(message: string): Promise<void> {
-    await this.log(`WARN: ${message}`)
+    await this.log(`WARN: ${message}`, { color: 'yellow' })
+    // Call the warning callback if set
+    if (this.onWarning) {
+      this.onWarning(message)
+    }
   }
 
   async info(message: string): Promise<void> {
-    await this.log(message)
+    await this.log(message, { color: 'cyan' })
+  }
+
+  async success(message: string): Promise<void> {
+    await this.log(message, { color: 'green' })
   }
 }

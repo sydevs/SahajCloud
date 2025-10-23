@@ -7,21 +7,7 @@ import { execSync } from 'child_process'
 import { Client } from 'pg'
 import { promises as fs } from 'fs'
 import * as path from 'path'
-import { Logger, FileUtils, TagManager, PayloadHelpers } from '../lib'
-
-// ANSI color codes for summary output
-const colors = {
-  reset: '\x1b[0m',
-  blue: '\x1b[34m',
-  cyan: '\x1b[36m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  red: '\x1b[31m',
-  gray: '\x1b[90m',
-}
-
-const colorize = (color: keyof typeof colors, text: string) =>
-  `${colors[color]}${text}${colors.reset}`
+import { Logger, FileUtils, TagManager, PayloadHelpers, MediaUploader } from '../lib'
 
 interface ImportedData {
   tags: Array<{ id: number; name: string }>
@@ -69,7 +55,6 @@ interface ImportedData {
 
 // Configuration constants
 const IMPORT_TAG = 'import-meditations' // Tag for all imported documents and media
-const UPDATE_EXISTING_RECORDS = true // Set to true to update existing records instead of skipping them
 
 class SimpleImporter {
   private payload!: Payload
@@ -77,6 +62,7 @@ class SimpleImporter {
   private fileUtils!: FileUtils
   private tagManager!: TagManager
   private payloadHelpers!: PayloadHelpers
+  private mediaUploader!: MediaUploader
 
   private tempDb: Client
   private cacheDir: string
@@ -131,46 +117,31 @@ class SimpleImporter {
   // Helper methods for tracking alerts
   private addWarning(message: string) {
     this.summary.alerts.warnings.push(message)
-    console.warn(`    ⚠️  ${message}`)
+    this.logger.warn(`    ${message}`)
   }
 
   private addError(message: string) {
     this.summary.alerts.errors.push(message)
-    console.error(`    ❌ ${message}`)
+    this.logger.error(`    ${message}`)
   }
 
   private addSkipped(message: string) {
     this.summary.alerts.skipped.push(message)
-    console.log(`    ⚠️  ${message}`)
+    this.logger.warn(`    Skipped: ${message}`)
   }
 
   async run() {
     const modeText = this.dryRun ? ' (DRY RUN)' : ''
-    const updateMode = UPDATE_EXISTING_RECORDS ? ' [UPDATE MODE]' : ' [SKIP MODE]'
     const resetText = this.reset ? ' [RESET]' : ''
-    console.log(
-      colorize(
-        'blue',
-        `\n🚀 Simple Migration from Heroku Postgres Dump${modeText}${updateMode}${resetText}\n`,
-      ),
-    )
+    console.log(`\n🚀 Meditations Import${modeText}${resetText}\n`)
 
     if (this.reset) {
-      console.log(
-        colorize('red', '⚠️  RESET MODE: Meditations collection will be erased before import'),
-      )
+      console.log('⚠️  RESET MODE: Meditations collection will be erased before import')
     }
 
-    if (UPDATE_EXISTING_RECORDS) {
-      console.log(
-        colorize(
-          'yellow',
-          '⚠️  UPDATE MODE: Existing records will be updated across all collections',
-        ),
-      )
-    } else {
-      console.log(colorize('cyan', 'ℹ️  SKIP MODE: Existing records will be preserved'))
-    }
+    // Initialize logger early for dry run
+    await fs.mkdir(this.cacheDir, { recursive: true })
+    this.logger = new Logger(this.cacheDir)
 
     try {
       // 1. Import dump to temporary database
@@ -178,16 +149,16 @@ class SimpleImporter {
 
       // 2. Initialize Payload (skip in dry run for speed)
       if (!this.dryRun) {
-        console.log('Initializing Payload CMS...')
+        await this.logger.log('Initializing Payload CMS...')
         const payloadConfig = await configPromise
         this.payload = await getPayload({ config: payloadConfig })
-        console.log('✓ Payload CMS initialized')
+        await this.logger.log('✓ Payload CMS initialized')
 
-        // Initialize utility classes
-        this.logger = new Logger(this.cacheDir)
+        // Initialize utility classes after Payload
         this.fileUtils = new FileUtils(this.logger)
         this.tagManager = new TagManager(this.payload, this.logger)
         this.payloadHelpers = new PayloadHelpers(this.payload, this.logger)
+        this.mediaUploader = new MediaUploader(this.payload, this.logger)
 
         // 2.1. Reset Meditations collection if requested
         if (this.reset) {
@@ -198,7 +169,7 @@ class SimpleImporter {
         await this.setupFileDirectory()
         await this.loadIdMappingsFromCache()
       } else {
-        console.log('⚠️  DRY RUN - Skipping Payload initialization')
+        await this.logger.log('⚠️  DRY RUN - Skipping Payload initialization')
       }
 
       // 4. Load data from temp database
@@ -206,31 +177,31 @@ class SimpleImporter {
 
       if (this.dryRun) {
         // Just show what would be imported
-        console.log('\nData to be imported:')
-        console.log(`- ${data.tags.length} tags`)
-        console.log(`- ${data.frames.length} frames`)
-        console.log(`- ${data.meditations.length} meditations`)
-        console.log(`- ${data.musics.length} music tracks`)
-        console.log(`- ${data.taggings.length} taggings relationships`)
-        console.log(`- ${data.attachments.length} file attachments`)
+        await this.logger.log('\nData to be imported:')
+        await this.logger.log(`- ${data.tags.length} tags`)
+        await this.logger.log(`- ${data.frames.length} frames`)
+        await this.logger.log(`- ${data.meditations.length} meditations`)
+        await this.logger.log(`- ${data.musics.length} music tracks`)
+        await this.logger.log(`- ${data.taggings.length} taggings relationships`)
+        await this.logger.log(`- ${data.attachments.length} file attachments`)
 
         // Show sample data
-        console.log(
-          '\nSample tags:',
-          data.tags
-            .slice(0, 5)
-            .map((t) => t.name)
-            .join(', '),
+        await this.logger.log(
+          '\nSample tags: ' +
+            data.tags
+              .slice(0, 5)
+              .map((t) => t.name)
+              .join(', '),
         )
-        console.log(
-          'Sample frames:',
-          data.frames
-            .slice(0, 3)
-            .map((f) => f.category)
-            .join(', '),
+        await this.logger.log(
+          'Sample frames: ' +
+            data.frames
+              .slice(0, 3)
+              .map((f) => f.category)
+              .join(', '),
         )
 
-        console.log(colorize('yellow', '\n✅ Dry run completed - no data was imported'))
+        await this.logger.log('\n✅ Dry run completed - no data was imported')
         return
       }
 
@@ -268,17 +239,17 @@ class SimpleImporter {
       )
       await this.saveIdMappingsToCache()
 
-      console.log(colorize('green', '\n✅ Migration completed successfully!'))
+      console.log('\n✅ Migration completed successfully!')
       this.printSummary()
     } catch (error) {
-      console.error(colorize('red', '\n❌ Migration failed:'), error)
+      console.error('\n❌ Migration failed:', error)
     } finally {
       await this.cleanup()
     }
   }
 
   private async setupTempDatabase() {
-    console.log('Setting up temporary database...')
+    await this.logger.log('Setting up temporary database...')
 
     try {
       // Create temp database
@@ -291,94 +262,49 @@ class SimpleImporter {
 
       // Connect to temp database
       await this.tempDb.connect()
-      console.log('✓ Data imported to temporary database')
+      await this.logger.log('✓ Data imported to temporary database')
     } catch (error) {
-      console.error('Failed to setup temp database:', error)
+      await this.logger.error(`Failed to setup temp database: ${error}`)
       throw error
     }
   }
 
   private async resetMeditationsCollection() {
-    console.log('\n🗑️  Resetting Meditations collection...')
+    await this.logger.log('\n🗑️  Resetting Meditations and Frames collections...')
 
     try {
-      const deletedCount = await this.payloadHelpers.resetCollection('meditations')
-
-      if (deletedCount > 0) {
-        console.log(`  ✓ Cleared meditations collection (${deletedCount} documents deleted)`)
+      // Delete all meditations
+      const deletedMeditationsCount = await this.payloadHelpers.resetCollection('meditations')
+      if (deletedMeditationsCount > 0) {
+        await this.logger.log(
+          `  ✓ Cleared meditations (${deletedMeditationsCount} documents deleted)`,
+        )
       } else {
-        console.log(`  ✓ Meditations collection already empty`)
+        await this.logger.log(`  ✓ Meditations collection already empty`)
       }
 
-      // Clear meditation-related ID mappings cache since meditations are reset
+      // Delete all frames (they don't check for duplicates during import)
+      const deletedFramesCount = await this.payloadHelpers.resetCollection('frames')
+      if (deletedFramesCount > 0) {
+        await this.logger.log(`  ✓ Cleared frames (${deletedFramesCount} documents deleted)`)
+      } else {
+        await this.logger.log(`  ✓ Frames collection already empty`)
+      }
+
+      // Clear meditation and frame ID mappings cache
+      // Note: Other collections (narrators, music, tags) handle duplicates during import
       this.idMaps.meditations.clear()
-      console.log('✓ Cleared meditation ID mappings cache')
+      this.idMaps.frames.clear()
+      await this.logger.log('✓ Cleared meditation and frame ID mappings cache')
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      console.error(`  ❌ Could not clear meditations collection: ${message}`)
+      await this.logger.error(`  Could not clear collections: ${message}`)
       throw error
     }
   }
 
-  private async resetPayloadDatabase() {
-    console.log('\n🗑️  Resetting Payload CMS database...')
-
-    // Ensure import tag is set up for media filtering
-    await this.setupMeditationThumbnailTag()
-
-    const collections = [
-      'meditation-frames',
-      'meditations',
-      'frames',
-      'music',
-      'meditation-tags',
-      'music-tags',
-      'narrators',
-      'media',
-    ]
-
-    let totalDeleted = 0
-
-    for (const collection of collections) {
-      try {
-        // For media collection, filter by import tag
-        const where =
-          collection === 'media' && this.importMediaTagId
-            ? { tags: { contains: this.importMediaTagId } }
-            : undefined
-
-        if (where) {
-          console.log(`  Finding media with ${IMPORT_TAG} tag...`)
-        }
-
-        const deletedCount = await this.payloadHelpers.resetCollection(collection, where)
-
-        if (deletedCount > 0) {
-          totalDeleted += deletedCount
-          console.log(`  ✓ Cleared ${collection} (${deletedCount} documents)`)
-        } else {
-          console.log(`  ✓ ${collection} already empty`)
-        }
-      } catch (error: any) {
-        console.warn(`  ⚠️  Could not clear ${collection}: ${error.message}`)
-      }
-    }
-
-    console.log(`✓ Database reset complete - deleted ${totalDeleted} documents total`)
-
-    // Clear ID mappings cache since database is reset
-    this.idMaps.meditationTags.clear()
-    this.idMaps.musicTags.clear()
-    this.idMaps.frames.clear()
-    this.idMaps.meditations.clear()
-    this.idMaps.musics.clear()
-    this.idMaps.narrators.clear()
-    this.idMaps.media.clear()
-    console.log('✓ Cleared ID mappings cache')
-  }
-
   private async loadData(): Promise<ImportedData> {
-    console.log('Loading data from temporary database...')
+    await this.logger.log('Loading data from temporary database...')
 
     const [tags, frames, meditations, musics, keyframes, taggings, attachments, blobs] =
       await Promise.all([
@@ -418,7 +344,7 @@ class SimpleImporter {
 
   private async setupFileDirectory() {
     await this.fileUtils.ensureDir(this.cacheDir)
-    console.log(`✓ Using cache directory: ${this.cacheDir}`)
+    await this.logger.log(`✓ Using cache directory: ${this.cacheDir}`)
   }
 
   private async loadIdMappingsFromCache() {
@@ -483,7 +409,7 @@ class SimpleImporter {
   }
 
   private async loadExistingData(data: ImportedData) {
-    console.log('\nLoading existing data for resumability...')
+    await this.logger.log('\nLoading existing data for resumability...')
 
     // If we already have ID mappings from cache, skip loading from database
     const hasCachedMappings =
@@ -495,7 +421,7 @@ class SimpleImporter {
       this.idMaps.media.size > 0
 
     if (hasCachedMappings) {
-      console.log('✓ Using cached ID mappings for resumability')
+      await this.logger.log('✓ Using cached ID mappings for resumability')
       return
     }
 
@@ -559,7 +485,7 @@ class SimpleImporter {
 
       // Check if file already exists in cache
       if (await this.fileUtils.fileExists(cachedPath)) {
-        console.log(`  ✓ Using cached: ${filename}`)
+        await this.logger.log(`  ✓ Using cached: ${filename}`)
         return cachedPath
       }
 
@@ -569,11 +495,11 @@ class SimpleImporter {
         process.env.STORAGE_BASE_URL || 'https://storage.googleapis.com/media.sydevelopers.com'
       const fileUrl = `${baseUrl}/${storageKey}`
 
-      console.log(`  Downloading: ${filename}`)
+      await this.logger.log(`  Downloading: ${filename}`)
 
       // Download file using FileUtils
       await this.fileUtils.downloadFileFetch(fileUrl, cachedPath)
-      console.log(`  ✓ Downloaded and cached: ${filename}`)
+      await this.logger.log(`  ✓ Downloaded and cached: ${filename}`)
 
       return cachedPath
     } catch (error: any) {
@@ -586,7 +512,7 @@ class SimpleImporter {
     try {
       const fileBuffer = await fs.readFile(localPath)
       const filename = path.basename(localPath).replace(/^[^_]+_/, '') // Remove hash prefix
-      const mimeType = this.getMimeType(filename)
+      const mimeType = this.fileUtils.getMimeType(filename)
 
       // Validate MIME type for music collection
       if (collection === 'music') {
@@ -616,7 +542,7 @@ class SimpleImporter {
             size: fileBuffer.length,
           },
         })
-        console.log(`    ✓ Uploaded: ${filename}`)
+        await this.logger.log(`    ✓ Uploaded: ${filename}`)
         return result
       }
 
@@ -639,7 +565,7 @@ class SimpleImporter {
 
       const result = await this.payload.create(createOptions)
 
-      console.log(`    ✓ Uploaded: ${filename}`)
+      await this.logger.log(`    ✓ Uploaded: ${filename}`)
       return result
     } catch (error: any) {
       // Check if it's a duration error (video or audio)
@@ -668,65 +594,6 @@ class SimpleImporter {
     }
   }
 
-  private async uploadMediaWithDeduplication(
-    localPath: string,
-    metadata: any = {},
-  ): Promise<string | null> {
-    try {
-      const filename = path.basename(localPath).replace(/^[^_]+_/, '') // Remove hash prefix
-
-      // Check if media with this filename already exists
-      const existingMediaId = this.idMaps.media.get(filename)
-      if (existingMediaId) {
-        // Validate that the media actually exists before reusing
-        try {
-          const existingMedia = await this.payload.findByID({
-            collection: 'media',
-            id: existingMediaId,
-          })
-          if (existingMedia && existingMedia.filename === filename) {
-            // If metadata includes tags, ensure existing media has those tags
-            if (metadata.tags && Array.isArray(metadata.tags) && metadata.tags.length > 0) {
-              await this.ensureMeditationThumbnailTag(existingMediaId)
-            }
-
-            this.summary.media.reused++
-            console.log(`    ✓ Reusing existing media: ${filename}`)
-            return existingMediaId
-          } else {
-            // Media doesn't exist or filename doesn't match, remove from cache
-            console.log(
-              `    ⚠️  Cached media ID ${existingMediaId} for ${filename} is invalid, will re-upload`,
-            )
-            this.idMaps.media.delete(filename)
-          }
-        } catch (error) {
-          // Media doesn't exist, remove from cache
-          console.log(
-            `    ⚠️  Cached media ID ${existingMediaId} for ${filename} not found, will re-upload`,
-          )
-          this.idMaps.media.delete(filename)
-        }
-      }
-
-      // Upload new media file
-      const uploaded = await this.uploadToPayload(localPath, 'media', metadata)
-      if (uploaded) {
-        // Add to media mapping for future deduplication
-        this.idMaps.media.set(filename, String(uploaded.id))
-        this.summary.media.uploaded++
-        console.log(`    ✓ Uploaded new media: ${filename}`)
-        return String(uploaded.id)
-      }
-
-      return null
-    } catch (error: any) {
-      this.addWarning(
-        `Failed to upload media ${path.basename(localPath)}: ${error.message || error}`,
-      )
-      return null
-    }
-  }
 
   private async uploadToPayloadForUpdate(
     localPath: string,
@@ -737,7 +604,7 @@ class SimpleImporter {
     try {
       const fileBuffer = await fs.readFile(localPath)
       const filename = path.basename(localPath).replace(/^[^_]+_/, '') // Remove hash prefix
-      const mimeType = this.getMimeType(filename)
+      const mimeType = this.fileUtils.getMimeType(filename)
 
       // Validate MIME type for specific collections
       if (collection === 'music') {
@@ -775,7 +642,7 @@ class SimpleImporter {
 
       const result = await this.payload.update(updateOptions)
 
-      console.log(`    ✓ Updated with file: ${filename}`)
+      await this.logger.log(`    ✓ Updated with file: ${filename}`)
       return result
     } catch (error: any) {
       this.addWarning(
@@ -783,24 +650,6 @@ class SimpleImporter {
       )
       return null
     }
-  }
-
-  private getMimeType(filename: string): string {
-    const ext = path.extname(filename).toLowerCase()
-    const mimeTypes: Record<string, string> = {
-      '.mp3': 'audio/mpeg',
-      '.wav': 'audio/wav',
-      '.m4a': 'audio/aac',
-      '.aac': 'audio/aac',
-      '.ogg': 'audio/ogg',
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.webp': 'image/webp',
-      '.mp4': 'video/mp4',
-      '.webm': 'video/webm',
-    }
-    return mimeTypes[ext] || 'application/octet-stream'
   }
 
   private mapFrameCategory(oldCategory: string): string | null {
@@ -843,15 +692,20 @@ class SimpleImporter {
   }
 
   private async setupMeditationThumbnailTag() {
-    console.log('\nSetting up meditation thumbnail and import tags...')
+    await this.logger.log('\nSetting up meditation thumbnail and import tags...')
 
-    // Setup meditation-thumbnail tag
-    this.meditationThumbnailTagId = await this.tagManager.ensureMediaTag('meditation-thumbnail')
-    console.log(`    ✓ Meditation-thumbnail tag ready (ID: ${this.meditationThumbnailTagId})`)
+    // Setup meditation-thumbnail tag using TagManager
+    this.meditationThumbnailTagId = await this.tagManager.ensureTag(
+      'media-tags',
+      'meditation-thumbnail',
+    )
+    await this.logger.log(
+      `    ✓ Meditation-thumbnail tag ready (ID: ${this.meditationThumbnailTagId})`,
+    )
 
-    // Setup import tag
-    this.importMediaTagId = await this.tagManager.ensureMediaTag(IMPORT_TAG)
-    console.log(`    ✓ Import tag ready (ID: ${this.importMediaTagId})`)
+    // Setup import tag using TagManager
+    this.importMediaTagId = await this.tagManager.ensureTag('media-tags', IMPORT_TAG)
+    await this.logger.log(`    ✓ Import tag ready (ID: ${this.importMediaTagId})`)
   }
 
   private async ensureMeditationThumbnailTag(mediaId: string) {
@@ -866,7 +720,7 @@ class SimpleImporter {
 
       if (tagsToAdd.length > 0) {
         await this.tagManager.addTagsToMedia(mediaId, tagsToAdd)
-        console.log(`    ✓ Added tags to media (ID: ${mediaId})`)
+        await this.logger.log(`    ✓ Added tags to media (ID: ${mediaId})`)
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -875,7 +729,7 @@ class SimpleImporter {
   }
 
   private async uploadPlaceholderImages() {
-    console.log('\nUploading placeholder images...')
+    await this.logger.log('\nUploading placeholder images...')
 
     // Check if placeholder images already exist in media collection
     const [existingPlaceholder, existingPathPlaceholder] = await Promise.all([
@@ -902,7 +756,9 @@ class SimpleImporter {
     // Upload or reuse placeholder.jpg
     if (existingPlaceholder.docs.length > 0) {
       this.placeholderMediaId = String(existingPlaceholder.docs[0].id)
-      console.log(`    ✓ Found existing placeholder.jpg media (ID: ${this.placeholderMediaId})`)
+      await this.logger.log(
+        `    ✓ Found existing placeholder.jpg media (ID: ${this.placeholderMediaId})`,
+      )
 
       // Update existing placeholder with meditation-thumbnail tag if not already tagged
       await this.ensureMeditationThumbnailTag(this.placeholderMediaId)
@@ -919,7 +775,7 @@ class SimpleImporter {
         })
         if (placeholderMedia) {
           this.placeholderMediaId = String(placeholderMedia.id)
-          console.log(`    ✓ Uploaded placeholder.jpg (ID: ${this.placeholderMediaId})`)
+          await this.logger.log(`    ✓ Uploaded placeholder.jpg (ID: ${this.placeholderMediaId})`)
         }
       } catch (error) {
         this.addWarning('placeholder.jpg not found in migration-cache folder')
@@ -929,7 +785,9 @@ class SimpleImporter {
     // Upload or reuse path.jpg
     if (existingPathPlaceholder.docs.length > 0) {
       this.pathPlaceholderMediaId = String(existingPathPlaceholder.docs[0].id)
-      console.log(`    ✓ Found existing path.jpg media (ID: ${this.pathPlaceholderMediaId})`)
+      await this.logger.log(
+        `    ✓ Found existing path.jpg media (ID: ${this.pathPlaceholderMediaId})`,
+      )
 
       // Update existing path placeholder with meditation-thumbnail tag if not already tagged
       await this.ensureMeditationThumbnailTag(this.pathPlaceholderMediaId)
@@ -946,7 +804,7 @@ class SimpleImporter {
         })
         if (pathMedia) {
           this.pathPlaceholderMediaId = String(pathMedia.id)
-          console.log(`    ✓ Uploaded path.jpg (ID: ${this.pathPlaceholderMediaId})`)
+          await this.logger.log(`    ✓ Uploaded path.jpg (ID: ${this.pathPlaceholderMediaId})`)
         }
       } catch (error) {
         this.addWarning('path.jpg not found in migration-cache folder')
@@ -959,7 +817,7 @@ class SimpleImporter {
   }
 
   private async importNarrators() {
-    console.log('\nImporting narrators...')
+    await this.logger.log('\nImporting narrators...')
 
     const narrators = [
       { name: 'Female Narrator', gender: 'female' as const },
@@ -988,14 +846,14 @@ class SimpleImporter {
       let narrator = existingByName.get(narratorData.name)
 
       if (narrator) {
-        console.log(`    ✓ Found existing narrator: ${narrator.name}`)
+        await this.logger.log(`    ✓ Found existing narrator: ${narrator.name}`)
         foundCount++
       } else {
         narrator = await this.payload.create({
           collection: 'narrators',
           data: narratorData,
         })
-        console.log(`    ✓ Created narrator: ${narrator.name}`)
+        await this.logger.log(`    ✓ Created narrator: ${narrator.name}`)
         createdCount++
       }
 
@@ -1006,13 +864,13 @@ class SimpleImporter {
     this.summary.narrators.created = createdCount
     this.summary.narrators.existing = foundCount
 
-    console.log(
+    await this.logger.log(
       `✓ Processed ${narrators.length} narrators (${createdCount} created, ${foundCount} existing)`,
     )
   }
 
   private async importTags(tags: ImportedData['tags']) {
-    console.log('\nImporting tags...')
+    await this.logger.log('\nImporting tags...')
 
     // First, we need to determine which tags are used for meditations vs music
     // by examining the taggings table
@@ -1033,8 +891,8 @@ class SimpleImporter {
       }
     })
 
-    console.log(`    ℹ️  Found ${meditationTagIds.size} unique tags used by meditations`)
-    console.log(`    ℹ️  Found ${musicTagIds.size} unique tags used by music`)
+    await this.logger.log(`    ℹ️  Found ${meditationTagIds.size} unique tags used by meditations`)
+    await this.logger.log(`    ℹ️  Found ${musicTagIds.size} unique tags used by music`)
 
     // Load all existing tags to avoid duplicates
     const [existingMeditationTags, existingMusicTags] = await Promise.all([
@@ -1065,14 +923,14 @@ class SimpleImporter {
       if (meditationTagIds.has(tag.id)) {
         let meditationTag = existingMeditationByName.get(tag.name)
         if (meditationTag) {
-          console.log(`    ✓ Found existing meditation tag: ${meditationTag.name}`)
+          await this.logger.log(`    ✓ Found existing meditation tag: ${meditationTag.name}`)
           meditationFound++
         } else {
           meditationTag = await this.payload.create({
             collection: 'meditation-tags',
             data: tagData,
           })
-          console.log(`    ✓ Created meditation tag: ${meditationTag.name}`)
+          await this.logger.log(`    ✓ Created meditation tag: ${meditationTag.name}`)
           meditationCreated++
         }
         this.idMaps.meditationTags.set(tag.id, String(meditationTag.id))
@@ -1082,14 +940,14 @@ class SimpleImporter {
       if (musicTagIds.has(tag.id)) {
         let musicTag = existingMusicByName.get(tag.name)
         if (musicTag) {
-          console.log(`    ✓ Found existing music tag: ${musicTag.name}`)
+          await this.logger.log(`    ✓ Found existing music tag: ${musicTag.name}`)
           musicFound++
         } else {
           musicTag = await this.payload.create({
             collection: 'music-tags',
             data: tagData,
           })
-          console.log(`    ✓ Created music tag: ${musicTag.name}`)
+          await this.logger.log(`    ✓ Created music tag: ${musicTag.name}`)
           musicCreated++
         }
         this.idMaps.musicTags.set(tag.id, String(musicTag.id))
@@ -1102,19 +960,28 @@ class SimpleImporter {
     this.summary.musicTags.created = musicCreated
     this.summary.musicTags.existing = musicFound
 
-    console.log(
+    await this.logger.log(
       `✓ Processed tags (meditation: ${meditationCreated} created, ${meditationFound} existing | music: ${musicCreated} created, ${musicFound} existing)`,
     )
   }
 
   private async importFrames(frames: ImportedData['frames'], attachments: any[], blobs: any[]) {
-    console.log('\nImporting frames...')
+    await this.logger.log('\nImporting frames...')
 
     // Load existing frames to avoid duplicates
-    const existingFrames = await this.payload.find({
-      collection: 'frames',
-      limit: 1000,
-    })
+    let existingFrames
+    try {
+      existingFrames = await this.payload.find({
+        collection: 'frames',
+        limit: 1000,
+      })
+    } catch (error) {
+      // If frames have thumbnails that reference deleted media, we can't fetch them
+      // This can happen during import operations with --reset when media is deleted
+      // Continue with empty existing frames list
+      this.addWarning('Could not load existing frames (missing thumbnail references)')
+      existingFrames = { docs: [] }
+    }
 
     // Build map of existing frames by filename
     const existingByFilename = new Map<string, any>()
@@ -1126,7 +993,7 @@ class SimpleImporter {
 
     let createdCount = 0
     let foundCount = 0
-    let updatedCount = 0
+    const updatedCount = 0
     let skippedCount = 0
 
     for (const frame of frames) {
@@ -1232,24 +1099,9 @@ class SimpleImporter {
           tags: tagValues, // Now using direct string values
         }
 
-        if (existingMaleFrame && UPDATE_EXISTING_RECORDS) {
-          // Update existing male frame metadata (not file)
-          try {
-            await this.payload.update({
-              collection: 'frames',
-              id: existingMaleFrame.id,
-              data: frameData,
-            })
-            this.idMaps.frames.set(`${frame.id}_male`, String(existingMaleFrame.id))
-            console.log(`    ✓ Updated male frame: ${maleFilename}`)
-            updatedCount++
-          } catch (error: any) {
-            this.addWarning(`Failed to update male frame ${maleFilename}: ${error.message}`)
-            this.idMaps.frames.set(`${frame.id}_male`, String(existingMaleFrame.id))
-            foundCount++
-          }
-        } else if (existingMaleFrame && !UPDATE_EXISTING_RECORDS) {
-          console.log(`    ✓ Found existing male frame: ${maleFilename} (skipping)`)
+        if (existingMaleFrame) {
+          // Skip existing frame
+          await this.logger.log(`    ✓ Found existing male frame: ${maleFilename} (skipping)`)
           this.idMaps.frames.set(`${frame.id}_male`, String(existingMaleFrame.id))
           foundCount++
         } else {
@@ -1262,7 +1114,7 @@ class SimpleImporter {
             const uploaded = await this.uploadToPayload(localPath, 'frames', frameData)
             if (uploaded) {
               this.idMaps.frames.set(`${frame.id}_male`, String(uploaded.id))
-              console.log(`    ✓ Created male frame: ${maleFilename}`)
+              await this.logger.log(`    ✓ Created male frame: ${maleFilename}`)
               createdCount++
             }
           }
@@ -1293,24 +1145,9 @@ class SimpleImporter {
           tags: tagValues, // Now using direct string values
         }
 
-        if (existingFemaleFrame && UPDATE_EXISTING_RECORDS) {
-          // Update existing female frame metadata (not file)
-          try {
-            await this.payload.update({
-              collection: 'frames',
-              id: existingFemaleFrame.id,
-              data: frameData,
-            })
-            this.idMaps.frames.set(`${frame.id}_female`, String(existingFemaleFrame.id))
-            console.log(`    ✓ Updated female frame: ${femaleFilename}`)
-            updatedCount++
-          } catch (error: any) {
-            this.addWarning(`Failed to update female frame ${femaleFilename}: ${error.message}`)
-            this.idMaps.frames.set(`${frame.id}_female`, String(existingFemaleFrame.id))
-            foundCount++
-          }
-        } else if (existingFemaleFrame && !UPDATE_EXISTING_RECORDS) {
-          console.log(`    ✓ Found existing female frame: ${femaleFilename} (skipping)`)
+        if (existingFemaleFrame) {
+          // Skip existing frame
+          await this.logger.log(`    ✓ Found existing female frame: ${femaleFilename} (skipping)`)
           this.idMaps.frames.set(`${frame.id}_female`, String(existingFemaleFrame.id))
           foundCount++
         } else {
@@ -1323,7 +1160,7 @@ class SimpleImporter {
             const uploaded = await this.uploadToPayload(localPath, 'frames', frameData)
             if (uploaded) {
               this.idMaps.frames.set(`${frame.id}_female`, String(uploaded.id))
-              console.log(`    ✓ Created female frame: ${femaleFilename}`)
+              await this.logger.log(`    ✓ Created female frame: ${femaleFilename}`)
               createdCount++
             }
           }
@@ -1344,16 +1181,13 @@ class SimpleImporter {
     this.summary.frames.skipped = skippedCount
 
     const statusParts = [`${createdCount} created`]
-    if (UPDATE_EXISTING_RECORDS && updatedCount > 0) {
-      statusParts.push(`${updatedCount} updated`)
-    }
     if (foundCount > 0) {
       statusParts.push(`${foundCount} existing`)
     }
     if (skippedCount > 0) {
       statusParts.push(`${skippedCount} skipped`)
     }
-    console.log(`✓ Processed ${frames.length} frames (${statusParts.join(', ')})`)
+    await this.logger.log(`✓ Processed ${frames.length} frames (${statusParts.join(', ')})`)
   }
 
   private async importMusic(
@@ -1362,7 +1196,7 @@ class SimpleImporter {
     attachments: any[],
     blobs: any[],
   ) {
-    console.log('\nImporting music...')
+    await this.logger.log('\nImporting music...')
 
     // Load existing music to avoid duplicates
     const existingMusic = await this.payload.find({
@@ -1380,7 +1214,7 @@ class SimpleImporter {
 
     let createdCount = 0
     let foundCount = 0
-    let updatedCount = 0
+    const updatedCount = 0
 
     for (const music of musics) {
       // Generate expected slug for this music
@@ -1391,8 +1225,8 @@ class SimpleImporter {
 
       // Check if music already exists by slug
       const existingMusicItem = existingBySlug.get(expectedSlug)
-      if (existingMusicItem && !UPDATE_EXISTING_RECORDS) {
-        console.log(
+      if (existingMusicItem) {
+        await this.logger.log(
           `    ✓ Found existing music: ${existingMusicItem.title?.en || existingMusicItem.title} (skipping)`,
         )
         this.idMaps.musics.set(music.id, String(existingMusicItem.id))
@@ -1412,7 +1246,7 @@ class SimpleImporter {
         .filter((id): id is string => Boolean(id))
 
       if (musicTagIds.length > 0) {
-        console.log(`    ℹ️  Music "${music.title}" has ${musicTagIds.length} tags`)
+        await this.logger.log(`    ℹ️  Music "${music.title}" has ${musicTagIds.length} tags`)
       }
 
       // Create music data with simple strings (localization handled by locale parameter)
@@ -1421,28 +1255,6 @@ class SimpleImporter {
         credit: music.credit || '',
         duration: music.duration,
         tags: musicTagIds, // Add tags to music data
-      }
-
-      // Handle existing music update or create new music
-      if (existingMusicItem && UPDATE_EXISTING_RECORDS) {
-        // Update existing music metadata (no file replacement)
-        try {
-          const updated = await this.payload.update({
-            collection: 'music',
-            id: existingMusicItem.id,
-            data: musicData,
-            locale: 'en',
-          })
-          this.idMaps.musics.set(music.id, String(updated.id))
-          console.log(`    ✓ Updated music metadata: ${music.title}`)
-          updatedCount++
-        } catch (error: any) {
-          this.addWarning(`Failed to update music ${music.title}: ${error.message}`)
-          // Fall back to using existing ID
-          this.idMaps.musics.set(music.id, String(existingMusicItem.id))
-          foundCount++
-        }
-        continue
       }
 
       // Create new music (with or without audio file)
@@ -1459,7 +1271,7 @@ class SimpleImporter {
           const uploaded = await this.uploadToPayload(localPath, 'music', musicData)
           if (uploaded) {
             this.idMaps.musics.set(music.id, String(uploaded.id))
-            console.log(`    ✓ Created music with file: ${music.title}`)
+            await this.logger.log(`    ✓ Created music with file: ${music.title}`)
             createdCount++
             continue
           }
@@ -1475,7 +1287,7 @@ class SimpleImporter {
         })
 
         this.idMaps.musics.set(music.id, String(created.id))
-        console.log(`    ✓ Created music without file: ${music.title}`)
+        await this.logger.log(`    ✓ Created music without file: ${music.title}`)
         createdCount++
       } catch (error: any) {
         this.addWarning(`Failed to create music ${music.title}: ${error.message}`)
@@ -1488,13 +1300,10 @@ class SimpleImporter {
     this.summary.music.updated = updatedCount
 
     const statusParts = [`${createdCount} created`]
-    if (UPDATE_EXISTING_RECORDS && updatedCount > 0) {
-      statusParts.push(`${updatedCount} updated`)
-    }
     if (foundCount > 0) {
       statusParts.push(`${foundCount} existing`)
     }
-    console.log(`✓ Processed ${musics.length} music tracks (${statusParts.join(', ')})`)
+    await this.logger.log(`✓ Processed ${musics.length} music tracks (${statusParts.join(', ')})`)
   }
 
   private checkMeditationHasPathTag(
@@ -1520,13 +1329,22 @@ class SimpleImporter {
     blobs: any[],
     allTags: ImportedData['tags'],
   ) {
-    console.log('\nImporting meditations...')
+    await this.logger.log('\nImporting meditations...')
 
     // Load existing meditations to avoid duplicates
-    const existingMeditations = await this.payload.find({
-      collection: 'meditations',
-      limit: 1000,
-    })
+    let existingMeditations
+    try {
+      existingMeditations = await this.payload.find({
+        collection: 'meditations',
+        limit: 1000,
+      })
+    } catch (error) {
+      // If meditations have frames with thumbnails that reference deleted media, we can't fetch them
+      // This can happen during import operations with --reset when media is deleted
+      // Continue with empty existing meditations list
+      this.addWarning('Could not load existing meditations (missing thumbnail references)')
+      existingMeditations = { docs: [] }
+    }
 
     // Build map of existing meditations by slug
     const existingBySlug = new Map<string, any>()
@@ -1538,7 +1356,7 @@ class SimpleImporter {
 
     let createdCount = 0
     let foundCount = 0
-    let updatedCount = 0
+    const updatedCount = 0
 
     for (const meditation of meditations) {
       // Generate unique slug with duration suffix to avoid conflicts
@@ -1552,8 +1370,10 @@ class SimpleImporter {
 
       // Check if meditation already exists by unique slug
       const existingMeditation = existingBySlug.get(uniqueSlug)
-      if (existingMeditation && !UPDATE_EXISTING_RECORDS) {
-        console.log(`    ✓ Found existing meditation: ${existingMeditation.title} (skipping)`)
+      if (existingMeditation) {
+        await this.logger.log(
+          `    ✓ Found existing meditation: ${existingMeditation.title} (skipping)`,
+        )
         this.idMaps.meditations.set(meditation.id, String(existingMeditation.id))
         foundCount++
         continue
@@ -1627,7 +1447,9 @@ class SimpleImporter {
         }
       }
 
-      console.log(`    ℹ️  Meditation ${meditation.title} has ${validFrames.length} valid frames`)
+      await this.logger.log(
+        `    ℹ️  Meditation ${meditation.title} has ${validFrames.length} valid frames`,
+      )
 
       // Get meditation tags from taggings table
       const meditationTaggings = taggings.filter(
@@ -1682,10 +1504,13 @@ class SimpleImporter {
           const tags = []
           if (this.meditationThumbnailTagId) tags.push(this.meditationThumbnailTagId)
           if (this.importMediaTagId) tags.push(this.importMediaTagId)
-          thumbnailId = await this.uploadMediaWithDeduplication(localPath, {
+          const result = await this.mediaUploader.uploadWithDeduplication(localPath, {
             alt: `${meditation.title} thumbnail`,
             tags,
           })
+          if (result) {
+            thumbnailId = result.id
+          }
         }
       }
 
@@ -1700,10 +1525,14 @@ class SimpleImporter {
 
         if (hasPathTag && this.pathPlaceholderMediaId) {
           thumbnailId = this.pathPlaceholderMediaId
-          console.log(`    ℹ️  Using path placeholder for meditation: ${meditation.title}`)
+          await this.logger.log(
+            `    ℹ️  Using path placeholder for meditation: ${meditation.title}`,
+          )
         } else if (this.placeholderMediaId) {
           thumbnailId = this.placeholderMediaId
-          console.log(`    ℹ️  Using default placeholder for meditation: ${meditation.title}`)
+          await this.logger.log(
+            `    ℹ️  Using default placeholder for meditation: ${meditation.title}`,
+          )
         } else {
           this.addWarning(
             `No thumbnail or placeholder available for meditation: ${meditation.title}`,
@@ -1749,70 +1578,34 @@ class SimpleImporter {
         )
 
         if (localPath) {
-          if (existingMeditation && UPDATE_EXISTING_RECORDS) {
-            // Update existing meditation with correct narrator and frames
-            const updated = await this.uploadToPayloadForUpdate(
-              localPath,
-              'meditations',
-              existingMeditation.id,
-              meditationData,
+          // Create new meditation
+          const created = await this.uploadToPayload(localPath, 'meditations', meditationData)
+          if (created) {
+            this.idMaps.meditations.set(meditation.id, String(created.id))
+            await this.logger.log(
+              `    ✓ Created meditation with audio (narrator: ${narratorGender}): ${meditation.title}`,
             )
-            if (updated) {
-              this.idMaps.meditations.set(meditation.id, String(existingMeditation.id))
-              console.log(
-                `    ✓ Updated meditation with audio (narrator: ${narratorGender}): ${meditation.title}`,
-              )
-              updatedCount++
-              processed = true
-            }
-          } else if (!existingMeditation) {
-            // Create new meditation
-            const created = await this.uploadToPayload(localPath, 'meditations', meditationData)
-            if (created) {
-              this.idMaps.meditations.set(meditation.id, String(created.id))
-              console.log(
-                `    ✓ Created meditation with audio (narrator: ${narratorGender}): ${meditation.title}`,
-              )
-              createdCount++
-              processed = true
-            }
+            createdCount++
+            processed = true
           }
         }
       }
 
       // Handle without audio file
       if (!processed) {
-        if (existingMeditation && UPDATE_EXISTING_RECORDS) {
-          // Update existing meditation metadata
-          try {
-            const updated = await this.payload.update({
-              collection: 'meditations',
-              id: existingMeditation.id,
-              data: meditationData,
-            })
-            this.idMaps.meditations.set(meditation.id, String(updated.id))
-            console.log(
-              `    ✓ Updated meditation metadata (narrator: ${narratorGender}): ${meditation.title}`,
-            )
-            updatedCount++
-          } catch (error: any) {
-            this.addWarning(`Failed to update meditation ${meditation.title}: ${error.message}`)
-          }
-        } else if (!existingMeditation) {
-          // Create new meditation without audio
-          try {
-            const created = await this.payload.create({
-              collection: 'meditations',
-              data: meditationData,
-            })
-            this.idMaps.meditations.set(meditation.id, String(created.id))
-            console.log(
-              `    ✓ Created meditation without audio (narrator: ${narratorGender}): ${meditation.title}`,
-            )
-            createdCount++
-          } catch (error: any) {
-            this.addWarning(`Failed to create meditation ${meditation.title}: ${error.message}`)
-          }
+        // Create new meditation without audio
+        try {
+          const created = await this.payload.create({
+            collection: 'meditations',
+            data: meditationData,
+          })
+          this.idMaps.meditations.set(meditation.id, String(created.id))
+          await this.logger.log(
+            `    ✓ Created meditation without audio (narrator: ${narratorGender}): ${meditation.title}`,
+          )
+          createdCount++
+        } catch (error: any) {
+          this.addWarning(`Failed to create meditation ${meditation.title}: ${error.message}`)
         }
       }
     }
@@ -1820,21 +1613,20 @@ class SimpleImporter {
     // Update summary
     this.summary.meditations.created = createdCount
     this.summary.meditations.existing = foundCount
-    this.summary.meditations.updated = updatedCount
 
     const statusParts = [`${createdCount} created`]
-    if (UPDATE_EXISTING_RECORDS && updatedCount > 0) {
-      statusParts.push(`${updatedCount} updated`)
-    }
     if (foundCount > 0) {
       statusParts.push(`${foundCount} skipped`)
     }
-    console.log(`✓ Processed ${meditations.length} meditations (${statusParts.join(', ')})`)
+    await this.logger.log(
+      `✓ Processed ${meditations.length} meditations (${statusParts.join(', ')})`,
+    )
   }
 
   private printSummary() {
-    console.log(colorize('blue', '\n📊 MIGRATION SUMMARY'))
-    console.log(colorize('blue', '=========================================='))
+    console.log('\n' + '='.repeat(60))
+    console.log('MIGRATION SUMMARY')
+    console.log('='.repeat(60))
 
     // Calculate totals
     const totalCreated =
@@ -1845,10 +1637,6 @@ class SimpleImporter {
       this.summary.music.created +
       this.summary.meditations.created
 
-    const totalUpdated = UPDATE_EXISTING_RECORDS
-      ? this.summary.frames.updated + this.summary.music.updated + this.summary.meditations.updated
-      : 0
-
     const totalExisting =
       this.summary.narrators.existing +
       this.summary.meditationTags.existing +
@@ -1857,72 +1645,24 @@ class SimpleImporter {
       this.summary.music.existing +
       this.summary.meditations.existing
 
-    const totalProcessed = totalCreated + totalUpdated + totalExisting
+    const totalProcessed = totalCreated + totalExisting
+
+    // Get MediaUploader stats
+    const mediaStats = this.mediaUploader.getStats()
 
     // Print collection-by-collection breakdown
-    console.log(colorize('cyan', '\nBy Collection:'))
-    console.log(
-      `  📖 Narrators:        ${this.summary.narrators.created} created, ${this.summary.narrators.existing} existing`,
-    )
-    console.log(
-      `  🏷️  Meditation Tags:  ${this.summary.meditationTags.created} created, ${this.summary.meditationTags.existing} existing`,
-    )
-    console.log(
-      `  🏷️  Music Tags:       ${this.summary.musicTags.created} created, ${this.summary.musicTags.existing} existing`,
-    )
+    console.log('\n📊 Records Created:')
+    console.log(`  Narrators:        ${this.summary.narrators.created}`)
+    console.log(`  Meditation Tags:  ${this.summary.meditationTags.created}`)
+    console.log(`  Music Tags:       ${this.summary.musicTags.created}`)
+    console.log(`  Frames:           ${this.summary.frames.created}`)
+    console.log(`  Music:            ${this.summary.music.created}`)
+    console.log(`  Meditations:      ${this.summary.meditations.created}`)
+    console.log(`  Media Files:      ${mediaStats.uploaded}`)
 
-    const framesParts = [`${this.summary.frames.created} created`]
-    if (UPDATE_EXISTING_RECORDS && this.summary.frames.updated > 0) {
-      framesParts.push(`${this.summary.frames.updated} updated`)
-    }
-    framesParts.push(`${this.summary.frames.existing} existing`)
-    if (this.summary.frames.skipped > 0) {
-      framesParts.push(`${this.summary.frames.skipped} skipped`)
-    }
-    console.log(`  🖼️  Frames:           ${framesParts.join(', ')}`)
-
-    const musicParts = [`${this.summary.music.created} created`]
-    if (UPDATE_EXISTING_RECORDS && this.summary.music.updated > 0) {
-      musicParts.push(`${this.summary.music.updated} updated`)
-    }
-    musicParts.push(`${this.summary.music.existing} existing`)
-    console.log(`  🎵 Music:            ${musicParts.join(', ')}`)
-
-    const meditationParts = [`${this.summary.meditations.created} created`]
-    if (UPDATE_EXISTING_RECORDS && this.summary.meditations.updated > 0) {
-      meditationParts.push(`${this.summary.meditations.updated} updated`)
-    }
-    meditationParts.push(`${this.summary.meditations.existing} existing`)
-    console.log(`  🧘 Meditations:      ${meditationParts.join(', ')}`)
-
-    console.log(
-      `  📁 Media Files:      ${this.summary.media.uploaded} uploaded, ${this.summary.media.reused} reused`,
-    )
-
-    // Print totals
-    console.log(colorize('cyan', '\nTotals:'))
-    console.log(`  📦 Total Records:    ${totalProcessed}`)
-    console.log(`  ✨ Created:          ${totalCreated}`)
-    if (UPDATE_EXISTING_RECORDS && totalUpdated > 0) {
-      console.log(`  🔄 Updated:          ${totalUpdated}`)
-    }
-    console.log(`  ♻️  Existing/Skipped: ${totalExisting}`)
-    console.log(
-      `  📄 Media Files:      ${this.summary.media.uploaded + this.summary.media.reused} total`,
-    )
-
-    // Update mode summary
-    const modeText = UPDATE_EXISTING_RECORDS ? 'UPDATE MODE' : 'SKIP MODE'
-    const modeColorName = UPDATE_EXISTING_RECORDS ? 'yellow' : 'cyan'
-    console.log(colorize(modeColorName, `\n⚙️  Mode: ${modeText}`))
-
-    if (UPDATE_EXISTING_RECORDS) {
-      console.log(colorize('yellow', '   • Existing records were updated with new data'))
-      console.log(colorize('yellow', '   • Files were replaced where applicable'))
-    } else {
-      console.log(colorize('cyan', '   • Existing records were preserved'))
-      console.log(colorize('cyan', '   • Only new records were created'))
-    }
+    console.log(`\n  Total Records:    ${totalCreated}`)
+    console.log(`  Existing/Skipped: ${totalExisting}`)
+    console.log(`  Media Reused:     ${mediaStats.reused}`)
 
     // Print alerts section
     const totalAlerts =
@@ -1930,36 +1670,35 @@ class SimpleImporter {
       this.summary.alerts.errors.length +
       this.summary.alerts.skipped.length
 
-    if (totalAlerts > 0) {
-      console.log(colorize('cyan', '\nAlerts During Migration:'))
-
-      if (this.summary.alerts.errors.length > 0) {
-        console.log(colorize('red', `  ❌ Errors (${this.summary.alerts.errors.length}):`))
-        this.summary.alerts.errors.forEach((error, index) => {
-          console.log(colorize('red', `     ${index + 1}. ${error}`))
-        })
-      }
-
-      if (this.summary.alerts.warnings.length > 0) {
-        console.log(colorize('yellow', `  ⚠️  Warnings (${this.summary.alerts.warnings.length}):`))
-        this.summary.alerts.warnings.forEach((warning, index) => {
-          console.log(colorize('yellow', `     ${index + 1}. ${warning}`))
-        })
-      }
-
-      if (this.summary.alerts.skipped.length > 0) {
-        console.log(
-          colorize('gray', `  ⏭️  Skipped Items (${this.summary.alerts.skipped.length}):`),
-        )
-        this.summary.alerts.skipped.forEach((skipped, index) => {
-          console.log(colorize('gray', `     ${index + 1}. ${skipped}`))
-        })
-      }
-    } else {
-      console.log(colorize('green', '\n✨ No alerts - migration completed without issues!'))
+    if (this.summary.alerts.warnings.length > 0) {
+      console.log(`\n⚠️  Warnings (${this.summary.alerts.warnings.length}):`)
+      this.summary.alerts.warnings.forEach((warning, index) => {
+        console.log(`  ${index + 1}. ${warning}`)
+      })
     }
 
-    console.log(colorize('blue', '\n=========================================='))
+    if (this.summary.alerts.errors.length > 0) {
+      console.log(`\n❌ Errors (${this.summary.alerts.errors.length}):`)
+      this.summary.alerts.errors.forEach((error, index) => {
+        console.log(`  ${index + 1}. ${error}`)
+      })
+    }
+
+    if (this.summary.alerts.skipped.length > 0) {
+      console.log(`\n⏭️  Skipped Items (${this.summary.alerts.skipped.length}):`)
+      this.summary.alerts.skipped.slice(0, 10).forEach((skipped, index) => {
+        console.log(`  ${index + 1}. ${skipped}`)
+      })
+      if (this.summary.alerts.skipped.length > 10) {
+        console.log(`  ... and ${this.summary.alerts.skipped.length - 10} more`)
+      }
+    }
+
+    if (totalAlerts === 0) {
+      console.log('\n✨ No alerts - migration completed without issues!')
+    }
+
+    console.log('\n' + '='.repeat(60))
   }
 
   private async cleanup() {
@@ -1977,7 +1716,12 @@ class SimpleImporter {
 const dryRun = process.argv.includes('--dry-run')
 const reset = process.argv.includes('--reset')
 const importer = new SimpleImporter(dryRun, reset)
-importer.run().catch((error) => {
-  console.error('Fatal error:', error)
-  process.exit(1)
-})
+importer
+  .run()
+  .then(() => {
+    process.exit(0)
+  })
+  .catch((error) => {
+    console.error('Fatal error:', error)
+    process.exit(1)
+  })

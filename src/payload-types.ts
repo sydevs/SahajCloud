@@ -75,6 +75,7 @@ export interface Config {
     'external-videos': ExternalVideo;
     frames: Frame;
     narrators: Narrator;
+    authors: Author;
     media: Media;
     'file-attachments': FileAttachment;
     'media-tags': MediaTag;
@@ -91,6 +92,9 @@ export interface Config {
     'payload-migrations': PayloadMigration;
   };
   collectionsJoins: {
+    authors: {
+      articles: 'pages';
+    };
     'media-tags': {
       media: 'media';
     };
@@ -112,6 +116,7 @@ export interface Config {
     'external-videos': ExternalVideosSelect<false> | ExternalVideosSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
+    authors: AuthorsSelect<false> | AuthorsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     'file-attachments': FileAttachmentsSelect<false> | FileAttachmentsSelect<true>;
     'media-tags': MediaTagsSelect<false> | MediaTagsSelect<true>;
@@ -138,7 +143,23 @@ export interface Config {
     'we-meditate-web-settings': WeMeditateWebSettingsSelect<false> | WeMeditateWebSettingsSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
-  locale: 'en' | 'cs';
+  locale:
+    | 'en'
+    | 'es'
+    | 'de'
+    | 'it'
+    | 'fr'
+    | 'ru'
+    | 'ro'
+    | 'cs'
+    | 'uk'
+    | 'el'
+    | 'hy'
+    | 'pl'
+    | 'pt-br'
+    | 'fa'
+    | 'bg'
+    | 'tr';
   user:
     | (Manager & {
         collection: 'managers';
@@ -228,7 +249,10 @@ export interface Page {
   slug?: string | null;
   slugLock?: boolean | null;
   publishAt?: string | null;
-  category: 'technique' | 'artwork' | 'event' | 'knowledge';
+  /**
+   * Article author (for article pages)
+   */
+  author?: (string | null) | Author;
   tags?: (string | PageTag)[] | null;
   updatedAt: string;
   createdAt: string;
@@ -310,6 +334,41 @@ export interface MediaTag {
   name: string;
   media?: {
     docs?: (string | Media)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "authors".
+ */
+export interface Author {
+  id: string;
+  name: string;
+  /**
+   * Professional title (e.g., "Artist, writer and stylist")
+   */
+  title?: string | null;
+  /**
+   * Biography or description of the author
+   */
+  description?: string | null;
+  /**
+   * ISO 2-letter country code
+   */
+  countryCode?: string | null;
+  /**
+   * Years of meditation experience
+   */
+  yearsMeditating?: number | null;
+  /**
+   * Author profile image
+   */
+  image?: (string | null) | Media;
+  articles?: {
+    docs?: (string | Page)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -657,7 +716,7 @@ export interface Frame {
   /**
    * Auto-generated thumbnail for video frames
    */
-  thumbnail?: (string | null) | Media;
+  thumbnail?: (string | null) | FileAttachment;
   duration?: number | null;
   fileMetadata?:
     | {
@@ -1164,6 +1223,10 @@ export interface PayloadLockedDocument {
         value: string | Narrator;
       } | null)
     | ({
+        relationTo: 'authors';
+        value: string | Author;
+      } | null)
+    | ({
         relationTo: 'media';
         value: string | Media;
       } | null)
@@ -1276,7 +1339,7 @@ export interface PagesSelect<T extends boolean = true> {
   slug?: T;
   slugLock?: T;
   publishAt?: T;
-  category?: T;
+  author?: T;
   tags?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1451,6 +1514,21 @@ export interface FramesSelect<T extends boolean = true> {
 export interface NarratorsSelect<T extends boolean = true> {
   name?: T;
   gender?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "authors_select".
+ */
+export interface AuthorsSelect<T extends boolean = true> {
+  name?: T;
+  title?: T;
+  description?: T;
+  countryCode?: T;
+  yearsMeditating?: T;
+  image?: T;
+  articles?: T;
   updatedAt?: T;
   createdAt?: T;
 }

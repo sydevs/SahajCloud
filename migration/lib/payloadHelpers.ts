@@ -4,7 +4,7 @@
  * Common Payload CMS operations and utilities
  */
 
-import type { Payload } from 'payload'
+import type { CollectionSlug, Payload } from 'payload'
 import type { Logger } from './logger'
 
 export class PayloadHelpers {
@@ -20,7 +20,7 @@ export class PayloadHelpers {
    * Reset collection by deleting documents matching a filter
    */
   async resetCollection(
-    collection: string,
+    collection: CollectionSlug,
     where?: Record<string, any>,
     limit = 1000,
   ): Promise<number> {
@@ -47,7 +47,7 @@ export class PayloadHelpers {
    * Reset collection by import tag
    */
   async resetCollectionByTag(
-    collection: string,
+    collection: CollectionSlug,
     tagFieldName: string,
     tagId: string,
   ): Promise<number> {
@@ -60,7 +60,7 @@ export class PayloadHelpers {
    * Create document with error handling
    */
   async createDocument(
-    collection: string,
+    collection: CollectionSlug,
     data: Record<string, any>,
     file?: {
       data: Buffer
@@ -87,7 +87,7 @@ export class PayloadHelpers {
    * Update document with error handling
    */
   async updateDocument(
-    collection: string,
+    collection: CollectionSlug,
     id: string,
     data: Record<string, any>,
     file?: {
@@ -116,7 +116,7 @@ export class PayloadHelpers {
    * Find or create document
    */
   async findOrCreate(
-    collection: string,
+    collection: CollectionSlug,
     where: Record<string, any>,
     data: Record<string, any>,
   ): Promise<string> {

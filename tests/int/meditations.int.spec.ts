@@ -36,7 +36,6 @@ describe('Meditations Collection', () => {
       },
       {
         title: 'Morning Meditation',
-        duration: 15,
         isPublished: false,
         tags: [testTag1.id, testTag2.id],
         musicTag: testMusicTag.id,
@@ -52,7 +51,6 @@ describe('Meditations Collection', () => {
     expect(testMeditation).toBeDefined()
     expect(testMeditation.title).toBe('Morning Meditation')
     expect(testMeditation.slug).toBe('morning-meditation')
-    expect(testMeditation.duration).toBe(15)
     expect(testMeditation.filename).toBeDefined() // Now has direct audio upload
     expect(
       typeof testMeditation.narrator === 'object'
@@ -84,24 +82,21 @@ describe('Meditations Collection', () => {
       },
       {
         title: 'Meditación: Relajación & Paz',
-        duration: 10,
       },
     )
 
     expect(meditation.slug).toBe('meditacin-relajacin--paz')
   })
 
-  it('validates duration minimum value', async () => {
+  it('requires title field', async () => {
     await expect(
       payload.create({
         collection: 'meditations',
         data: {
-          title: 'Invalid Duration',
-          duration: 0,
           thumbnail: testImageMedia.id,
           narrator: testNarrator.id,
           locale: 'en',
-        },
+        } as any,
       }),
     ).rejects.toThrow()
   })
@@ -131,7 +126,6 @@ describe('Meditations Collection', () => {
       },
       {
         title: 'Published Meditation',
-        duration: 30,
         publishAt: publishDate.toISOString(), // TODO: This should be auto-populated if not specified
       },
     )

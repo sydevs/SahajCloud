@@ -15,7 +15,7 @@ export const FileAttachments: CollectionConfig = {
     useAsTitle: 'filename',
     description:
       'These are file attachments uploaded to support other collections. These should not be reused and will be deleted whenever their owner is deleted.',
-    defaultColumns: ['filename', 'createdAt'],
+    defaultColumns: ['filename', 'owner', 'createdAt'],
   },
   upload: {
     hideRemoveFile: true,

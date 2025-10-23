@@ -11,7 +11,7 @@ export const Pages: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'category', 'publishAt'],
+    defaultColumns: ['title', 'publishAt'],
   },
   versions: {
     maxPerDoc: 50,
@@ -71,29 +71,12 @@ export const Pages: CollectionConfig = {
       },
     },
     {
-      name: 'category',
-      type: 'select',
-      required: true,
-      options: [
-        {
-          label: 'Technique',
-          value: 'technique',
-        },
-        {
-          label: 'Artwork',
-          value: 'artwork',
-        },
-        {
-          label: 'Event',
-          value: 'event',
-        },
-        {
-          label: 'Knowledge',
-          value: 'knowledge',
-        },
-      ],
+      name: 'author',
+      type: 'relationship',
+      relationTo: 'authors',
       admin: {
         position: 'sidebar',
+        description: 'Article author (for article pages)',
       },
     },
     {

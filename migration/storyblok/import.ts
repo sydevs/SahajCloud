@@ -1,17 +1,12 @@
-import * as dotenv from 'dotenv'
-// Load environment variables FIRST before importing anything else
-dotenv.config()
+import 'dotenv/config'
 
 import { getPayload } from 'payload'
-import { payloadConfig } from '@/payload.config'
+import configPromise from '../../src/payload.config'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { fileURLToPath } from 'url'
 import * as sharp from 'sharp'
-import type { Payload } from 'payload'
-import { Logger, StateManager, FileUtils, TagManager } from '../lib'
-
-const __filename = fileURLToPath(import.meta.url)
+import type { CollectionSlug, Payload } from 'payload'
+import { Logger, FileUtils, TagManager, MediaUploader } from '../lib'
 
 const IMPORT_TAG = 'import-storyblok' // Tag for all imported documents and media
 const CACHE_DIR = path.resolve(process.cwd(), 'migration/cache/storyblok')
@@ -35,8 +30,16 @@ interface ScriptOptions {
   dryRun: boolean
   clearCache: boolean
   reset: boolean
-  resume: boolean
   unit?: string
+}
+
+interface ImportSummary {
+  lessonsCreated: number
+  mediaCreated: number
+  externalVideosCreated: number
+  fileAttachmentsCreated: number
+  errors: string[]
+  warnings: string[]
 }
 
 class StoryblokImporter {
@@ -44,10 +47,25 @@ class StoryblokImporter {
   private payload!: Payload
   private options: ScriptOptions
   private logger!: Logger
-  private stateManager!: StateManager
   private fileUtils!: FileUtils
   private tagManager!: TagManager
+  private mediaUploader!: MediaUploader
   private mediaTagId: string | null = null
+
+  // In-memory ID mappings (no persistence)
+  private idMaps = {
+    lessons: new Map<string, string>(), // slug -> lesson ID
+  }
+
+  // Summary tracking
+  private summary: ImportSummary = {
+    lessonsCreated: 0,
+    mediaCreated: 0,
+    externalVideosCreated: 0,
+    fileAttachmentsCreated: 0,
+    errors: [],
+    warnings: [],
+  }
 
   constructor(token: string, options: ScriptOptions) {
     this.token = token
@@ -56,29 +74,21 @@ class StoryblokImporter {
 
   private async initialize() {
     this.logger = new Logger(CACHE_DIR)
-    this.stateManager = new StateManager(CACHE_DIR)
     this.fileUtils = new FileUtils(this.logger)
     this.tagManager = new TagManager(this.payload, this.logger)
+    this.mediaUploader = new MediaUploader(this.payload, this.logger)
   }
 
-  async log(message: string, isError = false) {
-    await this.logger.log(message, isError)
-    if (isError) {
-      this.stateManager.addFailed(message)
-    }
+  private addError(context: string, error: Error | string) {
+    const message = error instanceof Error ? error.message : error
+    const fullMessage = `${context}: ${message}`
+    this.summary.errors.push(fullMessage)
+    this.logger.error(fullMessage)
   }
 
-  async saveState() {
-    await this.stateManager.save()
-  }
-
-  async loadState() {
-    const loaded = await this.stateManager.load()
-    if (loaded) {
-      await this.log('Loaded state from previous run')
-    } else {
-      await this.log('No previous state found, starting fresh')
-    }
+  private addWarning(message: string) {
+    this.summary.warnings.push(message)
+    this.logger.warn(message)
   }
 
   async ensureMediaTag(): Promise<void> {
@@ -100,11 +110,11 @@ class StoryblokImporter {
   }
 
   async fetchAllPathSteps(): Promise<StoryblokStory[]> {
-    await this.log('Fetching all path steps from Storyblok...')
+    await this.logger.info('Fetching all path steps from Storyblok...')
     const response: StoryblokResponse = await this.fetchStoryblokData(
       'stories?starts_with=path/path-steps&per_page=100',
     )
-    await this.log(`Fetched ${response.stories.length} path steps`)
+    await this.logger.info(`Fetched ${response.stories.length} path steps`)
     return response.stories
   }
 
@@ -121,7 +131,7 @@ class StoryblokImporter {
       return JSON.parse(data).story as StoryblokStory
     }
 
-    await this.log(`Fetching video story ${uuid}...`)
+    await this.logger.info(`Fetching video story ${uuid}...`)
     const response = await fetch(
       `https://api.storyblok.com/v2/cdn/stories/${uuid}?find_by=uuid&token=${this.token}`,
     )
@@ -146,8 +156,9 @@ class StoryblokImporter {
       .catch(() => false)
 
     if (!fileExists) {
-      await sharp.default(imagePath).webp({ quality: 90 }).toFile(webpPath)
-      await this.log(`Converted ${path.basename(imagePath)} to WebP`)
+      const sharpInstance = sharp.default ? sharp.default(imagePath) : (sharp as any)(imagePath)
+      await sharpInstance.webp({ quality: 90 }).toFile(webpPath)
+      await this.logger.info(`Converted ${path.basename(imagePath)} to WebP`)
     }
 
     return webpPath
@@ -166,22 +177,21 @@ class StoryblokImporter {
     // Ensure media tag exists
     await this.ensureMediaTag()
 
-    const fileBuffer = await fs.readFile(webpPath)
-    const media = await this.payload.create({
-      collection: 'media',
-      data: {
-        alt: alt || filename,
-        tags: this.mediaTagId ? [this.mediaTagId] : [],
-      },
-      file: {
-        data: fileBuffer,
-        name: path.basename(webpPath),
-        size: fileBuffer.length,
-        mimetype: 'image/webp',
-      },
+    // Upload with deduplication
+    const tags = this.mediaTagId ? [this.mediaTagId] : []
+    const result = await this.mediaUploader.uploadWithDeduplication(webpPath, {
+      alt: alt || filename,
+      tags,
     })
 
-    return media.id as string
+    if (!result) {
+      throw new Error('Failed to upload media')
+    }
+
+    if (!result.wasReused) {
+      this.summary.mediaCreated++
+    }
+    return result.id
   }
 
   async createFileAttachment(
@@ -242,6 +252,7 @@ class StoryblokImporter {
       },
     })
 
+    this.summary.fileAttachmentsCreated++
     return attachment.id as string
   }
 
@@ -341,6 +352,8 @@ class StoryblokImporter {
                 category: ['shri-mataji'],
               },
             })
+
+            this.summary.externalVideosCreated++
 
             children.push({
               type: 'relationship',
@@ -495,23 +508,22 @@ class StoryblokImporter {
   }
 
   async createLessons(stories: StoryblokStory[]): Promise<void> {
-    await this.log('\n=== Creating Lessons ===')
-    this.stateManager.setPhase('importing-lessons')
-    await this.saveState()
+    await this.logger.info('\n=== Creating Lessons ===')
 
     for (const story of stories) {
       const stepSlug = story.slug
 
-      if (this.stateManager.hasItemCreated(stepSlug)) {
-        await this.log(`Lesson ${stepSlug} already created, skipping`)
+      // Skip if already created
+      if (this.idMaps.lessons.has(stepSlug)) {
+        await this.logger.info(`Lesson ${stepSlug} already created, skipping`)
         continue
       }
 
       try {
-        await this.log(`\nProcessing ${story.name} (${stepSlug})...`)
+        await this.logger.info(`\nProcessing ${story.name} (${stepSlug})...`)
 
         if (this.options.dryRun) {
-          await this.log(`[DRY RUN] Would create lesson: ${story.name}`)
+          await this.logger.info(`[DRY RUN] Would create lesson: ${story.name}`)
           continue
         }
 
@@ -529,15 +541,20 @@ class StoryblokImporter {
           image?: string
           video?: string
         }> = []
+        const videoPanels: Array<{ insertAt: number; videoId: string }> = [] // Track video panels to add later
+        let panelIndexCounter = 0 // Track position in original panel order
         for (const panel of sortedPanels) {
           try {
-            if (panel.Video && panel.Video.filename) {
-              const videoUrl = panel.Video.filename
+            if (panel.Video && panel.Video.url) {
+              const videoUrl = panel.Video.url
+              await this.logger.info(`Creating video attachment from: ${videoUrl}`)
               const videoId = await this.createFileAttachment(videoUrl)
-              panels.push({
-                blockType: 'video' as const,
-                video: videoId,
-              })
+              await this.logger.info(`✓ Created video attachment: ${videoId}`)
+
+              // Don't add video panels initially - we'll insert them after lesson creation
+              // Track where this video panel should be inserted
+              videoPanels.push({ insertAt: panelIndexCounter, videoId })
+              panelIndexCounter++
             } else if (panel.Image && panel.Image.url) {
               const imageId = await this.createMediaFromUrl(panel.Image.url, panel.Title)
               panels.push({
@@ -546,11 +563,15 @@ class StoryblokImporter {
                 text: this.processTextareaField(panel.Text || ''), // Process as textarea field
                 image: imageId,
               })
+              panelIndexCounter++
             } else {
-              await this.log(`Warning: Panel missing both video and image for ${story.name}`)
+              this.addWarning(
+                `Panel missing both video and image for ${story.name} - ${this.processTextField(panel.Title || '')}`,
+              )
+              panelIndexCounter++
             }
           } catch (error) {
-            await this.log(`Error processing panel for ${story.name}: ${error}`, true)
+            this.addError(`Processing panel for ${story.name}`, error as Error)
           }
         }
 
@@ -570,18 +591,14 @@ class StoryblokImporter {
                 collection: 'meditations',
                 id: foundId,
               })
-              await this.log(`✓ Found meditation: ${expectedMeditationTitle}`)
+              await this.logger.info(`✓ Found meditation: ${expectedMeditationTitle}`)
             } else {
-              await this.log(
-                `Warning: Meditation "${expectedMeditationTitle}" not found for ${story.name}`,
-                true,
-              )
+              this.addWarning(`Meditation "${expectedMeditationTitle}" not found for ${story.name}`)
               meditationId = undefined
             }
           } else {
-            await this.log(
-              `Warning: Could not extract step number from slug "${stepSlug}" for ${story.name}`,
-              true,
+            this.addWarning(
+              `Could not extract step number from slug "${stepSlug}" for ${story.name}`,
             )
             meditationId = undefined
           }
@@ -594,10 +611,7 @@ class StoryblokImporter {
               content.Audio_intro[0].Audio_track.filename,
             )
           } catch (error) {
-            await this.log(
-              `Warning: Failed to create audio attachment for ${story.name}: ${error}`,
-              true,
-            )
+            this.addError(`Creating audio attachment for ${story.name}`, error as Error)
           }
         }
 
@@ -606,7 +620,7 @@ class StoryblokImporter {
           try {
             introSubtitles = await this.parseSubtitles(content.Audio_intro[0].Subtitles.filename)
           } catch (error) {
-            await this.log(`Warning: Failed to parse subtitles for ${story.name}: ${error}`, true)
+            this.addError(`Parsing subtitles for ${story.name}`, error as Error)
           }
         }
 
@@ -615,7 +629,7 @@ class StoryblokImporter {
           try {
             article = await this.convertLexicalBlocks(content.Delving_deeper_article[0].Blocks)
           } catch (error) {
-            await this.log(`Warning: Failed to convert article for ${story.name}: ${error}`, true)
+            this.addError(`Converting article for ${story.name}`, error as Error)
           }
         }
 
@@ -630,10 +644,7 @@ class StoryblokImporter {
 
         // Ensure we have at least one panel
         if (panels.length === 0) {
-          await this.log(
-            `Error: No valid panels found for ${story.name}, skipping lesson creation`,
-            true,
-          )
+          this.addError(`No valid panels found for ${story.name}, skipping lesson creation`, '')
           continue
         }
 
@@ -672,7 +683,7 @@ class StoryblokImporter {
               'lessons',
               lesson.id as string,
             )
-            await this.log(`✓ Created icon attachment for lesson`)
+            await this.logger.info(`✓ Created icon attachment for lesson`)
 
             // Update lesson with icon
             await this.payload.update({
@@ -682,12 +693,12 @@ class StoryblokImporter {
                 icon: iconId,
               },
             })
-            await this.log(`✓ Added icon to lesson`)
+            await this.logger.info(`✓ Added icon to lesson`)
           } catch (error) {
-            await this.log(`Warning: Failed to create/attach icon: ${error}`, true)
+            this.addError(`Creating/attaching icon for ${story.name}`, error as Error)
           }
         } else {
-          await this.log(`Warning: Missing Step_Image for lesson: ${story.name}`, true)
+          this.addWarning(`Missing Step_Image for lesson: ${story.name}`)
         }
 
         // Update lesson with intro audio after creation to avoid validation issues
@@ -700,17 +711,59 @@ class StoryblokImporter {
                 introAudio: introAudioId,
               },
             })
-            await this.log(`✓ Added intro audio to lesson`)
+            await this.logger.info(`✓ Added intro audio to lesson`)
           } catch (error) {
-            await this.log(`Warning: Failed to add intro audio to lesson: ${error}`, true)
+            this.addError(`Adding intro audio to lesson ${story.name}`, error as Error)
           }
         }
 
-        this.stateManager.addItemCreated(stepSlug, lesson.id as string)
-        await this.saveState()
-        await this.log(`✓ Created lesson: ${story.name} (ID: ${lesson.id})`)
+        // Insert video panels after lesson creation
+        // This avoids validation issues with file attachment filters on new documents
+        if (videoPanels.length > 0) {
+          try {
+            // Fetch the current lesson to get its panels
+            const currentLesson = await this.payload.findByID({
+              collection: 'lessons',
+              id: lesson.id as string,
+            })
+
+            const updatedPanels = [...(currentLesson.panels as Array<Record<string, unknown>>)]
+
+            // Insert video panels at their correct positions
+            // Sort by insertAt position in reverse order to maintain correct indices
+            const sortedVideoPanels = [...videoPanels].sort((a, b) => b.insertAt - a.insertAt)
+
+            for (const { insertAt, videoId } of sortedVideoPanels) {
+              // +1 to account for cover panel at index 0
+              const insertIndex = insertAt + 1
+              updatedPanels.splice(insertIndex, 0, {
+                blockType: 'video',
+                video: videoId,
+              })
+              await this.updateFileAttachmentOwner(videoId, 'lessons', lesson.id as string)
+            }
+
+            await this.payload.update({
+              collection: 'lessons',
+              id: lesson.id as string,
+              data: {
+                panels: updatedPanels,
+              },
+            })
+            await this.logger.info(
+              `✓ Inserted ${videoPanels.length} video panel(s) into lesson`,
+            )
+          } catch (error) {
+            this.addError(`Inserting video panels for ${story.name}`, error as Error)
+          }
+        }
+
+        this.idMaps.lessons.set(stepSlug, lesson.id as string)
+        this.summary.lessonsCreated++
+        await this.logger.success(`✓ Created lesson: ${story.name} (ID: ${lesson.id})`)
       } catch (error) {
-        await this.log(`Error creating lesson ${stepSlug}: ${error}`, true)
+        this.addError(`Creating lesson ${stepSlug}`, error as Error)
+        continue // Keep going!
       }
     }
   }
@@ -764,117 +817,158 @@ class StoryblokImporter {
   }
 
   async resetCollections() {
-    await this.log('\n=== Resetting Collections ===')
+    await this.logger.info('\n=== Resetting Collections ===')
 
-    const collections: Array<'lessons' | 'file-attachments' | 'external-videos' | 'media'> =
-      ['lessons', 'file-attachments', 'external-videos', 'media']
+    const collections: Array<CollectionSlug> = ['lessons', 'external-videos', 'media']
 
     // Ensure media tag exists for filtering
     await this.ensureMediaTag()
 
     for (const collection of collections) {
-      await this.log(`Deleting documents with tag ${IMPORT_TAG} from ${collection}...`)
+      await this.logger.info(`Deleting documents with tag ${IMPORT_TAG} from ${collection}...`)
 
-      // For media collection, filter by tag
-      let result
-      if (collection === 'media' && this.mediaTagId) {
-        result = await this.payload.find({
-          collection,
-          where: {
-            tags: { contains: this.mediaTagId },
-          },
-          limit: 1000,
-        })
-      } else {
-        // For other collections, delete all (they're owned by lessons)
-        result = await this.payload.find({
-          collection,
-          limit: 1000,
-        })
+      try {
+        // For media collection, filter by tag
+        let result
+        if (collection === 'media' && this.mediaTagId) {
+          result = await this.payload.find({
+            collection,
+            where: {
+              tags: { contains: this.mediaTagId },
+            },
+            limit: 1000,
+          })
+        } else {
+          // For other collections, delete all (they're owned by lessons)
+          result = await this.payload.find({
+            collection,
+            limit: 1000,
+          })
+        }
+
+        for (const doc of result.docs) {
+          await this.payload.delete({
+            collection,
+            id: doc.id,
+          })
+        }
+
+        await this.logger.success(`✓ Deleted ${result.docs.length} documents from ${collection}`)
+      } catch (error) {
+        this.addError(`Resetting collection ${collection}`, error as Error)
       }
-
-      for (const doc of result.docs) {
-        await this.payload.delete({
-          collection,
-          id: doc.id,
-        })
-      }
-
-      await this.log(`✓ Deleted ${result.docs.length} documents from ${collection}`)
     }
 
-    this.state = {
-      lastUpdated: new Date().toISOString(),
-      phase: 'initializing',
-      lessonsCreated: {},
-      failed: [],
+    await this.logger.success('✓ Reset complete')
+  }
+
+  printSummary() {
+    console.log('\n' + '='.repeat(60))
+    console.log('IMPORT SUMMARY')
+    console.log('='.repeat(60))
+
+    // Get MediaUploader stats
+    const mediaStats = this.mediaUploader.getStats()
+
+    console.log(`\n📊 Records Created:`)
+    console.log(`  Lessons:             ${this.summary.lessonsCreated}`)
+    console.log(`  Media Files:         ${mediaStats.uploaded}`)
+    console.log(`  External Videos:     ${this.summary.externalVideosCreated}`)
+    console.log(`  File Attachments:    ${this.summary.fileAttachmentsCreated}`)
+
+    const totalRecords =
+      this.summary.lessonsCreated +
+      mediaStats.uploaded +
+      this.summary.externalVideosCreated +
+      this.summary.fileAttachmentsCreated
+
+    console.log(`\n  Total Records:       ${totalRecords}`)
+    console.log(`  Media Reused:        ${mediaStats.reused}`)
+
+    if (this.summary.warnings.length > 0) {
+      console.log(`\n⚠️  Warnings (${this.summary.warnings.length}):`)
+      this.summary.warnings.forEach((warning, index) => {
+        console.log(`  ${index + 1}. ${warning}`)
+      })
     }
-    await this.saveState()
-    await this.log('✓ Reset complete')
+
+    if (this.summary.errors.length > 0) {
+      console.log(`\n❌ Errors (${this.summary.errors.length}):`)
+      this.summary.errors.forEach((error, index) => {
+        console.log(`  ${index + 1}. ${error}`)
+      })
+    }
+
+    if (this.summary.errors.length === 0 && this.summary.warnings.length === 0) {
+      console.log(`\n✨ No errors or warnings - import completed successfully!`)
+    }
+
+    console.log('\n' + '='.repeat(60))
   }
 
   async run() {
-    this.payload = await getPayload({ config: payloadConfig() })
+    try {
+      // Validate environment variables
+      if (!this.token) {
+        throw new Error('STORYBLOK_ACCESS_TOKEN environment variable is required')
+      }
 
-    if (!this.token) {
-      throw new Error('STORYBLOK_ACCESS_TOKEN environment variable is required')
-    }
+      // Initialize Payload
+      const payloadConfig = await configPromise
+      this.payload = await getPayload({ config: payloadConfig })
+      await this.initialize()
 
-    // Initialize utilities
-    await this.initialize()
+      await this.logger.info('=== Storyblok Path Steps Import ===')
+      await this.logger.info(`Options: ${JSON.stringify(this.options)}`)
 
-    await this.log('=== Storyblok Path Steps Import ===')
-    await this.log(`Options: ${JSON.stringify(this.options)}`)
-
-    // Setup cache directories
-    await this.fileUtils.ensureDir(CACHE_DIR)
-    await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'videos'))
-    await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/audio'))
-    await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/images'))
-    await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/videos'))
-    await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/subtitles'))
-
-    if (this.options.clearCache) {
-      await this.log('Clearing cache...')
-      await this.fileUtils.clearDir(CACHE_DIR)
+      // Setup cache directories
+      await this.fileUtils.ensureDir(CACHE_DIR)
       await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'videos'))
       await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/audio'))
       await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/images'))
       await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/videos'))
       await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/subtitles'))
-    }
 
-    if (this.options.reset) {
-      await this.resetCollections()
-    }
+      if (this.options.clearCache) {
+        await this.logger.info('Clearing cache...')
+        await this.fileUtils.clearDir(CACHE_DIR)
+        await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'videos'))
+        await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/audio'))
+        await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/images'))
+        await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/videos'))
+        await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/subtitles'))
+      }
 
-    if (this.options.resume) {
-      await this.loadState()
-    }
+      if (this.options.reset) {
+        await this.resetCollections()
+      }
 
-    const stories = await this.fetchAllPathSteps()
+      const stories = await this.fetchAllPathSteps()
 
-    let filteredStories = stories
-    if (this.options.unit) {
-      const unitNum = parseInt(this.options.unit, 10)
-      filteredStories = stories.filter((s) => {
-        const content = s.content as Record<string, any>
-        return (
-          content.Step_info?.[0]?.Unit_number === unitNum ||
-          this.extractUnitFromSlug(s.slug) === unitNum
-        )
-      })
-      await this.log(`Filtered to ${filteredStories.length} stories for unit ${unitNum}`)
-    }
+      let filteredStories = stories
+      if (this.options.unit) {
+        const unitNum = parseInt(this.options.unit, 10)
+        filteredStories = stories.filter((s) => {
+          const content = s.content as Record<string, unknown>
+          const stepInfo = content.Step_info as Array<{ Unit_number?: number }> | undefined
+          return (
+            stepInfo?.[0]?.Unit_number === unitNum || this.extractUnitFromSlug(s.slug) === unitNum
+          )
+        })
+        await this.logger.info(`Filtered to ${filteredStories.length} stories for unit ${unitNum}`)
+      }
 
-    await this.createLessons(filteredStories)
+      await this.createLessons(filteredStories)
 
-    await this.log('\n=== Import Complete ===')
-    const state = this.stateManager.getState()
-    await this.log(`Created ${Object.keys(state.itemsCreated).length} lessons`)
-    if (state.failed.length > 0) {
-      await this.log(`\nFailed operations: ${state.failed.length}`)
-      state.failed.forEach((msg) => this.log(`  - ${msg}`))
+      this.printSummary()
+    } catch (error) {
+      console.error('Fatal error:', error)
+      throw error
+    } finally {
+      // Cleanup: close Payload database connection
+      if (this.payload?.db?.destroy) {
+        await this.payload.db.destroy()
+      }
     }
   }
 }
@@ -885,7 +979,6 @@ async function main() {
     dryRun: args.includes('--dry-run'),
     clearCache: args.includes('--clear-cache'),
     reset: args.includes('--reset'),
-    resume: args.includes('--resume'),
     unit: args.find((arg) => arg.startsWith('--unit='))?.split('=')[1],
   }
 
@@ -899,6 +992,7 @@ async function main() {
 
   const importer = new StoryblokImporter(token, options)
   await importer.run()
+  process.exit(0)
 }
 
 main().catch((error) => {

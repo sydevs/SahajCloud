@@ -5,10 +5,7 @@
  */
 
 import { promises as fs } from 'fs'
-import { createWriteStream } from 'fs'
 import * as path from 'path'
-import * as https from 'https'
-import * as http from 'http'
 import type { Logger } from './logger'
 
 export interface DownloadOptions {
@@ -36,65 +33,25 @@ export class FileUtils {
   }
 
   /**
-   * Download file with retry logic
+   * Get MIME type from filename extension
    */
-  async downloadFile(
-    url: string,
-    destPath: string,
-    options: DownloadOptions = {},
-  ): Promise<void> {
-    const { maxRetries = 3, retryDelay = 1000 } = options
-
-    // Check if file already exists and has content
-    if (await this.fileExists(destPath)) {
-      return // File already cached
+  getMimeType(filename: string): string {
+    const ext = path.extname(filename).toLowerCase()
+    const mimeTypes: Record<string, string> = {
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.m4a': 'audio/aac',
+      '.aac': 'audio/aac',
+      '.ogg': 'audio/ogg',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.webp': 'image/webp',
+      '.mp4': 'video/mp4',
+      '.webm': 'video/webm',
+      '.pdf': 'application/pdf',
     }
-
-    // Ensure directory exists
-    await fs.mkdir(path.dirname(destPath), { recursive: true })
-
-    return new Promise((resolve, reject) => {
-      let attempts = 0
-
-      const attemptDownload = async () => {
-        attempts++
-        try {
-          const protocol = url.startsWith('https') ? https : http
-          const file = createWriteStream(destPath)
-
-          protocol
-            .get(url, (response) => {
-              if (response.statusCode === 200) {
-                response.pipe(file)
-                file.on('finish', () => {
-                  file.close()
-                  resolve()
-                })
-              } else {
-                file.close()
-                fs.unlink(destPath).catch(() => {})
-                throw new Error(`HTTP ${response.statusCode}`)
-              }
-            })
-            .on('error', (err) => {
-              file.close()
-              fs.unlink(destPath).catch(() => {})
-              throw err
-            })
-        } catch (err) {
-          if (attempts < maxRetries) {
-            await this.logger.warn(
-              `Download attempt ${attempts} failed, retrying... (${url})`,
-            )
-            setTimeout(attemptDownload, retryDelay * Math.pow(2, attempts - 1))
-          } else {
-            reject(new Error(`Failed to download after ${maxRetries} attempts: ${err}`))
-          }
-        }
-      }
-
-      attemptDownload()
-    })
+    return mimeTypes[ext] || 'application/octet-stream'
   }
 
   /**

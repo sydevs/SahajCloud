@@ -2,6 +2,7 @@ import { Managers } from './access/Managers'
 import { Media } from './resources/Media'
 import { ExternalVideos } from './resources/ExternalVideos'
 import { Narrators } from './resources/Narrators'
+import { Authors } from './resources/Authors'
 import { Meditations } from './content/Meditations'
 import { Music } from './content/Music'
 import { Pages } from './content/Pages'
@@ -25,6 +26,7 @@ export const collections = [
   ExternalVideos,
   Frames,
   Narrators,
+  Authors,
   Media,
   FileAttachments,
   // Tags
@@ -47,6 +49,7 @@ export {
   ExternalVideos,
   Frames,
   Narrators,
+  Authors,
   Media,
   FileAttachments,
   // Tags

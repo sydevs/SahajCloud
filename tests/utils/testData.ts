@@ -349,7 +349,6 @@ export const testData = {
       collection: 'pages',
       data: {
         title: 'Test Page',
-        category: 'knowledge',
         tags: [],
         content: {
           root: {
