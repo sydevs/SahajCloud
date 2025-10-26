@@ -23,10 +23,32 @@ const isProduction = process.env.NODE_ENV === 'production'
 
 const payloadConfig = (overrides?: Partial<Config>) => {
   return buildConfig({
+    serverURL: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
     localization: {
-      locales: ['en', 'es', 'de', 'it', 'fr', 'ru', 'ro', 'cs', 'uk', 'el', 'hy', 'pl', 'pt-br', 'fa', 'bg', 'tr'],
+      locales: [
+        'en',
+        'es',
+        'de',
+        'it',
+        'fr',
+        'ru',
+        'ro',
+        'cs',
+        'uk',
+        'el',
+        'hy',
+        'pl',
+        'pt-br',
+        'fa',
+        'bg',
+        'tr',
+      ],
       defaultLocale: 'en',
     },
+    cors: [
+      process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173',
+      process.env.SAHAJATLAS_URL || 'http://localhost:5174',
+    ],
     admin: {
       user: Managers.slug,
       importMap: {

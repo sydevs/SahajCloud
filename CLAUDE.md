@@ -66,6 +66,10 @@ Copy from `.env.example` and configure:
 
 **Note**: If S3 variables are not configured, the system automatically falls back to local file storage (development only).
 
+**Live Preview URLs**
+- `WEMEDITATE_WEB_URL` - Preview URL for We Meditate Web frontend (default: http://localhost:5173)
+- `SAHAJATLAS_URL` - Preview URL for Sahaj Atlas frontend (default: http://localhost:5174)
+
 ## Code editing
 
 After making changes to the codebase, always lint the code and fix all Typescript errors.
@@ -153,6 +157,7 @@ The system provides 5 block types that can be embedded within the rich text edit
 - **Localization Support**: All text content fields support 16 locales (en, es, de, it, fr, ru, ro, cs, uk, el, hy, pl, pt-br, fa, bg, tr)
 - **Slug Generation**: Uses Better Fields plugin for automatic slug generation from title
 - **Admin Integration**: Uses PublishStateCell component and slug generation utilities
+- **Live Preview**: Real-time preview integration with We Meditate Web frontend (configurable via `WEMEDITATE_WEB_URL` environment variable)
 
 #### Testing Coverage
 - **Integration Tests**: `tests/int/pages.int.spec.ts` with comprehensive test cases

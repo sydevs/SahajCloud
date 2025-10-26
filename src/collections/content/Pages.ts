@@ -19,6 +19,12 @@ export const Pages: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'publishAt'],
+    livePreview: {
+      url: ({ data, locale }) => {
+        const baseURL = process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173'
+        return `${baseURL}/preview?collection=pages&id=${data.id}&locale=${locale.code}`
+      },
+    },
   },
   versions: {
     maxPerDoc: 50,
