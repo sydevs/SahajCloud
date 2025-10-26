@@ -1,13 +1,12 @@
 import { Block } from 'payload'
 import { MediaField } from '@/fields'
-import { basicRichTextEditor } from '@/lib/richEditor'
 
 export const LayoutBlock: Block = {
   slug: 'layout',
   fields: [
     {
       name: 'style',
-      type: 'select',
+      type: 'radio',
       required: true,
       options: [
         {
@@ -23,9 +22,6 @@ export const LayoutBlock: Block = {
           value: 'accordion',
         },
       ],
-      admin: {
-        description: 'Layout style for the items',
-      },
     },
     {
       name: 'items',
@@ -34,40 +30,35 @@ export const LayoutBlock: Block = {
         singular: 'Item',
         plural: 'Items',
       },
+      minRows: 1,
+      maxRows: 10,
+      validate: (value, { siblingData }) => {
+        const style = (siblingData as { style?: string })?.style
+
+        if (style === 'columns' && Array.isArray(value) && value.length > 3) {
+          return 'When style is "Columns", you can add a maximum of 3 items'
+        }
+
+        return true
+      },
       fields: [
         MediaField({
           name: 'image',
           orientation: 'landscape',
-          admin: {
-            description: 'Optional image for this item',
-          },
         }),
         {
           name: 'title',
           type: 'text',
-          admin: {
-            description: 'Optional title for this item',
-          },
         },
         {
           name: 'text',
-          type: 'richText',
-          editor: basicRichTextEditor,
-          admin: {
-            description: 'Optional text content for this item',
-          },
+          type: 'textarea',
         },
         {
           name: 'link',
           type: 'text',
-          admin: {
-            description: 'Optional link URL for this item',
-          },
         },
       ],
-      admin: {
-        description: 'Items to display in the layout',
-      },
     },
   ],
 }

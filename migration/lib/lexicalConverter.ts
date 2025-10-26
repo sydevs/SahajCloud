@@ -454,40 +454,67 @@ export function convertTextbox(
     const text = stripHTML(data.text || '').trim()
     // Quote block requires text field - skip if empty
     if (!text) {
-      context.logger.warn(
-        `Skipping quote block with empty text for page "${context.pageTitle}" (Rails ID ${context.pageId})`,
+      context.logger.skip(
+        `QuoteBlock (missing required text field) for page "${context.pageTitle}" (Rails ID ${context.pageId}). Original data: ${JSON.stringify(data)}`,
       )
       return null
     }
+
+    const title = stripHTML(data.title || '').trim()
     return createBlockNode('quote', 'Quote', {
+      title: title || undefined,
       text: text,
-      author: stripHTML(data.credit || ''),
-      subtitle: stripHTML(data.subtitle || ''),
+      credit: stripHTML(data.credit || ''),
+      caption: stripHTML(data.subtitle || ''),
     })
   }
 
-  // TextBoxBlock - determine style
-  let style = 'splash'
+  // TextBoxBlock - get image relationship (REQUIRED)
+  let imageId: string | undefined
+  if (data.image?.preview) {
+    // Look up in media map by preview URL (same as LayoutBlock and MediaBlock)
+    imageId = context.mediaMap.get(data.image.preview)
+  }
+
+  // Image is required - skip if missing
+  if (!imageId) {
+    context.logger.skip(
+      `TextBoxBlock (missing required image field) for page "${context.pageTitle}" (Rails ID ${context.pageId}). Original data: ${JSON.stringify(data)}`,
+    )
+    return null
+  }
+
+  // Determine imagePosition and textPosition based on old style
+  let imagePosition: 'left' | 'right' | 'overlay' = 'left'
+  let textPosition: 'left' | 'right' | 'center' = 'right'
+
   if (data.type === 'splash') {
-    style = 'splash'
+    imagePosition = 'overlay'
+    textPosition = 'left'
   } else if (data.type === 'image') {
     if (data.background === 'image') {
-      style = data.color === 'dark' ? 'overlayDark' : 'overlay'
+      imagePosition = 'overlay'
+      textPosition = 'left'
     } else {
-      style = data.position === 'right' ? 'rightAligned' : 'leftAligned'
+      if (data.position === 'right') {
+        imagePosition = 'right'
+        textPosition = 'left'
+      } else {
+        imagePosition = 'left'
+        textPosition = 'right'
+      }
     }
   }
 
-  // Get image relationship if present
-  let imageId: string | undefined
-  if (data.mediaFiles && data.mediaFiles.length > 0) {
-    const imageUrl = data.mediaFiles[0]
-    imageId = context.mediaMap.get(imageUrl)
-  }
+  // Determine wisdomStyle (true if background=ornate)
+  const wisdomStyle = data.background === 'ornate'
 
-  // Build TextBoxBlock fields - only include non-empty strings to avoid validation issues
+  // Build TextBoxBlock fields
   const fields: any = {
-    style,
+    image: imageId,
+    imagePosition,
+    textPosition,
+    wisdomStyle,
   }
 
   // Only include title if non-empty
@@ -503,20 +530,18 @@ export function convertTextbox(
   }
 
   // Text field is now a simple textarea - only include if non-empty
-  // Payload blocks may validate empty strings as invalid even when not marked as required
   const textContent = stripHTML(data.text || '').trim()
   if (textContent) {
     fields.text = textContent
   }
 
-  // Only add link and actionText if there's a valid URL
-  const linkUrl = (data.url || '').trim()
-  if (linkUrl && linkUrl !== '#' && linkUrl !== '') {
-    fields.link = linkUrl
-    // Only include actionText if it's non-empty
-    const actionText = stripHTML(data.action || '').trim()
-    if (actionText) {
-      fields.actionText = actionText
+  // Map button fields
+  const buttonUrl = (data.url || '').trim()
+  if (buttonUrl && buttonUrl !== '#' && buttonUrl !== '') {
+    fields.buttonUrl = buttonUrl
+    const buttonText = stripHTML(data.action || '').trim()
+    if (buttonText) {
+      fields.buttonText = buttonText
     }
   }
 
@@ -527,10 +552,6 @@ export function convertTextbox(
     position: data.position,
     spacing: data.spacing,
     decorations: data.decorations,
-  }
-
-  if (imageId) {
-    fields.image = imageId
   }
 
   return createBlockNode('textbox', 'Text Box', fields)
@@ -558,9 +579,9 @@ export function convertLayout(
   }
   const style = styleMap[data.type] || 'columns'
 
-  // Convert items - filter out items that have no meaningful content
+  // Convert items - error if title is missing
   const items = (data.items || [])
-    .map((item: any) => {
+    .map((item: any, index: number) => {
       let imageId: string | undefined
       if (item.image?.preview) {
         // Look up in media map by preview URL
@@ -571,23 +592,9 @@ export function convertLayout(
       const text = stripHTML(item.text || '').trim()
       const link = (item.url || '').trim()
 
-      // Skip items that have no content at all
-      if (!imageId && !title && !text && !link) {
-        return null
-      }
-
       const convertedItem: any = {
-        title: title || '',
-        text: {
-          root: {
-            type: 'root',
-            version: 1,
-            children: [createParagraphNode(text || '')],
-            direction: null,
-            format: '',
-            indent: 0,
-          },
-        },
+        title: title,
+        text: text || '', // Plain string for textarea
         link: link || '',
         id: generateId(),
       }
@@ -612,34 +619,68 @@ export function convertLayout(
 }
 
 /**
- * Convert EditorJS media block to GalleryBlock
- * Note: GalleryBlock has a max of 15 items
+ * Convert EditorJS media block to GalleryBlock (Image Gallery)
+ * Note: GalleryBlock has minRows:3, maxRows:15 and only supports media collection
+ * Returns null for <3 items (caller should handle individual upload nodes if needed)
  */
-export function convertMedia(block: EditorJSBlock, context: ConversionContext): LexicalNode {
+export function convertMedia(block: EditorJSBlock, context: ConversionContext): LexicalNode | null {
   const { data } = block
 
-  // Collect Media IDs
-  const mediaIds: string[] = []
+  // Collect Media IDs as plain strings (upload field format)
+  const items: string[] = []
   for (const item of data.items || []) {
     if (item.image?.preview) {
       const mediaId = context.mediaMap.get(item.image.preview)
       if (mediaId) {
-        mediaIds.push(mediaId)
+        items.push(mediaId)
       }
     }
   }
 
-  return createBlockNode('gallery', 'Gallery', {
-    collectionType: 'media',
-    items: mediaIds,
-    title: stripHTML(data.title || ''),
+  // GalleryBlock requires minimum 3 items
+  // If <3 items, return null and let caller convert to individual upload nodes
+  // (no skip log needed since we're converting, not skipping)
+  if (items.length < 3) {
+    return null
+  }
+
+  // Note: title field was removed from GalleryBlock
+  // If source data has a title, it should be added as a heading node by the caller
+  return createBlockNode('gallery', 'Image Gallery', {
+    items: items,
   })
+}
+
+/**
+ * Convert media block items to individual upload nodes (for <3 items)
+ */
+export function convertMediaToUploadNodes(
+  block: EditorJSBlock,
+  context: ConversionContext,
+): LexicalNode[] {
+  const { data } = block
+  const nodes: LexicalNode[] = []
+
+  for (const item of data.items || []) {
+    if (item.image?.preview) {
+      const mediaId = context.mediaMap.get(item.image.preview)
+      if (mediaId) {
+        // Create upload node with center alignment
+        nodes.push(createUploadNode(mediaId, 'center'))
+      }
+    }
+  }
+
+  return nodes
 }
 
 /**
  * Convert EditorJS action block to Form relationship or ButtonBlock
  */
-export function convertAction(block: EditorJSBlock, context: ConversionContext): LexicalNode {
+export function convertAction(
+  block: EditorJSBlock,
+  context: ConversionContext,
+): LexicalNode | null {
   const { data } = block
 
   // Check if it's a form
@@ -651,10 +692,20 @@ export function convertAction(block: EditorJSBlock, context: ConversionContext):
     // Fall through to button if form not found
   }
 
-  // Button block
+  // Button block requires both text and url
+  const text = stripHTML(data.action || data.text || '').trim()
+  const url = (data.url || '').trim()
+
+  if (!text || !url) {
+    context.logger.skip(
+      `ButtonBlock (missing required ${!text ? 'text' : 'url'} field) for page "${context.pageTitle}" (Rails ID ${context.pageId}). Original data: ${JSON.stringify(data)}`,
+    )
+    return null
+  }
+
   return createBlockNode('button', 'Button', {
-    text: stripHTML(data.action || data.text || ''),
-    url: data.url || '',
+    text,
+    url,
   })
 }
 
@@ -750,11 +801,80 @@ export async function convertCatalog(
     return createRelationshipNode(relationTo, itemIds[0])
   }
 
-  // Multiple items - GalleryBlock
-  return createBlockNode('gallery', 'Gallery', {
-    collectionType: type === 'treatments' ? 'pages' : 'meditations',
-    items: itemIds,
+  // CatalogBlock requires minimum 3 items (minRows: 3)
+  // If <3 items, return null and let caller convert to individual relationship nodes
+  // (no skip log needed since we're converting, not skipping)
+  if (itemIds.length < 3) {
+    return null
+  }
+
+  // Multiple items - CatalogBlock (supports meditations and pages)
+  const relationTo = type === 'treatments' ? 'pages' : 'meditations'
+  const items = itemIds.map((id) => ({
+    relationTo: relationTo,
+    value: id,
+  }))
+
+  return createBlockNode('catalog', 'Catalog', {
+    items: items,
   })
+}
+
+/**
+ * Convert catalog block items to individual relationship nodes (for 2 items)
+ */
+export async function convertCatalogToRelationshipNodes(
+  block: EditorJSBlock,
+  context: ConversionContext,
+): Promise<LexicalNode[]> {
+  const { data } = block
+  const nodes: LexicalNode[] = []
+
+  if (!data.items || data.items.length === 0) {
+    return nodes
+  }
+
+  const type = data.type // 'treatments' or 'meditations'
+  const relationTo = type === 'treatments' ? 'pages' : 'meditations'
+
+  // Map items to Page/Meditation IDs (same logic as convertCatalog)
+  for (const itemId of data.items) {
+    let payloadId: string | undefined
+
+    if (type === 'treatments') {
+      payloadId = context.treatmentMap.get(itemId)
+      if (!payloadId) {
+        await context.logger.warn(
+          `Treatment ${itemId} not found in catalog block for page "${context.pageTitle}" (Rails ID ${context.pageId})`,
+        )
+      }
+    } else if (type === 'meditations') {
+      // Two-step lookup: Rails ID → title → Payload ID
+      const numericItemId = typeof itemId === 'string' ? parseInt(itemId) : itemId
+      const railsTitle = context.meditationRailsTitleMap.get(numericItemId)
+
+      if (railsTitle) {
+        // Try direct lookup first
+        let meditationId = context.meditationTitleMap.get(railsTitle)
+
+        // If not found, try using hard-coded mapping
+        if (!meditationId) {
+          const mappedTitle = RAILS_TO_PAYLOAD_MEDITATION_TITLES[railsTitle]
+          if (mappedTitle) {
+            meditationId = context.meditationTitleMap.get(mappedTitle)
+          }
+        }
+
+        payloadId = meditationId
+      }
+    }
+
+    if (payloadId) {
+      nodes.push(createRelationshipNode(relationTo, payloadId))
+    }
+  }
+
+  return nodes
 }
 
 /**
@@ -779,10 +899,12 @@ export function convertQuoteBlock(block: EditorJSBlock): LexicalNode | null {
     return null
   }
 
+  const title = stripHTML(data.title || '').trim()
   return createBlockNode('quote', 'Quote', {
+    title: title || undefined,
     text: text,
-    author: stripHTML(data.credit || ''),
-    subtitle: stripHTML(data.caption || ''),
+    credit: stripHTML(data.credit || ''),
+    caption: stripHTML(data.caption || ''),
   })
 }
 
@@ -874,9 +996,26 @@ export async function convertEditorJSToLexical(
           node = convertLayout(block, context)
           break
 
-        case 'media':
-          node = convertMedia(block, context)
+        case 'media': {
+          // GalleryBlock no longer has title field - add heading if title exists
+          const title = stripHTML(block.data?.title || '').trim()
+          if (title) {
+            children.push(createHeadingNode(title, 'h2'))
+          }
+
+          // convertMedia returns null for <3 items, handle individually
+          const result = convertMedia(block, context)
+          if (result === null) {
+            // Create individual upload nodes for 1-2 items
+            const mediaNodes = convertMediaToUploadNodes(block, context)
+            if (mediaNodes.length > 0) {
+              children.push(...mediaNodes)
+            }
+          } else {
+            node = result
+          }
           break
+        }
 
         case 'action':
           node = convertAction(block, context)
@@ -886,9 +1025,26 @@ export async function convertEditorJSToLexical(
           node = convertVimeo(block, context)
           break
 
-        case 'catalog':
-          node = await convertCatalog(block, context)
+        case 'catalog': {
+          // CatalogBlock doesn't have title field - add heading if title exists
+          const title = stripHTML(block.data?.title || '').trim()
+          if (title) {
+            children.push(createHeadingNode(title, 'h2'))
+          }
+
+          // convertCatalog returns null for <3 items, handle individually
+          const result = await convertCatalog(block, context)
+          if (result === null) {
+            // Create individual relationship nodes for 1-2 items
+            const catalogNodes = await convertCatalogToRelationshipNodes(block, context)
+            if (catalogNodes.length > 0) {
+              children.push(...catalogNodes)
+            }
+          } else {
+            node = result
+          }
           break
+        }
 
         case 'whitespace':
           // Skip whitespace blocks

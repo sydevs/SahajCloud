@@ -1,7 +1,14 @@
 import type { CollectionConfig } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { fullRichTextEditor } from '@/lib/richEditor'
-import { TextBoxBlock, LayoutBlock, GalleryBlock, ButtonBlock, QuoteBlock } from '@/blocks/pages'
+import {
+  TextBoxBlock,
+  LayoutBlock,
+  GalleryBlock,
+  CatalogBlock,
+  ButtonBlock,
+  QuoteBlock,
+} from '@/blocks/pages'
 import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 
 export const Pages: CollectionConfig = {
@@ -38,6 +45,7 @@ export const Pages: CollectionConfig = {
                 TextBoxBlock,
                 LayoutBlock,
                 GalleryBlock,
+                CatalogBlock,
                 ButtonBlock,
                 QuoteBlock,
               ]),

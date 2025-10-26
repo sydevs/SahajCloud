@@ -14,6 +14,7 @@ const colors = {
   green: '\x1b[32m',
   yellow: '\x1b[33m',
   blue: '\x1b[34m',
+  magenta: '\x1b[35m',
   cyan: '\x1b[36m',
   gray: '\x1b[90m',
 }
@@ -28,14 +29,24 @@ export interface LogOptions {
 export class Logger {
   private logFile: string
   private onWarning?: (message: string) => void
+  private onSkip?: (message: string) => void
 
-  constructor(cacheDir: string, onWarning?: (message: string) => void) {
+  constructor(
+    cacheDir: string,
+    onWarning?: (message: string) => void,
+    onSkip?: (message: string) => void,
+  ) {
     this.logFile = path.join(cacheDir, 'import.log')
     this.onWarning = onWarning
+    this.onSkip = onSkip
   }
 
   setWarningCallback(callback: (message: string) => void): void {
     this.onWarning = callback
+  }
+
+  setSkipCallback(callback: (message: string) => void): void {
+    this.onSkip = callback
   }
 
   async log(message: string, options: LogOptions = {}): Promise<void> {
@@ -71,5 +82,13 @@ export class Logger {
 
   async success(message: string): Promise<void> {
     await this.log(message, { color: 'green' })
+  }
+
+  async skip(message: string): Promise<void> {
+    await this.log(`SKIP: ${message}`, { color: 'magenta' })
+    // Call the skip callback if set
+    if (this.onSkip) {
+      this.onSkip(message)
+    }
   }
 }

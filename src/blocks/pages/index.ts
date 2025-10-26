@@ -1,5 +1,6 @@
 export { TextBoxBlock } from './TextBoxBlock'
 export { LayoutBlock } from './LayoutBlock'
 export { GalleryBlock } from './GalleryBlock'
+export { CatalogBlock } from './CatalogBlock'
 export { ButtonBlock } from './ButtonBlock'
 export { QuoteBlock } from './QuoteBlock'

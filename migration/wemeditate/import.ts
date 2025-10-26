@@ -92,6 +92,7 @@ interface ImportSummary {
   formsCreated: number
   errors: string[]
   warnings: string[]
+  skips: string[]
 }
 
 // ============================================================================
@@ -136,6 +137,7 @@ class WeMeditateImporter {
     formsCreated: 0,
     errors: [],
     warnings: [],
+    skips: [],
   }
 
   constructor(options: ScriptOptions) {
@@ -156,6 +158,12 @@ class WeMeditateImporter {
   private addWarning(message: string) {
     this.summary.warnings.push(message)
     // Note: Do NOT call logger.warn() here to avoid infinite loop
+    // The logger already calls this method via the callback
+  }
+
+  private addSkip(message: string) {
+    this.summary.skips.push(message)
+    // Note: Do NOT call logger.skip() here to avoid infinite loop
     // The logger already calls this method via the callback
   }
 
@@ -1627,6 +1635,13 @@ class WeMeditateImporter {
     console.log(`\n  Total Records:      ${totalRecords}`)
     console.log(`  Media Reused:       ${mediaStats.reused}`)
 
+    if (this.summary.skips.length > 0) {
+      console.log(`\n⏭️  Skipped Blocks (${this.summary.skips.length}):`)
+      this.summary.skips.forEach((skip, index) => {
+        console.log(`  ${index + 1}. ${skip}`)
+      })
+    }
+
     if (this.summary.warnings.length > 0) {
       console.log(`\n⚠️  Warnings (${this.summary.warnings.length}):`)
       this.summary.warnings.forEach((warning, index) => {
@@ -1641,8 +1656,12 @@ class WeMeditateImporter {
       })
     }
 
-    if (this.summary.errors.length === 0 && this.summary.warnings.length === 0) {
-      console.log(`\n✨ No errors or warnings - import completed successfully!`)
+    if (
+      this.summary.errors.length === 0 &&
+      this.summary.warnings.length === 0 &&
+      this.summary.skips.length === 0
+    ) {
+      console.log(`\n✨ No errors, warnings, or skips - import completed successfully!`)
     }
 
     console.log('\n' + '='.repeat(60))
@@ -1657,7 +1676,11 @@ class WeMeditateImporter {
       await fs.mkdir(path.join(CACHE_DIR, 'assets'), { recursive: true })
 
       // 2. Initialize utilities
-      this.logger = new Logger(CACHE_DIR, (message) => this.addWarning(message))
+      this.logger = new Logger(
+        CACHE_DIR,
+        (message) => this.addWarning(message),
+        (message) => this.addSkip(message),
+      )
       this.fileUtils = new FileUtils(this.logger)
 
       // 3. Initialize Payload (always, even for dry run validation)

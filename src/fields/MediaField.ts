@@ -19,17 +19,9 @@ export type MediaFieldOptions = {
 
 /**
  * Creates a standardized media upload field with ThumbnailCell component
- * and filtering for hidden media documents
  */
 export function MediaField(options: MediaFieldOptions): UploadField {
   const { name, label, required = false, localized = false, tagName, admin = {} } = options
-
-  // Base filter to exclude hidden media
-  const baseFilter: Where = {
-    hidden: {
-      not_equals: true,
-    },
-  }
 
   // Build filter options based on tagName
   const filterOptions = tagName
@@ -58,17 +50,12 @@ export function MediaField(options: MediaFieldOptions): UploadField {
 
         // Return filter for media with this tag ID
         return {
-          and: [
-            baseFilter,
-            {
-              tags: {
-                contains: tagId,
-              },
-            },
-          ],
+          tags: {
+            contains: tagId,
+          },
         }
       }
-    : baseFilter
+    : undefined
 
   return {
     name,

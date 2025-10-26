@@ -4,12 +4,19 @@ export const ButtonBlock: Block = {
   slug: 'button',
   fields: [
     {
-      name: 'text',
-      type: 'text',
-    },
-    {
-      name: 'url',
-      type: 'text',
+      type: 'row',
+      fields: [
+        {
+          name: 'text',
+          type: 'text',
+          required: true,
+        },
+        {
+          name: 'url',
+          type: 'text',
+          required: true,
+        },
+      ],
     },
   ],
 }

@@ -90,16 +90,6 @@ export const Media: CollectionConfig = {
         readOnly: true,
       },
     },
-    {
-      name: 'hidden',
-      type: 'checkbox',
-      defaultValue: false,
-      admin: {
-        readOnly: true,
-        description: 'Hide from selection in upload fields (e.g., for auto-generated thumbnails)',
-        position: 'sidebar',
-      },
-    },
   ],
   hooks: {
     beforeOperation: [sanitizeFilename],

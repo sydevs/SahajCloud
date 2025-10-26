@@ -4,17 +4,28 @@ export const QuoteBlock: Block = {
   slug: 'quote',
   fields: [
     {
-      name: 'text',
+      name: 'title',
       type: 'text',
+    },
+    {
+      name: 'text',
+      type: 'textarea',
       required: true,
     },
     {
-      name: 'author',
+      name: 'credit',
       type: 'text',
+      admin: {
+        description: 'This is the author or other source for the quote.',
+      },
     },
     {
-      name: 'subtitle',
+      name: 'caption',
       type: 'text',
+      admin: {
+        condition: (_, siblingData) => Boolean(siblingData?.credit),
+        description: 'This will appear below the credit.',
+      },
     },
   ],
 }

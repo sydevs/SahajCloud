@@ -188,13 +188,20 @@ export function extractMediaUrls(content: any, baseUrl: string): Set<string> {
     if (!block.data) continue
 
     // TextBox blocks
-    if (block.type === 'textbox' && block.data.mediaFiles) {
-      for (const mediaFile of block.data.mediaFiles) {
-        if (typeof mediaFile === 'string') {
-          urls.add(mediaFile)
-        } else if (mediaFile.file) {
-          const url = buildMediaUrl(mediaFile.file, baseUrl)
-          if (url) urls.add(url)
+    if (block.type === 'textbox') {
+      // Check for image.preview (modern format with full URL)
+      if (block.data.image?.preview) {
+        urls.add(block.data.image.preview)
+      }
+      // Also check mediaFiles array for legacy formats
+      if (block.data.mediaFiles) {
+        for (const mediaFile of block.data.mediaFiles) {
+          if (typeof mediaFile === 'string') {
+            urls.add(mediaFile)
+          } else if (mediaFile.file) {
+            const url = buildMediaUrl(mediaFile.file, baseUrl)
+            if (url) urls.add(url)
+          }
         }
       }
     }

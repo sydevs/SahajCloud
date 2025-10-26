@@ -8,86 +8,101 @@ export const TextBoxBlock: Block = {
     plural: 'Text Boxes',
   },
   fields: [
-    {
-      name: 'style',
-      type: 'select',
+    MediaField({
+      name: 'image',
+      orientation: 'portrait',
       required: true,
-      defaultValue: 'splash',
+    }),
+    {
+      name: 'imagePosition',
+      type: 'radio',
+      required: true,
+      label: 'Image Position',
+      defaultValue: 'left',
       options: [
         {
-          label: 'Splash',
-          value: 'splash',
+          label: 'Left',
+          value: 'left',
         },
         {
-          label: 'Left Aligned',
-          value: 'leftAligned',
+          label: 'Right',
+          value: 'right',
         },
         {
-          label: 'Right Aligned',
-          value: 'rightAligned',
-        },
-        {
-          label: 'Overlay',
+          label: 'Background',
           value: 'overlay',
         },
+      ],
+    },
+    {
+      name: 'textPosition',
+      type: 'radio',
+      required: true,
+      label: 'Text Position',
+      defaultValue: 'left',
+      options: [
         {
-          label: 'Overlay Dark',
-          value: 'overlayDark',
+          label: 'Left',
+          value: 'left',
+        },
+        {
+          label: 'Right',
+          value: 'right',
+        },
+        {
+          label: 'Center',
+          value: 'center',
         },
       ],
       admin: {
-        description: 'Display style for the text box',
+        condition: (_, siblingData) => siblingData?.position === 'overlay',
+      },
+    },
+    {
+      name: 'wisdomStyle',
+      type: 'checkbox',
+      label: 'Use "Ancient Wisdom" Styling',
+      admin: {
+        condition: (_, siblingData) =>
+          Boolean(siblingData?.position) && siblingData?.position !== 'overlay',
       },
     },
     {
       name: 'title',
       type: 'text',
-      admin: {
-        description: 'Optional title for this text box',
-      },
     },
     {
       name: 'subtitle',
       type: 'text',
       admin: {
-        description: 'Optional subtitle for this text box',
+        condition: (_, siblingData) => Boolean(siblingData?.title),
       },
     },
     {
       name: 'text',
       type: 'textarea',
-      admin: {
-        description: 'Main content text',
-      },
-    },
-    MediaField({
-      name: 'image',
-      orientation: 'portrait',
-      admin: {
-        description: 'Optional image to accompany the content',
-      },
-    }),
-    {
-      name: 'link',
-      type: 'text',
-      admin: {
-        description: 'Optional link URL',
-      },
     },
     {
-      name: 'actionText',
-      type: 'text',
-      admin: {
-        description: 'Call-to-action text for the link',
-        condition: (_, siblingData) => Boolean(siblingData?.link),
-      },
+      type: 'row',
+      fields: [
+        {
+          name: 'buttonText',
+          type: 'text',
+        },
+        {
+          name: 'buttonUrl',
+          type: 'text',
+          admin: {
+            condition: (_, siblingData) => Boolean(siblingData?.buttonText),
+          },
+        },
+      ],
     },
     {
       name: 'importData',
       type: 'json',
       admin: {
         readOnly: true,
-        hidden: true,
         description: 'Original import data (background, color, position, spacing, decorations)',
       },
     },
