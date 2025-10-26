@@ -22,6 +22,7 @@ export interface ConversionContext {
   formMap: Map<string, string> // form type → Form ID
   externalVideoMap: Map<string, string> // vimeo_id → ExternalVideo ID
   treatmentMap: Map<number, string> // treatment ID → Page ID
+  treatmentThumbnailMap: Map<number, string> // treatment ID → Media ID (for thumbnails)
   meditationTitleMap: Map<string, string> // meditation title → Meditation ID
   meditationRailsTitleMap: Map<number, string> // Rails meditation ID → title (without duration)
 }

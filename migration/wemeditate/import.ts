@@ -125,6 +125,7 @@ class WeMeditateImporter {
   }
   private meditationTitleMap: Map<string, string> = new Map() // Payload title → Payload ID
   private meditationRailsTitleMap: Map<number, string> = new Map() // Rails ID → title (no duration)
+  private treatmentThumbnailMap: Map<number, string> = new Map() // Treatment ID → Media ID
   private contentTypeTagMap: Map<string, string> = new Map()
 
   // Summary tracking
@@ -673,6 +674,20 @@ class WeMeditateImporter {
         continue
       }
 
+      // For treatments: check if thumbnail exists in the thumbnail map
+      // Skip treatments without thumbnails (they were identified during buildTreatmentThumbnailMap)
+      if (tableName === 'treatments') {
+        const treatmentId = typeof page.id === 'string' ? parseInt(page.id) : page.id
+        // Check if we have a thumbnail OR if we have a warning about missing thumbnail
+        // If we don't have a thumbnail in the map, skip this treatment
+        if (!this.treatmentThumbnailMap.has(treatmentId)) {
+          await this.logger.skip(
+            `Treatment ${page.id} "${localizedData['en'].title}" has no thumbnail - skipping import`
+          )
+          continue
+        }
+      }
+
       // Second pass: add other translations
       for (const translation of page.translations) {
         if (translation.locale !== 'en' && translation.locale && translation.name) {
@@ -968,6 +983,7 @@ class WeMeditateImporter {
           formMap: this.idMaps.forms,
           externalVideoMap: this.idMaps.externalVideos,
           treatmentMap: this.idMaps.treatments,
+          treatmentThumbnailMap: this.treatmentThumbnailMap,
           meditationTitleMap: this.meditationTitleMap,
           meditationRailsTitleMap: this.meditationRailsTitleMap,
         }
@@ -1143,6 +1159,59 @@ class WeMeditateImporter {
       )
     } catch (error: any) {
       this.addError('Failed: building meditation maps', error)
+    }
+  }
+
+  private async buildTreatmentThumbnailMap() {
+    await this.logger.log('\n=== Building Treatment Thumbnail Map ===')
+
+    try {
+      // Query treatment thumbnails from PostgreSQL
+      // treatment_translations.thumbnail_id → media_files.id → media_files.file (filename)
+      const result = await this.dbClient.query(`
+        SELECT
+          t.id as treatment_id,
+          tt.name as treatment_name,
+          tt.thumbnail_id,
+          mf.id as media_file_id,
+          mf.file as thumbnail_file
+        FROM treatments t
+        LEFT JOIN treatment_translations tt ON t.id = tt.treatment_id
+        LEFT JOIN media_files mf ON tt.thumbnail_id = mf.id
+        WHERE tt.locale = 'en'
+      `)
+
+      for (const row of result.rows) {
+        const treatmentId = Number(row.treatment_id)
+
+        // Skip treatments without thumbnails (they will be skipped during import)
+        if (!row.thumbnail_id || !row.thumbnail_file) {
+          await this.logger.warn(
+            `Treatment ${treatmentId} "${row.treatment_name}" has no thumbnail - will skip during import`
+          )
+          continue
+        }
+
+        // Construct full URL with media_file ID path structure
+        // Format: https://assets.wemeditate.com/uploads/media_file/file/{id}/{filename}
+        const thumbnailUrl = `${STORAGE_BASE_URL}media_file/file/${row.media_file_id}/${row.thumbnail_file}`
+
+        // Check if we already have this media file in our map
+        const mediaId = this.idMaps.media.get(thumbnailUrl)
+        if (mediaId) {
+          this.treatmentThumbnailMap.set(treatmentId, mediaId)
+        } else {
+          await this.logger.warn(
+            `Thumbnail for treatment ${treatmentId} "${row.treatment_name}" not found in media map (URL: ${thumbnailUrl})`
+          )
+        }
+      }
+
+      await this.logger.log(
+        `✓ Built treatment thumbnail map with ${this.treatmentThumbnailMap.size} thumbnails`
+      )
+    } catch (error: any) {
+      this.addError('Failed: building treatment thumbnail map', error)
     }
   }
 
@@ -1479,9 +1548,31 @@ class WeMeditateImporter {
       }
     }
 
-    // Note: Treatment thumbnails are stored in the media_files table with polymorphic relationships
-    // For now, skipping treatment thumbnail scanning as the schema needs further investigation
-    // TODO: Implement treatment thumbnail scanning once we understand the media_files schema
+    // Scan treatment thumbnails
+    const treatmentThumbsResult = await this.dbClient.query(`
+      SELECT
+        t.id as treatment_id,
+        tt.name as treatment_name,
+        tt.thumbnail_id,
+        mf.id as media_file_id,
+        mf.file as thumbnail_file
+      FROM treatments t
+      LEFT JOIN treatment_translations tt ON t.id = tt.treatment_id
+      LEFT JOIN media_files mf ON tt.thumbnail_id = mf.id
+      WHERE tt.locale = 'en' AND tt.thumbnail_id IS NOT NULL AND mf.file IS NOT NULL
+    `)
+
+    for (const treatment of treatmentThumbsResult.rows) {
+      // Construct full URL with media_file ID path structure
+      // Format: https://assets.wemeditate.com/uploads/media_file/file/{id}/{filename}
+      const thumbnailUrl = `${STORAGE_BASE_URL}media_file/file/${treatment.media_file_id}/${treatment.thumbnail_file}`
+      mediaUrls.add(thumbnailUrl)
+      mediaMetadata.set(thumbnailUrl, {
+        alt: `Thumbnail for ${treatment.treatment_name}`,
+        credit: '',
+        caption: '',
+      })
+    }
 
     await this.logger.log(`Found ${mediaUrls.size} unique media files to download`)
 
@@ -1781,6 +1872,7 @@ class WeMeditateImporter {
             formMap: this.idMaps.forms,
             externalVideoMap: this.idMaps.externalVideos,
             treatmentMap: this.idMaps.treatments,
+            treatmentThumbnailMap: this.treatmentThumbnailMap,
             meditationTitleMap: this.meditationTitleMap,
             meditationRailsTitleMap: this.meditationRailsTitleMap,
           }
@@ -1789,9 +1881,31 @@ class WeMeditateImporter {
           const lexicalContent = await convertEditorJSToLexical(content, context)
           lastLexicalContent = lexicalContent
 
-          // TODO: For treatments, prepend thumbnail as upload node with align='right'
-          // Currently disabled as treatment thumbnails are in media_files table with polymorphic relationships
-          // Need to investigate schema and implement proper thumbnail extraction
+          // For treatments: prepend thumbnail as upload node with align='right'
+          if (tableName === 'treatments') {
+            const treatmentId = numericId
+            const thumbnailMediaId = this.treatmentThumbnailMap.get(treatmentId)
+
+            if (thumbnailMediaId) {
+              // Import createUploadNode from lexicalConverter
+              const { createUploadNode } = await import('../lib/lexicalConverter')
+
+              // Create upload node with right alignment
+              const thumbnailNode = createUploadNode(thumbnailMediaId, 'right')
+
+              // Prepend to the beginning of the children array
+              lexicalContent.root.children.unshift(thumbnailNode)
+
+              await this.logger.log(
+                `✓ Prepended thumbnail to treatment ${page.id} (media ID: ${thumbnailMediaId})`
+              )
+            } else {
+              // This should not happen since we skip treatments without thumbnails
+              await this.logger.warn(
+                `Treatment ${page.id} has no thumbnail in map - this should not happen`
+              )
+            }
+          }
 
           // Fetch existing page to preserve required fields (Fix #2)
           const existingPage = await this.payload.findByID({
@@ -1991,7 +2105,7 @@ class WeMeditateImporter {
       // NOTE: PromoPages import is disabled - uncomment if needed
       // await this.importPromoPages() // Different structure - no translations table
       await this.importPages('subtle_system_nodes', 'subtle_system_node_translations')
-      await this.importPages('treatments', 'treatment_translations')
+      // NOTE: Treatment import happens AFTER media import so we can check for thumbnails
 
       await this.logger.log('\n=== PHASE 2: Content Import ===\n')
 
@@ -2000,6 +2114,13 @@ class WeMeditateImporter {
       await this.importForms()
       await this.importMedia()
       await this.importExternalVideos()
+
+      // Build treatment thumbnail map after media import (so we have media IDs)
+      // This must happen before importing treatment pages
+      await this.buildTreatmentThumbnailMap()
+
+      // Import treatment pages now that we have thumbnail map
+      await this.importPages('treatments', 'treatment_translations')
 
       // Update pages with converted Lexical content
       await this.importPagesWithContent('static_pages', 'static_page_translations')
