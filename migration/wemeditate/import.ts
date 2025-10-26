@@ -300,6 +300,95 @@ class WeMeditateImporter {
   }
 
   // ============================================================================
+  // HELPER METHODS
+  // ============================================================================
+
+  /**
+   * Find a page by its English slug
+   */
+  private async findPageBySlug(slug: string): Promise<string | null> {
+    try {
+      const result = await this.payload.find({
+        collection: 'pages',
+        where: { slug: { equals: slug } },
+        limit: 1,
+        locale: 'en',
+      })
+
+      if (result.docs.length > 0) {
+        return result.docs[0].id as string
+      }
+
+      await this.logger.warn(`Page with slug "${slug}" not found`)
+      return null
+    } catch (error: any) {
+      this.addError(`Failed to find page by slug "${slug}"`, error)
+      return null
+    }
+  }
+
+  /**
+   * Find or create music tags by name
+   */
+  private async findOrCreateMusicTags(tagNames: string[]): Promise<string[]> {
+    const tagIds: string[] = []
+
+    for (const tagName of tagNames) {
+      try {
+        // Try to find existing tag
+        const existing = await this.payload.find({
+          collection: 'music-tags',
+          where: { name: { equals: tagName } },
+          limit: 1,
+        })
+
+        if (existing.docs.length > 0) {
+          tagIds.push(existing.docs[0].id as string)
+          await this.logger.log(`✓ Found music tag: ${tagName}`)
+        } else {
+          // Create new tag
+          const newTag = await this.payload.create({
+            collection: 'music-tags',
+            data: {
+              name: tagName,
+              title: tagName.charAt(0).toUpperCase() + tagName.slice(1),
+            },
+          })
+          tagIds.push(newTag.id as string)
+          await this.logger.log(`✓ Created music tag: ${tagName}`)
+        }
+      } catch (error: any) {
+        this.addError(`Failed to find/create music tag "${tagName}"`, error)
+      }
+    }
+
+    return tagIds
+  }
+
+  /**
+   * Find a page tag by name
+   */
+  private async findPageTagByName(tagName: string): Promise<string | null> {
+    try {
+      const result = await this.payload.find({
+        collection: 'page-tags',
+        where: { name: { equals: tagName } },
+        limit: 1,
+      })
+
+      if (result.docs.length > 0) {
+        return result.docs[0].id as string
+      }
+
+      await this.logger.warn(`Page tag with name "${tagName}" not found`)
+      return null
+    } catch (error: any) {
+      this.addError(`Failed to find page tag "${tagName}"`, error)
+      return null
+    }
+  }
+
+  // ============================================================================
   // IMPORT METHODS
   // ============================================================================
 
@@ -1435,6 +1524,164 @@ class WeMeditateImporter {
     }
   }
 
+  private async updateWeMeditateWebSettings() {
+    await this.logger.log('\n=== Updating We Meditate Web Settings ===')
+
+    try {
+      // Find all required pages by slug
+      const pageMapping = {
+        homePage: await this.findPageBySlug('home-page'),
+        featuredPages: await Promise.all([
+          this.findPageBySlug('chakras-channels'),
+          this.findPageBySlug('kundalini'),
+          this.findPageBySlug('shri-mataji'),
+          this.findPageBySlug('sahaja-yoga'),
+          this.findPageBySlug('improving-meditation'),
+        ]),
+        footerPages: await Promise.all([
+          this.findPageBySlug('classes-near-me'),
+          this.findPageBySlug('meditate-now'),
+          this.findPageBySlug('live-meditations'),
+          this.findPageBySlug('privacy-notice'),
+          this.findPageBySlug('contact-us'),
+        ]),
+        musicPage: await this.findPageBySlug('music-for-meditation'),
+        subtleSystemPage: await this.findPageBySlug('chakras-channels'),
+        left: await this.findPageBySlug('left-channel'),
+        right: await this.findPageBySlug('right-channel'),
+        center: await this.findPageBySlug('central-channel'),
+        mooladhara: await this.findPageBySlug('mooladhara-chakra'),
+        kundalini: await this.findPageBySlug('kundalini'),
+        swadhistan: await this.findPageBySlug('swadhistan-chakra'),
+        nabhi: await this.findPageBySlug('nabhi-chakra'),
+        void: await this.findPageBySlug('void-chakra'),
+        anahat: await this.findPageBySlug('heart-chakra'),
+        vishuddhi: await this.findPageBySlug('vishuddhi-chakra'),
+        agnya: await this.findPageBySlug('agnya-chakra'),
+        sahasrara: await this.findPageBySlug('sahasrara-chakra'),
+        techniquesPage: await this.findPageBySlug('improving-meditation'),
+        inspirationPage: await this.findPageBySlug('inspiration'),
+        classesPage: await this.findPageBySlug('classes-near-me'),
+        liveMeditationsPage: await this.findPageBySlug('live-meditations'),
+      }
+
+      // Find or create music tags
+      const musicPageTags = await this.findOrCreateMusicTags(['santoor', 'flute', 'sitar'])
+
+      // Find page tags
+      const inspirationPageTags = await Promise.all([
+        this.findPageTagByName('creativity'),
+        this.findPageTagByName('wisdom'),
+        this.findPageTagByName('living'),
+        this.findPageTagByName('events'),
+        this.findPageTagByName('stories'),
+      ])
+
+      const techniquePageTag = await this.findPageTagByName('treatment')
+
+      // Filter out null values from arrays
+      const featuredPages = pageMapping.featuredPages.filter((id) => id !== null) as string[]
+      const footerPages = pageMapping.footerPages.filter((id) => id !== null) as string[]
+      const inspirationPageTagsFiltered = inspirationPageTags.filter((id) => id !== null) as string[]
+
+      // Validate required fields
+      if (!pageMapping.homePage) {
+        throw new Error('Home page not found')
+      }
+      if (featuredPages.length < 3) {
+        throw new Error(`Not enough featured pages found (need 3-7, found ${featuredPages.length})`)
+      }
+      if (footerPages.length < 3) {
+        throw new Error(`Not enough footer pages found (need 3-5, found ${footerPages.length})`)
+      }
+      if (!pageMapping.musicPage) {
+        throw new Error('Music page not found')
+      }
+      if (musicPageTags.length < 3) {
+        throw new Error(`Not enough music tags found (need 3-5, found ${musicPageTags.length})`)
+      }
+      if (!pageMapping.subtleSystemPage) {
+        throw new Error('Subtle system page not found')
+      }
+      if (!pageMapping.left || !pageMapping.right || !pageMapping.center) {
+        throw new Error('Channel pages not found')
+      }
+      if (
+        !pageMapping.mooladhara ||
+        !pageMapping.kundalini ||
+        !pageMapping.swadhistan ||
+        !pageMapping.nabhi ||
+        !pageMapping.void ||
+        !pageMapping.anahat ||
+        !pageMapping.vishuddhi ||
+        !pageMapping.agnya ||
+        !pageMapping.sahasrara
+      ) {
+        throw new Error('Chakra pages not found')
+      }
+      if (!pageMapping.techniquesPage) {
+        throw new Error('Techniques page not found')
+      }
+      if (!techniquePageTag) {
+        throw new Error('Technique page tag not found')
+      }
+      if (!pageMapping.inspirationPage) {
+        throw new Error('Inspiration page not found')
+      }
+      if (inspirationPageTagsFiltered.length < 3) {
+        throw new Error(
+          `Not enough inspiration tags found (need 3-5, found ${inspirationPageTagsFiltered.length})`,
+        )
+      }
+      if (!pageMapping.classesPage) {
+        throw new Error('Classes page not found')
+      }
+      if (!pageMapping.liveMeditationsPage) {
+        throw new Error('Live meditations page not found')
+      }
+
+      // Update the global config
+      await this.payload.updateGlobal({
+        slug: 'we-meditate-web-settings',
+        data: {
+          homePage: pageMapping.homePage,
+          featuredPages,
+          footerPages,
+          musicPage: pageMapping.musicPage,
+          musicPageTags,
+          subtleSystemPage: pageMapping.subtleSystemPage,
+          left: pageMapping.left,
+          right: pageMapping.right,
+          center: pageMapping.center,
+          mooladhara: pageMapping.mooladhara,
+          kundalini: pageMapping.kundalini,
+          swadhistan: pageMapping.swadhistan,
+          nabhi: pageMapping.nabhi,
+          void: pageMapping.void,
+          anahat: pageMapping.anahat,
+          vishuddhi: pageMapping.vishuddhi,
+          agnya: pageMapping.agnya,
+          sahasrara: pageMapping.sahasrara,
+          techniquesPage: pageMapping.techniquesPage,
+          techniquePageTag,
+          inspirationPage: pageMapping.inspirationPage,
+          inspirationPageTags: inspirationPageTagsFiltered,
+          classesPage: pageMapping.classesPage,
+          liveMeditationsPage: pageMapping.liveMeditationsPage,
+        },
+      })
+
+      await this.logger.log('✓ We Meditate Web Settings updated successfully')
+      await this.logger.log(`  - Home page: ${pageMapping.homePage}`)
+      await this.logger.log(`  - Featured pages: ${featuredPages.length} pages`)
+      await this.logger.log(`  - Footer pages: ${footerPages.length} pages`)
+      await this.logger.log(`  - Music page tags: ${musicPageTags.length} tags`)
+      await this.logger.log(`  - Inspiration page tags: ${inspirationPageTagsFiltered.length} tags`)
+    } catch (error: any) {
+      this.addError('Failed to update We Meditate Web Settings', error)
+    }
+  }
+
   private async importPagesWithContent(tableName: string, translationsTable: string) {
     await this.logger.log(`\n=== Updating ${tableName} with Content ===`)
 
@@ -1762,7 +2009,10 @@ class WeMeditateImporter {
       await this.importPagesWithContent('subtle_system_nodes', 'subtle_system_node_translations')
       await this.importPagesWithContent('treatments', 'treatment_translations')
 
-      // 7. Cleanup database
+      // 7. Update We Meditate Web Settings
+      await this.updateWeMeditateWebSettings()
+
+      // 8. Cleanup database
       await this.cleanupDatabase()
 
       await this.logger.log('\n=== Import Complete ===')

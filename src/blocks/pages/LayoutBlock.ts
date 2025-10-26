@@ -47,16 +47,25 @@ export const LayoutBlock: Block = {
           orientation: 'landscape',
         }),
         {
-          name: 'title',
-          type: 'text',
+          type: 'row',
+          fields: [
+            {
+              name: 'title',
+              type: 'text',
+            },
+            {
+              name: 'titleUrl',
+              type: 'text',
+              label: 'Title Link',
+              admin: {
+                condition: (_, siblingData) => Boolean(siblingData?.title),
+              },
+            },
+          ],
         },
         {
           name: 'text',
           type: 'textarea',
-        },
-        {
-          name: 'link',
-          type: 'text',
         },
       ],
     },

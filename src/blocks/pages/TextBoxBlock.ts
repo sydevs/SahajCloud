@@ -21,11 +21,11 @@ export const TextBoxBlock: Block = {
       defaultValue: 'left',
       options: [
         {
-          label: 'Left',
+          label: 'Left Image',
           value: 'left',
         },
         {
-          label: 'Right',
+          label: 'Right Image',
           value: 'right',
         },
         {
@@ -42,20 +42,40 @@ export const TextBoxBlock: Block = {
       defaultValue: 'left',
       options: [
         {
-          label: 'Left',
+          label: 'Left Textbox',
           value: 'left',
         },
         {
-          label: 'Right',
+          label: 'Right Textbox',
           value: 'right',
         },
         {
-          label: 'Center',
+          label: 'Centered',
           value: 'center',
         },
       ],
       admin: {
-        condition: (_, siblingData) => siblingData?.position === 'overlay',
+        condition: (_, siblingData) => siblingData?.imagePosition === 'overlay',
+      },
+    },
+    {
+      name: 'textColor',
+      type: 'radio',
+      required: true,
+      label: 'Text Colour',
+      defaultValue: 'dark',
+      options: [
+        {
+          label: 'Dark Text',
+          value: 'dark',
+        },
+        {
+          label: 'Light Text',
+          value: 'light',
+        },
+      ],
+      admin: {
+        condition: (_, siblingData) => siblingData?.imagePosition === 'overlay',
       },
     },
     {
@@ -92,6 +112,7 @@ export const TextBoxBlock: Block = {
         {
           name: 'buttonUrl',
           type: 'text',
+          required: true,
           admin: {
             condition: (_, siblingData) => Boolean(siblingData?.buttonText),
           },

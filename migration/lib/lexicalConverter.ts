@@ -487,14 +487,19 @@ export function convertTextbox(
   // Determine imagePosition and textPosition based on old style
   let imagePosition: 'left' | 'right' | 'overlay' = 'left'
   let textPosition: 'left' | 'right' | 'center' = 'right'
+  let textColor: 'dark' | 'light' = 'dark'
 
   if (data.type === 'splash') {
     imagePosition = 'overlay'
     textPosition = 'left'
+    // Splash usually has light text on background
+    textColor = data.color === 'dark' ? 'light' : 'light'
   } else if (data.type === 'image') {
     if (data.background === 'image') {
       imagePosition = 'overlay'
       textPosition = 'left'
+      // Determine text color based on old 'color' field
+      textColor = data.color === 'dark' ? 'light' : 'dark'
     } else {
       if (data.position === 'right') {
         imagePosition = 'right'
@@ -503,6 +508,8 @@ export function convertTextbox(
         imagePosition = 'left'
         textPosition = 'right'
       }
+      // Non-overlay has dark text by default
+      textColor = 'dark'
     }
   }
 
@@ -514,6 +521,7 @@ export function convertTextbox(
     image: imageId,
     imagePosition,
     textPosition,
+    textColor,
     wisdomStyle,
   }
 
@@ -579,7 +587,7 @@ export function convertLayout(
   }
   const style = styleMap[data.type] || 'columns'
 
-  // Convert items - error if title is missing
+  // Convert items - skip items without required title or titleUrl
   const items = (data.items || [])
     .map((item: any, index: number) => {
       let imageId: string | undefined
@@ -590,12 +598,12 @@ export function convertLayout(
 
       const title = stripHTML(item.title || '').trim()
       const text = stripHTML(item.text || '').trim()
-      const link = (item.url || '').trim()
+      const titleUrl = (item.url || '').trim()
 
       const convertedItem: any = {
         title: title,
+        titleUrl: titleUrl,
         text: text || '', // Plain string for textarea
-        link: link || '',
         id: generateId(),
       }
 
