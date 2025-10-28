@@ -4,13 +4,13 @@ This document outlines the implementation plan for addressing 16 selected issues
 
 ## Progress Tracker
 
-**Overall Progress:** 9/16 completed (56%)
+**Overall Progress:** 10/16 completed (63%)
 
 | Status | Count | Issues |
 |--------|-------|--------|
-| ✅ Completed | 9 | #2, #4, #5, #7, #10, #11, #12, #17, #21 |
+| ✅ Completed | 10 | #2, #4, #5, #7, #10, #11, #12, #17, #21, #22 |
 | 🚧 In Progress | 0 | - |
-| ⏳ Pending | 7 | #1, #3, #9, #13, #15, #22, #24 |
+| ⏳ Pending | 6 | #1, #3, #9, #13, #15, #24 |
 
 **Last Updated:** 2025-10-28
 
@@ -1086,62 +1086,33 @@ See [ISSUE_12_COMPLETION.md](ISSUE_12_COMPLETION.md) for complete implementation
 
 ---
 
-### Issue #22: Sentry Configuration Not Environment-Aware
+### ✅ Issue #22: Sentry Configuration Not Environment-Aware
 
 **Priority:** Low
-**Effort:** 30 minutes
-**Files Affected:**
-- [src/sentry.server.config.ts](src/sentry.server.config.ts)
-- [src/sentry.edge.config.ts](src/sentry.edge.config.ts)
-- [src/instrumentation.ts](src/instrumentation.ts)
+**Effort:** 15 minutes (estimated 30 minutes)
+**Status:** ✅ **COMPLETED** (2025-10-28)
 
-**Current State:**
-```typescript
-Sentry.init({
-  enabled: process.env.NODE_ENV === 'production',
-  dsn: process.env.SENTRY_DSN,
-  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
-  debug: false,
-})
-```
+**What Was Completed:**
+- Added environment tags to both server and edge Sentry configurations
+- Added `beforeSend` safeguard hooks to prevent accidental dev/test error transmission
+- Enhanced configuration with clear comments explaining each layer of protection
+- Verified existing `enabled` flag was already working correctly (no changes needed)
 
-**Investigation:**
-- Sentry is already disabled in non-production! ✅
-- Configuration is actually correct
-- This issue is actually a false positive
+**Results:**
+- ✅ Multi-layer protection: `enabled` flag + `beforeSend` hook + environment tag
+- ✅ All Sentry events now tagged with environment (production/development/test)
+- ✅ Environment-based filtering enabled in Sentry dashboard
+- ✅ Defense-in-depth approach prevents accidental dev error transmission
+- ✅ Build completed successfully with no errors
+- ✅ Both server and edge configs have identical protection mechanisms
 
-**Implementation Steps:**
+**Key Learnings:**
+- Configuration was already mostly correct - `enabled` flag properly set
+- Adding environment tags significantly improves Sentry dashboard usability
+- `beforeSend` hook provides valuable extra safety layer for defense-in-depth
+- Consistent configuration across server and edge runtimes prevents subtle bugs
 
-1. **Verify Configuration** (10 min)
-   - Check that `enabled: process.env.NODE_ENV === 'production'` works
-   - Test that dev errors don't go to Sentry
-
-2. **Add Environment Filter** (optional, 20 min)
-   ```typescript
-   Sentry.init({
-     enabled: process.env.NODE_ENV === 'production',
-     dsn: process.env.SENTRY_DSN,
-     environment: process.env.NODE_ENV || 'development',
-
-     beforeSend(event, hint) {
-       // Extra safeguard: Don't send dev/test events
-       if (process.env.NODE_ENV !== 'production') {
-         return null
-       }
-       return event
-     },
-
-     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
-     debug: false,
-   })
-   ```
-
-**Success Criteria:**
-- ✅ No dev errors in Sentry
-- ✅ Production errors captured correctly
-- ✅ Environment tag visible in Sentry
-
-**Note:** This issue is already mostly resolved. The current configuration is correct.
+**Detailed Report:** See [ISSUE_22_COMPLETION.md](ISSUE_22_COMPLETION.md)
 
 ---
 
