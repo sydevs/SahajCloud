@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import { useFormFields } from '@payloadcms/ui'
 
 interface HighUsageAlertProps {
@@ -21,7 +20,7 @@ interface FormFieldValue {
   value?: UsageStatsValue
 }
 
-export const HighUsageAlert: React.FC<HighUsageAlertProps> = ({ clientProps }) => {
+export const HighUsageAlert = ({ clientProps }: HighUsageAlertProps) => {
   const fields = useFormFields(([fields]) => fields)
   const threshold = clientProps?.threshold || 1000
   

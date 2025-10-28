@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import { useField } from '@payloadcms/ui'
 import { PublishStatePill, getPublishState } from './PublishStateCell'
 

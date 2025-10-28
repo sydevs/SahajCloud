@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import { Component, type ReactNode, type ComponentType, type ErrorInfo } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { logger } from '@/lib/logger'
 
@@ -10,11 +10,11 @@ interface ErrorBoundaryState {
 }
 
 interface ErrorBoundaryProps {
-  children: React.ReactNode
-  fallback?: React.ComponentType<{ error: Error; reset: () => void }>
+  children: ReactNode
+  fallback?: ComponentType<{ error: Error; reset: () => void }>
 }
 
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { hasError: false }
@@ -27,7 +27,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     }
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log error to Sentry
     Sentry.captureException(error, {
       tags: {

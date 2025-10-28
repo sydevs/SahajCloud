@@ -1,6 +1,6 @@
 'use client'
+import type { ReactNode } from 'react'
 
-import React from 'react'
 import { DefaultCellComponentProps } from 'payload'
 import { usePayloadAPI, Link } from '@payloadcms/ui'
 import { RowData } from 'node_modules/payload/dist/admin/elements/Cell'
@@ -31,10 +31,10 @@ const getThumbailDimensions = (aspectRatio: string, size: 'small' | 'medium' | '
 }
 
 // Component for direct upload thumbnails
-const DirectUploadThumbnail: React.FC<{ rowData: RowData; cellData: unknown }> = ({
+const DirectUploadThumbnail = ({
   rowData,
   cellData,
-}) => {
+}: { rowData: RowData; cellData: unknown }) => {
   const fileUrl = rowData?.url || (typeof cellData === 'string' ? cellData : undefined)
   const mimeType = rowData?.mimeType
   const altText = rowData?.filename || 'Upload'
@@ -232,7 +232,7 @@ export const ThumbnailCell: React.FC<
     rowData?.url &&
     (rowData.mimeType?.startsWith('image/') || rowData.mimeType?.startsWith('video/'))
 
-  let content: React.ReactNode
+  let content: ReactNode
 
   if (isPreviewUrl) {
     // For previewUrl field - cellData contains the URL directly
