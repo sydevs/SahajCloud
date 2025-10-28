@@ -11,6 +11,7 @@ import React, {
 import type { KeyframeData } from './types'
 import { getCurrentFrame, isVideoFile, getMediaUrl } from './utils'
 import { SIZES } from './constants'
+import { logger } from '@/lib/logger'
 import {
   AudioPlayerContainer,
   AudioPreview,
@@ -114,7 +115,10 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
           currentBlobRef.current = blobUrl
           setAudioBlob(blobUrl)
         } catch (error) {
-          console.warn('Failed to load audio as blob, using direct URL:', error)
+          logger.warn('Failed to load audio as blob, using direct URL', {
+            audioUrl,
+            error: error instanceof Error ? error.message : String(error),
+          })
           currentBlobRef.current = audioUrl
           setAudioBlob(audioUrl) // Fallback to direct URL
         } finally {
@@ -177,7 +181,11 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
           setCurrentTime(clampedTime)
           onSeek?.(clampedTime)
         } catch (error) {
-          console.warn('Seek failed:', error)
+          logger.warn('Audio seek failed', {
+            targetTime: clampedTime,
+            duration,
+            error: error instanceof Error ? error.message : String(error),
+          })
         }
       },
       [duration, onSeek],

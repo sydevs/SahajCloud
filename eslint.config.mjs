@@ -28,6 +28,8 @@ const eslintConfig = [
           caughtErrorsIgnorePattern: '^(_|ignore)',
         },
       ],
+      // Disallow console methods - use logger from @/lib/logger instead
+      'no-console': 'warn',
     },
   },
   {

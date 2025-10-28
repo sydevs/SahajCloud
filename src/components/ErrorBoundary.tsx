@@ -2,6 +2,7 @@
 
 import React from 'react'
 import * as Sentry from '@sentry/nextjs'
+import { logger } from '@/lib/logger'
 
 interface ErrorBoundaryState {
   hasError: boolean
@@ -37,7 +38,9 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       },
     })
 
-    console.error('Admin interface error caught by boundary:', error, errorInfo)
+    logger.error('Admin interface error caught by boundary', error, {
+      componentStack: errorInfo.componentStack,
+    })
   }
 
   render() {

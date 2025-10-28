@@ -1,4 +1,5 @@
 import type { TaskConfig } from 'payload'
+import { logger } from '@/lib/logger'
 
 export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
   retries: 2,
@@ -24,7 +25,6 @@ export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
     },
   ],
   handler: async ({ req }) => {
-    const logger = req.payload.logger
     const maxDeletions = 1000
     const gracePeriodHours = 24
 

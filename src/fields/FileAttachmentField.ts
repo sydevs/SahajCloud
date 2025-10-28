@@ -7,6 +7,7 @@ import type {
   CollectionSlug,
   FieldBase,
 } from 'payload'
+import { logger } from '@/lib/logger'
 
 export type FileAttachmentFieldOptions = {
   /** Field name */
@@ -129,9 +130,11 @@ const setFileOwnerHook: FieldHook = async ({ value, data, req, collection }) => 
         },
       },
     })
-    console.log(
-      `FileAttachmentField: Set owner for file attachment ${value} to ${collection?.slug}:${data.id}`,
-    )
+    logger.debug('Set file attachment owner', {
+      fileAttachmentId: value,
+      ownerCollection: collection?.slug,
+      ownerId: data.id,
+    })
   } else {
     // New document - track file in context for later assignment
     req.context = req.context || {}

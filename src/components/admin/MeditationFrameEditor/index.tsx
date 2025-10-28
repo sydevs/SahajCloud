@@ -7,6 +7,7 @@ import type { MeditationFrameEditorProps, KeyframeData } from './types'
 import type { Narrator } from '@/payload-types'
 import { sortFramesByTimestamp } from './utils'
 import { LoadingState, EmptyState } from './styled'
+import { logger } from '@/lib/logger'
 
 const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
   path,
@@ -56,14 +57,16 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
               setNarrator(null)
             }
           } catch (error) {
-            console.error('Failed to load narrator data:', error)
+            logger.error('Failed to load narrator data', error, {
+              narratorId: narratorField.value,
+            })
             setNarrator(null)
           }
         } else {
           setNarrator(null)
         }
       } catch (error) {
-        console.error('Failed to load meditation data:', error)
+        logger.error('Failed to load meditation data', error)
       } finally {
         setIsLoading(false)
       }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
+import { logger } from '@/lib/logger'
 
 export async function GET(
   request: NextRequest,
@@ -78,7 +79,9 @@ export async function GET(
       },
     })
   } catch (error) {
-    console.error('Error serving media file:', error)
+    logger.error('Error serving media file', error, {
+      path: (await params).path.join('/'),
+    })
     return new NextResponse('Internal Server Error', { status: 500 })
   }
 }

@@ -39,8 +39,6 @@ export const getPublishState = (publishAt?: string): PublishState => {
 }
 
 export const PublishStateCell: React.FC<DefaultCellComponentProps> = ({ cellData }) => {
-  console.log('publishAt', cellData)
-
   return (
     <>
       <PublishStatePill state={getPublishState(cellData)} />

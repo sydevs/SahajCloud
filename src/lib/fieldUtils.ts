@@ -9,6 +9,7 @@ import { PayloadRequest } from 'payload'
 import sharp from 'sharp'
 import slugify from 'slugify'
 import { extractFileMetadata, extractVideoThumbnail } from './fileUtils'
+import { logger } from './logger'
 import tmp from 'tmp'
 import fs from 'fs'
 
@@ -160,10 +161,10 @@ export const generateVideoThumbnailHook: CollectionAfterChangeHook = async ({
 
     return updatedDoc
   } catch (error) {
-    console.warn(
-      'Failed to store video thumbnail:',
-      error instanceof Error ? error.message : 'Unknown error',
-    )
+    logger.warn('Failed to generate video thumbnail', {
+      frameId: doc.id,
+      error: error instanceof Error ? error.message : String(error),
+    })
     return doc
   }
 }
@@ -184,9 +185,14 @@ export const setPreviewUrlHook: CollectionAfterReadHook = async ({ doc, req }) =
           doc.previewUrl = thumbnailDoc.url
           return doc
         }
-      } catch (_error) {
+      } catch (error) {
         // Thumbnail not found (e.g., deleted or invalid reference), skip gracefully
         // This can happen during collection resets or data migration
+        logger.warn('Thumbnail reference not found for frame', {
+          frameId: doc.id,
+          thumbnailId: doc.thumbnail,
+          error: error instanceof Error ? error.message : String(error),
+        })
       }
     } else if (typeof doc.thumbnail === 'object' && doc.thumbnail?.url) {
       doc.previewUrl = doc.thumbnail.url
