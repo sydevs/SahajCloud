@@ -134,7 +134,7 @@ const FramePreview: React.FC<FramePreviewProps> = ({
             />
           ) : (
             <img
-              src={getMediaUrl(currentFrame, 'medium') || currentFrame.url || ''}
+              src={getMediaUrl(currentFrame, 'large') || currentFrame.url || ''}
               alt={currentFrame.category}
               style={{
                 width: '100%',

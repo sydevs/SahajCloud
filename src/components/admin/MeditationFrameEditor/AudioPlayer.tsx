@@ -377,7 +377,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
               </>
             ) : (
               <img
-                src={getMediaUrl(currentFrame, 'medium') || undefined}
+                src={getMediaUrl(currentFrame, 'large') || undefined}
                 alt={currentFrame.category}
                 style={{
                   width: '100%',
