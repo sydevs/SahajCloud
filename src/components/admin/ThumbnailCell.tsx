@@ -32,11 +32,11 @@ const getThumbailDimensions = (aspectRatio: string, size: 'small' | 'medium' | '
 }
 
 // Component for direct upload thumbnails
-const DirectUploadThumbnail: React.FC<{ rowData: RowData; cellData: any }> = ({
+const DirectUploadThumbnail: React.FC<{ rowData: RowData; cellData: unknown }> = ({
   rowData,
   cellData,
 }) => {
-  const fileUrl = rowData?.url || cellData
+  const fileUrl = rowData?.url || (typeof cellData === 'string' ? cellData : undefined)
   const mimeType = rowData?.mimeType
   const altText = rowData?.filename || 'Upload'
 
@@ -164,7 +164,7 @@ const DirectUploadThumbnail: React.FC<{ rowData: RowData; cellData: any }> = ({
 
 // Component for relationship thumbnails
 const RelationshipThumbnail: React.FC<{
-  cellData: any
+  cellData: string
   aspectRatio?: string
   size?: 'small' | 'medium' | 'large'
 }> = ({ cellData, aspectRatio = '1:1', size = 'medium' }) => {

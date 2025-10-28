@@ -628,10 +628,15 @@ export interface Lesson {
  */
 export interface FileAttachment {
   id: string;
-  owner?: {
-    relationTo: 'lessons';
-    value: string | Lesson;
-  } | null;
+  owner?:
+    | ({
+        relationTo: 'lessons';
+        value: string | Lesson;
+      } | null)
+    | ({
+        relationTo: 'frames';
+        value: string | Frame;
+      } | null);
   createdAt: string;
   updatedAt: string;
   url?: string | null;
@@ -643,20 +648,6 @@ export interface FileAttachment {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "external-videos".
- */
-export interface ExternalVideo {
-  id: string;
-  title: string;
-  thumbnail: string | Media;
-  videoUrl: string;
-  subtitlesUrl?: string | null;
-  category?: ('shri-mataji' | 'techniques' | 'other')[] | null;
-  updatedAt: string;
-  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -752,6 +743,20 @@ export interface Frame {
       filename?: string | null;
     };
   };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "external-videos".
+ */
+export interface ExternalVideo {
+  id: string;
+  title: string;
+  thumbnail: string | Media;
+  videoUrl: string;
+  subtitlesUrl?: string | null;
+  category?: ('shri-mataji' | 'techniques' | 'other')[] | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

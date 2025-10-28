@@ -192,6 +192,7 @@ export const testData = {
     return (await payload.create({
       collection: 'meditations',
       data: {
+        label: overrides.label || overrides.title || 'Test Meditation with Audio',
         title: overrides.title || 'Test Meditation with Audio',
         duration: overrides.duration || 15,
         thumbnail: thumbnail,

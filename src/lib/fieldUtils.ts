@@ -141,7 +141,7 @@ export const generateVideoThumbnailHook: CollectionAfterChangeHook = async ({
       collection: 'file-attachments',
       data: {
         owner: {
-          relationTo: collection.slug as any,
+          relationTo: collection.slug as 'lessons' | 'frames',
           value: doc.id,
         },
       },

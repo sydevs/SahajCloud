@@ -1,3 +1,4 @@
+import { Frame } from '@/payload-types'
 import { LIMITS } from './constants'
 import type { KeyframeData } from './types'
 
@@ -82,10 +83,10 @@ export const isVideoFile = (mimeType?: string | null): boolean => {
 }
 
 export const getMediaUrl = (
-  frame: any,
-  size: 'small' | 'medium' | 'large' = 'medium',
+  frame: Frame,
+  size: 'small' | 'large' = 'small',
 ): string | undefined => {
-  return frame?.sizes?.[size]?.url || frame?.url
+  return frame?.sizes?.[size]?.url || frame?.url || undefined
 }
 
 export const roundToNearestSecond = (time: number): number => {

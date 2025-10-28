@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, Validate } from 'payload'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
@@ -59,14 +59,14 @@ export const Meditations: CollectionConfig = {
                 description:
                   'This should be the name of the yogi who did the recording. We need this for dynamic followup audio clips.',
               },
-              validate: (value: unknown, options: any) => {
+              validate: ((value, options) => {
                 // Only required during update
                 const isUpdate = options.operation === 'update' || !!options.id
                 if (isUpdate && !value) {
                   return 'Narrator is required'
                 }
                 return true
-              },
+              }) as Validate,
             },
             {
               name: 'musicTag',
@@ -123,14 +123,14 @@ export const Meditations: CollectionConfig = {
               name: 'title',
               type: 'text',
               label: 'Public Title',
-              validate: (value: unknown, options: any) => {
+              validate: ((value, options) => {
                 // Only required during update
                 const isUpdate = options.operation === 'update' || !!options.id
                 if (isUpdate && !value) {
                   return 'Public Title is required'
                 }
                 return true
-              },
+              }) as Validate,
             },
             ...SlugField('title', {
               slugOverrides: {
@@ -143,14 +143,14 @@ export const Meditations: CollectionConfig = {
                 required: false, // Conditionally required via validation
                 tagName: 'meditation-thumbnail',
               }),
-              validate: (value: unknown, options: any) => {
+              validate: ((value, options) => {
                 // Only required during update
                 const isUpdate = options.operation === 'update' || !!options.id
                 if (isUpdate && !value) {
                   return 'Thumbnail is required'
                 }
                 return true
-              },
+              }) as Validate,
             },
             {
               name: 'tags',
