@@ -5,11 +5,17 @@ import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
 import { KeyframeData, KeyframeDefinition } from '@/components/admin/MeditationFrameEditor/types'
 import { MediaField } from '@/fields'
 import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
+import { logger } from '@/lib/logger'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
   access: permissionBasedAccess('meditations'),
   trash: true,
+  indexes: [
+    {
+      fields: ['tags'],
+    },
+  ],
   upload: {
     staticDir: 'media/meditations',
     bulkUpload: false,
@@ -275,9 +281,15 @@ export const Meditations: CollectionConfig = {
                           timestamp: Math.round(v.timestamp),
                         } as KeyframeData
                       })
-                    } catch (_error) {
+                    } catch (error) {
                       // If frames have thumbnails that reference deleted media, gracefully skip frame enrichment
                       // This can happen during import operations with --reset when media is deleted
+                      logger.warn('Failed to enrich frame data for meditation', {
+                        frameCount: frames.length,
+                        frameIds: frameIds.slice(0, 5), // Log first 5 IDs to avoid too much data
+                        error: error instanceof Error ? error.message : String(error),
+                      })
+
                       // Return basic frame data without enrichment
                       return frames.map((v) => ({
                         ...v,

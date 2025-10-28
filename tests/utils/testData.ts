@@ -52,9 +52,6 @@ export const testData = {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
 
-    // Convert Buffer to Uint8Array for file-type compatibility
-    const uint8Array = new Uint8Array(fileBuffer)
-
     return (await payload.create({
       collection: 'media',
       data: {
@@ -62,10 +59,10 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: uint8Array as any, // Type assertion for Payload compatibility
+        data: fileBuffer,
         mimetype: `image/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
-        size: uint8Array.length,
+        size: fileBuffer.length,
       },
     })) as Media
   },
@@ -80,7 +77,6 @@ export const testData = {
   ): Promise<FileAttachment> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
-    const uint8Array = new Uint8Array(fileBuffer)
 
     return (await payload.create({
       collection: 'file-attachments',
@@ -88,10 +84,10 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: uint8Array as any,
+        data: fileBuffer,
         mimetype: `image/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
-        size: uint8Array.length,
+        size: fileBuffer.length,
       },
     })) as FileAttachment
   },
@@ -169,9 +165,6 @@ export const testData = {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
 
-    // Convert Buffer to Uint8Array for file-type compatibility
-    const uint8Array = new Uint8Array(fileBuffer)
-
     // Create dependencies if not provided
     let thumbnail = deps?.thumbnail
     let narrator = deps?.narrator
@@ -202,13 +195,13 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: uint8Array as any, // Type assertion for Payload compatibility
+        data: fileBuffer,
         mimetype:
           path.extname(sampleFile).slice(1) === 'mp3'
             ? 'audio/mpeg'
             : `audio/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
-        size: uint8Array.length,
+        size: fileBuffer.length,
       },
     })) as Meditation
   },
@@ -224,9 +217,6 @@ export const testData = {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
 
-    // Convert Buffer to Uint8Array for file-type compatibility
-    const uint8Array = new Uint8Array(fileBuffer)
-
     return (await payload.create({
       collection: 'music',
       data: {
@@ -235,13 +225,13 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: uint8Array as any, // Type assertion for Payload compatibility
+        data: fileBuffer,
         mimetype:
           path.extname(sampleFile).slice(1) === 'mp3'
             ? 'audio/mpeg'
             : `audio/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
-        size: uint8Array.length,
+        size: fileBuffer.length,
       },
     })) as Music
   },
@@ -256,9 +246,6 @@ export const testData = {
   ): Promise<Frame> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
-
-    // Convert Buffer to Uint8Array for file-type compatibility
-    const uint8Array = new Uint8Array(fileBuffer)
 
     // Get correct mimetype based on file extension
     const extension = path.extname(sampleFile).slice(1).toLowerCase()
@@ -289,10 +276,10 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: uint8Array as any, // Type assertion for Payload compatibility
+        data: fileBuffer,
         mimetype: mimetype,
         name: sampleFile,
-        size: uint8Array.length,
+        size: fileBuffer.length,
       },
     })) as Frame
   },

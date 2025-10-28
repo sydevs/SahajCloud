@@ -4,6 +4,12 @@ import type { CollectionConfig } from 'payload'
 export const Managers: CollectionConfig = {
   slug: 'managers',
   access: adminOnlyAccess(),
+  indexes: [
+    {
+      fields: ['email'],
+      unique: true,
+    },
+  ],
   auth: {
     verify: false, // TODO: Re-enable this but ensure there are proper warnings.
     maxLoginAttempts: 5,

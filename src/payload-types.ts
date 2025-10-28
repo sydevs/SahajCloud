@@ -785,7 +785,25 @@ export interface Manager {
         /**
          * Select which locales this permission applies to. "All Locales" grants unrestricted locale access.
          */
-        locales: ('all' | 'en' | 'cs')[];
+        locales: (
+          | 'all'
+          | 'en'
+          | 'es'
+          | 'de'
+          | 'it'
+          | 'fr'
+          | 'ru'
+          | 'ro'
+          | 'cs'
+          | 'uk'
+          | 'el'
+          | 'hy'
+          | 'pl'
+          | 'pt-br'
+          | 'fa'
+          | 'bg'
+          | 'tr'
+        )[];
         id?: string | null;
       }[]
     | null;
@@ -841,7 +859,25 @@ export interface Client {
         /**
          * Select which locales this permission applies to. "All Locales" grants unrestricted locale access.
          */
-        locales: ('all' | 'en' | 'cs')[];
+        locales: (
+          | 'all'
+          | 'en'
+          | 'es'
+          | 'de'
+          | 'it'
+          | 'fr'
+          | 'ru'
+          | 'ro'
+          | 'cs'
+          | 'uk'
+          | 'el'
+          | 'hy'
+          | 'pl'
+          | 'pt-br'
+          | 'fa'
+          | 'bg'
+          | 'tr'
+        )[];
         id?: string | null;
       }[]
     | null;

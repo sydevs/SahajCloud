@@ -22,6 +22,14 @@ export const Frames: CollectionConfig = {
   },
   slug: 'frames',
   access: permissionBasedAccess('frames'),
+  indexes: [
+    {
+      fields: ['imageSet'],
+    },
+    {
+      fields: ['tags'],
+    },
+  ],
   upload: {
     staticDir: 'media/frames',
     hideRemoveFile: true,

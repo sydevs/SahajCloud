@@ -8,6 +8,7 @@ import type {
   PayloadRequest,
   TypedUser,
 } from 'payload'
+import { LOCALES, LocaleCode } from '@/lib/locales'
 
 const PERMISSION_LEVELS = ['read', 'translate', 'manage'] as const
 type PermissionLevel = (typeof PERMISSION_LEVELS)[number]
@@ -23,8 +24,7 @@ export const PERMISSION_COLLECTIONS = [
 ] as const
 type PermissionCollection = (typeof PERMISSION_COLLECTIONS)[number]
 
-type AvailableLocale = 'en' | 'cs'
-type PermissionLocale = AvailableLocale | 'all'
+type PermissionLocale = LocaleCode | 'all'
 
 // Permission types
 export interface Permission {
@@ -38,14 +38,10 @@ const LOCALE_OPTIONS: Array<{ label: string; value: PermissionLocale }> = [
     label: 'All Locales',
     value: 'all',
   },
-  {
-    label: 'English',
-    value: 'en',
-  },
-  {
-    label: 'Czech',
-    value: 'cs',
-  },
+  ...LOCALES.map((l) => ({
+    label: l.label,
+    value: l.code as PermissionLocale,
+  })),
 ]
 
 /**
@@ -69,7 +65,7 @@ export const hasPermission = ({
   collection: string
   operation: Operation
   field?: { localized: boolean }
-  locale?: AvailableLocale
+  locale?: LocaleCode
 }): boolean => {
   const isClient = user?.collection === 'clients'
 

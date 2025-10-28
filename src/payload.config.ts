@@ -13,6 +13,7 @@ import sharp from 'sharp'
 import { adminOnlyAccess, permissionBasedAccess } from '@/lib/accessControl'
 import { collections, Managers } from './collections'
 import { globals } from './globals'
+import { LOCALES, DEFAULT_LOCALE } from '@/lib/locales'
 import { tasks } from './jobs'
 
 const filename = fileURLToPath(import.meta.url)
@@ -25,25 +26,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
   return buildConfig({
     serverURL: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
     localization: {
-      locales: [
-        'en',
-        'es',
-        'de',
-        'it',
-        'fr',
-        'ru',
-        'ro',
-        'cs',
-        'uk',
-        'el',
-        'hy',
-        'pl',
-        'pt-br',
-        'fa',
-        'bg',
-        'tr',
-      ],
-      defaultLocale: 'en',
+      locales: LOCALES.map((l) => l.code),
+      defaultLocale: DEFAULT_LOCALE,
     },
     cors: [
       process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173',
