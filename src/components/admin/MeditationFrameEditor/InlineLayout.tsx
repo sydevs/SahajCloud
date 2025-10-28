@@ -6,7 +6,7 @@ import FrameLibrary from './FrameLibrary'
 import FrameManager from './FrameManager'
 import type { KeyframeData } from './types'
 import type { Narrator, Frame } from '@/payload-types'
-import { pauseAllMedia, roundToNearestSecond } from './utils'
+import { roundToNearestSecond } from './utils'
 import {
   InlineContent,
   LeftColumn,

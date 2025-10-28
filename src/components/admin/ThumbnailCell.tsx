@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import Image from 'next/image'
 import { DefaultCellComponentProps } from 'payload'
 import { usePayloadAPI, Link } from '@payloadcms/ui'
 import { RowData } from 'node_modules/payload/dist/admin/elements/Cell'

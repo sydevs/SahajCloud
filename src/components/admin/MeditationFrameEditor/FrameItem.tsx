@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, memo } from 'react'
-import Image from 'next/image'
 import { isVideoFile, getMediaUrl } from './utils'
 import { LIMITS } from './constants'
 import { FrameItemContainer, FrameTags } from './styled'

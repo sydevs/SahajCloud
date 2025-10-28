@@ -3,7 +3,6 @@
 import React, { useCallback } from 'react'
 import type { KeyframeData } from './types'
 import { validateTimestamp, sortFramesByTimestamp, isVideoFile } from './utils'
-import { SIZES } from './constants'
 import {
   ComponentContainer,
   ComponentHeader,

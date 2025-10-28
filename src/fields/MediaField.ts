@@ -77,8 +77,9 @@ export function MediaField(options: MediaFieldOptions): UploadField {
 /**
  * Generate orientation filter conditions based on width/height ratio
  * from fileMetadata stored in Media collection
+ * @internal Reserved for future orientation filtering feature
  */
-function getOrientationFilter(orientation: MediaFieldOptions['orientation']) {
+function _getOrientationFilter(orientation: MediaFieldOptions['orientation']) {
   switch (orientation) {
     case 'landscape':
       return [
