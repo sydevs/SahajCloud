@@ -89,27 +89,27 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     ...(isTestEnvironment
       ? {}
       : {
-          // email: nodemailerAdapter(
-          //   isProduction
-          //     ? {
-          //         defaultFromAddress: process.env.SMTP_FROM || 'contact@sydevelopers.com',
-          //         defaultFromName: 'SY Developers',
-          //         transportOptions: {
-          //           host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          //           port: Number(process.env.SMTP_PORT) || 587,
-          //           secure: false, // Use STARTTLS
-          //           auth: {
-          //             user: process.env.SMTP_USER,
-          //             pass: process.env.SMTP_PASS,
-          //           },
-          //         },
-          //       }
-          //     : {
-          //         defaultFromAddress: 'dev@sydevelopers.com',
-          //         defaultFromName: 'SY Developers (Dev)',
-          //         // No transportOptions - uses Ethereal Email in development
-          //       },
-          // ),
+          email: nodemailerAdapter(
+            isProduction
+              ? {
+                  defaultFromAddress: process.env.SMTP_FROM || 'contact@sydevelopers.com',
+                  defaultFromName: 'We Meditate Admin',
+                  transportOptions: {
+                    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+                    port: Number(process.env.SMTP_PORT) || 587,
+                    secure: false, // Use STARTTLS
+                    auth: {
+                      user: process.env.SMTP_USER,
+                      pass: process.env.SMTP_PASS,
+                    },
+                  },
+                }
+              : {
+                  defaultFromAddress: 'dev@wemeditate.com',
+                  defaultFromName: 'We Meditate Admin (Dev)',
+                  // No transportOptions - uses Ethereal Email in development
+                },
+          ),
         }),
     sharp,
     plugins: [

@@ -59,7 +59,7 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileBuffer,
+        data: new Uint8Array(fileBuffer),
         mimetype: `image/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
         size: fileBuffer.length,
@@ -84,7 +84,7 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileBuffer,
+        data: new Uint8Array(fileBuffer),
         mimetype: `image/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
         size: fileBuffer.length,
@@ -195,7 +195,7 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileBuffer,
+        data: new Uint8Array(fileBuffer),
         mimetype:
           path.extname(sampleFile).slice(1) === 'mp3'
             ? 'audio/mpeg'
@@ -225,7 +225,7 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileBuffer,
+        data: new Uint8Array(fileBuffer),
         mimetype:
           path.extname(sampleFile).slice(1) === 'mp3'
             ? 'audio/mpeg'
@@ -276,7 +276,7 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileBuffer,
+        data: new Uint8Array(fileBuffer),
         mimetype: mimetype,
         name: sampleFile,
         size: fileBuffer.length,

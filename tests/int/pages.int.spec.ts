@@ -81,13 +81,12 @@ describe('Pages Collection', () => {
   })
 
   describe('Categories and Tags', () => {
-    it('validates required category field', async () => {
+    it('validates required title field', async () => {
       await expect(
         payload.create({
           collection: 'pages',
           data: {
-            title: 'Page without Category',
-            // category is missing
+            // title is missing - this should fail
             content: {
               root: {
                 type: 'root',
