@@ -26,9 +26,6 @@ export const Frames: CollectionConfig = {
     {
       fields: ['imageSet'],
     },
-    {
-      fields: ['tags'],
-    },
   ],
   upload: {
     staticDir: 'media/frames',

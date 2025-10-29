@@ -15,11 +15,6 @@ export const Pages: CollectionConfig = {
   slug: 'pages',
   access: permissionBasedAccess('pages'),
   trash: true,
-  indexes: [
-    {
-      fields: ['tags'],
-    },
-  ],
   admin: {
     group: 'Content',
     useAsTitle: 'title',

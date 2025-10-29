@@ -11,11 +11,6 @@ export const Meditations: CollectionConfig = {
   slug: 'meditations',
   access: permissionBasedAccess('meditations'),
   trash: true,
-  indexes: [
-    {
-      fields: ['tags'],
-    },
-  ],
   upload: {
     staticDir: 'media/meditations',
     bulkUpload: false,

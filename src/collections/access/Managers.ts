@@ -4,12 +4,6 @@ import type { CollectionConfig } from 'payload'
 export const Managers: CollectionConfig = {
   slug: 'managers',
   access: adminOnlyAccess(),
-  indexes: [
-    {
-      fields: ['email'],
-      unique: true,
-    },
-  ],
   auth: {
     verify: {
       generateEmailHTML: ({ token, user }) => {
