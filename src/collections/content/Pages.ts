@@ -1,6 +1,6 @@
-import type { CollectionConfig } from 'payload'
-import { permissionBasedAccess } from '@/lib/accessControl'
-import { fullRichTextEditor } from '@/lib/richEditor'
+import type { CollectionConfig } from "payload";
+import { permissionBasedAccess } from "@/lib/accessControl";
+import { fullRichTextEditor } from "@/lib/richEditor";
 import {
   TextBoxBlock,
   LayoutBlock,
@@ -8,21 +8,22 @@ import {
   CatalogBlock,
   ButtonBlock,
   QuoteBlock,
-} from '@/blocks/pages'
-import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
+} from "@/blocks/pages";
+import { SlugField } from "@nouance/payload-better-fields-plugin/Slug";
 
 export const Pages: CollectionConfig = {
-  slug: 'pages',
-  access: permissionBasedAccess('pages'),
+  slug: "pages",
+  access: permissionBasedAccess("pages"),
   trash: true,
   admin: {
-    group: 'Content',
-    useAsTitle: 'title',
-    defaultColumns: ['title', 'publishAt'],
+    group: "Content",
+    useAsTitle: "title",
+    defaultColumns: ["title", "publishAt"],
     livePreview: {
       url: ({ data, locale }) => {
-        const baseURL = process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173'
-        return `${baseURL}/preview?collection=pages&id=${data.id}&locale=${locale.code}`
+        const baseURL =
+          process.env.WEMEDITATE_WEB_URL || "http://localhost:5173";
+        return `${baseURL}/${locale.code}/preview?collection=pages&id=${data.id}`;
       },
     },
   },
@@ -32,20 +33,20 @@ export const Pages: CollectionConfig = {
   },
   fields: [
     {
-      type: 'tabs',
+      type: "tabs",
       tabs: [
         {
-          label: 'Content',
+          label: "Content",
           fields: [
             {
-              name: 'title',
-              type: 'text',
+              name: "title",
+              type: "text",
               required: true,
               localized: true,
             },
             {
-              name: 'content',
-              type: 'richText',
+              name: "content",
+              type: "richText",
               localized: true,
               editor: fullRichTextEditor([
                 TextBoxBlock,
@@ -60,47 +61,47 @@ export const Pages: CollectionConfig = {
         },
       ],
     },
-    ...SlugField('title', {
+    ...SlugField("title", {
       slugOverrides: {
         unique: true,
         admin: {
-          position: 'sidebar',
+          position: "sidebar",
         },
       },
     }),
     {
-      name: 'publishAt',
-      type: 'date',
+      name: "publishAt",
+      type: "date",
       localized: true,
       admin: {
-        position: 'sidebar',
+        position: "sidebar",
         date: {
-          pickerAppearance: 'dayOnly',
+          pickerAppearance: "dayOnly",
           minDate: new Date(),
         },
         components: {
-          Cell: '@/components/admin/PublishStateCell',
-          afterInput: ['@/components/admin/PublishAtAfterInput'],
+          Cell: "@/components/admin/PublishStateCell",
+          afterInput: ["@/components/admin/PublishAtAfterInput"],
         },
       },
     },
     {
-      name: 'author',
-      type: 'relationship',
-      relationTo: 'authors',
+      name: "author",
+      type: "relationship",
+      relationTo: "authors",
       admin: {
-        position: 'sidebar',
-        description: 'Article author (for article pages)',
+        position: "sidebar",
+        description: "Article author (for article pages)",
       },
     },
     {
-      name: 'tags',
-      type: 'relationship',
-      relationTo: 'page-tags',
+      name: "tags",
+      type: "relationship",
+      relationTo: "page-tags",
       hasMany: true,
       admin: {
-        position: 'sidebar',
+        position: "sidebar",
       },
     },
   ],
-}
+};

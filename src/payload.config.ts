@@ -1,41 +1,45 @@
-import { buildConfig, Config } from 'payload'
-import { mongooseAdapter } from '@payloadcms/db-mongodb'
-import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
-import { lexicalEditor } from '@payloadcms/richtext-lexical'
-import { storagePlugin } from './lib/storage'
-import { seoPlugin } from '@payloadcms/plugin-seo'
-import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
+import { buildConfig, Config } from "payload";
+import { mongooseAdapter } from "@payloadcms/db-mongodb";
+import { nodemailerAdapter } from "@payloadcms/email-nodemailer";
+import { lexicalEditor } from "@payloadcms/richtext-lexical";
+import { storagePlugin } from "./lib/storage";
+import { seoPlugin } from "@payloadcms/plugin-seo";
+import { formBuilderPlugin } from "@payloadcms/plugin-form-builder";
 
-import path from 'path'
-import { fileURLToPath } from 'url'
-import sharp from 'sharp'
+import path from "path";
+import { fileURLToPath } from "url";
+import sharp from "sharp";
 
-import { adminOnlyAccess, permissionBasedAccess } from '@/lib/accessControl'
-import { collections, Managers } from './collections'
-import { globals } from './globals'
-import { LOCALES, DEFAULT_LOCALE } from '@/lib/locales'
-import { tasks } from './jobs'
+import { adminOnlyAccess, permissionBasedAccess } from "@/lib/accessControl";
+import { collections, Managers } from "./collections";
+import { globals } from "./globals";
+import { LOCALES, DEFAULT_LOCALE } from "@/lib/locales";
+import { tasks } from "./jobs";
 
-const filename = fileURLToPath(import.meta.url)
-const dirname = path.dirname(filename)
+const filename = fileURLToPath(import.meta.url);
+const dirname = path.dirname(filename);
 
-const isTestEnvironment = process.env.NODE_ENV === 'test'
-const isProduction = process.env.NODE_ENV === 'production'
-const isDevelopment = process.env.NODE_ENV === 'development'
+const isTestEnvironment = process.env.NODE_ENV === "test";
+const isProduction = process.env.NODE_ENV === "production";
+const isDevelopment = process.env.NODE_ENV === "development";
 
 const payloadConfig = (overrides?: Partial<Config>) => {
   return buildConfig({
-    serverURL: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
+    serverURL: process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000",
     localization: {
       locales: LOCALES.map((l) => l.code),
       defaultLocale: DEFAULT_LOCALE,
     },
-    cors: isDevelopment
-      ? '*' // Allow all origins in development for flexible frontend testing
-      : [
-          process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173',
-          process.env.SAHAJATLAS_URL || 'http://localhost:5174',
-        ],
+    cors: [
+      process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000",
+      process.env.WEMEDITATE_WEB_URL || "http://localhost:5173",
+      process.env.SAHAJATLAS_URL || "http://localhost:5174",
+    ],
+    csrf: [
+      process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000",
+      process.env.WEMEDITATE_WEB_URL || "http://localhost:5173",
+      process.env.SAHAJATLAS_URL || "http://localhost:5174",
+    ],
     admin: {
       user: Managers.slug,
       importMap: {
@@ -44,46 +48,46 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       components: {
         providers: [
           {
-            path: '@/components/AdminProvider.tsx',
+            path: "@/components/AdminProvider.tsx",
           },
         ],
         graphics: {
-          Logo: '@/components/branding/Icon',
-          Icon: '@/components/branding/Icon',
+          Logo: "@/components/branding/Icon",
+          Icon: "@/components/branding/Icon",
         },
       },
       // Disable admin UI in test environment
       disable: isTestEnvironment,
-      autoLogin: !isProduction ? { email: 'contact@sydevelopers.com' } : false,
+      autoLogin: !isProduction ? { email: "contact@sydevelopers.com" } : false,
     },
     collections,
     globals,
     editor: lexicalEditor(),
-    secret: process.env.PAYLOAD_SECRET || '',
+    secret: process.env.PAYLOAD_SECRET || "",
     jobs: {
       tasks,
       deleteJobOnComplete: true,
       autoRun: [
         {
-          cron: '0 * * * *', // Runs every hour
-          queue: 'nightly',
+          cron: "0 * * * *", // Runs every hour
+          queue: "nightly",
         },
       ],
       jobsCollectionOverrides: ({ defaultJobsCollection }) => {
         if (!defaultJobsCollection.admin) {
-          defaultJobsCollection.admin = {}
+          defaultJobsCollection.admin = {};
         }
 
-        defaultJobsCollection.admin.hidden = ({ user }) => !user?.admin
-        defaultJobsCollection.access = adminOnlyAccess()
-        return defaultJobsCollection
+        defaultJobsCollection.admin.hidden = ({ user }) => !user?.admin;
+        defaultJobsCollection.access = adminOnlyAccess();
+        return defaultJobsCollection;
       },
     },
     typescript: {
-      outputFile: path.resolve(dirname, 'payload-types.ts'),
+      outputFile: path.resolve(dirname, "payload-types.ts"),
     },
     db: mongooseAdapter({
-      url: process.env.DATABASE_URI || '',
+      url: process.env.DATABASE_URI || "",
     }),
     // Email configuration (disabled in test environment to avoid model conflicts)
     ...(isTestEnvironment
@@ -92,10 +96,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           email: nodemailerAdapter(
             isProduction
               ? {
-                  defaultFromAddress: process.env.SMTP_FROM || 'contact@sydevelopers.com',
-                  defaultFromName: 'We Meditate Admin',
+                  defaultFromAddress:
+                    process.env.SMTP_FROM || "contact@sydevelopers.com",
+                  defaultFromName: "We Meditate Admin",
                   transportOptions: {
-                    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+                    host: process.env.SMTP_HOST || "smtp.gmail.com",
                     port: Number(process.env.SMTP_PORT) || 587,
                     secure: false, // Use STARTTLS
                     auth: {
@@ -105,28 +110,28 @@ const payloadConfig = (overrides?: Partial<Config>) => {
                   },
                 }
               : {
-                  defaultFromAddress: 'dev@wemeditate.com',
-                  defaultFromName: 'We Meditate Admin (Dev)',
+                  defaultFromAddress: "dev@wemeditate.com",
+                  defaultFromName: "We Meditate Admin (Dev)",
                   // No transportOptions - uses Ethereal Email in development
-                },
+                }
           ),
         }),
     sharp,
     plugins: [
       storagePlugin(), // Handles file storage
       seoPlugin({
-        collections: ['pages'],
-        uploadsCollection: 'media',
+        collections: ["pages"],
+        uploadsCollection: "media",
         generateTitle: ({ doc }) => `We Meditate — ${doc.title}`,
         generateDescription: ({ doc }) => doc.content,
         tabbedUI: true,
       }),
       formBuilderPlugin({
-        defaultToEmail: 'contact@sydevelopers.com',
+        defaultToEmail: "contact@sydevelopers.com",
         formOverrides: {
-          access: permissionBasedAccess('forms'),
+          access: permissionBasedAccess("forms"),
           admin: {
-            group: 'Resources',
+            group: "Resources",
           },
         },
         formSubmissionOverrides: {
@@ -137,7 +142,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           },
           admin: {
             hidden: ({ user }) => !user?.admin,
-            group: 'System',
+            group: "System",
           },
         },
       }),
@@ -149,8 +154,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     },
     // Allow overrides (especially important for test database URIs)
     ...overrides,
-  })
-}
+  });
+};
 
-export { payloadConfig }
-export default payloadConfig()
+export { payloadConfig };
+export default payloadConfig();
