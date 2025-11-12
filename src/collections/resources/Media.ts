@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
-import { permissionBasedAccess } from '@/lib/accessControl'
+
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { permissionBasedAccess } from '@/lib/accessControl'
 import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
 
 export const Media: CollectionConfig = {

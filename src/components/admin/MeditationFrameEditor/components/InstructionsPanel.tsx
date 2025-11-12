@@ -1,8 +1,11 @@
 'use client'
 
-import React from 'react'
 import type { KeyframeData } from '../types'
+
+import React from 'react'
+
 import type { Narrator } from '@/payload-types'
+
 import { InstructionsPanel as StyledInstructionsPanel } from '../styled'
 import { formatTime } from '../utils'
 

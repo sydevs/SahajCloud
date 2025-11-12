@@ -1,6 +1,8 @@
-import { Frame } from '@/payload-types'
-import { LIMITS } from './constants'
 import type { KeyframeData } from './types'
+
+import { Frame } from '@/payload-types'
+
+import { LIMITS } from './constants'
 
 export const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60)

@@ -1,10 +1,12 @@
 import type { CollectionConfig, Validate } from 'payload'
-import { permissionBasedAccess } from '@/lib/accessControl'
-import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
+
+import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
+
 import { KeyframeData, KeyframeDefinition } from '@/components/admin/MeditationFrameEditor/types'
 import { MediaField } from '@/fields'
-import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
+import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { permissionBasedAccess } from '@/lib/accessControl'
+import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
 import { logger } from '@/lib/logger'
 
 export const Meditations: CollectionConfig = {

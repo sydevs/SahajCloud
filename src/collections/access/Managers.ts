@@ -1,5 +1,6 @@
-import { adminOnlyAccess, createPermissionsField } from '@/lib/accessControl'
 import type { CollectionConfig } from 'payload'
+
+import { adminOnlyAccess, createPermissionsField } from '@/lib/accessControl'
 
 export const Managers: CollectionConfig = {
   slug: 'managers',

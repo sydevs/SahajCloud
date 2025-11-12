@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useMemo } from 'react'
 import type { KeyframeData } from './types'
-import { getCurrentFrame, getNextFrameTimestamp, isVideoFile, getMediaUrl } from './utils'
+
+import React, { useMemo } from 'react'
+
 import { COLORS } from './constants'
 import {
   ComponentHeader,
@@ -11,6 +12,7 @@ import {
   TimelineTrack,
   TimelineMarker,
 } from './styled'
+import { getCurrentFrame, getNextFrameTimestamp, isVideoFile, getMediaUrl } from './utils'
 
 interface FramePreviewProps {
   frames: KeyframeData[]

@@ -40,7 +40,7 @@ class Logger {
    */
   debug(message: string, extra?: LogContext) {
     if (isDevelopment) {
-      // eslint-disable-next-line no-console
+       
       console.log(`[DEBUG] ${message}`, this.mergeContext(extra))
     }
   }
@@ -54,7 +54,7 @@ class Logger {
    */
   info(message: string, extra?: LogContext) {
     if (isDevelopment || isTest) {
-      // eslint-disable-next-line no-console
+       
       console.info(`[INFO] ${message}`, this.mergeContext(extra))
     }
 
@@ -74,7 +74,7 @@ class Logger {
    */
   warn(message: string, extra?: LogContext) {
     if (isDevelopment || isTest) {
-      // eslint-disable-next-line no-console
+       
       console.warn(`[WARN] ${message}`, this.mergeContext(extra))
     }
 
@@ -97,7 +97,7 @@ class Logger {
     const context = this.mergeContext(extra)
 
     if (isDevelopment || isTest) {
-      // eslint-disable-next-line no-console
+       
       console.error(`[ERROR] ${message}`, error, context)
     }
 

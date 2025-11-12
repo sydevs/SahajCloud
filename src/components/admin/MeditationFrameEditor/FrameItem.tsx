@@ -1,10 +1,11 @@
 'use client'
 
 import React, { useState, memo } from 'react'
-import { isVideoFile, getMediaUrl } from './utils'
+
 import { LIMITS } from './constants'
 import { FrameItemContainer, FrameTags } from './styled'
 import { KeyframeData } from './types'
+import { isVideoFile, getMediaUrl } from './utils'
 
 export interface FrameItemProps {
   frame: Omit<KeyframeData, 'timestamp'> & Partial<Pick<KeyframeData, 'timestamp'>>

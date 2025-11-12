@@ -1,9 +1,9 @@
 'use client'
 import type { ReactNode } from 'react'
 
-import { DefaultCellComponentProps } from 'payload'
 import { usePayloadAPI, Link } from '@payloadcms/ui'
 import { RowData } from 'node_modules/payload/dist/admin/elements/Cell'
+import { DefaultCellComponentProps } from 'payload'
 
 // Calculate dimensions based on aspect ratio and size
 const getThumbailDimensions = (aspectRatio: string, size: 'small' | 'medium' | 'large') => {

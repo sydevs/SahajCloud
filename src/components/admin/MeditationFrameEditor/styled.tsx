@@ -1,4 +1,5 @@
 import styled, { css } from 'styled-components'
+
 import { COLORS, GRID_CONFIG } from './constants'
 
 // Inline Content Container

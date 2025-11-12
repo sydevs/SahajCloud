@@ -1,12 +1,14 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import type { Frame, Narrator } from '@/payload-types'
 import type { KeyframeData } from './types'
+
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+
 import { FRAME_CATEGORIES } from '@/lib/data'
-import FrameItem from './FrameItem'
-import { isVideoFile, formatTime } from './utils'
+import type { Frame, Narrator } from '@/payload-types'
+
 import { LIMITS, GRID_CONFIG, SIZES } from './constants'
+import FrameItem from './FrameItem'
 import {
   ComponentContainer,
   ComponentHeader,
@@ -20,6 +22,7 @@ import {
   EmptyState,
   InstructionsPanel,
 } from './styled'
+import { isVideoFile, formatTime } from './utils'
 
 interface FrameLibraryProps {
   narrator: Narrator | null

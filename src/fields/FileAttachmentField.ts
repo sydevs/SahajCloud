@@ -6,8 +6,9 @@ import type {
   FieldHook,
   FieldBase,
 } from 'payload'
-import { extractRelationId } from '@/types/payload-extensions'
+
 import { logger } from '@/lib/logger'
+import { extractRelationId } from '@/types/payload-extensions'
 
 export type FileAttachmentFieldOptions = {
   /** Field name */
