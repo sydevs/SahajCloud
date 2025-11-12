@@ -310,9 +310,13 @@ describe('API', () => {
         },
       })
 
-      // Verify console warning was triggered
+      // Verify console warning was triggered with new logger format
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('High usage alert for client High Usage Client: 1001 requests today')
+        '[WARN] High usage alert for API client',
+        expect.objectContaining({
+          clientName: 'High Usage Client',
+          dailyRequests: 1001,
+        })
       )
 
       consoleWarnSpy.mockRestore()

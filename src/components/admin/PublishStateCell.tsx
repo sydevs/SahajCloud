@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import { Pill } from '@payloadcms/ui'
 import { DefaultCellComponentProps } from 'payload'
 
@@ -38,9 +37,7 @@ export const getPublishState = (publishAt?: string): PublishState => {
   }
 }
 
-export const PublishStateCell: React.FC<DefaultCellComponentProps> = ({ cellData }) => {
-  console.log('publishAt', cellData)
-
+export const PublishStateCell = ({ cellData }: DefaultCellComponentProps) => {
   return (
     <>
       <PublishStatePill state={getPublishState(cellData)} />

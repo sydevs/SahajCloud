@@ -1,5 +1,7 @@
 'use client'
 
+import type { KeyframeData } from './types'
+
 import React, {
   useState,
   useRef,
@@ -8,8 +10,9 @@ import React, {
   useCallback,
   forwardRef,
 } from 'react'
-import type { KeyframeData } from './types'
-import { getCurrentFrame, isVideoFile, getMediaUrl } from './utils'
+
+import { logger } from '@/lib/logger'
+
 import { SIZES } from './constants'
 import {
   AudioPlayerContainer,
@@ -25,6 +28,7 @@ import {
   AudioInfoRight,
   EmptyState,
 } from './styled'
+import { getCurrentFrame, isVideoFile, getMediaUrl } from './utils'
 
 interface AudioPlayerProps {
   audioUrl: string | null
@@ -114,7 +118,10 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
           currentBlobRef.current = blobUrl
           setAudioBlob(blobUrl)
         } catch (error) {
-          console.warn('Failed to load audio as blob, using direct URL:', error)
+          logger.warn('Failed to load audio as blob, using direct URL', {
+            audioUrl,
+            error: error instanceof Error ? error.message : String(error),
+          })
           currentBlobRef.current = audioUrl
           setAudioBlob(audioUrl) // Fallback to direct URL
         } finally {
@@ -177,7 +184,11 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
           setCurrentTime(clampedTime)
           onSeek?.(clampedTime)
         } catch (error) {
-          console.warn('Seek failed:', error)
+          logger.warn('Audio seek failed', {
+            targetTime: clampedTime,
+            duration,
+            error: error instanceof Error ? error.message : String(error),
+          })
         }
       },
       [duration, onSeek],
@@ -369,7 +380,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
               </>
             ) : (
               <img
-                src={getMediaUrl(currentFrame, 'medium') || undefined}
+                src={getMediaUrl(currentFrame, 'large') || undefined}
                 alt={currentFrame.category}
                 style={{
                   width: '100%',

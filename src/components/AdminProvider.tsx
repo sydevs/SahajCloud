@@ -1,13 +1,13 @@
 'use client'
+import type { ReactNode } from 'react'
 
-import React from 'react'
 import ErrorBoundary from './ErrorBoundary'
 
 interface AdminProviderProps {
-  children: React.ReactNode
+  children: ReactNode
 }
 
-const AdminErrorFallback: React.FC<{ error: Error; reset: () => void }> = ({ error, reset }) => (
+const AdminErrorFallback = ({ error, reset }: { error: Error; reset: () => void }) => (
   <div
     style={{
       padding: '40px',
@@ -77,7 +77,7 @@ const AdminErrorFallback: React.FC<{ error: Error; reset: () => void }> = ({ err
   </div>
 )
 
-const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
+const AdminProvider = ({ children }: AdminProviderProps) => {
   return (
     <ErrorBoundary fallback={AdminErrorFallback}>
       {children}

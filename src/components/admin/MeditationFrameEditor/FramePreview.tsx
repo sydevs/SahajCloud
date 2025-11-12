@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useMemo } from 'react'
 import type { KeyframeData } from './types'
-import { getCurrentFrame, getNextFrameTimestamp, isVideoFile, getMediaUrl } from './utils'
+
+import React, { useMemo } from 'react'
+
 import { COLORS } from './constants'
 import {
   ComponentHeader,
@@ -11,6 +12,7 @@ import {
   TimelineTrack,
   TimelineMarker,
 } from './styled'
+import { getCurrentFrame, getNextFrameTimestamp, isVideoFile, getMediaUrl } from './utils'
 
 interface FramePreviewProps {
   frames: KeyframeData[]
@@ -134,7 +136,7 @@ const FramePreview: React.FC<FramePreviewProps> = ({
             />
           ) : (
             <img
-              src={getMediaUrl(currentFrame, 'medium') || currentFrame.url || ''}
+              src={getMediaUrl(currentFrame, 'large') || currentFrame.url || ''}
               alt={currentFrame.category}
               style={{
                 width: '100%',

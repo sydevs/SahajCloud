@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+
 import { permissionBasedAccess } from '@/lib/accessControl'
 
 export const MediaTags: CollectionConfig = {

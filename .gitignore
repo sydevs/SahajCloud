@@ -38,8 +38,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-.env
-
 /media
 
 # Migration cache (contains import data and files)

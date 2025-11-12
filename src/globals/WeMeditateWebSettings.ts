@@ -1,4 +1,5 @@
 import type { GlobalConfig } from 'payload'
+
 import { adminOnlyAccess } from '@/lib/accessControl'
 
 export const WeMeditateWebSettings: GlobalConfig = {

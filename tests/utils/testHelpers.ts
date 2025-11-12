@@ -80,6 +80,12 @@ function createBaseTestConfig(mongoUri: string, emailConfig?: any) {
     email: emailConfig || nodemailerAdapter({
       defaultFromAddress: 'no-reply@test.com',
       defaultFromName: 'Test Suite',
+      skipVerify: true,
+      transportOptions: {
+        // Use streamTransport to avoid Ethereal email logging
+        streamTransport: true,
+        newline: 'unix',
+      } as any,
     }),
   })
 }

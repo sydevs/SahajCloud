@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+
 import { validateClientData, checkHighUsageAlert } from '@/hooks/clientHooks'
 import { adminOnlyAccess, createPermissionsField } from '@/lib/accessControl'
 
@@ -8,6 +9,11 @@ export const Clients: CollectionConfig = {
     useAPIKey: true,
     disableLocalStrategy: true, // Only API key authentication
   },
+  indexes: [
+    {
+      fields: ['active'],
+    },
+  ],
   labels: {
     singular: 'Service',
     plural: 'Services',

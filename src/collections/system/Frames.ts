@@ -1,6 +1,12 @@
 import type { CollectionConfig } from 'payload'
-import { permissionBasedAccess } from '@/lib/accessControl'
+
+import { FileAttachmentField } from '@/fields'
+import {
+  claimOrphanFileAttachmentsHook,
+  deleteFileAttachmentsHook,
+} from '@/fields/FileAttachmentField'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { permissionBasedAccess } from '@/lib/accessControl'
 import { FRAME_CATEGORY_OPTIONS, GENDER_OPTIONS } from '@/lib/data'
 import {
   convertFile,
@@ -9,11 +15,6 @@ import {
   generateVideoThumbnailHook,
   setPreviewUrlHook,
 } from '@/lib/fieldUtils'
-import { FileAttachmentField } from '@/fields'
-import {
-  claimOrphanFileAttachmentsHook,
-  deleteFileAttachmentsHook,
-} from '@/fields/FileAttachmentField'
 
 export const Frames: CollectionConfig = {
   labels: {
@@ -22,6 +23,11 @@ export const Frames: CollectionConfig = {
   },
   slug: 'frames',
   access: permissionBasedAccess('frames'),
+  indexes: [
+    {
+      fields: ['imageSet'],
+    },
+  ],
   upload: {
     staticDir: 'media/frames',
     hideRemoveFile: true,

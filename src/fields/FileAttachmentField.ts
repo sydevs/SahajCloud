@@ -4,9 +4,11 @@ import type {
   CollectionAfterDeleteHook,
   CollectionAfterChangeHook,
   FieldHook,
-  CollectionSlug,
   FieldBase,
 } from 'payload'
+
+import { logger } from '@/lib/logger'
+import { extractRelationId } from '@/types/payload-extensions'
 
 export type FileAttachmentFieldOptions = {
   /** Field name */
@@ -18,7 +20,7 @@ export type FileAttachmentFieldOptions = {
   /** Whether field should be localized */
   localized?: boolean
   /** The collection that owns these file attachments */
-  ownerCollection?: CollectionSlug
+  ownerCollection?: 'lessons' | 'frames'
   /** Filter attachments by file type (image, audio, or video) */
   fileType?: 'image' | 'audio' | 'video'
   /** Admin configuration overrides */
@@ -124,14 +126,16 @@ const setFileOwnerHook: FieldHook = async ({ value, data, req, collection }) => 
       id: value as string,
       data: {
         owner: {
-          relationTo: collection.slug as any,
+          relationTo: collection.slug as 'lessons' | 'frames',
           value: data.id,
         },
       },
     })
-    console.log(
-      `FileAttachmentField: Set owner for file attachment ${value} to ${collection?.slug}:${data.id}`,
-    )
+    logger.debug('Set file attachment owner', {
+      fileAttachmentId: value,
+      ownerCollection: collection?.slug,
+      ownerId: data.id,
+    })
   } else {
     // New document - track file in context for later assignment
     req.context = req.context || {}
@@ -140,8 +144,8 @@ const setFileOwnerHook: FieldHook = async ({ value, data, req, collection }) => 
     }
     const orphanFiles = req.context.orphanFiles as string[]
 
-    // Handle both string IDs and full objects
-    const fileId = typeof value === 'string' ? value : (value as any)?.id
+    // Handle both string IDs and full objects using type-safe helper
+    const fileId = extractRelationId(value)
     if (fileId && !orphanFiles.includes(fileId)) {
       orphanFiles.push(fileId)
     }
@@ -174,7 +178,7 @@ export const claimOrphanFileAttachmentsHook: CollectionAfterChangeHook = async (
       id: fileId,
       data: {
         owner: {
-          relationTo: collection.slug as any,
+          relationTo: collection.slug as 'lessons' | 'frames',
           value: doc.id,
         },
       },

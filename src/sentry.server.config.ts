@@ -6,8 +6,19 @@ import * as Sentry from '@sentry/nextjs'
 
 Sentry.init({
   enabled: process.env.NODE_ENV === 'production',
-  
+
   dsn: process.env.SENTRY_DSN,
+
+  // Environment tag for filtering events in Sentry dashboard
+  environment: process.env.NODE_ENV || 'development',
+
+  // Extra safeguard: Don't send events from development or test environments
+  beforeSend(event, hint) {
+    if (process.env.NODE_ENV !== 'production') {
+      return null
+    }
+    return event
+  },
 
   // Set tracesSampleRate to 1.0 to capture 100%
   // of the transactions for performance monitoring.

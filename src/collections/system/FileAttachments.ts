@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+
 import { permissionBasedAccess } from '@/lib/accessControl'
 
 export const FileAttachmentOwnerSlugs = ['lessons']
@@ -26,7 +27,7 @@ export const FileAttachments: CollectionConfig = {
     {
       name: 'owner',
       type: 'relationship',
-      relationTo: ['lessons'],
+      relationTo: ['lessons', 'frames'],
       required: false, // Allow orphan files temporarily until claimed by parent document
       maxDepth: 0,
       admin: {

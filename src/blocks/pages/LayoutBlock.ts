@@ -1,4 +1,5 @@
 import { Block } from 'payload'
+
 import { MediaField } from '@/fields'
 
 export const LayoutBlock: Block = {

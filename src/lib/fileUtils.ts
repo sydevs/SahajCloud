@@ -1,9 +1,11 @@
+import fs from 'fs'
+import path from 'path'
+
+import ffmpeg from 'fluent-ffmpeg'
 import { PayloadRequest } from 'payload'
 import sharp from 'sharp'
-import ffmpeg from 'fluent-ffmpeg'
-import fs from 'fs'
 import tmp from 'tmp'
-import path from 'path'
+
 
 export type FileMetadata = {
   width?: number

@@ -628,10 +628,15 @@ export interface Lesson {
  */
 export interface FileAttachment {
   id: string;
-  owner?: {
-    relationTo: 'lessons';
-    value: string | Lesson;
-  } | null;
+  owner?:
+    | ({
+        relationTo: 'lessons';
+        value: string | Lesson;
+      } | null)
+    | ({
+        relationTo: 'frames';
+        value: string | Frame;
+      } | null);
   createdAt: string;
   updatedAt: string;
   url?: string | null;
@@ -643,20 +648,6 @@ export interface FileAttachment {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "external-videos".
- */
-export interface ExternalVideo {
-  id: string;
-  title: string;
-  thumbnail: string | Media;
-  videoUrl: string;
-  subtitlesUrl?: string | null;
-  category?: ('shri-mataji' | 'techniques' | 'other')[] | null;
-  updatedAt: string;
-  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -755,6 +746,20 @@ export interface Frame {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "external-videos".
+ */
+export interface ExternalVideo {
+  id: string;
+  title: string;
+  thumbnail: string | Media;
+  videoUrl: string;
+  subtitlesUrl?: string | null;
+  category?: ('shri-mataji' | 'techniques' | 'other')[] | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "managers".
  */
 export interface Manager {
@@ -780,7 +785,25 @@ export interface Manager {
         /**
          * Select which locales this permission applies to. "All Locales" grants unrestricted locale access.
          */
-        locales: ('all' | 'en' | 'cs')[];
+        locales: (
+          | 'all'
+          | 'en'
+          | 'es'
+          | 'de'
+          | 'it'
+          | 'fr'
+          | 'ru'
+          | 'ro'
+          | 'cs'
+          | 'uk'
+          | 'el'
+          | 'hy'
+          | 'pl'
+          | 'pt-br'
+          | 'fa'
+          | 'bg'
+          | 'tr'
+        )[];
         id?: string | null;
       }[]
     | null;
@@ -795,6 +818,8 @@ export interface Manager {
   resetPasswordExpiration?: string | null;
   salt?: string | null;
   hash?: string | null;
+  _verified?: boolean | null;
+  _verificationToken?: string | null;
   loginAttempts?: number | null;
   lockUntil?: string | null;
   sessions?:
@@ -836,7 +861,25 @@ export interface Client {
         /**
          * Select which locales this permission applies to. "All Locales" grants unrestricted locale access.
          */
-        locales: ('all' | 'en' | 'cs')[];
+        locales: (
+          | 'all'
+          | 'en'
+          | 'es'
+          | 'de'
+          | 'it'
+          | 'fr'
+          | 'ru'
+          | 'ro'
+          | 'cs'
+          | 'uk'
+          | 'el'
+          | 'hy'
+          | 'pl'
+          | 'pt-br'
+          | 'fa'
+          | 'bg'
+          | 'tr'
+        )[];
         id?: string | null;
       }[]
     | null;
@@ -1667,6 +1710,8 @@ export interface ManagersSelect<T extends boolean = true> {
   resetPasswordExpiration?: T;
   salt?: T;
   hash?: T;
+  _verified?: T;
+  _verificationToken?: T;
   loginAttempts?: T;
   lockUntil?: T;
   sessions?:

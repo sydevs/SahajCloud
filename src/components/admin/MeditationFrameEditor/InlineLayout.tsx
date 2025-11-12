@@ -1,12 +1,14 @@
 'use client'
 
+import type { KeyframeData } from './types'
+
 import React, { useState, useRef, useCallback } from 'react'
+
+import type { Narrator, Frame } from '@/payload-types'
+
 import AudioPlayer, { type AudioPlayerRef } from './AudioPlayer'
 import FrameLibrary from './FrameLibrary'
 import FrameManager from './FrameManager'
-import type { KeyframeData } from './types'
-import type { Narrator, Frame } from '@/payload-types'
-import { pauseAllMedia, roundToNearestSecond } from './utils'
 import {
   InlineContent,
   LeftColumn,
@@ -14,6 +16,7 @@ import {
   AudioPlayerSection,
   FrameManagerSection,
 } from './styled'
+import { roundToNearestSecond } from './utils'
 
 interface InlineLayoutProps {
   audioUrl: string | null
