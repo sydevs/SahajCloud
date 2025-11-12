@@ -1,20 +1,22 @@
-import { buildConfig, Config } from "payload";
-import { mongooseAdapter } from "@payloadcms/db-mongodb";
-import { nodemailerAdapter } from "@payloadcms/email-nodemailer";
-import { lexicalEditor } from "@payloadcms/richtext-lexical";
-import { storagePlugin } from "./lib/storage";
-import { seoPlugin } from "@payloadcms/plugin-seo";
-import { formBuilderPlugin } from "@payloadcms/plugin-form-builder";
 
 import path from "path";
 import { fileURLToPath } from "url";
+
+import { mongooseAdapter } from "@payloadcms/db-mongodb";
+import { nodemailerAdapter } from "@payloadcms/email-nodemailer";
+import { formBuilderPlugin } from "@payloadcms/plugin-form-builder";
+import { seoPlugin } from "@payloadcms/plugin-seo";
+import { lexicalEditor } from "@payloadcms/richtext-lexical";
+import { buildConfig, Config } from "payload";
 import sharp from "sharp";
 
 import { adminOnlyAccess, permissionBasedAccess } from "@/lib/accessControl";
+import { LOCALES, DEFAULT_LOCALE } from "@/lib/locales";
+
 import { collections, Managers } from "./collections";
 import { globals } from "./globals";
-import { LOCALES, DEFAULT_LOCALE } from "@/lib/locales";
 import { tasks } from "./jobs";
+import { storagePlugin } from "./lib/storage";
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);

@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useCallback } from 'react'
 import type { KeyframeData } from './types'
-import { validateTimestamp, sortFramesByTimestamp, isVideoFile } from './utils'
+
+import React, { useCallback } from 'react'
+
 import {
   ComponentContainer,
   ComponentHeader,
@@ -14,6 +15,7 @@ import {
   FrameManagerPillRemove,
   EmptyState,
 } from './styled'
+import { validateTimestamp, sortFramesByTimestamp, isVideoFile } from './utils'
 
 const TrashIcon: React.FC<{ size?: number }> = ({ size = 16 }) => (
   <svg

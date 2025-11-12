@@ -1,4 +1,3 @@
-import { Manager } from '@/payload-types'
 import type {
   CollectionConfig,
   CollectionSlug,
@@ -8,7 +7,9 @@ import type {
   PayloadRequest,
   TypedUser,
 } from 'payload'
+
 import { LOCALES, LocaleCode } from '@/lib/locales'
+import { Manager } from '@/payload-types'
 
 const PERMISSION_LEVELS = ['read', 'translate', 'manage'] as const
 type PermissionLevel = (typeof PERMISSION_LEVELS)[number]

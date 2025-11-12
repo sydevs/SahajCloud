@@ -1,5 +1,7 @@
 'use client'
 
+import type { KeyframeData } from './types'
+
 import React, {
   useState,
   useRef,
@@ -8,10 +10,10 @@ import React, {
   useCallback,
   forwardRef,
 } from 'react'
-import type { KeyframeData } from './types'
-import { getCurrentFrame, isVideoFile, getMediaUrl } from './utils'
-import { SIZES } from './constants'
+
 import { logger } from '@/lib/logger'
+
+import { SIZES } from './constants'
 import {
   AudioPlayerContainer,
   AudioPreview,
@@ -26,6 +28,7 @@ import {
   AudioInfoRight,
   EmptyState,
 } from './styled'
+import { getCurrentFrame, isVideoFile, getMediaUrl } from './utils'
 
 interface AudioPlayerProps {
   audioUrl: string | null

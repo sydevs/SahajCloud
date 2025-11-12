@@ -1,4 +1,5 @@
 import type { TaskConfig } from 'payload'
+
 import { logger } from '@/lib/logger'
 
 export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {

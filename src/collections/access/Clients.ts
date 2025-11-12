@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+
 import { validateClientData, checkHighUsageAlert } from '@/hooks/clientHooks'
 import { adminOnlyAccess, createPermissionsField } from '@/lib/accessControl'
 

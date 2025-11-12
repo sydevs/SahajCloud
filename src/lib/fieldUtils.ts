@@ -1,3 +1,5 @@
+import fs from 'fs'
+
 import {
   CollectionAfterChangeHook,
   CollectionAfterReadHook,
@@ -8,10 +10,10 @@ import {
 import { PayloadRequest } from 'payload'
 import sharp from 'sharp'
 import slugify from 'slugify'
+import tmp from 'tmp'
+
 import { extractFileMetadata, extractVideoThumbnail } from './fileUtils'
 import { logger } from './logger'
-import tmp from 'tmp'
-import fs from 'fs'
 
 type FileType = 'image' | 'audio' | 'video'
 

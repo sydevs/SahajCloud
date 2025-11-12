@@ -1,4 +1,5 @@
 import type { CollectionBeforeChangeHook, CollectionAfterChangeHook } from 'payload'
+
 import { logger } from '@/lib/logger'
 
 /**

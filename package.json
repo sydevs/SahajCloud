@@ -61,6 +61,7 @@
     "@vitejs/plugin-react": "4.5.2",
     "eslint": "^9.38.0",
     "eslint-config-next": "15.3.0",
+    "eslint-plugin-unused-imports": "^4.3.0",
     "jsdom": "26.1.0",
     "mongodb": "^6.20.0",
     "mongodb-memory-server": "^10.2.3",

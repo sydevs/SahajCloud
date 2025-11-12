@@ -1,7 +1,8 @@
 'use client'
 
-import { Component, type ReactNode, type ComponentType, type ErrorInfo } from 'react'
 import * as Sentry from '@sentry/nextjs'
+import { Component, type ReactNode, type ComponentType, type ErrorInfo } from 'react'
+
 import { logger } from '@/lib/logger'
 
 interface ErrorBoundaryState {

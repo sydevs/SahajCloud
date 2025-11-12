@@ -1,13 +1,17 @@
 'use client'
 
-import React, { useEffect, useState, useCallback } from 'react'
-import { useField, useForm } from '@payloadcms/ui'
-import InlineLayout from './InlineLayout'
 import type { MeditationFrameEditorProps, KeyframeData } from './types'
-import type { Narrator } from '@/payload-types'
-import { sortFramesByTimestamp } from './utils'
-import { LoadingState, EmptyState } from './styled'
+
+import { useField, useForm } from '@payloadcms/ui'
+import React, { useEffect, useState, useCallback } from 'react'
+
 import { logger } from '@/lib/logger'
+import type { Narrator } from '@/payload-types'
+
+import InlineLayout from './InlineLayout'
+import { LoadingState, EmptyState } from './styled'
+import { sortFramesByTimestamp } from './utils'
+
 
 const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
   path,
