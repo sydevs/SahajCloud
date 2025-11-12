@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 
 /**
  * Custom Icon component for Payload admin panel navigation

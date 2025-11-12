@@ -1,16 +1,17 @@
-import type { CollectionConfig } from 'payload'
 import type { JSONSchema4 } from 'json-schema'
-import { permissionBasedAccess, createFieldAccess } from '@/lib/accessControl'
-import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { fullRichTextEditor } from '@/lib/richEditor'
-import { QuoteBlock } from '@/blocks/pages'
-import subtitleSchema from '@/lib/subtitlesSchema.json'
+import type { CollectionConfig } from 'payload'
+
 import { TextStoryBlock, VideoStoryBlock, CoverStoryBlock } from '@/blocks/lessons'
+import { QuoteBlock } from '@/blocks/pages'
 import { FileAttachmentField } from '@/fields'
 import {
   deleteFileAttachmentsHook,
   claimOrphanFileAttachmentsHook,
 } from '@/fields/FileAttachmentField'
+import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { permissionBasedAccess, createFieldAccess } from '@/lib/accessControl'
+import { fullRichTextEditor } from '@/lib/richEditor'
+import subtitleSchema from '@/lib/subtitlesSchema.json'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',

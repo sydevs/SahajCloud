@@ -27,7 +27,7 @@ describe('Clients Collection', () => {
       email: 'client-manager2@example.com',
       password: 'password123',
     })
-  })
+  }, 20000)
 
   afterAll(async () => {
     await cleanup()

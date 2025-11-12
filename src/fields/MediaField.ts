@@ -1,4 +1,4 @@
-import type { UploadField, Where } from 'payload'
+import type { UploadField, Where, PayloadRequest } from 'payload'
 
 export type MediaFieldOptions = {
   /** Field name */
@@ -25,7 +25,7 @@ export function MediaField(options: MediaFieldOptions): UploadField {
 
   // Build filter options based on tagName
   const filterOptions = tagName
-    ? async ({ req }: { req: any }): Promise<Where> => {
+    ? async ({ req }: { req: PayloadRequest }): Promise<Where> => {
         // Look up the tag by name to get its ID
         const tagResult = await req.payload.find({
           collection: 'media-tags',
@@ -77,8 +77,9 @@ export function MediaField(options: MediaFieldOptions): UploadField {
 /**
  * Generate orientation filter conditions based on width/height ratio
  * from fileMetadata stored in Media collection
+ * @internal Reserved for future orientation filtering feature
  */
-function getOrientationFilter(orientation: MediaFieldOptions['orientation']) {
+function _getOrientationFilter(orientation: MediaFieldOptions['orientation']) {
   switch (orientation) {
     case 'landscape':
       return [

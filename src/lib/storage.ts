@@ -1,8 +1,9 @@
 /**
  * MinIO S3-compatible storage configuration for Payload CMS
  */
-import { s3Storage } from '@payloadcms/storage-s3'
 import type { CollectionOptions } from '@payloadcms/plugin-cloud-storage/types'
+
+import { s3Storage } from '@payloadcms/storage-s3'
 import { CollectionSlug } from 'payload'
 
 const STORAGE_COLLECTIONS: CollectionSlug[] = ['media', 'music', 'frames', 'meditations', 'file-attachments']

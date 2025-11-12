@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
-import { permissionBasedAccess } from '@/lib/accessControl'
+
 import { UrlField } from '@/fields'
+import { permissionBasedAccess } from '@/lib/accessControl'
 
 export const ExternalVideos: CollectionConfig = {
   slug: 'external-videos',

@@ -918,3 +918,78 @@ tests/
 ├── setup/                  # Test environment setup
 └── utils/                  # Test utilities & factories
 ```
+
+## Architectural Decisions
+
+### FFmpeg/fluent-ffmpeg Decision
+
+**Decision**: Continue using `fluent-ffmpeg` despite deprecation status
+
+**Reviewed**: 2025-10-28
+**Next Review**: 2026-10-28
+
+#### Context
+The project uses `fluent-ffmpeg` for critical video processing functionality:
+1. **Metadata Extraction**: Extract duration, dimensions from audio/video files using ffprobe
+2. **Thumbnail Generation**: Generate 320x320 WebP thumbnails from video frames at 0.1s timestamp
+
+#### Evaluation of Alternatives
+
+**Option A: @ffmpeg/ffmpeg (WebAssembly)**
+- ❌ Large bundle size (~30MB)
+- ❌ Slower performance than native
+- ❌ Browser-only, doesn't work in Node.js server
+- ❌ Memory intensive
+- ❌ Not suitable for server-side processing
+
+**Option B: @ffprobe-installer + @ffmpeg-installer + child_process**
+- ✅ Maintained packages
+- ✅ Direct access to ffprobe/ffmpeg binaries
+- ❌ Complex error handling required
+- ❌ Need to parse JSON output manually
+- ❌ Cross-platform command-line escaping challenges
+- ❌ Loss of fluent-ffmpeg's clean API
+- ❌ Risk of introducing bugs in critical functionality
+- ❌ Significant testing effort across OSes and formats
+
+**Option C: Keep fluent-ffmpeg (SELECTED)**
+- ✅ Works reliably for all use cases
+- ✅ Well-tested, stable, feature-complete
+- ✅ Clean, readable API
+- ✅ No migration risk
+- ✅ Underlying `ffmpeg-static` binary is still maintained
+- ⚠️ Package marked as deprecated
+- ⚠️ No new features or updates
+
+#### Rationale
+1. **Stability**: fluent-ffmpeg is feature-complete and works perfectly for our needs
+2. **Low Risk**: Deprecation != broken - the package still functions correctly
+3. **Dependencies**: The critical dependency (`ffmpeg-static`) is still actively maintained
+4. **Cost vs. Benefit**: Migration effort and risk outweigh benefits of using "maintained" wrapper
+5. **No Security Issues**: No known vulnerabilities in fluent-ffmpeg
+6. **Pragmatism**: Focus development effort on user-facing features, not library churn
+
+#### Monitoring Plan
+- **Monthly**: Check for security advisories via `pnpm audit`
+- **Quarterly**: Review fluent-ffmpeg GitHub issues for critical bugs
+- **Annually**: Re-evaluate migration options and ecosystem changes
+- **Trigger**: If security vulnerability found, migrate immediately
+
+#### Migration Path (When Needed)
+If migration becomes necessary, follow this plan:
+1. Create feature branch for migration
+2. Install `@ffprobe-installer/ffprobe` and `@ffmpeg-installer/ffmpeg`
+3. Rewrite `getMediaMetadata()` using child_process + ffprobe JSON output
+4. Rewrite `extractVideoThumbnail()` using child_process + ffmpeg CLI
+5. Add comprehensive error handling and cleanup
+6. Test with various video formats (mp4, mov, webm)
+7. Test on macOS, Linux, Windows
+8. Run full integration test suite
+9. Deploy to staging and verify thumbnail generation
+10. Monitor production for errors after deployment
+
+#### Usage Locations
+- `src/lib/fileUtils.ts:3` - Import statement
+- `src/lib/fileUtils.ts:41` - ffprobe metadata extraction
+- `src/lib/fileUtils.ts:75` - video thumbnail generation
+- Used by: Media uploads, Frame uploads, FileAttachment processing

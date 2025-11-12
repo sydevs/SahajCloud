@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+import { logger } from '@/lib/logger'
+
 export async function GET() {
   try {
     // Basic health check - ensure the application is running
@@ -12,7 +14,11 @@ export async function GET() {
     }
 
     return NextResponse.json(health, { status: 200 })
-  } catch (_error) {
+  } catch (error) {
+    logger.error('Health check failed', error, {
+      timestamp: new Date().toISOString(),
+    })
+
     return NextResponse.json({
       status: 'error',
       timestamp: new Date().toISOString(),

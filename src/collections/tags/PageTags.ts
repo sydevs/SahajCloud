@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
-import { permissionBasedAccess } from '@/lib/accessControl'
+
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { permissionBasedAccess } from '@/lib/accessControl'
 
 export const PageTags: CollectionConfig = {
   slug: 'page-tags',

@@ -1,4 +1,5 @@
 import type { Block } from 'payload'
+
 import { FileAttachmentField } from '@/fields'
 
 export const VideoStoryBlock: Block = {

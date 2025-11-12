@@ -1,8 +1,11 @@
 import type { CollectionConfig, Field } from 'payload'
-import { permissionBasedAccess, createFieldAccess } from '@/lib/accessControl'
-import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
+
 import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
+
+import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { permissionBasedAccess, createFieldAccess } from '@/lib/accessControl'
+import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
+
 
 export const Music: CollectionConfig = {
   slug: 'music',

@@ -14,6 +14,7 @@ describe('Meditations Collection', () => {
   let testTag2: MeditationTag
   let testMusicTag: MusicTag
   let testMeditation: Meditation
+  let testFrame: Frame
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
@@ -26,6 +27,7 @@ describe('Meditations Collection', () => {
     testTag1 = await testData.createMeditationTag(payload)
     testTag2 = await testData.createMeditationTag(payload)
     testMusicTag = await testData.createMusicTag(payload)
+    testFrame = await testData.createFrame(payload)
 
     // Create test meditation
     testMeditation = await testData.createMeditation(
@@ -109,6 +111,7 @@ describe('Meditations Collection', () => {
       data: {
         title: 'Updated Title',
         slug: 'attempted-slug-change', // This should be ignored
+        frames: [{ id: testFrame.id, timestamp: 0 }], // Include frame to satisfy validation
       },
     })) as Meditation
 

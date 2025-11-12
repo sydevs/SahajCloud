@@ -1,10 +1,13 @@
-import type { CollectionConfig } from 'payload'
-import { permissionBasedAccess } from '@/lib/accessControl'
-import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
+import type { CollectionConfig, Validate } from 'payload'
+
+import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
+
 import { KeyframeData, KeyframeDefinition } from '@/components/admin/MeditationFrameEditor/types'
 import { MediaField } from '@/fields'
-import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
+import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { permissionBasedAccess } from '@/lib/accessControl'
+import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
+import { logger } from '@/lib/logger'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
@@ -59,14 +62,14 @@ export const Meditations: CollectionConfig = {
                 description:
                   'This should be the name of the yogi who did the recording. We need this for dynamic followup audio clips.',
               },
-              validate: (value: unknown, options: any) => {
+              validate: ((value, options) => {
                 // Only required during update
                 const isUpdate = options.operation === 'update' || !!options.id
                 if (isUpdate && !value) {
                   return 'Narrator is required'
                 }
                 return true
-              },
+              }) as Validate,
             },
             {
               name: 'musicTag',
@@ -123,14 +126,14 @@ export const Meditations: CollectionConfig = {
               name: 'title',
               type: 'text',
               label: 'Public Title',
-              validate: (value: unknown, options: any) => {
+              validate: ((value, options) => {
                 // Only required during update
                 const isUpdate = options.operation === 'update' || !!options.id
                 if (isUpdate && !value) {
                   return 'Public Title is required'
                 }
                 return true
-              },
+              }) as Validate,
             },
             ...SlugField('title', {
               slugOverrides: {
@@ -143,14 +146,14 @@ export const Meditations: CollectionConfig = {
                 required: false, // Conditionally required via validation
                 tagName: 'meditation-thumbnail',
               }),
-              validate: (value: unknown, options: any) => {
+              validate: ((value, options) => {
                 // Only required during update
                 const isUpdate = options.operation === 'update' || !!options.id
                 if (isUpdate && !value) {
                   return 'Thumbnail is required'
                 }
                 return true
-              },
+              }) as Validate,
             },
             {
               name: 'tags',
@@ -275,9 +278,15 @@ export const Meditations: CollectionConfig = {
                           timestamp: Math.round(v.timestamp),
                         } as KeyframeData
                       })
-                    } catch (_error) {
+                    } catch (error) {
                       // If frames have thumbnails that reference deleted media, gracefully skip frame enrichment
                       // This can happen during import operations with --reset when media is deleted
+                      logger.warn('Failed to enrich frame data for meditation', {
+                        frameCount: frames.length,
+                        frameIds: frameIds.slice(0, 5), // Log first 5 IDs to avoid too much data
+                        error: error instanceof Error ? error.message : String(error),
+                      })
+
                       // Return basic frame data without enrichment
                       return frames.map((v) => ({
                         ...v,
