@@ -1,3 +1,17 @@
+---
+description: Troubleshoot and fix application bugs
+argument-hint: [bug-description]
+allowed-tools: Bash(lsof:*), Bash(curl:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*), Bash(cat:*), mcp__serena__*, mcp__puppeteer__*, Read, Write, Edit, Glob, Grep, WebSearch
+---
+
+## Application Status
+
+- Dev server: !`lsof -ti:5173`
+- Ladle: !`lsof -ti:61000`
+- Recent changes: !`git diff --name-only HEAD~1..HEAD`
+
+## Your Task
+
 There is a problem with the application which needs to be fixed.
 
 $ARGUMENTS

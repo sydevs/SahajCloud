@@ -1,3 +1,18 @@
+---
+description: Conduct code review of a pull request
+argument-hint: <pr-number>
+allowed-tools: Bash(gh pr:*), Bash(gh issue:*), Bash(git status:*), Bash(git branch:*), Bash(git log:*), Bash(git diff:*), Bash(git checkout:*), Bash(git add:*), Bash(git commit:*), mcp__serena__*, Read, Write, Edit, Glob, Grep
+---
+
+## Pull Request Context
+
+- PR details: !`gh pr view $ARGUMENTS --json title,body,author,labels,isDraft`
+- PR files: !`gh pr diff $ARGUMENTS --name-only`
+- PR checks: !`gh pr checks $ARGUMENTS`
+- Current branch: !`git branch --show-current`
+
+## Your Task
+
 You are an expert programmer conducting a code review for the GitHub pull request: $ARGUMENTS.
 
 Think hard about the PR you are reviewing and review all changes. Consider the following factors when conducting your code review:

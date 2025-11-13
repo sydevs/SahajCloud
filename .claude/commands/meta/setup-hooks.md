@@ -1,8 +1,19 @@
-# Create Hook Command
+---
+description: Create and configure development hooks
+allowed-tools: Bash(ls:*), Bash(cat:*), Bash(which:*), Bash(chmod:*), Read, Write, Edit, Glob, Grep
+---
 
-Analyze the project, suggest practical hooks, and create them with proper testing.
+## Hook Environment Detection
 
-## Your Task (/create-hook)
+- Existing hooks: !`ls -la .claude/hooks/ 2>/dev/null`
+- Global hooks: !`ls -la ~/.claude/hooks/ 2>/dev/null`
+- Hook config: !`cat .claude/settings.json | grep -A 20 '"hooks"'`
+- TypeScript: !`which tsc`
+- Prettier: !`which prettier`
+- ESLint: !`which eslint`
+- Package scripts: !`cat package.json | grep -A 10 '"scripts"'`
+
+## Your Task
 
 1. **Analyze environment** - Detect tooling and existing hooks
 2. **Suggest hooks** - Based on your project configuration
