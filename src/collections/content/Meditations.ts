@@ -7,6 +7,7 @@ import { MediaField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { permissionBasedAccess } from '@/lib/accessControl'
 import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
+import { LOCALES } from '@/lib/locales'
 import { logger } from '@/lib/logger'
 
 export const Meditations: CollectionConfig = {
@@ -22,7 +23,7 @@ export const Meditations: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'label',
-    defaultColumns: ['label', 'thumbnail', 'publishAt', 'tags', 'fileMetadata'],
+    defaultColumns: ['label', 'thumbnail', 'publishAt', 'tags', 'durationMinutes'],
   },
   hooks: {
     beforeOperation: [sanitizeFilename],
@@ -38,6 +39,13 @@ export const Meditations: CollectionConfig = {
           label: 'Details',
           fields: [
             {
+              name: 'id',
+              type: 'text',
+              admin: {
+                readOnly: true,
+              },
+            },
+            {
               name: 'label',
               type: 'text',
               label: 'Internal Name',
@@ -46,10 +54,10 @@ export const Meditations: CollectionConfig = {
             {
               name: 'locale',
               type: 'select',
-              options: [
-                { label: 'English', value: 'en' },
-                { label: 'Czech', value: 'cs' },
-              ],
+              options: LOCALES.map((locale) => ({
+                label: locale.label,
+                value: locale.code,
+              })),
               defaultValue: 'en',
               required: true,
             },
@@ -86,6 +94,26 @@ export const Meditations: CollectionConfig = {
               admin: {
                 condition: ({ id }) => !!id,
                 readOnly: true,
+              },
+            },
+            {
+              name: 'durationMinutes',
+              type: 'number',
+              label: 'Duration (minutes)',
+              admin: {
+                readOnly: true,
+                hidden: true,
+              },
+              hooks: {
+                afterRead: [
+                  async ({ data }) => {
+                    const metadata = data?.fileMetadata as { duration?: number } | null | undefined
+                    if (metadata?.duration) {
+                      return Math.round(metadata.duration / 60)
+                    }
+                    return null
+                  },
+                ],
               },
             },
           ],
