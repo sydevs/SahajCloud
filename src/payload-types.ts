@@ -400,7 +400,23 @@ export interface PageTag {
 export interface Meditation {
   id: string;
   label: string;
-  locale: 'en' | 'cs';
+  locale:
+    | 'en'
+    | 'es'
+    | 'de'
+    | 'it'
+    | 'fr'
+    | 'ru'
+    | 'ro'
+    | 'cs'
+    | 'uk'
+    | 'el'
+    | 'hy'
+    | 'pl'
+    | 'pt-br'
+    | 'fa'
+    | 'bg'
+    | 'tr';
   /**
    * This should be the name of the yogi who did the recording. We need this for dynamic followup audio clips.
    */
@@ -418,6 +434,7 @@ export interface Meditation {
     | number
     | boolean
     | null;
+  durationMinutes?: number | null;
   publishAt?: string | null;
   title?: string | null;
   slug?: string | null;
@@ -1390,11 +1407,13 @@ export interface PagesSelect<T extends boolean = true> {
  * via the `definition` "meditations_select".
  */
 export interface MeditationsSelect<T extends boolean = true> {
+  id?: T;
   label?: T;
   locale?: T;
   narrator?: T;
   musicTag?: T;
   fileMetadata?: T;
+  durationMinutes?: T;
   publishAt?: T;
   title?: T;
   slug?: T;
