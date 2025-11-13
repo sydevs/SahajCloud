@@ -1,13 +1,27 @@
+---
+description: Implement and test a GitHub issue
+argument-hint: <issue-number>
+allowed-tools: Bash(gh issue:*), Bash(gh pr:*), Bash(git status:*), Bash(git branch:*), Bash(git log:*), Bash(git diff:*), Bash(git checkout:*), Bash(git add:*), Bash(git commit:*), mcp__serena__*, Read, Write, Edit, Glob, Grep, mcp__puppeteer__*
+---
+
+## Repository Context
+
+- Current branch: !`git branch --show-current`
+- Git status: !`git status --short`
+- Issue details: !`gh issue view $ARGUMENTS --json title,body,labels`
+- Recent commits: !`git log --oneline -5`
+
+## Your Task
+
 Please analyze and fix the GitHub issue: $ARGUMENTS.
 
 Follow these steps:
 
 # PLAN
 
-1. Use `gh issue view` to get the issue details
-2. Understand the problem described in the issue
-3. Ask clarifying questions if needed
-4. Understand the prior art for this issue
+1. Understand the problem described in the issue (details provided above)
+2. Ask clarifying questions if needed
+3. Understand the prior art for this issue
    - Search the scratchpads for previous thoughts related to the issue
    - Search PRs to find history related to the issue
    - Search the codebase for related patterns and use similar solutions when planning
@@ -23,7 +37,7 @@ Follow these steps:
 
 # TEST
 
-9.  Use puppeteer via MCP to test your changes if you have made any UI changes
+9.  Use Puppeteer via MCP to test your changes if you have made any UI changes (see @MCP_USAGE.md)
 10. Think hard about what changes need testing. Create a list of test cases and then ask me to approve which areas should be tested.
 11. Write tests for the approved tests. Examine testHelper.ts and make use of helper methods found within where appropriate. If adding or modifying collections, update testHelper.ts to match the new changes.
 12. Run the full test suite to ensure you haven't broken anything

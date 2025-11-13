@@ -1,3 +1,17 @@
+---
+description: Reflect on session and improve prompts
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(date:*), Bash(git status:*), Bash(git diff:*), Bash(git log:*)
+---
+
+## Session Context
+
+- Session date: !`date "+%Y-%m-%d %H:%M"`
+- Changes: !`git diff --name-only`
+- Recent commits: !`git log --oneline -10`
+- Command changes: !`git diff .claude/commands/`
+
+## Your Task
+
 You are an expert in prompt engineering, specializing in optimizing AI code assistant instructions. Your task is to analyze and improve the instructions for Claude Code.
 Follow these steps carefully:
 
@@ -7,6 +21,9 @@ Review the chat history in your context window.
 Then, examine the current Claude instructions, commands and config
 <claude_instructions>
 /CLAUDE.md
+/DESIGN_SYSTEM.md
+/STORYBOOK.md
+/MCP_USAGE.md
 /.claude/commands/*
 **/CLAUDE.md
 .claude/settings.json
@@ -19,7 +36,7 @@ Analyze the chat history, instructions, commands and config to identify areas th
 - Areas where Claude could provide more detailed or accurate information
 - Opportunities to enhance Claude's ability to handle specific types of queries or tasks
 - New commands or improvements to a commands name, function or response
-- Permissions and MCPs we've approved locally that we should add to the config, especially if we've added new tools or require them for the command to work
+- Permissions and MCPs we've approved locally that we should add to the config, especially if we've added new tools or require them for the command to work (see @MCP_USAGE.md for MCP documentation)
 
 2. Interaction Phase:
 Present your findings and improvement ideas to the human. For each suggestion:

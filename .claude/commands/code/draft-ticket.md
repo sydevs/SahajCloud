@@ -1,3 +1,18 @@
+---
+description: Draft a new GitHub issue or ticket
+argument-hint: [issue-description]
+allowed-tools: Bash(gh issue:*), Bash(gh pr:*), Bash(gh label:*), Bash(git branch:*), mcp__serena__*, Read, Glob, Grep
+---
+
+## Repository Context
+
+- Recent issues: !`gh issue list --limit 10 --json number,title`
+- Recent PRs: !`gh pr list --limit 5 --json number,title`
+- Current sprint: !`gh issue list --label "sprint" --json number,title`
+- Project labels: !`gh label list --json name`
+
+## Your Task
+
 You are an expert in prompt engineering, specializing in optimizing AI code assistant instructions. Your task is to write a new GitHub issue.
 
 # Issue Contents

@@ -1,3 +1,16 @@
+---
+description: Analyze UX/UI design and suggest improvements
+argument-hint: <url>
+allowed-tools: mcp__puppeteer__*, WebFetch, Bash(lsof:*), Bash(cat:*)
+---
+
+## Current Context
+
+- Chrome debugging available: !`lsof -ti:9222`
+- Project name: !`cat package.json | grep '"name"'`
+
+## Your Task
+
 You are an expert UX designer. Analyze the provided webpage/component and create a specific, actionable list of improvements focused on usability and aesthetics.
 
 Examine the webpage at this URL: $ARGUMENTS
