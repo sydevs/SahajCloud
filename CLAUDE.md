@@ -2,6 +2,24 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Claude Code Plugin
+
+This project uses the **SY Developers Toolkit** plugin which provides slash commands, MCP servers, and development workflows.
+
+### Plugin Features
+- GitHub, Sentry, Puppeteer, and Serena MCP integrations
+- Slash commands for code implementation, debugging, and reviews
+- Automated hook setup via `/meta:setup-hooks`
+
+### Available Commands
+- `/code:implement-issue <number>` - Implement GitHub issues end-to-end
+- `/code:draft-ticket [description]` - Draft detailed GitHub issues
+- `/review:review-pr <number>` - Comprehensive PR reviews
+- `/debug:fix-bug [description]` - Systematic bug fixing
+- `/meta:setup-hooks` - Configure development hooks
+
+For full documentation, see: https://github.com/sydevs/claude-plugins
+
 ## Overall instructions
 - Always ask me before editing, creating, or closing a GitHub issue or PR
 
