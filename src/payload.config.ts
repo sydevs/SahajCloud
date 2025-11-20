@@ -2,7 +2,7 @@
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { mongooseAdapter } from "@payloadcms/db-mongodb";
+import { sqliteAdapter } from "@payloadcms/db-sqlite";
 import { nodemailerAdapter } from "@payloadcms/email-nodemailer";
 import { formBuilderPlugin } from "@payloadcms/plugin-form-builder";
 import { seoPlugin } from "@payloadcms/plugin-seo";
@@ -88,8 +88,13 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     typescript: {
       outputFile: path.resolve(dirname, "payload-types.ts"),
     },
-    db: mongooseAdapter({
-      url: process.env.DATABASE_URI || "",
+    db: sqliteAdapter({
+      client: {
+        // Use file-based SQLite in development/test, D1 binding in production
+        url: process.env.DATABASE_URI || "file:./local.db",
+      },
+      // Auto-push schema changes in non-production environments
+      push: !isProduction,
     }),
     // Email configuration (disabled in test environment to avoid model conflicts)
     ...(isTestEnvironment
