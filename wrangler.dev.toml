@@ -1,0 +1,20 @@
+name = "sy-devs-cms-dev"
+compatibility_date = "2025-11-20"
+main = ".next/standalone/server.js"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database Binding (local development uses SQLite file)
+[[d1_databases]]
+binding = "D1"
+database_name = "sahajcloud-dev"
+database_id = "local"
+
+# R2 Storage Binding
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "sahajcloud-dev"
+jurisdiction = "eu"
+
+# Environment Variables
+[vars]
+NODE_ENV = "development"

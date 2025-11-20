@@ -1,0 +1,30 @@
+name = "sy-devs-cms"
+compatibility_date = "2025-11-20"
+main = ".next/standalone/server.js"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+# D1 Database Binding
+[[d1_databases]]
+binding = "D1"
+database_name = "sahajcloud"
+database_id = "2ff069c0-a98b-4a6c-94eb-fe199f969c8b"
+
+# R2 Storage Binding
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "sahajcloud"
+jurisdiction = "eu"
+
+# Environment Variables (non-sensitive)
+[vars]
+NODE_ENV = "production"
+
+# Build Configuration
+[build]
+command = "pnpm run build"
+
+[build.upload]
+format = "service-worker"
