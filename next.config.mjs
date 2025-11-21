@@ -14,15 +14,25 @@ const nextConfig = {
     return webpackConfig
   },
   images: {
-    remotePatterns: process.env.S3_PUBLIC_ENDPOINT
-      ? [
-          {
-            protocol: 'https',
-            hostname: process.env.S3_PUBLIC_ENDPOINT,
-          },
-        ]
-      : [],
-    unoptimized: true, // TODO: Undo this and try to get the benefit of next images
+    remotePatterns: [
+      ...(process.env.S3_PUBLIC_ENDPOINT
+        ? [
+            {
+              protocol: 'https',
+              hostname: process.env.S3_PUBLIC_ENDPOINT,
+            },
+          ]
+        : []),
+      {
+        protocol: 'https',
+        hostname: '**.cloudflarestream.com', // For Stream thumbnails (issue #70)
+      },
+    ],
+    unoptimized: true, // Required for Cloudflare Workers
+  },
+  // Experimental features for Cloudflare Workers
+  experimental: {
+    serverComponentsExternalPackages: ['payload'],
   },
 }
 
