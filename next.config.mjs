@@ -30,10 +30,14 @@ const nextConfig = {
     ],
     unoptimized: true, // Required for Cloudflare Workers
   },
-  // Experimental features for Cloudflare Workers
-  experimental: {
-    serverComponentsExternalPackages: ['payload'],
-  },
+  // External packages for server-side rendering (required for Cloudflare Workers)
+  serverExternalPackages: [
+    'payload',
+    '@payloadcms/db-sqlite',
+    'libsql',
+    '@libsql/client',
+    'better-sqlite3',
+  ],
 }
 
 // First apply Payload config, then Sentry config
