@@ -154,7 +154,7 @@ export class MediaDownloader {
       })
 
       await this.logger.log(`✓ Created Media document: ${media.id}`)
-      return media.id as string
+      return String(media.id)
     } catch (error: any) {
       throw new Error(`Failed to create Media document: ${error.message}`)
     }
