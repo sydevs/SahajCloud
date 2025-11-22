@@ -86,6 +86,7 @@ export interface Config {
     clients: Client;
     forms: Form;
     'form-submissions': FormSubmission;
+    'payload-kv': PayloadKv;
     'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -127,13 +128,14 @@ export interface Config {
     clients: ClientsSelect<false> | ClientsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
+    'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
   };
   db: {
-    defaultIDType: string;
+    defaultIDType: number;
   };
   globals: {
     'we-meditate-web-settings': WeMeditateWebSetting;
@@ -221,7 +223,7 @@ export interface ClientAuthOperations {
  * via the `definition` "pages".
  */
 export interface Page {
-  id: string;
+  id: number;
   title: string;
   content?: {
     root: {
@@ -244,7 +246,7 @@ export interface Page {
     /**
      * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
      */
-    image?: (string | null) | Media;
+    image?: (number | null) | Media;
   };
   slug?: string | null;
   slugLock?: boolean | null;
@@ -252,8 +254,8 @@ export interface Page {
   /**
    * Article author (for article pages)
    */
-  author?: (string | null) | Author;
-  tags?: (string | PageTag)[] | null;
+  author?: (number | null) | Author;
+  tags?: (number | PageTag)[] | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -264,7 +266,7 @@ export interface Page {
  * via the `definition` "media".
  */
 export interface Media {
-  id: string;
+  id: number;
   alt: string;
   /**
    * Attribution or copyright information
@@ -273,7 +275,7 @@ export interface Media {
   /**
    * Tags to categorize this image
    */
-  tags?: (string | MediaTag)[] | null;
+  tags?: (number | MediaTag)[] | null;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -326,10 +328,10 @@ export interface Media {
  * via the `definition` "media-tags".
  */
 export interface MediaTag {
-  id: string;
+  id: number;
   name: string;
   media?: {
-    docs?: (string | Media)[];
+    docs?: (number | Media)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -341,7 +343,7 @@ export interface MediaTag {
  * via the `definition` "authors".
  */
 export interface Author {
-  id: string;
+  id: number;
   name: string;
   /**
    * Professional title (e.g., "Artist, writer and stylist")
@@ -362,9 +364,9 @@ export interface Author {
   /**
    * Author profile image
    */
-  image?: (string | null) | Media;
+  image?: (number | null) | Media;
   articles?: {
-    docs?: (string | Page)[];
+    docs?: (number | Page)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -376,7 +378,7 @@ export interface Author {
  * via the `definition` "page-tags".
  */
 export interface PageTag {
-  id: string;
+  id: number;
   /**
    * This label will be used in the editor
    */
@@ -386,7 +388,7 @@ export interface PageTag {
    */
   title: string;
   pages?: {
-    docs?: (string | Page)[];
+    docs?: (number | Page)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -420,11 +422,11 @@ export interface Meditation {
   /**
    * This should be the name of the yogi who did the recording. We need this for dynamic followup audio clips.
    */
-  narrator: string | Narrator;
+  narrator: number | Narrator;
   /**
    * Music with this tag will be offered to the seeker
    */
-  musicTag?: (string | null) | MusicTag;
+  musicTag?: (number | null) | MusicTag;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -439,11 +441,11 @@ export interface Meditation {
   title?: string | null;
   slug?: string | null;
   slugLock?: boolean | null;
-  thumbnail?: (string | null) | Media;
+  thumbnail?: (number | null) | Media;
   /**
    * Categorize this meditation for seekers to find it
    */
-  tags?: (string | MeditationTag)[] | null;
+  tags?: (number | MeditationTag)[] | null;
   /**
    * Frames associated with this meditation with audio-synchronized editing
    */
@@ -474,7 +476,7 @@ export interface Meditation {
  * via the `definition` "narrators".
  */
 export interface Narrator {
-  id: string;
+  id: number;
   name: string;
   gender: 'male' | 'female';
   updatedAt: string;
@@ -485,7 +487,7 @@ export interface Narrator {
  * via the `definition` "music-tags".
  */
 export interface MusicTag {
-  id: string;
+  id: number;
   /**
    * This label will be used in the editor
    */
@@ -495,7 +497,7 @@ export interface MusicTag {
    */
   title: string;
   music?: {
-    docs?: (string | Music)[];
+    docs?: (number | Music)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -507,11 +509,11 @@ export interface MusicTag {
  * via the `definition` "music".
  */
 export interface Music {
-  id: string;
+  id: number;
   title: string;
   slug?: string | null;
   slugLock?: boolean | null;
-  tags?: (string | MusicTag)[] | null;
+  tags?: (number | MusicTag)[] | null;
   /**
    * Attribution or credit information
    */
@@ -543,7 +545,7 @@ export interface Music {
  * via the `definition` "meditation-tags".
  */
 export interface MeditationTag {
-  id: string;
+  id: number;
   /**
    * This label will be used in the editor
    */
@@ -553,7 +555,7 @@ export interface MeditationTag {
    */
   title: string;
   meditations?: {
-    docs?: (string | Meditation)[];
+    docs?: (number | Meditation)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -565,7 +567,7 @@ export interface MeditationTag {
  * via the `definition` "lessons".
  */
 export interface Lesson {
-  id: string;
+  id: number;
   title: string;
   /**
    * Story panels to introduce this lesson. First panel must be a Cover Panel.
@@ -579,7 +581,7 @@ export interface Lesson {
         blockType: 'cover';
       }
     | {
-        video?: (string | null) | FileAttachment;
+        video?: (number | null) | FileAttachment;
         id?: string | null;
         blockName?: string | null;
         blockType: 'video';
@@ -587,7 +589,7 @@ export interface Lesson {
     | {
         title: string;
         text: string;
-        image: string | Media;
+        image: number | Media;
         id?: string | null;
         blockName?: string | null;
         blockType: 'text';
@@ -596,11 +598,11 @@ export interface Lesson {
   /**
    * Link to a related guided meditation that complements this lesson content.
    */
-  meditation?: (string | null) | Meditation;
+  meditation?: (number | null) | Meditation;
   /**
    * Link to a related guided meditation that complements this lesson content.
    */
-  introAudio?: (string | null) | FileAttachment;
+  introAudio?: (number | null) | FileAttachment;
   introSubtitles?: {
     captions: {
       duration: number;
@@ -631,7 +633,7 @@ export interface Lesson {
    * This will determine the order of the path steps
    */
   step: number;
-  icon?: (string | null) | FileAttachment;
+  icon?: (number | null) | FileAttachment;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -644,15 +646,15 @@ export interface Lesson {
  * via the `definition` "file-attachments".
  */
 export interface FileAttachment {
-  id: string;
+  id: number;
   owner?:
     | ({
         relationTo: 'lessons';
-        value: string | Lesson;
+        value: number | Lesson;
       } | null)
     | ({
         relationTo: 'frames';
-        value: string | Frame;
+        value: number | Frame;
       } | null);
   createdAt: string;
   updatedAt: string;
@@ -671,7 +673,7 @@ export interface FileAttachment {
  * via the `definition` "frames".
  */
 export interface Frame {
-  id: string;
+  id: number;
   previewUrl?: string | null;
   imageSet: 'male' | 'female';
   category:
@@ -720,7 +722,7 @@ export interface Frame {
   /**
    * Auto-generated thumbnail for video frames
    */
-  thumbnail?: (string | null) | FileAttachment;
+  thumbnail?: (number | null) | FileAttachment;
   duration?: number | null;
   fileMetadata?:
     | {
@@ -766,9 +768,9 @@ export interface Frame {
  * via the `definition` "external-videos".
  */
 export interface ExternalVideo {
-  id: string;
+  id: number;
   title: string;
-  thumbnail: string | Media;
+  thumbnail: number | Media;
   videoUrl: string;
   subtitlesUrl?: string | null;
   category?: ('shri-mataji' | 'techniques' | 'other')[] | null;
@@ -780,7 +782,7 @@ export interface ExternalVideo {
  * via the `definition` "managers".
  */
 export interface Manager {
-  id: string;
+  id: number;
   name: string;
   /**
    * Admin users bypass all permission restrictions and have complete access to all collections and features.
@@ -853,7 +855,7 @@ export interface Manager {
  * via the `definition` "clients".
  */
 export interface Client {
-  id: string;
+  id: number;
   /**
    * Client organization or application name
    */
@@ -903,11 +905,11 @@ export interface Client {
   /**
    * Users who can manage this client
    */
-  managers: (string | Manager)[];
+  managers: (number | Manager)[];
   /**
    * Primary user contact for this client
    */
-  primaryContact: string | Manager;
+  primaryContact: number | Manager;
   /**
    * What domains are associated with this client. Put each domain on a new line.
    */
@@ -956,7 +958,7 @@ export interface Client {
  * via the `definition` "forms".
  */
 export interface Form {
-  id: string;
+  id: number;
   title: string;
   fields?:
     | (
@@ -1130,8 +1132,8 @@ export interface Form {
  * via the `definition` "form-submissions".
  */
 export interface FormSubmission {
-  id: string;
-  form: string | Form;
+  id: number;
+  form: number | Form;
   submissionData?:
     | {
         field: string;
@@ -1144,10 +1146,27 @@ export interface FormSubmission {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-kv".
+ */
+export interface PayloadKv {
+  id: number;
+  key: string;
+  data:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs".
  */
 export interface PayloadJob {
-  id: string;
+  id: number;
   /**
    * Input data provided to the job
    */
@@ -1248,93 +1267,89 @@ export interface PayloadJob {
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
-  id: string;
+  id: number;
   document?:
     | ({
         relationTo: 'pages';
-        value: string | Page;
+        value: number | Page;
       } | null)
     | ({
         relationTo: 'meditations';
-        value: string | Meditation;
+        value: number | Meditation;
       } | null)
     | ({
         relationTo: 'lessons';
-        value: string | Lesson;
+        value: number | Lesson;
       } | null)
     | ({
         relationTo: 'music';
-        value: string | Music;
+        value: number | Music;
       } | null)
     | ({
         relationTo: 'external-videos';
-        value: string | ExternalVideo;
+        value: number | ExternalVideo;
       } | null)
     | ({
         relationTo: 'frames';
-        value: string | Frame;
+        value: number | Frame;
       } | null)
     | ({
         relationTo: 'narrators';
-        value: string | Narrator;
+        value: number | Narrator;
       } | null)
     | ({
         relationTo: 'authors';
-        value: string | Author;
+        value: number | Author;
       } | null)
     | ({
         relationTo: 'media';
-        value: string | Media;
+        value: number | Media;
       } | null)
     | ({
         relationTo: 'file-attachments';
-        value: string | FileAttachment;
+        value: number | FileAttachment;
       } | null)
     | ({
         relationTo: 'media-tags';
-        value: string | MediaTag;
+        value: number | MediaTag;
       } | null)
     | ({
         relationTo: 'meditation-tags';
-        value: string | MeditationTag;
+        value: number | MeditationTag;
       } | null)
     | ({
         relationTo: 'music-tags';
-        value: string | MusicTag;
+        value: number | MusicTag;
       } | null)
     | ({
         relationTo: 'page-tags';
-        value: string | PageTag;
+        value: number | PageTag;
       } | null)
     | ({
         relationTo: 'managers';
-        value: string | Manager;
+        value: number | Manager;
       } | null)
     | ({
         relationTo: 'clients';
-        value: string | Client;
+        value: number | Client;
       } | null)
     | ({
         relationTo: 'forms';
-        value: string | Form;
+        value: number | Form;
       } | null)
     | ({
         relationTo: 'form-submissions';
-        value: string | FormSubmission;
-      } | null)
-    | ({
-        relationTo: 'payload-jobs';
-        value: string | PayloadJob;
+        value: number | FormSubmission;
       } | null);
   globalSlug?: string | null;
   user:
     | {
         relationTo: 'managers';
-        value: string | Manager;
+        value: number | Manager;
       }
     | {
         relationTo: 'clients';
-        value: string | Client;
+        value: number | Client;
       };
   updatedAt: string;
   createdAt: string;
@@ -1344,15 +1359,15 @@ export interface PayloadLockedDocument {
  * via the `definition` "payload-preferences".
  */
 export interface PayloadPreference {
-  id: string;
+  id: number;
   user:
     | {
         relationTo: 'managers';
-        value: string | Manager;
+        value: number | Manager;
       }
     | {
         relationTo: 'clients';
-        value: string | Client;
+        value: number | Client;
       };
   key?: string | null;
   value?:
@@ -1372,7 +1387,7 @@ export interface PayloadPreference {
  * via the `definition` "payload-migrations".
  */
 export interface PayloadMigration {
-  id: string;
+  id: number;
   name?: string | null;
   batch?: number | null;
   updatedAt: string;
@@ -1927,6 +1942,14 @@ export interface FormSubmissionsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-kv_select".
+ */
+export interface PayloadKvSelect<T extends boolean = true> {
+  key?: T;
+  data?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs_select".
  */
 export interface PayloadJobsSelect<T extends boolean = true> {
@@ -1994,52 +2017,52 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
  * via the `definition` "we-meditate-web-settings".
  */
 export interface WeMeditateWebSetting {
-  id: string;
+  id: number;
   /**
    * Select the page content for the home page
    */
-  homePage: string | Page;
+  homePage: number | Page;
   /**
    * Select 3-7 pages to feature in the website menu. Drag to reorder.
    */
-  featuredPages: (string | Page)[];
+  featuredPages: (number | Page)[];
   /**
    * Select 3-5 pages to display in the website footer
    */
-  footerPages: (string | Page)[];
-  musicPage: string | Page;
+  footerPages: (number | Page)[];
+  musicPage: number | Page;
   /**
    * Select 3-5 music tags to display on the Music page
    */
-  musicPageTags: (string | MusicTag)[];
-  subtleSystemPage: string | Page;
-  left: string | Page;
-  right: string | Page;
-  center: string | Page;
-  mooladhara: string | Page;
-  kundalini: string | Page;
-  swadhistan: string | Page;
-  nabhi: string | Page;
-  void: string | Page;
-  anahat: string | Page;
-  vishuddhi: string | Page;
-  agnya: string | Page;
-  sahasrara: string | Page;
-  techniquesPage: string | Page;
+  musicPageTags: (number | MusicTag)[];
+  subtleSystemPage: number | Page;
+  left: number | Page;
+  right: number | Page;
+  center: number | Page;
+  mooladhara: number | Page;
+  kundalini: number | Page;
+  swadhistan: number | Page;
+  nabhi: number | Page;
+  void: number | Page;
+  anahat: number | Page;
+  vishuddhi: number | Page;
+  agnya: number | Page;
+  sahasrara: number | Page;
+  techniquesPage: number | Page;
   /**
    * Select the page tag that represents all technique pages
    */
-  techniquePageTag: string | PageTag;
-  inspirationPage: string | Page;
+  techniquePageTag: number | PageTag;
+  inspirationPage: number | Page;
   /**
    * Select 3-5 page tags to display on the Inspiration page
    */
-  inspirationPageTags: (string | PageTag)[];
-  classesPage: string | Page;
+  inspirationPageTags: (number | PageTag)[];
+  classesPage: number | Page;
   /**
    * Select the page for live meditation classes
    */
-  liveMeditationsPage: string | Page;
+  liveMeditationsPage: number | Page;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2048,7 +2071,7 @@ export interface WeMeditateWebSetting {
  * via the `definition` "payload-jobs-stats".
  */
 export interface PayloadJobsStat {
-  id: string;
+  id: number;
   stats?:
     | {
         [k: string]: unknown;
