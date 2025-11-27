@@ -12,6 +12,7 @@ import sharp from 'sharp'
 import { GetPlatformProxyOptions } from 'wrangler'
 
 import { adminOnlyAccess, permissionBasedAccess } from '@/lib/accessControl'
+import { resendAdapter } from '@/lib/email/resendAdapter'
 import { LOCALES, DEFAULT_LOCALE } from '@/lib/locales'
 
 import { collections, Managers } from './collections'
@@ -97,31 +98,20 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         return defaultJobsCollection
       },
     },
-    // Email configuration (disabled in test environment to avoid model conflicts)
+    // Email configuration
+    // - Test: Disabled to avoid model conflicts
+    // - Production: Resend API for transactional emails
+    // - Development: Ethereal Email for testing (automatic test email service)
     ...(isTestEnvironment
       ? {}
       : {
-          email: nodemailerAdapter(
-            isProduction
-              ? {
-                  defaultFromAddress: process.env.SMTP_FROM || 'contact@sydevelopers.com',
-                  defaultFromName: 'We Meditate Admin',
-                  transportOptions: {
-                    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-                    port: Number(process.env.SMTP_PORT) || 587,
-                    secure: false, // Use STARTTLS
-                    auth: {
-                      user: process.env.SMTP_USER,
-                      pass: process.env.SMTP_PASS,
-                    },
-                  },
-                }
-              : {
-                  defaultFromAddress: 'dev@wemeditate.com',
-                  defaultFromName: 'We Meditate Admin (Dev)',
-                  // No transportOptions - uses Ethereal Email in development
-                },
-          ),
+          email: isProduction
+            ? resendAdapter()
+            : nodemailerAdapter({
+                defaultFromAddress: 'dev@wemeditate.com',
+                defaultFromName: 'We Meditate Admin (Dev)',
+                // No transportOptions - uses Ethereal Email in development
+              }),
         }),
     sharp,
     plugins: [

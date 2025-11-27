@@ -360,7 +360,14 @@ export const generateVideoThumbnailHook: CollectionAfterChangeHook = async ({
   }
 
   try {
-    const thumbnailBuffer = await extractVideoThumbnail(req.file.data)
+    // Convert Buffer to Uint8Array for better compatibility with file-type library
+    // Always create a new Uint8Array to ensure proper type conversion
+    const fileData = Buffer.isBuffer(req.file.data)
+      ? new Uint8Array(req.file.data.buffer, req.file.data.byteOffset, req.file.data.byteLength)
+      : req.file.data instanceof Uint8Array
+        ? req.file.data
+        : new Uint8Array(req.file.data)
+    const thumbnailBuffer = await extractVideoThumbnail(fileData)
     const tmpFile = tmp.fileSync({ postfix: '.webp' })
     fs.writeFileSync(tmpFile.fd, thumbnailBuffer)
 

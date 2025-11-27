@@ -1,7 +1,9 @@
 import type { Payload, TypedUser } from 'payload'
+
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+
 import type {
   Narrator,
   Media,
@@ -17,7 +19,6 @@ import type {
   Lesson,
   FileAttachment,
 } from '@/payload-types'
-import { TEST_ADMIN_ID } from './testHelpers'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -51,6 +52,8 @@ export const testData = {
   ): Promise<Media> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
+    // Convert Buffer to Uint8Array for better compatibility with file-type library
+    const fileData = new Uint8Array(fileBuffer)
 
     return (await payload.create({
       collection: 'media',
@@ -59,10 +62,10 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileBuffer,
+        data: fileData,
         mimetype: `image/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
-        size: fileBuffer.length,
+        size: fileData.length,
       },
     })) as Media
   },
@@ -77,6 +80,8 @@ export const testData = {
   ): Promise<FileAttachment> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
+    // Convert Buffer to Uint8Array for better compatibility with file-type library
+    const fileData = new Uint8Array(fileBuffer)
 
     return (await payload.create({
       collection: 'file-attachments',
@@ -84,10 +89,10 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileBuffer,
+        data: fileData,
         mimetype: `image/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
-        size: fileBuffer.length,
+        size: fileData.length,
       },
     })) as FileAttachment
   },
@@ -164,16 +169,22 @@ export const testData = {
   ): Promise<Meditation> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
+    // Convert Buffer to Uint8Array for better compatibility with file-type library
+    const fileData = new Uint8Array(fileBuffer)
 
     // Create dependencies if not provided
     let thumbnail = deps?.thumbnail
     let narrator = deps?.narrator
 
     if (!thumbnail) {
-      const thumbMedia = await testData.createMediaImage(payload, {
-        alt: 'Meditation thumbnail',
-        hidden: false, // Explicitly ensure it's not hidden
-      }, 'image-1050x700.webp') // Use landscape image
+      const thumbMedia = await testData.createMediaImage(
+        payload,
+        {
+          alt: 'Meditation thumbnail',
+          hidden: false, // Explicitly ensure it's not hidden
+        },
+        'image-1050x700.webp',
+      ) // Use landscape image
       thumbnail = thumbMedia.id
     }
 
@@ -195,13 +206,13 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileBuffer,
+        data: fileData,
         mimetype:
           path.extname(sampleFile).slice(1) === 'mp3'
             ? 'audio/mpeg'
             : `audio/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
-        size: fileBuffer.length,
+        size: fileData.length,
       },
     })) as Meditation
   },
@@ -216,6 +227,8 @@ export const testData = {
   ): Promise<Music> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
+    // Convert Buffer to Uint8Array for better compatibility with file-type library
+    const fileData = new Uint8Array(fileBuffer)
 
     return (await payload.create({
       collection: 'music',
@@ -225,13 +238,13 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileBuffer,
+        data: fileData,
         mimetype:
           path.extname(sampleFile).slice(1) === 'mp3'
             ? 'audio/mpeg'
             : `audio/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
-        size: fileBuffer.length,
+        size: fileData.length,
       },
     })) as Music
   },
@@ -246,6 +259,8 @@ export const testData = {
   ): Promise<Frame> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
+    // Convert Buffer to Uint8Array for better compatibility with file-type library
+    const fileData = new Uint8Array(fileBuffer)
 
     // Get correct mimetype based on file extension
     const extension = path.extname(sampleFile).slice(1).toLowerCase()
@@ -276,10 +291,10 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileBuffer,
+        data: fileData,
         mimetype: mimetype,
         name: sampleFile,
-        size: fileBuffer.length,
+        size: fileData.length,
       },
     })) as Frame
   },
@@ -310,14 +325,17 @@ export const testData = {
 
   /**
    * Create an API client with specific permissions
+   * @param payload - Payload instance
+   * @param managerId - Manager user ID (required)
+   * @param overrides - Optional field overrides
    */
-  async createClient(payload: Payload, overrides: Partial<Client> = {}) {
+  async createClient(payload: Payload, managerId: number, overrides: Partial<Client> = {}) {
     const client = await payload.create({
       collection: 'clients',
       data: {
         name: 'Test Client',
-        managers: [TEST_ADMIN_ID],
-        primaryContact: TEST_ADMIN_ID,
+        managers: [managerId],
+        primaryContact: managerId,
         enableAPIKey: true,
         ...overrides,
       },
@@ -372,10 +390,7 @@ export const testData = {
   /**
    * Create a lesson with audio file
    */
-  async createLesson(
-    payload: Payload,
-    overrides: Partial<Lesson> = {},
-  ): Promise<Lesson> {
+  async createLesson(payload: Payload, overrides: Partial<Lesson> = {}): Promise<Lesson> {
     // Create a default meditation if not provided
     let meditation = overrides.meditation
     if (!meditation) {
@@ -384,7 +399,7 @@ export const testData = {
     }
 
     // Icon is optional in test environment
-    let icon = overrides.icon
+    const icon = overrides.icon
 
     // Create a default media if panels need images and they're not provided
     let defaultMedia: Media | undefined
@@ -442,6 +457,7 @@ export const testData = {
     const lesson = (await payload.create({
       collection: 'lessons',
       data: lessonData,
+      depth: 0, // Prevent auto-population of relationships
     })) as Lesson
 
     return lesson

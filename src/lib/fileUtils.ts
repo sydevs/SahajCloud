@@ -32,7 +32,7 @@ export const extractFileMetadata = async (file: NonNullable<PayloadRequest['file
   }
 }
 
-const getMediaMetadata = (fileBuffer: Buffer) => {
+const getMediaMetadata = (fileBuffer: Buffer | Uint8Array) => {
   const { fd, name } = tmp.fileSync()
 
   // Get metadata using fluent-ffmpeg's ffprobe
@@ -66,7 +66,7 @@ const getMediaMetadata = (fileBuffer: Buffer) => {
   })
 }
 
-export const extractVideoThumbnail = async (videoBuffer: Buffer): Promise<Buffer> => {
+export const extractVideoThumbnail = async (videoBuffer: Buffer | Uint8Array): Promise<Buffer> => {
   return new Promise((resolve, reject) => {
     const inputFile = tmp.fileSync({ postfix: '.mp4' })
     const outputFile = tmp.fileSync({ postfix: '.png' })
