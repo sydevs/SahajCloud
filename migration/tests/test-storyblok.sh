@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test Storyblok Import Script
-# This script tests the storyblok import with a test database
+# This script tests the storyblok import with SQLite database (via Wrangler/D1)
 
 set -e
 
@@ -10,12 +10,13 @@ echo "=================================="
 echo ""
 
 # Setup test database
-echo "📦 Setting up test database..."
+echo "📦 Initializing SQLite test database..."
 pnpm tsx migration/tests/setup-test-db.ts setup
 echo ""
 
 # Set test environment variables
-export DATABASE_URI="mongodb://localhost:27017/sy_devs_cms_migration_test"
+# Note: SQLite database is configured via payload.config.ts (using Wrangler D1)
+# No DATABASE_URI needed - Payload automatically uses D1 binding
 export PAYLOAD_SECRET="test-secret-key-12345"
 
 # Check if STORYBLOK_ACCESS_TOKEN is set

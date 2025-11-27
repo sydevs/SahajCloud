@@ -1,5 +1,30 @@
 #!/usr/bin/env tsx
 
+/**
+ * Meditations Import Script
+ *
+ * Imports meditation content from Google Cloud Storage and PostgreSQL database into Payload CMS.
+ *
+ * DUAL-DATABASE ARCHITECTURE:
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * This script uses TWO different databases:
+ *
+ * 1. PostgreSQL (SOURCE - temporary, read-only):
+ *    - Created from data.bin (meditation database dump)
+ *    - Used to READ legacy meditation data
+ *    - Automatically cleaned up after import
+ *    - NOT related to Payload's database
+ *
+ * 2. SQLite/D1 (TARGET - Payload CMS):
+ *    - Current Payload database (configured in payload.config.ts)
+ *    - Where imported content is WRITTEN
+ *    - Uses Payload's API for all operations
+ *    - Database-agnostic (works with SQLite, D1, PostgreSQL, MongoDB)
+ *
+ * The script reads from PostgreSQL (legacy data) and writes to Payload (SQLite/D1).
+ * These are completely separate databases serving different purposes.
+ */
+
 import 'dotenv/config'
 import { CollectionSlug, getPayload, Payload } from 'payload'
 import configPromise from '../../src/payload.config'

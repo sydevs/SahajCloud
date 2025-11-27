@@ -1,26 +1,47 @@
 # Migration Tests
 
-This directory contains testing infrastructure for the migration scripts.
+This directory contains testing infrastructure for the migration scripts using **SQLite** (in-memory) for Payload CMS.
 
 ## Overview
 
-The test suite creates an isolated MongoDB database for testing import scripts without affecting production data. Each test runs in a clean environment and can be repeated safely.
+The test suite creates an isolated in-memory SQLite database for testing import scripts without affecting production data. Each test runs in a clean environment and can be repeated safely.
+
+## Database Architecture
+
+### Understanding the Dual-Database Setup
+
+Migration scripts use **TWO different databases**:
+
+1. **SQLite/D1 (Payload CMS Storage)**
+   - **Purpose**: Where Payload CMS stores imported content
+   - **Location**: Configured in `payload.config.ts` (uses Wrangler D1 for dev/prod)
+   - **Test Mode**: Uses in-memory SQLite via `better-sqlite3` for fast, isolated tests
+   - **No manual setup needed**: Payload automatically initializes the database
+
+2. **PostgreSQL (Source Data - Meditations/WeMeditate only)**
+   - **Purpose**: Temporary database to READ legacy data from `data.bin` files
+   - **Location**: Created temporarily during import, then deleted
+   - **Test Mode**: Same as production - creates temp PostgreSQL database
+   - **Manual setup needed**: PostgreSQL must be installed for these imports
+
+**Important**: These are completely separate databases. PostgreSQL is only for reading source data, while SQLite stores the final Payload content.
 
 ## Test Database
 
-- **Name**: `sy_devs_cms_migration_test`
-- **URI**: `mongodb://localhost:27017/sy_devs_cms_migration_test`
-- **Purpose**: Isolated testing environment for migration scripts
+- **Type**: In-memory SQLite (via `better-sqlite3`)
+- **Configuration**: `migration/tests/test-payload.config.ts`
+- **Purpose**: Fast, isolated testing environment for migration scripts
+- **Persistence**: None - database is destroyed when script ends
 
 ## Available Scripts
 
 ### Setup/Cleanup
 
 ```bash
-# Setup test database
+# Setup test database (initializes in-memory SQLite)
 pnpm tsx migration/tests/setup-test-db.ts setup
 
-# Cleanup test database
+# Cleanup test database (automatic for in-memory, no action needed)
 pnpm tsx migration/tests/setup-test-db.ts cleanup
 ```
 
@@ -43,7 +64,6 @@ pnpm tsx migration/tests/check-tags.ts
 ./migration/tests/test-storyblok.sh
 
 # Manual test with environment variables
-export DATABASE_URI="mongodb://localhost:27017/sy_devs_cms_migration_test"
 export PAYLOAD_SECRET="test-secret-key-12345"
 export STORYBLOK_ACCESS_TOKEN="your_token_here"
 
@@ -52,7 +72,10 @@ pnpm tsx migration/storyblok/import.ts --unit=1
 pnpm tsx migration/storyblok/import.ts --reset
 ```
 
-**Note**: Storyblok import requires a valid `STORYBLOK_ACCESS_TOKEN` to fetch data from the API.
+**Notes**:
+- Storyblok import requires a valid `STORYBLOK_ACCESS_TOKEN` to fetch data from the API
+- Source data: Storyblok API (no PostgreSQL needed)
+- Target database: SQLite (via Payload config)
 
 #### Meditations Import Tests
 
@@ -61,7 +84,6 @@ pnpm tsx migration/storyblok/import.ts --reset
 ./migration/tests/test-meditations.sh
 
 # Manual test with environment variables
-export DATABASE_URI="mongodb://localhost:27017/sy_devs_cms_migration_test"
 export PAYLOAD_SECRET="test-secret-key-12345"
 export STORAGE_BASE_URL="https://storage.googleapis.com/test-bucket"
 
@@ -70,13 +92,17 @@ pnpm tsx migration/meditations/import.ts
 pnpm tsx migration/meditations/import.ts --reset
 ```
 
-**Note**: Meditations import requires `migration/meditations/data.bin` (PostgreSQL dump file).
+**Notes**:
+- Meditations import requires `migration/meditations/data.bin` (PostgreSQL dump file)
+- Source data: PostgreSQL temporary database (created from `data.bin`)
+- Target database: SQLite (via Payload config)
+- Requires PostgreSQL installed for reading source data
 
 ## Test Results
 
 ### Meditations Import - ✅ PASSING
 
-The meditations import script has been tested and works correctly:
+The meditations import script has been tested and works correctly with SQLite:
 
 **Test Results:**
 - ✅ Dry run completes successfully
@@ -108,7 +134,7 @@ The storyblok import script structure is correct but requires authentication:
 - API access to Storyblok with path/path-steps content
 
 **Verified Functionality:**
-- ✅ Payload CMS initialization works
+- ✅ Payload CMS initialization works with SQLite
 - ✅ Cache directory structure correct
 - ✅ Import tag constant defined (`import-storyblok`)
 - ✅ Media tagging implementation correct
@@ -165,7 +191,7 @@ Collection Statistics:
   musics: 10 documents
   meditation-tags: 39 documents
 
-Total: 335 documents across 25 collections
+Total: 335 documents across 18 collections
 
 Import Tags:
   ✓ import-meditations
@@ -176,11 +202,10 @@ Media with tags: 14
 ## Running Full Test Suite
 
 ```bash
-# 1. Setup test database
+# 1. Setup test database (initializes in-memory SQLite)
 pnpm tsx migration/tests/setup-test-db.ts setup
 
 # 2. Test meditations import
-export DATABASE_URI="mongodb://localhost:27017/sy_devs_cms_migration_test"
 export PAYLOAD_SECRET="test-secret-key-12345"
 export STORAGE_BASE_URL="https://storage.googleapis.com/test-bucket"
 
@@ -197,27 +222,24 @@ pnpm tsx migration/tests/check-tags.ts
 # Test reset
 pnpm tsx migration/meditations/import.ts --reset
 
-# 3. Cleanup
+# 3. Cleanup (automatic for in-memory SQLite)
 pnpm tsx migration/tests/setup-test-db.ts cleanup
 ```
 
 ## Notes
 
-- **MongoDB**: Must be running locally on port 27017
-- **PostgreSQL**: Required for meditations import (temp database)
-- **Git Ignored**: `/migration/tests` directory is git-ignored to prevent accidental commits of test data
-- **Cache**: `/migration/cache` contains downloaded files and is preserved between runs
+- **SQLite (Payload)**: Configured automatically via Wrangler D1 (dev/prod) or in-memory (tests)
+- **PostgreSQL (Source Data)**: Required only for meditations and wemeditate imports
+- **No MongoDB**: System no longer uses MongoDB
+- **Git Ignored**: `/migration/cache` contains downloaded files and is preserved between runs
 - **Payload Secret**: Test secret is `test-secret-key-12345` (not secure, testing only)
 
 ## Troubleshooting
 
-### "MongoDB connection failed"
-- Ensure MongoDB is running: `brew services start mongodb-community`
-- Check connection: `mongosh mongodb://localhost:27017`
-
 ### "PostgreSQL command not found"
 - Install PostgreSQL: `brew install postgresql`
 - Ensure it's in PATH: `which createdb`
+- **Note**: PostgreSQL is only needed for reading source data (meditations/wemeditate imports)
 
 ### "STORYBLOK_ACCESS_TOKEN not set"
 - This is expected for storyblok tests
@@ -226,6 +248,15 @@ pnpm tsx migration/tests/setup-test-db.ts cleanup
 ### "data.bin not found"
 - Place your PostgreSQL dump at `migration/meditations/data.bin`
 - Or skip meditations tests if you don't have the dump
+
+### "Better SQLite build errors"
+- Run: `pnpm rebuild better-sqlite3`
+- Ensure native dependencies can be compiled
+
+### "Wrangler D1 issues in dev"
+- Ensure wrangler is installed: `pnpm install`
+- Check `.wrangler/state/v3/d1/` directory exists
+- Database files are automatically created by Wrangler
 
 ## Success Criteria
 
@@ -237,3 +268,19 @@ A successful test run should:
 5. ✅ Handle duplicate data gracefully
 6. ✅ Reset function deletes only tagged data
 7. ✅ Leave database in clean state after cleanup
+
+## Technical Notes
+
+### Why In-Memory SQLite for Tests?
+
+- **Speed**: Faster than file-based SQLite or MongoDB
+- **Isolation**: Each test gets a fresh database
+- **No cleanup**: Database automatically destroyed when test ends
+- **Simplicity**: No database server to manage
+
+### Why PostgreSQL for Some Imports?
+
+- **Source data**: Legacy WeMeditate and meditations data stored in PostgreSQL dumps
+- **Temporary**: Created only during import, then deleted
+- **Read-only**: Only used to read source data, not for Payload storage
+- **Different purpose**: PostgreSQL is the source, SQLite is the target

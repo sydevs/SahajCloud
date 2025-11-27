@@ -74,10 +74,13 @@ export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
         } else {
           // Check if the owner relationship points to a non-existent document
           try {
-            // Extract ID from the owner value (could be string or populated object)
-            const ownerId = typeof fileAttachment.owner.value === 'string'
-              ? fileAttachment.owner.value
-              : fileAttachment.owner.value.id
+            // Extract ID from the owner value (could be number, string, or populated object)
+            const ownerValue = fileAttachment.owner.value
+            const ownerId = typeof ownerValue === 'number'
+              ? String(ownerValue)
+              : typeof ownerValue === 'string'
+                ? ownerValue
+                : String(ownerValue.id)
 
             const ownerExists = await req.payload.findByID({
               collection: fileAttachment.owner.relationTo,
@@ -92,9 +95,12 @@ export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
           } catch (error) {
             // If findByID throws an error, the document doesn't exist
             shouldDelete = true
-            const ownerId = typeof fileAttachment.owner.value === 'string'
-              ? fileAttachment.owner.value
-              : fileAttachment.owner.value.id
+            const ownerValue = fileAttachment.owner.value
+            const ownerId = typeof ownerValue === 'number'
+              ? String(ownerValue)
+              : typeof ownerValue === 'string'
+                ? ownerValue
+                : String(ownerValue.id)
             const errorMessage = error instanceof Error ? error.message : String(error)
             reason = `Owner ${fileAttachment.owner.relationTo}:${ownerId} does not exist (error: ${errorMessage})`
           }

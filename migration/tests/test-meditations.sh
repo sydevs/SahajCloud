@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Test Meditations Import Script
-# This script tests the meditations import with a test database
+# This script tests the meditations import with SQLite database (via Wrangler/D1)
+# Note: This script also requires PostgreSQL for reading source data from data.bin
 
 set -e
 
@@ -10,12 +11,13 @@ echo "====================================="
 echo ""
 
 # Setup test database
-echo "📦 Setting up test database..."
+echo "📦 Initializing SQLite test database..."
 pnpm tsx migration/tests/setup-test-db.ts setup
 echo ""
 
 # Set test environment variables
-export DATABASE_URI="mongodb://localhost:27017/sy_devs_cms_migration_test"
+# Note: SQLite database for Payload is configured via payload.config.ts (using Wrangler D1)
+# PostgreSQL is used separately for reading source data from data.bin
 export PAYLOAD_SECRET="test-secret-key-12345"
 export STORAGE_BASE_URL="https://storage.googleapis.com/test-bucket"
 

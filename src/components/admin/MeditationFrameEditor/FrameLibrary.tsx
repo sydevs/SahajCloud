@@ -43,7 +43,7 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [clickedFrameId, setClickedFrameId] = useState<string | null>(null)
+  const [clickedFrameId, setClickedFrameId] = useState<number | string | null>(null)
 
   // Load frames
   useEffect(() => {
@@ -60,7 +60,7 @@ const FrameLibrary: React.FC<FrameLibraryProps> = ({
         const response = await fetch(framesUrl)
         if (!response.ok) throw new Error('Failed to load frames')
 
-        const data = await response.json()
+        const data = (await response.json()) as { docs: Frame[] }
         setFrames(data.docs || [])
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load frames')

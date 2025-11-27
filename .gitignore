@@ -58,3 +58,4 @@ worker-configuration.d.ts
 
 # Wrangler
 .wrangler/state
+.open-next

@@ -1,4 +1,4 @@
-name = "sy-devs-cms"
+name = "sahajcloud"
 compatibility_date = "2025-11-20"
 main = ".next/standalone/server.js"
 compatibility_flags = ["nodejs_compat"]

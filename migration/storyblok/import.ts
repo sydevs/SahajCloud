@@ -1,3 +1,16 @@
+/**
+ * Storyblok Path Steps Import Script
+ *
+ * Imports "Path Step" lessons from Storyblok CMS into Payload CMS.
+ *
+ * Data Flow:
+ * - Source: Storyblok API (no database - fetches via HTTP)
+ * - Target: Payload CMS with SQLite/D1 database
+ *
+ * The script works with any Payload database adapter (SQLite, D1, PostgreSQL, MongoDB).
+ * It uses Payload's API for all database operations, making it database-agnostic.
+ */
+
 import 'dotenv/config'
 
 import { getPayload } from 'payload'
@@ -304,7 +317,7 @@ class StoryblokImporter {
     })
 
     if (result.docs.length > 0) {
-      return result.docs[0].id as string
+      return String(result.docs[0].id)
     }
 
     // Get all meditations and filter in memory for more precise matching
@@ -328,7 +341,7 @@ class StoryblokImporter {
     })
 
     if (meditation) {
-      return meditation.id as string
+      return String(meditation.id)
     }
 
     return null
@@ -974,7 +987,7 @@ class StoryblokImporter {
       console.error('Fatal error:', error)
       throw error
     } finally {
-      // Cleanup: close Payload database connection
+      // Cleanup: close Payload database connection (works with SQLite, D1, and other adapters)
       if (this.payload?.db?.destroy) {
         await this.payload.db.destroy()
       }

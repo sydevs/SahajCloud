@@ -25,7 +25,7 @@ For full documentation, see: https://github.com/sydevs/claude-plugins
 
 ## Project Overview
 
-This is a **Next.js 15** application integrated with **Payload CMS 3.0**, providing a headless content management system. The project uses TypeScript, MongoDB, and is configured for both development and production deployment.
+This is a **Next.js 15** application integrated with **Payload CMS 3.0**, providing a headless content management system. The project uses TypeScript, SQLite (Cloudflare D1), and is configured for both development and production deployment.
 
 ### PayloadCMS Documentation
 
@@ -65,8 +65,8 @@ The admin panel can be accessed at http://localhost:3000/admin/login once the de
 Copy from `.env.example` and configure:
 
 **Core Configuration**
-- `DATABASE_URI` - MongoDB connection string
 - `PAYLOAD_SECRET` - Secret key for authentication
+- **Note**: Database (SQLite/D1) is configured via `payload.config.ts` using Wrangler - no DATABASE_URI needed
 
 **Email Configuration (Production)**
 - `SMTP_HOST` - SMTP server host (default: smtp.gmail.com)
@@ -815,7 +815,7 @@ Each permission entry contains:
 ## Development Workflow
 
 1. **Schema Changes**: When modifying collections, always run `pnpm generate:types` to update TypeScript definitions
-2. **Database**: Uses MongoDB with auto-generated collections based on Payload schema
+2. **Database**: Uses SQLite (Cloudflare D1) with auto-generated collections based on Payload schema
 3. **Admin Access**: Available at `/admin` route with user authentication
 4. **API Access**: REST API at `/api/*` (GraphQL is disabled)
 5. **Migrations**: Database migrations are stored in `src/migrations/` and can be run with `pnpm payload migrate`
@@ -845,15 +845,16 @@ This project uses a comprehensive testing approach with complete test isolation:
   - Admin panel user interface testing
   - MeditationFrameEditor modal and interaction testing
 
-### Test Isolation (MongoDB Memory Server)
-- **Complete Isolation**: Each test suite runs in its own in-memory MongoDB database
+### Test Isolation (In-Memory SQLite)
+- **Complete Isolation**: Each test suite runs in its own in-memory SQLite database
 - **Automatic Cleanup**: Databases are automatically created and destroyed per test suite
 - **No Data Conflicts**: Tests can run in parallel without data interference
 - **Fast Execution**: In-memory database provides rapid test execution
+- **No external dependencies**: No database server required (using better-sqlite3)
 
 ### Test Environment Setup
-- `tests/setup/globalSetup.ts` - Starts/stops MongoDB Memory Server
-- `tests/config/test-payload.config.ts` - Test-specific Payload configuration
+- `tests/setup/globalSetup.ts` - Test environment setup
+- `tests/config/test-payload.config.ts` - Test-specific Payload configuration with in-memory SQLite
 - `tests/utils/testHelpers.ts` - Utilities for creating isolated test environments
 
 ### Writing Isolated Tests
@@ -887,7 +888,7 @@ describe('My Collection', () => {
 
 ### Test Configuration
 - Tests run sequentially (`maxConcurrency: 1`) to prevent resource conflicts
-- Each test suite gets a unique database: `test_[timestamp]_[random]`
+- Each test suite gets a unique in-memory SQLite database
 - Automatic database cleanup ensures no test data persists between runs
 
 ## Deployment
@@ -896,7 +897,8 @@ describe('My Collection', () => {
 - **Sentry Integration**: Error monitoring and performance tracking in production
 - **Docker Support**: `Dockerfile` and `docker-compose.yml` for containerized development
 - **Railway Deployment**: Alternative deployment option with `railway.toml` configuration
-- **Environment Requirements**: MongoDB connection (`DATABASE_URI`) and Payload secret (`PAYLOAD_SECRET`)
+- **Environment Requirements**: Payload secret (`PAYLOAD_SECRET`) - database configured via Wrangler D1
+- **Database**: Uses Cloudflare D1 (serverless SQLite) in production
 
 ## Project Structure Overview
 

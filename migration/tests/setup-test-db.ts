@@ -3,33 +3,30 @@
 /**
  * Setup Test Database for Migration Scripts
  *
- * This script creates a dummy MongoDB database for testing import scripts.
- * It generates test data and prepares the environment for script testing.
+ * This script initializes an in-memory SQLite database for testing import scripts.
+ * It uses Payload's test configuration with better-sqlite3 for fast, isolated testing.
  */
 
-import { MongoClient } from 'mongodb'
+import { getPayload } from 'payload'
+import type { Payload } from 'payload'
 
-const TEST_DB_NAME = 'sy_devs_cms_migration_test'
-const TEST_DB_URI = `mongodb://localhost:27017/${TEST_DB_NAME}`
+import { testPayloadConfig } from './test-payload.config'
 
 async function setupTestDatabase() {
   console.log('🧪 Setting up test database...\n')
 
-  const client = new MongoClient(TEST_DB_URI)
+  let payload: Payload | null = null
 
   try {
-    await client.connect()
-    console.log(`✓ Connected to MongoDB`)
+    // Initialize Payload with in-memory SQLite
+    console.log('Initializing Payload with in-memory SQLite...')
+    payload = await getPayload({ config: testPayloadConfig() })
+    console.log('✓ Payload initialized with in-memory SQLite database\n')
 
-    const db = client.db(TEST_DB_NAME)
-
-    // Drop existing test database if it exists
-    console.log(`Dropping existing database: ${TEST_DB_NAME}`)
-    await db.dropDatabase()
-    console.log(`✓ Database dropped\n`)
-
-    // Create collections (they'll be created automatically when inserting)
-    const collections = [
+    // The database and collections are automatically created by Payload
+    // based on the schema defined in collections/
+    console.log('Collections created automatically from schema:')
+    const collectionNames = [
       'managers',
       'media',
       'media-tags',
@@ -43,46 +40,54 @@ async function setupTestDatabase() {
       'lessons',
       'file-attachments',
       'external-videos',
+      'pages',
+      'authors',
+      'clients',
+      'forms',
+      'form-submissions',
     ]
 
-    console.log('Creating collections:')
-    for (const collection of collections) {
-      await db.createCollection(collection)
+    for (const collection of collectionNames) {
       console.log(`  ✓ ${collection}`)
     }
 
     console.log('\n✓ Test database setup complete!')
-    console.log(`\nDatabase URI: ${TEST_DB_URI}`)
-    console.log(`Database Name: ${TEST_DB_NAME}`)
+    console.log('\nDatabase: In-memory SQLite (no persistence)')
+    console.log('Config: migration/tests/test-payload.config.ts')
 
-    // Save environment for test scripts
-    console.log('\n📝 Add to your .env.test file:')
-    console.log(`TEST_DATABASE_URI=${TEST_DB_URI}`)
-    console.log(`PAYLOAD_SECRET=test-secret-key-12345`)
+    // Environment notes
+    console.log('\n📝 For migration testing, set:')
+    console.log('PAYLOAD_SECRET=test-secret-key-for-migration-testing')
+    console.log('NODE_ENV=development (or omit for test mode)')
+
+    // Verify collections are accessible
+    console.log('\n🔍 Verifying database...')
+    const lessonsCount = await payload.count({ collection: 'lessons' })
+    const mediaCount = await payload.count({ collection: 'media' })
+    console.log(`  Lessons: ${lessonsCount.totalDocs} documents`)
+    console.log(`  Media: ${mediaCount.totalDocs} documents`)
+    console.log('✓ Database verification complete')
 
   } catch (error) {
     console.error('❌ Error setting up test database:', error)
     throw error
   } finally {
-    await client.close()
+    // Clean up Payload connection
+    if (payload?.db?.destroy) {
+      await payload.db.destroy()
+      console.log('\n🧹 Database connection closed')
+    }
   }
 }
 
 async function cleanupTestDatabase() {
   console.log('\n🧹 Cleaning up test database...\n')
 
-  const client = new MongoClient(TEST_DB_URI)
+  // For in-memory SQLite, cleanup happens automatically when the connection closes
+  // No persistent files to delete
 
-  try {
-    await client.connect()
-    const db = client.db(TEST_DB_NAME)
-    await db.dropDatabase()
-    console.log(`✓ Test database dropped: ${TEST_DB_NAME}`)
-  } catch (error) {
-    console.error('❌ Error cleaning up test database:', error)
-  } finally {
-    await client.close()
-  }
+  console.log('✓ In-memory database cleanup complete')
+  console.log('  (Database was automatically destroyed when connection closed)')
 }
 
 // Main execution
