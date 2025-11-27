@@ -25,6 +25,3 @@ NODE_ENV = "production"
 # Build Configuration
 [build]
 command = "pnpm run build"
-
-[build.upload]
-format = "service-worker"

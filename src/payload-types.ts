@@ -789,7 +789,7 @@ export interface Manager {
    */
   admin?: boolean | null;
   /**
-   * Granular permissions for specific collections and locales. Adding the same collection multiple times may cause inconsistent behaviour.
+   * Granular permissions for specific collections and locales. Create multiple entries for different locales or collections.
    */
   permissions?:
     | {
@@ -802,9 +802,9 @@ export interface Manager {
          */
         level: 'translate' | 'manage';
         /**
-         * Select which locales this permission applies to. "All Locales" grants unrestricted locale access.
+         * Select the locale this permission applies to. Create multiple permission entries for multiple locales. "All Locales" grants unrestricted locale access.
          */
-        locales: (
+        locale:
           | 'all'
           | 'en'
           | 'es'
@@ -821,8 +821,7 @@ export interface Manager {
           | 'pt-br'
           | 'fa'
           | 'bg'
-          | 'tr'
-        )[];
+          | 'tr';
         id?: string | null;
       }[]
     | null;
@@ -865,7 +864,7 @@ export interface Client {
    */
   notes?: string | null;
   /**
-   * Granular permissions for specific collections and locales. Adding the same collection multiple times may cause inconsistent behaviour.
+   * Granular permissions for specific collections and locales. Create multiple entries for different locales or collections.
    */
   permissions?:
     | {
@@ -878,9 +877,9 @@ export interface Client {
          */
         level: 'read' | 'manage';
         /**
-         * Select which locales this permission applies to. "All Locales" grants unrestricted locale access.
+         * Select the locale this permission applies to. Create multiple permission entries for multiple locales. "All Locales" grants unrestricted locale access.
          */
-        locales: (
+        locale:
           | 'all'
           | 'en'
           | 'es'
@@ -897,8 +896,7 @@ export interface Client {
           | 'pt-br'
           | 'fa'
           | 'bg'
-          | 'tr'
-        )[];
+          | 'tr';
         id?: string | null;
       }[]
     | null;
@@ -1733,7 +1731,7 @@ export interface ManagersSelect<T extends boolean = true> {
     | {
         allowedCollection?: T;
         level?: T;
-        locales?: T;
+        locale?: T;
         id?: T;
       };
   active?: T;
@@ -1768,7 +1766,7 @@ export interface ClientsSelect<T extends boolean = true> {
     | {
         allowedCollection?: T;
         level?: T;
-        locales?: T;
+        locale?: T;
         id?: T;
       };
   managers?: T;

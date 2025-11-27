@@ -32,6 +32,7 @@
     "@aws-sdk/lib-storage": "^3.919.0",
     "@nouance/payload-better-fields-plugin": "^2.0.2",
     "@opennextjs/cloudflare": "^1.13.1",
+    "@payloadcms/db-d1-sqlite": "^3.64.0",
     "@payloadcms/db-sqlite": "^3.64.0",
     "@payloadcms/email-nodemailer": "^3.64.0",
     "@payloadcms/graphql": "3.64.0",

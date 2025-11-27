@@ -33,8 +33,8 @@ const nextConfig = {
   // External packages for server-side rendering (required for Cloudflare Workers)
   serverExternalPackages: [
     'payload',
+    '@payloadcms/db-d1-sqlite',
     '@payloadcms/db-sqlite',
-    'libsql',
     '@libsql/client',
     'better-sqlite3',
   ],
