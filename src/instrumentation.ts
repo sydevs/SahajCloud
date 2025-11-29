@@ -1,14 +1,14 @@
-import * as Sentry from '@sentry/nextjs'
+// Instrumentation file for Next.js
+// Sentry is disabled for Cloudflare Workers builds due to bundling incompatibilities
+// TODO: Re-enable Sentry after implementing Workers-compatible integration (Phase 6)
 
 export async function register() {
-  // Only enable Sentry instrumentation in production for edge runtime (Cloudflare Workers)
-  if (process.env.NODE_ENV !== 'production') {
-    return
-  }
-
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    await import('./sentry.edge.config')
-  }
+  // Instrumentation currently disabled for all environments
+  // Will be re-enabled after Cloudflare Workers compatibility is resolved
+  return
 }
 
-export const onRequestError = Sentry.captureRequestError
+export async function onRequestError() {
+  // No-op - Sentry integration disabled
+  return
+}

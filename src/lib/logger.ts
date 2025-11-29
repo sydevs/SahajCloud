@@ -1,11 +1,14 @@
 /**
- * Centralized logging utility with Sentry integration
+ * Centralized logging utility
  *
  * Features:
- * - Environment-aware logging (console in dev, Sentry in production)
+ * - Environment-aware logging (console in dev)
  * - Structured logging with context
  * - Type-safe log levels
  * - Contextual logger instances
+ *
+ * NOTE: Sentry integration temporarily disabled for Cloudflare Workers compatibility
+ * TODO: Re-enable Sentry after implementing Workers-compatible integration (Phase 6)
  *
  * @example
  * import { logger } from '@/lib/logger'
@@ -13,8 +16,6 @@
  * logger.info('User logged in', { userId: '123' })
  * logger.error('Failed to save', error, { collection: 'pages' })
  */
-
-import * as Sentry from '@sentry/nextjs'
 
 type LogContext = Record<string, unknown>
 
@@ -47,47 +48,39 @@ class Logger {
 
   /**
    * Log informational messages
-   * Visible in development console and sent to Sentry in production
+   * Visible in development console
    *
    * @param message - Info message
    * @param extra - Additional context
    */
   info(message: string, extra?: LogContext) {
     if (isDevelopment || isTest) {
-       
+
       console.info(`[INFO] ${message}`, this.mergeContext(extra))
     }
 
-    // Send to Sentry in production
-    Sentry.captureMessage(message, {
-      level: 'info',
-      contexts: { custom: this.mergeContext(extra) },
-    })
+    // Sentry.captureMessage disabled - re-enable in Phase 6
   }
 
   /**
    * Log warning messages
-   * Visible in development console and sent to Sentry in production
+   * Visible in development console
    *
    * @param message - Warning message
    * @param extra - Additional context
    */
   warn(message: string, extra?: LogContext) {
     if (isDevelopment || isTest) {
-       
+
       console.warn(`[WARN] ${message}`, this.mergeContext(extra))
     }
 
-    // Send to Sentry in production
-    Sentry.captureMessage(message, {
-      level: 'warning',
-      contexts: { custom: this.mergeContext(extra) },
-    })
+    // Sentry.captureMessage disabled - re-enable in Phase 6
   }
 
   /**
    * Log error messages with optional Error object
-   * Visible in development console and sent to Sentry in production
+   * Visible in development console
    *
    * @param message - Error message
    * @param error - Optional Error object
@@ -97,36 +90,11 @@ class Logger {
     const context = this.mergeContext(extra)
 
     if (isDevelopment || isTest) {
-       
+
       console.error(`[ERROR] ${message}`, error, context)
     }
 
-    // Send to Sentry in production
-    if (error instanceof Error) {
-      Sentry.captureException(error, {
-        contexts: {
-          custom: {
-            message,
-            ...context,
-          },
-        },
-      })
-    } else if (error) {
-      // Handle non-Error objects
-      Sentry.captureException(new Error(message), {
-        contexts: {
-          custom: {
-            originalError: String(error),
-            ...context,
-          },
-        },
-      })
-    } else {
-      Sentry.captureMessage(message, {
-        level: 'error',
-        contexts: { custom: context },
-      })
-    }
+    // Sentry.captureException disabled - re-enable in Phase 6
   }
 
   /**

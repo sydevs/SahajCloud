@@ -17,7 +17,7 @@ import { getPayload } from 'payload'
 import configPromise from '../../src/payload.config'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import * as sharp from 'sharp'
+// import * as sharp from 'sharp' // DISABLED: Removed for Cloudflare Workers compatibility
 import type { CollectionSlug, Payload } from 'payload'
 import { Logger, FileUtils, TagManager, MediaUploader } from '../lib'
 
@@ -162,19 +162,10 @@ class StoryblokImporter {
       return imagePath
     }
 
-    const webpPath = imagePath.replace(ext, '.webp')
-    const fileExists = await fs
-      .access(webpPath)
-      .then(() => true)
-      .catch(() => false)
-
-    if (!fileExists) {
-      const sharpInstance = sharp.default ? sharp.default(imagePath) : (sharp as any)(imagePath)
-      await sharpInstance.webp({ quality: 90 }).toFile(webpPath)
-      await this.logger.info(`Converted ${path.basename(imagePath)} to WebP`)
-    }
-
-    return webpPath
+    // Image conversion disabled for Cloudflare Workers compatibility
+    // Return original image path without WebP conversion
+    await this.logger.info(`Using original image: ${path.basename(imagePath)}`)
+    return imagePath
   }
 
   async createMediaFromUrl(url: string, alt?: string): Promise<number> {

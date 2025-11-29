@@ -1,10 +1,22 @@
 name = "sahajcloud"
-compatibility_date = "2025-11-20"
-main = ".next/standalone/server.js"
+compatibility_date = "2025-11-27"
+main = ".open-next/worker.js"
 compatibility_flags = ["nodejs_compat"]
+
+# Workers.dev subdomain configuration
+# Set to false to disable *.workers.dev routes (use custom domains instead)
+workers_dev = false
+
+# Preview URLs configuration
+# Set to true to enable preview URLs for testing deployments
+preview_urls = false
 
 [observability]
 enabled = true
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
 
 # D1 Database Binding
 [[d1_databases]]
@@ -21,7 +33,11 @@ jurisdiction = "eu"
 # Environment Variables (non-sensitive)
 [vars]
 NODE_ENV = "production"
+SAHAJCLOUD_URL = "https://sahajcloud.sydevelopers.com"
+WEMEDITATE_WEB_URL = "https://wemeditate.com"
+SAHAJATLAS_URL = "https://atlas.sydevelopers.com"
+PUBLIC_ASSETS_URL = "assets.sydevelopers.com"
 
 # Build Configuration
 [build]
-command = "pnpm run build"
+command = "WRANGLER_BUILD_CONDITIONS=\"\" WRANGLER_BUILD_PLATFORM=\"node\" pnpm exec opennextjs-cloudflare build"

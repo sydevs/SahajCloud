@@ -1,12 +1,15 @@
 'use client'
 
-import * as Sentry from '@sentry/nextjs'
 import NextError from 'next/error'
 import { useEffect } from 'react'
 
+// Sentry integration temporarily disabled for Cloudflare Workers compatibility
+// TODO: Re-enable Sentry after implementing Workers-compatible integration (Phase 6)
+
 export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
   useEffect(() => {
-    Sentry.captureException(error)
+    // Sentry.captureException disabled - re-enable in Phase 6
+    console.error('Global error:', error)
   }, [error])
 
   return (

@@ -893,12 +893,78 @@ describe('My Collection', () => {
 
 ## Deployment
 
-- **Payload Cloud**: Primary deployment target with automatic builds
-- **Sentry Integration**: Error monitoring and performance tracking in production
+### Cloudflare Workers (Production)
+
+The application is deployed to **Cloudflare Workers** using **@opennextjs/cloudflare** adapter for serverless edge deployment.
+
+**Deployment Commands**:
+- `pnpm run deploy:prod` - Deploy to Cloudflare Workers (includes database migrations and app deployment)
+- `pnpm run deploy:database` - Apply D1 database migrations only
+- `pnpm run deploy:app` - Deploy application to Workers only
+
+**Production URL**: https://cloud.sydevelopers.com
+
+**Infrastructure**:
+- **Platform**: Cloudflare Workers (paid plan required for 10MB limit)
+- **Database**: Cloudflare D1 (serverless SQLite)
+- **Storage**: Cloudflare R2 (S3-compatible object storage)
+- **CDN**: Cloudflare Assets binding for static files
+
+**Bundle Size**:
+- Compressed: 4.15 MB (well under 10 MB paid plan limit)
+- Uncompressed: 19.5 MB
+- Worker Startup Time: ~26 ms
+
+**Required Configuration**:
+
+1. **next.config.mjs**: Must include `output: 'standalone'` for OpenNext compatibility
+2. **wrangler.toml**: Configure Workers settings:
+   - `workers_dev = false` - Disable *.workers.dev subdomain (use custom domains)
+   - `preview_urls = false` - Disable preview URLs for production
+   - D1 database binding
+   - R2 storage binding
+   - Assets binding for static files
+
+3. **Environment Variables** (set via `wrangler secret put`):
+   - `PAYLOAD_SECRET` - Payload authentication secret
+   - `RESEND_API_KEY` - Email API key (production)
+   - `S3_ENDPOINT` - Cloudflare R2 endpoint
+   - `S3_ACCESS_KEY_ID` - R2 access key
+   - `S3_SECRET_ACCESS_KEY` - R2 secret key
+   - `S3_BUCKET` - R2 bucket name
+   - `S3_REGION` - Set to `auto` for Cloudflare R2
+
+**Deployment Warnings** (Expected & Safe):
+
+The OpenNext bundling process produces several warnings in generated code. These can be safely ignored:
+
+- **7× direct-eval warnings**: Required for PayloadCMS's dynamic migration loading system
+- **3× impossible-typeof warnings**: Dead code from bundled dependencies (typeof "null")
+- **2× duplicate-object-key warnings**: Duplicate keys in generated bundle (lstatSync, isFileReadStream)
+- **1× equals-negative-zero warning**: Edge case handling in generated code
+
+These warnings are in OpenNext's generated bundle code, not our source code, and do not affect functionality.
+
+**Image Processing Limitations**:
+
+Sharp library has been removed for Cloudflare Workers compatibility (native binaries not supported):
+
+- **Disabled**: Image dimension extraction, WebP conversion, video thumbnail generation
+- **Impact**: Images uploaded in original format, no automatic optimization
+- **Future**: Phase 6 will migrate to Cloudflare Images API for image processing
+
+**Files Modified for Cloudflare Workers**:
+- [next.config.mjs](next.config.mjs:11) - Added `output: 'standalone'`
+- [src/payload.config.ts](src/payload.config.ts:11) - Removed sharp import
+- [src/lib/fieldUtils.ts](src/lib/fieldUtils.ts:211-299) - Disabled convertFile and generateVideoThumbnailHook
+- [src/lib/fileUtils.ts](src/lib/fileUtils.ts:24-26) - Disabled image metadata extraction
+- [migration/lib/mediaDownloader.ts](migration/lib/mediaDownloader.ts:53-120) - Disabled WebP conversion
+
+### Alternative Deployment Options
+
 - **Docker Support**: `Dockerfile` and `docker-compose.yml` for containerized development
-- **Railway Deployment**: Alternative deployment option with `railway.toml` configuration
-- **Environment Requirements**: Payload secret (`PAYLOAD_SECRET`) - database configured via Wrangler D1
-- **Database**: Uses Cloudflare D1 (serverless SQLite) in production
+- **Railway**: Alternative deployment option with `railway.toml` configuration (deprecated)
+- **Sentry Integration**: Temporarily disabled for Cloudflare Workers compatibility (will be re-enabled in Phase 6)
 
 ## Project Structure Overview
 

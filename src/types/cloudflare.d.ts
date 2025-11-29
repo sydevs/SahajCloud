@@ -5,7 +5,6 @@ declare global {
     interface ProcessEnv {
       // Payload Core
       PAYLOAD_SECRET: string
-      NEXT_PUBLIC_SERVER_URL?: string
 
       // Database
       DATABASE_URI?: string
@@ -27,9 +26,10 @@ declare global {
       S3_SECRET_ACCESS_KEY?: string
       S3_BUCKET?: string
       S3_REGION?: string
-      S3_PUBLIC_ENDPOINT?: string
+      PUBLIC_ASSETS_URL?: string
 
       // Frontend URLs
+      SAHAJCLOUD_URL?: string
       WEMEDITATE_WEB_URL?: string
       SAHAJATLAS_URL?: string
 

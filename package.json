@@ -43,7 +43,6 @@
     "@payloadcms/richtext-lexical": "^3.64.0",
     "@payloadcms/storage-s3": "^3.64.0",
     "@payloadcms/ui": "^3.64.0",
-    "@sentry/nextjs": "^9.46.0",
     "@types/fluent-ffmpeg": "^2.1.28",
     "@types/styled-components": "^5.1.35",
     "aws-crt": "^1.27.5",
@@ -56,7 +55,6 @@
     "payload": "^3.64.0",
     "react": "19.1.0",
     "resend": "^6.5.2",
-    "sharp": "0.32.6",
     "slugify": "^1.6.6",
     "styled-components": "^6.1.19",
     "tmp": "^0.2.5",
@@ -97,9 +95,13 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "sharp",
       "esbuild",
       "unrs-resolver"
-    ]
+    ],
+    "peerDependencyRules": {
+      "ignoreMissing": [
+        "sharp"
+      ]
+    }
   }
 }

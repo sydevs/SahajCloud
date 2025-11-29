@@ -1,5 +1,5 @@
-name = "sy-devs-cms-dev"
-compatibility_date = "2025-11-20"
+name = "sahajcloud-dev"
+compatibility_date = "2025-11-27"
 main = ".next/standalone/server.js"
 compatibility_flags = ["nodejs_compat"]
 
@@ -18,3 +18,7 @@ jurisdiction = "eu"
 # Environment Variables
 [vars]
 NODE_ENV = "development"
+SAHAJCLOUD_URL = "http://localhost:3000"
+WEMEDITATE_WEB_URL = "http://localhost:5173"
+SAHAJATLAS_URL = "http://localhost:5174"
+# PUBLIC_ASSETS_URL omitted - falls back to local file storage in development

@@ -8,7 +8,7 @@ import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
-import sharp from 'sharp'
+// import sharp from 'sharp' // DISABLED: Incompatible with Cloudflare Workers - TODO: Migrate to Cloudflare Images (Phase 6)
 import { GetPlatformProxyOptions } from 'wrangler'
 
 import { adminOnlyAccess, permissionBasedAccess } from '@/lib/accessControl'
@@ -36,18 +36,18 @@ const cloudflare =
 
 const payloadConfig = (overrides?: Partial<Config>) => {
   return buildConfig({
-    serverURL: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
+    serverURL: process.env.SAHAJCLOUD_URL || 'http://localhost:3000',
     localization: {
       locales: LOCALES.map((l) => l.code),
       defaultLocale: DEFAULT_LOCALE,
     },
     cors: [
-      process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
+      process.env.SAHAJCLOUD_URL || 'http://localhost:3000',
       process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173',
       process.env.SAHAJATLAS_URL || 'http://localhost:5174',
     ],
     csrf: [
-      process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
+      process.env.SAHAJCLOUD_URL || 'http://localhost:3000',
       process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173',
       process.env.SAHAJATLAS_URL || 'http://localhost:5174',
     ],
@@ -113,7 +113,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
                 // No transportOptions - uses Ethereal Email in development
               }),
         }),
-    sharp,
+    // sharp, // DISABLED: Incompatible with Cloudflare Workers - TODO: Migrate to Cloudflare Images (Phase 6)
     plugins: [
       storagePlugin(), // Handles file storage
       seoPlugin({
