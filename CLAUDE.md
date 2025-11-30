@@ -670,6 +670,21 @@ The application features custom branding for We Meditate throughout both the adm
 - **Coral Dark**: `#D86545`
 - **Gradients**: Linear gradients using coral variations
 
+#### Admin Panel Theming (Phase 1)
+- **Location**: `src/app/(payload)/custom.scss`
+- **Approach**: CSS variable overrides with minimal direct CSS for maximum compatibility
+- **Features**:
+  - **Improved Spacing**: Increased base spacing (`--gutter-h`, `--base`) to 24px for comfortable layout
+  - **Better Readability**: Base font size increased to 14px with line height of 1.6
+  - **Larger Click Targets**: Buttons, inputs, and dropdowns have 38px minimum height with proper padding
+  - **Modern Border Radius**: Increased radius values (6px/8px/12px) for contemporary feel
+  - **Coral Brand Integration**: Theme success colors overridden with We Meditate coral palette (50-950 shades)
+  - **Dark Mode Support**: Coral colors adjusted for optimal visibility in dark theme
+  - **Smooth Interactions**: 200ms transitions on all interactive elements
+  - **Enhanced Form Spacing**: Increased margins between form fields and improved card/modal padding
+- **Theme Support**: All changes work seamlessly in both light and dark modes
+- **Code Organization**: Uses `@layer payload` for proper CSS specificity and compatibility with Payload updates
+
 #### External Image Configuration
 - **Next.js Config** (`next.config.mjs`) - Configured to allow images from `raw.githubusercontent.com` for We Meditate logo assets
 - **Assets Source**: Logos sourced from We Meditate GitHub repository
