@@ -27,6 +27,7 @@ binding = "ASSETS"
 binding = "D1"
 database_name = "sahajcloud"
 database_id = "2ff069c0-a98b-4a6c-94eb-fe199f969c8b"
+remote = true
 
 # R2 Storage Binding
 [[r2_buckets]]
