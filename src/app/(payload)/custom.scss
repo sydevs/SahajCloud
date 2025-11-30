@@ -34,45 +34,45 @@
   --style-radius-l: 12px; /* Up from 8px */
 }
 
-/* Increase button and interactive element sizes */
-@layer payload {
-  /* Larger click targets for buttons */
-  button:not(.popup__button-close),
-  .btn,
-  .form-submit button,
-  .pill,
-  .popup__button {
-    padding: 0.625rem 1rem; /* ~10px 16px */
-    min-height: 38px;
-  }
+// /* Increase button and interactive element sizes */
+// @layer payload {
+//   /* Larger click targets for buttons */
+//   button:not(.popup__button-close),
+//   .btn,
+//   .form-submit button,
+//   .pill,
+//   .popup__button {
+//     padding: 0.625rem 1rem; /* ~10px 16px */
+//     min-height: 38px;
+//   }
 
-  /* Larger dropdown and select elements */
-  select,
-  .select-input,
-  .popup__select,
-  .relationship__wrap {
-    min-height: 38px;
-    padding: 0.5rem 0.75rem;
-  }
+//   /* Larger dropdown and select elements */
+//   select,
+//   .select-input,
+//   .popup__select,
+//   .relationship__wrap {
+//     min-height: 38px;
+//     padding: 0.5rem 0.75rem;
+//   }
 
-  /* Better spacing for input fields */
-  input[type='text'],
-  input[type='email'],
-  input[type='password'],
-  input[type='number'],
-  input[type='search'],
-  textarea {
-    min-height: 38px;
-    padding: 0.5rem 0.75rem;
-  }
+//   /* Better spacing for input fields */
+//   input[type='text'],
+//   input[type='email'],
+//   input[type='password'],
+//   input[type='number'],
+//   input[type='search'],
+//   textarea {
+//     min-height: 38px;
+//     padding: 0.5rem 0.75rem;
+//   }
 
-  /* Larger checkbox and radio touch targets */
-  input[type='checkbox'],
-  input[type='radio'] {
-    width: 18px;
-    height: 18px;
-  }
-}
+//   /* Larger checkbox and radio touch targets */
+//   input[type='checkbox'],
+//   input[type='radio'] {
+//     width: 18px;
+//     height: 18px;
+//   }
+// }
 
 /* ============================================================================
    3. WE MEDITATE BRANDING (SUBTLE CORAL ACCENTS)
@@ -138,37 +138,37 @@
    5. ADDITIONAL POLISH & REFINEMENTS
    ============================================================================ */
 
-@layer payload {
-  /* Better spacing for form fields */
-  .field-type {
-    margin-bottom: 1.5rem; /* Increased from default */
-  }
+// @layer payload {
+//   /* Better spacing for form fields */
+//   .field-type {
+//     margin-bottom: 1.5rem; /* Increased from default */
+//   }
 
-  /* More comfortable table row spacing */
-  .table tr,
-  .collection-list__item {
-    padding-top: 0.75rem;
-    padding-bottom: 0.75rem;
-  }
+//   /* More comfortable table row spacing */
+//   .table tr,
+//   .collection-list__item {
+//     padding-top: 0.75rem;
+//     padding-bottom: 0.75rem;
+//   }
 
-  /* Improved card spacing */
-  .card,
-  .dashboard__card {
-    padding: 1.5rem;
-  }
+//   /* Improved card spacing */
+//   .card,
+//   .dashboard__card {
+//     padding: 1.5rem;
+//   }
 
-  /* Better modal padding */
-  .popup__content {
-    padding: 1.5rem;
-  }
+//   /* Better modal padding */
+//   .popup__content {
+//     padding: 1.5rem;
+//   }
 
-  /* Smooth transitions for interactive elements */
-  button,
-  .btn,
-  a,
-  input,
-  select,
-  textarea {
-    transition: all 200ms ease-in-out;
-  }
-}
+//   /* Smooth transitions for interactive elements */
+//   button,
+//   .btn,
+//   a,
+//   input,
+//   select,
+//   textarea {
+//     transition: all 200ms ease-in-out;
+//   }
+// }
