@@ -38,7 +38,7 @@ jurisdiction = "eu"
 # Environment Variables (non-sensitive)
 [vars]
 NODE_ENV = "production"
-SAHAJCLOUD_URL = "https://sahajcloud.sydevelopers.com"
+SAHAJCLOUD_URL = "https://cloud.sydevelopers.com"
 WEMEDITATE_WEB_URL = "https://wemeditate.com"
 SAHAJATLAS_URL = "https://atlas.sydevelopers.com"
 PUBLIC_ASSETS_URL = "assets.sydevelopers.com"
