@@ -17,7 +17,7 @@ import * as path from 'path'
 export interface MediaUploadOptions {
   alt?: string
   credit?: string
-  tags?: string[]
+  tags?: number[]
   locale?: string | undefined
 }
 
@@ -180,7 +180,7 @@ export class MediaUploader {
   /**
    * Update tags on existing media
    */
-  private async updateMediaTags(mediaId: string, newTags: string[]): Promise<void> {
+  private async updateMediaTags(mediaId: string, newTags: number[]): Promise<void> {
     try {
       const media = await this.payload.findByID({
         collection: 'media',
@@ -189,7 +189,7 @@ export class MediaUploader {
 
       // Merge existing tags with new tags
       const existingTags = Array.isArray(media.tags)
-        ? media.tags.map((tag: any) => (typeof tag === 'string' ? tag : tag.id))
+        ? media.tags.map((tag: any) => (typeof tag === 'number' ? tag : tag.id))
         : []
 
       const mergedTags = Array.from(new Set([...existingTags, ...newTags]))

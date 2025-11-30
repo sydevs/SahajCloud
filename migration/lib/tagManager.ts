@@ -10,7 +10,7 @@ import type { Logger } from './logger'
 export class TagManager {
   private payload: Payload
   private logger: Logger
-  private tagCache: Map<string, string> = new Map()
+  private tagCache: Map<string, number> = new Map()
 
   constructor(payload: Payload, logger: Logger) {
     this.payload = payload
@@ -24,7 +24,7 @@ export class TagManager {
     tagCollection: string,
     tagName: string,
     additionalData: Record<string, any> = {},
-  ): Promise<string> {
+  ): Promise<number> {
     // Check cache first
     const cacheKey = `${tagCollection}:${tagName}`
     if (this.tagCache.has(cacheKey)) {
@@ -39,7 +39,7 @@ export class TagManager {
     })
 
     if (existing.docs.length > 0) {
-      const tagId = existing.docs[0].id as string
+      const tagId = existing.docs[0].id as number
       this.tagCache.set(cacheKey, tagId)
       await this.logger.info(`Found existing tag: ${tagName}`)
       return tagId
@@ -51,7 +51,7 @@ export class TagManager {
       data: { name: tagName, ...additionalData },
     })
 
-    const tagId = tag.id as string
+    const tagId = tag.id as number
     this.tagCache.set(cacheKey, tagId)
     await this.logger.info(`Created tag: ${tagName}`)
     return tagId
@@ -60,14 +60,14 @@ export class TagManager {
   /**
    * Ensure media import tag
    */
-  async ensureMediaTag(importTag: string): Promise<string> {
+  async ensureMediaTag(importTag: string): Promise<number> {
     return this.ensureTag('media-tags', importTag)
   }
 
   /**
    * Add tags to media document
    */
-  async addTagsToMedia(mediaId: string, tagIds: string[]): Promise<void> {
+  async addTagsToMedia(mediaId: string, tagIds: number[]): Promise<void> {
     if (tagIds.length === 0) return
 
     try {
@@ -79,8 +79,8 @@ export class TagManager {
 
       // Get current tags
       const currentTags = Array.isArray(media.tags)
-        ? media.tags.map((tag: string | { id: string }) =>
-            typeof tag === 'string' ? tag : tag.id,
+        ? media.tags.map((tag: number | { id: number }) =>
+            typeof tag === 'number' ? tag : tag.id,
           )
         : []
 

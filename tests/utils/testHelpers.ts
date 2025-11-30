@@ -1,23 +1,22 @@
 // Node.js and external dependencies
-import { MongoClient } from 'mongodb'
+import type { PayloadRequest, UploadConfig, CollectionConfig } from 'payload'
+
 import path from 'path'
 import { fileURLToPath } from 'url'
 
 // Payload CMS
-import { getPayload, Payload } from 'payload'
-import { mongooseAdapter } from '@payloadcms/db-mongodb'
-import { buildConfig } from 'payload'
-import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
-import type { PayloadRequest, UploadConfig, CollectionConfig } from 'payload'
+import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { getPayload, Payload } from 'payload'
+import { buildConfig } from 'payload'
 
 // Project imports
+import { EmailTestAdapter } from './emailTestAdapter'
+import { testData } from './testData'
 import { collections, Managers } from '../../src/collections'
 import { globals } from '../../src/globals'
 import { tasks } from '../../src/jobs'
-import { EmailTestAdapter } from './emailTestAdapter'
-import { expect } from 'vitest'
-import { testData } from './testData'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -25,17 +24,16 @@ const __dirname = path.dirname(__filename)
 // Constants
 const DEFAULT_EMAIL_TIMEOUT = 5000
 const UPLOAD_COLLECTIONS: readonly string[] = ['media', 'frames']
-export const TEST_ADMIN_ID = '655cc2b6bc711365d666f155'
 
 /**
  * Creates test-specific collections with image resizing disabled.
  * Image resizing is disabled in tests to avoid sharp dependency issues
  * and to speed up test execution since we're not testing image processing functionality.
- * 
+ *
  * @returns Modified collections array with image resizing disabled for upload collections
  */
 function getTestCollections(): CollectionConfig[] {
-  return collections.map(collection => {
+  return collections.map((collection) => {
     // Disable image resizing for upload collections in tests
     if (UPLOAD_COLLECTIONS.includes(collection.slug)) {
       return {
@@ -46,18 +44,17 @@ function getTestCollections(): CollectionConfig[] {
         },
       }
     }
-    
+
     return collection
   })
 }
 
 /**
  * Creates the base Payload configuration for test environments
- * @param mongoUri Database URI for the test database
  * @param emailConfig Optional email configuration
  * @returns Payload configuration object
  */
-function createBaseTestConfig(mongoUri: string, emailConfig?: any) {
+function createBaseTestConfig(emailConfig?: any) {
   return buildConfig({
     admin: {
       user: Managers.slug,
@@ -70,87 +67,68 @@ function createBaseTestConfig(mongoUri: string, emailConfig?: any) {
     typescript: {
       outputFile: path.resolve(__dirname, '../../src/payload-types.ts'),
     },
-    db: mongooseAdapter({
-      url: mongoUri,
+    // Use in-memory SQLite database for tests
+    db: sqliteAdapter({
+      client: {
+        url: ':memory:', // In-memory SQLite database
+      },
+      push: true, // Auto-create schema
     }),
     jobs: {
       tasks,
       deleteJobOnComplete: true,
     },
-    email: emailConfig || nodemailerAdapter({
-      defaultFromAddress: 'no-reply@test.com',
-      defaultFromName: 'Test Suite',
-      skipVerify: true,
-      transportOptions: {
-        // Use streamTransport to avoid Ethereal email logging
-        streamTransport: true,
-        newline: 'unix',
-      } as any,
-    }),
+    email:
+      emailConfig ||
+      nodemailerAdapter({
+        defaultFromAddress: 'no-reply@test.com',
+        defaultFromName: 'Test Suite',
+        skipVerify: true,
+        transportOptions: {
+          // Use streamTransport to avoid Ethereal email logging
+          streamTransport: true,
+          newline: 'unix',
+        } as any,
+      }),
   })
 }
 
 /**
  * Performs cleanup operations for test environments
  * @param payload The Payload instance to cleanup
- * @param baseUri Base MongoDB URI
- * @param testDbName Name of the test database to drop
  */
-async function cleanupTestEnvironment(
-  payload: Payload,
-  baseUri: string,
-  testDbName: string
-): Promise<void> {
-  // Close Payload connection
+async function cleanupTestEnvironment(payload: Payload): Promise<void> {
+  // Close Payload connection and destroy in-memory database
   try {
     if (payload.db && typeof payload.db.destroy === 'function') {
       await payload.db.destroy()
     }
   } catch (error) {
-    // Failed to close Payload connection - continue with cleanup
+    // Failed to close Payload connection - not critical for in-memory DB
   }
-
-  // Drop the test database
-  const client = new MongoClient(baseUri)
-  try {
-    await client.connect()
-    await client.db(testDbName).dropDatabase()
-  } catch (error) {
-    // Failed to drop test database - not critical
-  } finally {
-    await client.close()
-  }
+  // Note: In-memory SQLite database is automatically destroyed when connection closes
 }
 
 /**
  * Creates an isolated test database and Payload instance for a test suite
- * Each call creates a unique database name to ensure complete isolation
+ * Each call creates a unique in-memory SQLite database to ensure complete isolation
  */
 export async function createTestEnvironment(): Promise<{
   payload: Payload
   cleanup: () => Promise<void>
+  adminUser: Awaited<ReturnType<typeof testData.createManager>>
 }> {
-  const baseUri = process.env.TEST_MONGO_URI
-  if (!baseUri) {
-    throw new Error('TEST_MONGO_URI not available. Make sure globalSetup is configured.')
-  }
-
-  // Create a unique database name for this test environment
-  const testDbName = `test_${Date.now()}_${Math.random().toString(36).substring(7)}`
-  const mongoUri = `${baseUri}${testDbName}?retryWrites=true&w=majority`
-
-  // Creating test environment with unique database
-
-  const config = createBaseTestConfig(mongoUri)
+  // Creating test environment with in-memory SQLite database
+  const config = createBaseTestConfig()
   const payload = await getPayload({ config })
-  await testData.createManager(payload, {
-    id: TEST_ADMIN_ID,
+  const adminUser = await testData.createManager(payload, {
     email: 'admin@example.com',
+    admin: true,
   })
 
-  const cleanup = () => cleanupTestEnvironment(payload, baseUri, testDbName)
+  const cleanup = () => cleanupTestEnvironment(payload)
 
-  return { payload, cleanup }
+  return { payload, cleanup, adminUser }
 }
 
 /**
@@ -161,22 +139,13 @@ export async function createTestEnvironmentWithEmail(): Promise<{
   cleanup: () => Promise<void>
   emailAdapter: EmailTestAdapter
 }> {
-  const baseUri = process.env.TEST_MONGO_URI
-  if (!baseUri) {
-    throw new Error('TEST_MONGO_URI not available. Make sure globalSetup is configured.')
-  }
-
-  // Create a unique database name for this test environment
-  const testDbName = `test_email_${Date.now()}_${Math.random().toString(36).substring(7)}`
-  const mongoUri = `${baseUri}${testDbName}?retryWrites=true&w=majority`
-
-  // Creating test environment with email support and unique database
+  // Creating test environment with email support and in-memory SQLite database
 
   // Initialize email adapter
   const emailAdapter = new EmailTestAdapter()
   await emailAdapter.init()
   const emailAdapterFn = EmailTestAdapter.create(emailAdapter)
-  
+
   // Enhance the email adapter function to expose the adapter instance for testing
   const originalFn = emailAdapterFn
   const enhancedFn = () => {
@@ -186,9 +155,9 @@ export async function createTestEnvironmentWithEmail(): Promise<{
   }
 
   // Create config with email adapter
-  const config = createBaseTestConfig(mongoUri, enhancedFn)
+  const config = createBaseTestConfig(enhancedFn)
   const payload = await getPayload({ config })
-  const cleanup = () => cleanupTestEnvironment(payload, baseUri, testDbName)
+  const cleanup = () => cleanupTestEnvironment(payload)
 
   return { payload, cleanup, emailAdapter }
 }
@@ -198,7 +167,7 @@ export async function createTestEnvironmentWithEmail(): Promise<{
  */
 export async function createAuthenticatedRequest(
   payload: Payload,
-  userId: string
+  userId: string,
 ): Promise<PayloadRequest> {
   const user = await payload.findByID({
     collection: 'managers',
@@ -222,7 +191,7 @@ export async function createAuthenticatedRequest(
  */
 export async function waitForEmail(
   emailAdapter: EmailTestAdapter,
-  timeout: number = DEFAULT_EMAIL_TIMEOUT
+  timeout: number = DEFAULT_EMAIL_TIMEOUT,
 ): Promise<void> {
   await emailAdapter.waitForEmail(timeout)
 }
@@ -232,17 +201,14 @@ export async function waitForEmail(
  * @param payload The Payload instance
  * @param overrides Optional field overrides
  */
-export async function createTestUser(
-  payload: Payload,
-  overrides: Partial<any> = {}
-): Promise<any> {
+export async function createTestUser(payload: Payload, overrides: Partial<any> = {}): Promise<any> {
   const defaultData = {
     name: `Test User ${Date.now()}`,
     email: `test-user-${Date.now()}@example.com`,
     password: 'password123',
     role: 'super-admin' as const,
   }
-  
+
   return await payload.create({
     collection: 'managers',
     data: { ...defaultData, ...overrides },
@@ -258,9 +224,9 @@ export async function createTestUser(
  */
 export async function createTestClient(
   payload: Payload,
-  managers: string[],
-  primaryContact: string,
-  overrides: Partial<any> = {}
+  managers: number[],
+  primaryContact: number,
+  overrides: Partial<any> = {},
 ): Promise<any> {
   const defaultData = {
     name: `Test Client ${Date.now()}`,
@@ -270,7 +236,7 @@ export async function createTestClient(
     primaryContact,
     active: true,
   }
-  
+
   return await payload.create({
     collection: 'clients',
     data: { ...defaultData, ...overrides },
@@ -287,22 +253,17 @@ export async function createTestClientWithManager(
   overrides: {
     user?: Partial<any>
     client?: Partial<any>
-  } = {}
+  } = {},
 ): Promise<{
   user: any
   client: any
 }> {
   // Create manager user
   const user = await createTestUser(payload, overrides.user)
-  
+
   // Create client with this user as manager and primary contact
-  const client = await createTestClient(
-    payload,
-    [user.id],
-    user.id,
-    overrides.client
-  )
-  
+  const client = await createTestClient(payload, [user.id], user.id, overrides.client)
+
   return { user, client }
 }
 
@@ -313,13 +274,13 @@ export async function createTestClientWithManager(
  */
 export function createClientAuthenticatedRequest(
   clientId: string,
-  apiKey: string
+  apiKey: string,
 ): Partial<PayloadRequest> {
   // Create a minimal request object for testing
   // The headers type in PayloadRequest is complex, so we use a type assertion
   const headers = new Headers()
   headers.set('authorization', `clients API-Key ${apiKey}`)
-  
+
   return {
     headers: headers as PayloadRequest['headers'],
     user: {

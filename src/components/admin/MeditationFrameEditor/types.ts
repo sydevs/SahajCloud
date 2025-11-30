@@ -1,7 +1,7 @@
 import type { Frame } from '@/payload-types'
 
 export type KeyframeDefinition = {
-  id: string
+  id: number | string
   timestamp: number
 }
 

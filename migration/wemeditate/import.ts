@@ -1,5 +1,30 @@
 #!/usr/bin/env tsx
 
+/**
+ * WeMeditate Rails Database Import Script
+ *
+ * Imports content from the Rails-based WeMeditate PostgreSQL database into Payload CMS.
+ *
+ * DUAL-DATABASE ARCHITECTURE:
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * This script uses TWO different databases:
+ *
+ * 1. PostgreSQL (SOURCE - temporary, read-only):
+ *    - Created from data.bin (Rails database dump)
+ *    - Used to READ legacy WeMeditate content
+ *    - Automatically cleaned up after import
+ *    - NOT related to Payload's database
+ *
+ * 2. SQLite/D1 (TARGET - Payload CMS):
+ *    - Current Payload database (configured in payload.config.ts)
+ *    - Where imported content is WRITTEN
+ *    - Uses Payload's API for all operations
+ *    - Database-agnostic (works with SQLite, D1, PostgreSQL, MongoDB)
+ *
+ * The script reads from PostgreSQL (Rails) and writes to Payload (SQLite/D1).
+ * These are completely separate databases serving different purposes.
+ */
+
 import 'dotenv/config'
 import { CollectionSlug, getPayload, Payload } from 'payload'
 import configPromise from '../../src/payload.config'
@@ -2151,7 +2176,8 @@ class WeMeditateImporter {
 
       throw error
     } finally {
-      // Ensure Payload cleanup
+      // Ensure Payload database connection cleanup (SQLite/D1)
+      // Note: PostgreSQL cleanup happens in cleanupDatabase() method
       if (this.payload?.db?.destroy) {
         await this.payload.db.destroy()
       }

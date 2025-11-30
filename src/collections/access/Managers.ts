@@ -8,7 +8,7 @@ export const Managers: CollectionConfig = {
   auth: {
     verify: {
       generateEmailHTML: ({ token, user }) => {
-        const verifyURL = `${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'}/admin/verify/${token}`
+        const verifyURL = `${process.env.SAHAJCLOUD_URL || 'http://localhost:3000'}/admin/verify/${token}`
         return `
 <!DOCTYPE html>
 <html>

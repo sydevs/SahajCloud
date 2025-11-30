@@ -1,5 +1,30 @@
 #!/usr/bin/env tsx
 
+/**
+ * Meditations Import Script
+ *
+ * Imports meditation content from Google Cloud Storage and PostgreSQL database into Payload CMS.
+ *
+ * DUAL-DATABASE ARCHITECTURE:
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * This script uses TWO different databases:
+ *
+ * 1. PostgreSQL (SOURCE - temporary, read-only):
+ *    - Created from data.bin (meditation database dump)
+ *    - Used to READ legacy meditation data
+ *    - Automatically cleaned up after import
+ *    - NOT related to Payload's database
+ *
+ * 2. SQLite/D1 (TARGET - Payload CMS):
+ *    - Current Payload database (configured in payload.config.ts)
+ *    - Where imported content is WRITTEN
+ *    - Uses Payload's API for all operations
+ *    - Database-agnostic (works with SQLite, D1, PostgreSQL, MongoDB)
+ *
+ * The script reads from PostgreSQL (legacy data) and writes to Payload (SQLite/D1).
+ * These are completely separate databases serving different purposes.
+ */
+
 import 'dotenv/config'
 import { CollectionSlug, getPayload, Payload } from 'payload'
 import configPromise from '../../src/payload.config'
@@ -71,11 +96,11 @@ class SimpleImporter {
   private idMapsFile: string
   private placeholderMediaId: string | null = null
   private pathPlaceholderMediaId: string | null = null
-  private meditationThumbnailTagId: string | null = null
-  private importMediaTagId: string | null = null
+  private meditationThumbnailTagId: number | null = null
+  private importMediaTagId: number | null = null
   private idMaps = {
-    meditationTags: new Map<number, string>(),
-    musicTags: new Map<number, string>(),
+    meditationTags: new Map<number, number>(),
+    musicTags: new Map<number, number>(),
     frames: new Map<string, string>(),
     meditations: new Map<number, string>(),
     musics: new Map<number, string>(),
@@ -355,12 +380,18 @@ class SimpleImporter {
       // Restore ID mappings from cache
       if (cached.meditationTags) {
         this.idMaps.meditationTags = new Map(
-          Object.entries(cached.meditationTags).map(([k, v]) => [parseInt(k), v as string]),
+          Object.entries(cached.meditationTags).map(([k, v]) => [
+            parseInt(k),
+            typeof v === 'number' ? v : parseInt(v as string),
+          ]),
         )
       }
       if (cached.musicTags) {
         this.idMaps.musicTags = new Map(
-          Object.entries(cached.musicTags).map(([k, v]) => [parseInt(k), v as string]),
+          Object.entries(cached.musicTags).map(([k, v]) => [
+            parseInt(k),
+            typeof v === 'number' ? v : parseInt(v as string),
+          ]),
         )
       }
       if (cached.frames) {
@@ -933,7 +964,7 @@ class SimpleImporter {
           await this.logger.log(`    ✓ Created meditation tag: ${meditationTag.name}`)
           meditationCreated++
         }
-        this.idMaps.meditationTags.set(tag.id, String(meditationTag.id))
+        this.idMaps.meditationTags.set(tag.id, meditationTag.id as number)
       }
 
       // Handle music-tags (only if used by music)
@@ -950,7 +981,7 @@ class SimpleImporter {
           await this.logger.log(`    ✓ Created music tag: ${musicTag.name}`)
           musicCreated++
         }
-        this.idMaps.musicTags.set(tag.id, String(musicTag.id))
+        this.idMaps.musicTags.set(tag.id, musicTag.id as number)
       }
     }
 
@@ -1243,7 +1274,7 @@ class SimpleImporter {
       )
       const musicTagIds = musicTaggings
         .map((tagging) => this.idMaps.musicTags.get(tagging.tag_id))
-        .filter((id): id is string => Boolean(id))
+        .filter((id): id is number => Boolean(id))
 
       if (musicTagIds.length > 0) {
         await this.logger.log(`    ℹ️  Music "${music.title}" has ${musicTagIds.length} tags`)
@@ -1460,7 +1491,7 @@ class SimpleImporter {
       )
       const meditationTagIds = meditationTaggings
         .map((tagging) => this.idMaps.meditationTags.get(tagging.tag_id))
-        .filter(Boolean)
+        .filter((id): id is number => Boolean(id))
 
       // narratorId already retrieved above for debugging
 

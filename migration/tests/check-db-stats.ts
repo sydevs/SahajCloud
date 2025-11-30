@@ -3,69 +3,152 @@
 /**
  * Check Database Statistics
  *
- * Shows the document counts in the test database
+ * Shows the document counts in the test database using Payload API.
+ * Works with both SQLite (test) and D1 (production) databases.
  */
 
-import { MongoClient } from 'mongodb'
+import { getPayload } from 'payload'
+import type { Payload } from 'payload'
 
-const TEST_DB_NAME = 'sy_devs_cms_migration_test'
-const TEST_DB_URI = `mongodb://localhost:27017/${TEST_DB_NAME}`
+import configPromise from '../../src/payload.config'
 
 async function checkDatabaseStats() {
-  const client = new MongoClient(TEST_DB_URI)
+  let payload: Payload | null = null
 
   try {
-    await client.connect()
-    const db = client.db(TEST_DB_NAME)
+    // Initialize Payload
+    const config = await configPromise
+    payload = await getPayload({ config })
 
-    const collections = await db.listCollections().toArray()
+    // Define collections to check
+    const collections = [
+      'managers',
+      'clients',
+      'media',
+      'media-tags',
+      'meditation-tags',
+      'music-tags',
+      'page-tags',
+      'narrators',
+      'authors',
+      'frames',
+      'meditations',
+      'music',
+      'lessons',
+      'file-attachments',
+      'external-videos',
+      'pages',
+      'forms',
+      'form-submissions',
+    ]
 
     console.log('\nCollection Statistics:')
     console.log('=====================')
 
     let totalDocs = 0
+    const stats: { [key: string]: number } = {}
 
-    for (const collInfo of collections) {
-      const collection = db.collection(collInfo.name)
-      const count = await collection.countDocuments()
-      totalDocs += count
+    // Get counts for each collection
+    for (const collection of collections) {
+      try {
+        const result = await payload.count({ collection: collection as any })
+        const count = result.totalDocs
+        stats[collection] = count
+        totalDocs += count
 
-      if (count > 0) {
-        console.log(`  ${collInfo.name}: ${count} documents`)
+        if (count > 0) {
+          console.log(`  ${collection}: ${count} documents`)
+        }
+      } catch (error) {
+        // Collection might not exist or be accessible
+        console.log(`  ${collection}: (not accessible)`)
       }
     }
 
-    console.log(`\nTotal: ${totalDocs} documents across ${collections.length} collections`)
+    console.log(`\nTotal: ${totalDocs} documents across ${Object.keys(stats).length} collections`)
 
     // Check for import tags
     console.log('\nImport Tags:')
     console.log('============')
-    const mediaTags = db.collection('media-tags')
-    const importTags = await mediaTags
-      .find({ 'name.en': { $regex: /^import-/ } })
-      .toArray()
 
-    if (importTags.length > 0) {
-      for (const tag of importTags) {
-        const tagName = typeof tag.name === 'string' ? tag.name : tag.name?.en || tag.name
-        console.log(`  ✓ ${tagName}`)
+    const importTagCollections = ['media-tags', 'meditation-tags', 'music-tags', 'page-tags']
+    let foundTags = false
+
+    for (const tagCollection of importTagCollections) {
+      try {
+        const result = await payload.find({
+          collection: tagCollection as any,
+          where: {
+            slug: {
+              contains: 'import-',
+            },
+          },
+          limit: 100,
+        })
+
+        if (result.docs.length > 0) {
+          for (const tag of result.docs) {
+            const tagData = tag as any
+            const tagName = tagData.slug || tagData.title?.en || tagData.title || 'unknown'
+            console.log(`  ✓ ${tagName} (${tagCollection})`)
+            foundTags = true
+          }
+        }
+      } catch (error) {
+        // Collection might not exist
       }
-    } else {
+    }
+
+    if (!foundTags) {
       console.log('  (none found)')
     }
 
-    // Check media with import tags
-    const media = db.collection('media')
-    const mediaWithTags = await media.find({ tags: { $exists: true, $ne: [] } }).toArray()
+    // Check media with tags
+    try {
+      const mediaWithTags = await payload.find({
+        collection: 'media',
+        where: {
+          tags: {
+            exists: true,
+          },
+        },
+        limit: 1000,
+      })
 
-    if (mediaWithTags.length > 0) {
-      console.log(`\nMedia with tags: ${mediaWithTags.length}`)
+      if (mediaWithTags.docs.length > 0) {
+        console.log(`\nMedia with tags: ${mediaWithTags.docs.length}`)
+      }
+    } catch (error) {
+      // Media collection might not exist or have tags
     }
+
+    // Check lessons with import tags
+    try {
+      const lessonsWithImportTags = await payload.find({
+        collection: 'lessons',
+        where: {
+          tags: {
+            exists: true,
+          },
+        },
+        limit: 1000,
+      })
+
+      if (lessonsWithImportTags.docs.length > 0) {
+        console.log(`Lessons with tags: ${lessonsWithImportTags.docs.length}`)
+      }
+    } catch (error) {
+      // Lessons collection might not exist or have tags
+    }
+
   } catch (error) {
     console.error('❌ Error checking database:', error)
     throw error
   } finally {
-    await client.close()
+    // Clean up Payload connection
+    if (payload?.db?.destroy) {
+      await payload.db.destroy()
+    }
   }
 }
 

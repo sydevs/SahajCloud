@@ -53,3 +53,9 @@ node_modules/
 
 # Sentry Config File
 .env.sentry-build-plugin
+local.db
+worker-configuration.d.ts
+
+# Wrangler
+.wrangler/state
+.open-next

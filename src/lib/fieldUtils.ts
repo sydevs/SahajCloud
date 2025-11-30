@@ -1,4 +1,4 @@
-import fs from 'fs'
+// import fs from 'fs' // DISABLED: Only needed for video thumbnail generation (disabled)
 
 import {
   CollectionAfterChangeHook,
@@ -8,11 +8,12 @@ import {
   CollectionBeforeValidateHook,
 } from 'payload'
 import { PayloadRequest } from 'payload'
-import sharp from 'sharp'
+// import sharp from 'sharp' // DISABLED: Incompatible with Cloudflare Workers - TODO: Migrate to Cloudflare Images (Phase 6)
 import slugify from 'slugify'
-import tmp from 'tmp'
+// import tmp from 'tmp' // DISABLED: Only needed for video thumbnail generation (disabled)
 
-import { extractFileMetadata, extractVideoThumbnail } from './fileUtils'
+import { extractFileMetadata } from './fileUtils'
+// import { extractVideoThumbnail } from './fileUtils' // DISABLED: Function disabled for Cloudflare Workers
 import { logger } from './logger'
 
 type FileType = 'image' | 'audio' | 'video'
@@ -192,64 +193,29 @@ export const processFile: ProcessFileHook = ({ maxMB, maxMinutes }) => {
 /**
  * Convert and optimize uploaded image files before storage
  *
- * Automatically extracts image dimensions and converts JPEG/PNG images to WebP format
- * for optimal file size and performance. This hook should be added to the `beforeChange`
- * hook array of upload collections that handle images.
+ * DISABLED: This hook is temporarily disabled for Cloudflare Workers compatibility.
+ * Sharp library requires native binaries and multi-threading which are not supported
+ * in Cloudflare Workers runtime.
  *
- * @param params - Hook parameters
- * @param params.data - Document data being created/updated
- * @param params.req - Payload request object containing the uploaded file
+ * TODO: Migrate to Cloudflare Images API in Phase 6 for image processing:
+ * - Image dimension extraction
+ * - WebP conversion
+ * - Image optimization
  *
- * @returns Updated document data with dimensions field populated
- *
- * @remarks
- * **Image Processing:**
+ * Original functionality:
  * - Extracts width and height using Sharp library
  * - Stores dimensions in `data.dimensions` field as `{ width, height }`
  * - Auto-converts JPEG and PNG to WebP at 95% quality
  * - Updates file buffer, mimetype, and filename after conversion
- *
- * **WebP Conversion Benefits:**
- * - Reduces file size by 25-35% compared to JPEG
- * - Maintains high visual quality (95% quality setting)
- * - Better compression than PNG for photos
- * - Wide browser support (modern browsers)
- *
- * **File Format Support:**
- * - JPEG → WebP (automatic conversion)
- * - PNG → WebP (automatic conversion)
- * - Other formats → Dimensions extracted, no conversion
- *
- * @example
- * Usage in Media collection
- * ```typescript
- * export const Media: CollectionConfig = {
- *   slug: 'media',
- *   upload: true,
- *   hooks: {
- *     beforeChange: [convertFile]
- *   },
- *   fields: [
- *     {
- *       name: 'dimensions',
- *       type: 'group',
- *       fields: [
- *         { name: 'width', type: 'number' },
- *         { name: 'height', type: 'number' }
- *       ]
- *     }
- *   ]
- * }
- * ```
- *
- * @example
- * File transformation example
- * ```
- * Input:  photo.jpg (JPEG, 2.5MB, 1920x1080)
- * Output: photo.webp (WebP, 1.8MB, 1920x1080)
- * data.dimensions = { width: 1920, height: 1080 }
- * ```
  */
+export const convertFile: CollectionBeforeChangeHook = async ({ data }) => {
+  // DISABLED: Sharp processing removed for Cloudflare Workers compatibility
+  // Image processing will be handled by Cloudflare Images API in Phase 6
+  return data
+}
+
+/*
+// ORIGINAL IMPLEMENTATION - Commented out for Cloudflare Workers compatibility
 export const convertFile: CollectionBeforeChangeHook = async ({ data, req }) => {
   if (req.file && req.file.data && req.file.mimetype) {
     const { mimetype } = req.file
@@ -275,80 +241,32 @@ export const convertFile: CollectionBeforeChangeHook = async ({ data, req }) => 
 
   return data
 }
+*/
 
 /**
  * Automatically generate thumbnails for uploaded video files
  *
- * Extracts a frame from the video at 0.1 seconds and creates a 320x320 WebP thumbnail
- * stored as a FileAttachment with proper ownership for cascade deletion. Only runs on
- * video file creation (not updates).
+ * DISABLED: This hook is temporarily disabled for Cloudflare Workers compatibility.
+ * The extractVideoThumbnail function uses Sharp library which requires native binaries
+ * and multi-threading not supported in Cloudflare Workers runtime.
  *
- * @param params - Hook parameters
- * @param params.doc - Created/updated document
- * @param params.req - Payload request object with file data
- * @param params.operation - Operation type (create, update, delete)
- * @param params.collection - Collection configuration
+ * TODO: Migrate to Cloudflare Images API or Cloudflare Stream API in Phase 6 for:
+ * - Video thumbnail extraction
+ * - Image processing and optimization
  *
- * @returns Updated document with thumbnail relationship populated, or original doc if generation fails
- *
- * @remarks
- * **Execution Conditions:**
- * - Only runs on `create` operations (not updates)
- * - Only processes video files (mimeType starts with 'video/')
- * - Requires file data to be present in request
- *
- * **Thumbnail Generation Process:**
- * 1. Extract frame at 0.1 seconds using FFmpeg
- * 2. Convert to 320x320 WebP format using Sharp
- * 3. Write to temporary file
- * 4. Create FileAttachment with ownership relationship
- * 5. Update document with thumbnail reference
- * 6. Clean up temporary file
- *
- * **FileAttachment Ownership:**
- * - Creates FileAttachment owned by the video document
- * - Enables cascade deletion (thumbnail deleted when video is deleted)
- * - Uses polymorphic relationship (`relationTo: collection.slug`)
- *
- * **Error Handling:**
- * - Gracefully fails if thumbnail generation errors occur
- * - Logs warning with frame ID and error details
- * - Returns original document without thumbnail on failure
- * - Does not block document creation if thumbnail fails
- *
- * @example
- * Usage in Frames collection
- * ```typescript
- * export const Frames: CollectionConfig = {
- *   slug: 'frames',
- *   upload: true,
- *   hooks: {
- *     afterChange: [generateVideoThumbnailHook]
- *   },
- *   fields: [
- *     {
- *       name: 'thumbnail',
- *       type: 'upload',
- *       relationTo: 'file-attachments',
- *       label: 'Video Thumbnail'
- *     }
- *   ]
- * }
- * ```
- *
- * @example
- * Generated FileAttachment structure
- * ```typescript
- * {
- *   id: 'abc123',
- *   url: '/media/video-thumbnail-xyz.webp',
- *   owner: {
- *     relationTo: 'frames',
- *     value: 'frame-id-456' // Parent video frame ID
- *   }
- * }
- * ```
+ * Original functionality:
+ * - Extracts frame at 0.1 seconds using FFmpeg
+ * - Converts to 320x320 WebP format using Sharp
+ * - Creates FileAttachment with ownership for cascade deletion
  */
+export const generateVideoThumbnailHook: CollectionAfterChangeHook = async ({ doc }) => {
+  // DISABLED: Video thumbnail generation removed for Cloudflare Workers compatibility
+  // Video thumbnails will be handled by Cloudflare Stream or Images API in Phase 6
+  return doc
+}
+
+/*
+// ORIGINAL IMPLEMENTATION - Commented out for Cloudflare Workers compatibility
 export const generateVideoThumbnailHook: CollectionAfterChangeHook = async ({
   doc,
   req,
@@ -360,7 +278,15 @@ export const generateVideoThumbnailHook: CollectionAfterChangeHook = async ({
   }
 
   try {
-    const thumbnailBuffer = await extractVideoThumbnail(req.file.data)
+    // Convert Buffer to Uint8Array for better compatibility with file-type library
+    // Always create a new Uint8Array to ensure proper type conversion
+    const data = req.file.data as Buffer | Uint8Array | ArrayBuffer
+    const fileData = Buffer.isBuffer(data)
+      ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+      : data instanceof Uint8Array
+        ? data
+        : new Uint8Array(data)
+    const thumbnailBuffer = await extractVideoThumbnail(fileData)
     const tmpFile = tmp.fileSync({ postfix: '.webp' })
     fs.writeFileSync(tmpFile.fd, thumbnailBuffer)
 
@@ -396,6 +322,7 @@ export const generateVideoThumbnailHook: CollectionAfterChangeHook = async ({
     return doc
   }
 }
+*/
 
 /**
  * Set preview URL for media documents based on file type and available thumbnails

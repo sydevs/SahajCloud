@@ -55,7 +55,7 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
           try {
             const response = await fetch(`/api/narrators/${narratorField.value}`)
             if (response.ok) {
-              const narratorData = await response.json()
+              const narratorData = (await response.json()) as Narrator
               setNarrator(narratorData)
             } else {
               setNarrator(null)

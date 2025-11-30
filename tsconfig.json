@@ -30,6 +30,9 @@
         "./src/payload.config.ts"
       ]
     },
+    "types": [
+      "@cloudflare/workers-types"
+    ],
     "target": "ES2022",
   },
   "include": [
@@ -39,6 +42,9 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "migration",
+    "tests",
+    "opennext.config.ts"
   ],
 }

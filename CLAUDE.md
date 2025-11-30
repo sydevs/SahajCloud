@@ -25,7 +25,7 @@ For full documentation, see: https://github.com/sydevs/claude-plugins
 
 ## Project Overview
 
-This is a **Next.js 15** application integrated with **Payload CMS 3.0**, providing a headless content management system. The project uses TypeScript, MongoDB, and is configured for both development and production deployment.
+This is a **Next.js 15** application integrated with **Payload CMS 3.0**, providing a headless content management system. The project uses TypeScript, SQLite (Cloudflare D1), and is configured for both development and production deployment.
 
 ### PayloadCMS Documentation
 
@@ -65,8 +65,8 @@ The admin panel can be accessed at http://localhost:3000/admin/login once the de
 Copy from `.env.example` and configure:
 
 **Core Configuration**
-- `DATABASE_URI` - MongoDB connection string
 - `PAYLOAD_SECRET` - Secret key for authentication
+- **Note**: Database (SQLite/D1) is configured via `payload.config.ts` using Wrangler - no DATABASE_URI needed
 
 **Email Configuration (Production)**
 - `SMTP_HOST` - SMTP server host (default: smtp.gmail.com)
@@ -353,34 +353,41 @@ The system integrates several official Payload plugins:
 
 ### Email Configuration
 
-**CURRENT STATUS**: Email configuration is currently **disabled** (commented out in `src/payload.config.ts`).
+The application uses different email providers based on the environment:
 
-The application has pre-configured email support using `@payloadcms/email-nodemailer` that can be enabled when needed:
-
-#### Development Environment (When Enabled)
-- **Provider**: Ethereal Email (automatic test email service)
-- **Features**: Captures all outbound emails for testing
+#### Development Environment
+- **Provider**: Ethereal Email (automatic test email service via `@payloadcms/email-nodemailer`)
+- **Features**: Captures all outbound emails for testing without sending real emails
 - **Configuration**: No setup required - automatically configured when no transport options are provided
-- **Testing**: Access mock emails at https://ethereal.email using generated credentials
+- **Testing**: Access mock emails at https://ethereal.email using generated credentials shown in console
+- **From Address**: dev@wemeditate.com
 
-#### Production Environment (When Enabled)
-- **Provider**: Gmail SMTP
-- **Configuration**: Requires environment variables for Gmail authentication
+#### Production Environment
+- **Provider**: Resend (transactional email API)
+- **Implementation**: Custom adapter at [src/lib/email/resendAdapter.ts](src/lib/email/resendAdapter.ts)
 - **Email Address**: contact@sydevelopers.com
+- **Benefits**:
+  - Free tier includes 3,000 emails/month
+  - Better deliverability than SMTP
+  - Simple HTTP API
+  - Detailed analytics and logs
 
 #### Test Environment
 - **Provider**: Disabled (email configuration is disabled in test environment to prevent model conflicts)
-- **Testing**: Email logic is tested separately without full Payload initialization
+- **Reason**: Prevents Payload model conflicts during parallel test execution
+- **Testing**: Email logic can be tested separately without full Payload initialization
 
 #### Environment Variables
 ```env
-# Production Gmail SMTP
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=contact@sydevelopers.com
-SMTP_PASS=your-gmail-app-password-here
-SMTP_FROM=contact@sydevelopers.com
+# Production - Resend API
+RESEND_API_KEY=your-resend-api-key-here
 ```
+
+#### Implementation Details
+- **Adapter**: Custom Resend adapter implements PayloadCMS `EmailAdapter` interface
+- **Error Handling**: Graceful fallback if API key is missing (logs error, returns error message ID)
+- **Logging**: All email operations logged for debugging
+- **Configuration**: Email adapter selection based on `NODE_ENV` in [src/payload.config.ts](src/payload.config.ts)
 
 #### Authentication Features
 - **Email Verification**: Uses Payload's default email verification flow
@@ -808,7 +815,7 @@ Each permission entry contains:
 ## Development Workflow
 
 1. **Schema Changes**: When modifying collections, always run `pnpm generate:types` to update TypeScript definitions
-2. **Database**: Uses MongoDB with auto-generated collections based on Payload schema
+2. **Database**: Uses SQLite (Cloudflare D1) with auto-generated collections based on Payload schema
 3. **Admin Access**: Available at `/admin` route with user authentication
 4. **API Access**: REST API at `/api/*` (GraphQL is disabled)
 5. **Migrations**: Database migrations are stored in `src/migrations/` and can be run with `pnpm payload migrate`
@@ -838,15 +845,16 @@ This project uses a comprehensive testing approach with complete test isolation:
   - Admin panel user interface testing
   - MeditationFrameEditor modal and interaction testing
 
-### Test Isolation (MongoDB Memory Server)
-- **Complete Isolation**: Each test suite runs in its own in-memory MongoDB database
+### Test Isolation (In-Memory SQLite)
+- **Complete Isolation**: Each test suite runs in its own in-memory SQLite database
 - **Automatic Cleanup**: Databases are automatically created and destroyed per test suite
 - **No Data Conflicts**: Tests can run in parallel without data interference
 - **Fast Execution**: In-memory database provides rapid test execution
+- **No external dependencies**: No database server required (using better-sqlite3)
 
 ### Test Environment Setup
-- `tests/setup/globalSetup.ts` - Starts/stops MongoDB Memory Server
-- `tests/config/test-payload.config.ts` - Test-specific Payload configuration
+- `tests/setup/globalSetup.ts` - Test environment setup
+- `tests/config/test-payload.config.ts` - Test-specific Payload configuration with in-memory SQLite
 - `tests/utils/testHelpers.ts` - Utilities for creating isolated test environments
 
 ### Writing Isolated Tests
@@ -880,16 +888,96 @@ describe('My Collection', () => {
 
 ### Test Configuration
 - Tests run sequentially (`maxConcurrency: 1`) to prevent resource conflicts
-- Each test suite gets a unique database: `test_[timestamp]_[random]`
+- Each test suite gets a unique in-memory SQLite database
 - Automatic database cleanup ensures no test data persists between runs
 
 ## Deployment
 
-- **Payload Cloud**: Primary deployment target with automatic builds
-- **Sentry Integration**: Error monitoring and performance tracking in production
+### Cloudflare Workers (Production)
+
+The application is deployed to **Cloudflare Workers** using **@opennextjs/cloudflare** adapter for serverless edge deployment.
+
+**Deployment Commands**:
+- `pnpm run deploy:prod` - Deploy to Cloudflare Workers (includes database migrations and app deployment)
+- `pnpm run deploy:database` - Apply D1 database migrations only
+- `pnpm run deploy:app` - Deploy application to Workers only
+
+**Production URL**: https://cloud.sydevelopers.com
+
+**Infrastructure**:
+- **Platform**: Cloudflare Workers (paid plan required for 10MB limit)
+- **Database**: Cloudflare D1 (serverless SQLite)
+- **Storage**: Cloudflare R2 (S3-compatible object storage)
+- **CDN**: Cloudflare Assets binding for static files
+
+**Bundle Size**:
+- Compressed: 4.15 MB (well under 10 MB paid plan limit)
+- Uncompressed: 19.5 MB
+- Worker Startup Time: ~26 ms
+
+**Required Configuration**:
+
+1. **next.config.mjs**: Must include `output: 'standalone'` for OpenNext compatibility
+2. **wrangler.toml**: Configure Workers settings:
+   - `workers_dev = false` - Disable *.workers.dev subdomain (use custom domains)
+   - `preview_urls = false` - Disable preview URLs for production
+   - D1 database binding
+   - R2 storage binding
+   - Assets binding for static files
+
+3. **Environment Variables** (set via `wrangler secret put`):
+   - `PAYLOAD_SECRET` - Payload authentication secret
+   - `SENTRY_DSN` - Sentry error monitoring DSN (optional, production only)
+   - `RESEND_API_KEY` - Email API key (production)
+   - `S3_ENDPOINT` - Cloudflare R2 endpoint
+   - `S3_ACCESS_KEY_ID` - R2 access key
+   - `S3_SECRET_ACCESS_KEY` - R2 secret key
+   - `S3_BUCKET` - R2 bucket name
+   - `S3_REGION` - Set to `auto` for Cloudflare R2
+
+**Deployment Warnings** (Expected & Safe):
+
+The OpenNext bundling process produces several warnings in generated code. These can be safely ignored:
+
+- **7× direct-eval warnings**: Required for PayloadCMS's dynamic migration loading system
+- **3× impossible-typeof warnings**: Dead code from bundled dependencies (typeof "null")
+- **2× duplicate-object-key warnings**: Duplicate keys in generated bundle (lstatSync, isFileReadStream)
+- **1× equals-negative-zero warning**: Edge case handling in generated code
+
+These warnings are in OpenNext's generated bundle code, not our source code, and do not affect functionality.
+
+**Image Processing Limitations**:
+
+Sharp library has been removed for Cloudflare Workers compatibility (native binaries not supported):
+
+- **Disabled**: Image dimension extraction, WebP conversion, video thumbnail generation
+- **Impact**: Images uploaded in original format, no automatic optimization
+- **Future**: Phase 6 will migrate to Cloudflare Images API for image processing
+
+**Files Modified for Cloudflare Workers**:
+- [next.config.mjs](next.config.mjs:11) - Added `output: 'standalone'`
+- [src/payload.config.ts](src/payload.config.ts:11) - Removed sharp import
+- [src/lib/fieldUtils.ts](src/lib/fieldUtils.ts:211-299) - Disabled convertFile and generateVideoThumbnailHook
+- [src/lib/fileUtils.ts](src/lib/fileUtils.ts:24-26) - Disabled image metadata extraction
+- [migration/lib/mediaDownloader.ts](migration/lib/mediaDownloader.ts:53-120) - Disabled WebP conversion
+
+**Sentry Error Monitoring**:
+
+The application uses **@sentry/cloudflare** for server-side error tracking:
+
+- **Server Errors**: Captured via `instrumentation.ts` and `onRequestError` hook
+- **Client Errors**: Logged to console (client-side Sentry not supported due to Node.js API dependencies)
+- **Configuration**: Set `SENTRY_DSN` environment variable via `wrangler secret put SENTRY_DSN`
+- **Production Only**: Sentry only captures errors in production environment
+- **Implementation Notes**:
+  - Uses direct import from `@sentry/cloudflare/build/esm/sdk.js` as workaround for package export limitation
+  - Edge runtime instrumentation configured in [src/sentry.edge.config.ts](src/sentry.edge.config.ts)
+  - Version tracking via `CF_VERSION_METADATA` binding in wrangler.toml
+
+### Alternative Deployment Options
+
 - **Docker Support**: `Dockerfile` and `docker-compose.yml` for containerized development
-- **Railway Deployment**: Alternative deployment option with `railway.toml` configuration
-- **Environment Requirements**: MongoDB connection (`DATABASE_URI`) and Payload secret (`PAYLOAD_SECRET`)
+- **Railway**: Alternative deployment option with `railway.toml` configuration (deprecated)
 
 ## Project Structure Overview
 

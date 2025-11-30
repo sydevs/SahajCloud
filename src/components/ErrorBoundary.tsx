@@ -1,9 +1,11 @@
 'use client'
 
-import * as Sentry from '@sentry/nextjs'
 import { Component, type ReactNode, type ComponentType, type ErrorInfo } from 'react'
 
 import { logger } from '@/lib/logger'
+
+// Sentry integration temporarily disabled for Cloudflare Workers compatibility
+// TODO: Re-enable Sentry after implementing Workers-compatible integration (Phase 6)
 
 interface ErrorBoundaryState {
   hasError: boolean
@@ -29,16 +31,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error to Sentry
-    Sentry.captureException(error, {
-      tags: {
-        component: 'AdminErrorBoundary',
-      },
-      extra: {
-        errorInfo,
-      },
-    })
-
+    // Sentry.captureException disabled - re-enable in Phase 6
     logger.error('Admin interface error caught by boundary', error, {
       componentStack: errorInfo.componentStack,
     })
