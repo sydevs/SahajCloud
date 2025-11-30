@@ -974,6 +974,171 @@ The application uses **@sentry/cloudflare** for server-side error tracking:
   - Edge runtime instrumentation configured in [src/sentry.edge.config.ts](src/sentry.edge.config.ts)
   - Version tracking via `CF_VERSION_METADATA` binding in wrangler.toml
 
+### Database Migrations & Deployment Workflow
+
+This application deploys to Cloudflare Workers with a D1 SQLite database. Understanding the migration workflow is critical for successful deployments.
+
+#### Critical Configuration: Remote Database Connections
+
+**IMPORTANT**: For PayloadCMS migrations to work in production, you MUST add `remote = true` to your D1 binding in `wrangler.toml`:
+
+```toml
+[[d1_databases]]
+binding = "D1"
+database_name = "sahajcloud"
+database_id = "2ff069c0-a98b-4a6c-94eb-fe199f969c8b"
+remote = true  # REQUIRED for production migrations
+```
+
+**Why This Matters**:
+- Without `remote = true`, PayloadCMS migrations create a local `.wrangler` database instead of connecting to your production D1 database
+- This will cause your production database to remain empty even after running migrations
+- The `remote = true` flag enables Wrangler's remote bindings feature, allowing `getPlatformProxy({ experimental: { remoteBindings: true } })` to connect to the actual Cloudflare D1 database
+
+#### Deployment Workflow
+
+The production deployment follows this sequence:
+
+```bash
+pnpm run deploy:prod
+```
+
+This runs two commands in order:
+
+1. **`deploy:database`**: Runs migrations against remote D1 database
+   ```bash
+   cross-env NODE_ENV=production PAYLOAD_SECRET=ignore payload migrate && \
+   wrangler d1 execute sahajcloud --command 'PRAGMA optimize' --remote
+   ```
+
+2. **`deploy:app`**: Deploys the Worker application
+   ```bash
+   wrangler deploy
+   ```
+
+#### How Migrations Work in Production
+
+1. **PayloadCMS Migration Execution**:
+   - When `NODE_ENV=production`, the payload config uses `getPlatformProxy()` with `remoteBindings: true`
+   - With `remote = true` in wrangler.toml, this connects to the actual Cloudflare D1 database
+   - Migrations are read from `migrations/` directory and executed against the remote database
+   - Migration records are stored in the `payload_migrations` table
+
+2. **Database Optimization**:
+   - After migrations, `PRAGMA optimize` is run to optimize the D1 database
+   - This improves query performance in production
+
+#### Verifying Migrations
+
+To verify migrations ran successfully in production:
+
+```bash
+# Check migration records
+wrangler d1 execute sahajcloud --remote --command \
+  "SELECT name FROM payload_migrations;"
+
+# Verify table existence
+wrangler d1 execute sahajcloud --remote --command \
+  "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+
+# Check specific table
+wrangler d1 execute sahajcloud --remote --command \
+  "SELECT COUNT(*) FROM managers;"
+```
+
+#### Troubleshooting Production Database Issues
+
+**Problem: Production site shows "no such table" errors**
+
+Diagnosis:
+```bash
+# Check if database has tables
+wrangler d1 execute sahajcloud --remote --command \
+  "SELECT COUNT(*) FROM sqlite_master WHERE type='table';"
+```
+
+Solution:
+1. Verify `remote = true` is set in wrangler.toml D1 binding
+2. Run migrations: `pnpm run deploy:database`
+3. Verify migrations completed: Check for `payload_migrations` table
+
+**Problem: Migrations create local database instead of connecting to remote**
+
+Diagnosis:
+- `.wrangler` directory contains database files after running migrations
+- Remote database remains empty
+
+Solution:
+- Add `remote = true` to D1 binding in wrangler.toml
+- Delete `.wrangler` directory: `rm -rf .wrangler`
+- Re-run migrations: `NODE_ENV=production pnpm payload migrate`
+- Verify no database files in `.wrangler`: `find .wrangler -name "*.sqlite*"`
+
+**Problem: Fresh database needs initialization**
+
+Solution:
+1. Run migrations to create schema:
+   ```bash
+   pnpm run deploy:database
+   ```
+
+2. Create initial admin user (script to be added - see remaining tasks)
+
+#### Monitoring Deployments
+
+Use Wrangler to monitor deployment logs:
+
+```bash
+# Tail production logs
+wrangler tail sahajcloud --format pretty
+
+# View recent deployments
+wrangler deployments list
+
+# Check deployment status
+wrangler deployments view <deployment-id>
+```
+
+#### Common Deployment Commands
+
+```bash
+# Deploy to production
+pnpm run deploy:prod
+
+# Deploy to dev environment
+pnpm run deploy:dev
+
+# Run migrations only (without deploying app)
+pnpm run deploy:database
+
+# Create a new migration
+pnpm run db:migrations:create
+
+# View remote database schema
+pnpm run db:studio
+
+# Execute custom SQL on remote database
+wrangler d1 execute sahajcloud --remote --command "YOUR SQL HERE"
+```
+
+#### CI/CD Considerations
+
+When deploying from GitHub Actions or other CI/CD:
+
+1. **Authentication**: Ensure `CLOUDFLARE_API_TOKEN` environment variable is set
+2. **Remote Bindings**: The `remote = true` flag enables migrations to work in CI/CD
+3. **Secrets**: Set production secrets via Wrangler:
+   ```bash
+   wrangler secret put PAYLOAD_SECRET
+   wrangler secret put SENTRY_DSN
+   ```
+
+#### Development vs Production Bindings
+
+- **Development** (`pnpm dev`): Uses local `.wrangler` database for fast iteration
+- **Production** (`NODE_ENV=production`): Connects to remote D1 database when `remote = true`
+- **Migrations**: Always use production mode (`NODE_ENV=production`) to ensure remote connection
+
 ### Alternative Deployment Options
 
 - **Docker Support**: `Dockerfile` and `docker-compose.yml` for containerized development
