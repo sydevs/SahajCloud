@@ -1,8 +1,11 @@
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Lesson, Media, Meditation } from '@/payload-types'
 import type { Payload } from 'payload'
-import { createTestEnvironment } from '../utils/testHelpers'
+
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+
+import type { Lesson, Media, Meditation } from '@/payload-types'
+
 import { testData } from '../utils/testData'
+import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Lessons Collection', () => {
   let payload: Payload
@@ -24,15 +27,16 @@ describe('Lessons Collection', () => {
     // Create narrator for meditation
     testNarrator = await testData.createNarrator(payload, { name: 'Test Narrator' })
 
-    // Skip creating real meditation for now due to thumbnail validation issue
-    // We'll create a minimal valid ID that can be used in lesson relationships
-    testMeditation = await payload.create({
-      collection: 'narrators', // Use narrator as a temporary workaround
-      data: {
-        name: 'Fake Meditation Placeholder',
-        gender: 'male',
+    // Create meditation for lesson relationships
+    testMeditation = await testData.createMeditation(
+      payload,
+      {
+        narrator: testNarrator.id,
       },
-    }) as any
+      {
+        title: 'Test Meditation for Lessons',
+      },
+    )
   })
 
   afterAll(async () => {

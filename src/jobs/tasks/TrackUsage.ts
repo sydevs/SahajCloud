@@ -6,7 +6,7 @@ export const trackClientUsageHook: CollectionAfterReadHook = async ({ doc, req }
     await req.payload.jobs.queue({
       task: 'trackClientUsage',
       input: {
-        clientId: req.user.id
+        clientId: String(req.user.id)
       },
     })
   }

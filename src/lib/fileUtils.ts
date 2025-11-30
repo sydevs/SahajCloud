@@ -3,7 +3,7 @@ import path from 'path'
 
 import ffmpeg from 'fluent-ffmpeg'
 import { PayloadRequest } from 'payload'
-import sharp from 'sharp'
+// import sharp from 'sharp' // DISABLED: Incompatible with Cloudflare Workers - TODO: Migrate to Cloudflare Images (Phase 6)
 import tmp from 'tmp'
 
 
@@ -21,18 +21,14 @@ export const extractFileMetadata = async (file: NonNullable<PayloadRequest['file
     if (mimetype.startsWith('video/') || mimetype.startsWith('audio/')) {
       return getMediaMetadata(data)
     } else if (mimetype.startsWith('image/')) {
-      const { width, height, orientation } = await sharp(data).metadata()
-
-      return {
-        orientation,
-        width,
-        height,
-      } as FileMetadata
+      // DISABLED: Sharp processing removed for Cloudflare Workers compatibility
+      // Image metadata extraction will be handled by Cloudflare Images API in Phase 6
+      return {} as FileMetadata
     }
   }
 }
 
-const getMediaMetadata = (fileBuffer: Buffer) => {
+const getMediaMetadata = (fileBuffer: Buffer | Uint8Array) => {
   const { fd, name } = tmp.fileSync()
 
   // Get metadata using fluent-ffmpeg's ffprobe
@@ -66,7 +62,24 @@ const getMediaMetadata = (fileBuffer: Buffer) => {
   })
 }
 
-export const extractVideoThumbnail = async (videoBuffer: Buffer): Promise<Buffer> => {
+/**
+ * Extract video thumbnail - DISABLED for Cloudflare Workers compatibility
+ *
+ * This function is temporarily disabled because it uses Sharp library which requires
+ * native binaries and multi-threading not supported in Cloudflare Workers runtime.
+ *
+ * TODO: Migrate to Cloudflare Stream API or Cloudflare Images API in Phase 6
+ */
+export const extractVideoThumbnail = async (videoBuffer: Buffer | Uint8Array): Promise<Buffer> => {
+  throw new Error(
+    'Video thumbnail extraction is disabled for Cloudflare Workers compatibility. ' +
+      'Will be migrated to Cloudflare Stream/Images API in Phase 6.',
+  )
+}
+
+/*
+// ORIGINAL IMPLEMENTATION - Commented out for Cloudflare Workers compatibility
+export const extractVideoThumbnail = async (videoBuffer: Buffer | Uint8Array): Promise<Buffer> => {
   return new Promise((resolve, reject) => {
     const inputFile = tmp.fileSync({ postfix: '.mp4' })
     const outputFile = tmp.fileSync({ postfix: '.png' })
@@ -109,3 +122,4 @@ export const extractVideoThumbnail = async (videoBuffer: Buffer): Promise<Buffer
     }
   })
 }
+*/

@@ -108,7 +108,7 @@ export function FileAttachmentField(options: FileAttachmentFieldOptions): Upload
       afterChange: [setFileOwnerHook],
     },
     admin: {
-      ...admin,
+      ...(admin as Record<string, unknown>),
     },
   }
 }

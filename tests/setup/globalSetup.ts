@@ -1,31 +1,15 @@
-import { MongoMemoryServer } from 'mongodb-memory-server'
-
-let mongoServer: MongoMemoryServer
+/**
+ * Global test setup for SQLite in-memory databases
+ *
+ * SQLite in-memory databases don't require global setup like MongoDB Memory Server.
+ * Each test suite creates its own isolated in-memory database using ':memory:' URL.
+ */
 
 export async function setup() {
-  console.log('🚀 Starting MongoDB Memory Server...')
-  
-  mongoServer = await MongoMemoryServer.create({
-    binary: {
-      version: '7.0.0', // Use a stable MongoDB version
-    },
-    instance: {
-      dbName: 'test-db',
-    },
-  })
-
-  const mongoUri = mongoServer.getUri()
-  console.log(`📦 MongoDB Memory Server started at: ${mongoUri}`)
-  
-  // Make the URI available globally
-  process.env.TEST_MONGO_URI = mongoUri
+  console.log('🧪 Test environment: SQLite (in-memory)')
+  console.log('   Each test suite will use an isolated in-memory database')
 }
 
 export async function teardown() {
-  console.log('🛑 Stopping MongoDB Memory Server...')
-  
-  if (mongoServer) {
-    await mongoServer.stop()
-    console.log('✅ MongoDB Memory Server stopped')
-  }
+  console.log('✅ Test environment cleaned up')
 }

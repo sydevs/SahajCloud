@@ -69,7 +69,7 @@ export function MediaField(options: MediaFieldOptions): UploadField {
       components: {
         Cell: '@/components/admin/ThumbnailCell',
       },
-      ...admin,
+      ...(admin as Record<string, unknown>),
     },
   }
 }

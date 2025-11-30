@@ -1,8 +1,11 @@
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Client, Manager } from '@/payload-types'
 import type { Payload } from 'payload'
-import { createTestEnvironment } from '../utils/testHelpers'
+
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+
+import type { Client, Manager } from '@/payload-types'
+
 import { testData } from '../utils/testData'
+import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Clients Collection', () => {
   let payload: Payload
@@ -35,7 +38,7 @@ describe('Clients Collection', () => {
 
   describe('CRUD Operations', () => {
     it('creates a client with all required fields', async () => {
-      const client = await testData.createClient(payload, {
+      const client = await testData.createClient(payload, testUser.id, {
         name: 'Test Client App',
         notes: 'A test client application',
         managers: [testUser.id, testUser2.id],
@@ -69,7 +72,7 @@ describe('Clients Collection', () => {
     })
 
     it('enforces primary contact is in managers list', async () => {
-      const client = await testData.createClient(payload, {
+      const client = await testData.createClient(payload, testUser.id, {
         managers: [testUser.id],
         primaryContact: testUser2.id, // Different from managers
       })
@@ -89,7 +92,7 @@ describe('Clients Collection', () => {
     })
 
     it('updates client information', async () => {
-      const client = await testData.createClient(payload)
+      const client = await testData.createClient(payload, testUser.id)
 
       const updated = (await payload.update({
         collection: 'clients',
@@ -105,7 +108,7 @@ describe('Clients Collection', () => {
     })
 
     it('deletes a client', async () => {
-      const client = await testData.createClient(payload)
+      const client = await testData.createClient(payload, testUser.id)
 
       await payload.delete({
         collection: 'clients',
@@ -168,7 +171,7 @@ describe('Clients Collection', () => {
 
   describe('Manager Association', () => {
     it('maintains primary contact relationship', async () => {
-      const client = await testData.createClient(payload, {
+      const client = await testData.createClient(payload, testUser.id, {
         managers: [testUser.id, testUser2.id],
         primaryContact: testUser2.id,
       })
@@ -188,7 +191,7 @@ describe('Clients Collection', () => {
 
   describe('Usage Stats', () => {
     it('initializes usage stats on creation', async () => {
-      const client = await testData.createClient(payload)
+      const client = await testData.createClient(payload, testUser.id)
 
       expect(client.usageStats).toBeDefined()
       expect(client.usageStats?.totalRequests).toBe(0)

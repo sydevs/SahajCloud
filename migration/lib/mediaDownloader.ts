@@ -1,7 +1,10 @@
 /**
  * Media Downloader
  *
- * Downloads and converts media files for import
+ * Downloads media files for import
+ *
+ * NOTE: Image conversion and processing disabled for Cloudflare Workers compatibility
+ * Images are downloaded as-is without WebP conversion or dimension extraction
  */
 
 import type { Payload } from 'payload'
@@ -9,7 +12,7 @@ import type { Logger } from './logger'
 import { promises as fs } from 'fs'
 import * as path from 'path'
 import * as crypto from 'crypto'
-import * as sharp from 'sharp'
+// import * as sharp from 'sharp' // DISABLED: Removed for Cloudflare Workers compatibility
 
 // ============================================================================
 // TYPES
@@ -50,7 +53,7 @@ export class MediaDownloader {
   }
 
   /**
-   * Download and convert image to WebP format
+   * Download image (no conversion - Cloudflare Workers compatible)
    */
   async downloadAndConvertImage(url: string): Promise<DownloadResult> {
     // Normalize URL: Fix legacy .co domain to .com
@@ -64,7 +67,11 @@ export class MediaDownloader {
     try {
       // Generate hash for filename (using normalized URL)
       const hash = crypto.createHash('md5').update(normalizedUrl).digest('hex')
-      const filename = `${hash}.webp`
+
+      // Detect file extension from URL
+      const urlPath = new URL(normalizedUrl).pathname
+      const ext = path.extname(urlPath) || '.jpg'
+      const filename = `${hash}${ext}`
       const localPath = path.join(this.cacheDir, filename)
 
       // Check if file already exists
@@ -72,15 +79,11 @@ export class MediaDownloader {
         await fs.access(localPath)
         await this.logger.log(`Using cached image: ${filename}`)
 
-        // Get dimensions
-        const sharpInstance = sharp.default ? sharp.default(localPath) : (sharp as any)(localPath)
-        const metadata = await sharpInstance.metadata()
-
         const result: DownloadResult = {
           localPath,
           hash,
-          width: metadata.width || 0,
-          height: metadata.height || 0,
+          width: 0, // Dimension extraction disabled
+          height: 0, // Dimension extraction disabled
         }
 
         this.downloadedFiles.set(normalizedUrl, result)
@@ -100,22 +103,18 @@ export class MediaDownloader {
       const arrayBuffer = await response.arrayBuffer()
       const buffer = Buffer.from(arrayBuffer)
 
-      // Convert to WebP
-      await this.logger.log(`Converting to WebP: ${filename}`)
-      const sharpInstance = sharp.default ? sharp.default(buffer) : (sharp as any)(buffer)
-      const metadata = await sharpInstance.metadata()
-
-      await sharpInstance.webp({ quality: 90 }).toFile(localPath)
+      // Save file as-is (no WebP conversion)
+      await fs.writeFile(localPath, buffer)
 
       const result: DownloadResult = {
         localPath,
         hash,
-        width: metadata.width || 0,
-        height: metadata.height || 0,
+        width: 0, // Dimension extraction disabled
+        height: 0, // Dimension extraction disabled
       }
 
       this.downloadedFiles.set(normalizedUrl, result)
-      await this.logger.log(`✓ Downloaded and converted: ${filename}`)
+      await this.logger.log(`✓ Downloaded: ${filename}`)
 
       return result
     } catch (error: any) {
@@ -137,6 +136,17 @@ export class MediaDownloader {
       const fileBuffer = await fs.readFile(downloadResult.localPath)
       const filename = path.basename(downloadResult.localPath)
 
+      // Detect mimetype from file extension
+      const ext = path.extname(filename).toLowerCase()
+      const mimetypes: Record<string, string> = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+      }
+      const mimetype = mimetypes[ext] || 'image/jpeg'
+
       // Create media document
       const media = await payload.create({
         collection: 'media',
@@ -146,7 +156,7 @@ export class MediaDownloader {
         },
         file: {
           data: fileBuffer,
-          mimetype: 'image/webp',
+          mimetype,
           name: filename,
           size: fileBuffer.length,
         },
@@ -154,7 +164,7 @@ export class MediaDownloader {
       })
 
       await this.logger.log(`✓ Created Media document: ${media.id}`)
-      return media.id as string
+      return String(media.id)
     } catch (error: any) {
       throw new Error(`Failed to create Media document: ${error.message}`)
     }

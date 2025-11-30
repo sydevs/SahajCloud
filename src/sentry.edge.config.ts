@@ -1,11 +1,17 @@
-// This file configures the initialization of Sentry for edge features (middleware, edge routes, and so on).
-// The config you add here will be used whenever one of the edge features is loaded.
-// Note that this config is unrelated to the Vercel Edge Runtime and is also required when running locally.
-// https://docs.sentry.io/platforms/javascript/guides/nextjs/
+// This file configures the initialization of Sentry for Cloudflare Workers edge runtime.
+// Uses @sentry/cloudflare for Cloudflare Workers compatibility with OpenNext.
+// https://docs.sentry.io/platforms/javascript/guides/cloudflare/
+//
+// NOTE: @sentry/cloudflare's `init` function is not exported in the package's public API.
+// We use a direct import from the build path as a workaround until Sentry provides
+// official Next.js + OpenNext support or exports the init function properly.
 
-import * as Sentry from '@sentry/nextjs'
+import type { Event, EventHint } from '@sentry/cloudflare'
 
-Sentry.init({
+// @ts-expect-error - init is not exported in package.json but exists in sdk module
+import { init } from '@sentry/cloudflare/build/esm/sdk.js'
+
+init({
   enabled: process.env.NODE_ENV === 'production',
 
   dsn: process.env.SENTRY_DSN,
@@ -14,7 +20,7 @@ Sentry.init({
   environment: process.env.NODE_ENV || 'development',
 
   // Extra safeguard: Don't send events from development or test environments
-  beforeSend(event, hint) {
+  beforeSend(event: Event, _hint: EventHint) {
     if (process.env.NODE_ENV !== 'production') {
       return null
     }

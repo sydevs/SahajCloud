@@ -1,13 +1,21 @@
-import * as Sentry from '@sentry/nextjs'
+// Instrumentation file for Next.js
+// Uses @sentry/cloudflare for Cloudflare Workers compatibility with OpenNext
+// See: https://docs.sentry.io/platforms/javascript/guides/cloudflare/
 
 export async function register() {
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    await import('./sentry.server.config')
+  // Only enable Sentry instrumentation in production for Cloudflare Workers edge runtime
+  if (process.env.NODE_ENV !== 'production') {
+    return
   }
 
+  // Initialize Sentry for Cloudflare Workers edge runtime
   if (process.env.NEXT_RUNTIME === 'edge') {
     await import('./sentry.edge.config')
   }
 }
 
-export const onRequestError = Sentry.captureRequestError
+export async function onRequestError(err: unknown) {
+  // Import Sentry dynamically to capture exceptions
+  const Sentry = await import('@sentry/cloudflare')
+  Sentry.captureException(err)
+}

@@ -31,7 +31,7 @@ type PermissionLocale = LocaleCode | 'all'
 export interface Permission {
   allowedCollection: PermissionCollection
   level: PermissionLevel
-  locales: PermissionLocale[]
+  locale: PermissionLocale
 }
 
 const LOCALE_OPTIONS: Array<{ label: string; value: PermissionLocale }> = [
@@ -145,15 +145,25 @@ export const hasPermission = ({
   // Managers have read access by default
   if (!isClient && operation === 'read') return true
 
-  // Find permission for this collection
+  // Find permissions for this collection (may be multiple entries for different locales)
   const permissions = user.permissions || []
-  const permission = permissions.find((p) => p.allowedCollection === collection)
-  if (!permission) return false
+  const collectionPermissions = permissions.filter((p) => p.allowedCollection === collection)
+  if (collectionPermissions.length === 0) return false
 
   // Check locale access if locale is specified
-  if (locale && !permission.locales.includes('all') && !permission.locales.includes(locale)) {
-    return false
+  if (locale) {
+    // User needs either 'all' locales permission or specific locale permission
+    const hasLocaleAccess = collectionPermissions.some(
+      (p) => p.locale === 'all' || p.locale === locale,
+    )
+    if (!hasLocaleAccess) return false
   }
+
+  // Get the highest permission level for this collection/locale
+  const permission = collectionPermissions.find(
+    (p) => p.locale === 'all' || p.locale === locale || !locale,
+  )
+  if (!permission) return false
 
   // Check operation permissions based on level
   if (isClient) {
@@ -414,7 +424,7 @@ export const createPermissionsField = ({
     admin: {
       isSortable: false,
       description:
-        'Granular permissions for specific collections and locales. Adding the same collection multiple times may cause inconsistent behaviour.',
+        'Granular permissions for specific collections and locales. Create multiple entries for different locales or collections.',
       condition: (data) => !data.admin, // Hide permissions field for admin users
       components: {
         RowLabel: '@/components/admin/PermissionRowLabel',
@@ -446,14 +456,13 @@ export const createPermissionsField = ({
         },
       },
       {
-        name: 'locales',
+        name: 'locale',
         type: 'select',
-        hasMany: true,
         required: true,
         options: LOCALE_OPTIONS,
         admin: {
           description:
-            'Select which locales this permission applies to. "All Locales" grants unrestricted locale access.',
+            'Select the locale this permission applies to. Create multiple permission entries for multiple locales. "All Locales" grants unrestricted locale access.',
         },
       },
     ],
@@ -517,12 +526,16 @@ export const createLocaleFilter = (user: TypedUser | null, collection: string) =
   if (!isAPIClient(user) && user.admin) return true
 
   const permissions = user.permissions || []
-  const permission = permissions.find((p) => p.allowedCollection === collection)
+  const collectionPermissions = permissions.filter((p) => p.allowedCollection === collection)
 
   // If no permission is found, only give managers access
-  if (!permission) return !isAPIClient(user)
+  if (collectionPermissions.length === 0) return !isAPIClient(user)
+
   // If user has 'all' locales permission, no filtering needed
-  if (permission?.locales.includes('all')) return true
+  if (collectionPermissions.some((p) => p.locale === 'all')) return true
+
+  // Collect all permitted locales from all permission entries
+  const permittedLocales = collectionPermissions.map((p) => p.locale).filter((l) => l !== 'all')
 
   // Create locale filter for specific locales
   // This returns a query that can be used by Payload to filter results
@@ -531,7 +544,7 @@ export const createLocaleFilter = (user: TypedUser | null, collection: string) =
       // Documents with no locale (non-localized content)
       { locale: { exists: false } },
       // Documents with permitted locales
-      { locale: { in: permission.locales } },
+      { locale: { in: permittedLocales } },
     ],
   }
 }

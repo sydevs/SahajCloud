@@ -1,10 +1,23 @@
+/**
+ * Storyblok Path Steps Import Script
+ *
+ * Imports "Path Step" lessons from Storyblok CMS into Payload CMS.
+ *
+ * Data Flow:
+ * - Source: Storyblok API (no database - fetches via HTTP)
+ * - Target: Payload CMS with SQLite/D1 database
+ *
+ * The script works with any Payload database adapter (SQLite, D1, PostgreSQL, MongoDB).
+ * It uses Payload's API for all database operations, making it database-agnostic.
+ */
+
 import 'dotenv/config'
 
 import { getPayload } from 'payload'
 import configPromise from '../../src/payload.config'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import * as sharp from 'sharp'
+// import * as sharp from 'sharp' // DISABLED: Removed for Cloudflare Workers compatibility
 import type { CollectionSlug, Payload } from 'payload'
 import { Logger, FileUtils, TagManager, MediaUploader } from '../lib'
 
@@ -50,7 +63,7 @@ class StoryblokImporter {
   private fileUtils!: FileUtils
   private tagManager!: TagManager
   private mediaUploader!: MediaUploader
-  private mediaTagId: string | null = null
+  private mediaTagId: number | null = null
 
   // In-memory ID mappings (no persistence)
   private idMaps = {
@@ -138,9 +151,9 @@ class StoryblokImporter {
     if (!response.ok) {
       throw new Error(`Storyblok API error: ${response.statusText}`)
     }
-    const responseData = await response.json()
+    const responseData = (await response.json()) as { story: StoryblokStory }
     await fs.writeFile(cacheFile, JSON.stringify(responseData, null, 2))
-    return responseData.story as StoryblokStory
+    return responseData.story
   }
 
   async convertImageToWebp(imagePath: string): Promise<string> {
@@ -149,22 +162,13 @@ class StoryblokImporter {
       return imagePath
     }
 
-    const webpPath = imagePath.replace(ext, '.webp')
-    const fileExists = await fs
-      .access(webpPath)
-      .then(() => true)
-      .catch(() => false)
-
-    if (!fileExists) {
-      const sharpInstance = sharp.default ? sharp.default(imagePath) : (sharp as any)(imagePath)
-      await sharpInstance.webp({ quality: 90 }).toFile(webpPath)
-      await this.logger.info(`Converted ${path.basename(imagePath)} to WebP`)
-    }
-
-    return webpPath
+    // Image conversion disabled for Cloudflare Workers compatibility
+    // Return original image path without WebP conversion
+    await this.logger.info(`Using original image: ${path.basename(imagePath)}`)
+    return imagePath
   }
 
-  async createMediaFromUrl(url: string, alt?: string): Promise<string> {
+  async createMediaFromUrl(url: string, alt?: string): Promise<number> {
     if (!url) {
       throw new Error('URL is required for creating media')
     }
@@ -191,13 +195,13 @@ class StoryblokImporter {
     if (!result.wasReused) {
       this.summary.mediaCreated++
     }
-    return result.id
+    return parseInt(result.id)
   }
 
   async createFileAttachment(
     url: string,
     ownerCollection?: 'lessons',
-    ownerId?: string,
+    ownerId?: number | string,
   ): Promise<string> {
     if (!url) {
       throw new Error('URL is required for creating file attachment')
@@ -234,10 +238,14 @@ class StoryblokImporter {
     const data: any = {}
 
     // Only set owner if we have valid owner info and ownerId is not a temporary ID
-    if (ownerCollection && ownerId && !ownerId.startsWith('temp-')) {
+    if (
+      ownerCollection &&
+      ownerId &&
+      !(typeof ownerId === 'string' && ownerId.startsWith('temp-'))
+    ) {
       data.owner = {
         relationTo: ownerCollection,
-        value: ownerId,
+        value: typeof ownerId === 'string' ? parseInt(ownerId) : ownerId,
       }
     }
 
@@ -253,13 +261,13 @@ class StoryblokImporter {
     })
 
     this.summary.fileAttachmentsCreated++
-    return attachment.id as string
+    return String(attachment.id)
   }
 
   async updateFileAttachmentOwner(
     attachmentId: string,
     ownerCollection: 'lessons',
-    ownerId: string,
+    ownerId: number | string,
   ): Promise<void> {
     await this.payload.update({
       collection: 'file-attachments',
@@ -267,7 +275,7 @@ class StoryblokImporter {
       data: {
         owner: {
           relationTo: ownerCollection,
-          value: ownerId,
+          value: typeof ownerId === 'string' ? parseInt(ownerId) : ownerId,
         },
       },
     })
@@ -300,7 +308,7 @@ class StoryblokImporter {
     })
 
     if (result.docs.length > 0) {
-      return result.docs[0].id as string
+      return String(result.docs[0].id)
     }
 
     // Get all meditations and filter in memory for more precise matching
@@ -324,7 +332,7 @@ class StoryblokImporter {
     })
 
     if (meditation) {
-      return meditation.id as string
+      return String(meditation.id)
     }
 
     return null
@@ -538,7 +546,7 @@ class StoryblokImporter {
           title?: string
           text?: string
           quote?: string
-          image?: string
+          image?: number
           video?: string
         }> = []
         const videoPanels: Array<{ insertAt: number; videoId: string }> = [] // Track video panels to add later
@@ -682,16 +690,16 @@ class StoryblokImporter {
             const iconId = await this.createFileAttachment(
               content.Step_info[0].Step_Image.url,
               'lessons',
-              lesson.id as string,
+              lesson.id,
             )
             await this.logger.info(`✓ Created icon attachment for lesson`)
 
             // Update lesson with icon
             await this.payload.update({
               collection: 'lessons',
-              id: lesson.id as string,
+              id: lesson.id,
               data: {
-                icon: iconId,
+                icon: parseInt(iconId),
               },
             })
             await this.logger.info(`✓ Added icon to lesson`)
@@ -707,9 +715,9 @@ class StoryblokImporter {
           try {
             await this.payload.update({
               collection: 'lessons',
-              id: lesson.id as string,
+              id: lesson.id,
               data: {
-                introAudio: introAudioId,
+                introAudio: parseInt(introAudioId),
               },
             })
             await this.logger.info(`✓ Added intro audio to lesson`)
@@ -725,7 +733,7 @@ class StoryblokImporter {
             // Fetch the current lesson to get its panels
             const currentLesson = await this.payload.findByID({
               collection: 'lessons',
-              id: lesson.id as string,
+              id: lesson.id,
             })
 
             const updatedPanels = [...(currentLesson.panels as Array<Record<string, unknown>>)]
@@ -741,12 +749,12 @@ class StoryblokImporter {
                 blockType: 'video',
                 video: videoId,
               })
-              await this.updateFileAttachmentOwner(videoId, 'lessons', lesson.id as string)
+              await this.updateFileAttachmentOwner(videoId, 'lessons', lesson.id)
             }
 
             await this.payload.update({
               collection: 'lessons',
-              id: lesson.id as string,
+              id: lesson.id,
               data: {
                 panels: updatedPanels,
               },
@@ -759,7 +767,7 @@ class StoryblokImporter {
           }
         }
 
-        this.idMaps.lessons.set(stepSlug, lesson.id as string)
+        this.idMaps.lessons.set(stepSlug, String(lesson.id))
         this.summary.lessonsCreated++
         await this.logger.success(`✓ Created lesson: ${story.name} (ID: ${lesson.id})`)
       } catch (error) {
@@ -970,7 +978,7 @@ class StoryblokImporter {
       console.error('Fatal error:', error)
       throw error
     } finally {
-      // Cleanup: close Payload database connection
+      // Cleanup: close Payload database connection (works with SQLite, D1, and other adapters)
       if (this.payload?.db?.destroy) {
         await this.payload.db.destroy()
       }

@@ -9,6 +9,24 @@ A comprehensive import script that migrates authors, categories, and pages from 
 **Script Location**: [`import.ts`](./import.ts)
 **Source Data**: [`data.bin`](./data.bin) (PostgreSQL dump, ~2.4MB)
 
+## Database Architecture
+
+This script uses a **dual-database architecture**:
+
+1. **PostgreSQL (SOURCE - temporary, read-only)**:
+   - Created from `data.bin` (Rails database dump)
+   - Used to READ legacy WeMeditate content
+   - Automatically cleaned up after import
+   - NOT related to Payload's database
+
+2. **SQLite/D1 (TARGET - Payload CMS)**:
+   - Current Payload database (configured in `payload.config.ts`)
+   - Where imported content is WRITTEN
+   - Uses Payload's API for all operations
+   - Works with Wrangler D1 in development and production
+
+**Important**: PostgreSQL is only for reading source data. Payload uses SQLite/D1 for storage.
+
 ## Features
 
 ### ✅ Current Capabilities
@@ -39,9 +57,11 @@ A comprehensive import script that migrates authors, categories, and pages from 
 ### Prerequisites
 
 1. **PostgreSQL**: Must be installed locally (`psql`, `createdb`, `pg_restore` commands available)
+   - Used ONLY for reading source data from `data.bin`
+   - NOT used for Payload storage (Payload uses SQLite/D1)
 2. **Environment Variables**:
-   - `DATABASE_URI` - MongoDB connection string for Payload
    - `PAYLOAD_SECRET` - Payload secret key
+   - No `DATABASE_URI` needed - Payload database configured via `payload.config.ts`
 3. **Source Data**: `migration/wemeditate/data.bin` file must exist
 
 ### Commands
@@ -247,9 +267,10 @@ Complex content block transformation for the `content` field:
 ### Import Hangs or Fails
 
 1. Check the log file: `migration/cache/wemeditate/import.log`
-2. Verify environment variables are set: `DATABASE_URI`, `PAYLOAD_SECRET`
+2. Verify environment variables are set: `PAYLOAD_SECRET`
 3. Try with `--clear-cache --reset` to start fresh
-4. Check MongoDB is running and accessible
+4. Ensure Wrangler D1 is working: check `.wrangler/state/v3/d1/` directory exists
+5. For PostgreSQL issues: ensure `createdb` and `pg_restore` commands work
 
 ### Resuming After Interruption
 

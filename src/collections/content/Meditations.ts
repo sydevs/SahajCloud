@@ -39,13 +39,6 @@ export const Meditations: CollectionConfig = {
           label: 'Details',
           fields: [
             {
-              name: 'id',
-              type: 'text',
-              admin: {
-                readOnly: true,
-              },
-            },
-            {
               name: 'label',
               type: 'text',
               label: 'Internal Name',
