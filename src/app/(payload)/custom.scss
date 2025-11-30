@@ -1,0 +1,174 @@
+/**
+ * PayloadCMS Admin Panel Custom Theming
+ *
+ * Phase 1: Improved spacing, comfort, and subtle We Meditate branding
+ *
+ * Approach: Use CSS variable overrides primarily, with minimal direct CSS.
+ * All changes support both light and dark themes.
+ */
+
+/* ============================================================================
+   1. SPACING & COMFORT
+   ============================================================================ */
+
+:root {
+  /* Increase base spacing for more comfortable UI */
+  --gutter-h: 24px; /* Up from ~20px default */
+  --base: 24px; /* Consistent base spacing unit */
+
+  /* Slightly larger base font size for better readability */
+  --base-body-size: 14px; /* Up from 13px default */
+
+  /* Improve line height for better text readability */
+  --base-line-height: 1.6; /* Up from 1.5 default */
+}
+
+/* ============================================================================
+   2. CLICK TARGET IMPROVEMENTS
+   ============================================================================ */
+
+:root {
+  /* Larger border radius for modern, comfortable feel */
+  --style-radius-s: 6px; /* Up from 3px */
+  --style-radius-m: 8px; /* Up from 5px */
+  --style-radius-l: 12px; /* Up from 8px */
+}
+
+/* Increase button and interactive element sizes */
+@layer payload {
+  /* Larger click targets for buttons */
+  button:not(.popup__button-close),
+  .btn,
+  .form-submit button,
+  .pill,
+  .popup__button {
+    padding: 0.625rem 1rem; /* ~10px 16px */
+    min-height: 38px;
+  }
+
+  /* Larger dropdown and select elements */
+  select,
+  .select-input,
+  .popup__select,
+  .relationship__wrap {
+    min-height: 38px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* Better spacing for input fields */
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='number'],
+  input[type='search'],
+  textarea {
+    min-height: 38px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* Larger checkbox and radio touch targets */
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* ============================================================================
+   3. WE MEDITATE BRANDING (SUBTLE CORAL ACCENTS)
+   ============================================================================ */
+
+:root {
+  /* We Meditate coral brand colors */
+  --coral: #F07855;
+  --coral-light: #FF9477;
+  --coral-dark: #D86545;
+  --coral-bg: #FFF5F2;
+  --coral-hover: #FFE8E1;
+
+  /* Override theme success colors with coral for brand consistency */
+  --theme-success-50: #FFF5F2;
+  --theme-success-100: #FFE8E1;
+  --theme-success-150: #FFDAD0;
+  --theme-success-200: #FFCDBF;
+  --theme-success-250: #FFC0AE;
+  --theme-success-300: #FFB39D;
+  --theme-success-350: #FFA68C;
+  --theme-success-400: #FF9477;
+  --theme-success-450: #FF8766;
+  --theme-success-500: #F07855;
+  --theme-success-550: #E86D4D;
+  --theme-success-600: #D86545;
+  --theme-success-650: #C85D3D;
+  --theme-success-700: #B85535;
+  --theme-success-750: #A84D2D;
+  --theme-success-800: #984525;
+  --theme-success-850: #883D1D;
+  --theme-success-900: #783515;
+  --theme-success-950: #682D0D;
+}
+
+/* Dark mode adjustments for coral colors */
+[data-theme='dark'] {
+  /* Use lighter coral in dark mode for better visibility and contrast */
+  --theme-success-400: #FF9477;
+  --theme-success-500: #FF9477;
+  --theme-success-600: #F07855;
+
+  /* Adjust background colors for dark mode */
+  --theme-success-50: rgba(240, 120, 85, 0.1);
+  --theme-success-100: rgba(240, 120, 85, 0.15);
+}
+
+/* ============================================================================
+   4. SUBTLE POLISH
+   ============================================================================ */
+
+:root {
+  /* Smoother, faster transitions for modern feel */
+  --nav-trans-time: 200ms; /* Slightly faster than default */
+
+  /* Softer shadows for depth without harshness */
+  --box-shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --box-shadow-m: 0 2px 12px rgba(0, 0, 0, 0.06);
+  --box-shadow-s: 0 1px 6px rgba(0, 0, 0, 0.04);
+}
+
+/* ============================================================================
+   5. ADDITIONAL POLISH & REFINEMENTS
+   ============================================================================ */
+
+@layer payload {
+  /* Better spacing for form fields */
+  .field-type {
+    margin-bottom: 1.5rem; /* Increased from default */
+  }
+
+  /* More comfortable table row spacing */
+  .table tr,
+  .collection-list__item {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  /* Improved card spacing */
+  .card,
+  .dashboard__card {
+    padding: 1.5rem;
+  }
+
+  /* Better modal padding */
+  .popup__content {
+    padding: 1.5rem;
+  }
+
+  /* Smooth transitions for interactive elements */
+  button,
+  .btn,
+  a,
+  input,
+  select,
+  textarea {
+    transition: all 200ms ease-in-out;
+  }
+}
