@@ -1,9 +1,7 @@
 import { withPayload } from '@payloadcms/next/withPayload'
 
-// Sentry integration temporarily disabled for Cloudflare Workers compatibility
-// The @sentry/nextjs package causes bundling incompatibilities with OpenNext/Cloudflare Workers
-// TODO: Investigate Cloudflare Workers-compatible Sentry integration in Phase 6
-// Previous Sentry config can be found in git history if needed
+// Sentry integration uses @sentry/cloudflare for Cloudflare Workers compatibility
+// See: instrumentation.ts and sentry.edge.config.ts for configuration
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

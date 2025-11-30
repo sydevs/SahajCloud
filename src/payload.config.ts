@@ -28,9 +28,8 @@ const isProduction = process.env.NODE_ENV === 'production'
 const isDevelopment = process.env.NODE_ENV === 'development'
 
 // Get Cloudflare context using Wrangler for local dev, or real bindings for production
-const cloudflareRemoteBindings = process.env.NODE_ENV === 'production'
 const cloudflare =
-  process.argv.find((value) => value.match(/^(generate|migrate):?/)) || !cloudflareRemoteBindings
+  process.argv.find((value) => value.match(/^(generate|migrate):?/)) || !isProduction
     ? await getCloudflareContextFromWrangler()
     : await getCloudflareContext({ async: true })
 
@@ -161,7 +160,7 @@ function getCloudflareContextFromWrangler(): Promise<CloudflareContext> {
     ({ getPlatformProxy }) =>
       getPlatformProxy({
         environment: process.env.CLOUDFLARE_ENV,
-        experimental: { remoteBindings: cloudflareRemoteBindings },
+        experimental: { remoteBindings: isProduction },
       } as GetPlatformProxyOptions),
   )
 }

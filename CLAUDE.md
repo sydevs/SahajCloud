@@ -927,6 +927,7 @@ The application is deployed to **Cloudflare Workers** using **@opennextjs/cloudf
 
 3. **Environment Variables** (set via `wrangler secret put`):
    - `PAYLOAD_SECRET` - Payload authentication secret
+   - `SENTRY_DSN` - Sentry error monitoring DSN (optional, production only)
    - `RESEND_API_KEY` - Email API key (production)
    - `S3_ENDPOINT` - Cloudflare R2 endpoint
    - `S3_ACCESS_KEY_ID` - R2 access key
@@ -960,11 +961,23 @@ Sharp library has been removed for Cloudflare Workers compatibility (native bina
 - [src/lib/fileUtils.ts](src/lib/fileUtils.ts:24-26) - Disabled image metadata extraction
 - [migration/lib/mediaDownloader.ts](migration/lib/mediaDownloader.ts:53-120) - Disabled WebP conversion
 
+**Sentry Error Monitoring**:
+
+The application uses **@sentry/cloudflare** for server-side error tracking:
+
+- **Server Errors**: Captured via `instrumentation.ts` and `onRequestError` hook
+- **Client Errors**: Logged to console (client-side Sentry not supported due to Node.js API dependencies)
+- **Configuration**: Set `SENTRY_DSN` environment variable via `wrangler secret put SENTRY_DSN`
+- **Production Only**: Sentry only captures errors in production environment
+- **Implementation Notes**:
+  - Uses direct import from `@sentry/cloudflare/build/esm/sdk.js` as workaround for package export limitation
+  - Edge runtime instrumentation configured in [src/sentry.edge.config.ts](src/sentry.edge.config.ts)
+  - Version tracking via `CF_VERSION_METADATA` binding in wrangler.toml
+
 ### Alternative Deployment Options
 
 - **Docker Support**: `Dockerfile` and `docker-compose.yml` for containerized development
 - **Railway**: Alternative deployment option with `railway.toml` configuration (deprecated)
-- **Sentry Integration**: Temporarily disabled for Cloudflare Workers compatibility (will be re-enabled in Phase 6)
 
 ## Project Structure Overview
 
