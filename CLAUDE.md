@@ -577,50 +577,81 @@ The system implements secure REST API authentication for third-party clients wit
 - **E2E Tests** (`tests/e2e/clients.e2e.spec.ts`): Admin UI functionality
 - **Test Helpers**: Factory functions for creating test clients and requests
 
-### Collection and Locale-Based Permissions System
+### Role-Based Access Control System
 
-The CMS implements a granular permission system that provides per-collection and per-locale access control for both Managers and API Clients, replacing the previous simple role-based approach with a flexible array-based permissions model.
+The CMS implements a role-based permission system with predefined roles for Managers and API Clients. Managers can optionally have a global admin flag that bypasses all permissions.
 
-#### Permission Structure
-Each permission entry contains:
-- **Collection**: Select from available collections (excluding Managers, Clients, and hidden collections)
-- **Permission Level**: 
-  - **Managers**: "Translate" or "Manage"
-  - **API Clients**: "Read" or "Manage"
-- **Locales**: Multi-select from configured locales (`en`, `cs`) with option to select "All Locales"
+#### Manager Roles
 
-#### Manager Permissions
-- **Admin Toggle**: Complete bypass of all permission restrictions when enabled
-- **Read Access**: All collections (automatic, no configuration needed)
-- **Collection Visibility**: Collections only appear in admin UI if they have Translate or Manage permissions
-- **Translate Permission**: 
-  - Cannot create documents
-  - Can only edit fields with `localized: true` attribute
-  - Restricted to specified locales
-- **Manage Permission**:
-  - Can create, update, delete documents within specified locales only
-  - Can delete documents only if collection has `trash: true` (soft delete)
-  - Full field access within specified locales
+**Admin Boolean Field**:
+- **Purpose**: Global administrative privilege that bypasses all role-based restrictions
+- **Behavior**: When `admin: true`, the roles, customResourceAccess, and permissions fields are hidden in the admin UI
+- **Scope**: Admin status applies to all locales (not locale-specific)
 
-#### API Client Permissions
-- **No Default Access**: Must be explicitly granted via permissions array
-- **Read Permission**: Read-only access to specified collections/locales
-- **Manage Permission**: Can create, update within specified locales only (never delete, even soft delete)
+**Available Manager Roles** (3 roles):
+1. **meditations-editor**: Can create and edit meditations, upload related media and files
+2. **path-editor**: Can edit lessons and external videos, upload related media and files
+3. **translator**: Can edit localized fields in pages and music (read-only for non-localized fields)
+
+**Manager Role Characteristics**:
+- **Localized**: Roles can be assigned per-locale (e.g., translator for French, meditations-editor for English)
+- **Multiple Roles**: Managers can have multiple roles per locale
+- **Read Access**: All managers have implicit read access to non-restricted collections
+- **Collection Visibility**: Collections only appear in admin UI if the manager has appropriate role permissions
+- **Custom Resource Access**: Managers can be granted update access to specific documents (e.g., individual pages)
+
+#### API Client Roles
+
+**Available Client Roles** (3 roles):
+1. **we-meditate-web**: Access for We Meditate web frontend application
+2. **we-meditate-app**: Access for We Meditate mobile application
+3. **sahaj-atlas**: Access for Sahaj Atlas application
+
+**Client Role Characteristics**:
+- **Not Localized**: Client roles apply to all locales
+- **Read-Only by Default**: Clients primarily have read access to content
+- **Form Submissions**: Clients can create form submissions
+- **No Delete Access**: Clients never get delete access, even with manage-level permissions
 - **Collection Restrictions**: Managers and Clients collections are completely blocked
-- **Locale Filtering**: Automatic filtering based on granted locale permissions
 
-#### Access Control Implementation
-- **Permission-Based Access Control**: Use `permissionBasedAccess()` function to implement access control
-- **Dynamic Collection Discovery**: Automatically detects available collections from payload config
-- **Field-Level Restrictions**: `createFieldAccess()` function for Translate managers
-- **Locale-Aware Filtering**: `createLocaleFilter()` function for query-based access control
-- **"All Locales" Support**: Special permission option that bypasses locale restrictions
+#### Permission System Architecture
+
+**Field Factories**:
+- **ManagerPermissionsField()**: Returns 4 fields for Managers collection:
+  1. `admin` (boolean) - Global admin flag
+  2. `roles` (select with hasMany, localized) - Manager role selection (hidden if admin)
+  3. `customResourceAccess` (relationship) - Document-level permissions (hidden if admin)
+  4. `permissions` (virtual json) - Computed permissions display (hidden if admin)
+
+- **ClientPermissionsField()**: Returns 2 fields for Clients collection:
+  1. `roles` (select with hasMany) - Client role selection
+  2. `permissions` (virtual json) - Computed permissions display
+
+**Access Control Functions**:
+- **permissionBasedAccess()**: Main access control function used by all collections
+- **hasPermission()**: Check if a user has specific permission for a collection/operation
+- **computePermissions()**: Merge permissions from multiple roles for display
+- **createFieldAccess()**: Field-level access control for translate permission
+- **createLocaleFilter()**: Query filtering based on locale permissions
+
+**Permission Checking Flow**:
+1. Check if user is a manager with `admin: true` → Grant full access
+2. Check if user is active → Block if inactive
+3. Check if operation is delete and user is a client → Block (clients can't delete)
+4. Check collection-specific permissions from user's roles
+5. Apply locale filtering based on user's role permissions
 
 #### Key Files
-- `src/lib/accessControl.ts` - Core permission system with utility functions
-- `src/collections/access/Managers.ts` - Updated with permissions array and admin toggle
-- `src/collections/Clients.ts` - Updated with permissions array
-- All content collections - Updated to use `permissionBasedAccess()`
+- [src/fields/PermissionsField.ts](src/fields/PermissionsField.ts) - Role definitions and field factories (ManagerPermissionsField, ClientPermissionsField)
+- [src/lib/accessControl.ts](src/lib/accessControl.ts) - Core permission checking functions (hasPermission, computePermissions)
+- [src/collections/access/Managers.ts](src/collections/access/Managers.ts) - Manager collection using ManagerPermissionsField()
+- [src/collections/access/Clients.ts](src/collections/access/Clients.ts) - Client collection using ClientPermissionsField()
+- All content collections - Use `permissionBasedAccess()` for access control
+
+#### Testing
+- [tests/int/role-based-access.int.spec.ts](tests/int/role-based-access.int.spec.ts) - Comprehensive RBAC integration tests
+- [tests/int/managers.int.spec.ts](tests/int/managers.int.spec.ts) - Manager collection tests with admin boolean
+- [tests/utils/testData.ts](tests/utils/testData.ts) - Test helpers for creating managers and clients with roles
 
 ## Development Workflow
 
