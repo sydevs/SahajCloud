@@ -198,7 +198,7 @@ describe('WeMeditateWebSettings Global', () => {
 
   it('allows admin users to access', async () => {
     const config = payload.globals.config.find((g) => g.slug === 'we-meditate-web-settings')
-    const adminUser = testData.dummyUser('managers', { roles: ['admin'] })
+    const adminUser = testData.dummyUser('managers', { admin: true })
     const readResult = await config?.access?.read?.({ req: { user: adminUser } as any })
     expect(readResult).toBe(true)
 
