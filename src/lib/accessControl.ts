@@ -23,14 +23,14 @@ import { LocaleCode } from '@/lib/locales'
 
 type TypedManager = TypedUser & {
   collection: 'managers'
-  roles?: Record<LocaleCode, Array<{ role: string }>>
+  roles?: Array<{ role: string; id?: string | null }> | Record<LocaleCode, Array<{ role: string }>>
   customResourceAccess?: Array<{ relationTo: string; value: string | number }>
   permissions?: MergedPermissions
 }
 
 type TypedClient = TypedUser & {
   collection: 'clients'
-  roles?: Array<{ role: string }>
+  roles?: Array<{ role: string; id?: string | null }>
   permissions?: MergedPermissions
 }
 
@@ -57,11 +57,17 @@ export const isAPIClient = (user: TypedUser | null): user is TypedClient => {
 function hasAdminRole(user: TypedManager): boolean {
   if (!user.roles) return false
 
-  // Check if admin role exists in any locale
-  const rolesByLocale = Object.values(user.roles) as Array<Array<{ role: string }>>
-  return rolesByLocale.some(
-    (localeRoles) => Array.isArray(localeRoles) && localeRoles.some((r) => r.role === 'admin'),
-  )
+  // Handle both array format (current locale context) and Record format (full localized data)
+  if (Array.isArray(user.roles)) {
+    // Current locale context - roles is a flat array
+    return user.roles.some((r) => r.role === 'admin')
+  } else {
+    // Full localized data - roles is a Record<LocaleCode, Array>
+    const rolesByLocale = Object.values(user.roles)
+    return rolesByLocale.some((localeRoles) =>
+      Array.isArray(localeRoles) && localeRoles.some((r) => r.role === 'admin'),
+    )
+  }
 }
 
 /**
@@ -158,12 +164,17 @@ export const hasPermission = ({
   }
 
   // Check role-based permissions
-  const collectionPerms = user.permissions[collection]
+  // Type guard: ensure permissions is an object
+  if (!user.permissions || typeof user.permissions !== 'object' || Array.isArray(user.permissions)) {
+    return false
+  }
+
+  const collectionPerms = (user.permissions as MergedPermissions)[collection]
 
   // Managers with ≥1 role get implicit read access (except restricted collections)
   if (!isClient && !collectionPerms && operation === 'read') {
     // Check if user has any roles at all
-    const hasAnyRoles = Object.keys(user.permissions).length > 0
+    const hasAnyRoles = Object.keys(user.permissions as MergedPermissions).length > 0
     return hasAnyRoles
   }
 
@@ -238,17 +249,17 @@ export const createLocaleFilter = (user: TypedUser | null, collection: string): 
     return true
   }
 
-  // Ensure permissions are computed
-  if (!user.permissions) {
+  // Ensure permissions are computed and is an object
+  if (!user.permissions || typeof user.permissions !== 'object' || Array.isArray(user.permissions)) {
     return !isClient // Default: managers get read access, clients don't
   }
 
-  const collectionPerms = user.permissions[collection]
+  const collectionPerms = (user.permissions as MergedPermissions)[collection]
 
   // If no permission for this collection
   if (!collectionPerms) {
     // Managers with roles get implicit read access
-    const hasAnyRoles = Object.keys(user.permissions).length > 0
+    const hasAnyRoles = Object.keys(user.permissions as MergedPermissions).length > 0
     return !isClient && hasAnyRoles
   }
 
@@ -285,7 +296,9 @@ export const roleBasedAccess = (
     .filter((key) => key !== 'implicitRead')
     .reduce(
       (acc, key) => {
-        acc[key as keyof typeof acc] = options[key as keyof typeof options]
+        if (acc) {
+          acc[key as keyof typeof acc] = options[key as keyof typeof options]
+        }
         return acc
       },
       {} as CollectionConfig['access'],
