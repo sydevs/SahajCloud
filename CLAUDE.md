@@ -39,13 +39,21 @@ There is a default user with the following credentials which can be used to acce
 Username: contact@sydevelopers.com
 Password: evk1VTH5dxz_nhg-mzk
 
-The admin panel can be accessed at http://localhost:3000/admin/login once the development server is running.
+The admin panel can be accessed at http://localhost:{PORT}/admin/login once the development server is running (replace {PORT} with the port you used when starting the dev server).
 
 ## Essential Commands
 
 ### Development
-- `pnpm dev` - Start development server (runs on http://localhost:3000)
-- `pnpm devsafe` - Clean development start (removes .next directory first)
+
+**IMPORTANT - Development Server Port:**
+- **ALWAYS** start the dev server with an explicit PORT environment variable
+- **ALWAYS** use a random port between 4000-4999 (e.g., PORT=4237, PORT=4891)
+- **NEVER** use port 3000 (default port) as it may cause conflicts and result in accessing the wrong domain
+- Example: `PORT=4237 pnpm dev` or `PORT=4891 pnpm devsafe`
+
+Commands:
+- `PORT={random 4000-4999} pnpm dev` - Start development server on a random port between 4000-4999
+- `PORT={random 4000-4999} pnpm devsafe` - Clean development start (removes .next directory first)
 - `pnpm build` - Production build
 - `pnpm start` - Start production server
 
