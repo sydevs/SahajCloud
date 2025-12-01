@@ -6,7 +6,7 @@ import {
   deleteFileAttachmentsHook,
 } from '@/fields/FileAttachmentField'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { permissionBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/accessControl'
 import { FRAME_CATEGORY_OPTIONS, GENDER_OPTIONS } from '@/lib/data'
 import {
   convertFile,
@@ -22,7 +22,7 @@ export const Frames: CollectionConfig = {
     singular: 'Meditation Frame',
   },
   slug: 'frames',
-  access: permissionBasedAccess('frames'),
+  access: roleBasedAccess('frames'),
   indexes: [
     {
       fields: ['imageSet'],

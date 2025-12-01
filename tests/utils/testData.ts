@@ -300,7 +300,14 @@ export const testData = {
   },
 
   /**
-   * Create a manager with default admin privileges
+   * Create a manager with default roles
+   * @param payload - Payload instance
+   * @param overrides - Optional field overrides
+   * @example
+   * // Create admin manager
+   * await createManager(payload, { admin: true })
+   * // Create translator manager
+   * await createManager(payload, { roles: ['translator'] })
    */
   async createManager(payload: Payload, overrides: Partial<Manager> = {}) {
     const testEmail = `test_${Date.now()}_${Math.random().toString(36).substring(7)}`
@@ -312,7 +319,7 @@ export const testData = {
         email: `${testEmail}@example.com`,
         password: 'password123',
         active: true,
-        admin: false,
+        roles: [], // No roles by default - tests should explicitly assign roles
         ...overrides,
       },
     })
@@ -468,12 +475,25 @@ export const testData = {
     return this.createManager(payload, overrides)
   },
 
+  /**
+   * Create a dummy user for testing access control
+   * @param collection - Collection type ('managers' or 'clients')
+   * @param overrides - Optional field overrides
+   * @example
+   * // Create dummy admin manager
+   * dummyUser('managers', { admin: true })
+   * // Create dummy translator with permissions
+   * dummyUser('managers', {
+   *   roles: ['translator'],
+   *   permissions: { pages: ['read', 'translate'] }
+   * })
+   */
   dummyUser(collection: 'managers' | 'clients', overrides: Partial<Manager | Client> = {}) {
     return {
       collection,
-      admin: false,
       active: true,
-      permissions: [],
+      roles: [], // No roles by default - tests should explicitly assign roles
+      permissions: {}, // Empty permissions - will be computed from roles
       ...overrides,
     } as TypedUser
   },

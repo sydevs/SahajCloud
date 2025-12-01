@@ -1,14 +1,16 @@
 import type { CollectionConfig } from 'payload'
 
-import { adminOnlyAccess, createPermissionsField } from '@/lib/accessControl'
+import { ManagerPermissionsField } from '@/fields/PermissionsField'
+import { hasPermission, roleBasedAccess } from '@/lib/accessControl'
+import { getServerUrl } from '@/lib/serverUrl'
 
 export const Managers: CollectionConfig = {
   slug: 'managers',
-  access: adminOnlyAccess(),
+  access: roleBasedAccess('managers', { implicitRead: false }),
   auth: {
     verify: {
       generateEmailHTML: ({ token, user }) => {
-        const verifyURL = `${process.env.SAHAJCLOUD_URL || 'http://localhost:3000'}/admin/verify/${token}`
+        const verifyURL = `${getServerUrl()}/admin/verify/${token}`
         return `
 <!DOCTYPE html>
 <html>
@@ -49,10 +51,15 @@ export const Managers: CollectionConfig = {
     lockTime: 600 * 1000, // 10 minutes
   },
   admin: {
-    hidden: ({ user }) => !user?.admin,
+    hidden: ({ user }) => {
+      if (!user) return true
+      // Cast to the user type expected by hasPermission
+      const typedUser = user as Parameters<typeof hasPermission>[0]['user']
+      return !hasPermission({ user: typedUser, collection: 'managers', operation: 'read' })
+    },
     group: 'Access',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'email', '_verified', 'active', 'admin'],
+    defaultColumns: ['name', 'email', '_verified', 'active'],
   },
   fields: [
     {
@@ -60,16 +67,7 @@ export const Managers: CollectionConfig = {
       type: 'text',
       required: true,
     },
-    {
-      name: 'admin',
-      type: 'checkbox',
-      defaultValue: false,
-      admin: {
-        description:
-          'Admin users bypass all permission restrictions and have complete access to all collections and features.',
-      },
-    },
-    createPermissionsField({ excludedLevels: ['read'] }),
+    ...ManagerPermissionsField(),
     {
       name: 'active',
       type: 'checkbox',

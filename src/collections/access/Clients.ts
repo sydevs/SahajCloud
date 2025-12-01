@@ -1,7 +1,8 @@
 import type { CollectionConfig } from 'payload'
 
+import { ClientPermissionsField } from '@/fields/PermissionsField'
 import { validateClientData, checkHighUsageAlert } from '@/hooks/clientHooks'
-import { adminOnlyAccess, createPermissionsField } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/accessControl'
 
 export const Clients: CollectionConfig = {
   slug: 'clients',
@@ -19,12 +20,12 @@ export const Clients: CollectionConfig = {
     plural: 'Services',
   },
   admin: {
-    hidden: ({ user }) => !user?.admin,
+    hidden: ({ user }) => !user.admin,
     group: 'Access',
     useAsTitle: 'name',
     defaultColumns: ['name', 'active'],
   },
-  access: adminOnlyAccess(),
+  access: roleBasedAccess('clients', { implicitRead: false }),
   fields: [
     {
       name: 'name',
@@ -43,7 +44,7 @@ export const Clients: CollectionConfig = {
         description: 'Purpose and usage notes for this client',
       },
     },
-    createPermissionsField({ excludedLevels: ['translate'] }),
+    ...ClientPermissionsField(),
     {
       name: 'managers',
       type: 'relationship',

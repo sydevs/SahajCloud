@@ -1,10 +1,10 @@
 import type { CollectionConfig } from 'payload'
 
-import { permissionBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/accessControl'
 
 export const Authors: CollectionConfig = {
   slug: 'authors',
-  access: permissionBasedAccess('pages'),
+  access: roleBasedAccess('pages'),
   admin: {
     group: 'Resources',
     useAsTitle: 'name',

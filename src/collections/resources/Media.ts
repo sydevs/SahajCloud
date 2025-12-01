@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { permissionBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/accessControl'
 import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
 
 export const Media: CollectionConfig = {
@@ -11,7 +11,7 @@ export const Media: CollectionConfig = {
     useAsTitle: 'filename',
     defaultColumns: ['filename', 'alt', 'credit', 'tags'],
   },
-  access: permissionBasedAccess('media', {
+  access: roleBasedAccess('media', {
     delete: () => false,
   }),
   disableDuplicate: true,
