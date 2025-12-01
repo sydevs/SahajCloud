@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { ManagerPermissionsField } from '@/fields/PermissionsField'
 import { hasPermission, roleBasedAccess } from '@/lib/accessControl'
+import { DEFAULT_PROJECT, getProjectOptions } from '@/lib/projects'
 import { getServerUrl } from '@/lib/serverUrl'
 
 export const Managers: CollectionConfig = {
@@ -66,6 +67,17 @@ export const Managers: CollectionConfig = {
       name: 'name',
       type: 'text',
       required: true,
+    },
+    {
+      name: 'currentProject',
+      type: 'select',
+      required: true,
+      defaultValue: DEFAULT_PROJECT,
+      options: getProjectOptions(),
+      admin: {
+        position: 'sidebar',
+        description: 'Your currently selected project focus',
+      },
     },
     ...ManagerPermissionsField(),
     {

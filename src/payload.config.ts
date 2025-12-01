@@ -64,6 +64,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
             path: '@/components/AdminProvider.tsx',
           },
         ],
+        beforeNavLinks: ['@/components/admin/ProjectSelector'],
         graphics: {
           Logo: '@/components/branding/Icon',
           Icon: '@/components/branding/Icon',

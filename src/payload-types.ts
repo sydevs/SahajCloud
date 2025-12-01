@@ -789,6 +789,10 @@ export interface Manager {
   id: number;
   name: string;
   /**
+   * Your currently selected project focus
+   */
+  currentProject: 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas';
+  /**
    * Grant full administrative access to all collections and features. When enabled, role-based permissions are bypassed.
    */
   admin?: boolean | null;
@@ -1689,6 +1693,7 @@ export interface PageTagsSelect<T extends boolean = true> {
  */
 export interface ManagersSelect<T extends boolean = true> {
   name?: T;
+  currentProject?: T;
   admin?: T;
   roles?: T;
   customResourceAccess?: T;
