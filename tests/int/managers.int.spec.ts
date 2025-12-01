@@ -18,20 +18,25 @@ describe('Managers Collection', () => {
     await cleanup()
   })
 
-  it('creates a manager with email and password', async () => {
+  it('creates a manager with email, password, and roles', async () => {
     const managerData = {
       name: 'Test Manager',
       email: 'test@example.com',
       password: 'password123',
-      admin: true,
+      roles: [{ role: 'admin' }],
     }
-    
+
     const manager = await testData.createManager(payload, managerData)
 
     expect(manager).toBeDefined()
     expect(manager.email).toBe('test@example.com')
     expect(manager.id).toBeDefined()
-    expect(manager.admin).toBe(true)
+    expect(manager.roles).toBeDefined()
+    expect(Array.isArray(manager.roles)).toBe(true)
+    if (Array.isArray(manager.roles)) {
+      expect(manager.roles).toHaveLength(1)
+      expect(manager.roles[0].role).toBe('admin')
+    }
     // Password should not be returned in response
     expect((manager as any).password).toBeUndefined()
   })
@@ -53,7 +58,7 @@ describe('Managers Collection', () => {
       name: 'Unique Manager',
       email: 'unique@example.com',
       password: 'password123',
-      admin: true,
+      roles: [{ role: 'admin' }],
     }
 
     // Create first manager
