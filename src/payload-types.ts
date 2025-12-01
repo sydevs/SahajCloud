@@ -791,12 +791,7 @@ export interface Manager {
   /**
    * Assign roles for each locale. Different roles can be assigned for different languages.
    */
-  roles?:
-    | {
-        role: 'meditations-editor' | 'path-editor' | 'translator' | 'admin';
-        id?: string | null;
-      }[]
-    | null;
+  roles?: ('meditations-editor' | 'path-editor' | 'translator' | 'admin')[] | null;
   /**
    * Grant update access to specific documents. Useful for giving access to individual pages without broader permissions.
    */
@@ -859,12 +854,7 @@ export interface Client {
   /**
    * Assign API client roles. Roles apply to all locales.
    */
-  roles?:
-    | {
-        role: 'we-meditate-web' | 'we-meditate-app' | 'sahaj-atlas';
-        id?: string | null;
-      }[]
-    | null;
+  roles?: ('we-meditate-web' | 'we-meditate-app' | 'sahaj-atlas')[] | null;
   /**
    * Computed permissions based on assigned roles (applies to all locales)
    */
@@ -1701,12 +1691,7 @@ export interface PageTagsSelect<T extends boolean = true> {
  */
 export interface ManagersSelect<T extends boolean = true> {
   name?: T;
-  roles?:
-    | T
-    | {
-        role?: T;
-        id?: T;
-      };
+  roles?: T;
   customResourceAccess?: T;
   permissions?: T;
   active?: T;
@@ -1736,12 +1721,7 @@ export interface ManagersSelect<T extends boolean = true> {
 export interface ClientsSelect<T extends boolean = true> {
   name?: T;
   notes?: T;
-  roles?:
-    | T
-    | {
-        role?: T;
-        id?: T;
-      };
+  roles?: T;
   permissions?: T;
   managers?: T;
   primaryContact?: T;

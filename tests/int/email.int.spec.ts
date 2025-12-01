@@ -31,7 +31,7 @@ describe('Email Sending', () => {
         name: 'Verify User',
         email: 'verify@test.com',
         password: 'TestPassword123!',
-        roles: [{ role: 'admin' }],
+        roles: ['admin'],
       }
 
       // Clear any existing emails

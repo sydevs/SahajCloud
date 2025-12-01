@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { PermissionsField } from '@/fields/PermissionsField'
+import { ClientPermissionsField } from '@/fields/PermissionsField'
 import { validateClientData, checkHighUsageAlert } from '@/hooks/clientHooks'
 import { roleBasedAccess } from '@/lib/accessControl'
 
@@ -51,7 +51,7 @@ export const Clients: CollectionConfig = {
         description: 'Purpose and usage notes for this client',
       },
     },
-    ...PermissionsField({ type: 'client' }),
+    ...ClientPermissionsField(),
     {
       name: 'managers',
       type: 'relationship',

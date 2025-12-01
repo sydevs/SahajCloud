@@ -305,9 +305,9 @@ export const testData = {
    * @param overrides - Optional field overrides
    * @example
    * // Create admin manager
-   * await createManager(payload, { roles: [{ role: 'admin' }] })
+   * await createManager(payload, { roles: ['admin'] })
    * // Create translator manager
-   * await createManager(payload, { roles: [{ role: 'translator' }] })
+   * await createManager(payload, { roles: ['translator'] })
    */
   async createManager(payload: Payload, overrides: Partial<Manager> = {}) {
     const testEmail = `test_${Date.now()}_${Math.random().toString(36).substring(7)}`
@@ -481,10 +481,10 @@ export const testData = {
    * @param overrides - Optional field overrides
    * @example
    * // Create dummy admin manager
-   * dummyUser('managers', { roles: [{ role: 'admin' }] })
+   * dummyUser('managers', { roles: ['admin'] })
    * // Create dummy translator with permissions
    * dummyUser('managers', {
-   *   roles: [{ role: 'translator' }],
+   *   roles: ['translator'],
    *   permissions: { pages: { operations: ['read', 'translate'] } }
    * })
    */

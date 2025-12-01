@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { PermissionsField } from '@/fields/PermissionsField'
+import { ManagerPermissionsField } from '@/fields/PermissionsField'
 import { roleBasedAccess } from '@/lib/accessControl'
 
 export const Managers: CollectionConfig = {
@@ -68,7 +68,7 @@ export const Managers: CollectionConfig = {
       type: 'text',
       required: true,
     },
-    ...PermissionsField({ type: 'manager' }),
+    ...ManagerPermissionsField(),
     {
       name: 'active',
       type: 'checkbox',
