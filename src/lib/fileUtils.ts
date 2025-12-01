@@ -1,5 +1,4 @@
 import fs from 'fs'
-import path from 'path'
 
 import ffmpeg from 'fluent-ffmpeg'
 import { PayloadRequest } from 'payload'

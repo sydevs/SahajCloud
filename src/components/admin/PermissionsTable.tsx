@@ -2,55 +2,86 @@
 
 import type { FieldClientComponent } from 'payload'
 
-import React from 'react'
+import { Pill, useDocumentInfo, useField } from '@payloadcms/ui'
+import { PillProps } from '@payloadcms/ui/elements/Pill'
+import React, { useMemo } from 'react'
 
-import type { MergedPermissions } from '@/fields/PermissionsField'
+import type { PermissionLevel } from '@/fields/PermissionsField'
+import { mergeRolePermissions } from '@/fields/PermissionsField'
 
 /**
  * PermissionsTable Component
  *
  * Displays computed permissions in a table format for the admin UI.
- * Shows collections and their allowed operations as badges.
+ * Shows collections and their allowed operations as Pill badges.
+ *
+ * This component is rendered as afterInput for the roles field.
+ * Works for both managers (localized roles) and clients (non-localized roles).
  */
-export const PermissionsTable: FieldClientComponent = ({ field, value }) => {
-  const permissions = value as MergedPermissions | undefined
+export const PermissionsTable: FieldClientComponent = () => {
+  const { value: roles } = useField<string[]>()
+  const { collectionSlug } = useDocumentInfo()
+
+  // Determine if this is a client (API client) or manager (admin user)
+  const isClient = collectionSlug === 'clients'
+
+  // Compute permissions from roles
+  const permissions = useMemo(() => {
+    if (!roles || roles.length === 0) {
+      return {}
+    }
+    // Use the appropriate collection slug to determine role registry
+    const collection = isClient ? 'clients' : 'managers'
+    return mergeRolePermissions(roles, collection)
+  }, [roles, isClient])
 
   if (!permissions || Object.keys(permissions).length === 0) {
     return (
-      <div style={{ padding: '12px', color: '#9A9A9A', fontStyle: 'italic' }}>
+      <div
+        style={{
+          padding: 'calc(var(--base) * 0.6)',
+          color: 'var(--theme-elevation-400)',
+          fontStyle: 'italic',
+        }}
+      >
         No permissions assigned. Assign roles to grant access.
       </div>
     )
   }
 
   return (
-    <div style={{ padding: '12px 0' }}>
+    <div style={{ padding: 'calc(var(--base) * 0.6) 0' }}>
       <table
         style={{
           width: '100%',
           borderCollapse: 'collapse',
-          border: '1px solid #E5E5E5',
+          border: '1px solid var(--theme-elevation-150)',
           fontSize: '13px',
         }}
       >
         <thead>
-          <tr style={{ backgroundColor: '#F5F5F5', borderBottom: '1px solid #E5E5E5' }}>
+          <tr
+            style={{
+              backgroundColor: 'var(--theme-elevation-50)',
+              borderBottom: '1px solid var(--theme-elevation-150)',
+            }}
+          >
             <th
               style={{
-                padding: '10px 12px',
+                padding: 'calc(var(--base) * 0.5) calc(var(--base) * 0.6)',
                 textAlign: 'left',
                 fontWeight: 600,
-                color: '#333',
+                color: 'var(--theme-elevation-800)',
               }}
             >
               Collection
             </th>
             <th
               style={{
-                padding: '10px 12px',
+                padding: 'calc(var(--base) * 0.5) calc(var(--base) * 0.6)',
                 textAlign: 'left',
                 fontWeight: 600,
-                color: '#333',
+                color: 'var(--theme-elevation-800)',
               }}
             >
               Operations
@@ -61,34 +92,25 @@ export const PermissionsTable: FieldClientComponent = ({ field, value }) => {
           {Object.entries(permissions)
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([collection, perms]) => (
-              <tr key={collection} style={{ borderBottom: '1px solid #E5E5E5' }}>
+              <tr key={collection} style={{ borderBottom: '1px solid var(--theme-elevation-150)' }}>
                 <td
                   style={{
-                    padding: '10px 12px',
-                    color: '#333',
+                    padding: 'calc(var(--base) * 0.5) calc(var(--base) * 0.6)',
+                    color: 'var(--theme-elevation-800)',
                     fontWeight: 500,
                     textTransform: 'capitalize',
                   }}
                 >
                   {collection.replace(/-/g, ' ')}
                 </td>
-                <td style={{ padding: '10px 12px' }}>
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    {perms.operations.map((op) => (
-                      <span
-                        key={op}
-                        style={{
-                          display: 'inline-block',
-                          padding: '3px 10px',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          fontWeight: 500,
-                          textTransform: 'capitalize',
-                          ...getOperationStyle(op),
-                        }}
-                      >
+                <td style={{ padding: 'calc(var(--base) * 0.5) calc(var(--base) * 0.6)' }}>
+                  <div
+                    style={{ display: 'flex', gap: 'calc(var(--base) * 0.3)', flexWrap: 'wrap' }}
+                  >
+                    {perms.map((op) => (
+                      <Pill key={op} pillStyle={getOperationPillStyle(op)}>
                         {op}
-                      </span>
+                      </Pill>
                     ))}
                   </div>
                 </td>
@@ -101,31 +123,18 @@ export const PermissionsTable: FieldClientComponent = ({ field, value }) => {
 }
 
 /**
- * Get styling for operation badges based on operation type
+ * Map permission operation to Pill style
  */
-function getOperationStyle(operation: string): React.CSSProperties {
-  const styles: Record<string, React.CSSProperties> = {
-    read: {
-      backgroundColor: '#E3F2FD',
-      color: '#1976D2',
-    },
-    create: {
-      backgroundColor: '#E8F5E9',
-      color: '#388E3C',
-    },
-    update: {
-      backgroundColor: '#FFF3E0',
-      color: '#F57C00',
-    },
-    delete: {
-      backgroundColor: '#FFEBEE',
-      color: '#D32F2F',
-    },
-    translate: {
-      backgroundColor: '#F3E5F5',
-      color: '#7B1FA2',
-    },
+function getOperationPillStyle(operation: PermissionLevel): PillProps['pillStyle'] {
+  const styleMap: Record<PermissionLevel, PillProps['pillStyle']> = {
+    read: undefined, // Grey
+    create: 'success', // Blue
+    update: 'warning', // Orange
+    delete: 'error', // Red
+    translate: 'warning', // Orange
   }
 
-  return styles[operation] || { backgroundColor: '#F5F5F5', color: '#666' }
+  return styleMap[operation] || undefined
 }
+
+export default PermissionsTable

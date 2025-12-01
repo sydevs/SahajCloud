@@ -805,9 +805,6 @@ export interface Manager {
         value: number | Page;
       }[]
     | null;
-  /**
-   * Computed permissions for the current locale based on assigned roles
-   */
   permissions?:
     | {
         [k: string]: unknown;
@@ -859,9 +856,6 @@ export interface Client {
    * Assign API client roles. Roles apply to all locales.
    */
   roles?: ('we-meditate-web' | 'we-meditate-app' | 'sahaj-atlas')[] | null;
-  /**
-   * Computed permissions based on assigned roles (applies to all locales)
-   */
   permissions?:
     | {
         [k: string]: unknown;

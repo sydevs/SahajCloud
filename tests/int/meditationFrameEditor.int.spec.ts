@@ -287,7 +287,7 @@ describe('MeditationFrameEditor Integration', () => {
     })
 
     it('should construct correct audio URL', () => {
-      const baseUrl = process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : ''
+      const baseUrl = process.env.NODE_ENV === 'development' ? `http://localhost:${process.env.PORT || '3000'}` : ''
       const expectedUrl = `${baseUrl}/media/meditations/${meditation.filename}`
 
       expect(expectedUrl).toContain(meditation.filename!)
