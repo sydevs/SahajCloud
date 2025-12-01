@@ -1,10 +1,11 @@
 import type { CollectionConfig } from 'payload'
 
-import { adminOnlyAccess, createPermissionsField } from '@/lib/accessControl'
+import { PermissionsField } from '@/fields/PermissionsField'
+import { roleBasedAccess } from '@/lib/accessControl'
 
 export const Managers: CollectionConfig = {
   slug: 'managers',
-  access: adminOnlyAccess(),
+  access: roleBasedAccess('managers', { implicitRead: false }),
   auth: {
     verify: {
       generateEmailHTML: ({ token, user }) => {
@@ -49,10 +50,17 @@ export const Managers: CollectionConfig = {
     lockTime: 600 * 1000, // 10 minutes
   },
   admin: {
-    hidden: ({ user }) => !user?.admin,
+    hidden: ({ user }) => {
+      // Hide if user doesn't have admin role in any locale
+      if (!user?.roles) return true
+      const roles = user.roles as Record<string, Array<{ role: string }>>
+      return !Object.values(roles).some((localeRoles) =>
+        localeRoles?.some((r) => r.role === 'admin'),
+      )
+    },
     group: 'Access',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'email', '_verified', 'active', 'admin'],
+    defaultColumns: ['name', 'email', '_verified', 'active'],
   },
   fields: [
     {
@@ -60,16 +68,7 @@ export const Managers: CollectionConfig = {
       type: 'text',
       required: true,
     },
-    {
-      name: 'admin',
-      type: 'checkbox',
-      defaultValue: false,
-      admin: {
-        description:
-          'Admin users bypass all permission restrictions and have complete access to all collections and features.',
-      },
-    },
-    createPermissionsField({ excludedLevels: ['read'] }),
+    ...PermissionsField({ type: 'manager' }),
     {
       name: 'active',
       type: 'checkbox',

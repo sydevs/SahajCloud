@@ -11,7 +11,7 @@ import { buildConfig, Config } from 'payload'
 // import sharp from 'sharp' // DISABLED: Incompatible with Cloudflare Workers - TODO: Migrate to Cloudflare Images (Phase 6)
 import { GetPlatformProxyOptions } from 'wrangler'
 
-import { adminOnlyAccess, permissionBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/accessControl'
 import { resendAdapter } from '@/lib/email/resendAdapter'
 import { LOCALES, DEFAULT_LOCALE } from '@/lib/locales'
 
@@ -92,8 +92,15 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           defaultJobsCollection.admin = {}
         }
 
-        defaultJobsCollection.admin.hidden = ({ user }) => !user?.admin
-        defaultJobsCollection.access = adminOnlyAccess()
+        defaultJobsCollection.admin.hidden = ({ user }) => {
+          // Hide if user doesn't have admin role in any locale
+          if (!user?.roles) return true
+          const roles = user.roles as Record<string, Array<{ role: string }>>
+          return !Object.values(roles).some((localeRoles) =>
+            localeRoles?.some((r) => r.role === 'admin'),
+          )
+        }
+        defaultJobsCollection.access = roleBasedAccess('payload-jobs', { implicitRead: false })
         return defaultJobsCollection
       },
     },
@@ -125,19 +132,22 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       formBuilderPlugin({
         defaultToEmail: 'contact@sydevelopers.com',
         formOverrides: {
-          access: permissionBasedAccess('forms'),
+          access: roleBasedAccess('forms'),
           admin: {
             group: 'Resources',
           },
         },
         formSubmissionOverrides: {
-          access: {
-            update: () => false,
-            create: () => false,
-            delete: () => false,
-          },
+          access: roleBasedAccess('form-submissions', { implicitRead: false }),
           admin: {
-            hidden: ({ user }) => !user?.admin,
+            hidden: ({ user }) => {
+              // Hide if user doesn't have admin role in any locale
+              if (!user?.roles) return true
+              const roles = user.roles as Record<string, Array<{ role: string }>>
+              return !Object.values(roles).some((localeRoles) =>
+                localeRoles?.some((r) => r.role === 'admin'),
+              )
+            },
             group: 'System',
           },
         },

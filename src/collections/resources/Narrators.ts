@@ -1,12 +1,12 @@
 import type { CollectionConfig } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { permissionBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/accessControl'
 import { GENDER_OPTIONS } from '@/lib/data'
 
 export const Narrators: CollectionConfig = {
   slug: 'narrators',
-  access: permissionBasedAccess('meditations'),
+  access: roleBasedAccess('meditations'),
   admin: {
     group: 'Resources',
     useAsTitle: 'name',

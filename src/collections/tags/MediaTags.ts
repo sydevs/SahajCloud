@@ -1,10 +1,10 @@
 import type { CollectionConfig } from 'payload'
 
-import { permissionBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/accessControl'
 
 export const MediaTags: CollectionConfig = {
   slug: 'media-tags',
-  access: permissionBasedAccess('frames'),
+  access: roleBasedAccess('frames'),
   admin: {
     group: 'Tags',
     useAsTitle: 'name',

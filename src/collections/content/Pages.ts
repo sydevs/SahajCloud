@@ -10,12 +10,12 @@ import {
   ButtonBlock,
   QuoteBlock,
 } from '@/blocks/pages'
-import { permissionBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/accessControl'
 import { fullRichTextEditor } from '@/lib/richEditor'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
-  access: permissionBasedAccess('pages'),
+  access: roleBasedAccess('pages'),
   trash: true,
   admin: {
     group: 'Content',

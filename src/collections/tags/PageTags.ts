@@ -1,11 +1,11 @@
 import type { CollectionConfig } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { permissionBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/accessControl'
 
 export const PageTags: CollectionConfig = {
   slug: 'page-tags',
-  access: permissionBasedAccess('pages'),
+  access: roleBasedAccess('pages'),
   admin: {
     group: 'Tags',
     useAsTitle: 'name',
