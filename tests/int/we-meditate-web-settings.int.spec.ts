@@ -188,7 +188,7 @@ describe('WeMeditateWebSettings Global', () => {
     expect(typeof config?.access?.update).toBe('function')
 
     // Test that non-admin users are blocked
-    const nonAdminUser = testData.dummyUser('managers', { admin: false })
+    const nonAdminUser = testData.dummyUser('managers', { roles: [] })
     const readResult = await config?.access?.read?.({ req: { user: nonAdminUser } as any })
     expect(readResult).toBe(false)
 
@@ -198,7 +198,7 @@ describe('WeMeditateWebSettings Global', () => {
 
   it('allows admin users to access', async () => {
     const config = payload.globals.config.find((g) => g.slug === 'we-meditate-web-settings')
-    const adminUser = testData.dummyUser('managers', { admin: true })
+    const adminUser = testData.dummyUser('managers', { roles: [{ role: 'admin' }] })
     const readResult = await config?.access?.read?.({ req: { user: adminUser } as any })
     expect(readResult).toBe(true)
 

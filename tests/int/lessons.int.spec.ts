@@ -408,7 +408,7 @@ describe('Lessons Collection', () => {
       translateManager = await testData.createManager(payload, {
         email: `translate_${Date.now()}@example.com`,
         name: 'Translate Manager',
-        admin: false,
+        roles: [],
         permissions: [
           {
             allowedCollection: 'lessons',
@@ -422,7 +422,7 @@ describe('Lessons Collection', () => {
       manageManager = await testData.createManager(payload, {
         email: `manage_${Date.now()}@example.com`,
         name: 'Manage Manager',
-        admin: false,
+        roles: [],
         permissions: [
           {
             allowedCollection: 'lessons',

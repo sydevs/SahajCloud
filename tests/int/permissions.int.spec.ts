@@ -26,7 +26,7 @@ describe.skip('Permission System Tests', () => {
   describe('Permission Logic Tests', () => {
     describe('hasPermission function', () => {
       it('allows admin users full access', () => {
-        const user = testData.dummyUser('managers', { admin: true })
+        const user = testData.dummyUser('managers', { roles: [{ role: 'admin' }] })
 
         OPERATIONS.forEach((operation) => {
           expect(hasPermission({ collection: 'music', user, operation })).toBe(true)
@@ -151,7 +151,7 @@ describe.skip('Permission System Tests', () => {
 
       it('allows admin users full field access', () => {
         const collection = 'music'
-        const user = testData.dummyUser('managers', { admin: true })
+        const user = testData.dummyUser('managers', { roles: [{ role: 'admin' }] })
         const field = { localized: false }
 
         expect(hasPermission({ user, collection, operation: 'read', field })).toBe(true)
@@ -205,7 +205,7 @@ describe.skip('Permission System Tests', () => {
 
     describe('createLocaleFilter function', () => {
       it('returns true for admin users', () => {
-        const user = testData.dummyUser('managers', { admin: true })
+        const user = testData.dummyUser('managers', { roles: [{ role: 'admin' }] })
         const filter = createLocaleFilter(user, 'music')
         expect(filter).toBe(true)
       })
@@ -247,7 +247,7 @@ describe.skip('Permission System Tests', () => {
   describe('Integration Tests with Payload', () => {
     it('allows admin user to access all collections', async () => {
       const adminUser = await testData.createManager(payload, {
-        admin: true,
+        roles: [{ role: 'admin' }],
       })
 
       // Mock request with admin user
