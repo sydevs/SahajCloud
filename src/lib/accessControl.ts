@@ -57,7 +57,11 @@ export const isAPIClient = (user: TypedUser | null): user is TypedClient => {
  * @param isClient - Whether this is for a client
  * @returns Array of role slug strings
  */
-function extractRoleSlugs(roles: any, locale?: LocaleCode, isClient = false): string[] {
+function extractRoleSlugs(
+  roles: string[] | Record<LocaleCode, string[]> | undefined,
+  locale?: LocaleCode,
+  isClient = false,
+): string[] {
   if (!roles) return []
 
   if (isClient) {
@@ -66,7 +70,7 @@ function extractRoleSlugs(roles: any, locale?: LocaleCode, isClient = false): st
   }
 
   // Managers: roles is localized - object with locale keys containing string arrays
-  if (locale && roles[locale]) {
+  if (locale && !Array.isArray(roles) && roles[locale]) {
     const localeRoles = roles[locale]
     return Array.isArray(localeRoles) ? localeRoles : []
   }
@@ -112,7 +116,10 @@ export const hasPermission = ({
   }
 
   // Block access to special collections for non-admins
-  const restrictedCollections = ['managers', 'clients', 'form-submissions', 'payload-jobs']
+  // - managers: User management (admin only)
+  // - clients: API client management (admin only)
+  // - payload-jobs: System jobs (admin only)
+  const restrictedCollections = ['managers', 'clients', 'payload-jobs']
   if (restrictedCollections.includes(collection)) {
     return false
   }
@@ -149,7 +156,16 @@ export const hasPermission = ({
 
   const collectionPerms = (user.permissions as MergedPermissions)[collection]
 
-  // Managers with ≥1 role get implicit read access (except restricted collections)
+  /**
+   * IMPLICIT READ ACCESS FOR MANAGERS:
+   * Managers with any role get implicit read access to all non-restricted collections.
+   * This allows managers to browse content even if not explicitly granted read permission.
+   *
+   * Example: A "translator" (with pages/music roles) can still read meditations, frames, narrators, etc.
+   *
+   * Rationale: Improves UX by allowing content discovery without requiring explicit permissions
+   * for every collection. Restricted collections (managers, clients, payload-jobs) are still blocked.
+   */
   if (!isClient && !collectionPerms && operation === 'read') {
     // Check if user has any roles at all
     const hasAnyRoles = Object.keys(user.permissions as MergedPermissions).length > 0
@@ -299,8 +315,10 @@ export const roleBasedAccess = (
     create: ({ req: { user } }) => {
       return hasPermission({ operation: 'create', user, collection })
     },
-    update: ({ req: { user } }) => {
-      const hasAccess = hasPermission({ operation: 'update', user, collection })
+    update: ({ req: { user }, id }) => {
+      // Check collection-level and document-level permissions
+      const docId = id ? String(id) : undefined
+      const hasAccess = hasPermission({ operation: 'update', user, collection, docId })
       if (!hasAccess) return false
 
       // Apply locale filtering
@@ -312,22 +330,4 @@ export const roleBasedAccess = (
     // Merge additional access overrides
     ...additionalAccess,
   }
-}
-
-/**
- * Compute permissions for user (used in auth hooks)
- *
- * @param data - User data from database
- * @param locale - Current locale
- * @param isClient - Whether this is a client
- * @returns Merged permissions object
- */
-export function computePermissions(
-  data: any,
-  locale: LocaleCode,
-  isClient: boolean,
-): MergedPermissions {
-  const roleSlugs = extractRoleSlugs(data.roles, locale, isClient)
-  const collection = isClient ? 'clients' : 'managers'
-  return mergeRolePermissions(roleSlugs, collection)
 }

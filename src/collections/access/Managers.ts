@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { ManagerPermissionsField } from '@/fields/PermissionsField'
-import { roleBasedAccess } from '@/lib/accessControl'
+import { hasPermission, roleBasedAccess } from '@/lib/accessControl'
 import { getServerUrl } from '@/lib/serverUrl'
 
 export const Managers: CollectionConfig = {
@@ -51,7 +51,12 @@ export const Managers: CollectionConfig = {
     lockTime: 600 * 1000, // 10 minutes
   },
   admin: {
-    hidden: ({ user }) => !user.admin,
+    hidden: ({ user }) => {
+      if (!user) return true
+      // Cast to the user type expected by hasPermission
+      const typedUser = user as Parameters<typeof hasPermission>[0]['user']
+      return !hasPermission({ user: typedUser, collection: 'managers', operation: 'read' })
+    },
     group: 'Access',
     useAsTitle: 'name',
     defaultColumns: ['name', 'email', '_verified', 'active'],

@@ -1,4 +1,4 @@
-import type { Field } from 'payload'
+import type { Field, Operation } from 'payload'
 
 import { DEFAULT_LOCALE, LocaleCode } from '@/lib/locales'
 
@@ -9,7 +9,7 @@ import { DEFAULT_LOCALE, LocaleCode } from '@/lib/locales'
 export type ManagerRole = 'meditations-editor' | 'path-editor' | 'translator'
 export type ClientRole = 'we-meditate-web' | 'we-meditate-app' | 'sahaj-atlas'
 
-export type PermissionLevel = 'read' | 'create' | 'update' | 'delete' | 'translate'
+export type PermissionLevel = Operation | 'translate'
 
 export interface RoleConfig {
   slug: string
@@ -171,27 +171,6 @@ export function mergeRolePermissions(
   return merged
 }
 
-/**
- * Check if a user has a specific role permission
- *
- * @param user - The user object with permissions field
- * @param collection - Collection slug to check
- * @param operation - Operation to check
- * @returns Whether the user has the permission
- */
-export function hasRolePermission(
-  user: { permissions?: MergedPermissions } | null,
-  collection: string,
-  operation: PermissionLevel,
-): boolean {
-  if (!user?.permissions) return false
-
-  const collectionPerms = user.permissions[collection]
-  if (!collectionPerms) return false
-
-  return collectionPerms.includes(operation)
-}
-
 // ============================================================================
 // Field Factories
 // ============================================================================
@@ -255,7 +234,14 @@ export function ManagerPermissionsField(): Field[] {
       },
     },
 
-    // 4. Virtual permissions field (hidden - kept for potential future use)
+    // 4. Virtual permissions field - IMPORTANT: This provides automatic permission caching!
+    // When managers are fetched from the database, this afterRead hook populates the
+    // `permissions` field with computed permissions for the current locale.
+    // The access control system (accessControl.ts) checks for this field and uses it
+    // if present, only computing on-demand if missing. This provides efficient caching
+    // without requiring separate cache management.
+    // The computation is locale-aware and ensures permissions are always accurate to
+    // the current request locale.
     {
       name: 'permissions',
       type: 'json',
@@ -321,7 +307,11 @@ export function ClientPermissionsField(): Field[] {
       },
     },
 
-    // 2. Virtual permissions field (hidden - kept for potential future use)
+    // 2. Virtual permissions field - IMPORTANT: This provides automatic permission caching!
+    // When clients are fetched from the database, this afterRead hook populates the
+    // `permissions` field with computed permissions. The access control system checks
+    // for this field and uses it if present, only computing on-demand if missing.
+    // This provides efficient caching without requiring separate cache management.
     {
       name: 'permissions',
       type: 'json',

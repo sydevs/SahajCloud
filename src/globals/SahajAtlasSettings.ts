@@ -8,7 +8,7 @@ export const SahajAtlasSettings: GlobalConfig = {
   admin: {
     group: 'Configuration',
   },
-  label: 'Sahaj Atlas Config',
+  label: 'Sahaj Atlas',
   fields: [
     {
       name: 'atlasVersion',

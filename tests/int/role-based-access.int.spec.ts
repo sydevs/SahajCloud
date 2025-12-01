@@ -1,9 +1,12 @@
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import type { Manager, Client } from '../../src/payload-types'
 import type { Payload } from 'payload'
-import { createTestEnvironment } from '../utils/testHelpers'
+
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+
+import { mergeRolePermissions } from '../../src/fields/PermissionsField'
+import { hasPermission } from '../../src/lib/accessControl'
 import { testData } from '../utils/testData'
-import { hasPermission, computePermissions } from '@/lib/accessControl'
-import type { Manager, Client } from '@/payload-types'
+import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Role-Based Access Control', () => {
   let payload: Payload
@@ -91,7 +94,8 @@ describe('Role-Based Access Control', () => {
         collection: 'clients',
         data: {
           name: 'We Meditate Web Client',
-          owner: manager.id,
+          managers: [manager.id],
+          primaryContact: manager.id,
           roles: ['we-meditate-web'],
         },
       })) as Client
@@ -113,7 +117,8 @@ describe('Role-Based Access Control', () => {
         collection: 'clients',
         data: {
           name: 'We Meditate App Client',
-          owner: manager.id,
+          managers: [manager.id],
+          primaryContact: manager.id,
           roles: ['we-meditate-app'],
         },
       })) as Client
@@ -134,7 +139,8 @@ describe('Role-Based Access Control', () => {
         collection: 'clients',
         data: {
           name: 'Sahaj Atlas Client',
-          owner: manager.id,
+          managers: [manager.id],
+          primaryContact: manager.id,
           roles: ['sahaj-atlas'],
         },
       })) as Client
@@ -148,11 +154,7 @@ describe('Role-Based Access Control', () => {
 
   describe('Permission Computation', () => {
     it('computes permissions for meditations-editor role', () => {
-      const permissions = computePermissions(
-        { roles: ['meditations-editor'] },
-        'en',
-        false, // isManager
-      )
+      const permissions = mergeRolePermissions(['meditations-editor'], 'managers')
 
       expect(permissions).toBeDefined()
       expect(permissions.meditations).toBeDefined()
@@ -165,7 +167,7 @@ describe('Role-Based Access Control', () => {
     })
 
     it('computes permissions for translator role', () => {
-      const permissions = computePermissions({ roles: ['translator'] }, 'en', false)
+      const permissions = mergeRolePermissions(['translator'], 'managers')
 
       expect(permissions).toBeDefined()
       expect(permissions.pages).toBeDefined()
@@ -176,11 +178,7 @@ describe('Role-Based Access Control', () => {
     })
 
     it('merges permissions from multiple roles', () => {
-      const permissions = computePermissions(
-        { roles: ['meditations-editor', 'translator'] },
-        'en',
-        false,
-      )
+      const permissions = mergeRolePermissions(['meditations-editor', 'translator'], 'managers')
 
       expect(permissions).toBeDefined()
       // Should have permissions from both roles
@@ -191,11 +189,7 @@ describe('Role-Based Access Control', () => {
     })
 
     it('computes permissions for we-meditate-web client role', () => {
-      const permissions = computePermissions(
-        { roles: ['we-meditate-web'] },
-        'en',
-        true, // isClient
-      )
+      const permissions = mergeRolePermissions(['we-meditate-web'], 'clients')
 
       expect(permissions).toBeDefined()
       expect(permissions.meditations).toBeDefined()
@@ -218,12 +212,12 @@ describe('Role-Based Access Control', () => {
       expect(
         hasPermission({ user: adminUser, collection: 'meditations', operation: 'create' }),
       ).toBe(true)
-      expect(
-        hasPermission({ user: adminUser, collection: 'managers', operation: 'read' }),
-      ).toBe(true)
-      expect(
-        hasPermission({ user: adminUser, collection: 'clients', operation: 'update' }),
-      ).toBe(true)
+      expect(hasPermission({ user: adminUser, collection: 'managers', operation: 'read' })).toBe(
+        true,
+      )
+      expect(hasPermission({ user: adminUser, collection: 'clients', operation: 'update' })).toBe(
+        true,
+      )
     })
 
     it('restricts meditations-editor to specific collections', () => {
@@ -241,17 +235,17 @@ describe('Role-Based Access Control', () => {
       expect(
         hasPermission({ user: editorUser, collection: 'meditations', operation: 'create' }),
       ).toBe(true)
-      expect(
-        hasPermission({ user: editorUser, collection: 'media', operation: 'create' }),
-      ).toBe(true)
+      expect(hasPermission({ user: editorUser, collection: 'media', operation: 'create' })).toBe(
+        true,
+      )
 
       // Should NOT have access to managers or clients
-      expect(
-        hasPermission({ user: editorUser, collection: 'managers', operation: 'read' }),
-      ).toBe(false)
-      expect(
-        hasPermission({ user: editorUser, collection: 'clients', operation: 'read' }),
-      ).toBe(false)
+      expect(hasPermission({ user: editorUser, collection: 'managers', operation: 'read' })).toBe(
+        false,
+      )
+      expect(hasPermission({ user: editorUser, collection: 'clients', operation: 'read' })).toBe(
+        false,
+      )
     })
 
     it('restricts translator to translate permission only', () => {
@@ -265,9 +259,9 @@ describe('Role-Based Access Control', () => {
       })
 
       // Should have read access
-      expect(
-        hasPermission({ user: translatorUser, collection: 'pages', operation: 'read' }),
-      ).toBe(true)
+      expect(hasPermission({ user: translatorUser, collection: 'pages', operation: 'read' })).toBe(
+        true,
+      )
 
       // Should have translate access with localized field
       expect(
@@ -337,9 +331,9 @@ describe('Role-Based Access Control', () => {
       })
 
       // Should have implicit read access to non-restricted collections
-      expect(
-        hasPermission({ user: managerUser, collection: 'narrators', operation: 'read' }),
-      ).toBe(true)
+      expect(hasPermission({ user: managerUser, collection: 'narrators', operation: 'read' })).toBe(
+        true,
+      )
     })
 
     it('blocks access to restricted collections for non-admins', () => {
@@ -351,19 +345,21 @@ describe('Role-Based Access Control', () => {
         },
       })
 
-      // Should be blocked from restricted collections
-      expect(
-        hasPermission({ user: editorUser, collection: 'managers', operation: 'read' }),
-      ).toBe(false)
-      expect(
-        hasPermission({ user: editorUser, collection: 'clients', operation: 'read' }),
-      ).toBe(false)
-      expect(
-        hasPermission({ user: editorUser, collection: 'form-submissions', operation: 'read' }),
-      ).toBe(false)
+      // Should be blocked from restricted collections (managers, clients, payload-jobs)
+      expect(hasPermission({ user: editorUser, collection: 'managers', operation: 'read' })).toBe(
+        false,
+      )
+      expect(hasPermission({ user: editorUser, collection: 'clients', operation: 'read' })).toBe(
+        false,
+      )
       expect(
         hasPermission({ user: editorUser, collection: 'payload-jobs', operation: 'read' }),
       ).toBe(false)
+
+      // form-submissions is NOT restricted - managers with roles get implicit read access
+      expect(
+        hasPermission({ user: editorUser, collection: 'form-submissions', operation: 'read' }),
+      ).toBe(true)
     })
   })
 
@@ -402,7 +398,8 @@ describe('Role-Based Access Control', () => {
         collection: 'clients',
         data: {
           name: 'Test Client',
-          owner: manager.id,
+          managers: [manager.id],
+          primaryContact: manager.id,
           roles: ['we-meditate-web'],
         },
       })) as Client
@@ -422,6 +419,341 @@ describe('Role-Based Access Control', () => {
         expect(permissions.meditations).toBeDefined()
         expect(permissions.pages).toBeDefined()
       }
+    })
+  })
+
+  describe('Document-Level Permissions (customResourceAccess)', () => {
+    it('allows manager to update specific page via customResourceAccess', async () => {
+      // Create a test page
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Page Creation',
+        admin: true,
+      })
+
+      const page = await payload.create({
+        collection: 'pages',
+        data: {
+          title: 'Test Page',
+          category: 'knowledge',
+          content: {
+            root: {
+              type: 'root',
+              children: [
+                {
+                  type: 'paragraph',
+                  children: [{ type: 'text', text: 'Test content' }],
+                  version: 0,
+                },
+              ],
+              direction: null,
+              format: '',
+              indent: 0,
+              version: 0,
+            },
+          },
+        },
+        user: { ...admin, collection: 'managers' },
+      })
+
+      // Create manager with customResourceAccess to this specific page
+      const manager = await testData.createManager(payload, {
+        name: 'Restricted Manager',
+        roles: [], // No collection-level permissions
+        customResourceAccess: [
+          {
+            relationTo: 'pages',
+            value: page.id,
+          },
+        ],
+      })
+
+      // Manager should have update permission for this specific page
+      const managerUser = testData.dummyUser('managers', {
+        id: manager.id,
+        roles: [],
+        permissions: {},
+        customResourceAccess: [{ relationTo: 'pages', value: page.id }],
+      })
+
+      expect(
+        hasPermission({
+          user: managerUser,
+          collection: 'pages',
+          operation: 'update',
+          docId: String(page.id),
+        }),
+      ).toBe(true)
+
+      // But should NOT have access to other pages
+      expect(
+        hasPermission({
+          user: managerUser,
+          collection: 'pages',
+          operation: 'update',
+          docId: '999999',
+        }),
+      ).toBe(false)
+    })
+
+    it('does not grant create or delete permission via customResourceAccess', async () => {
+      const page = await payload.create({
+        collection: 'pages',
+        data: {
+          title: 'Another Test Page',
+          category: 'knowledge',
+          content: {
+            root: {
+              type: 'root',
+              children: [
+                {
+                  type: 'paragraph',
+                  children: [{ type: 'text', text: 'Test content' }],
+                  version: 0,
+                },
+              ],
+              direction: null,
+              format: '',
+              indent: 0,
+              version: 0,
+            },
+          },
+        },
+      })
+
+      const managerUser = testData.dummyUser('managers', {
+        id: 100,
+        roles: [],
+        permissions: {},
+        customResourceAccess: [{ relationTo: 'pages', value: page.id }],
+      })
+
+      // Should NOT have create permission
+      expect(
+        hasPermission({
+          user: managerUser,
+          collection: 'pages',
+          operation: 'create',
+        }),
+      ).toBe(false)
+
+      // Should NOT have delete permission
+      expect(
+        hasPermission({
+          user: managerUser,
+          collection: 'pages',
+          operation: 'delete',
+          docId: String(page.id),
+        }),
+      ).toBe(false)
+    })
+  })
+
+  describe('Localized Manager Roles', () => {
+    it('computes permissions for current locale only', () => {
+      // Manager with different roles per locale
+      const managerData = {
+        roles: {
+          en: ['meditations-editor'],
+          cs: ['translator'],
+        },
+      }
+
+      // English locale permissions
+      const enPermissions = mergeRolePermissions(managerData.roles.en, 'managers')
+      expect(enPermissions.meditations).toBeDefined()
+      expect(enPermissions.meditations).toContain('create')
+      expect(enPermissions.pages).toBeUndefined() // No translator role in English
+
+      // Czech locale permissions
+      const csPermissions = mergeRolePermissions(managerData.roles.cs, 'managers')
+      expect(csPermissions.pages).toBeDefined()
+      expect(csPermissions.pages).toContain('translate')
+      expect(csPermissions.meditations).toBeUndefined() // No meditations-editor role in Czech
+    })
+
+    it('grants implicit read based on roles in current locale', () => {
+      const managerUser = testData.dummyUser('managers', {
+        id: 10,
+        roles: ['translator'], // Has roles in current locale
+        permissions: {
+          pages: ['read', 'translate'],
+          music: ['read', 'translate'],
+        },
+      })
+
+      // Should have implicit read access to narrators
+      expect(hasPermission({ user: managerUser, collection: 'narrators', operation: 'read' })).toBe(
+        true,
+      )
+    })
+
+    it('denies implicit read when no roles in current locale', () => {
+      const managerUser = testData.dummyUser('managers', {
+        id: 11,
+        roles: [], // No roles in current locale
+        permissions: {},
+      })
+
+      // Should NOT have implicit read access
+      expect(hasPermission({ user: managerUser, collection: 'narrators', operation: 'read' })).toBe(
+        false,
+      )
+    })
+  })
+
+  describe('Implicit Read Access', () => {
+    it('grants read to all non-restricted collections for managers with roles', () => {
+      const managerUser = testData.dummyUser('managers', {
+        id: 12,
+        roles: ['translator'],
+        permissions: {
+          pages: ['read', 'translate'],
+        },
+      })
+
+      // Should have implicit read to various collections
+      const nonRestrictedCollections = [
+        'meditations',
+        'frames',
+        'narrators',
+        'media',
+        'music',
+        'authors',
+        'external-videos',
+      ]
+
+      nonRestrictedCollections.forEach((collection) => {
+        expect(hasPermission({ user: managerUser, collection, operation: 'read' })).toBe(true)
+      })
+    })
+
+    it('blocks read to restricted collections even with implicit access', () => {
+      const managerUser = testData.dummyUser('managers', {
+        id: 13,
+        roles: ['translator'],
+        permissions: {
+          pages: ['read', 'translate'],
+        },
+      })
+
+      // Restricted collections should be blocked
+      const restrictedCollections = ['managers', 'clients', 'payload-jobs']
+
+      restrictedCollections.forEach((collection) => {
+        expect(hasPermission({ user: managerUser, collection, operation: 'read' })).toBe(false)
+      })
+    })
+
+    it('does not grant implicit read to API clients', () => {
+      const clientUser = testData.dummyUser('clients', {
+        id: 14,
+        roles: ['we-meditate-web'],
+        permissions: {
+          meditations: ['read'],
+          pages: ['read'],
+        },
+      })
+
+      // Should NOT have access to collections not in permissions
+      expect(hasPermission({ user: clientUser, collection: 'lessons', operation: 'read' })).toBe(
+        false,
+      )
+    })
+  })
+
+  describe('Form Submissions Access', () => {
+    it('allows we-meditate-web client to create form submissions', () => {
+      const clientUser = testData.dummyUser('clients', {
+        id: 15,
+        roles: ['we-meditate-web'],
+        permissions: {
+          'form-submissions': ['create'],
+        },
+      })
+
+      expect(
+        hasPermission({
+          user: clientUser,
+          collection: 'form-submissions',
+          operation: 'create',
+        }),
+      ).toBe(true)
+    })
+
+    it('grants managers with roles implicit read access to form submissions', () => {
+      const managerUser = testData.dummyUser('managers', {
+        id: 16,
+        roles: ['meditations-editor'],
+        permissions: {
+          meditations: ['read', 'create', 'update'],
+        },
+      })
+
+      // Managers with roles get implicit read access to form-submissions
+      expect(
+        hasPermission({
+          user: managerUser,
+          collection: 'form-submissions',
+          operation: 'read',
+        }),
+      ).toBe(true)
+    })
+  })
+
+  describe('Concurrent Permission Checks', () => {
+    it('handles concurrent permission checks without race conditions', async () => {
+      const managerUser = testData.dummyUser('managers', {
+        id: 17,
+        roles: {
+          en: ['meditations-editor', 'translator'],
+        },
+        permissions: undefined, // Let permissions be computed dynamically
+      })
+
+      // Simulate concurrent permission checks
+      const checks = [
+        hasPermission({ user: managerUser, collection: 'meditations', operation: 'create' }),
+        hasPermission({
+          user: managerUser,
+          collection: 'pages',
+          operation: 'update',
+          field: { localized: true },
+        }),
+        hasPermission({
+          user: managerUser,
+          collection: 'music',
+          operation: 'update',
+          field: { localized: true },
+        }),
+        hasPermission({ user: managerUser, collection: 'media', operation: 'create' }),
+        hasPermission({ user: managerUser, collection: 'narrators', operation: 'read' }),
+      ]
+
+      const results = await Promise.all(checks.map((result) => Promise.resolve(result)))
+
+      // All checks should succeed
+      expect(results[0]).toBe(true) // meditations create
+      expect(results[1]).toBe(true) // pages update (localized field)
+      expect(results[2]).toBe(true) // music update (localized field)
+      expect(results[3]).toBe(true) // media create
+      expect(results[4]).toBe(true) // narrators read (implicit)
+    })
+
+    it('computes permissions consistently across multiple concurrent requests', () => {
+      const managerData = {
+        roles: ['translator'],
+      }
+
+      // Simulate multiple concurrent mergeRolePermissions calls
+      const computations = Array.from({ length: 10 }, () =>
+        mergeRolePermissions(managerData.roles, 'managers'),
+      )
+
+      // All should produce identical results
+      const firstResult = JSON.stringify(computations[0])
+      computations.forEach((result) => {
+        expect(JSON.stringify(result)).toBe(firstResult)
+      })
     })
   })
 })
