@@ -6,7 +6,7 @@ import { useAuth } from '@payloadcms/ui'
 import { useProject } from '@/contexts/ProjectContext'
 import { PROJECTS, ProjectValue } from '@/lib/projects'
 
-export const ProjectSelector = () => {
+const ProjectSelector = () => {
   const { currentProject, setCurrentProject } = useProject()
   const { user } = useAuth()
   const [isSaving, setIsSaving] = useState(false)
@@ -77,3 +77,5 @@ export const ProjectSelector = () => {
     </div>
   )
 }
+
+export default ProjectSelector
