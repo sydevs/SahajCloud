@@ -3,13 +3,13 @@ import type { CollectionConfig, Field } from 'payload'
 import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { permissionBasedAccess, createFieldAccess } from '@/lib/accessControl'
+import { roleBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
 
 
 export const Music: CollectionConfig = {
   slug: 'music',
-  access: permissionBasedAccess('music'),
+  access: roleBasedAccess('music'),
   trash: true,
   upload: {
     staticDir: 'media/music',

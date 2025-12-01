@@ -1,11 +1,11 @@
 import type { CollectionConfig } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { permissionBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/accessControl'
 
 export const MeditationTags: CollectionConfig = {
   slug: 'meditation-tags',
-  access: permissionBasedAccess('meditations'),
+  access: roleBasedAccess('meditations'),
   admin: {
     group: 'Tags',
     useAsTitle: 'name',

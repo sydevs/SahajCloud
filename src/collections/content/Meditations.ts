@@ -5,14 +5,14 @@ import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 import { KeyframeData, KeyframeDefinition } from '@/components/admin/MeditationFrameEditor/types'
 import { MediaField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { permissionBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/accessControl'
 import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
 import { LOCALES } from '@/lib/locales'
 import { logger } from '@/lib/logger'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
-  access: permissionBasedAccess('meditations'),
+  access: roleBasedAccess('meditations'),
   trash: true,
   upload: {
     staticDir: 'media/meditations',

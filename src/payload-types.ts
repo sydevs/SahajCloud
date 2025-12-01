@@ -139,10 +139,14 @@ export interface Config {
   };
   globals: {
     'we-meditate-web-settings': WeMeditateWebSetting;
+    'we-meditate-app-settings': WeMeditateAppSetting;
+    'sahaj-atlas-settings': SahajAtlasSetting;
     'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
     'we-meditate-web-settings': WeMeditateWebSettingsSelect<false> | WeMeditateWebSettingsSelect<true>;
+    'we-meditate-app-settings': WeMeditateAppSettingsSelect<false> | WeMeditateAppSettingsSelect<true>;
+    'sahaj-atlas-settings': SahajAtlasSettingsSelect<false> | SahajAtlasSettingsSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale:
@@ -785,45 +789,34 @@ export interface Manager {
   id: number;
   name: string;
   /**
-   * Admin users bypass all permission restrictions and have complete access to all collections and features.
+   * Assign roles for each locale. Different roles can be assigned for different languages.
    */
-  admin?: boolean | null;
+  roles?:
+    | {
+        role: 'meditations-editor' | 'path-editor' | 'translator' | 'admin';
+        id?: string | null;
+      }[]
+    | null;
   /**
-   * Granular permissions for specific collections and locales. Create multiple entries for different locales or collections.
+   * Grant update access to specific documents. Useful for giving access to individual pages without broader permissions.
+   */
+  customResourceAccess?:
+    | {
+        relationTo: 'pages';
+        value: number | Page;
+      }[]
+    | null;
+  /**
+   * Computed permissions for the current locale based on assigned roles
    */
   permissions?:
     | {
-        /**
-         * Select the collection to grant permissions for
-         */
-        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'lessons' | 'pages' | 'external-videos';
-        /**
-         * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
-         */
-        level: 'translate' | 'manage';
-        /**
-         * Select the locale this permission applies to. Create multiple permission entries for multiple locales. "All Locales" grants unrestricted locale access.
-         */
-        locale:
-          | 'all'
-          | 'en'
-          | 'es'
-          | 'de'
-          | 'it'
-          | 'fr'
-          | 'ru'
-          | 'ro'
-          | 'cs'
-          | 'uk'
-          | 'el'
-          | 'hy'
-          | 'pl'
-          | 'pt-br'
-          | 'fa'
-          | 'bg'
-          | 'tr';
-        id?: string | null;
-      }[]
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
     | null;
   /**
    * Enable or disable this user
@@ -864,41 +857,25 @@ export interface Client {
    */
   notes?: string | null;
   /**
-   * Granular permissions for specific collections and locales. Create multiple entries for different locales or collections.
+   * Assign API client roles. Roles apply to all locales.
+   */
+  roles?:
+    | {
+        role: 'we-meditate-web' | 'we-meditate-app' | 'sahaj-atlas';
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Computed permissions based on assigned roles (applies to all locales)
    */
   permissions?:
     | {
-        /**
-         * Select the collection to grant permissions for
-         */
-        allowedCollection: 'meditations' | 'music' | 'frames' | 'media' | 'lessons' | 'pages' | 'external-videos';
-        /**
-         * Translate: Can edit localized fields only. Manage: Full create/update/delete access within specified locales.
-         */
-        level: 'read' | 'manage';
-        /**
-         * Select the locale this permission applies to. Create multiple permission entries for multiple locales. "All Locales" grants unrestricted locale access.
-         */
-        locale:
-          | 'all'
-          | 'en'
-          | 'es'
-          | 'de'
-          | 'it'
-          | 'fr'
-          | 'ru'
-          | 'ro'
-          | 'cs'
-          | 'uk'
-          | 'el'
-          | 'hy'
-          | 'pl'
-          | 'pt-br'
-          | 'fa'
-          | 'bg'
-          | 'tr';
-        id?: string | null;
-      }[]
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
     | null;
   /**
    * Users who can manage this client
@@ -1724,15 +1701,14 @@ export interface PageTagsSelect<T extends boolean = true> {
  */
 export interface ManagersSelect<T extends boolean = true> {
   name?: T;
-  admin?: T;
-  permissions?:
+  roles?:
     | T
     | {
-        allowedCollection?: T;
-        level?: T;
-        locale?: T;
+        role?: T;
         id?: T;
       };
+  customResourceAccess?: T;
+  permissions?: T;
   active?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1760,14 +1736,13 @@ export interface ManagersSelect<T extends boolean = true> {
 export interface ClientsSelect<T extends boolean = true> {
   name?: T;
   notes?: T;
-  permissions?:
+  roles?:
     | T
     | {
-        allowedCollection?: T;
-        level?: T;
-        locale?: T;
+        role?: T;
         id?: T;
       };
+  permissions?: T;
   managers?: T;
   primaryContact?: T;
   domains?: T;
@@ -2065,6 +2040,45 @@ export interface WeMeditateWebSetting {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "we-meditate-app-settings".
+ */
+export interface WeMeditateAppSetting {
+  id: number;
+  /**
+   * Current mobile app version
+   */
+  appVersion?: string | null;
+  /**
+   * Select up to 10 meditations to feature in the mobile app
+   */
+  featuredMeditations?: (number | Meditation)[] | null;
+  /**
+   * Select up to 10 lessons to feature in the mobile app
+   */
+  featuredLessons?: (number | Lesson)[] | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "sahaj-atlas-settings".
+ */
+export interface SahajAtlasSetting {
+  id: number;
+  /**
+   * Current Sahaj Atlas version
+   */
+  atlasVersion?: string | null;
+  defaultMapCenter: {
+    latitude: number;
+    longitude: number;
+  };
+  defaultZoomLevel?: number | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats".
  */
 export interface PayloadJobsStat {
@@ -2110,6 +2124,35 @@ export interface WeMeditateWebSettingsSelect<T extends boolean = true> {
   inspirationPageTags?: T;
   classesPage?: T;
   liveMeditationsPage?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "we-meditate-app-settings_select".
+ */
+export interface WeMeditateAppSettingsSelect<T extends boolean = true> {
+  appVersion?: T;
+  featuredMeditations?: T;
+  featuredLessons?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "sahaj-atlas-settings_select".
+ */
+export interface SahajAtlasSettingsSelect<T extends boolean = true> {
+  atlasVersion?: T;
+  defaultMapCenter?:
+    | T
+    | {
+        latitude?: T;
+        longitude?: T;
+      };
+  defaultZoomLevel?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

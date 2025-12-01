@@ -1,10 +1,10 @@
 import type { GlobalConfig } from 'payload'
 
-import { adminOnlyAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/accessControl'
 
 export const WeMeditateWebSettings: GlobalConfig = {
   slug: 'we-meditate-web-settings',
-  access: adminOnlyAccess(),
+  access: roleBasedAccess('we-meditate-web-settings'),
   admin: {
     group: 'Configuration',
   },
