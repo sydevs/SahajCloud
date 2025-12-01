@@ -14,6 +14,7 @@ import { GetPlatformProxyOptions } from 'wrangler'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { resendAdapter } from '@/lib/email/resendAdapter'
 import { LOCALES, DEFAULT_LOCALE } from '@/lib/locales'
+import { getServerUrl } from '@/lib/serverUrl'
 
 import { collections, Managers } from './collections'
 import { globals } from './globals'
@@ -34,19 +35,21 @@ const cloudflare =
     : await getCloudflareContext({ async: true })
 
 const payloadConfig = (overrides?: Partial<Config>) => {
+  const serverUrl = getServerUrl()
+
   return buildConfig({
-    serverURL: process.env.SAHAJCLOUD_URL || 'http://localhost:3000',
+    serverURL: serverUrl,
     localization: {
       locales: LOCALES.map((l) => l.code),
       defaultLocale: DEFAULT_LOCALE,
     },
     cors: [
-      process.env.SAHAJCLOUD_URL || 'http://localhost:3000',
+      serverUrl,
       process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173',
       process.env.SAHAJATLAS_URL || 'http://localhost:5174',
     ],
     csrf: [
-      process.env.SAHAJCLOUD_URL || 'http://localhost:3000',
+      serverUrl,
       process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173',
       process.env.SAHAJATLAS_URL || 'http://localhost:5174',
     ],

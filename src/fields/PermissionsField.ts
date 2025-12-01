@@ -1,6 +1,6 @@
-import type { CollectionSlug, Field, GlobalSlug } from 'payload'
+import type { Field } from 'payload'
 
-import { LOCALES, LocaleCode } from '@/lib/locales'
+import { DEFAULT_LOCALE, LocaleCode } from '@/lib/locales'
 
 // ============================================================================
 // Type Definitions
@@ -11,22 +11,17 @@ export type ClientRole = 'we-meditate-web' | 'we-meditate-app' | 'sahaj-atlas'
 
 export type PermissionLevel = 'read' | 'create' | 'update' | 'delete' | 'translate'
 
-export interface RolePermission {
-  collection: CollectionSlug | GlobalSlug
-  operations: PermissionLevel[]
-}
-
 export interface RoleConfig {
   slug: string
   label: string
   description: string
-  permissions: RolePermission[]
+  permissions: {
+    [collection: string]: PermissionLevel[]
+  }
 }
 
-export interface MergedPermissions {
-  [collection: string]: {
-    operations: PermissionLevel[]
-  }
+export type MergedPermissions = {
+  [collection: string]: PermissionLevel[]
 }
 
 // ============================================================================
@@ -38,31 +33,31 @@ export const MANAGER_ROLES: Record<ManagerRole, RoleConfig> = {
     slug: 'meditations-editor',
     label: 'Meditations Editor',
     description: 'Can create and edit meditations, upload related media and files',
-    permissions: [
-      { collection: 'meditations', operations: ['read', 'create', 'update'] },
-      { collection: 'media', operations: ['read', 'create'] },
-      { collection: 'file-attachments', operations: ['read', 'create'] },
-    ],
+    permissions: {
+      meditations: ['read', 'create', 'update'],
+      media: ['read', 'create'],
+      'file-attachments': ['read', 'create'],
+    },
   },
   'path-editor': {
     slug: 'path-editor',
     label: 'Path Editor',
     description: 'Can edit lessons and external videos, upload related media and files',
-    permissions: [
-      { collection: 'lessons', operations: ['read', 'update'] },
-      { collection: 'external-videos', operations: ['read', 'update'] },
-      { collection: 'media', operations: ['read', 'create'] },
-      { collection: 'file-attachments', operations: ['read', 'create'] },
-    ],
+    permissions: {
+      lessons: ['read', 'update'],
+      'external-videos': ['read', 'update'],
+      media: ['read', 'create'],
+      'file-attachments': ['read', 'create'],
+    },
   },
   translator: {
     slug: 'translator',
     label: 'Translator',
     description: 'Can edit localized fields in pages and music',
-    permissions: [
-      { collection: 'pages', operations: ['read', 'translate'] },
-      { collection: 'music', operations: ['read', 'translate'] },
-    ],
+    permissions: {
+      pages: ['read', 'translate'],
+      music: ['read', 'translate'],
+    },
   },
 }
 
@@ -75,51 +70,51 @@ export const CLIENT_ROLES: Record<ClientRole, RoleConfig> = {
     slug: 'we-meditate-web',
     label: 'We Meditate Web',
     description: 'Access for We Meditate web frontend application',
-    permissions: [
-      { collection: 'we-meditate-web-settings', operations: ['read'] },
-      { collection: 'meditations', operations: ['read'] },
-      { collection: 'frames', operations: ['read'] },
-      { collection: 'narrators', operations: ['read'] },
-      { collection: 'media', operations: ['read'] },
-      { collection: 'file-attachments', operations: ['read'] },
-      { collection: 'pages', operations: ['read'] },
-      { collection: 'music', operations: ['read'] },
-      { collection: 'forms', operations: ['read'] },
-      { collection: 'authors', operations: ['read'] },
-      { collection: 'meditation-tags', operations: ['read'] },
-      { collection: 'page-tags', operations: ['read'] },
-      { collection: 'music-tags', operations: ['read'] },
-      { collection: 'form-submissions', operations: ['create'] },
-    ],
+    permissions: {
+      'we-meditate-web-settings': ['read'],
+      meditations: ['read'],
+      frames: ['read'],
+      narrators: ['read'],
+      media: ['read'],
+      'file-attachments': ['read'],
+      pages: ['read'],
+      music: ['read'],
+      forms: ['read'],
+      authors: ['read'],
+      'meditation-tags': ['read'],
+      'page-tags': ['read'],
+      'music-tags': ['read'],
+      'form-submissions': ['create'],
+    },
   },
   'we-meditate-app': {
     slug: 'we-meditate-app',
     label: 'We Meditate App',
     description: 'Access for We Meditate mobile application',
-    permissions: [
-      { collection: 'we-meditate-app-settings', operations: ['read'] },
-      { collection: 'meditations', operations: ['read'] },
-      { collection: 'frames', operations: ['read'] },
-      { collection: 'narrators', operations: ['read'] },
-      { collection: 'lessons', operations: ['read'] },
-      { collection: 'external-videos', operations: ['read'] },
-      { collection: 'music', operations: ['read'] },
-      { collection: 'media', operations: ['read'] },
-      { collection: 'file-attachments', operations: ['read'] },
-      { collection: 'meditation-tags', operations: ['read'] },
-      { collection: 'page-tags', operations: ['read'] },
-      { collection: 'music-tags', operations: ['read'] },
-    ],
+    permissions: {
+      'we-meditate-app-settings': ['read'],
+      meditations: ['read'],
+      frames: ['read'],
+      narrators: ['read'],
+      lessons: ['read'],
+      'external-videos': ['read'],
+      music: ['read'],
+      media: ['read'],
+      'file-attachments': ['read'],
+      'meditation-tags': ['read'],
+      'page-tags': ['read'],
+      'music-tags': ['read'],
+    },
   },
   'sahaj-atlas': {
     slug: 'sahaj-atlas',
     label: 'Sahaj Atlas',
     description: 'Access for Sahaj Atlas application',
-    permissions: [
-      { collection: 'sahaj-atlas-settings', operations: ['read'] },
-      { collection: 'media', operations: ['read'] },
-      { collection: 'file-attachments', operations: ['read'] },
-    ],
+    permissions: {
+      'sahaj-atlas-settings': ['read'],
+      media: ['read'],
+      'file-attachments': ['read'],
+    },
   },
 }
 
@@ -128,60 +123,46 @@ export const CLIENT_ROLES: Record<ClientRole, RoleConfig> = {
 // ============================================================================
 
 /**
- * Merge permissions from multiple roles for a specific locale
+ * Merge permissions from multiple roles
  *
- * For managers: Roles are locale-specific, so we only merge roles for the given locale
- * For clients: Roles are not locale-specific, so locale parameter is ignored
- *
- * @param roles - Array of role slugs or object with locale keys
- * @param locale - The locale to merge permissions for (only used for managers)
- * @param isClient - Whether this is for a client (roles not localized)
+ * @param roles - Array of role slugs to merge
+ * @param collectionSlug - Collection slug ('clients' or 'managers') to determine role registry
  * @returns Merged permissions object
  */
 export function mergeRolePermissions(
-  roles: string[] | Record<LocaleCode, string[]> | undefined,
-  locale?: LocaleCode,
-  isClient = false,
+  roles: string[],
+  collectionSlug: 'clients' | 'managers',
 ): MergedPermissions {
-  if (!roles) return {}
-
-  // Get the role slugs for the current locale
-  let roleSlugArray: string[]
-  if (isClient) {
-    // Clients: roles is a simple array
-    roleSlugArray = Array.isArray(roles) ? roles : []
-  } else {
-    // Managers: roles is an object with locale keys
-    if (Array.isArray(roles)) {
-      roleSlugArray = roles
-    } else if (locale && roles[locale]) {
-      roleSlugArray = roles[locale]
-    } else {
-      roleSlugArray = []
-    }
+  if (!roles || roles.length === 0) {
+    return {}
   }
+
+  // Select the appropriate role registry based on collection
+  const roleRegistry =
+    collectionSlug === 'clients'
+      ? (CLIENT_ROLES as Record<string, RoleConfig>)
+      : (MANAGER_ROLES as Record<string, RoleConfig>)
 
   const merged: MergedPermissions = {}
 
   // Merge permissions from all roles
-  roleSlugArray.forEach((roleSlug) => {
-    // Look up role in the appropriate registry
-    const role = isClient
-      ? CLIENT_ROLES[roleSlug as ClientRole]
-      : MANAGER_ROLES[roleSlug as ManagerRole]
+  roles.forEach((roleSlug) => {
+    const role = roleRegistry[roleSlug]
 
-    if (!role) return
+    if (!role) {
+      return
+    }
 
-    role.permissions.forEach((perm) => {
-      const collection = perm.collection as string
+    // Iterate through each collection in the role's permissions
+    Object.entries(role.permissions).forEach(([collection, operations]) => {
       if (!merged[collection]) {
-        merged[collection] = { operations: [] }
+        merged[collection] = []
       }
 
       // Add operations that aren't already present (union)
-      perm.operations.forEach((op) => {
-        if (!merged[collection].operations.includes(op)) {
-          merged[collection].operations.push(op)
+      operations.forEach((op) => {
+        if (!merged[collection].includes(op)) {
+          merged[collection].push(op)
         }
       })
     })
@@ -208,7 +189,7 @@ export function hasRolePermission(
   const collectionPerms = user.permissions[collection]
   if (!collectionPerms) return false
 
-  return collectionPerms.operations.includes(operation)
+  return collectionPerms.includes(operation)
 }
 
 // ============================================================================
@@ -255,6 +236,9 @@ export function ManagerPermissionsField(): Field[] {
         description:
           'Assign roles for each locale. Different roles can be assigned for different languages.',
         condition: (data) => !data.admin,
+        components: {
+          afterInput: ['@/components/admin/PermissionsTable'],
+        },
       },
     },
 
@@ -271,28 +255,35 @@ export function ManagerPermissionsField(): Field[] {
       },
     },
 
-    // 4. Virtual permissions field
+    // 4. Virtual permissions field (hidden - kept for potential future use)
     {
       name: 'permissions',
       type: 'json',
       virtual: true,
       admin: {
-        readOnly: true,
-        description: 'Computed permissions for the current locale based on assigned roles',
-        condition: (data) => !data.admin,
-        components: {
-          Field: '@/components/admin/PermissionsTable',
-        },
+        hidden: true,
       },
       hooks: {
         afterRead: [
           async ({ data, req }) => {
-            if (!data?.roles) return {}
+            if (!data?.roles) {
+              return {}
+            }
 
-            const locale = req.locale as LocaleCode
+            // Extract locale-specific roles array
+            let roleSlugArray: string[]
+            if (Array.isArray(data.roles)) {
+              // PayloadCMS has already localized the data
+              roleSlugArray = data.roles
+            } else if (typeof data.roles === 'object') {
+              // Full localized object - extract for current locale
+              const locale = (req.locale as LocaleCode) || DEFAULT_LOCALE
+              roleSlugArray = data.roles[locale] || []
+            } else {
+              roleSlugArray = []
+            }
 
-            // Roles are now just an array of strings (or object with locale keys)
-            return mergeRolePermissions(data.roles, locale, false)
+            return mergeRolePermissions(roleSlugArray, 'managers')
           },
         ],
       },
@@ -324,30 +315,27 @@ export function ClientPermissionsField(): Field[] {
       options: roleOptions,
       admin: {
         description: 'Assign API client roles. Roles apply to all locales.',
+        components: {
+          afterInput: ['@/components/admin/PermissionsTable'],
+        },
       },
     },
 
-    // 2. Virtual permissions field
+    // 2. Virtual permissions field (hidden - kept for potential future use)
     {
       name: 'permissions',
       type: 'json',
       virtual: true,
       admin: {
-        readOnly: true,
-        description: 'Computed permissions based on assigned roles (applies to all locales)',
-        components: {
-          Field: '@/components/admin/PermissionsTable',
-        },
+        hidden: true,
       },
       hooks: {
         afterRead: [
-          async ({ data, req }) => {
+          async ({ data }) => {
             if (!data?.roles) return {}
 
-            const locale = req.locale as LocaleCode
-
-            // Roles are just an array of strings for clients
-            return mergeRolePermissions(data.roles, locale, true)
+            // Roles are just an array of strings for clients (not localized)
+            return mergeRolePermissions(data.roles, 'clients')
           },
         ],
       },

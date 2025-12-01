@@ -126,7 +126,8 @@ export const hasPermission = ({
       currentLocale,
       isClient,
     )
-    user.permissions = mergeRolePermissions(roleSlugs, currentLocale, isClient)
+    const collection = isClient ? 'clients' : 'managers'
+    user.permissions = mergeRolePermissions(roleSlugs, collection)
   }
 
   // Check custom resource access for managers (document-level update permission)
@@ -161,7 +162,7 @@ export const hasPermission = ({
   const permissionOp = operation as PermissionLevel
 
   // Handle translate permission (field-level check)
-  if (collectionPerms.operations.includes('translate')) {
+  if (collectionPerms.includes('translate')) {
     // Translate permission only works for localized fields
     if (field) {
       // Can read any field, but can only update/create localized fields
@@ -176,7 +177,7 @@ export const hasPermission = ({
   }
 
   // Check if user has the specific operation permission
-  const hasOp = collectionPerms.operations.includes(permissionOp)
+  const hasOp = collectionPerms.includes(permissionOp)
 
   // API clients never get delete access, even if their role includes it
   if (isClient && operation === 'delete') {
@@ -327,5 +328,6 @@ export function computePermissions(
   isClient: boolean,
 ): MergedPermissions {
   const roleSlugs = extractRoleSlugs(data.roles, locale, isClient)
-  return mergeRolePermissions(roleSlugs, locale, isClient)
+  const collection = isClient ? 'clients' : 'managers'
+  return mergeRolePermissions(roleSlugs, collection)
 }

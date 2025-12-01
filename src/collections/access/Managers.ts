@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { ManagerPermissionsField } from '@/fields/PermissionsField'
 import { roleBasedAccess } from '@/lib/accessControl'
+import { getServerUrl } from '@/lib/serverUrl'
 
 export const Managers: CollectionConfig = {
   slug: 'managers',
@@ -9,7 +10,7 @@ export const Managers: CollectionConfig = {
   auth: {
     verify: {
       generateEmailHTML: ({ token, user }) => {
-        const verifyURL = `${process.env.SAHAJCLOUD_URL || 'http://localhost:3000'}/admin/verify/${token}`
+        const verifyURL = `${getServerUrl()}/admin/verify/${token}`
         return `
 <!DOCTYPE html>
 <html>
@@ -50,14 +51,7 @@ export const Managers: CollectionConfig = {
     lockTime: 600 * 1000, // 10 minutes
   },
   admin: {
-    hidden: ({ user }) => {
-      // Hide if user doesn't have admin role in any locale
-      if (!user?.roles) return true
-      const roles = user.roles as Record<string, Array<{ role: string }>>
-      return !Object.values(roles).some((localeRoles) =>
-        localeRoles?.some((r) => r.role === 'admin'),
-      )
-    },
+    hidden: ({ user }) => !user.admin,
     group: 'Access',
     useAsTitle: 'name',
     defaultColumns: ['name', 'email', '_verified', 'active'],

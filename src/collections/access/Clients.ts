@@ -20,14 +20,7 @@ export const Clients: CollectionConfig = {
     plural: 'Services',
   },
   admin: {
-    hidden: ({ user }) => {
-      // Hide if user doesn't have admin role in any locale
-      if (!user?.roles) return true
-      const roles = user.roles as Record<string, Array<{ role: string }>>
-      return !Object.values(roles).some((localeRoles) =>
-        localeRoles?.some((r) => r.role === 'admin'),
-      )
-    },
+    hidden: ({ user }) => !user.admin,
     group: 'Access',
     useAsTitle: 'name',
     defaultColumns: ['name', 'active'],
