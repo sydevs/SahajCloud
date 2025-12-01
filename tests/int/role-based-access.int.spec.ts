@@ -156,12 +156,12 @@ describe('Role-Based Access Control', () => {
 
       expect(permissions).toBeDefined()
       expect(permissions.meditations).toBeDefined()
-      expect(permissions.meditations.operations).toContain('read')
-      expect(permissions.meditations.operations).toContain('create')
-      expect(permissions.meditations.operations).toContain('update')
+      expect(permissions.meditations).toContain('read')
+      expect(permissions.meditations).toContain('create')
+      expect(permissions.meditations).toContain('update')
       expect(permissions.media).toBeDefined()
-      expect(permissions.media.operations).toContain('read')
-      expect(permissions.media.operations).toContain('create')
+      expect(permissions.media).toContain('read')
+      expect(permissions.media).toContain('create')
     })
 
     it('computes permissions for translator role', () => {
@@ -169,10 +169,10 @@ describe('Role-Based Access Control', () => {
 
       expect(permissions).toBeDefined()
       expect(permissions.pages).toBeDefined()
-      expect(permissions.pages.operations).toContain('read')
-      expect(permissions.pages.operations).toContain('translate')
+      expect(permissions.pages).toContain('read')
+      expect(permissions.pages).toContain('translate')
       expect(permissions.music).toBeDefined()
-      expect(permissions.music.operations).toContain('translate')
+      expect(permissions.music).toContain('translate')
     })
 
     it('merges permissions from multiple roles', () => {
@@ -185,9 +185,9 @@ describe('Role-Based Access Control', () => {
       expect(permissions).toBeDefined()
       // Should have permissions from both roles
       expect(permissions.meditations).toBeDefined()
-      expect(permissions.meditations.operations).toContain('create')
+      expect(permissions.meditations).toContain('create')
       expect(permissions.pages).toBeDefined()
-      expect(permissions.pages.operations).toContain('translate')
+      expect(permissions.pages).toContain('translate')
     })
 
     it('computes permissions for we-meditate-web client role', () => {
@@ -199,11 +199,11 @@ describe('Role-Based Access Control', () => {
 
       expect(permissions).toBeDefined()
       expect(permissions.meditations).toBeDefined()
-      expect(permissions.meditations.operations).toContain('read')
+      expect(permissions.meditations).toContain('read')
       expect(permissions.pages).toBeDefined()
-      expect(permissions.pages.operations).toContain('read')
+      expect(permissions.pages).toContain('read')
       expect(permissions['form-submissions']).toBeDefined()
-      expect(permissions['form-submissions'].operations).toContain('create')
+      expect(permissions['form-submissions']).toContain('create')
     })
   })
 
@@ -231,9 +231,9 @@ describe('Role-Based Access Control', () => {
         id: 2,
         roles: ['meditations-editor'],
         permissions: {
-          meditations: { operations: ['read', 'create', 'update'] },
-          media: { operations: ['read', 'create'] },
-          'file-attachments': { operations: ['read', 'create'] },
+          meditations: ['read', 'create', 'update'],
+          media: ['read', 'create'],
+          'file-attachments': ['read', 'create'],
         },
       })
 
@@ -259,8 +259,8 @@ describe('Role-Based Access Control', () => {
         id: 3,
         roles: ['translator'],
         permissions: {
-          pages: { operations: ['read', 'translate'] },
-          music: { operations: ['read', 'translate'] },
+          pages: ['read', 'translate'],
+          music: ['read', 'translate'],
         },
       })
 
@@ -312,7 +312,7 @@ describe('Role-Based Access Control', () => {
         id: 5,
         roles: ['we-meditate-web'],
         permissions: {
-          meditations: { operations: ['read', 'create', 'update', 'delete'] },
+          meditations: ['read', 'create', 'update', 'delete'],
         },
       })
 
@@ -332,7 +332,7 @@ describe('Role-Based Access Control', () => {
         id: 6,
         roles: ['translator'],
         permissions: {
-          pages: { operations: ['read', 'translate'] },
+          pages: ['read', 'translate'],
         },
       })
 
@@ -347,7 +347,7 @@ describe('Role-Based Access Control', () => {
         id: 7,
         roles: ['meditations-editor'],
         permissions: {
-          meditations: { operations: ['read', 'create', 'update'] },
+          meditations: ['read', 'create', 'update'],
         },
       })
 

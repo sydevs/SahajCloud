@@ -616,21 +616,44 @@ The CMS implements a role-based permission system with predefined roles for Mana
 
 #### Permission System Architecture
 
+**Permissions Data Structure**:
+Permissions use a simplified map structure:
+```typescript
+// Role permission definition
+permissions: {
+  meditations: ['read', 'create', 'update'],
+  media: ['read', 'create']
+}
+
+// Merged permissions (same structure)
+type MergedPermissions = {
+  [collection: string]: PermissionLevel[]
+}
+```
+
 **Field Factories**:
 - **ManagerPermissionsField()**: Returns 4 fields for Managers collection:
   1. `admin` (boolean) - Global admin flag
-  2. `roles` (select with hasMany, localized) - Manager role selection (hidden if admin)
+  2. `roles` (select with hasMany, localized) - Manager role selection with PermissionsTable afterInput (hidden if admin)
   3. `customResourceAccess` (relationship) - Document-level permissions (hidden if admin)
-  4. `permissions` (virtual json) - Computed permissions display (hidden if admin)
+  4. `permissions` (virtual json, hidden) - Computed permissions for backend use
 
 - **ClientPermissionsField()**: Returns 2 fields for Clients collection:
-  1. `roles` (select with hasMany) - Client role selection
-  2. `permissions` (virtual json) - Computed permissions display
+  1. `roles` (select with hasMany) - Client role selection with PermissionsTable afterInput
+  2. `permissions` (virtual json, hidden) - Computed permissions for backend use
+
+**PermissionsTable Component**:
+- Displays computed permissions in real-time as roles are selected
+- Shown as `afterInput` component on the `roles` field
+- Automatically computes permissions using `mergeRolePermissions()`
+- Color-coded operation pills (read: gray, create: blue, update: orange, delete: red)
 
 **Access Control Functions**:
 - **permissionBasedAccess()**: Main access control function used by all collections
 - **hasPermission()**: Check if a user has specific permission for a collection/operation
-- **computePermissions()**: Merge permissions from multiple roles for display
+- **mergeRolePermissions(roles: string[], collectionSlug: 'clients' | 'managers')**: Merge permissions from multiple roles
+- **hasRolePermission()**: Helper to check if merged permissions include an operation
+- **computePermissions()**: Wrapper for mergeRolePermissions used in access control
 - **createFieldAccess()**: Field-level access control for translate permission
 - **createLocaleFilter()**: Query filtering based on locale permissions
 
@@ -642,7 +665,8 @@ The CMS implements a role-based permission system with predefined roles for Mana
 5. Apply locale filtering based on user's role permissions
 
 #### Key Files
-- [src/fields/PermissionsField.ts](src/fields/PermissionsField.ts) - Role definitions and field factories (ManagerPermissionsField, ClientPermissionsField)
+- [src/fields/PermissionsField.ts](src/fields/PermissionsField.ts) - Role definitions and field factories (ManagerPermissionsField, ClientPermissionsField, mergeRolePermissions)
+- [src/components/admin/PermissionsTable.tsx](src/components/admin/PermissionsTable.tsx) - Real-time permissions display component shown as afterInput on roles field
 - [src/lib/accessControl.ts](src/lib/accessControl.ts) - Core permission checking functions (hasPermission, computePermissions)
 - [src/collections/access/Managers.ts](src/collections/access/Managers.ts) - Manager collection using ManagerPermissionsField()
 - [src/collections/access/Clients.ts](src/collections/access/Clients.ts) - Client collection using ClientPermissionsField()

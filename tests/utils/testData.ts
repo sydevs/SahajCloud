@@ -485,7 +485,7 @@ export const testData = {
    * // Create dummy translator with permissions
    * dummyUser('managers', {
    *   roles: ['translator'],
-   *   permissions: { pages: { operations: ['read', 'translate'] } }
+   *   permissions: { pages: ['read', 'translate'] }
    * })
    */
   dummyUser(collection: 'managers' | 'clients', overrides: Partial<Manager | Client> = {}) {
