@@ -454,10 +454,94 @@ All scripts follow consistent patterns: resilient error handling, comprehensive 
 - `src/app/global-error.tsx` - Global error boundary with Sentry integration
 
 ### Component Architecture
-- `src/components/AdminProvider.tsx` - Payload admin UI provider component
+- `src/components/AdminProvider.tsx` - Payload admin UI provider component (wraps with ProjectProvider)
 - `src/components/ErrorBoundary.tsx` - React error boundary for error handling
 - `src/app/(payload)/` - Payload CMS admin interface and API routes
 - `src/app/(frontend)/` - Public-facing Next.js pages
+
+### Project-Focused Navigation
+
+The CMS implements project-focused navigation to manage content for three distinct projects (WeMeditate Web, WeMeditate App, Sahaj Atlas). The system dynamically filters sidebar collections based on the currently selected project.
+
+#### Projects Configuration
+- **File**: `src/lib/projects.ts` - Centralized configuration (single source of truth)
+- **Projects**:
+  - `wemeditate-web` (🌐 WeMeditate Web) - Web application content
+  - `wemeditate-app` (📱 WeMeditate App) - Mobile application content
+  - `sahaj-atlas` (🗺️ Sahaj Atlas) - Atlas application content
+- **Default Project**: `wemeditate-web`
+- **Helper Functions**: `getProjectLabel()`, `getProjectIcon()`, `getProjectOptions()`, `isValidProject()`
+
+#### Manager Profile
+- **Field**: `currentProject` in Managers collection ([src/collections/access/Managers.ts](src/collections/access/Managers.ts:71-81))
+- **Type**: Select field with project options
+- **Position**: Sidebar
+- **Default**: DEFAULT_PROJECT ('wemeditate-web')
+- **Purpose**: Stores user's currently selected project preference
+
+#### ProjectSelector Component
+- **File**: `src/components/admin/ProjectSelector.tsx`
+- **Location**: Rendered in `beforeNavLinks` (top of sidebar navigation)
+- **Features**:
+  - Dropdown showing all three projects with icons
+  - Updates manager profile on project change via API
+  - Automatically reloads page to update sidebar visibility
+  - Uses Payload's theme CSS variables for consistent styling
+- **Context Integration**: Uses ProjectContext for reactive state management
+
+#### ProjectContext Provider
+- **File**: `src/contexts/ProjectContext.tsx`
+- **Purpose**: React context for sharing project state across admin components
+- **Provider**: Wrapped in AdminProvider component
+- **Hook**: `useProject()` - Access current project and setter
+- **Auto-sync**: Syncs with user profile changes via `useAuth` hook
+
+#### Collection Visibility Filtering
+Collections use `admin.hidden` functions to control visibility based on `user.currentProject`:
+
+**Collection Visibility Map:**
+| Collection | WeMeditate Web | WeMeditate App | Sahaj Atlas |
+|------------|----------------|----------------|-------------|
+| **Content** ||||
+| Pages | ✓ | ✗ | ✗ |
+| Meditations | ✓ | ✓ | ✗ |
+| Music | ✓ | ✓ | ✗ |
+| Lessons | ✗ | ✓ | ✗ |
+| **Resources** ||||
+| Media | ✓ | ✓ | ✓ |
+| ExternalVideos | ✓ | ✓ | ✓ |
+| Frames | ✗ | ✓ | ✗ |
+| Narrators | ✓ | ✓ | ✗ |
+| Authors | ✓ | ✗ | ✗ |
+| FileAttachments | ✓ | ✓ | ✓ |
+| **Tags** ||||
+| PageTags | ✓ | ✗ | ✗ |
+| MeditationTags | ✓ | ✓ | ✗ |
+| MusicTags | ✓ | ✓ | ✗ |
+| MediaTags | ✓ | ✓ | ✓ |
+| **System/Access** ||||
+| All Others | ✓ | ✓ | ✓ |
+
+**Example Implementation** ([src/collections/content/Pages.ts](src/collections/content/Pages.ts:24-28)):
+```typescript
+admin: {
+  hidden: ({ user }) => {
+    const currentProject = user?.currentProject
+    return currentProject !== 'wemeditate-web'
+  },
+}
+```
+
+#### Technical Notes
+- **Server-Side Evaluation**: `admin.hidden` functions run server-side and access `user.currentProject` directly (no React context needed)
+- **Page Reload Required**: Changing projects triggers `window.location.reload()` to re-evaluate all `admin.hidden` functions
+- **Import Map**: ProjectSelector requires `pnpm generate:importmap` to be included in Payload's component system
+- **Default Export**: Custom admin components must use default export (not named export)
+
+#### Future Enhancements (Phase 2)
+- Implement full collection visibility filtering across all collections
+- Add project-specific dashboard views as default landing pages
+- Enhanced UI with project-specific branding and colors
 
 ### We Meditate Branding
 
