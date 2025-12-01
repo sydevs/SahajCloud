@@ -136,7 +136,7 @@ The **Pages Collection** uses Payload's Lexical rich text editor with embedded b
   - `tags` (relationship, hasMany, optional) - Relationship to page-tags collection for flexible tag management
 
 #### Embedded Block Components (`src/blocks/pages/`)
-The system provides 5 block types that can be embedded within the rich text editor:
+The system provides 6 block types that can be embedded within the rich text editor:
 
 1. **TextBoxBlock** (`TextBoxBlock.ts`) - Styled text box component:
    - `style` (select, required, default: 'splash') - Display style: splash, leftAligned, rightAligned, overlay
@@ -167,6 +167,11 @@ The system provides 5 block types that can be embedded within the rich text edit
    - `text` (text, required) - Quote text
    - `author` (text, optional) - Quote author
    - `subtitle` (text, optional) - Additional context or subtitle
+
+6. **CatalogBlock** (`CatalogBlock.ts`) - Content catalog component:
+   - `items` (relationship, hasMany, min: 3, max: 6) - Related content items
+   - Supports meditations and pages collections
+   - Displays curated list of related content
 
 #### Key Features
 - **Lexical Editor Integration**: Full-featured editor with formatting options and embedded blocks
@@ -420,177 +425,18 @@ The system automatically generates thumbnails for video frames to optimize admin
 - **Performance Optimized** - Reduces page load times when multiple video frames are displayed
 - **Consistent UX** - Unified thumbnail display for both image and video content
 
-### Data Import Architecture
+### Data Import & Migrations
 
-The system includes import scripts for migrating content from external sources into Payload CMS. All scripts follow a consistent, standardized pattern for reliability and maintainability.
+The system includes import scripts for migrating content from external sources into Payload CMS.
 
-#### Import Scripts Design Principles
+**For detailed migration documentation, usage examples, and troubleshooting**, see [migration/README.md](migration/README.md).
 
-All migration scripts adhere to these core principles:
+**Available Import Scripts**:
+- **Storyblok Import** - Migrates Path Steps from Storyblok CMS to Lessons collection
+- **WeMeditate Import** - Imports authors, categories, and pages from Rails PostgreSQL database
+- **Meditations Import** - Imports meditation content from legacy database
 
-1. **Resilient Error Handling**: Scripts continue on errors, collecting them for end-of-run reporting rather than failing fast
-2. **No Resumability**: Scripts are stateless - focus on clean reset and re-import rather than resuming partial imports
-3. **Comprehensive Dry Run**: Initialize Payload and validate data structure without writing to database
-4. **Shared Utilities**: Use common library code from `migration/lib/` for consistency
-5. **Detailed Reporting**: Comprehensive summary with counts, errors, and warnings at end of run
-6. **Clean Shutdown**: Proper cleanup of database connections and resources in finally blocks
-
-#### Shared Migration Libraries
-
-**Location**: `migration/lib/`
-
-- **Logger** (`logger.ts`) - Colored console output + file logging with timestamps
-- **FileUtils** (`fileUtils.ts`) - File downloads, directory management, MIME type detection
-- **TagManager** (`tagManager.ts`) - Tag creation and management across collections
-- **PayloadHelpers** (`payloadHelpers.ts`) - Common Payload operations (reset, create, update)
-- **MediaDownloader** (`mediaDownloader.ts`) - Image download and WebP conversion
-- **LexicalConverter** (`lexicalConverter.ts`) - EditorJS to Lexical content conversion
-
-#### Standard Script Structure
-
-```typescript
-class Importer {
-  // Summary tracking
-  private summary = {
-    recordsCreated: 0,
-    errors: [],
-    warnings: []
-  }
-
-  // Error handling
-  private addError(context: string, error: Error | string) {
-    const message = error instanceof Error ? error.message : error
-    this.summary.errors.push(`${context}: ${message}`)
-    this.logger.error(message)
-  }
-
-  // Import with resilient error handling
-  async importItems(items: any[]) {
-    for (const item of items) {
-      try {
-        if (this.options.dryRun) {
-          this.logger.info('[DRY RUN] Would create...')
-          continue
-        }
-        // Create record
-        this.summary.recordsCreated++
-      } catch (error) {
-        this.addError(`Failed to import ${item.id}`, error)
-        continue  // Keep going!
-      }
-    }
-  }
-
-  // Comprehensive summary
-  printSummary() {
-    console.log('='.repeat(60))
-    console.log('IMPORT SUMMARY')
-    console.log(`Records Created: ${this.summary.recordsCreated}`)
-    console.log(`Errors: ${this.summary.errors.length}`)
-    console.log(`Warnings: ${this.summary.warnings.length}`)
-    // ... detailed error/warning output
-  }
-
-  // Cleanup in finally block
-  async run() {
-    try {
-      // Initialize Payload (even for dry run)
-      this.payload = await getPayload({ config })
-      // ... import logic
-      this.printSummary()
-    } finally {
-      await this.cleanup()
-      if (this.payload?.db?.destroy) {
-        await this.payload.db.destroy()
-      }
-    }
-  }
-}
-```
-
-#### Storyblok Path Steps Import
-
-**Location**: `migration/storyblok/import.ts`
-
-Migrates "Path Step" data from Storyblok CMS into Payload's **Lessons** collection.
-
-**Key Features**:
-- **Comprehensive Caching**: Downloads and caches all Storyblok data and assets in `migration/cache/storyblok/`
-- **Asset Processing**: Automatic conversion of images to WebP format using Sharp
-- **FileAttachment Management**: Proper ownership assignment for cascade deletion
-- **Lexical Content Conversion**: Transforms Storyblok blocks into Payload's Lexical editor format
-- **Resilient Error Handling**: Continues on errors, reports at end
-- **Collection Reset**: `--reset` flag for clean import (deletes existing tagged records)
-- **Colored Logging**: Uses Logger class with color-coded output
-
-**Usage Examples**:
-```bash
-# Dry run validation (initializes Payload, validates data)
-NODE_ENV=development npx tsx migration/storyblok/import.ts --dry-run
-
-# Import single unit for testing
-NODE_ENV=development npx tsx migration/storyblok/import.ts --unit=1
-
-# Clear cache and run fresh import
-NODE_ENV=development npx tsx migration/storyblok/import.ts --clear-cache
-
-# Destructive reset and fresh import
-NODE_ENV=development npx tsx migration/storyblok/import.ts --reset --unit=1
-```
-
-**Data Transformation**:
-- **Storyblok Path Steps** → **Lessons Collection**: Title, unit (Unit 1-4), step number, panels (text/video), meditation references, intro audio/subtitles, deep dive articles, and step icons
-- **Storyblok Blocks** → **Lexical Content**: Rich text conversion with embedded blocks, relationships, and media uploads
-- **Assets Processing**: Automatic download, WebP conversion, and FileAttachment creation with proper ownership
-- **Meditation Matching**: Case-insensitive title matching with existing meditation content
-
-**File Organization**:
-```
-migration/cache/storyblok/
-├── videos/{uuid}.json        # Cached video stories
-├── assets/
-│   ├── audio/{filename}.mp3  # Downloaded audio files
-│   ├── images/{filename}.webp # Converted images
-│   ├── videos/{filename}.mp4  # Video files
-│   └── subtitles/{filename}.json # Subtitle data
-└── import.log                # Timestamped import log
-```
-
-**Requirements**:
-- `STORYBLOK_ACCESS_TOKEN` environment variable
-- Sharp library for image processing
-- Target collections: `lessons`, `file-attachments`, `external-videos`, `media`
-
-**Summary Output**:
-```
-============================================================
-IMPORT SUMMARY
-============================================================
-
-📊 Records Created:
-  Lessons:             18
-  Media Files:         45
-  External Videos:     3
-  File Attachments:    24
-
-  Total Records:       90
-
-⚠️  Warnings (2):
-  1. Meditation "Step 3" not found for Step 3: Introduction...
-  2. Missing Step_Image for lesson: Step 6...
-
-✨ No errors - import completed successfully!
-
-============================================================
-```
-
-#### WeMeditate Rails Database Import
-
-**Location**: `migration/wemeditate/import.ts`
-
-Imports content from the Rails-based WeMeditate PostgreSQL database into Payload CMS across 9 locales, including authors, categories, and pages (~160+ pages across multiple content types).
-
-**Documentation**: See [migration/wemeditate/README.md](migration/wemeditate/README.md) for detailed information on usage, data transformations, and future enhancements.
+All scripts follow consistent patterns: resilient error handling, comprehensive dry-run mode, shared utilities, and detailed reporting.
 
 ### Sentry Integration Files
 - `src/instrumentation.ts` - Server-side Sentry instrumentation
@@ -598,42 +444,6 @@ Imports content from the Rails-based WeMeditate PostgreSQL database into Payload
 - `src/sentry.server.config.ts` - Sentry server configuration
 - `src/sentry.edge.config.ts` - Sentry edge runtime configuration
 - `src/app/global-error.tsx` - Global error boundary with Sentry integration
-
-### Meditation-Frame Relationships Architecture
-
-The system implements a dual-approach for managing meditation-frame relationships with timestamps:
-
-#### Collections Structure
-- **MeditationFrames Collection**: Hidden join table that stores the actual relationships
-  - `meditation`: Required relationship to meditations collection
-  - `frame`: Required relationship to frames collection  
-  - `timestamp`: Required number field (seconds) with uniqueness validation per meditation
-  - Hidden from admin panel navigation (`admin.hidden: true`)
-  - Includes field-level indexes for efficient querying
-
-- **Meditations Collection**: Includes `frames` array field for admin interface management
-  - Each frame entry contains: `frame` (relationship) and `timestamp` (number)
-  - Automatically sorts frames by timestamp using `beforeChange` hook
-  - Syncs with MeditationFrames collection via `afterChange` and `afterDelete` hooks
-
-#### Data Flow
-1. **Create/Update**: When a meditation is saved with frame relationships:
-   - Meditation frames array is sorted by timestamp
-   - Existing MeditationFrames records are deleted
-   - New MeditationFrames records are created from the frames array
-
-2. **Delete**: When a meditation is deleted:
-   - All associated MeditationFrames records are automatically cleaned up
-
-3. **Validation**: Timestamp uniqueness is enforced per meditation:
-   - Custom validation in MeditationFrames collection prevents duplicate timestamps
-   - Clear error messages guide users to resolve conflicts
-
-#### Benefits
-- **Admin UX**: Frames are managed directly within meditation interface
-- **Data Integrity**: Separate join table ensures referential integrity
-- **Performance**: Indexed relationships enable efficient queries
-- **Flexibility**: Both collections can be queried independently as needed
 
 ### Component Architecture
 - `src/components/AdminProvider.tsx` - Payload admin UI provider component
@@ -893,256 +703,40 @@ describe('My Collection', () => {
 
 ## Deployment
 
-### Cloudflare Workers (Production)
+The application is deployed to **Cloudflare Workers** with serverless edge infrastructure.
 
-The application is deployed to **Cloudflare Workers** using **@opennextjs/cloudflare** adapter for serverless edge deployment.
+**For comprehensive deployment documentation**, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
-**Deployment Commands**:
-- `pnpm run deploy:prod` - Deploy to Cloudflare Workers (includes database migrations and app deployment)
-- `pnpm run deploy:database` - Apply D1 database migrations only
-- `pnpm run deploy:app` - Deploy application to Workers only
-
-**Production URL**: https://cloud.sydevelopers.com
-
-**Infrastructure**:
-- **Platform**: Cloudflare Workers (paid plan required for 10MB limit)
+**Quick Reference**:
+- **Production URL**: https://cloud.sydevelopers.com
+- **Platform**: Cloudflare Workers (paid plan)
 - **Database**: Cloudflare D1 (serverless SQLite)
-- **Storage**: Cloudflare R2 (S3-compatible object storage)
-- **CDN**: Cloudflare Assets binding for static files
+- **Storage**: Cloudflare R2 (S3-compatible)
+- **Email**: Resend API (production)
+- **Monitoring**: Sentry (server-side only)
 
-**Bundle Size**:
-- Compressed: 4.15 MB (well under 10 MB paid plan limit)
-- Uncompressed: 19.5 MB
-- Worker Startup Time: ~26 ms
-
-**Required Configuration**:
-
-1. **next.config.mjs**: Must include `output: 'standalone'` for OpenNext compatibility
-2. **wrangler.toml**: Configure Workers settings:
-   - `workers_dev = false` - Disable *.workers.dev subdomain (use custom domains)
-   - `preview_urls = false` - Disable preview URLs for production
-   - D1 database binding
-   - R2 storage binding
-   - Assets binding for static files
-
-3. **Environment Variables** (set via `wrangler secret put`):
-   - `PAYLOAD_SECRET` - Payload authentication secret
-   - `SENTRY_DSN` - Sentry error monitoring DSN (optional, production only)
-   - `RESEND_API_KEY` - Email API key (production)
-   - `S3_ENDPOINT` - Cloudflare R2 endpoint
-   - `S3_ACCESS_KEY_ID` - R2 access key
-   - `S3_SECRET_ACCESS_KEY` - R2 secret key
-   - `S3_BUCKET` - R2 bucket name
-   - `S3_REGION` - Set to `auto` for Cloudflare R2
-
-**Deployment Warnings** (Expected & Safe):
-
-The OpenNext bundling process produces several warnings in generated code. These can be safely ignored:
-
-- **7× direct-eval warnings**: Required for PayloadCMS's dynamic migration loading system
-- **3× impossible-typeof warnings**: Dead code from bundled dependencies (typeof "null")
-- **2× duplicate-object-key warnings**: Duplicate keys in generated bundle (lstatSync, isFileReadStream)
-- **1× equals-negative-zero warning**: Edge case handling in generated code
-
-These warnings are in OpenNext's generated bundle code, not our source code, and do not affect functionality.
-
-**Image Processing Limitations**:
-
-Sharp library has been removed for Cloudflare Workers compatibility (native binaries not supported):
-
-- **Disabled**: Image dimension extraction, WebP conversion, video thumbnail generation
-- **Impact**: Images uploaded in original format, no automatic optimization
-- **Future**: Phase 6 will migrate to Cloudflare Images API for image processing
-
-**Files Modified for Cloudflare Workers**:
-- [next.config.mjs](next.config.mjs:11) - Added `output: 'standalone'`
-- [src/payload.config.ts](src/payload.config.ts:11) - Removed sharp import
-- [src/lib/fieldUtils.ts](src/lib/fieldUtils.ts:211-299) - Disabled convertFile and generateVideoThumbnailHook
-- [src/lib/fileUtils.ts](src/lib/fileUtils.ts:24-26) - Disabled image metadata extraction
-- [migration/lib/mediaDownloader.ts](migration/lib/mediaDownloader.ts:53-120) - Disabled WebP conversion
-
-**Sentry Error Monitoring**:
-
-The application uses **@sentry/cloudflare** for server-side error tracking:
-
-- **Server Errors**: Captured via `instrumentation.ts` and `onRequestError` hook
-- **Client Errors**: Logged to console (client-side Sentry not supported due to Node.js API dependencies)
-- **Configuration**: Set `SENTRY_DSN` environment variable via `wrangler secret put SENTRY_DSN`
-- **Production Only**: Sentry only captures errors in production environment
-- **Implementation Notes**:
-  - Uses direct import from `@sentry/cloudflare/build/esm/sdk.js` as workaround for package export limitation
-  - Edge runtime instrumentation configured in [src/sentry.edge.config.ts](src/sentry.edge.config.ts)
-  - Version tracking via `CF_VERSION_METADATA` binding in wrangler.toml
-
-### Database Migrations & Deployment Workflow
-
-This application deploys to Cloudflare Workers with a D1 SQLite database. Understanding the migration workflow is critical for successful deployments.
-
-#### Critical Configuration: Remote Database Connections
-
-**IMPORTANT**: For PayloadCMS migrations to work in production, you MUST add `remote = true` to your D1 binding in `wrangler.toml`:
-
-```toml
-[[d1_databases]]
-binding = "D1"
-database_name = "sahajcloud"
-database_id = "2ff069c0-a98b-4a6c-94eb-fe199f969c8b"
-remote = true  # REQUIRED for production migrations
-```
-
-**Why This Matters**:
-- Without `remote = true`, PayloadCMS migrations create a local `.wrangler` database instead of connecting to your production D1 database
-- This will cause your production database to remain empty even after running migrations
-- The `remote = true` flag enables Wrangler's remote bindings feature, allowing `getPlatformProxy({ experimental: { remoteBindings: true } })` to connect to the actual Cloudflare D1 database
-
-#### Deployment Workflow
-
-The production deployment follows this sequence:
-
+**Essential Commands**:
 ```bash
-pnpm run deploy:prod
-```
-
-This runs two commands in order:
-
-1. **`deploy:database`**: Runs migrations against remote D1 database
-   ```bash
-   cross-env NODE_ENV=production PAYLOAD_SECRET=ignore payload migrate && \
-   wrangler d1 execute sahajcloud --command 'PRAGMA optimize' --remote
-   ```
-
-2. **`deploy:app`**: Deploys the Worker application
-   ```bash
-   wrangler deploy
-   ```
-
-#### How Migrations Work in Production
-
-1. **PayloadCMS Migration Execution**:
-   - When `NODE_ENV=production`, the payload config uses `getPlatformProxy()` with `remoteBindings: true`
-   - With `remote = true` in wrangler.toml, this connects to the actual Cloudflare D1 database
-   - Migrations are read from `migrations/` directory and executed against the remote database
-   - Migration records are stored in the `payload_migrations` table
-
-2. **Database Optimization**:
-   - After migrations, `PRAGMA optimize` is run to optimize the D1 database
-   - This improves query performance in production
-
-#### Verifying Migrations
-
-To verify migrations ran successfully in production:
-
-```bash
-# Check migration records
-wrangler d1 execute sahajcloud --remote --command \
-  "SELECT name FROM payload_migrations;"
-
-# Verify table existence
-wrangler d1 execute sahajcloud --remote --command \
-  "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
-
-# Check specific table
-wrangler d1 execute sahajcloud --remote --command \
-  "SELECT COUNT(*) FROM managers;"
-```
-
-#### Troubleshooting Production Database Issues
-
-**Problem: Production site shows "no such table" errors**
-
-Diagnosis:
-```bash
-# Check if database has tables
-wrangler d1 execute sahajcloud --remote --command \
-  "SELECT COUNT(*) FROM sqlite_master WHERE type='table';"
-```
-
-Solution:
-1. Verify `remote = true` is set in wrangler.toml D1 binding
-2. Run migrations: `pnpm run deploy:database`
-3. Verify migrations completed: Check for `payload_migrations` table
-
-**Problem: Migrations create local database instead of connecting to remote**
-
-Diagnosis:
-- `.wrangler` directory contains database files after running migrations
-- Remote database remains empty
-
-Solution:
-- Add `remote = true` to D1 binding in wrangler.toml
-- Delete `.wrangler` directory: `rm -rf .wrangler`
-- Re-run migrations: `NODE_ENV=production pnpm payload migrate`
-- Verify no database files in `.wrangler`: `find .wrangler -name "*.sqlite*"`
-
-**Problem: Fresh database needs initialization**
-
-Solution:
-1. Run migrations to create schema:
-   ```bash
-   pnpm run deploy:database
-   ```
-
-2. Create initial admin user (script to be added - see remaining tasks)
-
-#### Monitoring Deployments
-
-Use Wrangler to monitor deployment logs:
-
-```bash
-# Tail production logs
-wrangler tail sahajcloud --format pretty
-
-# View recent deployments
-wrangler deployments list
-
-# Check deployment status
-wrangler deployments view <deployment-id>
-```
-
-#### Common Deployment Commands
-
-```bash
-# Deploy to production
+# Deploy to production (migrations + app)
 pnpm run deploy:prod
 
-# Deploy to dev environment
-pnpm run deploy:dev
-
-# Run migrations only (without deploying app)
+# Deploy database migrations only
 pnpm run deploy:database
 
-# Create a new migration
-pnpm run db:migrations:create
+# Deploy application only
+pnpm run deploy:app
 
-# View remote database schema
-pnpm run db:studio
-
-# Execute custom SQL on remote database
-wrangler d1 execute sahajcloud --remote --command "YOUR SQL HERE"
+# Monitor production logs
+wrangler tail sahajcloud --format pretty
 ```
 
-#### CI/CD Considerations
+**Critical Configuration**:
+- `wrangler.toml` must include `remote = true` in D1 binding for production migrations
+- Set secrets via `wrangler secret put PAYLOAD_SECRET`, `SENTRY_DSN`, `RESEND_API_KEY`
+- Environment variables configured in wrangler.toml for R2 storage
 
-When deploying from GitHub Actions or other CI/CD:
-
-1. **Authentication**: Ensure `CLOUDFLARE_API_TOKEN` environment variable is set
-2. **Remote Bindings**: The `remote = true` flag enables migrations to work in CI/CD
-3. **Secrets**: Set production secrets via Wrangler:
-   ```bash
-   wrangler secret put PAYLOAD_SECRET
-   wrangler secret put SENTRY_DSN
-   ```
-
-#### Development vs Production Bindings
-
-- **Development** (`pnpm dev`): Uses local `.wrangler` database for fast iteration
-- **Production** (`NODE_ENV=production`): Connects to remote D1 database when `remote = true`
-- **Migrations**: Always use production mode (`NODE_ENV=production`) to ensure remote connection
-
-### Alternative Deployment Options
-
-- **Docker Support**: `Dockerfile` and `docker-compose.yml` for containerized development
-- **Railway**: Alternative deployment option with `railway.toml` configuration (deprecated)
+**Image Processing Note**:
+Sharp library removed for Cloudflare Workers compatibility (native binaries not supported). Images uploaded in original format without automatic optimization.
 
 ## Project Structure Overview
 
@@ -1192,75 +786,24 @@ tests/
 
 ## Architectural Decisions
 
-### FFmpeg/fluent-ffmpeg Decision
+### ⚠️ DEPRECATED: FFmpeg/fluent-ffmpeg
 
-**Decision**: Continue using `fluent-ffmpeg` despite deprecation status
-
+**Status**: Deprecated - Scheduled for removal
+**Current Decision**: Continue using `fluent-ffmpeg` temporarily despite deprecation
 **Reviewed**: 2025-10-28
-**Next Review**: 2026-10-28
 
-#### Context
-The project uses `fluent-ffmpeg` for critical video processing functionality:
-1. **Metadata Extraction**: Extract duration, dimensions from audio/video files using ffprobe
-2. **Thumbnail Generation**: Generate 320x320 WebP thumbnails from video frames at 0.1s timestamp
+#### Overview
+- **Purpose**: Video metadata extraction and thumbnail generation
+- **Package**: `fluent-ffmpeg` (deprecated but functional)
+- **Usage**: `src/lib/fileUtils.ts` - ffprobe metadata, video thumbnails
 
-#### Evaluation of Alternatives
+#### Why Still Using
+- ✅ Stable, feature-complete, works reliably
+- ✅ Underlying `ffmpeg-static` binary still maintained
+- ✅ Migration effort outweighs current benefits
+- ⚠️ Package marked deprecated, no security issues
 
-**Option A: @ffmpeg/ffmpeg (WebAssembly)**
-- ❌ Large bundle size (~30MB)
-- ❌ Slower performance than native
-- ❌ Browser-only, doesn't work in Node.js server
-- ❌ Memory intensive
-- ❌ Not suitable for server-side processing
+#### Migration Plan
+When ready to migrate, use `@ffprobe-installer` + `@ffmpeg-installer` with child_process for direct binary access. Requires comprehensive testing across platforms and video formats.
 
-**Option B: @ffprobe-installer + @ffmpeg-installer + child_process**
-- ✅ Maintained packages
-- ✅ Direct access to ffprobe/ffmpeg binaries
-- ❌ Complex error handling required
-- ❌ Need to parse JSON output manually
-- ❌ Cross-platform command-line escaping challenges
-- ❌ Loss of fluent-ffmpeg's clean API
-- ❌ Risk of introducing bugs in critical functionality
-- ❌ Significant testing effort across OSes and formats
-
-**Option C: Keep fluent-ffmpeg (SELECTED)**
-- ✅ Works reliably for all use cases
-- ✅ Well-tested, stable, feature-complete
-- ✅ Clean, readable API
-- ✅ No migration risk
-- ✅ Underlying `ffmpeg-static` binary is still maintained
-- ⚠️ Package marked as deprecated
-- ⚠️ No new features or updates
-
-#### Rationale
-1. **Stability**: fluent-ffmpeg is feature-complete and works perfectly for our needs
-2. **Low Risk**: Deprecation != broken - the package still functions correctly
-3. **Dependencies**: The critical dependency (`ffmpeg-static`) is still actively maintained
-4. **Cost vs. Benefit**: Migration effort and risk outweigh benefits of using "maintained" wrapper
-5. **No Security Issues**: No known vulnerabilities in fluent-ffmpeg
-6. **Pragmatism**: Focus development effort on user-facing features, not library churn
-
-#### Monitoring Plan
-- **Monthly**: Check for security advisories via `pnpm audit`
-- **Quarterly**: Review fluent-ffmpeg GitHub issues for critical bugs
-- **Annually**: Re-evaluate migration options and ecosystem changes
-- **Trigger**: If security vulnerability found, migrate immediately
-
-#### Migration Path (When Needed)
-If migration becomes necessary, follow this plan:
-1. Create feature branch for migration
-2. Install `@ffprobe-installer/ffprobe` and `@ffmpeg-installer/ffmpeg`
-3. Rewrite `getMediaMetadata()` using child_process + ffprobe JSON output
-4. Rewrite `extractVideoThumbnail()` using child_process + ffmpeg CLI
-5. Add comprehensive error handling and cleanup
-6. Test with various video formats (mp4, mov, webm)
-7. Test on macOS, Linux, Windows
-8. Run full integration test suite
-9. Deploy to staging and verify thumbnail generation
-10. Monitor production for errors after deployment
-
-#### Usage Locations
-- `src/lib/fileUtils.ts:3` - Import statement
-- `src/lib/fileUtils.ts:41` - ffprobe metadata extraction
-- `src/lib/fileUtils.ts:75` - video thumbnail generation
-- Used by: Media uploads, Frame uploads, FileAttachment processing
+**Monitoring**: Monthly `pnpm audit` checks, migrate immediately if security vulnerabilities found.
