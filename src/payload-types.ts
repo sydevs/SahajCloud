@@ -789,9 +789,13 @@ export interface Manager {
   id: number;
   name: string;
   /**
+   * Grant full administrative access to all collections and features. When enabled, role-based permissions are bypassed.
+   */
+  admin?: boolean | null;
+  /**
    * Assign roles for each locale. Different roles can be assigned for different languages.
    */
-  roles?: ('meditations-editor' | 'path-editor' | 'translator' | 'admin')[] | null;
+  roles?: ('meditations-editor' | 'path-editor' | 'translator')[] | null;
   /**
    * Grant update access to specific documents. Useful for giving access to individual pages without broader permissions.
    */
@@ -1691,6 +1695,7 @@ export interface PageTagsSelect<T extends boolean = true> {
  */
 export interface ManagersSelect<T extends boolean = true> {
   name?: T;
+  admin?: T;
   roles?: T;
   customResourceAccess?: T;
   permissions?: T;

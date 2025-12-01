@@ -23,6 +23,7 @@ import { LocaleCode } from '@/lib/locales'
 
 type TypedManager = TypedUser & {
   collection: 'managers'
+  admin?: boolean
   roles?: string[] | Record<LocaleCode, string[]>
   customResourceAccess?: Array<{ relationTo: string; value: string | number }>
   permissions?: MergedPermissions
@@ -46,29 +47,6 @@ type TypedClient = TypedUser & {
  */
 export const isAPIClient = (user: TypedUser | null): user is TypedClient => {
   return user?.collection === 'clients'
-}
-
-/**
- * Check if a manager has the admin role in any locale
- *
- * @param user - The manager user object
- * @returns True if the user has admin role in any locale
- */
-function hasAdminRole(user: TypedManager): boolean {
-  if (!user.roles) return false
-
-  // Handle both array format (current locale context) and Record format (full localized data)
-  if (Array.isArray(user.roles)) {
-    // Current locale context - roles is an array of strings
-    return user.roles.includes('admin')
-  } else {
-    // Full localized data - roles is a Record<LocaleCode, string[]>
-    const rolesRecord = user.roles as Record<LocaleCode, string[]>
-    const rolesByLocale = Object.values(rolesRecord)
-    return rolesByLocale.some(
-      (localeRoles) => Array.isArray(localeRoles) && localeRoles.includes('admin'),
-    )
-  }
 }
 
 /**
@@ -128,8 +106,8 @@ export const hasPermission = ({
 
   const isClient = isAPIClient(user)
 
-  // Check for admin role (managers only)
-  if (!isClient && hasAdminRole(user as TypedManager)) {
+  // Check for admin boolean (managers only)
+  if (!isClient && (user as TypedManager).admin === true) {
     return true
   }
 
@@ -244,7 +222,7 @@ export const createLocaleFilter = (user: TypedUser | null, collection: string): 
   const isClient = isAPIClient(user)
 
   // Admin users bypass all filters
-  if (!isClient && hasAdminRole(user as TypedManager)) {
+  if (!isClient && (user as TypedManager).admin === true) {
     return true
   }
 

@@ -305,7 +305,7 @@ export const testData = {
    * @param overrides - Optional field overrides
    * @example
    * // Create admin manager
-   * await createManager(payload, { roles: ['admin'] })
+   * await createManager(payload, { admin: true })
    * // Create translator manager
    * await createManager(payload, { roles: ['translator'] })
    */
@@ -481,7 +481,7 @@ export const testData = {
    * @param overrides - Optional field overrides
    * @example
    * // Create dummy admin manager
-   * dummyUser('managers', { roles: ['admin'] })
+   * dummyUser('managers', { admin: true })
    * // Create dummy translator with permissions
    * dummyUser('managers', {
    *   roles: ['translator'],

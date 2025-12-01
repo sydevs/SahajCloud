@@ -6,7 +6,7 @@ import { LOCALES, LocaleCode } from '@/lib/locales'
 // Type Definitions
 // ============================================================================
 
-export type ManagerRole = 'meditations-editor' | 'path-editor' | 'translator' | 'admin'
+export type ManagerRole = 'meditations-editor' | 'path-editor' | 'translator'
 export type ClientRole = 'we-meditate-web' | 'we-meditate-app' | 'sahaj-atlas'
 
 export type PermissionLevel = 'read' | 'create' | 'update' | 'delete' | 'translate'
@@ -62,20 +62,6 @@ export const MANAGER_ROLES: Record<ManagerRole, RoleConfig> = {
     permissions: [
       { collection: 'pages', operations: ['read', 'translate'] },
       { collection: 'music', operations: ['read', 'translate'] },
-    ],
-  },
-  admin: {
-    slug: 'admin',
-    label: 'Admin',
-    description: 'Full access to all collections and features including system collections',
-    permissions: [
-      // NOTE: Admin role has special handling in accessControl.ts (hasPermission, createLocaleFilter)
-      // It bypasses normal permission checks for performance and clarity.
-      // The permissions listed here are for documentation purposes only.
-      { collection: 'managers', operations: ['read', 'create', 'update', 'delete'] },
-      { collection: 'clients', operations: ['read', 'create', 'update', 'delete'] },
-      { collection: 'form-submissions', operations: ['read', 'create', 'update', 'delete'] },
-      { collection: 'payload-jobs', operations: ['read', 'create', 'update', 'delete'] },
     ],
   },
 }
@@ -232,10 +218,11 @@ export function hasRolePermission(
 /**
  * Create permissions-related fields for Managers collection
  *
- * Returns an array of 3 fields:
- * 1. roles - Localized multi-select of manager roles
- * 2. customResourceAccess - Polymorphic relationship for document-level permissions
- * 3. permissions - Virtual field showing merged permissions
+ * Returns an array of 4 fields:
+ * 1. admin - Boolean for full system access
+ * 2. roles - Localized multi-select of manager roles (hidden if admin is true)
+ * 3. customResourceAccess - Polymorphic relationship for document-level permissions (hidden if admin is true)
+ * 4. permissions - Virtual field showing merged permissions (hidden if admin is true)
  *
  * @returns Array of Payload field configurations
  */
@@ -246,7 +233,18 @@ export function ManagerPermissionsField(): Field[] {
   }))
 
   return [
-    // 1. Roles field (localized multi-select)
+    // 1. Admin boolean field
+    {
+      name: 'admin',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description:
+          'Grant full administrative access to all collections and features. When enabled, role-based permissions are bypassed.',
+      },
+    },
+
+    // 2. Roles field (localized multi-select)
     {
       name: 'roles',
       type: 'select',
@@ -256,24 +254,11 @@ export function ManagerPermissionsField(): Field[] {
       admin: {
         description:
           'Assign roles for each locale. Different roles can be assigned for different languages.',
-        condition: (data) => {
-          // Hide if user has admin role in any locale
-          if (!data.roles) return true
-
-          // Handle both array format (current locale) and Record format (all locales)
-          if (Array.isArray(data.roles)) {
-            return !data.roles.includes('admin')
-          } else {
-            const rolesRecord = data.roles as Record<LocaleCode, string[]>
-            return !Object.values(rolesRecord).some(
-              (localeRoles) => Array.isArray(localeRoles) && localeRoles.includes('admin'),
-            )
-          }
-        },
+        condition: (data) => !data.admin,
       },
     },
 
-    // 2. Custom Resource Access
+    // 3. Custom Resource Access
     {
       name: 'customResourceAccess',
       type: 'relationship',
@@ -282,24 +267,11 @@ export function ManagerPermissionsField(): Field[] {
       admin: {
         description:
           'Grant update access to specific documents. Useful for giving access to individual pages without broader permissions.',
-        condition: (data) => {
-          // Hide if user has admin role in any locale
-          if (!data.roles) return true
-
-          // Handle both array format (current locale) and Record format (all locales)
-          if (Array.isArray(data.roles)) {
-            return !data.roles.includes('admin')
-          } else {
-            const rolesRecord = data.roles as Record<LocaleCode, string[]>
-            return !Object.values(rolesRecord).some(
-              (localeRoles) => Array.isArray(localeRoles) && localeRoles.includes('admin'),
-            )
-          }
-        },
+        condition: (data) => !data.admin,
       },
     },
 
-    // 3. Virtual permissions field
+    // 4. Virtual permissions field
     {
       name: 'permissions',
       type: 'json',
@@ -307,6 +279,7 @@ export function ManagerPermissionsField(): Field[] {
       admin: {
         readOnly: true,
         description: 'Computed permissions for the current locale based on assigned roles',
+        condition: (data) => !data.admin,
         components: {
           Field: '@/components/admin/PermissionsTable',
         },
