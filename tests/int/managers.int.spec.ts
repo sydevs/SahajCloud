@@ -18,14 +18,14 @@ describe('Managers Collection', () => {
     await cleanup()
   })
 
-  it('creates a manager with email and password', async () => {
+  it('creates a manager with email, password, and admin flag', async () => {
     const managerData = {
       name: 'Test Manager',
       email: 'test@example.com',
       password: 'password123',
       admin: true,
     }
-    
+
     const manager = await testData.createManager(payload, managerData)
 
     expect(manager).toBeDefined()

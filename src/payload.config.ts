@@ -11,9 +11,10 @@ import { buildConfig, Config } from 'payload'
 // import sharp from 'sharp' // DISABLED: Incompatible with Cloudflare Workers - TODO: Migrate to Cloudflare Images (Phase 6)
 import { GetPlatformProxyOptions } from 'wrangler'
 
-import { adminOnlyAccess, permissionBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/accessControl'
 import { resendAdapter } from '@/lib/email/resendAdapter'
 import { LOCALES, DEFAULT_LOCALE } from '@/lib/locales'
+import { getServerUrl } from '@/lib/serverUrl'
 
 import { collections, Managers } from './collections'
 import { globals } from './globals'
@@ -34,19 +35,21 @@ const cloudflare =
     : await getCloudflareContext({ async: true })
 
 const payloadConfig = (overrides?: Partial<Config>) => {
+  const serverUrl = getServerUrl()
+
   return buildConfig({
-    serverURL: process.env.SAHAJCLOUD_URL || 'http://localhost:3000',
+    serverURL: serverUrl,
     localization: {
       locales: LOCALES.map((l) => l.code),
       defaultLocale: DEFAULT_LOCALE,
     },
     cors: [
-      process.env.SAHAJCLOUD_URL || 'http://localhost:3000',
+      serverUrl,
       process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173',
       process.env.SAHAJATLAS_URL || 'http://localhost:5174',
     ],
     csrf: [
-      process.env.SAHAJCLOUD_URL || 'http://localhost:3000',
+      serverUrl,
       process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173',
       process.env.SAHAJATLAS_URL || 'http://localhost:5174',
     ],
@@ -92,8 +95,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           defaultJobsCollection.admin = {}
         }
 
-        defaultJobsCollection.admin.hidden = ({ user }) => !user?.admin
-        defaultJobsCollection.access = adminOnlyAccess()
+        defaultJobsCollection.admin.hidden = ({ user }) => {
+          // Hide if user doesn't have admin privileges
+          return !user?.admin
+        }
+        defaultJobsCollection.access = roleBasedAccess('payload-jobs', { implicitRead: false })
         return defaultJobsCollection
       },
     },
@@ -125,19 +131,18 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       formBuilderPlugin({
         defaultToEmail: 'contact@sydevelopers.com',
         formOverrides: {
-          access: permissionBasedAccess('forms'),
+          access: roleBasedAccess('forms'),
           admin: {
             group: 'Resources',
           },
         },
         formSubmissionOverrides: {
-          access: {
-            update: () => false,
-            create: () => false,
-            delete: () => false,
-          },
+          access: roleBasedAccess('form-submissions', { implicitRead: false }),
           admin: {
-            hidden: ({ user }) => !user?.admin,
+            hidden: ({ user }) => {
+              // Hide if user doesn't have admin privileges
+              return !user?.admin
+            },
             group: 'System',
           },
         },

@@ -188,7 +188,7 @@ describe('WeMeditateWebSettings Global', () => {
     expect(typeof config?.access?.update).toBe('function')
 
     // Test that non-admin users are blocked
-    const nonAdminUser = testData.dummyUser('managers', { admin: false })
+    const nonAdminUser = testData.dummyUser('managers', { roles: [] })
     const readResult = await config?.access?.read?.({ req: { user: nonAdminUser } as any })
     expect(readResult).toBe(false)
 

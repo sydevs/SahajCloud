@@ -1,10 +1,10 @@
 import type { CollectionConfig } from 'payload'
 
-import { permissionBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/accessControl'
 
 export const MusicTags: CollectionConfig = {
   slug: 'music-tags',
-  access: permissionBasedAccess('music'),
+  access: roleBasedAccess('music'),
   admin: {
     group: 'Tags',
     useAsTitle: 'name',

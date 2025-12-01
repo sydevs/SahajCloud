@@ -1,12 +1,12 @@
 import type { CollectionConfig } from 'payload'
 
-import { permissionBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/accessControl'
 
 export const FileAttachmentOwnerSlugs = ['lessons']
 
 export const FileAttachments: CollectionConfig = {
   slug: 'file-attachments',
-  access: permissionBasedAccess('file-attachments', {
+  access: roleBasedAccess('file-attachments', {
     delete: () => false,
   }),
   disableDuplicate: true,

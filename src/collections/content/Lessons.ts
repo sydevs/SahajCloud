@@ -9,13 +9,13 @@ import {
   claimOrphanFileAttachmentsHook,
 } from '@/fields/FileAttachmentField'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { permissionBasedAccess, createFieldAccess } from '@/lib/accessControl'
+import { roleBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import subtitleSchema from '@/lib/subtitlesSchema.json'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
-  access: permissionBasedAccess('lessons'),
+  access: roleBasedAccess('lessons'),
   trash: true,
   defaultSort: ['unit', 'step'],
   labels: {
