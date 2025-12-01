@@ -8,7 +8,7 @@ export const WeMeditateWebSettings: GlobalConfig = {
   admin: {
     group: 'Configuration',
   },
-  label: 'We Meditate Web Config',
+  label: 'WeMeditate Web',
   fields: [
     // Overall Group
     {

@@ -8,7 +8,7 @@ export const WeMeditateAppSettings: GlobalConfig = {
   admin: {
     group: 'Configuration',
   },
-  label: 'We Meditate App Config',
+  label: 'WeMeditate App',
   fields: [
     {
       name: 'appVersion',
