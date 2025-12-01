@@ -23,14 +23,14 @@ import { LocaleCode } from '@/lib/locales'
 
 type TypedManager = TypedUser & {
   collection: 'managers'
-  roles?: Array<{ role: string; id?: string | null }> | Record<LocaleCode, Array<{ role: string }>>
+  roles?: string[] | Record<LocaleCode, string[]>
   customResourceAccess?: Array<{ relationTo: string; value: string | number }>
   permissions?: MergedPermissions
 }
 
 type TypedClient = TypedUser & {
   collection: 'clients'
-  roles?: Array<{ role: string; id?: string | null }>
+  roles?: string[]
   permissions?: MergedPermissions
 }
 
@@ -59,13 +59,14 @@ function hasAdminRole(user: TypedManager): boolean {
 
   // Handle both array format (current locale context) and Record format (full localized data)
   if (Array.isArray(user.roles)) {
-    // Current locale context - roles is a flat array
-    return user.roles.some((r) => r.role === 'admin')
+    // Current locale context - roles is an array of strings
+    return user.roles.includes('admin')
   } else {
-    // Full localized data - roles is a Record<LocaleCode, Array>
-    const rolesByLocale = Object.values(user.roles)
-    return rolesByLocale.some((localeRoles) =>
-      Array.isArray(localeRoles) && localeRoles.some((r) => r.role === 'admin'),
+    // Full localized data - roles is a Record<LocaleCode, string[]>
+    const rolesRecord = user.roles as Record<LocaleCode, string[]>
+    const rolesByLocale = Object.values(rolesRecord)
+    return rolesByLocale.some(
+      (localeRoles) => Array.isArray(localeRoles) && localeRoles.includes('admin'),
     )
   }
 }
@@ -82,16 +83,14 @@ function extractRoleSlugs(roles: any, locale?: LocaleCode, isClient = false): st
   if (!roles) return []
 
   if (isClient) {
-    // Clients: roles is an array of objects with 'role' property
-    return Array.isArray(roles) ? roles.map((r) => (typeof r === 'object' ? r.role : r)) : []
+    // Clients: roles is an array of strings
+    return Array.isArray(roles) ? roles : []
   }
 
-  // Managers: roles is localized - object with locale keys
+  // Managers: roles is localized - object with locale keys containing string arrays
   if (locale && roles[locale]) {
     const localeRoles = roles[locale]
-    return Array.isArray(localeRoles)
-      ? localeRoles.map((r) => (typeof r === 'object' ? r.role : r))
-      : []
+    return Array.isArray(localeRoles) ? localeRoles : []
   }
 
   return []

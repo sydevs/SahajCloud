@@ -23,7 +23,7 @@ describe('Managers Collection', () => {
       name: 'Test Manager',
       email: 'test@example.com',
       password: 'password123',
-      roles: [{ role: 'admin' }],
+      roles: ['admin'],
     }
 
     const manager = await testData.createManager(payload, managerData)
@@ -35,7 +35,7 @@ describe('Managers Collection', () => {
     expect(Array.isArray(manager.roles)).toBe(true)
     if (Array.isArray(manager.roles)) {
       expect(manager.roles).toHaveLength(1)
-      expect(manager.roles[0].role).toBe('admin')
+      expect(manager.roles[0]).toBe('admin')
     }
     // Password should not be returned in response
     expect((manager as any).password).toBeUndefined()
@@ -58,7 +58,7 @@ describe('Managers Collection', () => {
       name: 'Unique Manager',
       email: 'unique@example.com',
       password: 'password123',
-      roles: [{ role: 'admin' }],
+      roles: ['admin'],
     }
 
     // Create first manager

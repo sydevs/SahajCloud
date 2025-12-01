@@ -23,63 +23,63 @@ describe('Role-Based Access Control', () => {
     it('creates manager with admin role', async () => {
       const manager = await testData.createManager(payload, {
         name: 'Admin Manager',
-        roles: [{ role: 'admin' }],
+        roles: ['admin'],
       })
 
       expect(manager.roles).toBeDefined()
       expect(Array.isArray(manager.roles)).toBe(true)
       if (Array.isArray(manager.roles)) {
-        expect(manager.roles[0].role).toBe('admin')
+        expect(manager.roles[0]).toBe('admin')
       }
     })
 
     it('creates manager with meditations-editor role', async () => {
       const manager = await testData.createManager(payload, {
         name: 'Meditations Editor',
-        roles: [{ role: 'meditations-editor' }],
+        roles: ['meditations-editor'],
       })
 
       expect(manager.roles).toBeDefined()
       if (Array.isArray(manager.roles)) {
-        expect(manager.roles[0].role).toBe('meditations-editor')
+        expect(manager.roles[0]).toBe('meditations-editor')
       }
     })
 
     it('creates manager with path-editor role', async () => {
       const manager = await testData.createManager(payload, {
         name: 'Path Editor',
-        roles: [{ role: 'path-editor' }],
+        roles: ['path-editor'],
       })
 
       expect(manager.roles).toBeDefined()
       if (Array.isArray(manager.roles)) {
-        expect(manager.roles[0].role).toBe('path-editor')
+        expect(manager.roles[0]).toBe('path-editor')
       }
     })
 
     it('creates manager with translator role', async () => {
       const manager = await testData.createManager(payload, {
         name: 'Translator',
-        roles: [{ role: 'translator' }],
+        roles: ['translator'],
       })
 
       expect(manager.roles).toBeDefined()
       if (Array.isArray(manager.roles)) {
-        expect(manager.roles[0].role).toBe('translator')
+        expect(manager.roles[0]).toBe('translator')
       }
     })
 
     it('allows manager with multiple roles', async () => {
       const manager = await testData.createManager(payload, {
         name: 'Multi-Role Manager',
-        roles: [{ role: 'meditations-editor' }, { role: 'translator' }],
+        roles: ['meditations-editor', 'translator'],
       })
 
       expect(manager.roles).toBeDefined()
       if (Array.isArray(manager.roles)) {
         expect(manager.roles).toHaveLength(2)
-        expect(manager.roles[0].role).toBe('meditations-editor')
-        expect(manager.roles[1].role).toBe('translator')
+        expect(manager.roles[0]).toBe('meditations-editor')
+        expect(manager.roles[1]).toBe('translator')
       }
     })
   })
@@ -88,7 +88,7 @@ describe('Role-Based Access Control', () => {
     it('creates client with we-meditate-web role', async () => {
       const manager = await testData.createManager(payload, {
         name: 'Admin for Client Creation',
-        roles: [{ role: 'admin' }],
+        roles: ['admin'],
       })
 
       const client = (await payload.create({
@@ -96,21 +96,21 @@ describe('Role-Based Access Control', () => {
         data: {
           name: 'We Meditate Web Client',
           owner: manager.id,
-          roles: [{ role: 'we-meditate-web' }],
+          roles: ['we-meditate-web'],
         },
       })) as Client
 
       expect(client.roles).toBeDefined()
       expect(Array.isArray(client.roles)).toBe(true)
       if (Array.isArray(client.roles)) {
-        expect(client.roles[0].role).toBe('we-meditate-web')
+        expect(client.roles[0]).toBe('we-meditate-web')
       }
     })
 
     it('creates client with we-meditate-app role', async () => {
       const manager = await testData.createManager(payload, {
         name: 'Admin for Client Creation',
-        roles: [{ role: 'admin' }],
+        roles: ['admin'],
       })
 
       const client = (await payload.create({
@@ -118,20 +118,20 @@ describe('Role-Based Access Control', () => {
         data: {
           name: 'We Meditate App Client',
           owner: manager.id,
-          roles: [{ role: 'we-meditate-app' }],
+          roles: ['we-meditate-app'],
         },
       })) as Client
 
       expect(client.roles).toBeDefined()
       if (Array.isArray(client.roles)) {
-        expect(client.roles[0].role).toBe('we-meditate-app')
+        expect(client.roles[0]).toBe('we-meditate-app')
       }
     })
 
     it('creates client with sahaj-atlas role', async () => {
       const manager = await testData.createManager(payload, {
         name: 'Admin for Client Creation',
-        roles: [{ role: 'admin' }],
+        roles: ['admin'],
       })
 
       const client = (await payload.create({
@@ -139,13 +139,13 @@ describe('Role-Based Access Control', () => {
         data: {
           name: 'Sahaj Atlas Client',
           owner: manager.id,
-          roles: [{ role: 'sahaj-atlas' }],
+          roles: ['sahaj-atlas'],
         },
       })) as Client
 
       expect(client.roles).toBeDefined()
       if (Array.isArray(client.roles)) {
-        expect(client.roles[0].role).toBe('sahaj-atlas')
+        expect(client.roles[0]).toBe('sahaj-atlas')
       }
     })
   })
@@ -215,7 +215,7 @@ describe('Role-Based Access Control', () => {
     it('grants admin role full access to all collections', () => {
       const adminUser = testData.dummyUser('managers', {
         id: 1,
-        roles: [{ role: 'admin' }],
+        roles: ['admin'],
       })
 
       // Admin should have access to everything
@@ -233,7 +233,7 @@ describe('Role-Based Access Control', () => {
     it('restricts meditations-editor to specific collections', () => {
       const editorUser = testData.dummyUser('managers', {
         id: 2,
-        roles: [{ role: 'meditations-editor' }],
+        roles: ['meditations-editor'],
         permissions: {
           meditations: { operations: ['read', 'create', 'update'] },
           media: { operations: ['read', 'create'] },
@@ -261,7 +261,7 @@ describe('Role-Based Access Control', () => {
     it('restricts translator to translate permission only', () => {
       const translatorUser = testData.dummyUser('managers', {
         id: 3,
-        roles: [{ role: 'translator' }],
+        roles: ['translator'],
         permissions: {
           pages: { operations: ['read', 'translate'] },
           music: { operations: ['read', 'translate'] },
@@ -303,7 +303,7 @@ describe('Role-Based Access Control', () => {
       const inactiveUser = testData.dummyUser('managers', {
         id: 4,
         active: false,
-        roles: [{ role: 'admin' }],
+        roles: ['admin'],
       })
 
       expect(
@@ -314,7 +314,7 @@ describe('Role-Based Access Control', () => {
     it('blocks API clients from delete operations', () => {
       const clientUser = testData.dummyUser('clients', {
         id: 5,
-        roles: [{ role: 'we-meditate-web' }],
+        roles: ['we-meditate-web'],
         permissions: {
           meditations: { operations: ['read', 'create', 'update', 'delete'] },
         },
@@ -334,7 +334,7 @@ describe('Role-Based Access Control', () => {
     it('grants managers implicit read access with roles', () => {
       const managerUser = testData.dummyUser('managers', {
         id: 6,
-        roles: [{ role: 'translator' }],
+        roles: ['translator'],
         permissions: {
           pages: { operations: ['read', 'translate'] },
         },
@@ -349,7 +349,7 @@ describe('Role-Based Access Control', () => {
     it('blocks access to restricted collections for non-admins', () => {
       const editorUser = testData.dummyUser('managers', {
         id: 7,
-        roles: [{ role: 'meditations-editor' }],
+        roles: ['meditations-editor'],
         permissions: {
           meditations: { operations: ['read', 'create', 'update'] },
         },
@@ -375,7 +375,7 @@ describe('Role-Based Access Control', () => {
     it('computes and displays permissions for managers', async () => {
       const manager = (await testData.createManager(payload, {
         name: 'Test Editor',
-        roles: [{ role: 'meditations-editor' }],
+        roles: ['meditations-editor'],
       })) as Manager
 
       // Fetch with depth to ensure permissions are computed
@@ -399,7 +399,7 @@ describe('Role-Based Access Control', () => {
     it('computes permissions for clients', async () => {
       const manager = await testData.createManager(payload, {
         name: 'Admin for Client',
-        roles: [{ role: 'admin' }],
+        roles: ['admin'],
       })
 
       const client = (await payload.create({
@@ -407,7 +407,7 @@ describe('Role-Based Access Control', () => {
         data: {
           name: 'Test Client',
           owner: manager.id,
-          roles: [{ role: 'we-meditate-web' }],
+          roles: ['we-meditate-web'],
         },
       })) as Client
 

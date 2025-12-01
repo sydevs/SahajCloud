@@ -69,8 +69,9 @@ export const MANAGER_ROLES: Record<ManagerRole, RoleConfig> = {
     label: 'Admin',
     description: 'Full access to all collections and features including system collections',
     permissions: [
-      // Admin has access to ALL collections - this is handled specially in access control logic
-      // We list key collections here for documentation purposes
+      // NOTE: Admin role has special handling in accessControl.ts (hasPermission, createLocaleFilter)
+      // It bypasses normal permission checks for performance and clarity.
+      // The permissions listed here are for documentation purposes only.
       { collection: 'managers', operations: ['read', 'create', 'update', 'delete'] },
       { collection: 'clients', operations: ['read', 'create', 'update', 'delete'] },
       { collection: 'form-submissions', operations: ['read', 'create', 'update', 'delete'] },
@@ -225,39 +226,33 @@ export function hasRolePermission(
 }
 
 // ============================================================================
-// Field Factory
+// Field Factories
 // ============================================================================
 
 /**
- * Create permissions-related fields for Managers or Clients collections
+ * Create permissions-related fields for Managers collection
  *
  * Returns an array of 3 fields:
- * 1. roles - Localized array for managers, simple array for clients
- * 2. customResourceAccess - Polymorphic relationship (managers only)
+ * 1. roles - Localized multi-select of manager roles
+ * 2. customResourceAccess - Polymorphic relationship for document-level permissions
  * 3. permissions - Virtual field showing merged permissions
  *
- * @param options - Configuration options
  * @returns Array of Payload field configurations
  */
-export function PermissionsField(options: { type: 'manager' | 'client' }): Field[] {
-  const isManager = options.type === 'manager'
-  const roleRegistry = isManager ? MANAGER_ROLES : CLIENT_ROLES
-
-  // Convert role registry to select options
-  const roleOptions = Object.values(roleRegistry).map((role) => ({
+export function ManagerPermissionsField(): Field[] {
+  const roleOptions = Object.values(MANAGER_ROLES).map((role) => ({
     label: role.label,
     value: role.slug,
   }))
 
-  const fields: Field[] = []
-
-  // 1. Roles field
-  if (isManager) {
-    // Managers: Localized array of role selections
-    fields.push({
+  return [
+    // 1. Roles field (localized multi-select)
+    {
       name: 'roles',
-      type: 'array',
+      type: 'select',
+      hasMany: true,
       localized: true,
+      options: roleOptions,
       admin: {
         description:
           'Assign roles for each locale. Different roles can be assigned for different languages.',
@@ -267,46 +262,19 @@ export function PermissionsField(options: { type: 'manager' | 'client' }): Field
 
           // Handle both array format (current locale) and Record format (all locales)
           if (Array.isArray(data.roles)) {
-            return !data.roles.some((r: { role: string }) => r.role === 'admin')
+            return !data.roles.includes('admin')
           } else {
-            const roles = data.roles as Record<LocaleCode, Array<{ role: string }>>
-            return !Object.values(roles).some((localeRoles) =>
-              Array.isArray(localeRoles) && localeRoles.some((r) => r.role === 'admin'),
+            const rolesRecord = data.roles as Record<LocaleCode, string[]>
+            return !Object.values(rolesRecord).some(
+              (localeRoles) => Array.isArray(localeRoles) && localeRoles.includes('admin'),
             )
           }
         },
       },
-      fields: [
-        {
-          name: 'role',
-          type: 'select',
-          required: true,
-          options: roleOptions,
-        },
-      ],
-    })
-  } else {
-    // Clients: Simple array of role selections (not localized)
-    fields.push({
-      name: 'roles',
-      type: 'array',
-      admin: {
-        description: 'Assign API client roles. Roles apply to all locales.',
-      },
-      fields: [
-        {
-          name: 'role',
-          type: 'select',
-          required: true,
-          options: roleOptions,
-        },
-      ],
-    })
-  }
+    },
 
-  // 2. Custom Resource Access (managers only)
-  if (isManager) {
-    fields.push({
+    // 2. Custom Resource Access
+    {
       name: 'customResourceAccess',
       type: 'relationship',
       relationTo: ['pages'],
@@ -320,52 +288,96 @@ export function PermissionsField(options: { type: 'manager' | 'client' }): Field
 
           // Handle both array format (current locale) and Record format (all locales)
           if (Array.isArray(data.roles)) {
-            return !data.roles.some((r: { role: string }) => r.role === 'admin')
+            return !data.roles.includes('admin')
           } else {
-            const roles = data.roles as Record<LocaleCode, Array<{ role: string }>>
-            return !Object.values(roles).some((localeRoles) =>
-              Array.isArray(localeRoles) && localeRoles.some((r) => r.role === 'admin'),
+            const rolesRecord = data.roles as Record<LocaleCode, string[]>
+            return !Object.values(rolesRecord).some(
+              (localeRoles) => Array.isArray(localeRoles) && localeRoles.includes('admin'),
             )
           }
         },
       },
-    })
-  }
+    },
 
-  // 3. Virtual permissions field
-  fields.push({
-    name: 'permissions',
-    type: 'json',
-    virtual: true,
-    admin: {
-      readOnly: true,
-      description: isManager
-        ? 'Computed permissions for the current locale based on assigned roles'
-        : 'Computed permissions based on assigned roles (applies to all locales)',
-      components: {
-        Field: '@/components/admin/PermissionsTable',
+    // 3. Virtual permissions field
+    {
+      name: 'permissions',
+      type: 'json',
+      virtual: true,
+      admin: {
+        readOnly: true,
+        description: 'Computed permissions for the current locale based on assigned roles',
+        components: {
+          Field: '@/components/admin/PermissionsTable',
+        },
+      },
+      hooks: {
+        afterRead: [
+          async ({ data, req }) => {
+            if (!data?.roles) return {}
+
+            const locale = req.locale as LocaleCode
+
+            // Roles are now just an array of strings (or object with locale keys)
+            return mergeRolePermissions(data.roles, locale, false)
+          },
+        ],
       },
     },
-    hooks: {
-      afterRead: [
-        async ({ data, req }) => {
-          if (!data?.roles) return {}
+  ]
+}
 
-          const locale = req.locale as LocaleCode
+/**
+ * Create permissions-related fields for Clients collection
+ *
+ * Returns an array of 2 fields:
+ * 1. roles - Non-localized multi-select of client roles
+ * 2. permissions - Virtual field showing merged permissions
+ *
+ * @returns Array of Payload field configurations
+ */
+export function ClientPermissionsField(): Field[] {
+  const roleOptions = Object.values(CLIENT_ROLES).map((role) => ({
+    label: role.label,
+    value: role.slug,
+  }))
 
-          // Extract role slugs from array format
-          let roleArray = data.roles
-          if (Array.isArray(roleArray) && roleArray.length > 0 && typeof roleArray[0] === 'object') {
-            // Convert from array of objects to array of strings
-            roleArray = roleArray.map((r: Record<string, string>) => r.role)
-          }
-
-          // Merge permissions for current locale
-          return mergeRolePermissions(roleArray, locale, !isManager)
-        },
-      ],
+  return [
+    // 1. Roles field (non-localized multi-select)
+    {
+      name: 'roles',
+      type: 'select',
+      hasMany: true,
+      options: roleOptions,
+      admin: {
+        description: 'Assign API client roles. Roles apply to all locales.',
+      },
     },
-  })
 
-  return fields
+    // 2. Virtual permissions field
+    {
+      name: 'permissions',
+      type: 'json',
+      virtual: true,
+      admin: {
+        readOnly: true,
+        description: 'Computed permissions based on assigned roles (applies to all locales)',
+        components: {
+          Field: '@/components/admin/PermissionsTable',
+        },
+      },
+      hooks: {
+        afterRead: [
+          async ({ data, req }) => {
+            if (!data?.roles) return {}
+
+            const locale = req.locale as LocaleCode
+
+            // Roles are just an array of strings for clients
+            return mergeRolePermissions(data.roles, locale, true)
+          },
+        ],
+      },
+    },
+  ]
 }
