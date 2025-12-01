@@ -264,8 +264,10 @@ export function PermissionsField(options: { type: 'manager' | 'client' }): Field
         condition: (data) => {
           // Hide if user has admin role in any locale
           if (!data.roles) return true
-          const roles = data.roles as Record<LocaleCode, string[]>
-          return !Object.values(roles).some((localeRoles) => localeRoles?.includes('admin'))
+          const roles = data.roles as Record<LocaleCode, Array<{ role: string }>>
+          return !Object.values(roles).some((localeRoles) =>
+            localeRoles?.some((r) => r.role === 'admin'),
+          )
         },
       },
       fields: [
@@ -309,8 +311,10 @@ export function PermissionsField(options: { type: 'manager' | 'client' }): Field
         condition: (data) => {
           // Hide if user has admin role in any locale
           if (!data.roles) return true
-          const roles = data.roles as Record<LocaleCode, string[]>
-          return !Object.values(roles).some((localeRoles) => localeRoles?.includes('admin'))
+          const roles = data.roles as Record<LocaleCode, Array<{ role: string }>>
+          return !Object.values(roles).some((localeRoles) =>
+            localeRoles?.some((r) => r.role === 'admin'),
+          )
         },
       },
     })
