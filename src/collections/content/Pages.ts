@@ -21,6 +21,11 @@ export const Pages: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'publishAt'],
+    hidden: ({ user }) => {
+      // Only show Pages collection in WeMeditate Web project
+      const currentProject = user?.currentProject
+      return currentProject !== 'wemeditate-web'
+    },
     livePreview: {
       url: ({ data, locale }) => {
         const baseURL = process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173'
