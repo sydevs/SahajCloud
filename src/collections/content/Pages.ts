@@ -11,6 +11,7 @@ import {
   QuoteBlock,
 } from '@/blocks/pages'
 import { roleBasedAccess } from '@/lib/accessControl'
+import { createProjectVisibility } from '@/lib/projectVisibility'
 import { fullRichTextEditor } from '@/lib/richEditor'
 
 export const Pages: CollectionConfig = {
@@ -21,11 +22,7 @@ export const Pages: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'publishAt'],
-    hidden: ({ user }) => {
-      // Show Pages collection in WeMeditate Web project or All Projects mode
-      const currentProject = user?.currentProject
-      return currentProject !== 'wemeditate-web' && currentProject !== 'all-content'
-    },
+    hidden: createProjectVisibility(['wemeditate-web']),
     livePreview: {
       url: ({ data, locale }) => {
         const baseURL = process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173'

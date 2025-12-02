@@ -14,6 +14,7 @@ import { GetPlatformProxyOptions } from 'wrangler'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { resendAdapter } from '@/lib/email/resendAdapter'
 import { LOCALES, DEFAULT_LOCALE } from '@/lib/locales'
+import { createProjectVisibility } from '@/lib/projectVisibility'
 import { getServerUrl } from '@/lib/serverUrl'
 
 import { collections, Managers } from './collections'
@@ -96,9 +97,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           defaultJobsCollection.admin = {}
         }
 
+        // Only visible in all-content mode
         defaultJobsCollection.admin.hidden = ({ user }) => {
-          // Hide if user doesn't have admin privileges
-          return !user?.admin
+          const currentProject = user?.currentProject
+          return currentProject !== 'all-content' || !user?.admin
         }
         defaultJobsCollection.access = roleBasedAccess('payload-jobs', { implicitRead: false })
         return defaultJobsCollection
@@ -135,14 +137,16 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           access: roleBasedAccess('forms'),
           admin: {
             group: 'Resources',
+            hidden: createProjectVisibility(['wemeditate-web']),
           },
         },
         formSubmissionOverrides: {
           access: roleBasedAccess('form-submissions', { implicitRead: false }),
           admin: {
+            // Visible in all-content mode or wemeditate-web project
             hidden: ({ user }) => {
-              // Hide if user doesn't have admin privileges
-              return !user?.admin
+              const currentProject = user?.currentProject
+              return currentProject !== 'all-content' && currentProject !== 'wemeditate-web'
             },
             group: 'System',
           },

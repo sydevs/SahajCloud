@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { UrlField } from '@/fields'
 import { roleBasedAccess } from '@/lib/accessControl'
+import { createProjectVisibility } from '@/lib/projectVisibility'
 
 export const ExternalVideos: CollectionConfig = {
   slug: 'external-videos',
@@ -13,6 +14,7 @@ export const ExternalVideos: CollectionConfig = {
   admin: {
     group: 'Resources',
     useAsTitle: 'title',
+    hidden: createProjectVisibility(['wemeditate-web', 'wemeditate-app']),
   },
   fields: [
     {
