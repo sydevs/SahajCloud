@@ -475,7 +475,7 @@ The application uses **Wrangler Environments** to manage different configuration
 
 - **Development** (`pnpm dev`):
   - Automatically uses `[env.dev]` environment from `wrangler.toml`
-  - `CLOUDFLARE_ENV = "dev"` tells getPlatformProxy() to use dev environment
+  - `CLOUDFLARE_ENV=dev` (set in `.env` file) tells getPlatformProxy() to use dev environment
   - Uses local `.wrangler` database (D1 with `database_id = "local"`)
   - Development environment variables (localhost URLs)
 
