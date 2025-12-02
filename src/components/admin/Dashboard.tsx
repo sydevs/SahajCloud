@@ -9,9 +9,9 @@ interface DashboardProps {
   user?: {
     id?: string | number
     currentProject?: string
-    [key: string]: any
+    [key: string]: unknown
   }
-  [key: string]: any
+  [key: string]: unknown
 }
 
 /**
@@ -39,11 +39,7 @@ export default function Dashboard(props: DashboardProps) {
 
     case 'sahaj-atlas':
       return (
-        <FathomDashboard
-          siteId="qqwctiuv"
-          siteName="sahaj+atlas"
-          title="Sahaj Atlas Analytics"
-        />
+        <FathomDashboard siteId="qqwctiuv" siteName="sahaj+atlas" title="Sahaj Atlas Analytics" />
       )
 
     case 'wemeditate-app':
