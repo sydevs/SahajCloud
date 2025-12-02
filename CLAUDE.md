@@ -925,9 +925,10 @@ wrangler tail sahajcloud --format pretty
 ```
 
 **Critical Configuration**:
-- `wrangler.toml` must include `remote = true` in D1 binding for production migrations
+- `wrangler.toml` uses Wrangler environments pattern with `[env.dev]` section for development
+- Production migrations require `remote = true` in D1 binding (see DEPLOYMENT.md)
 - Set secrets via `wrangler secret put PAYLOAD_SECRET`, `SENTRY_DSN`, `RESEND_API_KEY`
-- Environment variables configured in wrangler.toml for R2 storage
+- Environment-specific variables configured in `wrangler.toml` via `[vars]` and `[env.dev.vars]` sections
 
 **Image Processing Note**:
 Sharp library removed for Cloudflare Workers compatibility (native binaries not supported). Images uploaded in original format without automatic optimization.
