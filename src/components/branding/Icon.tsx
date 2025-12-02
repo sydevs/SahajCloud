@@ -24,7 +24,7 @@ interface IconProps {
  * Custom Icon component for Payload admin panel
  * Displays project-specific icon with theme-adaptive sizing
  */
-const Icon = ({ size = 30, alt = '', style = {} }: IconProps) => {
+const Icon = ({ size = 30, alt = '', style = { borderRadius: '25%' } }: IconProps) => {
   const { currentProject } = useProject()
   const iconSrc = PROJECT_ICONS[currentProject] || PROJECT_ICONS['all-content']
 
