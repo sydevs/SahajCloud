@@ -8,7 +8,7 @@ export const WeMeditateWebSettings: GlobalConfig = {
   access: roleBasedAccess('we-meditate-web-settings'),
   admin: {
     group: 'System',
-    hidden: handleProjectVisibility(['wemeditate-web'], { excludeAllContent: true }),
+    hidden: handleProjectVisibility(['wemeditate-web'], { excludeFromAdminView: true }),
   },
   label: 'WeMeditate Web',
   fields: [

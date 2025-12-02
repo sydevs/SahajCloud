@@ -3,32 +3,59 @@
 import { useAuth } from '@payloadcms/ui'
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
-import { ProjectValue, DEFAULT_PROJECT, isValidProject } from '@/lib/projects'
+import { ProjectValue } from '@/lib/projects'
 
 interface ProjectContextType {
-  currentProject: ProjectValue
-  setCurrentProject: (project: ProjectValue) => void
+  currentProject: ProjectValue | null
+  setCurrentProject: (project: ProjectValue | null) => void
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined)
 
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth()
-  const [currentProject, setCurrentProject] = useState<ProjectValue>(() => {
-    // Validate project value before using it
-    if (user?.currentProject && isValidProject(user.currentProject)) {
-      return user.currentProject
-    }
-    return DEFAULT_PROJECT
-  })
+  const [currentProject, setCurrentProject] = useState<ProjectValue | null>(null)
 
-  // Sync with user profile changes
+  // Validate current project and auto-select if needed
   useEffect(() => {
-    // Validate project value before setting
-    if (user?.currentProject && isValidProject(user.currentProject)) {
-      setCurrentProject(user.currentProject)
+    if (!user) return
+
+    // Get allowed projects from cached permissions field
+    const allowedProjects = (user.permissions?.projects as ProjectValue[]) || []
+    const current = user.currentProject
+
+    // Case 1: Admin with no project selected - use null (admin view)
+    if (user.admin && !current) {
+      setCurrentProject(null)
+      return
     }
-  }, [user?.currentProject])
+
+    // Case 2: Current project is valid - keep it
+    if (current && (user.admin || allowedProjects.includes(current))) {
+      setCurrentProject(current)
+      return
+    }
+
+    // Case 3: Auto-select if only one project available
+    if (!user.admin && allowedProjects.length === 1) {
+      const selected = allowedProjects[0]
+      setCurrentProject(selected)
+
+      // Update database with auto-selected project
+      fetch(`/api/managers/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ currentProject: selected }),
+      }).catch((error) => {
+        console.error('Failed to auto-select project:', error)
+      })
+      return
+    }
+
+    // Case 4: Multiple projects or invalid current - require manual selection
+    setCurrentProject(null)
+  }, [user, user?.id, user?.permissions?.projects, user?.currentProject, user?.admin])
 
   return (
     <ProjectContext.Provider value={{ currentProject, setCurrentProject }}>

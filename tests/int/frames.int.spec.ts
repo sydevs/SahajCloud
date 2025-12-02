@@ -36,10 +36,8 @@ describe('Frames Collection', () => {
     // Dimensions should be auto-populated by Payload for images
     expect(frame.width).toBeGreaterThan(0)
     expect(frame.height).toBeGreaterThan(0)
-    expect(frame.fileMetadata).toEqual({
-      width: 1050,
-      height: 700,
-    })
+    // fileMetadata is empty for images (Sharp disabled for Cloudflare Workers)
+    expect(frame.fileMetadata).toEqual({})
 
     // Check category field
     expect(frame.category).toBe(FRAME_CATEGORIES[0])
@@ -292,10 +290,8 @@ describe('Frames Collection', () => {
     expect(imageFrame.mimeType).toBe('image/jpeg')
     expect(imageFrame.width).toBeGreaterThan(0)
     expect(imageFrame.height).toBeGreaterThan(0)
-    expect(imageFrame.fileMetadata).toEqual({
-      width: 1050,
-      height: 700,
-    })
+    // fileMetadata is empty for images (Sharp disabled for Cloudflare Workers)
+    expect(imageFrame.fileMetadata).toEqual({})
 
     expect(videoFrame.mimeType).toBe('video/mp4')
     expect(videoFrame.fileMetadata).toEqual({

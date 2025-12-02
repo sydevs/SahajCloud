@@ -306,21 +306,36 @@ export const testData = {
    * @example
    * // Create admin manager
    * await createManager(payload, { admin: true })
-   * // Create translator manager
+   * // Create translator manager with array (auto-localized for English)
    * await createManager(payload, { roles: ['translator'] })
+   * // Create translator manager with localized object
+   * await createManager(payload, { roles: { en: ['translator'], cs: ['translator'] } })
    */
   async createManager(payload: Payload, overrides: Partial<Manager> = {}) {
     const testEmail = `test_${Date.now()}_${Math.random().toString(36).substring(7)}`
 
+    // Handle roles field - when creating with locale='en', pass array directly
+    let rolesData: any = [] // Default: empty roles array (will be localized by Payload)
+    if (overrides.roles) {
+      if (Array.isArray(overrides.roles)) {
+        // Simple array - Payload will localize it for the specified locale
+        rolesData = overrides.roles
+      } else {
+        // Localized object - extract English roles for locale='en' create
+        rolesData = overrides.roles.en || []
+      }
+    }
+
     const manager = await payload.create({
       collection: 'managers',
+      locale: 'en', // Create with English locale - roles will be auto-localized
       data: {
         name: 'Test Manager',
         email: `${testEmail}@example.com`,
         password: 'password123',
         active: true,
-        roles: [], // No roles by default - tests should explicitly assign roles
         ...overrides,
+        roles: rolesData, // Pass array directly, Payload handles localization
       },
     })
 
@@ -484,15 +499,25 @@ export const testData = {
    * dummyUser('managers', { admin: true })
    * // Create dummy translator with permissions
    * dummyUser('managers', {
-   *   roles: ['translator'],
-   *   permissions: { pages: ['read', 'translate'] }
+   *   roles: { en: ['translator'] },
+   *   permissions: { pages: ['read', 'translate'], projects: ['wemeditate-web'] }
    * })
    */
   dummyUser(collection: 'managers' | 'clients', overrides: Partial<Manager | Client> = {}) {
+    // Handle roles field based on collection type
+    let defaultRoles: any
+    if (collection === 'managers') {
+      // Managers have localized roles
+      defaultRoles = overrides.roles || { en: [] }
+    } else {
+      // Clients have non-localized roles
+      defaultRoles = overrides.roles || []
+    }
+
     return {
       collection,
       active: true,
-      roles: [], // No roles by default - tests should explicitly assign roles
+      roles: defaultRoles,
       permissions: {}, // Empty permissions - will be computed from roles
       ...overrides,
     } as TypedUser

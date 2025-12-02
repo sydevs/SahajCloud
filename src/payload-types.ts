@@ -788,7 +788,7 @@ export interface ExternalVideo {
 export interface Manager {
   id: number;
   name: string;
-  currentProject: 'all-content' | 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas';
+  currentProject?: ('wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas') | null;
   /**
    * Grant full administrative access to all collections and features. When enabled, role-based permissions are bypassed.
    */
