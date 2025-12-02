@@ -8,7 +8,7 @@ export const SahajAtlasSettings: GlobalConfig = {
   access: roleBasedAccess('sahaj-atlas-settings'),
   admin: {
     group: 'System',
-    hidden: handleProjectVisibility(['sahaj-atlas'], { excludeAllContent: true }),
+    hidden: handleProjectVisibility(['sahaj-atlas'], { excludeFromAdminView: true }),
   },
   label: 'Sahaj Atlas',
   fields: [

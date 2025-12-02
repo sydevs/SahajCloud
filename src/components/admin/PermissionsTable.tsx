@@ -6,8 +6,8 @@ import { Pill, useDocumentInfo, useField } from '@payloadcms/ui'
 import { PillProps } from '@payloadcms/ui/elements/Pill'
 import React, { useMemo } from 'react'
 
-import type { PermissionLevel } from '@/fields/PermissionsField'
 import { mergeRolePermissions } from '@/fields/PermissionsField'
+import type { PermissionLevel } from '@/types/roles'
 
 /**
  * PermissionsTable Component
@@ -90,6 +90,7 @@ export const PermissionsTable: FieldClientComponent = () => {
         </thead>
         <tbody>
           {Object.entries(permissions)
+            .filter(([, perms]) => Array.isArray(perms) && perms.length > 0)
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([collection, perms]) => (
               <tr key={collection} style={{ borderBottom: '1px solid var(--theme-elevation-150)' }}>
@@ -107,7 +108,7 @@ export const PermissionsTable: FieldClientComponent = () => {
                   <div
                     style={{ display: 'flex', gap: 'calc(var(--base) * 0.3)', flexWrap: 'wrap' }}
                   >
-                    {perms.map((op) => (
+                    {(perms as PermissionLevel[]).map((op) => (
                       <Pill key={op} pillStyle={getOperationPillStyle(op)}>
                         {op}
                       </Pill>

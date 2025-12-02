@@ -5,10 +5,6 @@
 
 export const PROJECTS = [
   {
-    value: 'all-content',
-    label: 'All Content',
-  },
-  {
     value: 'wemeditate-web',
     label: 'WeMeditate Web',
   },
@@ -24,18 +20,35 @@ export const PROJECTS = [
 
 /**
  * TypeScript type for project values
+ * Note: null represents admin view (previously 'all-content')
  */
 export type ProjectValue = (typeof PROJECTS)[number]['value']
 
 /**
- * Default project for the application
+ * Label for admin view (when currentProject is null)
  */
-export const DEFAULT_PROJECT: ProjectValue = 'all-content'
+export const ADMIN_PROJECT_LABEL = 'All Content'
+
+/**
+ * Project-specific icon paths
+ * Uses 'sahaj-cloud' as fallback key for admin view
+ */
+export const PROJECT_ICONS: Record<ProjectValue | 'sahaj-cloud', string> = {
+  'sahaj-cloud': '/images/sahaj-cloud.svg',
+  'wemeditate-web': '/images/wemeditate-web.svg',
+  'wemeditate-app': '/images/wemeditate-app.svg',
+  'sahaj-atlas': '/images/sahaj-atlas.webp',
+}
 
 /**
  * Get project label by value
+ * @param value - Project value or null
+ * @returns Human-readable project label
  */
-export function getProjectLabel(value: ProjectValue): string {
+export function getProjectLabel(value: ProjectValue | null): string {
+  if (value === null) {
+    return ADMIN_PROJECT_LABEL
+  }
   const project = PROJECTS.find((p) => p.value === value)
   return project?.label || value
 }
@@ -48,8 +61,10 @@ export function getProjectOptions() {
 }
 
 /**
- * Validate if a string is a valid project value
+ * Validate if a value is a valid project value
+ * @param value - Value to validate
+ * @returns True if value is a valid ProjectValue or null
  */
-export function isValidProject(value: string): value is ProjectValue {
-  return PROJECTS.some((p) => p.value === value)
+export function isValidProject(value: string | null): value is ProjectValue | null {
+  return value === null || PROJECTS.some((p) => p.value === value)
 }

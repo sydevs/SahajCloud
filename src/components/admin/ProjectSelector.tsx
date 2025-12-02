@@ -2,24 +2,18 @@
 
 import { ReactSelect, toast, useAuth, useRouteTransition } from '@payloadcms/ui'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { useProject } from '@/contexts/ProjectContext'
 import { logger } from '@/lib/logger'
-import { PROJECTS, ProjectValue } from '@/lib/projects'
+import { ADMIN_PROJECT_LABEL, PROJECTS, ProjectValue } from '@/lib/projects'
 
 // Define Option type for ReactSelect
 interface SelectOption {
-  value: string
+  value: ProjectValue | null
   label: string
-  [key: string]: string // Index signature required by ReactSelect
+  [key: string]: string | null // Index signature required by ReactSelect
 }
-
-// Convert PROJECTS to SelectOption format for ReactSelect (label only)
-const projectOptions: SelectOption[] = PROJECTS.map((project) => ({
-  value: project.value,
-  label: project.label,
-}))
 
 const ProjectSelector = () => {
   const { currentProject, setCurrentProject } = useProject()
@@ -27,6 +21,37 @@ const ProjectSelector = () => {
   const { startRouteTransition } = useRouteTransition()
   const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
+
+  // Calculate allowed projects and available options
+  const projectOptions = useMemo(() => {
+    const options: SelectOption[] = []
+
+    // Admins get "All Content" option first (maps to null)
+    if (user?.admin) {
+      options.push({
+        value: null,
+        label: ADMIN_PROJECT_LABEL,
+      })
+    }
+
+    // Get allowed projects from cached permissions field
+    const allowedProjects = user?.admin
+      ? PROJECTS.map((p) => p.value) // Admins see all projects
+      : ((user?.permissions?.projects as ProjectValue[]) || [])
+
+    // Add projects the user has access to
+    allowedProjects.forEach((projectValue) => {
+      const projectConfig = PROJECTS.find((p) => p.value === projectValue)
+      if (projectConfig) {
+        options.push({
+          value: projectConfig.value,
+          label: projectConfig.label,
+        })
+      }
+    })
+
+    return options
+  }, [user?.admin, user?.permissions?.projects])
 
   const handleProjectChange = async (option: unknown) => {
     // Handle single option (not multi-select)
@@ -51,7 +76,7 @@ const ProjectSelector = () => {
       }
 
       // Update local state
-      setCurrentProject(newProject as ProjectValue)
+      setCurrentProject(newProject)
 
       // Redirect to admin root to avoid viewing hidden collections
       startRouteTransition(() => router.push('/admin'))

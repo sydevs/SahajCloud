@@ -3,16 +3,7 @@
 import Image, { ImageProps } from 'next/image'
 
 import { useProject } from '@/contexts/ProjectContext'
-
-/**
- * Project-specific icon paths
- */
-const PROJECT_ICONS: Record<string, string> = {
-  'all-content': '/images/sahaj-cloud.svg',
-  'wemeditate-web': '/images/wemeditate-web.svg',
-  'wemeditate-app': '/images/wemeditate-app.svg',
-  'sahaj-atlas': '/images/sahaj-atlas.webp',
-}
+import { PROJECT_ICONS } from '@/lib/projects'
 
 interface IconProps {
   alt?: string
@@ -23,10 +14,13 @@ interface IconProps {
 /**
  * Custom Icon component for Payload admin panel
  * Displays project-specific icon with theme-adaptive sizing
+ * Handles null currentProject (admin view) by showing Sahaj Cloud logo
  */
 const Icon = ({ size = 30, alt = '', style = { borderRadius: '25%' } }: IconProps) => {
   const { currentProject } = useProject()
-  const iconSrc = PROJECT_ICONS[currentProject] || PROJECT_ICONS['all-content']
+
+  // Get icon for current project, fallback to sahaj-cloud (admin view)
+  const iconSrc = PROJECT_ICONS[currentProject || 'sahaj-cloud']
 
   return <Image src={iconSrc} alt={alt} width={size} height={size} style={style} />
 }

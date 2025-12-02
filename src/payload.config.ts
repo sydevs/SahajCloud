@@ -14,7 +14,7 @@ import { GetPlatformProxyOptions } from 'wrangler'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { resendAdapter } from '@/lib/email/resendAdapter'
 import { LOCALES, DEFAULT_LOCALE } from '@/lib/locales'
-import { createProjectVisibility } from '@/lib/projectVisibility'
+import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { getServerUrl } from '@/lib/serverUrl'
 
 import { collections, Managers } from './collections'
@@ -141,7 +141,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           access: roleBasedAccess('forms'),
           admin: {
             group: 'Resources',
-            hidden: createProjectVisibility(['wemeditate-web']),
+            hidden: handleProjectVisibility(['wemeditate-web']),
           },
         },
         formSubmissionOverrides: {

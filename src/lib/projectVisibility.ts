@@ -1,14 +1,14 @@
-import type { TypedUser } from 'payload'
-
 import { ProjectValue } from './projects'
 
 /**
  * Extended user type for admin.hidden functions
  * Includes currentProject field which exists on managers
+ * Using a simple interface instead of extending TypedUser for compatibility
  */
-interface AdminUser extends TypedUser {
+interface AdminUser {
   currentProject?: string
-  admin?: boolean
+  admin?: boolean | null
+  [key: string]: unknown
 }
 
 /**
@@ -16,7 +16,7 @@ interface AdminUser extends TypedUser {
  *
  * @param allowedProjects - Array of project values where collection should be visible
  * @param options - Configuration options
- * @param options.excludeAllContent - If true, collection is hidden in "all-content" mode (default: false)
+ * @param options.excludeFromAdminView - If true, collection is hidden in admin view (when currentProject is null) (default: false)
  * @returns admin.hidden function
  *
  * @example
@@ -26,29 +26,30 @@ interface AdminUser extends TypedUser {
  * }
  *
  * @example
- * // Collection visible only in specific project, not in all-content mode
+ * // Collection visible only in specific project, excluded from admin view
  * admin: {
- *   hidden: handleProjectVisibility(['wemeditate-web'], { excludeAllContent: true })
+ *   hidden: handleProjectVisibility(['wemeditate-web'], { excludeFromAdminView: true })
  * }
  */
 export function handleProjectVisibility(
   allowedProjects: ProjectValue[],
-  options: { excludeAllContent?: boolean } = {},
+  options: { excludeFromAdminView?: boolean } = {},
 ) {
-  const { excludeAllContent = false } = options
+  const { excludeFromAdminView = false } = options
 
-  return ({ user }: { user?: AdminUser }) => {
+  return ({ user }: { user?: AdminUser | null | any }) => {
     // Get current project from user
-    const currentProject = user?.currentProject as ProjectValue | undefined
+    const currentProject = user?.currentProject as ProjectValue | null
 
-    // Handle "all-content" mode
-    if (currentProject === 'all-content') {
-      // If excludeAllContent is true, hide in all-content mode
-      return excludeAllContent
+    // Handle admin view (null currentProject)
+    if (!currentProject) {
+      // Hide if not admin AND excludeFromAdminView is true
+      // Admins can see collections in admin view unless explicitly excluded
+      return user?.admin !== true && excludeFromAdminView
     }
 
     // Check if current project is in allowed list
-    return !currentProject || !allowedProjects.includes(currentProject)
+    return !allowedProjects.includes(currentProject)
   }
 }
 
@@ -60,6 +61,6 @@ export function handleProjectVisibility(
  *   hidden: adminOnlyVisibility
  * }
  */
-export const adminOnlyVisibility = ({ user }: { user?: AdminUser }) => {
+export const adminOnlyVisibility = ({ user }: { user?: AdminUser | null | any }) => {
   return user?.admin !== true
 }

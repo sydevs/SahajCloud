@@ -1,38 +1,26 @@
-import type { Field, Operation } from 'payload'
+import type { Field } from 'payload'
 
 import { DEFAULT_LOCALE, LocaleCode } from '@/lib/locales'
-
-// ============================================================================
-// Type Definitions
-// ============================================================================
-
-export type ManagerRole = 'meditations-editor' | 'path-editor' | 'translator'
-export type ClientRole = 'we-meditate-web' | 'we-meditate-app' | 'sahaj-atlas'
-
-export type PermissionLevel = Operation | 'translate'
-
-export interface RoleConfig {
-  slug: string
-  label: string
-  description: string
-  permissions: {
-    [collection: string]: PermissionLevel[]
-  }
-}
-
-export type MergedPermissions = {
-  [collection: string]: PermissionLevel[]
-}
+import { ProjectValue } from '@/lib/projects'
+import type { MergedPermissions } from '@/types/permissions'
+import type {
+  ClientRole,
+  ClientRoleConfig,
+  ManagerRole,
+  ManagerRoleConfig,
+  PermissionLevel,
+} from '@/types/roles'
 
 // ============================================================================
 // Manager Role Definitions
 // ============================================================================
 
-export const MANAGER_ROLES: Record<ManagerRole, RoleConfig> = {
+export const MANAGER_ROLES: Record<ManagerRole, ManagerRoleConfig> = {
   'meditations-editor': {
     slug: 'meditations-editor',
     label: 'Meditations Editor',
     description: 'Can create and edit meditations, upload related media and files',
+    project: 'wemeditate-app',
     permissions: {
       meditations: ['read', 'create', 'update'],
       media: ['read', 'create'],
@@ -43,6 +31,7 @@ export const MANAGER_ROLES: Record<ManagerRole, RoleConfig> = {
     slug: 'path-editor',
     label: 'Path Editor',
     description: 'Can edit lessons and external videos, upload related media and files',
+    project: 'wemeditate-app',
     permissions: {
       lessons: ['read', 'update'],
       'external-videos': ['read', 'update'],
@@ -54,6 +43,7 @@ export const MANAGER_ROLES: Record<ManagerRole, RoleConfig> = {
     slug: 'translator',
     label: 'Translator',
     description: 'Can edit localized fields in pages and music',
+    project: 'wemeditate-web',
     permissions: {
       pages: ['read', 'translate'],
       music: ['read', 'translate'],
@@ -65,7 +55,7 @@ export const MANAGER_ROLES: Record<ManagerRole, RoleConfig> = {
 // Client Role Definitions
 // ============================================================================
 
-export const CLIENT_ROLES: Record<ClientRole, RoleConfig> = {
+export const CLIENT_ROLES: Record<ClientRole, ClientRoleConfig> = {
   'we-meditate-web': {
     slug: 'we-meditate-web',
     label: 'We Meditate Web',
@@ -140,8 +130,8 @@ export function mergeRolePermissions(
   // Select the appropriate role registry based on collection
   const roleRegistry =
     collectionSlug === 'clients'
-      ? (CLIENT_ROLES as Record<string, RoleConfig>)
-      : (MANAGER_ROLES as Record<string, RoleConfig>)
+      ? (CLIENT_ROLES as Record<string, ClientRoleConfig>)
+      : (MANAGER_ROLES as Record<string, ManagerRoleConfig>)
 
   const merged: MergedPermissions = {}
 
@@ -159,16 +149,54 @@ export function mergeRolePermissions(
         merged[collection] = []
       }
 
+      // Get the array for this collection (cast to PermissionLevel[] since we're building collection permissions)
+      const collectionPerms = merged[collection] as PermissionLevel[]
+
       // Add operations that aren't already present (union)
       operations.forEach((op) => {
-        if (!merged[collection].includes(op)) {
-          merged[collection].push(op)
+        if (!collectionPerms.includes(op)) {
+          collectionPerms.push(op)
         }
       })
     })
   })
 
   return merged
+}
+
+/**
+ * INTERNAL: Compute all projects a manager has access to based on their roles
+ *
+ * This function is used internally by the virtual permissions field's afterRead hook
+ * to cache allowed projects in user.permissions.projects. Consumers should use the
+ * cached user.permissions.projects field instead of calling this function directly.
+ *
+ * Checks roles across ALL locales and returns unique projects (union approach)
+ *
+ * @internal
+ * @param manager - Manager document with roles field
+ * @returns Array of unique ProjectValue the manager can access
+ */
+function computeAllowedProjects(manager: {
+  roles?: string[] | Record<LocaleCode, string[]>
+  admin?: boolean
+}): ProjectValue[] {
+  // Admins have access to all projects (via null/admin view)
+  if (manager.admin || !manager.roles) {
+    return []
+  }
+
+  // Extract all role slugs from all locales
+  const allRoleSlugs = Array.isArray(manager.roles)
+    ? manager.roles
+    : Object.values(manager.roles).flat()
+
+  // Map roles to projects and get unique values
+  const projects = allRoleSlugs
+    .map((roleSlug) => MANAGER_ROLES[roleSlug as ManagerRole]?.project)
+    .filter((project): project is ProjectValue => project !== undefined)
+
+  return [...new Set(projects)]
 }
 
 // ============================================================================
@@ -187,7 +215,7 @@ export function mergeRolePermissions(
  * @returns Array of Payload field configurations
  */
 export function ManagerPermissionsField(): Field[] {
-  const roleOptions = Object.values(MANAGER_ROLES).map((role) => ({
+  const roleOptions = Object.values<ManagerRoleConfig>(MANAGER_ROLES).map((role) => ({
     label: role.label,
     value: role.slug,
   }))
@@ -210,6 +238,7 @@ export function ManagerPermissionsField(): Field[] {
       type: 'select',
       hasMany: true,
       localized: true,
+      // Not required - managers can have only customResourceAccess without roles
       options: roleOptions,
       admin: {
         description:
@@ -236,12 +265,13 @@ export function ManagerPermissionsField(): Field[] {
 
     // 4. Virtual permissions field - IMPORTANT: This provides automatic permission caching!
     // When managers are fetched from the database, this afterRead hook populates the
-    // `permissions` field with computed permissions for the current locale.
+    // `permissions` field with computed permissions for the current locale AND a
+    // `projects` key with allowed projects (union across all locales).
     // The access control system (accessControl.ts) checks for this field and uses it
     // if present, only computing on-demand if missing. This provides efficient caching
     // without requiring separate cache management.
-    // The computation is locale-aware and ensures permissions are always accurate to
-    // the current request locale.
+    // The computation is locale-aware for permissions and cross-locale for projects.
+    // Structure: { meditations: ['read'], media: ['create'], projects: ['wemeditate-app'] }
     {
       name: 'permissions',
       type: 'json',
@@ -253,10 +283,10 @@ export function ManagerPermissionsField(): Field[] {
         afterRead: [
           async ({ data, req }) => {
             if (!data?.roles) {
-              return {}
+              return { projects: [] }
             }
 
-            // Extract locale-specific roles array
+            // Extract locale-specific roles array for permissions
             let roleSlugArray: string[]
             if (Array.isArray(data.roles)) {
               // PayloadCMS has already localized the data
@@ -269,7 +299,20 @@ export function ManagerPermissionsField(): Field[] {
               roleSlugArray = []
             }
 
-            return mergeRolePermissions(roleSlugArray, 'managers')
+            // Compute permissions for current locale
+            const permissions = mergeRolePermissions(roleSlugArray, 'managers')
+
+            // Compute allowed projects (union across all locales)
+            const projects = computeAllowedProjects({
+              roles: data.roles,
+              admin: data.admin,
+            })
+
+            // Return flat object with collection permissions + projects array
+            return {
+              ...permissions,
+              projects,
+            }
           },
         ],
       },
@@ -287,7 +330,7 @@ export function ManagerPermissionsField(): Field[] {
  * @returns Array of Payload field configurations
  */
 export function ClientPermissionsField(): Field[] {
-  const roleOptions = Object.values(CLIENT_ROLES).map((role) => ({
+  const roleOptions = Object.values<ClientRoleConfig>(CLIENT_ROLES).map((role) => ({
     label: role.label,
     value: role.slug,
   }))

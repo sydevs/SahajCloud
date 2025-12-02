@@ -11,7 +11,7 @@ export const Narrators: CollectionConfig = {
   admin: {
     group: 'Resources',
     useAsTitle: 'name',
-    hidden: handleProjectVisibility(['wemeditate-app'], { excludeAllContent: true }),
+    hidden: handleProjectVisibility(['wemeditate-app'], { excludeFromAdminView: true }),
   },
   hooks: {
     afterRead: [trackClientUsageHook],

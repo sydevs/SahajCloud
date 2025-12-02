@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 
 import { useProject } from '@/contexts/ProjectContext'
-import type { ProjectValue } from '@/lib/projects'
+import { ProjectValue } from '@/lib/projects'
 
 interface ThemeColors {
   light: Record<string, string>
@@ -13,10 +13,9 @@ interface ThemeColors {
 /**
  * Theme color mappings for each project
  * Uses subtle tints of brand colors for elevation variables
+ * Null/undefined currentProject uses default PayloadCMS colors (no entry needed)
  */
-const PROJECT_THEMES: Record<ProjectValue, ThemeColors | null> = {
-  'all-content': null, // Uses default PayloadCMS colors
-
+const PROJECT_THEMES: Record<ProjectValue, ThemeColors> = {
   'wemeditate-web': {
     // Coral/Salmon theme - warm, inviting
     light: {
@@ -134,10 +133,10 @@ const ProjectTheme = () => {
   const { currentProject } = useProject()
 
   useEffect(() => {
-    const theme = PROJECT_THEMES[currentProject]
+    const theme = currentProject ? PROJECT_THEMES[currentProject] : null
 
-    // If no theme (all-content or default), remove custom variables
-    if (!theme) {
+    // If no theme (admin view or default), remove custom variables
+    if (!theme || !currentProject) {
       document.documentElement.removeAttribute('data-project-theme')
       // Remove all custom elevation variables to restore defaults
       const root = document.documentElement
@@ -163,7 +162,7 @@ const ProjectTheme = () => {
       return
     }
 
-    // Set the project theme attribute for CSS targeting
+    // Set the project theme attribute for CSS targeting (currentProject is non-null here)
     document.documentElement.setAttribute('data-project-theme', currentProject)
 
     // Determine if dark mode is active

@@ -8,7 +8,7 @@ export const WeMeditateAppSettings: GlobalConfig = {
   access: roleBasedAccess('we-meditate-app-settings'),
   admin: {
     group: 'System',
-    hidden: handleProjectVisibility(['wemeditate-app'], { excludeAllContent: true }),
+    hidden: handleProjectVisibility(['wemeditate-app'], { excludeFromAdminView: true }),
   },
   label: 'WeMeditate App',
   fields: [

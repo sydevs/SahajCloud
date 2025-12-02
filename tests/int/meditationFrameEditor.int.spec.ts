@@ -208,9 +208,9 @@ describe('MeditationFrameEditor Integration', () => {
   describe('Meditation Frame Updates', () => {
     it('should save frame data to meditation document', async () => {
       const frameData: KeyframeData[] = [
-        { id: maleFrames[0].id, timestamp: 0 },
-        { id: maleFrames[1].id, timestamp: 15 },
-        { id: maleFrames[2].id, timestamp: 30 },
+        { id: String(maleFrames[0].id), timestamp: 0 },
+        { id: String(maleFrames[1].id), timestamp: 15 },
+        { id: String(maleFrames[2].id), timestamp: 30 },
       ]
 
       // Update meditation with frame data

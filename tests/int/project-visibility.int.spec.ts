@@ -3,7 +3,6 @@ import type { Payload } from 'payload'
 import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 
 import {
-  DEFAULT_PROJECT,
   PROJECTS,
   getProjectLabel,
   getProjectOptions,
@@ -29,27 +28,23 @@ describe('Project Visibility System', () => {
 
   describe('projects.ts utilities', () => {
     describe('PROJECTS constant', () => {
-      it('should contain all four projects', () => {
-        expect(PROJECTS).toHaveLength(4)
-        expect(PROJECTS.map((p) => p.value)).toContain('all-content')
+      it('should contain all three projects', () => {
+        expect(PROJECTS).toHaveLength(3)
         expect(PROJECTS.map((p) => p.value)).toContain('wemeditate-web')
         expect(PROJECTS.map((p) => p.value)).toContain('wemeditate-app')
         expect(PROJECTS.map((p) => p.value)).toContain('sahaj-atlas')
       })
     })
 
-    describe('DEFAULT_PROJECT', () => {
-      it('should be all-content', () => {
-        expect(DEFAULT_PROJECT).toBe('all-content')
-      })
-    })
-
     describe('getProjectLabel', () => {
       it('should return correct labels for known projects', () => {
-        expect(getProjectLabel('all-content')).toBe('All Content')
         expect(getProjectLabel('wemeditate-web')).toBe('WeMeditate Web')
         expect(getProjectLabel('wemeditate-app')).toBe('WeMeditate App')
         expect(getProjectLabel('sahaj-atlas')).toBe('Sahaj Atlas')
+      })
+
+      it('should return "All Content" for null', () => {
+        expect(getProjectLabel(null)).toBe('All Content')
       })
 
       it('should return the value for unknown projects', () => {
@@ -60,7 +55,7 @@ describe('Project Visibility System', () => {
     describe('getProjectOptions', () => {
       it('should return options array for Payload fields', () => {
         const options = getProjectOptions()
-        expect(options).toHaveLength(4)
+        expect(options).toHaveLength(3)
         expect(options[0]).toHaveProperty('value')
         expect(options[0]).toHaveProperty('label')
       })
@@ -68,10 +63,13 @@ describe('Project Visibility System', () => {
 
     describe('isValidProject', () => {
       it('should return true for valid project values', () => {
-        expect(isValidProject('all-content')).toBe(true)
         expect(isValidProject('wemeditate-web')).toBe(true)
         expect(isValidProject('wemeditate-app')).toBe(true)
         expect(isValidProject('sahaj-atlas')).toBe(true)
+      })
+
+      it('should return true for null', () => {
+        expect(isValidProject(null)).toBe(true)
       })
 
       it('should return false for invalid project values', () => {
@@ -84,10 +82,21 @@ describe('Project Visibility System', () => {
 
   describe('handleProjectVisibility', () => {
     describe('basic visibility', () => {
-      it('should hide collection when user has no project', () => {
+      it('should show collection by default when user has no project (null)', () => {
         const hiddenFn = handleProjectVisibility(['wemeditate-web'])
-        expect(hiddenFn({ user: undefined })).toBe(true)
-        expect(hiddenFn({ user: {} as any })).toBe(true)
+        // No user or null project: show by default (not excluded from admin view)
+        expect(hiddenFn({ user: undefined })).toBe(false)
+        expect(hiddenFn({ user: {} as any })).toBe(false)
+        expect(hiddenFn({ user: { currentProject: null } as any })).toBe(false)
+      })
+
+      it('should hide collection for non-admins with null project when excludeFromAdminView', () => {
+        const hiddenFn = handleProjectVisibility(['wemeditate-web'], {
+          excludeFromAdminView: true,
+        })
+        // Non-admin with null project: hide when excludeFromAdminView is true
+        expect(hiddenFn({ user: { currentProject: null, admin: false } as any })).toBe(true)
+        expect(hiddenFn({ user: { currentProject: null } as any })).toBe(true)
       })
 
       it('should hide collection when project not in allowed list', () => {
@@ -108,20 +117,25 @@ describe('Project Visibility System', () => {
       })
     })
 
-    describe('all-content mode', () => {
-      it('should show collection in all-content mode by default', () => {
+    describe('admin view (null project)', () => {
+      it('should show collection in admin view by default', () => {
         const hiddenFn = handleProjectVisibility(['wemeditate-web'])
-        expect(hiddenFn({ user: { currentProject: 'all-content' } as any })).toBe(false)
+        expect(hiddenFn({ user: { currentProject: null, admin: true } as any })).toBe(false)
       })
 
-      it('should hide collection in all-content mode when excludeAllContent is true', () => {
-        const hiddenFn = handleProjectVisibility(['wemeditate-web'], { excludeAllContent: true })
-        expect(hiddenFn({ user: { currentProject: 'all-content' } as any })).toBe(true)
+      it('should hide collection in admin view when excludeFromAdminView is true', () => {
+        const hiddenFn = handleProjectVisibility(['wemeditate-web'], {
+          excludeFromAdminView: true,
+        })
+        expect(hiddenFn({ user: { currentProject: null, admin: true } as any })).toBe(false)
+        expect(hiddenFn({ user: { currentProject: null, admin: false } as any })).toBe(true)
       })
 
-      it('should show collection in all-content mode when excludeAllContent is false', () => {
-        const hiddenFn = handleProjectVisibility(['wemeditate-web'], { excludeAllContent: false })
-        expect(hiddenFn({ user: { currentProject: 'all-content' } as any })).toBe(false)
+      it('should show collection in admin view when excludeFromAdminView is false', () => {
+        const hiddenFn = handleProjectVisibility(['wemeditate-web'], {
+          excludeFromAdminView: false,
+        })
+        expect(hiddenFn({ user: { currentProject: null, admin: true } as any })).toBe(false)
       })
     })
   })
@@ -147,7 +161,7 @@ describe('Project Visibility System', () => {
 
   describe('Collection visibility integration', () => {
     it('should correctly filter Pages collection visibility', async () => {
-      // Pages visible in: wemeditate-web
+      // Pages visible in: wemeditate-web only
       const pagesCollection = payload.collections.pages
       const hiddenFn = pagesCollection.config.admin?.hidden
 
@@ -155,7 +169,7 @@ describe('Project Visibility System', () => {
         expect(hiddenFn({ user: { currentProject: 'wemeditate-web' } as any })).toBe(false)
         expect(hiddenFn({ user: { currentProject: 'wemeditate-app' } as any })).toBe(true)
         expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
-        expect(hiddenFn({ user: { currentProject: 'all-content' } as any })).toBe(false)
+        expect(hiddenFn({ user: { currentProject: null, admin: true } as any })).toBe(false)
       }
     })
 
@@ -168,12 +182,12 @@ describe('Project Visibility System', () => {
         expect(hiddenFn({ user: { currentProject: 'wemeditate-web' } as any })).toBe(false)
         expect(hiddenFn({ user: { currentProject: 'wemeditate-app' } as any })).toBe(false)
         expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
-        expect(hiddenFn({ user: { currentProject: 'all-content' } as any })).toBe(false)
+        expect(hiddenFn({ user: { currentProject: null, admin: true } as any })).toBe(false)
       }
     })
 
     it('should correctly filter Lessons collection visibility', async () => {
-      // Lessons visible in: wemeditate-app
+      // Lessons visible in: wemeditate-app only
       const lessonsCollection = payload.collections.lessons
       const hiddenFn = lessonsCollection.config.admin?.hidden
 
@@ -181,14 +195,14 @@ describe('Project Visibility System', () => {
         expect(hiddenFn({ user: { currentProject: 'wemeditate-web' } as any })).toBe(true)
         expect(hiddenFn({ user: { currentProject: 'wemeditate-app' } as any })).toBe(false)
         expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
-        expect(hiddenFn({ user: { currentProject: 'all-content' } as any })).toBe(false)
+        expect(hiddenFn({ user: { currentProject: null, admin: true } as any })).toBe(false)
       }
     })
   })
 
   describe('Global visibility integration', () => {
     it('should correctly filter WeMeditate Web Settings visibility', async () => {
-      // WeMeditate Web Settings visible in: wemeditate-web only (excludeAllContent: true)
+      // WeMeditate Web Settings visible in: wemeditate-web only (excludeFromAdminView: true)
       const webSettings = payload.globals.config.find((g) => g.slug === 'we-meditate-web-settings')
       const hiddenFn = webSettings?.admin?.hidden
 
@@ -196,7 +210,8 @@ describe('Project Visibility System', () => {
         expect(hiddenFn({ user: { currentProject: 'wemeditate-web' } as any })).toBe(false)
         expect(hiddenFn({ user: { currentProject: 'wemeditate-app' } as any })).toBe(true)
         expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
-        expect(hiddenFn({ user: { currentProject: 'all-content' } as any })).toBe(true) // excludeAllContent
+        expect(hiddenFn({ user: { currentProject: null, admin: true } as any })).toBe(false) // excludeFromAdminView (admins can see)
+        expect(hiddenFn({ user: { currentProject: null, admin: false } as any })).toBe(true) // excludeFromAdminView (non-admins can't)
       }
     })
   })
