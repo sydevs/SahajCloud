@@ -3,7 +3,7 @@ import type { CollectionConfig } from 'payload'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { GENDER_OPTIONS } from '@/lib/data'
-import { createProjectVisibility } from '@/lib/projectVisibility'
+import { handleProjectVisibility } from '@/lib/projectVisibility'
 
 export const Narrators: CollectionConfig = {
   slug: 'narrators',
@@ -11,7 +11,7 @@ export const Narrators: CollectionConfig = {
   admin: {
     group: 'Resources',
     useAsTitle: 'name',
-    hidden: createProjectVisibility(['wemeditate-app'], { excludeAllContent: true }),
+    hidden: handleProjectVisibility(['wemeditate-app'], { excludeAllContent: true }),
   },
   hooks: {
     afterRead: [trackClientUsageHook],

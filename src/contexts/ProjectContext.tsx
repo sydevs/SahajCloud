@@ -3,7 +3,7 @@
 import { useAuth } from '@payloadcms/ui'
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
-import { ProjectValue, DEFAULT_PROJECT } from '@/lib/projects'
+import { ProjectValue, DEFAULT_PROJECT, isValidProject } from '@/lib/projects'
 
 interface ProjectContextType {
   currentProject: ProjectValue
@@ -15,13 +15,18 @@ const ProjectContext = createContext<ProjectContextType | undefined>(undefined)
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth()
   const [currentProject, setCurrentProject] = useState<ProjectValue>(() => {
-    return (user?.currentProject as ProjectValue) || DEFAULT_PROJECT
+    // Validate project value before using it
+    if (user?.currentProject && isValidProject(user.currentProject)) {
+      return user.currentProject
+    }
+    return DEFAULT_PROJECT
   })
 
   // Sync with user profile changes
   useEffect(() => {
-    if (user?.currentProject) {
-      setCurrentProject(user.currentProject as ProjectValue)
+    // Validate project value before setting
+    if (user?.currentProject && isValidProject(user.currentProject)) {
+      setCurrentProject(user.currentProject)
     }
   }, [user?.currentProject])
 
