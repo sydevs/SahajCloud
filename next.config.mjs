@@ -17,6 +17,20 @@ const nextConfig = {
 
     return webpackConfig
   },
+  // Configure CSP headers for Fathom Analytics iframes
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: "frame-src 'self' https://app.usefathom.com;",
+          },
+        ],
+      },
+    ]
+  },
   images: {
     remotePatterns: [
       ...(process.env.NODE_ENV === 'production' && process.env.PUBLIC_ASSETS_URL
