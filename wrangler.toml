@@ -77,7 +77,6 @@ jurisdiction = "eu"
 
 # Environment Variables
 [env.dev.vars]
-CLOUDFLARE_ENV = "dev"
 NODE_ENV = "development"
 SAHAJCLOUD_URL = "http://localhost:3000"
 WEMEDITATE_WEB_URL = "http://localhost:5173"

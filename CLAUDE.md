@@ -22,6 +22,11 @@ For full documentation, see: https://github.com/sydevs/claude-plugins
 
 ## Overall instructions
 - Always ask me before editing, creating, or closing a GitHub issue or PR
+- When researching or fetching documentation, prefer specialized MCP tools over generic tools:
+  - Use `mcp__plugin_sydevs-web_cloudflare-docs__search_cloudflare_documentation` for Cloudflare documentation (not WebFetch)
+  - Use Sentry MCP tools for Sentry-related queries (not WebFetch)
+  - Use GitHub MCP tools for GitHub operations (not gh CLI or WebFetch)
+  - Only use WebFetch for websites without dedicated MCP integrations
 
 ## Project Overview
 
@@ -95,6 +100,34 @@ Copy from `.env.example` and configure:
 **Live Preview URLs**
 - `WEMEDITATE_WEB_URL` - Preview URL for We Meditate Web frontend (default: http://localhost:5173)
 - `SAHAJATLAS_URL` - Preview URL for Sahaj Atlas frontend (default: http://localhost:5174)
+
+### Wrangler Configuration
+
+The application uses **Wrangler Environments** to manage different configurations for development and production.
+
+**Configuration File**: `wrangler.toml` contains both environments:
+- **Default (top-level)**: Production configuration with remote D1 database
+- **`[env.dev]`**: Development environment with local SQLite database
+
+**How Environment Selection Works**:
+1. **Development** (`pnpm dev`):
+   - Automatically uses `[env.dev]` environment from `wrangler.toml`
+   - Environment variable `CLOUDFLARE_ENV=dev` (set in `.env` file) tells `getPlatformProxy()` to use dev config
+   - Uses local `.wrangler` database (D1 with `database_id = "local"`)
+   - Development URLs (localhost:3000, localhost:5173, etc.)
+
+2. **Production** (deployment):
+   - Uses default (top-level) configuration
+   - Environment variable `CLOUDFLARE_ENV` is undefined (defaults to production)
+   - Connects to remote D1 database when `remote = true`
+   - Production URLs (cloud.sydevelopers.com, wemeditate.com, etc.)
+
+**Key Files**:
+- `.env` - Sets `CLOUDFLARE_ENV=dev` for local development
+- `wrangler.toml` - Single source of truth for both environments
+- `src/payload.config.ts` - Uses `process.env.CLOUDFLARE_ENV` to select environment in `getPlatformProxy()`
+
+**See Also**: [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive deployment configuration and troubleshooting.
 
 ## Code editing
 
