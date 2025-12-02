@@ -1322,10 +1322,62 @@ type MergedPermissions = {
 - No manager roles have create/update permissions for these collections
 - Web clients have read-only access to `forms` and `authors`
 
+#### Type Organization
+
+The RBAC system uses a well-organized type structure with types separated into dedicated files in the `src/types/` directory:
+
+**Type Files Structure**:
+```
+src/types/
+├── roles.ts        # Role type definitions
+├── users.ts        # User type definitions
+└── permissions.ts  # Permission structure types
+```
+
+**[src/types/roles.ts](src/types/roles.ts)** - Role type definitions:
+- `ManagerRole` - Manager role enum type ('meditations-editor' | 'path-editor' | 'translator')
+- `ClientRole` - Client role enum type ('we-meditate-web' | 'we-meditate-app' | 'sahaj-atlas')
+- `PermissionLevel` - Permission operations type (Operation | 'translate')
+- `BaseRoleConfig` - Base role configuration interface
+- `ManagerRoleConfig` - Manager role configuration (extends BaseRoleConfig with project field)
+- `ClientRoleConfig` - Client role configuration (alias for BaseRoleConfig)
+
+**[src/types/users.ts](src/types/users.ts)** - User type definitions:
+- `TypedManager` - Extended manager user type with roles, permissions, and customResourceAccess
+- `TypedClient` - Extended client user type with roles and permissions
+- Both types use `MergedPermissions` for the permissions field
+
+**[src/types/permissions.ts](src/types/permissions.ts)** - Permission structure types:
+- `MergedPermissions` - Cached permissions structure returned by virtual permissions field
+  - Contains collection-level permissions as `PermissionLevel[]`
+  - Contains `projects` array for managers (cross-locale project access)
+- `CollectionPermissions` - Helper type for type-safe collection permission access
+
+**Type Usage**:
+- Implementation files (`PermissionsField.ts`, `accessControl.ts`) import types from `src/types/`
+- Role DATA definitions (MANAGER_ROLES, CLIENT_ROLES) remain in `PermissionsField.ts`
+- Type files have no dependencies on implementation files (prevents circular dependencies)
+
+**Benefits**:
+- Clear separation of types from implementation code
+- Improved type safety with strongly-typed permission structures
+- Better code organization and maintainability
+- Easier to locate and update type definitions
+- No circular dependencies between type files and implementation files
+
 #### Key Files
-- [src/fields/PermissionsField.ts](src/fields/PermissionsField.ts) - Role definitions, field factories (ManagerPermissionsField, ClientPermissionsField), and mergeRolePermissions utility
-- [src/components/admin/PermissionsTable.tsx](src/components/admin/PermissionsTable.tsx) - Real-time permissions display component shown as afterInput on roles field
+
+**Type Definitions**:
+- [src/types/roles.ts](src/types/roles.ts) - Role type definitions (ManagerRole, ClientRole, PermissionLevel, role configs)
+- [src/types/users.ts](src/types/users.ts) - User type definitions (TypedManager, TypedClient)
+- [src/types/permissions.ts](src/types/permissions.ts) - Permission structure types (MergedPermissions, CollectionPermissions)
+
+**Implementation**:
+- [src/fields/PermissionsField.ts](src/fields/PermissionsField.ts) - Role data definitions (MANAGER_ROLES, CLIENT_ROLES), field factories (ManagerPermissionsField, ClientPermissionsField), and mergeRolePermissions utility
 - [src/lib/accessControl.ts](src/lib/accessControl.ts) - Core permission checking (hasPermission, roleBasedAccess, createFieldAccess, createLocaleFilter)
+- [src/components/admin/PermissionsTable.tsx](src/components/admin/PermissionsTable.tsx) - Real-time permissions display component shown as afterInput on roles field
+
+**Collections**:
 - [src/collections/access/Managers.ts](src/collections/access/Managers.ts) - Manager collection using ManagerPermissionsField()
 - [src/collections/access/Clients.ts](src/collections/access/Clients.ts) - Client collection using ClientPermissionsField()
 - All content collections - Use `roleBasedAccess()` for access control
