@@ -19,7 +19,7 @@ const nextConfig = {
   },
   images: {
     remotePatterns: [
-      ...(process.env.PUBLIC_ASSETS_URL
+      ...(process.env.NODE_ENV === 'production'
         ? [
             {
               protocol: 'https',
