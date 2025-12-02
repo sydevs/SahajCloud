@@ -12,7 +12,6 @@ describe('API Authentication', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let testClient: Client
-  let clientReq: PayloadRequest
   let adminUserId: number
 
   beforeAll(async () => {
@@ -23,16 +22,6 @@ describe('API Authentication', () => {
 
     // Create test user and client
     testClient = await testData.createClient(payload, adminUserId)
-
-    // Simulate API client reading a tag
-    clientReq = {
-      user: {
-        id: testClient.id,
-        collection: 'clients',
-        active: true,
-      },
-      payload: payload,
-    } as PayloadRequest
   })
 
   afterAll(async () => {
@@ -193,10 +182,10 @@ describe('API Authentication', () => {
       if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
         await trackUsageTask.handler({
           input: { clientId: testClient.id },
-          job: {} as any,
-          req: { payload } as any,
-          inlineTask: (() => {}) as any,
-          tasks: {} as any,
+          job: {} as never,
+          req: { payload } as unknown as PayloadRequest,
+          inlineTask: (() => {}) as never,
+          tasks: {} as never,
         })
       }
 
@@ -231,10 +220,10 @@ describe('API Authentication', () => {
         if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
           await trackUsageTask.handler({
             input: { clientId: testClient.id },
-            job: {} as any,
-            req: { payload } as any,
-            inlineTask: (() => {}) as any,
-            tasks: {} as any,
+            job: {} as never,
+            req: { payload } as unknown as PayloadRequest,
+            inlineTask: (() => {}) as never,
+            tasks: {} as never,
           })
         }
       }
@@ -257,10 +246,10 @@ describe('API Authentication', () => {
         if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
           await trackUsageTask.handler({
             input: { clientId: testClient.id },
-            job: {} as any,
-            req: { payload } as any,
-            inlineTask: (() => {}) as any,
-            tasks: {} as any,
+            job: {} as never,
+            req: { payload } as unknown as PayloadRequest,
+            inlineTask: (() => {}) as never,
+            tasks: {} as never,
           })
         }
       }
@@ -281,10 +270,10 @@ describe('API Authentication', () => {
       if (resetTask && typeof resetTask.handler === 'function') {
         await resetTask.handler({
           input: {},
-          job: {} as any,
-          req: { payload } as any,
-          inlineTask: (() => {}) as any,
-          tasks: {} as any,
+          job: {} as never,
+          req: { payload } as unknown as PayloadRequest,
+          inlineTask: (() => {}) as never,
+          tasks: {} as never,
         })
       }
 
@@ -320,10 +309,10 @@ describe('API Authentication', () => {
       if (resetTask && typeof resetTask.handler === 'function') {
         await resetTask.handler({
           input: {},
-          job: {} as any,
-          req: { payload } as any,
-          inlineTask: (() => {}) as any,
-          tasks: {} as any,
+          job: {} as never,
+          req: { payload } as unknown as PayloadRequest,
+          inlineTask: (() => {}) as never,
+          tasks: {} as never,
         })
       }
 
@@ -357,10 +346,10 @@ describe('API Authentication', () => {
       if (resetTask && typeof resetTask.handler === 'function') {
         await resetTask.handler({
           input: {},
-          job: {} as any,
-          req: { payload } as any,
-          inlineTask: (() => {}) as any,
-          tasks: {} as any,
+          job: {} as never,
+          req: { payload } as unknown as PayloadRequest,
+          inlineTask: (() => {}) as never,
+          tasks: {} as never,
         })
       }
 
@@ -391,10 +380,10 @@ describe('API Authentication', () => {
       if (resetTask && typeof resetTask.handler === 'function') {
         await resetTask.handler({
           input: {},
-          job: {} as any,
-          req: { payload } as any,
-          inlineTask: (() => {}) as any,
-          tasks: {} as any,
+          job: {} as never,
+          req: { payload } as unknown as PayloadRequest,
+          inlineTask: (() => {}) as never,
+          tasks: {} as never,
         })
       }
 
@@ -416,7 +405,7 @@ describe('API Authentication', () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       // Create a client with high usage
-      const highUsageClient = await testData.createClient(payload, adminUserId, {
+      await testData.createClient(payload, adminUserId, {
         name: 'High Usage Client',
         usageStats: {
           totalRequests: 5000,
@@ -461,12 +450,10 @@ describe('API Authentication', () => {
     it('virtual field highUsageAlert reflects high usage state', async () => {
       // Test the virtual field logic
       const clientsCollection = payload.config.collections.find((c) => c.slug === 'clients')
-      const usageStatsField = clientsCollection?.fields.find(
-        (f: any) => f.name === 'usageStats',
-      ) as any
-      const highUsageAlertField = usageStatsField?.fields?.find(
-        (f: any) => f.name === 'highUsageAlert',
-      )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const usageStatsField = clientsCollection?.fields.find((f: any) => f.name === 'usageStats') as any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const highUsageAlertField = usageStatsField?.fields?.find((f: any) => f.name === 'highUsageAlert')
 
       expect(highUsageAlertField).toBeDefined()
       expect(highUsageAlertField?.virtual).toBe(true)
