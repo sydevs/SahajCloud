@@ -9,7 +9,7 @@ import { roleBasedAccess } from '@/lib/accessControl'
 import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
 import { LOCALES } from '@/lib/locales'
 import { logger } from '@/lib/logger'
-import { createProjectVisibility } from '@/lib/projectVisibility'
+import { handleProjectVisibility } from '@/lib/projectVisibility'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
@@ -25,7 +25,7 @@ export const Meditations: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'label',
     defaultColumns: ['label', 'thumbnail', 'publishAt', 'tags', 'durationMinutes'],
-    hidden: createProjectVisibility(['wemeditate-web', 'wemeditate-app']),
+    hidden: handleProjectVisibility(['wemeditate-web', 'wemeditate-app']),
   },
   hooks: {
     beforeOperation: [sanitizeFilename],

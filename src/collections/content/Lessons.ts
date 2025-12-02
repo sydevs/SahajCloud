@@ -10,7 +10,7 @@ import {
 } from '@/fields/FileAttachmentField'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess, createFieldAccess } from '@/lib/accessControl'
-import { createProjectVisibility } from '@/lib/projectVisibility'
+import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import subtitleSchema from '@/lib/subtitlesSchema.json'
 
@@ -29,7 +29,7 @@ export const Lessons: CollectionConfig = {
     defaultColumns: ['title', 'step'],
     groupBy: true,
     listSearchableFields: ['title'],
-    hidden: createProjectVisibility(['wemeditate-app']),
+    hidden: handleProjectVisibility(['wemeditate-app']),
   },
   versions: {
     maxPerDoc: 50,

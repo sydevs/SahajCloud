@@ -1,10 +1,11 @@
 'use client'
 
-import { ReactSelect, useAuth, useRouteTransition } from '@payloadcms/ui'
+import { ReactSelect, toast, useAuth, useRouteTransition } from '@payloadcms/ui'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 import { useProject } from '@/contexts/ProjectContext'
+import { logger } from '@/lib/logger'
 import { PROJECTS, ProjectValue } from '@/lib/projects'
 
 // Define Option type for ReactSelect
@@ -33,16 +34,21 @@ const ProjectSelector = () => {
 
     const selectedOption = option as SelectOption
     const newProject = selectedOption.value
+    const previousProject = currentProject
 
     setIsSaving(true)
     try {
       // Update manager profile
-      await fetch(`/api/managers/${user?.id}`, {
+      const response = await fetch(`/api/managers/${user?.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ currentProject: newProject }),
       })
+
+      if (!response.ok) {
+        throw new Error(`Failed to update project: ${response.statusText}`)
+      }
 
       // Update local state
       setCurrentProject(newProject as ProjectValue)
@@ -50,8 +56,10 @@ const ProjectSelector = () => {
       // Redirect to admin root to avoid viewing hidden collections
       startRouteTransition(() => router.push('/admin'))
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to update project:', error)
+      logger.error('Failed to update project:', error)
+      toast.error('Failed to change project. Please try again.')
+      // Revert to previous project
+      setCurrentProject(previousProject)
     } finally {
       setIsSaving(false)
     }

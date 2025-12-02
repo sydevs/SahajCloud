@@ -1,4 +1,15 @@
+import type { TypedUser } from 'payload'
+
 import { ProjectValue } from './projects'
+
+/**
+ * Extended user type for admin.hidden functions
+ * Includes currentProject field which exists on managers
+ */
+interface AdminUser extends TypedUser {
+  currentProject?: string
+  admin?: boolean
+}
 
 /**
  * Helper function to create admin.hidden function based on project visibility
@@ -11,22 +22,22 @@ import { ProjectValue } from './projects'
  * @example
  * // Collection visible only in Web project
  * admin: {
- *   hidden: createProjectVisibility(['wemeditate-web'])
+ *   hidden: handleProjectVisibility(['wemeditate-web'])
  * }
  *
  * @example
  * // Collection visible only in specific project, not in all-content mode
  * admin: {
- *   hidden: createProjectVisibility(['wemeditate-web'], { excludeAllContent: true })
+ *   hidden: handleProjectVisibility(['wemeditate-web'], { excludeAllContent: true })
  * }
  */
-export function createProjectVisibility(
+export function handleProjectVisibility(
   allowedProjects: ProjectValue[],
   options: { excludeAllContent?: boolean } = {},
 ) {
   const { excludeAllContent = false } = options
 
-  return ({ user }: { user?: any }) => {
+  return ({ user }: { user?: AdminUser }) => {
     // Get current project from user
     const currentProject = user?.currentProject as ProjectValue | undefined
 
@@ -49,6 +60,6 @@ export function createProjectVisibility(
  *   hidden: adminOnlyVisibility
  * }
  */
-export const adminOnlyVisibility = ({ user }: { user?: any }) => {
-  return !user?.admin
+export const adminOnlyVisibility = ({ user }: { user?: AdminUser }) => {
+  return user?.admin !== true
 }

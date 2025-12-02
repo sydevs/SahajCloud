@@ -321,12 +321,12 @@ The system supports four project contexts defined in `src/lib/projects.ts`:
 
 **Location**: `src/lib/projectVisibility.ts`
 
-##### createProjectVisibility()
+##### handleProjectVisibility()
 
 Creates dynamic `admin.hidden` functions for collections and globals based on project visibility rules:
 
 ```typescript
-createProjectVisibility(
+handleProjectVisibility(
   allowedProjects: ProjectValue[],
   options?: { excludeAllContent?: boolean }
 )
@@ -340,17 +340,17 @@ createProjectVisibility(
 ```typescript
 // Visible only in Web project
 admin: {
-  hidden: createProjectVisibility(['wemeditate-web'])
+  hidden: handleProjectVisibility(['wemeditate-web'])
 }
 
 // Visible in Web + App, but excluded from all-content mode
 admin: {
-  hidden: createProjectVisibility(['wemeditate-web', 'wemeditate-app'], { excludeAllContent: true })
+  hidden: handleProjectVisibility(['wemeditate-web', 'wemeditate-app'], { excludeAllContent: true })
 }
 
 // Completely hidden (alternative to `hidden: true`)
 admin: {
-  hidden: createProjectVisibility([])
+  hidden: handleProjectVisibility([])
 }
 ```
 
@@ -415,7 +415,7 @@ admin: {
 #### Implementation Details
 
 **Collection Configuration**:
-Collections use `createProjectVisibility()` in their admin config:
+Collections use `handleProjectVisibility()` in their admin config:
 
 ```typescript
 export const ExternalVideos: CollectionConfig = {
@@ -423,7 +423,7 @@ export const ExternalVideos: CollectionConfig = {
   access: roleBasedAccess('external-videos'),
   admin: {
     group: 'Resources',
-    hidden: createProjectVisibility(['wemeditate-web', 'wemeditate-app']),
+    hidden: handleProjectVisibility(['wemeditate-web', 'wemeditate-app']),
   },
   // ... fields
 }
@@ -437,7 +437,7 @@ export const WeMeditateWebSettings: GlobalConfig = {
   slug: 'we-meditate-web-settings',
   admin: {
     group: 'System',
-    hidden: createProjectVisibility(['wemeditate-web'], { excludeAllContent: true }),
+    hidden: handleProjectVisibility(['wemeditate-web'], { excludeAllContent: true }),
   },
   // ... fields
 }
