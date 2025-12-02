@@ -5,29 +5,22 @@ import { getProjectLabel } from '@/lib/projects'
 
 import Icon from './Icon'
 
-const LOGO_SIZE = 64 // Larger logo size for stacked layout
+const LOGO_SIZE = 48 // Standardized logo size
 
 /**
- * Stacked Logo component for Payload admin panel
- * Displays project-specific logo with title centered below
+ * Inline Logo component for Payload admin panel
+ * Displays project-specific logo with title horizontally on login/signup pages
  */
-const Logo = () => {
+const InlineLogo = () => {
   const { currentProject } = useProject()
   const projectLabel = getProjectLabel(currentProject)
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '16px',
-      }}
-    >
-      <Icon size={LOGO_SIZE} alt={projectLabel} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <Icon size={LOGO_SIZE} alt={projectLabel} style={{ borderRadius: '25%' }} />
       <span
         style={{
-          fontSize: '20px',
+          fontSize: '18px',
           fontWeight: 'bold',
           color: 'var(--theme-elevation-800)',
         }}
@@ -38,4 +31,4 @@ const Logo = () => {
   )
 }
 
-export default Logo
+export default InlineLogo
