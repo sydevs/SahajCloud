@@ -5,6 +5,7 @@ import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
+import { createProjectVisibility } from '@/lib/projectVisibility'
 
 
 export const Music: CollectionConfig = {
@@ -20,6 +21,7 @@ export const Music: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'duration', 'tags'],
+    hidden: createProjectVisibility(['wemeditate-web', 'wemeditate-app']),
   },
   hooks: {
     beforeOperation: [sanitizeFilename],
