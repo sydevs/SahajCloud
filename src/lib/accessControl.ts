@@ -50,8 +50,17 @@ function extractRoleSlugs(
     return Array.isArray(roles) ? roles : []
   }
 
-  // Managers: roles is localized - object with locale keys containing string arrays
-  if (locale && !Array.isArray(roles) && roles[locale]) {
+  // Managers: roles can be either:
+  // 1. Localized object: { en: ['translator'], cs: ['meditations-editor'] }
+  // 2. Flat array: ['translator', 'meditations-editor'] (for tests or non-localized contexts)
+
+  // Handle flat array (non-localized)
+  if (Array.isArray(roles)) {
+    return roles
+  }
+
+  // Handle localized object
+  if (locale && roles[locale]) {
     const localeRoles = roles[locale]
     return Array.isArray(localeRoles) ? localeRoles : []
   }

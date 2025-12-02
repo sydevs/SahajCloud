@@ -19,6 +19,7 @@ import type {
   Lesson,
   FileAttachment,
 } from '@/payload-types'
+import type { ManagerRole, ClientRole } from '@/types/roles'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -164,7 +165,7 @@ export const testData = {
   async createMeditation(
     payload: Payload,
     deps?: { narrator?: number; thumbnail?: number },
-    overrides: any = {},
+    overrides: Partial<Meditation> = {},
     sampleFile = 'audio-42s.mp3',
   ): Promise<Meditation> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
@@ -198,7 +199,7 @@ export const testData = {
       data: {
         label: overrides.label || overrides.title || 'Test Meditation with Audio',
         title: overrides.title || 'Test Meditation with Audio',
-        duration: overrides.duration || 15,
+        durationMinutes: overrides.durationMinutes || 15,
         thumbnail: thumbnail,
         narrator: narrator,
         tags: overrides.tags || [],
@@ -314,23 +315,20 @@ export const testData = {
   async createManager(
     payload: Payload,
     overrides: Partial<Omit<Manager, 'roles'>> & {
-      roles?:
-        | ('meditations-editor' | 'path-editor' | 'translator')[]
-        | { en?: string[]; cs?: string[] }
-        | null
+      roles?: ManagerRole[] | { en?: string[]; cs?: string[] } | null
     } = {},
   ) {
     const testEmail = `test_${Date.now()}_${Math.random().toString(36).substring(7)}`
 
     // Handle roles field - when creating with locale='en', pass array directly
-    let rolesData: any = [] // Default: empty roles array (will be localized by Payload)
+    let rolesData: ManagerRole[] = [] // Default: empty roles array (will be localized by Payload)
     if (overrides.roles) {
       if (Array.isArray(overrides.roles)) {
         // Simple array - Payload will localize it for the specified locale
         rolesData = overrides.roles
       } else {
         // Localized object - extract English roles for locale='en' create
-        rolesData = overrides.roles.en || []
+        rolesData = (overrides.roles.en || []) as ManagerRole[]
       }
     }
 
@@ -454,6 +452,7 @@ export const testData = {
     ]
 
     // Add blockType to panels if missing
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const formattedPanels = panelsData.map((panel: any) => {
       if (!panel.blockType) {
         // Default to text block if it has title/text/image fields
@@ -468,6 +467,7 @@ export const testData = {
       return panel
     })
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lessonData: any = {
       title: overrides.title || 'Test Lesson',
       unit: overrides.unit || 'Unit 1',
@@ -513,7 +513,7 @@ export const testData = {
    */
   dummyUser(collection: 'managers' | 'clients', overrides: Partial<Manager | Client> = {}) {
     // Handle roles field based on collection type
-    let defaultRoles: any
+    let defaultRoles: ManagerRole[] | ClientRole[] | { en: string[] }
     if (collection === 'managers') {
       // Managers have localized roles
       defaultRoles = overrides.roles || { en: [] }

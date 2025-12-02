@@ -41,7 +41,6 @@ describe('Meditations Collection', () => {
       },
       {
         title: 'Morning Meditation',
-        isPublished: false,
         tags: [testTag1.id, testTag2.id],
         musicTag: testMusicTag.id,
       },
@@ -101,6 +100,7 @@ describe('Meditations Collection', () => {
           thumbnail: testImageMedia.id,
           narrator: testNarrator.id,
           locale: 'en',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
       }),
     ).rejects.toThrow()
