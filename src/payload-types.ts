@@ -791,7 +791,7 @@ export interface Manager {
   /**
    * Your currently selected project focus
    */
-  currentProject: 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas';
+  currentProject: 'all-content' | 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas';
   /**
    * Grant full administrative access to all collections and features. When enabled, role-based permissions are bypassed.
    */

@@ -22,9 +22,9 @@ export const Pages: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'publishAt'],
     hidden: ({ user }) => {
-      // Only show Pages collection in WeMeditate Web project
+      // Show Pages collection in WeMeditate Web project or All Projects mode
       const currentProject = user?.currentProject
-      return currentProject !== 'wemeditate-web'
+      return currentProject !== 'wemeditate-web' && currentProject !== 'all-content'
     },
     livePreview: {
       url: ({ data, locale }) => {
