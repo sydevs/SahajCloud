@@ -22,6 +22,11 @@ For full documentation, see: https://github.com/sydevs/claude-plugins
 
 ## Overall instructions
 - Always ask me before editing, creating, or closing a GitHub issue or PR
+- When continuing from a previous session:
+  - Explicitly state what was previously decided/approved
+  - Confirm understanding of the continuation context
+  - If a conversation summary is provided, acknowledge key decisions from it
+  - Proceed with implementation only if continuation intent is clear
 - When researching or fetching documentation, prefer specialized MCP tools over generic tools:
   - Use `mcp__plugin_sydevs-web_cloudflare-docs__search_cloudflare_documentation` for Cloudflare documentation (not WebFetch)
   - Use Sentry MCP tools for Sentry-related queries (not WebFetch)
@@ -134,6 +139,44 @@ The application uses **Wrangler Environments** to manage different configuration
 After making changes to the codebase, always lint the code and fix all Typescript errors.
 
 If necessary, you should also run `pnpm run generate:types`
+
+### Type Organization Best Practices
+
+**When to Create Separate Type Files** (`src/types/`):
+- Complex type hierarchies with 3+ related types
+- Types used across multiple implementation files
+- Types that form a cohesive domain (e.g., roles, users, permissions)
+- Shared interfaces between frontend and backend code
+
+**When to Keep Types Inline**:
+- Simple one-off types used in a single file
+- Component-specific prop types
+- Internal helper types not exported
+- Types tightly coupled to a specific implementation
+
+**Type File Naming**:
+- Use descriptive singular or plural names: `roles.ts`, `permissions.ts`, `users.ts`
+- Avoid generic names like `types.ts` or `interfaces.ts`
+- Group related types in the same file
+
+**Type Organization Pattern**:
+```
+src/types/
+├── [domain].ts  # Domain-specific types (e.g., roles.ts, users.ts)
+├── [shared].ts  # Cross-cutting types (e.g., api.ts, common.ts)
+└── index.ts     # Optional: Re-export all types
+```
+
+**Import Order for Types**:
+1. External package types (from 'payload', 'react', etc.)
+2. Internal type imports from `@/types/`
+3. Internal type imports from other `@/` paths
+4. Relative type imports
+
+**Separation of Types from Data**:
+- Type definitions go in `src/types/`
+- Data/constants remain in implementation files
+- Example: Role TYPES in `src/types/roles.ts`, role DATA (MANAGER_ROLES) in `src/fields/PermissionsField.ts`
 
 ## Architecture Overview
 
@@ -1386,6 +1429,205 @@ src/types/
 - [tests/int/role-based-access.int.spec.ts](tests/int/role-based-access.int.spec.ts) - Comprehensive RBAC integration tests
 - [tests/int/managers.int.spec.ts](tests/int/managers.int.spec.ts) - Manager collection tests with admin boolean
 - [tests/utils/testData.ts](tests/utils/testData.ts) - Test helpers for creating managers and clients with roles
+
+## Common Code Patterns
+
+This section documents recurring patterns and best practices for common development tasks in this codebase.
+
+### Type Refactoring Pattern
+
+When refactoring types into separate files, follow this systematic approach:
+
+1. **Analysis**:
+   - Identify types to extract and their dependencies
+   - Check for circular dependencies
+   - Determine which types should move vs. which should stay
+
+2. **Create Type Files**:
+   - Create new files in `src/types/` with descriptive names
+   - Add JSDoc comments explaining the purpose
+   - Group related types together
+
+3. **Move Types**:
+   - Move type definitions only (interfaces, types, enums)
+   - Keep data/constants in original implementation files
+   - Preserve all documentation and comments
+
+4. **Update Imports**:
+   - Update all files importing the types
+   - Follow proper import order (external → @/types → @/lib → relative)
+   - Remove unused imports
+
+5. **Type Casting**:
+   - Add necessary type assertions for complex union types
+   - Use `as` assertions where TypeScript can't infer types
+   - Document why casting is needed with inline comments
+
+6. **Test**:
+   - Run `npx tsc --noEmit` to check TypeScript errors
+   - Run `pnpm lint` to catch linting issues
+   - Run `pnpm test:int` to verify all tests pass
+
+7. **Document**:
+   - Update CLAUDE.md if establishing new patterns
+   - Add Architecture Decision Record if significant
+   - Update JSDoc comments in affected files
+
+**Example**:
+```typescript
+// Before: Types mixed with implementation
+export type ManagerRole = 'editor' | 'translator'
+export const MANAGER_ROLES = { ... }
+
+// After: Types separated
+// src/types/roles.ts
+export type ManagerRole = 'editor' | 'translator'
+
+// src/fields/PermissionsField.ts
+import type { ManagerRole } from '@/types/roles'
+export const MANAGER_ROLES = { ... }
+```
+
+### Permission Checking Pattern
+
+When implementing or modifying permission checks, follow these guidelines:
+
+**For Collection-Level Access**:
+```typescript
+import { roleBasedAccess } from '@/lib/accessControl'
+
+export const MyCollection: CollectionConfig = {
+  slug: 'my-collection',
+  access: roleBasedAccess('my-collection'),
+  // ... fields
+}
+```
+
+**For Operation-Specific Checks**:
+```typescript
+import { hasPermission } from '@/lib/accessControl'
+
+const canUpdate = hasPermission({
+  user,
+  collection: 'meditations',
+  operation: 'update',
+  locale: req.locale,
+})
+```
+
+**For Field-Level Access**:
+```typescript
+import { createFieldAccess } from '@/lib/accessControl'
+
+fields: [
+  {
+    name: 'title',
+    type: 'text',
+    localized: true,
+    access: createFieldAccess('pages', true), // second param: localized
+  }
+]
+```
+
+**Key Considerations**:
+- Remember implicit read access for managers (any role grants read to non-restricted collections)
+- Use locale-aware permissions for managers (checks `req.locale`)
+- Consider document-level permissions via `customResourceAccess`
+- API clients never get delete access, even with manage-level permissions
+- Restricted collections (managers, clients, payload-jobs) are admin-only
+
+### Access Control Implementation Pattern
+
+When adding new roles or modifying permissions:
+
+1. **Define Role** in `MANAGER_ROLES` or `CLIENT_ROLES` (src/fields/PermissionsField.ts):
+```typescript
+export const MANAGER_ROLES: Record<ManagerRole, ManagerRoleConfig> = {
+  'my-new-role': {
+    slug: 'my-new-role',
+    label: 'My New Role',
+    description: 'Can do specific things',
+    project: 'wemeditate-web', // for manager roles only
+    permissions: {
+      'my-collection': ['read', 'create', 'update'],
+      'media': ['read', 'create'],
+    },
+  },
+}
+```
+
+2. **Update Collection Config** with `roleBasedAccess()`:
+```typescript
+export const MyCollection: CollectionConfig = {
+  slug: 'my-collection',
+  access: roleBasedAccess('my-collection'),
+  // ... rest of config
+}
+```
+
+3. **Test with Different User Roles**:
+```typescript
+// Create test manager with role
+const manager = await testData.createManager(payload, {
+  roles: ['my-new-role']
+})
+
+// Verify permissions
+const canCreate = hasPermission({
+  user: manager,
+  collection: 'my-collection',
+  operation: 'create'
+})
+expect(canCreate).toBe(true)
+```
+
+4. **Document Role Capabilities** in CLAUDE.md under Role-Based Access Control section
+
+5. **Update Project Visibility** if role is project-specific:
+```typescript
+admin: {
+  hidden: handleProjectVisibility(['wemeditate-web']),
+}
+```
+
+### TodoWrite Usage Pattern
+
+For complex refactoring or multi-step tasks, use TodoWrite to track progress:
+
+**Granular Task Breakdown**:
+```typescript
+TodoWrite({
+  todos: [
+    {
+      content: "Create src/types/roles.ts with ManagerRole and ClientRole",
+      status: "in_progress",
+      activeForm: "Creating roles.ts"
+    },
+    {
+      content: "Update imports in PermissionsField.ts to use @/types/roles",
+      status: "pending",
+      activeForm: "Updating PermissionsField.ts"
+    },
+    {
+      content: "Replace MergedPermissions with correct type in accessControl.ts",
+      status: "pending",
+      activeForm: "Updating accessControl.ts"
+    },
+    {
+      content: "Run TypeScript check and fix errors",
+      status: "pending",
+      activeForm: "Running TypeScript check"
+    },
+  ]
+})
+```
+
+**Best Practices**:
+- Break down complex tasks into specific, actionable items
+- Mark tasks completed immediately after finishing (don't batch)
+- Use descriptive activeForm for current work visibility
+- Include file names and specific changes in task descriptions
+- Limit to ONE in_progress task at a time
 
 ## Development Workflow
 
