@@ -66,7 +66,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         ],
         beforeNavLinks: ['@/components/admin/ProjectSelector'],
         graphics: {
-          Logo: '@/components/branding/Icon',
+          Logo: '@/components/branding/Logo',
           Icon: '@/components/branding/Icon',
         },
       },

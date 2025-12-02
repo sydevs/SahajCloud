@@ -75,8 +75,7 @@ export const Managers: CollectionConfig = {
       defaultValue: DEFAULT_PROJECT,
       options: getProjectOptions(),
       admin: {
-        position: 'sidebar',
-        description: 'Your currently selected project focus',
+        hidden: true,
       },
     },
     ...ManagerPermissionsField(),
