@@ -63,6 +63,10 @@ main = ".next/standalone/server.js"
 workers_dev = true
 preview_urls = true
 
+# Sentry version tracking
+[env.dev.version_metadata]
+binding = "CF_VERSION_METADATA"
+
 # D1 Database Binding (local development uses SQLite file)
 [[env.dev.d1_databases]]
 binding = "D1"
@@ -81,4 +85,4 @@ NODE_ENV = "development"
 SAHAJCLOUD_URL = "http://localhost:3000"
 WEMEDITATE_WEB_URL = "http://localhost:5173"
 SAHAJATLAS_URL = "http://localhost:5174"
-# PUBLIC_ASSETS_URL omitted - falls back to local file storage in development
+PUBLIC_ASSETS_URL = "localhost"
