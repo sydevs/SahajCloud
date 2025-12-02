@@ -434,7 +434,6 @@ describe('Role-Based Access Control', () => {
         collection: 'pages',
         data: {
           title: 'Test Page',
-          category: 'knowledge',
           content: {
             root: {
               type: 'root',
@@ -500,7 +499,6 @@ describe('Role-Based Access Control', () => {
         collection: 'pages',
         data: {
           title: 'Another Test Page',
-          category: 'knowledge',
           content: {
             root: {
               type: 'root',
@@ -704,9 +702,7 @@ describe('Role-Based Access Control', () => {
     it('handles concurrent permission checks without race conditions', async () => {
       const managerUser = testData.dummyUser('managers', {
         id: 17,
-        roles: {
-          en: ['meditations-editor', 'translator'],
-        },
+        roles: ['meditations-editor', 'translator'],
         permissions: undefined, // Let permissions be computed dynamically
       })
 

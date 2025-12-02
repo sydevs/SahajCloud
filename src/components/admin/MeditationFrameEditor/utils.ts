@@ -85,7 +85,10 @@ export const isVideoFile = (mimeType?: string | null): boolean => {
 }
 
 export const getMediaUrl = (
-  frame: Partial<Frame>,
+  frame:
+    | KeyframeData
+    | Partial<Frame>
+    | (Omit<KeyframeData, 'timestamp'> & Partial<Pick<KeyframeData, 'timestamp'>>),
   size: 'small' | 'large' = 'small',
 ): string | undefined => {
   return frame?.sizes?.[size]?.url || frame?.url || undefined
