@@ -16,16 +16,12 @@
     "generate:importmap": "cross-env NODE_OPTIONS=--no-deprecation payload generate:importmap",
     "generate:types": "cross-env NODE_OPTIONS=--no-deprecation payload generate:types && wrangler types",
     "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",
-    "deploy:dev": "wrangler deploy --config wrangler.dev.toml",
     "deploy:prod": "pnpm run deploy:database && pnpm run deploy:app",
     "deploy:database": "cross-env NODE_ENV=production PAYLOAD_SECRET=ignore payload migrate && wrangler d1 execute sahajcloud --command 'PRAGMA optimize' --remote",
     "deploy:app": "wrangler deploy",
     "db:create": "wrangler d1 create",
     "db:migrations:create": "cross-env NODE_OPTIONS=--no-deprecation payload migrate:create",
-    "db:migrations:apply": "wrangler d1 migrations apply",
-    "db:studio": "wrangler d1 execute sahajcloud --command '.schema' --remote",
-    "wrangler:login": "wrangler login",
-    "wrangler:whoami": "wrangler whoami"
+    "db:schema": "wrangler d1 execute sahajcloud --command '.schema' --remote"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.919.0",
