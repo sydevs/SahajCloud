@@ -5,19 +5,20 @@
 
 export const PROJECTS = [
   {
+    value: 'all-content',
+    label: 'All Content',
+  },
+  {
     value: 'wemeditate-web',
     label: 'WeMeditate Web',
-    icon: '🌐',
   },
   {
     value: 'wemeditate-app',
     label: 'WeMeditate App',
-    icon: '📱',
   },
   {
     value: 'sahaj-atlas',
     label: 'Sahaj Atlas',
-    icon: '🗺️',
   },
 ] as const
 
@@ -29,7 +30,7 @@ export type ProjectValue = (typeof PROJECTS)[number]['value']
 /**
  * Default project for the application
  */
-export const DEFAULT_PROJECT: ProjectValue = 'wemeditate-web'
+export const DEFAULT_PROJECT: ProjectValue = 'all-content'
 
 /**
  * Get project label by value
@@ -37,14 +38,6 @@ export const DEFAULT_PROJECT: ProjectValue = 'wemeditate-web'
 export function getProjectLabel(value: ProjectValue): string {
   const project = PROJECTS.find((p) => p.value === value)
   return project?.label || value
-}
-
-/**
- * Get project icon by value
- */
-export function getProjectIcon(value: ProjectValue): string {
-  const project = PROJECTS.find((p) => p.value === value)
-  return project?.icon || '📦'
 }
 
 /**

@@ -1,8 +1,10 @@
 'use client'
+
 import type { ReactNode } from 'react'
 
 import { ProjectProvider } from '@/contexts/ProjectContext'
 
+import ProjectTheme from './admin/ProjectTheme'
 import ErrorBoundary from './ErrorBoundary'
 
 interface AdminProviderProps {
@@ -82,7 +84,10 @@ const AdminErrorFallback = ({ error, reset }: { error: Error; reset: () => void 
 const AdminProvider = ({ children }: AdminProviderProps) => {
   return (
     <ErrorBoundary fallback={AdminErrorFallback}>
-      <ProjectProvider>{children}</ProjectProvider>
+      <ProjectProvider>
+        <ProjectTheme />
+        {children}
+      </ProjectProvider>
     </ErrorBoundary>
   )
 }

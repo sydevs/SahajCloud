@@ -1,17 +1,39 @@
 'use client'
-import { useState } from 'react'
 
-import { useAuth } from '@payloadcms/ui'
+import { ReactSelect, useAuth, useRouteTransition } from '@payloadcms/ui'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 import { useProject } from '@/contexts/ProjectContext'
 import { PROJECTS, ProjectValue } from '@/lib/projects'
 
+// Define Option type for ReactSelect
+interface SelectOption {
+  value: string
+  label: string
+  [key: string]: string // Index signature required by ReactSelect
+}
+
+// Convert PROJECTS to SelectOption format for ReactSelect (label only)
+const projectOptions: SelectOption[] = PROJECTS.map((project) => ({
+  value: project.value,
+  label: project.label,
+}))
+
 const ProjectSelector = () => {
   const { currentProject, setCurrentProject } = useProject()
   const { user } = useAuth()
+  const { startRouteTransition } = useRouteTransition()
+  const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
 
-  const handleProjectChange = async (newProject: string) => {
+  const handleProjectChange = async (option: unknown) => {
+    // Handle single option (not multi-select)
+    if (Array.isArray(option)) return
+
+    const selectedOption = option as SelectOption
+    const newProject = selectedOption.value
+
     setIsSaving(true)
     try {
       // Update manager profile
@@ -25,21 +47,26 @@ const ProjectSelector = () => {
       // Update local state
       setCurrentProject(newProject as ProjectValue)
 
-      // Reload to update sidebar visibility
-      window.location.reload()
+      // Trigger server component refresh (faster than full reload)
+      startRouteTransition(() => router.refresh())
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Failed to update project:', error)
     } finally {
       setIsSaving(false)
     }
   }
 
+  // Find the current option
+  const selectedOption = projectOptions.find((opt) => opt.value === currentProject)
+
   return (
     <div
       style={{
-        padding: '16px',
+        paddingBottom: '16px',
         borderBottom: '1px solid var(--theme-elevation-100)',
         marginBottom: '8px',
+        width: '100%',
       }}
     >
       <label
@@ -53,27 +80,15 @@ const ProjectSelector = () => {
       >
         Current Project
       </label>
-      <select
-        value={currentProject}
-        onChange={(e) => handleProjectChange(e.target.value)}
+      <ReactSelect
+        options={projectOptions}
+        value={selectedOption}
+        onChange={handleProjectChange}
         disabled={isSaving}
-        style={{
-          width: '100%',
-          padding: '8px 12px',
-          fontSize: '14px',
-          border: '1px solid var(--theme-elevation-150)',
-          borderRadius: '4px',
-          backgroundColor: 'var(--theme-elevation-0)',
-          color: 'var(--theme-elevation-800)',
-          cursor: 'pointer',
-        }}
-      >
-        {PROJECTS.map((project) => (
-          <option key={project.value} value={project.value}>
-            {project.icon} {project.label}
-          </option>
-        ))}
-      </select>
+        isClearable={false}
+        isSearchable={false}
+        className="project-selector"
+      />
     </div>
   )
 }
