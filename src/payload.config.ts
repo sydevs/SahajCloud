@@ -70,6 +70,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           Logo: '@/components/branding/Logo',
           Icon: '@/components/branding/Icon',
         },
+        views: {
+          dashboard: {
+            Component: '@/components/admin/Dashboard',
+          },
+        },
       },
       // Disable admin UI in test environment
       disable: isTestEnvironment,
