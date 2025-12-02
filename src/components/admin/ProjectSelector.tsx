@@ -47,8 +47,8 @@ const ProjectSelector = () => {
       // Update local state
       setCurrentProject(newProject as ProjectValue)
 
-      // Trigger server component refresh (faster than full reload)
-      startRouteTransition(() => router.refresh())
+      // Redirect to admin root to avoid viewing hidden collections
+      startRouteTransition(() => router.push('/admin'))
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Failed to update project:', error)
