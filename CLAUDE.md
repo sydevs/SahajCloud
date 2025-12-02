@@ -494,29 +494,30 @@ All scripts follow consistent patterns: resilient error handling, comprehensive 
 
 ### Project-Focused Navigation
 
-The CMS implements project-focused navigation to manage content for three distinct projects (WeMeditate Web, WeMeditate App, Sahaj Atlas). The system dynamically filters sidebar collections based on the currently selected project.
+The CMS implements project-focused navigation to manage content for four distinct projects (All Content, WeMeditate Web, WeMeditate App, Sahaj Atlas). The system dynamically filters sidebar collections based on the currently selected project.
 
 #### Projects Configuration
-- **File**: `src/lib/projects.ts` - Centralized configuration (single source of truth)
+- **File**: [src/lib/projects.ts](src/lib/projects.ts) - Centralized configuration (single source of truth)
 - **Projects**:
-  - `wemeditate-web` (🌐 WeMeditate Web) - Web application content
-  - `wemeditate-app` (📱 WeMeditate App) - Mobile application content
-  - `sahaj-atlas` (🗺️ Sahaj Atlas) - Atlas application content
-- **Default Project**: `wemeditate-web`
-- **Helper Functions**: `getProjectLabel()`, `getProjectIcon()`, `getProjectOptions()`, `isValidProject()`
+  - `all-content` (All Content) - Access to all content across projects
+  - `wemeditate-web` (WeMeditate Web) - Web application content
+  - `wemeditate-app` (WeMeditate App) - Mobile application content
+  - `sahaj-atlas` (Sahaj Atlas) - Atlas application content
+- **Default Project**: `all-content`
+- **Helper Functions**: `getProjectLabel()`, `getProjectOptions()`, `isValidProject()`
 
 #### Manager Profile
-- **Field**: `currentProject` in Managers collection ([src/collections/access/Managers.ts](src/collections/access/Managers.ts:71-81))
+- **Field**: `currentProject` in Managers collection ([src/collections/access/Managers.ts](src/collections/access/Managers.ts))
 - **Type**: Select field with project options
 - **Position**: Sidebar
-- **Default**: DEFAULT_PROJECT ('wemeditate-web')
+- **Default**: DEFAULT_PROJECT ('all-content')
 - **Purpose**: Stores user's currently selected project preference
 
 #### ProjectSelector Component
-- **File**: `src/components/admin/ProjectSelector.tsx`
+- **File**: [src/components/admin/ProjectSelector.tsx](src/components/admin/ProjectSelector.tsx)
 - **Location**: Rendered in `beforeNavLinks` (top of sidebar navigation)
 - **Features**:
-  - Dropdown showing all three projects with icons
+  - Dropdown showing all four projects
   - Updates manager profile on project change via API
   - Automatically reloads page to update sidebar visibility
   - Uses Payload's theme CSS variables for consistent styling
@@ -533,34 +534,34 @@ The CMS implements project-focused navigation to manage content for three distin
 Collections use `admin.hidden` functions to control visibility based on `user.currentProject`:
 
 **Collection Visibility Map:**
-| Collection | WeMeditate Web | WeMeditate App | Sahaj Atlas |
-|------------|----------------|----------------|-------------|
-| **Content** ||||
-| Pages | ✓ | ✗ | ✗ |
-| Meditations | ✓ | ✓ | ✗ |
-| Music | ✓ | ✓ | ✗ |
-| Lessons | ✗ | ✓ | ✗ |
-| **Resources** ||||
-| Media | ✓ | ✓ | ✓ |
-| ExternalVideos | ✓ | ✓ | ✓ |
-| Frames | ✗ | ✓ | ✗ |
-| Narrators | ✓ | ✓ | ✗ |
-| Authors | ✓ | ✗ | ✗ |
-| FileAttachments | ✓ | ✓ | ✓ |
-| **Tags** ||||
-| PageTags | ✓ | ✗ | ✗ |
-| MeditationTags | ✓ | ✓ | ✗ |
-| MusicTags | ✓ | ✓ | ✗ |
-| MediaTags | ✓ | ✓ | ✓ |
-| **System/Access** ||||
-| All Others | ✓ | ✓ | ✓ |
+| Collection | All Content | WeMeditate Web | WeMeditate App | Sahaj Atlas |
+|------------|-------------|----------------|----------------|-------------|
+| **Content** |||||
+| Pages | ✓ | ✓ | ✗ | ✗ |
+| Meditations | ✓ | ✓ | ✓ | ✗ |
+| Music | ✓ | ✓ | ✓ | ✗ |
+| Lessons | ✓ | ✗ | ✓ | ✗ |
+| **Resources** |||||
+| Media | ✓ | ✓ | ✓ | ✓ |
+| ExternalVideos | ✓ | ✓ | ✓ | ✓ |
+| Frames | ✓ | ✗ | ✓ | ✗ |
+| Narrators | ✓ | ✓ | ✓ | ✗ |
+| Authors | ✓ | ✓ | ✗ | ✗ |
+| FileAttachments | ✓ | ✓ | ✓ | ✓ |
+| **Tags** |||||
+| PageTags | ✓ | ✓ | ✗ | ✗ |
+| MeditationTags | ✓ | ✓ | ✓ | ✗ |
+| MusicTags | ✓ | ✓ | ✓ | ✗ |
+| MediaTags | ✓ | ✓ | ✓ | ✓ |
+| **System/Access** |||||
+| All Others | ✓ | ✓ | ✓ | ✓ |
 
-**Example Implementation** ([src/collections/content/Pages.ts](src/collections/content/Pages.ts:24-28)):
+**Example Implementation** ([src/collections/content/Pages.ts](src/collections/content/Pages.ts)):
 ```typescript
 admin: {
   hidden: ({ user }) => {
     const currentProject = user?.currentProject
-    return currentProject !== 'wemeditate-web'
+    return currentProject !== 'wemeditate-web' && currentProject !== 'all-content'
   },
 }
 ```
@@ -576,17 +577,51 @@ admin: {
 - Add project-specific dashboard views as default landing pages
 - Enhanced UI with project-specific branding and colors
 
-### We Meditate Branding
+### Project-Based Branding System
 
-The application features custom branding for We Meditate throughout both the admin panel and public-facing pages.
+The application features a dynamic project-based branding system that adapts the admin panel appearance based on the currently selected project.
 
-#### Admin Panel Branding
-- **Logo Component** (`src/components/branding/Logo.tsx`) - We Meditate coral square logo displayed on login/signup pages using Next.js Image component
-- **Icon Component** (`src/components/branding/Icon.tsx`) - Lotus SVG icon in admin navigation with theme-adaptive coloring:
-  - Dark theme: white/light fill (#ffffff)
-  - Light theme: dark fill (#1a1a1a)
-  - Uses CSS with `[data-theme]` selectors for automatic theme adaptation
-- **Configuration** - Registered in `src/payload.config.ts` as path-based components in `admin.components.graphics`
+#### Supported Projects
+- **All Content** (`all-content`) - Default PayloadCMS theme with Sahaj Cloud lotus logo
+- **WeMeditate Web** (`wemeditate-web`) - Coral/salmon theme with We Meditate web logo
+- **WeMeditate App** (`wemeditate-app`) - Teal theme with We Meditate app logo
+- **Sahaj Atlas** (`sahaj-atlas`) - Royal blue/indigo theme with Sahaj Atlas logo
+
+#### Admin Panel Branding Components
+
+**Icon Component** ([src/components/branding/Icon.tsx](src/components/branding/Icon.tsx)):
+- Dynamic project-specific icon rendering
+- Uses Next.js Image component with project-based logo mapping
+- Accepts `size` (default: 30px), `alt`, and `style` props
+- Logo sources from `/public/images/`:
+  - `sahaj-cloud.svg` (all-content)
+  - `wemeditate-web.svg` (wemeditate-web)
+  - `wemeditate-app.svg` (wemeditate-app)
+  - `sahaj-atlas.webp` (sahaj-atlas)
+
+**Logo Component** ([src/components/branding/Logo.tsx](src/components/branding/Logo.tsx)):
+- Stacked vertical layout for login/signup pages
+- Icon centered above project label
+- Size: 64px with bold text using `--theme-elevation-800` color variable
+- Registered in `payload.config.ts` as `graphics.Logo`
+
+**InlineLogo Component** ([src/components/branding/InlineLogo.tsx](src/components/branding/InlineLogo.tsx)):
+- Horizontal layout for admin navigation
+- Icon beside project label with 25% border radius
+- Size: 48px with bold text using `--theme-elevation-800` color variable
+- Registered in `payload.config.ts` as `graphics.Icon`
+
+**ProjectTheme Component** ([src/components/admin/ProjectTheme.tsx](src/components/admin/ProjectTheme.tsx)):
+- Dynamically applies project-specific theme colors via CSS variables
+- Injects `--theme-elevation-*` variables (0-1000) for light and dark modes
+- Automatically updates on project switch or theme mode change
+- Uses MutationObserver to detect dark/light mode toggles
+- Theme definitions embedded in component with coral (wemeditate-web), teal (wemeditate-app), and royal blue (sahaj-atlas) palettes
+
+**Configuration**:
+- Branding components registered in [src/payload.config.ts](src/payload.config.ts) under `admin.components.graphics`
+- Logo images stored in `/public/images/` for Cloudflare CDN optimization
+- ProjectTheme mounted in AdminProvider for global theme application
 
 #### Frontend Splash Page
 - **Location**: `src/app/(frontend)/page.tsx`
