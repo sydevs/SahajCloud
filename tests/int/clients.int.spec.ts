@@ -53,13 +53,13 @@ describe('Clients Collection', () => {
 
       // Check managers - may be populated objects or IDs
       const managerIds = Array.isArray(client.managers)
-        ? client.managers.map((m) => (typeof m === 'string' ? m : m.id))
+        ? client.managers.map((m) => (typeof m === 'number' ? m : m.id))
         : []
       expect(managerIds).toContain(testUser.id)
 
       // Check primary contact - may be populated object or ID
       const primaryContactId =
-        typeof client.primaryContact === 'string'
+        typeof client.primaryContact === 'number'
           ? client.primaryContact
           : client.primaryContact?.id
       expect(primaryContactId).toBe(testUser.id)
@@ -79,13 +79,13 @@ describe('Clients Collection', () => {
 
       // Primary contact should be automatically added to managers
       const managerIds = Array.isArray(client.managers)
-        ? client.managers.map((m) => (typeof m === 'string' ? m : m.id))
+        ? client.managers.map((m) => (typeof m === 'number' ? m : m.id))
         : []
       expect(managerIds).toContain(testUser.id)
       expect(managerIds).toContain(testUser2.id)
 
       const primaryContactId =
-        typeof client.primaryContact === 'string'
+        typeof client.primaryContact === 'number'
           ? client.primaryContact
           : client.primaryContact?.id
       expect(primaryContactId).toBe(testUser2.id)
@@ -177,13 +177,13 @@ describe('Clients Collection', () => {
       })
 
       const primaryContactId =
-        typeof client.primaryContact === 'string'
+        typeof client.primaryContact === 'number'
           ? client.primaryContact
           : client.primaryContact?.id
       expect(primaryContactId).toBe(testUser2.id)
 
       const managerIds = Array.isArray(client.managers)
-        ? client.managers.map((m) => (typeof m === 'string' ? m : m.id))
+        ? client.managers.map((m) => (typeof m === 'number' ? m : m.id))
         : []
       expect(managerIds).toContain(testUser2.id)
     })

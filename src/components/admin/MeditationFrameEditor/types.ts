@@ -6,7 +6,8 @@ export type KeyframeDefinition = {
 }
 
 // Types that are not defined in payload-types.ts
-export type KeyframeData = KeyframeDefinition & Partial<Frame>
+// Using Omit to exclude id from Frame and explicitly define it as number | string
+export type KeyframeData = Omit<Partial<Frame>, 'id'> & KeyframeDefinition
 
 export interface AudioPlayerState {
   isPlaying: boolean

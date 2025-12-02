@@ -52,7 +52,7 @@ export const testData = {
   ): Promise<Media> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
-    // Convert Buffer to Uint8Array for better compatibility with file-type library
+    // Convert Buffer to Uint8Array for compatibility with file-type library
     const fileData = new Uint8Array(fileBuffer)
 
     return (await payload.create({
@@ -62,7 +62,7 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileData,
+        data: fileData as unknown as Buffer,
         mimetype: `image/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
         size: fileData.length,
@@ -80,7 +80,7 @@ export const testData = {
   ): Promise<FileAttachment> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
-    // Convert Buffer to Uint8Array for better compatibility with file-type library
+    // Convert Buffer to Uint8Array for compatibility with file-type library
     const fileData = new Uint8Array(fileBuffer)
 
     return (await payload.create({
@@ -89,7 +89,7 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileData,
+        data: fileData as unknown as Buffer,
         mimetype: `image/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
         size: fileData.length,
@@ -163,13 +163,13 @@ export const testData = {
    */
   async createMeditation(
     payload: Payload,
-    deps?: { narrator?: string; thumbnail?: string },
+    deps?: { narrator?: number; thumbnail?: number },
     overrides: any = {},
     sampleFile = 'audio-42s.mp3',
   ): Promise<Meditation> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
-    // Convert Buffer to Uint8Array for better compatibility with file-type library
+    // Convert Buffer to Uint8Array for compatibility with file-type library
     const fileData = new Uint8Array(fileBuffer)
 
     // Create dependencies if not provided
@@ -206,7 +206,7 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileData,
+        data: fileData as unknown as Buffer,
         mimetype:
           path.extname(sampleFile).slice(1) === 'mp3'
             ? 'audio/mpeg'
@@ -227,7 +227,7 @@ export const testData = {
   ): Promise<Music> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
-    // Convert Buffer to Uint8Array for better compatibility with file-type library
+    // Convert Buffer to Uint8Array for compatibility with file-type library
     const fileData = new Uint8Array(fileBuffer)
 
     return (await payload.create({
@@ -238,7 +238,7 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileData,
+        data: fileData as unknown as Buffer,
         mimetype:
           path.extname(sampleFile).slice(1) === 'mp3'
             ? 'audio/mpeg'
@@ -259,7 +259,7 @@ export const testData = {
   ): Promise<Frame> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
-    // Convert Buffer to Uint8Array for better compatibility with file-type library
+    // Convert Buffer to Uint8Array for compatibility with file-type library
     const fileData = new Uint8Array(fileBuffer)
 
     // Get correct mimetype based on file extension
@@ -291,7 +291,7 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileData,
+        data: fileData as unknown as Buffer,
         mimetype: mimetype,
         name: sampleFile,
         size: fileData.length,
@@ -311,7 +311,15 @@ export const testData = {
    * // Create translator manager with localized object
    * await createManager(payload, { roles: { en: ['translator'], cs: ['translator'] } })
    */
-  async createManager(payload: Payload, overrides: Partial<Manager> = {}) {
+  async createManager(
+    payload: Payload,
+    overrides: Partial<Omit<Manager, 'roles'>> & {
+      roles?:
+        | ('meditations-editor' | 'path-editor' | 'translator')[]
+        | { en?: string[]; cs?: string[] }
+        | null
+    } = {},
+  ) {
     const testEmail = `test_${Date.now()}_${Math.random().toString(36).substring(7)}`
 
     // Handle roles field - when creating with locale='en', pass array directly
@@ -465,7 +473,7 @@ export const testData = {
       unit: overrides.unit || 'Unit 1',
       step: overrides.step || 1,
       panels: formattedPanels,
-      meditation: meditation as string,
+      meditation: typeof meditation === 'number' ? meditation : meditation?.id,
       introAudio: overrides.introAudio || undefined,
       introSubtitles: overrides.introSubtitles || undefined,
       article: overrides.article || undefined,

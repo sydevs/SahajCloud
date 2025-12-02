@@ -1,14 +1,12 @@
-import type { Operation, Payload, PayloadRequest } from 'payload'
+import type { Payload, PayloadRequest } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import type { Client, Music } from '@/payload-types'
+import type { Client } from '@/payload-types'
 
 import { testData } from 'tests/utils/testData'
 
 import { createTestEnvironment } from '../utils/testHelpers'
-
-const OPERATIONS = ['create', 'read', 'delete', 'update'] as Operation[]
 
 describe('API Authentication', () => {
   let payload: Payload
@@ -74,7 +72,7 @@ describe('API Authentication', () => {
         email: 'limited@test.com',
         password: 'password',
         admin: false,
-        roles: { en: ['translator'] }, // Only translator role
+        roles: ['translator'], // Only translator role
       })
 
       const limitedReq = {
@@ -82,7 +80,7 @@ describe('API Authentication', () => {
           id: limitedManager.id,
           collection: 'managers',
           admin: false,
-          roles: { en: ['translator'] },
+          roles: ['translator'],
           active: true,
         },
         payload,
