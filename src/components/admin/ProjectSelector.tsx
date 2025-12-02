@@ -63,17 +63,17 @@ const ProjectSelector = () => {
   return (
     <div
       style={{
-        paddingBottom: '16px',
+        paddingBottom: 'calc(var(--base) * 0.8)',
         borderBottom: '1px solid var(--theme-elevation-100)',
-        marginBottom: '8px',
+        marginBottom: 'var(--base)',
         width: '100%',
       }}
     >
       <label
         style={{
           display: 'block',
-          marginBottom: '8px',
-          fontSize: '13px',
+          marginBottom: 'calc(var(--base) * 0.4)',
+          fontSize: 'calc(var(--base-body-size) * 1px)',
           fontWeight: '600',
           color: 'var(--theme-elevation-600)',
         }}
@@ -87,7 +87,6 @@ const ProjectSelector = () => {
         disabled={isSaving}
         isClearable={false}
         isSearchable={false}
-        className="project-selector"
       />
     </div>
   )
