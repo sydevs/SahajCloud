@@ -71,9 +71,20 @@ export const Managers: CollectionConfig = {
     {
       name: 'currentProject',
       type: 'select',
-      options: getProjectOptions(),
+      options: [
+        { value: '', label: 'Sahaj Cloud' }, // Empty string represents admin view
+        ...getProjectOptions(),
+      ],
       admin: {
         hidden: true,
+      },
+      hooks: {
+        // Convert null to empty string when saving to database
+        beforeChange: [
+          ({ value }) => {
+            return value === '' ? null : value
+          },
+        ],
       },
     },
     ...ManagerPermissionsField(),

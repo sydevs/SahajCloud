@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react'
 
 import { useProject } from '@/contexts/ProjectContext'
 import { logger } from '@/lib/logger'
-import { ADMIN_PROJECT_LABEL, PROJECTS, ProjectSlug } from '@/lib/projects'
+import { PROJECTS, ProjectSlug } from '@/lib/projects'
 
 // Define Option type for ReactSelect
 interface SelectOption {
@@ -30,7 +30,7 @@ const ProjectSelector = () => {
     if (user?.type === 'admin') {
       options.push({
         value: null,
-        label: ADMIN_PROJECT_LABEL,
+        label: 'All Content',
       })
     }
 
