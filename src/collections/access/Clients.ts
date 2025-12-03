@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { ClientPermissionsField } from '@/fields/PermissionsField'
 import { validateClientData, checkHighUsageAlert } from '@/hooks/clientHooks'
-import { roleBasedAccess } from '@/lib/accessControl'
+import { adminOrSelfAccess } from '@/lib/accessControl'
 
 export const Clients: CollectionConfig = {
   slug: 'clients',
@@ -25,7 +25,7 @@ export const Clients: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'active'],
   },
-  access: roleBasedAccess('clients', { implicitRead: false }),
+  access: adminOrSelfAccess({ allowSelfUpdate: false }),
   fields: [
     {
       name: 'name',

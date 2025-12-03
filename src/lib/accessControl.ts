@@ -281,6 +281,67 @@ export const createLocaleFilter = (user: TypedUser | null, collection: string): 
 // ============================================================================
 
 /**
+ * Access control for auth collections where users can access their own records
+ *
+ * Grants admin users full access to all records, while regular users can only
+ * access their own record (where id equals req.user.id).
+ *
+ * @param options - Configuration options
+ * @param options.allowSelfUpdate - Whether users can update their own record (default: true)
+ * @param options.allowSelfCreate - Whether users can create new records (default: false, admin only)
+ * @returns Access control configuration
+ */
+export const adminOrSelfAccess = (
+  options: {
+    allowSelfUpdate?: boolean
+    allowSelfCreate?: boolean
+  } = {},
+): CollectionConfig['access'] => {
+  const { allowSelfUpdate = true, allowSelfCreate = false } = options
+
+  return {
+    // Admin users can read all records
+    // Regular users can only read their own record
+    read: ({ req: { user } }) => {
+      if (!user) return false
+      // Check if user is a manager with admin type
+      if (user.collection === 'managers' && (user as TypedManager).type === 'admin') return true
+      return {
+        id: {
+          equals: user.id,
+        },
+      }
+    },
+    // Admin users can update all records
+    // Regular users can update their own record if allowSelfUpdate is true
+    update: ({ req: { user } }) => {
+      if (!user) return false
+      // Check if user is a manager with admin type
+      if (user.collection === 'managers' && (user as TypedManager).type === 'admin') return true
+      if (!allowSelfUpdate) return false
+      return {
+        id: {
+          equals: user.id,
+        },
+      }
+    },
+    // Admin users can create new records
+    // Regular users can create if allowSelfCreate is true
+    create: ({ req: { user } }) => {
+      if (!user) return false
+      // Check if user is a manager with admin type
+      if (user.collection === 'managers' && (user as TypedManager).type === 'admin') return true
+      return allowSelfCreate
+    },
+    // Only admin users can delete records
+    delete: ({ req: { user } }) => {
+      if (!user) return false
+      return user.collection === 'managers' && (user as TypedManager).type === 'admin'
+    },
+  }
+}
+
+/**
  * Role-based access control for collections and globals
  *
  * @param collection - Collection or global slug
