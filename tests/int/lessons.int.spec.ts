@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { Lesson, Media, Meditation } from '@/payload-types'
+import type { Media, Meditation } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -13,6 +13,7 @@ describe('Lessons Collection', () => {
   let testPanelImage1: Media
   let testPanelImage2: Media
   let testMeditation: Meditation
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let testNarrator: any
 
   beforeAll(async () => {
@@ -68,10 +69,13 @@ describe('Lessons Collection', () => {
       expect(lesson.meditation).toBe(testMeditation.id)
       expect(lesson.panels).toHaveLength(2)
       expect(lesson.panels[0].blockType).toBe('cover')
+      // Type narrowing for block types
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const coverPanel = lesson.panels[0] as any
       expect(coverPanel.title).toBe('Welcome')
       expect(coverPanel.quote).toBe('Learn the basics of breathing meditation')
       expect(lesson.panels[1].blockType).toBe('text')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const textPanel = lesson.panels[1] as any
       expect(textPanel.title).toBe('Introduction')
       expect(textPanel.text).toBe('Learn the basics of breathing meditation')
@@ -119,7 +123,10 @@ describe('Lessons Collection', () => {
       })
 
       expect(lesson.panels).toHaveLength(2)
+      // Type narrowing for block types
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const panel1 = lesson.panels[0] as any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const panel2 = lesson.panels[1] as any
       expect(panel1.title).toBe('Multi-Panel Lesson')
       expect(panel2.title).toBe('Panel 2')
@@ -177,6 +184,8 @@ describe('Lessons Collection', () => {
           data: {
             // Missing required title and meditation
             panels: [],
+            // Intentionally invalid data for validation test
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
         }),
       ).rejects.toThrow()
@@ -192,7 +201,9 @@ describe('Lessons Collection', () => {
             step: 1,
             meditation: testMeditation.id,
             panels: [], // Empty panels array
-          },
+            // Intentionally invalid data for validation test
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any,
         }),
       ).rejects.toThrow()
     })
@@ -269,7 +280,10 @@ describe('Lessons Collection', () => {
       })
 
       expect(updated.panels).toHaveLength(2)
+      // Type narrowing for block types
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const coverPanel = updated.panels[0] as any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const textPanel = updated.panels[1] as any
       expect(coverPanel.title).toBe('Updated Cover')
       expect(textPanel.title).toBe('Updated')

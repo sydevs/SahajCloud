@@ -1,8 +1,11 @@
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Music, MusicTag } from '@/payload-types'
 import type { Payload } from 'payload'
-import { createTestEnvironment } from '../utils/testHelpers'
+
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+
+import type { Music, MusicTag } from '@/payload-types'
+
 import { testData } from '../utils/testData'
+import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Music Collection', () => {
   let payload: Payload

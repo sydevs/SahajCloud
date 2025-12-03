@@ -1,8 +1,11 @@
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { MeditationTag, Media, Music, Narrator } from '@/payload-types'
 import type { Payload } from 'payload'
-import { createTestEnvironment } from '../utils/testHelpers'
+
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+
+import type { MeditationTag, Media, Music, Narrator } from '@/payload-types'
+
 import { testData } from '../utils/testData'
+import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Localization', () => {
   let payload: Payload
@@ -321,6 +324,8 @@ describe('Localization', () => {
         req: {
           query: { locale: 'en' },
           locale: undefined, // Ensure req.locale is not set
+          // Partial mock request for testing locale filtering
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
       })
 
@@ -334,6 +339,8 @@ describe('Localization', () => {
         req: {
           query: { locale: 'cs' },
           locale: undefined, // Ensure req.locale is not set
+          // Partial mock request for testing locale filtering
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
       })
 
@@ -403,6 +410,8 @@ describe('Localization', () => {
           data: {
             title: 'Invalid Locale Meditation',
             label: 'Invalid Locale',
+            // Intentionally invalid locale for validation test
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             locale: 'jk' as any, // Not a valid option - should fail validation
             narrator: narrator.id,
             thumbnail: thumbnail.id,
@@ -452,6 +461,8 @@ describe('Localization', () => {
         req: {
           locale: 'en',
           query: {}, // No query locale
+          // Partial mock request for testing locale filtering
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
       })
 
@@ -465,6 +476,8 @@ describe('Localization', () => {
         req: {
           locale: 'cs',
           query: {}, // No query locale
+          // Partial mock request for testing locale filtering
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
       })
 

@@ -1,8 +1,11 @@
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Payload } from 'payload'
+
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+
 import type { PageTag } from '@/payload-types'
-import { createTestEnvironment } from '../utils/testHelpers'
+
 import { testData } from '../utils/testData'
+import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Pages Collection', () => {
   let payload: Payload
@@ -19,7 +22,10 @@ describe('Pages Collection', () => {
 
     // Create page tags for testing
     livingTag = await testData.createPageTag(payload, { name: 'living', title: 'Living' })
-    creativityTag = await testData.createPageTag(payload, { name: 'creativity', title: 'Creativity' })
+    creativityTag = await testData.createPageTag(payload, {
+      name: 'creativity',
+      title: 'Creativity',
+    })
     wisdomTag = await testData.createPageTag(payload, { name: 'wisdom', title: 'Wisdom' })
     storiesTag = await testData.createPageTag(payload, { name: 'stories', title: 'Stories' })
   })
@@ -77,7 +83,6 @@ describe('Pages Collection', () => {
       // This test is skipped due to Payload's strict content validation rules
       // Core page functionality is tested in other tests
     })
-
   })
 
   describe('Categories and Tags', () => {
@@ -97,8 +102,10 @@ describe('Pages Collection', () => {
                 version: 1,
               },
             },
+            // Intentionally invalid data for validation test
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
-        })
+        }),
       ).rejects.toThrow()
     })
 

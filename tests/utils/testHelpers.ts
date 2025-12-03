@@ -12,6 +12,8 @@ import { getPayload, Payload } from 'payload'
 import { buildConfig } from 'payload'
 
 // Project imports
+import type { Manager, Client } from '@/payload-types'
+
 import { EmailTestAdapter } from './emailTestAdapter'
 import { testData } from './testData'
 import { collections, Managers } from '../../src/collections'
@@ -54,6 +56,7 @@ function getTestCollections(): CollectionConfig[] {
  * @param emailConfig Optional email configuration
  * @returns Payload configuration object
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function createBaseTestConfig(emailConfig?: any) {
   return buildConfig({
     admin: {
@@ -88,6 +91,7 @@ function createBaseTestConfig(emailConfig?: any) {
           // Use streamTransport to avoid Ethereal email logging
           streamTransport: true,
           newline: 'unix',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
       }),
   })
@@ -103,7 +107,7 @@ async function cleanupTestEnvironment(payload: Payload): Promise<void> {
     if (payload.db && typeof payload.db.destroy === 'function') {
       await payload.db.destroy()
     }
-  } catch (error) {
+  } catch (_error) {
     // Failed to close Payload connection - not critical for in-memory DB
   }
   // Note: In-memory SQLite database is automatically destroyed when connection closes
@@ -201,7 +205,10 @@ export async function waitForEmail(
  * @param payload The Payload instance
  * @param overrides Optional field overrides
  */
-export async function createTestUser(payload: Payload, overrides: Partial<any> = {}): Promise<any> {
+export async function createTestUser(
+  payload: Payload,
+  overrides: Partial<Manager> = {},
+): Promise<Manager> {
   const defaultData = {
     name: `Test User ${Date.now()}`,
     email: `test-user-${Date.now()}@example.com`,
@@ -226,8 +233,8 @@ export async function createTestClient(
   payload: Payload,
   managers: number[],
   primaryContact: number,
-  overrides: Partial<any> = {},
-): Promise<any> {
+  overrides: Partial<Client> = {},
+): Promise<Client> {
   const defaultData = {
     name: `Test Client ${Date.now()}`,
     notes: 'Test client for automated testing',
@@ -251,12 +258,12 @@ export async function createTestClient(
 export async function createTestClientWithManager(
   payload: Payload,
   overrides: {
-    user?: Partial<any>
-    client?: Partial<any>
+    user?: Partial<Manager>
+    client?: Partial<Client>
   } = {},
 ): Promise<{
-  user: any
-  client: any
+  user: Manager
+  client: Client
 }> {
   // Create manager user
   const user = await createTestUser(payload, overrides.user)

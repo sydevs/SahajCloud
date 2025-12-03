@@ -95,7 +95,10 @@ describe('API', () => {
 
       expect(updatedClient.usageStats?.dailyRequests).toBe(initialDailyRequests + 1)
       expect(updatedClient.usageStats?.lastRequestAt).toBeDefined()
-      expect(new Date(updatedClient.usageStats?.lastRequestAt!).getTime()).toBeGreaterThan(
+
+      // Safe to assert after checking it's defined above
+      const updatedLastRequestAt = updatedClient.usageStats!.lastRequestAt!
+      expect(new Date(updatedLastRequestAt).getTime()).toBeGreaterThan(
         initialClient.usageStats?.lastRequestAt
           ? new Date(initialClient.usageStats.lastRequestAt).getTime()
           : 0,

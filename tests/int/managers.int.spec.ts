@@ -1,8 +1,11 @@
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Manager } from '@/payload-types'
 import type { Payload } from 'payload'
-import { createTestEnvironment } from '../utils/testHelpers'
+
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+
+import type { Manager } from '@/payload-types'
+
 import { testData } from '../utils/testData'
+import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Managers Collection', () => {
   let payload: Payload
@@ -33,6 +36,7 @@ describe('Managers Collection', () => {
     expect(manager.id).toBeDefined()
     expect(manager.admin).toBe(true)
     // Password should not be returned in response
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((manager as any).password).toBeUndefined()
   })
 
@@ -43,8 +47,10 @@ describe('Managers Collection', () => {
         data: {
           name: 'Test Manager',
           password: 'password123',
+          // Intentionally invalid data for validation test
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
-      })
+      }),
     ).rejects.toThrow()
   })
 
@@ -78,9 +84,11 @@ describe('Managers Collection', () => {
 
     // Should only see managers created in this test file
     expect(allManagers.docs.length).toBeGreaterThan(0)
-    
+
     // Each test gets a fresh database, so previous tests' data won't interfere
-    const isolationTestManagers = allManagers.docs.filter((manager: Manager) => manager.email === 'isolation-test@example.com')
+    const isolationTestManagers = allManagers.docs.filter(
+      (manager: Manager) => manager.email === 'isolation-test@example.com',
+    )
     expect(isolationTestManagers).toHaveLength(1)
     expect(isolationTestManagers[0].id).toBe(testManager.id)
   })
