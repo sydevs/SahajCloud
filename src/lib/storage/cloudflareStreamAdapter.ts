@@ -15,14 +15,22 @@ export interface CloudflareStreamConfig {
   customerCode: string
 }
 
+interface CloudflareStreamResponse {
+  success: boolean
+  errors?: Array<{ message: string }>
+  result?: { uid: string }
+}
+
 export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter => {
-  return ({ collection, prefix }) => ({
+  return () => ({
     name: 'cloudflare-stream',
 
     handleUpload: async ({ file }) => {
       try {
         const formData = new FormData()
-        const blob = new Blob([file.buffer], { type: file.mimeType })
+        // Convert Buffer to Uint8Array for browser compatibility
+        const uint8Array = new Uint8Array(file.buffer)
+        const blob = new Blob([uint8Array], { type: file.mimeType })
         formData.append('file', blob, file.filename)
 
         logger.info(`Uploading video to Cloudflare Stream: ${file.filename}`)
@@ -39,15 +47,17 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           },
         )
 
-        const uploadResult = await uploadResponse.json()
+        const uploadResult = (await uploadResponse.json()) as CloudflareStreamResponse
 
         if (!uploadResult.success) {
-          const errors =
-            uploadResult.errors?.map((e: any) => e.message).join(', ') || 'Unknown error'
+          const errors = uploadResult.errors?.map((e) => e.message).join(', ') || 'Unknown error'
           throw new Error(`Cloudflare Stream upload failed: ${errors}`)
         }
 
-        const videoId = uploadResult.result.uid
+        const videoId = uploadResult.result?.uid
+        if (!videoId) {
+          throw new Error('Cloudflare Stream response missing video ID')
+        }
 
         logger.info(`Video uploaded successfully: ${videoId}`)
 
@@ -66,7 +76,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
             },
           )
 
-          const downloadsResult = await downloadsResponse.json()
+          const downloadsResult = (await downloadsResponse.json()) as { success: boolean }
 
           if (!downloadsResult.success) {
             logger.warn(`Failed to enable MP4 downloads for ${videoId}`)
@@ -75,7 +85,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           }
         } catch (error) {
           // Non-fatal error - video upload succeeded
-          logger.warn('Error enabling MP4 downloads:', error)
+          logger.warn('Error enabling MP4 downloads:', { error })
         }
 
         // Return nothing - PayloadCMS will handle storing the videoId as filename
@@ -99,11 +109,11 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           },
         )
 
-        const result = await response.json()
+        const result = (await response.json()) as CloudflareStreamResponse
 
         if (!result.success && response.status !== 404) {
           // Ignore 404 errors (video already deleted)
-          const errors = result.errors?.map((e: any) => e.message).join(', ') || 'Unknown error'
+          const errors = result.errors?.map((e) => e.message).join(', ') || 'Unknown error'
           logger.warn(`Cloudflare Stream delete warning: ${errors}`)
         } else {
           logger.info(`Video deleted successfully: ${videoId}`)
@@ -114,7 +124,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
       }
     },
 
-    staticHandler: async (req, { params }) => {
+    staticHandler: async (_req, { params }) => {
       // Redirect to Cloudflare Stream MP4 download URL
       const videoId = params.filename
       const url = `https://customer-${config.customerCode}.cloudflarestream.com/${videoId}/downloads/default.mp4`

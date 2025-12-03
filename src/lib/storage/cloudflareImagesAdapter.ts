@@ -14,14 +14,22 @@ export interface CloudflareImagesConfig {
   accountHash: string
 }
 
+interface CloudflareImagesResponse {
+  success: boolean
+  errors?: Array<{ message: string }>
+  result?: { id: string }
+}
+
 export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter => {
-  return ({ collection, prefix }) => ({
+  return () => ({
     name: 'cloudflare-images',
 
     handleUpload: async ({ file }) => {
       try {
         const formData = new FormData()
-        const blob = new Blob([file.buffer], { type: file.mimeType })
+        // Convert Buffer to Uint8Array for browser compatibility
+        const uint8Array = new Uint8Array(file.buffer)
+        const blob = new Blob([uint8Array], { type: file.mimeType })
         formData.append('file', blob, file.filename)
 
         logger.info(`Uploading image to Cloudflare Images: ${file.filename}`)
@@ -37,14 +45,17 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
           },
         )
 
-        const result = await response.json()
+        const result = (await response.json()) as CloudflareImagesResponse
 
         if (!result.success) {
-          const errors = result.errors?.map((e: any) => e.message).join(', ') || 'Unknown error'
+          const errors = result.errors?.map((e) => e.message).join(', ') || 'Unknown error'
           throw new Error(`Cloudflare Images upload failed: ${errors}`)
         }
 
-        const imageId = result.result.id
+        const imageId = result.result?.id
+        if (!imageId) {
+          throw new Error('Cloudflare Images response missing image ID')
+        }
 
         logger.info(`Image uploaded successfully: ${imageId}`)
 
@@ -70,11 +81,11 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
           },
         )
 
-        const result = await response.json()
+        const result = (await response.json()) as CloudflareImagesResponse
 
         if (!result.success && response.status !== 404) {
           // Ignore 404 errors (image already deleted)
-          const errors = result.errors?.map((e: any) => e.message).join(', ') || 'Unknown error'
+          const errors = result.errors?.map((e) => e.message).join(', ') || 'Unknown error'
           logger.warn(`Cloudflare Images delete warning: ${errors}`)
         } else {
           logger.info(`Image deleted successfully: ${imageId}`)
@@ -85,7 +96,7 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
       }
     },
 
-    staticHandler: async (req, { params }) => {
+    staticHandler: async (_req, { params }) => {
       // Redirect to Cloudflare Images delivery URL
       const imageId = params.filename
       const url = `https://imagedelivery.net/${config.accountHash}/${imageId}/public`
