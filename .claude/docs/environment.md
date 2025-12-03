@@ -15,14 +15,38 @@ Copy from `.env.example` and configure:
 - `SMTP_PASS` - SMTP password
 - `SMTP_FROM` - From email address (default: contact@sydevelopers.com)
 
-### Cloudflare R2 S3-Compatible Storage (Required for Production)
-- `S3_ENDPOINT` - Cloudflare R2 server endpoint (e.g., `https://your-account-id.r2.cloudflarestorage.com`)
-- `S3_ACCESS_KEY_ID` - Cloudflare R2 access key ID
-- `S3_SECRET_ACCESS_KEY` - Cloudflare R2 secret access key
-- `S3_BUCKET` - Storage bucket name
-- `S3_REGION` - Region (use `auto` for Cloudflare R2)
+### Cloudflare-Native Storage (Production Only)
 
-**Note**: If S3 variables are not configured, the system automatically falls back to local file storage (development only).
+**Note**: The system uses Cloudflare-native services in production and automatically falls back to local file storage in development (no configuration needed for local development).
+
+#### Cloudflare Images (Image Storage)
+- `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID
+- `CLOUDFLARE_IMAGES_API_TOKEN` - API token for Cloudflare Images (set via `wrangler secret put`)
+- `CLOUDFLARE_IMAGES_ACCOUNT_HASH` - Images account hash from dashboard
+
+#### Cloudflare Stream (Video Storage)
+- `CLOUDFLARE_STREAM_API_TOKEN` - API token for Cloudflare Stream (set via `wrangler secret put`)
+- `CLOUDFLARE_STREAM_CUSTOMER_CODE` - Stream customer code from dashboard
+
+#### R2 Native Bindings (Audio & Files)
+- R2 bucket is configured via `wrangler.toml` bindings (no environment variables needed)
+- `PUBLIC_ASSETS_URL` - Public URL for R2-stored assets (e.g., `assets.sydevelopers.com`)
+
+#### Finding Cloudflare Credentials
+
+**Account ID**:
+1. Go to Cloudflare Dashboard → Account Home
+2. Look in right sidebar under "Account ID"
+
+**Images Account Hash**:
+1. Go to Images dashboard
+2. Look at any delivery URL: `https://imagedelivery.net/<hash>/...`
+3. The hash is between `imagedelivery.net/` and the image ID
+
+**Stream Customer Code**:
+1. Go to Stream dashboard
+2. Look at any video URL: `https://customer-<code>.cloudflarestream.com/...`
+3. The code is between `customer-` and `.cloudflarestream.com`
 
 ### Live Preview URLs
 - `WEMEDITATE_WEB_URL` - Preview URL for We Meditate Web frontend (default: http://localhost:5173)
