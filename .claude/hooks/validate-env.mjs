@@ -4,7 +4,7 @@
  * Environment Validation Hook (PreToolUse)
  *
  * Validates required environment variables before critical operations.
- * Blocks operations if required env vars are missing.
+ * Updated for Wrangler/D1 project configuration (no DATABASE_URI needed).
  */
 
 import { readFileSync, existsSync } from 'fs';
@@ -18,7 +18,7 @@ const command = input.command || '';
 const isCriticalOperation = command.includes('build') ||
                            command.includes('start') ||
                            command.includes('deploy') ||
-                           command.includes('railway');
+                           command.includes('wrangler deploy');
 
 if (!isCriticalOperation) {
   // Not a critical operation, skip validation
@@ -28,10 +28,9 @@ if (!isCriticalOperation) {
 const projectDir = process.env.CLAUDE_PROJECT_DIR;
 const envPath = join(projectDir, '.env');
 
-// Required environment variables
+// Required environment variables for this Wrangler/D1 project
 const requiredVars = [
-  'DATABASE_URI',
-  'PAYLOAD_SECRET'
+  'PAYLOAD_SECRET'  // DATABASE_URI not needed (uses Wrangler)
 ];
 
 const missingVars = [];
@@ -56,12 +55,18 @@ for (const varName of requiredVars) {
 }
 
 // Check optional but recommended variables for production
-if (command.includes('deploy') || command.includes('railway')) {
+if (command.includes('deploy') || command.includes('wrangler')) {
+  // S3/R2 storage for production
   const productionVars = ['S3_ENDPOINT', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'S3_BUCKET'];
   const missingProdVars = productionVars.filter(v => !process.env[v]);
 
   if (missingProdVars.length > 0) {
     warnings.push(`⚠️  Production storage not configured: ${missingProdVars.join(', ')}`);
+  }
+
+  // Email for production
+  if (!process.env.RESEND_API_KEY) {
+    warnings.push(`⚠️  Production email not configured: RESEND_API_KEY`);
   }
 }
 
@@ -76,7 +81,7 @@ if (missingVars.length > 0) {
 if (warnings.length > 0) {
   console.log(JSON.stringify({
     continue: true,
-    additionalContext: warnings.join('\n\n') + '\n\nProceeding with local storage fallback.'
+    additionalContext: warnings.join('\n\n') + '\n\nProceeding with development configuration (local storage, Ethereal email).'
   }));
 }
 
