@@ -1,18 +1,9 @@
 import { ProjectValue } from './projects'
 
 /**
- * Extended user type for admin.hidden functions
- * Includes currentProject field which exists on managers
- * Using a simple interface instead of extending TypedUser for compatibility
- */
-interface AdminUser {
-  currentProject?: string
-  type?: 'inactive' | 'manager' | 'admin' | null
-  [key: string]: unknown
-}
-
-/**
  * Helper function to create admin.hidden function based on project visibility
+ *
+ * Only managers can access the admin panel, so user is always TypedManager or null.
  *
  * @param allowedProjects - Array of project values where collection should be visible
  * @param options - Configuration options
@@ -37,9 +28,10 @@ export function handleProjectVisibility(
 ) {
   const { excludeFromAdminView = false } = options
 
-  return ({ user }: { user?: AdminUser | null | any }) => {
-    // Get current project from user
-    const currentProject = user?.currentProject as ProjectValue | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ({ user }: { user: any }) => {
+    // Get current project from user (only managers have this field)
+    const currentProject = user?.currentProject
 
     // Handle admin view (null currentProject)
     if (!currentProject) {
@@ -61,6 +53,7 @@ export function handleProjectVisibility(
  *   hidden: adminOnlyVisibility
  * }
  */
-export const adminOnlyVisibility = ({ user }: { user?: AdminUser | null | any }) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const adminOnlyVisibility = ({ user }: { user: any }) => {
   return user?.type !== 'admin'
 }

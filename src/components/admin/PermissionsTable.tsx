@@ -9,7 +9,7 @@ import React, { useMemo } from 'react'
 import { MANAGER_ROLES, mergeRolePermissions } from '@/fields/PermissionsField'
 import { getProjectLabel, PROJECT_ICONS } from '@/lib/projects'
 import type { ProjectValue } from '@/lib/projects'
-import type { ManagerRole, PermissionLevel } from '@/types/roles'
+import type { ManagerRole, ClientRole, PermissionLevel } from '@/types/roles'
 
 /**
  * PermissionsTable Component
@@ -22,7 +22,7 @@ import type { ManagerRole, PermissionLevel } from '@/types/roles'
  * Works for both managers (localized roles) and clients (non-localized roles).
  */
 export const PermissionsTable: FieldClientComponent = () => {
-  const { value: roles } = useField<string[]>()
+  const { value: roles } = useField<(ManagerRole | ClientRole)[]>()
   const { collectionSlug } = useDocumentInfo()
 
   // Determine if this is a client (API client) or manager (admin user)

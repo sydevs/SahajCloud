@@ -1,4 +1,5 @@
 import type { Manager, Client } from '../../src/payload-types'
+import type { ManagerRole } from '../../src/types/roles'
 import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
@@ -560,13 +561,13 @@ describe('Role-Based Access Control', () => {
       }
 
       // English locale permissions
-      const enPermissions = mergeRolePermissions(managerData.roles.en, 'managers')
+      const enPermissions = mergeRolePermissions(managerData.roles.en as ManagerRole[], 'managers')
       expect(enPermissions.meditations).toBeDefined()
       expect(enPermissions.meditations).toContain('create')
       expect(enPermissions.pages).toBeUndefined() // No translator role in English
 
       // Czech locale permissions
-      const csPermissions = mergeRolePermissions(managerData.roles.cs, 'managers')
+      const csPermissions = mergeRolePermissions(managerData.roles.cs as ManagerRole[], 'managers')
       expect(csPermissions.pages).toBeDefined()
       expect(csPermissions.pages).toContain('translate')
       expect(csPermissions.meditations).toBeUndefined() // No meditations-editor role in Czech
@@ -745,7 +746,7 @@ describe('Role-Based Access Control', () => {
 
       // Simulate multiple concurrent mergeRolePermissions calls
       const computations = Array.from({ length: 10 }, () =>
-        mergeRolePermissions(managerData.roles, 'managers'),
+        mergeRolePermissions(managerData.roles as ManagerRole[], 'managers'),
       )
 
       // All should produce identical results

@@ -2,6 +2,7 @@ import type { Field } from 'payload'
 
 import { DEFAULT_LOCALE, LocaleCode } from '@/lib/locales'
 import { ProjectValue } from '@/lib/projects'
+import { Manager } from '@/payload-types'
 import type { MergedPermissions } from '@/types/permissions'
 import type {
   ClientRole,
@@ -120,7 +121,7 @@ export const CLIENT_ROLES: Record<ClientRole, ClientRoleConfig> = {
  * @returns Merged permissions object
  */
 export function mergeRolePermissions(
-  roles: string[],
+  roles: (ManagerRole | ClientRole)[],
   collectionSlug: 'clients' | 'managers',
 ): MergedPermissions {
   if (!roles || roles.length === 0) {
@@ -178,8 +179,8 @@ export function mergeRolePermissions(
  * @returns Array of unique ProjectValue the manager can access
  */
 function computeAllowedProjects(manager: {
-  roles?: string[] | Record<LocaleCode, string[]>
-  type?: 'inactive' | 'manager' | 'admin'
+  roles?: ManagerRole[] | Record<LocaleCode, ManagerRole[]>
+  type?: Manager['type']
 }): ProjectValue[] {
   // Admins have access to all projects (via null/admin view)
   if (manager.type === 'admin' || !manager.roles) {
@@ -193,7 +194,7 @@ function computeAllowedProjects(manager: {
 
   // Map roles to projects and get unique values
   const projects = allRoleSlugs
-    .map((roleSlug) => MANAGER_ROLES[roleSlug as ManagerRole]?.project)
+    .map((roleSlug) => MANAGER_ROLES[roleSlug]?.project)
     .filter((project): project is ProjectValue => project !== undefined)
 
   return [...new Set(projects)]
@@ -296,7 +297,7 @@ export function ManagerPermissionsField(): Field[] {
             }
 
             // Extract locale-specific roles array for permissions
-            let roleSlugArray: string[]
+            let roleSlugArray: ManagerRole[]
             if (Array.isArray(data.roles)) {
               // PayloadCMS has already localized the data
               roleSlugArray = data.roles

@@ -13,7 +13,7 @@ import type {
 import { mergeRolePermissions } from '@/fields/PermissionsField'
 import { LocaleCode } from '@/lib/locales'
 import type { MergedPermissions } from '@/types/permissions'
-import type { PermissionLevel } from '@/types/roles'
+import type { ManagerRole, ClientRole, PermissionLevel } from '@/types/roles'
 import type { TypedClient, TypedManager } from '@/types/users'
 
 // ============================================================================
@@ -39,10 +39,10 @@ export const isAPIClient = (user: TypedUser | null): user is TypedClient => {
  * @returns Array of role slug strings
  */
 function extractRoleSlugs(
-  roles: string[] | Record<LocaleCode, string[]> | undefined,
+  roles: (ManagerRole | ClientRole)[] | Record<LocaleCode, (ManagerRole | ClientRole)[]> | undefined,
   locale?: LocaleCode,
   isClient = false,
-): string[] {
+): (ManagerRole | ClientRole)[] {
   if (!roles) return []
 
   if (isClient) {

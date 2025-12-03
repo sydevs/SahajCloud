@@ -5,7 +5,9 @@
 import type { TypedUser } from 'payload'
 
 import type { LocaleCode } from '@/lib/locales'
+import { Manager } from '@/payload-types'
 import type { MergedPermissions } from '@/types/permissions'
+import type { ClientRole, ManagerRole } from '@/types/roles'
 
 // ============================================================================
 // Manager User Type
@@ -13,8 +15,8 @@ import type { MergedPermissions } from '@/types/permissions'
 
 export type TypedManager = TypedUser & {
   collection: 'managers'
-  type?: 'inactive' | 'manager' | 'admin'
-  roles?: string[] | Record<LocaleCode, string[]>
+  type?: Manager['type']
+  roles?: ManagerRole[] | Record<LocaleCode, ManagerRole[]>
   customResourceAccess?: Array<{ relationTo: string; value: string | number }>
   permissions?: MergedPermissions
 }
@@ -25,6 +27,6 @@ export type TypedManager = TypedUser & {
 
 export type TypedClient = TypedUser & {
   collection: 'clients'
-  roles?: string[]
+  roles?: ClientRole[]
   permissions?: MergedPermissions
 }

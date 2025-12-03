@@ -1,6 +1,9 @@
 import React from 'react'
 
+import { ProjectValue } from '@/lib/projects'
+import { Manager } from '@/payload-types'
 import { MergedPermissions } from '@/types/permissions'
+import { ManagerRole } from '@/types/roles'
 
 import DefaultDashboard from './dashboard/DefaultDashboard'
 import FathomDashboard from './dashboard/FathomDashboard'
@@ -12,9 +15,9 @@ import ProjectSelectionPrompt from './dashboard/ProjectSelectionPrompt'
 interface DashboardProps {
   user?: {
     id?: string | number
-    currentProject?: string
-    type?: 'inactive' | 'manager' | 'admin'
-    roles?: string[] | Record<string, string[]>
+    currentProject?: ProjectValue
+    type?: Manager['type']
+    roles?: ManagerRole[] | Record<string, ManagerRole[]>
     permissions?: MergedPermissions
     [key: string]: unknown
   }
