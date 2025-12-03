@@ -33,15 +33,14 @@ describe('API Authentication', () => {
       const adminManager = await testData.createManager(payload, {
         email: 'admin@test.com',
         password: 'password',
-        admin: true,
+        type: 'admin' as const,
       })
 
       const adminReq = {
         user: {
           id: adminManager.id,
           collection: 'managers',
-          admin: true,
-          active: true,
+          type: 'admin' as const,
         },
         payload,
       } as PayloadRequest
@@ -60,7 +59,7 @@ describe('API Authentication', () => {
       const limitedManager = await testData.createManager(payload, {
         email: 'limited@test.com',
         password: 'password',
-        admin: false,
+        type: 'manager' as const,
         roles: ['translator'], // Only translator role
       })
 
@@ -68,9 +67,8 @@ describe('API Authentication', () => {
         user: {
           id: limitedManager.id,
           collection: 'managers',
-          admin: false,
+          type: 'manager' as const,
           roles: ['translator'],
-          active: true,
         },
         payload,
       } as PayloadRequest

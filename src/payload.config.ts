@@ -104,7 +104,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         // Only visible in all-content mode
         defaultJobsCollection.admin.hidden = ({ user }) => {
           const currentProject = user?.currentProject
-          return currentProject !== 'all-content' || !user?.admin
+          return currentProject !== 'all-content' || user?.type !== 'admin'
         }
         defaultJobsCollection.access = roleBasedAccess('payload-jobs', { implicitRead: false })
         return defaultJobsCollection

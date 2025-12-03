@@ -127,7 +127,7 @@ export async function createTestEnvironment(): Promise<{
   const payload = await getPayload({ config })
   const adminUser = await testData.createManager(payload, {
     email: 'admin@example.com',
-    admin: true,
+    type: 'admin' as const,
   })
 
   const cleanup = () => cleanupTestEnvironment(payload)
@@ -213,7 +213,7 @@ export async function createTestUser(
     name: `Test User ${Date.now()}`,
     email: `test-user-${Date.now()}@example.com`,
     password: 'password123',
-    role: 'super-admin' as const,
+    type: 'admin' as const,
   }
 
   return await payload.create({

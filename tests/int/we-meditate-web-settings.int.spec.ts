@@ -204,7 +204,7 @@ describe('WeMeditateWebSettings Global', () => {
 
   it('allows admin users to access', async () => {
     const config = payload.globals.config.find((g) => g.slug === 'we-meditate-web-settings')
-    const adminUser = testData.dummyUser('managers', { admin: true })
+    const adminUser = testData.dummyUser('managers', { type: 'admin' as const })
     // Using partial mock request for testing access control
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const readResult = await config?.access?.read?.({ req: { user: adminUser } as any })

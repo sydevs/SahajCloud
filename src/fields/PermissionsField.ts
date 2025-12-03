@@ -179,10 +179,10 @@ export function mergeRolePermissions(
  */
 function computeAllowedProjects(manager: {
   roles?: string[] | Record<LocaleCode, string[]>
-  admin?: boolean
+  type?: 'inactive' | 'manager' | 'admin'
 }): ProjectValue[] {
   // Admins have access to all projects (via null/admin view)
-  if (manager.admin || !manager.roles) {
+  if (manager.type === 'admin' || !manager.roles) {
     return []
   }
 
@@ -207,10 +207,10 @@ function computeAllowedProjects(manager: {
  * Create permissions-related fields for Managers collection
  *
  * Returns an array of 4 fields:
- * 1. admin - Boolean for full system access
- * 2. roles - Localized multi-select of manager roles (hidden if admin is true)
- * 3. customResourceAccess - Polymorphic relationship for document-level permissions (hidden if admin is true)
- * 4. permissions - Virtual field showing merged permissions (hidden if admin is true)
+ * 1. type - Manager access level (inactive, manager, admin) with toggle button group
+ * 2. roles - Localized multi-select of manager roles (hidden if type is not 'manager')
+ * 3. customResourceAccess - Polymorphic relationship for document-level permissions (hidden if type is not 'manager')
+ * 4. permissions - Virtual field showing merged permissions (hidden)
  *
  * @returns Array of Payload field configurations
  */
@@ -221,14 +221,23 @@ export function ManagerPermissionsField(): Field[] {
   }))
 
   return [
-    // 1. Admin boolean field
+    // 1. Type field (segmented control for access level)
     {
-      name: 'admin',
-      type: 'checkbox',
-      defaultValue: false,
+      name: 'type',
+      type: 'select',
+      required: true,
+      defaultValue: 'manager',
+      options: [
+        { label: 'Inactive', value: 'inactive' },
+        { label: 'Manager', value: 'manager' },
+        { label: 'Admin', value: 'admin' },
+      ],
       admin: {
         description:
-          'Grant full administrative access to all collections and features. When enabled, role-based permissions are bypassed.',
+          "Set the manager's access level. Admin grants full access, Manager uses role-based permissions, Inactive blocks all access.",
+        components: {
+          Field: '@/components/admin/ToggleButtonGroup',
+        },
       },
     },
 
@@ -243,7 +252,7 @@ export function ManagerPermissionsField(): Field[] {
       admin: {
         description:
           'Assign roles for each locale. Different roles can be assigned for different languages.',
-        condition: (data) => !data.admin,
+        condition: (data) => data.type === 'manager',
         components: {
           afterInput: ['@/components/admin/PermissionsTable'],
         },
@@ -259,7 +268,7 @@ export function ManagerPermissionsField(): Field[] {
       admin: {
         description:
           'Grant update access to specific documents. Useful for giving access to individual pages without broader permissions.',
-        condition: (data) => !data.admin,
+        condition: (data) => data.type === 'manager',
       },
     },
 
@@ -305,7 +314,7 @@ export function ManagerPermissionsField(): Field[] {
             // Compute allowed projects (union across all locales)
             const projects = computeAllowedProjects({
               roles: data.roles,
-              admin: data.admin,
+              type: data.type,
             })
 
             // Return flat object with collection permissions + projects array

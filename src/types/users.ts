@@ -13,7 +13,7 @@ import type { MergedPermissions } from '@/types/permissions'
 
 export type TypedManager = TypedUser & {
   collection: 'managers'
-  admin?: boolean
+  type?: 'inactive' | 'manager' | 'admin'
   roles?: string[] | Record<LocaleCode, string[]>
   customResourceAccess?: Array<{ relationTo: string; value: string | number }>
   permissions?: MergedPermissions

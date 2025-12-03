@@ -95,13 +95,18 @@ export const hasPermission = ({
   locale?: LocaleCode
   docId?: string
 }): boolean => {
-  // Block null or inactive users
-  if (!user || !user.active) return false
+  // Block null users
+  if (!user) return false
 
   const isClient = isAPIClient(user)
 
-  // Check for admin boolean (managers only)
-  if (!isClient && (user as TypedManager).admin === true) {
+  // Block inactive managers
+  if (!isClient && (user as TypedManager).type === 'inactive') {
+    return false
+  }
+
+  // Check for admin type (managers only)
+  if (!isClient && (user as TypedManager).type === 'admin') {
     return true
   }
 
@@ -231,12 +236,17 @@ export const createFieldAccess = (collection: string, localized: boolean): Field
  * @returns Query filter or boolean
  */
 export const createLocaleFilter = (user: TypedUser | null, collection: string): boolean | Where => {
-  if (!user?.active) return false
+  if (!user) return false
 
   const isClient = isAPIClient(user)
 
+  // Block inactive managers
+  if (!isClient && (user as TypedManager).type === 'inactive') {
+    return false
+  }
+
   // Admin users bypass all filters
-  if (!isClient && (user as TypedManager).admin === true) {
+  if (!isClient && (user as TypedManager).type === 'admin') {
     return true
   }
 

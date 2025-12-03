@@ -26,10 +26,10 @@ describe('Role-Based Access Control', () => {
     it('creates manager with admin role', async () => {
       const manager = await testData.createManager(payload, {
         name: 'Admin Manager',
-        admin: true,
+        type: 'admin' as const,
       })
 
-      expect(manager.admin).toBe(true)
+      expect(manager.type).toBe('admin')
     })
 
     it('creates manager with meditations-editor role', async () => {
@@ -87,7 +87,7 @@ describe('Role-Based Access Control', () => {
     it('creates client with we-meditate-web role', async () => {
       const manager = await testData.createManager(payload, {
         name: 'Admin for Client Creation',
-        admin: true,
+        type: 'admin' as const,
       })
 
       const client = (await payload.create({
@@ -110,7 +110,7 @@ describe('Role-Based Access Control', () => {
     it('creates client with we-meditate-app role', async () => {
       const manager = await testData.createManager(payload, {
         name: 'Admin for Client Creation',
-        admin: true,
+        type: 'admin' as const,
       })
 
       const client = (await payload.create({
@@ -132,7 +132,7 @@ describe('Role-Based Access Control', () => {
     it('creates client with sahaj-atlas role', async () => {
       const manager = await testData.createManager(payload, {
         name: 'Admin for Client Creation',
-        admin: true,
+        type: 'admin' as const,
       })
 
       const client = (await payload.create({
@@ -205,7 +205,7 @@ describe('Role-Based Access Control', () => {
     it('grants admin role full access to all collections', () => {
       const adminUser = testData.dummyUser('managers', {
         id: 1,
-        admin: true,
+        type: 'admin' as const,
       })
 
       // Admin should have access to everything
@@ -292,8 +292,7 @@ describe('Role-Based Access Control', () => {
     it('blocks inactive users', () => {
       const inactiveUser = testData.dummyUser('managers', {
         id: 4,
-        active: false,
-        admin: true,
+        type: 'inactive' as const,
       })
 
       expect(
@@ -393,7 +392,7 @@ describe('Role-Based Access Control', () => {
     it('computes permissions for clients', async () => {
       const manager = await testData.createManager(payload, {
         name: 'Admin for Client',
-        admin: true,
+        type: 'admin' as const,
       })
 
       const client = (await payload.create({
@@ -431,7 +430,7 @@ describe('Role-Based Access Control', () => {
       // Create a test page
       const admin = await testData.createManager(payload, {
         name: 'Admin for Page Creation',
-        admin: true,
+        type: 'admin' as const,
       })
 
       const page = await payload.create({

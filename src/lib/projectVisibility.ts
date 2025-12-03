@@ -7,7 +7,7 @@ import { ProjectValue } from './projects'
  */
 interface AdminUser {
   currentProject?: string
-  admin?: boolean | null
+  type?: 'inactive' | 'manager' | 'admin' | null
   [key: string]: unknown
 }
 
@@ -45,7 +45,7 @@ export function handleProjectVisibility(
     if (!currentProject) {
       // Hide if not admin AND excludeFromAdminView is true
       // Admins can see collections in admin view unless explicitly excluded
-      return user?.admin !== true && excludeFromAdminView
+      return user?.type !== 'admin' && excludeFromAdminView
     }
 
     // Check if current project is in allowed list
@@ -62,5 +62,5 @@ export function handleProjectVisibility(
  * }
  */
 export const adminOnlyVisibility = ({ user }: { user?: AdminUser | null | any }) => {
-  return user?.admin !== true
+  return user?.type !== 'admin'
 }

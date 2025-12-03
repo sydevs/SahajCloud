@@ -27,7 +27,7 @@ const ProjectSelector = () => {
     const options: SelectOption[] = []
 
     // Admins get "All Content" option first (maps to null)
-    if (user?.admin) {
+    if (user?.type === 'admin') {
       options.push({
         value: null,
         label: ADMIN_PROJECT_LABEL,
@@ -35,7 +35,7 @@ const ProjectSelector = () => {
     }
 
     // Get allowed projects from cached permissions field
-    const allowedProjects = user?.admin
+    const allowedProjects = user?.type === 'admin'
       ? PROJECTS.map((p) => p.value) // Admins see all projects
       : ((user?.permissions?.projects as ProjectValue[]) || [])
 
@@ -51,7 +51,7 @@ const ProjectSelector = () => {
     })
 
     return options
-  }, [user?.admin, user?.permissions?.projects])
+  }, [user?.type, user?.permissions?.projects])
 
   const handleProjectChange = async (option: unknown) => {
     // Handle single option (not multi-select)
