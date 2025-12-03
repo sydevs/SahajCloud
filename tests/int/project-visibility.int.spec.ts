@@ -7,14 +7,14 @@ import {
   getProjectLabel,
   getProjectOptions,
   isValidProject,
-  type ProjectValue,
+  type ProjectSlug,
 } from '../../src/lib/projects'
 import { adminOnlyVisibility, handleProjectVisibility } from '../../src/lib/projectVisibility'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 // Type for testing visibility functions
 type MockUser = {
-  currentProject?: ProjectValue | null
+  currentProject?: ProjectSlug | null
   admin?: boolean | string | number | object
 }
 
@@ -54,7 +54,7 @@ describe('Project Visibility System', () => {
       })
 
       it('should return the value for unknown projects', () => {
-        expect(getProjectLabel('unknown' as ProjectValue)).toBe('unknown')
+        expect(getProjectLabel('unknown' as ProjectSlug)).toBe('unknown')
       })
     })
 
@@ -126,14 +126,18 @@ describe('Project Visibility System', () => {
     describe('admin view (null project)', () => {
       it('should show collection in admin view by default', () => {
         const hiddenFn = handleProjectVisibility(['wemeditate-web'])
-        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as MockUser })).toBe(false)
+        expect(
+          hiddenFn({ user: { currentProject: null, type: 'admin' as const } as MockUser }),
+        ).toBe(false)
       })
 
       it('should hide collection in admin view when excludeFromAdminView is true', () => {
         const hiddenFn = handleProjectVisibility(['wemeditate-web'], {
           excludeFromAdminView: true,
         })
-        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as MockUser })).toBe(false)
+        expect(
+          hiddenFn({ user: { currentProject: null, type: 'admin' as const } as MockUser }),
+        ).toBe(false)
         expect(hiddenFn({ user: { currentProject: null, admin: false } as MockUser })).toBe(true)
       })
 
@@ -141,7 +145,9 @@ describe('Project Visibility System', () => {
         const hiddenFn = handleProjectVisibility(['wemeditate-web'], {
           excludeFromAdminView: false,
         })
-        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as MockUser })).toBe(false)
+        expect(
+          hiddenFn({ user: { currentProject: null, type: 'admin' as const } as MockUser }),
+        ).toBe(false)
       })
     })
   })
@@ -180,7 +186,9 @@ describe('Project Visibility System', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(false)
+        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(
+          false,
+        )
       }
     })
 
@@ -198,7 +206,9 @@ describe('Project Visibility System', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(false)
+        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(
+          false,
+        )
       }
     })
 
@@ -216,7 +226,9 @@ describe('Project Visibility System', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(false)
+        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(
+          false,
+        )
       }
     })
   })
@@ -236,7 +248,9 @@ describe('Project Visibility System', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(false) // excludeFromAdminView (admins can see)
+        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(
+          false,
+        ) // excludeFromAdminView (admins can see)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(hiddenFn({ user: { currentProject: null, admin: false } as any })).toBe(true) // excludeFromAdminView (non-admins can't)
       }

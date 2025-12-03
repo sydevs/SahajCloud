@@ -1,7 +1,7 @@
 import type { Field } from 'payload'
 
 import { DEFAULT_LOCALE, LocaleCode } from '@/lib/locales'
-import { ProjectValue } from '@/lib/projects'
+import { ProjectSlug } from '@/lib/projects'
 import { Manager } from '@/payload-types'
 import type { MergedPermissions } from '@/types/permissions'
 import type {
@@ -176,12 +176,12 @@ export function mergeRolePermissions(
  *
  * @internal
  * @param manager - Manager document with roles field
- * @returns Array of unique ProjectValue the manager can access
+ * @returns Array of unique ProjectSlug the manager can access
  */
 function computeAllowedProjects(manager: {
   roles?: ManagerRole[] | Record<LocaleCode, ManagerRole[]>
   type?: Manager['type']
-}): ProjectValue[] {
+}): ProjectSlug[] {
   // Admins have access to all projects (via null/admin view)
   if (manager.type === 'admin' || !manager.roles) {
     return []
@@ -195,7 +195,7 @@ function computeAllowedProjects(manager: {
   // Map roles to projects and get unique values
   const projects = allRoleSlugs
     .map((roleSlug) => MANAGER_ROLES[roleSlug]?.project)
-    .filter((project): project is ProjectValue => project !== undefined)
+    .filter((project): project is ProjectSlug => project !== undefined)
 
   return [...new Set(projects)]
 }

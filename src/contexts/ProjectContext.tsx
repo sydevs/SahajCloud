@@ -3,25 +3,25 @@
 import { useAuth } from '@payloadcms/ui'
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
-import { ProjectValue } from '@/lib/projects'
+import { ProjectSlug } from '@/lib/projects'
 
 interface ProjectContextType {
-  currentProject: ProjectValue | null
-  setCurrentProject: (project: ProjectValue | null) => void
+  currentProject: ProjectSlug | null
+  setCurrentProject: (project: ProjectSlug | null) => void
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined)
 
 export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth()
-  const [currentProject, setCurrentProject] = useState<ProjectValue | null>(null)
+  const [currentProject, setCurrentProject] = useState<ProjectSlug | null>(null)
 
   // Validate current project and auto-select if needed
   useEffect(() => {
     if (!user) return
 
     // Get allowed projects from cached permissions field
-    const allowedProjects = (user.permissions?.projects as ProjectValue[]) || []
+    const allowedProjects = (user.permissions?.projects as ProjectSlug[]) || []
     const current = user.currentProject
 
     // Case 1: Admin with no project selected - use null (admin view)

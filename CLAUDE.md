@@ -370,7 +370,7 @@ Creates dynamic `admin.hidden` functions for collections and globals based on pr
 
 ```typescript
 handleProjectVisibility(
-  allowedProjects: ProjectValue[],
+  allowedProjects: ProjectSlug[],
   options?: { excludeAllContent?: boolean }
 )
 ```
@@ -786,7 +786,7 @@ Custom view components (dashboard, account, etc.) receive props from PayloadCMS 
 interface ViewProps {
   user?: {
     id?: string | number
-    currentProject?: ProjectValue
+    currentProject?: ProjectSlug
     email?: string
     [key: string]: any
   }

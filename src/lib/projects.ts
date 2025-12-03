@@ -22,7 +22,7 @@ export const PROJECTS = [
  * TypeScript type for project values
  * Note: null represents admin view (previously 'all-content')
  */
-export type ProjectValue = (typeof PROJECTS)[number]['value']
+export type ProjectSlug = (typeof PROJECTS)[number]['value']
 
 /**
  * Label for admin view (when currentProject is null)
@@ -33,7 +33,7 @@ export const ADMIN_PROJECT_LABEL = 'All Content'
  * Project-specific icon paths
  * Uses 'sahaj-cloud' as fallback key for admin view
  */
-export const PROJECT_ICONS: Record<ProjectValue | 'sahaj-cloud', string> = {
+export const PROJECT_ICONS: Record<ProjectSlug | 'sahaj-cloud', string> = {
   'sahaj-cloud': '/images/sahaj-cloud.svg',
   'wemeditate-web': '/images/wemeditate-web.svg',
   'wemeditate-app': '/images/wemeditate-app.svg',
@@ -45,7 +45,7 @@ export const PROJECT_ICONS: Record<ProjectValue | 'sahaj-cloud', string> = {
  * @param value - Project value or null
  * @returns Human-readable project label
  */
-export function getProjectLabel(value: ProjectValue | null): string {
+export function getProjectLabel(value: ProjectSlug | null): string {
   if (value === null) {
     return ADMIN_PROJECT_LABEL
   }
@@ -63,8 +63,8 @@ export function getProjectOptions() {
 /**
  * Validate if a value is a valid project value
  * @param value - Value to validate
- * @returns True if value is a valid ProjectValue or null
+ * @returns True if value is a valid ProjectSlug or null
  */
-export function isValidProject(value: string | null): value is ProjectValue | null {
+export function isValidProject(value: string | null): value is ProjectSlug | null {
   return value === null || PROJECTS.some((p) => p.value === value)
 }
