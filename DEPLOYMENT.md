@@ -65,13 +65,6 @@ pnpm run deploy:database
 pnpm run deploy:app
 ```
 
-### Development Deployment
-
-```bash
-# Deploy to dev environment
-pnpm run deploy:dev
-```
-
 ### Monitoring
 
 ```bash
@@ -470,8 +463,27 @@ wrangler tail sahajcloud --format pretty
 
 ## Development vs Production Bindings
 
-- **Development** (`pnpm dev`): Uses local `.wrangler` database for fast iteration
-- **Production** (`NODE_ENV=production`): Connects to remote D1 database when `remote = true`
+The application uses **Wrangler Environments** to manage different configurations:
+
+### Configuration Pattern
+
+`wrangler.toml` contains both production and development environments:
+- **Default (top-level)**: Production configuration
+- **`[env.dev]`**: Development environment configuration
+
+### How It Works
+
+- **Development** (`pnpm dev`):
+  - Automatically uses `[env.dev]` environment from `wrangler.toml`
+  - `CLOUDFLARE_ENV=dev` (set in `.env` file) tells getPlatformProxy() to use dev environment
+  - Uses local `.wrangler` database (D1 with `database_id = "local"`)
+  - Development environment variables (localhost URLs)
+
+- **Production** (`NODE_ENV=production`):
+  - Uses default (top-level) configuration from `wrangler.toml`
+  - Connects to remote D1 database when `remote = true`
+  - Production environment variables
+
 - **Migrations**: Always use production mode (`NODE_ENV=production`) to ensure remote connection
 
 ---

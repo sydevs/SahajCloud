@@ -1,8 +1,11 @@
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { WeMeditateWebSetting, Page, PageTag, MusicTag } from '@/payload-types'
 import type { Payload } from 'payload'
-import { createTestEnvironment } from '../utils/testHelpers'
+
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+
+import type { Page, PageTag, MusicTag } from '@/payload-types'
+
 import { testData } from '../utils/testData'
+import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('WeMeditateWebSettings Global', () => {
   let payload: Payload
@@ -189,9 +192,12 @@ describe('WeMeditateWebSettings Global', () => {
 
     // Test that non-admin users are blocked
     const nonAdminUser = testData.dummyUser('managers', { roles: [] })
+    // Using partial mock request for testing access control
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const readResult = await config?.access?.read?.({ req: { user: nonAdminUser } as any })
     expect(readResult).toBe(false)
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateResult = await config?.access?.update?.({ req: { user: nonAdminUser } as any })
     expect(updateResult).toBe(false)
   })
@@ -199,21 +205,24 @@ describe('WeMeditateWebSettings Global', () => {
   it('allows admin users to access', async () => {
     const config = payload.globals.config.find((g) => g.slug === 'we-meditate-web-settings')
     const adminUser = testData.dummyUser('managers', { admin: true })
+    // Using partial mock request for testing access control
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const readResult = await config?.access?.read?.({ req: { user: adminUser } as any })
     expect(readResult).toBe(true)
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateResult = await config?.access?.update?.({ req: { user: adminUser } as any })
     expect(updateResult).toBe(true)
   })
 
-  it('belongs to Configuration admin group', async () => {
+  it('belongs to System admin group', async () => {
     const config = payload.globals.config.find((g) => g.slug === 'we-meditate-web-settings')
-    expect(config?.admin?.group).toBe('Configuration')
+    expect(config?.admin?.group).toBe('System')
   })
 
   it('has correct label', async () => {
     const config = payload.globals.config.find((g) => g.slug === 'we-meditate-web-settings')
-    expect(config?.label).toBe('We Meditate Web Config')
+    expect(config?.label).toBe('WeMeditate Web')
   })
 
   it.skip('maintains relationship integrity with pages and tags', async () => {

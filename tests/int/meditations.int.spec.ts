@@ -1,9 +1,12 @@
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Meditation, Narrator, Media, Frame, MusicTag, MeditationTag } from '@/payload-types'
 import type { Payload } from 'payload'
-import { createTestEnvironment } from '../utils/testHelpers'
-import { testData } from '../utils/testData'
+
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+
 import { KeyframeData } from '@/components/admin/MeditationFrameEditor/types'
+import type { Meditation, Narrator, Media, Frame, MusicTag, MeditationTag } from '@/payload-types'
+
+import { testData } from '../utils/testData'
+import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Meditations Collection', () => {
   let payload: Payload
@@ -38,7 +41,6 @@ describe('Meditations Collection', () => {
       },
       {
         title: 'Morning Meditation',
-        isPublished: false,
         tags: [testTag1.id, testTag2.id],
         musicTag: testMusicTag.id,
       },
@@ -98,20 +100,20 @@ describe('Meditations Collection', () => {
           thumbnail: testImageMedia.id,
           narrator: testNarrator.id,
           locale: 'en',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
       }),
     ).rejects.toThrow()
   })
 
   it('preserves slug on update', async () => {
-    const originalSlug = testMeditation.slug
     const updated = (await payload.update({
       collection: 'meditations',
       id: testMeditation.id,
       data: {
         title: 'Updated Title',
         slug: 'attempted-slug-change', // This should be ignored
-        frames: [{ id: testFrame.id, timestamp: 0 }], // Include frame to satisfy validation
+        frames: [{ id: String(testFrame.id), timestamp: 0 }], // Include frame to satisfy validation (ID must be string)
       },
     })) as Meditation
 
@@ -157,7 +159,6 @@ describe('Meditation-Frame Relationships', () => {
       testFrame1 = await testData.createFrame(payload)
       testFrame2 = await testData.createFrame(payload)
     } catch (error) {
-      console.error('Failed to set up test environment:', error)
       // Set cleanup to a no-op function to prevent errors
       cleanup = async () => {}
       throw error

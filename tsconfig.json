@@ -28,6 +28,9 @@
       ],
       "@payload-config": [
         "./src/payload.config.ts"
+      ],
+      "tests/*": [
+        "./tests/*"
       ]
     },
     "types": [
@@ -44,7 +47,6 @@
   "exclude": [
     "node_modules",
     "migration",
-    "tests",
     "opennext.config.ts"
   ],
 }

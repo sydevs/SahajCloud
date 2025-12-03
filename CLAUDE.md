@@ -22,6 +22,16 @@ For full documentation, see: https://github.com/sydevs/claude-plugins
 
 ## Overall instructions
 - Always ask me before editing, creating, or closing a GitHub issue or PR
+- When continuing from a previous session:
+  - Explicitly state what was previously decided/approved
+  - Confirm understanding of the continuation context
+  - If a conversation summary is provided, acknowledge key decisions from it
+  - Proceed with implementation only if continuation intent is clear
+- When researching or fetching documentation, prefer specialized MCP tools over generic tools:
+  - Use `mcp__plugin_sydevs-web_cloudflare-docs__search_cloudflare_documentation` for Cloudflare documentation (not WebFetch)
+  - Use Sentry MCP tools for Sentry-related queries (not WebFetch)
+  - Use GitHub MCP tools for GitHub operations (not gh CLI or WebFetch)
+  - Only use WebFetch for websites without dedicated MCP integrations
 
 ## Project Overview
 
@@ -39,13 +49,21 @@ There is a default user with the following credentials which can be used to acce
 Username: contact@sydevelopers.com
 Password: evk1VTH5dxz_nhg-mzk
 
-The admin panel can be accessed at http://localhost:3000/admin/login once the development server is running.
+The admin panel can be accessed at http://localhost:{PORT}/admin/login once the development server is running (replace {PORT} with the port you used when starting the dev server).
 
 ## Essential Commands
 
 ### Development
-- `pnpm dev` - Start development server (runs on http://localhost:3000)
-- `pnpm devsafe` - Clean development start (removes .next directory first)
+
+**IMPORTANT - Development Server Port:**
+- **ALWAYS** start the dev server with an explicit PORT environment variable
+- **ALWAYS** use a random port between 4000-4999 (e.g., PORT=4237, PORT=4891)
+- **NEVER** use port 3000 (default port) as it may cause conflicts and result in accessing the wrong domain
+- Example: `PORT=4237 pnpm dev` or `PORT=4891 pnpm devsafe`
+
+Commands:
+- `PORT={random 4000-4999} pnpm dev` - Start development server on a random port between 4000-4999
+- `PORT={random 4000-4999} pnpm devsafe` - Clean development start (removes .next directory first)
 - `pnpm build` - Production build
 - `pnpm start` - Start production server
 
@@ -88,11 +106,77 @@ Copy from `.env.example` and configure:
 - `WEMEDITATE_WEB_URL` - Preview URL for We Meditate Web frontend (default: http://localhost:5173)
 - `SAHAJATLAS_URL` - Preview URL for Sahaj Atlas frontend (default: http://localhost:5174)
 
+### Wrangler Configuration
+
+The application uses **Wrangler Environments** to manage different configurations for development and production.
+
+**Configuration File**: `wrangler.toml` contains both environments:
+- **Default (top-level)**: Production configuration with remote D1 database
+- **`[env.dev]`**: Development environment with local SQLite database
+
+**How Environment Selection Works**:
+1. **Development** (`pnpm dev`):
+   - Automatically uses `[env.dev]` environment from `wrangler.toml`
+   - Environment variable `CLOUDFLARE_ENV=dev` (set in `.env` file) tells `getPlatformProxy()` to use dev config
+   - Uses local `.wrangler` database (D1 with `database_id = "local"`)
+   - Development URLs (localhost:3000, localhost:5173, etc.)
+
+2. **Production** (deployment):
+   - Uses default (top-level) configuration
+   - Environment variable `CLOUDFLARE_ENV` is undefined (defaults to production)
+   - Connects to remote D1 database when `remote = true`
+   - Production URLs (cloud.sydevelopers.com, wemeditate.com, etc.)
+
+**Key Files**:
+- `.env` - Sets `CLOUDFLARE_ENV=dev` for local development
+- `wrangler.toml` - Single source of truth for both environments
+- `src/payload.config.ts` - Uses `process.env.CLOUDFLARE_ENV` to select environment in `getPlatformProxy()`
+
+**See Also**: [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive deployment configuration and troubleshooting.
+
 ## Code editing
 
 After making changes to the codebase, always lint the code and fix all Typescript errors.
 
 If necessary, you should also run `pnpm run generate:types`
+
+### Type Organization Best Practices
+
+**When to Create Separate Type Files** (`src/types/`):
+- Complex type hierarchies with 3+ related types
+- Types used across multiple implementation files
+- Types that form a cohesive domain (e.g., roles, users, permissions)
+- Shared interfaces between frontend and backend code
+
+**When to Keep Types Inline**:
+- Simple one-off types used in a single file
+- Component-specific prop types
+- Internal helper types not exported
+- Types tightly coupled to a specific implementation
+
+**Type File Naming**:
+- Use descriptive singular or plural names: `roles.ts`, `permissions.ts`, `users.ts`
+- Avoid generic names like `types.ts` or `interfaces.ts`
+- Group related types in the same file
+
+**Type Organization Pattern**:
+```
+src/types/
+├── [domain].ts  # Domain-specific types (e.g., roles.ts, users.ts)
+├── [shared].ts  # Cross-cutting types (e.g., api.ts, common.ts)
+└── index.ts     # Optional: Re-export all types
+```
+
+**Import Order for Types**:
+1. External package types (from 'payload', 'react', etc.)
+2. Internal type imports from `@/types/`
+3. Internal type imports from other `@/` paths
+4. Relative type imports
+
+**Separation of Types from Data**:
+- Type definitions go in `src/types/`
+- Data/constants remain in implementation files
+- Example: Role TYPES in `src/types/roles.ts`, role DATA (MANAGER_ROLES) in `src/fields/PermissionsField.ts`
 
 ## Architecture Overview
 
@@ -262,6 +346,168 @@ The application uses PayloadCMS Global Configs to manage centralized content con
 - Exported via `src/globals/index.ts` along with other global configs
 - Registered in `src/payload.config.ts` via the `globals` array
 - Uses tabs for organized field grouping (Static Pages, Navigation, Tag Filters)
+
+### Project Visibility System
+
+The CMS implements a project-based visibility system that dynamically shows/hides collections in the admin sidebar based on the manager's currently selected project. This allows multiple frontend applications to share a single CMS while maintaining clean, focused admin interfaces.
+
+#### Project Values
+
+The system supports four project contexts defined in `src/lib/projects.ts`:
+
+- **wemeditate-web** - We Meditate website frontend
+- **wemeditate-app** - We Meditate mobile application
+- **sahaj-atlas** - Sahaj Atlas mapping application
+- **all-content** - Special mode showing collections across all projects (content managers only)
+
+#### Helper Functions
+
+**Location**: `src/lib/projectVisibility.ts`
+
+##### handleProjectVisibility()
+
+Creates dynamic `admin.hidden` functions for collections and globals based on project visibility rules:
+
+```typescript
+handleProjectVisibility(
+  allowedProjects: ProjectValue[],
+  options?: { excludeAllContent?: boolean }
+)
+```
+
+**Parameters**:
+- `allowedProjects` - Array of project values where collection should be visible
+- `options.excludeAllContent` - If true, collection is hidden even in "all-content" mode (default: false)
+
+**Examples**:
+```typescript
+// Visible only in Web project
+admin: {
+  hidden: handleProjectVisibility(['wemeditate-web'])
+}
+
+// Visible in Web + App, but excluded from all-content mode
+admin: {
+  hidden: handleProjectVisibility(['wemeditate-web', 'wemeditate-app'], { excludeAllContent: true })
+}
+
+// Completely hidden (alternative to `hidden: true`)
+admin: {
+  hidden: handleProjectVisibility([])
+}
+```
+
+##### adminOnlyVisibility
+
+Shorthand for collections that should only be visible to admin users (bypasses project filtering):
+
+```typescript
+admin: {
+  hidden: adminOnlyVisibility
+}
+```
+
+#### Collection Visibility Rules
+
+| Collection/Global | Visible In Projects | All-Content Mode | Notes |
+|------------------|---------------------|------------------|-------|
+| **Content** |
+| Pages | web, app, atlas | ✅ Visible | Cross-project content |
+| Meditations | web, app | ✅ Visible | Shared meditation content |
+| Music | web, app | ✅ Visible | Background music tracks |
+| Lessons | web, app | ✅ Visible | Path Steps content |
+| **Resources** |
+| Media | web, app, atlas | ✅ Visible | Shared media library |
+| Authors | web, app, atlas | ✅ Visible | Article authors |
+| Narrators | app | ❌ Hidden | App-specific, excluded from all-content |
+| External Videos | web, app | ✅ Visible | Not used in Atlas |
+| Frames | app | ✅ Visible | Meditation pose images/videos |
+| **Tags** |
+| Page Tags | web, app, atlas | ✅ Visible | |
+| Meditation Tags | web, app | ✅ Visible | |
+| Music Tags | web, app | ✅ Visible | |
+| Media Tags | web, app, atlas | ✅ Visible | |
+| **System** |
+| Managers | all-content only | Admin-only | User management |
+| Clients | all-content only | Admin-only | API client management |
+| File Attachments | (none) | ❌ Hidden | Completely hidden, internal use |
+| Forms | web, app, atlas | ✅ Visible | Form definitions |
+| Form Submissions | web, all-content | ❌ Hidden | Web-specific submissions |
+| Payload Jobs | all-content only | Admin-only | Background jobs |
+| **Globals** |
+| WeMeditate Web Settings | web only | ❌ Hidden | Web-specific configuration |
+
+#### Special Behaviors
+
+**All-Content Mode**:
+- Special project value that shows collections across all projects
+- Typically used by content managers who need cross-project visibility
+- Collections with `excludeAllContent: true` remain hidden in this mode
+- System collections (Managers, Clients, Payload Jobs) only visible in all-content mode
+
+**ExcludeAllContent Option**:
+- Used for project-exclusive content that shouldn't appear in all-content mode
+- Examples: Narrators (app-only), WeMeditate Web Settings (web-only)
+- Ensures strict project isolation for sensitive or project-specific collections
+
+**Project Switching UX**:
+- When managers switch projects via ProjectSelector component, they're automatically redirected to `/admin`
+- Prevents viewing collections that become hidden after project switch
+- Implemented in `src/components/admin/ProjectSelector.tsx` using `router.push('/admin')`
+
+#### Implementation Details
+
+**Collection Configuration**:
+Collections use `handleProjectVisibility()` in their admin config:
+
+```typescript
+export const ExternalVideos: CollectionConfig = {
+  slug: 'external-videos',
+  access: roleBasedAccess('external-videos'),
+  admin: {
+    group: 'Resources',
+    hidden: handleProjectVisibility(['wemeditate-web', 'wemeditate-app']),
+  },
+  // ... fields
+}
+```
+
+**Global Configuration**:
+Globals use the same helper function:
+
+```typescript
+export const WeMeditateWebSettings: GlobalConfig = {
+  slug: 'we-meditate-web-settings',
+  admin: {
+    group: 'System',
+    hidden: handleProjectVisibility(['wemeditate-web'], { excludeAllContent: true }),
+  },
+  // ... fields
+}
+```
+
+**Custom Visibility Functions**:
+For complex visibility rules, implement custom functions in `src/payload.config.ts`:
+
+```typescript
+// Form Submissions: visible in all-content OR wemeditate-web
+formSubmissionOverrides: {
+  admin: {
+    hidden: ({ user }) => {
+      const currentProject = user?.currentProject
+      return currentProject !== 'all-content' && currentProject !== 'wemeditate-web'
+    },
+  },
+}
+```
+
+#### Testing
+
+The project visibility system is tested through:
+- Admin UI navigation after project switching
+- Collection visibility checks in different project modes
+- All-content mode filtering behavior
+- ExcludeAllContent option functionality
 
 ### Lessons Collection Architecture
 
@@ -446,22 +692,430 @@ All scripts follow consistent patterns: resilient error handling, comprehensive 
 - `src/app/global-error.tsx` - Global error boundary with Sentry integration
 
 ### Component Architecture
-- `src/components/AdminProvider.tsx` - Payload admin UI provider component
+- `src/components/AdminProvider.tsx` - Payload admin UI provider component (wraps with ProjectProvider)
 - `src/components/ErrorBoundary.tsx` - React error boundary for error handling
 - `src/app/(payload)/` - Payload CMS admin interface and API routes
 - `src/app/(frontend)/` - Public-facing Next.js pages
 
-### We Meditate Branding
+### PayloadCMS CSS Variables
 
-The application features custom branding for We Meditate throughout both the admin panel and public-facing pages.
+When building custom admin components, **always use PayloadCMS CSS variables** for consistent styling and theme compatibility.
 
-#### Admin Panel Branding
-- **Logo Component** (`src/components/branding/Logo.tsx`) - We Meditate coral square logo displayed on login/signup pages using Next.js Image component
-- **Icon Component** (`src/components/branding/Icon.tsx`) - Lotus SVG icon in admin navigation with theme-adaptive coloring:
-  - Dark theme: white/light fill (#ffffff)
-  - Light theme: dark fill (#1a1a1a)
-  - Uses CSS with `[data-theme]` selectors for automatic theme adaptation
-- **Configuration** - Registered in `src/payload.config.ts` as path-based components in `admin.components.graphics`
+#### Variable Reference
+Complete variable definitions: https://github.com/payloadcms/payload/tree/main/packages/ui/src/scss
+
+**Key Variables:**
+
+**Spacing & Layout:**
+- `--base` - Base spacing unit (calculated from `--base-px: 20`)
+- `--gutter-h` - Horizontal gutter spacing
+- `--base-body-size` - Base font size (13px)
+- Usage: `calc(var(--base) * 0.8)` for proportional spacing
+
+**Typography:**
+- `--font-body` - System font stack
+- `--font-serif` - Serif font stack
+- `--font-mono` - Monospace font stack
+- `--base-body-size` - Base font size (use with `calc(var(--base-body-size) * 1px)`)
+
+**Colors & Theme:**
+- `--theme-elevation-{0-1000}` - Elevation-based color scale (supports light/dark)
+- `--theme-bg` - Background color
+- `--theme-text` - Text color
+- `--theme-input-bg` - Input background
+
+**Borders & Radius:**
+- `--style-radius-s` - Small border radius (6px in custom.scss)
+- `--style-radius-m` - Medium border radius (8px in custom.scss)
+- `--style-radius-l` - Large border radius (12px in custom.scss)
+
+**Layout Dimensions:**
+- `--nav-width` - Sidebar width (275px)
+- `--app-header-height` - Header height (`calc(var(--base) * 2.8)`)
+- `--doc-controls-height` - Control height (`calc(var(--base) * 2.8)`)
+
+**Example Usage** ([src/components/admin/ProjectSelector.tsx](src/components/admin/ProjectSelector.tsx)):
+```typescript
+style={{
+  paddingBottom: 'calc(var(--base) * 0.8)',       // Use --base for spacing
+  marginBottom: 'calc(var(--base) * 0.4)',
+  fontSize: 'calc(var(--base-body-size) * 1px)',  // Use --base-body-size for fonts
+  color: 'var(--theme-elevation-600)',             // Use elevation colors
+  borderBottom: '1px solid var(--theme-elevation-100)',
+}}
+```
+
+**Benefits:**
+- Automatic dark/light theme support
+- Responsive scaling
+- Consistent with PayloadCMS design system
+- Respects user's custom theme overrides
+
+### Custom Admin Components Architecture
+
+PayloadCMS allows extensive customization of the admin UI through custom components. Understanding the server/client component patterns and performance best practices is essential for building efficient admin interfaces.
+
+#### Server vs Client Components
+
+**Server Components (Preferred for Data Fetching)**:
+- **Definition**: React components without the `'use client'` directive
+- **Execution**: Rendered on the server, HTML sent to client
+- **Props**: Can receive non-serializable props (functions, class instances, etc.)
+- **Data Access**: Direct access to Payload API via `getPayload()`
+- **Use Cases**:
+  - Dashboard views that display data
+  - Components that need direct database/API access
+  - Components receiving props from PayloadCMS (views, custom fields)
+
+**Client Components (Only When Necessary)**:
+- **Definition**: React components with `'use client'` directive at top
+- **Execution**: Hydrated and rendered in the browser
+- **Props**: Can only receive serializable props (JSON-compatible data)
+- **Interactivity**: Required for useState, useEffect, event handlers
+- **Use Cases**:
+  - Interactive UI elements (dropdowns, modals, forms)
+  - Components needing React hooks (useState, useEffect, useContext)
+  - Components with event handlers (onClick, onChange, etc.)
+
+#### Props Pattern for PayloadCMS Views
+
+Custom view components (dashboard, account, etc.) receive props from PayloadCMS including the authenticated user object:
+
+```typescript
+// Type definition for view props
+interface ViewProps {
+  user?: {
+    id?: string | number
+    currentProject?: string
+    email?: string
+    [key: string]: any
+  }
+  [key: string]: any
+}
+
+// Server component accepting PayloadCMS props
+export default function CustomView(props: ViewProps) {
+  const currentProject = props.user?.currentProject || 'all-content'
+
+  // Access user data directly from props
+  // No need for useAuth() hook
+
+  return <div>...</div>
+}
+```
+
+**Important**: Do NOT use `useAuth()` or other client-side hooks in view components. PayloadCMS passes user data as props, making server components the correct pattern.
+
+#### React Serialization Error
+
+**Common Error**:
+```
+Error: Functions cannot be passed directly to Client Components unless
+you explicitly expose it by marking it with "use server".
+```
+
+**Root Cause**: PayloadCMS passes objects with methods (like locale objects with `toString()` functions) to custom components. Client components cannot receive non-serializable props.
+
+**Solution**: Use server components for custom views and components that receive PayloadCMS props. Only use client components for interactive UI elements that don't receive complex props from PayloadCMS.
+
+**Example of Incorrect Pattern**:
+```typescript
+'use client' // ❌ Client component receiving PayloadCMS props
+
+export default function Dashboard(props) {
+  // Will fail if props contain non-serializable data
+  return <div>...</div>
+}
+```
+
+**Example of Correct Pattern**:
+```typescript
+// ✅ Server component receiving PayloadCMS props
+export default function Dashboard(props) {
+  // Can safely receive locale objects, user data with methods, etc.
+  return <div>...</div>
+}
+```
+
+#### Performance Optimization Patterns
+
+**Direct Payload API Access (Recommended)**:
+```typescript
+import { getPayload } from 'payload'
+import config from '@payload-config'
+
+export default async function MetricsDashboard() {
+  // Direct server-side access - most efficient
+  const payload = await getPayload({ config })
+
+  // Use count() for counting, not find()
+  const [meditationsCount, lessonsCount] = await Promise.all([
+    payload.count({ collection: 'meditations' }),
+    payload.count({ collection: 'lessons' }),
+  ])
+
+  return <div>{meditationsCount.totalDocs} meditations</div>
+}
+```
+
+**Benefits**:
+- No HTTP overhead - direct database access
+- Parallel queries with Promise.all()
+- Type-safe with full TypeScript support
+- No need for API endpoints
+- Efficient counting with payload.count()
+
+**HTTP Fetch Pattern (Avoid for Internal Data)**:
+```typescript
+'use client'
+
+export default function MetricsDashboard() {
+  const [data, setData] = useState(null)
+
+  useEffect(() => {
+    // ❌ Inefficient - requires API endpoint + HTTP round trip
+    fetch('/api/dashboard-metrics')
+      .then(res => res.json())
+      .then(setData)
+  }, [])
+
+  return <div>{data?.count}</div>
+}
+```
+
+**Disadvantages**:
+- Requires creating separate API endpoint
+- HTTP overhead and latency
+- Additional error handling needed
+- More complex data flow
+
+**Best Practice**: Use server components with direct Payload API access for internal data fetching. Reserve HTTP fetch for external APIs only.
+
+#### Import Map Generation
+
+Custom admin components must be registered in PayloadCMS's import map to be available in the admin UI:
+
+**Registration** (`payload.config.ts`):
+```typescript
+admin: {
+  components: {
+    beforeNavLinks: ['@/components/admin/ProjectSelector'],
+    views: {
+      dashboard: {
+        Component: '@/components/admin/Dashboard',
+      },
+    },
+  },
+}
+```
+
+**Generate Import Map**:
+```bash
+pnpm generate:importmap
+```
+
+**Requirements**:
+- Run after adding new custom components to `payload.config.ts`
+- Use default exports (not named exports) for custom components
+- Path aliases (@/) supported via tsconfig.json
+
+**Generated File**: `.next/payload-component-map.json` (auto-generated, do not edit)
+
+#### Component Organization
+
+Custom admin components should follow this structure:
+
+```
+src/components/
+├── admin/                      # Admin UI components
+│   ├── Dashboard.tsx          # Custom views (server components)
+│   ├── ProjectSelector.tsx    # Interactive widgets (client components)
+│   ├── ProjectTheme.tsx       # Theme providers (client components)
+│   └── dashboard/             # Dashboard sub-components
+│       ├── FathomDashboard.tsx    # Client (needs state)
+│       ├── MetricsDashboard.tsx   # Server (data fetching)
+│       └── DefaultDashboard.tsx   # Client (interactive links)
+└── branding/                  # Branding components
+    ├── Logo.tsx              # Client (interactive)
+    └── Icon.tsx              # Client (dynamic rendering)
+```
+
+**Naming Convention**:
+- Server components: No special suffix needed
+- Client components: Include `'use client'` directive at top
+- Descriptive names indicating purpose (Dashboard, Selector, etc.)
+
+### Project-Focused Navigation
+
+The CMS implements project-focused navigation to manage content for four distinct projects (All Content, WeMeditate Web, WeMeditate App, Sahaj Atlas). The system dynamically filters sidebar collections based on the currently selected project.
+
+#### Projects Configuration
+- **File**: [src/lib/projects.ts](src/lib/projects.ts) - Centralized configuration (single source of truth)
+- **Projects**:
+  - `all-content` (All Content) - Access to all content across projects
+  - `wemeditate-web` (WeMeditate Web) - Web application content
+  - `wemeditate-app` (WeMeditate App) - Mobile application content
+  - `sahaj-atlas` (Sahaj Atlas) - Atlas application content
+- **Default Project**: `all-content`
+- **Helper Functions**: `getProjectLabel()`, `getProjectOptions()`, `isValidProject()`
+
+#### Manager Profile
+- **Field**: `currentProject` in Managers collection ([src/collections/access/Managers.ts](src/collections/access/Managers.ts))
+- **Type**: Select field with project options
+- **Position**: Sidebar
+- **Default**: DEFAULT_PROJECT ('all-content')
+- **Purpose**: Stores user's currently selected project preference
+
+#### ProjectSelector Component
+- **File**: [src/components/admin/ProjectSelector.tsx](src/components/admin/ProjectSelector.tsx)
+- **Location**: Rendered in `beforeNavLinks` (top of sidebar navigation)
+- **Features**:
+  - Dropdown showing all four projects
+  - Updates manager profile on project change via API
+  - Automatically reloads page to update sidebar visibility
+  - Uses Payload's theme CSS variables for consistent styling
+- **Context Integration**: Uses ProjectContext for reactive state management
+
+#### ProjectContext Provider
+- **File**: `src/contexts/ProjectContext.tsx`
+- **Purpose**: React context for sharing project state across admin components
+- **Provider**: Wrapped in AdminProvider component
+- **Hook**: `useProject()` - Access current project and setter
+- **Auto-sync**: Syncs with user profile changes via `useAuth` hook
+
+#### Collection Visibility Filtering
+Collections use `admin.hidden` functions to control visibility based on `user.currentProject`:
+
+**Collection Visibility Map:**
+| Collection | All Content | WeMeditate Web | WeMeditate App | Sahaj Atlas |
+|------------|-------------|----------------|----------------|-------------|
+| **Content** |||||
+| Pages | ✓ | ✓ | ✗ | ✗ |
+| Meditations | ✓ | ✓ | ✓ | ✗ |
+| Music | ✓ | ✓ | ✓ | ✗ |
+| Lessons | ✓ | ✗ | ✓ | ✗ |
+| **Resources** |||||
+| Media | ✓ | ✓ | ✓ | ✓ |
+| ExternalVideos | ✓ | ✓ | ✓ | ✓ |
+| Frames | ✓ | ✗ | ✓ | ✗ |
+| Narrators | ✓ | ✓ | ✓ | ✗ |
+| Authors | ✓ | ✓ | ✗ | ✗ |
+| FileAttachments | ✓ | ✓ | ✓ | ✓ |
+| **Tags** |||||
+| PageTags | ✓ | ✓ | ✗ | ✗ |
+| MeditationTags | ✓ | ✓ | ✓ | ✗ |
+| MusicTags | ✓ | ✓ | ✓ | ✗ |
+| MediaTags | ✓ | ✓ | ✓ | ✓ |
+| **System/Access** |||||
+| All Others | ✓ | ✓ | ✓ | ✓ |
+
+**Example Implementation** ([src/collections/content/Pages.ts](src/collections/content/Pages.ts)):
+```typescript
+admin: {
+  hidden: ({ user }) => {
+    const currentProject = user?.currentProject
+    return currentProject !== 'wemeditate-web' && currentProject !== 'all-content'
+  },
+}
+```
+
+#### Technical Notes
+- **Server-Side Evaluation**: `admin.hidden` functions run server-side and access `user.currentProject` directly (no React context needed)
+- **Page Reload Required**: Changing projects triggers `window.location.reload()` to re-evaluate all `admin.hidden` functions
+- **Import Map**: ProjectSelector requires `pnpm generate:importmap` to be included in Payload's component system
+- **Default Export**: Custom admin components must use default export (not named export)
+
+#### Project-Aware Dashboard System
+
+The CMS features a dynamic dashboard that adapts based on the user's currently selected project, providing project-specific views and analytics.
+
+**Implementation**: The custom Dashboard view component is registered in `payload.config.ts`:
+
+```typescript
+admin: {
+  components: {
+    views: {
+      dashboard: {
+        Component: '@/components/admin/Dashboard',
+      },
+    },
+  },
+}
+```
+
+**Dashboard Component** ([src/components/admin/Dashboard.tsx](src/components/admin/Dashboard.tsx)):
+- **Type**: Server Component (no 'use client' directive)
+- **Props**: Receives `DashboardProps` from PayloadCMS including `user` object
+- **Routing**: Switches dashboard view based on `user.currentProject`
+
+**Project-Specific Dashboards**:
+
+1. **WeMeditate Web** → [FathomDashboard](src/components/admin/dashboard/FathomDashboard.tsx)
+   - Embeds Fathom Analytics (siteId: `pfpcdamq`)
+   - Full-screen iframe with error handling
+   - Client component (needs state for error handling)
+
+2. **Sahaj Atlas** → [FathomDashboard](src/components/admin/dashboard/FathomDashboard.tsx)
+   - Embeds Fathom Analytics (siteId: `qqwctiuv`)
+   - Same component, different site configuration
+
+3. **WeMeditate App** → [MetricsDashboard](src/components/admin/dashboard/MetricsDashboard.tsx)
+   - **Server component** with direct Payload API access
+   - Displays collection counts (meditations, lessons, music)
+   - Uses `payload.count()` for efficient counting
+   - Parallel queries with `Promise.all()`
+
+4. **All Content** → [DefaultDashboard](src/components/admin/dashboard/DefaultDashboard.tsx)
+   - Quick links to key collections
+   - General content management interface
+
+**Security Note**: CSP headers in `next.config.mjs` whitelist `https://app.usefathom.com` for Fathom Analytics iframes
+
+### Project-Based Branding System
+
+The application features a dynamic project-based branding system that adapts the admin panel appearance based on the currently selected project.
+
+#### Supported Projects
+- **All Content** (`all-content`) - Default PayloadCMS theme with Sahaj Cloud lotus logo
+- **WeMeditate Web** (`wemeditate-web`) - Coral/salmon theme with We Meditate web logo
+- **WeMeditate App** (`wemeditate-app`) - Teal theme with We Meditate app logo
+- **Sahaj Atlas** (`sahaj-atlas`) - Royal blue/indigo theme with Sahaj Atlas logo
+
+#### Admin Panel Branding Components
+
+**Icon Component** ([src/components/branding/Icon.tsx](src/components/branding/Icon.tsx)):
+- Dynamic project-specific icon rendering
+- Uses Next.js Image component with project-based logo mapping
+- Accepts `size` (default: 30px), `alt`, and `style` props
+- Logo sources from `/public/images/`:
+  - `sahaj-cloud.svg` (all-content)
+  - `wemeditate-web.svg` (wemeditate-web)
+  - `wemeditate-app.svg` (wemeditate-app)
+  - `sahaj-atlas.webp` (sahaj-atlas)
+
+**Logo Component** ([src/components/branding/Logo.tsx](src/components/branding/Logo.tsx)):
+- Stacked vertical layout for login/signup pages
+- Icon centered above project label
+- Size: 64px with bold text using `--theme-elevation-800` color variable
+- Registered in `payload.config.ts` as `graphics.Logo`
+
+**InlineLogo Component** ([src/components/branding/InlineLogo.tsx](src/components/branding/InlineLogo.tsx)):
+- Horizontal layout for admin navigation
+- Icon beside project label with 25% border radius
+- Size: 48px with bold text using `--theme-elevation-800` color variable
+- Registered in `payload.config.ts` as `graphics.Icon`
+
+**ProjectTheme Component** ([src/components/admin/ProjectTheme.tsx](src/components/admin/ProjectTheme.tsx)):
+- Dynamically applies project-specific theme colors via CSS variables
+- Injects `--theme-elevation-*` variables (0-1000) for light and dark modes
+- Automatically updates on project switch or theme mode change
+- Uses MutationObserver to detect dark/light mode toggles
+- Theme definitions embedded in component with coral (wemeditate-web), teal (wemeditate-app), and royal blue (sahaj-atlas) palettes
+
+**Configuration**:
+- Branding components registered in [src/payload.config.ts](src/payload.config.ts) under `admin.components.graphics`
+- Logo images stored in `/public/images/` for Cloudflare CDN optimization
+- ProjectTheme mounted in AdminProvider for global theme application
 
 #### Frontend Splash Page
 - **Location**: `src/app/(frontend)/page.tsx`
@@ -711,10 +1365,62 @@ type MergedPermissions = {
 - No manager roles have create/update permissions for these collections
 - Web clients have read-only access to `forms` and `authors`
 
+#### Type Organization
+
+The RBAC system uses a well-organized type structure with types separated into dedicated files in the `src/types/` directory:
+
+**Type Files Structure**:
+```
+src/types/
+├── roles.ts        # Role type definitions
+├── users.ts        # User type definitions
+└── permissions.ts  # Permission structure types
+```
+
+**[src/types/roles.ts](src/types/roles.ts)** - Role type definitions:
+- `ManagerRole` - Manager role enum type ('meditations-editor' | 'path-editor' | 'translator')
+- `ClientRole` - Client role enum type ('we-meditate-web' | 'we-meditate-app' | 'sahaj-atlas')
+- `PermissionLevel` - Permission operations type (Operation | 'translate')
+- `BaseRoleConfig` - Base role configuration interface
+- `ManagerRoleConfig` - Manager role configuration (extends BaseRoleConfig with project field)
+- `ClientRoleConfig` - Client role configuration (alias for BaseRoleConfig)
+
+**[src/types/users.ts](src/types/users.ts)** - User type definitions:
+- `TypedManager` - Extended manager user type with roles, permissions, and customResourceAccess
+- `TypedClient` - Extended client user type with roles and permissions
+- Both types use `MergedPermissions` for the permissions field
+
+**[src/types/permissions.ts](src/types/permissions.ts)** - Permission structure types:
+- `MergedPermissions` - Cached permissions structure returned by virtual permissions field
+  - Contains collection-level permissions as `PermissionLevel[]`
+  - Contains `projects` array for managers (cross-locale project access)
+- `CollectionPermissions` - Helper type for type-safe collection permission access
+
+**Type Usage**:
+- Implementation files (`PermissionsField.ts`, `accessControl.ts`) import types from `src/types/`
+- Role DATA definitions (MANAGER_ROLES, CLIENT_ROLES) remain in `PermissionsField.ts`
+- Type files have no dependencies on implementation files (prevents circular dependencies)
+
+**Benefits**:
+- Clear separation of types from implementation code
+- Improved type safety with strongly-typed permission structures
+- Better code organization and maintainability
+- Easier to locate and update type definitions
+- No circular dependencies between type files and implementation files
+
 #### Key Files
-- [src/fields/PermissionsField.ts](src/fields/PermissionsField.ts) - Role definitions, field factories (ManagerPermissionsField, ClientPermissionsField), and mergeRolePermissions utility
-- [src/components/admin/PermissionsTable.tsx](src/components/admin/PermissionsTable.tsx) - Real-time permissions display component shown as afterInput on roles field
+
+**Type Definitions**:
+- [src/types/roles.ts](src/types/roles.ts) - Role type definitions (ManagerRole, ClientRole, PermissionLevel, role configs)
+- [src/types/users.ts](src/types/users.ts) - User type definitions (TypedManager, TypedClient)
+- [src/types/permissions.ts](src/types/permissions.ts) - Permission structure types (MergedPermissions, CollectionPermissions)
+
+**Implementation**:
+- [src/fields/PermissionsField.ts](src/fields/PermissionsField.ts) - Role data definitions (MANAGER_ROLES, CLIENT_ROLES), field factories (ManagerPermissionsField, ClientPermissionsField), and mergeRolePermissions utility
 - [src/lib/accessControl.ts](src/lib/accessControl.ts) - Core permission checking (hasPermission, roleBasedAccess, createFieldAccess, createLocaleFilter)
+- [src/components/admin/PermissionsTable.tsx](src/components/admin/PermissionsTable.tsx) - Real-time permissions display component shown as afterInput on roles field
+
+**Collections**:
 - [src/collections/access/Managers.ts](src/collections/access/Managers.ts) - Manager collection using ManagerPermissionsField()
 - [src/collections/access/Clients.ts](src/collections/access/Clients.ts) - Client collection using ClientPermissionsField()
 - All content collections - Use `roleBasedAccess()` for access control
@@ -723,6 +1429,205 @@ type MergedPermissions = {
 - [tests/int/role-based-access.int.spec.ts](tests/int/role-based-access.int.spec.ts) - Comprehensive RBAC integration tests
 - [tests/int/managers.int.spec.ts](tests/int/managers.int.spec.ts) - Manager collection tests with admin boolean
 - [tests/utils/testData.ts](tests/utils/testData.ts) - Test helpers for creating managers and clients with roles
+
+## Common Code Patterns
+
+This section documents recurring patterns and best practices for common development tasks in this codebase.
+
+### Type Refactoring Pattern
+
+When refactoring types into separate files, follow this systematic approach:
+
+1. **Analysis**:
+   - Identify types to extract and their dependencies
+   - Check for circular dependencies
+   - Determine which types should move vs. which should stay
+
+2. **Create Type Files**:
+   - Create new files in `src/types/` with descriptive names
+   - Add JSDoc comments explaining the purpose
+   - Group related types together
+
+3. **Move Types**:
+   - Move type definitions only (interfaces, types, enums)
+   - Keep data/constants in original implementation files
+   - Preserve all documentation and comments
+
+4. **Update Imports**:
+   - Update all files importing the types
+   - Follow proper import order (external → @/types → @/lib → relative)
+   - Remove unused imports
+
+5. **Type Casting**:
+   - Add necessary type assertions for complex union types
+   - Use `as` assertions where TypeScript can't infer types
+   - Document why casting is needed with inline comments
+
+6. **Test**:
+   - Run `npx tsc --noEmit` to check TypeScript errors
+   - Run `pnpm lint` to catch linting issues
+   - Run `pnpm test:int` to verify all tests pass
+
+7. **Document**:
+   - Update CLAUDE.md if establishing new patterns
+   - Add Architecture Decision Record if significant
+   - Update JSDoc comments in affected files
+
+**Example**:
+```typescript
+// Before: Types mixed with implementation
+export type ManagerRole = 'editor' | 'translator'
+export const MANAGER_ROLES = { ... }
+
+// After: Types separated
+// src/types/roles.ts
+export type ManagerRole = 'editor' | 'translator'
+
+// src/fields/PermissionsField.ts
+import type { ManagerRole } from '@/types/roles'
+export const MANAGER_ROLES = { ... }
+```
+
+### Permission Checking Pattern
+
+When implementing or modifying permission checks, follow these guidelines:
+
+**For Collection-Level Access**:
+```typescript
+import { roleBasedAccess } from '@/lib/accessControl'
+
+export const MyCollection: CollectionConfig = {
+  slug: 'my-collection',
+  access: roleBasedAccess('my-collection'),
+  // ... fields
+}
+```
+
+**For Operation-Specific Checks**:
+```typescript
+import { hasPermission } from '@/lib/accessControl'
+
+const canUpdate = hasPermission({
+  user,
+  collection: 'meditations',
+  operation: 'update',
+  locale: req.locale,
+})
+```
+
+**For Field-Level Access**:
+```typescript
+import { createFieldAccess } from '@/lib/accessControl'
+
+fields: [
+  {
+    name: 'title',
+    type: 'text',
+    localized: true,
+    access: createFieldAccess('pages', true), // second param: localized
+  }
+]
+```
+
+**Key Considerations**:
+- Remember implicit read access for managers (any role grants read to non-restricted collections)
+- Use locale-aware permissions for managers (checks `req.locale`)
+- Consider document-level permissions via `customResourceAccess`
+- API clients never get delete access, even with manage-level permissions
+- Restricted collections (managers, clients, payload-jobs) are admin-only
+
+### Access Control Implementation Pattern
+
+When adding new roles or modifying permissions:
+
+1. **Define Role** in `MANAGER_ROLES` or `CLIENT_ROLES` (src/fields/PermissionsField.ts):
+```typescript
+export const MANAGER_ROLES: Record<ManagerRole, ManagerRoleConfig> = {
+  'my-new-role': {
+    slug: 'my-new-role',
+    label: 'My New Role',
+    description: 'Can do specific things',
+    project: 'wemeditate-web', // for manager roles only
+    permissions: {
+      'my-collection': ['read', 'create', 'update'],
+      'media': ['read', 'create'],
+    },
+  },
+}
+```
+
+2. **Update Collection Config** with `roleBasedAccess()`:
+```typescript
+export const MyCollection: CollectionConfig = {
+  slug: 'my-collection',
+  access: roleBasedAccess('my-collection'),
+  // ... rest of config
+}
+```
+
+3. **Test with Different User Roles**:
+```typescript
+// Create test manager with role
+const manager = await testData.createManager(payload, {
+  roles: ['my-new-role']
+})
+
+// Verify permissions
+const canCreate = hasPermission({
+  user: manager,
+  collection: 'my-collection',
+  operation: 'create'
+})
+expect(canCreate).toBe(true)
+```
+
+4. **Document Role Capabilities** in CLAUDE.md under Role-Based Access Control section
+
+5. **Update Project Visibility** if role is project-specific:
+```typescript
+admin: {
+  hidden: handleProjectVisibility(['wemeditate-web']),
+}
+```
+
+### TodoWrite Usage Pattern
+
+For complex refactoring or multi-step tasks, use TodoWrite to track progress:
+
+**Granular Task Breakdown**:
+```typescript
+TodoWrite({
+  todos: [
+    {
+      content: "Create src/types/roles.ts with ManagerRole and ClientRole",
+      status: "in_progress",
+      activeForm: "Creating roles.ts"
+    },
+    {
+      content: "Update imports in PermissionsField.ts to use @/types/roles",
+      status: "pending",
+      activeForm: "Updating PermissionsField.ts"
+    },
+    {
+      content: "Replace MergedPermissions with correct type in accessControl.ts",
+      status: "pending",
+      activeForm: "Updating accessControl.ts"
+    },
+    {
+      content: "Run TypeScript check and fix errors",
+      status: "pending",
+      activeForm: "Running TypeScript check"
+    },
+  ]
+})
+```
+
+**Best Practices**:
+- Break down complex tasks into specific, actionable items
+- Mark tasks completed immediately after finishing (don't batch)
+- Use descriptive activeForm for current work visibility
+- Include file names and specific changes in task descriptions
+- Limit to ONE in_progress task at a time
 
 ## Development Workflow
 
@@ -833,9 +1738,10 @@ wrangler tail sahajcloud --format pretty
 ```
 
 **Critical Configuration**:
-- `wrangler.toml` must include `remote = true` in D1 binding for production migrations
+- `wrangler.toml` uses Wrangler environments pattern with `[env.dev]` section for development
+- Production migrations require `remote = true` in D1 binding (see DEPLOYMENT.md)
 - Set secrets via `wrangler secret put PAYLOAD_SECRET`, `SENTRY_DSN`, `RESEND_API_KEY`
-- Environment variables configured in wrangler.toml for R2 storage
+- Environment-specific variables configured in `wrangler.toml` via `[vars]` and `[env.dev.vars]` sections
 
 **Image Processing Note**:
 Sharp library removed for Cloudflare Workers compatibility (native binaries not supported). Images uploaded in original format without automatic optimization.

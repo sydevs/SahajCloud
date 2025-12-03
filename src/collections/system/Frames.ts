@@ -15,6 +15,7 @@ import {
   generateVideoThumbnailHook,
   setPreviewUrlHook,
 } from '@/lib/fieldUtils'
+import { handleProjectVisibility } from '@/lib/projectVisibility'
 
 export const Frames: CollectionConfig = {
   labels: {
@@ -58,8 +59,8 @@ export const Frames: CollectionConfig = {
     ],
   },
   admin: {
-    hidden: ({ user }) => !user?.admin,
-    group: 'System',
+    hidden: handleProjectVisibility(['wemeditate-app']),
+    group: 'Resources',
     useAsTitle: 'filename',
     defaultColumns: ['category', 'tags', 'previewUrl', 'imageSet'],
     groupBy: true,

@@ -4,8 +4,8 @@
  * Common Payload CMS operations and utilities
  */
 
-import type { CollectionSlug, Payload } from 'payload'
 import type { Logger } from './logger'
+import type { CollectionSlug, Payload } from 'payload'
 
 export class PayloadHelpers {
   private payload: Payload

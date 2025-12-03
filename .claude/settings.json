@@ -109,5 +109,10 @@
         ]
       }
     ]
+  },
+  "permissions": {
+    "allow": [
+      "mcp__plugin_sydevs-web_*"
+    ]
   }
 }

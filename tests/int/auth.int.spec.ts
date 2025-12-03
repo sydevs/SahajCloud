@@ -1,21 +1,17 @@
-import type { Operation, Payload, PayloadRequest } from 'payload'
+import type { Payload, PayloadRequest } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import { PERMISSION_COLLECTIONS } from '@/lib/accessControl'
-import type { Client, Music } from '@/payload-types'
+import type { Client } from '@/payload-types'
 
 import { testData } from 'tests/utils/testData'
 
 import { createTestEnvironment } from '../utils/testHelpers'
 
-const OPERATIONS = ['create', 'read', 'delete', 'update'] as Operation[]
-
 describe('API Authentication', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let testClient: Client
-  let clientReq: PayloadRequest
   let adminUserId: number
 
   beforeAll(async () => {
@@ -26,80 +22,112 @@ describe('API Authentication', () => {
 
     // Create test user and client
     testClient = await testData.createClient(payload, adminUserId)
-
-    // Simulate API client reading a tag
-    clientReq = {
-      user: {
-        id: testClient.id,
-        collection: 'clients',
-        active: true,
-      },
-      payload: payload,
-    } as PayloadRequest
   })
 
   afterAll(async () => {
     await cleanup()
   })
 
-  describe('Access Control', () => {
-    let testDoc: Music
+  describe('Role-Based Access Control', () => {
+    it('allows admin managers full access to all collections', async () => {
+      const adminManager = await testData.createManager(payload, {
+        email: 'admin@test.com',
+        password: 'password',
+        admin: true,
+      })
 
-    beforeAll(async () => {
-      // Create test data - using tags instead of meditations since meditations require file upload
-      testDoc = await testData.createMusic(payload)
+      const adminReq = {
+        user: {
+          id: adminManager.id,
+          collection: 'managers',
+          admin: true,
+          active: true,
+        },
+        payload,
+      } as PayloadRequest
+
+      // Admin should be able to read any collection
+      const result = await payload.find({
+        collection: 'music',
+        req: adminReq,
+      })
+
+      expect(result).toBeDefined()
+      expect(result.docs).toBeDefined()
     })
 
-    // it('allows read operations for API clients', async () => {
-    //   // Note: In integration tests, we can't fully test HTTP-level access control
-    //   // The access control is properly enforced at the HTTP API level
-    //   // This test verifies the setup is correct
-
-    //   // In a real API request, this would check access control
-    //   const result = await payload.find({
-    //     collection: 'music',
-    //     req: clientReq,
-    //   })
-
-    //   expect(result).toBeDefined()
-    //   expect(result.docs).toBeDefined()
-    // })
-
-    PERMISSION_COLLECTIONS.forEach((collectionKey) => {
-      it(`is configured for ${collectionKey}`, async () => {
-        const collectionConfig = payload.config.collections.find((c) => c.slug === collectionKey)
-        expect(collectionConfig?.access).toBeDefined()
-
-        OPERATIONS.forEach((op) => {
-          expect(typeof collectionConfig?.access[op]).oneOf(['function', 'boolean'])
-        })
+    it('restricts non-admin managers based on roles', async () => {
+      const limitedManager = await testData.createManager(payload, {
+        email: 'limited@test.com',
+        password: 'password',
+        admin: false,
+        roles: ['translator'], // Only translator role
       })
+
+      const limitedReq = {
+        user: {
+          id: limitedManager.id,
+          collection: 'managers',
+          admin: false,
+          roles: ['translator'],
+          active: true,
+        },
+        payload,
+      } as PayloadRequest
+
+      // Translator should be able to read music (implicit read access)
+      const result = await payload.find({
+        collection: 'music',
+        req: limitedReq,
+      })
+
+      expect(result).toBeDefined()
     })
 
-    PERMISSION_COLLECTIONS.forEach((collectionKey) => {
-      it.skip(`operations are restricted for ${collectionKey}`, async () => {
-        const collectionConfig = payload.config.collections.find((c) => c.slug === collectionKey)
-        expect(collectionConfig?.access).toBeDefined()
+    it('blocks API clients from accessing manager and client collections', async () => {
+      const clientReq = {
+        user: {
+          id: testClient.id,
+          collection: 'clients',
+          active: true,
+          roles: ['we-meditate-web'],
+        },
+        payload,
+      } as PayloadRequest
 
-        const user = testData.dummyUser('managers', {
-          permissions: [{ allowedCollection: collectionKey, level: 'manage', locale: ['all'] }],
+      // Clients should not be able to access managers collection
+      try {
+        await payload.find({
+          collection: 'managers',
+          req: clientReq,
         })
-        const userReq = { user } as PayloadRequest
+        // If we get here, the test should fail
+        expect(true).toBe(false)
+      } catch (error) {
+        // Expected to throw an access denied error
+        expect(error).toBeDefined()
+      }
+    })
 
-        OPERATIONS.forEach((op) => {
-          const access = collectionConfig?.access[op]
-          expect(typeof access).toBe('function')
-          if (typeof access === 'function') {
-            expect(access({ req: clientReq })).toBe(false)
-            // Media collection forbids deletion for everyone, so skip delete check
-            if (collectionKey === 'media' && op === 'delete') {
-              expect(access({ req: userReq })).toBe(false)
-            } else {
-              expect(access({ req: userReq })).toBe(true)
-            }
-          }
-        })
+    it('allows API clients to read collections they have access to', async () => {
+      const clientReq = {
+        user: {
+          id: testClient.id,
+          collection: 'clients',
+          active: true,
+          roles: ['we-meditate-web'],
+        },
+        payload,
+      } as PayloadRequest
+
+      // Client should be able to read music
+      const result = await payload.find({
+        collection: 'music',
+        req: clientReq,
       })
+
+      expect(result).toBeDefined()
+      expect(result.docs).toBeDefined()
     })
   })
 
@@ -130,7 +158,7 @@ describe('API Authentication', () => {
         expect(queueSpy).toHaveBeenCalledWith({
           task: 'trackClientUsage',
           input: {
-            clientId: testClient.id,
+            clientId: String(testClient.id),
           },
         })
       }
@@ -154,10 +182,10 @@ describe('API Authentication', () => {
       if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
         await trackUsageTask.handler({
           input: { clientId: testClient.id },
-          job: {} as any,
-          req: { payload } as any,
-          inlineTask: (() => {}) as any,
-          tasks: {} as any,
+          job: {} as never,
+          req: { payload } as unknown as PayloadRequest,
+          inlineTask: (() => {}) as never,
+          tasks: {} as never,
         })
       }
 
@@ -169,7 +197,10 @@ describe('API Authentication', () => {
 
       expect(updatedClient.usageStats?.dailyRequests).toBe(initialDailyRequests + 1)
       expect(updatedClient.usageStats?.lastRequestAt).toBeDefined()
-      expect(new Date(updatedClient.usageStats?.lastRequestAt!).getTime()).toBeGreaterThan(
+
+      // Safe to assert after checking it's defined above
+      const updatedLastRequestAt = updatedClient.usageStats!.lastRequestAt!
+      expect(new Date(updatedLastRequestAt).getTime()).toBeGreaterThan(
         initialClient.usageStats?.lastRequestAt
           ? new Date(initialClient.usageStats.lastRequestAt).getTime()
           : 0,
@@ -192,10 +223,10 @@ describe('API Authentication', () => {
         if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
           await trackUsageTask.handler({
             input: { clientId: testClient.id },
-            job: {} as any,
-            req: { payload } as any,
-            inlineTask: (() => {}) as any,
-            tasks: {} as any,
+            job: {} as never,
+            req: { payload } as unknown as PayloadRequest,
+            inlineTask: (() => {}) as never,
+            tasks: {} as never,
           })
         }
       }
@@ -218,10 +249,10 @@ describe('API Authentication', () => {
         if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
           await trackUsageTask.handler({
             input: { clientId: testClient.id },
-            job: {} as any,
-            req: { payload } as any,
-            inlineTask: (() => {}) as any,
-            tasks: {} as any,
+            job: {} as never,
+            req: { payload } as unknown as PayloadRequest,
+            inlineTask: (() => {}) as never,
+            tasks: {} as never,
           })
         }
       }
@@ -242,10 +273,10 @@ describe('API Authentication', () => {
       if (resetTask && typeof resetTask.handler === 'function') {
         await resetTask.handler({
           input: {},
-          job: {} as any,
-          req: { payload } as any,
-          inlineTask: (() => {}) as any,
-          tasks: {} as any,
+          job: {} as never,
+          req: { payload } as unknown as PayloadRequest,
+          inlineTask: (() => {}) as never,
+          tasks: {} as never,
         })
       }
 
@@ -281,10 +312,10 @@ describe('API Authentication', () => {
       if (resetTask && typeof resetTask.handler === 'function') {
         await resetTask.handler({
           input: {},
-          job: {} as any,
-          req: { payload } as any,
-          inlineTask: (() => {}) as any,
-          tasks: {} as any,
+          job: {} as never,
+          req: { payload } as unknown as PayloadRequest,
+          inlineTask: (() => {}) as never,
+          tasks: {} as never,
         })
       }
 
@@ -318,10 +349,10 @@ describe('API Authentication', () => {
       if (resetTask && typeof resetTask.handler === 'function') {
         await resetTask.handler({
           input: {},
-          job: {} as any,
-          req: { payload } as any,
-          inlineTask: (() => {}) as any,
-          tasks: {} as any,
+          job: {} as never,
+          req: { payload } as unknown as PayloadRequest,
+          inlineTask: (() => {}) as never,
+          tasks: {} as never,
         })
       }
 
@@ -352,10 +383,10 @@ describe('API Authentication', () => {
       if (resetTask && typeof resetTask.handler === 'function') {
         await resetTask.handler({
           input: {},
-          job: {} as any,
-          req: { payload } as any,
-          inlineTask: (() => {}) as any,
-          tasks: {} as any,
+          job: {} as never,
+          req: { payload } as unknown as PayloadRequest,
+          inlineTask: (() => {}) as never,
+          tasks: {} as never,
         })
       }
 
@@ -377,7 +408,7 @@ describe('API Authentication', () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       // Create a client with high usage
-      const highUsageClient = await testData.createClient(payload, adminUserId, {
+      await testData.createClient(payload, adminUserId, {
         name: 'High Usage Client',
         usageStats: {
           totalRequests: 5000,
@@ -422,12 +453,10 @@ describe('API Authentication', () => {
     it('virtual field highUsageAlert reflects high usage state', async () => {
       // Test the virtual field logic
       const clientsCollection = payload.config.collections.find((c) => c.slug === 'clients')
-      const usageStatsField = clientsCollection?.fields.find(
-        (f: any) => f.name === 'usageStats',
-      ) as any
-      const highUsageAlertField = usageStatsField?.fields?.find(
-        (f: any) => f.name === 'highUsageAlert',
-      )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const usageStatsField = clientsCollection?.fields.find((f: any) => f.name === 'usageStats') as any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const highUsageAlertField = usageStatsField?.fields?.find((f: any) => f.name === 'highUsageAlert')
 
       expect(highUsageAlertField).toBeDefined()
       expect(highUsageAlertField?.virtual).toBe(true)

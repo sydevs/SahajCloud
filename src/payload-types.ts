@@ -788,6 +788,7 @@ export interface ExternalVideo {
 export interface Manager {
   id: number;
   name: string;
+  currentProject?: ('wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas') | null;
   /**
    * Grant full administrative access to all collections and features. When enabled, role-based permissions are bypassed.
    */
@@ -1689,6 +1690,7 @@ export interface PageTagsSelect<T extends boolean = true> {
  */
 export interface ManagersSelect<T extends boolean = true> {
   name?: T;
+  currentProject?: T;
   admin?: T;
   roles?: T;
   customResourceAccess?: T;

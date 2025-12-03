@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { roleBasedAccess } from '@/lib/accessControl'
+import { handleProjectVisibility } from '@/lib/projectVisibility'
 
 export const Authors: CollectionConfig = {
   slug: 'authors',
@@ -9,6 +10,7 @@ export const Authors: CollectionConfig = {
     group: 'Resources',
     useAsTitle: 'name',
     defaultColumns: ['name', 'title', 'countryCode'],
+    hidden: handleProjectVisibility(['wemeditate-web']),
   },
   fields: [
     {

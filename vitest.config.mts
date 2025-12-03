@@ -1,9 +1,17 @@
-import { defineConfig } from 'vitest/config'
+import path from 'path'
+
 import react from '@vitejs/plugin-react'
 import tsconfigPaths from 'vite-tsconfig-paths'
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [tsconfigPaths(), react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+      tests: path.resolve(__dirname, './tests'),
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
@@ -18,6 +26,12 @@ export default defineConfig({
     env: {
       NODE_ENV: 'test',
       PAYLOAD_SECRET: 'test-secret-key',
+    },
+    // Mock CSS imports to prevent errors in tests
+    css: {
+      modules: {
+        classNameStrategy: 'non-scoped',
+      },
     },
   },
 })

@@ -11,6 +11,7 @@ import {
   QuoteBlock,
 } from '@/blocks/pages'
 import { roleBasedAccess } from '@/lib/accessControl'
+import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { fullRichTextEditor } from '@/lib/richEditor'
 
 export const Pages: CollectionConfig = {
@@ -21,6 +22,7 @@ export const Pages: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'publishAt'],
+    hidden: handleProjectVisibility(['wemeditate-web']),
     livePreview: {
       url: ({ data, locale }) => {
         const baseURL = process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173'
