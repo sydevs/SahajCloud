@@ -135,6 +135,8 @@ describe('Clients Collection', () => {
             managers: [testUser.id],
             primaryContact: testUser.id,
             active: true,
+            // Intentionally invalid data for validation test (missing name)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
         }),
       ).rejects.toThrow()
@@ -149,6 +151,8 @@ describe('Clients Collection', () => {
             role: 'full-access',
             primaryContact: testUser.id,
             active: true,
+            // Intentionally invalid data for validation test (missing managers)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
         }),
       ).rejects.toThrow()
@@ -163,6 +167,8 @@ describe('Clients Collection', () => {
             role: 'full-access',
             managers: [testUser.id],
             active: true,
+            // Intentionally invalid data for validation test (missing primaryContact)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
         }),
       ).rejects.toThrow()

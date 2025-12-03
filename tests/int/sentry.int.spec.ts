@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
 describe('Sentry Integration', () => {
   it('should have Sentry DSN configured', () => {

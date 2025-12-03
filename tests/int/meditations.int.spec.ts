@@ -159,7 +159,6 @@ describe('Meditation-Frame Relationships', () => {
       testFrame1 = await testData.createFrame(payload)
       testFrame2 = await testData.createFrame(payload)
     } catch (error) {
-      console.error('Failed to set up test environment:', error)
       // Set cleanup to a no-op function to prevent errors
       cleanup = async () => {}
       throw error

@@ -1,9 +1,12 @@
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Frame } from '@/payload-types'
 import type { Payload } from 'payload'
-import { createTestEnvironment } from '../utils/testHelpers'
-import { testData } from '../utils/testData'
+
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+
 import { FRAME_CATEGORIES } from '@/lib/data'
+import type { Frame } from '@/payload-types'
+
+import { testData } from '../utils/testData'
+import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Frames Collection', () => {
   let payload: Payload
