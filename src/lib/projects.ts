@@ -25,11 +25,6 @@ export const PROJECTS = [
 export type ProjectSlug = (typeof PROJECTS)[number]['value']
 
 /**
- * Label for admin view (when currentProject is null)
- */
-export const ADMIN_PROJECT_LABEL = 'All Content'
-
-/**
  * Project-specific icon paths
  * Uses 'sahaj-cloud' as fallback key for admin view
  */
@@ -47,7 +42,7 @@ export const PROJECT_ICONS: Record<ProjectSlug | 'sahaj-cloud', string> = {
  */
 export function getProjectLabel(value: ProjectSlug | null): string {
   if (value === null) {
-    return ADMIN_PROJECT_LABEL
+    return 'Sahaj Cloud'
   }
   const project = PROJECTS.find((p) => p.value === value)
   return project?.label || value
