@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { ManagerPermissionsField } from '@/fields/PermissionsField'
 import { hasPermission, roleBasedAccess } from '@/lib/accessControl'
+import { getProjectOptions } from '@/lib/projects'
 import { getServerUrl } from '@/lib/serverUrl'
 
 export const Managers: CollectionConfig = {
@@ -66,6 +67,14 @@ export const Managers: CollectionConfig = {
       name: 'name',
       type: 'text',
       required: true,
+    },
+    {
+      name: 'currentProject',
+      type: 'select',
+      options: getProjectOptions(),
+      admin: {
+        hidden: true,
+      },
     },
     ...ManagerPermissionsField(),
     {

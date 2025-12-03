@@ -10,30 +10,11 @@ import type {
   Where,
 } from 'payload'
 
-import {
-  mergeRolePermissions,
-  type MergedPermissions,
-  type PermissionLevel,
-} from '@/fields/PermissionsField'
+import { mergeRolePermissions } from '@/fields/PermissionsField'
 import { LocaleCode } from '@/lib/locales'
-
-// ============================================================================
-// Type Definitions
-// ============================================================================
-
-type TypedManager = TypedUser & {
-  collection: 'managers'
-  admin?: boolean
-  roles?: string[] | Record<LocaleCode, string[]>
-  customResourceAccess?: Array<{ relationTo: string; value: string | number }>
-  permissions?: MergedPermissions
-}
-
-type TypedClient = TypedUser & {
-  collection: 'clients'
-  roles?: string[]
-  permissions?: MergedPermissions
-}
+import type { MergedPermissions } from '@/types/permissions'
+import type { PermissionLevel } from '@/types/roles'
+import type { TypedClient, TypedManager } from '@/types/users'
 
 // ============================================================================
 // Utility Functions
@@ -69,8 +50,17 @@ function extractRoleSlugs(
     return Array.isArray(roles) ? roles : []
   }
 
-  // Managers: roles is localized - object with locale keys containing string arrays
-  if (locale && !Array.isArray(roles) && roles[locale]) {
+  // Managers: roles can be either:
+  // 1. Localized object: { en: ['translator'], cs: ['meditations-editor'] }
+  // 2. Flat array: ['translator', 'meditations-editor'] (for tests or non-localized contexts)
+
+  // Handle flat array (non-localized)
+  if (Array.isArray(roles)) {
+    return roles
+  }
+
+  // Handle localized object
+  if (locale && roles[locale]) {
     const localeRoles = roles[locale]
     return Array.isArray(localeRoles) ? localeRoles : []
   }
@@ -150,11 +140,18 @@ export const hasPermission = ({
 
   // Check role-based permissions
   // Type guard: ensure permissions is an object
-  if (!user.permissions || typeof user.permissions !== 'object' || Array.isArray(user.permissions)) {
+  if (
+    !user.permissions ||
+    typeof user.permissions !== 'object' ||
+    Array.isArray(user.permissions)
+  ) {
     return false
   }
 
-  const collectionPerms = (user.permissions as MergedPermissions)[collection]
+  // Get collection permissions (cast to PermissionLevel[] since we're accessing a collection, not 'projects')
+  const collectionPerms = (user.permissions as MergedPermissions)[collection] as
+    | PermissionLevel[]
+    | undefined
 
   /**
    * IMPLICIT READ ACCESS FOR MANAGERS:
@@ -244,11 +241,18 @@ export const createLocaleFilter = (user: TypedUser | null, collection: string): 
   }
 
   // Ensure permissions are computed and is an object
-  if (!user.permissions || typeof user.permissions !== 'object' || Array.isArray(user.permissions)) {
+  if (
+    !user.permissions ||
+    typeof user.permissions !== 'object' ||
+    Array.isArray(user.permissions)
+  ) {
     return !isClient // Default: managers get read access, clients don't
   }
 
-  const collectionPerms = (user.permissions as MergedPermissions)[collection]
+  // Get collection permissions (cast to PermissionLevel[] since we're accessing a collection, not 'projects')
+  const collectionPerms = (user.permissions as MergedPermissions)[collection] as
+    | PermissionLevel[]
+    | undefined
 
   // If no permission for this collection
   if (!collectionPerms) {

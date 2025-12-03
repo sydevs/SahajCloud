@@ -80,10 +80,10 @@ describe('API', () => {
       if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
         await trackUsageTask.handler({
           input: { clientId: testClient.id },
-          job: {} as any,
-          req: { payload } as any,
-          inlineTask: (() => {}) as any,
-          tasks: {} as any,
+          job: {} as never,
+          req: { payload } as unknown as PayloadRequest,
+          inlineTask: (() => {}) as never,
+          tasks: {} as never,
         })
       }
 
@@ -95,7 +95,10 @@ describe('API', () => {
 
       expect(updatedClient.usageStats?.dailyRequests).toBe(initialDailyRequests + 1)
       expect(updatedClient.usageStats?.lastRequestAt).toBeDefined()
-      expect(new Date(updatedClient.usageStats?.lastRequestAt!).getTime()).toBeGreaterThan(
+
+      // Safe to assert after checking it's defined above
+      const updatedLastRequestAt = updatedClient.usageStats!.lastRequestAt!
+      expect(new Date(updatedLastRequestAt).getTime()).toBeGreaterThan(
         initialClient.usageStats?.lastRequestAt
           ? new Date(initialClient.usageStats.lastRequestAt).getTime()
           : 0,
@@ -118,10 +121,10 @@ describe('API', () => {
         if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
           await trackUsageTask.handler({
             input: { clientId: testClient.id },
-            job: {} as any,
-            req: { payload } as any,
-            inlineTask: (() => {}) as any,
-            tasks: {} as any,
+            job: {} as never,
+            req: { payload } as unknown as PayloadRequest,
+            inlineTask: (() => {}) as never,
+            tasks: {} as never,
           })
         }
       }
@@ -144,10 +147,10 @@ describe('API', () => {
         if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
           await trackUsageTask.handler({
             input: { clientId: testClient.id },
-            job: {} as any,
-            req: { payload } as any,
-            inlineTask: (() => {}) as any,
-            tasks: {} as any,
+            job: {} as never,
+            req: { payload } as unknown as PayloadRequest,
+            inlineTask: (() => {}) as never,
+            tasks: {} as never,
           })
         }
       }
@@ -168,10 +171,10 @@ describe('API', () => {
       if (resetTask && typeof resetTask.handler === 'function') {
         await resetTask.handler({
           input: {},
-          job: {} as any,
-          req: { payload } as any,
-          inlineTask: (() => {}) as any,
-          tasks: {} as any,
+          job: {} as never,
+          req: { payload } as unknown as PayloadRequest,
+          inlineTask: (() => {}) as never,
+          tasks: {} as never,
         })
       }
 
@@ -207,10 +210,10 @@ describe('API', () => {
       if (resetTask && typeof resetTask.handler === 'function') {
         await resetTask.handler({
           input: {},
-          job: {} as any,
-          req: { payload } as any,
-          inlineTask: (() => {}) as any,
-          tasks: {} as any,
+          job: {} as never,
+          req: { payload } as unknown as PayloadRequest,
+          inlineTask: (() => {}) as never,
+          tasks: {} as never,
         })
       }
 
@@ -244,10 +247,10 @@ describe('API', () => {
       if (resetTask && typeof resetTask.handler === 'function') {
         await resetTask.handler({
           input: {},
-          job: {} as any,
-          req: { payload } as any,
-          inlineTask: (() => {}) as any,
-          tasks: {} as any,
+          job: {} as never,
+          req: { payload } as unknown as PayloadRequest,
+          inlineTask: (() => {}) as never,
+          tasks: {} as never,
         })
       }
 
@@ -278,10 +281,10 @@ describe('API', () => {
       if (resetTask && typeof resetTask.handler === 'function') {
         await resetTask.handler({
           input: {},
-          job: {} as any,
-          req: { payload } as any,
-          inlineTask: (() => {}) as any,
-          tasks: {} as any,
+          job: {} as never,
+          req: { payload } as unknown as PayloadRequest,
+          inlineTask: (() => {}) as never,
+          tasks: {} as never,
         })
       }
 
@@ -348,12 +351,10 @@ describe('API', () => {
     it('virtual field highUsageAlert reflects high usage state', async () => {
       // Test the virtual field logic
       const clientsCollection = payload.config.collections.find((c) => c.slug === 'clients')
-      const usageStatsField = clientsCollection?.fields.find(
-        (f: any) => f.name === 'usageStats',
-      ) as any
-      const highUsageAlertField = usageStatsField?.fields?.find(
-        (f: any) => f.name === 'highUsageAlert',
-      )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const usageStatsField = clientsCollection?.fields.find((f: any) => f.name === 'usageStats') as any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const highUsageAlertField = usageStatsField?.fields?.find((f: any) => f.name === 'highUsageAlert')
 
       expect(highUsageAlertField).toBeDefined()
       expect(highUsageAlertField?.virtual).toBe(true)

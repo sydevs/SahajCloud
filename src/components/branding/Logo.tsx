@@ -1,25 +1,40 @@
 'use client'
 
-import Image from 'next/image'
+import { useProject } from '@/contexts/ProjectContext'
+import { getProjectLabel } from '@/lib/projects'
+
+import Icon from './Icon'
+
+const LOGO_SIZE = 64 // Larger logo size for stacked layout
 
 /**
- * Custom Logo component for Payload admin panel
- * Displays the We Meditate coral square logo on login/signup pages
+ * Stacked Logo component for Payload admin panel
+ * Displays project-specific logo with title centered below
  */
 const Logo = () => {
+  const { currentProject } = useProject()
+  const projectLabel = getProjectLabel(currentProject)
+
   return (
-    <Image
-      src="/images/we-meditate-logo.png"
-      alt="We Meditate"
-      width={200}
-      height={200}
+    <div
       style={{
-        maxWidth: '100%',
-        height: 'auto',
-        display: 'block',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '16px',
       }}
-      priority
-    />
+    >
+      <Icon size={LOGO_SIZE} alt={projectLabel} />
+      <span
+        style={{
+          fontSize: '20px',
+          fontWeight: 'bold',
+          color: 'var(--theme-elevation-800)',
+        }}
+      >
+        {projectLabel}
+      </span>
+    </div>
   )
 }
 

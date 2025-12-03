@@ -1,10 +1,13 @@
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Payload } from 'payload'
-import type { Narrator, Frame, Meditation } from '@/payload-types'
+
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+
 import type { KeyframeData } from '@/components/admin/MeditationFrameEditor/types'
-import { createTestEnvironment } from '../utils/testHelpers'
-import { testData } from '../utils/testData'
 import { FRAME_CATEGORIES } from '@/lib/data'
+import type { Narrator, Frame, Meditation } from '@/payload-types'
+
+import { testData } from '../utils/testData'
+import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
  * Integration tests for MeditationFrameEditor functionality
@@ -208,9 +211,9 @@ describe('MeditationFrameEditor Integration', () => {
   describe('Meditation Frame Updates', () => {
     it('should save frame data to meditation document', async () => {
       const frameData: KeyframeData[] = [
-        { id: maleFrames[0].id, timestamp: 0 },
-        { id: maleFrames[1].id, timestamp: 15 },
-        { id: maleFrames[2].id, timestamp: 30 },
+        { id: String(maleFrames[0].id), timestamp: 0 },
+        { id: String(maleFrames[1].id), timestamp: 15 },
+        { id: String(maleFrames[2].id), timestamp: 30 },
       ]
 
       // Update meditation with frame data
@@ -287,7 +290,10 @@ describe('MeditationFrameEditor Integration', () => {
     })
 
     it('should construct correct audio URL', () => {
-      const baseUrl = process.env.NODE_ENV === 'development' ? `http://localhost:${process.env.PORT || '3000'}` : ''
+      const baseUrl =
+        process.env.NODE_ENV === 'development'
+          ? `http://localhost:${process.env.PORT || '3000'}`
+          : ''
       const expectedUrl = `${baseUrl}/media/meditations/${meditation.filename}`
 
       expect(expectedUrl).toContain(meditation.filename!)

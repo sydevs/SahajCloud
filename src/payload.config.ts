@@ -14,6 +14,7 @@ import { GetPlatformProxyOptions } from 'wrangler'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { resendAdapter } from '@/lib/email/resendAdapter'
 import { LOCALES, DEFAULT_LOCALE } from '@/lib/locales'
+import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { getServerUrl } from '@/lib/serverUrl'
 
 import { collections, Managers } from './collections'
@@ -26,7 +27,6 @@ const dirname = path.dirname(filename)
 
 const isTestEnvironment = process.env.NODE_ENV === 'test'
 const isProduction = process.env.NODE_ENV === 'production'
-const isDevelopment = process.env.NODE_ENV === 'development'
 
 // Get Cloudflare context using Wrangler for local dev, or real bindings for production
 const cloudflare =
@@ -64,9 +64,15 @@ const payloadConfig = (overrides?: Partial<Config>) => {
             path: '@/components/AdminProvider.tsx',
           },
         ],
+        beforeNavLinks: ['@/components/admin/ProjectSelector'],
         graphics: {
-          Logo: '@/components/branding/Icon',
+          Logo: '@/components/branding/Logo',
           Icon: '@/components/branding/Icon',
+        },
+        views: {
+          dashboard: {
+            Component: '@/components/admin/Dashboard',
+          },
         },
       },
       // Disable admin UI in test environment
@@ -95,9 +101,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           defaultJobsCollection.admin = {}
         }
 
+        // Only visible in all-content mode
         defaultJobsCollection.admin.hidden = ({ user }) => {
-          // Hide if user doesn't have admin privileges
-          return !user?.admin
+          const currentProject = user?.currentProject
+          return currentProject !== 'all-content' || !user?.admin
         }
         defaultJobsCollection.access = roleBasedAccess('payload-jobs', { implicitRead: false })
         return defaultJobsCollection
@@ -134,14 +141,16 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           access: roleBasedAccess('forms'),
           admin: {
             group: 'Resources',
+            hidden: handleProjectVisibility(['wemeditate-web']),
           },
         },
         formSubmissionOverrides: {
           access: roleBasedAccess('form-submissions', { implicitRead: false }),
           admin: {
+            // Visible in all-content mode or wemeditate-web project
             hidden: ({ user }) => {
-              // Hide if user doesn't have admin privileges
-              return !user?.admin
+              const currentProject = user?.currentProject
+              return currentProject !== 'all-content' && currentProject !== 'wemeditate-web'
             },
             group: 'System',
           },

@@ -1,0 +1,41 @@
+/**
+ * PayloadCMS Admin Panel Custom Styling
+ *
+ * Improved spacing, comfort, and polish for the admin interface
+ *
+ * Approach: Use CSS variable overrides primarily, with minimal direct CSS.
+ * All changes support both light and dark themes.
+ */
+
+/* ============================================================================
+   1. SPACING & COMFORT
+   ============================================================================ */
+
+:root {
+  /* Increase base spacing for more comfortable UI */
+  --gutter-h: 24px;
+  --base: 24px;
+  --base-body-size: 14px;
+  --base-line-height: 1.6;
+}
+
+/* ============================================================================
+   2. CLICK TARGET IMPROVEMENTS
+   ============================================================================ */
+
+:root {
+  --style-radius-s: 6px;
+  --style-radius-m: 8px;
+  --style-radius-l: 12px;
+}
+
+/* ============================================================================
+   3. SUBTLE POLISH
+   ============================================================================ */
+
+:root {
+  --nav-trans-time: 200ms;
+  --box-shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --box-shadow-m: 0 2px 12px rgba(0, 0, 0, 0.06);
+  --box-shadow-s: 0 1px 6px rgba(0, 0, 0, 0.04);
+}

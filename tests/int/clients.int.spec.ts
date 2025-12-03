@@ -53,13 +53,13 @@ describe('Clients Collection', () => {
 
       // Check managers - may be populated objects or IDs
       const managerIds = Array.isArray(client.managers)
-        ? client.managers.map((m) => (typeof m === 'string' ? m : m.id))
+        ? client.managers.map((m) => (typeof m === 'number' ? m : m.id))
         : []
       expect(managerIds).toContain(testUser.id)
 
       // Check primary contact - may be populated object or ID
       const primaryContactId =
-        typeof client.primaryContact === 'string'
+        typeof client.primaryContact === 'number'
           ? client.primaryContact
           : client.primaryContact?.id
       expect(primaryContactId).toBe(testUser.id)
@@ -79,13 +79,13 @@ describe('Clients Collection', () => {
 
       // Primary contact should be automatically added to managers
       const managerIds = Array.isArray(client.managers)
-        ? client.managers.map((m) => (typeof m === 'string' ? m : m.id))
+        ? client.managers.map((m) => (typeof m === 'number' ? m : m.id))
         : []
       expect(managerIds).toContain(testUser.id)
       expect(managerIds).toContain(testUser2.id)
 
       const primaryContactId =
-        typeof client.primaryContact === 'string'
+        typeof client.primaryContact === 'number'
           ? client.primaryContact
           : client.primaryContact?.id
       expect(primaryContactId).toBe(testUser2.id)
@@ -135,6 +135,8 @@ describe('Clients Collection', () => {
             managers: [testUser.id],
             primaryContact: testUser.id,
             active: true,
+            // Intentionally invalid data for validation test (missing name)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
         }),
       ).rejects.toThrow()
@@ -149,6 +151,8 @@ describe('Clients Collection', () => {
             role: 'full-access',
             primaryContact: testUser.id,
             active: true,
+            // Intentionally invalid data for validation test (missing managers)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
         }),
       ).rejects.toThrow()
@@ -163,6 +167,8 @@ describe('Clients Collection', () => {
             role: 'full-access',
             managers: [testUser.id],
             active: true,
+            // Intentionally invalid data for validation test (missing primaryContact)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
         }),
       ).rejects.toThrow()
@@ -177,13 +183,13 @@ describe('Clients Collection', () => {
       })
 
       const primaryContactId =
-        typeof client.primaryContact === 'string'
+        typeof client.primaryContact === 'number'
           ? client.primaryContact
           : client.primaryContact?.id
       expect(primaryContactId).toBe(testUser2.id)
 
       const managerIds = Array.isArray(client.managers)
-        ? client.managers.map((m) => (typeof m === 'string' ? m : m.id))
+        ? client.managers.map((m) => (typeof m === 'number' ? m : m.id))
         : []
       expect(managerIds).toContain(testUser2.id)
     })

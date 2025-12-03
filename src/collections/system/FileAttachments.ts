@@ -11,7 +11,7 @@ export const FileAttachments: CollectionConfig = {
   }),
   disableDuplicate: true,
   admin: {
-    hidden: ({ user }) => !user?.admin,
+    hidden: true,
     group: 'System',
     useAsTitle: 'filename',
     description:

@@ -1,8 +1,11 @@
-import { describe, it, beforeAll, afterAll, beforeEach, expect } from 'vitest'
 import type { Payload } from 'payload'
+
+import { describe, it, beforeAll, afterAll, beforeEach, expect } from 'vitest'
+
+import { createTestEnvironmentWithEmail } from 'tests/utils/testHelpers'
+
 import { EmailTestAdapter } from '../utils/emailTestAdapter'
 import { testData } from '../utils/testData'
-import { createTestEnvironmentWithEmail } from 'tests/utils/testHelpers'
 
 describe('Email Sending', () => {
   let payload: Payload
@@ -104,7 +107,7 @@ describe('Email Sending', () => {
         await emailAdapter.waitForEmail(1000) // Short timeout
         // If we get here, an email was unexpectedly sent
         expect.fail('Email should not be sent for non-existent user')
-      } catch (error) {
+      } catch (_error) {
         // Expected - no email should be captured
         expect(emailAdapter.getCapturedEmails()).toHaveLength(0)
       }

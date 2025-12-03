@@ -41,10 +41,12 @@ export const storagePlugin = () => {
 }
 
 const collectionStorageConfig = (collection: CollectionSlug): Partial<CollectionOptions> => {
+  const isProduction = process.env.NODE_ENV === 'production'
+
   return {
     prefix: collection,
-    disableLocalStorage: process.env.PUBLIC_ASSETS_URL !== undefined,
-    disablePayloadAccessControl: process.env.PUBLIC_ASSETS_URL !== undefined ? true : undefined,
+    disableLocalStorage: isProduction,
+    disablePayloadAccessControl: isProduction ? true : undefined,
     generateFileURL: ({ filename, prefix }) => {
       return `https://${process.env.PUBLIC_ASSETS_URL}/${prefix}/${filename}`
     },

@@ -1,8 +1,11 @@
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { PageTag, Page } from '@/payload-types'
 import type { Payload } from 'payload'
-import { createTestEnvironment } from '../utils/testHelpers'
+
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+
+import type { PageTag, Page } from '@/payload-types'
+
 import { testData } from '../utils/testData'
+import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('PageTags Collection', () => {
   let payload: Payload
@@ -52,8 +55,7 @@ describe('PageTags Collection', () => {
     expect(tagWithPages.pages?.docs?.length).toBeGreaterThan(0)
 
     // Verify the page is in the join relationship
-    const pageIds =
-      tagWithPages.pages?.docs?.map((p) => (typeof p === 'object' ? p.id : p)) || []
+    const pageIds = tagWithPages.pages?.docs?.map((p) => (typeof p === 'object' ? p.id : p)) || []
     expect(pageIds).toContain(testPage.id)
   })
 
@@ -69,9 +71,8 @@ describe('PageTags Collection', () => {
     })
 
     expect(pageWithMultipleTags.tags).toHaveLength(2)
-    const tagIds = pageWithMultipleTags.tags?.map((tag) =>
-      typeof tag === 'object' && tag ? tag.id : tag,
-    ) || []
+    const tagIds =
+      pageWithMultipleTags.tags?.map((tag) => (typeof tag === 'object' && tag ? tag.id : tag)) || []
     expect(tagIds).toContain(testTag.id)
     expect(tagIds).toContain(tag2.id)
   })

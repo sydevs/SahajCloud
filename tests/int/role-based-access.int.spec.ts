@@ -383,6 +383,8 @@ describe('Role-Based Access Control', () => {
         typeof fetchedManager.permissions === 'object' &&
         !Array.isArray(fetchedManager.permissions)
       ) {
+        // Permissions is a generic Record type with unknown structure
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const permissions = fetchedManager.permissions as Record<string, any>
         expect(permissions.meditations).toBeDefined()
       }
@@ -415,6 +417,8 @@ describe('Role-Based Access Control', () => {
         typeof fetchedClient.permissions === 'object' &&
         !Array.isArray(fetchedClient.permissions)
       ) {
+        // Permissions is a generic Record type with unknown structure
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const permissions = fetchedClient.permissions as Record<string, any>
         expect(permissions.meditations).toBeDefined()
         expect(permissions.pages).toBeDefined()
@@ -434,7 +438,6 @@ describe('Role-Based Access Control', () => {
         collection: 'pages',
         data: {
           title: 'Test Page',
-          category: 'knowledge',
           content: {
             root: {
               type: 'root',
@@ -500,7 +503,6 @@ describe('Role-Based Access Control', () => {
         collection: 'pages',
         data: {
           title: 'Another Test Page',
-          category: 'knowledge',
           content: {
             root: {
               type: 'root',
@@ -704,9 +706,7 @@ describe('Role-Based Access Control', () => {
     it('handles concurrent permission checks without race conditions', async () => {
       const managerUser = testData.dummyUser('managers', {
         id: 17,
-        roles: {
-          en: ['meditations-editor', 'translator'],
-        },
+        roles: ['meditations-editor', 'translator'],
         permissions: undefined, // Let permissions be computed dynamically
       })
 

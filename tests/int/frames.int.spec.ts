@@ -1,9 +1,12 @@
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Frame } from '@/payload-types'
 import type { Payload } from 'payload'
-import { createTestEnvironment } from '../utils/testHelpers'
-import { testData } from '../utils/testData'
+
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+
 import { FRAME_CATEGORIES } from '@/lib/data'
+import type { Frame } from '@/payload-types'
+
+import { testData } from '../utils/testData'
+import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Frames Collection', () => {
   let payload: Payload
@@ -36,10 +39,8 @@ describe('Frames Collection', () => {
     // Dimensions should be auto-populated by Payload for images
     expect(frame.width).toBeGreaterThan(0)
     expect(frame.height).toBeGreaterThan(0)
-    expect(frame.fileMetadata).toEqual({
-      width: 1050,
-      height: 700,
-    })
+    // fileMetadata is empty for images (Sharp disabled for Cloudflare Workers)
+    expect(frame.fileMetadata).toEqual({})
 
     // Check category field
     expect(frame.category).toBe(FRAME_CATEGORIES[0])
@@ -292,10 +293,8 @@ describe('Frames Collection', () => {
     expect(imageFrame.mimeType).toBe('image/jpeg')
     expect(imageFrame.width).toBeGreaterThan(0)
     expect(imageFrame.height).toBeGreaterThan(0)
-    expect(imageFrame.fileMetadata).toEqual({
-      width: 1050,
-      height: 700,
-    })
+    // fileMetadata is empty for images (Sharp disabled for Cloudflare Workers)
+    expect(imageFrame.fileMetadata).toEqual({})
 
     expect(videoFrame.mimeType).toBe('video/mp4')
     expect(videoFrame.fileMetadata).toEqual({
