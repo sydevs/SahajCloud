@@ -20,7 +20,7 @@ export const MediaTags: CollectionConfig = {
     {
       name: 'media',
       type: 'join',
-      collection: 'media',
+      collection: 'images',
       on: 'tags',
     },
   ],

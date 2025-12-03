@@ -35,7 +35,7 @@ export const Music: CollectionConfig = {
       virtual: true,
       hooks: {
         afterRead: [
-          ({ data }) => {
+          ({ data }: { data?: any }) => {
             // Generate R2 URL if in production
             if (data?.filename && process.env.NODE_ENV === 'production') {
               return `https://${process.env.PUBLIC_ASSETS_URL}/music/${data.filename}`
