@@ -8,7 +8,7 @@ import React, { useMemo } from 'react'
 
 import { MANAGER_ROLES, mergeRolePermissions } from '@/fields/PermissionsField'
 import { getProjectLabel, PROJECT_ICONS } from '@/lib/projects'
-import type { ProjectValue } from '@/lib/projects'
+import type { ProjectSlug } from '@/lib/projects'
 import type { ManagerRole, ClientRole, PermissionLevel } from '@/types/roles'
 
 /**
@@ -44,7 +44,7 @@ export const PermissionsTable: FieldClientComponent = () => {
           ...new Set(
             roles
               .map((roleSlug) => MANAGER_ROLES[roleSlug as ManagerRole]?.project)
-              .filter((project): project is ProjectValue => project !== undefined),
+              .filter((project): project is ProjectSlug => project !== undefined),
           ),
         ]
 

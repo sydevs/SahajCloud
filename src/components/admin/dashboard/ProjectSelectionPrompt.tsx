@@ -1,12 +1,12 @@
 'use client'
 
-import type { ProjectValue } from '@/lib/projects'
+import type { ProjectSlug } from '@/lib/projects'
 import { getProjectLabel } from '@/lib/projects'
 
 import ProjectSelector from '../ProjectSelector'
 
 interface Props {
-  allowedProjects: ProjectValue[]
+  allowedProjects: ProjectSlug[]
 }
 
 /**

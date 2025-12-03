@@ -4,7 +4,7 @@
 
 import type { Operation } from 'payload'
 
-import type { ProjectValue } from '@/lib/projects'
+import type { ProjectSlug } from '@/lib/projects'
 
 // ============================================================================
 // Role Enum Types
@@ -33,7 +33,7 @@ export interface BaseRoleConfig {
 }
 
 export interface ManagerRoleConfig extends BaseRoleConfig {
-  project: ProjectValue // Project this role grants access to
+  project: ProjectSlug // Project this role grants access to
 }
 
 export type ClientRoleConfig = BaseRoleConfig

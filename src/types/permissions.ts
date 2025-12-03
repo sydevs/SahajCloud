@@ -9,7 +9,7 @@
 
 import type { CollectionSlug } from 'payload'
 
-import type { ProjectValue } from '@/lib/projects'
+import type { ProjectSlug } from '@/lib/projects'
 import type { PermissionLevel } from '@/types/roles'
 
 /**
@@ -41,15 +41,15 @@ import type { PermissionLevel } from '@/types/roles'
  * @example
  * // Type-safe access using CollectionSlug
  * const permissions: MergedPermissions = user.permissions
- * const meditationPerms = permissions['meditations'] // PermissionLevel[] | ProjectValue[] | undefined
- * const projects = permissions.projects // ProjectValue[] | undefined
+ * const meditationPerms = permissions['meditations'] // PermissionLevel[] | ProjectSlug[] | undefined
+ * const projects = permissions.projects // ProjectSlug[] | undefined
  */
 export interface MergedPermissions {
   /**
    * Array of projects the user has access to (managers only)
    * Union of all projects across all locales
    */
-  projects?: ProjectValue[]
+  projects?: ProjectSlug[]
 
   /**
    * Collection-level permissions
@@ -59,7 +59,7 @@ export interface MergedPermissions {
    * Note: TypeScript index signatures require string type, but keys should be
    * valid CollectionSlug values at runtime.
    */
-  [key: string]: PermissionLevel[] | ProjectValue[] | undefined
+  [key: string]: PermissionLevel[] | ProjectSlug[] | undefined
 }
 
 /**

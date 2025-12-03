@@ -6,11 +6,11 @@ import { useMemo, useState } from 'react'
 
 import { useProject } from '@/contexts/ProjectContext'
 import { logger } from '@/lib/logger'
-import { ADMIN_PROJECT_LABEL, PROJECTS, ProjectValue } from '@/lib/projects'
+import { ADMIN_PROJECT_LABEL, PROJECTS, ProjectSlug } from '@/lib/projects'
 
 // Define Option type for ReactSelect
 interface SelectOption {
-  value: ProjectValue | null
+  value: ProjectSlug | null
   label: string
   [key: string]: string | null // Index signature required by ReactSelect
 }
@@ -35,9 +35,10 @@ const ProjectSelector = () => {
     }
 
     // Get allowed projects from cached permissions field
-    const allowedProjects = user?.type === 'admin'
-      ? PROJECTS.map((p) => p.value) // Admins see all projects
-      : ((user?.permissions?.projects as ProjectValue[]) || [])
+    const allowedProjects =
+      user?.type === 'admin'
+        ? PROJECTS.map((p) => p.value) // Admins see all projects
+        : (user?.permissions?.projects as ProjectSlug[]) || []
 
     // Add projects the user has access to
     allowedProjects.forEach((projectValue) => {

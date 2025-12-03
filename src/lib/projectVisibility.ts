@@ -1,4 +1,4 @@
-import { ProjectValue } from './projects'
+import { ProjectSlug } from './projects'
 
 /**
  * Helper function to create admin.hidden function based on project visibility
@@ -23,7 +23,7 @@ import { ProjectValue } from './projects'
  * }
  */
 export function handleProjectVisibility(
-  allowedProjects: ProjectValue[],
+  allowedProjects: ProjectSlug[],
   options: { excludeFromAdminView?: boolean } = {},
 ) {
   const { excludeFromAdminView = false } = options

@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { ProjectValue } from '@/lib/projects'
+import { ProjectSlug } from '@/lib/projects'
 import { Manager } from '@/payload-types'
 import { MergedPermissions } from '@/types/permissions'
 import { ManagerRole } from '@/types/roles'
@@ -15,7 +15,7 @@ import ProjectSelectionPrompt from './dashboard/ProjectSelectionPrompt'
 interface DashboardProps {
   user?: {
     id?: string | number
-    currentProject?: ProjectValue
+    currentProject?: ProjectSlug
     type?: Manager['type']
     roles?: ManagerRole[] | Record<string, ManagerRole[]>
     permissions?: MergedPermissions

@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 
 import { useProject } from '@/contexts/ProjectContext'
-import { ProjectValue } from '@/lib/projects'
+import { ProjectSlug } from '@/lib/projects'
 
 interface ThemeColors {
   light: Record<string, string>
@@ -15,7 +15,7 @@ interface ThemeColors {
  * Uses subtle tints of brand colors for elevation variables
  * Null/undefined currentProject uses default PayloadCMS colors (no entry needed)
  */
-const PROJECT_THEMES: Record<ProjectValue, ThemeColors> = {
+const PROJECT_THEMES: Record<ProjectSlug, ThemeColors> = {
   'wemeditate-web': {
     // Coral/Salmon theme - warm, inviting
     light: {
