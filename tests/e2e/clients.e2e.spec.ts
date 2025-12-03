@@ -10,13 +10,13 @@ test.describe('Clients Management UI', () => {
 
   test.beforeEach(async () => {
     // Navigate to admin login
-    await page.goto('http://localhost:3000/admin/login')
-    
+    await page.goto('/admin/login')
+
     // Login with default credentials
     await page.fill('input[name="email"]', 'contact@sydevelopers.com')
     await page.fill('input[name="password"]', 'evk1VTH5dxz_nhg-mzk')
     await page.click('button[type="submit"]')
-    
+
     // Wait for dashboard to load
     await page.waitForURL('**/admin')
   })
@@ -49,9 +49,9 @@ test.describe('Clients Management UI', () => {
   test('shows high usage alert when threshold exceeded', async () => {
     // This test would require creating a client with high usage
     // For now, we'll just verify the alert field exists
-    
+
     // Navigate to an existing client
-    await page.goto('http://localhost:3000/admin/collections/clients')
+    await page.goto('/admin/collections/clients')
     await page.waitForLoadState('networkidle')
     
     // Wait for table and click on first client
@@ -75,7 +75,7 @@ test.describe('Clients Management UI', () => {
 
   test('validates required fields', async () => {
     // Navigate to create new client
-    await page.goto('http://localhost:3000/admin/collections/clients/create')
+    await page.goto('/admin/collections/clients/create')
     await page.waitForLoadState('networkidle')
     
     // Wait for form to load
@@ -90,6 +90,6 @@ test.describe('Clients Management UI', () => {
 
   test.afterEach(async () => {
     // Logout after each test
-    await page.goto('http://localhost:3000/admin/logout')
+    await page.goto('/admin/logout')
   })
 })
