@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { Media, Meditation } from '@/payload-types'
+import type { Image, Meditation } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -10,8 +10,8 @@ import { createTestEnvironment } from '../utils/testHelpers'
 describe('Lessons Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let testPanelImage1: Media
-  let testPanelImage2: Media
+  let testPanelImage1: Image
+  let testPanelImage2: Image
   let testMeditation: Meditation
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let testNarrator: any

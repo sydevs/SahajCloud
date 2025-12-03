@@ -433,10 +433,10 @@ export const testData = {
     // Icon is optional in test environment
     const icon = overrides.icon
 
-    // Create a default media if panels need images and they're not provided
-    let defaultMedia: Media | undefined
+    // Create a default image if panels need images and they're not provided
+    let defaultImage: Image | undefined
     if (!overrides.panels || overrides.panels.length === 0) {
-      defaultMedia = await testData.createMediaImage(payload)
+      defaultImage = await testData.createMediaImage(payload)
     }
 
     // Ensure panels have the correct structure with blockType
@@ -451,7 +451,7 @@ export const testData = {
         blockType: 'text' as const,
         title: 'Default Panel',
         text: 'Default panel text',
-        image: defaultMedia?.id,
+        image: defaultImage?.id,
       },
     ]
 
