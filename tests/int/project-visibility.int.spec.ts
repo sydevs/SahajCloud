@@ -126,14 +126,14 @@ describe('Project Visibility System', () => {
     describe('admin view (null project)', () => {
       it('should show collection in admin view by default', () => {
         const hiddenFn = handleProjectVisibility(['wemeditate-web'])
-        expect(hiddenFn({ user: { currentProject: null, admin: true } as MockUser })).toBe(false)
+        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as MockUser })).toBe(false)
       })
 
       it('should hide collection in admin view when excludeFromAdminView is true', () => {
         const hiddenFn = handleProjectVisibility(['wemeditate-web'], {
           excludeFromAdminView: true,
         })
-        expect(hiddenFn({ user: { currentProject: null, admin: true } as MockUser })).toBe(false)
+        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as MockUser })).toBe(false)
         expect(hiddenFn({ user: { currentProject: null, admin: false } as MockUser })).toBe(true)
       })
 
@@ -141,7 +141,7 @@ describe('Project Visibility System', () => {
         const hiddenFn = handleProjectVisibility(['wemeditate-web'], {
           excludeFromAdminView: false,
         })
-        expect(hiddenFn({ user: { currentProject: null, admin: true } as MockUser })).toBe(false)
+        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as MockUser })).toBe(false)
       })
     })
   })
@@ -154,7 +154,7 @@ describe('Project Visibility System', () => {
     })
 
     it('should show collection for admin users', () => {
-      expect(adminOnlyVisibility({ user: { admin: true } as MockUser })).toBe(false)
+      expect(adminOnlyVisibility({ user: { type: 'admin' as const } as MockUser })).toBe(false)
     })
 
     it('should handle truthy non-boolean admin values safely', () => {
@@ -180,7 +180,7 @@ describe('Project Visibility System', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: null, admin: true } as any })).toBe(false)
+        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(false)
       }
     })
 
@@ -198,7 +198,7 @@ describe('Project Visibility System', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: null, admin: true } as any })).toBe(false)
+        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(false)
       }
     })
 
@@ -216,7 +216,7 @@ describe('Project Visibility System', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: null, admin: true } as any })).toBe(false)
+        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(false)
       }
     })
   })
@@ -236,7 +236,7 @@ describe('Project Visibility System', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: null, admin: true } as any })).toBe(false) // excludeFromAdminView (admins can see)
+        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(false) // excludeFromAdminView (admins can see)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(hiddenFn({ user: { currentProject: null, admin: false } as any })).toBe(true) // excludeFromAdminView (non-admins can't)
       }

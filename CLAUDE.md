@@ -786,7 +786,7 @@ Custom view components (dashboard, account, etc.) receive props from PayloadCMS 
 interface ViewProps {
   user?: {
     id?: string | number
-    currentProject?: string
+    currentProject?: ProjectValue
     email?: string
     [key: string]: any
   }
@@ -944,6 +944,105 @@ src/components/
 - Server components: No special suffix needed
 - Client components: Include `'use client'` directive at top
 - Descriptive names indicating purpose (Dashboard, Selector, etc.)
+
+#### PayloadCMS Custom Field Component Patterns
+
+When creating custom field components for PayloadCMS, follow these patterns for clean, type-safe implementations:
+
+**Field Property Destructuring**:
+Use nested destructuring to extract field properties efficiently:
+
+```typescript
+export const CustomField: FieldClientComponent = ({ field, readOnly }) => {
+  // ✅ Nested destructuring - clean and efficient
+  const {
+    name,
+    label,
+    localized,
+    required,
+    options: fieldOptions,  // Rename if needed
+    admin: { description, className, style } = {},
+  } = field as SelectFieldClient
+
+  // ❌ Avoid: Multiple extraction steps
+  // const { name, label, ... } = field
+  // const description = admin?.description
+  // const className = admin?.className
+}
+```
+
+**useField Hook Usage**:
+The `useField` hook infers path from context - no need to pass it explicitly:
+
+```typescript
+// ✅ Correct - path inferred from context
+const { value, setValue, showError } = useField<string>()
+
+// ❌ Incorrect - unnecessary path parameter
+const { value, setValue, showError } = useField<string>({ path: name })
+```
+
+**Option Type Handling**:
+PayloadCMS `Option` type is `string | OptionObject` - handle both cases:
+
+```typescript
+const options = useMemo(
+  () =>
+    fieldOptions.map((opt) => {
+      if (typeof opt === 'string') {
+        // String option - use as both label and value
+        return { label: opt, value: opt }
+      }
+      // OptionObject - extract label (can be string or Record)
+      const label = typeof opt.label === 'string' ? opt.label : opt.value
+      return { label, value: opt.value }
+    }),
+  [fieldOptions],
+)
+```
+
+**StaticLabel Handling**:
+Client-side labels are `StaticLabel` (not `LabelFunction`), handle string and Record types:
+
+```typescript
+// Generate aria-label for accessibility
+const ariaLabel =
+  typeof label === 'string'
+    ? label
+    : typeof label === 'object' && label !== null
+      ? label['en'] || Object.values(label)[0] || name
+      : name
+```
+
+**Field Markup Structure**:
+Follow PayloadCMS conventions for field markup:
+
+```typescript
+return (
+  <div className={fieldClasses} id={fieldId} style={style}>
+    {/* Use PayloadCMS field components */}
+    <FieldLabel label={label} localized={localized} path={name} required={required} />
+
+    <div className="field-type__wrap">
+      <FieldError path={name} showError={showError} />
+      <YourCustomInput />
+    </div>
+
+    <FieldDescription description={description} path={name} />
+  </div>
+)
+```
+
+**CSS Classes**:
+- Base class: `field-type` (not `field`)
+- Type class: `select`, `text`, etc.
+- State classes: `error`, `read-only`
+
+**Key Points**:
+- Always use `field as SelectFieldClient` (or appropriate type) for type safety
+- Extract aria-label to separate variable for readability
+- Use PayloadCMS's `FieldLabel`, `FieldError`, `FieldDescription` components
+- Match exact markup structure of PayloadCMS's built-in fields
 
 ### Project-Focused Navigation
 
@@ -1312,7 +1411,7 @@ type MergedPermissions = {
 **Access Control Functions**:
 - **roleBasedAccess()**: Main access control function used by all collections
 - **hasPermission()**: Core permission checking - checks user permissions for a collection/operation
-- **mergeRolePermissions(roles: string[], collectionSlug: 'clients' | 'managers')**: Merge permissions from multiple roles into unified permissions object
+- **mergeRolePermissions(roles: (ManagerRole | ClientRole)[], collectionSlug: 'clients' | 'managers')**: Merge permissions from multiple roles into unified permissions object
 - **createFieldAccess()**: Field-level access control for translate permission
 - **createLocaleFilter()**: Query filtering based on locale permissions
 - **isAPIClient()**: Type guard to check if user is an API client
@@ -1487,6 +1586,45 @@ export type ManagerRole = 'editor' | 'translator'
 import type { ManagerRole } from '@/types/roles'
 export const MANAGER_ROLES = { ... }
 ```
+
+### Investigating Library Types Before Creating Custom Interfaces
+
+When working with third-party libraries (PayloadCMS, React, etc.), always investigate built-in types before creating custom interfaces:
+
+**Investigation Process**:
+1. Check library's TypeScript definitions in `node_modules/<package>/dist/*.d.ts`
+2. Use grep to search for relevant type names:
+   ```bash
+   grep -r "export type <TypeName>" node_modules/<package>/dist/
+   grep -A 20 "export type <TypeName>" node_modules/<package>/dist/types.d.ts
+   ```
+3. Examine the full type definition to understand structure and properties
+4. Check for related types (e.g., `SelectFieldClient` vs `SelectField`, `Option` vs `OptionObject`)
+
+**Example - PayloadCMS Field Types**:
+```typescript
+// ❌ DON'T: Create custom interface without checking library types
+interface SelectFieldConfig {
+  name: string
+  label?: string
+  options?: Array<{ label: string; value: string }>
+}
+
+// ✅ DO: Use built-in PayloadCMS type
+import type { SelectFieldClient } from 'payload'
+
+const { name, label, options } = field as SelectFieldClient
+```
+
+**When to Use Custom Types**:
+- Library doesn't provide the exact type you need
+- You need a subset or extension of library types
+- Creating domain-specific types that compose library types
+
+**Benefits**:
+- Ensures compatibility with library updates
+- Avoids type mismatches and conversion issues
+- Leverages library's type safety and documentation
 
 ### Permission Checking Pattern
 

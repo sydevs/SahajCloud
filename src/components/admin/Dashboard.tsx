@@ -1,6 +1,9 @@
 import React from 'react'
 
+import { ProjectValue } from '@/lib/projects'
+import { Manager } from '@/payload-types'
 import { MergedPermissions } from '@/types/permissions'
+import { ManagerRole } from '@/types/roles'
 
 import DefaultDashboard from './dashboard/DefaultDashboard'
 import FathomDashboard from './dashboard/FathomDashboard'
@@ -12,10 +15,9 @@ import ProjectSelectionPrompt from './dashboard/ProjectSelectionPrompt'
 interface DashboardProps {
   user?: {
     id?: string | number
-    currentProject?: string
-    admin?: boolean
-    active?: boolean
-    roles?: string[] | Record<string, string[]>
+    currentProject?: ProjectValue
+    type?: Manager['type']
+    roles?: ManagerRole[] | Record<string, ManagerRole[]>
     permissions?: MergedPermissions
     [key: string]: unknown
   }
@@ -41,12 +43,12 @@ export default function Dashboard(props: DashboardProps) {
   // Handle null/undefined currentProject (no project selected)
   if (!currentProject) {
     // Case 1: Inactive account
-    if (user?.active === false) {
+    if (user?.type === 'inactive') {
       return <InactiveAccountAlert />
     }
 
     // Case 2: Admin users see default dashboard (admin view)
-    if (user?.admin === true) {
+    if (user?.type === 'admin') {
       return <DefaultDashboard />
     }
 

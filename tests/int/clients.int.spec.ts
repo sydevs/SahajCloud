@@ -94,14 +94,14 @@ describe('Clients Collection', () => {
     it('updates client information', async () => {
       const client = await testData.createClient(payload, testUser.id)
 
-      const updated = (await payload.update({
+      const updated = await payload.update({
         collection: 'clients',
         id: client.id,
         data: {
           name: 'Updated Client Name',
           active: false,
         },
-      })) as Client
+      })
 
       expect(updated.name).toBe('Updated Client Name')
       expect(updated.active).toBe(false)

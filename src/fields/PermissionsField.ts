@@ -2,6 +2,7 @@ import type { Field } from 'payload'
 
 import { DEFAULT_LOCALE, LocaleCode } from '@/lib/locales'
 import { ProjectValue } from '@/lib/projects'
+import { Manager } from '@/payload-types'
 import type { MergedPermissions } from '@/types/permissions'
 import type {
   ClientRole,
@@ -120,7 +121,7 @@ export const CLIENT_ROLES: Record<ClientRole, ClientRoleConfig> = {
  * @returns Merged permissions object
  */
 export function mergeRolePermissions(
-  roles: string[],
+  roles: (ManagerRole | ClientRole)[],
   collectionSlug: 'clients' | 'managers',
 ): MergedPermissions {
   if (!roles || roles.length === 0) {
@@ -178,11 +179,11 @@ export function mergeRolePermissions(
  * @returns Array of unique ProjectValue the manager can access
  */
 function computeAllowedProjects(manager: {
-  roles?: string[] | Record<LocaleCode, string[]>
-  admin?: boolean
+  roles?: ManagerRole[] | Record<LocaleCode, ManagerRole[]>
+  type?: Manager['type']
 }): ProjectValue[] {
   // Admins have access to all projects (via null/admin view)
-  if (manager.admin || !manager.roles) {
+  if (manager.type === 'admin' || !manager.roles) {
     return []
   }
 
@@ -193,7 +194,7 @@ function computeAllowedProjects(manager: {
 
   // Map roles to projects and get unique values
   const projects = allRoleSlugs
-    .map((roleSlug) => MANAGER_ROLES[roleSlug as ManagerRole]?.project)
+    .map((roleSlug) => MANAGER_ROLES[roleSlug]?.project)
     .filter((project): project is ProjectValue => project !== undefined)
 
   return [...new Set(projects)]
@@ -207,10 +208,10 @@ function computeAllowedProjects(manager: {
  * Create permissions-related fields for Managers collection
  *
  * Returns an array of 4 fields:
- * 1. admin - Boolean for full system access
- * 2. roles - Localized multi-select of manager roles (hidden if admin is true)
- * 3. customResourceAccess - Polymorphic relationship for document-level permissions (hidden if admin is true)
- * 4. permissions - Virtual field showing merged permissions (hidden if admin is true)
+ * 1. type - Manager access level (inactive, manager, admin) with toggle button group
+ * 2. roles - Localized multi-select of manager roles (hidden if type is not 'manager')
+ * 3. customResourceAccess - Polymorphic relationship for document-level permissions (hidden if type is not 'manager')
+ * 4. permissions - Virtual field showing merged permissions (hidden)
  *
  * @returns Array of Payload field configurations
  */
@@ -221,14 +222,23 @@ export function ManagerPermissionsField(): Field[] {
   }))
 
   return [
-    // 1. Admin boolean field
+    // 1. Type field (segmented control for access level)
     {
-      name: 'admin',
-      type: 'checkbox',
-      defaultValue: false,
+      name: 'type',
+      type: 'select',
+      required: true,
+      defaultValue: 'manager',
+      options: [
+        { label: 'Inactive', value: 'inactive' },
+        { label: 'Manager', value: 'manager' },
+        { label: 'Admin', value: 'admin' },
+      ],
       admin: {
         description:
-          'Grant full administrative access to all collections and features. When enabled, role-based permissions are bypassed.',
+          "Set the manager's access level. Admin grants full access, Manager uses role-based permissions, Inactive blocks all access.",
+        components: {
+          Field: '@/components/admin/ToggleGroupField',
+        },
       },
     },
 
@@ -243,7 +253,7 @@ export function ManagerPermissionsField(): Field[] {
       admin: {
         description:
           'Assign roles for each locale. Different roles can be assigned for different languages.',
-        condition: (data) => !data.admin,
+        condition: (data) => data.type === 'manager',
         components: {
           afterInput: ['@/components/admin/PermissionsTable'],
         },
@@ -259,7 +269,7 @@ export function ManagerPermissionsField(): Field[] {
       admin: {
         description:
           'Grant update access to specific documents. Useful for giving access to individual pages without broader permissions.',
-        condition: (data) => !data.admin,
+        condition: (data) => data.type === 'manager',
       },
     },
 
@@ -287,7 +297,7 @@ export function ManagerPermissionsField(): Field[] {
             }
 
             // Extract locale-specific roles array for permissions
-            let roleSlugArray: string[]
+            let roleSlugArray: ManagerRole[]
             if (Array.isArray(data.roles)) {
               // PayloadCMS has already localized the data
               roleSlugArray = data.roles
@@ -305,7 +315,7 @@ export function ManagerPermissionsField(): Field[] {
             // Compute allowed projects (union across all locales)
             const projects = computeAllowedProjects({
               roles: data.roles,
-              admin: data.admin,
+              type: data.type,
             })
 
             // Return flat object with collection permissions + projects array

@@ -21,12 +21,12 @@ describe('Managers Collection', () => {
     await cleanup()
   })
 
-  it('creates a manager with email, password, and admin flag', async () => {
+  it('creates a manager with email, password, and admin type', async () => {
     const managerData = {
       name: 'Test Manager',
       email: 'test@example.com',
       password: 'password123',
-      admin: true,
+      type: 'admin' as const,
     }
 
     const manager = await testData.createManager(payload, managerData)
@@ -34,7 +34,7 @@ describe('Managers Collection', () => {
     expect(manager).toBeDefined()
     expect(manager.email).toBe('test@example.com')
     expect(manager.id).toBeDefined()
-    expect(manager.admin).toBe(true)
+    expect(manager.type).toBe('admin')
     // Password should not be returned in response
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((manager as any).password).toBeUndefined()
@@ -59,7 +59,7 @@ describe('Managers Collection', () => {
       name: 'Unique Manager',
       email: 'unique@example.com',
       password: 'password123',
-      admin: true,
+      type: 'admin' as const,
     }
 
     // Create first manager

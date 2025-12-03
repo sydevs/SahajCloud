@@ -60,7 +60,7 @@ export const Managers: CollectionConfig = {
     },
     group: 'Access',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'email', '_verified', 'active'],
+    defaultColumns: ['name', 'email', 'type', '_verified'],
   },
   fields: [
     {
@@ -77,13 +77,5 @@ export const Managers: CollectionConfig = {
       },
     },
     ...ManagerPermissionsField(),
-    {
-      name: 'active',
-      type: 'checkbox',
-      defaultValue: true,
-      admin: {
-        description: 'Enable or disable this user',
-      },
-    },
   ],
 }

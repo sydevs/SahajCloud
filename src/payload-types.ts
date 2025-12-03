@@ -790,9 +790,9 @@ export interface Manager {
   name: string;
   currentProject?: ('wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas') | null;
   /**
-   * Grant full administrative access to all collections and features. When enabled, role-based permissions are bypassed.
+   * Set the manager's access level. Admin grants full access, Manager uses role-based permissions, Inactive blocks all access.
    */
-  admin?: boolean | null;
+  type: 'inactive' | 'manager' | 'admin';
   /**
    * Assign roles for each locale. Different roles can be assigned for different languages.
    */
@@ -815,10 +815,6 @@ export interface Manager {
     | number
     | boolean
     | null;
-  /**
-   * Enable or disable this user
-   */
-  active?: boolean | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -1691,11 +1687,10 @@ export interface PageTagsSelect<T extends boolean = true> {
 export interface ManagersSelect<T extends boolean = true> {
   name?: T;
   currentProject?: T;
-  admin?: T;
+  type?: T;
   roles?: T;
   customResourceAccess?: T;
   permissions?: T;
-  active?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
