@@ -125,12 +125,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
                 // No transportOptions - uses Ethereal Email in development
               }),
         }),
-    // sharp, // DISABLED: Incompatible with Cloudflare Workers - TODO: Migrate to Cloudflare Images (Phase 6)
     plugins: [
-      storagePlugin(), // Handles file storage
+      storagePlugin(cloudflare.env), // Cloudflare-native file storage (Images, Stream, R2)
       seoPlugin({
         collections: ['pages'],
-        uploadsCollection: 'media',
+        uploadsCollection: 'images', // Changed from 'media' to 'images'
         generateTitle: ({ doc }) => `We Meditate — ${doc.title}`,
         generateDescription: ({ doc }) => doc.content,
         tabbedUI: true,

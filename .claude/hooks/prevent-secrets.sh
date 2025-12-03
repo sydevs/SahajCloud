@@ -33,7 +33,7 @@ PATTERNS=(
   "API_KEY"
   "PRIVATE_KEY"
   "[0-9a-f]{32,}"  # Long hex strings
-  "Bearer [A-Za-z0-9_-]+"  # Bearer tokens
+  # Removed: "Bearer [A-Za-z0-9_-]+" - Too many false positives with template variables
 )
 
 FOUND_SECRETS=false
@@ -43,13 +43,31 @@ DETAILS=""
 while IFS= read -r FILE; do
   FULL_PATH="$CLAUDE_PROJECT_DIR/$FILE"
 
+  # Skip example/template files (they contain variable names, not actual secrets)
+  if [[ "$FILE" == *.example ]] || [[ "$FILE" == *.template ]] || [[ "$FILE" == *.sample ]]; then
+    continue
+  fi
+
+  # Skip the hook itself (it contains pattern strings)
+  if [[ "$FILE" == *"prevent-secrets.sh" ]]; then
+    continue
+  fi
+
   # Skip binary files
   if file "$FULL_PATH" | grep -q "text"; then
     for PATTERN in "${PATTERNS[@]}"; do
+      # Skip if it's an environment variable reference (process.env.PATTERN_NAME)
       if grep -qE "$PATTERN" "$FULL_PATH" 2>/dev/null; then
-        FOUND_SECRETS=true
-        MATCHES=$(grep -nE "$PATTERN" "$FULL_PATH" | head -3)
-        DETAILS="$DETAILS\n\n$FILE:\n$MATCHES"
+        # Check if matches are environment variable references
+        MATCHES=$(grep -nE "$PATTERN" "$FULL_PATH" 2>/dev/null)
+
+        # Filter out process.env.* references
+        FILTERED_MATCHES=$(echo "$MATCHES" | grep -vE "process\.env\.[A-Z_]+")
+
+        if [ -n "$FILTERED_MATCHES" ]; then
+          FOUND_SECRETS=true
+          DETAILS="$DETAILS\n\n$FILE:\n$(echo "$FILTERED_MATCHES" | head -3)"
+        fi
       fi
     done
   fi

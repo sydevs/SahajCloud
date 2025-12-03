@@ -139,8 +139,8 @@ const FrameItem: React.FC<FrameItemProps> = ({
               objectFit: 'cover',
               position: 'absolute',
             }}
-            width={frame.sizes?.small?.width || size}
-            height={frame.sizes?.small?.height || size}
+            width={size}
+            height={size}
             onError={() => setImageError(true)}
           />
           {/* Loading spinner */}
@@ -195,8 +195,8 @@ const FrameItem: React.FC<FrameItemProps> = ({
           src={displayUrl}
           alt={frame.category || (isVideo ? 'Video Frame' : 'Frame')}
           style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute' }}
-          width={frame.sizes?.small?.width || frame.width || size}
-          height={frame.sizes?.small?.height || frame.height || size}
+          width={frame.width || size}
+          height={frame.height || size}
           onError={() => setImageError(true)}
         />
         {/* Play button overlay for video indication when using preview */}

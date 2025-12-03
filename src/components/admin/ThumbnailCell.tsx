@@ -48,8 +48,8 @@ const DirectUploadThumbnail = ({
   }
 
   if (mimeType?.startsWith('video/')) {
-    // Check if we have a generated thumbnail in the sizes object
-    const thumbnailUrl = rowData?.sizes?.small?.url
+    // Use thumbnailUrl virtual field (works for both Cloudflare Stream thumbnails and image thumbnails)
+    const thumbnailUrl = rowData?.thumbnailUrl
 
     if (thumbnailUrl) {
       // Display generated thumbnail with play button overlay
@@ -167,7 +167,7 @@ const RelationshipThumbnail: React.FC<{
   aspectRatio?: string
   size?: 'small' | 'medium' | 'large'
 }> = ({ cellData, aspectRatio = '1:1', size = 'medium' }) => {
-  const [{ data: media }] = usePayloadAPI('/api/media', {
+  const [{ data: media }] = usePayloadAPI('/api/images', {
     initialParams: {
       where: {
         id: {
