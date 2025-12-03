@@ -11,7 +11,7 @@ export default async function HomePage() {
         {/* Logo and Title */}
         <div className="logo-section">
           <Image
-            src="/images/we-meditate-logo.png"
+            src="/images/wemeditate-web.svg"
             alt="We Meditate"
             width={100}
             height={100}
