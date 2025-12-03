@@ -306,7 +306,11 @@ export const testData = {
    * @param overrides - Optional field overrides
    * @example
    * // Create admin manager
-   * await createManager(payload, { admin: true })
+   * await createManager(payload, { type: 'admin' })
+   * // Create regular manager
+   * await createManager(payload, { type: 'manager' })
+   * // Create inactive manager
+   * await createManager(payload, { type: 'inactive' })
    * // Create translator manager with array (auto-localized for English)
    * await createManager(payload, { roles: ['translator'] })
    * // Create translator manager with localized object
@@ -339,7 +343,7 @@ export const testData = {
         name: 'Test Manager',
         email: `${testEmail}@example.com`,
         password: 'password123',
-        active: true,
+        type: 'manager', // Default to 'manager' type
         ...overrides,
         roles: rolesData, // Pass array directly, Payload handles localization
       },
@@ -504,9 +508,14 @@ export const testData = {
    * @param overrides - Optional field overrides
    * @example
    * // Create dummy admin manager
-   * dummyUser('managers', { admin: true })
+   * dummyUser('managers', { type: 'admin' })
+   * // Create dummy manager
+   * dummyUser('managers', { type: 'manager' })
+   * // Create dummy inactive manager
+   * dummyUser('managers', { type: 'inactive' })
    * // Create dummy translator with permissions
    * dummyUser('managers', {
+   *   type: 'manager',
    *   roles: { en: ['translator'] },
    *   permissions: { pages: ['read', 'translate'], projects: ['wemeditate-web'] }
    * })
@@ -522,12 +531,22 @@ export const testData = {
       defaultRoles = overrides.roles || []
     }
 
-    return {
+    const baseUser = {
       collection,
-      active: true,
       roles: defaultRoles,
       permissions: {}, // Empty permissions - will be computed from roles
       ...overrides,
-    } as TypedUser
+    }
+
+    // Add type field for managers
+    if (collection === 'managers') {
+      return {
+        ...baseUser,
+        type: 'manager', // Default to 'manager' type
+        ...overrides, // Allow overriding type
+      } as TypedUser
+    }
+
+    return baseUser as TypedUser
   },
 }

@@ -34,7 +34,7 @@ describe('Email Sending', () => {
         name: 'Verify User',
         email: 'verify@test.com',
         password: 'TestPassword123!',
-        admin: true,
+        type: 'admin' as const,
       }
 
       // Clear any existing emails

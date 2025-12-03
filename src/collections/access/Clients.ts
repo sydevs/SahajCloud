@@ -20,7 +20,7 @@ export const Clients: CollectionConfig = {
     plural: 'Services',
   },
   admin: {
-    hidden: ({ user }) => !user?.admin,
+    hidden: ({ user }) => user?.type !== 'admin',
     group: 'Access',
     useAsTitle: 'name',
     defaultColumns: ['name', 'active'],

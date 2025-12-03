@@ -25,19 +25,19 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
     const current = user.currentProject
 
     // Case 1: Admin with no project selected - use null (admin view)
-    if (user.admin && !current) {
+    if (user.type === 'admin' && !current) {
       setCurrentProject(null)
       return
     }
 
     // Case 2: Current project is valid - keep it
-    if (current && (user.admin || allowedProjects.includes(current))) {
+    if (current && (user.type === 'admin' || allowedProjects.includes(current))) {
       setCurrentProject(current)
       return
     }
 
     // Case 3: Auto-select if only one project available
-    if (!user.admin && allowedProjects.length === 1) {
+    if (user.type !== 'admin' && allowedProjects.length === 1) {
       const selected = allowedProjects[0]
       setCurrentProject(selected)
 
@@ -55,7 +55,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
 
     // Case 4: Multiple projects or invalid current - require manual selection
     setCurrentProject(null)
-  }, [user, user?.id, user?.permissions?.projects, user?.currentProject, user?.admin])
+  }, [user, user?.id, user?.permissions?.projects, user?.currentProject, user?.type])
 
   return (
     <ProjectContext.Provider value={{ currentProject, setCurrentProject }}>
