@@ -53,13 +53,15 @@ export const routerAdapter = (config: RouterConfig): Adapter => {
       },
 
       handleDelete: async (args) => {
-        const adapter = selectAdapter(args.doc.mimeType)
+        const mimeType = (args.doc as { mimeType?: string }).mimeType
+        const adapter = selectAdapter(mimeType)
         logger.info(`Routing delete to ${adapter.name} adapter`)
         return adapter.handleDelete(args)
       },
 
       staticHandler: async (req, args) => {
-        const adapter = selectAdapter(args.doc?.mimeType)
+        const mimeType = (args.doc as { mimeType?: string } | undefined)?.mimeType
+        const adapter = selectAdapter(mimeType)
         logger.debug(`Routing static request to ${adapter.name} adapter`)
         return adapter.staticHandler(req, args)
       },

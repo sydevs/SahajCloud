@@ -15,7 +15,7 @@ export interface R2NativeConfig {
 }
 
 export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
-  return ({ collection, prefix }) => ({
+  return ({ prefix }) => ({
     name: 'r2-native',
 
     handleUpload: async ({ file }) => {
@@ -68,7 +68,8 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
         }
 
         // Return file with appropriate headers
-        return new Response(object.body, {
+        // Cast R2 ReadableStream to web standard ReadableStream
+        return new Response(object.body as unknown as ReadableStream, {
           headers: {
             'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream',
             'Cache-Control': 'public, max-age=31536000', // Cache for 1 year

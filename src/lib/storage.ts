@@ -119,6 +119,6 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
         disableLocalStorage: true,
         disablePayloadAccessControl: true,
       },
-    },
+    } as any, // Type assertion: lessons is an upload collection but types may not be regenerated yet
   })
 }
