@@ -240,6 +240,12 @@ export function ManagerPermissionsField(): Field[] {
           Field: '@/components/admin/ToggleGroupField',
         },
       },
+      access: {
+        // Only admins can update the type field
+        update: ({ req: { user } }) => {
+          return user?.collection === 'managers' && user.type === 'admin'
+        },
+      },
     },
 
     // 2. Roles field (localized multi-select)
@@ -258,6 +264,12 @@ export function ManagerPermissionsField(): Field[] {
           afterInput: ['@/components/admin/PermissionsTable'],
         },
       },
+      access: {
+        // Only admins can update roles
+        update: ({ req: { user } }) => {
+          return user?.collection === 'managers' && user.type === 'admin'
+        },
+      },
     },
 
     // 3. Custom Resource Access
@@ -270,6 +282,12 @@ export function ManagerPermissionsField(): Field[] {
         description:
           'Grant update access to specific documents. Useful for giving access to individual pages without broader permissions.',
         condition: (data) => data.type === 'manager',
+      },
+      access: {
+        // Only admins can update custom resource access
+        update: ({ req: { user } }) => {
+          return user?.collection === 'managers' && user.type === 'admin'
+        },
       },
     },
 

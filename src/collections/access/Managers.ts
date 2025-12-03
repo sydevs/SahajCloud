@@ -1,13 +1,13 @@
 import type { CollectionConfig } from 'payload'
 
 import { ManagerPermissionsField } from '@/fields/PermissionsField'
-import { hasPermission, roleBasedAccess } from '@/lib/accessControl'
+import { hasPermission, adminOrSelfAccess } from '@/lib/accessControl'
 import { getProjectOptions } from '@/lib/projects'
 import { getServerUrl } from '@/lib/serverUrl'
 
 export const Managers: CollectionConfig = {
   slug: 'managers',
-  access: roleBasedAccess('managers', { implicitRead: false }),
+  access: adminOrSelfAccess(),
   auth: {
     verify: {
       generateEmailHTML: ({ token, user }) => {
