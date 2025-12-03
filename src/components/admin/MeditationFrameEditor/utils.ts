@@ -92,7 +92,6 @@ export const getMediaUrl = (
   size: 'small' | 'large' = 'small',
 ): string | undefined => {
   // Use thumbnailUrl virtual field (works for both images and videos with Cloudflare)
-  // @ts-expect-error - thumbnailUrl is a virtual field not in type definition yet
   return frame?.thumbnailUrl || frame?.url || undefined
 }
 

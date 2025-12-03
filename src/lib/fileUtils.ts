@@ -1,10 +1,4 @@
-import fs from 'fs'
-
-import ffmpeg from 'fluent-ffmpeg'
 import { PayloadRequest } from 'payload'
-// import sharp from 'sharp' // DISABLED: Incompatible with Cloudflare Workers - TODO: Migrate to Cloudflare Images (Phase 6)
-import tmp from 'tmp'
-
 
 export type FileMetadata = {
   width?: number
@@ -13,52 +7,17 @@ export type FileMetadata = {
   orientation?: number
 }
 
+/**
+ * Extract file metadata
+ * Note: With Cloudflare-native storage, metadata extraction is handled by:
+ * - Cloudflare Images API for images (automatic WebP/AVIF conversion, dimensions)
+ * - Cloudflare Stream API for videos (automatic encoding, thumbnails, duration)
+ * - R2 for audio/files (basic metadata only)
+ */
 export const extractFileMetadata = async (file: NonNullable<PayloadRequest['file']>) => {
-  const { data, mimetype } = file
-
-  if (data && mimetype) {
-    if (mimetype.startsWith('video/') || mimetype.startsWith('audio/')) {
-      return getMediaMetadata(data)
-    } else if (mimetype.startsWith('image/')) {
-      // DISABLED: Sharp processing removed for Cloudflare Workers compatibility
-      // Image metadata extraction will be handled by Cloudflare Images API in Phase 6
-      return {} as FileMetadata
-    }
-  }
-}
-
-const getMediaMetadata = (fileBuffer: Buffer | Uint8Array) => {
-  const { fd, name } = tmp.fileSync()
-
-  // Get metadata using fluent-ffmpeg's ffprobe
-  return new Promise<FileMetadata>((resolve, reject) => {
-    // Write buffer to temporary file
-    fs.writeFileSync(fd, fileBuffer)
-
-    ffmpeg.ffprobe(name, (err, metadata) => {
-      if (err) {
-        reject(err)
-        return
-      }
-
-      // Extract duration from metadata
-      let duration = metadata.format?.duration || 0
-      duration = parseFloat(duration.toFixed(1))
-
-      // extract dimensions from metadata
-      const videoStream = metadata.streams.find((stream) => stream.codec_type === 'video')
-
-      if (videoStream && videoStream.width && videoStream.height) {
-        resolve({
-          duration,
-          width: parseInt(videoStream.width.toString()),
-          height: parseInt(videoStream.height.toString()),
-        })
-      } else {
-        resolve({ duration })
-      }
-    })
-  })
+  // Metadata extraction now handled by Cloudflare services
+  // Return empty object as placeholder
+  return {} as FileMetadata
 }
 
 /**
