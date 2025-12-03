@@ -83,12 +83,11 @@ export const ToggleButtonGroup: React.FC<ToggleButtonGroupProps> = ({
       aria-label={ariaLabel}
       style={{
         display: 'flex',
-        gap: '0',
         width: 'fit-content',
         border: '1px solid var(--theme-elevation-200)',
         borderRadius: 'var(--style-radius-s)',
         overflow: 'hidden',
-        backgroundColor: 'var(--theme-elevation-50)',
+        backgroundColor: 'var(--theme-elevation-0)',
       }}
     >
       {options.map((option, index) => {
@@ -107,19 +106,19 @@ export const ToggleButtonGroup: React.FC<ToggleButtonGroupProps> = ({
             onClick={() => handleSelect(option.value)}
             onKeyDown={(e) => handleKeyDown(e, option.value, index)}
             style={{
-              padding: 'calc(var(--base) * 0.4) calc(var(--base) * 0.8)',
+              padding: 'calc(var(--base) * 0.25) calc(var(--base) * 0.8)',
               border: 'none',
               borderRight:
                 index < options.length - 1 ? '1px solid var(--theme-elevation-200)' : 'none',
-              background: isSelected ? 'var(--theme-elevation-400)' : 'var(--theme-elevation-50)',
+              background: isSelected ? 'var(--theme-success-500)' : 'transparent',
               color: isSelected ? 'var(--theme-elevation-0)' : 'var(--theme-elevation-800)',
               fontSize: 'calc(var(--base-body-size) * 1px)',
               fontWeight: isSelected ? 600 : 400,
               cursor: isDisabled ? 'not-allowed' : 'pointer',
-              transition: 'all 0.15s ease',
+              transition: 'background 0.15s ease, color 0.15s ease',
               outline: 'none',
               whiteSpace: 'nowrap',
-              minWidth: '80px',
+              minWidth: '120px',
               opacity: isDisabled ? 0.5 : 1,
             }}
             onMouseEnter={(e) => {
@@ -129,11 +128,11 @@ export const ToggleButtonGroup: React.FC<ToggleButtonGroupProps> = ({
             }}
             onMouseLeave={(e) => {
               if (!isDisabled && !isSelected) {
-                e.currentTarget.style.backgroundColor = 'var(--theme-elevation-50)'
+                e.currentTarget.style.backgroundColor = 'transparent'
               }
             }}
             onFocus={(e) => {
-              e.currentTarget.style.boxShadow = 'inset 0 0 0 2px var(--theme-elevation-500)'
+              e.currentTarget.style.boxShadow = 'inset 0 0 0 1px var(--theme-success-300)'
             }}
             onBlur={(e) => {
               e.currentTarget.style.boxShadow = 'none'

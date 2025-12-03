@@ -49,22 +49,15 @@ import { ToggleButtonGroup, type ToggleButtonOption } from './ToggleButtonGroup'
  * ```
  */
 export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
-  // Type assertion - we know this is a select field based on how it's configured
-  const selectField = field as SelectFieldClient
-
-  // Extract field properties
+  // Extract field properties with nested destructuring for admin
   const {
-    name: fieldName,
-    label: fieldLabel,
-    localized: fieldLocalized,
-    required: fieldRequired,
+    name,
+    label,
+    localized,
+    required,
     options: fieldOptions,
-    admin,
-  } = selectField
-
-  const fieldDescription = admin?.description
-  const fieldClassName = admin?.className
-  const fieldStyle = admin?.style
+    admin: { description, className, style } = {},
+  } = field as SelectFieldClient
 
   // Use Payload's field hook for state management
   // Path is inferred from context - no need to pass it explicitly
@@ -80,8 +73,8 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
           return { label: opt, value: opt }
         }
         // OptionObject - extract label and value
-        const label = typeof opt.label === 'string' ? opt.label : opt.value
-        return { label, value: opt.value }
+        const optLabel = typeof opt.label === 'string' ? opt.label : opt.value
+        return { label: optLabel, value: opt.value }
       }),
     [fieldOptions],
   )
@@ -98,7 +91,7 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
   const fieldClasses = [
     'field-type',
     'select',
-    fieldClassName,
+    className,
     showError && 'error',
     readOnly && 'read-only',
   ]
@@ -106,41 +99,33 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
     .join(' ')
 
   // Generate field ID from path (replace dots with double underscores)
-  const fieldId = `field-${fieldName.replace(/\./g, '__')}`
+  const fieldId = `field-${name.replace(/\./g, '__')}`
+
+  // Generate aria-label for accessibility
+  const ariaLabel =
+    typeof label === 'string'
+      ? label
+      : typeof label === 'object' && label !== null
+        ? label['en'] || Object.values(label)[0] || name
+        : name
 
   return (
-    <div className={fieldClasses} id={fieldId} style={fieldStyle}>
-      {/* Field Label */}
-      <FieldLabel
-        label={fieldLabel}
-        localized={fieldLocalized}
-        path={fieldName}
-        required={fieldRequired}
-      />
+    <div className={fieldClasses} id={fieldId} style={style}>
+      <FieldLabel label={label} localized={localized} path={name} required={required} />
 
-      {/* Field Wrap - contains error and input */}
       <div className="field-type__wrap">
-        {/* Field Error - positioned before input */}
-        <FieldError path={fieldName} showError={showError} />
+        <FieldError path={name} showError={showError} />
 
-        {/* Toggle Button Group Input */}
         <ToggleButtonGroup
           value={value || ''}
           onChange={setValue}
           options={options}
           readOnly={readOnly}
-          aria-label={
-            typeof fieldLabel === 'string'
-              ? fieldLabel
-              : typeof fieldLabel === 'object' && fieldLabel !== null
-                ? fieldLabel['en'] || Object.values(fieldLabel)[0] || fieldName
-                : fieldName
-          }
+          aria-label={ariaLabel}
         />
       </div>
 
-      {/* Field Description - positioned after wrap */}
-      <FieldDescription description={fieldDescription} path={fieldName} />
+      <FieldDescription description={description} path={name} />
     </div>
   )
 }
