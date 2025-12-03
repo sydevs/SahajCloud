@@ -4,59 +4,133 @@
  * ESLint Auto-Fix Hook (PostToolUse)
  *
  * Runs ESLint with auto-fix on edited files.
- * Reports remaining issues to Claude for manual fixing.
+ * Notifies Claude when files are modified by auto-fix.
+ * Reports remaining issues for manual fixing.
  */
 
-import { readFileSync } from 'fs';
-import { execSync } from 'child_process';
+import { execSync } from 'child_process'
+import { readFileSync } from 'fs'
 
 // Read hook input from stdin
-const input = JSON.parse(readFileSync(0, 'utf-8'));
+const input = JSON.parse(readFileSync(0, 'utf-8'))
 
 // Only process JS/TS files
-const isLintableFile = (file) => /\.(js|jsx|ts|tsx|mjs)$/.test(file);
-const files = input.files?.filter(isLintableFile) || [];
+const isLintableFile = (file) => /\.(js|jsx|ts|tsx|mjs)$/.test(file)
+const files = input.files?.filter(isLintableFile) || []
 
 if (files.length === 0) {
-  console.log(JSON.stringify({
-    continue: true,
-    suppressOutput: true
-  }));
-  process.exit(0);
+  console.log(
+    JSON.stringify({
+      continue: true,
+      suppressOutput: true,
+    }),
+  )
+  process.exit(0)
 }
 
 try {
-  // Run ESLint with auto-fix
-  const fileList = files.map(f => `"${f}"`).join(' ');
-  execSync(`npx eslint ${fileList} --fix`, {
-    cwd: process.env.CLAUDE_PROJECT_DIR,
-    encoding: 'utf-8',
-    stdio: 'pipe'
-  });
+  // Run ESLint with auto-fix and JSON output to detect changes
+  const fileList = files.map((f) => `"${f}"`).join(' ')
 
-  // No errors remaining
-  console.log(JSON.stringify({
-    continue: true,
-    suppressOutput: true
-  }));
-  process.exit(0);
-
-} catch (error) {
-  const output = error.stdout || error.stderr || '';
-
-  // Check if there are unfixable errors
-  if (output.includes('error') || output.includes('problem')) {
-    console.log(JSON.stringify({
-      continue: true,
-      additionalContext: `ESLint found issues that couldn't be auto-fixed:\n\n${output}\n\nPlease review and fix these manually.`
-    }));
-  } else {
-    // Auto-fix succeeded, suppress output
-    console.log(JSON.stringify({
-      continue: true,
-      suppressOutput: true
-    }));
+  // First, check what issues exist before fixing
+  let beforeOutput = '[]'
+  try {
+    const result = execSync(`npx eslint ${fileList} --format json`, {
+      cwd: process.env.CLAUDE_PROJECT_DIR,
+      encoding: 'utf-8',
+    })
+    beforeOutput = result || '[]'
+  } catch (error) {
+    // ESLint found issues - capture output
+    beforeOutput = error.stdout || '[]'
   }
 
-  process.exit(0);
+  // Now run with --fix
+  try {
+    execSync(`npx eslint ${fileList} --fix`, {
+      cwd: process.env.CLAUDE_PROJECT_DIR,
+      encoding: 'utf-8',
+      stdio: 'pipe',
+    })
+  } catch (_error) {
+    // Ignore errors - we'll check the issues in the next step
+  }
+
+  // Check what issues remain after fix
+  let afterOutput = '[]'
+  try {
+    const result = execSync(`npx eslint ${fileList} --format json`, {
+      cwd: process.env.CLAUDE_PROJECT_DIR,
+      encoding: 'utf-8',
+    })
+    afterOutput = result || '[]'
+  } catch (error) {
+    // ESLint found remaining issues
+    afterOutput = error.stdout || '[]'
+  }
+
+  const beforeIssues = JSON.parse(beforeOutput)
+  const afterIssues = JSON.parse(afterOutput)
+
+  // Count fixable vs unfixable issues
+  const beforeCount = beforeIssues.reduce(
+    (sum, file) => sum + file.errorCount + file.warningCount,
+    0,
+  )
+  const afterCount = afterIssues.reduce(
+    (sum, file) => sum + file.errorCount + file.warningCount,
+    0,
+  )
+
+  const fixedCount = beforeCount - afterCount
+
+  if (afterCount > 0) {
+    // There are remaining unfixable issues
+    const output = afterIssues
+      .map((file) => {
+        if (file.messages.length === 0) return null
+        return (
+          `${file.filePath}:\n` +
+          file.messages
+            .map((msg) => `  Line ${msg.line}:${msg.column} - ${msg.message} (${msg.ruleId})`)
+            .join('\n')
+        )
+      })
+      .filter(Boolean)
+      .join('\n\n')
+
+    console.log(
+      JSON.stringify({
+        continue: true,
+        additionalContext: `ESLint ${fixedCount > 0 ? `auto-fixed ${fixedCount} issue(s), but ` : ''}found ${afterCount} issue(s) that need manual fixing:\n\n${output}\n\nPlease review and fix these manually.`,
+      }),
+    )
+  } else if (fixedCount > 0) {
+    // All issues were auto-fixed
+    console.log(
+      JSON.stringify({
+        continue: true,
+        additionalContext: `✓ ESLint auto-fixed ${fixedCount} issue(s). The file${files.length > 1 ? 's have' : ' has'} been updated.`,
+      }),
+    )
+  } else {
+    // No issues found
+    console.log(
+      JSON.stringify({
+        continue: true,
+        suppressOutput: true,
+      }),
+    )
+  }
+
+  process.exit(0)
+} catch (error) {
+  // Critical error running ESLint
+  console.log(
+    JSON.stringify({
+      continue: true,
+      additionalContext: `ESLint encountered an error: ${error.message}\n\nYou may need to check your ESLint configuration.`,
+    }),
+  )
+  process.exit(0)
 }
