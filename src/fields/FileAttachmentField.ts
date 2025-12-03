@@ -56,7 +56,7 @@ export function FileAttachmentField(options: FileAttachmentFieldOptions): Upload
     required,
     localized,
     type: 'upload',
-    relationTo: 'file-attachments',
+    relationTo: 'files',
     access,
     filterOptions: ({ data }): Where => {
       // Only show file attachments owned by the current document or orphan files

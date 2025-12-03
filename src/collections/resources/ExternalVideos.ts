@@ -26,7 +26,7 @@ export const ExternalVideos: CollectionConfig = {
     {
       name: 'thumbnail',
       type: 'upload',
-      relationTo: 'media',
+      relationTo: 'images',
       required: true,
     },
     UrlField({

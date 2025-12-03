@@ -52,7 +52,7 @@ export const Authors: CollectionConfig = {
     {
       name: 'image',
       type: 'upload',
-      relationTo: 'media',
+      relationTo: 'images',
       admin: {
         description: 'Author profile image',
       },

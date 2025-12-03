@@ -91,7 +91,9 @@ export const getMediaUrl = (
     | (Omit<KeyframeData, 'timestamp'> & Partial<Pick<KeyframeData, 'timestamp'>>),
   size: 'small' | 'large' = 'small',
 ): string | undefined => {
-  return frame?.sizes?.[size]?.url || frame?.url || undefined
+  // Use thumbnailUrl virtual field (works for both images and videos with Cloudflare)
+  // @ts-expect-error - thumbnailUrl is a virtual field not in type definition yet
+  return frame?.thumbnailUrl || frame?.url || undefined
 }
 
 export const roundToNearestSecond = (time: number): number => {

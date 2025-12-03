@@ -1,4 +1,18 @@
 {
+  "permissions": {
+    "allow": [
+      "mcp__plugin_sydevs-web_*",
+      "mcp__plugin_sydevs_*",
+      "Bash(npx playwright test --list)",
+      "Bash(pnpm exec playwright test --list)",
+      "Bash(pnpm vitest list:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm outdated:*)",
+      "Bash(pnpm audit:*)",
+      "Bash(npm outdated:*)",
+      "Bash(npm audit:*)"
+    ]
+  },
   "hooks": {
     "Stop": [
       {
@@ -108,11 +122,6 @@
           }
         ]
       }
-    ]
-  },
-  "permissions": {
-    "allow": [
-      "mcp__plugin_sydevs-web_*"
     ]
   }
 }

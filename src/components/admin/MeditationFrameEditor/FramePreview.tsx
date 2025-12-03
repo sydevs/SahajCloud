@@ -124,7 +124,10 @@ const FramePreview: React.FC<FramePreviewProps> = ({
         {currentFrame?.url ? (
           isVideoFile(currentFrame.mimeType || undefined) ? (
             <video
-              src={currentFrame.url || ''}
+              src={
+                // @ts-expect-error - streamMp4Url is a virtual field not in type definition yet
+                currentFrame.streamMp4Url || currentFrame.url || ''
+              }
               style={{
                 width: '100%',
                 height: '100%',
