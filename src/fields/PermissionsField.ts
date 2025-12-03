@@ -236,7 +236,7 @@ export function ManagerPermissionsField(): Field[] {
         description:
           "Set the manager's access level. Admin grants full access, Manager uses role-based permissions, Inactive blocks all access.",
         components: {
-          Field: '@/components/admin/ToggleButtonGroup',
+          Field: '@/components/admin/ToggleGroupField',
         },
       },
     },

@@ -1,60 +1,60 @@
 'use client'
 
-import type { FieldClientComponent } from 'payload'
+import React, { useRef } from 'react'
 
-import { useField } from '@payloadcms/ui'
-import React, { useEffect, useRef } from 'react'
+export interface ToggleButtonOption {
+  label: string
+  value: string
+}
+
+export interface ToggleButtonGroupProps {
+  value: string
+  onChange: (value: string) => void
+  options: ToggleButtonOption[]
+  readOnly?: boolean
+  'aria-label'?: string
+}
 
 /**
  * Toggle Button Group Component
  *
- * A segmented control (iOS-style) custom field component for PayloadCMS select fields.
- * Renders options as connected buttons with a visual active state.
+ * A pure UI component that renders a segmented control (iOS-style) with connected buttons.
+ * Works with 1-5 options, displays them as connected buttons in a horizontal row.
+ * Selected state is highlighted with primary color and shadow effect.
  *
- * Best Practices:
- * - Recommended for select fields with 1-5 options
- * - Not suitable for long option lists (use standard dropdown instead)
- * - Always maintains a selected value (no deselect capability)
- * - Use for mutually exclusive options with clear visual feedback
+ * Features:
+ * - Keyboard navigation (arrow keys)
+ * - Read-only support
+ * - Accessible with ARIA labels and roles
+ * - Responsive styling using PayloadCMS theme variables
  *
- * Usage:
- * ```typescript
- * {
- *   name: 'status',
- *   type: 'select',
- *   required: true,
- *   defaultValue: 'draft',
- *   options: [
+ * This is a controlled component - parent must manage value state.
+ *
+ * @example
+ * ```tsx
+ * <ToggleButtonGroup
+ *   value={selectedValue}
+ *   onChange={setSelectedValue}
+ *   options={[
  *     { label: 'Draft', value: 'draft' },
  *     { label: 'Published', value: 'published' },
- *   ],
- *   admin: {
- *     components: {
- *       Field: '@/components/admin/ToggleButtonGroup',
- *     },
- *   },
- * }
+ *   ]}
+ * />
  * ```
  */
-export const ToggleButtonGroup: FieldClientComponent = ({ field, readOnly }) => {
-  const { value, setValue} = useField<string>({ path: (field as any).name })
+export const ToggleButtonGroup: React.FC<ToggleButtonGroupProps> = ({
+  value,
+  onChange,
+  options,
+  readOnly = false,
+  'aria-label': ariaLabel,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null)
-
-  // Get options from field config
-  const options = (field as any).options || []
-
-  // Ensure we always have a value (use default or first option)
-  useEffect(() => {
-    if (!value && options.length > 0) {
-      const defaultValue = (field as any).defaultValue || options[0].value
-      setValue(defaultValue as string)
-    }
-  }, [value, options, field, setValue])
 
   // Handle button click
   const handleSelect = (optionValue: string) => {
     if (!readOnly && optionValue !== value) {
-      setValue(optionValue)
+      onChange(optionValue)
     }
   }
 
@@ -80,7 +80,7 @@ export const ToggleButtonGroup: FieldClientComponent = ({ field, readOnly }) => 
     <div
       ref={containerRef}
       role="radiogroup"
-      aria-label={(field as any).label || (field as any).name}
+      aria-label={ariaLabel}
       style={{
         display: 'flex',
         gap: '0',
@@ -91,7 +91,7 @@ export const ToggleButtonGroup: FieldClientComponent = ({ field, readOnly }) => 
         backgroundColor: 'var(--theme-elevation-50)',
       }}
     >
-      {options.map((option: any, index: number) => {
+      {options.map((option, index) => {
         const isSelected = value === option.value
         const isDisabled = readOnly
 
@@ -101,7 +101,7 @@ export const ToggleButtonGroup: FieldClientComponent = ({ field, readOnly }) => 
             type="button"
             role="radio"
             aria-checked={isSelected}
-            aria-label={typeof option.label === 'string' ? option.label : option.value}
+            aria-label={option.label}
             disabled={isDisabled}
             tabIndex={isSelected ? 0 : -1}
             onClick={() => handleSelect(option.value)}
@@ -111,9 +111,7 @@ export const ToggleButtonGroup: FieldClientComponent = ({ field, readOnly }) => 
               border: 'none',
               borderRight:
                 index < options.length - 1 ? '1px solid var(--theme-elevation-200)' : 'none',
-              background: isSelected
-                ? 'var(--theme-elevation-400)'
-                : 'var(--theme-elevation-50)',
+              background: isSelected ? 'var(--theme-elevation-400)' : 'var(--theme-elevation-50)',
               color: isSelected ? 'var(--theme-elevation-0)' : 'var(--theme-elevation-800)',
               fontSize: 'calc(var(--base-body-size) * 1px)',
               fontWeight: isSelected ? 600 : 400,
@@ -141,7 +139,7 @@ export const ToggleButtonGroup: FieldClientComponent = ({ field, readOnly }) => 
               e.currentTarget.style.boxShadow = 'none'
             }}
           >
-            {typeof option.label === 'string' ? option.label : option.value}
+            {option.label}
           </button>
         )
       })}
