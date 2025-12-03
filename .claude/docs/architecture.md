@@ -1,5 +1,33 @@
 # Architecture Overview
 
+## Storage Architecture
+
+The application uses **Cloudflare-native storage services** for optimal performance:
+
+### Cloudflare Images (Image Storage)
+- **Collection**: `images`
+- **Features**: Automatic format optimization (WebP, AVIF), dynamic transformations, global CDN
+- **URL Format**: `https://imagedelivery.net/<hash>/<imageId>/public`
+- **Replaces**: Sharp image processing
+
+### Cloudflare Stream (Video Storage)
+- **Collections**: `frames` (video frames only)
+- **Features**: Automatic transcoding, HLS streaming, thumbnail generation, MP4 downloads
+- **URL Format**:
+  - Thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`
+  - MP4: `https://customer-<code>.cloudflarestream.com/<videoId>/downloads/default.mp4`
+- **Replaces**: FFmpeg thumbnail generation
+
+### R2 Native Bindings (Audio & Generic Files)
+- **Collections**: `meditations`, `music`, `lessons`, `files`
+- **Features**: Direct bucket access, high performance
+- **URL Format**: `https://<PUBLIC_ASSETS_URL>/<collection>/<filename>`
+- **Configuration**: Via `wrangler.toml` bindings (no S3-compatible API)
+
+### Development Environment
+- **Automatic Fallback**: Local file storage used when Cloudflare credentials not configured
+- **No Setup Required**: Development works out of the box without Cloudflare accounts
+
 ## Route Structure
 - `src/app/(frontend)/` - Public-facing Next.js pages
 - `src/app/(payload)/` - Payload CMS admin interface and API routes
@@ -18,17 +46,17 @@
 - **Lessons** (`src/collections/content/Lessons.ts`) - Meditation lessons (also called "Path Steps" in admin UI) with audio upload, panels array for content sections, unit selection (Unit 1-4), step number, icon, optional meditation relationship, and rich text article field
 
 ### Resource Collections
-- **Media** (`src/collections/resources/Media.ts`) - **Image-only collection** with automatic WEBP conversion, tags, credit info, and dimensions metadata
+- **Images** (`src/collections/resources/Images.ts`) - Image storage using Cloudflare Images with automatic format optimization (WebP, AVIF), dynamic transformations, tags, credit info, and virtual `url` field for Cloudflare CDN delivery
 - **Narrators** (`src/collections/resources/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
 - **Authors** (`src/collections/resources/Authors.ts`) - Article author profiles with localized name, title, description, countryCode, yearsMeditating, and profile image
 - **ExternalVideos** (`src/collections/resources/ExternalVideos.ts`) - External video content with thumbnails, URLs, subtitles, and categorization
 
 ### System Collections
-- **Frames** (`src/collections/system/Frames.ts`) - Meditation pose files with mixed media upload (images/videos), tags filtering, and imageSet selection
-- **FileAttachments** (`src/collections/system/FileAttachments.ts`) - File upload system supporting PDFs, audio (MP3), video (MP4/MPEG), and images (WebP) with owner relationships for cascade deletion
+- **Frames** (`src/collections/system/Frames.ts`) - Mixed media upload (images/videos) with Cloudflare Images for images and Cloudflare Stream for videos, automatic thumbnail generation, virtual fields (`thumbnailUrl`, `streamMp4Url`), tags filtering, and imageSet selection
+- **Files** (`src/collections/system/Files.ts`) - Generic file storage using R2 native bindings, supporting PDFs, audio, video, and images with owner relationships for cascade deletion and virtual `url` field for R2 URLs
 
 ### Tag Collections
-- **MediaTags** (`src/collections/tags/MediaTags.ts`) - Tag system for media files with slug-based identification
+- **MediaTags** (`src/collections/tags/MediaTags.ts`) - Tag system for image files with slug-based identification
 - **MeditationTags** (`src/collections/tags/MeditationTags.ts`) - Tag system for meditations with bidirectional relationships (title field is localized)
 - **MusicTags** (`src/collections/tags/MusicTags.ts`) - Tag system for music tracks with bidirectional relationships (title field is localized)
 - **PageTags** (`src/collections/tags/PageTags.ts`) - Tag system for pages with bidirectional relationships (title field is localized)
