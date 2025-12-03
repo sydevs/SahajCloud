@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url'
 
 import type {
   Narrator,
-  Media,
+  Image,
   Meditation,
   Music,
   Frame,
@@ -17,7 +17,7 @@ import type {
   PageTag,
   Page,
   Lesson,
-  FileAttachment,
+  File,
 } from '@/payload-types'
 import type { ManagerRole, ClientRole } from '@/types/roles'
 
@@ -50,14 +50,14 @@ export const testData = {
     payload: Payload,
     overrides = {},
     sampleFile = 'image-1050x700.jpg',
-  ): Promise<Media> {
+  ): Promise<Image> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
     // Convert Buffer to Uint8Array for compatibility with file-type library
     const fileData = new Uint8Array(fileBuffer)
 
     return (await payload.create({
-      collection: 'media',
+      collection: 'images',
       data: {
         alt: 'Test image file',
         ...overrides,
@@ -68,7 +68,7 @@ export const testData = {
         name: sampleFile,
         size: fileData.length,
       },
-    })) as Media
+    })) as Image
   },
 
   /**
@@ -78,14 +78,14 @@ export const testData = {
     payload: Payload,
     overrides = {},
     sampleFile = 'image-1050x700.webp',
-  ): Promise<FileAttachment> {
+  ): Promise<File> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
     // Convert Buffer to Uint8Array for compatibility with file-type library
     const fileData = new Uint8Array(fileBuffer)
 
     return (await payload.create({
-      collection: 'file-attachments',
+      collection: 'files',
       data: {
         ...overrides,
       },
@@ -95,7 +95,7 @@ export const testData = {
         name: sampleFile,
         size: fileData.length,
       },
-    })) as FileAttachment
+    })) as File
   },
 
   /**

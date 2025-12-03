@@ -76,8 +76,8 @@ export interface Config {
     frames: Frame;
     narrators: Narrator;
     authors: Author;
-    media: Media;
-    'file-attachments': FileAttachment;
+    images: Image;
+    files: File;
     'media-tags': MediaTag;
     'meditation-tags': MeditationTag;
     'music-tags': MusicTag;
@@ -97,7 +97,7 @@ export interface Config {
       articles: 'pages';
     };
     'media-tags': {
-      media: 'media';
+      media: 'images';
     };
     'meditation-tags': {
       meditations: 'meditations';
@@ -118,8 +118,8 @@ export interface Config {
     frames: FramesSelect<false> | FramesSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
     authors: AuthorsSelect<false> | AuthorsSelect<true>;
-    media: MediaSelect<false> | MediaSelect<true>;
-    'file-attachments': FileAttachmentsSelect<false> | FileAttachmentsSelect<true>;
+    images: ImagesSelect<false> | ImagesSelect<true>;
+    files: FilesSelect<false> | FilesSelect<true>;
     'media-tags': MediaTagsSelect<false> | MediaTagsSelect<true>;
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
     'music-tags': MusicTagsSelect<false> | MusicTagsSelect<true>;
@@ -250,7 +250,7 @@ export interface Page {
     /**
      * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
      */
-    image?: (number | null) | Media;
+    image?: (number | null) | Image;
   };
   slug?: string | null;
   slugLock?: boolean | null;
@@ -267,9 +267,9 @@ export interface Page {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media".
+ * via the `definition` "images".
  */
-export interface Media {
+export interface Image {
   id: number;
   alt: string;
   /**
@@ -300,32 +300,6 @@ export interface Media {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-  sizes?: {
-    thumbnail?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-    card?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-    tablet?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -335,7 +309,7 @@ export interface MediaTag {
   id: number;
   name: string;
   media?: {
-    docs?: (number | Media)[];
+    docs?: (number | Image)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -368,7 +342,7 @@ export interface Author {
   /**
    * Author profile image
    */
-  image?: (number | null) | Media;
+  image?: (number | null) | Image;
   articles?: {
     docs?: (number | Page)[];
     hasNextPage?: boolean;
@@ -445,7 +419,7 @@ export interface Meditation {
   title?: string | null;
   slug?: string | null;
   slugLock?: boolean | null;
-  thumbnail?: (number | null) | Media;
+  thumbnail?: (number | null) | Image;
   /**
    * Categorize this meditation for seekers to find it
    */
@@ -585,7 +559,7 @@ export interface Lesson {
         blockType: 'cover';
       }
     | {
-        video?: (number | null) | FileAttachment;
+        video?: (number | null) | File;
         id?: string | null;
         blockName?: string | null;
         blockType: 'video';
@@ -593,7 +567,7 @@ export interface Lesson {
     | {
         title: string;
         text: string;
-        image: number | Media;
+        image: number | Image;
         id?: string | null;
         blockName?: string | null;
         blockType: 'text';
@@ -606,7 +580,7 @@ export interface Lesson {
   /**
    * Link to a related guided meditation that complements this lesson content.
    */
-  introAudio?: (number | null) | FileAttachment;
+  introAudio?: (number | null) | File;
   introSubtitles?: {
     captions: {
       duration: number;
@@ -637,7 +611,7 @@ export interface Lesson {
    * This will determine the order of the path steps
    */
   step: number;
-  icon?: (number | null) | FileAttachment;
+  icon?: (number | null) | File;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -647,9 +621,9 @@ export interface Lesson {
  * These are file attachments uploaded to support other collections. These should not be reused and will be deleted whenever their owner is deleted.
  *
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "file-attachments".
+ * via the `definition` "files".
  */
-export interface FileAttachment {
+export interface File {
   id: number;
   owner?:
     | ({
@@ -678,6 +652,11 @@ export interface FileAttachment {
  */
 export interface Frame {
   id: number;
+  thumbnailUrl?: string | null;
+  /**
+   * Direct MP4 URL for HTML5 video playback
+   */
+  streamMp4Url?: string | null;
   previewUrl?: string | null;
   imageSet: 'male' | 'female';
   category:
@@ -723,10 +702,6 @@ export interface Frame {
         | 'tapping'
       )[]
     | null;
-  /**
-   * Auto-generated thumbnail for video frames
-   */
-  thumbnail?: (number | null) | FileAttachment;
   duration?: number | null;
   fileMetadata?:
     | {
@@ -748,24 +723,6 @@ export interface Frame {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-  sizes?: {
-    small?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-    large?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -774,7 +731,7 @@ export interface Frame {
 export interface ExternalVideo {
   id: number;
   title: string;
-  thumbnail: number | Media;
+  thumbnail: number | Image;
   videoUrl: string;
   subtitlesUrl?: string | null;
   category?: ('shri-mataji' | 'techniques' | 'other')[] | null;
@@ -1262,12 +1219,12 @@ export interface PayloadLockedDocument {
         value: number | Author;
       } | null)
     | ({
-        relationTo: 'media';
-        value: number | Media;
+        relationTo: 'images';
+        value: number | Image;
       } | null)
     | ({
-        relationTo: 'file-attachments';
-        value: number | FileAttachment;
+        relationTo: 'files';
+        value: number | File;
       } | null)
     | ({
         relationTo: 'media-tags';
@@ -1496,11 +1453,12 @@ export interface ExternalVideosSelect<T extends boolean = true> {
  * via the `definition` "frames_select".
  */
 export interface FramesSelect<T extends boolean = true> {
+  thumbnailUrl?: T;
+  streamMp4Url?: T;
   previewUrl?: T;
   imageSet?: T;
   category?: T;
   tags?: T;
-  thumbnail?: T;
   duration?: T;
   fileMetadata?: T;
   updatedAt?: T;
@@ -1514,30 +1472,6 @@ export interface FramesSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
-  sizes?:
-    | T
-    | {
-        small?:
-          | T
-          | {
-              url?: T;
-              width?: T;
-              height?: T;
-              mimeType?: T;
-              filesize?: T;
-              filename?: T;
-            };
-        large?:
-          | T
-          | {
-              url?: T;
-              width?: T;
-              height?: T;
-              mimeType?: T;
-              filesize?: T;
-              filename?: T;
-            };
-      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1566,9 +1500,9 @@ export interface AuthorsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media_select".
+ * via the `definition` "images_select".
  */
-export interface MediaSelect<T extends boolean = true> {
+export interface ImagesSelect<T extends boolean = true> {
   alt?: T;
   credit?: T;
   tags?: T;
@@ -1584,46 +1518,12 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
-  sizes?:
-    | T
-    | {
-        thumbnail?:
-          | T
-          | {
-              url?: T;
-              width?: T;
-              height?: T;
-              mimeType?: T;
-              filesize?: T;
-              filename?: T;
-            };
-        card?:
-          | T
-          | {
-              url?: T;
-              width?: T;
-              height?: T;
-              mimeType?: T;
-              filesize?: T;
-              filename?: T;
-            };
-        tablet?:
-          | T
-          | {
-              url?: T;
-              width?: T;
-              height?: T;
-              mimeType?: T;
-              filesize?: T;
-              filename?: T;
-            };
-      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "file-attachments_select".
+ * via the `definition` "files_select".
  */
-export interface FileAttachmentsSelect<T extends boolean = true> {
+export interface FilesSelect<T extends boolean = true> {
   owner?: T;
   createdAt?: T;
   updatedAt?: T;

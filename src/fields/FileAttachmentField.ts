@@ -30,7 +30,7 @@ export type FileAttachmentFieldOptions = {
 }
 
 /**
- * Creates a standardized file upload field that relates to the 'file-attachments' collection.
+ * Creates a standardized file upload field that relates to the 'files' collection.
  * File attachments are owned by the parent document and will be deleted when the owner is deleted.
  *
  * Features:
@@ -122,7 +122,7 @@ const setFileOwnerHook: FieldHook = async ({ value, data, req, collection }) => 
   // If document has ID, set owner immediately
   if (data?.id && collection?.slug) {
     await req.payload.update({
-      collection: 'file-attachments',
+      collection: 'files',
       id: value as string,
       data: {
         owner: {
@@ -174,7 +174,7 @@ export const claimOrphanFileAttachmentsHook: CollectionAfterChangeHook = async (
   // Claim each orphan file attachment for this document
   for (const fileId of orphanFileAttachments) {
     await req.payload.update({
-      collection: 'file-attachments',
+      collection: 'files',
       id: fileId,
       data: {
         owner: {
@@ -192,7 +192,7 @@ export const claimOrphanFileAttachmentsHook: CollectionAfterChangeHook = async (
 // Hook for cascade deletion of file attachments when owner is deleted
 export const deleteFileAttachmentsHook: CollectionAfterDeleteHook = async ({ id, req }) => {
   const fileAttachmentsToDelete = await req.payload.find({
-    collection: 'file-attachments',
+    collection: 'files',
     where: {
       'owner.value': {
         equals: id,
@@ -203,7 +203,7 @@ export const deleteFileAttachmentsHook: CollectionAfterDeleteHook = async ({ id,
 
   for (const fileAttachment of fileAttachmentsToDelete.docs) {
     await req.payload.delete({
-      collection: 'file-attachments',
+      collection: 'files',
       id: fileAttachment.id,
     })
   }
