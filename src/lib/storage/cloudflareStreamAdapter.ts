@@ -117,7 +117,9 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           logger.warn('Error enabling MP4 downloads:', { error })
         }
 
-        // Return nothing - PayloadCMS will handle storing the videoId as filename
+        // Update the file.filename to the Cloudflare Stream video ID
+        // This ensures PayloadCMS stores the correct ID in the database
+        file.filename = videoId
       } catch (error) {
         logger.error('Cloudflare Stream upload error:', {
           filename: file.filename,

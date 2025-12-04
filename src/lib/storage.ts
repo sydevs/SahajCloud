@@ -113,16 +113,19 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
       // Audio collections - R2 native
       meditations: {
         adapter: r2Adapter,
+        prefix: 'meditations',
         disableLocalStorage: true,
         disablePayloadAccessControl: true,
       },
       music: {
         adapter: r2Adapter,
+        prefix: 'music',
         disableLocalStorage: true,
         disablePayloadAccessControl: true,
       },
       lessons: {
         adapter: r2Adapter,
+        prefix: 'lessons',
         disableLocalStorage: true,
         disablePayloadAccessControl: true,
       },
@@ -130,6 +133,7 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
       // Files collection - R2 native
       files: {
         adapter: r2Adapter,
+        prefix: 'files',
         disableLocalStorage: true,
         disablePayloadAccessControl: true,
       },
