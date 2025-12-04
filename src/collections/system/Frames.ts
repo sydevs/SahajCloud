@@ -49,7 +49,48 @@ export const Frames: CollectionConfig = {
     // Removed: processFile, convertFile (Sharp processing)
     // Removed: generateVideoThumbnailHook (FFmpeg processing)
     // Removed: setPreviewUrlHook (replaced by thumbnailUrl virtual field)
-    afterChange: [claimOrphanFileAttachmentsHook],
+    afterChange: [
+      // Fix filename after upload - remove PayloadCMS collision suffixes
+      async ({ doc, req, operation, context }) => {
+        // Only process create operations with file uploads
+        if (operation !== 'create' || !doc.filename || context?.skipFilenameNormalization) {
+          return
+        }
+
+        // Check if filename has a collision suffix (e.g., test-video-2.mp4)
+        // Cloudflare IDs don't have extensions or collision suffixes
+        const hasExtension = doc.filename.includes('.')
+        const hasCollisionSuffix = /-\d+\.(mp4|webm|png|jpg|jpeg|webp)$/i.test(doc.filename)
+
+        if (hasExtension && (hasCollisionSuffix || doc.mimeType?.startsWith('video/'))) {
+          // Extract the real Cloudflare ID by removing extension and collision suffix
+          // For images: already correct (Cloudflare Images IDs have no extension)
+          // For videos: need to remove .mp4 extension and any collision suffix
+          let cloudflareId = doc.filename
+
+          if (doc.mimeType?.startsWith('video/')) {
+            // Remove extension and collision suffix for videos
+            cloudflareId = cloudflareId.replace(/-\d+\.(mp4|webm)$/i, '').replace(/\.(mp4|webm)$/i, '')
+          }
+
+          // Only update if we actually changed something
+          if (cloudflareId !== doc.filename) {
+            // Update the filename directly in the database
+            await req.payload.update({
+              collection: 'frames',
+              id: doc.id,
+              data: {
+                filename: cloudflareId,
+              },
+              context: {
+                skipFilenameNormalization: true, // Prevent infinite loop
+              },
+            })
+          }
+        }
+      },
+      claimOrphanFileAttachmentsHook,
+    ],
     afterDelete: [deleteFileAttachmentsHook],
   },
   fields: [
