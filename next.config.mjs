@@ -33,11 +33,11 @@ const nextConfig = {
   },
   images: {
     remotePatterns: [
-      ...(process.env.NODE_ENV === 'production' && process.env.PUBLIC_ASSETS_URL
+      ...(process.env.CLOUDFLARE_R2_DELIVERY_URL
         ? [
             {
               protocol: 'https',
-              hostname: process.env.PUBLIC_ASSETS_URL,
+              hostname: new URL(process.env.CLOUDFLARE_R2_DELIVERY_URL).hostname,
             },
           ]
         : []),
