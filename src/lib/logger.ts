@@ -22,6 +22,23 @@ type LogContext = Record<string, unknown>
 const isDevelopment = process.env.NODE_ENV === 'development'
 const isTest = process.env.NODE_ENV === 'test'
 
+// Support LOG_LEVEL environment variable for production debugging
+// Valid values: 'debug', 'info', 'warn', 'error', 'silent'
+// Default: 'silent' in production, 'debug' in development/test
+const getLogLevel = (): string => {
+  if (process.env.LOG_LEVEL) return process.env.LOG_LEVEL.toLowerCase()
+  if (isDevelopment || isTest) return 'debug'
+  return 'silent'
+}
+
+const logLevel = getLogLevel()
+const shouldLog = (level: 'debug' | 'info' | 'warn' | 'error'): boolean => {
+  const levels = ['debug', 'info', 'warn', 'error', 'silent']
+  const currentLevel = levels.indexOf(logLevel)
+  const requestedLevel = levels.indexOf(level)
+  return requestedLevel >= currentLevel && currentLevel < levels.indexOf('silent')
+}
+
 /**
  * Logger class for structured logging with Sentry integration
  */
@@ -33,29 +50,27 @@ class Logger {
   }
 
   /**
-   * Log debug information (only visible in development)
-   * Use for detailed debugging information that shouldn't go to production
+   * Log debug information
+   * Use for detailed debugging information
    *
    * @param message - Debug message
    * @param extra - Additional context
    */
   debug(message: string, extra?: LogContext) {
-    if (isDevelopment) {
-       
+    if (shouldLog('debug')) {
       console.log(`[DEBUG] ${message}`, this.mergeContext(extra))
     }
   }
 
   /**
    * Log informational messages
-   * Visible in development console
+   * Controlled by LOG_LEVEL environment variable
    *
    * @param message - Info message
    * @param extra - Additional context
    */
   info(message: string, extra?: LogContext) {
-    if (isDevelopment || isTest) {
-
+    if (shouldLog('info')) {
       console.info(`[INFO] ${message}`, this.mergeContext(extra))
     }
 
@@ -64,14 +79,13 @@ class Logger {
 
   /**
    * Log warning messages
-   * Visible in development console
+   * Controlled by LOG_LEVEL environment variable
    *
    * @param message - Warning message
    * @param extra - Additional context
    */
   warn(message: string, extra?: LogContext) {
-    if (isDevelopment || isTest) {
-
+    if (shouldLog('warn')) {
       console.warn(`[WARN] ${message}`, this.mergeContext(extra))
     }
 
@@ -80,7 +94,7 @@ class Logger {
 
   /**
    * Log error messages with optional Error object
-   * Visible in development console
+   * Controlled by LOG_LEVEL environment variable
    *
    * @param message - Error message
    * @param error - Optional Error object
@@ -89,8 +103,7 @@ class Logger {
   error(message: string, error?: Error | unknown, extra?: LogContext) {
     const context = this.mergeContext(extra)
 
-    if (isDevelopment || isTest) {
-
+    if (shouldLog('error')) {
       console.error(`[ERROR] ${message}`, error, context)
     }
 
