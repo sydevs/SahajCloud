@@ -2,7 +2,6 @@ import type { CollectionConfig } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
-import { sanitizeFilename } from '@/lib/fieldUtils'
 
 export const Images: CollectionConfig = {
   slug: 'images',
@@ -81,7 +80,7 @@ export const Images: CollectionConfig = {
     },
   ],
   hooks: {
-    beforeOperation: [sanitizeFilename],
+    // Removed: sanitizeFilename (not needed - Cloudflare provides unique IDs)
     // Removed: processFile and convertFile (Sharp processing no longer needed)
     afterRead: [trackClientUsageHook],
   },

@@ -7,7 +7,6 @@ import {
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { FRAME_CATEGORY_OPTIONS, GENDER_OPTIONS } from '@/lib/data'
-import { sanitizeFilename } from '@/lib/fieldUtils'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 
 export const Frames: CollectionConfig = {
@@ -45,7 +44,7 @@ export const Frames: CollectionConfig = {
     groupBy: true,
   },
   hooks: {
-    beforeOperation: [sanitizeFilename],
+    // Removed: sanitizeFilename (not needed - Cloudflare provides unique IDs)
     afterRead: [trackClientUsageHook],
     // Removed: processFile, convertFile (Sharp processing)
     // Removed: generateVideoThumbnailHook (FFmpeg processing)
