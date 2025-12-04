@@ -49,69 +49,7 @@ export const Frames: CollectionConfig = {
     // Removed: processFile, convertFile (Sharp processing)
     // Removed: generateVideoThumbnailHook (FFmpeg processing)
     // Removed: setPreviewUrlHook (replaced by thumbnailUrl virtual field)
-    afterChange: [
-      // Fix filename after upload - remove PayloadCMS collision suffixes
-      async ({ doc, req, operation, context }) => {
-        /* eslint-disable no-console */
-        try {
-          // Only process create operations with file uploads
-          if (operation !== 'create' || !doc.filename || context?.skipFilenameNormalization) {
-            return
-          }
-
-          console.log('[Frames afterChange] START', {
-            operation,
-            filename: doc.filename,
-            mimeType: doc.mimeType,
-            id: doc.id,
-          })
-
-          // Check if filename has a collision suffix (e.g., test-video-2.mp4)
-          // Cloudflare IDs don't have extensions or collision suffixes
-          const hasExtension = doc.filename.includes('.')
-          const hasCollisionSuffix = /-\d+\.(mp4|webm|png|jpg|jpeg|webp)$/i.test(doc.filename)
-
-          console.log('[Frames afterChange] Checks:', { hasExtension, hasCollisionSuffix })
-
-          if (hasExtension && (hasCollisionSuffix || doc.mimeType?.startsWith('video/'))) {
-            // Extract the real Cloudflare ID by removing extension and collision suffix
-            // For images: already correct (Cloudflare Images IDs have no extension)
-            // For videos: need to remove .mp4 extension and any collision suffix
-            let cloudflareId = doc.filename
-
-            if (doc.mimeType?.startsWith('video/')) {
-              // Remove extension and collision suffix for videos
-              cloudflareId = cloudflareId.replace(/-\d+\.(mp4|webm)$/i, '').replace(/\.(mp4|webm)$/i, '')
-            }
-
-            console.log('[Frames afterChange] Extracted Cloudflare ID:', cloudflareId)
-
-            // Only update if we actually changed something
-            if (cloudflareId !== doc.filename) {
-              console.log('[Frames afterChange] Updating filename from', doc.filename, 'to', cloudflareId)
-              // Update the filename directly in the database
-              await req.payload.update({
-                collection: 'frames',
-                id: doc.id,
-                data: {
-                  filename: cloudflareId,
-                },
-                context: {
-                  skipFilenameNormalization: true, // Prevent infinite loop
-                },
-              })
-              console.log('[Frames afterChange] Update successful!')
-            }
-          }
-          console.log('[Frames afterChange] END')
-        } catch (error) {
-          console.error('[Frames afterChange] ERROR:', error)
-          // Don't throw - allow the operation to succeed even if filename correction fails
-        }
-        /* eslint-enable no-console */
-      },
-      claimOrphanFileAttachmentsHook,
-    ],
+    afterChange: [claimOrphanFileAttachmentsHook],
     afterDelete: [deleteFileAttachmentsHook],
   },
   fields: [

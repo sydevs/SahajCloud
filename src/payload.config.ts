@@ -1,7 +1,7 @@
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-import { CloudflareContext, getCloudflareContext } from '@opennextjs/cloudflare'
+import { CloudflareContext } from '@opennextjs/cloudflare'
 import { sqliteD1Adapter } from '@payloadcms/db-d1-sqlite'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
@@ -27,11 +27,10 @@ const dirname = path.dirname(filename)
 const isTestEnvironment = process.env.NODE_ENV === 'test'
 const isProduction = process.env.NODE_ENV === 'production'
 
-// Get Cloudflare context using Wrangler for local dev, or real bindings for production
-const cloudflare =
-  process.argv.find((value) => value.match(/^(generate|migrate):?/)) || !isProduction
-    ? await getCloudflareContextFromWrangler()
-    : await getCloudflareContext({ async: true })
+// Get Cloudflare context using Wrangler's getPlatformProxy
+// In production, use remoteBindings to access real Cloudflare services
+// In development, use local bindings for testing
+const cloudflare = await getCloudflareContextFromWrangler()
 
 const payloadConfig = (overrides?: Partial<Config>) => {
   const serverUrl = getServerUrl()
