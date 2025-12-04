@@ -50,7 +50,7 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
   return () => ({
     name: 'cloudflare-images',
 
-    handleUpload: async ({ file }) => {
+    handleUpload: async ({ file, req }) => {
       try {
         // Validate file before upload
         validateFileUpload(file, { category: 'image' })
@@ -88,9 +88,12 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
 
         logger.info(`Image uploaded successfully: ${imageId}`)
 
-        // Update the file.filename to the Cloudflare Image ID
+        // Update both file.filename and req.file.name to the Cloudflare Image ID
         // This ensures PayloadCMS stores the correct ID in the database
         file.filename = imageId
+        if (req.file) {
+          req.file.name = imageId
+        }
       } catch (error) {
         logger.error('Cloudflare Images upload error:', {
           filename: file.filename,
