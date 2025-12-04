@@ -37,8 +37,8 @@ export const Music: CollectionConfig = {
         afterRead: [
           ({ data }: { data?: any }) => {
             // Generate R2 URL if in production
-            if (data?.filename && process.env.NODE_ENV === 'production') {
-              return `https://${process.env.PUBLIC_ASSETS_URL}/music/${data.filename}`
+            if (data?.filename && process.env.CLOUDFLARE_R2_DELIVERY_URL) {
+              return `${process.env.CLOUDFLARE_R2_DELIVERY_URL}/music/${data.filename}`
             }
             // Fallback to PayloadCMS-generated URL (local storage in development)
             return data?.url
