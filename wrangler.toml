@@ -39,6 +39,7 @@ remote = true
 # Environment Variables (non-sensitive)
 [vars]
 NODE_ENV = "production"
+LOG_LEVEL = "info"  # Set to 'debug', 'info', 'warn', 'error', or 'silent'
 SAHAJCLOUD_URL = "https://cloud.sydevelopers.com"
 WEMEDITATE_WEB_URL = "https://wemeditate.com"
 SAHAJATLAS_URL = "https://atlas.sydevelopers.com"
