@@ -1,7 +1,7 @@
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-import { CloudflareContext } from '@opennextjs/cloudflare'
+import { CloudflareContext, getCloudflareContext } from '@opennextjs/cloudflare'
 import { sqliteD1Adapter } from '@payloadcms/db-d1-sqlite'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
@@ -26,11 +26,15 @@ const dirname = path.dirname(filename)
 
 const isTestEnvironment = process.env.NODE_ENV === 'test'
 const isProduction = process.env.NODE_ENV === 'production'
+const isCLI = process.argv.some((value) => value.match(/^(generate|migrate):?/))
 
-// Get Cloudflare context using Wrangler's getPlatformProxy
-// In production, use remoteBindings to access real Cloudflare services
-// In development, use local bindings for testing
-const cloudflare = await getCloudflareContextFromWrangler()
+// Get Cloudflare context (following PayloadCMS official template pattern)
+// Development/CLI: Use wrangler's getPlatformProxy for local/remote bindings
+// Production Build: Use OpenNext's getCloudflareContext for build-time bindings
+const cloudflare =
+  isCLI || !isProduction
+    ? await getCloudflareContextFromWrangler()
+    : await getCloudflareContext({ async: true })
 
 const payloadConfig = (overrides?: Partial<Config>) => {
   const serverUrl = getServerUrl()
@@ -171,8 +175,8 @@ function getCloudflareContextFromWrangler(): Promise<CloudflareContext> {
     ({ getPlatformProxy }) =>
       getPlatformProxy({
         environment: process.env.CLOUDFLARE_ENV,
-        experimental: { remoteBindings: isProduction },
-      } as GetPlatformProxyOptions),
+        remoteBindings: isProduction,
+      } satisfies GetPlatformProxyOptions),
   )
 }
 
