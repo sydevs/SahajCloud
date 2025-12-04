@@ -51,7 +51,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
   return () => ({
     name: 'cloudflare-stream',
 
-    handleUpload: async ({ file }) => {
+    handleUpload: async ({ file, req }) => {
       try {
         // Validate file before upload
         validateFileUpload(file, { category: 'video' })
@@ -117,9 +117,12 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           logger.warn('Error enabling MP4 downloads:', { error })
         }
 
-        // Update the file.filename to the Cloudflare Stream video ID
+        // Update both file.filename and req.file.name to the Cloudflare Stream video ID
         // This ensures PayloadCMS stores the correct ID in the database
         file.filename = videoId
+        if (req.file) {
+          req.file.name = videoId
+        }
       } catch (error) {
         logger.error('Cloudflare Stream upload error:', {
           filename: file.filename,
