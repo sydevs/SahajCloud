@@ -21,7 +21,7 @@ The application uses **Cloudflare-native storage services** for optimal performa
 ### R2 Native Bindings (Audio & Generic Files)
 - **Collections**: `meditations`, `music`, `lessons`, `files`
 - **Features**: Direct bucket access, high performance
-- **URL Format**: `https://<PUBLIC_ASSETS_URL>/<collection>/<filename>`
+- **URL Format**: `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>`
 - **Configuration**: Via `wrangler.toml` bindings (no S3-compatible API)
 
 ### Development Environment
