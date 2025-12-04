@@ -9,10 +9,18 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
 import { logger } from '@/lib/logger'
 
+import { validateFileUpload } from './uploadValidation'
+
+/**
+ * Configuration for Cloudflare Stream adapter
+ */
 export interface CloudflareStreamConfig {
+  /** Cloudflare account ID */
   accountId: string
+  /** API token with Stream:Edit permission */
   apiKey: string
-  deliveryUrl: string // Base delivery URL, e.g., "https://customer-<code>.cloudflarestream.com"
+  /** Base delivery URL with customer code (e.g., "https://customer-<code>.cloudflarestream.com") */
+  deliveryUrl: string
 }
 
 interface CloudflareStreamResponse {
@@ -21,12 +29,33 @@ interface CloudflareStreamResponse {
   result?: { uid: string }
 }
 
+/**
+ * Create Cloudflare Stream storage adapter
+ *
+ * Uploads videos to Cloudflare Stream with automatic transcoding, HLS streaming,
+ * and thumbnail generation. Enables MP4 downloads for HTML5 video compatibility.
+ *
+ * @param config - Cloudflare Stream configuration
+ * @returns PayloadCMS storage adapter
+ *
+ * @example
+ * ```ts
+ * const adapter = cloudflareStreamAdapter({
+ *   accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
+ *   apiKey: process.env.CLOUDFLARE_API_KEY,
+ *   deliveryUrl: process.env.CLOUDFLARE_STREAM_DELIVERY_URL,
+ * })
+ * ```
+ */
 export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter => {
   return () => ({
     name: 'cloudflare-stream',
 
     handleUpload: async ({ file }) => {
       try {
+        // Validate file before upload
+        validateFileUpload(file, { category: 'video' })
+
         const formData = new FormData()
         // Convert Buffer to Uint8Array for browser compatibility
         const uint8Array = new Uint8Array(file.buffer)
@@ -90,7 +119,12 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
 
         // Return nothing - PayloadCMS will handle storing the videoId as filename
       } catch (error) {
-        logger.error('Cloudflare Stream upload error:', error)
+        logger.error('Cloudflare Stream upload error:', {
+          filename: file.filename,
+          mimeType: file.mimeType,
+          size: file.buffer.length,
+          error: error instanceof Error ? error.message : String(error),
+        })
         throw error
       }
     },
@@ -119,7 +153,10 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           logger.info(`Video deleted successfully: ${videoId}`)
         }
       } catch (error) {
-        logger.error('Cloudflare Stream delete error:', error)
+        logger.error('Cloudflare Stream delete error:', {
+          videoId,
+          error: error instanceof Error ? error.message : String(error),
+        })
         // Don't throw - deletion errors shouldn't break the app
       }
     },

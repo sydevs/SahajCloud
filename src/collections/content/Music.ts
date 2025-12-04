@@ -7,7 +7,6 @@ import { roleBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { sanitizeFilename } from '@/lib/fieldUtils'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 
-
 export const Music: CollectionConfig = {
   slug: 'music',
   access: roleBasedAccess('music'),
@@ -35,7 +34,7 @@ export const Music: CollectionConfig = {
       virtual: true,
       hooks: {
         afterRead: [
-          ({ data }: { data?: any }) => {
+          ({ data }: { data?: Record<string, unknown> }) => {
             // Generate R2 URL if in production
             if (data?.filename && process.env.CLOUDFLARE_R2_DELIVERY_URL) {
               return `${process.env.CLOUDFLARE_R2_DELIVERY_URL}/music/${data.filename}`

@@ -9,17 +9,46 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
 import { logger } from '@/lib/logger'
 
+import { validateFileUpload } from './uploadValidation'
+
+/**
+ * Configuration for R2 native storage adapter
+ */
 export interface R2NativeConfig {
+  /** R2 bucket instance from Cloudflare Workers bindings */
   bucket: R2Bucket
-  publicUrl: string // e.g., "https://assets.sydevelopers.com"
+  /** Public URL for accessing R2 assets (e.g., "https://assets.sydevelopers.com") */
+  publicUrl: string
 }
 
+/**
+ * Create R2 native storage adapter
+ *
+ * Uses Cloudflare R2 native bindings for direct bucket access with high performance.
+ * Does not use S3-compatible API layer.
+ *
+ * @param config - R2 native configuration
+ * @returns PayloadCMS storage adapter
+ *
+ * @example
+ * ```ts
+ * const adapter = r2NativeAdapter({
+ *   bucket: env.R2, // From Cloudflare Workers bindings
+ *   publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL,
+ * })
+ * ```
+ */
 export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
   return ({ prefix }) => ({
     name: 'r2-native',
 
     handleUpload: async ({ file }) => {
       try {
+        // Validate file before upload (audio and documents)
+        // Determine category based on MIME type
+        const category = file.mimeType.startsWith('audio/') ? 'audio' : 'document'
+        validateFileUpload(file, { category })
+
         const key = prefix ? `${prefix}/${file.filename}` : file.filename
 
         logger.info(`Uploading file to R2: ${key}`)
@@ -34,7 +63,14 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
 
         // Return nothing - PayloadCMS will handle storing the filename
       } catch (error) {
-        logger.error('R2 upload error:', error)
+        const key = prefix ? `${prefix}/${file.filename}` : file.filename
+        logger.error('R2 upload error:', {
+          key,
+          filename: file.filename,
+          mimeType: file.mimeType,
+          size: file.buffer.length,
+          error: error instanceof Error ? error.message : String(error),
+        })
         throw error
       }
     },
@@ -49,7 +85,12 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
 
         logger.info(`File deleted successfully from R2: ${key}`)
       } catch (error) {
-        logger.error('R2 delete error:', error)
+        const key = prefix ? `${prefix}/${filename}` : filename
+        logger.error('R2 delete error:', {
+          key,
+          filename,
+          error: error instanceof Error ? error.message : String(error),
+        })
         // Don't throw - deletion errors shouldn't break the app
       }
     },
@@ -77,7 +118,11 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
           },
         })
       } catch (error) {
-        logger.error('R2 static handler error:', error)
+        const key = params.collection ? `${params.collection}/${params.filename}` : params.filename
+        logger.error('R2 static handler error:', {
+          key,
+          error: error instanceof Error ? error.message : String(error),
+        })
         return new Response('Internal Server Error', { status: 500 })
       }
     },

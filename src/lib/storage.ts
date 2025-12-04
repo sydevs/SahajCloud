@@ -19,8 +19,10 @@ import { r2NativeAdapter } from './storage/r2NativeAdapter'
 import { routerAdapter } from './storage/routerAdapter'
 
 interface CloudflareEnv {
-  R2: R2Bucket | any // Use 'any' for R2 to avoid version conflicts between @cloudflare/workers-types
-  D1: D1Database | any // Use 'any' for D1 to avoid version conflicts
+  // Using R2Bucket/D1Database from @cloudflare/workers-types
+  // If version conflicts occur, widen to unknown and add runtime checks
+  R2: R2Bucket | unknown
+  D1: D1Database | unknown
   [key: string]: unknown
 }
 
@@ -80,7 +82,7 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
   })
 
   const r2Adapter = r2NativeAdapter({
-    bucket: env!.R2,
+    bucket: env!.R2 as R2Bucket,
     publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL || '',
   })
 
@@ -131,6 +133,6 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
         disableLocalStorage: true,
         disablePayloadAccessControl: true,
       },
-    } as any, // Type assertion: lessons is an upload collection but types may not be regenerated yet
+    } as any, // Type assertion: lessons collection exists but types may not be regenerated yet
   })
 }

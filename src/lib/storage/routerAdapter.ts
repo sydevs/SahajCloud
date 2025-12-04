@@ -8,13 +8,38 @@ import type { Adapter, GeneratedAdapter } from '@payloadcms/plugin-cloud-storage
 
 import { logger } from '@/lib/logger'
 
+/**
+ * Configuration for router adapter
+ */
 export interface RouterConfig {
+  /** Map of MIME type prefixes to storage adapters (e.g., "image/" -> imagesAdapter) */
   routes: {
     [mimeTypePrefix: string]: Adapter
   }
+  /** Default adapter for unmatched MIME types */
   default: Adapter
 }
 
+/**
+ * Create router storage adapter
+ *
+ * Routes files to different storage adapters based on MIME type prefix matching.
+ * Useful for collections with mixed media types (e.g., images and videos).
+ *
+ * @param config - Router configuration with MIME type routes
+ * @returns PayloadCMS storage adapter
+ *
+ * @example
+ * ```ts
+ * const adapter = routerAdapter({
+ *   routes: {
+ *     'image/': cloudflareImagesAdapter(imagesConfig),
+ *     'video/': cloudflareStreamAdapter(streamConfig),
+ *   },
+ *   default: cloudflareImagesAdapter(imagesConfig),
+ * })
+ * ```
+ */
 export const routerAdapter = (config: RouterConfig): Adapter => {
   return ({ collection, prefix }) => {
     // Generate all adapters upfront

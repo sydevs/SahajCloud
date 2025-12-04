@@ -8,10 +8,18 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
 import { logger } from '@/lib/logger'
 
+import { validateFileUpload } from './uploadValidation'
+
+/**
+ * Configuration for Cloudflare Images adapter
+ */
 export interface CloudflareImagesConfig {
+  /** Cloudflare account ID */
   accountId: string
+  /** API token with Images:Edit permission */
   apiKey: string
-  deliveryUrl: string // Base delivery URL, e.g., "https://imagedelivery.net/<hash>"
+  /** Base delivery URL including account hash (e.g., "https://imagedelivery.net/<hash>") */
+  deliveryUrl: string
 }
 
 interface CloudflareImagesResponse {
@@ -20,12 +28,33 @@ interface CloudflareImagesResponse {
   result?: { id: string }
 }
 
+/**
+ * Create Cloudflare Images storage adapter
+ *
+ * Uploads images to Cloudflare Images API with automatic optimization (WebP, AVIF).
+ * Images are identified by Cloudflare-generated IDs stored as filenames.
+ *
+ * @param config - Cloudflare Images configuration
+ * @returns PayloadCMS storage adapter
+ *
+ * @example
+ * ```ts
+ * const adapter = cloudflareImagesAdapter({
+ *   accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
+ *   apiKey: process.env.CLOUDFLARE_API_KEY,
+ *   deliveryUrl: process.env.CLOUDFLARE_IMAGES_DELIVERY_URL,
+ * })
+ * ```
+ */
 export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter => {
   return () => ({
     name: 'cloudflare-images',
 
     handleUpload: async ({ file }) => {
       try {
+        // Validate file before upload
+        validateFileUpload(file, { category: 'image' })
+
         const formData = new FormData()
         // Convert Buffer to Uint8Array for browser compatibility
         const uint8Array = new Uint8Array(file.buffer)
@@ -62,7 +91,12 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
         // Return nothing - PayloadCMS will handle storing the imageId as filename
         // The imageId is already in the file object
       } catch (error) {
-        logger.error('Cloudflare Images upload error:', error)
+        logger.error('Cloudflare Images upload error:', {
+          filename: file.filename,
+          mimeType: file.mimeType,
+          size: file.buffer.length,
+          error: error instanceof Error ? error.message : String(error),
+        })
         throw error
       }
     },
@@ -91,7 +125,10 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
           logger.info(`Image deleted successfully: ${imageId}`)
         }
       } catch (error) {
-        logger.error('Cloudflare Images delete error:', error)
+        logger.error('Cloudflare Images delete error:', {
+          imageId,
+          error: error instanceof Error ? error.message : String(error),
+        })
         // Don't throw - deletion errors shouldn't break the app
       }
     },
