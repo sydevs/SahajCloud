@@ -89,7 +89,6 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
         }
 
         logger.info(`Video uploaded successfully: ${videoId}`)
-        logger.info(`DEBUG: Setting filenames - file.filename BEFORE: ${file.filename}`)
 
         // Enable MP4 downloads for HTML5 video compatibility
         try {
@@ -122,12 +121,8 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
         // This ensures PayloadCMS stores the correct ID in the database
         file.filename = videoId
         if (req.file) {
-          logger.info(`DEBUG: Setting req.file.name from ${req.file.name} to ${videoId}`)
           req.file.name = videoId
-        } else {
-          logger.warn(`DEBUG: req.file is undefined!`)
         }
-        logger.info(`DEBUG: After setting - file.filename: ${file.filename}, req.file?.name: ${req.file?.name}`)
       } catch (error) {
         logger.error('Cloudflare Stream upload error:', {
           filename: file.filename,
