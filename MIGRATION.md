@@ -28,6 +28,7 @@ This migration introduces Cloudflare-native storage and changes collection slugs
 - Direct bucket access (not S3-compatible API)
 - High performance with native integration
 - Used by: `meditations`, `music`, `lessons`, `files` collections
+- Public access via custom domain (CLOUDFLARE_R2_DELIVERY_URL)
 
 ## Local Development Reset
 
@@ -87,8 +88,7 @@ pnpm run deploy:database
 Set the following secrets in Cloudflare Workers:
 
 ```bash
-wrangler secret put CLOUDFLARE_IMAGES_API_TOKEN
-wrangler secret put CLOUDFLARE_STREAM_API_TOKEN
+wrangler secret put CLOUDFLARE_API_KEY
 wrangler secret put PAYLOAD_SECRET
 wrangler secret put RESEND_API_KEY
 ```
@@ -98,9 +98,9 @@ Configure `wrangler.toml` variables:
 ```toml
 [vars]
 CLOUDFLARE_ACCOUNT_ID = "your-account-id"
-CLOUDFLARE_IMAGES_ACCOUNT_HASH = "your-images-hash"
-CLOUDFLARE_STREAM_CUSTOMER_CODE = "your-stream-code"
-PUBLIC_ASSETS_URL = "assets.sydevelopers.com"
+CLOUDFLARE_IMAGES_DELIVERY_URL = "https://imagedelivery.net/<your-hash>"
+CLOUDFLARE_STREAM_DELIVERY_URL = "https://customer-<your-code>.cloudflarestream.com"
+CLOUDFLARE_R2_DELIVERY_URL = "https://assets.sydevelopers.com"
 ```
 
 ### Finding Cloudflare Credentials
@@ -109,15 +109,15 @@ PUBLIC_ASSETS_URL = "assets.sydevelopers.com"
 1. Go to Cloudflare Dashboard → Account Home
 2. Look in right sidebar under "Account ID"
 
-**Images Account Hash**:
+**Images Delivery URL**:
 1. Go to Images dashboard
-2. Look at any delivery URL: `https://imagedelivery.net/<hash>/...`
-3. The hash is the part between `imagedelivery.net/` and the image ID
+2. Look at any delivery URL: `https://imagedelivery.net/<hash>/<image-id>/public`
+3. Copy the base URL including the hash: `https://imagedelivery.net/<hash>`
 
-**Stream Customer Code**:
+**Stream Delivery URL**:
 1. Go to Stream dashboard
 2. Look at any video player URL: `https://customer-<code>.cloudflarestream.com/...`
-3. The code is the part between `customer-` and `.cloudflarestream.com`
+3. Copy the base URL: `https://customer-<code>.cloudflarestream.com`
 
 ### Deployment Steps
 

@@ -41,24 +41,21 @@ NODE_ENV = "production"
 SAHAJCLOUD_URL = "https://cloud.sydevelopers.com"
 WEMEDITATE_WEB_URL = "https://wemeditate.com"
 SAHAJATLAS_URL = "https://atlas.sydevelopers.com"
-PUBLIC_ASSETS_URL = "assets.sydevelopers.com"
 
 # Cloudflare Services Configuration
-# Account-level identifiers (public, non-sensitive)
+# Account-level identifiers and delivery URLs (public, non-sensitive)
 CLOUDFLARE_ACCOUNT_ID = ""  # Find in: Dashboard → Account Home → right sidebar
-CLOUDFLARE_IMAGES_ACCOUNT_HASH = ""  # Find in: Images → Variants → delivery URL
-CLOUDFLARE_STREAM_CUSTOMER_CODE = ""  # Find in: Stream → any video → player URL
+CLOUDFLARE_IMAGES_DELIVERY_URL = ""  # Full URL: https://imagedelivery.net/<hash>
+CLOUDFLARE_STREAM_DELIVERY_URL = ""  # Full URL: https://customer-<code>.cloudflarestream.com
+CLOUDFLARE_R2_DELIVERY_URL = "https://assets.sydevelopers.com"  # Custom domain for R2
 
 # Sentry Configuration
-# SENTRY_DSN should be set via: wrangler secret put SENTRY_DSN
+# Set via: wrangler secret put SENTRY_DSN
 # SENTRY_DSN = "https://your-dsn@sentry.io/project-id"
 
-# Cloudflare API Tokens (sensitive - set via wrangler secret put)
-# CLOUDFLARE_IMAGES_API_TOKEN - Token with "Account.Cloudflare Images:Edit" permission
-# CLOUDFLARE_STREAM_API_TOKEN - Token with "Account.Stream:Edit" permission
-# Set with:
-#   wrangler secret put CLOUDFLARE_IMAGES_API_TOKEN
-#   wrangler secret put CLOUDFLARE_STREAM_API_TOKEN
+# Secrets (sensitive - set via wrangler secret put)
+# See .env.example for list of required secrets
+# Set with: wrangler secret put <SECRET_NAME>
 
 # Build Configuration
 [build]
@@ -98,9 +95,9 @@ NODE_ENV = "development"
 SAHAJCLOUD_URL = "http://localhost:3000"
 WEMEDITATE_WEB_URL = "http://localhost:5173"
 SAHAJATLAS_URL = "http://localhost:5174"
-PUBLIC_ASSETS_URL = "localhost"
 
 # Cloudflare Services (optional in development - falls back to local storage if not set)
 CLOUDFLARE_ACCOUNT_ID = ""
-CLOUDFLARE_IMAGES_ACCOUNT_HASH = ""
-CLOUDFLARE_STREAM_CUSTOMER_CODE = ""
+CLOUDFLARE_IMAGES_DELIVERY_URL = ""
+CLOUDFLARE_STREAM_DELIVERY_URL = ""
+CLOUDFLARE_R2_DELIVERY_URL = ""

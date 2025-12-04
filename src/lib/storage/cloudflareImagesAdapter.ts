@@ -10,8 +10,8 @@ import { logger } from '@/lib/logger'
 
 export interface CloudflareImagesConfig {
   accountId: string
-  apiToken: string
-  accountHash: string
+  apiKey: string
+  deliveryUrl: string // Base delivery URL, e.g., "https://imagedelivery.net/<hash>"
 }
 
 interface CloudflareImagesResponse {
@@ -39,7 +39,7 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
           {
             method: 'POST',
             headers: {
-              Authorization: `Bearer ${config.apiToken}`,
+              Authorization: `Bearer ${config.apiKey}`,
             },
             body: formData,
           },
@@ -76,7 +76,7 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
           {
             method: 'DELETE',
             headers: {
-              Authorization: `Bearer ${config.apiToken}`,
+              Authorization: `Bearer ${config.apiKey}`,
             },
           },
         )
@@ -99,7 +99,7 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
     staticHandler: async (_req, { params }) => {
       // Redirect to Cloudflare Images delivery URL
       const imageId = params.filename
-      const url = `https://imagedelivery.net/${config.accountHash}/${imageId}/public`
+      const url = `${config.deliveryUrl}/${imageId}/public`
 
       logger.debug(`Redirecting to Cloudflare Images URL: ${url}`)
 

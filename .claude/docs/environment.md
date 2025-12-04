@@ -19,18 +19,15 @@ Copy from `.env.example` and configure:
 
 **Note**: The system uses Cloudflare-native services in production and automatically falls back to local file storage in development (no configuration needed for local development).
 
-#### Cloudflare Images (Image Storage)
+#### Cloudflare Images & Stream (Image & Video Storage)
 - `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID
-- `CLOUDFLARE_IMAGES_API_TOKEN` - API token for Cloudflare Images (set via `wrangler secret put`)
-- `CLOUDFLARE_IMAGES_ACCOUNT_HASH` - Images account hash from dashboard
-
-#### Cloudflare Stream (Video Storage)
-- `CLOUDFLARE_STREAM_API_TOKEN` - API token for Cloudflare Stream (set via `wrangler secret put`)
-- `CLOUDFLARE_STREAM_CUSTOMER_CODE` - Stream customer code from dashboard
+- `CLOUDFLARE_API_KEY` - Unified API token for both Cloudflare Images and Stream (set via `wrangler secret put`)
+- `CLOUDFLARE_IMAGES_DELIVERY_URL` - Full Images delivery URL (e.g., `https://imagedelivery.net/<hash>`)
+- `CLOUDFLARE_STREAM_DELIVERY_URL` - Full Stream delivery URL (e.g., `https://customer-<code>.cloudflarestream.com`)
 
 #### R2 Native Bindings (Audio & Files)
 - R2 bucket is configured via `wrangler.toml` bindings (no environment variables needed)
-- `PUBLIC_ASSETS_URL` - Public URL for R2-stored assets (e.g., `assets.sydevelopers.com`)
+- `CLOUDFLARE_R2_DELIVERY_URL` - Public URL for R2-stored assets (e.g., `https://assets.sydevelopers.com`)
 
 #### Finding Cloudflare Credentials
 
@@ -38,15 +35,15 @@ Copy from `.env.example` and configure:
 1. Go to Cloudflare Dashboard → Account Home
 2. Look in right sidebar under "Account ID"
 
-**Images Account Hash**:
+**Images Delivery URL**:
 1. Go to Images dashboard
-2. Look at any delivery URL: `https://imagedelivery.net/<hash>/...`
-3. The hash is between `imagedelivery.net/` and the image ID
+2. Look at any delivery URL: `https://imagedelivery.net/<hash>/<image-id>/public`
+3. Copy the base URL including the hash: `https://imagedelivery.net/<hash>`
 
-**Stream Customer Code**:
+**Stream Delivery URL**:
 1. Go to Stream dashboard
-2. Look at any video URL: `https://customer-<code>.cloudflarestream.com/...`
-3. The code is between `customer-` and `.cloudflarestream.com`
+2. Look at any video player URL: `https://customer-<code>.cloudflarestream.com/...`
+3. Copy the base URL: `https://customer-<code>.cloudflarestream.com`
 
 ### Live Preview URLs
 - `WEMEDITATE_WEB_URL` - Preview URL for We Meditate Web frontend (default: http://localhost:5173)
