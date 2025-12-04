@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const testType = searchParams.get('type') || 'error'
+  const _testType = searchParams.get('type') || 'error'
 
   // Return message indicating Sentry is disabled
   return NextResponse.json({

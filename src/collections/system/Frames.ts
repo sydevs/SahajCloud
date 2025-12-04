@@ -1,6 +1,9 @@
 import type { CollectionConfig } from 'payload'
 
-import { claimOrphanFileAttachmentsHook, deleteFileAttachmentsHook } from '@/fields/FileAttachmentField'
+import {
+  claimOrphanFileAttachmentsHook,
+  deleteFileAttachmentsHook,
+} from '@/fields/FileAttachmentField'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { FRAME_CATEGORY_OPTIONS, GENDER_OPTIONS } from '@/lib/data'
@@ -62,18 +65,18 @@ export const Frames: CollectionConfig = {
 
             if (data.mimeType?.startsWith('video/')) {
               // Cloudflare Stream thumbnail
-              const code = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE
-              return code
-                ? `https://customer-${code}.cloudflarestream.com/${data.filename}/thumbnails/thumbnail.jpg?height=320`
-                : undefined
+              const deliveryUrl = process.env.CLOUDFLARE_STREAM_DELIVERY_URL
+              return deliveryUrl
+                ? `${deliveryUrl}/${data.filename}/thumbnails/thumbnail.jpg?height=320`
+                : data?.url
             } else if (data.mimeType?.startsWith('image/')) {
               // Cloudflare Images thumbnail
-              const hash = process.env.CLOUDFLARE_IMAGES_ACCOUNT_HASH
-              return hash
-                ? `https://imagedelivery.net/${hash}/${data.filename}/format=auto,width=320,height=320,fit=cover`
-                : undefined
+              const deliveryUrl = process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
+              return deliveryUrl
+                ? `${deliveryUrl}/${data.filename}/format=auto,width=320,height=320,fit=cover`
+                : data?.url
             }
-            return undefined
+            return data?.url
           },
         ],
       },
@@ -92,12 +95,13 @@ export const Frames: CollectionConfig = {
         afterRead: [
           ({ data }) => {
             if (data?.mimeType?.startsWith('video/') && data?.filename) {
-              const code = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE
-              return code
-                ? `https://customer-${code}.cloudflarestream.com/${data.filename}/downloads/default.mp4`
-                : undefined
+              // Extract customer code from delivery URL: https://customer-{code}.cloudflarestream.com
+              const deliveryUrl = process.env.CLOUDFLARE_STREAM_DELIVERY_URL
+              return deliveryUrl
+                ? `${deliveryUrl}/${data.filename}/downloads/default.mp4`
+                : data?.url
             }
-            return undefined
+            return data?.url
           },
         ],
       },

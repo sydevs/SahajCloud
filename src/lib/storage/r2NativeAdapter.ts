@@ -4,8 +4,8 @@
  * Uses Cloudflare R2 native bindings (not S3-compatible API) for direct bucket access.
  * Better performance and simpler authentication than S3 API layer.
  */
-import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 import type { R2Bucket } from '@cloudflare/workers-types'
+import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
 import { logger } from '@/lib/logger'
 

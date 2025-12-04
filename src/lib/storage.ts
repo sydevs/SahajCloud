@@ -7,19 +7,21 @@
  * Automatically falls back to local file storage in development when
  * Cloudflare credentials are not configured.
  */
-import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
+import type { R2Bucket, D1Database } from '@cloudflare/workers-types'
 import type { Plugin } from 'payload'
 
+import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
+
+import { logger } from './logger'
 import { cloudflareImagesAdapter } from './storage/cloudflareImagesAdapter'
 import { cloudflareStreamAdapter } from './storage/cloudflareStreamAdapter'
 import { r2NativeAdapter } from './storage/r2NativeAdapter'
 import { routerAdapter } from './storage/routerAdapter'
-import { logger } from './logger'
 
 interface CloudflareEnv {
-  R2: any // R2Bucket type from @cloudflare/workers-types
-  D1: any
-  [key: string]: any
+  R2: R2Bucket | any // Use 'any' for R2 to avoid version conflicts between @cloudflare/workers-types
+  D1: D1Database | any // Use 'any' for D1 to avoid version conflicts
+  [key: string]: unknown
 }
 
 /**

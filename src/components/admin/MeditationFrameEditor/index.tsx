@@ -15,9 +15,9 @@ import { sortFramesByTimestamp } from './utils'
 
 const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
   path,
-  label,
-  description,
-  required,
+  label: _label,
+  description: _description,
+  required: _required,
   readOnly,
 }) => {
   const { value, setValue } = useField<KeyframeData[]>({ path })
