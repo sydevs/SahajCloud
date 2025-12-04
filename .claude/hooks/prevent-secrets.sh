@@ -48,6 +48,16 @@ while IFS= read -r FILE; do
     continue
   fi
 
+  # Skip documentation files (they document environment variables)
+  if [[ "$FILE" == *.md ]]; then
+    continue
+  fi
+
+  # Skip TypeScript type definition files (they declare types for environment variables)
+  if [[ "$FILE" == *.d.ts ]]; then
+    continue
+  fi
+
   # Skip the hook itself (it contains pattern strings)
   if [[ "$FILE" == *"prevent-secrets.sh" ]]; then
     continue

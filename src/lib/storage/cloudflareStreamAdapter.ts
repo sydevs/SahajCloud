@@ -11,8 +11,8 @@ import { logger } from '@/lib/logger'
 
 export interface CloudflareStreamConfig {
   accountId: string
-  apiToken: string
-  customerCode: string
+  apiKey: string
+  deliveryUrl: string // Base delivery URL, e.g., "https://customer-<code>.cloudflarestream.com"
 }
 
 interface CloudflareStreamResponse {
@@ -41,7 +41,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           {
             method: 'POST',
             headers: {
-              Authorization: `Bearer ${config.apiToken}`,
+              Authorization: `Bearer ${config.apiKey}`,
             },
             body: formData,
           },
@@ -70,7 +70,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
             {
               method: 'POST',
               headers: {
-                Authorization: `Bearer ${config.apiToken}`,
+                Authorization: `Bearer ${config.apiKey}`,
                 'Content-Type': 'application/json',
               },
             },
@@ -104,7 +104,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           {
             method: 'DELETE',
             headers: {
-              Authorization: `Bearer ${config.apiToken}`,
+              Authorization: `Bearer ${config.apiKey}`,
             },
           },
         )
@@ -127,7 +127,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
     staticHandler: async (_req, { params }) => {
       // Redirect to Cloudflare Stream MP4 download URL
       const videoId = params.filename
-      const url = `https://customer-${config.customerCode}.cloudflarestream.com/${videoId}/downloads/default.mp4`
+      const url = `${config.deliveryUrl}/${videoId}/downloads/default.mp4`
 
       logger.debug(`Redirecting to Cloudflare Stream URL: ${url}`)
 

@@ -11,11 +11,10 @@ declare global {
 
       // Cloudflare Services
       CLOUDFLARE_ACCOUNT_ID: string
-      CLOUDFLARE_IMAGES_API_TOKEN?: string
-      CLOUDFLARE_IMAGES_ACCOUNT_HASH?: string
-      CLOUDFLARE_STREAM_API_TOKEN?: string
-      CLOUDFLARE_STREAM_CUSTOMER_CODE?: string
-      PUBLIC_ASSETS_URL?: string
+      CLOUDFLARE_API_KEY?: string // Unified API key for Images + Stream
+      CLOUDFLARE_IMAGES_DELIVERY_URL?: string // e.g., "https://imagedelivery.net/<hash>"
+      CLOUDFLARE_STREAM_DELIVERY_URL?: string // e.g., "https://customer-<code>.cloudflarestream.com"
+      CLOUDFLARE_R2_DELIVERY_URL?: string // e.g., "https://assets.sydevelopers.com"
 
       // Email
       RESEND_API_KEY?: string

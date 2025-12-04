@@ -35,10 +35,9 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
   const hasCloudflareConfig =
     Boolean(env?.R2) &&
     Boolean(process.env.CLOUDFLARE_ACCOUNT_ID) &&
-    Boolean(process.env.CLOUDFLARE_IMAGES_API_TOKEN) &&
-    Boolean(process.env.CLOUDFLARE_IMAGES_ACCOUNT_HASH) &&
-    Boolean(process.env.CLOUDFLARE_STREAM_API_TOKEN) &&
-    Boolean(process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE)
+    Boolean(process.env.CLOUDFLARE_API_KEY) &&
+    Boolean(process.env.CLOUDFLARE_IMAGES_DELIVERY_URL) &&
+    Boolean(process.env.CLOUDFLARE_STREAM_DELIVERY_URL)
 
   // Only use Cloudflare services in production with valid configuration
   const useCloudflare = isProduction && hasCloudflareConfig
@@ -57,19 +56,19 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
   // Create storage adapters
   const imagesAdapter = cloudflareImagesAdapter({
     accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
-    apiToken: process.env.CLOUDFLARE_IMAGES_API_TOKEN!,
-    accountHash: process.env.CLOUDFLARE_IMAGES_ACCOUNT_HASH!,
+    apiKey: process.env.CLOUDFLARE_API_KEY!,
+    deliveryUrl: process.env.CLOUDFLARE_IMAGES_DELIVERY_URL!,
   })
 
   const streamAdapter = cloudflareStreamAdapter({
     accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
-    apiToken: process.env.CLOUDFLARE_STREAM_API_TOKEN!,
-    customerCode: process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE!,
+    apiKey: process.env.CLOUDFLARE_API_KEY!,
+    deliveryUrl: process.env.CLOUDFLARE_STREAM_DELIVERY_URL!,
   })
 
   const r2Adapter = r2NativeAdapter({
     bucket: env!.R2,
-    publicUrl: `https://${process.env.PUBLIC_ASSETS_URL}`,
+    publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL || '',
   })
 
   // Configure storage for each collection
