@@ -44,9 +44,9 @@ SAHAJATLAS_URL = "https://atlas.sydevelopers.com"
 
 # Cloudflare Services Configuration
 # Account-level identifiers and delivery URLs (public, non-sensitive)
-CLOUDFLARE_ACCOUNT_ID = ""  # Find in: Dashboard → Account Home → right sidebar
-CLOUDFLARE_IMAGES_DELIVERY_URL = ""  # Full URL: https://imagedelivery.net/<hash>
-CLOUDFLARE_STREAM_DELIVERY_URL = ""  # Full URL: https://customer-<code>.cloudflarestream.com
+CLOUDFLARE_ACCOUNT_ID = "c66c53a69689eb030b228c450515fff2"  # Find in: Dashboard → Account Home → right sidebar
+CLOUDFLARE_IMAGES_DELIVERY_URL = "https://imagedelivery.net/dOm4imjweFFL1Pto29l-4Q"  # Full URL: https://imagedelivery.net/<hash>
+CLOUDFLARE_STREAM_DELIVERY_URL = "https://customer-aorobtik2fce41s5.cloudflarestream.com"  # Full URL: https://customer-<code>.cloudflarestream.com
 CLOUDFLARE_R2_DELIVERY_URL = "https://assets.sydevelopers.com"  # Custom domain for R2
 
 # Sentry Configuration
