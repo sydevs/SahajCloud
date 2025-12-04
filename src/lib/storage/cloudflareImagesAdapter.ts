@@ -88,8 +88,9 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
 
         logger.info(`Image uploaded successfully: ${imageId}`)
 
-        // Return nothing - PayloadCMS will handle storing the imageId as filename
-        // The imageId is already in the file object
+        // Update the file.filename to the Cloudflare Image ID
+        // This ensures PayloadCMS stores the correct ID in the database
+        file.filename = imageId
       } catch (error) {
         logger.error('Cloudflare Images upload error:', {
           filename: file.filename,
