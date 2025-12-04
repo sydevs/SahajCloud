@@ -7,6 +7,7 @@ import {
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { FRAME_CATEGORY_OPTIONS, GENDER_OPTIONS } from '@/lib/data'
+import { logger } from '@/lib/logger'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 
 export const Frames: CollectionConfig = {
@@ -52,41 +53,62 @@ export const Frames: CollectionConfig = {
     afterChange: [
       // Fix filename after upload - remove PayloadCMS collision suffixes
       async ({ doc, req, operation, context }) => {
-        // Only process create operations with file uploads
-        if (operation !== 'create' || !doc.filename || context?.skipFilenameNormalization) {
-          return
-        }
-
-        // Check if filename has a collision suffix (e.g., test-video-2.mp4)
-        // Cloudflare IDs don't have extensions or collision suffixes
-        const hasExtension = doc.filename.includes('.')
-        const hasCollisionSuffix = /-\d+\.(mp4|webm|png|jpg|jpeg|webp)$/i.test(doc.filename)
-
-        if (hasExtension && (hasCollisionSuffix || doc.mimeType?.startsWith('video/'))) {
-          // Extract the real Cloudflare ID by removing extension and collision suffix
-          // For images: already correct (Cloudflare Images IDs have no extension)
-          // For videos: need to remove .mp4 extension and any collision suffix
-          let cloudflareId = doc.filename
-
-          if (doc.mimeType?.startsWith('video/')) {
-            // Remove extension and collision suffix for videos
-            cloudflareId = cloudflareId.replace(/-\d+\.(mp4|webm)$/i, '').replace(/\.(mp4|webm)$/i, '')
+        try {
+          // Only process create operations with file uploads
+          if (operation !== 'create' || !doc.filename || context?.skipFilenameNormalization) {
+            return
           }
 
-          // Only update if we actually changed something
-          if (cloudflareId !== doc.filename) {
-            // Update the filename directly in the database
-            await req.payload.update({
-              collection: 'frames',
-              id: doc.id,
-              data: {
-                filename: cloudflareId,
-              },
-              context: {
-                skipFilenameNormalization: true, // Prevent infinite loop
-              },
-            })
+          logger.info('Frames afterChange: Processing', {
+            operation,
+            filename: doc.filename,
+            mimeType: doc.mimeType,
+            id: doc.id,
+          })
+
+          // Check if filename has a collision suffix (e.g., test-video-2.mp4)
+          // Cloudflare IDs don't have extensions or collision suffixes
+          const hasExtension = doc.filename.includes('.')
+          const hasCollisionSuffix = /-\d+\.(mp4|webm|png|jpg|jpeg|webp)$/i.test(doc.filename)
+
+          logger.debug('Frames afterChange: Checks', { hasExtension, hasCollisionSuffix })
+
+          if (hasExtension && (hasCollisionSuffix || doc.mimeType?.startsWith('video/'))) {
+            // Extract the real Cloudflare ID by removing extension and collision suffix
+            // For images: already correct (Cloudflare Images IDs have no extension)
+            // For videos: need to remove .mp4 extension and any collision suffix
+            let cloudflareId = doc.filename
+
+            if (doc.mimeType?.startsWith('video/')) {
+              // Remove extension and collision suffix for videos
+              cloudflareId = cloudflareId.replace(/-\d+\.(mp4|webm)$/i, '').replace(/\.(mp4|webm)$/i, '')
+            }
+
+            logger.info('Frames afterChange: Extracted Cloudflare ID', { cloudflareId })
+
+            // Only update if we actually changed something
+            if (cloudflareId !== doc.filename) {
+              logger.info('Frames afterChange: Updating filename', {
+                from: doc.filename,
+                to: cloudflareId,
+              })
+              // Update the filename directly in the database
+              await req.payload.update({
+                collection: 'frames',
+                id: doc.id,
+                data: {
+                  filename: cloudflareId,
+                },
+                context: {
+                  skipFilenameNormalization: true, // Prevent infinite loop
+                },
+              })
+              logger.info('Frames afterChange: Update successful')
+            }
           }
+        } catch (error) {
+          logger.error('Frames afterChange: Error', { error })
+          // Don't throw - allow the operation to succeed even if filename correction fails
         }
       },
       claimOrphanFileAttachmentsHook,
