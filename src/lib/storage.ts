@@ -33,6 +33,17 @@ interface CloudflareEnv {
 export const storagePlugin = (env?: CloudflareEnv): Plugin => {
   const isProduction = process.env.NODE_ENV === 'production'
 
+  // Debug logging
+  logger.info('Storage plugin initialization', {
+    isProduction,
+    hasR2Binding: Boolean(env?.R2),
+    hasAccountId: Boolean(process.env.CLOUDFLARE_ACCOUNT_ID),
+    hasApiKey: Boolean(process.env.CLOUDFLARE_API_KEY),
+    hasImagesUrl: Boolean(process.env.CLOUDFLARE_IMAGES_DELIVERY_URL),
+    hasStreamUrl: Boolean(process.env.CLOUDFLARE_STREAM_DELIVERY_URL),
+    envKeys: env ? Object.keys(env) : [],
+  })
+
   // Check if Cloudflare services are configured
   const hasCloudflareConfig =
     Boolean(env?.R2) &&
