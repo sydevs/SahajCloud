@@ -5,7 +5,12 @@ import {
 import { PayloadRequest } from 'payload'
 import slugify from 'slugify'
 
-import { extractFileMetadata } from './fileUtils'
+export type FileMetadata = {
+  width?: number
+  height?: number
+  duration?: number
+  orientation?: number
+}
 
 type FileType = 'image' | 'audio' | 'video'
 
@@ -161,7 +166,11 @@ export const processFile: ProcessFileHook = ({ maxMB, maxMinutes }) => {
     }
 
     // Extract meta data
-    const metadata = await extractFileMetadata(req.file)
+    // Note: With Cloudflare-native storage, metadata extraction is handled by:
+    // - Cloudflare Images API for images (automatic WebP/AVIF conversion, dimensions)
+    // - Cloudflare Stream API for videos (automatic encoding, thumbnails, duration)
+    // - R2 for audio/files (basic metadata only)
+    const metadata: FileMetadata = {}
     data ||= {}
     data.fileMetadata = metadata
 

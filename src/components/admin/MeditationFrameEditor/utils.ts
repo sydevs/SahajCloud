@@ -89,7 +89,7 @@ export const getMediaUrl = (
     | KeyframeData
     | Partial<Frame>
     | (Omit<KeyframeData, 'timestamp'> & Partial<Pick<KeyframeData, 'timestamp'>>),
-  size: 'small' | 'large' = 'small',
+  _size: 'small' | 'large' = 'small',
 ): string | undefined => {
   // Use thumbnailUrl virtual field (works for both images and videos with Cloudflare)
   return frame?.thumbnailUrl || frame?.url || undefined

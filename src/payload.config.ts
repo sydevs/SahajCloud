@@ -125,7 +125,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
               }),
         }),
     plugins: [
-      storagePlugin(cloudflare.env), // Cloudflare-native file storage (Images, Stream, R2)
+      storagePlugin(cloudflare.env as any), // Cloudflare-native file storage (Images, Stream, R2)
       seoPlugin({
         collections: ['pages'],
         uploadsCollection: 'images', // Changed from 'media' to 'images'
