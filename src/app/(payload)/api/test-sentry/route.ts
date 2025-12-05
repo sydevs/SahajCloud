@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const _testType = searchParams.get('type') || 'error'
+  const testType = searchParams.get('type') || 'error'
 
   // Only allow Sentry testing in production
   if (process.env.NODE_ENV !== 'production') {

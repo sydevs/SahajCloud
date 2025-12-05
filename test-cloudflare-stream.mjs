@@ -74,11 +74,26 @@ async function testCloudflareStream() {
   const uploadResult = await uploadResponse.json()
   console.log('✅ Upload successful!\n')
 
-  // Step 4: Verify response
-  console.log('Step 4: Verifying response...')
-  console.log('Response doc:', JSON.stringify(uploadResult.doc, null, 2))
+  // Step 4: Re-fetch the record to get the corrected filename from afterChange hook
+  console.log('Step 4: Re-fetching record to get corrected filename...')
+  const refetchResponse = await fetch(`${API_URL}/api/frames/${uploadResult.doc.id}`, {
+    headers: {
+      Authorization: `JWT ${token}`,
+    },
+  })
 
-  const { filename, thumbnailUrl, streamMp4Url } = uploadResult.doc
+  if (!refetchResponse.ok) {
+    throw new Error(`Refetch failed: ${refetchResponse.status} ${await refetchResponse.text()}`)
+  }
+
+  const correctedDoc = await refetchResponse.json()
+  console.log('✅ Record refetched!\\n')
+
+  // Step 5: Verify response
+  console.log('Step 5: Verifying response...')
+  console.log('Corrected doc:', JSON.stringify(correctedDoc, null, 2))
+
+  const { filename, thumbnailUrl, streamMp4Url } = correctedDoc
 
   if (!filename) {
     throw new Error('❌ ERROR: Missing filename in response')
@@ -97,7 +112,7 @@ async function testCloudflareStream() {
   console.log(`  Thumbnail URL: ${thumbnailUrl}`)
   console.log(`  Stream MP4 URL: ${streamMp4Url}`)
 
-  // Step 5: Verify URL formats
+  // Step 6: Verify URL formats
   if (!thumbnailUrl.includes('cloudflarestream.com')) {
     throw new Error(`❌ ERROR: Thumbnail URL does not contain 'cloudflarestream.com': ${thumbnailUrl}`)
   }
@@ -114,7 +129,7 @@ async function testCloudflareStream() {
     throw new Error(`❌ ERROR: Stream MP4 URL format incorrect: ${streamMp4Url}`)
   }
 
-  // Step 6: Test URL accessibility
+  // Step 7: Test URL accessibility
   console.log('\nStep 6: Testing URL accessibility...')
 
   // Test thumbnail URL
