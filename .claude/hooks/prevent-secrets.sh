@@ -62,6 +62,11 @@ while IFS= read -r FILE; do
   if [[ "$FILE" == *"prevent-secrets.sh" ]]; then
     continue
   fi
+  
+  # Skip .env.example files (they contain template placeholders, not real secrets)
+  if [[ "$FILE" == *".env.example"* ]]; then
+    continue
+  fi
 
   # Skip binary files
   if file "$FULL_PATH" | grep -q "text"; then
