@@ -3,8 +3,6 @@
 import * as Sentry from '@sentry/react'
 import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 
-import { logger } from '@/lib/logger'
-
 interface ErrorBoundaryState {
   hasError: boolean
   error?: Error
@@ -78,11 +76,13 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
           },
         },
       })
+    } else {
+      // Log to console in development (avoid logger to prevent any side effects)
+      // eslint-disable-next-line no-console
+      console.error('Admin interface error caught by boundary:', error, {
+        componentStack: errorInfo.componentStack,
+      })
     }
-
-    logger.error('Admin interface error caught by boundary', error, {
-      componentStack: errorInfo.componentStack,
-    })
   }
 
   render() {
