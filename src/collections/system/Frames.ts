@@ -49,7 +49,31 @@ export const Frames: CollectionConfig = {
     // Removed: processFile, convertFile (Sharp processing)
     // Removed: generateVideoThumbnailHook (FFmpeg processing)
     // Removed: setPreviewUrlHook (replaced by thumbnailUrl virtual field)
-    afterChange: [claimOrphanFileAttachmentsHook],
+    afterChange: [
+      // Update database with adapter-updated filename (runs AFTER storage adapter)
+      async ({ req, doc, operation }) => {
+        // Only process on create operations with file uploads
+        if (operation !== 'create' || !req.file?.name) {
+          return
+        }
+
+        // Check if filename was updated by storage adapter
+        const adapterFilename = req.file.name
+        const dbFilename = doc.filename
+
+        if (adapterFilename !== dbFilename) {
+          // Filename was updated by adapter - update database record
+          await req.payload.update({
+            collection: 'frames',
+            id: doc.id,
+            data: {
+              filename: adapterFilename,
+            },
+          })
+        }
+      },
+      claimOrphanFileAttachmentsHook,
+    ],
     afterDelete: [deleteFileAttachmentsHook],
   },
   fields: [
