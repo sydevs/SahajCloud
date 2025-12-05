@@ -1,14 +1,22 @@
 'use client'
 
+import * as Sentry from '@sentry/react'
 import NextError from 'next/error'
 import { useEffect } from 'react'
 
 export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
   useEffect(() => {
-    // Note: @sentry/cloudflare cannot be used in client-side code due to Node.js dependencies
-    // Server-side errors are captured via instrumentation.ts
-    // Client-side errors are logged to console for now
-    console.error('Global error:', error)
+    // Capture global errors with Sentry in production
+    if (process.env.NODE_ENV === 'production') {
+      Sentry.captureException(error, {
+        extra: {
+          digest: error.digest,
+        },
+      })
+    } else {
+      // Log to console in development
+      console.error('Global error:', error)
+    }
   }, [error])
 
   return (
