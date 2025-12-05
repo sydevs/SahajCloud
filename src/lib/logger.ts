@@ -2,19 +2,21 @@
  * Centralized logging utility
  *
  * Features:
- * - Environment-aware logging (console in dev)
+ * - Environment-aware logging (console in dev, throws in production)
  * - Structured logging with context
  * - Type-safe log levels
  * - Contextual logger instances
  *
- * NOTE: Sentry integration temporarily disabled for Cloudflare Workers compatibility
- * TODO: Re-enable Sentry after implementing Workers-compatible integration (Phase 6)
+ * Production Behavior:
+ * - logger.error() throws the error to be caught by ErrorBoundary/Sentry instrumentation
+ * - This ensures all logged errors are captured by Sentry in production
+ * - Other log levels (info, warn, debug) are silent in production
  *
  * @example
  * import { logger } from '@/lib/logger'
  *
  * logger.info('User logged in', { userId: '123' })
- * logger.error('Failed to save', error, { collection: 'pages' })
+ * logger.error('Failed to save', error, { collection: 'pages' }) // Throws in production
  */
 
 type LogContext = Record<string, unknown>
@@ -23,7 +25,8 @@ const isDevelopment = process.env.NODE_ENV === 'development'
 const isTest = process.env.NODE_ENV === 'test'
 
 /**
- * Logger class for structured logging with Sentry integration
+ * Logger class for structured logging
+ * Errors are thrown in production to be caught by Sentry
  */
 class Logger {
   private context?: LogContext
@@ -55,11 +58,8 @@ class Logger {
    */
   info(message: string, extra?: LogContext) {
     if (isDevelopment || isTest) {
-
       console.info(`[INFO] ${message}`, this.mergeContext(extra))
     }
-
-    // Sentry.captureMessage disabled - re-enable in Phase 6
   }
 
   /**
@@ -71,16 +71,14 @@ class Logger {
    */
   warn(message: string, extra?: LogContext) {
     if (isDevelopment || isTest) {
-
       console.warn(`[WARN] ${message}`, this.mergeContext(extra))
     }
-
-    // Sentry.captureMessage disabled - re-enable in Phase 6
   }
 
   /**
    * Log error messages with optional Error object
-   * Visible in development console
+   * In development/test: logs to console
+   * In production: throws error to be caught by ErrorBoundary/Sentry
    *
    * @param message - Error message
    * @param error - Optional Error object
@@ -90,11 +88,19 @@ class Logger {
     const context = this.mergeContext(extra)
 
     if (isDevelopment || isTest) {
-
       console.error(`[ERROR] ${message}`, error, context)
-    }
+    } else {
+      // In production, throw the error so it gets caught by ErrorBoundary/Sentry
+      // If an Error object was provided, use it; otherwise create a new Error
+      const errorToThrow = error instanceof Error ? error : new Error(message)
 
-    // Sentry.captureException disabled - re-enable in Phase 6
+      // Attach context to the error object for Sentry
+      if (Object.keys(context).length > 0) {
+        Object.assign(errorToThrow, { loggerContext: context })
+      }
+
+      throw errorToThrow
+    }
   }
 
   /**

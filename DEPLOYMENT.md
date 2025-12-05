@@ -172,7 +172,6 @@ Set via Wrangler (values are encrypted):
 # Set secrets (will prompt for values)
 wrangler secret put PAYLOAD_SECRET
 wrangler secret put RESEND_API_KEY
-wrangler secret put SENTRY_DSN
 
 # Verify secrets (shows names only, not values)
 wrangler secret list
@@ -182,7 +181,17 @@ wrangler secret list
 
 **Core Configuration**:
 - `PAYLOAD_SECRET` - Payload authentication secret
-- `SENTRY_DSN` - Sentry error monitoring DSN (optional, production only)
+
+**Error Monitoring (Sentry)**:
+- `NEXT_PUBLIC_SENTRY_DSN` - Sentry DSN for error tracking (set in `wrangler.toml`)
+  - **Public variable** - visible to both client and server
+  - Only active in production (`NODE_ENV=production`)
+  - Get your DSN from: https://sentry.io/settings/projects/your-project/keys/
+  - **Configuration**: Add to `wrangler.toml` under `[vars]` section:
+    ```toml
+    [vars]
+    NEXT_PUBLIC_SENTRY_DSN = "https://your-public-key@o0000000.ingest.us.sentry.io/0000000"
+    ```
 
 **Email (Resend)**:
 - `RESEND_API_KEY` - Resend API key for transactional emails
@@ -286,6 +295,38 @@ curl -X POST https://cloud.sydevelopers.com/api/graphql \
   -H "Content-Type: application/json" \
   -d '{"query":"{ Meditations { docs { id title } } }"}'
 ```
+
+### Sentry Error Tracking Tests
+
+Test Sentry error capture in production:
+
+```bash
+# Test error capture
+curl https://cloud.sydevelopers.com/api/test-sentry?type=error
+
+# Test message capture
+curl https://cloud.sydevelopers.com/api/test-sentry?type=message
+
+# Expected response (production only):
+# {
+#   "success": true,
+#   "message": "Test error captured successfully",
+#   "eventId": "abc123...",
+#   "testType": "error"
+# }
+```
+
+**Verification**:
+1. Visit Sentry dashboard: https://sentry.io/organizations/your-org/issues/
+2. Check for test events with tags:
+   - `test: true`
+   - `endpoint: /api/test-sentry`
+3. Verify event details include:
+   - Stack trace (for error type)
+   - Environment: production
+   - Timestamp and context
+
+**Note**: Test endpoint only works in production (`NODE_ENV=production`). In development, it returns a 503 error.
 
 ### Monitoring (First 24 Hours)
 

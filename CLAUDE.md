@@ -684,16 +684,50 @@ The system includes import scripts for migrating content from external sources i
 
 All scripts follow consistent patterns: resilient error handling, comprehensive dry-run mode, shared utilities, and detailed reporting.
 
-### Sentry Integration Files
-- `src/instrumentation.ts` - Server-side Sentry instrumentation
-- `src/instrumentation-client.ts` - Client-side Sentry instrumentation  
-- `src/sentry.server.config.ts` - Sentry server configuration
-- `src/sentry.edge.config.ts` - Sentry edge runtime configuration
+### Sentry Error Tracking Architecture
+
+The application uses Sentry for production error tracking with separate implementations for server-side (edge runtime) and client-side (browser) error capture.
+
+**Key Files**:
+- `src/instrumentation.ts` - Server-side Sentry initialization for Cloudflare Workers edge runtime
+- `src/components/ErrorBoundary.tsx` - Client-side Sentry initialization and React error boundary
+- `src/lib/logger.ts` - Logger utility with integrated Sentry capture
 - `src/app/global-error.tsx` - Global error boundary with Sentry integration
+- `src/app/(payload)/api/test-sentry/route.ts` - Test endpoint for verifying Sentry configuration
+
+**Configuration**:
+- **Environment Variable**: `NEXT_PUBLIC_SENTRY_DSN` (public, visible to both client and server)
+- **Production Only**: Sentry only initializes when `NODE_ENV=production`
+- **Packages**:
+  - `@sentry/cloudflare` for server-side error tracking
+  - `@sentry/react` for client-side error tracking
+
+**Server-Side Implementation**:
+- Initializes in edge runtime via `instrumentation.ts`
+- Captures exceptions via `onRequestError()` hook
+- Logger methods (`info`, `warn`, `error`) send events to Sentry
+- No automatic fetch instrumentation (avoids diagnostics_channel conflicts with Cloudflare Workers Observability)
+
+**Client-Side Implementation**:
+- Initializes in `ErrorBoundary.tsx` constructor on first mount
+- Uses global singleton to prevent duplicate initialization
+- Includes browser tracing and session replay integrations
+- Captures React component errors via `componentDidCatch()`
+- Global errors captured in `global-error.tsx`
+
+**Testing**:
+- Test endpoint: `/api/test-sentry?type=error` or `?type=message`
+- Returns Sentry event ID for verification
+- Only works in production environment
+
+**Important Notes**:
+- Avoids diagnostics_channel conflicts by disabling automatic fetch instrumentation
+- See issue #89 for Cloudflare Workers Observability compatibility details
+- Clean implementation following Sentry's latest best practices for Cloudflare Workers
 
 ### Component Architecture
 - `src/components/AdminProvider.tsx` - Payload admin UI provider component (wraps with ProjectProvider)
-- `src/components/ErrorBoundary.tsx` - React error boundary for error handling
+- `src/components/ErrorBoundary.tsx` - React error boundary with Sentry integration
 - `src/app/(payload)/` - Payload CMS admin interface and API routes
 - `src/app/(frontend)/` - Public-facing Next.js pages
 
