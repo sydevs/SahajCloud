@@ -43,12 +43,22 @@ DETAILS=""
 while IFS= read -r FILE; do
   FULL_PATH="$CLAUDE_PROJECT_DIR/$FILE"
 
+  # Skip .env.example files (they contain template placeholders, not real secrets)
+  if [[ "$FILE" == *".env.example"* ]]; then
+    continue
+  fi
+
   # Skip binary files
   if file "$FULL_PATH" | grep -q "text"; then
     for PATTERN in "${PATTERNS[@]}"; do
-      if grep -qE "$PATTERN" "$FULL_PATH" 2>/dev/null; then
+      # Find matches but exclude commented lines and placeholder patterns
+      MATCHES=$(grep -nE "$PATTERN" "$FULL_PATH" 2>/dev/null | \
+                grep -v '^\s*#' | \
+                grep -vE '(your-|example-|placeholder|xxxxx|00000|<your|<example)' | \
+                head -3)
+
+      if [ -n "$MATCHES" ]; then
         FOUND_SECRETS=true
-        MATCHES=$(grep -nE "$PATTERN" "$FULL_PATH" | head -3)
         DETAILS="$DETAILS\n\n$FILE:\n$MATCHES"
       fi
     done
