@@ -105,12 +105,27 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
             },
           )
 
-          const downloadsResult = (await downloadsResponse.json()) as { success: boolean }
+          const downloadsResult = (await downloadsResponse.json()) as {
+            success: boolean
+            result?: {
+              default?: {
+                status: 'inprogress' | 'ready'
+                url: string
+                percentComplete?: number
+              }
+            }
+            errors?: Array<{ message: string }>
+          }
 
           if (!downloadsResult.success) {
-            logger.warn(`Failed to enable MP4 downloads for ${videoId}`)
+            const errors = downloadsResult.errors?.map((e) => e.message).join(', ') || 'Unknown error'
+            logger.warn(`Failed to enable MP4 downloads for ${videoId}: ${errors}`)
           } else {
-            logger.info(`MP4 downloads enabled for video: ${videoId}`)
+            const downloadStatus = downloadsResult.result?.default?.status || 'unknown'
+            const percentComplete = downloadsResult.result?.default?.percentComplete || 0
+            logger.info(
+              `MP4 downloads enabled for video: ${videoId} (status: ${downloadStatus}, ${percentComplete}% complete)`,
+            )
           }
         } catch (error) {
           // Non-fatal error - video upload succeeded
