@@ -51,9 +51,10 @@ CLOUDFLARE_IMAGES_DELIVERY_URL = "https://imagedelivery.net/dOm4imjweFFL1Pto29l-
 CLOUDFLARE_STREAM_DELIVERY_URL = "https://customer-aorobtik2fce41s5.cloudflarestream.com"  # Full URL: https://customer-<code>.cloudflarestream.com
 CLOUDFLARE_R2_DELIVERY_URL = "https://assets.sydevelopers.com"  # Custom domain for R2
 
-# Sentry Configuration
-# Set via: wrangler secret put SENTRY_DSN
-# SENTRY_DSN = "https://your-dsn@sentry.io/project-id"
+# Sentry Configuration (public - visible to client and server)
+# Single DSN used for both client-side and server-side error tracking
+# Set your Sentry DSN here for production deployment
+# NEXT_PUBLIC_SENTRY_DSN = "https://your-public-key@o0000000.ingest.us.sentry.io/0000000"
 
 # Secrets (sensitive - set via wrangler secret put)
 # See .env.example for list of required secrets
