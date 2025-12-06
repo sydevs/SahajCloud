@@ -16,6 +16,16 @@ interface TagData {
 }
 
 /**
+ * Payload API response structure
+ */
+interface TagsApiResponse {
+  docs: TagData[]
+  totalDocs: number
+  limit: number
+  page: number
+}
+
+/**
  * Tag Selector Component
  *
  * A visual tag selector that displays tags as icon buttons in a grid layout.
@@ -91,7 +101,7 @@ export const TagSelector: FieldClientComponent = ({ field, readOnly }) => {
           throw new Error(`Failed to fetch tags: ${response.statusText}`)
         }
 
-        const data = await response.json()
+        const data: TagsApiResponse = await response.json()
         setTags(data.docs || [])
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load tags')
