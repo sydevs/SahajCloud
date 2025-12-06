@@ -95,6 +95,7 @@ jurisdiction = "eu"
 # Environment Variables
 [env.dev.vars]
 NODE_ENV = "development"
+NEXT_PUBLIC_LOG_LEVEL = "debug"  # Set to 'debug', 'info', 'warn', 'error', or 'silent'
 SAHAJCLOUD_URL = "http://localhost:3000"
 WEMEDITATE_WEB_URL = "http://localhost:5173"
 SAHAJATLAS_URL = "http://localhost:5174"
