@@ -78,7 +78,7 @@ export interface Config {
     authors: Author;
     images: Image;
     files: File;
-    'media-tags': MediaTag;
+    'image-tags': ImageTag;
     'meditation-tags': MeditationTag;
     'music-tags': MusicTag;
     'page-tags': PageTag;
@@ -96,8 +96,8 @@ export interface Config {
     authors: {
       articles: 'pages';
     };
-    'media-tags': {
-      media: 'images';
+    'image-tags': {
+      images: 'images';
     };
     'meditation-tags': {
       meditations: 'meditations';
@@ -120,7 +120,7 @@ export interface Config {
     authors: AuthorsSelect<false> | AuthorsSelect<true>;
     images: ImagesSelect<false> | ImagesSelect<true>;
     files: FilesSelect<false> | FilesSelect<true>;
-    'media-tags': MediaTagsSelect<false> | MediaTagsSelect<true>;
+    'image-tags': ImageTagsSelect<false> | ImageTagsSelect<true>;
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
     'music-tags': MusicTagsSelect<false> | MusicTagsSelect<true>;
     'page-tags': PageTagsSelect<false> | PageTagsSelect<true>;
@@ -279,7 +279,7 @@ export interface Image {
   /**
    * Tags to categorize this image
    */
-  tags?: (number | MediaTag)[] | null;
+  tags?: (number | ImageTag)[] | null;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -303,12 +303,12 @@ export interface Image {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media-tags".
+ * via the `definition` "image-tags".
  */
-export interface MediaTag {
+export interface ImageTag {
   id: number;
-  name: string;
-  media?: {
+  title: string;
+  images?: {
     docs?: (number | Image)[];
     hasNextPage?: boolean;
     totalDocs?: number;
@@ -1227,8 +1227,8 @@ export interface PayloadLockedDocument {
         value: number | File;
       } | null)
     | ({
-        relationTo: 'media-tags';
-        value: number | MediaTag;
+        relationTo: 'image-tags';
+        value: number | ImageTag;
       } | null)
     | ({
         relationTo: 'meditation-tags';
@@ -1539,11 +1539,11 @@ export interface FilesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media-tags_select".
+ * via the `definition` "image-tags_select".
  */
-export interface MediaTagsSelect<T extends boolean = true> {
-  name?: T;
-  media?: T;
+export interface ImageTagsSelect<T extends boolean = true> {
+  title?: T;
+  images?: T;
   updatedAt?: T;
   createdAt?: T;
 }
