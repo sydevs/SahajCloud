@@ -468,11 +468,12 @@ export interface Narrator {
 export interface MusicTag {
   id: number;
   /**
-   * This label will be used in the editor
+   * URL-friendly identifier (auto-generated from title)
    */
-  name: string;
+  slug?: string | null;
+  slugLock?: boolean | null;
   /**
-   * This localized title will be shown to public users
+   * Localized title shown to public users
    */
   title: string;
   music?: {
@@ -482,6 +483,15 @@ export interface MusicTag {
   };
   updatedAt: string;
   createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -526,13 +536,18 @@ export interface Music {
 export interface MeditationTag {
   id: number;
   /**
-   * This label will be used in the editor
+   * URL-friendly identifier (auto-generated from title)
    */
-  name: string;
+  slug?: string | null;
+  slugLock?: boolean | null;
   /**
-   * This localized title will be shown to public users
+   * Localized title shown to public users
    */
   title: string;
+  /**
+   * Tag color for UI theming (hex format)
+   */
+  color: string;
   meditations?: {
     docs?: (number | Meditation)[];
     hasNextPage?: boolean;
@@ -540,6 +555,15 @@ export interface MeditationTag {
   };
   updatedAt: string;
   createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1553,22 +1577,43 @@ export interface ImageTagsSelect<T extends boolean = true> {
  * via the `definition` "meditation-tags_select".
  */
 export interface MeditationTagsSelect<T extends boolean = true> {
-  name?: T;
+  slug?: T;
+  slugLock?: T;
   title?: T;
+  color?: T;
   meditations?: T;
   updatedAt?: T;
   createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "music-tags_select".
  */
 export interface MusicTagsSelect<T extends boolean = true> {
-  name?: T;
+  slug?: T;
+  slugLock?: T;
   title?: T;
   music?: T;
   updatedAt?: T;
   createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

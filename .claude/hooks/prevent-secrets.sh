@@ -68,6 +68,11 @@ while IFS= read -r FILE; do
     continue
   fi
 
+  # Skip import map files (they contain generated hash identifiers, not secrets)
+  if [[ "$FILE" == *"importMap.js"* ]]; then
+    continue
+  fi
+
   # Skip binary files
   if file "$FULL_PATH" | grep -q "text"; then
     for PATTERN in "${PATTERNS[@]}"; do
