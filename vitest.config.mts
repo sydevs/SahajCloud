@@ -13,12 +13,12 @@ export default defineConfig({
     },
   },
   test: {
-    environment: 'jsdom',
+    environment: 'node', // Use Node environment for better Buffer/Uint8Array handling
     setupFiles: ['./vitest.setup.ts'],
     globalSetup: ['./tests/setup/globalSetup.ts'],
     include: ['tests/int/**/*.int.spec.ts'],
     // Ensure tests run sequentially to avoid database conflicts
-    pool: 'threads',
+    pool: 'forks', // Use forks instead of threads to avoid realm issues
     maxConcurrency: 1,
     // Increase timeout for database operations
     testTimeout: 30000,

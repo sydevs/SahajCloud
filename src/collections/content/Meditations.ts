@@ -203,6 +203,9 @@ export const Meditations: CollectionConfig = {
               hasMany: true,
               admin: {
                 description: 'Categorize this meditation for seekers to find it',
+                components: {
+                  Field: '@/components/admin/TagSelector',
+                },
               },
             },
           ],

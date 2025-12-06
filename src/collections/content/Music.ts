@@ -68,6 +68,11 @@ export const Music: CollectionConfig = {
       type: 'relationship',
       relationTo: 'music-tags',
       hasMany: true,
+      admin: {
+        components: {
+          Field: '@/components/admin/TagSelector',
+        },
+      },
     },
     {
       name: 'credit',
