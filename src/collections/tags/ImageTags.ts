@@ -2,23 +2,22 @@ import type { CollectionConfig } from 'payload'
 
 import { roleBasedAccess } from '@/lib/accessControl'
 
-export const MediaTags: CollectionConfig = {
-  slug: 'media-tags',
-  access: roleBasedAccess('frames'),
+export const ImageTags: CollectionConfig = {
+  slug: 'image-tags',
+  access: roleBasedAccess('images'),
   admin: {
     group: 'Tags',
-    useAsTitle: 'name',
+    useAsTitle: 'title',
     hidden: true,
   },
   fields: [
     {
-      name: 'name',
+      name: 'title',
       type: 'text',
       required: true,
-      localized: true,
     },
     {
-      name: 'media',
+      name: 'images',
       type: 'join',
       collection: 'images',
       on: 'tags',

@@ -33,18 +33,18 @@ describe('WeMeditateWebSettings Global', () => {
       testData.createPage(payload, { title: 'Featured Page 3' }),
     ])
 
-    // Create test page tags (3-5 required)
+    // Create test page tags (3-5 required, slug auto-generated from title)
     testPageTags = await Promise.all([
-      testData.createPageTag(payload, { name: 'wisdom', title: 'Wisdom' }),
-      testData.createPageTag(payload, { name: 'living', title: 'Living' }),
-      testData.createPageTag(payload, { name: 'creativity', title: 'Creativity' }),
+      testData.createPageTag(payload, { title: 'Wisdom' }),
+      testData.createPageTag(payload, { title: 'Living' }),
+      testData.createPageTag(payload, { title: 'Creativity' }),
     ])
 
-    // Create test music tags (3-5 required)
+    // Create test music tags (3-5 required, slug auto-generated from title)
     testMusicTags = await Promise.all([
-      testData.createMusicTag(payload, { name: 'relaxation', title: 'Relaxation' }),
-      testData.createMusicTag(payload, { name: 'meditation', title: 'Meditation' }),
-      testData.createMusicTag(payload, { name: 'ambient', title: 'Ambient' }),
+      testData.createMusicTag(payload, { title: 'Relaxation' }),
+      testData.createMusicTag(payload, { title: 'Meditation' }),
+      testData.createMusicTag(payload, { title: 'Ambient' }),
     ])
   }, 30000)
 
@@ -151,11 +151,11 @@ describe('WeMeditateWebSettings Global', () => {
   })
 
   it('validates maxRows constraint for music page tags (maximum 5)', async () => {
-    // Create additional music tags to exceed the limit
+    // Create additional music tags to exceed the limit (slug auto-generated from title)
     const extraMusicTags = await Promise.all([
-      testData.createMusicTag(payload, { name: 'extra1', title: 'Extra 1' }),
-      testData.createMusicTag(payload, { name: 'extra2', title: 'Extra 2' }),
-      testData.createMusicTag(payload, { name: 'extra3', title: 'Extra 3' }),
+      testData.createMusicTag(payload, { title: 'Extra 1' }),
+      testData.createMusicTag(payload, { title: 'Extra 2' }),
+      testData.createMusicTag(payload, { title: 'Extra 3' }),
     ])
 
     await expect(

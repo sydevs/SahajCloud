@@ -28,9 +28,9 @@ export function MediaField(options: MediaFieldOptions): UploadField {
     ? async ({ req }: { req: PayloadRequest }): Promise<Where> => {
         // Look up the tag by name to get its ID
         const tagResult = await req.payload.find({
-          collection: 'media-tags',
+          collection: 'image-tags',
           where: {
-            name: {
+            title: {
               equals: tagName,
             },
           },

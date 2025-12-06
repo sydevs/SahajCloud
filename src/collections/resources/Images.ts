@@ -43,7 +43,7 @@ export const Images: CollectionConfig = {
     {
       name: 'tags',
       type: 'relationship',
-      relationTo: 'media-tags',
+      relationTo: 'image-tags',
       hasMany: true,
       admin: {
         description: 'Tags to categorize this image',

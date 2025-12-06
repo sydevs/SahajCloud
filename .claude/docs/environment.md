@@ -8,6 +8,11 @@ Copy from `.env.example` and configure:
 - `PAYLOAD_SECRET` - Secret key for authentication
 - **Note**: Database (SQLite/D1) is configured via `payload.config.ts` using Wrangler - no DATABASE_URI needed
 
+### Logging Configuration
+- `NEXT_PUBLIC_LOG_LEVEL` - Log level for both Payload's Pino logger and client-side logger
+  - Levels: `'silent'` | `'error'` | `'warn'` | `'info'` | `'debug'`
+  - Default: `undefined` (uses Pino defaults server-side, `'silent'` client-side)
+
 ### Email Configuration (Production)
 - `SMTP_HOST` - SMTP server host (default: smtp.gmail.com)
 - `SMTP_PORT` - SMTP server port (default: 587)
@@ -56,6 +61,25 @@ The application uses **Wrangler Environments** to manage different configuration
 **Configuration File**: `wrangler.toml` contains both environments:
 - **Default (top-level)**: Production configuration with remote D1 database
 - **`[env.dev]`**: Development environment with local SQLite database
+
+### Important: Environment Variables Are NOT Inherited
+
+**⚠️ Wrangler environments do NOT inherit `[vars]` from the top level.**
+
+Any variable needed in development MUST be explicitly defined in `[env.dev.vars]`.
+
+```toml
+# ❌ WRONG - dev environment won't see this
+[vars]
+NEXT_PUBLIC_LOG_LEVEL = "debug"
+
+# ✅ CORRECT - explicitly define in both
+[vars]
+NEXT_PUBLIC_LOG_LEVEL = "debug"
+
+[env.dev.vars]
+NEXT_PUBLIC_LOG_LEVEL = "debug"
+```
 
 ### How Environment Selection Works
 

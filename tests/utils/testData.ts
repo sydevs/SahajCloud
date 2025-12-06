@@ -13,7 +13,8 @@ import type {
   Manager,
   Client,
   MeditationTag,
-  MediaTag,
+  MusicTag,
+  ImageTag,
   PageTag,
   Page,
   Lesson,
@@ -99,50 +100,87 @@ export const testData = {
   },
 
   /**
-   * Create a tag
+   * Create a meditation tag (upload collection with SVG icon)
+   * Note: SVG files need Buffer (not Uint8Array) for detectSvgFromXml to work
    */
   async createMeditationTag(
     payload: Payload,
     overrides: Partial<MeditationTag> = {},
+    sampleFile = 'icon-test.svg',
   ): Promise<MeditationTag> {
+    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
+    const fileBuffer = fs.readFileSync(filePath)
+
+    // Generate unique filename to avoid collisions
+    const uniqueFilename = `${Date.now()}_${Math.random().toString(36).substring(7)}_${sampleFile}`
+
+    // Generate unique title suffix if no title override provided
+    const uniqueId = Math.random().toString(36).substring(7)
+    const defaultTitle = overrides.title || `Test Tag ${uniqueId}`
+
     return (await payload.create({
       collection: 'meditation-tags',
       data: {
-        name: 'test-tag',
-        title: 'Test Tag',
+        title: defaultTitle,
+        color: '#FF5733',
         ...overrides,
+      },
+      file: {
+        // Use Buffer directly - SVG detection requires Buffer.toString(encoding, start, end)
+        data: fileBuffer,
+        mimetype: 'image/svg+xml',
+        name: uniqueFilename,
+        size: fileBuffer.length,
       },
     })) as MeditationTag
   },
 
   /**
-   * Create a tag
+   * Create a music tag (upload collection with SVG icon)
+   * Note: SVG files need Buffer (not Uint8Array) for detectSvgFromXml to work
    */
   async createMusicTag(
     payload: Payload,
-    overrides: Partial<MeditationTag> = {},
-  ): Promise<MeditationTag> {
+    overrides: Partial<MusicTag> = {},
+    sampleFile = 'icon-test.svg',
+  ): Promise<MusicTag> {
+    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
+    const fileBuffer = fs.readFileSync(filePath)
+
+    // Generate unique filename to avoid collisions
+    const uniqueFilename = `${Date.now()}_${Math.random().toString(36).substring(7)}_${sampleFile}`
+
+    // Generate unique title suffix if no title override provided
+    const uniqueId = Math.random().toString(36).substring(7)
+    const defaultTitle = overrides.title || `Test Music Tag ${uniqueId}`
+
     return (await payload.create({
       collection: 'music-tags',
       data: {
-        name: 'test-tag',
-        title: 'Test Tag',
+        title: defaultTitle,
         ...overrides,
       },
-    })) as MeditationTag
+      file: {
+        // Use Buffer directly - SVG detection requires Buffer.toString(encoding, start, end)
+        data: fileBuffer,
+        mimetype: 'image/svg+xml',
+        name: uniqueFilename,
+        size: fileBuffer.length,
+      },
+    })) as MusicTag
   },
 
   /**
-   * Create a tag
+   * Create an image tag
    */
-  async createMediaTag(payload: Payload, overrides: Partial<MediaTag> = {}): Promise<MediaTag> {
+  async createImageTag(payload: Payload, overrides: Partial<ImageTag> = {}): Promise<ImageTag> {
     return (await payload.create({
-      collection: 'media-tags',
+      collection: 'image-tags',
       data: {
-        name: 'test-tag',
+        title: 'Test Image Tag',
         ...overrides,
       },
-    })) as MediaTag
+    })) as ImageTag
   },
 
   /**
@@ -152,8 +190,7 @@ export const testData = {
     return (await payload.create({
       collection: 'page-tags',
       data: {
-        name: 'test-tag',
-        title: 'Test Tag',
+        title: 'Test Page Tag',
         ...overrides,
       },
     })) as PageTag

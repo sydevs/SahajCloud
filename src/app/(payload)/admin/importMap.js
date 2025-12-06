@@ -21,7 +21,9 @@ import { PreviewComponent as PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860 }
 import { SlugComponent as SlugComponent_da067efb33f077846c194de60ea0fbe0 } from '@nouance/payload-better-fields-plugin/Slug/client'
 import { default as default_4fd1c71fd4f524b65750069436adba15 } from '@/components/admin/PublishStateCell'
 import { default as default_925e2d08db87d7882c9ebbcfdb1030a4 } from '@/components/admin/PublishAtAfterInput'
+import { default as default_c3b32cae85b800f9348e9cdb8fc7a176 } from '@/components/admin/TagSelector'
 import { default as default_87bd5cef84cb6775cdc8956c9ed40dda } from '@/components/admin/MeditationFrameEditor/index.tsx'
+import { default as default_2d3b6dcbebce75fc2ef5ac094f4218f0 } from '@/components/admin/ColorField'
 import { default as default_153ca68fe8ddf15a21abb9e4fd2a6300 } from '@/components/admin/ToggleGroupField'
 import { default as default_49cc57155f60c2bacf9eaa38c760d251 } from '@/components/admin/PermissionsTable'
 import { default as default_e2e03d4215a583971e90a375f6eb68f9 } from '@/components/admin/HighUsageAlert'
@@ -65,7 +67,9 @@ export const importMap = {
   "@nouance/payload-better-fields-plugin/Slug/client#SlugComponent": SlugComponent_da067efb33f077846c194de60ea0fbe0,
   "@/components/admin/PublishStateCell#default": default_4fd1c71fd4f524b65750069436adba15,
   "@/components/admin/PublishAtAfterInput#default": default_925e2d08db87d7882c9ebbcfdb1030a4,
+  "@/components/admin/TagSelector#default": default_c3b32cae85b800f9348e9cdb8fc7a176,
   "@/components/admin/MeditationFrameEditor/index.tsx#default": default_87bd5cef84cb6775cdc8956c9ed40dda,
+  "@/components/admin/ColorField#default": default_2d3b6dcbebce75fc2ef5ac094f4218f0,
   "@/components/admin/ToggleGroupField#default": default_153ca68fe8ddf15a21abb9e4fd2a6300,
   "@/components/admin/PermissionsTable#default": default_49cc57155f60c2bacf9eaa38c760d251,
   "@/components/admin/HighUsageAlert#default": default_e2e03d4215a583971e90a375f6eb68f9,

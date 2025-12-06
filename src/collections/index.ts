@@ -10,7 +10,7 @@ import { Images } from './resources/Images'
 import { Narrators } from './resources/Narrators'
 import { Files } from './system/Files'
 import { Frames } from './system/Frames'
-import { MediaTags } from './tags/MediaTags'
+import { ImageTags } from './tags/ImageTags'
 import { MeditationTags } from './tags/MeditationTags'
 import { MusicTags } from './tags/MusicTags'
 import { PageTags } from './tags/PageTags'
@@ -30,7 +30,7 @@ export const collections = [
   Images,
   Files,
   // Tags
-  MediaTags,
+  ImageTags,
   MeditationTags,
   MusicTags,
   PageTags,
@@ -53,7 +53,7 @@ export {
   Images,
   Files,
   // Tags
-  MediaTags,
+  ImageTags,
   MeditationTags,
   MusicTags,
   PageTags,

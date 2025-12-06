@@ -13,7 +13,7 @@ This project uses a distributed documentation structure to optimize context load
 
 Architecture & Configuration:
 - @.claude/docs/environment.md - Environment variables and Wrangler configuration
-- @.claude/docs/architecture.md - Collections, routes, and system overview
+- @.claude/docs/architecture.md - Collections, routes, logging, Sentry integration, and system overview
 - @.claude/docs/localization.md - 16-locale internationalization system
 - @.claude/docs/globals.md - Global configuration (WeMeditate Web Settings)
 

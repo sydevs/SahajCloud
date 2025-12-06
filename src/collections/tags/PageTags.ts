@@ -1,5 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
+import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
+
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
 
@@ -8,21 +10,22 @@ export const PageTags: CollectionConfig = {
   access: roleBasedAccess('pages'),
   admin: {
     group: 'Tags',
-    useAsTitle: 'name',
+    useAsTitle: 'title',
     hidden: true,
   },
   hooks: {
     afterRead: [trackClientUsageHook],
   },
   fields: [
-    {
-      name: 'name',
-      type: 'text',
-      required: true,
-      admin: {
-        description: 'This label will be used in the editor',
+    ...SlugField('title', {
+      slugOverrides: {
+        unique: true,
+        admin: {
+          position: 'sidebar',
+          description: 'URL-friendly identifier (auto-generated from title)',
+        },
       },
-    },
+    }),
     {
       name: 'title',
       type: 'text',
