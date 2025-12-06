@@ -14,7 +14,7 @@ import { roleBasedAccess } from '@/lib/accessControl'
 import { resendAdapter } from '@/lib/email/resendAdapter'
 import { LOCALES, DEFAULT_LOCALE } from '@/lib/locales'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
-import { sentryPlugin } from '@/lib/sentry'
+import { sentryPlugin } from '@/lib/sentryPlugin'
 import { getServerUrl } from '@/lib/serverUrl'
 
 import { collections, Managers } from './collections'
