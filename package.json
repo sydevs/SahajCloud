@@ -39,7 +39,7 @@
     "@payloadcms/plugin-form-builder": "^3.64.0",
     "@payloadcms/plugin-seo": "^3.64.0",
     "@payloadcms/richtext-lexical": "^3.64.0",
-    "@payloadcms/storage-r2": "3.66.0",
+    "@payloadcms/storage-r2": "3.64.0",
     "@payloadcms/ui": "^3.64.0",
     "@sentry/cloudflare": "^10.27.0",
     "@sentry/react": "^10.29.0",

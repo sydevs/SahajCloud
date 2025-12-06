@@ -89,17 +89,22 @@ export const Frames: CollectionConfig = {
             if (data.mimeType?.startsWith('video/')) {
               // Cloudflare Stream thumbnail
               const deliveryUrl = process.env.CLOUDFLARE_STREAM_DELIVERY_URL
-              return deliveryUrl
-                ? `${deliveryUrl}/${data.filename}/thumbnails/thumbnail.jpg?height=320`
-                : data?.url
+              if (deliveryUrl) {
+                return `${deliveryUrl}/${data.filename}/thumbnails/thumbnail.jpg?height=320`
+              }
+              // Fallback to PayloadCMS static file serving for videos
+              return `/api/frames/file/${data.filename}`
             } else if (data.mimeType?.startsWith('image/')) {
               // Cloudflare Images thumbnail
               const deliveryUrl = process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
-              return deliveryUrl
-                ? `${deliveryUrl}/${data.filename}/format=auto,width=320,height=320,fit=cover`
-                : data?.url
+              if (deliveryUrl) {
+                return `${deliveryUrl}/${data.filename}/format=auto,width=320,height=320,fit=cover`
+              }
+              // Fallback to PayloadCMS static file serving for images
+              return `/api/frames/file/${data.filename}`
             }
-            return data?.url
+            // Fallback for unknown MIME types
+            return `/api/frames/file/${data.filename}`
           },
         ],
       },
@@ -118,13 +123,15 @@ export const Frames: CollectionConfig = {
         afterRead: [
           ({ data }) => {
             if (data?.mimeType?.startsWith('video/') && data?.filename) {
-              // Extract customer code from delivery URL: https://customer-{code}.cloudflarestream.com
+              // Cloudflare Stream MP4 download URL
               const deliveryUrl = process.env.CLOUDFLARE_STREAM_DELIVERY_URL
-              return deliveryUrl
-                ? `${deliveryUrl}/${data.filename}/downloads/default.mp4`
-                : data?.url
+              if (deliveryUrl) {
+                return `${deliveryUrl}/${data.filename}/downloads/default.mp4`
+              }
+              // Fallback to PayloadCMS static file serving
+              return `/api/frames/file/${data.filename}`
             }
-            return data?.url
+            return undefined
           },
         ],
       },

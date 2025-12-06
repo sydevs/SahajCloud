@@ -59,7 +59,7 @@ Collections use `admin.hidden` functions to control visibility based on `user.cu
 | Frames | ✓ | ✗ | ✓ | ✗ |
 | Narrators | ✓ | ✓ | ✓ | ✗ |
 | Authors | ✓ | ✓ | ✗ | ✗ |
-| FileAttachments | ✓ | ✓ | ✓ | ✓ |
+| Files | ✓ | ✓ | ✓ | ✓ |
 | **Tags** |||||
 | PageTags | ✓ | ✓ | ✗ | ✗ |
 | MeditationTags | ✓ | ✓ | ✓ | ✗ |

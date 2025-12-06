@@ -28,7 +28,7 @@ The Lessons collection (labeled as "Path Steps" in the admin UI) provides medita
 ### Appearance Tab
 - `unit` (select, required) - Unit selection: "Unit 1", "Unit 2", "Unit 3", "Unit 4"
 - `step` (number, required) - Step number within the unit
-- `icon` (relationship to FileAttachments, optional) - Step icon image
+- `icon` (relationship to Files, optional) - Step icon image
 
 ## Features
 
@@ -45,5 +45,5 @@ The Lessons collection (labeled as "Path Steps" in the admin UI) provides medita
 - Uses `permissionBasedAccess()` for consistent access control
 - First panel must be a Cover Panel with title and quote (validated)
 - Panels use union block types for flexible content structure: CoverStoryBlock, TextStoryBlock, VideoStoryBlock
-- FileAttachments for introAudio and icon support cascade deletion via ownership system
+- File attachments (via Files collection) for introAudio and icon support cascade deletion via ownership system
 - Article field is a rich text field within the Lesson, not a relationship to the Pages collection

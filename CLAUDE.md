@@ -215,7 +215,7 @@ src/
 │   ├── access/             # Managers, Clients
 │   ├── content/            # Pages, Meditations, Music, Lessons
 │   ├── resources/          # Media, Authors, Narrators, ExternalVideos
-│   ├── system/             # Frames, FileAttachments
+│   ├── system/             # Frames, Files
 │   └── tags/               # MediaTags, MeditationTags, MusicTags, PageTags
 ├── components/             # React components
 ├── globals/                # Global configurations
