@@ -1,7 +1,5 @@
 import type { CollectionBeforeChangeHook, CollectionAfterChangeHook } from 'payload'
 
-import { logger } from '@/lib/logger'
-
 /**
  * Hook to validate client data before changes
  */
@@ -32,12 +30,13 @@ export const validateClientData: CollectionBeforeChangeHook = async ({ data, ope
 /**
  * Hook to check high usage after changes
  */
-export const checkHighUsageAlert: CollectionAfterChangeHook = async ({ doc }) => {
+export const checkHighUsageAlert: CollectionAfterChangeHook = async ({ doc, req }) => {
   // Virtual field highUsageAlert will be computed based on dailyRequests
   if (doc?.usageStats?.dailyRequests > 1000) {
     // The field component will handle the visual alert
     // Log for monitoring
-    logger.warn('High usage alert for API client', {
+    req.payload.logger.warn({
+      msg: 'High usage alert for API client',
       clientId: doc.id,
       clientName: doc.name,
       dailyRequests: doc.usageStats.dailyRequests,

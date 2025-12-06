@@ -14,6 +14,7 @@ import { roleBasedAccess } from '@/lib/accessControl'
 import { resendAdapter } from '@/lib/email/resendAdapter'
 import { LOCALES, DEFAULT_LOCALE } from '@/lib/locales'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
+import { sentryPlugin } from '@/lib/sentry'
 import { getServerUrl } from '@/lib/serverUrl'
 
 import { collections, Managers } from './collections'
@@ -129,6 +130,17 @@ const payloadConfig = (overrides?: Partial<Config>) => {
               }),
         }),
     plugins: [
+      sentryPlugin({
+        captureErrors: [400, 403, 404], // Capture additional error codes
+        debug: !isProduction,
+        context: ({ defaultContext, req }) => ({
+          ...defaultContext,
+          tags: {
+            ...defaultContext.tags,
+            locale: req.locale,
+          },
+        }),
+      }),
       storagePlugin(cloudflare.env as Parameters<typeof storagePlugin>[0]), // Cloudflare-native file storage (Images, Stream, R2)
       seoPlugin({
         collections: ['pages'],

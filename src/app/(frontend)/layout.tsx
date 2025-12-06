@@ -1,4 +1,8 @@
 import React from 'react'
+
+// Initialize client-side Sentry for error tracking
+import '@/lib/sentry/client'
+
 import './styles.css'
 
 export const metadata = {

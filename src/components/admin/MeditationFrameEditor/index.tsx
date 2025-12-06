@@ -5,7 +5,7 @@ import type { MeditationFrameEditorProps, KeyframeData } from './types'
 import { useField, useForm } from '@payloadcms/ui'
 import React, { useEffect, useState, useCallback } from 'react'
 
-import { logger } from '@/lib/logger'
+import { clientLogger } from '@/lib/clientLogger'
 import type { Narrator } from '@/payload-types'
 
 import InlineLayout from './InlineLayout'
@@ -61,7 +61,7 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
               setNarrator(null)
             }
           } catch (error) {
-            logger.error('Failed to load narrator data', error, {
+            clientLogger.error('Failed to load narrator data', error, {
               narratorId: narratorField.value,
             })
             setNarrator(null)
@@ -70,7 +70,7 @@ const MeditationFrameEditor: React.FC<MeditationFrameEditorProps> = ({
           setNarrator(null)
         }
       } catch (error) {
-        logger.error('Failed to load meditation data', error)
+        clientLogger.error('Failed to load meditation data', error)
       } finally {
         setIsLoading(false)
       }

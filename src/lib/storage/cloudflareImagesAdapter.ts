@@ -6,8 +6,6 @@
  */
 import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
-import { logger } from '@/lib/logger'
-
 import { validateFileUpload } from './uploadValidation'
 
 /**
@@ -61,7 +59,7 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
         const blob = new Blob([uint8Array], { type: file.mimeType })
         formData.append('file', blob, file.filename)
 
-        logger.info(`Uploading image to Cloudflare Images: ${file.filename}`)
+        req.payload.logger.info({ msg: 'Uploading image to Cloudflare Images', filename: file.filename })
 
         const response = await fetch(
           `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/images/v1`,
@@ -86,7 +84,7 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
           throw new Error('Cloudflare Images response missing image ID')
         }
 
-        logger.info(`Image uploaded successfully: ${imageId}`)
+        req.payload.logger.info({ msg: 'Image uploaded successfully', imageId })
 
         // Update both file.filename and req.file.name to the Cloudflare Image ID
         // This ensures PayloadCMS stores the correct ID in the database
@@ -95,7 +93,8 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
           req.file.name = imageId
         }
       } catch (error) {
-        logger.error('Cloudflare Images upload error:', {
+        req.payload.logger.error({
+          msg: 'Cloudflare Images upload error',
           filename: file.filename,
           mimeType: file.mimeType,
           size: file.buffer.length,
@@ -107,8 +106,6 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
 
     handleDelete: async ({ filename: imageId }) => {
       try {
-        logger.info(`Deleting image from Cloudflare Images: ${imageId}`)
-
         const response = await fetch(
           `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/images/v1/${imageId}`,
           {
@@ -124,15 +121,12 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
         if (!result.success && response.status !== 404) {
           // Ignore 404 errors (image already deleted)
           const errors = result.errors?.map((e) => e.message).join(', ') || 'Unknown error'
-          logger.warn(`Cloudflare Images delete warning: ${errors}`)
-        } else {
-          logger.info(`Image deleted successfully: ${imageId}`)
+          // eslint-disable-next-line no-console
+          console.error(`[Cloudflare Images] Delete warning for ${imageId}: ${errors}`)
         }
       } catch (error) {
-        logger.error('Cloudflare Images delete error:', {
-          imageId,
-          error: error instanceof Error ? error.message : String(error),
-        })
+        // eslint-disable-next-line no-console
+        console.error('[Cloudflare Images] Delete error:', imageId, error)
         // Don't throw - deletion errors shouldn't break the app
       }
     },
@@ -141,9 +135,6 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
       // Redirect to Cloudflare Images delivery URL
       const imageId = params.filename
       const url = `${config.deliveryUrl}/${imageId}/public`
-
-      logger.debug(`Redirecting to Cloudflare Images URL: ${url}`)
-
       return Response.redirect(url, 302)
     },
   })

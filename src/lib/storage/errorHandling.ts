@@ -2,10 +2,8 @@
  * Common error handling utilities for storage adapters
  *
  * Provides centralized error handling patterns to ensure consistent
- * logging and error reporting across all storage adapters.
+ * error reporting across all storage adapters.
  */
-
-import { logger } from '@/lib/logger'
 
 /**
  * Extract error message from unknown error type
@@ -21,7 +19,7 @@ export function getErrorMessage(error: unknown): string {
 }
 
 /**
- * Handle upload error with structured logging
+ * Handle upload error with logging
  */
 export function handleUploadError(
   error: unknown,
@@ -32,7 +30,8 @@ export function handleUploadError(
     size: number
   },
 ): never {
-  logger.error(`${context.adapter} upload error:`, {
+  // eslint-disable-next-line no-console
+  console.error(`[${context.adapter}] Upload error:`, {
     filename: context.filename,
     mimeType: context.mimeType,
     size: context.size,
@@ -42,7 +41,7 @@ export function handleUploadError(
 }
 
 /**
- * Handle delete error with structured logging (non-throwing)
+ * Handle delete error with logging (non-throwing)
  */
 export function handleDeleteError(
   error: unknown,
@@ -51,7 +50,8 @@ export function handleDeleteError(
     identifier: string // Image ID, video ID, or file path
   },
 ): void {
-  logger.error(`${context.adapter} delete error:`, {
+  // eslint-disable-next-line no-console
+  console.error(`[${context.adapter}] Delete error:`, {
     identifier: context.identifier,
     error: getErrorMessage(error),
   })
