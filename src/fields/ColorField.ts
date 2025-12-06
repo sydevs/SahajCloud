@@ -47,7 +47,7 @@ export const ColorField = (options: ColorFieldOptions = {}): Field[] => {
       description: admin.description || 'Hex color code (e.g., #FF5733)',
       position: admin.position,
       components: {
-        Field: '@/components/admin/ColorPicker',
+        Field: '@/components/admin/ColorField',
       },
     },
   }
