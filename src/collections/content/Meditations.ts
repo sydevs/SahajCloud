@@ -204,7 +204,7 @@ export const Meditations: CollectionConfig = {
               admin: {
                 description: 'Categorize this meditation for seekers to find it',
                 components: {
-                  Field: '@/components/admin/TagSelector',
+                  Field: '@/components/admin/TagSelectorField',
                 },
               },
             },

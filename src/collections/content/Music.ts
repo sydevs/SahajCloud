@@ -70,7 +70,7 @@ export const Music: CollectionConfig = {
       hasMany: true,
       admin: {
         components: {
-          Field: '@/components/admin/TagSelector',
+          Field: '@/components/admin/TagSelectorField',
         },
       },
     },
