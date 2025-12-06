@@ -43,6 +43,15 @@ const payloadConfig = (overrides?: Partial<Config>) => {
   return buildConfig({
     serverURL: serverUrl,
     debug: true, // Enable verbose error logging for troubleshooting R2 uploads
+    // Logger configuration - uses Pino under the hood
+    // Controlled by NEXT_PUBLIC_LOG_LEVEL: 'silent' | 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
+    ...(process.env.NEXT_PUBLIC_LOG_LEVEL && {
+      logger: {
+        options: {
+          level: process.env.NEXT_PUBLIC_LOG_LEVEL,
+        },
+      },
+    }),
     localization: {
       locales: LOCALES.map((l) => l.code),
       defaultLocale: DEFAULT_LOCALE,

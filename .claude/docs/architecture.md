@@ -85,6 +85,21 @@ The application uses **Cloudflare-native storage services** for optimal performa
 
 The application uses **PayloadCMS's built-in Pino logger** for server-side logging and **Sentry** for error tracking, with a custom implementation optimized for Cloudflare Workers.
 
+### Log Level Configuration
+
+Both server-side and client-side logging are controlled by `NEXT_PUBLIC_LOG_LEVEL`:
+
+```bash
+# Levels: 'silent' | 'error' | 'warn' | 'info' | 'debug'
+NEXT_PUBLIC_LOG_LEVEL=info
+```
+
+- **silent**: No console output (errors still captured by Sentry)
+- **error**: Only errors
+- **warn**: Errors and warnings
+- **info**: Errors, warnings, and info messages (default for production)
+- **debug**: All messages including debug
+
 ### Logging Patterns
 
 **Server-Side (Payload hooks, collections, adapters)**:

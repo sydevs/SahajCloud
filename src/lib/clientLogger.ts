@@ -2,7 +2,7 @@
  * Minimal client-side logging utility
  *
  * For use in React client components that don't have access to Payload's logger.
- * Logs to console in development, captures errors via Sentry in production.
+ * Controlled by NEXT_PUBLIC_LOG_LEVEL environment variable.
  *
  * Note: For server-side code, use `payload.logger` instead.
  *
@@ -17,65 +17,77 @@
 import * as Sentry from '@sentry/react'
 
 type LogContext = Record<string, unknown>
+type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug'
 
-const isDevelopment = process.env.NODE_ENV === 'development'
-const isTest = process.env.NODE_ENV === 'test'
+// Log levels in order of verbosity (lower index = less verbose)
+const LOG_LEVELS: LogLevel[] = ['silent', 'error', 'warn', 'info', 'debug']
+
+const configuredLevel = (process.env.NEXT_PUBLIC_LOG_LEVEL as LogLevel) || 'silent'
+const currentLevelIndex = LOG_LEVELS.indexOf(configuredLevel)
+
+/**
+ * Check if a message at the given level should be logged
+ */
+const shouldLog = (level: LogLevel): boolean => {
+  const levelIndex = LOG_LEVELS.indexOf(level)
+  return levelIndex <= currentLevelIndex && levelIndex > 0 // Never log 'silent'
+}
 
 /**
  * Client-side logger for React components
  *
- * - Development/Test: Logs to console
- * - Production: Silent except for errors (captured by Sentry)
+ * Controlled by NEXT_PUBLIC_LOG_LEVEL: 'silent' | 'error' | 'warn' | 'info' | 'debug'
+ * Errors are always captured by Sentry in production regardless of log level.
  */
 export const clientLogger = {
   /**
-   * Log debug information (development only)
+   * Log debug information
    */
   debug(message: string, context?: LogContext) {
-    if (isDevelopment) {
+    if (shouldLog('debug')) {
       // eslint-disable-next-line no-console
       console.log(`[DEBUG] ${message}`, context ?? '')
     }
   },
 
   /**
-   * Log informational messages (development only)
+   * Log informational messages
    */
   info(message: string, context?: LogContext) {
-    if (isDevelopment || isTest) {
+    if (shouldLog('info')) {
       // eslint-disable-next-line no-console
       console.info(`[INFO] ${message}`, context ?? '')
     }
   },
 
   /**
-   * Log warnings (development only)
+   * Log warnings
    */
   warn(message: string, context?: LogContext) {
-    if (isDevelopment || isTest) {
+    if (shouldLog('warn')) {
       // eslint-disable-next-line no-console
       console.warn(`[WARN] ${message}`, context ?? '')
     }
   },
 
   /**
-   * Log errors - captured by Sentry in production
+   * Log errors - always captured by Sentry in production
    */
   error(message: string, error?: Error | unknown, context?: LogContext) {
-    if (isDevelopment || isTest) {
+    // Always capture errors with Sentry (regardless of log level)
+    const errorToCapture = error instanceof Error ? error : new Error(message)
+    Sentry.captureException(errorToCapture, {
+      level: 'error',
+      extra: {
+        ...context,
+        originalMessage: message,
+      },
+    })
+
+    // Also log to console if log level allows
+    if (shouldLog('error')) {
       // eslint-disable-next-line no-console
       console.error(`[ERROR] ${message}`, error, context ?? '')
-    } else {
-      // Production: capture with Sentry
-      const errorToCapture = error instanceof Error ? error : new Error(message)
-
-      Sentry.captureException(errorToCapture, {
-        level: 'error',
-        extra: {
-          ...context,
-          originalMessage: message,
-        },
-      })
     }
   },
 }
