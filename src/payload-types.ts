@@ -358,9 +358,10 @@ export interface Author {
 export interface PageTag {
   id: number;
   /**
-   * This label will be used in the editor
+   * URL-friendly identifier (auto-generated from title)
    */
-  name: string;
+  slug?: string | null;
+  slugLock?: boolean | null;
   /**
    * This localized title will be shown to public users
    */
@@ -1574,7 +1575,8 @@ export interface MusicTagsSelect<T extends boolean = true> {
  * via the `definition` "page-tags_select".
  */
 export interface PageTagsSelect<T extends boolean = true> {
-  name?: T;
+  slug?: T;
+  slugLock?: T;
   title?: T;
   pages?: T;
   updatedAt?: T;
