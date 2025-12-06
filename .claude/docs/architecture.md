@@ -116,7 +116,8 @@ console.error('[Route Name] Error message:', { error: error.message })
 ### Sentry Integration
 
 - **Custom Plugin**: `src/lib/sentry/plugin.ts` - Cloudflare Workers-compatible Sentry plugin using `@sentry/cloudflare`
-- **Client Initialization**: `src/lib/sentry/client.ts` - Browser-side Sentry via `@sentry/react`
+- **Client Initialization**: `src/instrumentation-client.ts` - Browser-side Sentry via `@sentry/react` (Next.js instrumentation hook)
+- **Client Re-export**: `src/lib/sentry/client.ts` - Re-exports Sentry for use in client components
 - **Error Boundary**: `src/app/global-error.tsx` - React error boundary with Sentry reporting
 
 **Note**: The official `@payloadcms/plugin-sentry` is NOT used because it depends on `@sentry/nextjs` which is incompatible with Cloudflare Workers.
