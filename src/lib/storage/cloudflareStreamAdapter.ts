@@ -7,8 +7,6 @@
  */
 import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
-import { logger } from '@/lib/logger'
-
 import { validateFileUpload } from './uploadValidation'
 
 /**
@@ -62,7 +60,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
         const blob = new Blob([uint8Array], { type: file.mimeType })
         formData.append('file', blob, file.filename)
 
-        logger.info(`Uploading video to Cloudflare Stream: ${file.filename}`)
+        req.payload.logger.info({ msg: 'Uploading video to Cloudflare Stream', filename: file.filename })
 
         // Upload video to Stream
         const uploadResponse = await fetch(
@@ -88,12 +86,10 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           throw new Error('Cloudflare Stream response missing video ID')
         }
 
-        logger.info(`Video uploaded successfully: ${videoId}`)
+        req.payload.logger.info({ msg: 'Video uploaded successfully', videoId })
 
         // Enable MP4 downloads for HTML5 video compatibility
         try {
-          logger.info(`Enabling MP4 downloads for video: ${videoId}`)
-
           const downloadsResponse = await fetch(
             `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${videoId}/downloads`,
             {
@@ -119,17 +115,18 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
 
           if (!downloadsResult.success) {
             const errors = downloadsResult.errors?.map((e) => e.message).join(', ') || 'Unknown error'
-            logger.warn(`Failed to enable MP4 downloads for ${videoId}: ${errors}`)
+            req.payload.logger.warn({ msg: 'Failed to enable MP4 downloads', videoId, errors })
           } else {
             const downloadStatus = downloadsResult.result?.default?.status || 'unknown'
-            const percentComplete = downloadsResult.result?.default?.percentComplete || 0
-            logger.info(
-              `MP4 downloads enabled for video: ${videoId} (status: ${downloadStatus}, ${percentComplete}% complete)`,
-            )
+            req.payload.logger.info({ msg: 'MP4 downloads enabled', videoId, status: downloadStatus })
           }
         } catch (error) {
           // Non-fatal error - video upload succeeded
-          logger.warn('Error enabling MP4 downloads:', { error })
+          req.payload.logger.warn({
+            msg: 'Error enabling MP4 downloads',
+            videoId,
+            error: error instanceof Error ? error.message : String(error),
+          })
         }
 
         // Update both file.filename and req.file.name to the Cloudflare Stream video ID
@@ -139,7 +136,8 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           req.file.name = videoId
         }
       } catch (error) {
-        logger.error('Cloudflare Stream upload error:', {
+        req.payload.logger.error({
+          msg: 'Cloudflare Stream upload error',
           filename: file.filename,
           mimeType: file.mimeType,
           size: file.buffer.length,
@@ -151,8 +149,6 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
 
     handleDelete: async ({ filename: videoId }) => {
       try {
-        logger.info(`Deleting video from Cloudflare Stream: ${videoId}`)
-
         const response = await fetch(
           `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${videoId}`,
           {
@@ -168,15 +164,12 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
         if (!result.success && response.status !== 404) {
           // Ignore 404 errors (video already deleted)
           const errors = result.errors?.map((e) => e.message).join(', ') || 'Unknown error'
-          logger.warn(`Cloudflare Stream delete warning: ${errors}`)
-        } else {
-          logger.info(`Video deleted successfully: ${videoId}`)
+          // eslint-disable-next-line no-console
+          console.error(`[Cloudflare Stream] Delete warning for ${videoId}: ${errors}`)
         }
       } catch (error) {
-        logger.error('Cloudflare Stream delete error:', {
-          videoId,
-          error: error instanceof Error ? error.message : String(error),
-        })
+        // eslint-disable-next-line no-console
+        console.error('[Cloudflare Stream] Delete error:', videoId, error)
         // Don't throw - deletion errors shouldn't break the app
       }
     },
@@ -185,9 +178,6 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
       // Redirect to Cloudflare Stream MP4 download URL
       const videoId = params.filename
       const url = `${config.deliveryUrl}/${videoId}/downloads/default.mp4`
-
-      logger.debug(`Redirecting to Cloudflare Stream URL: ${url}`)
-
       return Response.redirect(url, 302)
     },
   })

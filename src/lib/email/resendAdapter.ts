@@ -2,16 +2,12 @@ import type { EmailAdapter } from 'payload'
 
 import { Resend } from 'resend'
 
-import { logger } from '@/lib/logger'
-
-const emailLogger = logger.withContext({ module: 'resend-adapter' })
-
 export const resendAdapter = (): EmailAdapter => {
-  return ({ payload: _payload }) => {
+  return ({ payload }) => {
     const apiKey = process.env.RESEND_API_KEY
 
     if (!apiKey) {
-      emailLogger.warn('Resend API key not configured - email will not be sent')
+      payload.logger.warn({ msg: 'Resend API key not configured - email will not be sent' })
     }
 
     const resend = apiKey ? new Resend(apiKey) : null
@@ -23,7 +19,7 @@ export const resendAdapter = (): EmailAdapter => {
 
       async sendEmail(message) {
         if (!resend) {
-          emailLogger.error('Cannot send email - Resend client not initialized')
+          payload.logger.error({ msg: 'Cannot send email - Resend client not initialized' })
           return
         }
 
@@ -38,7 +34,8 @@ export const resendAdapter = (): EmailAdapter => {
           })
 
           if (error) {
-            emailLogger.error('Resend API error', undefined, {
+            payload.logger.error({
+              msg: 'Resend API error',
               error: error.message,
               name: error.name,
             })
@@ -46,13 +43,13 @@ export const resendAdapter = (): EmailAdapter => {
           }
 
           if (data) {
-            emailLogger.info('Email sent successfully', { messageId: data.id })
+            payload.logger.info({ msg: 'Email sent successfully', messageId: data.id })
           }
         } catch (error) {
-          emailLogger.error(
-            'Email sending failed',
-            error instanceof Error ? error : new Error(String(error)),
-          )
+          payload.logger.error({
+            msg: 'Email sending failed',
+            error: error instanceof Error ? error.message : String(error),
+          })
         }
       },
     }

@@ -8,7 +8,6 @@ import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { sanitizeFilename } from '@/lib/fieldUtils'
 import { LOCALES } from '@/lib/locales'
-import { logger } from '@/lib/logger'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 
 export const Meditations: CollectionConfig = {
@@ -323,7 +322,8 @@ export const Meditations: CollectionConfig = {
                     } catch (error) {
                       // If frames have thumbnails that reference deleted media, gracefully skip frame enrichment
                       // This can happen during import operations with --reset when media is deleted
-                      logger.warn('Failed to enrich frame data for meditation', {
+                      req.payload.logger.warn({
+                        msg: 'Failed to enrich frame data for meditation',
                         frameCount: frames.length,
                         frameIds: frameIds.slice(0, 5), // Log first 5 IDs to avoid too much data
                         error: error instanceof Error ? error.message : String(error),

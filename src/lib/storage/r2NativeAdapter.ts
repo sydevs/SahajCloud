@@ -7,8 +7,6 @@
 import type { R2Bucket } from '@cloudflare/workers-types'
 import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
-import { logger } from '@/lib/logger'
-
 /**
  * Configuration for R2 native storage adapter
  */
@@ -44,26 +42,17 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
       try {
         const key = prefix ? `${prefix}/${file.filename}` : file.filename
 
-        logger.info(`Uploading file to R2: ${key}`)
-
         await config.bucket.put(key, file.buffer, {
           httpMetadata: {
             contentType: file.mimeType,
           },
         })
 
-        logger.info(`File uploaded successfully to R2: ${key}`)
-
         // Return nothing - PayloadCMS will handle storing the filename
       } catch (error) {
         const key = prefix ? `${prefix}/${file.filename}` : file.filename
-        logger.error('R2 upload error:', {
-          key,
-          filename: file.filename,
-          mimeType: file.mimeType,
-          size: file.buffer.length,
-          error: error instanceof Error ? error.message : String(error),
-        })
+        // eslint-disable-next-line no-console
+        console.error('[R2] Upload error:', key, error)
         throw error
       }
     },
@@ -71,33 +60,22 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
     handleDelete: async ({ filename }) => {
       try {
         const key = prefix ? `${prefix}/${filename}` : filename
-
-        logger.info(`Deleting file from R2: ${key}`)
-
         await config.bucket.delete(key)
-
-        logger.info(`File deleted successfully from R2: ${key}`)
       } catch (error) {
         const key = prefix ? `${prefix}/${filename}` : filename
-        logger.error('R2 delete error:', {
-          key,
-          filename,
-          error: error instanceof Error ? error.message : String(error),
-        })
+        // eslint-disable-next-line no-console
+        console.error('[R2] Delete error:', key, error)
         // Don't throw - deletion errors shouldn't break the app
       }
     },
 
-    staticHandler: async (req, { params }) => {
+    staticHandler: async (_req, { params }) => {
       try {
         const key = params.collection ? `${params.collection}/${params.filename}` : params.filename
-
-        logger.debug(`Fetching file from R2: ${key}`)
 
         const object = await config.bucket.get(key)
 
         if (!object) {
-          logger.warn(`File not found in R2: ${key}`)
           return new Response('Not Found', { status: 404 })
         }
 
@@ -112,10 +90,8 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
         })
       } catch (error) {
         const key = params.collection ? `${params.collection}/${params.filename}` : params.filename
-        logger.error('R2 static handler error:', {
-          key,
-          error: error instanceof Error ? error.message : String(error),
-        })
+        // eslint-disable-next-line no-console
+        console.error('[R2] Static handler error:', key, error)
         return new Response('Internal Server Error', { status: 500 })
       }
     },

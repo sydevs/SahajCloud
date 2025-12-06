@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
 
-import { logger } from '@/lib/logger'
-
 export async function GET() {
   try {
     // Basic health check - ensure the application is running
@@ -15,14 +13,19 @@ export async function GET() {
 
     return NextResponse.json(health, { status: 200 })
   } catch (error) {
-    logger.error('Health check failed', error, {
+    // eslint-disable-next-line no-console
+    console.error('[Health Route] Health check failed:', {
       timestamp: new Date().toISOString(),
+      error: error instanceof Error ? error.message : String(error),
     })
 
-    return NextResponse.json({
-      status: 'error',
-      timestamp: new Date().toISOString(),
-      error: 'Health check failed',
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        status: 'error',
+        timestamp: new Date().toISOString(),
+        error: 'Health check failed',
+      },
+      { status: 500 },
+    )
   }
 }

@@ -13,7 +13,6 @@ import type { Plugin } from 'payload'
 import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
 import { r2Storage } from '@payloadcms/storage-r2'
 
-import { logger } from './logger'
 import { cloudflareImagesAdapter } from './storage/cloudflareImagesAdapter'
 import { cloudflareStreamAdapter } from './storage/cloudflareStreamAdapter'
 import { routerAdapter } from './storage/routerAdapter'
@@ -35,17 +34,6 @@ interface CloudflareEnv {
 export const storagePlugin = (env?: CloudflareEnv): Plugin => {
   const isProduction = process.env.NODE_ENV === 'production'
 
-  // Debug logging
-  logger.info('Storage plugin initialization', {
-    isProduction,
-    hasR2Binding: Boolean(env?.R2),
-    hasAccountId: Boolean(process.env.CLOUDFLARE_ACCOUNT_ID),
-    hasApiKey: Boolean(process.env.CLOUDFLARE_API_KEY),
-    hasImagesUrl: Boolean(process.env.CLOUDFLARE_IMAGES_DELIVERY_URL),
-    hasStreamUrl: Boolean(process.env.CLOUDFLARE_STREAM_DELIVERY_URL),
-    envKeys: env ? Object.keys(env) : [],
-  })
-
   // Check if Cloudflare services are configured
   const hasCloudflareConfig =
     Boolean(env?.R2) &&
@@ -58,15 +46,11 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
   const useCloudflare = isProduction && hasCloudflareConfig
 
   if (!useCloudflare) {
-    logger.info('Using local file storage (Cloudflare services not configured or not in production)')
-
     return cloudStoragePlugin({
       enabled: false, // Disables cloud storage, uses local file storage
       collections: {},
     })
   }
-
-  logger.info('Using Cloudflare-native storage (Images, Stream, Official R2)')
 
   // Create storage adapters for Images and Stream
   const imagesAdapter = cloudflareImagesAdapter({

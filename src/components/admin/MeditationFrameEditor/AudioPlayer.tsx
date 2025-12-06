@@ -11,7 +11,7 @@ import React, {
   forwardRef,
 } from 'react'
 
-import { logger } from '@/lib/logger'
+import { clientLogger } from '@/lib/clientLogger'
 
 import { SIZES } from './constants'
 import {
@@ -118,7 +118,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
           currentBlobRef.current = blobUrl
           setAudioBlob(blobUrl)
         } catch (error) {
-          logger.warn('Failed to load audio as blob, using direct URL', {
+          clientLogger.warn('Failed to load audio as blob, using direct URL', {
             audioUrl,
             error: error instanceof Error ? error.message : String(error),
           })
@@ -184,7 +184,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(
           setCurrentTime(clampedTime)
           onSeek?.(clampedTime)
         } catch (error) {
-          logger.warn('Audio seek failed', {
+          clientLogger.warn('Audio seek failed', {
             targetTime: clampedTime,
             duration,
             error: error instanceof Error ? error.message : String(error),

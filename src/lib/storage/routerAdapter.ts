@@ -6,8 +6,6 @@
  */
 import type { Adapter, GeneratedAdapter } from '@payloadcms/plugin-cloud-storage/types'
 
-import { logger } from '@/lib/logger'
-
 /**
  * Configuration for router adapter
  */
@@ -53,18 +51,15 @@ export const routerAdapter = (config: RouterConfig): Adapter => {
     // Helper to select adapter based on MIME type
     const selectAdapter = (mimeType: string | undefined): GeneratedAdapter => {
       if (!mimeType) {
-        logger.debug('No MIME type provided, using default adapter')
         return adapters.default
       }
 
       for (const [mimePrefix, adapter] of Object.entries(adapters)) {
         if (mimePrefix !== 'default' && mimeType.startsWith(mimePrefix)) {
-          logger.debug(`Routing ${mimeType} to ${mimePrefix} adapter`)
           return adapter
         }
       }
 
-      logger.debug(`No matching adapter for ${mimeType}, using default`)
       return adapters.default
     }
 
@@ -73,21 +68,18 @@ export const routerAdapter = (config: RouterConfig): Adapter => {
 
       handleUpload: async (args) => {
         const adapter = selectAdapter(args.file.mimeType)
-        logger.info(`Routing upload to ${adapter.name} adapter`)
         return adapter.handleUpload(args)
       },
 
       handleDelete: async (args) => {
         const mimeType = (args.doc as { mimeType?: string }).mimeType
         const adapter = selectAdapter(mimeType)
-        logger.info(`Routing delete to ${adapter.name} adapter`)
         return adapter.handleDelete(args)
       },
 
       staticHandler: async (req, args) => {
         const mimeType = (args.doc as { mimeType?: string } | undefined)?.mimeType
         const adapter = selectAdapter(mimeType)
-        logger.debug(`Routing static request to ${adapter.name} adapter`)
         return adapter.staticHandler(req, args)
       },
     }
