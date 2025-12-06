@@ -119,12 +119,12 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
     // Note: lessons collection is NOT an upload collection - it uses FileAttachments
     config = await Promise.resolve(
       r2Storage({
-        bucket: env!.R2 as any, // R2Bucket type compatibility
+        bucket: env!.R2 as unknown as Parameters<typeof r2Storage>[0]['bucket'],
         collections: {
           meditations: true,
           music: true,
           files: true,
-        } as any, // Collection slug type compatibility
+        },
       })(config),
     )
 

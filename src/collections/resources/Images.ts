@@ -64,13 +64,16 @@ export const Images: CollectionConfig = {
       hooks: {
         afterRead: [
           ({ data }) => {
-            if (!data?.filename) return data?.url
+            if (!data?.filename) return undefined
 
             // Generate Cloudflare Images URL if in production with credentials
             const deliveryUrl = process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
-            return deliveryUrl
-              ? `${deliveryUrl}/${data.filename}/format=auto,width=320,height=320,fit=cover`
-              : data?.url
+            if (deliveryUrl) {
+              return `${deliveryUrl}/${data.filename}/format=auto,width=320,height=320,fit=cover`
+            }
+
+            // Fallback to PayloadCMS static file serving in development
+            return `/api/images/file/${data.filename}`
           },
         ],
       },
