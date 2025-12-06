@@ -41,6 +41,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
 
   return buildConfig({
     serverURL: serverUrl,
+    debug: true, // Enable verbose error logging for troubleshooting R2 uploads
     localization: {
       locales: LOCALES.map((l) => l.code),
       defaultLocale: DEFAULT_LOCALE,

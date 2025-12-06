@@ -35,9 +35,9 @@ export const Music: CollectionConfig = {
       hooks: {
         afterRead: [
           ({ data }: { data?: Record<string, unknown> }) => {
-            // Generate R2 URL if in production
+            // Generate R2 URL if in production (no prefix - files stored in root)
             if (data?.filename && process.env.CLOUDFLARE_R2_DELIVERY_URL) {
-              return `${process.env.CLOUDFLARE_R2_DELIVERY_URL}/music/${data.filename}`
+              return `${process.env.CLOUDFLARE_R2_DELIVERY_URL}/${data.filename}`
             }
             // Fallback to PayloadCMS-generated URL (local storage in development)
             return data?.url
