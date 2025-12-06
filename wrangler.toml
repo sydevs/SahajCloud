@@ -26,7 +26,7 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "D1"
 database_name = "sahajcloud"
-database_id = "2ff069c0-a98b-4a6c-94eb-fe199f969c8b"
+database_id = "acb19523-d826-45b6-8680-46e6fd3eca86"
 remote = true
 
 # R2 Storage Binding
@@ -34,19 +34,31 @@ remote = true
 binding = "R2"
 bucket_name = "sahajcloud"
 jurisdiction = "eu"
+remote = true
 
 # Environment Variables (non-sensitive)
 [vars]
 NODE_ENV = "production"
+LOG_LEVEL = "info"  # Set to 'debug', 'info', 'warn', 'error', or 'silent'
 SAHAJCLOUD_URL = "https://cloud.sydevelopers.com"
 WEMEDITATE_WEB_URL = "https://wemeditate.com"
 SAHAJATLAS_URL = "https://atlas.sydevelopers.com"
-PUBLIC_ASSETS_URL = "assets.sydevelopers.com"
+
+# Cloudflare Services Configuration
+# Account-level identifiers and delivery URLs (public, non-sensitive)
+CLOUDFLARE_ACCOUNT_ID = "c66c53a69689eb030b228c450515fff2"  # Find in: Dashboard → Account Home → right sidebar
+CLOUDFLARE_IMAGES_DELIVERY_URL = "https://imagedelivery.net/dOm4imjweFFL1Pto29l-4Q"  # Full URL: https://imagedelivery.net/<hash>
+CLOUDFLARE_STREAM_DELIVERY_URL = "https://customer-aorobtik2fce41s5.cloudflarestream.com"  # Full URL: https://customer-<code>.cloudflarestream.com
+CLOUDFLARE_R2_DELIVERY_URL = "https://assets.sydevelopers.com"  # Custom domain for R2
 
 # Sentry Configuration (public - visible to client and server)
 # Single DSN used for both client-side and server-side error tracking
 # Set your Sentry DSN here for production deployment
 # NEXT_PUBLIC_SENTRY_DSN = "https://your-public-key@o0000000.ingest.us.sentry.io/0000000"
+
+# Secrets (sensitive - set via wrangler secret put)
+# See .env.example for list of required secrets
+# Set with: wrangler secret put <SECRET_NAME>
 
 # Build Configuration
 [build]
@@ -86,4 +98,9 @@ NODE_ENV = "development"
 SAHAJCLOUD_URL = "http://localhost:3000"
 WEMEDITATE_WEB_URL = "http://localhost:5173"
 SAHAJATLAS_URL = "http://localhost:5174"
-PUBLIC_ASSETS_URL = "localhost"
+
+# Cloudflare Services (optional in development - falls back to local storage if not set)
+CLOUDFLARE_ACCOUNT_ID = ""
+CLOUDFLARE_IMAGES_DELIVERY_URL = ""
+CLOUDFLARE_STREAM_DELIVERY_URL = ""
+CLOUDFLARE_R2_DELIVERY_URL = ""

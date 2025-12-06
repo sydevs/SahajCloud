@@ -162,9 +162,9 @@ describe('Role-Based Access Control', () => {
       expect(permissions.meditations).toContain('read')
       expect(permissions.meditations).toContain('create')
       expect(permissions.meditations).toContain('update')
-      expect(permissions.media).toBeDefined()
-      expect(permissions.media).toContain('read')
-      expect(permissions.media).toContain('create')
+      expect(permissions.images).toBeDefined()
+      expect(permissions.images).toContain('read')
+      expect(permissions.images).toContain('create')
     })
 
     it('computes permissions for translator role', () => {
@@ -725,7 +725,7 @@ describe('Role-Based Access Control', () => {
           operation: 'update',
           field: { localized: true },
         }),
-        hasPermission({ user: managerUser, collection: 'media', operation: 'create' }),
+        hasPermission({ user: managerUser, collection: 'images', operation: 'create' }),
         hasPermission({ user: managerUser, collection: 'narrators', operation: 'read' }),
       ]
 
@@ -735,7 +735,7 @@ describe('Role-Based Access Control', () => {
       expect(results[0]).toBe(true) // meditations create
       expect(results[1]).toBe(true) // pages update (localized field)
       expect(results[2]).toBe(true) // music update (localized field)
-      expect(results[3]).toBe(true) // media create
+      expect(results[3]).toBe(true) // images create
       expect(results[4]).toBe(true) // narrators read (implicit)
     })
 

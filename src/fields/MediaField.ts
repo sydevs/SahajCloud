@@ -63,7 +63,7 @@ export function MediaField(options: MediaFieldOptions): UploadField {
     required,
     localized,
     type: 'upload',
-    relationTo: 'media',
+    relationTo: 'images',
     filterOptions,
     admin: {
       components: {

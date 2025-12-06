@@ -4,9 +4,8 @@ import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess, createFieldAccess } from '@/lib/accessControl'
-import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
+import { sanitizeFilename } from '@/lib/fieldUtils'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
-
 
 export const Music: CollectionConfig = {
   slug: 'music',
@@ -25,11 +24,30 @@ export const Music: CollectionConfig = {
   },
   hooks: {
     beforeOperation: [sanitizeFilename],
-    beforeValidate: [processFile({})],
-    beforeChange: [convertFile],
+    // Removed: processFile, convertFile (Sharp processing not needed for audio files)
     afterRead: [trackClientUsageHook],
   },
   fields: [
+    {
+      name: 'url',
+      type: 'text',
+      virtual: true,
+      hooks: {
+        afterRead: [
+          ({ data }: { data?: Record<string, unknown> }) => {
+            // Generate R2 URL if in production (no prefix - files stored in root)
+            if (data?.filename && process.env.CLOUDFLARE_R2_DELIVERY_URL) {
+              return `${process.env.CLOUDFLARE_R2_DELIVERY_URL}/${data.filename}`
+            }
+            // Fallback to PayloadCMS-generated URL (local storage in development)
+            return data?.url
+          },
+        ],
+      },
+      admin: {
+        hidden: true,
+      },
+    },
     {
       name: 'title',
       type: 'text',

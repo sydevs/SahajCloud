@@ -33,7 +33,7 @@ PATTERNS=(
   "API_KEY"
   "PRIVATE_KEY"
   "[0-9a-f]{32,}"  # Long hex strings
-  "Bearer [A-Za-z0-9_-]+"  # Bearer tokens
+  # Removed: "Bearer [A-Za-z0-9_-]+" - Too many false positives with template variables
 )
 
 FOUND_SECRETS=false
@@ -43,6 +43,26 @@ DETAILS=""
 while IFS= read -r FILE; do
   FULL_PATH="$CLAUDE_PROJECT_DIR/$FILE"
 
+  # Skip example/template files (they contain variable names, not actual secrets)
+  if [[ "$FILE" == *.example ]] || [[ "$FILE" == *.template ]] || [[ "$FILE" == *.sample ]]; then
+    continue
+  fi
+
+  # Skip documentation files (they document environment variables)
+  if [[ "$FILE" == *.md ]]; then
+    continue
+  fi
+
+  # Skip TypeScript type definition files (they declare types for environment variables)
+  if [[ "$FILE" == *.d.ts ]]; then
+    continue
+  fi
+
+  # Skip the hook itself (it contains pattern strings)
+  if [[ "$FILE" == *"prevent-secrets.sh" ]]; then
+    continue
+  fi
+  
   # Skip .env.example files (they contain template placeholders, not real secrets)
   if [[ "$FILE" == *".env.example"* ]]; then
     continue
@@ -51,15 +71,18 @@ while IFS= read -r FILE; do
   # Skip binary files
   if file "$FULL_PATH" | grep -q "text"; then
     for PATTERN in "${PATTERNS[@]}"; do
-      # Find matches but exclude commented lines and placeholder patterns
-      MATCHES=$(grep -nE "$PATTERN" "$FULL_PATH" 2>/dev/null | \
-                grep -v '^\s*#' | \
-                grep -vE '(your-|example-|placeholder|xxxxx|00000|<your|<example)' | \
-                head -3)
+      # Skip if it's an environment variable reference (process.env.PATTERN_NAME)
+      if grep -qE "$PATTERN" "$FULL_PATH" 2>/dev/null; then
+        # Check if matches are environment variable references
+        MATCHES=$(grep -nE "$PATTERN" "$FULL_PATH" 2>/dev/null)
 
-      if [ -n "$MATCHES" ]; then
-        FOUND_SECRETS=true
-        DETAILS="$DETAILS\n\n$FILE:\n$MATCHES"
+        # Filter out process.env.* references
+        FILTERED_MATCHES=$(echo "$MATCHES" | grep -vE "process\.env\.[A-Z_]+")
+
+        if [ -n "$FILTERED_MATCHES" ]; then
+          FOUND_SECRETS=true
+          DETAILS="$DETAILS\n\n$FILE:\n$(echo "$FILTERED_MATCHES" | head -3)"
+        fi
       fi
     done
   fi

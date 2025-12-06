@@ -3,7 +3,7 @@ import type { Payload } from 'payload'
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
 import { KeyframeData } from '@/components/admin/MeditationFrameEditor/types'
-import type { Meditation, Narrator, Media, Frame, MusicTag, MeditationTag } from '@/payload-types'
+import type { Meditation, Narrator, Image, Frame, MusicTag, MeditationTag } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -12,7 +12,7 @@ describe('Meditations Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let testNarrator: Narrator
-  let testImageMedia: Media
+  let testImageMedia: Image
   let testTag1: MeditationTag
   let testTag2: MeditationTag
   let testMusicTag: MusicTag
@@ -143,7 +143,7 @@ describe('Meditation-Frame Relationships', () => {
   let payload: Payload
   let cleanup: (() => Promise<void>) | undefined
   let testNarrator: Narrator
-  let testImageMedia: Media
+  let testImageMedia: Image
   let testFrame1: Frame
   let testFrame2: Frame
 

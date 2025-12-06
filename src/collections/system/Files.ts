@@ -2,11 +2,15 @@ import type { CollectionConfig } from 'payload'
 
 import { roleBasedAccess } from '@/lib/accessControl'
 
-export const FileAttachmentOwnerSlugs = ['lessons']
+export const FileOwnerSlugs = ['lessons', 'frames']
 
-export const FileAttachments: CollectionConfig = {
-  slug: 'file-attachments',
-  access: roleBasedAccess('file-attachments', {
+export const Files: CollectionConfig = {
+  slug: 'files',
+  labels: {
+    singular: 'File',
+    plural: 'Files',
+  },
+  access: roleBasedAccess('files', {
     delete: () => false,
   }),
   disableDuplicate: true,
@@ -40,6 +44,26 @@ export const FileAttachments: CollectionConfig = {
       label: 'Uploaded At',
       admin: {
         readOnly: true,
+      },
+    },
+    {
+      name: 'url',
+      type: 'text',
+      virtual: true,
+      hooks: {
+        afterRead: [
+          ({ data }) => {
+            // Generate R2 URL if in production (no prefix - files stored in root)
+            if (data?.filename && process.env.CLOUDFLARE_R2_DELIVERY_URL) {
+              return `${process.env.CLOUDFLARE_R2_DELIVERY_URL}/${data.filename}`
+            }
+            // Fallback to PayloadCMS-generated URL (local storage in development)
+            return data?.url
+          },
+        ],
+      },
+      admin: {
+        hidden: true,
       },
     },
   ],

@@ -6,7 +6,7 @@ import { KeyframeData, KeyframeDefinition } from '@/components/admin/MeditationF
 import { MediaField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
-import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
+import { sanitizeFilename } from '@/lib/fieldUtils'
 import { LOCALES } from '@/lib/locales'
 import { logger } from '@/lib/logger'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
@@ -29,11 +29,30 @@ export const Meditations: CollectionConfig = {
   },
   hooks: {
     beforeOperation: [sanitizeFilename],
-    beforeValidate: [processFile({})],
-    beforeChange: [convertFile],
+    // Removed: processFile, convertFile (Sharp processing not needed for audio files)
     afterRead: [trackClientUsageHook],
   },
   fields: [
+    {
+      name: 'url',
+      type: 'text',
+      virtual: true,
+      hooks: {
+        afterRead: [
+          ({ data }: { data?: Record<string, unknown> }) => {
+            // Generate R2 URL if in production (no prefix - files stored in root)
+            if (data?.filename && process.env.CLOUDFLARE_R2_DELIVERY_URL) {
+              return `${process.env.CLOUDFLARE_R2_DELIVERY_URL}/${data.filename}`
+            }
+            // Fallback to PayloadCMS-generated URL (local storage in development)
+            return data?.url
+          },
+        ],
+      },
+      admin: {
+        hidden: true,
+      },
+    },
     {
       type: 'tabs',
       tabs: [

@@ -6,9 +6,9 @@ import { Music } from './content/Music'
 import { Pages } from './content/Pages'
 import { Authors } from './resources/Authors'
 import { ExternalVideos } from './resources/ExternalVideos'
-import { Media } from './resources/Media'
+import { Images } from './resources/Images'
 import { Narrators } from './resources/Narrators'
-import { FileAttachments } from './system/FileAttachments'
+import { Files } from './system/Files'
 import { Frames } from './system/Frames'
 import { MediaTags } from './tags/MediaTags'
 import { MeditationTags } from './tags/MeditationTags'
@@ -27,8 +27,8 @@ export const collections = [
   Frames,
   Narrators,
   Authors,
-  Media,
-  FileAttachments,
+  Images,
+  Files,
   // Tags
   MediaTags,
   MeditationTags,
@@ -50,8 +50,8 @@ export {
   Frames,
   Narrators,
   Authors,
-  Media,
-  FileAttachments,
+  Images,
+  Files,
   // Tags
   MediaTags,
   MeditationTags,
