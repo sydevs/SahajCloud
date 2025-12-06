@@ -13,7 +13,7 @@ export const GalleryBlock: Block = {
       hasMany: true,
       minRows: 3,
       maxRows: 15,
-      relationTo: 'media',
+      relationTo: 'images',
     },
   ],
 }

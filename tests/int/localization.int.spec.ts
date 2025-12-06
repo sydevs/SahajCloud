@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { MeditationTag, Media, Music, Narrator } from '@/payload-types'
+import type { MeditationTag, Image, Music, Narrator } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -112,11 +112,11 @@ describe('Localization', () => {
     })
   })
 
-  describe('Media Collection', () => {
-    it.skip('creates and retrieves localized media fields - File upload issues in test environment', async () => {
-      // Create media with English fields
-      const media = (await payload.create({
-        collection: 'media',
+  describe('Images Collection', () => {
+    it.skip('creates and retrieves localized image fields - File upload issues in test environment', async () => {
+      // Create image with English fields
+      const image = (await payload.create({
+        collection: 'images',
         data: {
           alt: 'Test Image',
           credit: 'Test Photographer',
@@ -128,12 +128,12 @@ describe('Localization', () => {
           size: 100,
         },
         locale: 'en',
-      })) as Media
+      })) as Image
 
       // Update with Italian fields
       await payload.update({
-        collection: 'media',
-        id: media.id,
+        collection: 'images',
+        id: image.id,
         data: {
           alt: 'Immagine di Prova',
           credit: 'Fotografo di Prova',
@@ -143,20 +143,20 @@ describe('Localization', () => {
 
       // Retrieve English version
       const enResult = (await payload.findByID({
-        collection: 'media',
-        id: media.id,
+        collection: 'images',
+        id: image.id,
         locale: 'en',
-      })) as Media
+      })) as Image
 
       expect(enResult.alt).toBe('Test Image')
       expect(enResult.credit).toBe('Test Photographer')
 
       // Retrieve Italian version
       const itResult = (await payload.findByID({
-        collection: 'media',
-        id: media.id,
+        collection: 'images',
+        id: image.id,
         locale: 'cs',
-      })) as Media
+      })) as Image
 
       expect(itResult.alt).toBe('Immagine di Prova')
       expect(itResult.credit).toBe('Fotografo di Prova')
@@ -206,7 +206,7 @@ describe('Localization', () => {
 
   describe('Meditations Collection', () => {
     let narrator: Narrator
-    let thumbnail: Media
+    let thumbnail: Image
 
     beforeAll(async () => {
       // Create shared test data

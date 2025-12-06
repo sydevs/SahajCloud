@@ -2,62 +2,28 @@ import type { CollectionConfig } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
-import { convertFile, processFile, sanitizeFilename } from '@/lib/fieldUtils'
 
-export const Media: CollectionConfig = {
-  slug: 'media',
+export const Images: CollectionConfig = {
+  slug: 'images',
+  labels: {
+    singular: 'Image',
+    plural: 'Images',
+  },
   admin: {
     group: 'Resources',
     useAsTitle: 'filename',
     defaultColumns: ['filename', 'alt', 'credit', 'tags'],
   },
-  access: roleBasedAccess('media', {
+  access: roleBasedAccess('images', {
     delete: () => false,
   }),
   disableDuplicate: true,
   upload: {
-    staticDir: 'media/media',
+    staticDir: 'media/images',
     hideRemoveFile: true,
     focalPoint: true,
     mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
-    imageSizes: [
-      {
-        name: 'thumbnail',
-        width: 400,
-        height: 300,
-        position: 'centre',
-        formatOptions: {
-          format: 'webp',
-          options: {
-            quality: 95,
-          },
-        },
-      },
-      {
-        name: 'card',
-        width: 768,
-        height: 1024,
-        position: 'centre',
-        formatOptions: {
-          format: 'webp',
-          options: {
-            quality: 95,
-          },
-        },
-      },
-      {
-        name: 'tablet',
-        width: 1024,
-        height: undefined, // Maintain aspect ratio
-        position: 'centre',
-        formatOptions: {
-          format: 'webp',
-          options: {
-            quality: 95,
-          },
-        },
-      },
-    ],
+    // imageSizes removed - using Cloudflare Images flexible variants instead
   },
   fields: [
     {
@@ -91,11 +57,34 @@ export const Media: CollectionConfig = {
         readOnly: true,
       },
     },
+    {
+      name: 'url',
+      type: 'text',
+      virtual: true,
+      hooks: {
+        afterRead: [
+          ({ data }) => {
+            if (!data?.filename) return undefined
+
+            // Generate Cloudflare Images URL if in production with credentials
+            const deliveryUrl = process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
+            if (deliveryUrl) {
+              return `${deliveryUrl}/${data.filename}/format=auto,width=320,height=320,fit=cover`
+            }
+
+            // Fallback to PayloadCMS static file serving in development
+            return `/api/images/file/${data.filename}`
+          },
+        ],
+      },
+      admin: {
+        hidden: true,
+      },
+    },
   ],
   hooks: {
-    beforeOperation: [sanitizeFilename],
-    beforeValidate: [processFile({})],
-    beforeChange: [convertFile],
+    // Removed: sanitizeFilename (not needed - Cloudflare provides unique IDs)
+    // Removed: processFile and convertFile (Sharp processing no longer needed)
     afterRead: [trackClientUsageHook],
   },
 }

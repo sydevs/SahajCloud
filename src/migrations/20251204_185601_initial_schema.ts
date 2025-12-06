@@ -1,6 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-d1-sqlite'
 
-export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
+export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE TABLE \`pages\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`slug\` text,
@@ -29,7 +29,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`_locale\` text NOT NULL,
   	\`_parent_id\` integer NOT NULL,
-  	FOREIGN KEY (\`meta_image_id\`) REFERENCES \`media\`(\`id\`) ON UPDATE no action ON DELETE set null,
+  	FOREIGN KEY (\`meta_image_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`_parent_id\`) REFERENCES \`pages\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
@@ -90,7 +90,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`_locale\` text NOT NULL,
   	\`_parent_id\` integer NOT NULL,
-  	FOREIGN KEY (\`version_meta_image_id\`) REFERENCES \`media\`(\`id\`) ON UPDATE no action ON DELETE set null,
+  	FOREIGN KEY (\`version_meta_image_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`_parent_id\`) REFERENCES \`_pages_v\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
@@ -127,7 +127,6 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`deleted_at\` text,
-  	\`url\` text,
   	\`thumbnail_u_r_l\` text,
   	\`filename\` text,
   	\`mime_type\` text,
@@ -138,7 +137,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`focal_y\` numeric,
   	FOREIGN KEY (\`narrator_id\`) REFERENCES \`narrators\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`music_tag_id\`) REFERENCES \`music_tags\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`thumbnail_id\`) REFERENCES \`media\`(\`id\`) ON UPDATE no action ON DELETE set null
+  	FOREIGN KEY (\`thumbnail_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
   `)
   await db.run(sql`CREATE INDEX \`meditations_narrator_idx\` ON \`meditations\` (\`narrator_id\`);`)
@@ -184,7 +183,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`id\` text PRIMARY KEY NOT NULL,
   	\`video_id\` integer,
   	\`block_name\` text,
-  	FOREIGN KEY (\`video_id\`) REFERENCES \`file_attachments\`(\`id\`) ON UPDATE no action ON DELETE set null,
+  	FOREIGN KEY (\`video_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`_parent_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
@@ -201,7 +200,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`text\` text,
   	\`image_id\` integer,
   	\`block_name\` text,
-  	FOREIGN KEY (\`image_id\`) REFERENCES \`media\`(\`id\`) ON UPDATE no action ON DELETE set null,
+  	FOREIGN KEY (\`image_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`_parent_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
@@ -223,8 +222,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`deleted_at\` text,
   	\`_status\` text DEFAULT 'draft',
   	FOREIGN KEY (\`meditation_id\`) REFERENCES \`meditations\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`intro_audio_id\`) REFERENCES \`file_attachments\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`icon_id\`) REFERENCES \`file_attachments\`(\`id\`) ON UPDATE no action ON DELETE set null
+  	FOREIGN KEY (\`intro_audio_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE set null,
+  	FOREIGN KEY (\`icon_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
   `)
   await db.run(sql`CREATE INDEX \`lessons_meditation_idx\` ON \`lessons\` (\`meditation_id\`);`)
@@ -266,7 +265,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`video_id\` integer,
   	\`_uuid\` text,
   	\`block_name\` text,
-  	FOREIGN KEY (\`video_id\`) REFERENCES \`file_attachments\`(\`id\`) ON UPDATE no action ON DELETE set null,
+  	FOREIGN KEY (\`video_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`_parent_id\`) REFERENCES \`_lessons_v\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
@@ -284,7 +283,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`image_id\` integer,
   	\`_uuid\` text,
   	\`block_name\` text,
-  	FOREIGN KEY (\`image_id\`) REFERENCES \`media\`(\`id\`) ON UPDATE no action ON DELETE set null,
+  	FOREIGN KEY (\`image_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`_parent_id\`) REFERENCES \`_lessons_v\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
@@ -313,8 +312,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`latest\` integer,
   	FOREIGN KEY (\`parent_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`version_meditation_id\`) REFERENCES \`meditations\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`version_intro_audio_id\`) REFERENCES \`file_attachments\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`version_icon_id\`) REFERENCES \`file_attachments\`(\`id\`) ON UPDATE no action ON DELETE set null
+  	FOREIGN KEY (\`version_intro_audio_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE set null,
+  	FOREIGN KEY (\`version_icon_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
   `)
   await db.run(sql`CREATE INDEX \`_lessons_v_parent_idx\` ON \`_lessons_v\` (\`parent_id\`);`)
@@ -347,7 +346,6 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`deleted_at\` text,
-  	\`url\` text,
   	\`thumbnail_u_r_l\` text,
   	\`filename\` text,
   	\`mime_type\` text,
@@ -404,7 +402,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`subtitles_url\` text,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	FOREIGN KEY (\`thumbnail_id\`) REFERENCES \`media\`(\`id\`) ON UPDATE no action ON DELETE set null
+  	FOREIGN KEY (\`thumbnail_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
   `)
   await db.run(sql`CREATE INDEX \`external_videos_thumbnail_idx\` ON \`external_videos\` (\`thumbnail_id\`);`)
@@ -433,7 +431,6 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`image_set\` text NOT NULL,
   	\`category\` text NOT NULL,
-  	\`thumbnail_id\` integer,
   	\`duration\` numeric,
   	\`file_metadata\` text DEFAULT '{}',
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
@@ -446,28 +443,12 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`width\` numeric,
   	\`height\` numeric,
   	\`focal_x\` numeric,
-  	\`focal_y\` numeric,
-  	\`sizes_small_url\` text,
-  	\`sizes_small_width\` numeric,
-  	\`sizes_small_height\` numeric,
-  	\`sizes_small_mime_type\` text,
-  	\`sizes_small_filesize\` numeric,
-  	\`sizes_small_filename\` text,
-  	\`sizes_large_url\` text,
-  	\`sizes_large_width\` numeric,
-  	\`sizes_large_height\` numeric,
-  	\`sizes_large_mime_type\` text,
-  	\`sizes_large_filesize\` numeric,
-  	\`sizes_large_filename\` text,
-  	FOREIGN KEY (\`thumbnail_id\`) REFERENCES \`file_attachments\`(\`id\`) ON UPDATE no action ON DELETE set null
+  	\`focal_y\` numeric
   );
   `)
-  await db.run(sql`CREATE INDEX \`frames_thumbnail_idx\` ON \`frames\` (\`thumbnail_id\`);`)
   await db.run(sql`CREATE INDEX \`frames_updated_at_idx\` ON \`frames\` (\`updated_at\`);`)
   await db.run(sql`CREATE INDEX \`frames_created_at_idx\` ON \`frames\` (\`created_at\`);`)
   await db.run(sql`CREATE UNIQUE INDEX \`frames_filename_idx\` ON \`frames\` (\`filename\`);`)
-  await db.run(sql`CREATE INDEX \`frames_sizes_small_sizes_small_filename_idx\` ON \`frames\` (\`sizes_small_filename\`);`)
-  await db.run(sql`CREATE INDEX \`frames_sizes_large_sizes_large_filename_idx\` ON \`frames\` (\`sizes_large_filename\`);`)
   await db.run(sql`CREATE INDEX \`imageSet_idx\` ON \`frames\` (\`image_set\`);`)
   await db.run(sql`CREATE TABLE \`narrators\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
@@ -486,7 +467,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`image_id\` integer,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	FOREIGN KEY (\`image_id\`) REFERENCES \`media\`(\`id\`) ON UPDATE no action ON DELETE set null
+  	FOREIGN KEY (\`image_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
   `)
   await db.run(sql`CREATE INDEX \`authors_image_idx\` ON \`authors\` (\`image_id\`);`)
@@ -503,75 +484,11 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   );
   `)
   await db.run(sql`CREATE UNIQUE INDEX \`authors_locales_locale_parent_id_unique\` ON \`authors_locales\` (\`_locale\`,\`_parent_id\`);`)
-  await db.run(sql`CREATE TABLE \`media\` (
+  await db.run(sql`CREATE TABLE \`images\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`file_metadata\` text,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	\`url\` text,
-  	\`thumbnail_u_r_l\` text,
-  	\`filename\` text,
-  	\`mime_type\` text,
-  	\`filesize\` numeric,
-  	\`width\` numeric,
-  	\`height\` numeric,
-  	\`focal_x\` numeric,
-  	\`focal_y\` numeric,
-  	\`sizes_thumbnail_url\` text,
-  	\`sizes_thumbnail_width\` numeric,
-  	\`sizes_thumbnail_height\` numeric,
-  	\`sizes_thumbnail_mime_type\` text,
-  	\`sizes_thumbnail_filesize\` numeric,
-  	\`sizes_thumbnail_filename\` text,
-  	\`sizes_card_url\` text,
-  	\`sizes_card_width\` numeric,
-  	\`sizes_card_height\` numeric,
-  	\`sizes_card_mime_type\` text,
-  	\`sizes_card_filesize\` numeric,
-  	\`sizes_card_filename\` text,
-  	\`sizes_tablet_url\` text,
-  	\`sizes_tablet_width\` numeric,
-  	\`sizes_tablet_height\` numeric,
-  	\`sizes_tablet_mime_type\` text,
-  	\`sizes_tablet_filesize\` numeric,
-  	\`sizes_tablet_filename\` text
-  );
-  `)
-  await db.run(sql`CREATE INDEX \`media_updated_at_idx\` ON \`media\` (\`updated_at\`);`)
-  await db.run(sql`CREATE INDEX \`media_created_at_idx\` ON \`media\` (\`created_at\`);`)
-  await db.run(sql`CREATE UNIQUE INDEX \`media_filename_idx\` ON \`media\` (\`filename\`);`)
-  await db.run(sql`CREATE INDEX \`media_sizes_thumbnail_sizes_thumbnail_filename_idx\` ON \`media\` (\`sizes_thumbnail_filename\`);`)
-  await db.run(sql`CREATE INDEX \`media_sizes_card_sizes_card_filename_idx\` ON \`media\` (\`sizes_card_filename\`);`)
-  await db.run(sql`CREATE INDEX \`media_sizes_tablet_sizes_tablet_filename_idx\` ON \`media\` (\`sizes_tablet_filename\`);`)
-  await db.run(sql`CREATE TABLE \`media_locales\` (
-  	\`alt\` text NOT NULL,
-  	\`credit\` text,
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`_locale\` text NOT NULL,
-  	\`_parent_id\` integer NOT NULL,
-  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`media\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE UNIQUE INDEX \`media_locales_locale_parent_id_unique\` ON \`media_locales\` (\`_locale\`,\`_parent_id\`);`)
-  await db.run(sql`CREATE TABLE \`media_rels\` (
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`order\` integer,
-  	\`parent_id\` integer NOT NULL,
-  	\`path\` text NOT NULL,
-  	\`media_tags_id\` integer,
-  	FOREIGN KEY (\`parent_id\`) REFERENCES \`media\`(\`id\`) ON UPDATE no action ON DELETE cascade,
-  	FOREIGN KEY (\`media_tags_id\`) REFERENCES \`media_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE INDEX \`media_rels_order_idx\` ON \`media_rels\` (\`order\`);`)
-  await db.run(sql`CREATE INDEX \`media_rels_parent_idx\` ON \`media_rels\` (\`parent_id\`);`)
-  await db.run(sql`CREATE INDEX \`media_rels_path_idx\` ON \`media_rels\` (\`path\`);`)
-  await db.run(sql`CREATE INDEX \`media_rels_media_tags_id_idx\` ON \`media_rels\` (\`media_tags_id\`);`)
-  await db.run(sql`CREATE TABLE \`file_attachments\` (
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	\`url\` text,
   	\`thumbnail_u_r_l\` text,
   	\`filename\` text,
   	\`mime_type\` text,
@@ -582,25 +499,66 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`focal_y\` numeric
   );
   `)
-  await db.run(sql`CREATE INDEX \`file_attachments_updated_at_idx\` ON \`file_attachments\` (\`updated_at\`);`)
-  await db.run(sql`CREATE UNIQUE INDEX \`file_attachments_filename_idx\` ON \`file_attachments\` (\`filename\`);`)
-  await db.run(sql`CREATE TABLE \`file_attachments_rels\` (
+  await db.run(sql`CREATE INDEX \`images_updated_at_idx\` ON \`images\` (\`updated_at\`);`)
+  await db.run(sql`CREATE INDEX \`images_created_at_idx\` ON \`images\` (\`created_at\`);`)
+  await db.run(sql`CREATE UNIQUE INDEX \`images_filename_idx\` ON \`images\` (\`filename\`);`)
+  await db.run(sql`CREATE TABLE \`images_locales\` (
+  	\`alt\` text NOT NULL,
+  	\`credit\` text,
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`_locale\` text NOT NULL,
+  	\`_parent_id\` integer NOT NULL,
+  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  );
+  `)
+  await db.run(sql`CREATE UNIQUE INDEX \`images_locales_locale_parent_id_unique\` ON \`images_locales\` (\`_locale\`,\`_parent_id\`);`)
+  await db.run(sql`CREATE TABLE \`images_rels\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`order\` integer,
+  	\`parent_id\` integer NOT NULL,
+  	\`path\` text NOT NULL,
+  	\`media_tags_id\` integer,
+  	FOREIGN KEY (\`parent_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`media_tags_id\`) REFERENCES \`media_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`images_rels_order_idx\` ON \`images_rels\` (\`order\`);`)
+  await db.run(sql`CREATE INDEX \`images_rels_parent_idx\` ON \`images_rels\` (\`parent_id\`);`)
+  await db.run(sql`CREATE INDEX \`images_rels_path_idx\` ON \`images_rels\` (\`path\`);`)
+  await db.run(sql`CREATE INDEX \`images_rels_media_tags_id_idx\` ON \`images_rels\` (\`media_tags_id\`);`)
+  await db.run(sql`CREATE TABLE \`files\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`thumbnail_u_r_l\` text,
+  	\`filename\` text,
+  	\`mime_type\` text,
+  	\`filesize\` numeric,
+  	\`width\` numeric,
+  	\`height\` numeric,
+  	\`focal_x\` numeric,
+  	\`focal_y\` numeric
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`files_updated_at_idx\` ON \`files\` (\`updated_at\`);`)
+  await db.run(sql`CREATE UNIQUE INDEX \`files_filename_idx\` ON \`files\` (\`filename\`);`)
+  await db.run(sql`CREATE TABLE \`files_rels\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`order\` integer,
   	\`parent_id\` integer NOT NULL,
   	\`path\` text NOT NULL,
   	\`lessons_id\` integer,
   	\`frames_id\` integer,
-  	FOREIGN KEY (\`parent_id\`) REFERENCES \`file_attachments\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`parent_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`lessons_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`frames_id\`) REFERENCES \`frames\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
-  await db.run(sql`CREATE INDEX \`file_attachments_rels_order_idx\` ON \`file_attachments_rels\` (\`order\`);`)
-  await db.run(sql`CREATE INDEX \`file_attachments_rels_parent_idx\` ON \`file_attachments_rels\` (\`parent_id\`);`)
-  await db.run(sql`CREATE INDEX \`file_attachments_rels_path_idx\` ON \`file_attachments_rels\` (\`path\`);`)
-  await db.run(sql`CREATE INDEX \`file_attachments_rels_lessons_id_idx\` ON \`file_attachments_rels\` (\`lessons_id\`);`)
-  await db.run(sql`CREATE INDEX \`file_attachments_rels_frames_id_idx\` ON \`file_attachments_rels\` (\`frames_id\`);`)
+  await db.run(sql`CREATE INDEX \`files_rels_order_idx\` ON \`files_rels\` (\`order\`);`)
+  await db.run(sql`CREATE INDEX \`files_rels_parent_idx\` ON \`files_rels\` (\`parent_id\`);`)
+  await db.run(sql`CREATE INDEX \`files_rels_path_idx\` ON \`files_rels\` (\`path\`);`)
+  await db.run(sql`CREATE INDEX \`files_rels_lessons_id_idx\` ON \`files_rels\` (\`lessons_id\`);`)
+  await db.run(sql`CREATE INDEX \`files_rels_frames_id_idx\` ON \`files_rels\` (\`frames_id\`);`)
   await db.run(sql`CREATE TABLE \`media_tags\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
@@ -672,18 +630,18 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   );
   `)
   await db.run(sql`CREATE UNIQUE INDEX \`page_tags_locales_locale_parent_id_unique\` ON \`page_tags_locales\` (\`_locale\`,\`_parent_id\`);`)
-  await db.run(sql`CREATE TABLE \`managers_permissions\` (
-  	\`_order\` integer NOT NULL,
-  	\`_parent_id\` integer NOT NULL,
-  	\`id\` text PRIMARY KEY NOT NULL,
-  	\`allowed_collection\` text,
-  	\`level\` text,
-  	\`locale\` text,
-  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`managers\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  await db.run(sql`CREATE TABLE \`managers_roles\` (
+  	\`order\` integer NOT NULL,
+  	\`parent_id\` integer NOT NULL,
+  	\`value\` text,
+  	\`locale\` text NOT NULL,
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	FOREIGN KEY (\`parent_id\`) REFERENCES \`managers\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
-  await db.run(sql`CREATE INDEX \`managers_permissions_order_idx\` ON \`managers_permissions\` (\`_order\`);`)
-  await db.run(sql`CREATE INDEX \`managers_permissions_parent_id_idx\` ON \`managers_permissions\` (\`_parent_id\`);`)
+  await db.run(sql`CREATE INDEX \`managers_roles_order_idx\` ON \`managers_roles\` (\`order\`);`)
+  await db.run(sql`CREATE INDEX \`managers_roles_parent_idx\` ON \`managers_roles\` (\`parent_id\`);`)
+  await db.run(sql`CREATE INDEX \`managers_roles_locale_idx\` ON \`managers_roles\` (\`locale\`);`)
   await db.run(sql`CREATE TABLE \`managers_sessions\` (
   	\`_order\` integer NOT NULL,
   	\`_parent_id\` integer NOT NULL,
@@ -698,8 +656,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE TABLE \`managers\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`name\` text NOT NULL,
-  	\`admin\` integer DEFAULT false,
-  	\`active\` integer DEFAULT true,
+  	\`current_project\` text,
+  	\`type\` text DEFAULT 'manager' NOT NULL,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`email\` text NOT NULL,
@@ -716,18 +674,30 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE INDEX \`managers_updated_at_idx\` ON \`managers\` (\`updated_at\`);`)
   await db.run(sql`CREATE INDEX \`managers_created_at_idx\` ON \`managers\` (\`created_at\`);`)
   await db.run(sql`CREATE UNIQUE INDEX \`managers_email_idx\` ON \`managers\` (\`email\`);`)
-  await db.run(sql`CREATE TABLE \`clients_permissions\` (
-  	\`_order\` integer NOT NULL,
-  	\`_parent_id\` integer NOT NULL,
-  	\`id\` text PRIMARY KEY NOT NULL,
-  	\`allowed_collection\` text,
-  	\`level\` text,
-  	\`locale\` text,
-  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`clients\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  await db.run(sql`CREATE TABLE \`managers_rels\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`order\` integer,
+  	\`parent_id\` integer NOT NULL,
+  	\`path\` text NOT NULL,
+  	\`pages_id\` integer,
+  	FOREIGN KEY (\`parent_id\`) REFERENCES \`managers\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`pages_id\`) REFERENCES \`pages\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
-  await db.run(sql`CREATE INDEX \`clients_permissions_order_idx\` ON \`clients_permissions\` (\`_order\`);`)
-  await db.run(sql`CREATE INDEX \`clients_permissions_parent_id_idx\` ON \`clients_permissions\` (\`_parent_id\`);`)
+  await db.run(sql`CREATE INDEX \`managers_rels_order_idx\` ON \`managers_rels\` (\`order\`);`)
+  await db.run(sql`CREATE INDEX \`managers_rels_parent_idx\` ON \`managers_rels\` (\`parent_id\`);`)
+  await db.run(sql`CREATE INDEX \`managers_rels_path_idx\` ON \`managers_rels\` (\`path\`);`)
+  await db.run(sql`CREATE INDEX \`managers_rels_pages_id_idx\` ON \`managers_rels\` (\`pages_id\`);`)
+  await db.run(sql`CREATE TABLE \`clients_roles\` (
+  	\`order\` integer NOT NULL,
+  	\`parent_id\` integer NOT NULL,
+  	\`value\` text,
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	FOREIGN KEY (\`parent_id\`) REFERENCES \`clients\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`clients_roles_order_idx\` ON \`clients_roles\` (\`order\`);`)
+  await db.run(sql`CREATE INDEX \`clients_roles_parent_idx\` ON \`clients_roles\` (\`parent_id\`);`)
   await db.run(sql`CREATE TABLE \`clients\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`name\` text NOT NULL,
@@ -1143,8 +1113,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`frames_id\` integer,
   	\`narrators_id\` integer,
   	\`authors_id\` integer,
-  	\`media_id\` integer,
-  	\`file_attachments_id\` integer,
+  	\`images_id\` integer,
+  	\`files_id\` integer,
   	\`media_tags_id\` integer,
   	\`meditation_tags_id\` integer,
   	\`music_tags_id\` integer,
@@ -1162,8 +1132,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	FOREIGN KEY (\`frames_id\`) REFERENCES \`frames\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`narrators_id\`) REFERENCES \`narrators\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`authors_id\`) REFERENCES \`authors\`(\`id\`) ON UPDATE no action ON DELETE cascade,
-  	FOREIGN KEY (\`media_id\`) REFERENCES \`media\`(\`id\`) ON UPDATE no action ON DELETE cascade,
-  	FOREIGN KEY (\`file_attachments_id\`) REFERENCES \`file_attachments\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`images_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`files_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`media_tags_id\`) REFERENCES \`media_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`meditation_tags_id\`) REFERENCES \`meditation_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`music_tags_id\`) REFERENCES \`music_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade,
@@ -1185,8 +1155,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_frames_id_idx\` ON \`payload_locked_documents_rels\` (\`frames_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_narrators_id_idx\` ON \`payload_locked_documents_rels\` (\`narrators_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_authors_id_idx\` ON \`payload_locked_documents_rels\` (\`authors_id\`);`)
-  await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_media_id_idx\` ON \`payload_locked_documents_rels\` (\`media_id\`);`)
-  await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_file_attachments_id_idx\` ON \`payload_locked_documents_rels\` (\`file_attachments_id\`);`)
+  await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_images_id_idx\` ON \`payload_locked_documents_rels\` (\`images_id\`);`)
+  await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_files_id_idx\` ON \`payload_locked_documents_rels\` (\`files_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_media_tags_id_idx\` ON \`payload_locked_documents_rels\` (\`media_tags_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_meditation_tags_id_idx\` ON \`payload_locked_documents_rels\` (\`meditation_tags_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_music_tags_id_idx\` ON \`payload_locked_documents_rels\` (\`music_tags_id\`);`)
@@ -1319,6 +1289,40 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE INDEX \`we_meditate_web_settings_rels_pages_id_idx\` ON \`we_meditate_web_settings_rels\` (\`pages_id\`);`)
   await db.run(sql`CREATE INDEX \`we_meditate_web_settings_rels_music_tags_id_idx\` ON \`we_meditate_web_settings_rels\` (\`music_tags_id\`);`)
   await db.run(sql`CREATE INDEX \`we_meditate_web_settings_rels_page_tags_id_idx\` ON \`we_meditate_web_settings_rels\` (\`page_tags_id\`);`)
+  await db.run(sql`CREATE TABLE \`we_meditate_app_settings\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`app_version\` text,
+  	\`updated_at\` text,
+  	\`created_at\` text
+  );
+  `)
+  await db.run(sql`CREATE TABLE \`we_meditate_app_settings_rels\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`order\` integer,
+  	\`parent_id\` integer NOT NULL,
+  	\`path\` text NOT NULL,
+  	\`meditations_id\` integer,
+  	\`lessons_id\` integer,
+  	FOREIGN KEY (\`parent_id\`) REFERENCES \`we_meditate_app_settings\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`meditations_id\`) REFERENCES \`meditations\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`lessons_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`we_meditate_app_settings_rels_order_idx\` ON \`we_meditate_app_settings_rels\` (\`order\`);`)
+  await db.run(sql`CREATE INDEX \`we_meditate_app_settings_rels_parent_idx\` ON \`we_meditate_app_settings_rels\` (\`parent_id\`);`)
+  await db.run(sql`CREATE INDEX \`we_meditate_app_settings_rels_path_idx\` ON \`we_meditate_app_settings_rels\` (\`path\`);`)
+  await db.run(sql`CREATE INDEX \`we_meditate_app_settings_rels_meditations_id_idx\` ON \`we_meditate_app_settings_rels\` (\`meditations_id\`);`)
+  await db.run(sql`CREATE INDEX \`we_meditate_app_settings_rels_lessons_id_idx\` ON \`we_meditate_app_settings_rels\` (\`lessons_id\`);`)
+  await db.run(sql`CREATE TABLE \`sahaj_atlas_settings\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`atlas_version\` text,
+  	\`default_map_center_latitude\` numeric DEFAULT 0 NOT NULL,
+  	\`default_map_center_longitude\` numeric DEFAULT 0 NOT NULL,
+  	\`default_zoom_level\` numeric DEFAULT 10,
+  	\`updated_at\` text,
+  	\`created_at\` text
+  );
+  `)
   await db.run(sql`CREATE TABLE \`payload_jobs_stats\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`stats\` text,
@@ -1328,7 +1332,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   `)
 }
 
-export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+export async function down({ db, payload: _payload, req: _req }: MigrateDownArgs): Promise<void> {
   await db.run(sql`DROP TABLE \`pages\`;`)
   await db.run(sql`DROP TABLE \`pages_locales\`;`)
   await db.run(sql`DROP TABLE \`pages_rels\`;`)
@@ -1358,11 +1362,11 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   await db.run(sql`DROP TABLE \`narrators\`;`)
   await db.run(sql`DROP TABLE \`authors\`;`)
   await db.run(sql`DROP TABLE \`authors_locales\`;`)
-  await db.run(sql`DROP TABLE \`media\`;`)
-  await db.run(sql`DROP TABLE \`media_locales\`;`)
-  await db.run(sql`DROP TABLE \`media_rels\`;`)
-  await db.run(sql`DROP TABLE \`file_attachments\`;`)
-  await db.run(sql`DROP TABLE \`file_attachments_rels\`;`)
+  await db.run(sql`DROP TABLE \`images\`;`)
+  await db.run(sql`DROP TABLE \`images_locales\`;`)
+  await db.run(sql`DROP TABLE \`images_rels\`;`)
+  await db.run(sql`DROP TABLE \`files\`;`)
+  await db.run(sql`DROP TABLE \`files_rels\`;`)
   await db.run(sql`DROP TABLE \`media_tags\`;`)
   await db.run(sql`DROP TABLE \`media_tags_locales\`;`)
   await db.run(sql`DROP TABLE \`meditation_tags\`;`)
@@ -1371,10 +1375,11 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   await db.run(sql`DROP TABLE \`music_tags_locales\`;`)
   await db.run(sql`DROP TABLE \`page_tags\`;`)
   await db.run(sql`DROP TABLE \`page_tags_locales\`;`)
-  await db.run(sql`DROP TABLE \`managers_permissions\`;`)
+  await db.run(sql`DROP TABLE \`managers_roles\`;`)
   await db.run(sql`DROP TABLE \`managers_sessions\`;`)
   await db.run(sql`DROP TABLE \`managers\`;`)
-  await db.run(sql`DROP TABLE \`clients_permissions\`;`)
+  await db.run(sql`DROP TABLE \`managers_rels\`;`)
+  await db.run(sql`DROP TABLE \`clients_roles\`;`)
   await db.run(sql`DROP TABLE \`clients\`;`)
   await db.run(sql`DROP TABLE \`clients_rels\`;`)
   await db.run(sql`DROP TABLE \`forms_blocks_checkbox\`;`)
@@ -1413,5 +1418,8 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   await db.run(sql`DROP TABLE \`payload_migrations\`;`)
   await db.run(sql`DROP TABLE \`we_meditate_web_settings\`;`)
   await db.run(sql`DROP TABLE \`we_meditate_web_settings_rels\`;`)
+  await db.run(sql`DROP TABLE \`we_meditate_app_settings\`;`)
+  await db.run(sql`DROP TABLE \`we_meditate_app_settings_rels\`;`)
+  await db.run(sql`DROP TABLE \`sahaj_atlas_settings\`;`)
   await db.run(sql`DROP TABLE \`payload_jobs_stats\`;`)
 }

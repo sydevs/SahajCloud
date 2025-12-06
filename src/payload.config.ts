@@ -8,7 +8,6 @@ import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
-// import sharp from 'sharp' // DISABLED: Incompatible with Cloudflare Workers - TODO: Migrate to Cloudflare Images (Phase 6)
 import { GetPlatformProxyOptions } from 'wrangler'
 
 import { roleBasedAccess } from '@/lib/accessControl'
@@ -27,10 +26,13 @@ const dirname = path.dirname(filename)
 
 const isTestEnvironment = process.env.NODE_ENV === 'test'
 const isProduction = process.env.NODE_ENV === 'production'
+const isCLI = process.argv.some((value) => value.match(/^(generate|migrate):?/))
 
-// Get Cloudflare context using Wrangler for local dev, or real bindings for production
+// Get Cloudflare context (following PayloadCMS official template pattern)
+// Development/CLI: Use wrangler's getPlatformProxy for local/remote bindings
+// Production Build: Use OpenNext's getCloudflareContext for build-time bindings
 const cloudflare =
-  process.argv.find((value) => value.match(/^(generate|migrate):?/)) || !isProduction
+  isCLI || !isProduction
     ? await getCloudflareContextFromWrangler()
     : await getCloudflareContext({ async: true })
 
@@ -39,6 +41,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
 
   return buildConfig({
     serverURL: serverUrl,
+    debug: true, // Enable verbose error logging for troubleshooting R2 uploads
     localization: {
       locales: LOCALES.map((l) => l.code),
       defaultLocale: DEFAULT_LOCALE,
@@ -125,12 +128,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
                 // No transportOptions - uses Ethereal Email in development
               }),
         }),
-    // sharp, // DISABLED: Incompatible with Cloudflare Workers - TODO: Migrate to Cloudflare Images (Phase 6)
     plugins: [
-      storagePlugin(), // Handles file storage
+      storagePlugin(cloudflare.env as Parameters<typeof storagePlugin>[0]), // Cloudflare-native file storage (Images, Stream, R2)
       seoPlugin({
         collections: ['pages'],
-        uploadsCollection: 'media',
+        uploadsCollection: 'images', // Changed from 'media' to 'images'
         generateTitle: ({ doc }) => `We Meditate — ${doc.title}`,
         generateDescription: ({ doc }) => doc.content,
         tabbedUI: true,
@@ -174,8 +176,8 @@ function getCloudflareContextFromWrangler(): Promise<CloudflareContext> {
     ({ getPlatformProxy }) =>
       getPlatformProxy({
         environment: process.env.CLOUDFLARE_ENV,
-        experimental: { remoteBindings: isProduction },
-      } as GetPlatformProxyOptions),
+        remoteBindings: isProduction,
+      } satisfies GetPlatformProxyOptions),
   )
 }
 

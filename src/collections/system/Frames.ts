@@ -1,6 +1,5 @@
 import type { CollectionConfig } from 'payload'
 
-import { FileAttachmentField } from '@/fields'
 import {
   claimOrphanFileAttachmentsHook,
   deleteFileAttachmentsHook,
@@ -8,13 +7,6 @@ import {
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { FRAME_CATEGORY_OPTIONS, GENDER_OPTIONS } from '@/lib/data'
-import {
-  convertFile,
-  processFile,
-  sanitizeFilename,
-  generateVideoThumbnailHook,
-  setPreviewUrlHook,
-} from '@/lib/fieldUtils'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 
 export const Frames: CollectionConfig = {
@@ -32,7 +24,6 @@ export const Frames: CollectionConfig = {
   upload: {
     staticDir: 'media/frames',
     hideRemoveFile: true,
-    adminThumbnail: 'small',
     mimeTypes: [
       // Images
       'image/jpeg',
@@ -43,20 +34,7 @@ export const Frames: CollectionConfig = {
       'video/mp4',
       'video/webm',
     ],
-    imageSizes: [
-      {
-        name: 'small',
-        width: 320,
-        height: 320,
-        position: 'centre',
-      },
-      {
-        name: 'large',
-        width: 1000,
-        height: 1000,
-        position: 'centre',
-      },
-    ],
+    // imageSizes removed - using Cloudflare Images flexible variants and Stream thumbnails
   },
   admin: {
     hidden: handleProjectVisibility(['wemeditate-app']),
@@ -66,23 +44,117 @@ export const Frames: CollectionConfig = {
     groupBy: true,
   },
   hooks: {
-    beforeOperation: [sanitizeFilename],
-    afterRead: [trackClientUsageHook, setPreviewUrlHook],
-    beforeValidate: [processFile({})],
-    beforeChange: [convertFile],
-    afterChange: [generateVideoThumbnailHook, claimOrphanFileAttachmentsHook],
+    // Removed: sanitizeFilename (not needed - Cloudflare provides unique IDs)
+    afterRead: [trackClientUsageHook],
+    // Removed: processFile, convertFile (Sharp processing)
+    // Removed: generateVideoThumbnailHook (FFmpeg processing)
+    // Removed: setPreviewUrlHook (replaced by thumbnailUrl virtual field)
+    afterChange: [
+      // Update database with adapter-updated filename (runs AFTER storage adapter)
+      async ({ req, doc, operation }) => {
+        // Only process on create operations with file uploads
+        if (operation !== 'create' || !req.file?.name) {
+          return
+        }
+
+        // Check if filename was updated by storage adapter
+        const adapterFilename = req.file.name
+        const dbFilename = doc.filename
+
+        if (adapterFilename !== dbFilename) {
+          // Filename was updated by adapter - update database record
+          await req.payload.update({
+            collection: 'frames',
+            id: doc.id,
+            data: {
+              filename: adapterFilename,
+            },
+          })
+        }
+      },
+      claimOrphanFileAttachmentsHook,
+    ],
     afterDelete: [deleteFileAttachmentsHook],
   },
   fields: [
     {
-      name: 'previewUrl',
+      name: 'thumbnailUrl',
       type: 'text',
       virtual: true,
+      hooks: {
+        afterRead: [
+          ({ data }) => {
+            if (!data?.filename) return undefined
+
+            if (data.mimeType?.startsWith('video/')) {
+              // Cloudflare Stream thumbnail
+              const deliveryUrl = process.env.CLOUDFLARE_STREAM_DELIVERY_URL
+              if (deliveryUrl) {
+                return `${deliveryUrl}/${data.filename}/thumbnails/thumbnail.jpg?height=320`
+              }
+              // Fallback to PayloadCMS static file serving for videos
+              return `/api/frames/file/${data.filename}`
+            } else if (data.mimeType?.startsWith('image/')) {
+              // Cloudflare Images thumbnail
+              const deliveryUrl = process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
+              if (deliveryUrl) {
+                return `${deliveryUrl}/${data.filename}/format=auto,width=320,height=320,fit=cover`
+              }
+              // Fallback to PayloadCMS static file serving for images
+              return `/api/frames/file/${data.filename}`
+            }
+            // Fallback for unknown MIME types
+            return `/api/frames/file/${data.filename}`
+          },
+        ],
+      },
       admin: {
         hidden: true,
         components: {
           Cell: '@/components/admin/ThumbnailCell',
         },
+      },
+    },
+    {
+      name: 'streamMp4Url',
+      type: 'text',
+      virtual: true,
+      hooks: {
+        afterRead: [
+          ({ data }) => {
+            if (data?.mimeType?.startsWith('video/') && data?.filename) {
+              // Cloudflare Stream MP4 download URL
+              const deliveryUrl = process.env.CLOUDFLARE_STREAM_DELIVERY_URL
+              if (deliveryUrl) {
+                return `${deliveryUrl}/${data.filename}/downloads/default.mp4`
+              }
+              // Fallback to PayloadCMS static file serving
+              return `/api/frames/file/${data.filename}`
+            }
+            return undefined
+          },
+        ],
+      },
+      admin: {
+        readOnly: true,
+        description: 'Direct MP4 URL for HTML5 video playback',
+        condition: (data) => data?.mimeType?.startsWith('video/'),
+      },
+    },
+    {
+      name: 'previewUrl',
+      type: 'text',
+      virtual: true,
+      hooks: {
+        afterRead: [
+          ({ data }) => {
+            // Use thumbnailUrl for preview (works for both images and videos)
+            return data?.thumbnailUrl
+          },
+        ],
+      },
+      admin: {
+        hidden: true,
       },
     },
     {
@@ -129,18 +201,8 @@ export const Frames: CollectionConfig = {
         { label: 'Tapping', value: 'tapping' },
       ],
     },
-    FileAttachmentField({
-      name: 'thumbnail',
-      required: false,
-      ownerCollection: 'frames',
-      fileType: 'image',
-      admin: {
-        readOnly: true,
-        description: 'Auto-generated thumbnail for video frames',
-        condition: (data) => data?.mimeType?.startsWith('video/'),
-      },
-    }),
     {
+      // Removed: thumbnail FileAttachmentField (replaced by thumbnailUrl virtual field from Cloudflare Stream)
       name: 'duration',
       type: 'number',
       hooks: {

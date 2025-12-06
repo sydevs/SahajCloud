@@ -45,7 +45,7 @@ export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
     try {
       // Find FileAttachments older than 24 hours with potential orphan conditions
       const orphanedFiles = await req.payload.find({
-        collection: 'file-attachments',
+        collection: 'files',
         where: {
           createdAt: {
             less_than: cutoffTime.toISOString(),
@@ -109,7 +109,7 @@ export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
         if (shouldDelete) {
           try {
             await req.payload.delete({
-              collection: 'file-attachments',
+              collection: 'files',
               id: fileAttachment.id,
             })
 

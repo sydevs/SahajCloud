@@ -124,7 +124,7 @@ const FramePreview: React.FC<FramePreviewProps> = ({
         {currentFrame?.url ? (
           isVideoFile(currentFrame.mimeType || undefined) ? (
             <video
-              src={currentFrame.url || ''}
+              src={currentFrame.streamMp4Url || currentFrame.url || ''}
               style={{
                 width: '100%',
                 height: '100%',

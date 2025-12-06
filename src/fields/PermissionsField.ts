@@ -24,8 +24,8 @@ export const MANAGER_ROLES: Record<ManagerRole, ManagerRoleConfig> = {
     project: 'wemeditate-app',
     permissions: {
       meditations: ['read', 'create', 'update'],
-      media: ['read', 'create'],
-      'file-attachments': ['read', 'create'],
+      images: ['read', 'create'],
+      files: ['read', 'create'],
     },
   },
   'path-editor': {
@@ -36,8 +36,8 @@ export const MANAGER_ROLES: Record<ManagerRole, ManagerRoleConfig> = {
     permissions: {
       lessons: ['read', 'update'],
       'external-videos': ['read', 'update'],
-      media: ['read', 'create'],
-      'file-attachments': ['read', 'create'],
+      images: ['read', 'create'],
+      files: ['read', 'create'],
     },
   },
   translator: {
@@ -66,8 +66,8 @@ export const CLIENT_ROLES: Record<ClientRole, ClientRoleConfig> = {
       meditations: ['read'],
       frames: ['read'],
       narrators: ['read'],
-      media: ['read'],
-      'file-attachments': ['read'],
+      images: ['read'],
+      files: ['read'],
       pages: ['read'],
       music: ['read'],
       forms: ['read'],
@@ -90,8 +90,8 @@ export const CLIENT_ROLES: Record<ClientRole, ClientRoleConfig> = {
       lessons: ['read'],
       'external-videos': ['read'],
       music: ['read'],
-      media: ['read'],
-      'file-attachments': ['read'],
+      images: ['read'],
+      files: ['read'],
       'meditation-tags': ['read'],
       'page-tags': ['read'],
       'music-tags': ['read'],
@@ -103,8 +103,8 @@ export const CLIENT_ROLES: Record<ClientRole, ClientRoleConfig> = {
     description: 'Access for Sahaj Atlas application',
     permissions: {
       'sahaj-atlas-settings': ['read'],
-      media: ['read'],
-      'file-attachments': ['read'],
+      images: ['read'],
+      files: ['read'],
     },
   },
 }

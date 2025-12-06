@@ -9,24 +9,20 @@ declare global {
       // Database
       DATABASE_URI?: string
 
-      // Cloudflare
+      // Cloudflare Services
       CLOUDFLARE_ACCOUNT_ID: string
-      CLOUDFLARE_STREAM_API_TOKEN?: string
+      CLOUDFLARE_API_KEY?: string // Unified API key for Images + Stream
+      CLOUDFLARE_IMAGES_DELIVERY_URL?: string // e.g., "https://imagedelivery.net/<hash>"
+      CLOUDFLARE_STREAM_DELIVERY_URL?: string // e.g., "https://customer-<code>.cloudflarestream.com"
+      CLOUDFLARE_R2_DELIVERY_URL?: string // e.g., "https://assets.sydevelopers.com"
 
-      // Email (SMTP)
+      // Email
+      RESEND_API_KEY?: string
       SMTP_HOST?: string
       SMTP_PORT?: string
       SMTP_USER?: string
       SMTP_PASS?: string
       SMTP_FROM?: string
-
-      // Storage (S3-compatible R2)
-      S3_ENDPOINT?: string
-      S3_ACCESS_KEY_ID?: string
-      S3_SECRET_ACCESS_KEY?: string
-      S3_BUCKET?: string
-      S3_REGION?: string
-      PUBLIC_ASSETS_URL?: string
 
       // Frontend URLs
       SAHAJCLOUD_URL?: string
