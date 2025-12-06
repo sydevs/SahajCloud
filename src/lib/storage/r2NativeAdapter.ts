@@ -9,8 +9,6 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
 import { logger } from '@/lib/logger'
 
-import { validateFileUpload } from './uploadValidation'
-
 /**
  * Configuration for R2 native storage adapter
  */
@@ -44,11 +42,6 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
 
     handleUpload: async ({ file }) => {
       try {
-        // Validate file before upload (audio and documents)
-        // Determine category based on MIME type
-        const category = file.mimeType.startsWith('audio/') ? 'audio' : 'document'
-        validateFileUpload(file, { category })
-
         const key = prefix ? `${prefix}/${file.filename}` : file.filename
 
         logger.info(`Uploading file to R2: ${key}`)
