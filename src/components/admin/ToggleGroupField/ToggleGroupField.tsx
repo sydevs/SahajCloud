@@ -5,12 +5,12 @@ import type { FieldClientComponent, SelectFieldClient } from 'payload'
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import React, { useEffect, useMemo } from 'react'
 
-import { ToggleButtonGroup, type ToggleButtonOption } from './ToggleButtonGroup'
+import { ToggleGroup, type ToggleGroupOption } from './ToggleGroup'
 
 /**
  * Toggle Group Field Component
  *
- * A PayloadCMS field component wrapper for ToggleButtonGroup that provides:
+ * A PayloadCMS field component wrapper for ToggleGroup that provides:
  * - Field state management via useField hook
  * - Label rendering with FieldLabel
  * - Error display with FieldError
@@ -18,7 +18,7 @@ import { ToggleButtonGroup, type ToggleButtonOption } from './ToggleButtonGroup'
  * - Automatic value initialization (uses defaultValue or first option)
  * - Proper field wrapper structure matching PayloadCMS SelectInput
  *
- * This component integrates the ToggleButtonGroup UI component into PayloadCMS's
+ * This component integrates the ToggleGroup UI component into PayloadCMS's
  * field system, following the exact markup structure as SelectInput.
  *
  * Features:
@@ -65,7 +65,7 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
 
   // Convert field options to ToggleButtonOption format
   // Handle both string and OptionObject formats
-  const options: ToggleButtonOption[] = useMemo(
+  const options: ToggleGroupOption[] = useMemo(
     () =>
       fieldOptions.map((opt) => {
         if (typeof opt === 'string') {
@@ -116,7 +116,7 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
 
-        <ToggleButtonGroup
+        <ToggleGroup
           value={value || ''}
           onChange={setValue}
           options={options}
