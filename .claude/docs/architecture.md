@@ -81,12 +81,60 @@ The application uses **Cloudflare-native storage services** for optimal performa
 - `src/app/(payload)/` - Payload CMS admin interface and API routes
 - `src/app/(frontend)/` - Public-facing Next.js pages
 
-## Sentry Integration Files
-- `src/instrumentation.ts` - Server-side Sentry instrumentation
-- `src/instrumentation-client.ts` - Client-side Sentry instrumentation
-- `src/sentry.server.config.ts` - Sentry server configuration
-- `src/sentry.edge.config.ts` - Sentry edge runtime configuration
-- `src/app/global-error.tsx` - Global error boundary with Sentry integration
+## Logging & Error Tracking
+
+The application uses **PayloadCMS's built-in Pino logger** for server-side logging and **Sentry** for error tracking, with a custom implementation optimized for Cloudflare Workers.
+
+### Log Level Configuration
+
+Both server-side and client-side logging are controlled by `NEXT_PUBLIC_LOG_LEVEL`:
+
+```bash
+# Levels: 'silent' | 'error' | 'warn' | 'info' | 'debug'
+NEXT_PUBLIC_LOG_LEVEL=info
+```
+
+- **silent**: No console output (errors still captured by Sentry)
+- **error**: Only errors
+- **warn**: Errors and warnings
+- **info**: Errors, warnings, and info messages (default for production)
+- **debug**: All messages including debug
+
+### Logging Patterns
+
+**Server-Side (Payload hooks, collections, adapters)**:
+```typescript
+// In hooks with req access
+req.payload.logger.info({ msg: 'Operation completed', documentId: doc.id })
+req.payload.logger.warn({ msg: 'Warning message', context: 'details' })
+req.payload.logger.error({ msg: 'Error occurred', error: error.message })
+
+// In adapters with payload access
+payload.logger.info({ msg: 'Adapter initialized' })
+```
+
+**Client-Side (React components)**:
+```typescript
+import { clientLogger } from '@/lib/clientLogger'
+
+clientLogger.error('Failed to load data', error, { componentId: '123' })
+clientLogger.warn('Unexpected state', { details: 'info' })
+```
+
+**Routes without Payload access**:
+```typescript
+// Use console.error with eslint-disable for critical errors only
+// eslint-disable-next-line no-console
+console.error('[Route Name] Error message:', { error: error.message })
+```
+
+### Sentry Integration
+
+- **Custom Plugin**: `src/lib/sentryPlugin.ts` - Cloudflare Workers-compatible Sentry plugin using `@sentry/cloudflare`
+- **Client Initialization**: `src/instrumentation-client.ts` - Browser-side Sentry via `@sentry/react` (Next.js instrumentation hook)
+- **Error Boundary**: `src/app/global-error.tsx` - React error boundary with Sentry reporting
+
+**Note**: The official `@payloadcms/plugin-sentry` is NOT used because it depends on `@sentry/nextjs` which is incompatible with Cloudflare Workers.
 
 ## Rich Text Editor Configuration
 

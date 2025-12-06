@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
 import { useProject } from '@/contexts/ProjectContext'
-import { logger } from '@/lib/logger'
+import { clientLogger } from '@/lib/clientLogger'
 import { PROJECTS, ProjectSlug } from '@/lib/projects'
 
 // Define Option type for ReactSelect
@@ -82,7 +82,7 @@ const ProjectSelector = () => {
       // Redirect to admin root to avoid viewing hidden collections
       startRouteTransition(() => router.push('/admin'))
     } catch (error) {
-      logger.error('Failed to update project:', error)
+      clientLogger.error('Failed to update project', error)
       toast.error('Failed to change project. Please try again.')
       // Revert to previous project
       setCurrentProject(previousProject)

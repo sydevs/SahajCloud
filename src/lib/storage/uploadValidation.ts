@@ -5,8 +5,6 @@
  * uploads conform to expected constraints.
  */
 
-import { logger } from '@/lib/logger'
-
 /**
  * File size limits in bytes
  */
@@ -63,11 +61,6 @@ export function validateFileUpload(
   if (effectiveMaxSize && file.buffer.length > effectiveMaxSize) {
     const sizeMB = (file.buffer.length / (1024 * 1024)).toFixed(2)
     const maxSizeMB = (effectiveMaxSize / (1024 * 1024)).toFixed(2)
-    logger.warn('File size validation failed', {
-      filename: file.filename,
-      size: sizeMB,
-      maxSize: maxSizeMB,
-    })
     throw new FileValidationError(
       `File size (${sizeMB} MB) exceeds maximum allowed size (${maxSizeMB} MB)`,
       'SIZE_EXCEEDED',
@@ -80,11 +73,6 @@ export function validateFileUpload(
 
   // Validate MIME type
   if (effectiveAllowedTypes && !(effectiveAllowedTypes as readonly string[]).includes(file.mimeType)) {
-    logger.warn('MIME type validation failed', {
-      filename: file.filename,
-      mimeType: file.mimeType,
-      allowedTypes: effectiveAllowedTypes,
-    })
     throw new FileValidationError(
       `File type '${file.mimeType}' is not allowed. Allowed types: ${(effectiveAllowedTypes as readonly string[]).join(', ')}`,
       'INVALID_MIME_TYPE',
@@ -93,13 +81,6 @@ export function validateFileUpload(
 
   // Basic file integrity check
   if (!file.buffer || file.buffer.length === 0) {
-    logger.warn('Empty file upload attempt', { filename: file.filename })
     throw new FileValidationError('File is empty or corrupted', 'INVALID_FILE')
   }
-
-  logger.debug('File validation passed', {
-    filename: file.filename,
-    size: file.buffer.length,
-    mimeType: file.mimeType,
-  })
 }

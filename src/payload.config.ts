@@ -14,6 +14,7 @@ import { roleBasedAccess } from '@/lib/accessControl'
 import { resendAdapter } from '@/lib/email/resendAdapter'
 import { LOCALES, DEFAULT_LOCALE } from '@/lib/locales'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
+import { sentryPlugin } from '@/lib/sentryPlugin'
 import { getServerUrl } from '@/lib/serverUrl'
 
 import { collections, Managers } from './collections'
@@ -42,6 +43,15 @@ const payloadConfig = (overrides?: Partial<Config>) => {
   return buildConfig({
     serverURL: serverUrl,
     debug: true, // Enable verbose error logging for troubleshooting R2 uploads
+    // Logger configuration - uses Pino under the hood
+    // Controlled by NEXT_PUBLIC_LOG_LEVEL: 'silent' | 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
+    ...(process.env.NEXT_PUBLIC_LOG_LEVEL && {
+      logger: {
+        options: {
+          level: process.env.NEXT_PUBLIC_LOG_LEVEL,
+        },
+      },
+    }),
     localization: {
       locales: LOCALES.map((l) => l.code),
       defaultLocale: DEFAULT_LOCALE,
@@ -129,6 +139,17 @@ const payloadConfig = (overrides?: Partial<Config>) => {
               }),
         }),
     plugins: [
+      sentryPlugin({
+        captureErrors: [400, 403, 404], // Capture additional error codes
+        debug: !isProduction,
+        context: ({ defaultContext, req }) => ({
+          ...defaultContext,
+          tags: {
+            ...defaultContext.tags,
+            locale: req.locale,
+          },
+        }),
+      }),
       storagePlugin(cloudflare.env as Parameters<typeof storagePlugin>[0]), // Cloudflare-native file storage (Images, Stream, R2)
       seoPlugin({
         collections: ['pages'],

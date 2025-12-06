@@ -1,7 +1,5 @@
 import type { TaskConfig } from 'payload'
 
-import { logger } from '@/lib/logger'
-
 export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
   retries: 2,
   label: 'Cleanup Orphaned File Attachments',
@@ -33,7 +31,8 @@ export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
     const cutoffTime = new Date()
     cutoffTime.setHours(cutoffTime.getHours() - gracePeriodHours)
 
-    logger.info('Starting orphaned file attachment cleanup', {
+    req.payload.logger.info({
+      msg: 'Starting orphaned file attachment cleanup',
       cutoffTime: cutoffTime.toISOString(),
       maxDeletions,
       gracePeriodHours,
@@ -55,12 +54,14 @@ export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
         depth: 0, // Don't populate relationships to avoid type issues
       })
 
-      logger.info(`Found ${orphanedFiles.docs.length} file attachments older than ${gracePeriodHours} hours`)
+      req.payload.logger.info({
+        msg: `Found ${orphanedFiles.docs.length} file attachments older than ${gracePeriodHours} hours`,
+      })
 
       for (const fileAttachment of orphanedFiles.docs) {
         // Stop if we've reached the deletion limit
         if (deletedCount >= maxDeletions) {
-          logger.info(`Reached maximum deletion limit of ${maxDeletions}, stopping cleanup`)
+          req.payload.logger.info({ msg: `Reached maximum deletion limit of ${maxDeletions}, stopping cleanup` })
           break
         }
 
@@ -114,14 +115,16 @@ export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
             })
 
             deletedCount++
-            logger.info(`Deleted orphaned file attachment ${fileAttachment.id}`, {
+            req.payload.logger.info({
+              msg: `Deleted orphaned file attachment ${fileAttachment.id}`,
               filename: fileAttachment.filename,
               reason,
               createdAt: fileAttachment.createdAt,
             })
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error)
-            logger.error(`Failed to delete file attachment ${fileAttachment.id}`, {
+            req.payload.logger.error({
+              msg: `Failed to delete file attachment ${fileAttachment.id}`,
               filename: fileAttachment.filename,
               error: errorMessage,
               reason,
@@ -133,7 +136,8 @@ export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
         }
       }
 
-      logger.info('Orphaned file attachment cleanup completed', {
+      req.payload.logger.info({
+        msg: 'Orphaned file attachment cleanup completed',
         deletedCount,
         skippedCount,
         totalProcessed: deletedCount + skippedCount,
@@ -147,7 +151,8 @@ export const CleanupOrphanedFiles: TaskConfig<'cleanupOrphanedFiles'> = {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
-      logger.error('Error during orphaned file attachment cleanup', {
+      req.payload.logger.error({
+        msg: 'Error during orphaned file attachment cleanup',
         error: errorMessage,
         deletedCount,
         skippedCount,

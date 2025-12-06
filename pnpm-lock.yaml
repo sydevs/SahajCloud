@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  '@payloadcms/storage-r2': 3.64.0
-
 importers:
 
   .:
