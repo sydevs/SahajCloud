@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 
 import { ProjectProvider } from '@/contexts/ProjectContext'
 
-import ProjectTheme from './admin/ProjectTheme'
+import ProjectTheme from './branding/ProjectTheme'
 import ErrorBoundary from './ErrorBoundary'
 
 interface AdminProviderProps {
@@ -23,16 +23,12 @@ const AdminErrorFallback = ({ error, reset }: { error: Error; reset: () => void 
       marginTop: '40px',
     }}
   >
-    <h1 style={{ color: '#dc3545', marginBottom: '20px' }}>
-      Admin Interface Error
-    </h1>
+    <h1 style={{ color: '#dc3545', marginBottom: '20px' }}>Admin Interface Error</h1>
     <p style={{ marginBottom: '20px', color: '#6c757d' }}>
       An unexpected error occurred in the admin interface. The error has been logged and reported.
     </p>
     <details style={{ marginBottom: '20px', textAlign: 'left' }}>
-      <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
-        Error Details
-      </summary>
+      <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Error Details</summary>
       <pre
         style={{
           backgroundColor: '#e9ecef',

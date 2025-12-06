@@ -2,15 +2,15 @@
 
 import React, { useRef } from 'react'
 
-export interface ToggleButtonOption {
+export interface ToggleGroupOption {
   label: string
   value: string
 }
 
-export interface ToggleButtonGroupProps {
+export interface ToggleGroupProps {
   value: string
   onChange: (value: string) => void
-  options: ToggleButtonOption[]
+  options: ToggleGroupOption[]
   readOnly?: boolean
   'aria-label'?: string
 }
@@ -32,7 +32,7 @@ export interface ToggleButtonGroupProps {
  *
  * @example
  * ```tsx
- * <ToggleButtonGroup
+ * <ToggleGroup
  *   value={selectedValue}
  *   onChange={setSelectedValue}
  *   options={[
@@ -42,7 +42,7 @@ export interface ToggleButtonGroupProps {
  * />
  * ```
  */
-export const ToggleButtonGroup: React.FC<ToggleButtonGroupProps> = ({
+export const ToggleGroup: React.FC<ToggleGroupProps> = ({
   value,
   onChange,
   options,
@@ -146,4 +146,4 @@ export const ToggleButtonGroup: React.FC<ToggleButtonGroupProps> = ({
   )
 }
 
-export default ToggleButtonGroup
+export default ToggleGroup
