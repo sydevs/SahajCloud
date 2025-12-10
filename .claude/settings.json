@@ -10,7 +10,8 @@
       "Bash(pnpm outdated:*)",
       "Bash(pnpm audit:*)",
       "Bash(npm outdated:*)",
-      "Bash(npm audit:*)"
+      "Bash(npm audit:*)",
+      "Bash(pnpm tsx migration:*)"
     ]
   },
   "hooks": {

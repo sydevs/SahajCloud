@@ -173,7 +173,7 @@ Configuration: `src/lib/richEditor.ts`
 
 ### Data Import & Migrations
 - See [migration/README.md](migration/README.md) for detailed documentation
-- Available: Storyblok Import, WeMeditate Import, Meditations Import
+- Available: Storyblok Import, WeMeditate Import, Meditations Import, Tags Import
 - All scripts support dry-run mode and comprehensive error handling
 
 ## Development Workflow

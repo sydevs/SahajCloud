@@ -311,3 +311,62 @@ import { TagSelector, TagSelectorField, type TagOption, type TagSelectorProps } 
 - Types should be exported alongside component
 - Component is registered in PayloadCMS config (needs default export)
 - Want clean imports without exposing internal file structure
+
+## Payload File Upload Pattern
+
+When programmatically uploading files to Payload CMS collections (upload collections like Media, Frames, or tag collections with SVG icons), use the buffer-based format:
+
+### Correct Format
+
+```typescript
+// ✅ DO: Use buffer-based object format
+const fileObject = {
+  data: Buffer.from(fileContent, 'utf-8'),  // or Buffer from binary data
+  mimetype: 'image/svg+xml',                 // appropriate MIME type
+  name: 'filename.svg',                      // filename with extension
+  size: buffer.length,                       // file size in bytes
+}
+
+await payload.create({
+  collection: 'meditation-tags',
+  data: { title: 'My Tag', slug: 'my-tag' },
+  file: fileObject,
+})
+```
+
+### Wrong Approach
+
+```typescript
+// ❌ DON'T: Use Web API File constructor
+const file = new File([blob], 'filename.svg', { type: 'image/svg+xml' })
+
+// This will fail with: "Expected the `input` argument to be of type
+// `Uint8Array` or `ArrayBuffer`, got `undefined`"
+```
+
+### Helper Function Example
+
+```typescript
+private createFileObject(
+  content: string | Buffer,
+  filename: string,
+  mimetype: string,
+): { data: Buffer; mimetype: string; name: string; size: number } {
+  const buffer = typeof content === 'string'
+    ? Buffer.from(content, 'utf-8')
+    : content
+  return {
+    data: buffer,
+    mimetype,
+    name: filename,
+    size: buffer.length,
+  }
+}
+```
+
+### Key Points
+- Payload expects Node.js Buffer, not Web API File/Blob
+- Always include `data`, `mimetype`, `name`, and `size` properties
+- For text files (SVG, JSON), use `Buffer.from(content, 'utf-8')`
+- For binary files, read with `fs.readFile()` which returns Buffer directly
+- This pattern works for all upload collections (Media, Frames, tag collections)
