@@ -337,12 +337,14 @@ class TagsImporter {
   }
 
   /**
-   * Convert hardcoded colors in SVG to currentColor for theming flexibility
+   * Convert ALL hardcoded colors in SVG to currentColor for theming flexibility
+   * Replaces both 6-digit (#RRGGBB) and 3-digit (#RGB) hex colors
    */
-  private convertToCurrentColor(svgContent: string, color: string): string {
-    // Create a case-insensitive regex to replace all instances of the color
-    const colorRegex = new RegExp(color.replace('#', '#?'), 'gi')
-    return svgContent.replace(colorRegex, 'currentColor')
+  private convertToCurrentColor(svgContent: string): string {
+    // Match both 6-digit and 3-digit hex colors (case-insensitive)
+    // The negative lookbehind (?<![\w]) prevents matching hex in URLs or other contexts
+    const hexColorRegex = /#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})(?![\w])/g
+    return svgContent.replace(hexColorRegex, 'currentColor')
   }
 
   /**
@@ -372,7 +374,7 @@ class TagsImporter {
         // Download and process SVG
         const cacheFilename = `meditation-${tag.slug}.svg`
         const originalSvg = await this.downloadSvg(tag.iconUrl, cacheFilename)
-        const processedSvg = this.convertToCurrentColor(originalSvg, tag.color)
+        const processedSvg = this.convertToCurrentColor(originalSvg)
 
         if (this.options.dryRun) {
           await this.logger.info(`[DRY RUN] Would import meditation tag: ${tag.title} (${tag.slug})`)
@@ -437,7 +439,7 @@ class TagsImporter {
         // Download and process SVG
         const cacheFilename = `music-${tag.slug}.svg`
         const originalSvg = await this.downloadSvg(tag.iconUrl, cacheFilename)
-        const processedSvg = this.convertToCurrentColor(originalSvg, tag.color)
+        const processedSvg = this.convertToCurrentColor(originalSvg)
 
         if (this.options.dryRun) {
           await this.logger.info(`[DRY RUN] Would import music tag: ${tag.title} (${tag.slug})`)
