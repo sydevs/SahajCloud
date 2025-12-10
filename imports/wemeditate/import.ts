@@ -45,8 +45,8 @@ import {
 // ============================================================================
 
 const IMPORT_TAG = 'import-wemeditate'
-const CACHE_DIR = path.resolve(process.cwd(), 'migration/cache/wemeditate')
-const DATA_BIN = path.resolve(process.cwd(), 'migration/wemeditate/data.bin')
+const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/wemeditate')
+const DATA_BIN = path.resolve(process.cwd(), 'imports/wemeditate/data.bin')
 
 const STORAGE_BASE_URL = 'https://assets.wemeditate.com/uploads/'
 

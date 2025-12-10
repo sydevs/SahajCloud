@@ -12,7 +12,7 @@ echo ""
 
 # Setup test database
 echo "📦 Initializing SQLite test database..."
-pnpm tsx migration/tests/setup-test-db.ts setup
+pnpm tsx imports/tests/setup-test-db.ts setup
 echo ""
 
 # Set test environment variables
@@ -22,8 +22,8 @@ export PAYLOAD_SECRET="test-secret-key-12345"
 export STORAGE_BASE_URL="https://storage.googleapis.com/test-bucket"
 
 # Check if data.bin exists
-if [ ! -f "migration/meditations/data.bin" ]; then
-    echo "⚠️  data.bin not found at migration/meditations/data.bin"
+if [ ! -f "imports/meditations/data.bin" ]; then
+    echo "⚠️  data.bin not found at imports/meditations/data.bin"
     echo "   This script requires a PostgreSQL dump file to test"
     echo "   Skipping tests that require data.bin"
     echo ""
@@ -37,7 +37,7 @@ fi
 echo "🧪 Test 1: Dry Run"
 echo "-------------------"
 if [ "$HAS_DATA_BIN" = true ]; then
-    pnpm tsx migration/meditations/import.ts --dry-run || {
+    pnpm tsx imports/meditations/import.ts --dry-run || {
         echo "❌ Dry run failed"
         exit 1
     }
@@ -50,7 +50,7 @@ echo ""
 echo "🧪 Test 2: Actual Import"
 echo "-------------------------"
 if [ "$HAS_DATA_BIN" = true ]; then
-    pnpm tsx migration/meditations/import.ts || {
+    pnpm tsx imports/meditations/import.ts || {
         echo "❌ Import failed"
         exit 1
     }
@@ -63,7 +63,7 @@ echo ""
 echo "🧪 Test 3: Reset and Re-import"
 echo "--------------------------------"
 if [ "$HAS_DATA_BIN" = true ]; then
-    pnpm tsx migration/meditations/import.ts --reset || {
+    pnpm tsx imports/meditations/import.ts --reset || {
         echo "❌ Reset and re-import failed"
         exit 1
     }
@@ -80,13 +80,13 @@ else
 fi
 echo ""
 echo "📊 Test database contains:"
-pnpm tsx migration/tests/check-db-stats.ts
+pnpm tsx imports/tests/check-db-stats.ts
 
 # Cleanup
 echo ""
 read -p "Clean up test database? (y/N) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    pnpm tsx migration/tests/setup-test-db.ts cleanup
+    pnpm tsx imports/tests/setup-test-db.ts cleanup
     echo "✓ Cleanup complete"
 fi

@@ -2,13 +2,13 @@
 
 ## Overview
 
-This document summarizes the comprehensive refactoring effort to standardize and improve the three import scripts in the `migration/` directory.
+This document summarizes the comprehensive refactoring effort to standardize and improve the three import scripts in the `imports/` directory.
 
 ## ✅ Completed Work
 
 ### Phase 1: Shared Utilities Enhancement
 
-#### 1. Logger Class (`migration/lib/logger.ts`)
+#### 1. Logger Class (`imports/lib/logger.ts`)
 **Changes**:
 - ✅ Added ANSI color code support
 - ✅ Added `LogOptions` interface with `color` field
@@ -25,7 +25,7 @@ await logger.info('Processing...')         // Cyan
 await logger.log('Custom', { color: 'blue' })
 ```
 
-#### 2. FileUtils Class (`migration/lib/fileUtils.ts`)
+#### 2. FileUtils Class (`imports/lib/fileUtils.ts`)
 **Changes**:
 - ✅ Added `getMimeType(filename)` method for extension detection
 - ✅ Removed unused `downloadFile()` method (http/https streams)
@@ -38,7 +38,7 @@ const mimeType = fileUtils.getMimeType('audio.mp3')  // 'audio/mpeg'
 const mimeType = fileUtils.getMimeType('image.webp') // 'image/webp'
 ```
 
-#### 3. Library Index (`migration/lib/index.ts`)
+#### 3. Library Index (`imports/lib/index.ts`)
 **Changes**:
 - ✅ Added `export * from './mediaDownloader'`
 - ✅ Added `export * from './lexicalConverter'`
@@ -46,14 +46,14 @@ const mimeType = fileUtils.getMimeType('image.webp') // 'image/webp'
 
 #### 4. StateManager Removed
 **Changes**:
-- ✅ **DELETED** `migration/lib/stateManager.ts`
+- ✅ **DELETED** `imports/lib/stateManager.ts`
 - ✅ Reason: Scripts no longer support resumability
 
 ---
 
 ### Phase 2: Storyblok Script Complete Refactor
 
-**File**: `migration/storyblok/import.ts` ✅ **COMPLETE**
+**File**: `imports/storyblok/import.ts` ✅ **COMPLETE**
 
 #### Structural Changes:
 1. **Removed StateManager**
@@ -132,7 +132,7 @@ const mimeType = fileUtils.getMimeType('image.webp') // 'image/webp'
 
 ### Phase 3: WeMeditate Script Refactoring
 
-**File**: `migration/wemeditate/import.ts` ✅ **COMPLETE**
+**File**: `imports/wemeditate/import.ts` ✅ **COMPLETE**
 
 **Status**: Fully refactored following the new pattern
 
@@ -152,7 +152,7 @@ const mimeType = fileUtils.getMimeType('image.webp') // 'image/webp'
 
 ### Phase 4: Meditations Script Refactoring
 
-**File**: `migration/meditations/import.ts` ✅ **COMPLETE**
+**File**: `imports/meditations/import.ts` ✅ **COMPLETE**
 
 **Status**: Fully refactored following the new pattern (completed 2025-01-16)
 
@@ -208,7 +208,7 @@ async run() {
 - `console.log(`✓ Created narrator: ${name}`)` → `await this.logger.log(`✓ Created narrator: ${name}`)`
 - `console.warn('⚠️  Missing field')` → `await this.logger.warn('Missing field')`
 
-**Test Result**: Log file at `migration/cache/meditations/import.log` shows proper Logger usage with timestamps:
+**Test Result**: Log file at `imports/cache/meditations/import.log` shows proper Logger usage with timestamps:
 ```
 [2025-10-16T18:21:11.476Z]     ✓ Created meditation with audio (narrator: female): Step 8: Spirit
 [2025-10-16T18:21:11.476Z]     ℹ️  Meditation Step 12: Self-mastery has 9 valid frames
@@ -250,18 +250,18 @@ async run() {
 ## Files Modified
 
 ### Completed ✅
-- `migration/lib/logger.ts` - Added color support
-- `migration/lib/fileUtils.ts` - Added getMimeType, removed unused method
-- `migration/lib/index.ts` - Updated exports
-- `migration/lib/stateManager.ts` - **DELETED**
-- `migration/storyblok/import.ts` - **Complete refactor**
+- `imports/lib/logger.ts` - Added color support
+- `imports/lib/fileUtils.ts` - Added getMimeType, removed unused method
+- `imports/lib/index.ts` - Updated exports
+- `imports/lib/stateManager.ts` - **DELETED**
+- `imports/storyblok/import.ts` - **Complete refactor**
 - `CLAUDE.md` - Updated with migration patterns
-- `migration/REFACTORING_GUIDE.md` - **NEW** - Detailed guide for remaining work
-- `migration/REFACTORING_SUMMARY.md` - **NEW** - This file
+- `imports/REFACTORING_GUIDE.md` - **NEW** - Detailed guide for remaining work
+- `imports/REFACTORING_SUMMARY.md` - **NEW** - This file
 
 ### Completed (After Initial Summary) ✅
-- `migration/wemeditate/import.ts` - **Complete refactor** (tested successfully with 97 records)
-- `migration/meditations/import.ts` - **Complete refactor** (tested successfully with 192 records)
+- `imports/wemeditate/import.ts` - **Complete refactor** (tested successfully with 97 records)
+- `imports/meditations/import.ts` - **Complete refactor** (tested successfully with 192 records)
 
 ---
 
@@ -272,10 +272,10 @@ async run() {
 #### 1. Storyblok Script
 ```bash
 # Dry run
-NODE_ENV=development npx tsx migration/storyblok/import.ts --dry-run --unit=1
+NODE_ENV=development npx tsx imports/storyblok/import.ts --dry-run --unit=1
 
 # Full import
-NODE_ENV=development npx tsx migration/storyblok/import.ts --reset --unit=1
+NODE_ENV=development npx tsx imports/storyblok/import.ts --reset --unit=1
 ```
 
 **Verify**:
@@ -289,10 +289,10 @@ NODE_ENV=development npx tsx migration/storyblok/import.ts --reset --unit=1
 #### 2. WeMediate Script
 ```bash
 # Dry run
-NODE_ENV=development npx tsx migration/wemeditate/import.ts --dry-run
+NODE_ENV=development npx tsx imports/wemeditate/import.ts --dry-run
 
 # Full import
-NODE_ENV=development npx tsx migration/wemeditate/import.ts --reset
+NODE_ENV=development npx tsx imports/wemeditate/import.ts --reset
 ```
 
 **Verify**:
@@ -302,10 +302,10 @@ NODE_ENV=development npx tsx migration/wemeditate/import.ts --reset
 #### 3. Meditations Script
 ```bash
 # Dry run
-NODE_ENV=development npx tsx migration/meditations/import.ts --dry-run
+NODE_ENV=development npx tsx imports/meditations/import.ts --dry-run
 
 # Full import
-NODE_ENV=development npx tsx migration/meditations/import.ts --reset
+NODE_ENV=development npx tsx imports/meditations/import.ts --reset
 ```
 
 **Verify**:
@@ -336,7 +336,7 @@ NODE_ENV=development npx tsx migration/meditations/import.ts --reset
 - Dry run validates before writing
 
 ### 4. Maintainability
-- Shared code in `migration/lib/`
+- Shared code in `imports/lib/`
 - Documented patterns in CLAUDE.md
 - Consistent structure across scripts
 - Easy to add new import scripts
@@ -469,7 +469,7 @@ A: Makes it easier to scan output and spot errors/warnings at a glance during lo
 The refactoring effort has successfully completed all planned work:
 - ✅ Standardized error handling across all three scripts
 - ✅ Removed state management complexity (deleted StateManager)
-- ✅ Created shared, reusable utilities in `migration/lib/`
+- ✅ Created shared, reusable utilities in `imports/lib/`
 - ✅ Comprehensive Logger integration across all scripts
 - ✅ Established clear patterns for future imports
 - ✅ All scripts tested and verified with production data imports

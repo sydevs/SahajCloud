@@ -62,25 +62,25 @@ This script uses a **dual-database architecture**:
 2. **Environment Variables**:
    - `PAYLOAD_SECRET` - Payload secret key
    - No `DATABASE_URI` needed - Payload database configured via `payload.config.ts`
-3. **Source Data**: `migration/wemeditate/data.bin` file must exist
+3. **Source Data**: `imports/wemeditate/data.bin` file must exist
 
 ### Commands
 
 ```bash
 # Dry run (validates setup without importing)
-npx tsx migration/wemeditate/import.ts --dry-run
+npx tsx imports/wemeditate/import.ts --dry-run
 
 # Full import
-npx tsx migration/wemeditate/import.ts
+npx tsx imports/wemeditate/import.ts
 
 # Reset all imported data and re-import
-npx tsx migration/wemeditate/import.ts --reset
+npx tsx imports/wemeditate/import.ts --reset
 
 # Resume interrupted import
-npx tsx migration/wemeditate/import.ts --resume
+npx tsx imports/wemeditate/import.ts --resume
 
 # Clear cache and start fresh
-npx tsx migration/wemeditate/import.ts --clear-cache --reset
+npx tsx imports/wemeditate/import.ts --clear-cache --reset
 ```
 
 ### Command Flags
@@ -142,7 +142,7 @@ Automatically created for each content type:
 ## File Organization
 
 ```
-migration/
+imports/
 ├── wemeditate/
 │   ├── import.ts              # Main import script
 │   ├── data.bin              # PostgreSQL dump (source data)
@@ -266,7 +266,7 @@ Complex content block transformation for the `content` field:
 
 ### Import Hangs or Fails
 
-1. Check the log file: `migration/cache/wemeditate/import.log`
+1. Check the log file: `imports/cache/wemeditate/import.log`
 2. Verify environment variables are set: `PAYLOAD_SECRET`
 3. Try with `--clear-cache --reset` to start fresh
 4. Ensure Wrangler D1 is working: check `.wrangler/state/v3/d1/` directory exists
@@ -276,7 +276,7 @@ Complex content block transformation for the `content` field:
 
 The import automatically saves state. To resume:
 ```bash
-npx tsx migration/wemeditate/import.ts --resume
+npx tsx imports/wemeditate/import.ts --resume
 ```
 
 ## Development
@@ -285,14 +285,14 @@ npx tsx migration/wemeditate/import.ts --resume
 
 ```bash
 # Test with dry run (doesn't initialize Payload)
-npx tsx migration/wemeditate/import.ts --dry-run
+npx tsx imports/wemeditate/import.ts --dry-run
 
 # Test with single content type (modify script to comment out others)
-npx tsx migration/wemeditate/import.ts
+npx tsx imports/wemeditate/import.ts
 
 # Inspect cached state
-cat migration/cache/wemeditate/import-state.json
-cat migration/cache/wemeditate/id-mappings.json
+cat imports/cache/wemeditate/import-state.json
+cat imports/cache/wemeditate/id-mappings.json
 ```
 
 ### Adding New Transformations

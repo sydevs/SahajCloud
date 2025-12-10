@@ -5,34 +5,34 @@
 ### Storyblok Import ✅ READY
 ```bash
 # Dry run (validate without writing)
-npx tsx migration/storyblok/import.ts --dry-run --unit=1
+npx tsx imports/storyblok/import.ts --dry-run --unit=1
 
 # Full import with reset
-npx tsx migration/storyblok/import.ts --reset
+npx tsx imports/storyblok/import.ts --reset
 
 # Import specific unit with clean cache
-npx tsx migration/storyblok/import.ts --clear-cache --unit=2
+npx tsx imports/storyblok/import.ts --clear-cache --unit=2
 ```
 
 ### WeMeditate Import ✅ READY
 ```bash
 # Dry run
-npx tsx migration/wemeditate/import.ts --dry-run
+npx tsx imports/wemeditate/import.ts --dry-run
 
 # Full import with reset
-npx tsx migration/wemeditate/import.ts --reset
+npx tsx imports/wemeditate/import.ts --reset
 
 # Clear cache and reset
-npx tsx migration/wemeditate/import.ts --clear-cache --reset
+npx tsx imports/wemeditate/import.ts --clear-cache --reset
 ```
 
 ### Meditations Import ✅ READY
 ```bash
 # Dry run
-npx tsx migration/meditations/import.ts --dry-run
+npx tsx imports/meditations/import.ts --dry-run
 
 # Full import with reset
-npx tsx migration/meditations/import.ts --reset
+npx tsx imports/meditations/import.ts --reset
 ```
 
 ---
@@ -279,7 +279,7 @@ pnpm generate:types
 
 ### Errors during import
 1. Check summary output for specific error messages
-2. Look at `migration/cache/{script-name}/import.log` for full details
+2. Look at `imports/cache/{script-name}/import.log` for full details
 3. Run with `--dry-run` to validate data first
 4. Use `--reset` to clear existing data if needed
 
@@ -296,7 +296,7 @@ dropdb temp_wemeditate_import
 ### Cache issues
 ```bash
 # Clear cache and try again
-npx tsx migration/storyblok/import.ts --clear-cache --reset
+npx tsx imports/storyblok/import.ts --clear-cache --reset
 ```
 
 ---
@@ -336,12 +336,12 @@ STORAGE_BASE_URL=https://your-cdn.com/uploads/
 
 1. **Always run dry-run first**
    ```bash
-   npx tsx migration/script/import.ts --dry-run
+   npx tsx imports/script/import.ts --dry-run
    ```
 
 2. **Use --reset for clean imports**
    ```bash
-   npx tsx migration/script/import.ts --reset
+   npx tsx imports/script/import.ts --reset
    ```
 
 3. **Check the summary output**
@@ -350,13 +350,13 @@ STORAGE_BASE_URL=https://your-cdn.com/uploads/
 
 4. **Review the log file**
    ```bash
-   tail -f migration/cache/{script-name}/import.log
+   tail -f imports/cache/{script-name}/import.log
    ```
 
 5. **Test with small datasets first**
    ```bash
    # Storyblok: Import just one unit
-   npx tsx migration/storyblok/import.ts --unit=1
+   npx tsx imports/storyblok/import.ts --unit=1
    ```
 
 ---
@@ -369,7 +369,7 @@ Use this template:
 import { Logger, FileUtils, TagManager, PayloadHelpers } from '../lib'
 
 const IMPORT_TAG = 'import-new-source'
-const CACHE_DIR = path.resolve(process.cwd(), 'migration/cache/new-source')
+const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/new-source')
 
 interface ScriptOptions {
   dryRun: boolean
@@ -436,6 +436,6 @@ class NewSourceImporter {
 
 ## Quick Links
 
-- **Refactoring Guide**: `migration/REFACTORING_GUIDE.md` - Detailed instructions for WeMediate and Meditations scripts
-- **Summary**: `migration/REFACTORING_SUMMARY.md` - Overview of completed and pending work
+- **Refactoring Guide**: `imports/REFACTORING_GUIDE.md` - Detailed instructions for WeMediate and Meditations scripts
+- **Summary**: `imports/REFACTORING_SUMMARY.md` - Overview of completed and pending work
 - **CLAUDE.md**: Main project documentation with migration patterns

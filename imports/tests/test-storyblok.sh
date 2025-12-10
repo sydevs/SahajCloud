@@ -11,7 +11,7 @@ echo ""
 
 # Setup test database
 echo "📦 Initializing SQLite test database..."
-pnpm tsx migration/tests/setup-test-db.ts setup
+pnpm tsx imports/tests/setup-test-db.ts setup
 echo ""
 
 # Set test environment variables
@@ -28,7 +28,7 @@ fi
 
 echo "🧪 Test 1: Dry Run"
 echo "-------------------"
-pnpm tsx migration/storyblok/import.ts --dry-run || {
+pnpm tsx imports/storyblok/import.ts --dry-run || {
     echo "❌ Dry run failed"
     exit 1
 }
@@ -37,7 +37,7 @@ echo ""
 
 echo "🧪 Test 2: Actual Import with Unit Filter"
 echo "-------------------------------------------"
-pnpm tsx migration/storyblok/import.ts --unit=1 || {
+pnpm tsx imports/storyblok/import.ts --unit=1 || {
     echo "❌ Import failed"
     exit 1
 }
@@ -46,7 +46,7 @@ echo ""
 
 echo "🧪 Test 3: Resume Import"
 echo "-------------------------"
-pnpm tsx migration/storyblok/import.ts --resume || {
+pnpm tsx imports/storyblok/import.ts --resume || {
     echo "❌ Resume failed"
     exit 1
 }
@@ -55,7 +55,7 @@ echo ""
 
 echo "🧪 Test 4: Reset and Re-import"
 echo "--------------------------------"
-pnpm tsx migration/storyblok/import.ts --reset --unit=1 || {
+pnpm tsx imports/storyblok/import.ts --reset --unit=1 || {
     echo "❌ Reset and re-import failed"
     exit 1
 }
@@ -65,13 +65,13 @@ echo ""
 echo "✅ All Storyblok tests passed!"
 echo ""
 echo "📊 Test database contains:"
-pnpm tsx migration/tests/check-db-stats.ts
+pnpm tsx imports/tests/check-db-stats.ts
 
 # Cleanup
 echo ""
 read -p "Clean up test database? (y/N) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    pnpm tsx migration/tests/setup-test-db.ts cleanup
+    pnpm tsx imports/tests/setup-test-db.ts cleanup
     echo "✓ Cleanup complete"
 fi

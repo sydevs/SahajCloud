@@ -11,7 +11,7 @@
  * - Updates existing tags on duplicate slugs
  *
  * Usage:
- *   npx tsx migration/tags/import.ts [flags]
+ *   npx tsx imports/tags/import.ts [flags]
  *
  * Flags:
  *   --dry-run      Validate data without writing to database
@@ -33,7 +33,7 @@ import { Logger, FileUtils } from '../lib'
 // ============================================================================
 
 const IMPORT_TAG = 'import-tags' // Tag for tracking imported documents
-const CACHE_DIR = path.resolve(process.cwd(), 'migration/cache/tags')
+const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/tags')
 
 // ============================================================================
 // TYPES

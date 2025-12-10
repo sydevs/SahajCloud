@@ -38,7 +38,7 @@ All import scripts MUST meet these requirements:
 
 ### Required Files
 ```
-migration/                          # Root-level migration directory
+imports/                          # Root-level migration directory
 ├── <source-name>/
 │   ├── import.ts                   # Main import script
 │   └── IMPORT.md                   # Documentation specific to this import
@@ -55,7 +55,7 @@ migration/                          # Root-level migration directory
 └── IMPORT_SCRIPT_TEMPLATE.md       # This template
 ```
 
-**Note:** The `migration/cache/` directory is git-ignored and contains all downloaded files and import state.
+**Note:** The `imports/cache/` directory is git-ignored and contains all downloaded files and import state.
 
 ## Script Structure Template
 
@@ -73,7 +73,7 @@ import * as path from 'path'
 // ============================================================================
 
 const IMPORT_TAG = 'import-<source-name>' // Tag for all imported documents and media
-const CACHE_DIR = path.resolve(process.cwd(), 'migration/cache/<source-name>')
+const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/<source-name>')
 const STATE_FILE = path.join(CACHE_DIR, 'import-state.json')
 const ID_MAPS_FILE = path.join(CACHE_DIR, 'id-mappings.json')
 const LOG_FILE = path.join(CACHE_DIR, 'import.log')
@@ -432,19 +432,19 @@ main().catch((error) => {
 
 ```bash
 # Dry run to preview
-pnpm tsx migration/<source>/import.ts --dry-run
+pnpm tsx imports/<source>/import.ts --dry-run
 
 # Full import
-pnpm tsx migration/<source>/import.ts
+pnpm tsx imports/<source>/import.ts
 
 # Reset and re-import everything
-pnpm tsx migration/<source>/import.ts --reset
+pnpm tsx imports/<source>/import.ts --reset
 
 # Resume interrupted import
-pnpm tsx migration/<source>/import.ts --resume
+pnpm tsx imports/<source>/import.ts --resume
 
 # Clear cache and start fresh
-pnpm tsx migration/<source>/import.ts --clear-cache --reset
+pnpm tsx imports/<source>/import.ts --clear-cache --reset
 ```
 
 ## Best Practices
@@ -610,13 +610,13 @@ Each import script must have a corresponding `IMPORT.md` file documenting:
 
 Refer to existing import scripts:
 
-1. **Storyblok Import** ([migration/storyblok/import.ts](migration/storyblok/import.ts))
+1. **Storyblok Import** ([imports/storyblok/import.ts](imports/storyblok/import.ts))
    - External API import
    - Complex data transformation
    - Lexical content conversion
    - Asset processing with Sharp
 
-2. **Meditation Import** ([migration/meditations/import.ts](migration/meditations/import.ts))
+2. **Meditation Import** ([imports/meditations/import.ts](imports/meditations/import.ts))
    - Database dump import
    - File migration from cloud storage
    - Relationship mapping

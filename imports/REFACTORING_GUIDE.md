@@ -23,12 +23,12 @@ This guide documents the refactoring work completed and provides detailed instru
    - Removed `stateManager` export
 
 4. **StateManager Removed** ✅
-   - Deleted `migration/lib/stateManager.ts`
+   - Deleted `imports/lib/stateManager.ts`
    - No longer needed - focus on clean reset instead of resumability
 
 ### Phase 2: Storyblok Script Refactoring
 
-**File**: `migration/storyblok/import.ts` ✅ COMPLETE
+**File**: `imports/storyblok/import.ts` ✅ COMPLETE
 
 Changes made:
 - ✅ Removed `StateManager` usage
@@ -46,7 +46,7 @@ Changes made:
 
 ### Phase 3: WeMeditate Script Refactoring ✅ COMPLETE
 
-**File**: `migration/wemeditate/import.ts`
+**File**: `imports/wemeditate/import.ts`
 
 **Status**: Refactoring completed and tested successfully on 2025-01-16
 
@@ -276,7 +276,7 @@ Do this for all collection creation methods.
 
 ### Phase 4: Meditations Script Refactoring ✅ COMPLETE
 
-**File**: `migration/meditations/import.ts`
+**File**: `imports/meditations/import.ts`
 
 **Status**: Refactoring completed and tested successfully on 2025-01-16
 
@@ -404,10 +404,10 @@ After completing all refactoring:
 ### Test Storyblok Script
 ```bash
 # 1. Dry run (should initialize Payload, validate data)
-NODE_ENV=development npx tsx migration/storyblok/import.ts --dry-run --unit=1
+NODE_ENV=development npx tsx imports/storyblok/import.ts --dry-run --unit=1
 
 # 2. Reset and import single unit
-NODE_ENV=development npx tsx migration/storyblok/import.ts --reset --unit=1
+NODE_ENV=development npx tsx imports/storyblok/import.ts --reset --unit=1
 
 # 3. Check summary output for errors/warnings
 ```
@@ -415,10 +415,10 @@ NODE_ENV=development npx tsx migration/storyblok/import.ts --reset --unit=1
 ### Test WeMediate Script
 ```bash
 # 1. Dry run
-NODE_ENV=development npx tsx migration/wemeditate/import.ts --dry-run
+NODE_ENV=development npx tsx imports/wemeditate/import.ts --dry-run
 
 # 2. Reset and full import
-NODE_ENV=development npx tsx migration/wemeditate/import.ts --reset
+NODE_ENV=development npx tsx imports/wemeditate/import.ts --reset
 
 # 3. Check summary output
 ```
@@ -426,10 +426,10 @@ NODE_ENV=development npx tsx migration/wemeditate/import.ts --reset
 ### Test Meditations Script
 ```bash
 # 1. Dry run
-NODE_ENV=development npx tsx migration/meditations/import.ts --dry-run
+NODE_ENV=development npx tsx imports/meditations/import.ts --dry-run
 
 # 2. Reset and import
-NODE_ENV=development npx tsx migration/meditations/import.ts --reset
+NODE_ENV=development npx tsx imports/meditations/import.ts --reset
 
 # 3. Check summary output
 ```
@@ -458,13 +458,13 @@ NODE_ENV=development npx tsx migration/meditations/import.ts --reset
 8. **Shared Utilities**: All scripts use lib/* utilities consistently
 
 ### Files Modified:
-- ✅ `migration/lib/logger.ts` - Added colors
-- ✅ `migration/lib/fileUtils.ts` - Added getMimeType, removed unused method
-- ✅ `migration/lib/index.ts` - Updated exports
-- ✅ `migration/lib/stateManager.ts` - **DELETED**
-- ✅ `migration/storyblok/import.ts` - Complete refactor
-- ⏳ `migration/wemeditate/import.ts` - Needs refactor
-- ⏳ `migration/meditations/import.ts` - Needs refactor
+- ✅ `imports/lib/logger.ts` - Added colors
+- ✅ `imports/lib/fileUtils.ts` - Added getMimeType, removed unused method
+- ✅ `imports/lib/index.ts` - Updated exports
+- ✅ `imports/lib/stateManager.ts` - **DELETED**
+- ✅ `imports/storyblok/import.ts` - Complete refactor
+- ⏳ `imports/wemeditate/import.ts` - Needs refactor
+- ⏳ `imports/meditations/import.ts` - Needs refactor
 
 ### Benefits:
 - Simpler codebase (no state management complexity)

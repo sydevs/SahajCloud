@@ -53,7 +53,7 @@ async function setupTestDatabase() {
 
     console.log('\n✓ Test database setup complete!')
     console.log('\nDatabase: In-memory SQLite (no persistence)')
-    console.log('Config: migration/tests/test-payload.config.ts')
+    console.log('Config: imports/tests/test-payload.config.ts')
 
     // Environment notes
     console.log('\n📝 For migration testing, set:')

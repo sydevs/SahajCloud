@@ -9,20 +9,20 @@ This directory contains import scripts for migrating content from external sourc
 ## Available Import Scripts
 
 ### 1. Storyblok Path Steps Import
-**Location**: [migration/storyblok/import.ts](storyblok/import.ts)
+**Location**: [imports/storyblok/import.ts](storyblok/import.ts)
 
 Migrates "Path Step" data from Storyblok CMS into Payload's Lessons collection.
 
 **Quick Start**:
 ```bash
 # Dry run validation
-npx tsx migration/storyblok/import.ts --dry-run --unit=1
+npx tsx imports/storyblok/import.ts --dry-run --unit=1
 
 # Import specific unit
-npx tsx migration/storyblok/import.ts --unit=1
+npx tsx imports/storyblok/import.ts --unit=1
 
 # Full import with reset
-npx tsx migration/storyblok/import.ts --reset
+npx tsx imports/storyblok/import.ts --reset
 ```
 
 **Features**:
@@ -37,17 +37,17 @@ npx tsx migration/storyblok/import.ts --reset
 - `PAYLOAD_SECRET` (required)
 
 ### 2. WeMeditate Rails Database Import
-**Location**: [migration/wemeditate/import.ts](wemeditate/import.ts)
+**Location**: [imports/wemeditate/import.ts](wemeditate/import.ts)
 
 Imports authors, categories, and pages (~160+ pages) from Rails-based WeMeditate PostgreSQL database across 9 locales.
 
 **Quick Start**:
 ```bash
 # Dry run
-npx tsx migration/wemeditate/import.ts --dry-run
+npx tsx imports/wemeditate/import.ts --dry-run
 
 # Full import
-npx tsx migration/wemeditate/import.ts --reset
+npx tsx imports/wemeditate/import.ts --reset
 ```
 
 **Features**:
@@ -63,36 +63,36 @@ npx tsx migration/wemeditate/import.ts --reset
 - PostgreSQL: Uses system defaults or `PGHOST`, `PGPORT`, `PGUSER`
 
 ### 3. Meditations Import
-**Location**: [migration/meditations/import.ts](meditations/import.ts)
+**Location**: [imports/meditations/import.ts](meditations/import.ts)
 
 Imports meditation content from legacy database.
 
 **Quick Start**:
 ```bash
 # Dry run
-npx tsx migration/meditations/import.ts --dry-run
+npx tsx imports/meditations/import.ts --dry-run
 
 # Full import
-npx tsx migration/meditations/import.ts --reset
+npx tsx imports/meditations/import.ts --reset
 ```
 
 **Documentation**: See [meditations/IMPORT.md](meditations/IMPORT.md) for details.
 
 ### 4. Meditation & Music Tags Import
-**Location**: [migration/tags/import.ts](tags/import.ts)
+**Location**: [imports/tags/import.ts](tags/import.ts)
 
 Imports MeditationTags (24 items) and MusicTags (4 items) from Cloudinary-hosted SVG assets with automatic color processing for theming.
 
 **Quick Start**:
 ```bash
 # Dry run validation
-npx tsx migration/tags/import.ts --dry-run
+npx tsx imports/tags/import.ts --dry-run
 
 # Full import (creates or updates existing)
-npx tsx migration/tags/import.ts
+npx tsx imports/tags/import.ts
 
 # Clean import with reset
-npx tsx migration/tags/import.ts --reset
+npx tsx imports/tags/import.ts --reset
 ```
 
 **Features**:
@@ -122,13 +122,13 @@ All import scripts support these flags:
 **Examples**:
 ```bash
 # Validate setup without importing
-npx tsx migration/{script}/import.ts --dry-run
+npx tsx imports/{script}/import.ts --dry-run
 
 # Clean import (deletes existing data)
-npx tsx migration/{script}/import.ts --reset
+npx tsx imports/{script}/import.ts --reset
 
 # Fresh start with cleared cache
-npx tsx migration/{script}/import.ts --clear-cache --reset
+npx tsx imports/{script}/import.ts --clear-cache --reset
 ```
 
 ---
@@ -160,7 +160,7 @@ Scripts are stateless - focus on clean reset and re-import rather than resuming 
 Initialize Payload and validate data structure without writing to database.
 
 ### 4. Shared Utilities
-Use common library code from `migration/lib/` for consistency:
+Use common library code from `imports/lib/` for consistency:
 - **Logger** (`logger.ts`) - Colored console output + file logging
 - **FileUtils** (`fileUtils.ts`) - File downloads, directory management
 - **TagManager** (`tagManager.ts`) - Tag creation and management
@@ -200,7 +200,7 @@ Proper cleanup of database connections and resources in finally blocks.
 ## File Organization
 
 ```
-migration/
+imports/
 ├── storyblok/
 │   ├── import.ts              # Storyblok import script
 │   └── README.md              # Storyblok documentation
@@ -314,7 +314,7 @@ pnpm generate:types
 ### Errors During Import
 
 1. Check summary output for specific error messages
-2. Look at `migration/cache/{script-name}/import.log` for full details
+2. Look at `imports/cache/{script-name}/import.log` for full details
 3. Run with `--dry-run` to validate data first
 4. Use `--reset` to clear existing data if needed
 
@@ -333,7 +333,7 @@ dropdb temp_wemeditate_import
 
 ```bash
 # Clear cache and try again
-npx tsx migration/{script}/import.ts --clear-cache --reset
+npx tsx imports/{script}/import.ts --clear-cache --reset
 ```
 
 ---
@@ -342,12 +342,12 @@ npx tsx migration/{script}/import.ts --clear-cache --reset
 
 1. **Always run dry-run first**:
    ```bash
-   npx tsx migration/script/import.ts --dry-run
+   npx tsx imports/script/import.ts --dry-run
    ```
 
 2. **Use --reset for clean imports**:
    ```bash
-   npx tsx migration/script/import.ts --reset
+   npx tsx imports/script/import.ts --reset
    ```
 
 3. **Check the summary output**:
@@ -356,13 +356,13 @@ npx tsx migration/{script}/import.ts --clear-cache --reset
 
 4. **Review the log file**:
    ```bash
-   tail -f migration/cache/{script-name}/import.log
+   tail -f imports/cache/{script-name}/import.log
    ```
 
 5. **Test with small datasets first**:
    ```bash
    # Storyblok: Import just one unit
-   npx tsx migration/storyblok/import.ts --unit=1
+   npx tsx imports/storyblok/import.ts --unit=1
    ```
 
 ---
@@ -375,7 +375,7 @@ Use the [IMPORT_SCRIPT_TEMPLATE.md](IMPORT_SCRIPT_TEMPLATE.md) as a starting poi
 - Single file architecture
 - Resilient error handling
 - Comprehensive dry run mode
-- Shared utilities from `migration/lib/`
+- Shared utilities from `imports/lib/`
 - Detailed reporting
 - Clean shutdown
 
@@ -389,10 +389,10 @@ Use the [IMPORT_SCRIPT_TEMPLATE.md](IMPORT_SCRIPT_TEMPLATE.md) as a starting poi
 
 ## Related Documentation
 
-- **Storyblok Import**: [migration/storyblok/README.md](storyblok/README.md)
-- **WeMeditate Import**: [migration/wemeditate/README.md](wemeditate/README.md)
-- **Meditations Import**: [migration/meditations/IMPORT.md](meditations/IMPORT.md)
-- **Tags Import**: [migration/tags/README.md](tags/README.md)
+- **Storyblok Import**: [imports/storyblok/README.md](storyblok/README.md)
+- **WeMeditate Import**: [imports/wemeditate/README.md](wemeditate/README.md)
+- **Meditations Import**: [imports/meditations/IMPORT.md](meditations/IMPORT.md)
+- **Tags Import**: [imports/tags/README.md](tags/README.md)
 - **Quick Reference**: [QUICK_REFERENCE.md](QUICK_REFERENCE.md)
 - **Import Template**: [IMPORT_SCRIPT_TEMPLATE.md](IMPORT_SCRIPT_TEMPLATE.md)
 - **Main Project Docs**: [CLAUDE.md](../CLAUDE.md)

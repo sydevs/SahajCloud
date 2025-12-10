@@ -162,16 +162,18 @@ The application uses Lexical editor with two configuration presets:
 
 Configuration located in `src/lib/richEditor.ts`
 
-## Data Import & Migrations
+## Data Import Scripts
 
-The system includes import scripts for migrating content from external sources into Payload CMS.
+The system includes import scripts for importing content from external sources into Payload CMS.
 
-**For detailed migration documentation, usage examples, and troubleshooting**, see [migration/README.md](../../migration/README.md).
+**For detailed import documentation, usage examples, and troubleshooting**, see [imports/README.md](../../imports/README.md).
 
 **Available Import Scripts**:
-- **Storyblok Import** - Migrates Path Steps from Storyblok CMS to Lessons collection
+- **Storyblok Import** - Imports Path Steps from Storyblok CMS to Lessons collection
 - **WeMeditate Import** - Imports authors, categories, and pages from Rails PostgreSQL database
 - **Meditations Import** - Imports meditation content from legacy database
 - **Tags Import** - Imports MeditationTags and MusicTags from Cloudinary SVG assets with automatic color processing
 
 All scripts follow consistent patterns: resilient error handling, comprehensive dry-run mode, shared utilities, and detailed reporting.
+
+**Note**: Database schema migrations are handled separately in `src/migrations/` using PayloadCMS's built-in migration system.

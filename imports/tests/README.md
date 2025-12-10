@@ -29,7 +29,7 @@ Migration scripts use **TWO different databases**:
 ## Test Database
 
 - **Type**: In-memory SQLite (via `better-sqlite3`)
-- **Configuration**: `migration/tests/test-payload.config.ts`
+- **Configuration**: `imports/tests/test-payload.config.ts`
 - **Purpose**: Fast, isolated testing environment for migration scripts
 - **Persistence**: None - database is destroyed when script ends
 
@@ -39,20 +39,20 @@ Migration scripts use **TWO different databases**:
 
 ```bash
 # Setup test database (initializes in-memory SQLite)
-pnpm tsx migration/tests/setup-test-db.ts setup
+pnpm tsx imports/tests/setup-test-db.ts setup
 
 # Cleanup test database (automatic for in-memory, no action needed)
-pnpm tsx migration/tests/setup-test-db.ts cleanup
+pnpm tsx imports/tests/setup-test-db.ts cleanup
 ```
 
 ### Check Database Stats
 
 ```bash
 # View collection counts and import tags
-pnpm tsx migration/tests/check-db-stats.ts
+pnpm tsx imports/tests/check-db-stats.ts
 
 # View detailed tag information
-pnpm tsx migration/tests/check-tags.ts
+pnpm tsx imports/tests/check-tags.ts
 ```
 
 ### Test Runners
@@ -61,15 +61,15 @@ pnpm tsx migration/tests/check-tags.ts
 
 ```bash
 # Run all storyblok tests
-./migration/tests/test-storyblok.sh
+./imports/tests/test-storyblok.sh
 
 # Manual test with environment variables
 export PAYLOAD_SECRET="test-secret-key-12345"
 export STORYBLOK_ACCESS_TOKEN="your_token_here"
 
-pnpm tsx migration/storyblok/import.ts --dry-run
-pnpm tsx migration/storyblok/import.ts --unit=1
-pnpm tsx migration/storyblok/import.ts --reset
+pnpm tsx imports/storyblok/import.ts --dry-run
+pnpm tsx imports/storyblok/import.ts --unit=1
+pnpm tsx imports/storyblok/import.ts --reset
 ```
 
 **Notes**:
@@ -81,19 +81,19 @@ pnpm tsx migration/storyblok/import.ts --reset
 
 ```bash
 # Run all meditations tests
-./migration/tests/test-meditations.sh
+./imports/tests/test-meditations.sh
 
 # Manual test with environment variables
 export PAYLOAD_SECRET="test-secret-key-12345"
 export STORAGE_BASE_URL="https://storage.googleapis.com/test-bucket"
 
-pnpm tsx migration/meditations/import.ts --dry-run
-pnpm tsx migration/meditations/import.ts
-pnpm tsx migration/meditations/import.ts --reset
+pnpm tsx imports/meditations/import.ts --dry-run
+pnpm tsx imports/meditations/import.ts
+pnpm tsx imports/meditations/import.ts --reset
 ```
 
 **Notes**:
-- Meditations import requires `migration/meditations/data.bin` (PostgreSQL dump file)
+- Meditations import requires `imports/meditations/data.bin` (PostgreSQL dump file)
 - Source data: PostgreSQL temporary database (created from `data.bin`)
 - Target database: SQLite (via Payload config)
 - Requires PostgreSQL installed for reading source data
@@ -203,27 +203,27 @@ Media with tags: 14
 
 ```bash
 # 1. Setup test database (initializes in-memory SQLite)
-pnpm tsx migration/tests/setup-test-db.ts setup
+pnpm tsx imports/tests/setup-test-db.ts setup
 
 # 2. Test meditations import
 export PAYLOAD_SECRET="test-secret-key-12345"
 export STORAGE_BASE_URL="https://storage.googleapis.com/test-bucket"
 
 # Dry run
-pnpm tsx migration/meditations/import.ts --dry-run
+pnpm tsx imports/meditations/import.ts --dry-run
 
 # Full import
-pnpm tsx migration/meditations/import.ts
+pnpm tsx imports/meditations/import.ts
 
 # Check results
-pnpm tsx migration/tests/check-db-stats.ts
-pnpm tsx migration/tests/check-tags.ts
+pnpm tsx imports/tests/check-db-stats.ts
+pnpm tsx imports/tests/check-tags.ts
 
 # Test reset
-pnpm tsx migration/meditations/import.ts --reset
+pnpm tsx imports/meditations/import.ts --reset
 
 # 3. Cleanup (automatic for in-memory SQLite)
-pnpm tsx migration/tests/setup-test-db.ts cleanup
+pnpm tsx imports/tests/setup-test-db.ts cleanup
 ```
 
 ## Notes
@@ -231,7 +231,7 @@ pnpm tsx migration/tests/setup-test-db.ts cleanup
 - **SQLite (Payload)**: Configured automatically via Wrangler D1 (dev/prod) or in-memory (tests)
 - **PostgreSQL (Source Data)**: Required only for meditations and wemeditate imports
 - **No MongoDB**: System no longer uses MongoDB
-- **Git Ignored**: `/migration/cache` contains downloaded files and is preserved between runs
+- **Git Ignored**: `/imports/cache` contains downloaded files and is preserved between runs
 - **Payload Secret**: Test secret is `test-secret-key-12345` (not secure, testing only)
 
 ## Troubleshooting
@@ -246,7 +246,7 @@ pnpm tsx migration/tests/setup-test-db.ts cleanup
 - Set the token if you have access: `export STORYBLOK_ACCESS_TOKEN=your_token`
 
 ### "data.bin not found"
-- Place your PostgreSQL dump at `migration/meditations/data.bin`
+- Place your PostgreSQL dump at `imports/meditations/data.bin`
 - Or skip meditations tests if you don't have the dump
 
 ### "Better SQLite build errors"

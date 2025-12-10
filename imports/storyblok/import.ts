@@ -22,7 +22,7 @@ import type { CollectionSlug, Payload } from 'payload'
 import { Logger, FileUtils, TagManager, MediaUploader } from '../lib'
 
 const IMPORT_TAG = 'import-storyblok' // Tag for all imported documents and media
-const CACHE_DIR = path.resolve(process.cwd(), 'migration/cache/storyblok')
+const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/storyblok')
 
 interface StoryblokStory {
   id: number

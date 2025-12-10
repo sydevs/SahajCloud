@@ -47,17 +47,17 @@ PAYLOAD_SECRET=your-secret-key
 
 2. **Ensure PostgreSQL is available** (for temp database creation)
 
-3. **Place your dump file** at `migration/meditations/data.bin`
+3. **Place your dump file** at `imports/meditations/data.bin`
 
 ## Usage
 
 ```bash
 # Run the simplified import
-pnpm tsx migration/meditations/import.ts
+pnpm tsx imports/meditations/import.ts
 
 # With flags
-pnpm tsx migration/meditations/import.ts --dry-run
-pnpm tsx migration/meditations/import.ts --reset
+pnpm tsx imports/meditations/import.ts --dry-run
+pnpm tsx imports/meditations/import.ts --reset
 ```
 
 ## What Gets Imported

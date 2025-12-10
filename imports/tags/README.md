@@ -18,16 +18,16 @@ This script imports MeditationTags (24 items) and MusicTags (4 items) from Cloud
 
 ```bash
 # Dry run - validate without writing to database
-npx tsx migration/tags/import.ts --dry-run
+npx tsx imports/tags/import.ts --dry-run
 
 # Full import - creates new tags, updates existing ones
-npx tsx migration/tags/import.ts
+npx tsx imports/tags/import.ts
 
 # Clean import - delete all existing tags first
-npx tsx migration/tags/import.ts --reset
+npx tsx imports/tags/import.ts --reset
 
 # Fresh start - clear cache and reset
-npx tsx migration/tags/import.ts --clear-cache --reset
+npx tsx imports/tags/import.ts --clear-cache --reset
 ```
 
 ## Command Flags
@@ -66,7 +66,7 @@ Running the script multiple times is safe:
 
 ### Local Caching
 
-Downloaded SVGs are cached locally in `migration/cache/tags/assets/`:
+Downloaded SVGs are cached locally in `imports/cache/tags/assets/`:
 - `meditation-{slug}.svg` - Original SVG files from Cloudinary
 - `music-{slug}.svg` - Original SVG files from Cloudinary
 
@@ -111,7 +111,7 @@ PAYLOAD_SECRET=your-secret-key
 ## File Structure
 
 ```
-migration/
+imports/
 ├── tags/
 │   ├── import.ts       # Main import script
 │   └── README.md       # This file
