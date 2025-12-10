@@ -16,7 +16,7 @@ export default defineConfig({
     environment: 'node', // Use Node environment for better Buffer/Uint8Array handling
     setupFiles: ['./vitest.setup.ts'],
     globalSetup: ['./tests/setup/globalSetup.ts'],
-    include: ['tests/int/**/*.int.spec.ts'],
+    include: ['tests/int/**/*.int.spec.ts', 'imports/**/*.test.ts'],
     // Ensure tests run sequentially to avoid database conflicts
     pool: 'forks', // Use forks instead of threads to avoid realm issues
     maxConcurrency: 1,

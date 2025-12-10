@@ -250,7 +250,7 @@ class StoryblokImporter {
     }
 
     const attachment = await this.payload.create({
-      collection: 'file-attachments',
+      collection: 'files',
       data,
       file: {
         data: fileBuffer,
@@ -270,7 +270,7 @@ class StoryblokImporter {
     ownerId: number | string,
   ): Promise<void> {
     await this.payload.update({
-      collection: 'file-attachments',
+      collection: 'files',
       id: attachmentId,
       data: {
         owner: {

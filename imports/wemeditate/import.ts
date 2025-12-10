@@ -374,13 +374,12 @@ class WeMeditateImporter {
         } else {
           // Create new tag
           const newTag = await this.payload.create({
-            collection: 'music-tags',
+            collection: 'music-tags' as const,
             data: {
-              name: tagName,
               title: tagName.charAt(0).toUpperCase() + tagName.slice(1),
-            },
+            } as any,
           })
-          tagIds.push(newTag.id as string)
+          tagIds.push(String(newTag.id))
           await this.logger.log(`✓ Created music tag: ${tagName}`)
         }
       } catch (error: any) {
@@ -582,11 +581,10 @@ class WeMeditateImporter {
 
         // Create page tag with English locale
         const tagDoc = await this.payload.create({
-          collection: 'page-tags',
+          collection: 'page-tags' as const,
           data: {
-            name: localizedData['en'].name,
             title: localizedData['en'].title,
-          },
+          } as any,
           locale: 'en',
         })
 
@@ -619,20 +617,19 @@ class WeMeditateImporter {
     for (const [sourceType, tagName] of Object.entries(CONTENT_TYPE_TAGS)) {
       try {
         const tagDoc = await this.payload.create({
-          collection: 'page-tags',
+          collection: 'page-tags' as const,
           data: {
-            name: tagName,
             title: tagName,
-          },
+          } as any,
         })
 
-        this.contentTypeTagMap.set(`content-type-tag-${tagName}`, tagDoc.id as string)
+        this.contentTypeTagMap.set(`content-type-tag-${tagName}`, String(tagDoc.id))
         await this.logger.log(`✓ Created content type tag: ${tagName}`)
       } catch (error: any) {
         // Tag might already exist
         const existing = await this.payload.find({
-          collection: 'page-tags',
-          where: { name: { equals: tagName } },
+          collection: 'page-tags' as const,
+          where: { title: { equals: tagName } },
         })
         if (existing.docs.length > 0) {
         }
