@@ -90,8 +90,13 @@ pnpm run import wemeditate --reset
 
 Imports meditation content from legacy database.
 
+**Prerequisites**: Run `pnpm run import tags` first - meditations import maps legacy tags to predefined tags by slug.
+
 **Quick Start**:
 ```bash
+# First, import predefined tags (required)
+pnpm run import tags
+
 # Dry run
 pnpm run import meditations --dry-run
 

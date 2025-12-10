@@ -81,6 +81,133 @@ interface ImportedData {
 // Configuration constants
 const IMPORT_TAG = 'import-meditations' // Tag for all imported documents and media
 
+// ============================================================================
+// TAG MAPPING CONSTANTS
+// ============================================================================
+// Maps legacy tag names from PostgreSQL to predefined tag slugs from imports/tags/import.ts
+// These mappings ensure meditations use the same tags that the tags import script creates
+
+const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
+  // Morning states
+  'excited for the day': 'excited-today',
+  'excited': 'excited-today',
+  'morning': 'excited-today',
+
+  // Stress states
+  'stressed and tense': 'stressed-tense',
+  'stressed': 'feel-stressed',
+  'feel stressed': 'feel-stressed',
+  "can't let go of the day": 'stressed-tense',
+  'tense': 'stressed-tense',
+
+  // Sad/down states
+  'sad': 'emotionally-down',
+  'emotionally down': 'emotionally-down',
+  'sad, emotionally down': 'emotionally-down',
+
+  // Tired/lethargic states
+  "can't wake up": 'feeling-lethargic',
+  'lethargic': 'feeling-lethargic',
+  "can't wake up, lethargic": 'feeling-lethargic',
+  'tired': 'tired-overwhelmed',
+  'tired and overwhelmed': 'tired-overwhelmed',
+  'exhausted': 'feel-exhausted',
+  'feel exhausted': 'feel-exhausted',
+
+  // Focus issues
+  'hard to focus': 'hard-to-focus',
+  'too many thoughts': 'hard-to-focus',
+  'too many thoughts, hard to focus': 'hard-to-focus',
+
+  // Guilt/regret
+  'guilty': 'guilty-regretful',
+  'regretful': 'guilty-regretful',
+  'feel guilty': 'guilty-regretful',
+  'feel guilty and regretful': 'guilty-regretful',
+
+  // Motivation
+  'demotivated': 'demotivated-uninspired',
+  'uninspired': 'demotivated-uninspired',
+  'demotivated, uninspired': 'demotivated-uninspired',
+
+  // Relaxation
+  'want to unwind': 'want-to-unwind',
+  'unwind': 'want-to-unwind',
+  'feel fine, just want to unwind': 'want-to-unwind',
+
+  // Loneliness
+  'lonely': 'feel-lonely',
+  'feel lonely': 'feel-lonely',
+
+  // Restlessness
+  'restless': 'restless-thoughts',
+  'restless, too many thoughts': 'restless-thoughts',
+
+  // Mind racing
+  'mind racing': 'mind-racing',
+  "mind is racing, can't relax": 'mind-racing',
+  "can't relax": 'mind-racing',
+
+  // Reconnection
+  'reconnect': 'want-to-reconnect',
+  'want to reconnect': 'want-to-reconnect',
+  'fine, just want to reconnect': 'want-to-reconnect',
+
+  // Agitation
+  'wired': 'wired-agitated',
+  'agitated': 'wired-agitated',
+  'wired and agitated': 'wired-agitated',
+
+  // Self-esteem
+  'insecure': 'low-self-esteem',
+  'low self esteem': 'low-self-esteem',
+  'feel insecure': 'low-self-esteem',
+  'feel insecure, lacking self esteem': 'low-self-esteem',
+
+  // Positive states
+  'feeling good': 'feeling-good',
+  'great day': 'feeling-good',
+  'had a great day': 'feeling-good',
+  'had a great day, feeling good!': 'feeling-good',
+
+  // Anxiety
+  'anxious': 'anxious-overwhelmed',
+  'overwhelmed': 'anxious-overwhelmed',
+  'feel anxious': 'anxious-overwhelmed',
+  'feel anxious and overwhelmed': 'anxious-overwhelmed',
+
+  // Anger
+  'angry': 'feel-angry',
+  'feel angry': 'feel-angry',
+
+  // Neutral/fine states
+  'fine': 'feeling-fine',
+  'feeling fine': 'feeling-fine',
+
+  // Energy boost
+  'low energy': 'need-energy-boost',
+  'need a boost': 'need-energy-boost',
+  'low on energy': 'need-energy-boost',
+  'low on energy, need a boost': 'need-energy-boost',
+
+  // Pause/reset
+  'need to pause': 'need-to-pause',
+  'overwhelmed, need to pause': 'need-to-pause',
+
+  // Spiritual
+  'spiritual': 'spiritual-experience',
+  'deeper experience': 'spiritual-experience',
+  'seeking deeper spiritual experience': 'spiritual-experience',
+}
+
+const LEGACY_TO_MUSIC_TAG_SLUG: Record<string, string> = {
+  'nature': 'nature',
+  'flute': 'flute',
+  'none': 'none',
+  'silence': 'none',
+  'strings': 'strings',
+}
+
 class SimpleImporter {
   private payload!: Payload
   private logger!: Logger
@@ -901,7 +1028,7 @@ class SimpleImporter {
   }
 
   private async importTags(tags: ImportedData['tags']) {
-    await this.logger.log('\nImporting tags...')
+    await this.logger.log('\nMapping legacy tags to predefined tags...')
 
     // First, we need to determine which tags are used for meditations vs music
     // by examining the taggings table
@@ -925,75 +1052,106 @@ class SimpleImporter {
     await this.logger.log(`    ℹ️  Found ${meditationTagIds.size} unique tags used by meditations`)
     await this.logger.log(`    ℹ️  Found ${musicTagIds.size} unique tags used by music`)
 
-    // Load all existing tags to avoid duplicates
+    // Load all existing tags (created by imports/tags/import.ts)
     const [existingMeditationTags, existingMusicTags] = await Promise.all([
       this.payload.find({ collection: 'meditation-tags', limit: 1000 }),
       this.payload.find({ collection: 'music-tags', limit: 1000 }),
     ])
 
-    // Build maps of existing tags by title
-    const existingMeditationByTitle = new Map<string, any>()
-    const existingMusicByTitle = new Map<string, any>()
+    // Build maps of existing tags by slug for lookup
+    const meditationTagsBySlug = new Map<string, any>()
+    const musicTagsBySlug = new Map<string, any>()
 
-    existingMeditationTags.docs.forEach((tag: any) => existingMeditationByTitle.set(tag.title, tag))
-    existingMusicTags.docs.forEach((tag: any) => existingMusicByTitle.set(tag.title, tag))
-
-    let meditationCreated = 0,
-      meditationFound = 0
-    let musicCreated = 0,
-      musicFound = 0
-
-    // Process tags based on their actual usage
-    for (const tag of tags) {
-      // Tag collections only have 'title' field, no 'name' field
-      const tagData = {
-        title: tag.name, // Map legacy 'name' to 'title' field
+    existingMeditationTags.docs.forEach((tag: any) => {
+      if (tag.slug) {
+        meditationTagsBySlug.set(tag.slug, tag)
       }
+    })
+    existingMusicTags.docs.forEach((tag: any) => {
+      if (tag.slug) {
+        musicTagsBySlug.set(tag.slug, tag)
+      }
+    })
+
+    await this.logger.log(
+      `    ℹ️  Found ${meditationTagsBySlug.size} predefined meditation tags, ${musicTagsBySlug.size} predefined music tags`,
+    )
+
+    let meditationMapped = 0,
+      meditationUnmapped = 0
+    let musicMapped = 0,
+      musicUnmapped = 0
+
+    // Process tags - map legacy names to predefined slugs
+    for (const tag of tags) {
+      const legacyName = tag.name.toLowerCase().trim()
 
       // Handle meditation-tags (only if used by meditations)
       if (meditationTagIds.has(tag.id)) {
-        let meditationTag = existingMeditationByTitle.get(tag.name)
-        if (meditationTag) {
-          await this.logger.log(`    ✓ Found existing meditation tag: ${meditationTag.title}`)
-          meditationFound++
+        const mappedSlug = LEGACY_TO_MEDITATION_TAG_SLUG[legacyName]
+
+        if (mappedSlug) {
+          const existingTag = meditationTagsBySlug.get(mappedSlug)
+          if (existingTag) {
+            this.idMaps.meditationTags.set(tag.id, existingTag.id as number)
+            await this.logger.log(
+              `    ✓ Mapped meditation tag "${tag.name}" → "${mappedSlug}" (ID: ${existingTag.id})`,
+            )
+            meditationMapped++
+          } else {
+            this.addWarning(
+              `Predefined meditation tag slug "${mappedSlug}" not found - run tags import first`,
+            )
+            meditationUnmapped++
+          }
         } else {
-          meditationTag = await this.payload.create({
-            collection: 'meditation-tags' as const,
-            data: tagData as any,
-          })
-          await this.logger.log(`    ✓ Created meditation tag: ${meditationTag.title}`)
-          meditationCreated++
+          this.addWarning(
+            `No mapping found for legacy meditation tag "${tag.name}" - add to LEGACY_TO_MEDITATION_TAG_SLUG`,
+          )
+          meditationUnmapped++
         }
-        this.idMaps.meditationTags.set(tag.id, meditationTag.id as number)
       }
 
       // Handle music-tags (only if used by music)
       if (musicTagIds.has(tag.id)) {
-        let musicTag = existingMusicByTitle.get(tag.name)
-        if (musicTag) {
-          await this.logger.log(`    ✓ Found existing music tag: ${musicTag.title}`)
-          musicFound++
+        const mappedSlug = LEGACY_TO_MUSIC_TAG_SLUG[legacyName]
+
+        if (mappedSlug) {
+          const existingTag = musicTagsBySlug.get(mappedSlug)
+          if (existingTag) {
+            this.idMaps.musicTags.set(tag.id, existingTag.id as number)
+            await this.logger.log(
+              `    ✓ Mapped music tag "${tag.name}" → "${mappedSlug}" (ID: ${existingTag.id})`,
+            )
+            musicMapped++
+          } else {
+            this.addWarning(`Predefined music tag slug "${mappedSlug}" not found - run tags import first`)
+            musicUnmapped++
+          }
         } else {
-          musicTag = await this.payload.create({
-            collection: 'music-tags' as const,
-            data: tagData as any,
-          })
-          await this.logger.log(`    ✓ Created music tag: ${musicTag.title}`)
-          musicCreated++
+          this.addWarning(
+            `No mapping found for legacy music tag "${tag.name}" - add to LEGACY_TO_MUSIC_TAG_SLUG`,
+          )
+          musicUnmapped++
         }
-        this.idMaps.musicTags.set(tag.id, musicTag.id as number)
       }
     }
 
-    // Update summary
-    this.summary.meditationTags.created = meditationCreated
-    this.summary.meditationTags.existing = meditationFound
-    this.summary.musicTags.created = musicCreated
-    this.summary.musicTags.existing = musicFound
+    // Update summary - using 'existing' to track mapped tags (no new tags created)
+    this.summary.meditationTags.existing = meditationMapped
+    this.summary.meditationTags.created = 0 // No longer creating tags
+    this.summary.musicTags.existing = musicMapped
+    this.summary.musicTags.created = 0 // No longer creating tags
 
     await this.logger.log(
-      `✓ Processed tags (meditation: ${meditationCreated} created, ${meditationFound} existing | music: ${musicCreated} created, ${musicFound} existing)`,
+      `✓ Mapped tags (meditation: ${meditationMapped} mapped, ${meditationUnmapped} unmapped | music: ${musicMapped} mapped, ${musicUnmapped} unmapped)`,
     )
+
+    if (meditationUnmapped > 0 || musicUnmapped > 0) {
+      await this.logger.warn(
+        `    ⚠️  Some tags could not be mapped. Ensure tags import (pnpm run import tags) has been run first.`,
+      )
+    }
   }
 
   private async importFrames(frames: ImportedData['frames'], attachments: any[], blobs: any[]) {

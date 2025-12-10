@@ -1,13 +1,23 @@
-# Simple Heroku Postgres Import
+# Meditations Import
 
-This script is specifically designed to import the Heroku Postgres dump (`data.bin`) into Payload CMS. It's simplified and targeted for the exact data structure found in your Rails application.
+This script imports meditation content from the Heroku Postgres dump (`data.bin`) into Payload CMS. It's specifically designed for the exact data structure found in the Rails application.
+
+## Prerequisites
+
+**IMPORTANT**: Run the tags import script first to create the predefined meditation and music tags:
+
+```bash
+pnpm run import tags
+```
+
+The meditations import maps legacy tag names to these predefined tags by slug. Without running the tags import first, tag mapping will fail.
 
 ## What It Does
 
 1. **Creates temp database** from your `data.bin` dump file
 2. **Imports data in order**:
    - Creates 2 narrator records (male/female)
-   - Imports tags (individual tags from the `tags` table)
+   - Maps legacy tags to predefined tags (by slug)
    - Imports frames with file attachments + transforms comma-separated tags
    - Imports music with audio file attachments
    - Imports meditations with audio + thumbnail files + frame relationships
@@ -18,8 +28,8 @@ This script is specifically designed to import the Heroku Postgres dump (`data.b
 ## Data Transformation
 
 ### From Rails Structure:
-- `tags` → Payload tags (1:1, no transformation needed)
-- `frames.tags` (comma-separated) → Payload tag relationships  
+- `tags` → Mapped to predefined Payload tags by slug (requires tags import first)
+- `frames.tags` (comma-separated) → Payload tag relationships
 - `frames` + Active Storage → Payload frames with uploaded files
 - `musics` + Active Storage → Payload music with uploaded files
 - `meditations` + Active Storage → Payload meditations with uploaded files
@@ -52,12 +62,15 @@ PAYLOAD_SECRET=your-secret-key
 ## Usage
 
 ```bash
-# Run the simplified import
-pnpm tsx imports/meditations/import.ts
+# First, import predefined tags (required)
+pnpm run import tags
+
+# Then run the meditations import
+pnpm run import meditations
 
 # With flags
-pnpm tsx imports/meditations/import.ts --dry-run
-pnpm tsx imports/meditations/import.ts --reset
+pnpm run import meditations --dry-run
+pnpm run import meditations --reset
 ```
 
 ## What Gets Imported
@@ -81,6 +94,11 @@ const fileUrl = `${baseUrl}/${storageKey}`
 ```
 
 ## Troubleshooting
+
+### Tag mapping warnings
+- **"No mapping found for legacy tag"**: Add the legacy tag name to `LEGACY_TO_MEDITATION_TAG_SLUG` or `LEGACY_TO_MUSIC_TAG_SLUG` in `import.ts`
+- **"Predefined tag slug not found"**: Run `pnpm run import tags` first to create the predefined tags
+- Tags are case-insensitive - the script normalizes names to lowercase for matching
 
 ### "Failed to download" errors
 - Check that `STORAGE_BASE_URL` is correct
