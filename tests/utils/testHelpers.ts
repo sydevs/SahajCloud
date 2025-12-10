@@ -25,7 +25,15 @@ const __dirname = path.dirname(__filename)
 
 // Constants
 const DEFAULT_EMAIL_TIMEOUT = 5000
-const UPLOAD_COLLECTIONS: readonly string[] = ['images', 'frames', 'files']
+const UPLOAD_COLLECTIONS: readonly string[] = [
+  'images',
+  'frames',
+  'files',
+  'meditation-tags',
+  'music-tags',
+  'meditations',
+  'music',
+]
 
 /**
  * Creates test-specific collections with image resizing disabled.

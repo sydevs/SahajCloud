@@ -16,6 +16,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
 type MockUser = {
   currentProject?: ProjectSlug | null
   admin?: boolean | string | number | object
+  type?: 'admin' | 'manager'
 }
 
 describe('Project Visibility System', () => {
@@ -49,8 +50,8 @@ describe('Project Visibility System', () => {
         expect(getProjectLabel('sahaj-atlas')).toBe('Sahaj Atlas')
       })
 
-      it('should return "All Content" for null', () => {
-        expect(getProjectLabel(null)).toBe('All Content')
+      it('should return "Sahaj Cloud" for null (admin view)', () => {
+        expect(getProjectLabel(null)).toBe('Sahaj Cloud')
       })
 
       it('should return the value for unknown projects', () => {
@@ -87,62 +88,77 @@ describe('Project Visibility System', () => {
   })
 
   describe('handleProjectVisibility', () => {
-    describe('basic visibility', () => {
-      it('should show collection by default when user has no project (null)', () => {
-        const hiddenFn = handleProjectVisibility(['wemeditate-web'])
-        // No user or null project: show by default (not excluded from admin view)
-        expect(hiddenFn({ user: undefined })).toBe(false)
-        expect(hiddenFn({ user: {} as MockUser })).toBe(false)
-        expect(hiddenFn({ user: { currentProject: null } as MockUser })).toBe(false)
+    // Note: handleProjectVisibility checks write permissions first, then project visibility
+    // Admin users (type: 'admin') bypass the permission check
+    // These tests use admin users to test the project visibility logic specifically
+
+    describe('basic visibility (with admin users to test project logic)', () => {
+      it('should handle admin view (null currentProject) correctly', () => {
+        // Use 'test-collection' as dummy collection slug for testing
+        const hiddenFn = handleProjectVisibility('test-collection', ['wemeditate-web'])
+        // No user: hide by default
+        expect(hiddenFn({ user: undefined })).toBe(true)
+        // Admin user with null project: show (admins can see in admin view)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: null } as MockUser })).toBe(false)
+      })
+
+      it('should hide collection for non-admins without write permissions', () => {
+        const hiddenFn = handleProjectVisibility('test-collection', ['wemeditate-web'])
+        // Non-admin user without permissions: hide (fails permission check)
+        expect(hiddenFn({ user: { currentProject: 'wemeditate-web' } as MockUser })).toBe(true)
+        expect(hiddenFn({ user: {} as MockUser })).toBe(true)
       })
 
       it('should hide collection for non-admins with null project when excludeFromAdminView', () => {
-        const hiddenFn = handleProjectVisibility(['wemeditate-web'], {
+        const hiddenFn = handleProjectVisibility('test-collection', ['wemeditate-web'], {
           excludeFromAdminView: true,
         })
-        // Non-admin with null project: hide when excludeFromAdminView is true
+        // Non-admin with null project: hide when excludeFromAdminView is true (also fails permission check)
         expect(hiddenFn({ user: { currentProject: null, admin: false } as MockUser })).toBe(true)
         expect(hiddenFn({ user: { currentProject: null } as MockUser })).toBe(true)
       })
 
-      it('should hide collection when project not in allowed list', () => {
-        const hiddenFn = handleProjectVisibility(['wemeditate-web'])
-        expect(hiddenFn({ user: { currentProject: 'wemeditate-app' } as MockUser })).toBe(true)
-        expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as MockUser })).toBe(true)
+      it('should hide collection when project not in allowed list (admin users)', () => {
+        const hiddenFn = handleProjectVisibility('test-collection', ['wemeditate-web'])
+        // Admin users pass permission check but fail project check
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'wemeditate-app' } as MockUser })).toBe(true)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'sahaj-atlas' } as MockUser })).toBe(true)
       })
 
-      it('should show collection when project in allowed list', () => {
-        const hiddenFn = handleProjectVisibility(['wemeditate-web'])
-        expect(hiddenFn({ user: { currentProject: 'wemeditate-web' } as MockUser })).toBe(false)
+      it('should show collection when project in allowed list (admin users)', () => {
+        const hiddenFn = handleProjectVisibility('test-collection', ['wemeditate-web'])
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'wemeditate-web' } as MockUser })).toBe(false)
       })
 
-      it('should show collection when project in allowed list (multiple projects)', () => {
-        const hiddenFn = handleProjectVisibility(['wemeditate-web', 'wemeditate-app'])
-        expect(hiddenFn({ user: { currentProject: 'wemeditate-web' } as MockUser })).toBe(false)
-        expect(hiddenFn({ user: { currentProject: 'wemeditate-app' } as MockUser })).toBe(false)
+      it('should show collection when project in allowed list (multiple projects, admin users)', () => {
+        const hiddenFn = handleProjectVisibility('test-collection', ['wemeditate-web', 'wemeditate-app'])
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'wemeditate-web' } as MockUser })).toBe(false)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'wemeditate-app' } as MockUser })).toBe(false)
       })
     })
 
     describe('admin view (null project)', () => {
       it('should show collection in admin view by default', () => {
-        const hiddenFn = handleProjectVisibility(['wemeditate-web'])
+        const hiddenFn = handleProjectVisibility('test-collection', ['wemeditate-web'])
         expect(
           hiddenFn({ user: { currentProject: null, type: 'admin' as const } as MockUser }),
         ).toBe(false)
       })
 
-      it('should hide collection in admin view when excludeFromAdminView is true', () => {
-        const hiddenFn = handleProjectVisibility(['wemeditate-web'], {
+      it('should hide collection in admin view when excludeFromAdminView is true for all users', () => {
+        const hiddenFn = handleProjectVisibility('test-collection', ['wemeditate-web'], {
           excludeFromAdminView: true,
         })
+        // Admin users: hidden when excludeFromAdminView is true
         expect(
           hiddenFn({ user: { currentProject: null, type: 'admin' as const } as MockUser }),
-        ).toBe(false)
+        ).toBe(true)
+        // Non-admin users: also hidden (fail permission check first, but would be hidden anyway)
         expect(hiddenFn({ user: { currentProject: null, admin: false } as MockUser })).toBe(true)
       })
 
       it('should show collection in admin view when excludeFromAdminView is false', () => {
-        const hiddenFn = handleProjectVisibility(['wemeditate-web'], {
+        const hiddenFn = handleProjectVisibility('test-collection', ['wemeditate-web'], {
           excludeFromAdminView: false,
         })
         expect(
@@ -172,23 +188,24 @@ describe('Project Visibility System', () => {
   })
 
   describe('Collection visibility integration', () => {
+    // Note: These tests use admin users (type: 'admin') to bypass permission checks
+    // and test the project visibility logic specifically
+
     it('should correctly filter Pages collection visibility', async () => {
       // Pages visible in: wemeditate-web only
       const pagesCollection = payload.collections.pages
       const hiddenFn = pagesCollection.config.admin?.hidden
 
       if (typeof hiddenFn === 'function') {
-        // Using partial mock objects for testing visibility logic
+        // Using admin mock objects to test project visibility logic
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: 'wemeditate-web' } as any })).toBe(false)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'wemeditate-web' } as any })).toBe(false)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: 'wemeditate-app' } as any })).toBe(true)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'wemeditate-app' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'sahaj-atlas' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(
-          false,
-        )
+        expect(hiddenFn({ user: { type: 'admin', currentProject: null } as any })).toBe(false)
       }
     })
 
@@ -198,17 +215,15 @@ describe('Project Visibility System', () => {
       const hiddenFn = meditationsCollection.config.admin?.hidden
 
       if (typeof hiddenFn === 'function') {
-        // Using partial mock objects for testing visibility logic
+        // Using admin mock objects to test project visibility logic
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: 'wemeditate-web' } as any })).toBe(false)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'wemeditate-web' } as any })).toBe(false)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: 'wemeditate-app' } as any })).toBe(false)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'wemeditate-app' } as any })).toBe(false)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'sahaj-atlas' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(
-          false,
-        )
+        expect(hiddenFn({ user: { type: 'admin', currentProject: null } as any })).toBe(false)
       }
     })
 
@@ -218,17 +233,15 @@ describe('Project Visibility System', () => {
       const hiddenFn = lessonsCollection.config.admin?.hidden
 
       if (typeof hiddenFn === 'function') {
-        // Using partial mock objects for testing visibility logic
+        // Using admin mock objects to test project visibility logic
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: 'wemeditate-web' } as any })).toBe(true)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'wemeditate-web' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: 'wemeditate-app' } as any })).toBe(false)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'wemeditate-app' } as any })).toBe(false)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'sahaj-atlas' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(
-          false,
-        )
+        expect(hiddenFn({ user: { type: 'admin', currentProject: null } as any })).toBe(false)
       }
     })
   })
@@ -240,19 +253,17 @@ describe('Project Visibility System', () => {
       const hiddenFn = webSettings?.admin?.hidden
 
       if (typeof hiddenFn === 'function') {
-        // Using partial mock objects for testing visibility logic
+        // Using admin mock objects to test project visibility logic
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: 'wemeditate-web' } as any })).toBe(false)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'wemeditate-web' } as any })).toBe(false)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: 'wemeditate-app' } as any })).toBe(true)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'wemeditate-app' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: 'sahaj-atlas' } as any })).toBe(true)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: 'sahaj-atlas' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: null, type: 'admin' as const } as any })).toBe(
-          false,
-        ) // excludeFromAdminView (admins can see)
+        expect(hiddenFn({ user: { type: 'admin', currentProject: null } as any })).toBe(true) // excludeFromAdminView: true hides from all users
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { currentProject: null, admin: false } as any })).toBe(true) // excludeFromAdminView (non-admins can't)
+        expect(hiddenFn({ user: { currentProject: null, admin: false } as any })).toBe(true) // non-admin also hidden
       }
     })
   })

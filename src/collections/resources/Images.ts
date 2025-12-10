@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
+import { createVirtualUrlField } from '@/lib/storage/urlFields'
 
 export const Images: CollectionConfig = {
   slug: 'images',
@@ -43,7 +44,7 @@ export const Images: CollectionConfig = {
     {
       name: 'tags',
       type: 'relationship',
-      relationTo: 'media-tags',
+      relationTo: 'image-tags',
       hasMany: true,
       admin: {
         description: 'Tags to categorize this image',
@@ -57,30 +58,10 @@ export const Images: CollectionConfig = {
         readOnly: true,
       },
     },
-    {
-      name: 'url',
-      type: 'text',
-      virtual: true,
-      hooks: {
-        afterRead: [
-          ({ data }) => {
-            if (!data?.filename) return undefined
-
-            // Generate Cloudflare Images URL if in production with credentials
-            const deliveryUrl = process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
-            if (deliveryUrl) {
-              return `${deliveryUrl}/${data.filename}/format=auto,width=320,height=320,fit=cover`
-            }
-
-            // Fallback to PayloadCMS static file serving in development
-            return `/api/images/file/${data.filename}`
-          },
-        ],
-      },
-      admin: {
-        hidden: true,
-      },
-    },
+    createVirtualUrlField({
+      collection: 'images',
+      adapter: 'cloudflare-images',
+    }),
   ],
   hooks: {
     // Removed: sanitizeFilename (not needed - Cloudflare provides unique IDs)

@@ -14,7 +14,7 @@ export const ExternalVideos: CollectionConfig = {
   admin: {
     group: 'Resources',
     useAsTitle: 'title',
-    hidden: handleProjectVisibility(['wemeditate-web', 'wemeditate-app']),
+    hidden: handleProjectVisibility('external-videos', ['wemeditate-web', 'wemeditate-app']),
   },
   fields: [
     {

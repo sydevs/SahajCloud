@@ -29,7 +29,7 @@ export const Lessons: CollectionConfig = {
     defaultColumns: ['title', 'step'],
     groupBy: true,
     listSearchableFields: ['title'],
-    hidden: handleProjectVisibility(['wemeditate-app']),
+    hidden: handleProjectVisibility('lessons', ['wemeditate-app']),
   },
   versions: {
     maxPerDoc: 50,

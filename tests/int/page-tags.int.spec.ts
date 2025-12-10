@@ -18,9 +18,8 @@ describe('PageTags Collection', () => {
     payload = testEnv.payload
     cleanup = testEnv.cleanup
 
-    // Create test tag
+    // Create test tag (slug auto-generated from title via SlugField)
     testTag = await testData.createPageTag(payload, {
-      name: 'wisdom-tag',
       title: 'Wisdom',
     })
 
@@ -35,9 +34,9 @@ describe('PageTags Collection', () => {
     await cleanup()
   })
 
-  it('creates a page tag with name and localized title', async () => {
+  it('creates a page tag with auto-generated slug and localized title', async () => {
     expect(testTag).toBeDefined()
-    expect(testTag.name).toBe('wisdom-tag')
+    expect(testTag.slug).toBe('wisdom') // Auto-generated from title via SlugField
     expect(testTag.title).toBe('Wisdom')
     expect(testTag.id).toBeDefined()
   })
@@ -61,7 +60,6 @@ describe('PageTags Collection', () => {
 
   it('allows pages to have multiple tags', async () => {
     const tag2 = await testData.createPageTag(payload, {
-      name: 'living-tag',
       title: 'Living',
     })
 
@@ -80,15 +78,14 @@ describe('PageTags Collection', () => {
   it('has localized title field', async () => {
     // Create tag with English title (default locale)
     const localizedTag = await testData.createPageTag(payload, {
-      name: 'events-tag',
       title: 'Events',
     })
 
     expect(localizedTag.title).toBe('Events')
 
     // The title field is defined as localized in the collection config
-    // This test verifies the tag can be created with a title
-    expect(localizedTag.name).toBe('events-tag')
+    // Slug is auto-generated from title via SlugField
+    expect(localizedTag.slug).toBe('events')
   })
 
   it('uses permission-based access control', async () => {
@@ -98,14 +95,15 @@ describe('PageTags Collection', () => {
     expect(typeof config.access?.read).toBe('function')
   })
 
-  it('is hidden in admin navigation', async () => {
+  it('uses handleProjectVisibility for admin visibility', async () => {
     const config = payload.collections['page-tags'].config
-    expect(config.admin?.hidden).toBe(true)
+    // PageTags uses handleProjectVisibility which returns a function
+    expect(typeof config.admin?.hidden).toBe('function')
   })
 
-  it('uses name as title in admin', async () => {
+  it('uses title as admin display field', async () => {
     const config = payload.collections['page-tags'].config
-    expect(config.admin?.useAsTitle).toBe('name')
+    expect(config.admin?.useAsTitle).toBe('title')
   })
 
   it('tracks client usage with hook', async () => {

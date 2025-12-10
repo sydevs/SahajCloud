@@ -24,7 +24,7 @@ export const Meditations: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'label',
     defaultColumns: ['label', 'thumbnail', 'publishAt', 'tags', 'durationMinutes'],
-    hidden: handleProjectVisibility(['wemeditate-web', 'wemeditate-app']),
+    hidden: handleProjectVisibility('meditations', ['wemeditate-web', 'wemeditate-app']),
   },
   hooks: {
     beforeOperation: [sanitizeFilename],
@@ -203,6 +203,9 @@ export const Meditations: CollectionConfig = {
               hasMany: true,
               admin: {
                 description: 'Categorize this meditation for seekers to find it',
+                components: {
+                  Field: '@/components/admin/TagSelector',
+                },
               },
             },
           ],

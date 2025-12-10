@@ -91,6 +91,18 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
             disableLocalStorage: true,
             disablePayloadAccessControl: true,
           },
+
+          // Tag collections with SVG icons - Cloudflare Images
+          'meditation-tags': {
+            adapter: imagesAdapter,
+            disableLocalStorage: true,
+            disablePayloadAccessControl: true,
+          },
+          'music-tags': {
+            adapter: imagesAdapter,
+            disableLocalStorage: true,
+            disablePayloadAccessControl: true,
+          },
         },
       })(incomingConfig),
     )
