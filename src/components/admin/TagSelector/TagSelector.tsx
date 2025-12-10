@@ -32,8 +32,14 @@ export interface TagSelectorProps {
  * - Visual icon-based tag selection
  * - Support for optional tag colors (uses success color if no color defined)
  * - Multi-select support via hasMany prop
- * - Keyboard navigation and accessibility
+ * - Keyboard navigation (Enter/Space to toggle)
  * - Responsive grid layout with flex-wrap
+ *
+ * Accessibility:
+ * - Uses `role="listbox"` with `aria-multiselectable` for the container
+ * - Uses `role="option"` with `aria-selected` for individual tags
+ * - Supports `aria-readonly` when in read-only mode
+ * - Full keyboard support for selection
  *
  * Selection states:
  * - Unselected: White/neutral background, original SVG colors
@@ -94,8 +100,10 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
 
   return (
     <div
-      role="group"
+      role="listbox"
       aria-label={ariaLabel}
+      aria-multiselectable={hasMany}
+      aria-readonly={readOnly}
       style={{
         display: 'flex',
         flexWrap: 'wrap',
@@ -125,8 +133,8 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
           <button
             key={tag.id}
             type="button"
-            role="checkbox"
-            aria-checked={isSelected}
+            role="option"
+            aria-selected={isSelected}
             aria-label={tag.title}
             title={tag.title}
             disabled={readOnly}

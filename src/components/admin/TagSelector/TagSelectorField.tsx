@@ -3,7 +3,8 @@
 import type { FieldClientComponent, RelationshipFieldClient } from 'payload'
 
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo } from 'react'
+import useSWR from 'swr'
 
 import { TagSelector, type TagOption } from './TagSelector'
 
@@ -25,21 +26,24 @@ interface TagsApiResponse {
  * - Label rendering with FieldLabel
  * - Error display with FieldError
  * - Description display with FieldDescription
- * - Automatic tag fetching from Payload REST API
+ * - Automatic tag fetching from Payload REST API with caching
  * - Proper field wrapper structure matching PayloadCMS relationship fields
  *
  * This component integrates the TagSelector UI component into PayloadCMS's
  * field system, following the exact markup structure as relationship fields.
  *
  * Features:
- * - Automatic tag loading from API based on relationTo
- * - Loading and error states
+ * - Automatic tag loading from API based on relationTo collection
+ * - SWR-based caching with request deduplication
+ * - Loading and error states with user feedback
  * - Full integration with PayloadCMS validation and error handling
  * - Read-only mode support
- * - Accessible field structure with proper labels and descriptions
+ * - Accessible field structure (listbox/option pattern)
  * - CSS classes matching PayloadCMS field conventions
  *
- * Usage in collection config:
+ * Works with any tag collection that has `id`, `title`, and optionally `url` and `color` fields.
+ *
+ * @example Usage with meditation-tags
  * ```typescript
  * {
  *   name: 'tags',
@@ -47,9 +51,23 @@ interface TagsApiResponse {
  *   relationTo: 'meditation-tags',
  *   hasMany: true,
  *   admin: {
- *     description: 'Select tags for this item',
  *     components: {
- *       Field: '@/components/admin/TagSelectorField',
+ *       Field: '@/components/admin/TagSelector',
+ *     },
+ *   },
+ * }
+ * ```
+ *
+ * @example Usage with music-tags
+ * ```typescript
+ * {
+ *   name: 'tags',
+ *   type: 'relationship',
+ *   relationTo: 'music-tags',
+ *   hasMany: true,
+ *   admin: {
+ *     components: {
+ *       Field: '@/components/admin/TagSelector',
  *     },
  *   },
  * }
@@ -70,46 +88,23 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
   // Use Payload's field hook for state management
   const { value, setValue, showError } = useField<(string | number)[] | string | number | null>()
 
-  // State for fetched tags
-  const [tags, setTags] = useState<TagOption[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Fetch tags from API with SWR caching
+  const collection = Array.isArray(relationTo) ? relationTo[0] : relationTo
+  const { data, error, isLoading } = useSWR<TagsApiResponse>(`/api/${collection}?limit=100&depth=0`)
+  const tags = data?.docs || []
 
   // Normalize value to array for consistent handling
   const selectedIds = useMemo(() => {
     if (!value) return []
     if (Array.isArray(value)) {
-      return value.map((v) => (typeof v === 'object' && v !== null ? (v as { id: string | number }).id : v))
+      return value.map((v) =>
+        typeof v === 'object' && v !== null ? (v as { id: string | number }).id : v,
+      )
     }
-    return [typeof value === 'object' && value !== null ? (value as { id: string | number }).id : value]
+    return [
+      typeof value === 'object' && value !== null ? (value as { id: string | number }).id : value,
+    ]
   }, [value])
-
-  // Fetch tags from API
-  useEffect(() => {
-    const fetchTags = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-
-        // relationTo can be string or array, handle both
-        const collection = Array.isArray(relationTo) ? relationTo[0] : relationTo
-        const response = await fetch(`/api/${collection}?limit=100&depth=0`)
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch tags: ${response.statusText}`)
-        }
-
-        const data: TagsApiResponse = await response.json()
-        setTags(data.docs || [])
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load tags')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchTags()
-  }, [relationTo])
 
   // Handle value changes from TagSelector
   const handleChange = (newIds: (string | number)[]) => {
@@ -121,7 +116,13 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
   }
 
   // Build CSS classes following PayloadCMS conventions
-  const fieldClasses = ['field-type', 'relationship', className, showError && 'error', readOnly && 'read-only']
+  const fieldClasses = [
+    'field-type',
+    'relationship',
+    className,
+    showError && 'error',
+    readOnly && 'read-only',
+  ]
     .filter(Boolean)
     .join(' ')
 
@@ -143,7 +144,7 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
 
-        {loading && (
+        {isLoading && (
           <div
             style={{
               padding: 'calc(var(--base) * 0.5)',
@@ -163,11 +164,11 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
               fontSize: 'calc(var(--base-body-size) * 1px)',
             }}
           >
-            {error}
+            {error.message}
           </div>
         )}
 
-        {!loading && !error && tags.length === 0 && (
+        {!isLoading && !error && tags.length === 0 && (
           <div
             style={{
               padding: 'calc(var(--base) * 0.5)',
@@ -179,7 +180,7 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
           </div>
         )}
 
-        {!loading && !error && tags.length > 0 && (
+        {!isLoading && !error && tags.length > 0 && (
           <TagSelector
             value={selectedIds}
             onChange={handleChange}

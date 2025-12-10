@@ -5,6 +5,7 @@ import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 import { ColorField } from '@/fields/ColorField'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
+import { createVirtualUrlField } from '@/lib/storage/urlFields'
 
 export const MeditationTags: CollectionConfig = {
   slug: 'meditation-tags',
@@ -24,28 +25,10 @@ export const MeditationTags: CollectionConfig = {
   },
   fields: [
     // Virtual URL field for CDN delivery
-    {
-      name: 'url',
-      type: 'text',
-      virtual: true,
-      hooks: {
-        afterRead: [
-          ({ data }) => {
-            if (!data?.filename) return undefined
-
-            // Generate Cloudflare Images URL if in production with credentials
-            const deliveryUrl = process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
-            if (deliveryUrl) {
-              return `${deliveryUrl}/${data.filename}/public`
-            }
-
-            // Fallback to PayloadCMS static file serving in development
-            return `/api/meditation-tags/file/${data.filename}`
-          },
-        ],
-      },
-      admin: { hidden: true },
-    },
+    createVirtualUrlField({
+      collection: 'meditation-tags',
+      adapter: 'cloudflare-images',
+    }),
     // Slug auto-generated from title
     ...SlugField('title', {
       slugOverrides: {

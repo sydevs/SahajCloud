@@ -28,6 +28,7 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
   const {
     name,
     label,
+    localized,
     required,
     admin: { description, className, style } = {},
   } = field
@@ -51,7 +52,7 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
 
   return (
     <div className={fieldClasses} id={fieldId} style={style}>
-      <FieldLabel label={label} path={name} required={required} />
+      <FieldLabel label={label} localized={localized} path={name} required={required} />
 
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />

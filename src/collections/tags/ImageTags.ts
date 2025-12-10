@@ -15,6 +15,7 @@ export const ImageTags: CollectionConfig = {
       name: 'title',
       type: 'text',
       required: true,
+      localized: true,
     },
     {
       name: 'images',

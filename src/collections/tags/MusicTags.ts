@@ -3,6 +3,7 @@ import type { CollectionConfig } from 'payload'
 import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 
 import { roleBasedAccess } from '@/lib/accessControl'
+import { createVirtualUrlField } from '@/lib/storage/urlFields'
 
 export const MusicTags: CollectionConfig = {
   slug: 'music-tags',
@@ -19,28 +20,10 @@ export const MusicTags: CollectionConfig = {
   },
   fields: [
     // Virtual URL field for CDN delivery
-    {
-      name: 'url',
-      type: 'text',
-      virtual: true,
-      hooks: {
-        afterRead: [
-          ({ data }) => {
-            if (!data?.filename) return undefined
-
-            // Generate Cloudflare Images URL if in production with credentials
-            const deliveryUrl = process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
-            if (deliveryUrl) {
-              return `${deliveryUrl}/${data.filename}/public`
-            }
-
-            // Fallback to PayloadCMS static file serving in development
-            return `/api/music-tags/file/${data.filename}`
-          },
-        ],
-      },
-      admin: { hidden: true },
-    },
+    createVirtualUrlField({
+      collection: 'music-tags',
+      adapter: 'cloudflare-images',
+    }),
     // Slug auto-generated from title
     ...SlugField('title', {
       slugOverrides: {
