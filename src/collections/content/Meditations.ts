@@ -99,6 +99,9 @@ export const Meditations: CollectionConfig = {
               admin: {
                 condition: ({ id }) => !!id,
                 description: 'Music with this tag will be offered to the seeker',
+                components: {
+                  Field: '@/components/admin/TagSelector',
+                },
               },
             },
             {

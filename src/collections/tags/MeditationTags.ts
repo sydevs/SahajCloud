@@ -19,6 +19,7 @@ export const MeditationTags: CollectionConfig = {
     group: 'Tags',
     useAsTitle: 'title',
     hidden: handleProjectVisibility('meditation-tags', ['wemeditate-web', 'wemeditate-app']),
+    defaultColumns: ['title', 'filename', 'color'],
   },
   upload: {
     staticDir: 'media/meditation-tags',
