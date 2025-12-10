@@ -9,6 +9,10 @@ import { handleProjectVisibility } from '@/lib/projectVisibility'
 export const PageTags: CollectionConfig = {
   slug: 'page-tags',
   access: roleBasedAccess('pages'),
+  labels: {
+    singular: 'Page Category',
+    plural: 'Page Categories',
+  },
   admin: {
     group: 'Tags',
     useAsTitle: 'title',

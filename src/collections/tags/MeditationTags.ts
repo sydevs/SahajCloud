@@ -10,6 +10,10 @@ import { createVirtualUrlField } from '@/lib/storage/urlFields'
 
 export const MeditationTags: CollectionConfig = {
   slug: 'meditation-tags',
+  labels: {
+    singular: 'Meditation Category',
+    plural: 'Meditation Categories',
+  },
   access: roleBasedAccess('meditations'),
   admin: {
     group: 'Tags',

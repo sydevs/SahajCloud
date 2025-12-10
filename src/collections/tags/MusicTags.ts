@@ -8,6 +8,10 @@ import { createVirtualUrlField } from '@/lib/storage/urlFields'
 
 export const MusicTags: CollectionConfig = {
   slug: 'music-tags',
+  labels: {
+    singular: 'Music Category',
+    plural: 'Music Categories',
+  },
   access: roleBasedAccess('music'),
   admin: {
     group: 'Tags',
