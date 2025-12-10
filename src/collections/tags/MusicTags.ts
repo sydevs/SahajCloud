@@ -17,6 +17,7 @@ export const MusicTags: CollectionConfig = {
     group: 'Tags',
     useAsTitle: 'title',
     hidden: handleProjectVisibility('music-tags', ['wemeditate-web', 'wemeditate-app']),
+    defaultColumns: ['title', 'filename'],
   },
   upload: {
     staticDir: 'media/music-tags',
