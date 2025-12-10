@@ -21,7 +21,7 @@ export const Music: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'duration', 'tags'],
-    hidden: handleProjectVisibility(['wemeditate-web', 'wemeditate-app']),
+    hidden: handleProjectVisibility('music', ['wemeditate-web', 'wemeditate-app']),
   },
   hooks: {
     beforeOperation: [sanitizeFilename],

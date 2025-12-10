@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { roleBasedAccess } from '@/lib/accessControl'
+import { handleProjectVisibility } from '@/lib/projectVisibility'
 
 export const ImageTags: CollectionConfig = {
   slug: 'image-tags',
@@ -8,7 +9,7 @@ export const ImageTags: CollectionConfig = {
   admin: {
     group: 'Tags',
     useAsTitle: 'title',
-    hidden: true,
+    hidden: handleProjectVisibility('image-tags', ['wemeditate-web', 'wemeditate-app', 'sahaj-atlas']),
   },
   fields: [
     {

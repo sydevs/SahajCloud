@@ -3,6 +3,7 @@ import type { CollectionConfig } from 'payload'
 import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 
 import { roleBasedAccess } from '@/lib/accessControl'
+import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { createVirtualUrlField } from '@/lib/storage/urlFields'
 
 export const MusicTags: CollectionConfig = {
@@ -11,7 +12,7 @@ export const MusicTags: CollectionConfig = {
   admin: {
     group: 'Tags',
     useAsTitle: 'title',
-    hidden: true,
+    hidden: handleProjectVisibility('music-tags', ['wemeditate-web', 'wemeditate-app']),
   },
   upload: {
     staticDir: 'media/music-tags',

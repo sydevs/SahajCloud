@@ -5,6 +5,7 @@ import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 import { ColorField } from '@/fields/ColorField'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
+import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { createVirtualUrlField } from '@/lib/storage/urlFields'
 
 export const MeditationTags: CollectionConfig = {
@@ -13,7 +14,7 @@ export const MeditationTags: CollectionConfig = {
   admin: {
     group: 'Tags',
     useAsTitle: 'title',
-    hidden: true,
+    hidden: handleProjectVisibility('meditation-tags', ['wemeditate-web', 'wemeditate-app']),
   },
   upload: {
     staticDir: 'media/meditation-tags',

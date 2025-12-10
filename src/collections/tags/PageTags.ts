@@ -4,6 +4,7 @@ import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
+import { handleProjectVisibility } from '@/lib/projectVisibility'
 
 export const PageTags: CollectionConfig = {
   slug: 'page-tags',
@@ -11,7 +12,7 @@ export const PageTags: CollectionConfig = {
   admin: {
     group: 'Tags',
     useAsTitle: 'title',
-    hidden: true,
+    hidden: handleProjectVisibility('page-tags', ['wemeditate-web']),
   },
   hooks: {
     afterRead: [trackClientUsageHook],
