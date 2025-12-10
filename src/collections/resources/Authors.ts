@@ -10,7 +10,7 @@ export const Authors: CollectionConfig = {
     group: 'Resources',
     useAsTitle: 'name',
     defaultColumns: ['name', 'title', 'countryCode'],
-    hidden: handleProjectVisibility(['wemeditate-web']),
+    hidden: handleProjectVisibility('authors', ['wemeditate-web']),
   },
   fields: [
     {

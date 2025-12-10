@@ -299,3 +299,108 @@ return (
 - Extract aria-label to separate variable for readability
 - Use PayloadCMS's `FieldLabel`, `FieldError`, `FieldDescription` components
 - Match exact markup structure of PayloadCMS's built-in fields
+
+## Component Wrapper Pattern (Pure UI + Field Wrapper)
+
+For complex admin components with significant UI logic, separate concerns into:
+- **Pure UI Component**: Stateless, accepts options/value/onChange as props, no PayloadCMS dependencies
+- **Field Wrapper**: Integrates with PayloadCMS `useField` hook, fetches data from API, renders field markup
+
+### Example: TagSelector
+
+**Pure UI Component** ([TagSelector.tsx](../../src/components/admin/TagSelector/TagSelector.tsx)):
+```typescript
+export interface TagOption {
+  id: string | number
+  title: string
+  url?: string
+  color?: string
+}
+
+export interface TagSelectorProps {
+  value: (string | number)[]
+  onChange: (value: (string | number)[]) => void
+  options: TagOption[]
+  hasMany?: boolean
+  readOnly?: boolean
+}
+
+export const TagSelector: React.FC<TagSelectorProps> = ({
+  value,
+  onChange,
+  options,
+  hasMany = true,
+  readOnly = false,
+}) => {
+  const handleToggle = (tagId: string | number) => {
+    if (readOnly) return
+    if (hasMany) {
+      const newValue = value.includes(tagId)
+        ? value.filter((id) => id !== tagId)
+        : [...value, tagId]
+      onChange(newValue)
+    } else {
+      onChange(value.includes(tagId) ? [] : [tagId])
+    }
+  }
+
+  return (
+    <div role="group">
+      {options.map((tag) => (
+        <button key={tag.id} onClick={() => handleToggle(tag.id)} /* ... */ />
+      ))}
+    </div>
+  )
+}
+```
+
+**Field Wrapper** ([TagSelectorField.tsx](../../src/components/admin/TagSelector/TagSelectorField.tsx)):
+```typescript
+export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
+  const { name, label, relationTo, hasMany, admin: { description } = {} } = field as RelationshipFieldClient
+  const { value, setValue, showError } = useField<(string | number)[] | null>()
+  const [options, setOptions] = useState<TagOption[]>([])
+
+  // Fetch options from API
+  useEffect(() => {
+    const fetchOptions = async () => {
+      const collection = Array.isArray(relationTo) ? relationTo[0] : relationTo
+      const response = await fetch(`/api/${collection}?limit=100&depth=0`)
+      const data: { docs: TagOption[] } = await response.json()
+      setOptions(data.docs || [])
+    }
+    fetchOptions()
+  }, [relationTo])
+
+  return (
+    <div className="field-type relationship">
+      <FieldLabel label={label} path={name} required={required} />
+      <div className="field-type__wrap">
+        <FieldError path={name} showError={showError} />
+        <TagSelector
+          value={normalizedValue}
+          onChange={(newValue) => setValue(hasMany ? newValue : newValue[0] || null)}
+          options={options}
+          hasMany={hasMany}
+          readOnly={readOnly}
+        />
+      </div>
+      <FieldDescription description={description} path={name} />
+    </div>
+  )
+}
+
+export default TagSelectorField
+```
+
+### Benefits
+- **Testable**: Pure UI component can be unit tested without PayloadCMS setup
+- **Reusable**: UI component can be used in different contexts or field configurations
+- **Maintainable**: Clear separation between data fetching and rendering logic
+- **Type-Safe**: Each component has focused, well-defined prop types
+
+### When to Use This Pattern
+- Complex interactive UI (multi-select, drag-drop, visual pickers)
+- Components that fetch additional data from API
+- UI that might be reused outside PayloadCMS context
+- Components with significant rendering logic

@@ -20,14 +20,11 @@ describe('Pages Collection', () => {
     payload = testEnv.payload
     cleanup = testEnv.cleanup
 
-    // Create page tags for testing
-    livingTag = await testData.createPageTag(payload, { name: 'living', title: 'Living' })
-    creativityTag = await testData.createPageTag(payload, {
-      name: 'creativity',
-      title: 'Creativity',
-    })
-    wisdomTag = await testData.createPageTag(payload, { name: 'wisdom', title: 'Wisdom' })
-    storiesTag = await testData.createPageTag(payload, { name: 'stories', title: 'Stories' })
+    // Create page tags for testing (slug auto-generated from title)
+    livingTag = await testData.createPageTag(payload, { title: 'Living' })
+    creativityTag = await testData.createPageTag(payload, { title: 'Creativity' })
+    wisdomTag = await testData.createPageTag(payload, { title: 'Wisdom' })
+    storiesTag = await testData.createPageTag(payload, { title: 'Stories' })
   })
 
   afterAll(async () => {

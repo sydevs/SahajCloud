@@ -37,7 +37,7 @@ export const Frames: CollectionConfig = {
     // imageSizes removed - using Cloudflare Images flexible variants and Stream thumbnails
   },
   admin: {
-    hidden: handleProjectVisibility(['wemeditate-app']),
+    hidden: handleProjectVisibility('frames', ['wemeditate-app']),
     group: 'Resources',
     useAsTitle: 'filename',
     defaultColumns: ['category', 'tags', 'previewUrl', 'imageSet'],

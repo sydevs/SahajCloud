@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { roleBasedAccess } from '@/lib/accessControl'
+import { createVirtualUrlField } from '@/lib/storage/urlFields'
 
 export const FileOwnerSlugs = ['lessons', 'frames']
 
@@ -46,25 +47,9 @@ export const Files: CollectionConfig = {
         readOnly: true,
       },
     },
-    {
-      name: 'url',
-      type: 'text',
-      virtual: true,
-      hooks: {
-        afterRead: [
-          ({ data }) => {
-            // Generate R2 URL if in production (no prefix - files stored in root)
-            if (data?.filename && process.env.CLOUDFLARE_R2_DELIVERY_URL) {
-              return `${process.env.CLOUDFLARE_R2_DELIVERY_URL}/${data.filename}`
-            }
-            // Fallback to PayloadCMS-generated URL (local storage in development)
-            return data?.url
-          },
-        ],
-      },
-      admin: {
-        hidden: true,
-      },
-    },
+    createVirtualUrlField({
+      collection: 'files',
+      adapter: 'r2',
+    }),
   ],
 }

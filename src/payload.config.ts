@@ -164,7 +164,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           access: roleBasedAccess('forms'),
           admin: {
             group: 'Resources',
-            hidden: handleProjectVisibility(['wemeditate-web']),
+            hidden: handleProjectVisibility('forms', ['wemeditate-web']),
           },
         },
         formSubmissionOverrides: {

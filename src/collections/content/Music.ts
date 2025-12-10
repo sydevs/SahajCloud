@@ -6,6 +6,7 @@ import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { sanitizeFilename } from '@/lib/fieldUtils'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
+import { createVirtualUrlField } from '@/lib/storage/urlFields'
 
 export const Music: CollectionConfig = {
   slug: 'music',
@@ -20,7 +21,7 @@ export const Music: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'duration', 'tags'],
-    hidden: handleProjectVisibility(['wemeditate-web', 'wemeditate-app']),
+    hidden: handleProjectVisibility('music', ['wemeditate-web', 'wemeditate-app']),
   },
   hooks: {
     beforeOperation: [sanitizeFilename],
@@ -28,26 +29,10 @@ export const Music: CollectionConfig = {
     afterRead: [trackClientUsageHook],
   },
   fields: [
-    {
-      name: 'url',
-      type: 'text',
-      virtual: true,
-      hooks: {
-        afterRead: [
-          ({ data }: { data?: Record<string, unknown> }) => {
-            // Generate R2 URL if in production (no prefix - files stored in root)
-            if (data?.filename && process.env.CLOUDFLARE_R2_DELIVERY_URL) {
-              return `${process.env.CLOUDFLARE_R2_DELIVERY_URL}/${data.filename}`
-            }
-            // Fallback to PayloadCMS-generated URL (local storage in development)
-            return data?.url
-          },
-        ],
-      },
-      admin: {
-        hidden: true,
-      },
-    },
+    createVirtualUrlField({
+      collection: 'music',
+      adapter: 'r2',
+    }),
     {
       name: 'title',
       type: 'text',
@@ -68,6 +53,11 @@ export const Music: CollectionConfig = {
       type: 'relationship',
       relationTo: 'music-tags',
       hasMany: true,
+      admin: {
+        components: {
+          Field: '@/components/admin/TagSelector',
+        },
+      },
     },
     {
       name: 'credit',

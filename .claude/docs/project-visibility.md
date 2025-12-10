@@ -17,34 +17,42 @@ The system supports four project contexts defined in `src/lib/projects.ts`:
 
 ### handleProjectVisibility()
 
-Creates dynamic `admin.hidden` functions for collections and globals based on project visibility rules:
+Creates dynamic `admin.hidden` functions for collections and globals based on project visibility and write permissions:
 
 ```typescript
 handleProjectVisibility(
+  collectionSlug: string,
   allowedProjects: ProjectSlug[],
-  options?: { excludeAllContent?: boolean }
+  options?: { excludeFromAdminView?: boolean }
 )
 ```
 
 **Parameters**:
+- `collectionSlug` - Collection slug to check write permissions (create/update/delete). Users without write access to this collection will not see it.
 - `allowedProjects` - Array of project values where collection should be visible
-- `options.excludeAllContent` - If true, collection is hidden even in "all-content" mode (default: false)
+- `options.excludeFromAdminView` - If true, collection is hidden even in "all-content" mode (default: false)
+
+**Behavior**:
+1. First checks if user has write permissions (create, update, or delete) for the specified collection
+2. If no write access, the collection is hidden regardless of project
+3. Then checks if user's current project is in the allowed projects list
+4. Note: The `update` permission check also covers `translate` permission (translators can see collections they can translate)
 
 **Examples**:
 ```typescript
-// Visible only in Web project
+// Visible only in Web project (requires write access to pages)
 admin: {
-  hidden: handleProjectVisibility(['wemeditate-web'])
+  hidden: handleProjectVisibility('pages', ['wemeditate-web'])
 }
 
-// Visible in Web + App, but excluded from all-content mode
+// Visible in Web + App (requires write access to meditations)
 admin: {
-  hidden: handleProjectVisibility(['wemeditate-web', 'wemeditate-app'], { excludeAllContent: true })
+  hidden: handleProjectVisibility('meditations', ['wemeditate-web', 'wemeditate-app'])
 }
 
-// Completely hidden (alternative to `hidden: true`)
+// Global settings: visible only in specific project, excluded from all-content mode
 admin: {
-  hidden: handleProjectVisibility([])
+  hidden: handleProjectVisibility('we-meditate-web-settings', ['wemeditate-web'], { excludeFromAdminView: true })
 }
 ```
 
@@ -74,10 +82,10 @@ admin: {
 | External Videos | web, app | ✅ Visible | Not used in Atlas |
 | Frames | app | ✅ Visible | Meditation pose images/videos |
 | **Tags** |
-| Page Tags | web, app, atlas | ✅ Visible | |
-| Meditation Tags | web, app | ✅ Visible | |
-| Music Tags | web, app | ✅ Visible | |
-| Media Tags | web, app, atlas | ✅ Visible | |
+| Page Tags | web | ✅ Visible | Requires write access to page-tags |
+| Meditation Tags | web, app | ✅ Visible | Requires write access to meditation-tags |
+| Music Tags | web, app | ✅ Visible | Requires write access to music-tags |
+| Image Tags | web, app, atlas | ✅ Visible | Requires write access to image-tags |
 | **System** |
 | Managers | all-content only | Admin-only | User management |
 | Clients | all-content only | Admin-only | API client management |
@@ -118,7 +126,7 @@ export const ExternalVideos: CollectionConfig = {
   access: roleBasedAccess('external-videos'),
   admin: {
     group: 'Resources',
-    hidden: handleProjectVisibility(['wemeditate-web', 'wemeditate-app']),
+    hidden: handleProjectVisibility('external-videos', ['wemeditate-web', 'wemeditate-app']),
   },
   // ... fields
 }
@@ -133,7 +141,7 @@ export const WeMeditateWebSettings: GlobalConfig = {
   slug: 'we-meditate-web-settings',
   admin: {
     group: 'System',
-    hidden: handleProjectVisibility(['wemeditate-web'], { excludeAllContent: true }),
+    hidden: handleProjectVisibility('we-meditate-web-settings', ['wemeditate-web'], { excludeFromAdminView: true }),
   },
   // ... fields
 }

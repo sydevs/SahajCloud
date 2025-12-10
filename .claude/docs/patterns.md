@@ -254,3 +254,60 @@ TodoWrite({
 - Use descriptive activeForm for current work visibility
 - Include file names and specific changes in task descriptions
 - Limit to ONE in_progress task at a time
+
+## Component Folder Organization Pattern
+
+For related components (UI + wrapper, or component families), organize into a folder with barrel export:
+
+### Folder Structure
+
+```
+src/components/admin/
+└── TagSelector/
+    ├── index.ts              # Barrel export
+    ├── TagSelector.tsx       # Pure UI component
+    └── TagSelectorField.tsx  # PayloadCMS field wrapper
+```
+
+### Barrel Export (`index.ts`)
+
+```typescript
+export { TagSelector, type TagOption, type TagSelectorProps } from './TagSelector'
+export { TagSelectorField } from './TagSelectorField'
+export { default } from './TagSelectorField'  // Default for PayloadCMS component registration
+```
+
+**Key Points**:
+- Export types alongside components for consumer convenience
+- Default export should be the PayloadCMS-integrated component (for `admin.components.Field` registration)
+- Named exports allow importing specific components when needed
+
+### Collection Registration
+
+```typescript
+// In collection config
+admin: {
+  components: {
+    Field: '@/components/admin/TagSelector',  // Uses default export (TagSelectorField)
+  },
+}
+```
+
+### Import Patterns
+
+```typescript
+// Import the field wrapper (default export)
+import TagSelectorField from '@/components/admin/TagSelector'
+
+// Import specific components or types
+import { TagSelector, type TagOption } from '@/components/admin/TagSelector'
+
+// Import everything
+import { TagSelector, TagSelectorField, type TagOption, type TagSelectorProps } from '@/components/admin/TagSelector'
+```
+
+### When to Use Folder Organization
+- Component has multiple related files (UI + wrapper, sub-components)
+- Types should be exported alongside component
+- Component is registered in PayloadCMS config (needs default export)
+- Want clean imports without exposing internal file structure

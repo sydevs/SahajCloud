@@ -78,7 +78,7 @@ export interface Config {
     authors: Author;
     images: Image;
     files: File;
-    'media-tags': MediaTag;
+    'image-tags': ImageTag;
     'meditation-tags': MeditationTag;
     'music-tags': MusicTag;
     'page-tags': PageTag;
@@ -96,8 +96,8 @@ export interface Config {
     authors: {
       articles: 'pages';
     };
-    'media-tags': {
-      media: 'images';
+    'image-tags': {
+      images: 'images';
     };
     'meditation-tags': {
       meditations: 'meditations';
@@ -120,7 +120,7 @@ export interface Config {
     authors: AuthorsSelect<false> | AuthorsSelect<true>;
     images: ImagesSelect<false> | ImagesSelect<true>;
     files: FilesSelect<false> | FilesSelect<true>;
-    'media-tags': MediaTagsSelect<false> | MediaTagsSelect<true>;
+    'image-tags': ImageTagsSelect<false> | ImageTagsSelect<true>;
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
     'music-tags': MusicTagsSelect<false> | MusicTagsSelect<true>;
     'page-tags': PageTagsSelect<false> | PageTagsSelect<true>;
@@ -137,6 +137,29 @@ export interface Config {
   db: {
     defaultIDType: number;
   };
+  fallbackLocale:
+    | ('false' | 'none' | 'null')
+    | false
+    | null
+    | ('en' | 'es' | 'de' | 'it' | 'fr' | 'ru' | 'ro' | 'cs' | 'uk' | 'el' | 'hy' | 'pl' | 'pt-br' | 'fa' | 'bg' | 'tr')
+    | (
+        | 'en'
+        | 'es'
+        | 'de'
+        | 'it'
+        | 'fr'
+        | 'ru'
+        | 'ro'
+        | 'cs'
+        | 'uk'
+        | 'el'
+        | 'hy'
+        | 'pl'
+        | 'pt-br'
+        | 'fa'
+        | 'bg'
+        | 'tr'
+      )[];
   globals: {
     'we-meditate-web-settings': WeMeditateWebSetting;
     'we-meditate-app-settings': WeMeditateAppSetting;
@@ -279,7 +302,7 @@ export interface Image {
   /**
    * Tags to categorize this image
    */
-  tags?: (number | MediaTag)[] | null;
+  tags?: (number | ImageTag)[] | null;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -303,12 +326,12 @@ export interface Image {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media-tags".
+ * via the `definition` "image-tags".
  */
-export interface MediaTag {
+export interface ImageTag {
   id: number;
-  name: string;
-  media?: {
+  title: string;
+  images?: {
     docs?: (number | Image)[];
     hasNextPage?: boolean;
     totalDocs?: number;
@@ -358,9 +381,10 @@ export interface Author {
 export interface PageTag {
   id: number;
   /**
-   * This label will be used in the editor
+   * URL-friendly identifier (auto-generated from title)
    */
-  name: string;
+  slug?: string | null;
+  slugLock?: boolean | null;
   /**
    * This localized title will be shown to public users
    */
@@ -467,11 +491,12 @@ export interface Narrator {
 export interface MusicTag {
   id: number;
   /**
-   * This label will be used in the editor
+   * URL-friendly identifier (auto-generated from title)
    */
-  name: string;
+  slug?: string | null;
+  slugLock?: boolean | null;
   /**
-   * This localized title will be shown to public users
+   * Localized title shown to public users
    */
   title: string;
   music?: {
@@ -481,6 +506,15 @@ export interface MusicTag {
   };
   updatedAt: string;
   createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -525,13 +559,18 @@ export interface Music {
 export interface MeditationTag {
   id: number;
   /**
-   * This label will be used in the editor
+   * URL-friendly identifier (auto-generated from title)
    */
-  name: string;
+  slug?: string | null;
+  slugLock?: boolean | null;
   /**
-   * This localized title will be shown to public users
+   * Localized title shown to public users
    */
   title: string;
+  /**
+   * Tag color for UI theming (hex format)
+   */
+  color: string;
   meditations?: {
     docs?: (number | Meditation)[];
     hasNextPage?: boolean;
@@ -539,6 +578,15 @@ export interface MeditationTag {
   };
   updatedAt: string;
   createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1227,8 +1275,8 @@ export interface PayloadLockedDocument {
         value: number | File;
       } | null)
     | ({
-        relationTo: 'media-tags';
-        value: number | MediaTag;
+        relationTo: 'image-tags';
+        value: number | ImageTag;
       } | null)
     | ({
         relationTo: 'meditation-tags';
@@ -1539,11 +1587,11 @@ export interface FilesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "media-tags_select".
+ * via the `definition` "image-tags_select".
  */
-export interface MediaTagsSelect<T extends boolean = true> {
-  name?: T;
-  media?: T;
+export interface ImageTagsSelect<T extends boolean = true> {
+  title?: T;
+  images?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1552,29 +1600,51 @@ export interface MediaTagsSelect<T extends boolean = true> {
  * via the `definition` "meditation-tags_select".
  */
 export interface MeditationTagsSelect<T extends boolean = true> {
-  name?: T;
+  slug?: T;
+  slugLock?: T;
   title?: T;
+  color?: T;
   meditations?: T;
   updatedAt?: T;
   createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "music-tags_select".
  */
 export interface MusicTagsSelect<T extends boolean = true> {
-  name?: T;
+  slug?: T;
+  slugLock?: T;
   title?: T;
   music?: T;
   updatedAt?: T;
   createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "page-tags_select".
  */
 export interface PageTagsSelect<T extends boolean = true> {
-  name?: T;
+  slug?: T;
+  slugLock?: T;
   title?: T;
   pages?: T;
   updatedAt?: T;

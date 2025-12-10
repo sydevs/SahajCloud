@@ -1,7 +1,5 @@
-import {
-  CollectionBeforeOperationHook,
-  CollectionBeforeValidateHook,
-} from 'payload'
+import type { CollectionBeforeOperationHook, CollectionBeforeValidateHook } from 'payload'
+
 import { PayloadRequest } from 'payload'
 import slugify from 'slugify'
 
@@ -189,4 +187,3 @@ export const processFile: ProcessFileHook = ({ maxMB, maxMinutes }) => {
     return data
   }
 }
-

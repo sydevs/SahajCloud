@@ -23,15 +23,10 @@ describe('Localization', () => {
 
   describe('Meditation Tags Collection', () => {
     it.skip('creates and retrieves localized tag titles - Payload behavior differs from test expectations', async () => {
-      // Create tag with English title
-      const enTag = (await payload.create({
-        collection: 'meditation-tags',
-        data: {
-          name: 'mindfulness',
-          title: 'Mindfulness',
-        },
-        locale: 'en',
-      })) as MeditationTag
+      // Create tag with English title (slug auto-generated from title)
+      const enTag = await testData.createMeditationTag(payload, {
+        title: 'Mindfulness',
+      })
 
       // Update tag with Italian title
       await payload.update({
@@ -63,15 +58,10 @@ describe('Localization', () => {
     })
 
     it.skip('supports localized queries with find operations - Payload behavior differs from test expectations', async () => {
-      // Create tag with different titles for each locale
-      const tag = (await payload.create({
-        collection: 'meditation-tags',
-        data: {
-          name: 'relaxation',
-          title: 'Relaxation',
-        },
-        locale: 'en',
-      })) as MeditationTag
+      // Create tag with different titles for each locale (slug auto-generated from title)
+      const tag = await testData.createMeditationTag(payload, {
+        title: 'Relaxation',
+      })
 
       await payload.update({
         collection: 'meditation-tags',
@@ -489,15 +479,10 @@ describe('Localization', () => {
 
   describe('Default locale behavior', () => {
     it.skip('returns default locale content when no locale is specified - Payload behavior differs from test expectations', async () => {
-      // Create tag with both locales
-      const tag = (await payload.create({
-        collection: 'meditation-tags',
-        data: {
-          name: 'default-english',
-          title: 'Default English',
-        },
-        locale: 'en',
-      })) as MeditationTag
+      // Create tag with both locales (slug auto-generated from title)
+      const tag = await testData.createMeditationTag(payload, {
+        title: 'Default English',
+      })
 
       await payload.update({
         collection: 'meditation-tags',
