@@ -137,6 +137,29 @@ export interface Config {
   db: {
     defaultIDType: number;
   };
+  fallbackLocale:
+    | ('false' | 'none' | 'null')
+    | false
+    | null
+    | ('en' | 'es' | 'de' | 'it' | 'fr' | 'ru' | 'ro' | 'cs' | 'uk' | 'el' | 'hy' | 'pl' | 'pt-br' | 'fa' | 'bg' | 'tr')
+    | (
+        | 'en'
+        | 'es'
+        | 'de'
+        | 'it'
+        | 'fr'
+        | 'ru'
+        | 'ro'
+        | 'cs'
+        | 'uk'
+        | 'el'
+        | 'hy'
+        | 'pl'
+        | 'pt-br'
+        | 'fa'
+        | 'bg'
+        | 'tr'
+      )[];
   globals: {
     'we-meditate-web-settings': WeMeditateWebSetting;
     'we-meditate-app-settings': WeMeditateAppSetting;

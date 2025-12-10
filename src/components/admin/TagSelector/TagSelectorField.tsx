@@ -19,6 +19,16 @@ interface TagsApiResponse {
 }
 
 /**
+ * Fetcher function for SWR
+ * Required because SWR doesn't have a global fetcher configured
+ */
+const fetcher = (url: string): Promise<TagsApiResponse> =>
+  fetch(url).then((res) => {
+    if (!res.ok) throw new Error(`Failed to fetch tags: ${res.statusText}`)
+    return res.json()
+  })
+
+/**
  * Tag Selector Field Component
  *
  * A PayloadCMS field component wrapper for TagSelector that provides:
@@ -90,7 +100,10 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
 
   // Fetch tags from API with SWR caching
   const collection = Array.isArray(relationTo) ? relationTo[0] : relationTo
-  const { data, error, isLoading } = useSWR<TagsApiResponse>(`/api/${collection}?limit=100&depth=0`)
+  const { data, error, isLoading } = useSWR<TagsApiResponse>(
+    `/api/${collection}?limit=100&depth=0`,
+    fetcher,
+  )
   const tags = data?.docs || []
 
   // Normalize value to array for consistent handling

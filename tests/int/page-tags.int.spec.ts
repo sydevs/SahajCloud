@@ -95,9 +95,10 @@ describe('PageTags Collection', () => {
     expect(typeof config.access?.read).toBe('function')
   })
 
-  it('is hidden in admin navigation', async () => {
+  it('uses handleProjectVisibility for admin visibility', async () => {
     const config = payload.collections['page-tags'].config
-    expect(config.admin?.hidden).toBe(true)
+    // PageTags uses handleProjectVisibility which returns a function
+    expect(typeof config.admin?.hidden).toBe('function')
   })
 
   it('uses title as admin display field', async () => {
