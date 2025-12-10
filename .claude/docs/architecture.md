@@ -57,8 +57,8 @@ The application uses **Cloudflare-native storage services** for optimal performa
 
 ### Tag Collections
 - **ImageTags** (`src/collections/tags/ImageTags.ts`) - Tag system for image files with title field
-- **MeditationTags** (`src/collections/tags/MeditationTags.ts`) - Upload collection for meditation tags with SVG icons, color picker, auto-generated slug from localized title, and bidirectional relationships
-- **MusicTags** (`src/collections/tags/MusicTags.ts`) - Upload collection for music tags with SVG icons, auto-generated slug from localized title, and bidirectional relationships
+- **MeditationTags** (`src/collections/tags/MeditationTags.ts`) - Upload collection for meditation tags with SVG icons, **color picker field**, auto-generated slug from localized title, and bidirectional relationships
+- **MusicTags** (`src/collections/tags/MusicTags.ts`) - Upload collection for music tags with SVG icons, auto-generated slug from localized title, and bidirectional relationships (**note: no color field**, unlike MeditationTags)
 - **PageTags** (`src/collections/tags/PageTags.ts`) - Tag system for pages with auto-generated slug from localized title and bidirectional relationships
 
 #### Tag Collection Admin Components
@@ -172,5 +172,6 @@ The system includes import scripts for migrating content from external sources i
 - **Storyblok Import** - Migrates Path Steps from Storyblok CMS to Lessons collection
 - **WeMeditate Import** - Imports authors, categories, and pages from Rails PostgreSQL database
 - **Meditations Import** - Imports meditation content from legacy database
+- **Tags Import** - Imports MeditationTags and MusicTags from Cloudinary SVG assets with automatic color processing
 
 All scripts follow consistent patterns: resilient error handling, comprehensive dry-run mode, shared utilities, and detailed reporting.
