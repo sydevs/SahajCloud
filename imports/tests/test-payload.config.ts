@@ -4,7 +4,6 @@ import { fileURLToPath } from 'url'
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
-import sharp from 'sharp'
 
 import { LOCALES, DEFAULT_LOCALE } from '../../src/lib/locales'
 import { collections, Managers } from '../../src/collections'
@@ -43,7 +42,6 @@ export const testPayloadConfig = (overrides?: Partial<Config>) => {
         url: ':memory:', // In-memory database - no file persistence
       },
     }),
-    sharp,
     // No plugins for tests - keeps it simple and fast
     plugins: [],
     // Allow overrides (for custom test scenarios)

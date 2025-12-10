@@ -195,7 +195,7 @@ class StoryblokImporter {
     if (!result.wasReused) {
       this.summary.mediaCreated++
     }
-    return parseInt(result.id)
+    return result.id
   }
 
   async createFileAttachment(

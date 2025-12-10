@@ -94,8 +94,8 @@ class SimpleImporter {
   private dryRun: boolean
   private reset: boolean
   private idMapsFile: string
-  private placeholderMediaId: string | null = null
-  private pathPlaceholderMediaId: string | null = null
+  private placeholderMediaId: number | null = null
+  private pathPlaceholderMediaId: number | null = null
   private meditationThumbnailTagId: number | null = null
   private importMediaTagId: number | null = null
   private idMaps = {
@@ -739,7 +739,7 @@ class SimpleImporter {
     await this.logger.log(`    ✓ Import tag ready (ID: ${this.importMediaTagId})`)
   }
 
-  private async ensureMeditationThumbnailTag(mediaId: string) {
+  private async ensureMeditationThumbnailTag(mediaId: number) {
     if (!this.meditationThumbnailTagId && !this.importMediaTagId) {
       return
     }
@@ -786,7 +786,7 @@ class SimpleImporter {
 
     // Upload or reuse placeholder.jpg
     if (existingPlaceholder.docs.length > 0) {
-      this.placeholderMediaId = String(existingPlaceholder.docs[0].id)
+      this.placeholderMediaId = existingPlaceholder.docs[0].id
       await this.logger.log(
         `    ✓ Found existing placeholder.jpg media (ID: ${this.placeholderMediaId})`,
       )
@@ -805,7 +805,7 @@ class SimpleImporter {
           tags,
         })
         if (placeholderMedia) {
-          this.placeholderMediaId = String(placeholderMedia.id)
+          this.placeholderMediaId = placeholderMedia.id
           await this.logger.log(`    ✓ Uploaded placeholder.jpg (ID: ${this.placeholderMediaId})`)
         }
       } catch (error) {
@@ -815,7 +815,7 @@ class SimpleImporter {
 
     // Upload or reuse path.jpg
     if (existingPathPlaceholder.docs.length > 0) {
-      this.pathPlaceholderMediaId = String(existingPathPlaceholder.docs[0].id)
+      this.pathPlaceholderMediaId = existingPathPlaceholder.docs[0].id
       await this.logger.log(
         `    ✓ Found existing path.jpg media (ID: ${this.pathPlaceholderMediaId})`,
       )
@@ -834,7 +834,7 @@ class SimpleImporter {
           tags,
         })
         if (pathMedia) {
-          this.pathPlaceholderMediaId = String(pathMedia.id)
+          this.pathPlaceholderMediaId = pathMedia.id
           await this.logger.log(`    ✓ Uploaded path.jpg (ID: ${this.pathPlaceholderMediaId})`)
         }
       } catch (error) {
@@ -1523,7 +1523,7 @@ class SimpleImporter {
       const audioAttachment = meditationAttachments.find((att) => att.name === 'audio')
       const artAttachment = meditationAttachments.find((att) => att.name === 'art')
 
-      let thumbnailId: string | null = null
+      let thumbnailId: number | null = null
 
       // Upload thumbnail if available (with deduplication)
       if (artAttachment) {

@@ -67,7 +67,7 @@ export class TagManager {
   /**
    * Add tags to an image document
    */
-  async addTagsToImage(imageId: string, tagIds: number[]): Promise<void> {
+  async addTagsToImage(imageId: number, tagIds: number[]): Promise<void> {
     if (tagIds.length === 0) return
 
     try {

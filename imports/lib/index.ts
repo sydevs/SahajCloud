@@ -1,5 +1,5 @@
 /**
- * Migration Library
+ * Import Library
  *
  * Shared utilities for import scripts
  */
@@ -11,3 +11,4 @@ export * from './payloadHelpers'
 export * from './mediaDownloader'
 export * from './lexicalConverter'
 export * from './MediaUploader'
+export * from './validationReport'

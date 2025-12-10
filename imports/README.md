@@ -6,6 +6,29 @@ This directory contains import scripts for migrating content from external sourc
 
 ---
 
+## Quick Start
+
+Use the unified CLI runner to execute import scripts:
+
+```bash
+# Show available scripts and options
+pnpm run import --help
+
+# Run a specific import
+pnpm run import storyblok --dry-run
+pnpm run import wemeditate --reset
+pnpm run import meditations
+pnpm run import tags
+```
+
+Or use the direct npm scripts:
+```bash
+pnpm run import:storyblok --dry-run
+pnpm run import:wemeditate --reset
+```
+
+---
+
 ## Available Import Scripts
 
 ### 1. Storyblok Path Steps Import
@@ -16,13 +39,13 @@ Migrates "Path Step" data from Storyblok CMS into Payload's Lessons collection.
 **Quick Start**:
 ```bash
 # Dry run validation
-npx tsx imports/storyblok/import.ts --dry-run --unit=1
+pnpm run import storyblok --dry-run --unit=1
 
 # Import specific unit
-npx tsx imports/storyblok/import.ts --unit=1
+pnpm run import storyblok --unit=1
 
 # Full import with reset
-npx tsx imports/storyblok/import.ts --reset
+pnpm run import storyblok --reset
 ```
 
 **Features**:
@@ -44,10 +67,10 @@ Imports authors, categories, and pages (~160+ pages) from Rails-based WeMeditate
 **Quick Start**:
 ```bash
 # Dry run
-npx tsx imports/wemeditate/import.ts --dry-run
+pnpm run import wemeditate --dry-run
 
 # Full import
-npx tsx imports/wemeditate/import.ts --reset
+pnpm run import wemeditate --reset
 ```
 
 **Features**:
@@ -70,10 +93,10 @@ Imports meditation content from legacy database.
 **Quick Start**:
 ```bash
 # Dry run
-npx tsx imports/meditations/import.ts --dry-run
+pnpm run import meditations --dry-run
 
 # Full import
-npx tsx imports/meditations/import.ts --reset
+pnpm run import meditations --reset
 ```
 
 **Documentation**: See [meditations/IMPORT.md](meditations/IMPORT.md) for details.
@@ -86,13 +109,13 @@ Imports MeditationTags (24 items) and MusicTags (4 items) from Cloudinary-hosted
 **Quick Start**:
 ```bash
 # Dry run validation
-npx tsx imports/tags/import.ts --dry-run
+pnpm run import tags --dry-run
 
 # Full import (creates or updates existing)
-npx tsx imports/tags/import.ts
+pnpm run import tags
 
 # Clean import with reset
-npx tsx imports/tags/import.ts --reset
+pnpm run import tags --reset
 ```
 
 **Features**:
@@ -122,13 +145,13 @@ All import scripts support these flags:
 **Examples**:
 ```bash
 # Validate setup without importing
-npx tsx imports/{script}/import.ts --dry-run
+pnpm run import <script> --dry-run
 
 # Clean import (deletes existing data)
-npx tsx imports/{script}/import.ts --reset
+pnpm run import <script> --reset
 
 # Fresh start with cleared cache
-npx tsx imports/{script}/import.ts --clear-cache --reset
+pnpm run import <script> --clear-cache --reset
 ```
 
 ---
@@ -333,7 +356,7 @@ dropdb temp_wemeditate_import
 
 ```bash
 # Clear cache and try again
-npx tsx imports/{script}/import.ts --clear-cache --reset
+pnpm run import <script> --clear-cache --reset
 ```
 
 ---
@@ -342,12 +365,12 @@ npx tsx imports/{script}/import.ts --clear-cache --reset
 
 1. **Always run dry-run first**:
    ```bash
-   npx tsx imports/script/import.ts --dry-run
+   pnpm run import <script> --dry-run
    ```
 
 2. **Use --reset for clean imports**:
    ```bash
-   npx tsx imports/script/import.ts --reset
+   pnpm run import <script> --reset
    ```
 
 3. **Check the summary output**:
@@ -362,7 +385,7 @@ npx tsx imports/{script}/import.ts --clear-cache --reset
 5. **Test with small datasets first**:
    ```bash
    # Storyblok: Import just one unit
-   npx tsx imports/storyblok/import.ts --unit=1
+   pnpm run import storyblok --unit=1
    ```
 
 ---

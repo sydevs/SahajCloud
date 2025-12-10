@@ -18,12 +18,12 @@ export interface ConversionContext {
   pageTitle: string // For better error messages
   locale: string
   // ID maps for relationships
-  mediaMap: Map<string, string> // image URL → Media ID
-  formMap: Map<string, string> // form type → Form ID
-  externalVideoMap: Map<string, string> // vimeo_id → ExternalVideo ID
-  treatmentMap: Map<number, string> // treatment ID → Page ID
-  treatmentThumbnailMap: Map<number, string> // treatment ID → Media ID (for thumbnails)
-  meditationTitleMap: Map<string, string> // meditation title → Meditation ID
+  mediaMap: Map<string, number> // image URL → Media ID
+  formMap: Map<string, number> // form type → Form ID
+  externalVideoMap: Map<string, number> // vimeo_id → ExternalVideo ID
+  treatmentMap: Map<number, number> // treatment ID → Page ID
+  treatmentThumbnailMap: Map<number, number> // treatment ID → Media ID (for thumbnails)
+  meditationTitleMap: Map<string, number> // meditation title → Meditation ID
   meditationRailsTitleMap: Map<number, string> // Rails meditation ID → title (without duration)
 }
 
@@ -361,7 +361,7 @@ export function createBlockNode(blockType: string, blockName: string, fields: an
 /**
  * Create a Lexical relationship node
  */
-export function createRelationshipNode(relationTo: string, value: string): LexicalNode {
+export function createRelationshipNode(relationTo: string, value: number): LexicalNode {
   return {
     type: 'relationship',
     version: 2,
@@ -374,7 +374,7 @@ export function createRelationshipNode(relationTo: string, value: string): Lexic
  * Create a Lexical upload node (inline image)
  */
 export function createUploadNode(
-  mediaId: string,
+  mediaId: number,
   align: 'center' | 'left' | 'right' | 'wide',
   caption?: string,
 ): LexicalNode {
@@ -471,7 +471,7 @@ export function convertTextbox(
   }
 
   // TextBoxBlock - get image relationship (REQUIRED)
-  let imageId: string | undefined
+  let imageId: number | undefined
   if (data.image?.preview) {
     // Look up in media map by preview URL (same as LayoutBlock and MediaBlock)
     imageId = context.mediaMap.get(data.image.preview)
@@ -591,7 +591,7 @@ export function convertLayout(
   // Convert items - skip items without required title or titleUrl
   const items = (data.items || [])
     .map((item: any, index: number) => {
-      let imageId: string | undefined
+      let imageId: number | undefined
       if (item.image?.preview) {
         // Look up in media map by preview URL
         imageId = context.mediaMap.get(item.image.preview)
@@ -635,8 +635,8 @@ export function convertLayout(
 export function convertMedia(block: EditorJSBlock, context: ConversionContext): LexicalNode | null {
   const { data } = block
 
-  // Collect Media IDs as plain strings (upload field format)
-  const items: string[] = []
+  // Collect Media IDs as plain numbers (upload field format)
+  const items: number[] = []
   for (const item of data.items || []) {
     if (item.image?.preview) {
       const mediaId = context.mediaMap.get(item.image.preview)
@@ -753,7 +753,7 @@ export async function convertCatalog(
   }
 
   const type = data.type // 'treatments' or 'meditations'
-  const itemIds: string[] = []
+  const itemIds: number[] = []
 
   // Map items to Page/Meditation IDs
   for (const itemId of data.items) {
@@ -848,7 +848,7 @@ export async function convertCatalogToRelationshipNodes(
 
   // Map items to Page/Meditation IDs (same logic as convertCatalog)
   for (const itemId of data.items) {
-    let payloadId: string | undefined
+    let payloadId: number | undefined
 
     if (type === 'treatments') {
       payloadId = context.treatmentMap.get(itemId)

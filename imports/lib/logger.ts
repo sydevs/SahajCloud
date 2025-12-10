@@ -91,4 +91,27 @@ export class Logger {
       this.onSkip(message)
     }
   }
+
+  /**
+   * Log progress with a visual progress bar
+   * @param current - Current item number
+   * @param total - Total number of items
+   * @param message - Description of what's being processed
+   */
+  async progress(current: number, total: number, message: string): Promise<void> {
+    const percent = total > 0 ? Math.round((current / total) * 100) : 0
+    const bar = this.createProgressBar(percent)
+    await this.log(`${bar} ${percent}% (${current}/${total}) ${message}`, { color: 'blue' })
+  }
+
+  /**
+   * Create a visual progress bar string
+   * @param percent - Percentage complete (0-100)
+   * @param width - Width of the progress bar in characters
+   */
+  private createProgressBar(percent: number, width: number = 20): string {
+    const filled = Math.round((width * percent) / 100)
+    const empty = width - filled
+    return `[${'='.repeat(filled)}${' '.repeat(empty)}]`
+  }
 }

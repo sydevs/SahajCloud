@@ -96,16 +96,16 @@ interface ScriptOptions {
 }
 
 interface IdMaps {
-  authors: Map<number, string>
-  categories: Map<number, string>
-  staticPages: Map<number, string>
-  articles: Map<number, string>
-  promoPages: Map<number, string>
-  subtleSystemNodes: Map<number, string>
-  treatments: Map<number, string>
-  media: Map<string, string>
-  forms: Map<string, string>
-  externalVideos: Map<string, string>
+  authors: Map<number, number>
+  categories: Map<number, number>
+  staticPages: Map<number, number>
+  articles: Map<number, number>
+  promoPages: Map<number, number>
+  subtleSystemNodes: Map<number, number>
+  treatments: Map<number, number>
+  media: Map<string, number>
+  forms: Map<string, number>
+  externalVideos: Map<string, number>
 }
 
 interface ImportSummary {
@@ -132,7 +132,7 @@ class WeMeditateImporter {
   private payloadHelpers!: PayloadHelpers
   private mediaDownloader!: MediaDownloader
   private mediaUploader!: MediaUploader
-  private defaultThumbnailId: string | null = null
+  private defaultThumbnailId: number | null = null
 
   private dbClient!: Client
   private options: ScriptOptions
@@ -148,10 +148,10 @@ class WeMeditateImporter {
     forms: new Map(),
     externalVideos: new Map(),
   }
-  private meditationTitleMap: Map<string, string> = new Map() // Payload title → Payload ID
+  private meditationTitleMap: Map<string, number> = new Map() // Payload title → Payload ID
   private meditationRailsTitleMap: Map<number, string> = new Map() // Rails ID → title (no duration)
-  private treatmentThumbnailMap: Map<number, string> = new Map() // Treatment ID → Media ID
-  private contentTypeTagMap: Map<string, string> = new Map()
+  private treatmentThumbnailMap: Map<number, number> = new Map() // Treatment ID → Media ID
+  private contentTypeTagMap: Map<string, number> = new Map()
 
   // Summary tracking
   private summary: ImportSummary = {
@@ -332,7 +332,7 @@ class WeMeditateImporter {
   /**
    * Find a page by its English slug
    */
-  private async findPageBySlug(slug: string): Promise<string | null> {
+  private async findPageBySlug(slug: string): Promise<number | null> {
     try {
       const result = await this.payload.find({
         collection: 'pages',
@@ -342,7 +342,7 @@ class WeMeditateImporter {
       })
 
       if (result.docs.length > 0) {
-        return result.docs[0].id as string
+        return result.docs[0].id
       }
 
       await this.logger.warn(`Page with slug "${slug}" not found`)
@@ -354,22 +354,22 @@ class WeMeditateImporter {
   }
 
   /**
-   * Find or create music tags by name
+   * Find or create music tags by title
    */
-  private async findOrCreateMusicTags(tagNames: string[]): Promise<string[]> {
-    const tagIds: string[] = []
+  private async findOrCreateMusicTags(tagNames: string[]): Promise<number[]> {
+    const tagIds: number[] = []
 
     for (const tagName of tagNames) {
       try {
-        // Try to find existing tag
+        // Try to find existing tag by title
         const existing = await this.payload.find({
           collection: 'music-tags',
-          where: { name: { equals: tagName } },
+          where: { title: { equals: tagName } },
           limit: 1,
         })
 
         if (existing.docs.length > 0) {
-          tagIds.push(existing.docs[0].id as string)
+          tagIds.push(existing.docs[0].id)
           await this.logger.log(`✓ Found music tag: ${tagName}`)
         } else {
           // Create new tag
@@ -379,7 +379,7 @@ class WeMeditateImporter {
               title: tagName.charAt(0).toUpperCase() + tagName.slice(1),
             } as any,
           })
-          tagIds.push(String(newTag.id))
+          tagIds.push(newTag.id)
           await this.logger.log(`✓ Created music tag: ${tagName}`)
         }
       } catch (error: any) {
@@ -391,21 +391,21 @@ class WeMeditateImporter {
   }
 
   /**
-   * Find a page tag by name
+   * Find a page tag by title
    */
-  private async findPageTagByName(tagName: string): Promise<string | null> {
+  private async findPageTagByName(tagName: string): Promise<number | null> {
     try {
       const result = await this.payload.find({
         collection: 'page-tags',
-        where: { name: { equals: tagName } },
+        where: { title: { equals: tagName } },
         limit: 1,
       })
 
       if (result.docs.length > 0) {
-        return result.docs[0].id as string
+        return result.docs[0].id
       }
 
-      await this.logger.warn(`Page tag with name "${tagName}" not found`)
+      await this.logger.warn(`Page tag with title "${tagName}" not found`)
       return null
     } catch (error: any) {
       this.addError(`Failed to find page tag "${tagName}"`, error)
@@ -511,7 +511,7 @@ class WeMeditateImporter {
           })
         }
 
-        this.idMaps.authors.set(author.id, authorDoc.id as string)
+        this.idMaps.authors.set(author.id, authorDoc.id)
         this.summary.authorsCreated++
         await this.logger.log(
           `✓ Created author: ${author.id} -> ${authorDoc.id} (${1 + otherLocales.length} locales)`,
@@ -600,7 +600,7 @@ class WeMeditateImporter {
           })
         }
 
-        this.idMaps.categories.set(category.id, tagDoc.id as string)
+        this.idMaps.categories.set(category.id, tagDoc.id)
         this.summary.categoriesCreated++
         await this.logger.log(
           `✓ Created category tag: ${category.id} -> ${tagDoc.id} (${1 + otherLocales.length} locales)`,
@@ -623,7 +623,7 @@ class WeMeditateImporter {
           } as any,
         })
 
-        this.contentTypeTagMap.set(`content-type-tag-${tagName}`, String(tagDoc.id))
+        this.contentTypeTagMap.set(`content-type-tag-${tagName}`, tagDoc.id)
         await this.logger.log(`✓ Created content type tag: ${tagName}`)
       } catch (error: any) {
         // Tag might already exist
@@ -725,13 +725,13 @@ class WeMeditateImporter {
 
       try {
         // Get author relationship
-        let authorId: string | undefined
+        let authorId: number | undefined
         if (page.author_id && this.idMaps.authors.has(page.author_id)) {
           authorId = this.idMaps.authors.get(page.author_id)
         }
 
         // Get tags
-        const tags: string[] = []
+        const tags: number[] = []
 
         // Add content type tag
         const contentTypeTag = CONTENT_TYPE_TAGS[tableName]
@@ -880,7 +880,7 @@ class WeMeditateImporter {
         }
 
         // Get tags
-        const tags: string[] = []
+        const tags: number[] = []
         const contentTypeTag = CONTENT_TYPE_TAGS['promo_pages']
         if (contentTypeTag) {
           const tagId = this.contentTypeTagMap.get(`content-type-tag-${contentTypeTag}`)
@@ -940,7 +940,7 @@ class WeMeditateImporter {
         }
 
         // Store mapping
-        this.idMaps.promoPages.set(pageId, pageDoc.id as string)
+        this.idMaps.promoPages.set(pageId, pageDoc.id)
         this.summary.pagesCreated++
         await this.logger.log(
           `✓ Created page from promo_pages: ${pageId} -> ${pageDoc.id} (${1 + otherLocales.length} locales)`,
@@ -1082,7 +1082,7 @@ class WeMeditateImporter {
         })
 
         if (existing.docs.length > 0) {
-          this.idMaps.forms.set(formType, existing.docs[0].id as string)
+          this.idMaps.forms.set(formType, existing.docs[0].id)
           await this.logger.log(`✓ Reusing existing form: ${config.title}`)
           continue
         }
@@ -1128,7 +1128,7 @@ class WeMeditateImporter {
           },
         })
 
-        this.idMaps.forms.set(formType, form.id as string)
+        this.idMaps.forms.set(formType, form.id)
         this.summary.formsCreated++
         await this.logger.log(`✓ Created form: ${config.title}`)
       } catch (error: any) {
@@ -1150,7 +1150,7 @@ class WeMeditateImporter {
       for (const meditation of meditations.docs) {
         if (meditation.title) {
           const title = meditation.title.toLowerCase().trim()
-          this.meditationTitleMap.set(title, meditation.id as string)
+          this.meditationTitleMap.set(title, meditation.id)
         }
       }
 
@@ -1240,7 +1240,7 @@ class WeMeditateImporter {
   /**
    * Get or create default thumbnail for external videos
    */
-  private async getDefaultThumbnail(): Promise<string> {
+  private async getDefaultThumbnail(): Promise<number> {
     if (this.defaultThumbnailId) {
       return this.defaultThumbnailId
     }
@@ -1270,7 +1270,7 @@ class WeMeditateImporter {
     videoId: string,
     vimeoId?: string,
     youtubeId?: string,
-  ): Promise<string> {
+  ): Promise<number> {
     try {
       let thumbnailUrl: string | null = null
 
@@ -1280,8 +1280,8 @@ class WeMeditateImporter {
           const oembedUrl = `https://vimeo.com/api/oembed.json?url=https://vimeo.com/${vimeoId}`
           const response = await fetch(oembedUrl)
           if (response.ok) {
-            const data = await response.json()
-            thumbnailUrl = data.thumbnail_url
+            const data = (await response.json()) as { thumbnail_url?: string }
+            thumbnailUrl = data.thumbnail_url ?? null
             await this.logger.log(`✓ Fetched Vimeo thumbnail for ${vimeoId}`)
           }
         } catch (error: unknown) {
@@ -1439,7 +1439,7 @@ class WeMeditateImporter {
           },
         })
 
-        this.idMaps.externalVideos.set(videoId, externalVideo.id as string)
+        this.idMaps.externalVideos.set(videoId, externalVideo.id)
         this.summary.externalVideosCreated++
         await this.logger.log(`✓ Created ExternalVideo: ${videoId}`)
       } catch (error: any) {
@@ -1693,9 +1693,9 @@ class WeMeditateImporter {
       const techniquePageTag = await this.findPageTagByName('treatment')
 
       // Filter out null values from arrays
-      const featuredPages = pageMapping.featuredPages.filter((id) => id !== null) as string[]
-      const footerPages = pageMapping.footerPages.filter((id) => id !== null) as string[]
-      const inspirationPageTagsFiltered = inspirationPageTags.filter((id) => id !== null) as string[]
+      const featuredPages = pageMapping.featuredPages.filter((id) => id !== null) as number[]
+      const footerPages = pageMapping.footerPages.filter((id) => id !== null) as number[]
+      const inspirationPageTagsFiltered = inspirationPageTags.filter((id) => id !== null) as number[]
 
       // Validate required fields
       if (!pageMapping.homePage) {
@@ -2111,7 +2111,6 @@ class WeMeditateImporter {
             const tagDoc = await this.payload.create({
               collection: 'page-tags',
               data: {
-                name: articleType,
                 title: articleType,
               },
             })

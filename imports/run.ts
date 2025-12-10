@@ -5,7 +5,7 @@
  * A simple CLI to run import scripts with consistent argument handling.
  *
  * Usage:
- *   pnpm import <script> [options]
+ *   pnpm run import <script> [options]
  *
  * Scripts:
  *   storyblok    - Import Path Steps from Storyblok CMS
@@ -44,7 +44,7 @@ function printUsage(): void {
 📦 Import Script Runner
 
 Usage:
-  pnpm import <script> [options]
+  pnpm run import <script> [options]
 
 Available Scripts:
   storyblok     Import Path Steps from Storyblok CMS
@@ -59,11 +59,11 @@ Options:
   --unit=N       Import only specific unit (storyblok only)
 
 Examples:
-  pnpm import storyblok --dry-run
-  pnpm import storyblok --unit=1 --reset
-  pnpm import wemeditate --reset
-  pnpm import meditations --dry-run
-  pnpm import tags
+  pnpm run import storyblok --dry-run
+  pnpm run import storyblok --unit=1 --reset
+  pnpm run import wemeditate --reset
+  pnpm run import meditations --dry-run
+  pnpm run import tags
 `)
 }
 
