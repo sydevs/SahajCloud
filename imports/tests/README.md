@@ -183,8 +183,8 @@ After successful import, the test database contains:
 ```
 Collection Statistics:
   meditations: 73 documents
-  media-tags: 2 documents (meditation-thumbnail, import-meditations)
-  media: 78 documents
+  image-tags: 2 documents (meditation-thumbnail, import-meditations)
+  images: 78 documents
   music-tags: 11 documents
   frames: 120 documents
   narrators: 2 documents
@@ -196,7 +196,7 @@ Total: 335 documents across 18 collections
 Import Tags:
   ✓ import-meditations
 
-Media with tags: 14
+Images with tags: 14
 ```
 
 ## Running Full Test Suite

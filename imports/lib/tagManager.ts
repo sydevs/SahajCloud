@@ -31,10 +31,10 @@ export class TagManager {
       return this.tagCache.get(cacheKey)!
     }
 
-    // Check if tag exists
+    // Check if tag exists by title
     const existing = await this.payload.find({
       collection: tagCollection as any,
-      where: { name: { equals: tagName } },
+      where: { title: { equals: tagName } },
       limit: 1,
     })
 
@@ -45,10 +45,10 @@ export class TagManager {
       return tagId
     }
 
-    // Create tag
+    // Create tag with title field
     const tag = await this.payload.create({
       collection: tagCollection as any,
-      data: { name: tagName, ...additionalData },
+      data: { title: tagName, ...additionalData },
     })
 
     const tagId = tag.id as number
@@ -58,28 +58,28 @@ export class TagManager {
   }
 
   /**
-   * Ensure media import tag
+   * Ensure image import tag (uses image-tags collection)
    */
-  async ensureMediaTag(importTag: string): Promise<number> {
-    return this.ensureTag('media-tags', importTag)
+  async ensureImageTag(importTag: string): Promise<number> {
+    return this.ensureTag('image-tags', importTag)
   }
 
   /**
-   * Add tags to media document
+   * Add tags to an image document
    */
-  async addTagsToMedia(mediaId: string, tagIds: number[]): Promise<void> {
+  async addTagsToImage(imageId: string, tagIds: number[]): Promise<void> {
     if (tagIds.length === 0) return
 
     try {
-      // Get current media document
-      const media = await this.payload.findByID({
-        collection: 'media',
-        id: mediaId,
+      // Get current image document
+      const image = await this.payload.findByID({
+        collection: 'images',
+        id: imageId,
       })
 
       // Get current tags
-      const currentTags = Array.isArray(media.tags)
-        ? media.tags.map((tag: number | { id: number }) =>
+      const currentTags = Array.isArray(image.tags)
+        ? image.tags.map((tag: number | { id: number }) =>
             typeof tag === 'number' ? tag : tag.id,
           )
         : []
@@ -89,17 +89,17 @@ export class TagManager {
 
       if (tagsToAdd.length > 0) {
         await this.payload.update({
-          collection: 'media',
-          id: mediaId,
+          collection: 'images',
+          id: imageId,
           data: {
             tags: [...currentTags, ...tagsToAdd],
           },
         })
-        await this.logger.info(`Added ${tagsToAdd.length} tags to media ${mediaId}`)
+        await this.logger.info(`Added ${tagsToAdd.length} tags to image ${imageId}`)
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      await this.logger.warn(`Failed to add tags to media ${mediaId}: ${message}`)
+      await this.logger.warn(`Failed to add tags to image ${imageId}: ${message}`)
     }
   }
 }

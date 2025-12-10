@@ -228,7 +228,7 @@ class YourImporter {
   async ensureImportTag(collection: string): Promise<string | null> {
     // Ensure import tag exists in the appropriate tag collection
     const tagCollections: Record<string, string> = {
-      media: 'media-tags',
+      images: 'image-tags',
       meditations: 'meditation-tags',
       music: 'music-tags',
       pages: 'page-tags',
@@ -240,7 +240,7 @@ class YourImporter {
     // Check if tag exists
     const existing = await this.payload.find({
       collection: tagCollection as any,
-      where: { name: { equals: IMPORT_TAG } },
+      where: { title: { equals: IMPORT_TAG } },
       limit: 1,
     })
 
@@ -251,7 +251,7 @@ class YourImporter {
     // Create tag
     const tag = await this.payload.create({
       collection: tagCollection as any,
-      data: { name: IMPORT_TAG, title: IMPORT_TAG },
+      data: { title: IMPORT_TAG },
     })
 
     await this.log(`✓ Created import tag: ${IMPORT_TAG}`)
@@ -452,10 +452,10 @@ pnpm tsx imports/<source>/import.ts --clear-cache --reset
 ### 1. Import Tagging
 ```typescript
 // Always tag imported documents for easy cleanup
-const importTagId = await this.ensureImportTag('media')
+const importTagId = await this.ensureImportTag('images')
 
 const media = await this.payload.create({
-  collection: 'media',
+  collection: 'images',
   data: {
     alt: 'Image',
     tags: importTagId ? [importTagId] : [],
@@ -567,7 +567,7 @@ async processFile(url: string): Promise<string | null> {
   // Upload to Payload
   const fileBuffer = await fs.readFile(cachedPath)
   const media = await this.payload.create({
-    collection: 'media',
+    collection: 'images',
     data: { alt: filename },
     file: {
       data: fileBuffer,

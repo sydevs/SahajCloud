@@ -186,12 +186,12 @@ const tagManager = new TagManager(payload, logger)
 
 // Ensure tag exists
 const tagId = await tagManager.ensureTag(
-  'media-tags',
+  'image-tags',
   'import-tag-name'
 )
 
-// Add tags to media
-await tagManager.addTagsToMedia(mediaId, [tagId])
+// Add tags to image
+await tagManager.addTagsToImage(imageId, [tagId])
 ```
 
 ### MediaDownloader

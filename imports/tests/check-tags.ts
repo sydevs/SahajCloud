@@ -20,18 +20,18 @@ async function checkTags() {
     const config = await configPromise
     payload = await getPayload({ config })
 
-    console.log('\nAll Media Tags:')
+    console.log('\nAll Image Tags:')
     console.log('===============')
-    const mediaTags = await payload.find({
-      collection: 'media-tags',
+    const imageTags = await payload.find({
+      collection: 'image-tags',
       limit: 100,
     })
-    console.log(JSON.stringify(mediaTags.docs, null, 2))
+    console.log(JSON.stringify(imageTags.docs, null, 2))
 
-    console.log('\n\nMedia documents with tags:')
+    console.log('\n\nImage documents with tags:')
     console.log('==========================')
-    const mediaWithTags = await payload.find({
-      collection: 'media',
+    const imagesWithTags = await payload.find({
+      collection: 'images',
       where: {
         tags: {
           exists: true,
@@ -39,7 +39,7 @@ async function checkTags() {
       },
       limit: 3,
     })
-    console.log(JSON.stringify(mediaWithTags.docs, null, 2))
+    console.log(JSON.stringify(imagesWithTags.docs, null, 2))
 
     // Also check meditation tags
     console.log('\n\nAll Meditation Tags:')

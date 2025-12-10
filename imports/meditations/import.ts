@@ -491,7 +491,7 @@ class SimpleImporter {
         limit: 1000,
       }),
       this.payload.find({
-        collection: 'media',
+        collection: 'images',
         limit: 1000,
       }),
     ])
@@ -727,7 +727,7 @@ class SimpleImporter {
 
     // Setup meditation-thumbnail tag using TagManager
     this.meditationThumbnailTagId = await this.tagManager.ensureTag(
-      'media-tags',
+      'image-tags',
       'meditation-thumbnail',
     )
     await this.logger.log(
@@ -735,7 +735,7 @@ class SimpleImporter {
     )
 
     // Setup import tag using TagManager
-    this.importMediaTagId = await this.tagManager.ensureTag('media-tags', IMPORT_TAG)
+    this.importMediaTagId = await this.tagManager.ensureTag('image-tags', IMPORT_TAG)
     await this.logger.log(`    ✓ Import tag ready (ID: ${this.importMediaTagId})`)
   }
 
@@ -750,8 +750,8 @@ class SimpleImporter {
       if (this.importMediaTagId) tagsToAdd.push(this.importMediaTagId)
 
       if (tagsToAdd.length > 0) {
-        await this.tagManager.addTagsToMedia(mediaId, tagsToAdd)
-        await this.logger.log(`    ✓ Added tags to media (ID: ${mediaId})`)
+        await this.tagManager.addTagsToImage(mediaId, tagsToAdd)
+        await this.logger.log(`    ✓ Added tags to image (ID: ${mediaId})`)
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -765,7 +765,7 @@ class SimpleImporter {
     // Check if placeholder images already exist in media collection
     const [existingPlaceholder, existingPathPlaceholder] = await Promise.all([
       this.payload.find({
-        collection: 'media',
+        collection: 'images',
         where: {
           filename: {
             equals: 'placeholder.jpg',
@@ -774,7 +774,7 @@ class SimpleImporter {
         limit: 1,
       }),
       this.payload.find({
-        collection: 'media',
+        collection: 'images',
         where: {
           filename: {
             equals: 'path.jpg',
@@ -800,7 +800,7 @@ class SimpleImporter {
         const tags = []
         if (this.meditationThumbnailTagId) tags.push(this.meditationThumbnailTagId)
         if (this.importMediaTagId) tags.push(this.importMediaTagId)
-        const placeholderMedia = await this.uploadToPayload(placeholderPath, 'media', {
+        const placeholderMedia = await this.uploadToPayload(placeholderPath, 'images', {
           alt: 'Meditation placeholder image',
           tags,
         })
@@ -829,7 +829,7 @@ class SimpleImporter {
         const tags = []
         if (this.meditationThumbnailTagId) tags.push(this.meditationThumbnailTagId)
         if (this.importMediaTagId) tags.push(this.importMediaTagId)
-        const pathMedia = await this.uploadToPayload(pathPlaceholderPath, 'media', {
+        const pathMedia = await this.uploadToPayload(pathPlaceholderPath, 'images', {
           alt: 'Path meditation placeholder image',
           tags,
         })
@@ -931,12 +931,12 @@ class SimpleImporter {
       this.payload.find({ collection: 'music-tags', limit: 1000 }),
     ])
 
-    // Build maps of existing tags by name
-    const existingMeditationByName = new Map<string, any>()
-    const existingMusicByName = new Map<string, any>()
+    // Build maps of existing tags by title
+    const existingMeditationByTitle = new Map<string, any>()
+    const existingMusicByTitle = new Map<string, any>()
 
-    existingMeditationTags.docs.forEach((tag: any) => existingMeditationByName.set(tag.name, tag))
-    existingMusicTags.docs.forEach((tag: any) => existingMusicByName.set(tag.name, tag))
+    existingMeditationTags.docs.forEach((tag: any) => existingMeditationByTitle.set(tag.title, tag))
+    existingMusicTags.docs.forEach((tag: any) => existingMusicByTitle.set(tag.title, tag))
 
     let meditationCreated = 0,
       meditationFound = 0
@@ -945,23 +945,23 @@ class SimpleImporter {
 
     // Process tags based on their actual usage
     for (const tag of tags) {
+      // Tag collections only have 'title' field, no 'name' field
       const tagData = {
-        name: tag.name,
-        title: tag.name, // Simple string, not localized object
+        title: tag.name, // Map legacy 'name' to 'title' field
       }
 
       // Handle meditation-tags (only if used by meditations)
       if (meditationTagIds.has(tag.id)) {
-        let meditationTag = existingMeditationByName.get(tag.name)
+        let meditationTag = existingMeditationByTitle.get(tag.name)
         if (meditationTag) {
-          await this.logger.log(`    ✓ Found existing meditation tag: ${meditationTag.name}`)
+          await this.logger.log(`    ✓ Found existing meditation tag: ${meditationTag.title}`)
           meditationFound++
         } else {
           meditationTag = await this.payload.create({
-            collection: 'meditation-tags',
-            data: tagData,
+            collection: 'meditation-tags' as const,
+            data: tagData as any,
           })
-          await this.logger.log(`    ✓ Created meditation tag: ${meditationTag.name}`)
+          await this.logger.log(`    ✓ Created meditation tag: ${meditationTag.title}`)
           meditationCreated++
         }
         this.idMaps.meditationTags.set(tag.id, meditationTag.id as number)
@@ -969,16 +969,16 @@ class SimpleImporter {
 
       // Handle music-tags (only if used by music)
       if (musicTagIds.has(tag.id)) {
-        let musicTag = existingMusicByName.get(tag.name)
+        let musicTag = existingMusicByTitle.get(tag.name)
         if (musicTag) {
-          await this.logger.log(`    ✓ Found existing music tag: ${musicTag.name}`)
+          await this.logger.log(`    ✓ Found existing music tag: ${musicTag.title}`)
           musicFound++
         } else {
           musicTag = await this.payload.create({
-            collection: 'music-tags',
-            data: tagData,
+            collection: 'music-tags' as const,
+            data: tagData as any,
           })
-          await this.logger.log(`    ✓ Created music tag: ${musicTag.name}`)
+          await this.logger.log(`    ✓ Created music tag: ${musicTag.title}`)
           musicCreated++
         }
         this.idMaps.musicTags.set(tag.id, musicTag.id as number)

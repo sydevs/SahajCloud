@@ -28,8 +28,8 @@ async function setupTestDatabase() {
     console.log('Collections created automatically from schema:')
     const collectionNames = [
       'managers',
-      'media',
-      'media-tags',
+      'images',
+      'image-tags',
       'meditation-tags',
       'music-tags',
       'page-tags',
@@ -38,7 +38,7 @@ async function setupTestDatabase() {
       'meditations',
       'music',
       'lessons',
-      'file-attachments',
+      'files',
       'external-videos',
       'pages',
       'authors',
@@ -63,9 +63,9 @@ async function setupTestDatabase() {
     // Verify collections are accessible
     console.log('\n🔍 Verifying database...')
     const lessonsCount = await payload.count({ collection: 'lessons' })
-    const mediaCount = await payload.count({ collection: 'media' })
+    const imagesCount = await payload.count({ collection: 'images' })
     console.log(`  Lessons: ${lessonsCount.totalDocs} documents`)
-    console.log(`  Media: ${mediaCount.totalDocs} documents`)
+    console.log(`  Images: ${imagesCount.totalDocs} documents`)
     console.log('✓ Database verification complete')
 
   } catch (error) {

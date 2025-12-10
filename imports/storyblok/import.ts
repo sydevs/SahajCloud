@@ -104,9 +104,9 @@ class StoryblokImporter {
     this.logger.warn(message)
   }
 
-  async ensureMediaTag(): Promise<void> {
+  async ensureImageTag(): Promise<void> {
     if (this.mediaTagId) return
-    this.mediaTagId = await this.tagManager.ensureMediaTag(IMPORT_TAG)
+    this.mediaTagId = await this.tagManager.ensureImageTag(IMPORT_TAG)
   }
 
   async downloadFile(url: string, destPath: string): Promise<void> {
@@ -178,8 +178,8 @@ class StoryblokImporter {
     await this.downloadFile(url, destPath)
     const webpPath = await this.convertImageToWebp(destPath)
 
-    // Ensure media tag exists
-    await this.ensureMediaTag()
+    // Ensure image tag exists
+    await this.ensureImageTag()
 
     // Upload with deduplication
     const tags = this.mediaTagId ? [this.mediaTagId] : []
@@ -485,7 +485,7 @@ class StoryblokImporter {
 
             const uploadNode: Record<string, unknown> = {
               type: 'upload',
-              relationTo: 'media',
+              relationTo: 'images',
               value: {
                 id: mediaId,
               },
@@ -832,18 +832,18 @@ class StoryblokImporter {
   async resetCollections() {
     await this.logger.info('\n=== Resetting Collections ===')
 
-    const collections: Array<CollectionSlug> = ['lessons', 'external-videos', 'media']
+    const collections: Array<CollectionSlug> = ['lessons', 'external-videos', 'images']
 
-    // Ensure media tag exists for filtering
-    await this.ensureMediaTag()
+    // Ensure image tag exists for filtering
+    await this.ensureImageTag()
 
     for (const collection of collections) {
       await this.logger.info(`Deleting documents with tag ${IMPORT_TAG} from ${collection}...`)
 
       try {
-        // For media collection, filter by tag
+        // For images collection, filter by tag
         let result
-        if (collection === 'media' && this.mediaTagId) {
+        if (collection === 'images' && this.mediaTagId) {
           result = await this.payload.find({
             collection,
             where: {

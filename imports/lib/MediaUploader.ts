@@ -89,7 +89,7 @@ export class MediaUploader {
 
           this.stats.reused++
           const media = await this.payload.findByID({
-            collection: 'media',
+            collection: 'images',
             id: existingMediaId,
           })
           await this.logger.log(`    ✓ Reusing existing media: ${media.filename}`)
@@ -130,7 +130,7 @@ export class MediaUploader {
       const extension = filename.substring(filename.lastIndexOf('.'))
 
       const existingMedia = await this.payload.find({
-        collection: 'media',
+        collection: 'images',
         where: {
           filename: {
             contains: baseNameWithoutExt,
@@ -168,7 +168,7 @@ export class MediaUploader {
   private async validateExistingMedia(mediaId: string): Promise<boolean> {
     try {
       const media = await this.payload.findByID({
-        collection: 'media',
+        collection: 'images',
         id: mediaId,
       })
       return !!media && !!media.filename
@@ -183,7 +183,7 @@ export class MediaUploader {
   private async updateMediaTags(mediaId: string, newTags: number[]): Promise<void> {
     try {
       const media = await this.payload.findByID({
-        collection: 'media',
+        collection: 'images',
         id: mediaId,
       })
 
@@ -196,7 +196,7 @@ export class MediaUploader {
 
       if (mergedTags.length > existingTags.length) {
         await this.payload.update({
-          collection: 'media',
+          collection: 'images',
           id: mediaId,
           data: {
             tags: mergedTags,
@@ -233,7 +233,7 @@ export class MediaUploader {
 
       // Create media document
       const media = await this.payload.create({
-        collection: 'media',
+        collection: 'images',
         data: {
           alt: options.alt || '',
           credit: options.credit || '',

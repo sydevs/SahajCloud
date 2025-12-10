@@ -24,8 +24,8 @@ async function checkDatabaseStats() {
     const collections = [
       'managers',
       'clients',
-      'media',
-      'media-tags',
+      'images',
+      'image-tags',
       'meditation-tags',
       'music-tags',
       'page-tags',
@@ -35,7 +35,7 @@ async function checkDatabaseStats() {
       'meditations',
       'music',
       'lessons',
-      'file-attachments',
+      'files',
       'external-videos',
       'pages',
       'forms',
@@ -71,7 +71,7 @@ async function checkDatabaseStats() {
     console.log('\nImport Tags:')
     console.log('============')
 
-    const importTagCollections = ['media-tags', 'meditation-tags', 'music-tags', 'page-tags']
+    const importTagCollections = ['image-tags', 'meditation-tags', 'music-tags', 'page-tags']
     let foundTags = false
 
     for (const tagCollection of importTagCollections) {
@@ -103,10 +103,10 @@ async function checkDatabaseStats() {
       console.log('  (none found)')
     }
 
-    // Check media with tags
+    // Check images with tags
     try {
-      const mediaWithTags = await payload.find({
-        collection: 'media',
+      const imagesWithTags = await payload.find({
+        collection: 'images',
         where: {
           tags: {
             exists: true,
@@ -115,11 +115,11 @@ async function checkDatabaseStats() {
         limit: 1000,
       })
 
-      if (mediaWithTags.docs.length > 0) {
-        console.log(`\nMedia with tags: ${mediaWithTags.docs.length}`)
+      if (imagesWithTags.docs.length > 0) {
+        console.log(`\nImages with tags: ${imagesWithTags.docs.length}`)
       }
     } catch (error) {
-      // Media collection might not exist or have tags
+      // Images collection might not exist or have tags
     }
 
     // Check lessons with import tags

@@ -251,7 +251,7 @@ class WeMeditateImporter {
       { collection: 'authors', tagField: 'tags' },
       { collection: 'pages', tagField: 'tags' },
       { collection: 'page-tags', tagField: 'tags' },
-      { collection: 'media', tagField: 'tags' },
+      { collection: 'images', tagField: 'tags' },
       { collection: 'external-videos', tagField: 'tags' },
     ]
 
@@ -259,7 +259,7 @@ class WeMeditateImporter {
     let importTagId: string | null = null
     try {
       const importTags = await this.payload.find({
-        collection: 'media-tags',
+        collection: 'image-tags',
         where: { slug: { equals: IMPORT_TAG } },
         limit: 1,
       })

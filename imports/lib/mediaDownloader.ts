@@ -149,7 +149,7 @@ export class MediaDownloader {
 
       // Create media document
       const media = await payload.create({
-        collection: 'media',
+        collection: 'images',
         data: {
           alt: metadata.alt || '',
           credit: metadata.credit || '',

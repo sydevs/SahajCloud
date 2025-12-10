@@ -381,7 +381,7 @@ export function createUploadNode(
   return {
     type: 'upload',
     version: 1,
-    relationTo: 'media',
+    relationTo: 'images',
     value: mediaId,
     fields: {
       align,
