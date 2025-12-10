@@ -78,6 +78,34 @@ npx tsx migration/meditations/import.ts --reset
 
 **Documentation**: See [meditations/IMPORT.md](meditations/IMPORT.md) for details.
 
+### 4. Meditation & Music Tags Import
+**Location**: [migration/tags/import.ts](tags/import.ts)
+
+Imports MeditationTags (24 items) and MusicTags (4 items) from Cloudinary-hosted SVG assets with automatic color processing for theming.
+
+**Quick Start**:
+```bash
+# Dry run validation
+npx tsx migration/tags/import.ts --dry-run
+
+# Full import (creates or updates existing)
+npx tsx migration/tags/import.ts
+
+# Clean import with reset
+npx tsx migration/tags/import.ts --reset
+```
+
+**Features**:
+- Downloads SVG icons from Cloudinary
+- Replaces hardcoded colors with `currentColor` for theming flexibility
+- Idempotent imports (updates existing tags by slug)
+- Local SVG caching
+
+**Documentation**: See [tags/README.md](tags/README.md) for detailed information.
+
+**Environment Variables**:
+- `PAYLOAD_SECRET` (required)
+
 ---
 
 ## Common Command Flags
@@ -183,6 +211,9 @@ migration/
 ├── meditations/
 │   ├── import.ts              # Meditations import script
 │   └── IMPORT.md              # Meditations documentation
+├── tags/
+│   ├── import.ts              # Tags import script
+│   └── README.md              # Tags documentation
 ├── lib/                       # Shared utilities
 │   ├── logger.ts
 │   ├── fileUtils.ts
@@ -193,7 +224,8 @@ migration/
 ├── cache/                     # Downloaded files (git-ignored)
 │   ├── storyblok/
 │   ├── wemeditate/
-│   └── meditations/
+│   ├── meditations/
+│   └── tags/
 └── README.md                  # This file
 ```
 
@@ -351,6 +383,7 @@ Use the [IMPORT_SCRIPT_TEMPLATE.md](IMPORT_SCRIPT_TEMPLATE.md) as a starting poi
 - [Storyblok Import](storyblok/import.ts) - External API import with asset processing
 - [WeMeditate Import](wemeditate/import.ts) - Database dump import with multi-locale support
 - [Meditations Import](meditations/import.ts) - File migration from cloud storage
+- [Tags Import](tags/import.ts) - Simple asset import with SVG processing
 
 ---
 
@@ -359,6 +392,7 @@ Use the [IMPORT_SCRIPT_TEMPLATE.md](IMPORT_SCRIPT_TEMPLATE.md) as a starting poi
 - **Storyblok Import**: [migration/storyblok/README.md](storyblok/README.md)
 - **WeMeditate Import**: [migration/wemeditate/README.md](wemeditate/README.md)
 - **Meditations Import**: [migration/meditations/IMPORT.md](meditations/IMPORT.md)
+- **Tags Import**: [migration/tags/README.md](tags/README.md)
 - **Quick Reference**: [QUICK_REFERENCE.md](QUICK_REFERENCE.md)
 - **Import Template**: [IMPORT_SCRIPT_TEMPLATE.md](IMPORT_SCRIPT_TEMPLATE.md)
 - **Main Project Docs**: [CLAUDE.md](../CLAUDE.md)
