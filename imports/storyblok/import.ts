@@ -306,18 +306,17 @@ class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     story: StoryblokStory,
     content: Record<string, any>,
   ): Promise<void> {
-    // Create and attach icon
+    // Create and attach icon (uploads to Images collection)
     if (content.Step_info?.[0]?.Step_Image?.url) {
       try {
-        const iconId = await this.createFileAttachment(
+        const iconId = await this.createMediaFromUrl(
           content.Step_info[0].Step_Image.url,
-          'lessons',
-          lessonId,
+          `Icon for ${story.name}`,
         )
         await this.payload.update({
           collection: 'lessons',
           id: lessonId,
-          data: { icon: parseInt(iconId) },
+          data: { icon: typeof iconId === 'string' ? parseInt(iconId) : iconId },
         })
         await this.logger.info(`✓ Added icon to lesson`)
       } catch (error) {
@@ -325,14 +324,10 @@ class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       }
     }
 
-    // Create and attach intro audio
+    // Create and attach intro audio (uploads to Files collection)
     if (content.Audio_intro?.[0]?.Audio_track?.filename) {
       try {
-        const audioId = await this.createFileAttachment(
-          content.Audio_intro[0].Audio_track.filename,
-          'lessons',
-          lessonId,
-        )
+        const audioId = await this.createFileAttachment(content.Audio_intro[0].Audio_track.filename)
         await this.payload.update({
           collection: 'lessons',
           id: lessonId,
@@ -412,11 +407,11 @@ class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // FILE ATTACHMENT HELPERS
   // ============================================================================
 
-  private async createFileAttachment(
-    url: string,
-    ownerCollection?: 'lessons',
-    ownerId?: number | string,
-  ): Promise<string> {
+  /**
+   * Creates a file attachment for audio/video files.
+   * Note: Image files should use createMediaFromUrl() instead, which uploads to Images collection.
+   */
+  private async createFileAttachment(url: string): Promise<string> {
     if (!url) {
       throw new Error('URL is required for creating file attachment')
     }
@@ -429,19 +424,14 @@ class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     if (['.mp3', '.mpeg'].includes(ext)) {
       destPath = path.join(this.cacheDir, 'assets/audio', filename)
       mimeType = 'audio/mpeg'
-    } else if (['.mp4', '.mpeg'].includes(ext)) {
+    } else if (['.mp4'].includes(ext)) {
       destPath = path.join(this.cacheDir, 'assets/videos', filename)
-      mimeType = ext === '.mp4' ? 'video/mp4' : 'video/mpeg'
+      mimeType = 'video/mp4'
     } else if (['.jpg', '.jpeg', '.png', '.webp', '.svg'].includes(ext)) {
-      destPath = path.join(this.cacheDir, 'assets/images', filename)
-      const mimeTypes: Record<string, string> = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.png': 'image/png',
-        '.webp': 'image/webp',
-        '.svg': 'image/svg+xml',
-      }
-      mimeType = mimeTypes[ext] || 'image/webp'
+      // Image files should go to Images collection, not Files
+      throw new Error(
+        `Image files should use createMediaFromUrl() instead of createFileAttachment(). File: ${filename}`,
+      )
     } else {
       throw new Error(`Unsupported file type: ${ext}`)
     }
@@ -449,18 +439,10 @@ class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     await this.downloadFile(url, destPath)
 
     const fileBuffer = await fs.readFile(destPath)
-    const data: Record<string, any> = {}
-
-    if (ownerCollection && ownerId && !(typeof ownerId === 'string' && ownerId.startsWith('temp-'))) {
-      data.owner = {
-        relationTo: ownerCollection,
-        value: typeof ownerId === 'string' ? parseInt(ownerId) : ownerId,
-      }
-    }
 
     const attachment = await this.payload.create({
       collection: 'files',
-      data,
+      data: {},
       file: {
         data: fileBuffer,
         name: path.basename(destPath),

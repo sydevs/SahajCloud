@@ -151,12 +151,12 @@ export const Lessons: CollectionConfig = {
               },
               access: createFieldAccess('lessons', false),
             },
-            FileAttachmentField({
+            {
               name: 'icon',
-              ownerCollection: 'lessons',
-              fileType: 'image',
+              type: 'upload',
+              relationTo: 'images',
               access: createFieldAccess('lessons', false),
-            }),
+            },
           ],
         },
       ],

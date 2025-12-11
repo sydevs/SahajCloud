@@ -30,10 +30,6 @@ export const Files: CollectionConfig = {
       'audio/mpeg',
       'video/mpeg',
       'video/mp4',
-      'image/webp',
-      'image/png',
-      'image/jpeg',
-      'image/svg+xml',
     ],
   },
   fields: [
