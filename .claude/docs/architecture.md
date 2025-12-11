@@ -49,7 +49,7 @@ The application uses **Cloudflare-native storage services** for optimal performa
 - **Images** (`src/collections/resources/Images.ts`) - Image storage using Cloudflare Images with automatic format optimization (WebP, AVIF), dynamic transformations, tags, credit info, and virtual `url` field for Cloudflare CDN delivery
 - **Narrators** (`src/collections/resources/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
 - **Authors** (`src/collections/resources/Authors.ts`) - Article author profiles with localized name, title, description, countryCode, yearsMeditating, and profile image
-- **ExternalVideos** (`src/collections/resources/ExternalVideos.ts`) - External video content with thumbnails, URLs, subtitles, and categorization
+- **Lectures** (`src/collections/resources/Lectures.ts`) - Lecture video content with thumbnails, URLs, subtitles, and categorization
 
 ### System Collections
 - **Frames** (`src/collections/system/Frames.ts`) - Mixed media upload (images/videos) with Cloudflare Images for images and Cloudflare Stream for videos, automatic thumbnail generation, virtual fields (`thumbnailUrl`, `streamMp4Url`), tags filtering, and imageSet selection
@@ -162,16 +162,18 @@ The application uses Lexical editor with two configuration presets:
 
 Configuration located in `src/lib/richEditor.ts`
 
-## Data Import & Migrations
+## Data Import Scripts
 
-The system includes import scripts for migrating content from external sources into Payload CMS.
+The system includes import scripts for importing content from external sources into Payload CMS.
 
-**For detailed migration documentation, usage examples, and troubleshooting**, see [migration/README.md](../../migration/README.md).
+**Documentation**: See [imports/CLAUDE.md](../../imports/CLAUDE.md) for commands, environment variables, and troubleshooting.
 
 **Available Import Scripts**:
-- **Storyblok Import** - Migrates Path Steps from Storyblok CMS to Lessons collection
-- **WeMeditate Import** - Imports authors, categories, and pages from Rails PostgreSQL database
-- **Meditations Import** - Imports meditation content from legacy database
-- **Tags Import** - Imports MeditationTags and MusicTags from Cloudinary SVG assets with automatic color processing
+- **Storyblok** (`pnpm import storyblok`) - Path Steps from Storyblok CMS to Lessons
+- **WeMeditate** (`pnpm import wemeditate`) - Authors, categories, pages from Rails PostgreSQL
+- **Meditations** (`pnpm import meditations`) - Meditation content from legacy database
+- **Tags** (`pnpm import tags`) - MeditationTags and MusicTags from Cloudinary SVGs
 
-All scripts follow consistent patterns: resilient error handling, comprehensive dry-run mode, shared utilities, and detailed reporting.
+All scripts extend `BaseImporter` for idempotent upserts, resilient error handling, and comprehensive reporting.
+
+**Note**: Database schema migrations are in `src/migrations/` using PayloadCMS's built-in migration system.

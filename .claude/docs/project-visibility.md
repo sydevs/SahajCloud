@@ -121,12 +121,12 @@ admin: {
 Collections use `handleProjectVisibility()` in their admin config:
 
 ```typescript
-export const ExternalVideos: CollectionConfig = {
-  slug: 'external-videos',
-  access: roleBasedAccess('external-videos'),
+export const Lectures: CollectionConfig = {
+  slug: 'lectures',
+  access: roleBasedAccess('lectures'),
   admin: {
     group: 'Resources',
-    hidden: handleProjectVisibility('external-videos', ['wemeditate-web', 'wemeditate-app']),
+    hidden: handleProjectVisibility('lectures', ['wemeditate-web', 'wemeditate-app']),
   },
   // ... fields
 }

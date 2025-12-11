@@ -126,9 +126,9 @@ export default function DefaultDashboard() {
         />
 
         <QuickLinkCard
-          title="External Videos"
-          description="Manage external video content and metadata"
-          href="/admin/collections/external-videos"
+          title="Lectures"
+          description="Manage lecture video content and metadata"
+          href="/admin/collections/lectures"
         />
       </div>
 
