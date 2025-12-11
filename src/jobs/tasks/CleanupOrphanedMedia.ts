@@ -155,6 +155,7 @@ async function permanentlyDeleteTrashedItems(
   req.payload.logger.info({ msg: 'Phase A: Permanently deleting trashed items' })
 
   // Find and permanently delete trashed files
+  // Note: trash: true is required to include soft-deleted documents in query results
   const trashedFiles = await req.payload.find({
     collection: 'files',
     where: {
@@ -162,14 +163,17 @@ async function permanentlyDeleteTrashedItems(
     },
     limit: Math.floor(maxOperations / 2),
     depth: 0,
+    trash: true,
   })
 
   for (const file of trashedFiles.docs) {
     try {
-      // Deleting an already-trashed item permanently removes it
+      // Permanently delete trashed item
+      // Note: trash: true required so delete() can find the trashed document
       await req.payload.delete({
         collection: 'files',
         id: file.id,
+        trash: true,
       })
       result.permanentlyDeletedFiles++
       req.payload.logger.info({
@@ -189,6 +193,7 @@ async function permanentlyDeleteTrashedItems(
   }
 
   // Find and permanently delete trashed images
+  // Note: trash: true is required to include soft-deleted documents in query results
   const remainingOps = maxOperations - result.permanentlyDeletedFiles
   const trashedImages = await req.payload.find({
     collection: 'images',
@@ -197,14 +202,17 @@ async function permanentlyDeleteTrashedItems(
     },
     limit: remainingOps,
     depth: 0,
+    trash: true,
   })
 
   for (const image of trashedImages.docs) {
     try {
-      // Deleting an already-trashed item permanently removes it
+      // Permanently delete trashed item
+      // Note: trash: true required so delete() can find the trashed document
       await req.payload.delete({
         collection: 'images',
         id: image.id,
+        trash: true,
       })
       result.permanentlyDeletedImages++
       req.payload.logger.info({
@@ -269,10 +277,14 @@ async function trashOrphanedMedia(
 
     if (!referencedFiles.has(file.id)) {
       try {
-        // Soft delete moves to trash (sets deletedAt)
-        await req.payload.delete({
+        // Soft delete: set deletedAt to move to trash
+        // Note: payload.delete() hard-deletes; use update() for soft delete
+        await req.payload.update({
           collection: 'files',
           id: file.id,
+          data: {
+            deletedAt: new Date().toISOString(),
+          },
         })
         result.trashedFiles++
         req.payload.logger.info({
@@ -323,10 +335,14 @@ async function trashOrphanedMedia(
     }
 
     try {
-      // Soft delete moves to trash (sets deletedAt)
-      await req.payload.delete({
+      // Soft delete: set deletedAt to move to trash
+      // Note: payload.delete() hard-deletes; use update() for soft delete
+      await req.payload.update({
         collection: 'images',
         id: image.id,
+        data: {
+          deletedAt: new Date().toISOString(),
+        },
       })
       result.trashedImages++
       req.payload.logger.info({
@@ -491,7 +507,8 @@ function extractImageIdsFromLexicalContent(
   // Check if this is a block with image references
   if (contentObj.type === 'block') {
     const fields = contentObj.fields as Record<string, unknown> | undefined
-    const blockType = contentObj.blockType as string | undefined
+    // Note: blockType is stored inside fields per Payload's Lexical block structure
+    const blockType = fields?.blockType as string | undefined
 
     if (fields) {
       // TextBoxBlock: image field

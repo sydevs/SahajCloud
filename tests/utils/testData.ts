@@ -19,6 +19,8 @@ import type {
   Page,
   Lesson,
   File,
+  Author,
+  Lecture,
 } from '@/payload-types'
 import type { ManagerRole, ClientRole } from '@/types/roles'
 
@@ -251,11 +253,15 @@ export const testData = {
       narrator = defaultNarrator.id
     }
 
+    // Generate unique title to avoid slug collisions
+    const uniqueId = Math.random().toString(36).substring(7)
+    const defaultTitle = `Test Meditation ${uniqueId}`
+
     return (await payload.create({
       collection: 'meditations',
       data: {
-        label: overrides.label || overrides.title || 'Test Meditation with Audio',
-        title: overrides.title || 'Test Meditation with Audio',
+        label: overrides.label || overrides.title || defaultTitle,
+        title: overrides.title || defaultTitle,
         durationMinutes: overrides.durationMinutes || 15,
         thumbnail: thumbnail,
         narrator: narrator,
@@ -440,10 +446,14 @@ export const testData = {
    * Create a page
    */
   async createPage(payload: Payload, overrides: Partial<Page> = {}): Promise<Page> {
+    // Generate unique title to avoid slug collisions
+    const uniqueId = Math.random().toString(36).substring(7)
+    const defaultTitle = `Test Page ${uniqueId}`
+
     return (await payload.create({
       collection: 'pages',
       data: {
-        title: 'Test Page',
+        title: overrides.title || defaultTitle,
         tags: [],
         content: {
           root: {
@@ -552,6 +562,43 @@ export const testData = {
     })) as Lesson
 
     return lesson
+  },
+
+  /**
+   * Create an author
+   */
+  async createAuthor(payload: Payload, overrides: Partial<Author> = {}): Promise<Author> {
+    return (await payload.create({
+      collection: 'authors',
+      data: {
+        name: 'Test Author',
+        ...overrides,
+      },
+    })) as Author
+  },
+
+  /**
+   * Create a lecture (requires thumbnail)
+   */
+  async createLecture(
+    payload: Payload,
+    deps?: { thumbnail?: number },
+    overrides: Partial<Lecture> = {},
+  ): Promise<Lecture> {
+    let thumbnail = deps?.thumbnail
+    if (!thumbnail) {
+      const thumbMedia = await testData.createMediaImage(payload)
+      thumbnail = thumbMedia.id
+    }
+    return (await payload.create({
+      collection: 'lectures',
+      data: {
+        title: 'Test Lecture',
+        thumbnail,
+        videoUrl: 'https://example.com/video.mp4',
+        ...overrides,
+      },
+    })) as Lecture
   },
 
   // Alias for createManager to maintain backward compatibility with tests

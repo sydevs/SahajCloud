@@ -53,7 +53,7 @@ The application uses **Cloudflare-native storage services** for optimal performa
 
 ### System Collections
 - **Frames** (`src/collections/system/Frames.ts`) - Mixed media upload (images/videos) with Cloudflare Images for images and Cloudflare Stream for videos, automatic thumbnail generation, virtual fields (`thumbnailUrl`, `streamMp4Url`), tags filtering, and imageSet selection
-- **Files** (`src/collections/system/Files.ts`) - Generic file storage using R2 native bindings, supporting PDFs, audio, video, and images with owner relationships for cascade deletion and virtual `url` field for R2 URLs
+- **Files** (`src/collections/system/Files.ts`) - Generic file storage using R2 native bindings for audio, video, and PDF files with trash support and automatic orphan cleanup via the CleanupOrphanedMedia job
 
 ### Tag Collections
 - **ImageTags** (`src/collections/tags/ImageTags.ts`) - Tag system for image files with title field
