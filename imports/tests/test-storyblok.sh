@@ -44,24 +44,6 @@ pnpm tsx imports/storyblok/import.ts --dry-run || {
 echo "✓ Import passed"
 echo ""
 
-echo "🧪 Test 3: Resume Import"
-echo "-------------------"
-pnpm tsx imports/storyblok/import.ts --resume || {
-    echo "❌ Resume failed"
-    exit 1
-}
-echo "✓ Resume passed"
-echo ""
-
-echo "🧪 Test 4: Reset and Re-import (Dry Run)"
-echo "-------------------"
-pnpm tsx imports/storyblok/import.ts --reset --dry-run || {
-    echo "❌ Reset and re-import failed"
-    exit 1
-}
-echo "✓ Reset and re-import passed"
-echo ""
-
 echo "✅ All Storyblok tests passed!"
 echo ""
 echo "📊 Test database contains:"

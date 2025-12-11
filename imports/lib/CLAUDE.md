@@ -144,8 +144,8 @@ const lexical = await convertEditorJSToLexical(editorJsContent, context)
 ```typescript
 import { parseArgs } from '../lib'
 
-const options = parseArgs(['--unit'])  // Custom flags
-// options.dryRun, options.clearCache, options.unit
+const options = parseArgs()
+// options.dryRun, options.clearCache
 ```
 
 ## Key Patterns

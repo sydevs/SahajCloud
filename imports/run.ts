@@ -16,12 +16,11 @@
  *
  * Options:
  *   --dry-run      Validate data without writing to database
- *   --reset        Delete existing tagged records before import
  *   --clear-cache  Clear download cache before import
  *
  * Examples:
  *   pnpm import storyblok --dry-run
- *   pnpm import wemeditate --reset
+ *   pnpm import wemeditate --clear-cache
  *   pnpm import meditations --dry-run
  *   pnpm import tags
  */
@@ -36,7 +35,7 @@ const SCRIPTS: Record<string, string> = {
   tags: 'tags/import.ts',
 }
 
-const VALID_OPTIONS = ['--dry-run', '--reset', '--clear-cache']
+const VALID_OPTIONS = ['--dry-run', '--clear-cache']
 
 function printUsage(): void {
   console.log(`
@@ -53,12 +52,11 @@ Available Scripts:
 
 Options:
   --dry-run      Validate data without writing to database
-  --reset        Delete existing tagged records before import
   --clear-cache  Clear download cache before import
 
 Examples:
   pnpm run import storyblok --dry-run
-  pnpm run import wemeditate --reset
+  pnpm run import wemeditate --clear-cache
   pnpm run import meditations --dry-run
   pnpm run import tags
 `)

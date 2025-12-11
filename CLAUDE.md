@@ -175,7 +175,7 @@ Configuration: `src/lib/richEditor.ts`
 - See [imports/README.md](imports/README.md) for detailed documentation
 - Available: Storyblok, WeMeditate, Meditations, Tags imports
 - Run via `pnpm import <script>` or `pnpm import:<script>`
-- All scripts support `--dry-run`, `--reset`, and `--clear-cache` flags
+- All scripts support `--dry-run` and `--clear-cache` flags
 
 **Note**: Database schema migrations are in `src/migrations/` - these import scripts are for data migration only.
 

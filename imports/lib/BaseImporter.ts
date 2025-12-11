@@ -460,8 +460,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
  * Helper to parse CLI args and create options object
  * Subclasses can use this in their main() function
  */
-export function createImportOptions<_T extends BaseImportOptions>(
-  additionalFlags?: string[],
-): CLIArgs & BaseImportOptions {
-  return parseArgs(additionalFlags) as CLIArgs & BaseImportOptions
+export function createImportOptions(): CLIArgs & BaseImportOptions {
+  return parseArgs() as CLIArgs & BaseImportOptions
 }

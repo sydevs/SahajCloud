@@ -60,19 +60,6 @@ else
 fi
 echo ""
 
-echo "🧪 Test 3: Reset and Re-import"
-echo "--------------------------------"
-if [ "$HAS_DATA_BIN" = true ]; then
-    pnpm tsx imports/meditations/import.ts --reset || {
-        echo "❌ Reset and re-import failed"
-        exit 1
-    }
-    echo "✓ Reset and re-import passed"
-else
-    echo "⊘ Skipped (no data.bin)"
-fi
-echo ""
-
 if [ "$HAS_DATA_BIN" = true ]; then
     echo "✅ All meditations tests passed!"
 else

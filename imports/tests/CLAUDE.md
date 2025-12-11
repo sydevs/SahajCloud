@@ -72,7 +72,6 @@ pnpm tsx imports/tests/check-db-stats.ts
 - Create import tags correctly
 - Tag media files with import tag
 - Handle duplicates gracefully
-- Reset deletes only tagged data
 
 ## Troubleshooting
 
