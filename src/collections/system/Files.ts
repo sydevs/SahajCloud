@@ -4,8 +4,6 @@ import { roleBasedAccess } from '@/lib/accessControl'
 import { adminOnlyVisibility } from '@/lib/projectVisibility'
 import { createVirtualUrlField } from '@/lib/storage/urlFields'
 
-export const FileOwnerSlugs = ['lessons', 'frames']
-
 export const Files: CollectionConfig = {
   slug: 'files',
   labels: {

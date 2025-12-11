@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/* eslint-disable no-console */
 
 /**
  * Check Tags
@@ -7,8 +8,9 @@
  * Works with both SQLite (test) and D1 (production) databases.
  */
 
-import { getPayload } from 'payload'
 import type { Payload } from 'payload'
+
+import { getPayload } from 'payload'
 
 import configPromise from '../../src/payload.config'
 

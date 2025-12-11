@@ -4,8 +4,8 @@
  * Manages import tags for tracking and cleanup
  */
 
-import type { Payload } from 'payload'
 import type { Logger } from './logger'
+import type { Payload } from 'payload'
 
 export class TagManager {
   private payload: Payload

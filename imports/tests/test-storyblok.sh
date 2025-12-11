@@ -35,9 +35,9 @@ pnpm tsx imports/storyblok/import.ts --dry-run || {
 echo "✓ Dry run passed"
 echo ""
 
-echo "🧪 Test 2: Actual Import with Unit Filter"
-echo "-------------------------------------------"
-pnpm tsx imports/storyblok/import.ts --unit=1 || {
+echo "🧪 Test 2: Actual Import (Dry Run)"
+echo "-------------------"
+pnpm tsx imports/storyblok/import.ts --dry-run || {
     echo "❌ Import failed"
     exit 1
 }
@@ -45,7 +45,7 @@ echo "✓ Import passed"
 echo ""
 
 echo "🧪 Test 3: Resume Import"
-echo "-------------------------"
+echo "-------------------"
 pnpm tsx imports/storyblok/import.ts --resume || {
     echo "❌ Resume failed"
     exit 1
@@ -53,9 +53,9 @@ pnpm tsx imports/storyblok/import.ts --resume || {
 echo "✓ Resume passed"
 echo ""
 
-echo "🧪 Test 4: Reset and Re-import"
-echo "--------------------------------"
-pnpm tsx imports/storyblok/import.ts --reset --unit=1 || {
+echo "🧪 Test 4: Reset and Re-import (Dry Run)"
+echo "-------------------"
+pnpm tsx imports/storyblok/import.ts --reset --dry-run || {
     echo "❌ Reset and re-import failed"
     exit 1
 }

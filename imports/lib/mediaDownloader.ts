@@ -7,11 +7,12 @@
  * Images are downloaded as-is without WebP conversion or dimension extraction
  */
 
-import type { Payload } from 'payload'
 import type { Logger } from './logger'
+import type { Payload } from 'payload'
+
+import * as crypto from 'crypto'
 import { promises as fs } from 'fs'
 import * as path from 'path'
-import * as crypto from 'crypto'
 // import * as sharp from 'sharp' // DISABLED: Removed for Cloudflare Workers compatibility
 
 // ============================================================================

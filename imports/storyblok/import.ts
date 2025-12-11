@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 /**
  * Storyblok Path Steps Import Script
  *

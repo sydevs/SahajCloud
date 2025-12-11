@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/* eslint-disable no-console */
 
 /**
  * WeMeditate Rails Database Import Script
@@ -419,7 +420,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         )
 
         this.contentTypeTagMap.set(`content-type-tag-${articleType}`, result.doc.id)
-      } catch (error) {
+      } catch (_error) {
         // Tag might already exist from content type tags
       }
     }
@@ -1183,7 +1184,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         liveMeditationsPage: await this.findPageBySlug('live-meditations'),
       }
 
-      const musicPageTags = await this.findMusicTagsBySlug(['santoor', 'flute', 'sitar'])
+      const musicPageTags = await this.findMusicTagsBySlug(['strings', 'flute', 'nature'])
       const inspirationPageTags = await Promise.all([
         this.findPageTagByName('creativity'),
         this.findPageTagByName('wisdom'),

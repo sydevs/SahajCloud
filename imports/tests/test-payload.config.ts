@@ -5,9 +5,9 @@ import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
 
-import { LOCALES, DEFAULT_LOCALE } from '../../src/lib/locales'
 import { collections, Managers } from '../../src/collections'
 import { globals } from '../../src/globals'
+import { LOCALES, DEFAULT_LOCALE } from '../../src/lib/locales'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)

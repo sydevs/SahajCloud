@@ -4,9 +4,10 @@
  * Common file download, caching, and manipulation utilities
  */
 
+import type { Logger } from './logger'
+
 import { promises as fs } from 'fs'
 import * as path from 'path'
-import type { Logger } from './logger'
 
 export interface DownloadOptions {
   maxRetries?: number

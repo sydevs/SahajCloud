@@ -19,7 +19,7 @@ export type FileAttachmentFieldOptions = {
   /** Whether field should be localized */
   localized?: boolean
   /** The collection that owns these file attachments */
-  ownerCollection?: 'lessons' | 'frames'
+  ownerCollection?: 'lessons'
   /** Filter attachments by file type (image, audio, or video) */
   fileType?: 'image' | 'audio' | 'video'
   /** Admin configuration overrides */
@@ -128,7 +128,7 @@ const setFileOwnerHook: FieldHook = async ({ value, data, req, collection }) => 
       id: value as string,
       data: {
         owner: {
-          relationTo: collection.slug as 'lessons' | 'frames',
+          relationTo: collection.slug as 'lessons',
           value: data.id,
         },
       },
@@ -175,7 +175,7 @@ export const claimOrphanFileAttachmentsHook: CollectionAfterChangeHook = async (
       id: fileId,
       data: {
         owner: {
-          relationTo: collection.slug as 'lessons' | 'frames',
+          relationTo: collection.slug as 'lessons',
           value: doc.id,
         },
       },

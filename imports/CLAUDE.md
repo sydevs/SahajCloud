@@ -30,7 +30,6 @@ pnpm run import <script>
 |------|-------------|
 | `--dry-run` | Validate data without writing to database |
 | `--clear-cache` | Clear downloaded files before import |
-| `--unit=N` | (Storyblok only) Import specific unit 1-4 |
 
 ## Environment Variables
 

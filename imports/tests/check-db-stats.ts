@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/* eslint-disable no-console */
 
 /**
  * Check Database Statistics
@@ -7,8 +8,9 @@
  * Works with both SQLite (test) and D1 (production) databases.
  */
 
-import { getPayload } from 'payload'
 import type { Payload } from 'payload'
+
+import { getPayload } from 'payload'
 
 import configPromise from '../../src/payload.config'
 
@@ -59,7 +61,7 @@ async function checkDatabaseStats() {
         if (count > 0) {
           console.log(`  ${collection}: ${count} documents`)
         }
-      } catch (error) {
+      } catch (_error) {
         // Collection might not exist or be accessible
         console.log(`  ${collection}: (not accessible)`)
       }
@@ -94,7 +96,7 @@ async function checkDatabaseStats() {
             foundTags = true
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // Collection might not exist
       }
     }
@@ -118,7 +120,7 @@ async function checkDatabaseStats() {
       if (imagesWithTags.docs.length > 0) {
         console.log(`\nImages with tags: ${imagesWithTags.docs.length}`)
       }
-    } catch (error) {
+    } catch (_error) {
       // Images collection might not exist or have tags
     }
 
@@ -137,7 +139,7 @@ async function checkDatabaseStats() {
       if (lessonsWithImportTags.docs.length > 0) {
         console.log(`Lessons with tags: ${lessonsWithImportTags.docs.length}`)
       }
-    } catch (error) {
+    } catch (_error) {
       // Lessons collection might not exist or have tags
     }
 

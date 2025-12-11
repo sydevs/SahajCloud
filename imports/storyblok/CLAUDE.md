@@ -14,7 +14,6 @@ PAYLOAD_SECRET=your-secret
 ```bash
 pnpm import storyblok --dry-run     # Validate
 pnpm import storyblok               # Full import
-pnpm import storyblok --unit=1      # Single unit (1-4)
 pnpm import storyblok --clear-cache # Re-download assets
 ```
 

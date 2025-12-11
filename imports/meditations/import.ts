@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/* eslint-disable no-console */
 
 /**
  * Meditations Import Script
@@ -38,11 +39,13 @@
  *   --clear-cache  Clear download cache before import
  */
 
-import { CollectionSlug } from 'payload'
 import { execSync } from 'child_process'
-import { Client } from 'pg'
 import { promises as fs } from 'fs'
 import * as path from 'path'
+
+import { CollectionSlug } from 'payload'
+import { Client } from 'pg'
+
 import { BaseImporter, BaseImportOptions, parseArgs, TagManager, MediaUploader } from '../lib'
 
 // ============================================================================
@@ -341,7 +344,7 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       }
       execSync('dropdb temp_migration 2>/dev/null || true')
       await this.logger.info('✓ Cleaned up temporary database')
-    } catch (error) {
+    } catch (_error) {
       await this.logger.warn('Could not clean up temp database')
     }
   }

@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/* eslint-disable no-console */
 
 /**
  * Setup Test Database for Migration Scripts
@@ -7,8 +8,9 @@
  * It uses Payload's test configuration with better-sqlite3 for fast, isolated testing.
  */
 
-import { getPayload } from 'payload'
 import type { Payload } from 'payload'
+
+import { getPayload } from 'payload'
 
 import { testPayloadConfig } from './test-payload.config'
 

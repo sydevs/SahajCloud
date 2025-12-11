@@ -5,8 +5,9 @@
  * to prevent duplicate media uploads across multiple import runs.
  */
 
-import type { Payload } from 'payload'
 import type { Logger } from './logger'
+import type { Payload } from 'payload'
+
 import { promises as fs } from 'fs'
 import * as path from 'path'
 
@@ -156,7 +157,7 @@ export class MediaUploader {
       }
 
       return null
-    } catch (error) {
+    } catch (_error) {
       // No existing media found
       return null
     }
@@ -172,7 +173,7 @@ export class MediaUploader {
         id: mediaId,
       })
       return !!media && !!media.filename
-    } catch (error) {
+    } catch (_error) {
       return false
     }
   }
@@ -203,7 +204,7 @@ export class MediaUploader {
           },
         })
       }
-    } catch (error) {
+    } catch (_error) {
       // Tag update failed, but don't fail the whole operation
       await this.logger.warn(`Failed to update tags for media ${mediaId}`)
     }

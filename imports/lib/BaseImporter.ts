@@ -8,6 +8,8 @@
  * - Summary printing and cleanup lifecycle
  */
 
+/* eslint-disable no-console */
+
 import 'dotenv/config'
 
 import { promises as fs } from 'fs'
@@ -458,7 +460,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
  * Helper to parse CLI args and create options object
  * Subclasses can use this in their main() function
  */
-export function createImportOptions<T extends BaseImportOptions>(
+export function createImportOptions<_T extends BaseImportOptions>(
   additionalFlags?: string[],
 ): CLIArgs & BaseImportOptions {
   return parseArgs(additionalFlags) as CLIArgs & BaseImportOptions

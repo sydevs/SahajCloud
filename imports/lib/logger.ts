@@ -4,6 +4,8 @@
  * Provides logging to both console and file with timestamps and optional colors
  */
 
+/* eslint-disable no-console */
+
 import { promises as fs } from 'fs'
 import * as path from 'path'
 

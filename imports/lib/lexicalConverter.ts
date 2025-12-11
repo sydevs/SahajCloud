@@ -4,8 +4,8 @@
  * Converts EditorJS-like content blocks to Payload CMS Lexical editor format
  */
 
-import type { Payload } from 'payload'
 import type { Logger } from './logger'
+import type { Payload } from 'payload'
 
 // ============================================================================
 // TYPES
@@ -590,7 +590,7 @@ export function convertLayout(
 
   // Convert items - skip items without required title or titleUrl
   const items = (data.items || [])
-    .map((item: any, index: number) => {
+    .map((item: any, _index: number) => {
       let imageId: number | string | undefined
       if (item.image?.preview) {
         // Look up in media map by preview URL

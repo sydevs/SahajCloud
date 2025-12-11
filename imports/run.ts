@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/* eslint-disable no-console */
 /**
  * Unified Import Script Runner
  *
@@ -17,11 +18,9 @@
  *   --dry-run      Validate data without writing to database
  *   --reset        Delete existing tagged records before import
  *   --clear-cache  Clear download cache before import
- *   --unit=N       Import only specific unit (storyblok only)
  *
  * Examples:
  *   pnpm import storyblok --dry-run
- *   pnpm import storyblok --unit=1
  *   pnpm import wemeditate --reset
  *   pnpm import meditations --dry-run
  *   pnpm import tags
@@ -56,11 +55,9 @@ Options:
   --dry-run      Validate data without writing to database
   --reset        Delete existing tagged records before import
   --clear-cache  Clear download cache before import
-  --unit=N       Import only specific unit (storyblok only)
 
 Examples:
   pnpm run import storyblok --dry-run
-  pnpm run import storyblok --unit=1 --reset
   pnpm run import wemeditate --reset
   pnpm run import meditations --dry-run
   pnpm run import tags
@@ -104,17 +101,10 @@ async function main(): Promise<void> {
   const scriptArgs = args.slice(1)
   for (const arg of scriptArgs) {
     const isValidOption = VALID_OPTIONS.some((opt) => arg === opt)
-    const isUnitOption = arg.startsWith('--unit=')
 
-    if (!isValidOption && !isUnitOption) {
+    if (!isValidOption) {
       console.error(`❌ Unknown option: ${arg}`)
-      console.error(`\nValid options: ${VALID_OPTIONS.join(', ')}, --unit=N`)
-      process.exit(1)
-    }
-
-    // Validate --unit option is only used with storyblok
-    if (isUnitOption && scriptName !== 'storyblok') {
-      console.error(`❌ --unit option is only valid for storyblok script`)
+      console.error(`\nValid options: ${VALID_OPTIONS.join(', ')}`)
       process.exit(1)
     }
   }
