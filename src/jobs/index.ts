@@ -1,9 +1,5 @@
-import { CleanupOrphanedFiles } from './tasks/CleanupOrphanedFiles'
+import { CleanupOrphanedMedia } from './tasks/CleanupOrphanedMedia'
 import { ResetUsage, TrackUsage } from './tasks/TrackUsage'
 
-// Export all collections as an array
-export const tasks = [
-  ResetUsage,
-  TrackUsage,
-  CleanupOrphanedFiles,
-]
+// Export all tasks as an array
+export const tasks = [ResetUsage, TrackUsage, CleanupOrphanedMedia]
