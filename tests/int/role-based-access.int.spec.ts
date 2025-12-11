@@ -621,7 +621,7 @@ describe('Role-Based Access Control', () => {
         'media',
         'music',
         'authors',
-        'external-videos',
+        'lectures',
       ]
 
       nonRestrictedCollections.forEach((collection) => {

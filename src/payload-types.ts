@@ -72,7 +72,7 @@ export interface Config {
     meditations: Meditation;
     lessons: Lesson;
     music: Music;
-    'external-videos': ExternalVideo;
+    lectures: Lecture;
     frames: Frame;
     narrators: Narrator;
     authors: Author;
@@ -114,7 +114,7 @@ export interface Config {
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
     lessons: LessonsSelect<false> | LessonsSelect<true>;
     music: MusicSelect<false> | MusicSelect<true>;
-    'external-videos': ExternalVideosSelect<false> | ExternalVideosSelect<true>;
+    lectures: LecturesSelect<false> | LecturesSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
     authors: AuthorsSelect<false> | AuthorsSelect<true>;
@@ -345,6 +345,11 @@ export interface ImageTag {
  */
 export interface Author {
   id: number;
+  /**
+   * URL-friendly identifier (auto-generated from name)
+   */
+  slug?: string | null;
+  slugLock?: boolean | null;
   name: string;
   /**
    * Professional title (e.g., "Artist, writer and stylist")
@@ -659,7 +664,7 @@ export interface Lesson {
    * This will determine the order of the path steps
    */
   step: number;
-  icon?: (number | null) | File;
+  icon?: (number | null) | Image;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -673,15 +678,10 @@ export interface Lesson {
  */
 export interface File {
   id: number;
-  owner?:
-    | ({
-        relationTo: 'lessons';
-        value: number | Lesson;
-      } | null)
-    | ({
-        relationTo: 'frames';
-        value: number | Frame;
-      } | null);
+  owner?: {
+    relationTo: 'lessons';
+    value: number | Lesson;
+  } | null;
   createdAt: string;
   updatedAt: string;
   url?: string | null;
@@ -693,6 +693,20 @@ export interface File {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lectures".
+ */
+export interface Lecture {
+  id: number;
+  title: string;
+  thumbnail: number | Image;
+  videoUrl: string;
+  subtitlesUrl?: string | null;
+  category?: ('shri-mataji' | 'techniques' | 'other')[] | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -771,20 +785,6 @@ export interface Frame {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "external-videos".
- */
-export interface ExternalVideo {
-  id: number;
-  title: string;
-  thumbnail: number | Image;
-  videoUrl: string;
-  subtitlesUrl?: string | null;
-  category?: ('shri-mataji' | 'techniques' | 'other')[] | null;
-  updatedAt: string;
-  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1251,8 +1251,8 @@ export interface PayloadLockedDocument {
         value: number | Music;
       } | null)
     | ({
-        relationTo: 'external-videos';
-        value: number | ExternalVideo;
+        relationTo: 'lectures';
+        value: number | Lecture;
       } | null)
     | ({
         relationTo: 'frames';
@@ -1485,9 +1485,9 @@ export interface MusicSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "external-videos_select".
+ * via the `definition` "lectures_select".
  */
-export interface ExternalVideosSelect<T extends boolean = true> {
+export interface LecturesSelect<T extends boolean = true> {
   title?: T;
   thumbnail?: T;
   videoUrl?: T;
@@ -1536,6 +1536,8 @@ export interface NarratorsSelect<T extends boolean = true> {
  * via the `definition` "authors_select".
  */
 export interface AuthorsSelect<T extends boolean = true> {
+  slug?: T;
+  slugLock?: T;
   name?: T;
   title?: T;
   description?: T;

@@ -23,7 +23,7 @@ export const Images: CollectionConfig = {
     staticDir: 'media/images',
     hideRemoveFile: true,
     focalPoint: true,
-    mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+    mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml'],
     // imageSizes removed - using Cloudflare Images flexible variants instead
   },
   fields: [

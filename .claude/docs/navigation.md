@@ -55,7 +55,7 @@ Collections use `admin.hidden` functions to control visibility based on `user.cu
 | Lessons | ✓ | ✗ | ✓ | ✗ |
 | **Resources** |||||
 | Media | ✓ | ✓ | ✓ | ✓ |
-| ExternalVideos | ✓ | ✓ | ✓ | ✓ |
+| Lectures | ✓ | ✓ | ✓ | ✓ |
 | Frames | ✓ | ✗ | ✓ | ✗ |
 | Narrators | ✓ | ✓ | ✓ | ✗ |
 | Authors | ✓ | ✓ | ✗ | ✗ |

@@ -41,8 +41,8 @@ next-env.d.ts
 
 /media
 
-# Migration cache (contains import data and files)
-/migration/cache
+# Import cache (contains downloaded data and files)
+/imports/cache
 
 # Playwright
 node_modules/

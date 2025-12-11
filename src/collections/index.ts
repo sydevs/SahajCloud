@@ -5,8 +5,8 @@ import { Meditations } from './content/Meditations'
 import { Music } from './content/Music'
 import { Pages } from './content/Pages'
 import { Authors } from './resources/Authors'
-import { ExternalVideos } from './resources/ExternalVideos'
 import { Images } from './resources/Images'
+import { Lectures } from './resources/Lectures'
 import { Narrators } from './resources/Narrators'
 import { Files } from './system/Files'
 import { Frames } from './system/Frames'
@@ -23,7 +23,7 @@ export const collections = [
   Lessons,
   // Resources
   Music,
-  ExternalVideos,
+  Lectures,
   Frames,
   Narrators,
   Authors,
@@ -46,7 +46,7 @@ export {
   Lessons,
   // Resources
   Music,
-  ExternalVideos,
+  Lectures,
   Frames,
   Narrators,
   Authors,

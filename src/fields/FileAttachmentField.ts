@@ -19,7 +19,7 @@ export type FileAttachmentFieldOptions = {
   /** Whether field should be localized */
   localized?: boolean
   /** The collection that owns these file attachments */
-  ownerCollection?: 'lessons' | 'frames'
+  ownerCollection?: 'lessons'
   /** Filter attachments by file type (image, audio, or video) */
   fileType?: 'image' | 'audio' | 'video'
   /** Admin configuration overrides */
@@ -57,6 +57,9 @@ export function FileAttachmentField(options: FileAttachmentFieldOptions): Upload
     type: 'upload',
     relationTo: 'files',
     access,
+    // NOTE: filterOptions with polymorphic relationship dot notation (owner.value, owner.relationTo)
+    // is NOT supported by Drizzle ORM. This filter will not work correctly.
+    // See: https://github.com/sydevs/SahajCloud/issues/104
     filterOptions: ({ data }): Where => {
       // Only show file attachments owned by the current document or orphan files
       // For new documents (no ID), show no existing file attachments
@@ -125,7 +128,7 @@ const setFileOwnerHook: FieldHook = async ({ value, data, req, collection }) => 
       id: value as string,
       data: {
         owner: {
-          relationTo: collection.slug as 'lessons' | 'frames',
+          relationTo: collection.slug as 'lessons',
           value: data.id,
         },
       },
@@ -172,7 +175,7 @@ export const claimOrphanFileAttachmentsHook: CollectionAfterChangeHook = async (
       id: fileId,
       data: {
         owner: {
-          relationTo: collection.slug as 'lessons' | 'frames',
+          relationTo: collection.slug as 'lessons',
           value: doc.id,
         },
       },
