@@ -1083,10 +1083,11 @@ export async function convertEditorJSToLexical(
       if (node) {
         children.push(node)
       }
-    } catch (error: any) {
+    } catch (error) {
       // Fail the entire import on block conversion error
+      const message = error instanceof Error ? error.message : String(error)
       throw new Error(
-        `Failed to convert block type '${block.type}' at index ${i} for page ${context.pageId}: ${error.message}`,
+        `Failed to convert block type '${block.type}' at index ${i} for page ${context.pageId}: ${message}`,
       )
     }
   }

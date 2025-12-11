@@ -27,14 +27,14 @@ export class PayloadHelpers {
     await this.logger.info(`Resetting collection: ${collection}`)
 
     const result = await this.payload.find({
-      collection: collection as any,
+      collection,
       where,
       limit,
     })
 
     for (const doc of result.docs) {
       await this.payload.delete({
-        collection: collection as any,
+        collection,
         id: doc.id,
       })
     }
@@ -71,11 +71,11 @@ export class PayloadHelpers {
   ): Promise<string | null> {
     try {
       const doc = await this.payload.create({
-        collection: collection as any,
+        collection,
         data,
         file,
       })
-      return doc.id as string
+      return String(doc.id)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       await this.logger.error(`Failed to create ${collection} document: ${message}`)
@@ -99,7 +99,7 @@ export class PayloadHelpers {
   ): Promise<boolean> {
     try {
       await this.payload.update({
-        collection: collection as any,
+        collection,
         id,
         data,
         file,
@@ -121,20 +121,20 @@ export class PayloadHelpers {
     data: Record<string, any>,
   ): Promise<string> {
     const existing = await this.payload.find({
-      collection: collection as any,
+      collection,
       where,
       limit: 1,
     })
 
     if (existing.docs.length > 0) {
-      return existing.docs[0].id as string
+      return String(existing.docs[0].id)
     }
 
     const created = await this.payload.create({
-      collection: collection as any,
+      collection,
       data,
     })
 
-    return created.id as string
+    return String(created.id)
   }
 }

@@ -5,7 +5,7 @@
  */
 
 import type { Logger } from './logger'
-import type { Payload } from 'payload'
+import type { CollectionSlug, Payload } from 'payload'
 
 export class TagManager {
   private payload: Payload
@@ -21,9 +21,9 @@ export class TagManager {
    * Ensure import tag exists in a tag collection
    */
   async ensureTag(
-    tagCollection: string,
+    tagCollection: CollectionSlug,
     tagName: string,
-    additionalData: Record<string, any> = {},
+    additionalData: Record<string, unknown> = {},
   ): Promise<number> {
     // Check cache first
     const cacheKey = `${tagCollection}:${tagName}`
@@ -33,7 +33,7 @@ export class TagManager {
 
     // Check if tag exists by title
     const existing = await this.payload.find({
-      collection: tagCollection as any,
+      collection: tagCollection,
       where: { title: { equals: tagName } },
       limit: 1,
     })
@@ -47,7 +47,7 @@ export class TagManager {
 
     // Create tag with title field
     const tag = await this.payload.create({
-      collection: tagCollection as any,
+      collection: tagCollection,
       data: { title: tagName, ...additionalData },
     })
 

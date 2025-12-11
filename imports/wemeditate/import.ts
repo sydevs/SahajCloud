@@ -24,6 +24,8 @@
  *   --clear-cache  Clear download cache before import
  */
 
+import type { TypedLocale } from 'payload'
+
 import { execSync } from 'child_process'
 import * as fs from 'fs/promises'
 import * as path from 'path'
@@ -367,7 +369,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
               collection: 'page-tags',
               id: tagResult.doc.id,
               data: { title: translation.name },
-              locale: translation.locale as any,
+              locale: translation.locale as TypedLocale,
             })
           }
         }
@@ -929,7 +931,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           const existingPage = await this.payload.findByID({
             collection: 'pages',
             id: pageId,
-            locale: translation.locale as any,
+            locale: translation.locale as TypedLocale,
           })
 
           await this.payload.update({
@@ -939,7 +941,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
               title: existingPage.title,
               content: lexicalContent as any,
             },
-            locale: translation.locale as any,
+            locale: translation.locale as TypedLocale,
           })
         }
 

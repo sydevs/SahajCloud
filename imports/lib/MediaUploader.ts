@@ -11,6 +11,8 @@ import type { Payload } from 'payload'
 import { promises as fs } from 'fs'
 import * as path from 'path'
 
+import type { ImageTag } from '@/payload-types'
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -115,8 +117,9 @@ export class MediaUploader {
       }
 
       return result
-    } catch (error: any) {
-      await this.logger.error(`Failed to upload ${path.basename(localPath)}: ${error.message}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      await this.logger.error(`Failed to upload ${path.basename(localPath)}: ${message}`)
       return null
     }
   }
@@ -190,7 +193,7 @@ export class MediaUploader {
 
       // Merge existing tags with new tags
       const existingTags = Array.isArray(media.tags)
-        ? media.tags.map((tag: any) => (typeof tag === 'number' ? tag : tag.id))
+        ? media.tags.map((tag: number | ImageTag) => (typeof tag === 'number' ? tag : tag.id))
         : []
 
       const mergedTags = Array.from(new Set([...existingTags, ...newTags]))
@@ -253,8 +256,9 @@ export class MediaUploader {
         filename: media.filename || filename,
         wasReused: false,
       }
-    } catch (error: any) {
-      throw new Error(`Upload failed: ${error.message}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`Upload failed: ${message}`)
     }
   }
 

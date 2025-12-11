@@ -8,7 +8,7 @@
  */
 
 import type { Logger } from './logger'
-import type { Payload } from 'payload'
+import type { Payload, TypedLocale } from 'payload'
 
 import * as crypto from 'crypto'
 import { promises as fs } from 'fs'
@@ -118,8 +118,9 @@ export class MediaDownloader {
       await this.logger.log(`✓ Downloaded: ${filename}`)
 
       return result
-    } catch (error: any) {
-      throw new Error(`Failed to download image from ${normalizedUrl}: ${error.message}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`Failed to download image from ${normalizedUrl}: ${message}`)
     }
   }
 
@@ -161,13 +162,14 @@ export class MediaDownloader {
           name: filename,
           size: fileBuffer.length,
         },
-        locale: locale as any,
+        locale: locale as TypedLocale,
       })
 
       await this.logger.log(`✓ Created Media document: ${media.id}`)
       return String(media.id)
-    } catch (error: any) {
-      throw new Error(`Failed to create Media document: ${error.message}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`Failed to create Media document: ${message}`)
     }
   }
 

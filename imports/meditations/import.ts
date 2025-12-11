@@ -46,6 +46,8 @@ import * as path from 'path'
 import { CollectionSlug } from 'payload'
 import { Client } from 'pg'
 
+import type { MeditationTag, MusicTag } from '@/payload-types'
+
 import { BaseImporter, BaseImportOptions, parseArgs, TagManager, MediaUploader } from '../lib'
 
 // ============================================================================
@@ -440,8 +442,9 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       await this.logger.log(`  ✓ Downloaded: ${filename}`)
 
       return cachedPath
-    } catch (error: any) {
-      this.addWarning(`Error downloading ${filename}: ${error.message}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.addWarning(`Error downloading ${filename}: ${message}`)
       return null
     }
   }
@@ -489,12 +492,13 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       const result = await this.payload.create(createOptions)
       await this.logger.log(`    ✓ Uploaded: ${filename}`)
       return result
-    } catch (error: any) {
-      if (error.message?.includes('exceeds maximum allowed duration')) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (message.includes('exceeds maximum allowed duration')) {
         this.skip(`media (exceeds duration limit): ${path.basename(localPath)}`)
         return null
       }
-      this.addWarning(`Failed to upload ${path.basename(localPath)}: ${error.message}`)
+      this.addWarning(`Failed to upload ${path.basename(localPath)}: ${message}`)
       return null
     }
   }
@@ -646,13 +650,13 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       this.payload.find({ collection: 'music-tags', limit: 1000 }),
     ])
 
-    const meditationTagsBySlug = new Map<string, any>()
-    const musicTagsBySlug = new Map<string, any>()
+    const meditationTagsBySlug = new Map<string, MeditationTag>()
+    const musicTagsBySlug = new Map<string, MusicTag>()
 
-    existingMeditationTags.docs.forEach((tag: any) => {
+    existingMeditationTags.docs.forEach((tag) => {
       if (tag.slug) meditationTagsBySlug.set(tag.slug, tag)
     })
-    existingMusicTags.docs.forEach((tag: any) => {
+    existingMusicTags.docs.forEach((tag) => {
       if (tag.slug) musicTagsBySlug.set(tag.slug, tag)
     })
 
