@@ -1,9 +1,5 @@
 import type { CollectionConfig } from 'payload'
 
-import {
-  claimOrphanFileAttachmentsHook,
-  deleteFileAttachmentsHook,
-} from '@/fields/FileAttachmentField'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { FRAME_CATEGORY_OPTIONS, GENDER_OPTIONS } from '@/lib/data'
@@ -72,9 +68,7 @@ export const Frames: CollectionConfig = {
           })
         }
       },
-      claimOrphanFileAttachmentsHook,
     ],
-    afterDelete: [deleteFileAttachmentsHook],
   },
   fields: [
     {

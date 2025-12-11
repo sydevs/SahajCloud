@@ -1,7 +1,5 @@
 import type { Block } from 'payload'
 
-import { FileAttachmentField } from '@/fields'
-
 export const VideoStoryBlock: Block = {
   slug: 'video',
   labels: {
@@ -9,10 +7,13 @@ export const VideoStoryBlock: Block = {
     plural: 'Video Panels',
   },
   fields: [
-    FileAttachmentField({
+    {
       name: 'video',
-      ownerCollection: 'lessons',
-      fileType: 'video',
-    }),
+      type: 'upload',
+      relationTo: 'files',
+      admin: {
+        description: 'Video file for this panel.',
+      },
+    },
   ],
 }
