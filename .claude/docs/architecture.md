@@ -166,14 +166,14 @@ Configuration located in `src/lib/richEditor.ts`
 
 The system includes import scripts for importing content from external sources into Payload CMS.
 
-**For detailed import documentation, usage examples, and troubleshooting**, see [imports/README.md](../../imports/README.md).
+**Documentation**: See [imports/CLAUDE.md](../../imports/CLAUDE.md) for commands, environment variables, and troubleshooting.
 
 **Available Import Scripts**:
-- **Storyblok Import** - Imports Path Steps from Storyblok CMS to Lessons collection
-- **WeMeditate Import** - Imports authors, categories, and pages from Rails PostgreSQL database
-- **Meditations Import** - Imports meditation content from legacy database
-- **Tags Import** - Imports MeditationTags and MusicTags from Cloudinary SVG assets with automatic color processing
+- **Storyblok** (`pnpm import storyblok`) - Path Steps from Storyblok CMS to Lessons
+- **WeMeditate** (`pnpm import wemeditate`) - Authors, categories, pages from Rails PostgreSQL
+- **Meditations** (`pnpm import meditations`) - Meditation content from legacy database
+- **Tags** (`pnpm import tags`) - MeditationTags and MusicTags from Cloudinary SVGs
 
-All scripts follow consistent patterns: resilient error handling, comprehensive dry-run mode, shared utilities, and detailed reporting.
+All scripts extend `BaseImporter` for idempotent upserts, resilient error handling, and comprehensive reporting.
 
-**Note**: Database schema migrations are handled separately in `src/migrations/` using PayloadCMS's built-in migration system.
+**Note**: Database schema migrations are in `src/migrations/` using PayloadCMS's built-in migration system.

@@ -3,26 +3,34 @@
  *
  * Imports "Path Step" lessons from Storyblok CMS into Payload CMS.
  *
- * Data Flow:
- * - Source: Storyblok API (no database - fetches via HTTP)
- * - Target: Payload CMS with SQLite/D1 database
+ * Features:
+ * - Fetches lessons from Storyblok API
+ * - Idempotent: safely re-runnable (updates existing, creates new)
+ * - Uses unit + step as natural key for lessons
+ * - Uses videoUrl as natural key for external videos
  *
- * The script works with any Payload database adapter (SQLite, D1, PostgreSQL, MongoDB).
- * It uses Payload's API for all database operations, making it database-agnostic.
+ * Usage:
+ *   pnpm import storyblok [flags]
+ *
+ * Flags:
+ *   --dry-run      Validate data without writing to database
+ *   --clear-cache  Clear download cache before import
  */
 
-import 'dotenv/config'
-
-import { getPayload } from 'payload'
-import configPromise from '../../src/payload.config'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-// import * as sharp from 'sharp' // DISABLED: Removed for Cloudflare Workers compatibility
-import type { CollectionSlug, Payload } from 'payload'
-import { Logger, FileUtils, TagManager, MediaUploader } from '../lib'
 
-const IMPORT_TAG = 'import-storyblok' // Tag for all imported documents and media
+import { BaseImporter, BaseImportOptions, parseArgs, MediaUploader } from '../lib'
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
 const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/storyblok')
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface StoryblokStory {
   id: number
@@ -39,81 +47,53 @@ interface StoryblokResponse {
   rels?: StoryblokStory[]
 }
 
-interface ScriptOptions {
-  dryRun: boolean
-  clearCache: boolean
-  reset: boolean
-  unit?: string
-}
+// ============================================================================
+// STORYBLOK IMPORTER CLASS
+// ============================================================================
 
-interface ImportSummary {
-  lessonsCreated: number
-  mediaCreated: number
-  externalVideosCreated: number
-  fileAttachmentsCreated: number
-  errors: string[]
-  warnings: string[]
-}
+class StoryblokImporter extends BaseImporter<BaseImportOptions> {
+  protected readonly importName = 'Storyblok Path Steps'
+  protected readonly cacheDir = CACHE_DIR
 
-class StoryblokImporter {
   private token: string
-  private payload!: Payload
-  private options: ScriptOptions
-  private logger!: Logger
-  private fileUtils!: FileUtils
-  private tagManager!: TagManager
   private mediaUploader!: MediaUploader
-  private mediaTagId: number | null = null
 
-  // In-memory ID mappings (no persistence)
-  private idMaps = {
-    lessons: new Map<string, string>(), // slug -> lesson ID
-  }
-
-  // Summary tracking
-  private summary: ImportSummary = {
-    lessonsCreated: 0,
-    mediaCreated: 0,
-    externalVideosCreated: 0,
-    fileAttachmentsCreated: 0,
-    errors: [],
-    warnings: [],
-  }
-
-  constructor(token: string, options: ScriptOptions) {
+  constructor(options: BaseImportOptions, token: string) {
+    super(options)
     this.token = token
-    this.options = options
   }
 
-  private async initialize() {
-    this.logger = new Logger(CACHE_DIR)
-    this.fileUtils = new FileUtils(this.logger)
-    this.tagManager = new TagManager(this.payload, this.logger)
-    this.mediaUploader = new MediaUploader(this.payload, this.logger)
+  // ============================================================================
+  // LIFECYCLE
+  // ============================================================================
+
+  protected async setup(): Promise<void> {
+    if (!this.options.dryRun) {
+      this.mediaUploader = new MediaUploader(this.payload, this.logger)
+    }
+
+    // Setup additional cache directories
+    await this.fileUtils.ensureDir(path.join(this.cacheDir, 'videos'))
+    await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/audio'))
+    await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/images'))
+    await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/videos'))
+    await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/subtitles'))
   }
 
-  private addError(context: string, error: Error | string) {
-    const message = error instanceof Error ? error.message : error
-    const fullMessage = `${context}: ${message}`
-    this.summary.errors.push(fullMessage)
-    this.logger.error(fullMessage)
+  // ============================================================================
+  // MAIN IMPORT LOGIC
+  // ============================================================================
+
+  protected async import(): Promise<void> {
+    const stories = await this.fetchAllPathSteps()
+    await this.importLessons(stories)
   }
 
-  private addWarning(message: string) {
-    this.summary.warnings.push(message)
-    this.logger.warn(message)
-  }
+  // ============================================================================
+  // STORYBLOK API
+  // ============================================================================
 
-  async ensureImageTag(): Promise<void> {
-    if (this.mediaTagId) return
-    this.mediaTagId = await this.tagManager.ensureImageTag(IMPORT_TAG)
-  }
-
-  async downloadFile(url: string, destPath: string): Promise<void> {
-    await this.fileUtils.downloadFileFetch(url, destPath)
-  }
-
-  async fetchStoryblokData(endpoint: string): Promise<StoryblokResponse> {
+  private async fetchStoryblokData(endpoint: string): Promise<StoryblokResponse> {
     const url = `https://api.storyblok.com/v2/cdn/${endpoint}${endpoint.includes('?') ? '&' : '?'}token=${this.token}`
     const response = await fetch(url)
     if (!response.ok) {
@@ -122,7 +102,7 @@ class StoryblokImporter {
     return response.json()
   }
 
-  async fetchAllPathSteps(): Promise<StoryblokStory[]> {
+  private async fetchAllPathSteps(): Promise<StoryblokStory[]> {
     await this.logger.info('Fetching all path steps from Storyblok...')
     const response: StoryblokResponse = await this.fetchStoryblokData(
       'stories?starts_with=path/path-steps&per_page=100',
@@ -131,15 +111,10 @@ class StoryblokImporter {
     return response.stories
   }
 
-  async fetchStoryByUuid(uuid: string): Promise<StoryblokStory> {
-    const cacheFile = path.join(CACHE_DIR, 'videos', `${uuid}.json`)
+  private async fetchStoryByUuid(uuid: string): Promise<StoryblokStory> {
+    const cacheFile = path.join(this.cacheDir, 'videos', `${uuid}.json`)
 
-    const fileExists = await fs
-      .access(cacheFile)
-      .then(() => true)
-      .catch(() => false)
-
-    if (fileExists) {
+    if (await this.fileUtils.fileExists(cacheFile)) {
       const data = await fs.readFile(cacheFile, 'utf-8')
       return JSON.parse(data).story as StoryblokStory
     }
@@ -156,49 +131,286 @@ class StoryblokImporter {
     return responseData.story
   }
 
-  async convertImageToWebp(imagePath: string): Promise<string> {
-    const ext = path.extname(imagePath)
-    if (ext.toLowerCase() === '.webp') {
-      return imagePath
-    }
+  // ============================================================================
+  // LESSONS IMPORT
+  // ============================================================================
 
-    // Image conversion disabled for Cloudflare Workers compatibility
-    // Return original image path without WebP conversion
-    await this.logger.info(`Using original image: ${path.basename(imagePath)}`)
-    return imagePath
+  private async importLessons(stories: StoryblokStory[]): Promise<void> {
+    await this.logger.info('\n=== Importing Lessons ===')
+    await this.logger.progress(0, stories.length, 'Lessons')
+
+    for (let i = 0; i < stories.length; i++) {
+      const story = stories[i]
+
+      try {
+        await this.importLesson(story)
+      } catch (error) {
+        this.addError(`Importing lesson "${story.name}"`, error as Error)
+      }
+
+      await this.logger.progress(i + 1, stories.length, 'Lessons')
+    }
   }
 
-  async createMediaFromUrl(url: string, alt?: string): Promise<number> {
+  private async importLesson(story: StoryblokStory): Promise<void> {
+    const content = story.content as Record<string, any>
+    const stepSlug = story.slug
+
+    // Extract unit and step for natural key
+    const unitNumber = content.Step_info?.[0]?.Unit_number || this.extractUnitFromSlug(stepSlug)
+    const stepMatch = stepSlug.match(/step-(\d+)/)
+    const stepNumber = stepMatch ? parseInt(stepMatch[1], 10) : 1
+
+    await this.logger.info(`\nProcessing ${story.name} (Unit ${unitNumber}, Step ${stepNumber})...`)
+
+    if (this.options.dryRun) {
+      await this.logger.info(`[DRY RUN] Would upsert lesson: ${story.name}`)
+      this.report.incrementSkipped()
+      return
+    }
+
+    // Build lesson data
+    const panels = await this.buildPanels(story)
+    if (panels.length === 0) {
+      this.addError(`No valid panels found for ${story.name}`, 'Skipping lesson creation')
+      return
+    }
+
+    // Find related meditation if referenced
+    let meditationId: number | undefined
+    if (content.Meditation_reference?.[0]) {
+      const expectedTitle = `Step ${stepNumber}`
+      const foundMeditation = await this.findMeditationByTitle(expectedTitle)
+      if (foundMeditation) {
+        meditationId = foundMeditation
+      } else {
+        this.addWarning(`Meditation "${expectedTitle}" not found for ${story.name}`)
+      }
+    }
+
+    // Parse subtitles if available
+    let introSubtitles: Record<string, unknown> | undefined
+    if (content.Audio_intro?.[0]?.Subtitles?.filename) {
+      try {
+        introSubtitles = await this.parseSubtitles(content.Audio_intro[0].Subtitles.filename)
+      } catch (error) {
+        this.addError(`Parsing subtitles for ${story.name}`, error as Error)
+      }
+    }
+
+    // Convert article if available
+    let article: Record<string, unknown> | undefined
+    if (content.Delving_deeper_article?.[0]?.Blocks) {
+      try {
+        article = await this.convertLexicalBlocks(content.Delving_deeper_article[0].Blocks)
+      } catch (error) {
+        this.addError(`Converting article for ${story.name}`, error as Error)
+      }
+    }
+
+    // Build lesson data
+    const lessonData: Record<string, any> = {
+      title: this.processTextField(story.name),
+      unit: `Unit ${unitNumber}`,
+      step: stepNumber,
+      panels,
+    }
+
+    if (meditationId) {
+      lessonData.meditation = meditationId
+    }
+    if (introSubtitles) {
+      lessonData.introSubtitles = introSubtitles
+    }
+    if (article) {
+      lessonData.article = article
+    }
+
+    // Upsert lesson by unit + step (natural key)
+    const result = await this.upsert<{ id: number | string }>(
+      'lessons',
+      {
+        and: [{ unit: { equals: `Unit ${unitNumber}` } }, { step: { equals: stepNumber } }],
+      },
+      lessonData,
+      { locale: 'en' },
+    )
+
+    const lessonId = result.doc.id
+
+    // Handle file attachments after lesson creation/update
+    await this.attachLessonFiles(lessonId, story, content)
+  }
+
+  private async buildPanels(story: StoryblokStory): Promise<any[]> {
+    const content = story.content as Record<string, any>
+    const introStories = content.Intro_stories || []
+    const sortedPanels = introStories.sort((a: any, b: any) => a.Order_number - b.Order_number)
+
+    const panels: any[] = []
+    const videoPanels: Array<{ insertAt: number; videoId: string }> = []
+    let panelIndexCounter = 0
+
+    // Add cover panel first
+    panels.push({
+      blockType: 'cover' as const,
+      title: story.name,
+      quote: this.processTextareaField(content.Intro_quote || ''),
+    })
+
+    for (const panel of sortedPanels) {
+      try {
+        if (panel.Video && panel.Video.url) {
+          const videoUrl = panel.Video.url
+          await this.logger.info(`Creating video attachment from: ${videoUrl}`)
+          const videoId = await this.createFileAttachment(videoUrl)
+          videoPanels.push({ insertAt: panelIndexCounter, videoId })
+          panelIndexCounter++
+        } else if (panel.Image && panel.Image.url) {
+          const imageId = await this.createMediaFromUrl(panel.Image.url, panel.Title)
+          panels.push({
+            blockType: 'text' as const,
+            title: this.processTextField(panel.Title || ''),
+            text: this.processTextareaField(panel.Text || ''),
+            image: imageId,
+          })
+          panelIndexCounter++
+        } else {
+          this.addWarning(
+            `Panel missing both video and image for ${story.name} - ${this.processTextField(panel.Title || '')}`,
+          )
+          panelIndexCounter++
+        }
+      } catch (error) {
+        this.addError(`Processing panel for ${story.name}`, error as Error)
+      }
+    }
+
+    // Insert video panels at correct positions
+    const sortedVideoPanels = [...videoPanels].sort((a, b) => b.insertAt - a.insertAt)
+    for (const { insertAt, videoId } of sortedVideoPanels) {
+      const insertIndex = insertAt + 1 // +1 for cover panel
+      panels.splice(insertIndex, 0, {
+        blockType: 'video',
+        video: videoId,
+      })
+    }
+
+    return panels
+  }
+
+  private async attachLessonFiles(
+    lessonId: number | string,
+    story: StoryblokStory,
+    content: Record<string, any>,
+  ): Promise<void> {
+    // Create and attach icon
+    if (content.Step_info?.[0]?.Step_Image?.url) {
+      try {
+        const iconId = await this.createFileAttachment(
+          content.Step_info[0].Step_Image.url,
+          'lessons',
+          lessonId,
+        )
+        await this.payload.update({
+          collection: 'lessons',
+          id: lessonId,
+          data: { icon: parseInt(iconId) },
+        })
+        await this.logger.info(`✓ Added icon to lesson`)
+      } catch (error) {
+        this.addError(`Creating/attaching icon for ${story.name}`, error as Error)
+      }
+    }
+
+    // Create and attach intro audio
+    if (content.Audio_intro?.[0]?.Audio_track?.filename) {
+      try {
+        const audioId = await this.createFileAttachment(
+          content.Audio_intro[0].Audio_track.filename,
+          'lessons',
+          lessonId,
+        )
+        await this.payload.update({
+          collection: 'lessons',
+          id: lessonId,
+          data: { introAudio: parseInt(audioId) },
+        })
+        await this.logger.info(`✓ Added intro audio to lesson`)
+      } catch (error) {
+        this.addError(`Creating audio attachment for ${story.name}`, error as Error)
+      }
+    }
+  }
+
+  // ============================================================================
+  // EXTERNAL VIDEO HELPERS
+  // ============================================================================
+
+  private async upsertExternalVideo(
+    videoStory: StoryblokStory,
+    thumbnailId: number | string,
+  ): Promise<number | string> {
+    const content = videoStory.content as Record<string, any>
+    const videoUrl = content.Video_URL || ''
+
+    const result = await this.upsert<{ id: number | string }>(
+      'external-videos',
+      { videoUrl: { equals: videoUrl } },
+      {
+        title: videoStory.name,
+        thumbnail: thumbnailId,
+        videoUrl,
+        subtitlesUrl: content.Subtitles?.filename || '',
+        category: ['shri-mataji'],
+      },
+    )
+
+    return result.doc.id
+  }
+
+  // ============================================================================
+  // MEDIA HELPERS
+  // ============================================================================
+
+  private async createMediaFromUrl(url: string, alt?: string): Promise<number | string> {
     if (!url) {
       throw new Error('URL is required for creating media')
     }
+
     const filename = path.basename(url.split('?')[0])
-    const destPath = path.join(CACHE_DIR, 'assets/images', filename)
+    const destPath = path.join(this.cacheDir, 'assets/images', filename)
 
     await this.downloadFile(url, destPath)
     const webpPath = await this.convertImageToWebp(destPath)
 
-    // Ensure image tag exists
-    await this.ensureImageTag()
-
-    // Upload with deduplication
-    const tags = this.mediaTagId ? [this.mediaTagId] : []
     const result = await this.mediaUploader.uploadWithDeduplication(webpPath, {
       alt: alt || filename,
-      tags,
     })
 
     if (!result) {
       throw new Error('Failed to upload media')
     }
 
-    if (!result.wasReused) {
-      this.summary.mediaCreated++
-    }
     return result.id
   }
 
-  async createFileAttachment(
+  private async downloadFile(url: string, destPath: string): Promise<void> {
+    await this.fileUtils.downloadFileFetch(url, destPath)
+  }
+
+  private async convertImageToWebp(imagePath: string): Promise<string> {
+    // Image conversion disabled for Cloudflare Workers compatibility
+    // Return original image path without WebP conversion
+    await this.logger.info(`Using original image: ${path.basename(imagePath)}`)
+    return imagePath
+  }
+
+  // ============================================================================
+  // FILE ATTACHMENT HELPERS
+  // ============================================================================
+
+  private async createFileAttachment(
     url: string,
     ownerCollection?: 'lessons',
     ownerId?: number | string,
@@ -206,43 +418,38 @@ class StoryblokImporter {
     if (!url) {
       throw new Error('URL is required for creating file attachment')
     }
+
     const filename = path.basename(url.split('?')[0])
     const ext = path.extname(filename).toLowerCase()
     let destPath: string
     let mimeType: string
 
     if (['.mp3', '.mpeg'].includes(ext)) {
-      destPath = path.join(CACHE_DIR, 'assets/audio', filename)
+      destPath = path.join(this.cacheDir, 'assets/audio', filename)
       mimeType = 'audio/mpeg'
     } else if (['.mp4', '.mpeg'].includes(ext)) {
-      destPath = path.join(CACHE_DIR, 'assets/videos', filename)
+      destPath = path.join(this.cacheDir, 'assets/videos', filename)
       mimeType = ext === '.mp4' ? 'video/mp4' : 'video/mpeg'
-    } else if (['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
-      destPath = path.join(CACHE_DIR, 'assets/images', filename)
-      const webpFilename = filename.replace(ext, '.webp')
-      destPath = path.join(CACHE_DIR, 'assets/images', webpFilename)
-      mimeType = 'image/webp'
-
-      const originalPath = path.join(CACHE_DIR, 'assets/images', filename)
-      await this.downloadFile(url, originalPath)
-      await this.convertImageToWebp(originalPath)
+    } else if (['.jpg', '.jpeg', '.png', '.webp', '.svg'].includes(ext)) {
+      destPath = path.join(this.cacheDir, 'assets/images', filename)
+      const mimeTypes: Record<string, string> = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.webp': 'image/webp',
+        '.svg': 'image/svg+xml',
+      }
+      mimeType = mimeTypes[ext] || 'image/webp'
     } else {
       throw new Error(`Unsupported file type: ${ext}`)
     }
 
-    if (!['.jpg', '.jpeg', '.png'].includes(ext)) {
-      await this.downloadFile(url, destPath)
-    }
+    await this.downloadFile(url, destPath)
 
     const fileBuffer = await fs.readFile(destPath)
-    const data: any = {}
+    const data: Record<string, any> = {}
 
-    // Only set owner if we have valid owner info and ownerId is not a temporary ID
-    if (
-      ownerCollection &&
-      ownerId &&
-      !(typeof ownerId === 'string' && ownerId.startsWith('temp-'))
-    ) {
+    if (ownerCollection && ownerId && !(typeof ownerId === 'string' && ownerId.startsWith('temp-'))) {
       data.owner = {
         relationTo: ownerCollection,
         value: typeof ownerId === 'string' ? parseInt(ownerId) : ownerId,
@@ -260,70 +467,69 @@ class StoryblokImporter {
       },
     })
 
-    this.summary.fileAttachmentsCreated++
     return String(attachment.id)
   }
 
-  async updateFileAttachmentOwner(
-    attachmentId: string,
-    ownerCollection: 'lessons',
-    ownerId: number | string,
-  ): Promise<void> {
-    await this.payload.update({
-      collection: 'files',
-      id: attachmentId,
-      data: {
-        owner: {
-          relationTo: ownerCollection,
-          value: typeof ownerId === 'string' ? parseInt(ownerId) : ownerId,
-        },
-      },
-    })
+  // ============================================================================
+  // TEXT PROCESSING HELPERS
+  // ============================================================================
+
+  private processTextField(text: string): string {
+    return text
+      .replace(/\\\\n/g, ' ')
+      .replace(/\\\n/g, ' ')
+      .replace(/\\n/g, ' ')
+      .replace(/\\\\t/g, ' ')
+      .replace(/\\\t/g, ' ')
+      .replace(/\\t/g, ' ')
+      .replace(/\\\\r/g, ' ')
+      .replace(/\\\r/g, ' ')
+      .replace(/\\r/g, ' ')
+      .replace(/\\\\/g, '\\')
+      .replace(/\\"/g, '"')
+      .replace(/\\'/g, "'")
   }
 
-  async parseSubtitles(url: string): Promise<Record<string, unknown>> {
-    if (!url) {
-      throw new Error('URL is required for parsing subtitles')
-    }
-    const filename = path.basename(url.split('?')[0])
-    const destPath = path.join(CACHE_DIR, 'assets/subtitles', filename)
-
-    await this.downloadFile(url, destPath)
-    const data = await fs.readFile(destPath, 'utf-8')
-    const subtitles = JSON.parse(data)
-
-    return subtitles
+  private processTextareaField(text: string): string {
+    return text
+      .replace(/\\\\n/g, '\n')
+      .replace(/\\\n/g, '\n')
+      .replace(/\\n/g, '\n')
+      .replace(/\\\\t/g, '\t')
+      .replace(/\\\t/g, '\t')
+      .replace(/\\t/g, '\t')
+      .replace(/\\\\r/g, '\r')
+      .replace(/\\\r/g, '\r')
+      .replace(/\\r/g, '\r')
+      .replace(/\\\\/g, '\\')
+      .replace(/\\"/g, '"')
+      .replace(/\\'/g, "'")
   }
 
-  async findMeditationByTitle(title: string): Promise<string | null> {
-    // First try exact match
+  // ============================================================================
+  // MEDITATION LOOKUP
+  // ============================================================================
+
+  private async findMeditationByTitle(title: string): Promise<number | null> {
     let result = await this.payload.find({
       collection: 'meditations',
-      where: {
-        title: {
-          equals: title,
-        },
-      },
+      where: { title: { equals: title } },
       limit: 1,
     })
 
     if (result.docs.length > 0) {
-      return String(result.docs[0].id)
+      return result.docs[0].id as number
     }
 
-    // Get all meditations and filter in memory for more precise matching
+    // Try prefix match
     result = await this.payload.find({
       collection: 'meditations',
-      limit: 200, // Get all meditations
+      limit: 200,
     })
 
-    // Find meditation that starts with the title followed by a non-digit character
-    // This prevents "Step 1" from matching "Step 16" by requiring the number to be followed by : or - or space
     const meditation = result.docs.find((doc) => {
       const titleLower = doc.title?.toLowerCase() || ''
       const searchLower = title.toLowerCase()
-
-      // Check if it starts with our search term followed by a non-digit character
       return (
         titleLower.startsWith(searchLower) &&
         (titleLower.length === searchLower.length ||
@@ -331,14 +537,29 @@ class StoryblokImporter {
       )
     })
 
-    if (meditation) {
-      return String(meditation.id)
-    }
-
-    return null
+    return meditation ? (meditation.id as number) : null
   }
 
-  async convertLexicalBlocks(blocks: Record<string, unknown>[]): Promise<Record<string, unknown>> {
+  // ============================================================================
+  // SUBTITLE PARSING
+  // ============================================================================
+
+  private async parseSubtitles(url: string): Promise<Record<string, unknown>> {
+    const filename = path.basename(url.split('?')[0])
+    const destPath = path.join(this.cacheDir, 'assets/subtitles', filename)
+
+    await this.downloadFile(url, destPath)
+    const data = await fs.readFile(destPath, 'utf-8')
+    return JSON.parse(data)
+  }
+
+  // ============================================================================
+  // LEXICAL CONVERSION
+  // ============================================================================
+
+  private async convertLexicalBlocks(
+    blocks: Record<string, unknown>[],
+  ): Promise<Record<string, unknown>> {
     const sortedBlocks = blocks.sort(
       (a, b) => ((a.Order as number) || 0) - ((b.Order as number) || 0),
     )
@@ -350,25 +571,13 @@ class StoryblokImporter {
           if (block.Video_UUID) {
             const videoStory = await this.fetchStoryByUuid(block.Video_UUID as string)
             const content = videoStory.content as Record<string, any>
-            const externalVideo = await this.payload.create({
-              collection: 'external-videos',
-              data: {
-                title: videoStory.name,
-                thumbnail: await this.createMediaFromUrl(content.Thumbnail?.filename || ''),
-                videoUrl: content.Video_URL || '',
-                subtitlesUrl: content.Subtitles?.filename || '',
-                category: ['shri-mataji'],
-              },
-            })
-
-            this.summary.externalVideosCreated++
+            const thumbnailId = await this.createMediaFromUrl(content.Thumbnail?.filename || '')
+            const externalVideoId = await this.upsertExternalVideo(videoStory, thumbnailId)
 
             children.push({
               type: 'relationship',
               relationTo: 'external-videos',
-              value: {
-                id: externalVideo.id,
-              },
+              value: { id: externalVideoId },
               version: 1,
             })
           }
@@ -384,7 +593,7 @@ class StoryblokImporter {
               {
                 type: 'text',
                 version: 1,
-                text: this.processTextareaField((block.Text as string) || ''), // Rich text content
+                text: this.processTextareaField((block.Text as string) || ''),
                 format: 0,
                 detail: 0,
                 mode: 'normal',
@@ -403,7 +612,7 @@ class StoryblokImporter {
               {
                 type: 'text',
                 version: 1,
-                text: this.processTextareaField((block.Text as string) || ''), // Rich text content
+                text: this.processTextareaField((block.Text as string) || ''),
                 format: 0,
                 detail: 0,
                 mode: 'normal',
@@ -421,7 +630,7 @@ class StoryblokImporter {
               {
                 type: 'text',
                 version: 1,
-                text: this.processTextareaField((block.Text as string) || ''), // Rich text content
+                text: this.processTextareaField((block.Text as string) || ''),
                 format: 0,
                 detail: 0,
                 mode: 'normal',
@@ -432,7 +641,6 @@ class StoryblokImporter {
           break
 
         case 'DD_Quote': {
-          // Convert quote blocks to blockquote paragraphs instead of custom blocks
           children.push({
             type: 'quote',
             version: 1,
@@ -444,7 +652,7 @@ class StoryblokImporter {
                   {
                     type: 'text',
                     version: 1,
-                    text: this.processTextareaField((block.Text as string) || ''), // Rich text content
+                    text: this.processTextareaField((block.Text as string) || ''),
                     format: 0,
                     detail: 0,
                     mode: 'normal',
@@ -459,7 +667,7 @@ class StoryblokImporter {
                   {
                     type: 'text',
                     version: 1,
-                    text: `— ${this.processTextField((block.Author_name as string) || '')}, ${this.processTextField((block.Author_who_is as string) || '')}`, // Author names as text fields
+                    text: `— ${this.processTextField((block.Author_name as string) || '')}, ${this.processTextField((block.Author_who_is as string) || '')}`,
                     format: 2, // italic
                     detail: 0,
                     mode: 'normal',
@@ -479,24 +687,18 @@ class StoryblokImporter {
           if (imageUrl) {
             const mediaId = await this.createMediaFromUrl(imageUrl as string)
             const captionText = this.processTextField((blockData.Caption_text as string) || '')
-
-            // Determine alignment based on block type
             const align = block.component === 'DD_wide_image' ? 'wide' : 'center'
 
-            const uploadNode: Record<string, unknown> = {
+            children.push({
               type: 'upload',
               relationTo: 'images',
-              value: {
-                id: mediaId,
-              },
+              value: { id: mediaId },
               version: 1,
               fields: {
                 align,
                 ...(captionText.trim() ? { caption: captionText } : {}),
               },
-            }
-
-            children.push(uploadNode)
+            })
           }
           break
         }
@@ -515,273 +717,11 @@ class StoryblokImporter {
     }
   }
 
-  async createLessons(stories: StoryblokStory[]): Promise<void> {
-    await this.logger.info('\n=== Creating Lessons ===')
+  // ============================================================================
+  // UTILITY HELPERS
+  // ============================================================================
 
-    for (const story of stories) {
-      const stepSlug = story.slug
-
-      // Skip if already created
-      if (this.idMaps.lessons.has(stepSlug)) {
-        await this.logger.info(`Lesson ${stepSlug} already created, skipping`)
-        continue
-      }
-
-      try {
-        await this.logger.info(`\nProcessing ${story.name} (${stepSlug})...`)
-
-        if (this.options.dryRun) {
-          await this.logger.info(`[DRY RUN] Would create lesson: ${story.name}`)
-          continue
-        }
-
-        const content = story.content as Record<string, any>
-        const unitNumber = content.Step_info?.[0]?.Unit_number || this.extractUnitFromSlug(stepSlug)
-
-        const introStories = content.Intro_stories || []
-        const sortedPanels = introStories.sort((a: any, b: any) => a.Order_number - b.Order_number)
-
-        const panels: Array<{
-          blockType: 'text' | 'video' | 'cover'
-          title?: string
-          text?: string
-          quote?: string
-          image?: number
-          video?: string
-        }> = []
-        const videoPanels: Array<{ insertAt: number; videoId: string }> = [] // Track video panels to add later
-        let panelIndexCounter = 0 // Track position in original panel order
-        for (const panel of sortedPanels) {
-          try {
-            if (panel.Video && panel.Video.url) {
-              const videoUrl = panel.Video.url
-              await this.logger.info(`Creating video attachment from: ${videoUrl}`)
-              const videoId = await this.createFileAttachment(videoUrl)
-              await this.logger.info(`✓ Created video attachment: ${videoId}`)
-
-              // Don't add video panels initially - we'll insert them after lesson creation
-              // Track where this video panel should be inserted
-              videoPanels.push({ insertAt: panelIndexCounter, videoId })
-              panelIndexCounter++
-            } else if (panel.Image && panel.Image.url) {
-              const imageId = await this.createMediaFromUrl(panel.Image.url, panel.Title)
-              panels.push({
-                blockType: 'text' as const,
-                title: this.processTextField(panel.Title || ''), // Process as text field
-                text: this.processTextareaField(panel.Text || ''), // Process as textarea field
-                image: imageId,
-              })
-              panelIndexCounter++
-            } else {
-              this.addWarning(
-                `Panel missing both video and image for ${story.name} - ${this.processTextField(panel.Title || '')}`,
-              )
-              panelIndexCounter++
-            }
-          } catch (error) {
-            this.addError(`Processing panel for ${story.name}`, error as Error)
-          }
-        }
-
-        let meditationId: string | undefined = undefined
-        if (content.Meditation_reference?.[0]) {
-          // Extract step number from story slug (e.g., "step-1" -> "1")
-          const stepMatch = stepSlug.match(/step-(\d+)/)
-          if (stepMatch) {
-            const stepNumber = stepMatch[1]
-            const expectedMeditationTitle = `Step ${stepNumber}`
-
-            const foundId = await this.findMeditationByTitle(expectedMeditationTitle)
-            if (foundId) {
-              meditationId = foundId
-              // Get the full meditation details to retrieve the actual title
-              await this.payload.findByID({
-                collection: 'meditations',
-                id: foundId,
-              })
-              await this.logger.info(`✓ Found meditation: ${expectedMeditationTitle}`)
-            } else {
-              this.addWarning(`Meditation "${expectedMeditationTitle}" not found for ${story.name}`)
-              meditationId = undefined
-            }
-          } else {
-            this.addWarning(
-              `Could not extract step number from slug "${stepSlug}" for ${story.name}`,
-            )
-            meditationId = undefined
-          }
-        }
-
-        let introAudioId: string | undefined = undefined
-        if (content.Audio_intro?.[0]?.Audio_track?.filename) {
-          try {
-            introAudioId = await this.createFileAttachment(
-              content.Audio_intro[0].Audio_track.filename,
-            )
-          } catch (error) {
-            this.addError(`Creating audio attachment for ${story.name}`, error as Error)
-          }
-        }
-
-        let introSubtitles: Record<string, unknown> | undefined = undefined
-        if (content.Audio_intro?.[0]?.Subtitles?.filename) {
-          try {
-            introSubtitles = await this.parseSubtitles(content.Audio_intro[0].Subtitles.filename)
-          } catch (error) {
-            this.addError(`Parsing subtitles for ${story.name}`, error as Error)
-          }
-        }
-
-        let article: Record<string, unknown> | undefined = undefined
-        if (content.Delving_deeper_article?.[0]?.Blocks) {
-          try {
-            article = await this.convertLexicalBlocks(content.Delving_deeper_article[0].Blocks)
-          } catch (error) {
-            this.addError(`Converting article for ${story.name}`, error as Error)
-          }
-        }
-
-        // Add CoverStoryBlock as the first panel for every lesson
-        const coverPanel = {
-          blockType: 'cover' as const,
-          title: story.name, // Preserve \\n as literal text in cover panel title
-          quote: this.processTextareaField(content.Intro_quote || ''), // Process as textarea field
-        }
-        // Insert at the beginning
-        panels.unshift(coverPanel)
-
-        // Ensure we have at least one panel
-        if (panels.length === 0) {
-          this.addError(`No valid panels found for ${story.name}, skipping lesson creation`, '')
-          continue
-        }
-
-        // Extract step number from slug (e.g., "step-1" -> 1)
-        const stepMatch = stepSlug.match(/step-(\d+)/)
-        const stepNumber = stepMatch ? parseInt(stepMatch[1], 10) : 1
-
-        const lessonData: any = {
-          title: this.processTextField(story.name), // Process as text field - converts \\n to spaces
-          unit: `Unit ${unitNumber}`,
-          step: stepNumber,
-          panels: panels as any,
-        }
-
-        // Only add fields that have valid values
-        if (meditationId) {
-          lessonData.meditation = meditationId
-        }
-        if (introSubtitles) {
-          lessonData.introSubtitles = introSubtitles
-        }
-        if (article) {
-          lessonData.article = article
-        }
-
-        const lesson = await this.payload.create({
-          collection: 'lessons',
-          data: lessonData,
-          locale: 'en',
-        })
-
-        // Create and attach icon after lesson creation
-        if (content.Step_info?.[0]?.Step_Image?.url) {
-          try {
-            const iconId = await this.createFileAttachment(
-              content.Step_info[0].Step_Image.url,
-              'lessons',
-              lesson.id,
-            )
-            await this.logger.info(`✓ Created icon attachment for lesson`)
-
-            // Update lesson with icon
-            await this.payload.update({
-              collection: 'lessons',
-              id: lesson.id,
-              data: {
-                icon: parseInt(iconId),
-              },
-            })
-            await this.logger.info(`✓ Added icon to lesson`)
-          } catch (error) {
-            this.addError(`Creating/attaching icon for ${story.name}`, error as Error)
-          }
-        } else {
-          this.addWarning(`Missing Step_Image for lesson: ${story.name}`)
-        }
-
-        // Update lesson with intro audio after creation to avoid validation issues
-        if (introAudioId) {
-          try {
-            await this.payload.update({
-              collection: 'lessons',
-              id: lesson.id,
-              data: {
-                introAudio: parseInt(introAudioId),
-              },
-            })
-            await this.logger.info(`✓ Added intro audio to lesson`)
-          } catch (error) {
-            this.addError(`Adding intro audio to lesson ${story.name}`, error as Error)
-          }
-        }
-
-        // Insert video panels after lesson creation
-        // This avoids validation issues with file attachment filters on new documents
-        if (videoPanels.length > 0) {
-          try {
-            // Fetch the current lesson to get its panels
-            const currentLesson = await this.payload.findByID({
-              collection: 'lessons',
-              id: lesson.id,
-            })
-
-            const updatedPanels = [...(currentLesson.panels as Array<Record<string, unknown>>)]
-
-            // Insert video panels at their correct positions
-            // Sort by insertAt position in reverse order to maintain correct indices
-            const sortedVideoPanels = [...videoPanels].sort((a, b) => b.insertAt - a.insertAt)
-
-            for (const { insertAt, videoId } of sortedVideoPanels) {
-              // +1 to account for cover panel at index 0
-              const insertIndex = insertAt + 1
-              updatedPanels.splice(insertIndex, 0, {
-                blockType: 'video',
-                video: videoId,
-              })
-              await this.updateFileAttachmentOwner(videoId, 'lessons', lesson.id)
-            }
-
-            await this.payload.update({
-              collection: 'lessons',
-              id: lesson.id,
-              data: {
-                panels: updatedPanels,
-              },
-            })
-            await this.logger.info(
-              `✓ Inserted ${videoPanels.length} video panel(s) into lesson`,
-            )
-          } catch (error) {
-            this.addError(`Inserting video panels for ${story.name}`, error as Error)
-          }
-        }
-
-        this.idMaps.lessons.set(stepSlug, String(lesson.id))
-        this.summary.lessonsCreated++
-        await this.logger.success(`✓ Created lesson: ${story.name} (ID: ${lesson.id})`)
-      } catch (error) {
-        // Log full error details for debugging
-        if (error instanceof Error && (error as any).data) {
-          console.error('Full error details:', JSON.stringify((error as any).data, null, 2))
-        }
-        this.addError(`Creating lesson ${stepSlug}`, error as Error)
-        continue // Keep going!
-      }
-    }
-  }
-
-  extractUnitFromSlug(slug: string): number {
+  private extractUnitFromSlug(slug: string): number {
     const match = slug.match(/step-(\d+)/)
     if (!match) return 1
 
@@ -790,220 +730,23 @@ class StoryblokImporter {
     if (stepNum <= 11) return 2
     return 3
   }
-
-  /**
-   * Process text for text fields - converts various \\n patterns to spaces and handles other escape sequences
-   */
-  private processTextField(text: string): string {
-    return text
-      .replace(/\\\\n/g, ' ') // Convert \\\\n to spaces for text fields
-      .replace(/\\\n/g, ' ') // Convert \\\n to spaces for text fields
-      .replace(/\\n/g, ' ') // Convert \\n to spaces for text fields
-      .replace(/\\\\t/g, ' ') // Convert \\\\t to spaces
-      .replace(/\\\t/g, ' ') // Convert \\\t to spaces
-      .replace(/\\t/g, ' ') // Convert \\t to spaces
-      .replace(/\\\\r/g, ' ') // Convert \\\\r to spaces
-      .replace(/\\\r/g, ' ') // Convert \\\r to spaces
-      .replace(/\\r/g, ' ') // Convert \\r to spaces
-      .replace(/\\\\/g, '\\') // Convert \\\\ to single backslash
-      .replace(/\\"/g, '"') // Convert \\" to quote
-      .replace(/\\'/g, "'") // Convert \\' to apostrophe
-  }
-
-  /**
-   * Process text for textarea fields - converts various \\n patterns to newlines and handles other escape sequences
-   */
-  private processTextareaField(text: string): string {
-    return text
-      .replace(/\\\\n/g, '\n') // Convert \\\\n to actual newlines for textareas
-      .replace(/\\\n/g, '\n') // Convert \\\n to actual newlines for textareas
-      .replace(/\\n/g, '\n') // Convert \\n to actual newlines for textareas
-      .replace(/\\\\t/g, '\t') // Convert \\\\t to tabs
-      .replace(/\\\t/g, '\t') // Convert \\\t to tabs
-      .replace(/\\t/g, '\t') // Convert \\t to tabs
-      .replace(/\\\\r/g, '\r') // Convert \\\\r to carriage returns
-      .replace(/\\\r/g, '\r') // Convert \\\r to carriage returns
-      .replace(/\\r/g, '\r') // Convert \\r to carriage returns
-      .replace(/\\\\/g, '\\') // Convert \\\\ to single backslash
-      .replace(/\\"/g, '"') // Convert \\" to quote
-      .replace(/\\'/g, "'") // Convert \\' to apostrophe
-  }
-
-  async resetCollections() {
-    await this.logger.info('\n=== Resetting Collections ===')
-
-    const collections: Array<CollectionSlug> = ['lessons', 'external-videos', 'images']
-
-    // Ensure image tag exists for filtering
-    await this.ensureImageTag()
-
-    for (const collection of collections) {
-      await this.logger.info(`Deleting documents with tag ${IMPORT_TAG} from ${collection}...`)
-
-      try {
-        // For images collection, filter by tag
-        let result
-        if (collection === 'images' && this.mediaTagId) {
-          result = await this.payload.find({
-            collection,
-            where: {
-              tags: { contains: this.mediaTagId },
-            },
-            limit: 1000,
-          })
-        } else {
-          // For other collections, delete all (they're owned by lessons)
-          result = await this.payload.find({
-            collection,
-            limit: 1000,
-          })
-        }
-
-        for (const doc of result.docs) {
-          await this.payload.delete({
-            collection,
-            id: doc.id,
-          })
-        }
-
-        await this.logger.success(`✓ Deleted ${result.docs.length} documents from ${collection}`)
-      } catch (error) {
-        this.addError(`Resetting collection ${collection}`, error as Error)
-      }
-    }
-
-    await this.logger.success('✓ Reset complete')
-  }
-
-  printSummary() {
-    console.log('\n' + '='.repeat(60))
-    console.log('IMPORT SUMMARY')
-    console.log('='.repeat(60))
-
-    // Get MediaUploader stats
-    const mediaStats = this.mediaUploader.getStats()
-
-    console.log(`\n📊 Records Created:`)
-    console.log(`  Lessons:             ${this.summary.lessonsCreated}`)
-    console.log(`  Media Files:         ${mediaStats.uploaded}`)
-    console.log(`  External Videos:     ${this.summary.externalVideosCreated}`)
-    console.log(`  File Attachments:    ${this.summary.fileAttachmentsCreated}`)
-
-    const totalRecords =
-      this.summary.lessonsCreated +
-      mediaStats.uploaded +
-      this.summary.externalVideosCreated +
-      this.summary.fileAttachmentsCreated
-
-    console.log(`\n  Total Records:       ${totalRecords}`)
-    console.log(`  Media Reused:        ${mediaStats.reused}`)
-
-    if (this.summary.warnings.length > 0) {
-      console.log(`\n⚠️  Warnings (${this.summary.warnings.length}):`)
-      this.summary.warnings.forEach((warning, index) => {
-        console.log(`  ${index + 1}. ${warning}`)
-      })
-    }
-
-    if (this.summary.errors.length > 0) {
-      console.log(`\n❌ Errors (${this.summary.errors.length}):`)
-      this.summary.errors.forEach((error, index) => {
-        console.log(`  ${index + 1}. ${error}`)
-      })
-    }
-
-    if (this.summary.errors.length === 0 && this.summary.warnings.length === 0) {
-      console.log(`\n✨ No errors or warnings - import completed successfully!`)
-    }
-
-    console.log('\n' + '='.repeat(60))
-  }
-
-  async run() {
-    try {
-      // Validate environment variables
-      if (!this.token) {
-        throw new Error('STORYBLOK_ACCESS_TOKEN environment variable is required')
-      }
-
-      // Initialize Payload
-      const payloadConfig = await configPromise
-      this.payload = await getPayload({ config: payloadConfig })
-      await this.initialize()
-
-      await this.logger.info('=== Storyblok Path Steps Import ===')
-      await this.logger.info(`Options: ${JSON.stringify(this.options)}`)
-
-      // Setup cache directories
-      await this.fileUtils.ensureDir(CACHE_DIR)
-      await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'videos'))
-      await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/audio'))
-      await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/images'))
-      await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/videos'))
-      await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/subtitles'))
-
-      if (this.options.clearCache) {
-        await this.logger.info('Clearing cache...')
-        await this.fileUtils.clearDir(CACHE_DIR)
-        await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'videos'))
-        await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/audio'))
-        await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/images'))
-        await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/videos'))
-        await this.fileUtils.ensureDir(path.join(CACHE_DIR, 'assets/subtitles'))
-      }
-
-      if (this.options.reset) {
-        await this.resetCollections()
-      }
-
-      const stories = await this.fetchAllPathSteps()
-
-      let filteredStories = stories
-      if (this.options.unit) {
-        const unitNum = parseInt(this.options.unit, 10)
-        filteredStories = stories.filter((s) => {
-          const content = s.content as Record<string, unknown>
-          const stepInfo = content.Step_info as Array<{ Unit_number?: number }> | undefined
-          return (
-            stepInfo?.[0]?.Unit_number === unitNum || this.extractUnitFromSlug(s.slug) === unitNum
-          )
-        })
-        await this.logger.info(`Filtered to ${filteredStories.length} stories for unit ${unitNum}`)
-      }
-
-      await this.createLessons(filteredStories)
-
-      this.printSummary()
-    } catch (error) {
-      console.error('Fatal error:', error)
-      throw error
-    } finally {
-      // Cleanup: close Payload database connection (works with SQLite, D1, and other adapters)
-      if (this.payload?.db?.destroy) {
-        await this.payload.db.destroy()
-      }
-    }
-  }
 }
 
-async function main() {
-  const args = process.argv.slice(2)
-  const options: ScriptOptions = {
-    dryRun: args.includes('--dry-run'),
-    clearCache: args.includes('--clear-cache'),
-    reset: args.includes('--reset'),
-    unit: args.find((arg) => arg.startsWith('--unit='))?.split('=')[1],
-  }
+// ============================================================================
+// MAIN ENTRY POINT
+// ============================================================================
+
+async function main(): Promise<void> {
+  const options = parseArgs()
 
   const token = process.env.STORYBLOK_ACCESS_TOKEN
   if (!token) {
     console.error('Error: STORYBLOK_ACCESS_TOKEN environment variable is required')
     console.error('Please set the token in your environment to use this script.')
-    console.error('This script is designed to import data from Storyblok CMS.')
     process.exit(1)
   }
 
-  const importer = new StoryblokImporter(token, options)
+  const importer = new StoryblokImporter(options, token)
   await importer.run()
   process.exit(0)
 }

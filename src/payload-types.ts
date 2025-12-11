@@ -345,6 +345,11 @@ export interface ImageTag {
  */
 export interface Author {
   id: number;
+  /**
+   * URL-friendly identifier (auto-generated from name)
+   */
+  slug?: string | null;
+  slugLock?: boolean | null;
   name: string;
   /**
    * Professional title (e.g., "Artist, writer and stylist")
@@ -673,15 +678,10 @@ export interface Lesson {
  */
 export interface File {
   id: number;
-  owner?:
-    | ({
-        relationTo: 'lessons';
-        value: number | Lesson;
-      } | null)
-    | ({
-        relationTo: 'frames';
-        value: number | Frame;
-      } | null);
+  owner?: {
+    relationTo: 'lessons';
+    value: number | Lesson;
+  } | null;
   createdAt: string;
   updatedAt: string;
   url?: string | null;
@@ -693,6 +693,20 @@ export interface File {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "external-videos".
+ */
+export interface ExternalVideo {
+  id: number;
+  title: string;
+  thumbnail: number | Image;
+  videoUrl: string;
+  subtitlesUrl?: string | null;
+  category?: ('shri-mataji' | 'techniques' | 'other')[] | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -771,20 +785,6 @@ export interface Frame {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "external-videos".
- */
-export interface ExternalVideo {
-  id: number;
-  title: string;
-  thumbnail: number | Image;
-  videoUrl: string;
-  subtitlesUrl?: string | null;
-  category?: ('shri-mataji' | 'techniques' | 'other')[] | null;
-  updatedAt: string;
-  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1536,6 +1536,8 @@ export interface NarratorsSelect<T extends boolean = true> {
  * via the `definition` "authors_select".
  */
 export interface AuthorsSelect<T extends boolean = true> {
+  slug?: T;
+  slugLock?: T;
   name?: T;
   title?: T;
   description?: T;

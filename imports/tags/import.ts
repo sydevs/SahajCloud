@@ -6,33 +6,26 @@
  * Features:
  * - Downloads SVG icons from Cloudinary URLs
  * - Replaces mapped colors with `currentColor` for theming flexibility
- * - Creates tags with specified slugs
+ * - Idempotent: safely re-runnable (updates existing, creates new)
  * - Imports only English (`en`) locale for localized title fields
- * - Updates existing tags on duplicate slugs
  *
  * Usage:
- *   npx tsx imports/tags/import.ts [flags]
+ *   pnpm import tags [flags]
  *
  * Flags:
  *   --dry-run      Validate data without writing to database
- *   --reset        Delete existing tags before import
  *   --clear-cache  Clear download cache before import
  */
 
-import 'dotenv/config'
-
-import { getPayload } from 'payload'
-import configPromise from '../../src/payload.config'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import type { Payload } from 'payload'
-import { Logger, FileUtils } from '../lib'
+
+import { BaseImporter, BaseImportOptions, parseArgs } from '../lib'
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
-const IMPORT_TAG = 'import-tags' // Tag for tracking imported documents
 const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/tags')
 
 // ============================================================================
@@ -44,21 +37,6 @@ interface TagData {
   slug: string
   color: string
   iconUrl: string
-}
-
-interface ScriptOptions {
-  dryRun: boolean
-  clearCache: boolean
-  reset: boolean
-}
-
-interface ImportSummary {
-  meditationTagsCreated: number
-  meditationTagsUpdated: number
-  musicTagsCreated: number
-  musicTagsUpdated: number
-  errors: string[]
-  warnings: string[]
 }
 
 // ============================================================================
@@ -268,51 +246,105 @@ const MUSIC_TAGS: TagData[] = [
 ]
 
 // ============================================================================
-// MAIN IMPORTER CLASS
+// TAGS IMPORTER CLASS
 // ============================================================================
 
-class TagsImporter {
-  private payload!: Payload
-  private options: ScriptOptions
-  private logger!: Logger
-  private fileUtils!: FileUtils
+class TagsImporter extends BaseImporter<BaseImportOptions> {
+  protected readonly importName = 'Meditation & Music Tags'
+  protected readonly cacheDir = CACHE_DIR
 
-  // Summary tracking
-  private summary: ImportSummary = {
-    meditationTagsCreated: 0,
-    meditationTagsUpdated: 0,
-    musicTagsCreated: 0,
-    musicTagsUpdated: 0,
-    errors: [],
-    warnings: [],
+  // ============================================================================
+  // MAIN IMPORT LOGIC
+  // ============================================================================
+
+  protected async import(): Promise<void> {
+    await this.importMeditationTags()
+    await this.importMusicTags()
   }
 
-  constructor(options: ScriptOptions) {
-    this.options = options
+  // ============================================================================
+  // MEDITATION TAGS
+  // ============================================================================
+
+  private async importMeditationTags(): Promise<void> {
+    await this.logger.info('\n=== Importing Meditation Tags ===')
+    await this.logger.progress(0, MEDITATION_TAGS.length, 'Meditation tags')
+
+    for (let i = 0; i < MEDITATION_TAGS.length; i++) {
+      const tag = MEDITATION_TAGS[i]
+
+      try {
+        // Download and process SVG
+        const cacheFilename = `meditation-${tag.slug}.svg`
+        const originalSvg = await this.downloadSvg(tag.iconUrl, cacheFilename)
+        const processedSvg = this.convertToCurrentColor(originalSvg)
+        const svgFile = this.createSvgFileObject(processedSvg, `${tag.slug}.svg`)
+
+        // Upsert: find by slug, update if exists, create if not
+        await this.upsert(
+          'meditation-tags',
+          { slug: { equals: tag.slug } },
+          {
+            slug: tag.slug,
+            title: tag.title,
+            color: tag.color,
+          },
+          { locale: 'en', file: svgFile },
+        )
+      } catch (error) {
+        this.addError(`Importing meditation tag "${tag.title}"`, error as Error)
+      }
+
+      await this.logger.progress(i + 1, MEDITATION_TAGS.length, 'Meditation tags')
+    }
   }
 
-  private async initialize() {
-    this.logger = new Logger(CACHE_DIR)
-    this.fileUtils = new FileUtils(this.logger)
+  // ============================================================================
+  // MUSIC TAGS
+  // ============================================================================
+
+  private async importMusicTags(): Promise<void> {
+    await this.logger.info('\n=== Importing Music Tags ===')
+    await this.logger.progress(0, MUSIC_TAGS.length, 'Music tags')
+
+    for (let i = 0; i < MUSIC_TAGS.length; i++) {
+      const tag = MUSIC_TAGS[i]
+
+      try {
+        // Download and process SVG
+        const cacheFilename = `music-${tag.slug}.svg`
+        const originalSvg = await this.downloadSvg(tag.iconUrl, cacheFilename)
+        const processedSvg = this.convertToCurrentColor(originalSvg)
+        const svgFile = this.createSvgFileObject(processedSvg, `${tag.slug}.svg`)
+
+        // Upsert: find by slug, update if exists, create if not
+        // Note: MusicTags collection does not have a color field
+        await this.upsert(
+          'music-tags',
+          { slug: { equals: tag.slug } },
+          {
+            slug: tag.slug,
+            title: tag.title,
+          },
+          { locale: 'en', file: svgFile },
+        )
+      } catch (error) {
+        this.addError(`Importing music tag "${tag.title}"`, error as Error)
+      }
+
+      await this.logger.progress(i + 1, MUSIC_TAGS.length, 'Music tags')
+    }
   }
 
-  private addError(context: string, error: Error | string) {
-    const message = error instanceof Error ? error.message : error
-    const fullMessage = `${context}: ${message}`
-    this.summary.errors.push(fullMessage)
-    this.logger.error(fullMessage)
-  }
-
-  private addWarning(message: string) {
-    this.summary.warnings.push(message)
-    this.logger.warn(message)
-  }
+  // ============================================================================
+  // SVG PROCESSING HELPERS
+  // ============================================================================
 
   /**
    * Download SVG from URL and return its content
    */
   private async downloadSvg(url: string, cacheFilename: string): Promise<string> {
-    const cachePath = path.join(CACHE_DIR, 'assets', cacheFilename)
+    const cachePath = path.join(this.cacheDir, 'assets', cacheFilename)
 
     // Check cache first
     if (await this.fileUtils.fileExists(cachePath)) {
@@ -341,8 +373,6 @@ class TagsImporter {
    * Replaces both 6-digit (#RRGGBB) and 3-digit (#RGB) hex colors
    */
   private convertToCurrentColor(svgContent: string): string {
-    // Match both 6-digit and 3-digit hex colors (case-insensitive)
-    // The negative lookbehind (?<![\w]) prevents matching hex in URLs or other contexts
     const hexColorRegex = /#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{3})(?![\w])/g
     return svgContent.replace(hexColorRegex, 'currentColor')
   }
@@ -362,263 +392,6 @@ class TagsImporter {
       size: buffer.length,
     }
   }
-
-  /**
-   * Import MeditationTags
-   */
-  private async importMeditationTags(): Promise<void> {
-    await this.logger.info('\n=== Importing Meditation Tags ===')
-
-    for (const tag of MEDITATION_TAGS) {
-      try {
-        // Download and process SVG
-        const cacheFilename = `meditation-${tag.slug}.svg`
-        const originalSvg = await this.downloadSvg(tag.iconUrl, cacheFilename)
-        const processedSvg = this.convertToCurrentColor(originalSvg)
-
-        if (this.options.dryRun) {
-          await this.logger.info(`[DRY RUN] Would import meditation tag: ${tag.title} (${tag.slug})`)
-          this.summary.meditationTagsCreated++
-          continue
-        }
-
-        // Check if tag already exists
-        const existing = await this.payload.find({
-          collection: 'meditation-tags',
-          where: { slug: { equals: tag.slug } },
-          limit: 1,
-        })
-
-        const svgFile = this.createSvgFileObject(processedSvg, `${tag.slug}.svg`)
-
-        if (existing.docs.length > 0) {
-          // Update existing tag
-          await this.payload.update({
-            collection: 'meditation-tags',
-            id: existing.docs[0].id,
-            data: {
-              title: tag.title,
-              color: tag.color,
-            },
-            locale: 'en',
-            file: svgFile,
-          })
-          this.summary.meditationTagsUpdated++
-          await this.logger.success(`✓ Updated meditation tag: ${tag.title}`)
-        } else {
-          // Create new tag
-          await this.payload.create({
-            collection: 'meditation-tags',
-            data: {
-              slug: tag.slug,
-              title: tag.title,
-              color: tag.color,
-            },
-            locale: 'en',
-            file: svgFile,
-          })
-          this.summary.meditationTagsCreated++
-          await this.logger.success(`✓ Created meditation tag: ${tag.title}`)
-        }
-      } catch (error) {
-        this.addError(`Importing meditation tag "${tag.title}"`, error as Error)
-        continue // Keep going!
-      }
-    }
-  }
-
-  /**
-   * Import MusicTags
-   * Note: MusicTags collection does not have a color field
-   */
-  private async importMusicTags(): Promise<void> {
-    await this.logger.info('\n=== Importing Music Tags ===')
-
-    for (const tag of MUSIC_TAGS) {
-      try {
-        // Download and process SVG
-        const cacheFilename = `music-${tag.slug}.svg`
-        const originalSvg = await this.downloadSvg(tag.iconUrl, cacheFilename)
-        const processedSvg = this.convertToCurrentColor(originalSvg)
-
-        if (this.options.dryRun) {
-          await this.logger.info(`[DRY RUN] Would import music tag: ${tag.title} (${tag.slug})`)
-          this.summary.musicTagsCreated++
-          continue
-        }
-
-        // Check if tag already exists
-        const existing = await this.payload.find({
-          collection: 'music-tags',
-          where: { slug: { equals: tag.slug } },
-          limit: 1,
-        })
-
-        const svgFile = this.createSvgFileObject(processedSvg, `${tag.slug}.svg`)
-
-        if (existing.docs.length > 0) {
-          // Update existing tag (no color field for MusicTags)
-          await this.payload.update({
-            collection: 'music-tags',
-            id: existing.docs[0].id,
-            data: {
-              title: tag.title,
-            },
-            locale: 'en',
-            file: svgFile,
-          })
-          this.summary.musicTagsUpdated++
-          await this.logger.success(`✓ Updated music tag: ${tag.title}`)
-        } else {
-          // Create new tag (no color field for MusicTags)
-          await this.payload.create({
-            collection: 'music-tags',
-            data: {
-              slug: tag.slug,
-              title: tag.title,
-            },
-            locale: 'en',
-            file: svgFile,
-          })
-          this.summary.musicTagsCreated++
-          await this.logger.success(`✓ Created music tag: ${tag.title}`)
-        }
-      } catch (error) {
-        this.addError(`Importing music tag "${tag.title}"`, error as Error)
-        continue // Keep going!
-      }
-    }
-  }
-
-  /**
-   * Reset (delete) all tags
-   */
-  private async resetCollections(): Promise<void> {
-    await this.logger.info('\n=== Resetting Collections ===')
-
-    // Delete all MeditationTags
-    try {
-      const meditationTags = await this.payload.find({
-        collection: 'meditation-tags',
-        limit: 100,
-      })
-
-      for (const doc of meditationTags.docs) {
-        await this.payload.delete({
-          collection: 'meditation-tags',
-          id: doc.id,
-        })
-      }
-      await this.logger.success(`✓ Deleted ${meditationTags.docs.length} meditation tags`)
-    } catch (error) {
-      this.addError('Resetting meditation-tags', error as Error)
-    }
-
-    // Delete all MusicTags
-    try {
-      const musicTags = await this.payload.find({
-        collection: 'music-tags',
-        limit: 100,
-      })
-
-      for (const doc of musicTags.docs) {
-        await this.payload.delete({
-          collection: 'music-tags',
-          id: doc.id,
-        })
-      }
-      await this.logger.success(`✓ Deleted ${musicTags.docs.length} music tags`)
-    } catch (error) {
-      this.addError('Resetting music-tags', error as Error)
-    }
-  }
-
-  /**
-   * Print summary report
-   */
-  private printSummary(): void {
-    console.log('\n' + '='.repeat(60))
-    console.log('IMPORT SUMMARY')
-    console.log('='.repeat(60))
-
-    console.log(`\n📊 Meditation Tags:`)
-    console.log(`  Created:             ${this.summary.meditationTagsCreated}`)
-    console.log(`  Updated:             ${this.summary.meditationTagsUpdated}`)
-
-    console.log(`\n📊 Music Tags:`)
-    console.log(`  Created:             ${this.summary.musicTagsCreated}`)
-    console.log(`  Updated:             ${this.summary.musicTagsUpdated}`)
-
-    const totalCreated = this.summary.meditationTagsCreated + this.summary.musicTagsCreated
-    const totalUpdated = this.summary.meditationTagsUpdated + this.summary.musicTagsUpdated
-
-    console.log(`\n  Total Created:       ${totalCreated}`)
-    console.log(`  Total Updated:       ${totalUpdated}`)
-
-    if (this.summary.warnings.length > 0) {
-      console.log(`\n⚠️  Warnings (${this.summary.warnings.length}):`)
-      this.summary.warnings.forEach((warning, index) => {
-        console.log(`  ${index + 1}. ${warning}`)
-      })
-    }
-
-    if (this.summary.errors.length > 0) {
-      console.log(`\n❌ Errors (${this.summary.errors.length}):`)
-      this.summary.errors.forEach((error, index) => {
-        console.log(`  ${index + 1}. ${error}`)
-      })
-    }
-
-    if (this.summary.errors.length === 0 && this.summary.warnings.length === 0) {
-      console.log(`\n✨ No errors or warnings - import completed successfully!`)
-    }
-
-    console.log('\n' + '='.repeat(60))
-  }
-
-  /**
-   * Main run method
-   */
-  async run(): Promise<void> {
-    try {
-      // Setup cache directories FIRST (before Logger initialization)
-      await fs.mkdir(CACHE_DIR, { recursive: true })
-      await fs.mkdir(path.join(CACHE_DIR, 'assets'), { recursive: true })
-
-      // Initialize Payload
-      const payloadConfig = await configPromise
-      this.payload = await getPayload({ config: payloadConfig })
-      await this.initialize()
-
-      await this.logger.info('=== Meditation & Music Tags Import ===')
-      await this.logger.info(`Options: ${JSON.stringify(this.options)}`)
-
-      if (this.options.clearCache) {
-        await this.logger.info('Clearing cache...')
-        await this.fileUtils.clearDir(path.join(CACHE_DIR, 'assets'))
-      }
-
-      if (this.options.reset && !this.options.dryRun) {
-        await this.resetCollections()
-      } else if (this.options.reset && this.options.dryRun) {
-        await this.logger.info('[DRY RUN] Would reset all tags')
-      }
-
-      // Import tags
-      await this.importMeditationTags()
-      await this.importMusicTags()
-
-      this.printSummary()
-    } catch (error) {
-      console.error('Fatal error:', error)
-      throw error
-    } finally {
-      // Cleanup: close Payload database connection
-      if (this.payload?.db?.destroy) {
-        await this.payload.db.destroy()
-      }
-    }
-  }
 }
 
 // ============================================================================
@@ -626,19 +399,7 @@ class TagsImporter {
 // ============================================================================
 
 async function main(): Promise<void> {
-  const args = process.argv.slice(2)
-  const options: ScriptOptions = {
-    dryRun: args.includes('--dry-run'),
-    clearCache: args.includes('--clear-cache'),
-    reset: args.includes('--reset'),
-  }
-
-  console.log('Meditation & Music Tags Import Script')
-  console.log('=====================================')
-  console.log(`Mode: ${options.dryRun ? 'DRY RUN' : 'LIVE'}`)
-  console.log(`Reset: ${options.reset ? 'YES' : 'NO'}`)
-  console.log(`Clear Cache: ${options.clearCache ? 'YES' : 'NO'}`)
-  console.log('')
+  const options = parseArgs()
 
   const importer = new TagsImporter(options)
   await importer.run()

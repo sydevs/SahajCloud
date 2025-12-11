@@ -23,16 +23,31 @@
  *
  * The script reads from PostgreSQL (legacy data) and writes to Payload (SQLite/D1).
  * These are completely separate databases serving different purposes.
+ *
+ * Features:
+ * - Idempotent: safely re-runnable (updates existing, creates new)
+ * - Natural key-based upsert for all collections
+ * - Tag mapping from legacy names to predefined slugs
+ * - Downloads and caches media files from Google Cloud Storage
+ *
+ * Usage:
+ *   pnpm import meditations [flags]
+ *
+ * Flags:
+ *   --dry-run      Validate data without writing to database
+ *   --clear-cache  Clear download cache before import
  */
 
-import 'dotenv/config'
-import { CollectionSlug, getPayload, Payload } from 'payload'
-import configPromise from '../../src/payload.config'
+import { CollectionSlug } from 'payload'
 import { execSync } from 'child_process'
 import { Client } from 'pg'
 import { promises as fs } from 'fs'
 import * as path from 'path'
-import { Logger, FileUtils, TagManager, PayloadHelpers, MediaUploader } from '../lib'
+import { BaseImporter, BaseImportOptions, parseArgs, TagManager, MediaUploader } from '../lib'
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface ImportedData {
   tags: Array<{ id: number; name: string }>
@@ -78,8 +93,11 @@ interface ImportedData {
   }>
 }
 
-// Configuration constants
-const IMPORT_TAG = 'import-meditations' // Tag for all imported documents and media
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/meditations')
 
 // ============================================================================
 // TAG MAPPING CONSTANTS
@@ -208,278 +226,155 @@ const LEGACY_TO_MUSIC_TAG_SLUG: Record<string, string> = {
   'strings': 'strings',
 }
 
-class SimpleImporter {
-  private payload!: Payload
-  private logger!: Logger
-  private fileUtils!: FileUtils
+// ============================================================================
+// MEDITATIONS IMPORTER CLASS
+// ============================================================================
+
+class MeditationsImporter extends BaseImporter<BaseImportOptions> {
+  protected readonly importName = 'Meditations'
+  protected readonly cacheDir = CACHE_DIR
+
+  private dbClient!: Client
   private tagManager!: TagManager
-  private payloadHelpers!: PayloadHelpers
   private mediaUploader!: MediaUploader
+  private placeholderMediaId: number | string | null = null
+  private pathPlaceholderMediaId: number | string | null = null
+  private meditationThumbnailTagId: number | string | null = null
 
-  private tempDb: Client
-  private cacheDir: string
-  private dryRun: boolean
-  private reset: boolean
-  private idMapsFile: string
-  private placeholderMediaId: number | null = null
-  private pathPlaceholderMediaId: number | null = null
-  private meditationThumbnailTagId: number | null = null
-  private importMediaTagId: number | null = null
+  // In-memory maps for import (legacy ID → new Payload ID)
   private idMaps = {
-    meditationTags: new Map<number, number>(),
-    musicTags: new Map<number, number>(),
-    frames: new Map<string, string>(),
-    meditations: new Map<number, string>(),
-    musics: new Map<number, string>(),
-    narrators: new Map<number, string>(),
-    media: new Map<string, string>(), // filename -> media ID mapping for deduplication
+    meditationTags: new Map<number, number | string>(),
+    musicTags: new Map<number, number | string>(),
+    frames: new Map<string, number | string>(), // key format: "{legacyId}_{gender}"
+    meditations: new Map<number, number | string>(),
+    musics: new Map<number, number | string>(),
+    narrators: new Map<number, number | string>(),
   }
 
-  // Summary statistics
-  private summary = {
-    narrators: { created: 0, existing: 0, updated: 0 },
-    meditationTags: { created: 0, existing: 0, updated: 0 },
-    musicTags: { created: 0, existing: 0, updated: 0 },
-    frames: { created: 0, existing: 0, updated: 0, skipped: 0 },
-    music: { created: 0, existing: 0, updated: 0 },
-    meditations: { created: 0, existing: 0, updated: 0 },
-    media: { uploaded: 0, reused: 0 },
-    alerts: {
-      warnings: [] as string[],
-      errors: [] as string[],
-      skipped: [] as string[],
-    },
-  }
+  // ============================================================================
+  // LIFECYCLE
+  // ============================================================================
 
-  constructor(dryRun: boolean = false, reset: boolean = false) {
-    this.dryRun = dryRun
-    this.reset = reset
-    this.tempDb = new Client({
-      host: 'localhost',
-      port: 5432,
-      database: 'temp_migration',
-      user: process.env.USER || 'postgres',
-      password: '',
-    })
-    // Use persistent cache directory (git-ignored)
-    this.cacheDir = path.join(process.cwd(), 'imports/cache/meditations')
-    this.idMapsFile = path.join(this.cacheDir, 'id-mappings.json')
-  }
+  protected async setup(): Promise<void> {
+    await this.setupTempDatabase()
 
-  // Helper methods for tracking alerts
-  private addWarning(message: string) {
-    this.summary.alerts.warnings.push(message)
-    this.logger.warn(`    ${message}`)
-  }
-
-  private addError(message: string) {
-    this.summary.alerts.errors.push(message)
-    this.logger.error(`    ${message}`)
-  }
-
-  private addSkipped(message: string) {
-    this.summary.alerts.skipped.push(message)
-    this.logger.warn(`    Skipped: ${message}`)
-  }
-
-  async run() {
-    const modeText = this.dryRun ? ' (DRY RUN)' : ''
-    const resetText = this.reset ? ' [RESET]' : ''
-    console.log(`\n🚀 Meditations Import${modeText}${resetText}\n`)
-
-    if (this.reset) {
-      console.log('⚠️  RESET MODE: Meditations collection will be erased before import')
-    }
-
-    // Initialize logger early for dry run
-    await fs.mkdir(this.cacheDir, { recursive: true })
-    this.logger = new Logger(this.cacheDir)
-
-    try {
-      // 1. Import dump to temporary database
-      await this.setupTempDatabase()
-
-      // 2. Initialize Payload (skip in dry run for speed)
-      if (!this.dryRun) {
-        await this.logger.log('Initializing Payload CMS...')
-        const payloadConfig = await configPromise
-        this.payload = await getPayload({ config: payloadConfig })
-        await this.logger.log('✓ Payload CMS initialized')
-
-        // Initialize utility classes after Payload
-        this.fileUtils = new FileUtils(this.logger)
-        this.tagManager = new TagManager(this.payload, this.logger)
-        this.payloadHelpers = new PayloadHelpers(this.payload, this.logger)
-        this.mediaUploader = new MediaUploader(this.payload, this.logger)
-
-        // 2.1. Reset Meditations collection if requested
-        if (this.reset) {
-          await this.resetMeditationsCollection()
-        }
-
-        // 3. Setup file handling and load ID mappings
-        await this.setupFileDirectory()
-        await this.loadIdMappingsFromCache()
-      } else {
-        await this.logger.log('⚠️  DRY RUN - Skipping Payload initialization')
-      }
-
-      // 4. Load data from temp database
-      const data = await this.loadData()
-
-      if (this.dryRun) {
-        // Just show what would be imported
-        await this.logger.log('\nData to be imported:')
-        await this.logger.log(`- ${data.tags.length} tags`)
-        await this.logger.log(`- ${data.frames.length} frames`)
-        await this.logger.log(`- ${data.meditations.length} meditations`)
-        await this.logger.log(`- ${data.musics.length} music tracks`)
-        await this.logger.log(`- ${data.taggings.length} taggings relationships`)
-        await this.logger.log(`- ${data.attachments.length} file attachments`)
-
-        // Show sample data
-        await this.logger.log(
-          '\nSample tags: ' +
-            data.tags
-              .slice(0, 5)
-              .map((t) => t.name)
-              .join(', '),
-        )
-        await this.logger.log(
-          'Sample frames: ' +
-            data.frames
-              .slice(0, 3)
-              .map((f) => f.category)
-              .join(', '),
-        )
-
-        await this.logger.log('\n✅ Dry run completed - no data was imported')
-        return
-      }
-
-      // 5. Load existing data into idMaps for resumability
-      await this.loadExistingData(data)
-
-      // 6. Setup meditation thumbnail tag
-      await this.setupMeditationThumbnailTag()
-
-      // 7. Upload placeholder images for missing thumbnails
-      await this.uploadPlaceholderImages()
-
-      // 7. Import in order and save ID mappings after each step
-      await this.importNarrators()
-      await this.saveIdMappingsToCache()
-
-      await this.importTags(data.tags)
-      await this.saveIdMappingsToCache()
-
-      // Frame tags are now handled as multi-select values, no separate collection needed
-
-      await this.importFrames(data.frames, data.attachments, data.blobs)
-      await this.saveIdMappingsToCache()
-
-      await this.importMusic(data.musics, data.taggings, data.attachments, data.blobs)
-      await this.saveIdMappingsToCache()
-
-      await this.importMeditations(
-        data.meditations,
-        data.keyframes,
-        data.taggings,
-        data.attachments,
-        data.blobs,
-        data.tags,
-      )
-      await this.saveIdMappingsToCache()
-
-      console.log('\n✅ Migration completed successfully!')
-      this.printSummary()
-    } catch (error) {
-      console.error('\n❌ Migration failed:', error)
-    } finally {
-      await this.cleanup()
+    if (!this.options.dryRun) {
+      this.tagManager = new TagManager(this.payload, this.logger)
+      this.mediaUploader = new MediaUploader(this.payload, this.logger)
     }
   }
 
-  private async setupTempDatabase() {
-    await this.logger.log('Setting up temporary database...')
+  protected async cleanup(): Promise<void> {
+    await this.cleanupTempDatabase()
+    await super.cleanup()
+  }
+
+  // ============================================================================
+  // MAIN IMPORT LOGIC
+  // ============================================================================
+
+  protected async import(): Promise<void> {
+    // Load data from PostgreSQL
+    const data = await this.loadData()
+
+    if (this.options.dryRun) {
+      await this.showDryRunSummary(data)
+      return
+    }
+
+    // Setup tags and placeholders
+    await this.setupMeditationThumbnailTag()
+    await this.uploadPlaceholderImages()
+
+    // Import in order of dependencies
+    await this.importNarrators()
+    await this.importTags(data.tags)
+    await this.importFrames(data.frames, data.attachments, data.blobs)
+    await this.importMusic(data.musics, data.taggings, data.attachments, data.blobs)
+    await this.importMeditations(
+      data.meditations,
+      data.keyframes,
+      data.taggings,
+      data.attachments,
+      data.blobs,
+      data.tags,
+    )
+
+    // Print media upload stats
+    const mediaStats = this.mediaUploader.getStats()
+    await this.logger.info(`\n📁 Media: ${mediaStats.uploaded} uploaded, ${mediaStats.reused} reused`)
+  }
+
+  // ============================================================================
+  // DATABASE SETUP
+  // ============================================================================
+
+  private async setupTempDatabase(): Promise<void> {
+    await this.logger.info('Setting up temporary PostgreSQL database...')
 
     try {
-      // Create temp database
       execSync('createdb temp_migration 2>/dev/null || true')
-
-      // Import the dump (ignore role errors which are just ownership issues)
       execSync(
         `pg_restore -d temp_migration --no-owner --no-privileges --clean --if-exists imports/meditations/data.bin 2>/dev/null || true`,
       )
 
-      // Connect to temp database
-      await this.tempDb.connect()
-      await this.logger.log('✓ Data imported to temporary database')
+      this.dbClient = new Client({
+        host: 'localhost',
+        port: 5432,
+        database: 'temp_migration',
+        user: process.env.USER || 'postgres',
+        password: '',
+      })
+      await this.dbClient.connect()
+
+      await this.logger.success('✓ Temporary database ready')
     } catch (error) {
-      await this.logger.error(`Failed to setup temp database: ${error}`)
+      this.addError('Setting up temporary database', error as Error)
       throw error
     }
   }
 
-  private async resetMeditationsCollection() {
-    await this.logger.log('\n🗑️  Resetting Meditations and Frames collections...')
-
+  private async cleanupTempDatabase(): Promise<void> {
     try {
-      // Delete all meditations
-      const deletedMeditationsCount = await this.payloadHelpers.resetCollection('meditations')
-      if (deletedMeditationsCount > 0) {
-        await this.logger.log(
-          `  ✓ Cleared meditations (${deletedMeditationsCount} documents deleted)`,
-        )
-      } else {
-        await this.logger.log(`  ✓ Meditations collection already empty`)
+      if (this.dbClient) {
+        await this.dbClient.end()
       }
-
-      // Delete all frames (they don't check for duplicates during import)
-      const deletedFramesCount = await this.payloadHelpers.resetCollection('frames')
-      if (deletedFramesCount > 0) {
-        await this.logger.log(`  ✓ Cleared frames (${deletedFramesCount} documents deleted)`)
-      } else {
-        await this.logger.log(`  ✓ Frames collection already empty`)
-      }
-
-      // Clear meditation and frame ID mappings cache
-      // Note: Other collections (narrators, music, tags) handle duplicates during import
-      this.idMaps.meditations.clear()
-      this.idMaps.frames.clear()
-      await this.logger.log('✓ Cleared meditation and frame ID mappings cache')
+      execSync('dropdb temp_migration 2>/dev/null || true')
+      await this.logger.info('✓ Cleaned up temporary database')
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      await this.logger.error(`  Could not clear collections: ${message}`)
-      throw error
+      await this.logger.warn('Could not clean up temp database')
     }
   }
+
+  // ============================================================================
+  // DATA LOADING
+  // ============================================================================
 
   private async loadData(): Promise<ImportedData> {
-    await this.logger.log('Loading data from temporary database...')
+    await this.logger.info('Loading data from PostgreSQL...')
 
     const [tags, frames, meditations, musics, keyframes, taggings, attachments, blobs] =
       await Promise.all([
-        this.tempDb.query('SELECT id, name FROM tags ORDER BY id'),
-        this.tempDb.query('SELECT id, category, tags FROM frames ORDER BY id'),
-        this.tempDb.query(
+        this.dbClient.query('SELECT id, name FROM tags ORDER BY id'),
+        this.dbClient.query('SELECT id, category, tags FROM frames ORDER BY id'),
+        this.dbClient.query(
           'SELECT id, title, duration, published, narrator, music_tag FROM meditations WHERE published = true ORDER BY id',
         ),
-        this.tempDb.query('SELECT id, title, duration, credit FROM musics ORDER BY id'),
-        this.tempDb.query(
+        this.dbClient.query('SELECT id, title, duration, credit FROM musics ORDER BY id'),
+        this.dbClient.query(
           "SELECT media_type, media_id, frame_id, seconds FROM keyframes WHERE media_type = 'Meditation' ORDER BY media_id, seconds",
         ),
-        this.tempDb.query('SELECT tag_id, taggable_type, taggable_id, context FROM taggings'),
-        this.tempDb.query(
+        this.dbClient.query('SELECT tag_id, taggable_type, taggable_id, context FROM taggings'),
+        this.dbClient.query(
           'SELECT name, record_type, record_id, blob_id FROM active_storage_attachments',
         ),
-        this.tempDb.query(
+        this.dbClient.query(
           'SELECT id, key, filename, content_type, byte_size FROM active_storage_blobs',
         ),
       ])
 
-    console.log(
-      `✓ Loaded: ${tags.rows.length} tags, ${frames.rows.length} frames, ${meditations.rows.length} meditations, ${musics.rows.length} music tracks`,
+    await this.logger.info(
+      `✓ Loaded: ${tags.rows.length} tags, ${frames.rows.length} frames, ${meditations.rows.length} meditations, ${musics.rows.length} music`,
     )
 
     return {
@@ -494,217 +389,85 @@ class SimpleImporter {
     }
   }
 
-  private async setupFileDirectory() {
-    await this.fileUtils.ensureDir(this.cacheDir)
-    await this.logger.log(`✓ Using cache directory: ${this.cacheDir}`)
-  }
+  private async showDryRunSummary(data: ImportedData): Promise<void> {
+    await this.logger.info('\nData to be imported:')
+    await this.logger.info(`- ${data.tags.length} tags`)
+    await this.logger.info(`- ${data.frames.length} frames`)
+    await this.logger.info(`- ${data.meditations.length} meditations`)
+    await this.logger.info(`- ${data.musics.length} music tracks`)
+    await this.logger.info(`- ${data.taggings.length} tagging relationships`)
+    await this.logger.info(`- ${data.attachments.length} file attachments`)
 
-  private async loadIdMappingsFromCache() {
-    try {
-      const data = await fs.readFile(this.idMapsFile, 'utf-8')
-      const cached = JSON.parse(data)
-
-      // Restore ID mappings from cache
-      if (cached.meditationTags) {
-        this.idMaps.meditationTags = new Map(
-          Object.entries(cached.meditationTags).map(([k, v]) => [
-            parseInt(k),
-            typeof v === 'number' ? v : parseInt(v as string),
-          ]),
-        )
-      }
-      if (cached.musicTags) {
-        this.idMaps.musicTags = new Map(
-          Object.entries(cached.musicTags).map(([k, v]) => [
-            parseInt(k),
-            typeof v === 'number' ? v : parseInt(v as string),
-          ]),
-        )
-      }
-      if (cached.frames) {
-        this.idMaps.frames = new Map(
-          Object.entries(cached.frames).map(([k, v]) => [k, v as string]),
-        )
-      }
-      if (cached.meditations) {
-        this.idMaps.meditations = new Map(
-          Object.entries(cached.meditations).map(([k, v]) => [parseInt(k), v as string]),
-        )
-      }
-      if (cached.musics) {
-        this.idMaps.musics = new Map(
-          Object.entries(cached.musics).map(([k, v]) => [parseInt(k), v as string]),
-        )
-      }
-      if (cached.narrators) {
-        this.idMaps.narrators = new Map(
-          Object.entries(cached.narrators).map(([k, v]) => [parseInt(k), v as string]),
-        )
-      }
-      if (cached.media) {
-        this.idMaps.media = new Map(Object.entries(cached.media).map(([k, v]) => [k, v as string]))
-      }
-
-      console.log('✓ Loaded ID mappings from cache')
-    } catch (error) {
-      // Cache file doesn't exist or is invalid, start fresh
-      console.log('ℹ️  No existing ID mappings cache found, starting fresh')
-    }
-  }
-
-  private async saveIdMappingsToCache() {
-    const cache = {
-      meditationTags: Object.fromEntries(this.idMaps.meditationTags),
-      musicTags: Object.fromEntries(this.idMaps.musicTags),
-      frames: Object.fromEntries(this.idMaps.frames),
-      meditations: Object.fromEntries(this.idMaps.meditations),
-      musics: Object.fromEntries(this.idMaps.musics),
-      narrators: Object.fromEntries(this.idMaps.narrators),
-      media: Object.fromEntries(this.idMaps.media),
-    }
-
-    await fs.writeFile(this.idMapsFile, JSON.stringify(cache, null, 2), 'utf-8')
-  }
-
-  private async loadExistingData(data: ImportedData) {
-    await this.logger.log('\nLoading existing data for resumability...')
-
-    // If we already have ID mappings from cache, skip loading from database
-    const hasCachedMappings =
-      this.idMaps.meditationTags.size > 0 ||
-      this.idMaps.musicTags.size > 0 ||
-      this.idMaps.frames.size > 0 ||
-      this.idMaps.meditations.size > 0 ||
-      this.idMaps.musics.size > 0 ||
-      this.idMaps.media.size > 0
-
-    if (hasCachedMappings) {
-      await this.logger.log('✓ Using cached ID mappings for resumability')
-      return
-    }
-
-    // Load all existing entries to check for duplicates using natural keys
-    const [
-      existingNarrators,
-      existingFrames,
-      existingMusic,
-      existingMeditations,
-      existingMeditationTags,
-      existingMusicTags,
-      existingMedia,
-    ] = await Promise.all([
-      this.payload.find({
-        collection: 'narrators',
-        limit: 1000,
-      }),
-      this.payload.find({
-        collection: 'frames',
-        limit: 1000,
-      }),
-      this.payload.find({
-        collection: 'music',
-        limit: 1000,
-      }),
-      this.payload.find({
-        collection: 'meditations',
-        limit: 1000,
-      }),
-      this.payload.find({
-        collection: 'meditation-tags',
-        limit: 1000,
-      }),
-      this.payload.find({
-        collection: 'music-tags',
-        limit: 1000,
-      }),
-      this.payload.find({
-        collection: 'images',
-        limit: 1000,
-      }),
-    ])
-
-    console.log(
-      `✓ Loaded existing data: ${existingNarrators.docs.length} narrators, ${existingFrames.docs.length} frames, ${existingMusic.docs.length} music, ${existingMeditations.docs.length} meditations, ${existingMeditationTags.docs.length} meditation tags, ${existingMusicTags.docs.length} music tags, ${existingMedia.docs.length} media files`,
+    await this.logger.info(
+      '\nSample tags: ' +
+        data.tags
+          .slice(0, 5)
+          .map((t) => t.name)
+          .join(', '),
     )
-
-    // Build media filename mapping for deduplication
-    existingMedia.docs.forEach((media: any) => {
-      if (media.filename) {
-        this.idMaps.media.set(media.filename, String(media.id))
-      }
-    })
+    await this.logger.info(
+      'Sample frames: ' +
+        data.frames
+          .slice(0, 3)
+          .map((f) => f.category)
+          .join(', '),
+    )
   }
+
+  // ============================================================================
+  // FILE OPERATIONS
+  // ============================================================================
 
   private async downloadFile(storageKey: string, filename: string): Promise<string | null> {
     try {
-      // Create cache filename from storage key (sanitize for filesystem)
       const sanitizedKey = storageKey.replace(/[^a-zA-Z0-9.-]/g, '_')
       const cachedPath = path.join(this.cacheDir, `${sanitizedKey}_${filename}`)
 
-      // Check if file already exists in cache
       if (await this.fileUtils.fileExists(cachedPath)) {
         await this.logger.log(`  ✓ Using cached: ${filename}`)
         return cachedPath
       }
 
-      // You'll need to replace this URL pattern with your actual storage URL
-      // This is likely Google Cloud Storage or AWS S3
       const baseUrl =
         process.env.STORAGE_BASE_URL || 'https://storage.googleapis.com/media.sydevelopers.com'
       const fileUrl = `${baseUrl}/${storageKey}`
 
       await this.logger.log(`  Downloading: ${filename}`)
-
-      // Download file using FileUtils
       await this.fileUtils.downloadFileFetch(fileUrl, cachedPath)
-      await this.logger.log(`  ✓ Downloaded and cached: ${filename}`)
+      await this.logger.log(`  ✓ Downloaded: ${filename}`)
 
       return cachedPath
     } catch (error: any) {
-      this.addWarning(`Error downloading ${filename}: ${error.message || error}`)
+      this.addWarning(`Error downloading ${filename}: ${error.message}`)
       return null
     }
   }
 
-  private async uploadToPayload(localPath: string, collection: CollectionSlug, metadata: any = {}) {
+  private async uploadToPayload(
+    localPath: string,
+    collection: CollectionSlug,
+    metadata: Record<string, any> = {},
+  ): Promise<any | null> {
     try {
       const fileBuffer = await fs.readFile(localPath)
-      const filename = path.basename(localPath).replace(/^[^_]+_/, '') // Remove hash prefix
+      const filename = path.basename(localPath).replace(/^[^_]+_/, '')
       const mimeType = this.fileUtils.getMimeType(filename)
 
       // Validate MIME type for music collection
       if (collection === 'music') {
         const acceptedMimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg']
 
-        // Skip m4a files due to Payload MIME detection issues
         if (filename.toLowerCase().endsWith('.m4a')) {
-          this.addSkipped(`m4a file due to MIME detection conflicts: ${filename}`)
+          this.skip(`m4a file (MIME detection conflicts): ${filename}`)
           return null
         }
 
         if (!acceptedMimeTypes.includes(mimeType)) {
-          this.addSkipped(`unsupported audio format: ${filename} (${mimeType})`)
+          this.skip(`unsupported audio format: ${filename} (${mimeType})`)
           return null
         }
       }
 
-      // For frames collection, we need to provide the file data properly
-      if (collection === 'frames') {
-        const result = await this.payload.create({
-          collection,
-          data: metadata,
-          file: {
-            data: fileBuffer,
-            mimetype: mimeType,
-            name: filename,
-            size: fileBuffer.length,
-          },
-        })
-        await this.logger.log(`    ✓ Uploaded: ${filename}`)
-        return result
-      }
-
-      // For other collections - use explicit file object to control MIME type
       const createOptions: any = {
         collection,
         data: metadata,
@@ -716,122 +479,21 @@ class SimpleImporter {
         },
       }
 
-      // Add locale for collections with localized fields
       if (collection === 'music' || collection === 'meditations') {
         createOptions.locale = 'en'
       }
 
       const result = await this.payload.create(createOptions)
-
       await this.logger.log(`    ✓ Uploaded: ${filename}`)
       return result
     } catch (error: any) {
-      // Check if it's a duration error (video or audio)
       if (error.message?.includes('exceeds maximum allowed duration')) {
-        this.addSkipped(`media (exceeds duration limit): ${path.basename(localPath)}`)
+        this.skip(`media (exceeds duration limit): ${path.basename(localPath)}`)
         return null
       }
-      // Enhanced error logging for slug validation issues
-      if (
-        error.message?.includes('slug') ||
-        error.data?.errors?.some((e: any) => e.field === 'slug')
-      ) {
-        let slugError = `Slug validation error for ${path.basename(localPath)}: ${error.message}`
-        if (error.data?.errors) {
-          error.data.errors.forEach((e: any) => {
-            if (e.field === 'slug') {
-              slugError += ` | Field: ${e.field}, Message: ${e.message}`
-            }
-          })
-        }
-        this.addWarning(slugError)
-        return null
-      }
-      this.addWarning(`Failed to upload ${path.basename(localPath)}: ${error.message || error}`)
+      this.addWarning(`Failed to upload ${path.basename(localPath)}: ${error.message}`)
       return null
     }
-  }
-
-
-  private async uploadToPayloadForUpdate(
-    localPath: string,
-    collection: CollectionSlug,
-    recordId: string,
-    metadata: any = {},
-  ) {
-    try {
-      const fileBuffer = await fs.readFile(localPath)
-      const filename = path.basename(localPath).replace(/^[^_]+_/, '') // Remove hash prefix
-      const mimeType = this.fileUtils.getMimeType(filename)
-
-      // Validate MIME type for specific collections
-      if (collection === 'music') {
-        const acceptedMimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg']
-
-        // Skip m4a files due to Payload MIME detection issues
-        if (filename.toLowerCase().endsWith('.m4a')) {
-          this.addSkipped(`m4a file due to MIME detection conflicts: ${filename}`)
-          return null
-        }
-
-        if (!acceptedMimeTypes.includes(mimeType)) {
-          this.addSkipped(`unsupported audio format: ${filename} (${mimeType})`)
-          return null
-        }
-      }
-
-      // Update existing record with new file and metadata
-      const updateOptions: any = {
-        collection,
-        id: recordId,
-        data: metadata,
-        file: {
-          data: fileBuffer,
-          mimetype: mimeType,
-          name: filename,
-          size: fileBuffer.length,
-        },
-      }
-
-      // Add locale for collections with localized fields
-      if (collection === 'music' || collection === 'meditations') {
-        updateOptions.locale = 'en'
-      }
-
-      const result = await this.payload.update(updateOptions)
-
-      await this.logger.log(`    ✓ Updated with file: ${filename}`)
-      return result
-    } catch (error: any) {
-      this.addWarning(
-        `Failed to update ${collection} record with file ${path.basename(localPath)}: ${error.message || error}`,
-      )
-      return null
-    }
-  }
-
-  private mapFrameCategory(oldCategory: string): string | null {
-    // Map old categories to new lowercase versions
-    // Special case: "Heart" maps to "anahat"
-    const categoryMap: Record<string, string> = {
-      heart: 'anahat',
-      mooladhara: 'mooladhara',
-      swadhistan: 'swadhistan',
-      nabhi: 'nabhi',
-      void: 'void',
-      anahat: 'anahat',
-      vishuddhi: 'vishuddhi',
-      agnya: 'agnya',
-      sahasrara: 'sahasrara',
-      clearing: 'clearing',
-      kundalini: 'kundalini',
-      meditate: 'meditate',
-      ready: 'ready',
-      namaste: 'namaste',
-    }
-
-    const normalized = oldCategory.toLowerCase().trim()
-    return categoryMap[normalized] || null
   }
 
   private getAttachmentsForRecord(
@@ -849,195 +511,118 @@ class SimpleImporter {
       .filter(Boolean)
   }
 
-  private async setupMeditationThumbnailTag() {
-    await this.logger.log('\nSetting up meditation thumbnail and import tags...')
+  // ============================================================================
+  // TAG SETUP
+  // ============================================================================
 
-    // Setup meditation-thumbnail tag using TagManager
+  private async setupMeditationThumbnailTag(): Promise<void> {
+    await this.logger.info('\nSetting up meditation thumbnail tag...')
     this.meditationThumbnailTagId = await this.tagManager.ensureTag(
       'image-tags',
       'meditation-thumbnail',
     )
-    await this.logger.log(
-      `    ✓ Meditation-thumbnail tag ready (ID: ${this.meditationThumbnailTagId})`,
-    )
-
-    // Setup import tag using TagManager
-    this.importMediaTagId = await this.tagManager.ensureTag('image-tags', IMPORT_TAG)
-    await this.logger.log(`    ✓ Import tag ready (ID: ${this.importMediaTagId})`)
+    await this.logger.log(`    ✓ Tag ready (ID: ${this.meditationThumbnailTagId})`)
   }
 
-  private async ensureMeditationThumbnailTag(mediaId: number) {
-    if (!this.meditationThumbnailTagId && !this.importMediaTagId) {
-      return
-    }
+  private async uploadPlaceholderImages(): Promise<void> {
+    await this.logger.info('\nChecking placeholder images...')
 
-    try {
-      const tagsToAdd = []
-      if (this.meditationThumbnailTagId) tagsToAdd.push(this.meditationThumbnailTagId)
-      if (this.importMediaTagId) tagsToAdd.push(this.importMediaTagId)
-
-      if (tagsToAdd.length > 0) {
-        await this.tagManager.addTagsToImage(mediaId, tagsToAdd)
-        await this.logger.log(`    ✓ Added tags to image (ID: ${mediaId})`)
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      this.addWarning(`Failed to add tags to media ${mediaId}: ${message}`)
-    }
-  }
-
-  private async uploadPlaceholderImages() {
-    await this.logger.log('\nUploading placeholder images...')
-
-    // Check if placeholder images already exist in media collection
+    // Check for existing placeholders
     const [existingPlaceholder, existingPathPlaceholder] = await Promise.all([
       this.payload.find({
         collection: 'images',
-        where: {
-          filename: {
-            equals: 'placeholder.jpg',
-          },
-        },
+        where: { filename: { equals: 'placeholder.jpg' } },
         limit: 1,
       }),
       this.payload.find({
         collection: 'images',
-        where: {
-          filename: {
-            equals: 'path.jpg',
-          },
-        },
+        where: { filename: { equals: 'path.jpg' } },
         limit: 1,
       }),
     ])
 
-    // Upload or reuse placeholder.jpg
     if (existingPlaceholder.docs.length > 0) {
       this.placeholderMediaId = existingPlaceholder.docs[0].id
-      await this.logger.log(
-        `    ✓ Found existing placeholder.jpg media (ID: ${this.placeholderMediaId})`,
-      )
-
-      // Update existing placeholder with meditation-thumbnail tag if not already tagged
-      await this.ensureMeditationThumbnailTag(this.placeholderMediaId)
+      await this.logger.log(`    ✓ Using existing placeholder.jpg (ID: ${this.placeholderMediaId})`)
     } else {
       const placeholderPath = path.join(this.cacheDir, 'placeholder.jpg')
-      try {
-        await fs.access(placeholderPath)
-        const tags = []
-        if (this.meditationThumbnailTagId) tags.push(this.meditationThumbnailTagId)
-        if (this.importMediaTagId) tags.push(this.importMediaTagId)
-        const placeholderMedia = await this.uploadToPayload(placeholderPath, 'images', {
+      if (await this.fileUtils.fileExists(placeholderPath)) {
+        const tags = this.meditationThumbnailTagId ? [this.meditationThumbnailTagId] : []
+        const result = await this.uploadToPayload(placeholderPath, 'images', {
           alt: 'Meditation placeholder image',
           tags,
         })
-        if (placeholderMedia) {
-          this.placeholderMediaId = placeholderMedia.id
+        if (result) {
+          this.placeholderMediaId = result.id
           await this.logger.log(`    ✓ Uploaded placeholder.jpg (ID: ${this.placeholderMediaId})`)
         }
-      } catch (error) {
-        this.addWarning('placeholder.jpg not found in migration-cache folder')
+      } else {
+        this.addWarning('placeholder.jpg not found in cache folder')
       }
     }
 
-    // Upload or reuse path.jpg
     if (existingPathPlaceholder.docs.length > 0) {
       this.pathPlaceholderMediaId = existingPathPlaceholder.docs[0].id
-      await this.logger.log(
-        `    ✓ Found existing path.jpg media (ID: ${this.pathPlaceholderMediaId})`,
-      )
-
-      // Update existing path placeholder with meditation-thumbnail tag if not already tagged
-      await this.ensureMeditationThumbnailTag(this.pathPlaceholderMediaId)
+      await this.logger.log(`    ✓ Using existing path.jpg (ID: ${this.pathPlaceholderMediaId})`)
     } else {
       const pathPlaceholderPath = path.join(this.cacheDir, 'path.jpg')
-      try {
-        await fs.access(pathPlaceholderPath)
-        const tags = []
-        if (this.meditationThumbnailTagId) tags.push(this.meditationThumbnailTagId)
-        if (this.importMediaTagId) tags.push(this.importMediaTagId)
-        const pathMedia = await this.uploadToPayload(pathPlaceholderPath, 'images', {
+      if (await this.fileUtils.fileExists(pathPlaceholderPath)) {
+        const tags = this.meditationThumbnailTagId ? [this.meditationThumbnailTagId] : []
+        const result = await this.uploadToPayload(pathPlaceholderPath, 'images', {
           alt: 'Path meditation placeholder image',
           tags,
         })
-        if (pathMedia) {
-          this.pathPlaceholderMediaId = pathMedia.id
+        if (result) {
+          this.pathPlaceholderMediaId = result.id
           await this.logger.log(`    ✓ Uploaded path.jpg (ID: ${this.pathPlaceholderMediaId})`)
         }
-      } catch (error) {
-        this.addWarning('path.jpg not found in migration-cache folder')
+      } else {
+        this.addWarning('path.jpg not found in cache folder')
       }
-    }
-
-    if (!this.placeholderMediaId && !this.pathPlaceholderMediaId) {
-      this.addWarning('No placeholder images available - meditations without thumbnails may fail')
     }
   }
 
-  private async importNarrators() {
-    await this.logger.log('\nImporting narrators...')
+  // ============================================================================
+  // NARRATORS IMPORT
+  // ============================================================================
+
+  private async importNarrators(): Promise<void> {
+    await this.logger.info('\n=== Importing Narrators ===')
 
     const narrators = [
       { name: 'Female Narrator', gender: 'female' as const },
       { name: 'Male Narrator', gender: 'male' as const },
     ]
 
-    // First, load all existing narrators to populate idMaps
-    const existingNarrators = await this.payload.find({
-      collection: 'narrators',
-      limit: 1000, // Should be enough for narrators
-    })
-
-    // Build a map of existing narrators by name
-    const existingByName = new Map<string, any>()
-    existingNarrators.docs.forEach((narrator: any) => {
-      existingByName.set(narrator.name, narrator)
-    })
-
-    let createdCount = 0
-    let foundCount = 0
-
     for (let i = 0; i < narrators.length; i++) {
       const narratorData = narrators[i]
 
-      // Check if narrator already exists
-      let narrator = existingByName.get(narratorData.name)
-
-      if (narrator) {
-        await this.logger.log(`    ✓ Found existing narrator: ${narrator.name}`)
-        foundCount++
-      } else {
-        narrator = await this.payload.create({
-          collection: 'narrators',
-          data: narratorData,
-        })
-        await this.logger.log(`    ✓ Created narrator: ${narrator.name}`)
-        createdCount++
+      try {
+        const result = await this.upsert<{ id: number }>(
+          'narrators',
+          { name: { equals: narratorData.name } },
+          narratorData,
+        )
+        this.idMaps.narrators.set(i, result.doc.id)
+      } catch (error) {
+        this.addError(`Importing narrator "${narratorData.name}"`, error as Error)
       }
-
-      this.idMaps.narrators.set(i, String(narrator.id))
     }
-
-    // Update summary
-    this.summary.narrators.created = createdCount
-    this.summary.narrators.existing = foundCount
-
-    await this.logger.log(
-      `✓ Processed ${narrators.length} narrators (${createdCount} created, ${foundCount} existing)`,
-    )
   }
 
-  private async importTags(tags: ImportedData['tags']) {
-    await this.logger.log('\nMapping legacy tags to predefined tags...')
+  // ============================================================================
+  // TAG MAPPING
+  // ============================================================================
 
-    // First, we need to determine which tags are used for meditations vs music
-    // by examining the taggings table
-    const taggingsQuery = await this.tempDb.query(
+  private async importTags(tags: ImportedData['tags']): Promise<void> {
+    await this.logger.info('\n=== Mapping Legacy Tags ===')
+
+    // Get tag usage from taggings table
+    const taggingsQuery = await this.dbClient.query(
       "SELECT tag_id, taggable_type FROM taggings WHERE context = 'tags'",
     )
     const taggings = taggingsQuery.rows
 
-    // Build sets of tag IDs that are used by each type
     const meditationTagIds = new Set<number>()
     const musicTagIds = new Set<number>()
 
@@ -1049,466 +634,292 @@ class SimpleImporter {
       }
     })
 
-    await this.logger.log(`    ℹ️  Found ${meditationTagIds.size} unique tags used by meditations`)
-    await this.logger.log(`    ℹ️  Found ${musicTagIds.size} unique tags used by music`)
+    await this.logger.info(`    ℹ️  ${meditationTagIds.size} tags used by meditations`)
+    await this.logger.info(`    ℹ️  ${musicTagIds.size} tags used by music`)
 
-    // Load all existing tags (created by imports/tags/import.ts)
+    // Load existing predefined tags
     const [existingMeditationTags, existingMusicTags] = await Promise.all([
       this.payload.find({ collection: 'meditation-tags', limit: 1000 }),
       this.payload.find({ collection: 'music-tags', limit: 1000 }),
     ])
 
-    // Build maps of existing tags by slug for lookup
     const meditationTagsBySlug = new Map<string, any>()
     const musicTagsBySlug = new Map<string, any>()
 
     existingMeditationTags.docs.forEach((tag: any) => {
-      if (tag.slug) {
-        meditationTagsBySlug.set(tag.slug, tag)
-      }
+      if (tag.slug) meditationTagsBySlug.set(tag.slug, tag)
     })
     existingMusicTags.docs.forEach((tag: any) => {
-      if (tag.slug) {
-        musicTagsBySlug.set(tag.slug, tag)
-      }
+      if (tag.slug) musicTagsBySlug.set(tag.slug, tag)
     })
 
-    await this.logger.log(
-      `    ℹ️  Found ${meditationTagsBySlug.size} predefined meditation tags, ${musicTagsBySlug.size} predefined music tags`,
-    )
-
     let meditationMapped = 0,
-      meditationUnmapped = 0
-    let musicMapped = 0,
-      musicUnmapped = 0
+      musicMapped = 0
 
-    // Process tags - map legacy names to predefined slugs
     for (const tag of tags) {
       const legacyName = tag.name.toLowerCase().trim()
 
-      // Handle meditation-tags (only if used by meditations)
+      // Map meditation tags
       if (meditationTagIds.has(tag.id)) {
         const mappedSlug = LEGACY_TO_MEDITATION_TAG_SLUG[legacyName]
-
         if (mappedSlug) {
           const existingTag = meditationTagsBySlug.get(mappedSlug)
           if (existingTag) {
             this.idMaps.meditationTags.set(tag.id, existingTag.id as number)
-            await this.logger.log(
-              `    ✓ Mapped meditation tag "${tag.name}" → "${mappedSlug}" (ID: ${existingTag.id})`,
-            )
+            await this.logger.log(`    ✓ Mapped "${tag.name}" → "${mappedSlug}"`)
             meditationMapped++
           } else {
-            this.addWarning(
-              `Predefined meditation tag slug "${mappedSlug}" not found - run tags import first`,
-            )
-            meditationUnmapped++
+            this.addWarning(`Predefined tag "${mappedSlug}" not found - run tags import first`)
           }
         } else {
-          this.addWarning(
-            `No mapping found for legacy meditation tag "${tag.name}" - add to LEGACY_TO_MEDITATION_TAG_SLUG`,
-          )
-          meditationUnmapped++
+          this.addWarning(`No mapping for meditation tag "${tag.name}"`)
         }
       }
 
-      // Handle music-tags (only if used by music)
+      // Map music tags
       if (musicTagIds.has(tag.id)) {
         const mappedSlug = LEGACY_TO_MUSIC_TAG_SLUG[legacyName]
-
         if (mappedSlug) {
           const existingTag = musicTagsBySlug.get(mappedSlug)
           if (existingTag) {
             this.idMaps.musicTags.set(tag.id, existingTag.id as number)
-            await this.logger.log(
-              `    ✓ Mapped music tag "${tag.name}" → "${mappedSlug}" (ID: ${existingTag.id})`,
-            )
+            await this.logger.log(`    ✓ Mapped music "${tag.name}" → "${mappedSlug}"`)
             musicMapped++
           } else {
-            this.addWarning(`Predefined music tag slug "${mappedSlug}" not found - run tags import first`)
-            musicUnmapped++
+            this.addWarning(`Predefined music tag "${mappedSlug}" not found - run tags import first`)
           }
         } else {
-          this.addWarning(
-            `No mapping found for legacy music tag "${tag.name}" - add to LEGACY_TO_MUSIC_TAG_SLUG`,
-          )
-          musicUnmapped++
+          this.addWarning(`No mapping for music tag "${tag.name}"`)
         }
       }
     }
 
-    // Update summary - using 'existing' to track mapped tags (no new tags created)
-    this.summary.meditationTags.existing = meditationMapped
-    this.summary.meditationTags.created = 0 // No longer creating tags
-    this.summary.musicTags.existing = musicMapped
-    this.summary.musicTags.created = 0 // No longer creating tags
-
-    await this.logger.log(
-      `✓ Mapped tags (meditation: ${meditationMapped} mapped, ${meditationUnmapped} unmapped | music: ${musicMapped} mapped, ${musicUnmapped} unmapped)`,
+    await this.logger.info(
+      `✓ Mapped ${meditationMapped} meditation tags, ${musicMapped} music tags`,
     )
-
-    if (meditationUnmapped > 0 || musicUnmapped > 0) {
-      await this.logger.warn(
-        `    ⚠️  Some tags could not be mapped. Ensure tags import (pnpm run import tags) has been run first.`,
-      )
-    }
   }
 
-  private async importFrames(frames: ImportedData['frames'], attachments: any[], blobs: any[]) {
-    await this.logger.log('\nImporting frames...')
+  // ============================================================================
+  // FRAMES IMPORT
+  // ============================================================================
 
-    // Load existing frames to avoid duplicates
-    let existingFrames
-    try {
-      existingFrames = await this.payload.find({
-        collection: 'frames',
-        limit: 1000,
-      })
-    } catch (error) {
-      // If frames have thumbnails that reference deleted media, we can't fetch them
-      // This can happen during import operations with --reset when media is deleted
-      // Continue with empty existing frames list
-      this.addWarning('Could not load existing frames (missing thumbnail references)')
-      existingFrames = { docs: [] }
+  private mapFrameCategory(oldCategory: string): string | null {
+    const categoryMap: Record<string, string> = {
+      heart: 'anahat',
+      mooladhara: 'mooladhara',
+      swadhistan: 'swadhistan',
+      nabhi: 'nabhi',
+      void: 'void',
+      anahat: 'anahat',
+      vishuddhi: 'vishuddhi',
+      agnya: 'agnya',
+      sahasrara: 'sahasrara',
+      clearing: 'clearing',
+      kundalini: 'kundalini',
+      meditate: 'meditate',
+      ready: 'ready',
+      namaste: 'namaste',
     }
+    return categoryMap[oldCategory.toLowerCase().trim()] || null
+  }
 
-    // Build map of existing frames by filename
-    const existingByFilename = new Map<string, any>()
-    existingFrames.docs.forEach((frame: any) => {
-      if (frame.filename) {
-        existingByFilename.set(frame.filename, frame)
-      }
-    })
+  private async importFrames(
+    frames: ImportedData['frames'],
+    attachments: any[],
+    blobs: any[],
+  ): Promise<void> {
+    await this.logger.info('\n=== Importing Frames ===')
+    await this.logger.progress(0, frames.length, 'Frames')
 
-    let createdCount = 0
-    let foundCount = 0
-    const updatedCount = 0
-    let skippedCount = 0
+    const validFrameTags = [
+      'anahat', 'back', 'bandhan', 'both hands', 'center', 'channel', 'earth', 'ego',
+      'feel', 'ham ksham', 'hamsa', 'hand', 'hands', 'ida', 'left', 'lefthanded',
+      'massage', 'pingala', 'raise', 'right', 'righthanded', 'rising', 'silent',
+      'superego', 'tapping',
+    ]
 
-    for (const frame of frames) {
-      // Map the old category to new category
+    for (let i = 0; i < frames.length; i++) {
+      const frame = frames[i]
+
       const mappedCategory = this.mapFrameCategory(frame.category)
       if (!mappedCategory) {
-        this.addWarning(`Unknown frame category "${frame.category}", skipping frame`)
-        skippedCount++
+        this.skip(`frame with unknown category "${frame.category}"`)
+        await this.logger.progress(i + 1, frames.length, 'Frames')
         continue
       }
 
-      // Parse comma-separated tags and get their IDs
       const frameTagNames = frame.tags
-        ? frame.tags
-            .split(',')
-            .map((t) => t.trim().toLowerCase())
-            .filter(Boolean)
+        ? frame.tags.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean)
         : []
+      const tagValues = frameTagNames.filter((tag) => validFrameTags.includes(tag))
 
-      // Frame tags are now stored directly as values (multi-select field)
-      // Filter to only include valid enum values
-      const validFrameTags = [
-        'anahat',
-        'back',
-        'bandhan',
-        'both hands',
-        'center',
-        'channel',
-        'earth',
-        'ego',
-        'feel',
-        'ham ksham',
-        'hamsa',
-        'hand',
-        'hands',
-        'ida',
-        'left',
-        'lefthanded',
-        'massage',
-        'pingala',
-        'raise',
-        'right',
-        'righthanded',
-        'rising',
-        'silent',
-        'superego',
-        'tapping',
-      ]
-      const tagValues = frameTagNames.filter((tag) => validFrameTags.includes(tag)) as Array<
-        | 'anahat'
-        | 'back'
-        | 'bandhan'
-        | 'both hands'
-        | 'center'
-        | 'channel'
-        | 'earth'
-        | 'ego'
-        | 'feel'
-        | 'ham ksham'
-        | 'hamsa'
-        | 'hand'
-        | 'hands'
-        | 'ida'
-        | 'left'
-        | 'lefthanded'
-        | 'massage'
-        | 'pingala'
-        | 'raise'
-        | 'right'
-        | 'righthanded'
-        | 'rising'
-        | 'silent'
-        | 'superego'
-        | 'tapping'
-      >
-
-      // Get frame attachments (should have both male and female)
       const frameAttachments = this.getAttachmentsForRecord('Frame', frame.id, attachments, blobs)
       const maleAttachment = frameAttachments.find((att) => att.name === 'male')
       const femaleAttachment = frameAttachments.find((att) => att.name === 'female')
 
-      // Process male frame if attachment exists
+      // Process male frame
       if (maleAttachment) {
-        const maleFilename = maleAttachment.blob.filename
-        const existingMaleFrame = existingByFilename.get(maleFilename)
-
-        const frameData = {
-          imageSet: 'male' as const,
-          category: mappedCategory as
-            | 'mooladhara'
-            | 'swadhistan'
-            | 'nabhi'
-            | 'void'
-            | 'anahat'
-            | 'vishuddhi'
-            | 'agnya'
-            | 'sahasrara'
-            | 'clearing'
-            | 'kundalini'
-            | 'meditate'
-            | 'ready'
-            | 'namaste',
-          tags: tagValues, // Now using direct string values
-        }
-
-        if (existingMaleFrame) {
-          // Skip existing frame
-          await this.logger.log(`    ✓ Found existing male frame: ${maleFilename} (skipping)`)
-          this.idMaps.frames.set(`${frame.id}_male`, String(existingMaleFrame.id))
-          foundCount++
-        } else {
-          // Create new male frame
-          const localPath = await this.downloadFile(
-            maleAttachment.blob.key,
-            maleAttachment.blob.filename,
-          )
-          if (localPath) {
-            const uploaded = await this.uploadToPayload(localPath, 'frames', frameData)
-            if (uploaded) {
-              this.idMaps.frames.set(`${frame.id}_male`, String(uploaded.id))
-              await this.logger.log(`    ✓ Created male frame: ${maleFilename}`)
-              createdCount++
-            }
-          }
-        }
+        await this.processFrame(
+          frame.id,
+          'male',
+          maleAttachment,
+          mappedCategory,
+          tagValues,
+        )
       }
 
-      // Process female frame if attachment exists
+      // Process female frame
       if (femaleAttachment) {
-        const femaleFilename = femaleAttachment.blob.filename
-        const existingFemaleFrame = existingByFilename.get(femaleFilename)
-
-        const frameData = {
-          imageSet: 'female' as const,
-          category: mappedCategory as
-            | 'mooladhara'
-            | 'swadhistan'
-            | 'nabhi'
-            | 'void'
-            | 'anahat'
-            | 'vishuddhi'
-            | 'agnya'
-            | 'sahasrara'
-            | 'clearing'
-            | 'kundalini'
-            | 'meditate'
-            | 'ready'
-            | 'namaste',
-          tags: tagValues, // Now using direct string values
-        }
-
-        if (existingFemaleFrame) {
-          // Skip existing frame
-          await this.logger.log(`    ✓ Found existing female frame: ${femaleFilename} (skipping)`)
-          this.idMaps.frames.set(`${frame.id}_female`, String(existingFemaleFrame.id))
-          foundCount++
-        } else {
-          // Create new female frame
-          const localPath = await this.downloadFile(
-            femaleAttachment.blob.key,
-            femaleAttachment.blob.filename,
-          )
-          if (localPath) {
-            const uploaded = await this.uploadToPayload(localPath, 'frames', frameData)
-            if (uploaded) {
-              this.idMaps.frames.set(`${frame.id}_female`, String(uploaded.id))
-              await this.logger.log(`    ✓ Created female frame: ${femaleFilename}`)
-              createdCount++
-            }
-          }
-        }
+        await this.processFrame(
+          frame.id,
+          'female',
+          femaleAttachment,
+          mappedCategory,
+          tagValues,
+        )
       }
 
-      // Log warning if neither attachment exists
       if (!maleAttachment && !femaleAttachment) {
-        this.addSkipped(`frame without attachments: ${frame.category}`)
-        skippedCount++
+        this.skip(`frame without attachments: ${frame.category}`)
       }
-    }
 
-    // Update summary
-    this.summary.frames.created = createdCount
-    this.summary.frames.existing = foundCount
-    this.summary.frames.updated = updatedCount
-    this.summary.frames.skipped = skippedCount
-
-    const statusParts = [`${createdCount} created`]
-    if (foundCount > 0) {
-      statusParts.push(`${foundCount} existing`)
+      await this.logger.progress(i + 1, frames.length, 'Frames')
     }
-    if (skippedCount > 0) {
-      statusParts.push(`${skippedCount} skipped`)
-    }
-    await this.logger.log(`✓ Processed ${frames.length} frames (${statusParts.join(', ')})`)
   }
+
+  private async processFrame(
+    legacyFrameId: number,
+    gender: 'male' | 'female',
+    attachment: any,
+    category: string,
+    tagValues: string[],
+  ): Promise<void> {
+    const filename = attachment.blob.filename
+
+    // Check for existing frame by filename (use equals for exact match to avoid SQLite LIKE pattern issues)
+    const existing = await this.payload.find({
+      collection: 'frames',
+      where: { filename: { equals: filename } },
+      limit: 1,
+    })
+
+    if (existing.docs.length > 0) {
+      await this.logger.log(`    ✓ Using existing ${gender} frame: ${filename}`)
+      this.idMaps.frames.set(`${legacyFrameId}_${gender}`, existing.docs[0].id)
+      this.report.incrementSkipped()
+      return
+    }
+
+    // Download and upload new frame
+    const localPath = await this.downloadFile(attachment.blob.key, filename)
+    if (!localPath) return
+
+    try {
+      const frameData = {
+        imageSet: gender,
+        category: category as any,
+        tags: tagValues as any[],
+      }
+
+      const result = await this.uploadToPayload(localPath, 'frames', frameData)
+      if (result) {
+        this.idMaps.frames.set(`${legacyFrameId}_${gender}`, result.id)
+        this.report.incrementCreated()
+      }
+    } catch (error) {
+      this.addError(`Uploading frame ${filename}`, error as Error)
+    }
+  }
+
+  // ============================================================================
+  // MUSIC IMPORT
+  // ============================================================================
 
   private async importMusic(
     musics: ImportedData['musics'],
     taggings: ImportedData['taggings'],
     attachments: any[],
     blobs: any[],
-  ) {
-    await this.logger.log('\nImporting music...')
+  ): Promise<void> {
+    await this.logger.info('\n=== Importing Music ===')
+    await this.logger.progress(0, musics.length, 'Music')
 
-    // Load existing music to avoid duplicates
-    const existingMusic = await this.payload.find({
-      collection: 'music',
-      limit: 1000,
-    })
+    for (let i = 0; i < musics.length; i++) {
+      const music = musics[i]
 
-    // Build map of existing music by slug
-    const existingBySlug = new Map<string, any>()
-    existingMusic.docs.forEach((musicItem: any) => {
-      if (musicItem.slug) {
-        existingBySlug.set(musicItem.slug, musicItem)
-      }
-    })
-
-    let createdCount = 0
-    let foundCount = 0
-    const updatedCount = 0
-
-    for (const music of musics) {
-      // Generate expected slug for this music
-      const expectedSlug = (music.title || 'untitled-music')
+      // Generate slug
+      const slug = (music.title || 'untitled-music')
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '')
 
-      // Check if music already exists by slug
-      const existingMusicItem = existingBySlug.get(expectedSlug)
-      if (existingMusicItem) {
-        await this.logger.log(
-          `    ✓ Found existing music: ${existingMusicItem.title?.en || existingMusicItem.title} (skipping)`,
-        )
-        this.idMaps.musics.set(music.id, String(existingMusicItem.id))
-        foundCount++
-        continue
-      }
-
-      // Get music tags from taggings table
+      // Get music tags
       const musicTaggings = taggings.filter(
-        (tagging) =>
-          tagging.taggable_type === 'Music' &&
-          tagging.taggable_id === music.id &&
-          tagging.context === 'tags',
+        (t) => t.taggable_type === 'Music' && t.taggable_id === music.id && t.context === 'tags',
       )
       const musicTagIds = musicTaggings
-        .map((tagging) => this.idMaps.musicTags.get(tagging.tag_id))
+        .map((t) => this.idMaps.musicTags.get(t.tag_id))
         .filter((id): id is number => Boolean(id))
 
-      if (musicTagIds.length > 0) {
-        await this.logger.log(`    ℹ️  Music "${music.title}" has ${musicTagIds.length} tags`)
-      }
-
-      // Create music data with simple strings (localization handled by locale parameter)
       const musicData = {
         title: music.title || 'Untitled Music',
         credit: music.credit || '',
         duration: music.duration,
-        tags: musicTagIds, // Add tags to music data
+        tags: musicTagIds,
       }
 
-      // Create new music (with or without audio file)
-      const musicAttachments = this.getAttachmentsForRecord('Music', music.id, attachments, blobs)
-      const audioAttachment = musicAttachments.find((att) => att.name === 'audio')
-
-      if (audioAttachment) {
-        const localPath = await this.downloadFile(
-          audioAttachment.blob.key,
-          audioAttachment.blob.filename,
-        )
-
-        if (localPath) {
-          const uploaded = await this.uploadToPayload(localPath, 'music', musicData)
-          if (uploaded) {
-            this.idMaps.musics.set(music.id, String(uploaded.id))
-            await this.logger.log(`    ✓ Created music with file: ${music.title}`)
-            createdCount++
-            continue
-          }
-        }
-      }
-
-      // Create without file if no attachment or upload failed
       try {
-        const created = await this.payload.create({
+        // Check for existing music by slug
+        const existing = await this.payload.find({
           collection: 'music',
-          data: musicData,
-          locale: 'en',
+          where: { slug: { equals: slug } },
+          limit: 1,
         })
 
-        this.idMaps.musics.set(music.id, String(created.id))
-        await this.logger.log(`    ✓ Created music without file: ${music.title}`)
-        createdCount++
-      } catch (error: any) {
-        this.addWarning(`Failed to create music ${music.title}: ${error.message}`)
+        if (existing.docs.length > 0) {
+          await this.logger.log(`    ✓ Using existing music: ${music.title}`)
+          this.idMaps.musics.set(music.id, existing.docs[0].id)
+          this.report.incrementSkipped()
+        } else {
+          // Upload with audio file if available
+          const musicAttachments = this.getAttachmentsForRecord('Music', music.id, attachments, blobs)
+          const audioAttachment = musicAttachments.find((att) => att.name === 'audio')
+
+          let result
+          if (audioAttachment) {
+            const localPath = await this.downloadFile(
+              audioAttachment.blob.key,
+              audioAttachment.blob.filename,
+            )
+            if (localPath) {
+              result = await this.uploadToPayload(localPath, 'music', musicData)
+            }
+          }
+
+          if (!result) {
+            result = await this.payload.create({
+              collection: 'music',
+              data: musicData,
+              locale: 'en',
+            })
+          }
+
+          if (result) {
+            this.idMaps.musics.set(music.id, result.id)
+            this.report.incrementCreated()
+          }
+        }
+      } catch (error) {
+        this.addError(`Importing music "${music.title}"`, error as Error)
       }
-    }
 
-    // Update summary
-    this.summary.music.created = createdCount
-    this.summary.music.existing = foundCount
-    this.summary.music.updated = updatedCount
-
-    const statusParts = [`${createdCount} created`]
-    if (foundCount > 0) {
-      statusParts.push(`${foundCount} existing`)
+      await this.logger.progress(i + 1, musics.length, 'Music')
     }
-    await this.logger.log(`✓ Processed ${musics.length} music tracks (${statusParts.join(', ')})`)
   }
 
-  private checkMeditationHasPathTag(
-    meditationId: number,
-    meditationTaggings: any[],
-    allTags: ImportedData['tags'],
-  ): boolean {
-    // Check if any of the meditation's tags has the name "path"
-    for (const tagging of meditationTaggings) {
-      const tag = allTags.find((t) => t.id === tagging.tag_id)
-      if (tag && tag.name.toLowerCase() === 'path') {
-        return true
-      }
-    }
-    return false
-  }
+  // ============================================================================
+  // MEDITATIONS IMPORT
+  // ============================================================================
 
   private async importMeditations(
     meditations: ImportedData['meditations'],
@@ -1517,400 +928,213 @@ class SimpleImporter {
     attachments: any[],
     blobs: any[],
     allTags: ImportedData['tags'],
-  ) {
-    await this.logger.log('\nImporting meditations...')
+  ): Promise<void> {
+    await this.logger.info('\n=== Importing Meditations ===')
+    await this.logger.progress(0, meditations.length, 'Meditations')
 
-    // Load existing meditations to avoid duplicates
-    let existingMeditations
-    try {
-      existingMeditations = await this.payload.find({
-        collection: 'meditations',
-        limit: 1000,
-      })
-    } catch (error) {
-      // If meditations have frames with thumbnails that reference deleted media, we can't fetch them
-      // This can happen during import operations with --reset when media is deleted
-      // Continue with empty existing meditations list
-      this.addWarning('Could not load existing meditations (missing thumbnail references)')
-      existingMeditations = { docs: [] }
-    }
+    for (let i = 0; i < meditations.length; i++) {
+      const meditation = meditations[i]
 
-    // Build map of existing meditations by slug
-    const existingBySlug = new Map<string, any>()
-    existingMeditations.docs.forEach((meditation: any) => {
-      if (meditation.slug) {
-        existingBySlug.set(meditation.slug, meditation)
-      }
-    })
-
-    let createdCount = 0
-    let foundCount = 0
-    const updatedCount = 0
-
-    for (const meditation of meditations) {
-      // Generate unique slug with duration suffix to avoid conflicts
+      // Generate unique slug with duration
       const baseSlug = meditation.title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '')
       const uniqueSlug = meditation.duration
         ? `${baseSlug}-${meditation.duration}`
-        : `${baseSlug}-${meditation.id}` // Fallback to ID if no duration
+        : `${baseSlug}-${meditation.id}`
 
-      // Check if meditation already exists by unique slug
-      const existingMeditation = existingBySlug.get(uniqueSlug)
-      if (existingMeditation) {
-        await this.logger.log(
-          `    ✓ Found existing meditation: ${existingMeditation.title} (skipping)`,
-        )
-        this.idMaps.meditations.set(meditation.id, String(existingMeditation.id))
-        foundCount++
+      // Check for existing meditation by slug
+      const existing = await this.payload.find({
+        collection: 'meditations',
+        where: { slug: { equals: uniqueSlug } },
+        limit: 1,
+      })
+
+      if (existing.docs.length > 0) {
+        await this.logger.log(`    ✓ Using existing: ${meditation.title}`)
+        this.idMaps.meditations.set(meditation.id, existing.docs[0].id)
+        this.report.incrementSkipped()
+        await this.logger.progress(i + 1, meditations.length, 'Meditations')
         continue
       }
 
-      // Get narrator ID and gender to select appropriate frames
-      const narratorIndex = meditation.narrator // This is the narrator index (0 or 1)
-      const narratorId = this.idMaps.narrators.get(narratorIndex)
-      const narratorGender = narratorIndex === 0 ? 'male' : 'female'
-
-      // Build frames array from keyframes, selecting gender-appropriate frames
-      const meditationKeyframes = keyframes.filter((kf) => kf.media_id === meditation.id)
-      const frames = meditationKeyframes
-        .map((kf) => {
-          // Select frame based on narrator gender
-          const frameKey = `${kf.frame_id}_${narratorGender}`
-          const frameId = this.idMaps.frames.get(frameKey)
-          const timestamp = typeof kf.seconds === 'number' ? kf.seconds : 0
-
-          if (!frameId) {
-            this.addWarning(
-              `${narratorGender} frame ID ${kf.frame_id} not found in idMaps for meditation ${meditation.title}`,
-            )
-            return null
-          }
-
-          return {
-            id: frameId,
-            timestamp: timestamp,
-          }
-        })
-        .filter((frame): frame is NonNullable<typeof frame> => frame !== null) // Remove null entries with type guard
-
-      // Sort by timestamp
-      frames.sort((a, b) => a.timestamp - b.timestamp)
-
-      // Validate frames array structure and filter out invalid entries
-      const validFrames = frames.filter((frame) => {
-        if (!frame.id || typeof frame.id !== 'string') {
-          this.addWarning(
-            `Removing invalid frame ID for meditation ${meditation.title}: ${frame.id}`,
-          )
-          return false
-        }
-        if (typeof frame.timestamp !== 'number' || frame.timestamp < 0 || isNaN(frame.timestamp)) {
-          this.addWarning(
-            `Removing invalid timestamp for meditation ${meditation.title}: ${frame.timestamp}`,
-          )
-          return false
-        }
-        return true
-      })
-
-      // Check for duplicate timestamps in valid frames
-      if (validFrames.length > 0) {
-        const timestamps = validFrames.map((f) => f.timestamp)
-        const uniqueTimestamps = new Set(timestamps)
-        if (timestamps.length !== uniqueTimestamps.size) {
-          this.addWarning(
-            `Found duplicate timestamps for meditation ${meditation.title}, removing duplicates`,
-          )
-          const seen = new Set()
-          const filteredFrames = validFrames.filter((frame) => {
-            if (seen.has(frame.timestamp)) {
-              return false
-            }
-            seen.add(frame.timestamp)
-            return true
-          })
-          validFrames.splice(0, validFrames.length, ...filteredFrames)
-        }
-      }
-
-      await this.logger.log(
-        `    ℹ️  Meditation ${meditation.title} has ${validFrames.length} valid frames`,
-      )
-
-      // Get meditation tags from taggings table
-      const meditationTaggings = taggings.filter(
-        (tagging) =>
-          tagging.taggable_type === 'Meditation' &&
-          tagging.taggable_id === meditation.id &&
-          tagging.context === 'tags',
-      )
-      const meditationTagIds = meditationTaggings
-        .map((tagging) => this.idMaps.meditationTags.get(tagging.tag_id))
-        .filter((id): id is number => Boolean(id))
-
-      // narratorId already retrieved above for debugging
-
-      // Find music tag if specified
-      let musicTagId: string | undefined
-      if (meditation.music_tag) {
-        const musicTag = await this.payload.find({
-          collection: 'music-tags',
-          where: {
-            name: {
-              equals: meditation.music_tag,
-            },
-          },
-          limit: 1,
-        })
-
-        if (musicTag.docs.length > 0) {
-          musicTagId = String(musicTag.docs[0].id)
-        }
-      }
-
-      // Handle thumbnail and audio attachments
-      const meditationAttachments = this.getAttachmentsForRecord(
-        'Meditation',
-        meditation.id,
-        attachments,
-        blobs,
-      )
-      const audioAttachment = meditationAttachments.find((att) => att.name === 'audio')
-      const artAttachment = meditationAttachments.find((att) => att.name === 'art')
-
-      let thumbnailId: number | null = null
-
-      // Upload thumbnail if available (with deduplication)
-      if (artAttachment) {
-        const localPath = await this.downloadFile(
-          artAttachment.blob.key,
-          artAttachment.blob.filename,
-        )
-        if (localPath) {
-          const tags = []
-          if (this.meditationThumbnailTagId) tags.push(this.meditationThumbnailTagId)
-          if (this.importMediaTagId) tags.push(this.importMediaTagId)
-          const result = await this.mediaUploader.uploadWithDeduplication(localPath, {
-            alt: `${meditation.title} thumbnail`,
-            tags,
-          })
-          if (result) {
-            thumbnailId = result.id
-          }
-        }
-      }
-
-      // If no thumbnail was uploaded, use placeholder
-      if (!thumbnailId) {
-        // Check if meditation has "path" tag to determine which placeholder to use
-        const hasPathTag = this.checkMeditationHasPathTag(
-          meditation.id,
-          meditationTaggings,
+      try {
+        await this.createMeditation(
+          meditation,
+          uniqueSlug,
+          keyframes,
+          taggings,
+          attachments,
+          blobs,
           allTags,
         )
-
-        if (hasPathTag && this.pathPlaceholderMediaId) {
-          thumbnailId = this.pathPlaceholderMediaId
-          await this.logger.log(
-            `    ℹ️  Using path placeholder for meditation: ${meditation.title}`,
-          )
-        } else if (this.placeholderMediaId) {
-          thumbnailId = this.placeholderMediaId
-          await this.logger.log(
-            `    ℹ️  Using default placeholder for meditation: ${meditation.title}`,
-          )
-        } else {
-          this.addWarning(
-            `No thumbnail or placeholder available for meditation: ${meditation.title}`,
-          )
-        }
+      } catch (error) {
+        this.addError(`Importing meditation "${meditation.title}"`, error as Error)
       }
 
-      const meditationData: any = {
-        title: meditation.title, // Keep original title
-        label: meditation.title, // Use title for label
-        locale: 'en',
-        slug: uniqueSlug, // Explicit unique slug
-        duration: meditation.duration,
-        narrator: narratorId,
-        tags: meditationTagIds,
-        musicTag: musicTagId,
-        // If published, set publishAt to today's date so it's immediately published
-        publishAt: meditation.published ? new Date().toISOString() : undefined,
-      }
-
-      // Only include thumbnail if we have a valid ID
-      if (thumbnailId) {
-        meditationData.thumbnail = thumbnailId
-      } else {
-        // Thumbnail is required, so we need to have a valid one
-        this.addWarning(
-          `No valid thumbnail available for meditation: ${meditation.title}, will likely fail`,
-        )
-      }
-
-      // Only include frames if we have valid frames
-      if (validFrames.length > 0) {
-        meditationData.frames = validFrames
-      }
-
-      let processed = false
-
-      // Handle audio attachment
-      if (audioAttachment) {
-        const localPath = await this.downloadFile(
-          audioAttachment.blob.key,
-          audioAttachment.blob.filename,
-        )
-
-        if (localPath) {
-          // Create new meditation
-          const created = await this.uploadToPayload(localPath, 'meditations', meditationData)
-          if (created) {
-            this.idMaps.meditations.set(meditation.id, String(created.id))
-            await this.logger.log(
-              `    ✓ Created meditation with audio (narrator: ${narratorGender}): ${meditation.title}`,
-            )
-            createdCount++
-            processed = true
-          }
-        }
-      }
-
-      // Handle without audio file
-      if (!processed) {
-        // Create new meditation without audio
-        try {
-          const created = await this.payload.create({
-            collection: 'meditations',
-            data: meditationData,
-          })
-          this.idMaps.meditations.set(meditation.id, String(created.id))
-          await this.logger.log(
-            `    ✓ Created meditation without audio (narrator: ${narratorGender}): ${meditation.title}`,
-          )
-          createdCount++
-        } catch (error: any) {
-          this.addWarning(`Failed to create meditation ${meditation.title}: ${error.message}`)
-        }
-      }
+      await this.logger.progress(i + 1, meditations.length, 'Meditations')
     }
+  }
 
-    // Update summary
-    this.summary.meditations.created = createdCount
-    this.summary.meditations.existing = foundCount
+  private async createMeditation(
+    meditation: ImportedData['meditations'][0],
+    slug: string,
+    keyframes: ImportedData['keyframes'],
+    taggings: ImportedData['taggings'],
+    attachments: any[],
+    blobs: any[],
+    allTags: ImportedData['tags'],
+  ): Promise<void> {
+    // Get narrator ID and gender
+    const narratorIndex = meditation.narrator
+    const narratorId = this.idMaps.narrators.get(narratorIndex)
+    const narratorGender = narratorIndex === 0 ? 'male' : 'female'
 
-    const statusParts = [`${createdCount} created`]
-    if (foundCount > 0) {
-      statusParts.push(`${foundCount} skipped`)
-    }
-    await this.logger.log(
-      `✓ Processed ${meditations.length} meditations (${statusParts.join(', ')})`,
+    // Build frames array
+    const meditationKeyframes = keyframes.filter((kf) => kf.media_id === meditation.id)
+    const frames = meditationKeyframes
+      .map((kf) => {
+        const frameKey = `${kf.frame_id}_${narratorGender}`
+        const frameId = this.idMaps.frames.get(frameKey)
+        const timestamp = typeof kf.seconds === 'number' ? kf.seconds : 0
+
+        if (!frameId) {
+          this.addWarning(`Frame ${kf.frame_id} not found for ${meditation.title}`)
+          return null
+        }
+
+        return { id: frameId, timestamp }
+      })
+      .filter((f): f is NonNullable<typeof f> => f !== null)
+      .sort((a, b) => a.timestamp - b.timestamp)
+
+    // Remove duplicate timestamps
+    const seen = new Set<number>()
+    const validFrames = frames.filter((f) => {
+      if (seen.has(f.timestamp)) return false
+      seen.add(f.timestamp)
+      return true
+    })
+
+    // Get meditation tags
+    const meditationTaggings = taggings.filter(
+      (t) => t.taggable_type === 'Meditation' && t.taggable_id === meditation.id && t.context === 'tags',
     )
-  }
+    const meditationTagIds = meditationTaggings
+      .map((t) => this.idMaps.meditationTags.get(t.tag_id))
+      .filter((id): id is number => Boolean(id))
 
-  private printSummary() {
-    console.log('\n' + '='.repeat(60))
-    console.log('MIGRATION SUMMARY')
-    console.log('='.repeat(60))
-
-    // Calculate totals
-    const totalCreated =
-      this.summary.narrators.created +
-      this.summary.meditationTags.created +
-      this.summary.musicTags.created +
-      this.summary.frames.created +
-      this.summary.music.created +
-      this.summary.meditations.created
-
-    const totalExisting =
-      this.summary.narrators.existing +
-      this.summary.meditationTags.existing +
-      this.summary.musicTags.existing +
-      this.summary.frames.existing +
-      this.summary.music.existing +
-      this.summary.meditations.existing
-
-    const totalProcessed = totalCreated + totalExisting
-
-    // Get MediaUploader stats
-    const mediaStats = this.mediaUploader.getStats()
-
-    // Print collection-by-collection breakdown
-    console.log('\n📊 Records Created:')
-    console.log(`  Narrators:        ${this.summary.narrators.created}`)
-    console.log(`  Meditation Tags:  ${this.summary.meditationTags.created}`)
-    console.log(`  Music Tags:       ${this.summary.musicTags.created}`)
-    console.log(`  Frames:           ${this.summary.frames.created}`)
-    console.log(`  Music:            ${this.summary.music.created}`)
-    console.log(`  Meditations:      ${this.summary.meditations.created}`)
-    console.log(`  Media Files:      ${mediaStats.uploaded}`)
-
-    console.log(`\n  Total Records:    ${totalCreated}`)
-    console.log(`  Existing/Skipped: ${totalExisting}`)
-    console.log(`  Media Reused:     ${mediaStats.reused}`)
-
-    // Print alerts section
-    const totalAlerts =
-      this.summary.alerts.warnings.length +
-      this.summary.alerts.errors.length +
-      this.summary.alerts.skipped.length
-
-    if (this.summary.alerts.warnings.length > 0) {
-      console.log(`\n⚠️  Warnings (${this.summary.alerts.warnings.length}):`)
-      this.summary.alerts.warnings.forEach((warning, index) => {
-        console.log(`  ${index + 1}. ${warning}`)
-      })
+    // Handle thumbnail
+    let thumbnailId = await this.getThumbnailId(meditation, attachments, blobs)
+    if (!thumbnailId) {
+      const hasPathTag = this.checkHasPathTag(meditation.id, meditationTaggings, allTags)
+      thumbnailId = hasPathTag ? this.pathPlaceholderMediaId : this.placeholderMediaId
     }
 
-    if (this.summary.alerts.errors.length > 0) {
-      console.log(`\n❌ Errors (${this.summary.alerts.errors.length}):`)
-      this.summary.alerts.errors.forEach((error, index) => {
-        console.log(`  ${index + 1}. ${error}`)
-      })
+    const meditationData: any = {
+      title: meditation.title,
+      label: meditation.title,
+      locale: 'en',
+      slug,
+      duration: meditation.duration,
+      narrator: narratorId,
+      tags: meditationTagIds,
+      publishAt: meditation.published ? new Date().toISOString() : undefined,
     }
 
-    if (this.summary.alerts.skipped.length > 0) {
-      console.log(`\n⏭️  Skipped Items (${this.summary.alerts.skipped.length}):`)
-      this.summary.alerts.skipped.slice(0, 10).forEach((skipped, index) => {
-        console.log(`  ${index + 1}. ${skipped}`)
-      })
-      if (this.summary.alerts.skipped.length > 10) {
-        console.log(`  ... and ${this.summary.alerts.skipped.length - 10} more`)
+    if (thumbnailId) meditationData.thumbnail = thumbnailId
+    if (validFrames.length > 0) meditationData.frames = validFrames
+
+    // Get audio attachment
+    const meditationAttachments = this.getAttachmentsForRecord(
+      'Meditation',
+      meditation.id,
+      attachments,
+      blobs,
+    )
+    const audioAttachment = meditationAttachments.find((att) => att.name === 'audio')
+
+    let result
+    if (audioAttachment) {
+      const localPath = await this.downloadFile(
+        audioAttachment.blob.key,
+        audioAttachment.blob.filename,
+      )
+      if (localPath) {
+        result = await this.uploadToPayload(localPath, 'meditations', meditationData)
       }
     }
 
-    if (totalAlerts === 0) {
-      console.log('\n✨ No alerts - migration completed without issues!')
+    if (!result) {
+      result = await this.payload.create({
+        collection: 'meditations',
+        data: meditationData,
+      })
     }
 
-    console.log('\n' + '='.repeat(60))
+    if (result) {
+      this.idMaps.meditations.set(meditation.id, result.id)
+      this.report.incrementCreated()
+      await this.logger.log(`    ✓ Created: ${meditation.title} (${narratorGender})`)
+    }
   }
 
-  private async cleanup() {
-    try {
-      await this.tempDb.end()
-      execSync('dropdb temp_migration 2>/dev/null || true')
-      console.log('✓ Cleaned up temporary database (cache directory preserved for resumability)')
-    } catch (error) {
-      console.warn('Warning: Could not clean up temp resources')
+  private async getThumbnailId(
+    meditation: ImportedData['meditations'][0],
+    attachments: any[],
+    blobs: any[],
+  ): Promise<number | string | null> {
+    const meditationAttachments = this.getAttachmentsForRecord(
+      'Meditation',
+      meditation.id,
+      attachments,
+      blobs,
+    )
+    const artAttachment = meditationAttachments.find((att) => att.name === 'art')
+
+    if (!artAttachment) return null
+
+    const localPath = await this.downloadFile(artAttachment.blob.key, artAttachment.blob.filename)
+    if (!localPath) return null
+
+    const tags = this.meditationThumbnailTagId ? [this.meditationThumbnailTagId] : []
+    const result = await this.mediaUploader.uploadWithDeduplication(localPath, {
+      alt: `${meditation.title} thumbnail`,
+      tags: tags as number[],
+    })
+
+    return result?.id ?? null
+  }
+
+  private checkHasPathTag(
+    _meditationId: number,
+    meditationTaggings: any[],
+    allTags: ImportedData['tags'],
+  ): boolean {
+    for (const tagging of meditationTaggings) {
+      const tag = allTags.find((t) => t.id === tagging.tag_id)
+      if (tag && tag.name.toLowerCase() === 'path') {
+        return true
+      }
     }
+    return false
   }
 }
 
-// Run the migration
-const dryRun = process.argv.includes('--dry-run')
-const reset = process.argv.includes('--reset')
-const importer = new SimpleImporter(dryRun, reset)
-importer
-  .run()
-  .then(() => {
-    process.exit(0)
-  })
-  .catch((error) => {
-    console.error('Fatal error:', error)
-    process.exit(1)
-  })
+// ============================================================================
+// MAIN ENTRY POINT
+// ============================================================================
+
+async function main(): Promise<void> {
+  const options = parseArgs()
+
+  const importer = new MeditationsImporter(options)
+  await importer.run()
+  process.exit(0)
+}
+
+main().catch((error) => {
+  console.error('Fatal error:', error)
+  process.exit(1)
+})

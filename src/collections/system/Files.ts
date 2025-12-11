@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { roleBasedAccess } from '@/lib/accessControl'
+import { adminOnlyVisibility } from '@/lib/projectVisibility'
 import { createVirtualUrlField } from '@/lib/storage/urlFields'
 
 export const FileOwnerSlugs = ['lessons', 'frames']
@@ -16,7 +17,7 @@ export const Files: CollectionConfig = {
   }),
   disableDuplicate: true,
   admin: {
-    hidden: true,
+    hidden: adminOnlyVisibility,
     group: 'System',
     useAsTitle: 'filename',
     description:
@@ -26,13 +27,22 @@ export const Files: CollectionConfig = {
   upload: {
     hideRemoveFile: true,
     staticDir: 'media/files',
-    mimeTypes: ['application/pdf', 'audio/mpeg', 'video/mpeg', 'video/mp4', 'image/webp'],
+    mimeTypes: [
+      'application/pdf',
+      'audio/mpeg',
+      'video/mpeg',
+      'video/mp4',
+      'image/webp',
+      'image/png',
+      'image/jpeg',
+      'image/svg+xml',
+    ],
   },
   fields: [
     {
       name: 'owner',
       type: 'relationship',
-      relationTo: ['lessons', 'frames'],
+      relationTo: ['lessons'],
       required: false, // Allow orphan files temporarily until claimed by parent document
       maxDepth: 0,
       admin: {

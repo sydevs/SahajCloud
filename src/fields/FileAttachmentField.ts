@@ -57,6 +57,9 @@ export function FileAttachmentField(options: FileAttachmentFieldOptions): Upload
     type: 'upload',
     relationTo: 'files',
     access,
+    // NOTE: filterOptions with polymorphic relationship dot notation (owner.value, owner.relationTo)
+    // is NOT supported by Drizzle ORM. This filter will not work correctly.
+    // See: https://github.com/sydevs/SahajCloud/issues/104
     filterOptions: ({ data }): Where => {
       // Only show file attachments owned by the current document or orphan files
       // For new documents (no ID), show no existing file attachments

@@ -22,7 +22,7 @@ export interface MediaUploadOptions {
 }
 
 export interface MediaUploadResult {
-  id: number
+  id: number | string
   filename: string
   wasReused: boolean
 }
@@ -34,7 +34,7 @@ export interface MediaUploadResult {
 export class MediaUploader {
   private payload: Payload
   private logger: Logger
-  private mediaCache: Map<string, number> = new Map() // filename -> mediaId
+  private mediaCache: Map<string, number | string> = new Map() // filename -> mediaId
   private stats = {
     uploaded: 0,
     reused: 0,
@@ -124,7 +124,7 @@ export class MediaUploader {
    * Find existing media in database by filename pattern
    * Handles Payload's automatic filename suffixes
    */
-  private async findExistingMedia(filename: string): Promise<number | null> {
+  private async findExistingMedia(filename: string): Promise<number | string | null> {
     try {
       const baseNameWithoutExt = filename.substring(0, filename.lastIndexOf('.')) || filename
       const extension = filename.substring(filename.lastIndexOf('.'))
@@ -165,7 +165,7 @@ export class MediaUploader {
   /**
    * Validate that existing media still exists and is accessible
    */
-  private async validateExistingMedia(mediaId: number): Promise<boolean> {
+  private async validateExistingMedia(mediaId: number | string): Promise<boolean> {
     try {
       const media = await this.payload.findByID({
         collection: 'images',
@@ -180,7 +180,7 @@ export class MediaUploader {
   /**
    * Update tags on existing media
    */
-  private async updateMediaTags(mediaId: number, newTags: number[]): Promise<void> {
+  private async updateMediaTags(mediaId: number | string, newTags: number[]): Promise<void> {
     try {
       const media = await this.payload.findByID({
         collection: 'images',
