@@ -1,6 +1,9 @@
 import type { TaskConfig, Where, Payload, PayloadRequest } from 'payload'
 
-import type { Author, File, Image, Lecture, Meditation, Page } from '@/payload-types'
+import type { Author, Lecture, Lesson, Meditation, Page } from '@/payload-types'
+
+/** Maximum documents to fetch per page when scanning for references */
+const PAGINATION_LIMIT = 1000
 
 type CleanupResult = {
   permanentlyDeletedFiles: number
@@ -163,11 +166,10 @@ async function permanentlyDeleteTrashedItems(
 
   for (const file of trashedFiles.docs) {
     try {
-      // trash: true permanently deletes (includes trashed documents)
+      // Deleting an already-trashed item permanently removes it
       await req.payload.delete({
         collection: 'files',
         id: file.id,
-        trash: true,
       })
       result.permanentlyDeletedFiles++
       req.payload.logger.info({
@@ -199,11 +201,10 @@ async function permanentlyDeleteTrashedItems(
 
   for (const image of trashedImages.docs) {
     try {
-      // trash: true permanently deletes (includes trashed documents)
+      // Deleting an already-trashed item permanently removes it
       await req.payload.delete({
         collection: 'images',
         id: image.id,
-        trash: true,
       })
       result.permanentlyDeletedImages++
       req.payload.logger.info({
@@ -360,13 +361,7 @@ async function getAllReferencedFileIds(payload: Payload): Promise<Set<number>> {
   const referencedIds = new Set<number>()
 
   // Lessons: introAudio field and panels[].video
-  const lessons = await payload.find({
-    collection: 'lessons',
-    limit: 10000,
-    depth: 0,
-  })
-
-  for (const lesson of lessons.docs) {
+  await collectReferencedIds<Lesson>(payload, 'lessons', {}, (lesson) => {
     if (lesson.introAudio) {
       const id = extractId(lesson.introAudio)
       if (id) referencedIds.add(id)
@@ -381,7 +376,7 @@ async function getAllReferencedFileIds(payload: Payload): Promise<Set<number>> {
         }
       }
     }
-  }
+  })
 
   return referencedIds
 }
@@ -427,13 +422,7 @@ async function getAllReferencedImageIds(payload: Payload): Promise<Set<number>> 
   )
 
   // Lessons: icon field and panels[].image
-  const lessons = await payload.find({
-    collection: 'lessons',
-    limit: 10000,
-    depth: 0,
-  })
-
-  for (const lesson of lessons.docs) {
+  await collectReferencedIds<Lesson>(payload, 'lessons', {}, (lesson) => {
     if (lesson.icon) {
       const id = extractId(lesson.icon)
       if (id) referencedIds.add(id)
@@ -448,24 +437,18 @@ async function getAllReferencedImageIds(payload: Payload): Promise<Set<number>> 
         }
       }
     }
-  }
-
-  // Pages: content blocks (TextBoxBlock, LayoutBlock, GalleryBlock)
-  const pages = await payload.find({
-    collection: 'pages',
-    limit: 10000,
-    depth: 0,
   })
 
-  for (const page of pages.docs) {
+  // Pages: content blocks (TextBoxBlock, LayoutBlock, GalleryBlock)
+  await collectReferencedIds<Page>(payload, 'pages', {}, (page) => {
     extractImageIdsFromLexicalContent(page.content, referencedIds)
-  }
+  })
 
   return referencedIds
 }
 
 /**
- * Helper to collect referenced IDs from a collection
+ * Helper to collect referenced IDs from a collection with pagination
  */
 async function collectReferencedIds<T>(
   payload: Payload,
@@ -473,15 +456,24 @@ async function collectReferencedIds<T>(
   where: Where,
   processDoc: (doc: T) => void,
 ): Promise<void> {
-  const docs = await payload.find({
-    collection,
-    where,
-    limit: 10000,
-    depth: 0,
-  })
+  let page = 1
+  let hasMore = true
 
-  for (const doc of docs.docs) {
-    processDoc(doc as T)
+  while (hasMore) {
+    const result = await payload.find({
+      collection,
+      where,
+      limit: PAGINATION_LIMIT,
+      page,
+      depth: 0,
+    })
+
+    for (const doc of result.docs) {
+      processDoc(doc as T)
+    }
+
+    hasMore = result.hasNextPage
+    page++
   }
 }
 
@@ -563,6 +555,3 @@ function extractId(value: unknown): number | null {
   }
   return null
 }
-
-// Export types for testing (marked as unused since they're only used in tests)
-export type { CleanupResult as _CleanupResult, File as _File, Image as _Image }
