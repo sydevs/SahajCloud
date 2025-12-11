@@ -36,15 +36,5 @@ export const Lectures: CollectionConfig = {
     UrlField({
       name: 'subtitlesUrl',
     }),
-    {
-      name: 'category',
-      type: 'select',
-      hasMany: true,
-      options: [
-        { label: 'Shri Mataji', value: 'shri-mataji' },
-        { label: 'Techniques', value: 'techniques' },
-        { label: 'Other', value: 'other' },
-      ],
-    },
   ],
 }

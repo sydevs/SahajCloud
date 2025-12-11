@@ -704,7 +704,6 @@ export interface Lecture {
   thumbnail: number | Image;
   videoUrl: string;
   subtitlesUrl?: string | null;
-  category?: ('shri-mataji' | 'techniques' | 'other')[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1492,7 +1491,6 @@ export interface LecturesSelect<T extends boolean = true> {
   thumbnail?: T;
   videoUrl?: T;
   subtitlesUrl?: T;
-  category?: T;
   updatedAt?: T;
   createdAt?: T;
 }
