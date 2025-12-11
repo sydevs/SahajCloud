@@ -15,9 +15,8 @@ export const Images: CollectionConfig = {
     useAsTitle: 'filename',
     defaultColumns: ['filename', 'alt', 'credit', 'tags'],
   },
-  access: roleBasedAccess('images', {
-    delete: () => false,
-  }),
+  access: roleBasedAccess('images'),
+  trash: true,
   disableDuplicate: true,
   upload: {
     staticDir: 'media/images',

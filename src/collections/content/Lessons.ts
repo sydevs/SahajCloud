@@ -3,11 +3,6 @@ import type { CollectionConfig } from 'payload'
 
 import { TextStoryBlock, VideoStoryBlock, CoverStoryBlock } from '@/blocks/lessons'
 import { QuoteBlock } from '@/blocks/pages'
-import { FileAttachmentField } from '@/fields'
-import {
-  deleteFileAttachmentsHook,
-  claimOrphanFileAttachmentsHook,
-} from '@/fields/FileAttachmentField'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
@@ -97,16 +92,15 @@ export const Lessons: CollectionConfig = {
                   'Link to a related guided meditation that complements this lesson content.',
               },
             },
-            FileAttachmentField({
+            {
               name: 'introAudio',
+              type: 'upload',
+              relationTo: 'files',
               label: 'Intro Audio',
-              ownerCollection: 'lessons',
-              fileType: 'audio',
               admin: {
-                description:
-                  'Link to a related guided meditation that complements this lesson content.',
+                description: 'Audio introduction to this lesson.',
               },
-            }),
+            },
             {
               name: 'introSubtitles',
               type: 'json',
@@ -164,7 +158,5 @@ export const Lessons: CollectionConfig = {
   ],
   hooks: {
     afterRead: [trackClientUsageHook],
-    afterChange: [claimOrphanFileAttachmentsHook],
-    afterDelete: [deleteFileAttachmentsHook],
   },
 }

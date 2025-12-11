@@ -200,7 +200,7 @@ export interface Config {
     tasks: {
       resetClientUsage: TaskResetClientUsage;
       trackClientUsage: TaskTrackClientUsage;
-      cleanupOrphanedFiles: TaskCleanupOrphanedFiles;
+      cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       inline: {
         input: unknown;
         output: unknown;
@@ -314,6 +314,7 @@ export interface Image {
     | null;
   updatedAt: string;
   createdAt: string;
+  deletedAt?: string | null;
   url?: string | null;
   thumbnailURL?: string | null;
   filename?: string | null;
@@ -612,6 +613,9 @@ export interface Lesson {
         blockType: 'cover';
       }
     | {
+        /**
+         * Video file for this panel.
+         */
         video?: (number | null) | File;
         id?: string | null;
         blockName?: string | null;
@@ -631,7 +635,7 @@ export interface Lesson {
    */
   meditation?: (number | null) | Meditation;
   /**
-   * Link to a related guided meditation that complements this lesson content.
+   * Audio introduction to this lesson.
    */
   introAudio?: (number | null) | File;
   introSubtitles?: {
@@ -671,19 +675,16 @@ export interface Lesson {
   _status?: ('draft' | 'published') | null;
 }
 /**
- * These are file attachments uploaded to support other collections. These should not be reused and will be deleted whenever their owner is deleted.
+ * Audio, video, and PDF files used by other collections. Orphaned files are automatically moved to trash and permanently deleted during monthly cleanup.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "files".
  */
 export interface File {
   id: number;
-  owner?: {
-    relationTo: 'lessons';
-    value: number | Lesson;
-  } | null;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
   url?: string | null;
   thumbnailURL?: string | null;
   filename?: string | null;
@@ -1177,7 +1178,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'resetClientUsage' | 'trackClientUsage' | 'cleanupOrphanedFiles';
+        taskSlug: 'inline' | 'resetClientUsage' | 'trackClientUsage' | 'cleanupOrphanedMedia';
         taskID: string;
         input?:
           | {
@@ -1210,7 +1211,7 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'resetClientUsage' | 'trackClientUsage' | 'cleanupOrphanedFiles') | null;
+  taskSlug?: ('inline' | 'resetClientUsage' | 'trackClientUsage' | 'cleanupOrphanedMedia') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -1557,6 +1558,7 @@ export interface ImagesSelect<T extends boolean = true> {
   fileMetadata?: T;
   updatedAt?: T;
   createdAt?: T;
+  deletedAt?: T;
   url?: T;
   thumbnailURL?: T;
   filename?: T;
@@ -1572,9 +1574,9 @@ export interface ImagesSelect<T extends boolean = true> {
  * via the `definition` "files_select".
  */
 export interface FilesSelect<T extends boolean = true> {
-  owner?: T;
   createdAt?: T;
   updatedAt?: T;
+  deletedAt?: T;
   url?: T;
   thumbnailURL?: T;
   filename?: T;
@@ -2133,13 +2135,17 @@ export interface TaskTrackClientUsage {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskCleanupOrphanedFiles".
+ * via the `definition` "TaskCleanupOrphanedMedia".
  */
-export interface TaskCleanupOrphanedFiles {
+export interface TaskCleanupOrphanedMedia {
   input?: unknown;
   output: {
-    deletedCount: number;
-    skippedCount: number;
+    permanentlyDeletedFiles: number;
+    permanentlyDeletedImages: number;
+    trashedFiles: number;
+    trashedImages: number;
+    skippedImages: number;
+    errors: number;
   };
 }
 /**

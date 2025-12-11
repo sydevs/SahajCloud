@@ -370,3 +370,80 @@ private createFileObject(
 - For text files (SVG, JSON), use `Buffer.from(content, 'utf-8')`
 - For binary files, read with `fs.readFile()` which returns Buffer directly
 - This pattern works for all upload collections (Media, Frames, tag collections)
+
+## PayloadCMS Trash (Soft Delete) Pattern
+
+When working with collections that have `trash: true` enabled (Files, Images), understand how the delete API behaves:
+
+### Collection Configuration
+
+```typescript
+export const Files: CollectionConfig = {
+  slug: 'files',
+  trash: true,  // Enables soft delete with deletedAt field
+  // ...
+}
+```
+
+### Delete API Behavior
+
+When `trash: true` is enabled on a collection:
+
+1. **First delete**: Soft deletes the item (sets `deletedAt` timestamp)
+2. **Second delete** (on already-trashed item): Permanently deletes
+
+```typescript
+// Soft delete - moves to trash
+await payload.delete({
+  collection: 'files',
+  id: fileId,
+})
+
+// Permanently delete - include trashed items in query
+await payload.delete({
+  collection: 'files',
+  id: fileId,
+  trash: true,  // Include trashed documents in operation
+})
+```
+
+### Finding Trashed Items
+
+```typescript
+// Find items in trash
+const trashedFiles = await payload.find({
+  collection: 'files',
+  where: {
+    deletedAt: { exists: true },
+  },
+})
+
+// Find non-trashed items (default behavior)
+const activeFiles = await payload.find({
+  collection: 'files',
+  where: {
+    deletedAt: { exists: false },
+  },
+})
+```
+
+### Delete Options Reference
+
+From PayloadCMS types (`node_modules/payload/dist/collections/operations/local/delete.d.ts`):
+
+```typescript
+/**
+ * When set to `true`, the operation will permanently delete both normal and trashed documents.
+ * By default (`false`), only normal (non-trashed) documents will be permanently deleted.
+ *
+ * This argument has no effect unless `trash` is enabled on the collection.
+ * @default false
+ */
+trash?: boolean;
+```
+
+### Key Points
+- `deletedAt` field is automatically managed by Payload (not `_status`)
+- Deleting an already-trashed item permanently removes it
+- Use `trash: true` option to include trashed items in delete operations
+- Admin UI shows a checkbox to skip trash and permanently delete

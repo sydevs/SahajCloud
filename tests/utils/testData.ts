@@ -19,6 +19,8 @@ import type {
   Page,
   Lesson,
   File,
+  Author,
+  Lecture,
 } from '@/payload-types'
 import type { ManagerRole, ClientRole } from '@/types/roles'
 
@@ -73,17 +75,37 @@ export const testData = {
   },
 
   /**
-   * Create a FileAttachment using sample image file
+   * Create a File using sample audio file
+   * Note: Files collection only accepts audio/video/PDF (no images)
    */
-  async createFileAttachment(
+  async createFile(
     payload: Payload,
     overrides = {},
-    sampleFile = 'image-1050x700.webp',
+    sampleFile = 'audio-42s.mp3',
   ): Promise<File> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
     // Convert Buffer to Uint8Array for compatibility with file-type library
     const fileData = new Uint8Array(fileBuffer)
+
+    // Determine MIME type based on extension
+    const extension = path.extname(sampleFile).slice(1).toLowerCase()
+    let mimetype: string
+    if (extension === 'mp3') {
+      mimetype = 'audio/mpeg'
+    } else if (extension === 'wav') {
+      mimetype = 'audio/wav'
+    } else if (extension === 'mp4') {
+      mimetype = 'video/mp4'
+    } else if (extension === 'webm') {
+      mimetype = 'video/webm'
+    } else if (extension === 'mov') {
+      mimetype = 'video/mpeg'
+    } else if (extension === 'pdf') {
+      mimetype = 'application/pdf'
+    } else {
+      mimetype = `audio/${extension}` // Default to audio
+    }
 
     return (await payload.create({
       collection: 'files',
@@ -92,7 +114,7 @@ export const testData = {
       },
       file: {
         data: fileData as unknown as Buffer,
-        mimetype: `image/${path.extname(sampleFile).slice(1)}`,
+        mimetype,
         name: sampleFile,
         size: fileData.length,
       },
@@ -231,11 +253,15 @@ export const testData = {
       narrator = defaultNarrator.id
     }
 
+    // Generate unique title to avoid slug collisions
+    const uniqueId = Math.random().toString(36).substring(7)
+    const defaultTitle = `Test Meditation ${uniqueId}`
+
     return (await payload.create({
       collection: 'meditations',
       data: {
-        label: overrides.label || overrides.title || 'Test Meditation with Audio',
-        title: overrides.title || 'Test Meditation with Audio',
+        label: overrides.label || overrides.title || defaultTitle,
+        title: overrides.title || defaultTitle,
         durationMinutes: overrides.durationMinutes || 15,
         thumbnail: thumbnail,
         narrator: narrator,
@@ -420,10 +446,14 @@ export const testData = {
    * Create a page
    */
   async createPage(payload: Payload, overrides: Partial<Page> = {}): Promise<Page> {
+    // Generate unique title to avoid slug collisions
+    const uniqueId = Math.random().toString(36).substring(7)
+    const defaultTitle = `Test Page ${uniqueId}`
+
     return (await payload.create({
       collection: 'pages',
       data: {
-        title: 'Test Page',
+        title: overrides.title || defaultTitle,
         tags: [],
         content: {
           root: {
@@ -532,6 +562,43 @@ export const testData = {
     })) as Lesson
 
     return lesson
+  },
+
+  /**
+   * Create an author
+   */
+  async createAuthor(payload: Payload, overrides: Partial<Author> = {}): Promise<Author> {
+    return (await payload.create({
+      collection: 'authors',
+      data: {
+        name: 'Test Author',
+        ...overrides,
+      },
+    })) as Author
+  },
+
+  /**
+   * Create a lecture (requires thumbnail)
+   */
+  async createLecture(
+    payload: Payload,
+    deps?: { thumbnail?: number },
+    overrides: Partial<Lecture> = {},
+  ): Promise<Lecture> {
+    let thumbnail = deps?.thumbnail
+    if (!thumbnail) {
+      const thumbMedia = await testData.createMediaImage(payload)
+      thumbnail = thumbMedia.id
+    }
+    return (await payload.create({
+      collection: 'lectures',
+      data: {
+        title: 'Test Lecture',
+        thumbnail,
+        videoUrl: 'https://example.com/video.mp4',
+        ...overrides,
+      },
+    })) as Lecture
   },
 
   // Alias for createManager to maintain backward compatibility with tests
