@@ -341,10 +341,10 @@ class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   }
 
   // ============================================================================
-  // EXTERNAL VIDEO HELPERS
+  // LECTURE HELPERS
   // ============================================================================
 
-  private async upsertExternalVideo(
+  private async upsertLecture(
     videoStory: StoryblokStory,
     thumbnailId: number | string,
   ): Promise<number | string> {
@@ -352,7 +352,7 @@ class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     const videoUrl = content.Video_URL || ''
 
     const result = await this.upsert<{ id: number | string }>(
-      'external-videos',
+      'lectures',
       { videoUrl: { equals: videoUrl } },
       {
         title: videoStory.name,
@@ -556,12 +556,12 @@ class StoryblokImporter extends BaseImporter<BaseImportOptions> {
             const videoStory = await this.fetchStoryByUuid(block.Video_UUID as string)
             const content = videoStory.content as Record<string, any>
             const thumbnailId = await this.createMediaFromUrl(content.Thumbnail?.filename || '')
-            const externalVideoId = await this.upsertExternalVideo(videoStory, thumbnailId)
+            const lectureId = await this.upsertLecture(videoStory, thumbnailId)
 
             children.push({
               type: 'relationship',
-              relationTo: 'external-videos',
-              value: { id: externalVideoId },
+              relationTo: 'lectures',
+              value: { id: lectureId },
               version: 1,
             })
           }

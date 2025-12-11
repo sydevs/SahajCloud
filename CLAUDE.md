@@ -217,7 +217,7 @@ src/
 ├── collections/             # Payload CMS collections
 │   ├── access/             # Managers, Clients
 │   ├── content/            # Pages, Meditations, Music, Lessons
-│   ├── resources/          # Media, Authors, Narrators, ExternalVideos
+│   ├── resources/          # Media, Authors, Narrators, Lectures
 │   ├── system/             # Frames, Files
 │   └── tags/               # MediaTags, MeditationTags, MusicTags, PageTags
 ├── components/             # React components

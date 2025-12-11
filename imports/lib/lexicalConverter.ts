@@ -20,7 +20,7 @@ export interface ConversionContext {
   // ID maps for relationships (Payload IDs can be number or string)
   mediaMap: Map<string, number | string> // image URL → Media ID
   formMap: Map<string, number | string> // form type → Form ID
-  externalVideoMap: Map<string, number | string> // vimeo_id → ExternalVideo ID
+  lectureMap: Map<string, number | string> // vimeo_id → Lecture ID
   treatmentMap: Map<number, number | string> // treatment ID → Page ID
   treatmentThumbnailMap: Map<number, number | string> // treatment ID → Media ID (for thumbnails)
   meditationTitleMap: Map<string, number | string> // meditation title → Meditation ID
@@ -719,7 +719,7 @@ export function convertAction(
 }
 
 /**
- * Convert EditorJS vimeo block to ExternalVideo relationship
+ * Convert EditorJS vimeo block to Lecture relationship
  */
 export function convertVimeo(block: EditorJSBlock, context: ConversionContext): LexicalNode | null {
   const { data } = block
@@ -729,14 +729,14 @@ export function convertVimeo(block: EditorJSBlock, context: ConversionContext): 
   }
 
   const videoId = data.vimeo_id || data.youtube_id
-  const externalVideoId = context.externalVideoMap.get(videoId)
+  const lectureId = context.lectureMap.get(videoId)
 
-  if (!externalVideoId) {
-    context.logger.warn(`ExternalVideo not found for ${videoId}`)
+  if (!lectureId) {
+    context.logger.warn(`Lecture not found for ${videoId}`)
     return null
   }
 
-  return createRelationshipNode('external-videos', externalVideoId)
+  return createRelationshipNode('lectures', lectureId)
 }
 
 /**

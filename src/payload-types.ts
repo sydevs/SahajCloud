@@ -72,7 +72,7 @@ export interface Config {
     meditations: Meditation;
     lessons: Lesson;
     music: Music;
-    'external-videos': ExternalVideo;
+    lectures: Lecture;
     frames: Frame;
     narrators: Narrator;
     authors: Author;
@@ -114,7 +114,7 @@ export interface Config {
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
     lessons: LessonsSelect<false> | LessonsSelect<true>;
     music: MusicSelect<false> | MusicSelect<true>;
-    'external-videos': ExternalVideosSelect<false> | ExternalVideosSelect<true>;
+    lectures: LecturesSelect<false> | LecturesSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
     authors: AuthorsSelect<false> | AuthorsSelect<true>;
@@ -696,9 +696,9 @@ export interface File {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "external-videos".
+ * via the `definition` "lectures".
  */
-export interface ExternalVideo {
+export interface Lecture {
   id: number;
   title: string;
   thumbnail: number | Image;
@@ -1251,8 +1251,8 @@ export interface PayloadLockedDocument {
         value: number | Music;
       } | null)
     | ({
-        relationTo: 'external-videos';
-        value: number | ExternalVideo;
+        relationTo: 'lectures';
+        value: number | Lecture;
       } | null)
     | ({
         relationTo: 'frames';
@@ -1485,9 +1485,9 @@ export interface MusicSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "external-videos_select".
+ * via the `definition` "lectures_select".
  */
-export interface ExternalVideosSelect<T extends boolean = true> {
+export interface LecturesSelect<T extends boolean = true> {
   title?: T;
   thumbnail?: T;
   videoUrl?: T;

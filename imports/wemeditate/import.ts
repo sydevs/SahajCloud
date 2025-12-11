@@ -108,7 +108,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     treatments: new Map<number, number | string>(),
     media: new Map<string, number | string>(),
     forms: new Map<string, number | string>(),
-    externalVideos: new Map<string, number | string>(),
+    lectures: new Map<string, number | string>(),
   }
 
   // Meditation lookup maps
@@ -165,7 +165,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     await this.buildMeditationTitleMap()
     await this.importForms()
     await this.importMedia()
-    await this.importExternalVideos()
+    await this.importLectures()
     await this.buildTreatmentThumbnailMap()
     await this.importPages('treatments', 'treatment_translations')
 
@@ -761,11 +761,11 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   }
 
   // ============================================================================
-  // EXTERNAL VIDEOS IMPORT
+  // LECTURES IMPORT
   // ============================================================================
 
-  private async importExternalVideos(): Promise<void> {
-    await this.logger.info('\n=== Importing External Videos ===')
+  private async importLectures(): Promise<void> {
+    await this.logger.info('\n=== Importing Lectures ===')
 
     const videoIds = new Set<string>()
     const videoMetadata = new Map<
@@ -803,7 +803,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       }
     }
 
-    await this.logger.info(`Found ${videoIds.size} unique external videos`)
+    await this.logger.info(`Found ${videoIds.size} unique lectures`)
 
     for (const videoId of Array.from(videoIds)) {
       try {
@@ -819,7 +819,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         )
 
         const result = await this.upsert<{ id: number }>(
-          'external-videos',
+          'lectures',
           { videoUrl: { equals: videoUrl } },
           {
             title: metadata.title || `Video ${videoId}`,
@@ -828,9 +828,9 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           },
         )
 
-        this.idMaps.externalVideos.set(videoId, result.doc.id)
+        this.idMaps.lectures.set(videoId, result.doc.id)
       } catch (error) {
-        this.addError(`Creating external video ${videoId}`, error as Error)
+        this.addError(`Creating lecture ${videoId}`, error as Error)
       }
     }
   }
@@ -910,7 +910,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             locale: translation.locale,
             mediaMap: this.idMaps.media,
             formMap: this.idMaps.forms,
-            externalVideoMap: this.idMaps.externalVideos,
+            lectureMap: this.idMaps.lectures,
             treatmentMap: this.idMaps.treatments,
             treatmentThumbnailMap: this.treatmentThumbnailMap,
             meditationTitleMap: this.meditationTitleMap,

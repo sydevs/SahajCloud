@@ -129,7 +129,7 @@ const context: ConversionContext = {
   locale: 'en',
   mediaMap: new Map(),              // image URL → Media ID
   formMap: new Map(),               // form type → Form ID
-  externalVideoMap: new Map(),      // vimeo_id → ExternalVideo ID
+  lectureMap: new Map(),            // vimeo_id → Lecture ID
   treatmentMap: new Map(),          // treatment ID → Page ID
   treatmentThumbnailMap: new Map(), // treatment ID → Media ID
   meditationTitleMap: new Map(),    // meditation title → Meditation ID

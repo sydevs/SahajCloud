@@ -31,11 +31,11 @@ export const MANAGER_ROLES: Record<ManagerRole, ManagerRoleConfig> = {
   'path-editor': {
     slug: 'path-editor',
     label: 'Path Editor',
-    description: 'Can edit lessons and external videos, upload related media and files',
+    description: 'Can edit lessons and lectures, upload related media and files',
     project: 'wemeditate-app',
     permissions: {
       lessons: ['read', 'update'],
-      'external-videos': ['read', 'update'],
+      lectures: ['read', 'update'],
       images: ['read', 'create'],
       files: ['read', 'create'],
     },
@@ -88,7 +88,7 @@ export const CLIENT_ROLES: Record<ClientRole, ClientRoleConfig> = {
       frames: ['read'],
       narrators: ['read'],
       lessons: ['read'],
-      'external-videos': ['read'],
+      lectures: ['read'],
       music: ['read'],
       images: ['read'],
       files: ['read'],

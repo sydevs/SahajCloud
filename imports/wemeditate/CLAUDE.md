@@ -91,7 +91,7 @@ EditorJS blocks → Lexical format via `lexicalConverter.ts`:
 | `header` | heading |
 | `list` | list |
 | `image` | upload |
-| `vimeo`/`youtube` | relationship (external-videos) |
+| `vimeo`/`youtube` | relationship (lectures) |
 
 ## Troubleshooting
 

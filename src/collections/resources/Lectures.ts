@@ -4,17 +4,17 @@ import { UrlField } from '@/fields'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 
-export const ExternalVideos: CollectionConfig = {
-  slug: 'external-videos',
-  access: roleBasedAccess('external-videos'),
+export const Lectures: CollectionConfig = {
+  slug: 'lectures',
+  access: roleBasedAccess('lectures'),
   labels: {
-    singular: 'External Video',
-    plural: 'External Videos',
+    singular: 'Lecture',
+    plural: 'Lectures',
   },
   admin: {
     group: 'Resources',
     useAsTitle: 'title',
-    hidden: handleProjectVisibility('external-videos', ['wemeditate-web', 'wemeditate-app']),
+    hidden: handleProjectVisibility('lectures', ['wemeditate-web', 'wemeditate-app']),
   },
   fields: [
     {

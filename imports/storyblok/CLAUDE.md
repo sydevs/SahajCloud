@@ -53,13 +53,13 @@ Storyblok `Intro_stories` array → Payload `panels` array:
 | `DD_Paragraph` | paragraph |
 | `DD_Quote` | quote |
 | `DD_Image` | upload (images collection) |
-| `DD_Main_video` | relationship (external-videos) |
+| `DD_Main_video` | relationship (lectures) |
 
 ## Output
 
 - **Lessons** with panels array
 - **Images** for panel backgrounds
-- **External Videos** for video references
+- **Lectures** for video references
 - **Files** for audio/icon attachments
 
 ## Troubleshooting
