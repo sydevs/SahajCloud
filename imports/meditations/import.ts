@@ -254,7 +254,11 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     meditations: new Map<number, number | string>(),
     musics: new Map<number, number | string>(),
     narrators: new Map<number, number | string>(),
+    albums: new Map<string, number | string>(), // key: album title
   }
+
+  // Default album ID for imported music tracks
+  private defaultAlbumId: number | string | null = null
 
   // ============================================================================
   // LIFECYCLE
@@ -839,6 +843,74 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   }
 
   // ============================================================================
+  // ALBUM HELPER
+  // ============================================================================
+
+  /**
+   * Get or create a default album for imported music tracks.
+   * This is needed because music tracks now require an album relationship.
+   */
+  private async getOrCreateDefaultAlbum(): Promise<number | string> {
+    // Return cached ID if we already have it
+    if (this.defaultAlbumId) {
+      return this.defaultAlbumId
+    }
+
+    const defaultAlbumTitle = 'Imported Music'
+
+    // Check if default album already exists
+    const existing = await this.payload.find({
+      collection: 'albums',
+      where: { title: { equals: defaultAlbumTitle } },
+      limit: 1,
+    })
+
+    if (existing.docs.length > 0) {
+      this.defaultAlbumId = existing.docs[0].id
+      return this.defaultAlbumId
+    }
+
+    // Create default album (without an image file for simplicity)
+    // Albums require an image upload, so we'll use a placeholder
+    const placeholderPath = await this.getPlaceholderImagePath()
+    const result = await this.uploadToPayload(placeholderPath, 'albums', {
+      title: defaultAlbumTitle,
+      artist: 'Various Artists',
+    })
+
+    if (result) {
+      this.defaultAlbumId = result.id
+      return result.id
+    }
+
+    throw new Error('Failed to create default album for imported music')
+  }
+
+  /**
+   * Get path to a placeholder image for album creation
+   */
+  private async getPlaceholderImagePath(): Promise<string> {
+    const placeholderPath = path.join(this.cacheDir, 'placeholder-album.jpg')
+
+    // Check if placeholder already exists
+    try {
+      await fs.access(placeholderPath)
+      return placeholderPath
+    } catch {
+      // Create a simple placeholder by copying an existing image or using placeholder.png
+      const existingPlaceholder = path.resolve(process.cwd(), 'imports/wemeditate/preview.png')
+      try {
+        await fs.access(existingPlaceholder)
+        await fs.copyFile(existingPlaceholder, placeholderPath)
+        return placeholderPath
+      } catch {
+        // If no placeholder exists, throw an error
+        throw new Error('No placeholder image available for album creation')
+      }
+    }
+  }
+
+  // ============================================================================
   // MUSIC IMPORT
   // ============================================================================
 
@@ -854,12 +926,6 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     for (let i = 0; i < musics.length; i++) {
       const music = musics[i]
 
-      // Generate slug
-      const slug = (music.title || 'untitled-music')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-
       // Get music tags
       const musicTaggings = taggings.filter(
         (t) => t.taggable_type === 'Music' && t.taggable_id === music.id && t.context === 'tags',
@@ -868,18 +934,20 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         .map((t) => this.idMaps.musicTags.get(t.tag_id))
         .filter((id): id is number => Boolean(id))
 
+      // Get or create default album for imported music
+      const albumId = await this.getOrCreateDefaultAlbum()
+
       const musicData = {
         title: music.title || 'Untitled Music',
-        credit: music.credit || '',
-        duration: music.duration,
+        album: albumId as number,
         tags: musicTagIds,
       }
 
       try {
-        // Check for existing music by slug
+        // Check for existing music by title (since slug field was removed)
         const existing = await this.payload.find({
           collection: 'music',
-          where: { slug: { equals: slug } },
+          where: { title: { equals: music.title } },
           limit: 1,
         })
 
