@@ -9,6 +9,7 @@ import type {
   Image,
   Meditation,
   Music,
+  Album,
   Frame,
   Manager,
   Client,
@@ -72,6 +73,40 @@ export const testData = {
         size: fileData.length,
       },
     })) as Image
+  },
+
+  /**
+   * Create an album using sample image file
+   */
+  async createAlbum(
+    payload: Payload,
+    overrides: Partial<Album> = {},
+    sampleFile = 'image-1050x700.jpg',
+  ): Promise<Album> {
+    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
+    const fileBuffer = fs.readFileSync(filePath)
+    // Convert Buffer to Uint8Array for compatibility with file-type library
+    const fileData = new Uint8Array(fileBuffer)
+
+    // Generate unique title to avoid collisions
+    const uniqueId = Math.random().toString(36).substring(7)
+    const defaultTitle = overrides.title || `Test Album ${uniqueId}`
+    const defaultArtist = overrides.artist || 'Test Artist'
+
+    return (await payload.create({
+      collection: 'albums',
+      data: {
+        title: defaultTitle,
+        artist: defaultArtist,
+        ...overrides,
+      },
+      file: {
+        data: fileData as unknown as Buffer,
+        mimetype: `image/${path.extname(sampleFile).slice(1)}`,
+        name: sampleFile,
+        size: fileData.length,
+      },
+    })) as Album
   },
 
   /**
@@ -283,10 +318,13 @@ export const testData = {
 
   /**
    * Create music track using sample audio file
+   * @param payload - Payload instance
+   * @param overrides - Optional field overrides (including album)
+   * @param sampleFile - Sample audio file to use
    */
   async createMusic(
     payload: Payload,
-    overrides = {},
+    overrides: Partial<Music> & { album?: number | Album } = {},
     sampleFile = 'audio-42s.mp3',
   ): Promise<Music> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
@@ -294,12 +332,28 @@ export const testData = {
     // Convert Buffer to Uint8Array for compatibility with file-type library
     const fileData = new Uint8Array(fileBuffer)
 
+    // Extract album from overrides or create a default one
+    let albumId: number
+    if (overrides.album) {
+      albumId = typeof overrides.album === 'object' ? overrides.album.id : overrides.album
+    } else {
+      const defaultAlbum = await testData.createAlbum(payload, { title: 'Default Test Album' })
+      albumId = defaultAlbum.id
+    }
+
+    // Generate unique title to avoid collisions
+    const uniqueId = Math.random().toString(36).substring(7)
+    const defaultTitle = overrides.title || `Test Music Track ${uniqueId}`
+
+    // Prepare data without album (will add it separately to ensure correct type)
+    const { album: _album, ...restOverrides } = overrides
+
     return (await payload.create({
       collection: 'music',
       data: {
-        title: 'Test Music Track',
-        credit: 'Test Artist',
-        ...overrides,
+        title: defaultTitle,
+        album: albumId,
+        ...restOverrides,
       },
       file: {
         data: fileData as unknown as Buffer,

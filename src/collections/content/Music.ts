@@ -1,7 +1,5 @@
 import type { CollectionConfig, Field } from 'payload'
 
-import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
-
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { sanitizeFilename } from '@/lib/fieldUtils'
@@ -20,7 +18,7 @@ export const Music: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'duration', 'tags'],
+    defaultColumns: ['title', 'album', 'duration', 'tags'],
     hidden: handleProjectVisibility('music', ['wemeditate-web', 'wemeditate-app']),
   },
   hooks: {
@@ -40,14 +38,15 @@ export const Music: CollectionConfig = {
       localized: true,
       access: createFieldAccess('music', true),
     },
-    ...SlugField('title', {
-      slugOverrides: {
-        unique: true,
-        admin: {
-          position: 'sidebar',
-        },
+    {
+      name: 'album',
+      type: 'relationship',
+      relationTo: 'albums',
+      required: true,
+      admin: {
+        description: 'The album this track belongs to',
       },
-    }),
+    },
     {
       name: 'tags',
       type: 'relationship',
@@ -57,14 +56,6 @@ export const Music: CollectionConfig = {
         components: {
           Field: '@/components/admin/TagSelector',
         },
-      },
-    },
-    {
-      name: 'credit',
-      type: 'text',
-      localized: true,
-      admin: {
-        description: 'Attribution or credit information',
       },
     },
     {

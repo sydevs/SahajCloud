@@ -1169,6 +1169,528 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "music": {
+      "name": "music",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "album_id": {
+          "name": "album_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "file_metadata": {
+          "name": "file_metadata",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "thumbnail_u_r_l": {
+          "name": "thumbnail_u_r_l",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "filename": {
+          "name": "filename",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "filesize": {
+          "name": "filesize",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "width": {
+          "name": "width",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "height": {
+          "name": "height",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "focal_x": {
+          "name": "focal_x",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "focal_y": {
+          "name": "focal_y",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "music_album_idx": {
+          "name": "music_album_idx",
+          "columns": [
+            "album_id"
+          ],
+          "isUnique": false
+        },
+        "music_updated_at_idx": {
+          "name": "music_updated_at_idx",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "music_created_at_idx": {
+          "name": "music_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "music_deleted_at_idx": {
+          "name": "music_deleted_at_idx",
+          "columns": [
+            "deleted_at"
+          ],
+          "isUnique": false
+        },
+        "music_filename_idx": {
+          "name": "music_filename_idx",
+          "columns": [
+            "filename"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "music_album_id_albums_id_fk": {
+          "name": "music_album_id_albums_id_fk",
+          "tableFrom": "music",
+          "tableTo": "albums",
+          "columnsFrom": [
+            "album_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "music_locales": {
+      "name": "music_locales",
+      "columns": {
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_locale": {
+          "name": "_locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "music_locales_locale_parent_id_unique": {
+          "name": "music_locales_locale_parent_id_unique",
+          "columns": [
+            "_locale",
+            "_parent_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "music_locales_parent_id_fk": {
+          "name": "music_locales_parent_id_fk",
+          "tableFrom": "music_locales",
+          "tableTo": "music",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "music_rels": {
+      "name": "music_rels",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "music_tags_id": {
+          "name": "music_tags_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "music_rels_order_idx": {
+          "name": "music_rels_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "music_rels_parent_idx": {
+          "name": "music_rels_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        },
+        "music_rels_path_idx": {
+          "name": "music_rels_path_idx",
+          "columns": [
+            "path"
+          ],
+          "isUnique": false
+        },
+        "music_rels_music_tags_id_idx": {
+          "name": "music_rels_music_tags_id_idx",
+          "columns": [
+            "music_tags_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "music_rels_parent_fk": {
+          "name": "music_rels_parent_fk",
+          "tableFrom": "music_rels",
+          "tableTo": "music",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "music_rels_music_tags_fk": {
+          "name": "music_rels_music_tags_fk",
+          "tableFrom": "music_rels",
+          "tableTo": "music_tags",
+          "columnsFrom": [
+            "music_tags_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "albums": {
+      "name": "albums",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "artist_url": {
+          "name": "artist_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "thumbnail_u_r_l": {
+          "name": "thumbnail_u_r_l",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "filename": {
+          "name": "filename",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "filesize": {
+          "name": "filesize",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "width": {
+          "name": "width",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "height": {
+          "name": "height",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "focal_x": {
+          "name": "focal_x",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "focal_y": {
+          "name": "focal_y",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "albums_updated_at_idx": {
+          "name": "albums_updated_at_idx",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "albums_created_at_idx": {
+          "name": "albums_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "albums_deleted_at_idx": {
+          "name": "albums_deleted_at_idx",
+          "columns": [
+            "deleted_at"
+          ],
+          "isUnique": false
+        },
+        "albums_filename_idx": {
+          "name": "albums_filename_idx",
+          "columns": [
+            "filename"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "albums_locales": {
+      "name": "albums_locales",
+      "columns": {
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "artist": {
+          "name": "artist",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_locale": {
+          "name": "_locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "albums_locales_locale_parent_id_unique": {
+          "name": "albums_locales_locale_parent_id_unique",
+          "columns": [
+            "_locale",
+            "_parent_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "albums_locales_parent_id_fk": {
+          "name": "albums_locales_parent_id_fk",
+          "tableFrom": "albums_locales",
+          "tableTo": "albums",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "lessons_blocks_cover": {
       "name": "lessons_blocks_cover",
       "columns": {
@@ -1663,10 +2185,10 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "lessons_icon_id_files_id_fk": {
-          "name": "lessons_icon_id_files_id_fk",
+        "lessons_icon_id_images_id_fk": {
+          "name": "lessons_icon_id_images_id_fk",
           "tableFrom": "lessons",
-          "tableTo": "files",
+          "tableTo": "images",
           "columnsFrom": [
             "icon_id"
           ],
@@ -2354,10 +2876,10 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "_lessons_v_version_icon_id_files_id_fk": {
-          "name": "_lessons_v_version_icon_id_files_id_fk",
+        "_lessons_v_version_icon_id_images_id_fk": {
+          "name": "_lessons_v_version_icon_id_images_id_fk",
           "tableFrom": "_lessons_v",
-          "tableTo": "files",
+          "tableTo": "images",
           "columnsFrom": [
             "version_icon_id"
           ],
@@ -2433,398 +2955,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "music": {
-      "name": "music",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "slug": {
-          "name": "slug",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "slug_lock": {
-          "name": "slug_lock",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": true
-        },
-        "file_metadata": {
-          "name": "file_metadata",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        },
-        "deleted_at": {
-          "name": "deleted_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "thumbnail_u_r_l": {
-          "name": "thumbnail_u_r_l",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "filename": {
-          "name": "filename",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "mime_type": {
-          "name": "mime_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "filesize": {
-          "name": "filesize",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "width": {
-          "name": "width",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "height": {
-          "name": "height",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "focal_x": {
-          "name": "focal_x",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "focal_y": {
-          "name": "focal_y",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "music_slug_idx": {
-          "name": "music_slug_idx",
-          "columns": [
-            "slug"
-          ],
-          "isUnique": true
-        },
-        "music_updated_at_idx": {
-          "name": "music_updated_at_idx",
-          "columns": [
-            "updated_at"
-          ],
-          "isUnique": false
-        },
-        "music_created_at_idx": {
-          "name": "music_created_at_idx",
-          "columns": [
-            "created_at"
-          ],
-          "isUnique": false
-        },
-        "music_deleted_at_idx": {
-          "name": "music_deleted_at_idx",
-          "columns": [
-            "deleted_at"
-          ],
-          "isUnique": false
-        },
-        "music_filename_idx": {
-          "name": "music_filename_idx",
-          "columns": [
-            "filename"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "music_locales": {
-      "name": "music_locales",
-      "columns": {
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "credit": {
-          "name": "credit",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_locale": {
-          "name": "_locale",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_parent_id": {
-          "name": "_parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "music_locales_locale_parent_id_unique": {
-          "name": "music_locales_locale_parent_id_unique",
-          "columns": [
-            "_locale",
-            "_parent_id"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "music_locales_parent_id_fk": {
-          "name": "music_locales_parent_id_fk",
-          "tableFrom": "music_locales",
-          "tableTo": "music",
-          "columnsFrom": [
-            "_parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "music_rels": {
-      "name": "music_rels",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "order": {
-          "name": "order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "path": {
-          "name": "path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "music_tags_id": {
-          "name": "music_tags_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "music_rels_order_idx": {
-          "name": "music_rels_order_idx",
-          "columns": [
-            "order"
-          ],
-          "isUnique": false
-        },
-        "music_rels_parent_idx": {
-          "name": "music_rels_parent_idx",
-          "columns": [
-            "parent_id"
-          ],
-          "isUnique": false
-        },
-        "music_rels_path_idx": {
-          "name": "music_rels_path_idx",
-          "columns": [
-            "path"
-          ],
-          "isUnique": false
-        },
-        "music_rels_music_tags_id_idx": {
-          "name": "music_rels_music_tags_id_idx",
-          "columns": [
-            "music_tags_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "music_rels_parent_fk": {
-          "name": "music_rels_parent_fk",
-          "tableFrom": "music_rels",
-          "tableTo": "music",
-          "columnsFrom": [
-            "parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "music_rels_music_tags_fk": {
-          "name": "music_rels_music_tags_fk",
-          "tableFrom": "music_rels",
-          "tableTo": "music_tags",
-          "columnsFrom": [
-            "music_tags_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "external_videos_category": {
-      "name": "external_videos_category",
-      "columns": {
-        "order": {
-          "name": "order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "value": {
-          "name": "value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "external_videos_category_order_idx": {
-          "name": "external_videos_category_order_idx",
-          "columns": [
-            "order"
-          ],
-          "isUnique": false
-        },
-        "external_videos_category_parent_idx": {
-          "name": "external_videos_category_parent_idx",
-          "columns": [
-            "parent_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "external_videos_category_parent_fk": {
-          "name": "external_videos_category_parent_fk",
-          "tableFrom": "external_videos_category",
-          "tableTo": "external_videos",
-          "columnsFrom": [
-            "parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "external_videos": {
-      "name": "external_videos",
+    "lectures": {
+      "name": "lectures",
       "columns": {
         "id": {
           "name": "id",
@@ -2872,22 +3004,22 @@
         }
       },
       "indexes": {
-        "external_videos_thumbnail_idx": {
-          "name": "external_videos_thumbnail_idx",
+        "lectures_thumbnail_idx": {
+          "name": "lectures_thumbnail_idx",
           "columns": [
             "thumbnail_id"
           ],
           "isUnique": false
         },
-        "external_videos_updated_at_idx": {
-          "name": "external_videos_updated_at_idx",
+        "lectures_updated_at_idx": {
+          "name": "lectures_updated_at_idx",
           "columns": [
             "updated_at"
           ],
           "isUnique": false
         },
-        "external_videos_created_at_idx": {
-          "name": "external_videos_created_at_idx",
+        "lectures_created_at_idx": {
+          "name": "lectures_created_at_idx",
           "columns": [
             "created_at"
           ],
@@ -2895,9 +3027,9 @@
         }
       },
       "foreignKeys": {
-        "external_videos_thumbnail_id_images_id_fk": {
-          "name": "external_videos_thumbnail_id_images_id_fk",
-          "tableFrom": "external_videos",
+        "lectures_thumbnail_id_images_id_fk": {
+          "name": "lectures_thumbnail_id_images_id_fk",
+          "tableFrom": "lectures",
           "tableTo": "images",
           "columnsFrom": [
             "thumbnail_id"
@@ -2913,8 +3045,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "external_videos_locales": {
-      "name": "external_videos_locales",
+    "lectures_locales": {
+      "name": "lectures_locales",
       "columns": {
         "title": {
           "name": "title",
@@ -2946,8 +3078,8 @@
         }
       },
       "indexes": {
-        "external_videos_locales_locale_parent_id_unique": {
-          "name": "external_videos_locales_locale_parent_id_unique",
+        "lectures_locales_locale_parent_id_unique": {
+          "name": "lectures_locales_locale_parent_id_unique",
           "columns": [
             "_locale",
             "_parent_id"
@@ -2956,10 +3088,10 @@
         }
       },
       "foreignKeys": {
-        "external_videos_locales_parent_id_fk": {
-          "name": "external_videos_locales_parent_id_fk",
-          "tableFrom": "external_videos_locales",
-          "tableTo": "external_videos",
+        "lectures_locales_parent_id_fk": {
+          "name": "lectures_locales_parent_id_fk",
+          "tableFrom": "lectures_locales",
+          "tableTo": "lectures",
           "columnsFrom": [
             "_parent_id"
           ],
@@ -3267,6 +3399,21 @@
           "notNull": true,
           "autoincrement": false
         },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "slug_lock": {
+          "name": "slug_lock",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": true
+        },
         "country_code": {
           "name": "country_code",
           "type": "text",
@@ -3306,6 +3453,13 @@
         }
       },
       "indexes": {
+        "authors_slug_idx": {
+          "name": "authors_slug_idx",
+          "columns": [
+            "slug"
+          ],
+          "isUnique": true
+        },
         "authors_image_idx": {
           "name": "authors_image_idx",
           "columns": [
@@ -3455,6 +3609,13 @@
           "autoincrement": false,
           "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
         },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "thumbnail_u_r_l": {
           "name": "thumbnail_u_r_l",
           "type": "text",
@@ -3524,6 +3685,13 @@
           "name": "images_created_at_idx",
           "columns": [
             "created_at"
+          ],
+          "isUnique": false
+        },
+        "images_deleted_at_idx": {
+          "name": "images_deleted_at_idx",
+          "columns": [
+            "deleted_at"
           ],
           "isUnique": false
         },
@@ -3735,6 +3903,13 @@
           "autoincrement": false,
           "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
         },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "thumbnail_u_r_l": {
           "name": "thumbnail_u_r_l",
           "type": "text",
@@ -3800,6 +3975,13 @@
           ],
           "isUnique": false
         },
+        "files_deleted_at_idx": {
+          "name": "files_deleted_at_idx",
+          "columns": [
+            "deleted_at"
+          ],
+          "isUnique": false
+        },
         "files_filename_idx": {
           "name": "files_filename_idx",
           "columns": [
@@ -3813,134 +3995,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "files_rels": {
-      "name": "files_rels",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "order": {
-          "name": "order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "path": {
-          "name": "path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "lessons_id": {
-          "name": "lessons_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "frames_id": {
-          "name": "frames_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "files_rels_order_idx": {
-          "name": "files_rels_order_idx",
-          "columns": [
-            "order"
-          ],
-          "isUnique": false
-        },
-        "files_rels_parent_idx": {
-          "name": "files_rels_parent_idx",
-          "columns": [
-            "parent_id"
-          ],
-          "isUnique": false
-        },
-        "files_rels_path_idx": {
-          "name": "files_rels_path_idx",
-          "columns": [
-            "path"
-          ],
-          "isUnique": false
-        },
-        "files_rels_lessons_id_idx": {
-          "name": "files_rels_lessons_id_idx",
-          "columns": [
-            "lessons_id"
-          ],
-          "isUnique": false
-        },
-        "files_rels_frames_id_idx": {
-          "name": "files_rels_frames_id_idx",
-          "columns": [
-            "frames_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "files_rels_parent_fk": {
-          "name": "files_rels_parent_fk",
-          "tableFrom": "files_rels",
-          "tableTo": "files",
-          "columnsFrom": [
-            "parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "files_rels_lessons_fk": {
-          "name": "files_rels_lessons_fk",
-          "tableFrom": "files_rels",
-          "tableTo": "lessons",
-          "columnsFrom": [
-            "lessons_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "files_rels_frames_fk": {
-          "name": "files_rels_frames_fk",
-          "tableFrom": "files_rels",
-          "tableTo": "frames",
-          "columnsFrom": [
-            "frames_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "image_tags": {
       "name": "image_tags",
       "columns": {
@@ -3948,13 +4002,6 @@
           "name": "id",
           "type": "integer",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -3992,6 +4039,67 @@
         }
       },
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "image_tags_locales": {
+      "name": "image_tags_locales",
+      "columns": {
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_locale": {
+          "name": "_locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "image_tags_locales_locale_parent_id_unique": {
+          "name": "image_tags_locales_locale_parent_id_unique",
+          "columns": [
+            "_locale",
+            "_parent_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "image_tags_locales_parent_id_fk": {
+          "name": "image_tags_locales_parent_id_fk",
+          "tableFrom": "image_tags_locales",
+          "tableTo": "image_tags",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -7760,13 +7868,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "lessons_id": {
-          "name": "lessons_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "music_id": {
           "name": "music_id",
           "type": "integer",
@@ -7774,8 +7875,22 @@
           "notNull": false,
           "autoincrement": false
         },
-        "external_videos_id": {
-          "name": "external_videos_id",
+        "albums_id": {
+          "name": "albums_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lessons_id": {
+          "name": "lessons_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lectures_id": {
+          "name": "lectures_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -7909,13 +8024,6 @@
           ],
           "isUnique": false
         },
-        "payload_locked_documents_rels_lessons_id_idx": {
-          "name": "payload_locked_documents_rels_lessons_id_idx",
-          "columns": [
-            "lessons_id"
-          ],
-          "isUnique": false
-        },
         "payload_locked_documents_rels_music_id_idx": {
           "name": "payload_locked_documents_rels_music_id_idx",
           "columns": [
@@ -7923,10 +8031,24 @@
           ],
           "isUnique": false
         },
-        "payload_locked_documents_rels_external_videos_id_idx": {
-          "name": "payload_locked_documents_rels_external_videos_id_idx",
+        "payload_locked_documents_rels_albums_id_idx": {
+          "name": "payload_locked_documents_rels_albums_id_idx",
           "columns": [
-            "external_videos_id"
+            "albums_id"
+          ],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_lessons_id_idx": {
+          "name": "payload_locked_documents_rels_lessons_id_idx",
+          "columns": [
+            "lessons_id"
+          ],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_lectures_id_idx": {
+          "name": "payload_locked_documents_rels_lectures_id_idx",
+          "columns": [
+            "lectures_id"
           ],
           "isUnique": false
         },
@@ -8062,19 +8184,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payload_locked_documents_rels_lessons_fk": {
-          "name": "payload_locked_documents_rels_lessons_fk",
-          "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "lessons",
-          "columnsFrom": [
-            "lessons_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "payload_locked_documents_rels_music_fk": {
           "name": "payload_locked_documents_rels_music_fk",
           "tableFrom": "payload_locked_documents_rels",
@@ -8088,12 +8197,38 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payload_locked_documents_rels_external_videos_fk": {
-          "name": "payload_locked_documents_rels_external_videos_fk",
+        "payload_locked_documents_rels_albums_fk": {
+          "name": "payload_locked_documents_rels_albums_fk",
           "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "external_videos",
+          "tableTo": "albums",
           "columnsFrom": [
-            "external_videos_id"
+            "albums_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_lessons_fk": {
+          "name": "payload_locked_documents_rels_lessons_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "lessons",
+          "columnsFrom": [
+            "lessons_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_lectures_fk": {
+          "name": "payload_locked_documents_rels_lectures_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "lectures",
+          "columnsFrom": [
+            "lectures_id"
           ],
           "columnsTo": [
             "id"
@@ -9538,6 +9673,6 @@
   "internal": {
     "indexes": {}
   },
-  "id": "4b61363c-80b7-4b2c-839e-b5359dfc46f7",
+  "id": "cde87c99-115e-4fbf-8a9d-699c1293b656",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

@@ -158,16 +158,14 @@ describe('Localization', () => {
       // Create music with English fields
       const music = await testData.createMusic(payload, {
         title: 'Peaceful Morning',
-        credit: 'Music Studio',
       })
 
-      // Update with Italian fields
+      // Update with Czech fields
       await payload.update({
         collection: 'music',
         id: music.id,
         data: {
           title: 'Mattino Tranquillo',
-          credit: 'Studio Musicale',
         },
         locale: 'cs',
       })
@@ -180,17 +178,15 @@ describe('Localization', () => {
       })) as Music
 
       expect(enResult.title).toBe('Peaceful Morning')
-      expect(enResult.credit).toBe('Music Studio')
 
-      // Retrieve Italian version
-      const itResult = (await payload.findByID({
+      // Retrieve Czech version
+      const csResult = (await payload.findByID({
         collection: 'music',
         id: music.id,
         locale: 'cs',
       })) as Music
 
-      expect(itResult.title).toBe('Mattino Tranquillo')
-      expect(itResult.credit).toBe('Studio Musicale')
+      expect(csResult.title).toBe('Mattino Tranquillo')
     })
   })
 

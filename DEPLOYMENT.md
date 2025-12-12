@@ -160,6 +160,81 @@ pnpm payload migrate:create
 pnpm run deploy:database
 ```
 
+### Resetting Migrations (Fresh Start)
+
+**WARNING**: This procedure deletes ALL data in the production database.
+
+Use this when you need to consolidate migrations into a single initial migration or fix migration state issues.
+
+**Note**: The `payload migrate:fresh` command does not work with Cloudflare D1 adapter. You must manually drop tables using wrangler.
+
+**Automated Script** (recommended):
+
+```bash
+# Preview what will happen (no changes made)
+./imports/reset-migrations.sh --dry-run
+
+# Execute full reset
+./imports/reset-migrations.sh
+```
+
+**Manual Steps** (if script fails):
+
+1. **Delete existing migration files**:
+   ```bash
+   rm src/migrations/*.ts src/migrations/*.json
+   ```
+
+2. **Reset migrations index** (`src/migrations/index.ts`):
+   ```typescript
+   export const migrations = []
+   ```
+
+3. **Generate SQL to drop all tables** - Create `drop_all_tables.sql`:
+   ```bash
+   # First, list all tables
+   wrangler d1 execute sahajcloud --remote --command \
+     "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';"
+
+   # Create a SQL file with DROP statements for each table
+   # Include: PRAGMA foreign_keys=OFF; at the start
+   # Include: DROP TABLE IF EXISTS "table_name"; for each table
+   # Include: PRAGMA foreign_keys=ON; at the end
+   ```
+
+4. **Drop all tables in production**:
+   ```bash
+   wrangler d1 execute sahajcloud --remote --file=drop_all_tables.sql
+   ```
+
+5. **Verify database is empty**:
+   ```bash
+   wrangler d1 execute sahajcloud --remote --command \
+     "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';"
+   ```
+
+6. **Generate fresh initial migration**:
+   ```bash
+   pnpm payload migrate:create
+   ```
+
+7. **Rename migration file** (optional, for clarity):
+   ```bash
+   mv src/migrations/[timestamp].ts src/migrations/[timestamp]_initial_schema.ts
+   mv src/migrations/[timestamp].json src/migrations/[timestamp]_initial_schema.json
+   # Update src/migrations/index.ts to match new filename
+   ```
+
+8. **Apply to production**:
+   ```bash
+   pnpm run deploy:database
+   ```
+
+9. **Verify**:
+   ```bash
+   wrangler d1 execute sahajcloud --remote --command "SELECT * FROM payload_migrations;"
+   ```
+
 ---
 
 ## Environment Variables

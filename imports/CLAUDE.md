@@ -61,7 +61,8 @@ imports/
 ├── lib/                   # Shared utilities (BaseImporter, Logger, etc.)
 ├── tests/                 # Test infrastructure
 ├── cache/                 # Downloaded files (git-ignored)
-└── run.ts                 # Unified CLI runner
+├── run.ts                 # Unified CLI runner
+└── reset-migrations.sh    # Database migration reset script
 ```
 
 ## Troubleshooting
@@ -107,3 +108,37 @@ Warnings (2):
 No errors - import completed successfully!
 ============================================================
 ```
+
+---
+
+## Database Reset Script
+
+A separate script for completely resetting migrations and the production database.
+
+### reset-migrations.sh
+
+**WARNING**: This script deletes ALL data in the production database.
+
+```bash
+# Preview what will happen (no changes made)
+./imports/reset-migrations.sh --dry-run
+
+# Execute full reset
+./imports/reset-migrations.sh
+```
+
+**What it does**:
+1. Deletes all migration files in `src/migrations/`
+2. Resets `src/migrations/index.ts` to empty array
+3. Drops ALL tables in production D1 database
+4. Generates a fresh initial migration
+5. Renames migration to `*_initial_schema`
+6. Deploys migration to production
+7. Verifies success
+
+**Use cases**:
+- Consolidating multiple migrations into a single initial migration
+- Fixing migration state inconsistencies
+- Complete fresh start of production database
+
+**Note**: The `payload migrate:fresh` command doesn't work with Cloudflare D1 adapter. This script uses wrangler to drop tables directly.

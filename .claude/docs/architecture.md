@@ -5,7 +5,7 @@
 The application uses **Cloudflare-native storage services** for optimal performance:
 
 ### Cloudflare Images (Image Storage)
-- **Collection**: `images`
+- **Collections**: `images`, `albums`
 - **Features**: Automatic format optimization (WebP, AVIF), dynamic transformations, global CDN
 - **URL Format**: `https://imagedelivery.net/<hash>/<imageId>/public`
 - **Replaces**: Sharp image processing
@@ -42,7 +42,8 @@ The application uses **Cloudflare-native storage services** for optimal performa
 ### Content Collections
 - **Pages** (`src/collections/content/Pages.ts`) - Rich text content with embedded blocks using Lexical editor, author relationships, tags, auto-generated slugs, and publish scheduling
 - **Meditations** (`src/collections/content/Meditations.ts`) - Guided meditation content with audio files, tags, metadata, frame relationships with timestamps, and locale-specific content filtering
-- **Music** (`src/collections/content/Music.ts`) - Background music tracks with direct audio upload, tags, and metadata (title and credit fields are localized)
+- **Albums** (`src/collections/content/Albums.ts`) - Music album groupings with Cloudflare Images artwork, localized title/artist fields, optional artistUrl, and join field for related music tracks
+- **Music** (`src/collections/content/Music.ts`) - Background music tracks with direct audio upload, required album relationship, tags, and localized title field
 - **Lessons** (`src/collections/content/Lessons.ts`) - Meditation lessons (also called "Path Steps" in admin UI) with audio upload, panels array for content sections, unit selection (Unit 1-4), step number, icon, optional meditation relationship, and rich text article field
 
 ### Resource Collections

@@ -70,8 +70,9 @@ export interface Config {
   collections: {
     pages: Page;
     meditations: Meditation;
-    lessons: Lesson;
     music: Music;
+    albums: Album;
+    lessons: Lesson;
     lectures: Lecture;
     frames: Frame;
     narrators: Narrator;
@@ -93,6 +94,9 @@ export interface Config {
     'payload-migrations': PayloadMigration;
   };
   collectionsJoins: {
+    albums: {
+      music: 'music';
+    };
     authors: {
       articles: 'pages';
     };
@@ -112,8 +116,9 @@ export interface Config {
   collectionsSelect: {
     pages: PagesSelect<false> | PagesSelect<true>;
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
-    lessons: LessonsSelect<false> | LessonsSelect<true>;
     music: MusicSelect<false> | MusicSelect<true>;
+    albums: AlbumsSelect<false> | AlbumsSelect<true>;
+    lessons: LessonsSelect<false> | LessonsSelect<true>;
     lectures: LecturesSelect<false> | LecturesSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
@@ -529,13 +534,11 @@ export interface MusicTag {
 export interface Music {
   id: number;
   title: string;
-  slug?: string | null;
-  slugLock?: boolean | null;
-  tags?: (number | MusicTag)[] | null;
   /**
-   * Attribution or credit information
+   * The album this track belongs to
    */
-  credit?: string | null;
+  album: number | Album;
+  tags?: (number | MusicTag)[] | null;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -545,6 +548,39 @@ export interface Music {
     | number
     | boolean
     | null;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "albums".
+ */
+export interface Album {
+  id: number;
+  title: string;
+  artist: string;
+  /**
+   * Artist website or profile URL
+   */
+  artistUrl?: string | null;
+  /**
+   * Music tracks in this album
+   */
+  music?: {
+    docs?: (number | Music)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -1243,12 +1279,16 @@ export interface PayloadLockedDocument {
         value: number | Meditation;
       } | null)
     | ({
-        relationTo: 'lessons';
-        value: number | Lesson;
-      } | null)
-    | ({
         relationTo: 'music';
         value: number | Music;
+      } | null)
+    | ({
+        relationTo: 'albums';
+        value: number | Album;
+      } | null)
+    | ({
+        relationTo: 'lessons';
+        value: number | Lesson;
       } | null)
     | ({
         relationTo: 'lectures';
@@ -1415,6 +1455,50 @@ export interface MeditationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "music_select".
+ */
+export interface MusicSelect<T extends boolean = true> {
+  title?: T;
+  album?: T;
+  tags?: T;
+  fileMetadata?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "albums_select".
+ */
+export interface AlbumsSelect<T extends boolean = true> {
+  title?: T;
+  artist?: T;
+  artistUrl?: T;
+  music?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lessons_select".
  */
 export interface LessonsSelect<T extends boolean = true> {
@@ -1458,30 +1542,6 @@ export interface LessonsSelect<T extends boolean = true> {
   createdAt?: T;
   deletedAt?: T;
   _status?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "music_select".
- */
-export interface MusicSelect<T extends boolean = true> {
-  title?: T;
-  slug?: T;
-  slugLock?: T;
-  tags?: T;
-  credit?: T;
-  fileMetadata?: T;
-  updatedAt?: T;
-  createdAt?: T;
-  deletedAt?: T;
-  url?: T;
-  thumbnailURL?: T;
-  filename?: T;
-  mimeType?: T;
-  filesize?: T;
-  width?: T;
-  height?: T;
-  focalX?: T;
-  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
