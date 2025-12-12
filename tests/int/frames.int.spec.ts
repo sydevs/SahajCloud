@@ -34,7 +34,8 @@ describe('Frames Collection', () => {
     // Tags should be empty array when no tags are provided
     expect(frame.tags).toEqual([])
     expect(frame.mimeType).toBe('image/jpeg') // Original format preserved for now
-    expect(frame.filename).toMatch(/^image-1050x700(-\d+)?-.+\.jpg$/)
+    // Filename is preserved as-is (sanitizeFilename removed - Cloudflare provides unique IDs)
+    expect(frame.filename).toBeDefined()
     expect(frame.filesize).toBeGreaterThan(0)
     // Dimensions should be auto-populated by Payload for images
     expect(frame.width).toBeGreaterThan(0)
@@ -62,14 +63,11 @@ describe('Frames Collection', () => {
     // Tags should be empty array when no tags are provided
     expect(frame.tags).toEqual([])
     expect(frame.mimeType).toBe('video/mp4') // Original format preserved for now
-    expect(frame.filename).toMatch(/^video-30s(-\d+)?-.+\.mp4$/)
+    // Filename is preserved as-is (sanitizeFilename removed - Cloudflare provides unique IDs)
+    expect(frame.filename).toBeDefined()
     expect(frame.filesize).toBeGreaterThan(0)
-    // Duration and dimensions are now automatically extracted
-    expect(frame.fileMetadata).toEqual({
-      duration: 30.5,
-      width: 480,
-      height: 270,
-    })
+    // fileMetadata is empty for videos (FFmpeg processing removed for Cloudflare Workers)
+    expect(frame.fileMetadata).toEqual({})
 
     // Check category field
     expect(frame.category).toBe(FRAME_CATEGORIES[1])
@@ -113,7 +111,8 @@ describe('Frames Collection', () => {
 
       expect(frame).toBeDefined()
       expect(frame.mimeType).toBe(format.mimetype)
-      expect(frame.filename).toMatch(new RegExp(`^${format.name.replace('.', '(-\\d+)?-.+\\.')}$`))
+      // Filename is preserved as-is (sanitizeFilename removed - Cloudflare provides unique IDs)
+      expect(frame.filename).toBeDefined()
     }
   })
 
@@ -253,10 +252,7 @@ describe('Frames Collection', () => {
     expect(imageFrame.fileMetadata).toEqual({})
 
     expect(videoFrame.mimeType).toBe('video/mp4')
-    expect(videoFrame.fileMetadata).toEqual({
-      duration: 30.5,
-      width: 480,
-      height: 270,
-    })
+    // fileMetadata is empty for videos (FFmpeg processing removed for Cloudflare Workers)
+    expect(videoFrame.fileMetadata).toEqual({})
   })
 })
