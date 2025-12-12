@@ -209,6 +209,9 @@ export const Meditations: CollectionConfig = {
                 components: {
                   Field: '@/components/admin/TagSelector',
                 },
+                custom: {
+                  size: 'large',
+                },
               },
             },
           ],

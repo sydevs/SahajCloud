@@ -20,9 +20,14 @@ pnpm run import <script>
 | Script | Command | Prerequisites | Target Collections |
 |--------|---------|---------------|-------------------|
 | storyblok | `pnpm import storyblok` | STORYBLOK_ACCESS_TOKEN | lessons, images, files |
-| wemeditate | `pnpm import wemeditate` | PostgreSQL installed | pages, authors, page-tags |
-| meditations | `pnpm import meditations` | Run `tags` first, PostgreSQL | meditations, frames, music, narrators |
+| wemeditate | `pnpm import wemeditate` | PostgreSQL installed | pages, authors, page-tags, albums |
+| meditations | `pnpm import meditations` | Run `tags` + `wemeditate` first, PostgreSQL | meditations, frames, music, narrators |
 | tags | `pnpm import tags` | None | meditation-tags, music-tags |
+
+**Import Order**: For a full import, run scripts in this order:
+1. `pnpm import tags` - Creates tag definitions
+2. `pnpm import wemeditate` - Creates albums (music requires albums)
+3. `pnpm import meditations` - Creates meditations and music (matches music to albums by credit/artist)
 
 ## Common Flags
 

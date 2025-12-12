@@ -6,6 +6,10 @@
  *
  * Imports meditation content from Google Cloud Storage and PostgreSQL database into Payload CMS.
  *
+ * IMPORTANT: Run `pnpm import wemeditate` BEFORE this script to create albums.
+ * This script matches music tracks to albums by comparing the `credit` field
+ * in the source database to the `artist` field on albums.
+ *
  * DUAL-DATABASE ARCHITECTURE:
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━
  * This script uses TWO different databases:
@@ -30,6 +34,7 @@
  * - Natural key-based upsert for all collections
  * - Tag mapping from legacy names to predefined slugs
  * - Downloads and caches media files from Google Cloud Storage
+ * - Matches music to albums by credit/artist field
  *
  * Usage:
  *   pnpm import meditations [flags]
@@ -114,7 +119,6 @@ const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
   // Morning states
   'excited for the day': 'excited-today',
   'excited': 'excited-today',
-  'morning': 'excited-today',
 
   // Stress states
   'stressed and tense': 'stressed-tense',
@@ -221,14 +225,56 @@ const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
   'spiritual': 'spiritual-experience',
   'deeper experience': 'spiritual-experience',
   'seeking deeper spiritual experience': 'spiritual-experience',
+
+  // Time-based tags
+  'morning': 'morning',
+  'afternoon': 'afternoon',
+  'evening': 'evening',
+  'morning-general': 'morning',
+  'afternoon-general': 'afternoon',
+  'evening-general': 'evening',
+
+  // Positive states (mapped based on who benefits from the meditation)
+  'calm': 'mind-racing',
+  'peace': 'spiritual-experience',
+  'balanced': 'anxious-overwhelmed',
+  'content': 'feeling-fine',
+  'humble': 'spiritual-experience',
+  'relaxed': 'want-to-unwind',
+  'happy': 'feeling-good',
+  'joy': 'excited-today',
+  'fulfilled': 'want-to-reconnect',
+  'satisfied': 'feeling-fine',
+
+  // Mental/activity states
+  'focus': 'hard-to-focus',
+  'overactive': 'restless-thoughts',
+  'bored': 'demotivated-uninspired',
+  'creative': 'demotivated-uninspired',
+
+  // Connection/spiritual
+  'realisation': 'spiritual-experience',
+  'harmony': 'want-to-reconnect',
+  'love': 'want-to-reconnect',
+
+  // Self-esteem related
+  'confidence': 'low-self-esteem',
+  'esteem': 'low-self-esteem',
 }
 
 const LEGACY_TO_MUSIC_TAG_SLUG: Record<string, string> = {
+  // Instrument mappings
   'nature': 'nature',
   'flute': 'flute',
-  'none': 'none',
-  'silence': 'none',
   'strings': 'strings',
+  'sitar': 'strings',
+  'santoor': 'strings',
+  'saxophone': 'flute',
+  'piano': 'piano',
+  // Time-of-day mappings
+  'morning': 'morning',
+  'afternoon': 'afternoon',
+  'evening': 'evening',
 }
 
 // ============================================================================
@@ -254,11 +300,8 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     meditations: new Map<number, number | string>(),
     musics: new Map<number, number | string>(),
     narrators: new Map<number, number | string>(),
-    albums: new Map<string, number | string>(), // key: album title
+    albumsByArtist: new Map<string, number | string>(), // key: artist name (lowercase)
   }
-
-  // Default album ID for imported music tracks
-  private defaultAlbumId: number | string | null = null
 
   // ============================================================================
   // LIFECYCLE
@@ -847,43 +890,67 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   /**
-   * Get or create a default album for imported music tracks.
-   * This is needed because music tracks now require an album relationship.
+   * Load existing albums from wemeditate import into the albumsByArtist map.
+   * This should be called before importing music.
    */
-  private async getOrCreateDefaultAlbum(): Promise<number | string> {
-    // Return cached ID if we already have it
-    if (this.defaultAlbumId) {
-      return this.defaultAlbumId
+  private async loadExistingAlbums(): Promise<void> {
+    await this.logger.info('\n=== Loading Existing Albums ===')
+
+    const albums = await this.payload.find({
+      collection: 'albums',
+      limit: 1000,
+    })
+
+    for (const album of albums.docs) {
+      if (album.artist) {
+        const artistKey = album.artist.toLowerCase().trim()
+        this.idMaps.albumsByArtist.set(artistKey, album.id)
+      }
     }
 
-    const defaultAlbumTitle = 'Imported Music'
+    await this.logger.info(`✓ Loaded ${this.idMaps.albumsByArtist.size} albums`)
+  }
 
-    // Check if default album already exists
+  /**
+   * Get or create an album for a music track based on the credit/artist.
+   * First tries to find an existing album by artist name.
+   * If not found, creates a new album with a placeholder image.
+   */
+  private async getOrCreateAlbumForArtist(artistName: string): Promise<number | string> {
+    const artistKey = artistName.toLowerCase().trim()
+
+    // Check cache first
+    const cachedId = this.idMaps.albumsByArtist.get(artistKey)
+    if (cachedId) {
+      return cachedId
+    }
+
+    // Check database (in case it wasn't in cache)
     const existing = await this.payload.find({
       collection: 'albums',
-      where: { title: { equals: defaultAlbumTitle } },
+      where: { artist: { equals: artistName } },
       limit: 1,
     })
 
     if (existing.docs.length > 0) {
-      this.defaultAlbumId = existing.docs[0].id
-      return this.defaultAlbumId
+      this.idMaps.albumsByArtist.set(artistKey, existing.docs[0].id)
+      return existing.docs[0].id
     }
 
-    // Create default album (without an image file for simplicity)
-    // Albums require an image upload, so we'll use a placeholder
+    // Create new album with placeholder image
+    await this.logger.info(`    Creating album for artist: ${artistName}`)
     const placeholderPath = await this.getPlaceholderImagePath()
     const result = await this.uploadToPayload(placeholderPath, 'albums', {
-      title: defaultAlbumTitle,
-      artist: 'Various Artists',
+      title: artistName, // Use artist name as album title
+      artist: artistName,
     })
 
     if (result) {
-      this.defaultAlbumId = result.id
+      this.idMaps.albumsByArtist.set(artistKey, result.id)
       return result.id
     }
 
-    throw new Error('Failed to create default album for imported music')
+    throw new Error(`Failed to create album for artist: ${artistName}`)
   }
 
   /**
@@ -905,7 +972,7 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         return placeholderPath
       } catch {
         // If no placeholder exists, throw an error
-        throw new Error('No placeholder image available for album creation')
+        throw new Error('No placeholder image available for album creation. Run wemeditate import first.')
       }
     }
   }
@@ -921,6 +988,10 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     blobs: any[],
   ): Promise<void> {
     await this.logger.info('\n=== Importing Music ===')
+
+    // Load existing albums from wemeditate import
+    await this.loadExistingAlbums()
+
     await this.logger.progress(0, musics.length, 'Music')
 
     for (let i = 0; i < musics.length; i++) {
@@ -934,13 +1005,27 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         .map((t) => this.idMaps.musicTags.get(t.tag_id))
         .filter((id): id is number => Boolean(id))
 
-      // Get or create default album for imported music
-      const albumId = await this.getOrCreateDefaultAlbum()
+      // Get album based on credit field (artist name)
+      // If no credit, skip this track
+      if (!music.credit) {
+        this.skip(`Music "${music.title}": no credit/artist specified`)
+        await this.logger.progress(i + 1, musics.length, 'Music')
+        continue
+      }
+
+      let albumId: number | string
+      try {
+        albumId = await this.getOrCreateAlbumForArtist(music.credit)
+      } catch (error) {
+        this.addError(`Getting album for music "${music.title}"`, error as Error)
+        await this.logger.progress(i + 1, musics.length, 'Music')
+        continue
+      }
 
       const musicData = {
         title: music.title || 'Untitled Music',
         album: albumId as number,
-        tags: musicTagIds,
+        tags: musicTagIds.length > 0 ? musicTagIds : undefined,
       }
 
       try {
@@ -957,7 +1042,17 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         })
 
         if (existing.docs.length > 0) {
-          await this.logger.log(`    ✓ Using existing music: ${music.title}`)
+          // Update existing music with tags (upsert pattern)
+          if (musicTagIds.length > 0) {
+            await this.payload.update({
+              collection: 'music',
+              id: existing.docs[0].id,
+              data: { tags: musicTagIds },
+            })
+            await this.logger.log(`    ✓ Updated tags for: ${music.title} (${musicTagIds.length} tags)`)
+          } else {
+            await this.logger.log(`    ✓ Using existing: ${music.title}`)
+          }
           this.idMaps.musics.set(music.id, existing.docs[0].id)
           this.report.incrementSkipped()
         } else {
@@ -987,6 +1082,9 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
           if (result) {
             this.idMaps.musics.set(music.id, result.id)
             this.report.incrementCreated()
+            if (musicTagIds.length > 0) {
+              await this.logger.log(`    ✓ Created: ${music.title} with ${musicTagIds.length} tags`)
+            }
           }
         }
       } catch (error) {

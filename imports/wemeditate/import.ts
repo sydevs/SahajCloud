@@ -156,6 +156,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info('\n=== PHASE 1: Metadata Import ===')
     await this.importAuthors()
     await this.importAlbums()
+    await this.importMusic()
     await this.importCategories()
     await this.importContentTypeTags()
     await this.importPages('static_pages', 'static_page_translations')
@@ -323,12 +324,13 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info('\n=== Importing Albums (from artists table) ===')
 
     // Query artists table - in WeMeditate, artists represent music albums
+    // Schema: id, name, url, image (jsonb stored as quoted string like "filename.jpg")
     const result = await this.dbClient.query(`
       SELECT
         a.id,
         a.name,
-        a.website,
-        a.album_art
+        a.url,
+        a.image
       FROM artists a
     `)
 
@@ -358,7 +360,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             id: existing.docs[0].id,
             data: {
               artist: artist.name,
-              artistUrl: artist.website || undefined,
+              artistUrl: artist.url || undefined,
             },
             locale: 'en',
           })
@@ -369,14 +371,33 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         }
 
         // Download album art if available (Albums is an upload collection - file required)
+        // The image field is JSONB stored as a quoted string like: "4d892b21f6.jpg"
         let localImagePath: string | null = null
-        if (artist.album_art) {
+        if (artist.image) {
           try {
-            const albumArtUrl = `${STORAGE_BASE_URL}artist/album_art/${artist.id}/${artist.album_art}`
-            const downloadResult = await this.mediaDownloader.downloadAndConvertImage(albumArtUrl)
-            localImagePath = downloadResult.localPath
+            // Parse JSONB string - it's stored as "filename.jpg" (quoted string in JSON)
+            let imageFilename: string | null = null
+            if (typeof artist.image === 'string') {
+              // If it's a string, it might be JSON-encoded or just the filename
+              try {
+                imageFilename = JSON.parse(artist.image) as string
+              } catch {
+                // If JSON.parse fails, use it directly (might be unquoted)
+                imageFilename = artist.image
+              }
+            }
+
+            if (imageFilename) {
+              const albumArtUrl = imageFilename.startsWith('http')
+                ? imageFilename
+                : `${STORAGE_BASE_URL}artist/image/${artist.id}/${imageFilename}`
+              const downloadResult = await this.mediaDownloader.downloadAndConvertImage(albumArtUrl)
+              localImagePath = downloadResult.localPath
+            }
           } catch (error) {
-            this.addWarning(`Failed to download album art for artist ${artist.id}: ${(error as Error).message}`)
+            this.addWarning(
+              `Failed to download album art for artist ${artist.id}: ${(error as Error).message}`,
+            )
           }
         }
 
@@ -395,7 +416,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           data: {
             title: artist.name,
             artist: artist.name,
-            artistUrl: artist.website || undefined,
+            artistUrl: artist.url || undefined,
           },
           file: {
             data: fileBuffer,
@@ -434,7 +455,219 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       return placeholderPath
     }
 
-    throw new Error('No placeholder image available for album creation. Please add imports/wemeditate/preview.png')
+    throw new Error(
+      'No placeholder image available for album creation. Please add imports/wemeditate/preview.png',
+    )
+  }
+
+  // ============================================================================
+  // MUSIC IMPORT (from tracks table)
+  // ============================================================================
+
+  /**
+   * Instrument filter to music tag slug mapping
+   * Legacy: sitar.svg -> Strings, vocal.svg -> Vocal, flute.svg -> Wind
+   * Maps to: strings, vocals, flute
+   */
+  private readonly INSTRUMENT_TAG_MAP: Record<number, string> = {
+    1: 'strings', // sitar.svg -> Strings
+    2: 'vocals', // vocal.svg -> Vocal (need to ensure this tag exists)
+    3: 'flute', // flute.svg -> Wind
+  }
+
+  private async importMusic(): Promise<void> {
+    await this.logger.info('\n=== Importing Music (from tracks table) ===')
+
+    // Ensure vocals tag exists (it might not be in the tags import)
+    await this.ensureVocalsTagExists()
+
+    // Query tracks with their artist associations and instrument filters
+    const result = await this.dbClient.query(`
+      SELECT
+        t.id,
+        t.audio,
+        t.duration,
+        tt.name as title,
+        tt.locale,
+        array_agg(DISTINCT at.artist_id) FILTER (WHERE at.artist_id IS NOT NULL) as artist_ids,
+        array_agg(DISTINCT ift.instrument_filter_id) FILTER (WHERE ift.instrument_filter_id IS NOT NULL) as instrument_filter_ids
+      FROM tracks t
+      LEFT JOIN track_translations tt ON t.id = tt.track_id AND tt.locale = 'en'
+      LEFT JOIN artists_tracks at ON t.id = at.track_id
+      LEFT JOIN instrument_filters_tracks ift ON t.id = ift.track_id
+      GROUP BY t.id, t.audio, t.duration, tt.name, tt.locale
+    `)
+
+    await this.logger.info(`Found ${result.rows.length} music tracks`)
+    await this.logger.progress(0, result.rows.length, 'Music tracks')
+
+    for (let i = 0; i < result.rows.length; i++) {
+      const track = result.rows[i]
+
+      try {
+        if (!track.title) {
+          this.skip(`Track ${track.id}: no English title`)
+          continue
+        }
+
+        if (!track.audio) {
+          this.skip(`Track ${track.id} "${track.title}": no audio file`)
+          continue
+        }
+
+        // Get album ID from first artist (tracks can have multiple artists)
+        let albumId: number | string | undefined
+        if (track.artist_ids && track.artist_ids.length > 0) {
+          const firstArtistId = track.artist_ids[0]
+          albumId = this.idMaps.albums.get(firstArtistId)
+          if (!albumId) {
+            this.addWarning(
+              `Track ${track.id} "${track.title}": artist ${firstArtistId} not found in albums map`,
+            )
+          }
+        }
+
+        if (!albumId) {
+          this.skip(`Track ${track.id} "${track.title}": no album association`)
+          continue
+        }
+
+        // Map instrument filters to music tags
+        const tagIds: number[] = []
+        if (track.instrument_filter_ids && track.instrument_filter_ids.length > 0) {
+          for (const filterId of track.instrument_filter_ids) {
+            const tagSlug = this.INSTRUMENT_TAG_MAP[filterId]
+            if (tagSlug) {
+              const musicTagIds = await this.findMusicTagsBySlug([tagSlug])
+              tagIds.push(...musicTagIds)
+            }
+          }
+        }
+
+        // Check if music already exists by title
+        const existing = await this.payload.find({
+          collection: 'music',
+          where: { title: { equals: track.title } },
+          limit: 1,
+          locale: 'en',
+        })
+
+        // Convert album ID to number for Payload type compatibility
+        const numericAlbumId = typeof albumId === 'string' ? parseInt(albumId, 10) : albumId
+
+        if (existing.docs.length > 0) {
+          // Update existing music with album and tags
+          await this.payload.update({
+            collection: 'music',
+            id: existing.docs[0].id,
+            data: {
+              album: numericAlbumId,
+              tags: tagIds.length > 0 ? tagIds : undefined,
+            },
+            locale: 'en',
+          })
+          this.report.incrementUpdated()
+          await this.logger.progress(i + 1, result.rows.length, 'Music tracks')
+          continue
+        }
+
+        // Download audio file
+        const audioUrl = `${STORAGE_BASE_URL}track/${track.id}/${track.audio}?version=`
+        let localAudioPath: string | null = null
+
+        try {
+          const cacheFilename = `track-${track.id}-${track.audio}`
+          const cachePath = path.join(this.cacheDir, 'audio', cacheFilename)
+
+          // Check cache first
+          if (await this.fileUtils.fileExists(cachePath)) {
+            localAudioPath = cachePath
+          } else {
+            // Download audio
+            await fs.mkdir(path.dirname(cachePath), { recursive: true })
+            const response = await fetch(audioUrl)
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+            }
+            const arrayBuffer = await response.arrayBuffer()
+            await fs.writeFile(cachePath, Buffer.from(arrayBuffer))
+            localAudioPath = cachePath
+          }
+        } catch (error) {
+          this.addError(`Downloading audio for track ${track.id}: ${audioUrl}`, error as Error)
+          continue
+        }
+
+        // Create music with audio file
+        const fileBuffer = await fs.readFile(localAudioPath)
+        const filename = track.audio
+        const mimeType = this.fileUtils.getMimeType(filename)
+
+        await this.payload.create({
+          collection: 'music',
+          data: {
+            title: track.title,
+            album: numericAlbumId,
+            tags: tagIds.length > 0 ? tagIds : undefined,
+          },
+          file: {
+            data: fileBuffer,
+            mimetype: mimeType,
+            name: filename,
+            size: fileBuffer.length,
+          },
+          locale: 'en',
+        })
+
+        this.report.incrementCreated()
+      } catch (error) {
+        this.addError(`Importing track ${track.id}`, error as Error)
+      }
+
+      await this.logger.progress(i + 1, result.rows.length, 'Music tracks')
+    }
+  }
+
+  /**
+   * Ensure the vocals tag exists in the music-tags collection
+   * This tag may not be present in the standard tags import
+   */
+  private async ensureVocalsTagExists(): Promise<void> {
+    try {
+      const existing = await this.payload.find({
+        collection: 'music-tags',
+        where: { slug: { equals: 'vocals' } },
+        limit: 1,
+      })
+
+      if (existing.docs.length > 0) {
+        await this.logger.info('✓ Vocals tag already exists')
+        return
+      }
+
+      // Use the generic music-tag.svg from imports/tags/
+      const svgPath = path.resolve(process.cwd(), 'imports/tags/music-tag.svg')
+      const svgBuffer = await fs.readFile(svgPath)
+
+      await this.payload.create({
+        collection: 'music-tags',
+        data: {
+          title: 'Vocals',
+          slug: 'vocals',
+        },
+        file: {
+          data: svgBuffer,
+          mimetype: 'image/svg+xml',
+          name: 'vocals.svg',
+          size: svgBuffer.length,
+        },
+        locale: 'en',
+      })
+
+      await this.logger.info('✓ Created vocals tag with music icon')
+    } catch (error) {
+      this.addError('Creating vocals tag', error as Error)
+    }
   }
 
   // ============================================================================

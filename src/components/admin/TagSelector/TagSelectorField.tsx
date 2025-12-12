@@ -6,7 +6,7 @@ import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/
 import React, { useMemo } from 'react'
 import useSWR from 'swr'
 
-import { TagSelector, type TagOption } from './TagSelector'
+import { TagSelector, type TagOption, type TagSelectorSize } from './TagSelector'
 
 /**
  * Payload API response structure
@@ -91,9 +91,14 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
     localized,
     required,
     relationTo,
-    hasMany,
-    admin: { description, className, style } = {},
+    hasMany = false,
+    minRows,
+    maxRows,
+    admin: { description, className, style, custom } = {},
   } = field as RelationshipFieldClient
+
+  // Extract size from custom config with type safety
+  const size = (custom?.size as TagSelectorSize) || 'default'
 
   // Use Payload's field hook for state management
   const { value, setValue, showError } = useField<(string | number)[] | string | number | null>()
@@ -200,6 +205,10 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
             options={tags}
             hasMany={hasMany}
             readOnly={readOnly}
+            required={required}
+            minRows={minRows}
+            maxRows={maxRows}
+            size={size}
             aria-label={ariaLabel}
           />
         )}

@@ -28,6 +28,7 @@ const dirname = path.dirname(filename)
 const isTestEnvironment = process.env.NODE_ENV === 'test'
 const isProduction = process.env.NODE_ENV === 'production'
 const isCLI = process.argv.some((value) => value.match(/^(generate|migrate):?/))
+const isImportScript = process.argv.some((value) => value.includes('imports/'))
 
 // Get Cloudflare context (following PayloadCMS official template pattern)
 // Development/CLI: Use wrangler's getPlatformProxy for local/remote bindings
@@ -124,10 +125,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       },
     },
     // Email configuration
-    // - Test: Disabled to avoid model conflicts
+    // - Test/Import: Disabled to avoid model conflicts and external service dependencies
     // - Production: Resend API for transactional emails
     // - Development: Ethereal Email for testing (automatic test email service)
-    ...(isTestEnvironment
+    ...(isTestEnvironment || isImportScript
       ? {}
       : {
           email: isProduction
