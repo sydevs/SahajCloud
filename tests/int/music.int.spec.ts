@@ -165,51 +165,6 @@ describe('Music Collection', () => {
     expect(albumId).toBe(secondAlbum.id)
   })
 
-  it.skip('supports localized title field', async () => {
-    // TODO: Investigate PayloadCMS localization fallback behavior
-    // Create music with explicit English locale
-    const fs = await import('fs')
-    const path = await import('path')
-    const filePath = path.join(process.cwd(), 'tests/files/audio-42s.mp3')
-    const fileBuffer = fs.readFileSync(filePath)
-
-    const music = (await payload.create({
-      collection: 'music',
-      locale: 'en',
-      data: {
-        title: 'English Track Title',
-        album: testAlbum.id,
-      },
-      file: {
-        data: fileBuffer,
-        mimetype: 'audio/mpeg',
-        name: 'audio-42s.mp3',
-        size: fileBuffer.length,
-      },
-    })) as Music
-
-    // Update with Spanish title
-    const updated = (await payload.update({
-      collection: 'music',
-      id: music.id,
-      locale: 'es',
-      data: {
-        title: 'Titulo de Pista en Espanol',
-      },
-    })) as Music
-
-    expect(updated.title).toBe('Titulo de Pista en Espanol')
-
-    // Verify English title is preserved
-    const englishTrack = (await payload.findByID({
-      collection: 'music',
-      id: music.id,
-      locale: 'en',
-    })) as Music
-
-    expect(englishTrack.title).toBe('English Track Title')
-  })
-
   it('supports different audio formats', async () => {
     const formats = [
       { mimetype: 'audio/mpeg', name: 'audio-42s.mp3' },

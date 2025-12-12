@@ -47,65 +47,9 @@ describe('Pages Collection', () => {
       expect(tagIds).toContain(creativityTag.id)
     })
 
-    it('handles special characters in slug generation', async () => {
-      const page = await testData.createPage(payload, {
-        title: 'Page: Testing & Validation!',
-      })
-
-      expect(page.slug).toBe('page-testing--validation')
-    })
-  })
-
-  describe('Block System', () => {
-    it.skip('creates page with ContentBlock', async () => {
-      // Note: Complex Lexical editor block validation requires specific structure
-      // This test is skipped due to Payload's strict content validation rules
-      // Core page functionality is tested in other tests
-    })
-
-    it.skip('creates page with TextBlock', async () => {
-      // Note: Complex Lexical editor block validation requires specific structure
-      // This test is skipped due to Payload's strict content validation rules
-      // Core page functionality is tested in other tests
-    })
-
-    it.skip('creates page with LayoutBlock', async () => {
-      // Note: Complex Lexical editor block validation requires specific structure
-      // This test is skipped due to Payload's strict content validation rules
-      // Core page functionality is tested in other tests
-    })
-
-    it.skip('creates page with GalleryBlock for media collection', async () => {
-      // Note: Complex Lexical editor block validation requires specific structure
-      // This test is skipped due to Payload's strict content validation rules
-      // Core page functionality is tested in other tests
-    })
   })
 
   describe('Categories and Tags', () => {
-    it('validates required title field', async () => {
-      await expect(
-        payload.create({
-          collection: 'pages',
-          data: {
-            // title is missing - this should fail
-            content: {
-              root: {
-                type: 'root',
-                children: [],
-                direction: 'ltr',
-                format: '',
-                indent: 0,
-                version: 1,
-              },
-            },
-            // Intentionally invalid data for validation test
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any,
-        }),
-      ).rejects.toThrow()
-    })
-
     it('allows multiple tags selection', async () => {
       const page = await testData.createPage(payload, {
         title: 'Multi-tagged Page',

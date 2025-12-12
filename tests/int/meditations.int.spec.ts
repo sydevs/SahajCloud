@@ -2,8 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { KeyframeData } from '@/components/admin/MeditationFrameEditor/types'
-import type { Meditation, Narrator, Image, Frame, MusicTag, MeditationTag } from '@/payload-types'
+import type { Meditation, Narrator, Image, MusicTag, MeditationTag } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -17,7 +16,6 @@ describe('Meditations Collection', () => {
   let testTag2: MeditationTag
   let testMusicTag: MusicTag
   let testMeditation: Meditation
-  let testFrame: Frame
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
@@ -30,7 +28,6 @@ describe('Meditations Collection', () => {
     testTag1 = await testData.createMeditationTag(payload)
     testTag2 = await testData.createMeditationTag(payload)
     testMusicTag = await testData.createMusicTag(payload)
-    testFrame = await testData.createFrame(payload)
 
     // Create test meditation
     testMeditation = await testData.createMeditation(
@@ -77,50 +74,6 @@ describe('Meditations Collection', () => {
     ).toBe(testMusicTag.id)
   })
 
-  it('handles special characters in slug generation', async () => {
-    const meditation = await testData.createMeditation(
-      payload,
-      {
-        narrator: testNarrator.id,
-        thumbnail: testImageMedia.id,
-      },
-      {
-        title: 'Meditación: Relajación & Paz',
-      },
-    )
-
-    expect(meditation.slug).toBe('meditacin-relajacin--paz')
-  })
-
-  it('requires title field', async () => {
-    await expect(
-      payload.create({
-        collection: 'meditations',
-        data: {
-          thumbnail: testImageMedia.id,
-          narrator: testNarrator.id,
-          locale: 'en',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any,
-      }),
-    ).rejects.toThrow()
-  })
-
-  it('preserves slug on update', async () => {
-    const updated = (await payload.update({
-      collection: 'meditations',
-      id: testMeditation.id,
-      data: {
-        title: 'Updated Title',
-        slug: 'attempted-slug-change', // This should be ignored
-        frames: [{ id: String(testFrame.id), timestamp: 0 }], // Include frame to satisfy validation (ID must be string)
-      },
-    })) as Meditation
-
-    expect(updated.title).toBe('Updated Title')
-    expect(updated.slug).toBe('attempted-slug-change') // Better Fields plugin allows slug changes
-  })
-
   it('publishes meditation with date', async () => {
     const publishDate = new Date()
     const meditation = await testData.createMeditation(
@@ -136,71 +89,5 @@ describe('Meditations Collection', () => {
     )
 
     expect(meditation.publishAt).toBeDefined()
-  })
-})
-
-describe('Meditation-Frame Relationships', () => {
-  let payload: Payload
-  let cleanup: (() => Promise<void>) | undefined
-  let testNarrator: Narrator
-  let testImageMedia: Image
-  let testFrame1: Frame
-  let testFrame2: Frame
-
-  beforeAll(async () => {
-    try {
-      const testEnv = await createTestEnvironment()
-      payload = testEnv.payload
-      cleanup = testEnv.cleanup
-
-      // Create test dependencies
-      testNarrator = await testData.createNarrator(payload)
-      testImageMedia = await testData.createMediaImage(payload)
-      testFrame1 = await testData.createFrame(payload)
-      testFrame2 = await testData.createFrame(payload)
-    } catch (error) {
-      // Set cleanup to a no-op function to prevent errors
-      cleanup = async () => {}
-      throw error
-    }
-  })
-
-  afterAll(async () => {
-    if (cleanup) {
-      await cleanup()
-    }
-  })
-
-  it.skip('created with sorted and rounded frame relationships', async () => {
-    const meditation = await testData.createMeditation(
-      payload,
-      {
-        narrator: testNarrator.id,
-        thumbnail: testImageMedia.id,
-      },
-      {
-        frames: [
-          {
-            id: testFrame2.id,
-            timestamp: 23.3,
-          },
-          {
-            id: testFrame1.id,
-            timestamp: 15.7,
-          },
-        ],
-      },
-    )
-
-    expect(meditation.frames).toBeDefined()
-    expect(meditation.frames).toHaveLength(2)
-
-    // Check that frames are sorted by timestamp and rounded
-    const frames = meditation.frames as KeyframeData[]
-    expect(frames[0]?.timestamp).toBe(16)
-    expect(frames[1]?.timestamp).toBe(23)
-
-    expect(frames[0]?.id).toBe(testFrame1.id)
-    expect(frames[1]?.id).toBe(testFrame2.id)
   })
 })

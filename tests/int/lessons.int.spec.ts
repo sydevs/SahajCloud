@@ -404,11 +404,4 @@ describe('Lessons Collection', () => {
     })
   })
 
-  // NOTE: These tests are temporarily disabled as they test the old permission array system
-  // which has been replaced by role-based access control. The translator role doesn't have
-  // lessons access in the new system (only path-editor does). These tests should be
-  // reimplemented to test valid RBAC scenarios (e.g., path-editor updating lessons).
-  describe.skip('Field-Level Access Control (DISABLED - Old Permission System)', () => {
-    // Tests commented out - need to be reimplemented for RBAC system
-  })
 })
