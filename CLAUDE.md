@@ -118,6 +118,12 @@ Commands:
 - `pnpm test:int` - Run integration tests (Vitest)
 - `pnpm test:e2e` - Run E2E tests (Playwright)
 
+**IMPORTANT - CPU Resource Management:**
+- **Never run multiple test commands in parallel** - Always wait for one test run to complete before starting another
+- **Don't run tests concurrently with builds** - `pnpm build` and `pnpm test` should not run simultaneously
+- **Single test process only** - Run `pnpm test` or `pnpm test:int` as a single sequential operation
+- Vitest handles internal parallelization efficiently - external parallelization causes CPU overload
+
 ## Code Editing
 
 After making changes to the codebase, always lint the code and fix all TypeScript errors.
@@ -191,6 +197,38 @@ Configuration: `src/lib/richEditor.ts`
 - **Location**: `src/migrations/`
 - **Running**: `pnpm payload migrate`
 - **Rolling Back**: `pnpm payload migrate:down`
+
+## PR Completion Requirements
+
+**IMPORTANT**: Before creating or marking a PR as ready for review, ensure:
+
+1. **Full test suite passes**: Run `pnpm test` (or `pnpm test:int` + `pnpm test:e2e` separately)
+   - All tests must pass (0 failures)
+   - No skipped tests allowed - fix them or remove them with justification
+   - If pre-existing failures exist on `main`, fix them as part of the PR
+
+2. **Build succeeds**: Run `pnpm build` to verify production build works
+
+3. **Linting passes**: Run `pnpm lint` with no errors
+
+4. **Types check**: Run `pnpm tsc --noEmit` if you've made type changes
+
+### Handling Pre-existing Test Failures
+
+If you create a feature branch from `main` and discover failing tests:
+- **Do not ignore them** - fix them as part of your PR
+- If the fix is unrelated to your feature, create a separate commit explaining the fix
+- Document in the PR description that pre-existing failures were fixed
+
+### Test Results in PR Description
+
+Include test results summary in PR description:
+```
+## Test Results
+- Integration tests: X passed
+- E2E tests: X passed
+- Build: ✓ Success
+```
 
 ## Deployment
 

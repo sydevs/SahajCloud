@@ -48,6 +48,11 @@ export const Frames: CollectionConfig = {
     afterChange: [
       // Update database with adapter-updated filename (runs AFTER storage adapter)
       async ({ req, doc, operation }) => {
+        // Only run when Cloudflare adapters are configured
+        if (!process.env.CLOUDFLARE_IMAGES_DELIVERY_URL) {
+          return
+        }
+
         // Only process on create operations with file uploads
         if (operation !== 'create' || !req.file?.name) {
           return

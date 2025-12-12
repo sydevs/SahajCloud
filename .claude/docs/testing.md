@@ -2,20 +2,55 @@
 
 This project uses a comprehensive testing approach with complete test isolation:
 
+## What to Test vs What NOT to Test
+
+### DO Test (Our Custom Code)
+
+- **Custom hooks** (`src/hooks/`) - Business logic like `validateClientData`, `checkHighUsageAlert`
+- **Custom utilities** (`src/lib/fieldUtils.ts`) - `sanitizeFilename`, `processFile`
+- **Access control functions** (`src/lib/accessControl.ts`) - `hasPermission()`, `roleBasedAccess()`
+- **Custom field logic** - Virtual fields, computed values, custom validation
+- **Document-level permissions** - `customResourceAccess` behavior
+- **Business-critical workflows** - Usage tracking, API authentication
+- **Collection relationships** - Custom relationship behavior and joins
+- **Locale-specific logic** - Custom locale filtering in meditations
+
+### DO NOT Test (Payload CMS Core)
+
+- **Basic CRUD operations** - Payload handles create/read/update/delete
+- **Field validation** - Required fields, type validation (Payload's job)
+- **Slug generation** - Better Fields plugin handles this automatically
+- **Localization behavior** - Payload's locale fallback and storage
+- **Email/Auth flows** - Payload's built-in authentication system
+- **File upload mechanics** - Payload's upload handling and storage adapters
+- **minRows/maxRows validation** - Payload's array field validation
+
+### Test File Organization
+
+| File | Purpose |
+|------|---------|
+| `client-hooks.int.spec.ts` | Tests for client beforeChange/afterChange hooks |
+| `field-utils.int.spec.ts` | Tests for sanitizeFilename and processFile utilities |
+| `role-based-access.int.spec.ts` | Tests for hasPermission(), customResourceAccess, locale permissions |
+| `usage-tracking.int.spec.ts` | Tests for API usage tracking job handlers |
+| `[collection].int.spec.ts` | Collection-specific business logic (relationships, custom fields) |
+
 ## Test Types
 
 ### Integration Tests
 
 Located in `tests/int/` directory using Vitest:
-- Collection API tests for CRUD operations and relationships
-- Component logic tests for validation and data processing
-- MeditationFrameEditor tests for frame management and synchronization
+- Custom hook logic tests
+- Access control function tests
+- Business-critical workflow tests
+- Collection relationship tests
 
 ### E2E Tests
 
 Playwright tests for full application workflows:
 - Admin panel user interface testing
-- MeditationFrameEditor modal and interaction testing
+- File upload workflows
+- Role-based UI visibility
 
 ## Test Isolation (In-Memory SQLite)
 

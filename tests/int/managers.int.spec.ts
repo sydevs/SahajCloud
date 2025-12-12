@@ -21,39 +21,6 @@ describe('Managers Collection', () => {
     await cleanup()
   })
 
-  it('creates a manager with email, password, and admin type', async () => {
-    const managerData = {
-      name: 'Test Manager',
-      email: 'test@example.com',
-      password: 'password123',
-      type: 'admin' as const,
-    }
-
-    const manager = await testData.createManager(payload, managerData)
-
-    expect(manager).toBeDefined()
-    expect(manager.email).toBe('test@example.com')
-    expect(manager.id).toBeDefined()
-    expect(manager.type).toBe('admin')
-    // Password should not be returned in response
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((manager as any).password).toBeUndefined()
-  })
-
-  it('requires email field', async () => {
-    await expect(
-      payload.create({
-        collection: 'managers',
-        data: {
-          name: 'Test Manager',
-          password: 'password123',
-          // Intentionally invalid data for validation test
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any,
-      }),
-    ).rejects.toThrow()
-  })
-
   it('requires unique email', async () => {
     const managerData = {
       name: 'Unique Manager',
