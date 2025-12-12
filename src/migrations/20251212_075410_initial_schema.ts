@@ -162,6 +162,82 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   await db.run(sql`CREATE INDEX \`meditations_rels_parent_idx\` ON \`meditations_rels\` (\`parent_id\`);`)
   await db.run(sql`CREATE INDEX \`meditations_rels_path_idx\` ON \`meditations_rels\` (\`path\`);`)
   await db.run(sql`CREATE INDEX \`meditations_rels_meditation_tags_id_idx\` ON \`meditations_rels\` (\`meditation_tags_id\`);`)
+  await db.run(sql`CREATE TABLE \`music\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`album_id\` integer NOT NULL,
+  	\`file_metadata\` text,
+  	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`deleted_at\` text,
+  	\`thumbnail_u_r_l\` text,
+  	\`filename\` text,
+  	\`mime_type\` text,
+  	\`filesize\` numeric,
+  	\`width\` numeric,
+  	\`height\` numeric,
+  	\`focal_x\` numeric,
+  	\`focal_y\` numeric,
+  	FOREIGN KEY (\`album_id\`) REFERENCES \`albums\`(\`id\`) ON UPDATE no action ON DELETE set null
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`music_album_idx\` ON \`music\` (\`album_id\`);`)
+  await db.run(sql`CREATE INDEX \`music_updated_at_idx\` ON \`music\` (\`updated_at\`);`)
+  await db.run(sql`CREATE INDEX \`music_created_at_idx\` ON \`music\` (\`created_at\`);`)
+  await db.run(sql`CREATE INDEX \`music_deleted_at_idx\` ON \`music\` (\`deleted_at\`);`)
+  await db.run(sql`CREATE UNIQUE INDEX \`music_filename_idx\` ON \`music\` (\`filename\`);`)
+  await db.run(sql`CREATE TABLE \`music_locales\` (
+  	\`title\` text NOT NULL,
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`_locale\` text NOT NULL,
+  	\`_parent_id\` integer NOT NULL,
+  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`music\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  );
+  `)
+  await db.run(sql`CREATE UNIQUE INDEX \`music_locales_locale_parent_id_unique\` ON \`music_locales\` (\`_locale\`,\`_parent_id\`);`)
+  await db.run(sql`CREATE TABLE \`music_rels\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`order\` integer,
+  	\`parent_id\` integer NOT NULL,
+  	\`path\` text NOT NULL,
+  	\`music_tags_id\` integer,
+  	FOREIGN KEY (\`parent_id\`) REFERENCES \`music\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`music_tags_id\`) REFERENCES \`music_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`music_rels_order_idx\` ON \`music_rels\` (\`order\`);`)
+  await db.run(sql`CREATE INDEX \`music_rels_parent_idx\` ON \`music_rels\` (\`parent_id\`);`)
+  await db.run(sql`CREATE INDEX \`music_rels_path_idx\` ON \`music_rels\` (\`path\`);`)
+  await db.run(sql`CREATE INDEX \`music_rels_music_tags_id_idx\` ON \`music_rels\` (\`music_tags_id\`);`)
+  await db.run(sql`CREATE TABLE \`albums\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`artist_url\` text,
+  	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`deleted_at\` text,
+  	\`thumbnail_u_r_l\` text,
+  	\`filename\` text,
+  	\`mime_type\` text,
+  	\`filesize\` numeric,
+  	\`width\` numeric,
+  	\`height\` numeric,
+  	\`focal_x\` numeric,
+  	\`focal_y\` numeric
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`albums_updated_at_idx\` ON \`albums\` (\`updated_at\`);`)
+  await db.run(sql`CREATE INDEX \`albums_created_at_idx\` ON \`albums\` (\`created_at\`);`)
+  await db.run(sql`CREATE INDEX \`albums_deleted_at_idx\` ON \`albums\` (\`deleted_at\`);`)
+  await db.run(sql`CREATE UNIQUE INDEX \`albums_filename_idx\` ON \`albums\` (\`filename\`);`)
+  await db.run(sql`CREATE TABLE \`albums_locales\` (
+  	\`title\` text NOT NULL,
+  	\`artist\` text NOT NULL,
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`_locale\` text NOT NULL,
+  	\`_parent_id\` integer NOT NULL,
+  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`albums\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  );
+  `)
+  await db.run(sql`CREATE UNIQUE INDEX \`albums_locales_locale_parent_id_unique\` ON \`albums_locales\` (\`_locale\`,\`_parent_id\`);`)
   await db.run(sql`CREATE TABLE \`lessons_blocks_cover\` (
   	\`_order\` integer NOT NULL,
   	\`_parent_id\` integer NOT NULL,
@@ -223,7 +299,7 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   	\`_status\` text DEFAULT 'draft',
   	FOREIGN KEY (\`meditation_id\`) REFERENCES \`meditations\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`intro_audio_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`icon_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE set null
+  	FOREIGN KEY (\`icon_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
   `)
   await db.run(sql`CREATE INDEX \`lessons_meditation_idx\` ON \`lessons\` (\`meditation_id\`);`)
@@ -313,7 +389,7 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   	FOREIGN KEY (\`parent_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`version_meditation_id\`) REFERENCES \`meditations\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`version_intro_audio_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`version_icon_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE set null
+  	FOREIGN KEY (\`version_icon_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
   `)
   await db.run(sql`CREATE INDEX \`_lessons_v_parent_idx\` ON \`_lessons_v\` (\`parent_id\`);`)
@@ -338,64 +414,7 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   );
   `)
   await db.run(sql`CREATE UNIQUE INDEX \`_lessons_v_locales_locale_parent_id_unique\` ON \`_lessons_v_locales\` (\`_locale\`,\`_parent_id\`);`)
-  await db.run(sql`CREATE TABLE \`music\` (
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`slug\` text,
-  	\`slug_lock\` integer DEFAULT true,
-  	\`file_metadata\` text,
-  	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	\`deleted_at\` text,
-  	\`thumbnail_u_r_l\` text,
-  	\`filename\` text,
-  	\`mime_type\` text,
-  	\`filesize\` numeric,
-  	\`width\` numeric,
-  	\`height\` numeric,
-  	\`focal_x\` numeric,
-  	\`focal_y\` numeric
-  );
-  `)
-  await db.run(sql`CREATE UNIQUE INDEX \`music_slug_idx\` ON \`music\` (\`slug\`);`)
-  await db.run(sql`CREATE INDEX \`music_updated_at_idx\` ON \`music\` (\`updated_at\`);`)
-  await db.run(sql`CREATE INDEX \`music_created_at_idx\` ON \`music\` (\`created_at\`);`)
-  await db.run(sql`CREATE INDEX \`music_deleted_at_idx\` ON \`music\` (\`deleted_at\`);`)
-  await db.run(sql`CREATE UNIQUE INDEX \`music_filename_idx\` ON \`music\` (\`filename\`);`)
-  await db.run(sql`CREATE TABLE \`music_locales\` (
-  	\`title\` text NOT NULL,
-  	\`credit\` text,
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`_locale\` text NOT NULL,
-  	\`_parent_id\` integer NOT NULL,
-  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`music\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE UNIQUE INDEX \`music_locales_locale_parent_id_unique\` ON \`music_locales\` (\`_locale\`,\`_parent_id\`);`)
-  await db.run(sql`CREATE TABLE \`music_rels\` (
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`order\` integer,
-  	\`parent_id\` integer NOT NULL,
-  	\`path\` text NOT NULL,
-  	\`music_tags_id\` integer,
-  	FOREIGN KEY (\`parent_id\`) REFERENCES \`music\`(\`id\`) ON UPDATE no action ON DELETE cascade,
-  	FOREIGN KEY (\`music_tags_id\`) REFERENCES \`music_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE INDEX \`music_rels_order_idx\` ON \`music_rels\` (\`order\`);`)
-  await db.run(sql`CREATE INDEX \`music_rels_parent_idx\` ON \`music_rels\` (\`parent_id\`);`)
-  await db.run(sql`CREATE INDEX \`music_rels_path_idx\` ON \`music_rels\` (\`path\`);`)
-  await db.run(sql`CREATE INDEX \`music_rels_music_tags_id_idx\` ON \`music_rels\` (\`music_tags_id\`);`)
-  await db.run(sql`CREATE TABLE \`external_videos_category\` (
-  	\`order\` integer NOT NULL,
-  	\`parent_id\` integer NOT NULL,
-  	\`value\` text,
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	FOREIGN KEY (\`parent_id\`) REFERENCES \`external_videos\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE INDEX \`external_videos_category_order_idx\` ON \`external_videos_category\` (\`order\`);`)
-  await db.run(sql`CREATE INDEX \`external_videos_category_parent_idx\` ON \`external_videos_category\` (\`parent_id\`);`)
-  await db.run(sql`CREATE TABLE \`external_videos\` (
+  await db.run(sql`CREATE TABLE \`lectures\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`thumbnail_id\` integer NOT NULL,
   	\`video_url\` text NOT NULL,
@@ -405,18 +424,18 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   	FOREIGN KEY (\`thumbnail_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
   `)
-  await db.run(sql`CREATE INDEX \`external_videos_thumbnail_idx\` ON \`external_videos\` (\`thumbnail_id\`);`)
-  await db.run(sql`CREATE INDEX \`external_videos_updated_at_idx\` ON \`external_videos\` (\`updated_at\`);`)
-  await db.run(sql`CREATE INDEX \`external_videos_created_at_idx\` ON \`external_videos\` (\`created_at\`);`)
-  await db.run(sql`CREATE TABLE \`external_videos_locales\` (
+  await db.run(sql`CREATE INDEX \`lectures_thumbnail_idx\` ON \`lectures\` (\`thumbnail_id\`);`)
+  await db.run(sql`CREATE INDEX \`lectures_updated_at_idx\` ON \`lectures\` (\`updated_at\`);`)
+  await db.run(sql`CREATE INDEX \`lectures_created_at_idx\` ON \`lectures\` (\`created_at\`);`)
+  await db.run(sql`CREATE TABLE \`lectures_locales\` (
   	\`title\` text NOT NULL,
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`_locale\` text NOT NULL,
   	\`_parent_id\` integer NOT NULL,
-  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`external_videos\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`lectures\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
-  await db.run(sql`CREATE UNIQUE INDEX \`external_videos_locales_locale_parent_id_unique\` ON \`external_videos_locales\` (\`_locale\`,\`_parent_id\`);`)
+  await db.run(sql`CREATE UNIQUE INDEX \`lectures_locales_locale_parent_id_unique\` ON \`lectures_locales\` (\`_locale\`,\`_parent_id\`);`)
   await db.run(sql`CREATE TABLE \`frames_tags\` (
   	\`order\` integer NOT NULL,
   	\`parent_id\` integer NOT NULL,
@@ -462,6 +481,8 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   await db.run(sql`CREATE INDEX \`narrators_created_at_idx\` ON \`narrators\` (\`created_at\`);`)
   await db.run(sql`CREATE TABLE \`authors\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`slug\` text,
+  	\`slug_lock\` integer DEFAULT true,
   	\`country_code\` text,
   	\`years_meditating\` numeric,
   	\`image_id\` integer,
@@ -470,6 +491,7 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   	FOREIGN KEY (\`image_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
   `)
+  await db.run(sql`CREATE UNIQUE INDEX \`authors_slug_idx\` ON \`authors\` (\`slug\`);`)
   await db.run(sql`CREATE INDEX \`authors_image_idx\` ON \`authors\` (\`image_id\`);`)
   await db.run(sql`CREATE INDEX \`authors_updated_at_idx\` ON \`authors\` (\`updated_at\`);`)
   await db.run(sql`CREATE INDEX \`authors_created_at_idx\` ON \`authors\` (\`created_at\`);`)
@@ -489,6 +511,7 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   	\`file_metadata\` text,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`deleted_at\` text,
   	\`thumbnail_u_r_l\` text,
   	\`filename\` text,
   	\`mime_type\` text,
@@ -501,6 +524,7 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   `)
   await db.run(sql`CREATE INDEX \`images_updated_at_idx\` ON \`images\` (\`updated_at\`);`)
   await db.run(sql`CREATE INDEX \`images_created_at_idx\` ON \`images\` (\`created_at\`);`)
+  await db.run(sql`CREATE INDEX \`images_deleted_at_idx\` ON \`images\` (\`deleted_at\`);`)
   await db.run(sql`CREATE UNIQUE INDEX \`images_filename_idx\` ON \`images\` (\`filename\`);`)
   await db.run(sql`CREATE TABLE \`images_locales\` (
   	\`alt\` text NOT NULL,
@@ -517,19 +541,20 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   	\`order\` integer,
   	\`parent_id\` integer NOT NULL,
   	\`path\` text NOT NULL,
-  	\`media_tags_id\` integer,
+  	\`image_tags_id\` integer,
   	FOREIGN KEY (\`parent_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE cascade,
-  	FOREIGN KEY (\`media_tags_id\`) REFERENCES \`media_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  	FOREIGN KEY (\`image_tags_id\`) REFERENCES \`image_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
   await db.run(sql`CREATE INDEX \`images_rels_order_idx\` ON \`images_rels\` (\`order\`);`)
   await db.run(sql`CREATE INDEX \`images_rels_parent_idx\` ON \`images_rels\` (\`parent_id\`);`)
   await db.run(sql`CREATE INDEX \`images_rels_path_idx\` ON \`images_rels\` (\`path\`);`)
-  await db.run(sql`CREATE INDEX \`images_rels_media_tags_id_idx\` ON \`images_rels\` (\`media_tags_id\`);`)
+  await db.run(sql`CREATE INDEX \`images_rels_image_tags_id_idx\` ON \`images_rels\` (\`image_tags_id\`);`)
   await db.run(sql`CREATE TABLE \`files\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`deleted_at\` text,
   	\`thumbnail_u_r_l\` text,
   	\`filename\` text,
   	\`mime_type\` text,
@@ -541,50 +566,46 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   );
   `)
   await db.run(sql`CREATE INDEX \`files_updated_at_idx\` ON \`files\` (\`updated_at\`);`)
+  await db.run(sql`CREATE INDEX \`files_deleted_at_idx\` ON \`files\` (\`deleted_at\`);`)
   await db.run(sql`CREATE UNIQUE INDEX \`files_filename_idx\` ON \`files\` (\`filename\`);`)
-  await db.run(sql`CREATE TABLE \`files_rels\` (
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`order\` integer,
-  	\`parent_id\` integer NOT NULL,
-  	\`path\` text NOT NULL,
-  	\`lessons_id\` integer,
-  	\`frames_id\` integer,
-  	FOREIGN KEY (\`parent_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE cascade,
-  	FOREIGN KEY (\`lessons_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE cascade,
-  	FOREIGN KEY (\`frames_id\`) REFERENCES \`frames\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE INDEX \`files_rels_order_idx\` ON \`files_rels\` (\`order\`);`)
-  await db.run(sql`CREATE INDEX \`files_rels_parent_idx\` ON \`files_rels\` (\`parent_id\`);`)
-  await db.run(sql`CREATE INDEX \`files_rels_path_idx\` ON \`files_rels\` (\`path\`);`)
-  await db.run(sql`CREATE INDEX \`files_rels_lessons_id_idx\` ON \`files_rels\` (\`lessons_id\`);`)
-  await db.run(sql`CREATE INDEX \`files_rels_frames_id_idx\` ON \`files_rels\` (\`frames_id\`);`)
-  await db.run(sql`CREATE TABLE \`media_tags\` (
+  await db.run(sql`CREATE TABLE \`image_tags\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL
   );
   `)
-  await db.run(sql`CREATE INDEX \`media_tags_updated_at_idx\` ON \`media_tags\` (\`updated_at\`);`)
-  await db.run(sql`CREATE INDEX \`media_tags_created_at_idx\` ON \`media_tags\` (\`created_at\`);`)
-  await db.run(sql`CREATE TABLE \`media_tags_locales\` (
-  	\`name\` text NOT NULL,
+  await db.run(sql`CREATE INDEX \`image_tags_updated_at_idx\` ON \`image_tags\` (\`updated_at\`);`)
+  await db.run(sql`CREATE INDEX \`image_tags_created_at_idx\` ON \`image_tags\` (\`created_at\`);`)
+  await db.run(sql`CREATE TABLE \`image_tags_locales\` (
+  	\`title\` text NOT NULL,
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`_locale\` text NOT NULL,
   	\`_parent_id\` integer NOT NULL,
-  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`media_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`image_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
-  await db.run(sql`CREATE UNIQUE INDEX \`media_tags_locales_locale_parent_id_unique\` ON \`media_tags_locales\` (\`_locale\`,\`_parent_id\`);`)
+  await db.run(sql`CREATE UNIQUE INDEX \`image_tags_locales_locale_parent_id_unique\` ON \`image_tags_locales\` (\`_locale\`,\`_parent_id\`);`)
   await db.run(sql`CREATE TABLE \`meditation_tags\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`name\` text NOT NULL,
+  	\`slug\` text,
+  	\`slug_lock\` integer DEFAULT true,
+  	\`color\` text DEFAULT '#000000' NOT NULL,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL
+  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`thumbnail_u_r_l\` text,
+  	\`filename\` text,
+  	\`mime_type\` text,
+  	\`filesize\` numeric,
+  	\`width\` numeric,
+  	\`height\` numeric,
+  	\`focal_x\` numeric,
+  	\`focal_y\` numeric
   );
   `)
+  await db.run(sql`CREATE UNIQUE INDEX \`meditation_tags_slug_idx\` ON \`meditation_tags\` (\`slug\`);`)
   await db.run(sql`CREATE INDEX \`meditation_tags_updated_at_idx\` ON \`meditation_tags\` (\`updated_at\`);`)
   await db.run(sql`CREATE INDEX \`meditation_tags_created_at_idx\` ON \`meditation_tags\` (\`created_at\`);`)
+  await db.run(sql`CREATE UNIQUE INDEX \`meditation_tags_filename_idx\` ON \`meditation_tags\` (\`filename\`);`)
   await db.run(sql`CREATE TABLE \`meditation_tags_locales\` (
   	\`title\` text NOT NULL,
   	\`id\` integer PRIMARY KEY NOT NULL,
@@ -596,13 +617,24 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   await db.run(sql`CREATE UNIQUE INDEX \`meditation_tags_locales_locale_parent_id_unique\` ON \`meditation_tags_locales\` (\`_locale\`,\`_parent_id\`);`)
   await db.run(sql`CREATE TABLE \`music_tags\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`name\` text NOT NULL,
+  	\`slug\` text,
+  	\`slug_lock\` integer DEFAULT true,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL
+  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`thumbnail_u_r_l\` text,
+  	\`filename\` text,
+  	\`mime_type\` text,
+  	\`filesize\` numeric,
+  	\`width\` numeric,
+  	\`height\` numeric,
+  	\`focal_x\` numeric,
+  	\`focal_y\` numeric
   );
   `)
+  await db.run(sql`CREATE UNIQUE INDEX \`music_tags_slug_idx\` ON \`music_tags\` (\`slug\`);`)
   await db.run(sql`CREATE INDEX \`music_tags_updated_at_idx\` ON \`music_tags\` (\`updated_at\`);`)
   await db.run(sql`CREATE INDEX \`music_tags_created_at_idx\` ON \`music_tags\` (\`created_at\`);`)
+  await db.run(sql`CREATE UNIQUE INDEX \`music_tags_filename_idx\` ON \`music_tags\` (\`filename\`);`)
   await db.run(sql`CREATE TABLE \`music_tags_locales\` (
   	\`title\` text NOT NULL,
   	\`id\` integer PRIMARY KEY NOT NULL,
@@ -614,11 +646,13 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   await db.run(sql`CREATE UNIQUE INDEX \`music_tags_locales_locale_parent_id_unique\` ON \`music_tags_locales\` (\`_locale\`,\`_parent_id\`);`)
   await db.run(sql`CREATE TABLE \`page_tags\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`name\` text NOT NULL,
+  	\`slug\` text,
+  	\`slug_lock\` integer DEFAULT true,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL
   );
   `)
+  await db.run(sql`CREATE UNIQUE INDEX \`page_tags_slug_idx\` ON \`page_tags\` (\`slug\`);`)
   await db.run(sql`CREATE INDEX \`page_tags_updated_at_idx\` ON \`page_tags\` (\`updated_at\`);`)
   await db.run(sql`CREATE INDEX \`page_tags_created_at_idx\` ON \`page_tags\` (\`created_at\`);`)
   await db.run(sql`CREATE TABLE \`page_tags_locales\` (
@@ -1107,15 +1141,16 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   	\`path\` text NOT NULL,
   	\`pages_id\` integer,
   	\`meditations_id\` integer,
-  	\`lessons_id\` integer,
   	\`music_id\` integer,
-  	\`external_videos_id\` integer,
+  	\`albums_id\` integer,
+  	\`lessons_id\` integer,
+  	\`lectures_id\` integer,
   	\`frames_id\` integer,
   	\`narrators_id\` integer,
   	\`authors_id\` integer,
   	\`images_id\` integer,
   	\`files_id\` integer,
-  	\`media_tags_id\` integer,
+  	\`image_tags_id\` integer,
   	\`meditation_tags_id\` integer,
   	\`music_tags_id\` integer,
   	\`page_tags_id\` integer,
@@ -1126,15 +1161,16 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   	FOREIGN KEY (\`parent_id\`) REFERENCES \`payload_locked_documents\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`pages_id\`) REFERENCES \`pages\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`meditations_id\`) REFERENCES \`meditations\`(\`id\`) ON UPDATE no action ON DELETE cascade,
-  	FOREIGN KEY (\`lessons_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`music_id\`) REFERENCES \`music\`(\`id\`) ON UPDATE no action ON DELETE cascade,
-  	FOREIGN KEY (\`external_videos_id\`) REFERENCES \`external_videos\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`albums_id\`) REFERENCES \`albums\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`lessons_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`lectures_id\`) REFERENCES \`lectures\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`frames_id\`) REFERENCES \`frames\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`narrators_id\`) REFERENCES \`narrators\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`authors_id\`) REFERENCES \`authors\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`images_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`files_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE cascade,
-  	FOREIGN KEY (\`media_tags_id\`) REFERENCES \`media_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`image_tags_id\`) REFERENCES \`image_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`meditation_tags_id\`) REFERENCES \`meditation_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`music_tags_id\`) REFERENCES \`music_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`page_tags_id\`) REFERENCES \`page_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade,
@@ -1149,15 +1185,16 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_path_idx\` ON \`payload_locked_documents_rels\` (\`path\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_pages_id_idx\` ON \`payload_locked_documents_rels\` (\`pages_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_meditations_id_idx\` ON \`payload_locked_documents_rels\` (\`meditations_id\`);`)
-  await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_lessons_id_idx\` ON \`payload_locked_documents_rels\` (\`lessons_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_music_id_idx\` ON \`payload_locked_documents_rels\` (\`music_id\`);`)
-  await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_external_videos_id_idx\` ON \`payload_locked_documents_rels\` (\`external_videos_id\`);`)
+  await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_albums_id_idx\` ON \`payload_locked_documents_rels\` (\`albums_id\`);`)
+  await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_lessons_id_idx\` ON \`payload_locked_documents_rels\` (\`lessons_id\`);`)
+  await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_lectures_id_idx\` ON \`payload_locked_documents_rels\` (\`lectures_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_frames_id_idx\` ON \`payload_locked_documents_rels\` (\`frames_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_narrators_id_idx\` ON \`payload_locked_documents_rels\` (\`narrators_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_authors_id_idx\` ON \`payload_locked_documents_rels\` (\`authors_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_images_id_idx\` ON \`payload_locked_documents_rels\` (\`images_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_files_id_idx\` ON \`payload_locked_documents_rels\` (\`files_id\`);`)
-  await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_media_tags_id_idx\` ON \`payload_locked_documents_rels\` (\`media_tags_id\`);`)
+  await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_image_tags_id_idx\` ON \`payload_locked_documents_rels\` (\`image_tags_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_meditation_tags_id_idx\` ON \`payload_locked_documents_rels\` (\`meditation_tags_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_music_tags_id_idx\` ON \`payload_locked_documents_rels\` (\`music_tags_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_page_tags_id_idx\` ON \`payload_locked_documents_rels\` (\`page_tags_id\`);`)
@@ -1341,6 +1378,11 @@ export async function down({ db, payload: _payload, req: _req }: MigrateDownArgs
   await db.run(sql`DROP TABLE \`_pages_v_rels\`;`)
   await db.run(sql`DROP TABLE \`meditations\`;`)
   await db.run(sql`DROP TABLE \`meditations_rels\`;`)
+  await db.run(sql`DROP TABLE \`music\`;`)
+  await db.run(sql`DROP TABLE \`music_locales\`;`)
+  await db.run(sql`DROP TABLE \`music_rels\`;`)
+  await db.run(sql`DROP TABLE \`albums\`;`)
+  await db.run(sql`DROP TABLE \`albums_locales\`;`)
   await db.run(sql`DROP TABLE \`lessons_blocks_cover\`;`)
   await db.run(sql`DROP TABLE \`lessons_blocks_video\`;`)
   await db.run(sql`DROP TABLE \`lessons_blocks_text\`;`)
@@ -1351,12 +1393,8 @@ export async function down({ db, payload: _payload, req: _req }: MigrateDownArgs
   await db.run(sql`DROP TABLE \`_lessons_v_blocks_text\`;`)
   await db.run(sql`DROP TABLE \`_lessons_v\`;`)
   await db.run(sql`DROP TABLE \`_lessons_v_locales\`;`)
-  await db.run(sql`DROP TABLE \`music\`;`)
-  await db.run(sql`DROP TABLE \`music_locales\`;`)
-  await db.run(sql`DROP TABLE \`music_rels\`;`)
-  await db.run(sql`DROP TABLE \`external_videos_category\`;`)
-  await db.run(sql`DROP TABLE \`external_videos\`;`)
-  await db.run(sql`DROP TABLE \`external_videos_locales\`;`)
+  await db.run(sql`DROP TABLE \`lectures\`;`)
+  await db.run(sql`DROP TABLE \`lectures_locales\`;`)
   await db.run(sql`DROP TABLE \`frames_tags\`;`)
   await db.run(sql`DROP TABLE \`frames\`;`)
   await db.run(sql`DROP TABLE \`narrators\`;`)
@@ -1366,9 +1404,8 @@ export async function down({ db, payload: _payload, req: _req }: MigrateDownArgs
   await db.run(sql`DROP TABLE \`images_locales\`;`)
   await db.run(sql`DROP TABLE \`images_rels\`;`)
   await db.run(sql`DROP TABLE \`files\`;`)
-  await db.run(sql`DROP TABLE \`files_rels\`;`)
-  await db.run(sql`DROP TABLE \`media_tags\`;`)
-  await db.run(sql`DROP TABLE \`media_tags_locales\`;`)
+  await db.run(sql`DROP TABLE \`image_tags\`;`)
+  await db.run(sql`DROP TABLE \`image_tags_locales\`;`)
   await db.run(sql`DROP TABLE \`meditation_tags\`;`)
   await db.run(sql`DROP TABLE \`meditation_tags_locales\`;`)
   await db.run(sql`DROP TABLE \`music_tags\`;`)
