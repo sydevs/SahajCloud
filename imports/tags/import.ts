@@ -3,10 +3,10 @@
 /**
  * Meditation & Music Tags Import Script
  *
- * Imports MeditationTags (24 items) and MusicTags (4 items) from Cloudinary-hosted SVG assets.
+ * Imports MeditationTags (27 items) and MusicTags (7 items) from various sources.
  *
  * Features:
- * - Downloads SVG icons from Cloudinary URLs
+ * - Downloads SVG icons from remote URLs or loads from local files (local: prefix)
  * - Replaces mapped colors with `currentColor` for theming flexibility
  * - Idempotent: safely re-runnable (updates existing, creates new)
  * - Imports only English (`en`) locale for localized title fields
@@ -214,6 +214,25 @@ const MEDITATION_TAGS: TagData[] = [
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989317/meditation-icons/user-states/Seeking_deeper_spiritual_experience_2ae1a99e.svg',
   },
+  // Time-based tags (reusing music tag icons)
+  {
+    title: 'Morning',
+    slug: 'morning',
+    color: '#FFD591',
+    iconUrl: 'local:morning.svg',
+  },
+  {
+    title: 'Afternoon',
+    slug: 'afternoon',
+    color: '#FED593',
+    iconUrl: 'https://www.svgrepo.com/show/529971/sun-2.svg',
+  },
+  {
+    title: 'Evening',
+    slug: 'evening',
+    color: '#A4C7D9',
+    iconUrl: 'local:evening.svg',
+  },
 ]
 
 const MUSIC_TAGS: TagData[] = [
@@ -232,18 +251,34 @@ const MUSIC_TAGS: TagData[] = [
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763990180/meditation-icons/music-icons/Flute.svg',
   },
   {
-    title: 'None',
-    slug: 'none',
-    color: '#1E6C71',
-    iconUrl:
-      'https://res.cloudinary.com/do9izm8xv/image/upload/v1763990181/meditation-icons/music-icons/None.svg',
-  },
-  {
     title: 'Strings',
     slug: 'strings',
     color: '#1E6C71',
-    iconUrl:
-      'https://res.cloudinary.com/do9izm8xv/image/upload/v1763990183/meditation-icons/music-icons/Strings.svg',
+    iconUrl: 'local:music-strings.svg',
+  },
+  {
+    title: 'Piano',
+    slug: 'piano',
+    color: '#1E6C71',
+    iconUrl: 'local:music-tag.svg',
+  },
+  {
+    title: 'Morning',
+    slug: 'morning',
+    color: '#1E6C71',
+    iconUrl: 'local:morning.svg',
+  },
+  {
+    title: 'Afternoon',
+    slug: 'afternoon',
+    color: '#1E6C71',
+    iconUrl: 'https://www.svgrepo.com/show/529971/sun-2.svg',
+  },
+  {
+    title: 'Evening',
+    slug: 'evening',
+    color: '#1E6C71',
+    iconUrl: 'local:evening.svg',
   },
 ]
 
@@ -343,9 +378,17 @@ class TagsImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   /**
-   * Download SVG from URL and return its content
+   * Download SVG from URL or load from local file (local: prefix)
    */
   private async downloadSvg(url: string, cacheFilename: string): Promise<string> {
+    // Handle local files (local:filename.svg)
+    if (url.startsWith('local:')) {
+      const localFilename = url.slice(6) // Remove 'local:' prefix
+      const localPath = path.resolve(process.cwd(), 'imports/tags', localFilename)
+      await this.logger.info(`Loading local SVG: ${localFilename}`)
+      return fs.readFile(localPath, 'utf-8')
+    }
+
     const cachePath = path.join(this.cacheDir, 'assets', cacheFilename)
 
     // Check cache first

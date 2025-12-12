@@ -357,7 +357,10 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
 **Field Wrapper** ([TagSelectorField.tsx](../../src/components/admin/TagSelector/TagSelectorField.tsx)):
 ```typescript
 export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
-  const { name, label, relationTo, hasMany, admin: { description } = {} } = field as RelationshipFieldClient
+  // IMPORTANT: hasMany defaults to false to match PayloadCMS relationship field behavior
+  // The UI component (TagSelector) defaults hasMany to true for multi-select UX
+  // These defaults must be aligned - see "Default Value Alignment" section below
+  const { name, label, relationTo, hasMany = false, admin: { description } = {} } = field as RelationshipFieldClient
   const { value, setValue, showError } = useField<(string | number)[] | null>()
   const [options, setOptions] = useState<TagOption[]>([])
 
@@ -392,6 +395,37 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
 
 export default TagSelectorField
 ```
+
+### Default Value Alignment (Critical)
+
+When a wrapper component passes props to a UI component, **both components must agree on default values** for optional props. Misaligned defaults cause subtle bugs.
+
+**Common Pitfall**:
+```typescript
+// UI Component - defaults hasMany to true
+export const TagSelector: React.FC<Props> = ({ hasMany = true, ... }) => { ... }
+
+// Field Wrapper - NO default for hasMany (undefined)
+const { hasMany } = field as RelationshipFieldClient  // undefined if not specified
+
+// BUG: UI component receives undefined, uses default (true)
+// But wrapper's handleChange treats undefined as falsy (false)
+<TagSelector hasMany={hasMany} ... />  // hasMany is undefined!
+```
+
+**Solution**: Always provide explicit defaults in the wrapper that match the expected behavior:
+```typescript
+// Field Wrapper - explicit default matching PayloadCMS behavior
+const { hasMany = false } = field as RelationshipFieldClient
+
+// Now hasMany is false (not undefined), and both components agree
+<TagSelector hasMany={hasMany} ... />
+```
+
+**Rule of Thumb**:
+- Field wrappers should default to PayloadCMS's expected behavior (e.g., `hasMany = false` for relationship fields)
+- UI components can have their own defaults for standalone usage
+- When passing props from wrapper to UI, the wrapper's defaults take precedence
 
 ### Benefits
 - **Testable**: Pure UI component can be unit tested without PayloadCMS setup

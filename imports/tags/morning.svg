@@ -1,0 +1,13 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!-- Simplified sunrise: sun arc with rays, no horizon lines or arrows -->
+<!-- Sun rays -->
+<path d="M24 4V8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+<path d="M44 24H40" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+<path d="M8 24H4" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+<path d="M38.1421 9.85791L35.3137 12.6863" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+<path d="M12.6863 12.6863L9.85791 9.85791" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+<!-- Sun arc (half circle) -->
+<path d="M12 32C12 25.3726 17.3726 20 24 20C30.6274 20 36 25.3726 36 32" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+<!-- Horizon line -->
+<path d="M8 32H40" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+</svg>
