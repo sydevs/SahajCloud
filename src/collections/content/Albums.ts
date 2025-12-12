@@ -51,6 +51,7 @@ export const Albums: CollectionConfig = {
     {
       name: 'artistUrl',
       type: 'text',
+      access: createFieldAccess('music', false),
       admin: {
         description: 'Artist website or profile URL',
       },

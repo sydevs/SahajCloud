@@ -61,6 +61,7 @@ describe('Albums Collection', () => {
     const fileBuffer = fs.readFileSync(filePath)
 
     await expect(
+      // @ts-expect-error - Intentionally omitting required field to test validation
       payload.create({
         collection: 'albums',
         data: {
@@ -85,6 +86,7 @@ describe('Albums Collection', () => {
     const fileBuffer = fs.readFileSync(filePath)
 
     await expect(
+      // @ts-expect-error - Intentionally omitting required field to test validation
       payload.create({
         collection: 'albums',
         data: {
@@ -248,7 +250,7 @@ describe('Albums Collection', () => {
 
     // Check that music tracks are populated via join field
     expect(albumWithMusic.music).toBeDefined()
-    if (albumWithMusic.music && 'docs' in albumWithMusic.music) {
+    if (albumWithMusic.music && 'docs' in albumWithMusic.music && albumWithMusic.music.docs) {
       expect(albumWithMusic.music.docs).toHaveLength(2)
       const trackIds = albumWithMusic.music.docs.map((track) =>
         typeof track === 'object' ? track.id : track,

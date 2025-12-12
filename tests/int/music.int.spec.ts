@@ -65,6 +65,7 @@ describe('Music Collection', () => {
 
   it('requires album relationship', async () => {
     await expect(
+      // @ts-expect-error - Intentionally omitting required field to test validation
       payload.create({
         collection: 'music',
         data: {

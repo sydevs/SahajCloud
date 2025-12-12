@@ -944,10 +944,15 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       }
 
       try {
-        // Check for existing music by title (since slug field was removed)
+        // Check for existing music by title AND album (to avoid false matches with same title in different albums)
         const existing = await this.payload.find({
           collection: 'music',
-          where: { title: { equals: music.title } },
+          where: {
+            and: [
+              { title: { equals: music.title } },
+              { album: { equals: albumId } },
+            ],
+          },
           limit: 1,
         })
 

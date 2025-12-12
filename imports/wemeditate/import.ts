@@ -344,50 +344,97 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           continue
         }
 
-        // Download and upload album art if available
-        let imageId: number | string | undefined
+        // Check if album already exists
+        const existing = await this.payload.find({
+          collection: 'albums',
+          where: { title: { equals: artist.name } },
+          limit: 1,
+        })
+
+        if (existing.docs.length > 0) {
+          // Album exists - update metadata only (can't update file on upload collections)
+          await this.payload.update({
+            collection: 'albums',
+            id: existing.docs[0].id,
+            data: {
+              artist: artist.name,
+              artistUrl: artist.website || undefined,
+            },
+            locale: 'en',
+          })
+          this.idMaps.albums.set(artist.id, existing.docs[0].id)
+          this.report.incrementSkipped()
+          await this.logger.progress(i + 1, result.rows.length, 'Albums')
+          continue
+        }
+
+        // Download album art if available (Albums is an upload collection - file required)
+        let localImagePath: string | null = null
         if (artist.album_art) {
           try {
             const albumArtUrl = `${STORAGE_BASE_URL}artist/album_art/${artist.id}/${artist.album_art}`
             const downloadResult = await this.mediaDownloader.downloadAndConvertImage(albumArtUrl)
-            const uploadResult = await this.mediaUploader.uploadWithDeduplication(
-              downloadResult.localPath,
-              { alt: `Album art for ${artist.name}` },
-            )
-            if (uploadResult) {
-              imageId = uploadResult.id
-            }
+            localImagePath = downloadResult.localPath
           } catch (error) {
             this.addWarning(`Failed to download album art for artist ${artist.id}: ${(error as Error).message}`)
           }
         }
 
-        // Use artist name as both title and artist (since in the source they're the same)
-        const albumResult = await this.upsert<{ id: number }>(
-          'albums',
-          { title: { equals: artist.name } },
-          {
+        // If no album art available, use a placeholder
+        if (!localImagePath) {
+          localImagePath = await this.getOrCreatePlaceholderImage()
+        }
+
+        // Create album with file (Albums is an upload collection)
+        const fileBuffer = await fs.readFile(localImagePath)
+        const filename = path.basename(localImagePath)
+        const mimeType = this.fileUtils.getMimeType(filename)
+
+        const albumDoc = await this.payload.create({
+          collection: 'albums',
+          data: {
             title: artist.name,
             artist: artist.name,
             artistUrl: artist.website || undefined,
           },
-          { locale: 'en' },
-        )
+          file: {
+            data: fileBuffer,
+            mimetype: mimeType,
+            name: filename,
+            size: fileBuffer.length,
+          },
+          locale: 'en',
+        })
 
-        // Upload album image separately if available (albums are upload collections)
-        if (imageId && albumResult.doc.id) {
-          // Note: For upload collections, the image is the file itself
-          // We'll need to handle this differently - albums use Cloudflare Images
-          // For now, store the media ID for reference
-        }
-
-        this.idMaps.albums.set(artist.id, albumResult.doc.id)
+        this.idMaps.albums.set(artist.id, albumDoc.id)
+        this.report.incrementCreated()
       } catch (error) {
         this.addError(`Importing album (artist) ${artist.id}`, error as Error)
       }
 
       await this.logger.progress(i + 1, result.rows.length, 'Albums')
     }
+  }
+
+  /**
+   * Get or create a placeholder image for albums without artwork
+   */
+  private async getOrCreatePlaceholderImage(): Promise<string> {
+    const placeholderPath = path.join(this.cacheDir, 'placeholder-album.png')
+
+    // Check if placeholder already exists in cache
+    if (await this.fileUtils.fileExists(placeholderPath)) {
+      return placeholderPath
+    }
+
+    // Copy the preview.png as placeholder
+    const existingPlaceholder = path.resolve(process.cwd(), 'imports/wemeditate/preview.png')
+    if (await this.fileUtils.fileExists(existingPlaceholder)) {
+      await fs.copyFile(existingPlaceholder, placeholderPath)
+      return placeholderPath
+    }
+
+    throw new Error('No placeholder image available for album creation. Please add imports/wemeditate/preview.png')
   }
 
   // ============================================================================
