@@ -117,50 +117,6 @@ describe('Frames Collection', () => {
     }
   })
 
-  it.skip('validates file size limit for images (10MB)', async () => {
-    // TODO: File size validation needs to be tested with actual large files
-    // The current hook-based approach needs to be verified
-    await expect(
-      payload.create({
-        collection: 'frames',
-        data: {
-          category: 'mooladhara' as const,
-          imageSet: 'male',
-        },
-        file: {
-          data: Buffer.alloc(11 * 1024 * 1024, 'fake'), // 11MB - exceeds 10MB limit
-          mimetype: 'image/jpeg',
-          name: 'large.jpg',
-          size: 11 * 1024 * 1024,
-        },
-      }),
-    ).rejects.toThrow()
-  })
-
-  it.skip('validates file size limit for videos (100MB)', async () => {
-    // TODO: File size validation needs to be tested with actual large files
-    await expect(
-      payload.create({
-        collection: 'frames',
-        data: {
-          category: 'mooladhara' as const,
-          imageSet: 'female',
-        },
-        file: {
-          data: Buffer.alloc(101 * 1024 * 1024, 'fake'), // 101MB - exceeds 100MB limit
-          mimetype: 'video/mp4',
-          name: 'large.mp4',
-          size: 101 * 1024 * 1024,
-        },
-      }),
-    ).rejects.toThrow()
-  })
-
-  it.skip('validates video duration limit (30 seconds)', async () => {
-    // TODO: Duration validation needs to be tested with actual long video files
-    // This requires a sample video longer than 30 seconds
-  })
-
   it('updates a frame', async () => {
     const frame = await testData.createFrame(payload, {
       imageSet: 'male',

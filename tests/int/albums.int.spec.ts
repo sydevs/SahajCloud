@@ -103,35 +103,6 @@ describe('Albums Collection', () => {
     ).rejects.toThrow()
   })
 
-  it.skip('supports localized title field', async () => {
-    // TODO: Investigate PayloadCMS localization fallback behavior
-    const album = await testData.createAlbum(payload, {
-      title: 'English Title',
-      artist: 'Test Artist',
-    })
-
-    // Update with Spanish title
-    const updated = (await payload.update({
-      collection: 'albums',
-      id: album.id,
-      locale: 'es',
-      data: {
-        title: 'Titulo en Espanol',
-      },
-    })) as Album
-
-    expect(updated.title).toBe('Titulo en Espanol')
-
-    // Verify English title is preserved
-    const englishAlbum = (await payload.findByID({
-      collection: 'albums',
-      id: album.id,
-      locale: 'en',
-    })) as Album
-
-    expect(englishAlbum.title).toBe('English Title')
-  })
-
   it('supports localized artist field', async () => {
     const album = await testData.createAlbum(payload, {
       title: 'Test Album',
