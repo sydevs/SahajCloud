@@ -4,12 +4,12 @@ Imports meditation content from legacy PostgreSQL database.
 
 ## Prerequisite
 
-**Run tags import first**:
+**Run tags seed first**:
 ```bash
-pnpm import tags
+pnpm seed tags
 ```
 
-The meditations import maps legacy tag names to predefined tags by slug. Without tags, tag mapping fails.
+The meditations seed maps legacy tag names to predefined tags by slug. Without tags, tag mapping fails.
 
 ## Environment
 
@@ -21,9 +21,9 @@ STORAGE_BASE_URL=https://storage.googleapis.com/your-bucket  # For file download
 ## Commands
 
 ```bash
-pnpm import meditations --dry-run     # Validate
-pnpm import meditations               # Full import
-pnpm import meditations --clear-cache # Re-download files
+pnpm seed meditations --dry-run     # Validate
+pnpm seed meditations               # Full import
+pnpm seed meditations --clear-cache # Re-download files
 ```
 
 ## Import Order
@@ -66,7 +66,7 @@ Legacy tags are mapped to predefined slugs. If you see warnings:
 - Add to `LEGACY_TO_MEDITATION_TAG_SLUG` or `LEGACY_TO_MUSIC_TAG_SLUG` in `import.ts`
 
 **"Predefined tag slug not found"**
-- Run `pnpm import tags` first
+- Run `pnpm seed tags` first
 
 ## Keyframe Processing
 

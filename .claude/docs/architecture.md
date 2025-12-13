@@ -163,17 +163,17 @@ The application uses Lexical editor with two configuration presets:
 
 Configuration located in `src/lib/richEditor.ts`
 
-## Data Import Scripts
+## Data Seed Scripts
 
-The system includes import scripts for importing content from external sources into Payload CMS.
+The system includes seed scripts for seeding content from external sources into Payload CMS.
 
 **Documentation**: See [imports/CLAUDE.md](../../imports/CLAUDE.md) for commands, environment variables, and troubleshooting.
 
-**Available Import Scripts**:
-- **Storyblok** (`pnpm import storyblok`) - Path Steps from Storyblok CMS to Lessons
-- **WeMeditate** (`pnpm import wemeditate`) - Authors, categories, pages from Rails PostgreSQL
-- **Meditations** (`pnpm import meditations`) - Meditation content from legacy database
-- **Tags** (`pnpm import tags`) - MeditationTags and MusicTags from Cloudinary SVGs
+**Available Seed Scripts**:
+- **Storyblok** (`pnpm seed storyblok`) - Path Steps from Storyblok CMS to Lessons
+- **WeMeditate** (`pnpm seed wemeditate`) - Authors, categories, pages from Rails PostgreSQL
+- **Meditations** (`pnpm seed meditations`) - Meditation content from legacy database
+- **Tags** (`pnpm seed tags`) - MeditationTags and MusicTags from Cloudinary SVGs
 
 All scripts extend `BaseImporter` for idempotent upserts, resilient error handling, and comprehensive reporting.
 
