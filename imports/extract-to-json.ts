@@ -520,7 +520,7 @@ async function main(): Promise<void> {
     console.log('\nNext steps:')
     console.log('1. Review the generated JSON files')
     console.log('2. Update import scripts to read from JSON')
-    console.log('3. Test imports: pnpm run import meditations --dry-run')
+    console.log('3. Test seed: pnpm seed meditations --dry-run')
     console.log('4. Commit JSON files to repository')
   } catch (error) {
     console.error('\n❌ Error:', error)

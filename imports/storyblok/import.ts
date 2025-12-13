@@ -22,6 +22,8 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
+import type { Payload } from 'payload'
+
 import { BaseImporter, BaseImportOptions, parseArgs, MediaUploader } from '../lib'
 
 // ============================================================================
@@ -53,7 +55,7 @@ interface StoryblokResponse {
 // STORYBLOK IMPORTER CLASS
 // ============================================================================
 
-class StoryblokImporter extends BaseImporter<BaseImportOptions> {
+export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   protected readonly importName = 'Storyblok Path Steps'
   protected readonly cacheDir = CACHE_DIR
 
@@ -63,6 +65,34 @@ class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   constructor(options: BaseImportOptions, token: string) {
     super(options)
     this.token = token
+  }
+
+  // ============================================================================
+  // STATIC FACTORY METHOD (for migration use)
+  // ============================================================================
+
+  /**
+   * Run the importer from a PayloadCMS migration.
+   * Uses the provided Payload instance instead of creating a new one.
+   * Requires STORYBLOK_ACCESS_TOKEN environment variable.
+   */
+  static async runFromMigration(payload: Payload): Promise<void> {
+    const token = process.env.STORYBLOK_ACCESS_TOKEN
+    if (!token) {
+      throw new Error(
+        'STORYBLOK_ACCESS_TOKEN environment variable is required for Storyblok migration',
+      )
+    }
+
+    const importer = new StoryblokImporter(
+      {
+        dryRun: false,
+        clearCache: false,
+        payload,
+      },
+      token,
+    )
+    await importer.run()
   }
 
   // ============================================================================
