@@ -1,28 +1,28 @@
 #!/usr/bin/env tsx
 /* eslint-disable no-console */
 /**
- * Unified Import Script Runner
+ * Unified Seed Script Runner
  *
- * A simple CLI to run import scripts with consistent argument handling.
+ * A simple CLI to run seed scripts with consistent argument handling.
  *
  * Usage:
- *   pnpm run import <script> [options]
+ *   pnpm seed <script> [options]
  *
  * Scripts:
- *   storyblok    - Import Path Steps from Storyblok CMS
- *   wemeditate   - Import content from WeMeditate Rails database
- *   meditations  - Import meditation content from legacy database
- *   tags         - Import MeditationTags and MusicTags from Cloudinary
+ *   storyblok    - Seed Path Steps from Storyblok CMS
+ *   wemeditate   - Seed content from WeMeditate Rails database
+ *   meditations  - Seed meditation content from legacy database
+ *   tags         - Seed MeditationTags and MusicTags from Cloudinary
  *
  * Options:
  *   --dry-run      Validate data without writing to database
  *   --clear-cache  Clear download cache before import
  *
  * Examples:
- *   pnpm import storyblok --dry-run
- *   pnpm import wemeditate --clear-cache
- *   pnpm import meditations --dry-run
- *   pnpm import tags
+ *   pnpm seed storyblok --dry-run
+ *   pnpm seed wemeditate --clear-cache
+ *   pnpm seed meditations --dry-run
+ *   pnpm seed tags
  */
 
 import { spawn } from 'child_process'
@@ -39,26 +39,26 @@ const VALID_OPTIONS = ['--dry-run', '--clear-cache']
 
 function printUsage(): void {
   console.log(`
-📦 Import Script Runner
+📦 Seed Script Runner
 
 Usage:
-  pnpm run import <script> [options]
+  pnpm seed <script> [options]
 
 Available Scripts:
-  storyblok     Import Path Steps from Storyblok CMS
-  wemeditate    Import content from WeMeditate Rails database
-  meditations   Import meditation content from legacy database
-  tags          Import MeditationTags and MusicTags from Cloudinary
+  storyblok     Seed Path Steps from Storyblok CMS
+  wemeditate    Seed content from WeMeditate Rails database
+  meditations   Seed meditation content from legacy database
+  tags          Seed MeditationTags and MusicTags from Cloudinary
 
 Options:
   --dry-run      Validate data without writing to database
   --clear-cache  Clear download cache before import
 
 Examples:
-  pnpm run import storyblok --dry-run
-  pnpm run import wemeditate --clear-cache
-  pnpm run import meditations --dry-run
-  pnpm run import tags
+  pnpm seed storyblok --dry-run
+  pnpm seed wemeditate --clear-cache
+  pnpm seed meditations --dry-run
+  pnpm seed tags
 `)
 }
 

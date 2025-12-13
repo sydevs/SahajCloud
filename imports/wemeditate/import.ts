@@ -4,20 +4,21 @@
 /**
  * WeMeditate Rails Database Import Script
  *
- * Imports content from the Rails-based WeMeditate PostgreSQL database into Payload CMS.
+ * Imports content from pre-extracted JSON data into Payload CMS.
  *
  * Features:
  * - Two-phase import (metadata first, content second)
  * - Idempotent: safely re-runnable (updates existing, creates new)
  * - Uses slug as natural key for pages, authors, and page-tags
  * - Uses videoUrl as natural key for external videos
+ * - No PostgreSQL dependency - can run anywhere (migrations, CI/CD, Workers)
  *
- * DUAL-DATABASE ARCHITECTURE:
- * - PostgreSQL (SOURCE - temporary, read-only): Rails database dump
- * - SQLite/D1 (TARGET - Payload CMS): Where imported content is written
+ * DATA SOURCE:
+ * - JSON file (imports/wemeditate/data.json) - pre-extracted from legacy Rails PostgreSQL
+ * - WeMeditate assets server - for downloading media files
  *
  * Usage:
- *   pnpm import wemeditate [flags]
+ *   pnpm seed wemeditate [flags]
  *
  * Flags:
  *   --dry-run      Validate data without writing to database
@@ -26,13 +27,109 @@
 
 import type { TypedLocale } from 'payload'
 
-import { execSync } from 'child_process'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
-import { Client } from 'pg'
-
 import { BaseImporter, BaseImportOptions, parseArgs, MediaUploader } from '../lib'
+
+// ============================================================================
+// WEMEDITATE DATA TYPES (matching extraction script output)
+// ============================================================================
+
+interface WeMeditateData {
+  authors: Array<{
+    id: number
+    country_code?: string
+    years_meditating?: number
+    image?: string
+    translations: Array<{
+      locale: string
+      name?: string
+      title?: string
+      description?: string
+    }>
+  }>
+  artists: Array<{
+    id: number
+    name: string
+    url?: string
+    image?: string
+  }>
+  tracks: Array<{
+    id: number
+    audio?: string
+    duration?: number
+    title?: string
+    locale?: string
+    artist_ids?: number[]
+    instrument_filter_ids?: number[]
+  }>
+  categories: Array<{
+    id: number
+    translations: Array<{
+      locale: string
+      name?: string
+      slug?: string
+    }>
+  }>
+  staticPages: Array<{
+    id: number
+    translations: Array<{
+      locale: string
+      name?: string
+      slug?: string
+      content?: string
+      published_at?: string
+      state?: string
+    }>
+  }>
+  articles: Array<{
+    id: number
+    author_id?: number
+    article_type?: number
+    category_id?: number
+    translations: Array<{
+      locale: string
+      name?: string
+      slug?: string
+      content?: string
+      published_at?: string
+      state?: string
+    }>
+  }>
+  subtleSystemNodes: Array<{
+    id: number
+    translations: Array<{
+      locale: string
+      name?: string
+      slug?: string
+      content?: string
+      published_at?: string
+      state?: string
+    }>
+  }>
+  treatments: Array<{
+    id: number
+    translations: Array<{
+      locale: string
+      name?: string
+      slug?: string
+      content?: string
+      published_at?: string
+      state?: string
+    }>
+  }>
+  meditationTranslations: Array<{
+    meditation_id: number
+    name: string
+  }>
+  treatmentThumbnails: Array<{
+    treatment_id: number
+    media_file_id: number
+    thumbnail_file: string
+    treatment_name?: string
+  }>
+}
 import {
   convertEditorJSToLexical,
   createUploadNode,
@@ -45,9 +142,7 @@ import { MediaDownloader, extractMediaUrls, extractAuthorImageUrl } from '../lib
 // ============================================================================
 
 const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/wemeditate')
-const DATA_BIN = path.resolve(process.cwd(), 'imports/wemeditate/data.bin')
 const STORAGE_BASE_URL = 'https://assets.wemeditate.com/uploads/'
-const DB_NAME = 'temp_wemeditate_import'
 
 const ARTICLE_TYPE_TAGS: Record<number, string> = {
   0: 'article',
@@ -91,7 +186,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   protected readonly importName = 'WeMeditate Rails Database'
   protected readonly cacheDir = CACHE_DIR
 
-  private dbClient!: Client
+  private data!: WeMeditateData
   private mediaDownloader!: MediaDownloader
   private mediaUploader!: MediaUploader
   private defaultThumbnailId: number | string | null = null
@@ -123,8 +218,8 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   protected async setup(): Promise<void> {
-    // Setup PostgreSQL database (for reading source data)
-    await this.setupDatabase()
+    // Load data from JSON
+    await this.loadData()
 
     // Initialize media tools (skip for dry run)
     if (!this.options.dryRun) {
@@ -135,11 +230,23 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   }
 
   protected async cleanup(): Promise<void> {
-    // Cleanup PostgreSQL database
-    await this.cleanupDatabase()
-
     // Call parent cleanup (closes Payload connection)
     await super.cleanup()
+  }
+
+  private async loadData(): Promise<void> {
+    await this.logger.info('Loading data from JSON...')
+
+    const jsonPath = path.resolve(process.cwd(), 'imports/wemeditate/data.json')
+    const jsonContent = await fs.readFile(jsonPath, 'utf-8')
+    this.data = JSON.parse(jsonContent) as WeMeditateData
+
+    await this.logger.info(
+      `✓ Loaded: ${this.data.authors.length} authors, ${this.data.artists.length} artists, ${this.data.tracks.length} tracks`,
+    )
+    await this.logger.info(
+      `  ${this.data.staticPages.length} static pages, ${this.data.articles.length} articles, ${this.data.treatments.length} treatments`,
+    )
   }
 
   // ============================================================================
@@ -183,79 +290,19 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   }
 
   // ============================================================================
-  // DATABASE MANAGEMENT (PostgreSQL - Source)
-  // ============================================================================
-
-  private async setupDatabase(): Promise<void> {
-    await this.logger.info('\n=== Setting up PostgreSQL Database ===')
-
-    // Drop existing database if it exists
-    try {
-      execSync(`dropdb ${DB_NAME} 2>/dev/null || true`, { stdio: 'ignore' })
-    } catch {
-      // Ignore errors
-    }
-
-    // Create new database
-    execSync(`createdb ${DB_NAME}`)
-    await this.logger.info(`✓ Created database: ${DB_NAME}`)
-
-    // Restore from backup
-    execSync(`pg_restore -d ${DB_NAME} --no-owner ${DATA_BIN} 2>/dev/null || true`, {
-      stdio: 'ignore',
-    })
-    await this.logger.info(`✓ Restored data from: ${DATA_BIN}`)
-
-    // Connect to database
-    this.dbClient = new Client({ database: DB_NAME })
-    await this.dbClient.connect()
-    await this.logger.info('✓ Connected to database')
-  }
-
-  private async cleanupDatabase(): Promise<void> {
-    if (this.dbClient) {
-      await this.dbClient.end()
-      await this.logger.info('✓ Disconnected from PostgreSQL')
-    }
-
-    try {
-      execSync(`dropdb ${DB_NAME} 2>/dev/null || true`, { stdio: 'ignore' })
-      await this.logger.info(`✓ Dropped database: ${DB_NAME}`)
-    } catch {
-      // Ignore errors
-    }
-  }
-
-  // ============================================================================
   // AUTHORS IMPORT
   // ============================================================================
 
   private async importAuthors(): Promise<void> {
     await this.logger.info('\n=== Importing Authors ===')
 
-    const result = await this.dbClient.query(`
-      SELECT
-        a.id,
-        a.country_code,
-        a.years_meditating,
-        json_agg(
-          json_build_object(
-            'locale', at.locale,
-            'name', at.name,
-            'title', at.title,
-            'description', at.description
-          )
-        ) as translations
-      FROM authors a
-      LEFT JOIN author_translations at ON a.id = at.author_id
-      GROUP BY a.id, a.country_code, a.years_meditating
-    `)
+    const authors = this.data.authors
 
-    await this.logger.info(`Found ${result.rows.length} authors`)
-    await this.logger.progress(0, result.rows.length, 'Authors')
+    await this.logger.info(`Found ${authors.length} authors`)
+    await this.logger.progress(0, authors.length, 'Authors')
 
-    for (let i = 0; i < result.rows.length; i++) {
-      const author = result.rows[i]
+    for (let i = 0; i < authors.length; i++) {
+      const author = authors[i]
 
       try {
         // Find English translation
@@ -312,7 +359,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         this.addError(`Importing author ${author.id}`, error as Error)
       }
 
-      await this.logger.progress(i + 1, result.rows.length, 'Authors')
+      await this.logger.progress(i + 1, authors.length, 'Authors')
     }
   }
 
@@ -323,22 +370,14 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   private async importAlbums(): Promise<void> {
     await this.logger.info('\n=== Importing Albums (from artists table) ===')
 
-    // Query artists table - in WeMeditate, artists represent music albums
-    // Schema: id, name, url, image (jsonb stored as quoted string like "filename.jpg")
-    const result = await this.dbClient.query(`
-      SELECT
-        a.id,
-        a.name,
-        a.url,
-        a.image
-      FROM artists a
-    `)
+    // Artists in WeMeditate represent music albums
+    const artists = this.data.artists
 
-    await this.logger.info(`Found ${result.rows.length} albums (artists)`)
-    await this.logger.progress(0, result.rows.length, 'Albums')
+    await this.logger.info(`Found ${artists.length} albums (artists)`)
+    await this.logger.progress(0, artists.length, 'Albums')
 
-    for (let i = 0; i < result.rows.length; i++) {
-      const artist = result.rows[i]
+    for (let i = 0; i < artists.length; i++) {
+      const artist = artists[i]
 
       try {
         if (!artist.name) {
@@ -366,7 +405,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           })
           this.idMaps.albums.set(artist.id, existing.docs[0].id)
           this.report.incrementSkipped()
-          await this.logger.progress(i + 1, result.rows.length, 'Albums')
+          await this.logger.progress(i + 1, artists.length, 'Albums')
           continue
         }
 
@@ -433,7 +472,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         this.addError(`Importing album (artist) ${artist.id}`, error as Error)
       }
 
-      await this.logger.progress(i + 1, result.rows.length, 'Albums')
+      await this.logger.progress(i + 1, artists.length, 'Albums')
     }
   }
 
@@ -481,28 +520,14 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     // Ensure vocals tag exists (it might not be in the tags import)
     await this.ensureVocalsTagExists()
 
-    // Query tracks with their artist associations and instrument filters
-    const result = await this.dbClient.query(`
-      SELECT
-        t.id,
-        t.audio,
-        t.duration,
-        tt.name as title,
-        tt.locale,
-        array_agg(DISTINCT at.artist_id) FILTER (WHERE at.artist_id IS NOT NULL) as artist_ids,
-        array_agg(DISTINCT ift.instrument_filter_id) FILTER (WHERE ift.instrument_filter_id IS NOT NULL) as instrument_filter_ids
-      FROM tracks t
-      LEFT JOIN track_translations tt ON t.id = tt.track_id AND tt.locale = 'en'
-      LEFT JOIN artists_tracks at ON t.id = at.track_id
-      LEFT JOIN instrument_filters_tracks ift ON t.id = ift.track_id
-      GROUP BY t.id, t.audio, t.duration, tt.name, tt.locale
-    `)
+    // Use pre-extracted tracks data
+    const tracks = this.data.tracks
 
-    await this.logger.info(`Found ${result.rows.length} music tracks`)
-    await this.logger.progress(0, result.rows.length, 'Music tracks')
+    await this.logger.info(`Found ${tracks.length} music tracks`)
+    await this.logger.progress(0, tracks.length, 'Music tracks')
 
-    for (let i = 0; i < result.rows.length; i++) {
-      const track = result.rows[i]
+    for (let i = 0; i < tracks.length; i++) {
+      const track = tracks[i]
 
       try {
         if (!track.title) {
@@ -567,7 +592,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             locale: 'en',
           })
           this.report.incrementUpdated()
-          await this.logger.progress(i + 1, result.rows.length, 'Music tracks')
+          await this.logger.progress(i + 1, tracks.length, 'Music tracks')
           continue
         }
 
@@ -624,7 +649,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         this.addError(`Importing track ${track.id}`, error as Error)
       }
 
-      await this.logger.progress(i + 1, result.rows.length, 'Music tracks')
+      await this.logger.progress(i + 1, tracks.length, 'Music tracks')
     }
   }
 
@@ -677,24 +702,11 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   private async importCategories(): Promise<void> {
     await this.logger.info('\n=== Importing Categories as Page Tags ===')
 
-    const result = await this.dbClient.query(`
-      SELECT
-        c.id,
-        json_agg(
-          json_build_object(
-            'locale', ct.locale,
-            'name', ct.name,
-            'slug', ct.slug
-          )
-        ) as translations
-      FROM categories c
-      LEFT JOIN category_translations ct ON c.id = ct.category_id
-      GROUP BY c.id
-    `)
+    const categories = this.data.categories
 
-    await this.logger.info(`Found ${result.rows.length} categories`)
+    await this.logger.info(`Found ${categories.length} categories`)
 
-    for (const category of result.rows) {
+    for (const category of categories) {
       try {
         const enTranslation = category.translations.find((t: any) => t.locale === 'en' && t.name)
         if (!enTranslation) {
@@ -789,41 +801,24 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   // PAGES IMPORT
   // ============================================================================
 
-  private async importPages(tableName: string, translationsTable: string): Promise<void> {
+  private async importPages(tableName: string, _translationsTable: string): Promise<void> {
     await this.logger.info(`\n=== Importing ${tableName} ===`)
 
-    const isArticles = tableName === 'articles'
-    const selectFields = ['p.id']
-    const groupByFields = ['p.id']
-
-    if (isArticles) {
-      selectFields.push('p.author_id', 'p.article_type', 'p.category_id')
-      groupByFields.push('p.author_id', 'p.article_type', 'p.category_id')
+    // Map table names to pre-extracted data arrays
+    const dataMap: Record<string, typeof this.data.staticPages | typeof this.data.articles> = {
+      static_pages: this.data.staticPages,
+      articles: this.data.articles,
+      subtle_system_nodes: this.data.subtleSystemNodes,
+      treatments: this.data.treatments,
     }
 
-    const result = await this.dbClient.query(`
-      SELECT
-        ${selectFields.join(', ')},
-        json_agg(
-          json_build_object(
-            'locale', pt.locale,
-            'name', pt.name,
-            'slug', pt.slug,
-            'content', pt.content,
-            'published_at', pt.published_at,
-            'state', pt.state
-          ) ORDER BY pt.locale
-        ) as translations
-      FROM ${tableName} p
-      LEFT JOIN ${translationsTable} pt ON p.id = pt.${tableName.slice(0, -1)}_id
-      GROUP BY ${groupByFields.join(', ')}
-    `)
+    const pages = dataMap[tableName] || []
 
-    await this.logger.info(`Found ${result.rows.length} pages from ${tableName}`)
-    await this.logger.progress(0, result.rows.length, tableName)
+    await this.logger.info(`Found ${pages.length} pages from ${tableName}`)
+    await this.logger.progress(0, pages.length, tableName)
 
-    for (let i = 0; i < result.rows.length; i++) {
-      const page = result.rows[i]
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i] as any // Use any for dynamic table access
 
       try {
         // Find English translation
@@ -925,7 +920,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         this.addError(`Importing ${tableName} ${page.id}`, error as Error)
       }
 
-      await this.logger.progress(i + 1, result.rows.length, tableName)
+      await this.logger.progress(i + 1, pages.length, tableName)
     }
   }
 
@@ -1011,40 +1006,41 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     const mediaUrls = new Set<string>()
     const mediaMetadata = new Map<string, { alt: string; credit: string }>()
 
-    // Scan all page content for media URLs
-    for (const [_tableName, translationsTable] of [
-      ['static_pages', 'static_page_translations'],
-      ['articles', 'article_translations'],
-      ['subtle_system_nodes', 'subtle_system_node_translations'],
-      ['treatments', 'treatment_translations'],
-    ]) {
-      const result = await this.dbClient.query(`
-        SELECT content, locale
-        FROM ${translationsTable}
-        WHERE content IS NOT NULL
-      `)
+    // Scan all page content for media URLs from pre-extracted data
+    const allPageTypes = [
+      this.data.staticPages,
+      this.data.articles,
+      this.data.subtleSystemNodes,
+      this.data.treatments,
+    ]
 
-      for (const row of result.rows) {
-        if (!row.content) continue
-        let content
-        try {
-          content = typeof row.content === 'string' ? JSON.parse(row.content) : row.content
-        } catch {
-          continue
-        }
+    for (const pages of allPageTypes) {
+      for (const page of pages) {
+        for (const translation of page.translations) {
+          if (!translation.content) continue
+          let content
+          try {
+            content =
+              typeof translation.content === 'string'
+                ? JSON.parse(translation.content)
+                : translation.content
+          } catch {
+            continue
+          }
 
-        const urls = extractMediaUrls(content, STORAGE_BASE_URL)
-        urls.forEach((url) => mediaUrls.add(url))
+          const urls = extractMediaUrls(content, STORAGE_BASE_URL)
+          urls.forEach((url) => mediaUrls.add(url))
 
-        if (content.blocks) {
-          for (const block of content.blocks) {
-            if (block.type === 'media' && block.data.items) {
-              for (const item of block.data.items) {
-                if (item.image?.preview) {
-                  mediaMetadata.set(item.image.preview, {
-                    alt: item.alt || '',
-                    credit: item.credit || '',
-                  })
+          if (content.blocks) {
+            for (const block of content.blocks) {
+              if (block.type === 'media' && block.data.items) {
+                for (const item of block.data.items) {
+                  if (item.image?.preview) {
+                    mediaMetadata.set(item.image.preview, {
+                      alt: item.alt || '',
+                      credit: item.credit || '',
+                    })
+                  }
                 }
               }
             }
@@ -1053,11 +1049,9 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       }
     }
 
-    // Also scan author images
-    const authorsResult = await this.dbClient.query(`
-      SELECT id, image FROM authors WHERE image IS NOT NULL
-    `)
-    for (const author of authorsResult.rows) {
+    // Also scan author images from pre-extracted data
+    for (const author of this.data.authors) {
+      if (!author.image) continue
       const imageUrl = extractAuthorImageUrl(author.image, STORAGE_BASE_URL)
       if (imageUrl) {
         mediaUrls.add(imageUrl)
@@ -1065,24 +1059,12 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       }
     }
 
-    // Scan treatment thumbnails
-    const treatmentResult = await this.dbClient.query(`
-      SELECT
-        t.id as treatment_id,
-        tt.name as treatment_name,
-        tt.thumbnail_id,
-        mf.id as media_file_id,
-        mf.file as thumbnail_file
-      FROM treatments t
-      LEFT JOIN treatment_translations tt ON t.id = tt.treatment_id
-      LEFT JOIN media_files mf ON tt.thumbnail_id = mf.id
-      WHERE tt.locale = 'en' AND tt.thumbnail_id IS NOT NULL AND mf.file IS NOT NULL
-    `)
-    for (const treatment of treatmentResult.rows) {
+    // Scan treatment thumbnails from pre-extracted data
+    for (const treatment of this.data.treatmentThumbnails) {
       const thumbnailUrl = `${STORAGE_BASE_URL}media_file/file/${treatment.media_file_id}/${treatment.thumbnail_file}`
       mediaUrls.add(thumbnailUrl)
       mediaMetadata.set(thumbnailUrl, {
-        alt: `Thumbnail for ${treatment.treatment_name}`,
+        alt: `Thumbnail for ${treatment.treatment_name || 'treatment'}`,
         credit: '',
       })
     }
@@ -1130,30 +1112,41 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       { title: string; thumbnail: string; vimeoId?: string; youtubeId?: string }
     >()
 
-    // Scan content for video IDs
-    for (const [_tableName, translationsTable] of [
-      ['static_pages', 'static_page_translations'],
-      ['articles', 'article_translations'],
-      ['subtle_system_nodes', 'subtle_system_node_translations'],
-      ['treatments', 'treatment_translations'],
-    ]) {
-      const result = await this.dbClient.query(`
-        SELECT content FROM ${translationsTable} WHERE content IS NOT NULL
-      `)
+    // Scan content for video IDs from pre-extracted data
+    const allPageTypes = [
+      this.data.staticPages,
+      this.data.articles,
+      this.data.subtleSystemNodes,
+      this.data.treatments,
+    ]
 
-      for (const row of result.rows) {
-        if (!row.content?.blocks) continue
-        for (const block of row.content.blocks) {
-          if (block.type === 'vimeo' && block.data) {
-            const videoId = block.data.vimeo_id || block.data.youtube_id
-            if (videoId) {
-              videoIds.add(videoId)
-              videoMetadata.set(videoId, {
-                title: block.data.title || '',
-                thumbnail: block.data.thumbnail || '',
-                vimeoId: block.data.vimeo_id,
-                youtubeId: block.data.youtube_id,
-              })
+    for (const pages of allPageTypes) {
+      for (const page of pages) {
+        for (const translation of page.translations) {
+          if (!translation.content) continue
+          let content
+          try {
+            content =
+              typeof translation.content === 'string'
+                ? JSON.parse(translation.content)
+                : translation.content
+          } catch {
+            continue
+          }
+
+          if (!content?.blocks) continue
+          for (const block of content.blocks) {
+            if (block.type === 'vimeo' && block.data) {
+              const videoId = block.data.vimeo_id || block.data.youtube_id
+              if (videoId) {
+                videoIds.add(videoId)
+                videoMetadata.set(videoId, {
+                  title: block.data.title || '',
+                  thumbnail: block.data.thumbnail || '',
+                  vimeoId: block.data.vimeo_id,
+                  youtubeId: block.data.youtube_id,
+                })
+              }
             }
           }
         }
@@ -1198,32 +1191,28 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
   private async importPagesWithContent(
     tableName: string,
-    translationsTable: string,
+    _translationsTable: string,
   ): Promise<void> {
     await this.logger.info(`\n=== Updating ${tableName} with Content ===`)
 
-    const result = await this.dbClient.query(`
-      SELECT
-        p.id,
-        (SELECT pt_en.name FROM ${translationsTable} pt_en
-         WHERE pt_en.${tableName.slice(0, -1)}_id = p.id AND pt_en.locale = 'en' LIMIT 1) as title,
-        json_agg(
-          json_build_object(
-            'locale', pt.locale,
-            'content', pt.content
-          ) ORDER BY pt.locale
-        ) as translations
-      FROM ${tableName} p
-      LEFT JOIN ${translationsTable} pt ON p.id = pt.${tableName.slice(0, -1)}_id
-      WHERE pt.content IS NOT NULL
-        AND EXISTS (
-          SELECT 1 FROM ${translationsTable} pt_en
-          WHERE pt_en.${tableName.slice(0, -1)}_id = p.id AND pt_en.locale = 'en'
-        )
-      GROUP BY p.id
-    `)
+    // Map table names to pre-extracted data arrays
+    const dataMap: Record<string, typeof this.data.staticPages | typeof this.data.articles> = {
+      static_pages: this.data.staticPages,
+      articles: this.data.articles,
+      subtle_system_nodes: this.data.subtleSystemNodes,
+      treatments: this.data.treatments,
+    }
 
-    await this.logger.info(`Updating ${result.rows.length} pages with content`)
+    const sourcePages = dataMap[tableName] || []
+
+    // Filter to pages that have content and English translations
+    const pagesWithContent = sourcePages.filter((p) => {
+      const hasEnglish = p.translations.some((t) => t.locale === 'en')
+      const hasContent = p.translations.some((t) => t.content)
+      return hasEnglish && hasContent
+    })
+
+    await this.logger.info(`Updating ${pagesWithContent.length} pages with content`)
 
     const mapKeyMap: Record<string, keyof typeof this.idMaps> = {
       static_pages: 'staticPages',
@@ -1234,18 +1223,22 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     const mapKey = mapKeyMap[tableName]
     const pageIdMap = this.idMaps[mapKey] as Map<number, number>
 
-    for (const page of result.rows) {
-      const numericId = typeof page.id === 'string' ? parseInt(page.id) : page.id
+    for (const page of pagesWithContent) {
+      const numericId = typeof page.id === 'string' ? parseInt(page.id as unknown as string) : page.id
       const pageId = pageIdMap.get(numericId)
       if (!pageId) {
         this.addWarning(`Page ${page.id} from ${tableName} not in ID map`)
         continue
       }
 
+      // Get English title for context
+      const enTranslation = page.translations.find((t) => t.locale === 'en')
+      const pageTitle = enTranslation?.name || 'Unknown'
+
       try {
         for (const translation of page.translations) {
           if (!translation.locale || !translation.content) continue
-          if (!LOCALES.includes(translation.locale)) continue
+          if (!LOCALES.includes(translation.locale as (typeof LOCALES)[number])) continue
 
           let content
           try {
@@ -1263,7 +1256,7 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             payload: this.payload,
             logger: this.logger,
             pageId: page.id,
-            pageTitle: page.title || 'Unknown',
+            pageTitle,
             locale: translation.locale,
             mediaMap: this.idMaps.media,
             formMap: this.idMaps.forms,
@@ -1330,17 +1323,11 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
       await this.logger.info(`✓ Built title map with ${this.meditationTitleMap.size} meditations`)
 
-      const result = await this.dbClient.query(`
-        SELECT m.id, mt.name
-        FROM meditations m
-        LEFT JOIN meditation_translations mt ON m.id = mt.meditation_id
-        WHERE mt.locale = 'en'
-      `)
-
-      for (const row of result.rows) {
+      // Use pre-extracted meditation translations
+      for (const row of this.data.meditationTranslations) {
         if (row.name) {
           const titleWithoutDuration = row.name.split('|')[0].trim().toLowerCase()
-          this.meditationRailsTitleMap.set(Number(row.id), titleWithoutDuration)
+          this.meditationRailsTitleMap.set(row.meditation_id, titleWithoutDuration)
         }
       }
 
@@ -1356,32 +1343,18 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info('\n=== Building Treatment Thumbnail Map ===')
 
     try {
-      const result = await this.dbClient.query(`
-        SELECT
-          t.id as treatment_id,
-          tt.name as treatment_name,
-          tt.thumbnail_id,
-          mf.id as media_file_id,
-          mf.file as thumbnail_file
-        FROM treatments t
-        LEFT JOIN treatment_translations tt ON t.id = tt.treatment_id
-        LEFT JOIN media_files mf ON tt.thumbnail_id = mf.id
-        WHERE tt.locale = 'en'
-      `)
-
-      for (const row of result.rows) {
-        const treatmentId = Number(row.treatment_id)
-        if (!row.thumbnail_id || !row.thumbnail_file) {
-          this.addWarning(`Treatment ${treatmentId} "${row.treatment_name}" has no thumbnail`)
-          continue
-        }
+      // Use pre-extracted treatment thumbnails
+      for (const row of this.data.treatmentThumbnails) {
+        const treatmentId = row.treatment_id
 
         const thumbnailUrl = `${STORAGE_BASE_URL}media_file/file/${row.media_file_id}/${row.thumbnail_file}`
         const mediaId = this.idMaps.media.get(thumbnailUrl)
         if (mediaId) {
           this.treatmentThumbnailMap.set(treatmentId, mediaId)
         } else {
-          this.addWarning(`Thumbnail for treatment ${treatmentId} not found in media map`)
+          this.addWarning(
+            `Thumbnail for treatment ${treatmentId} "${row.treatment_name || 'unknown'}" not found in media map`,
+          )
         }
       }
 
@@ -1608,11 +1581,13 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 // ============================================================================
 
 async function main(): Promise<void> {
-  // Check if data.bin exists
+  // Check if data.json exists
+  const dataJsonPath = path.resolve(process.cwd(), 'imports/wemeditate/data.json')
   try {
-    await fs.access(DATA_BIN)
+    await fs.access(dataJsonPath)
   } catch {
-    console.error(`Error: Data file not found at ${DATA_BIN}`)
+    console.error(`Error: Data file not found at ${dataJsonPath}`)
+    console.error('Run the extraction script first: pnpm tsx imports/extract-to-json.ts')
     process.exit(1)
   }
 

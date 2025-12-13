@@ -12,7 +12,7 @@
  * - Uses videoUrl as natural key for external videos
  *
  * Usage:
- *   pnpm import storyblok [flags]
+ *   pnpm seed storyblok [flags]
  *
  * Flags:
  *   --dry-run      Validate data without writing to database

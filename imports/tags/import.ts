@@ -12,7 +12,7 @@
  * - Imports only English (`en`) locale for localized title fields
  *
  * Usage:
- *   pnpm import tags [flags]
+ *   pnpm seed tags [flags]
  *
  * Flags:
  *   --dry-run      Validate data without writing to database

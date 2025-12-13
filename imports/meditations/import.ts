@@ -4,30 +4,15 @@
 /**
  * Meditations Import Script
  *
- * Imports meditation content from Google Cloud Storage and PostgreSQL database into Payload CMS.
+ * Imports meditation content from pre-extracted JSON data and Google Cloud Storage into Payload CMS.
  *
- * IMPORTANT: Run `pnpm import wemeditate` BEFORE this script to create albums.
+ * IMPORTANT: Run `pnpm seed wemeditate` BEFORE this script to create albums.
  * This script matches music tracks to albums by comparing the `credit` field
- * in the source database to the `artist` field on albums.
+ * in the source data to the `artist` field on albums.
  *
- * DUAL-DATABASE ARCHITECTURE:
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━
- * This script uses TWO different databases:
- *
- * 1. PostgreSQL (SOURCE - temporary, read-only):
- *    - Created from data.bin (meditation database dump)
- *    - Used to READ legacy meditation data
- *    - Automatically cleaned up after import
- *    - NOT related to Payload's database
- *
- * 2. SQLite/D1 (TARGET - Payload CMS):
- *    - Current Payload database (configured in payload.config.ts)
- *    - Where imported content is WRITTEN
- *    - Uses Payload's API for all operations
- *    - Database-agnostic (works with SQLite, D1, PostgreSQL, MongoDB)
- *
- * The script reads from PostgreSQL (legacy data) and writes to Payload (SQLite/D1).
- * These are completely separate databases serving different purposes.
+ * DATA SOURCE:
+ * - JSON file (imports/meditations/data.json) - pre-extracted from legacy PostgreSQL
+ * - Google Cloud Storage - for downloading media files
  *
  * Features:
  * - Idempotent: safely re-runnable (updates existing, creates new)
@@ -35,21 +20,20 @@
  * - Tag mapping from legacy names to predefined slugs
  * - Downloads and caches media files from Google Cloud Storage
  * - Matches music to albums by credit/artist field
+ * - No PostgreSQL dependency - can run anywhere (migrations, CI/CD, Workers)
  *
  * Usage:
- *   pnpm import meditations [flags]
+ *   pnpm seed meditations [flags]
  *
  * Flags:
  *   --dry-run      Validate data without writing to database
  *   --clear-cache  Clear download cache before import
  */
 
-import { execSync } from 'child_process'
 import { promises as fs } from 'fs'
 import * as path from 'path'
 
 import { CollectionSlug } from 'payload'
-import { Client } from 'pg'
 
 import type { MeditationTag, MusicTag } from '@/payload-types'
 
@@ -285,7 +269,6 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   protected readonly importName = 'Meditations'
   protected readonly cacheDir = CACHE_DIR
 
-  private dbClient!: Client
   private tagManager!: TagManager
   private mediaUploader!: MediaUploader
   private placeholderMediaId: number | string | null = null
@@ -308,8 +291,6 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   protected async setup(): Promise<void> {
-    await this.setupTempDatabase()
-
     if (!this.options.dryRun) {
       this.tagManager = new TagManager(this.payload, this.logger)
       this.mediaUploader = new MediaUploader(this.payload, this.logger)
@@ -317,7 +298,6 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   }
 
   protected async cleanup(): Promise<void> {
-    await this.cleanupTempDatabase()
     await super.cleanup()
   }
 
@@ -340,7 +320,7 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
     // Import in order of dependencies
     await this.importNarrators()
-    await this.importTags(data.tags)
+    await this.importTags(data.tags, data.taggings)
     await this.importFrames(data.frames, data.attachments, data.blobs)
     await this.importMusic(data.musics, data.taggings, data.attachments, data.blobs)
     await this.importMeditations(
@@ -358,87 +338,21 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   }
 
   // ============================================================================
-  // DATABASE SETUP
-  // ============================================================================
-
-  private async setupTempDatabase(): Promise<void> {
-    await this.logger.info('Setting up temporary PostgreSQL database...')
-
-    try {
-      execSync('createdb temp_migration 2>/dev/null || true')
-      execSync(
-        `pg_restore -d temp_migration --no-owner --no-privileges --clean --if-exists imports/meditations/data.bin 2>/dev/null || true`,
-      )
-
-      this.dbClient = new Client({
-        host: 'localhost',
-        port: 5432,
-        database: 'temp_migration',
-        user: process.env.USER || 'postgres',
-        password: '',
-      })
-      await this.dbClient.connect()
-
-      await this.logger.success('✓ Temporary database ready')
-    } catch (error) {
-      this.addError('Setting up temporary database', error as Error)
-      throw error
-    }
-  }
-
-  private async cleanupTempDatabase(): Promise<void> {
-    try {
-      if (this.dbClient) {
-        await this.dbClient.end()
-      }
-      execSync('dropdb temp_migration 2>/dev/null || true')
-      await this.logger.info('✓ Cleaned up temporary database')
-    } catch (_error) {
-      await this.logger.warn('Could not clean up temp database')
-    }
-  }
-
-  // ============================================================================
   // DATA LOADING
   // ============================================================================
 
   private async loadData(): Promise<ImportedData> {
-    await this.logger.info('Loading data from PostgreSQL...')
+    await this.logger.info('Loading data from JSON...')
 
-    const [tags, frames, meditations, musics, keyframes, taggings, attachments, blobs] =
-      await Promise.all([
-        this.dbClient.query('SELECT id, name FROM tags ORDER BY id'),
-        this.dbClient.query('SELECT id, category, tags FROM frames ORDER BY id'),
-        this.dbClient.query(
-          'SELECT id, title, duration, published, narrator, music_tag FROM meditations WHERE published = true ORDER BY id',
-        ),
-        this.dbClient.query('SELECT id, title, duration, credit FROM musics ORDER BY id'),
-        this.dbClient.query(
-          "SELECT media_type, media_id, frame_id, seconds FROM keyframes WHERE media_type = 'Meditation' ORDER BY media_id, seconds",
-        ),
-        this.dbClient.query('SELECT tag_id, taggable_type, taggable_id, context FROM taggings'),
-        this.dbClient.query(
-          'SELECT name, record_type, record_id, blob_id FROM active_storage_attachments',
-        ),
-        this.dbClient.query(
-          'SELECT id, key, filename, content_type, byte_size FROM active_storage_blobs',
-        ),
-      ])
+    const jsonPath = path.resolve(process.cwd(), 'imports/meditations/data.json')
+    const jsonContent = await fs.readFile(jsonPath, 'utf-8')
+    const data = JSON.parse(jsonContent) as ImportedData
 
     await this.logger.info(
-      `✓ Loaded: ${tags.rows.length} tags, ${frames.rows.length} frames, ${meditations.rows.length} meditations, ${musics.rows.length} music`,
+      `✓ Loaded: ${data.tags.length} tags, ${data.frames.length} frames, ${data.meditations.length} meditations, ${data.musics.length} music`,
     )
 
-    return {
-      tags: tags.rows,
-      frames: frames.rows,
-      meditations: meditations.rows,
-      musics: musics.rows,
-      keyframes: keyframes.rows,
-      taggings: taggings.rows,
-      attachments: attachments.rows,
-      blobs: blobs.rows,
-    }
+    return data
   }
 
   private async showDryRunSummary(data: ImportedData): Promise<void> {
@@ -668,19 +582,16 @@ class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   // TAG MAPPING
   // ============================================================================
 
-  private async importTags(tags: ImportedData['tags']): Promise<void> {
+  private async importTags(tags: ImportedData['tags'], taggings: ImportedData['taggings']): Promise<void> {
     await this.logger.info('\n=== Mapping Legacy Tags ===')
 
-    // Get tag usage from taggings table
-    const taggingsQuery = await this.dbClient.query(
-      "SELECT tag_id, taggable_type FROM taggings WHERE context = 'tags'",
-    )
-    const taggings = taggingsQuery.rows
+    // Filter taggings to only those with context = 'tags'
+    const filteredTaggings = taggings.filter((t) => t.context === 'tags')
 
     const meditationTagIds = new Set<number>()
     const musicTagIds = new Set<number>()
 
-    taggings.forEach((tagging: any) => {
+    filteredTaggings.forEach((tagging) => {
       if (tagging.taggable_type === 'Meditation') {
         meditationTagIds.add(tagging.tag_id)
       } else if (tagging.taggable_type === 'Music') {
