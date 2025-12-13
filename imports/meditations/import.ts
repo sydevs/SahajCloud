@@ -30,10 +30,10 @@
  *   --clear-cache  Clear download cache before import
  */
 
+import type { CollectionSlug, Payload } from 'payload'
+
 import { promises as fs } from 'fs'
 import * as path from 'path'
-
-import { CollectionSlug } from 'payload'
 
 import type { MeditationTag, MusicTag } from '@/payload-types'
 
@@ -265,9 +265,30 @@ const LEGACY_TO_MUSIC_TAG_SLUG: Record<string, string> = {
 // MEDITATIONS IMPORTER CLASS
 // ============================================================================
 
-class MeditationsImporter extends BaseImporter<BaseImportOptions> {
+export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   protected readonly importName = 'Meditations'
   protected readonly cacheDir = CACHE_DIR
+
+  // ============================================================================
+  // STATIC FACTORY METHOD (for migration use)
+  // ============================================================================
+
+  /**
+   * Run the importer from a PayloadCMS migration.
+   * Uses the provided Payload instance instead of creating a new one.
+   */
+  static async runFromMigration(payload: Payload): Promise<void> {
+    const importer = new MeditationsImporter({
+      dryRun: false,
+      clearCache: false,
+      payload,
+    })
+    await importer.run()
+  }
+
+  // ============================================================================
+  // PRIVATE FIELDS
+  // ============================================================================
 
   private tagManager!: TagManager
   private mediaUploader!: MediaUploader

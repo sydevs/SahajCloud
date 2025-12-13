@@ -25,7 +25,7 @@
  *   --clear-cache  Clear download cache before import
  */
 
-import type { TypedLocale } from 'payload'
+import type { Payload, TypedLocale } from 'payload'
 
 import * as fs from 'fs/promises'
 import * as path from 'path'
@@ -182,7 +182,7 @@ const LOCALES = [
 // WEMEDITATE IMPORTER CLASS
 // ============================================================================
 
-class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
+export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   protected readonly importName = 'WeMeditate Rails Database'
   protected readonly cacheDir = CACHE_DIR
 
@@ -212,6 +212,22 @@ class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   private meditationRailsTitleMap = new Map<number, string>()
   private treatmentThumbnailMap = new Map<number, number | string>()
   private contentTypeTagMap = new Map<string, number>()
+
+  // ============================================================================
+  // STATIC FACTORY FOR MIGRATIONS
+  // ============================================================================
+
+  /**
+   * Run the importer from a migration with an external Payload instance
+   */
+  static async runFromMigration(payload: Payload): Promise<void> {
+    const importer = new WeMeditateImporter({
+      dryRun: false,
+      clearCache: false,
+      payload,
+    })
+    await importer.run()
+  }
 
   // ============================================================================
   // LIFECYCLE

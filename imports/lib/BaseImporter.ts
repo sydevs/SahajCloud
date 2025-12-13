@@ -30,6 +30,7 @@ import configPromise from '../../src/payload.config'
 export interface BaseImportOptions {
   dryRun: boolean
   clearCache: boolean
+  payload?: Payload // Optional external Payload instance (for migrations)
 }
 
 export interface UpsertResult<T = any> {
@@ -72,6 +73,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   // Track slug collisions for manual review
   private collisions: SlugCollision[] = []
 
+  // Track if Payload was injected externally (for migrations)
+  private externalPayload: boolean = false
+
   constructor(options: TOptions) {
     this.options = options
   }
@@ -106,8 +110,12 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         await this.clearCache()
       }
 
-      // 4. Initialize Payload CMS (skip in dry-run for speed)
-      if (!this.options.dryRun) {
+      // 4. Initialize Payload CMS (skip in dry-run for speed, use external if provided)
+      if (this.options.payload) {
+        this.payload = this.options.payload
+        this.externalPayload = true
+        await this.logger.info('Using externally provided Payload instance')
+      } else if (!this.options.dryRun) {
         await this.initializePayload()
       } else {
         await this.logger.info('Skipping Payload initialization (dry run)')
@@ -146,8 +154,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    * Override to add custom cleanup logic
    */
   protected async cleanup(): Promise<void> {
-    // Close Payload database connection
-    if (this.payload?.db?.destroy) {
+    // Only close Payload database connection if we created it (not external)
+    if (!this.externalPayload && this.payload?.db?.destroy) {
       await this.payload.db.destroy()
     }
   }
