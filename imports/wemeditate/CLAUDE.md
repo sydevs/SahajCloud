@@ -25,9 +25,9 @@ Imports content from Rails-based WeMeditate PostgreSQL database into Payload CMS
 ## Commands
 
 ```bash
-pnpm import wemeditate --dry-run     # Validate
-pnpm import wemeditate               # Full import
-pnpm import wemeditate --clear-cache # Fresh start
+pnpm seed wemeditate --dry-run     # Validate
+pnpm seed wemeditate               # Full import
+pnpm seed wemeditate --clear-cache # Fresh start
 ```
 
 ## Source Tables → Target Collections

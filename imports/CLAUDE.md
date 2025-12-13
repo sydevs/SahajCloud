@@ -1,33 +1,33 @@
-# Data Import Scripts
+# Data Seed Scripts
 
-Scripts for importing content from external sources into Payload CMS. All scripts use `BaseImporter` for idempotent, resilient imports.
+Scripts for seeding content from external sources into Payload CMS. All scripts use `BaseImporter` for idempotent, resilient imports.
 
 ## Quick Start
 
 ```bash
 # Show available scripts
-pnpm run import --help
+pnpm seed --help
 
-# Run import with dry-run validation
-pnpm run import <script> --dry-run
+# Run seed with dry-run validation
+pnpm seed <script> --dry-run
 
-# Run full import (idempotent - safe to re-run)
-pnpm run import <script>
+# Run full seed (idempotent - safe to re-run)
+pnpm seed <script>
 ```
 
 ## Available Scripts
 
 | Script | Command | Prerequisites | Target Collections |
 |--------|---------|---------------|-------------------|
-| storyblok | `pnpm import storyblok` | STORYBLOK_ACCESS_TOKEN | lessons, images, files |
-| wemeditate | `pnpm import wemeditate` | PostgreSQL installed | pages, authors, page-tags, albums |
-| meditations | `pnpm import meditations` | Run `tags` + `wemeditate` first, PostgreSQL | meditations, frames, music, narrators |
-| tags | `pnpm import tags` | None | meditation-tags, music-tags |
+| storyblok | `pnpm seed storyblok` | STORYBLOK_ACCESS_TOKEN | lessons, images, files |
+| wemeditate | `pnpm seed wemeditate` | data.json (pre-extracted) | pages, authors, page-tags, albums |
+| meditations | `pnpm seed meditations` | Run `tags` + `wemeditate` first, data.json | meditations, frames, music, narrators |
+| tags | `pnpm seed tags` | None | meditation-tags, music-tags |
 
-**Import Order**: For a full import, run scripts in this order:
-1. `pnpm import tags` - Creates tag definitions
-2. `pnpm import wemeditate` - Creates albums (music requires albums)
-3. `pnpm import meditations` - Creates meditations and music (matches music to albums by credit/artist)
+**Seed Order**: For a full seed, run scripts in this order:
+1. `pnpm seed tags` - Creates tag definitions
+2. `pnpm seed wemeditate` - Creates albums (music requires albums)
+3. `pnpm seed meditations` - Creates meditations and music (matches music to albums by credit/artist)
 
 ## Common Flags
 
@@ -60,13 +60,20 @@ STORAGE_BASE_URL=https://storage.googleapis.com/your-bucket
 ```
 imports/
 ├── storyblok/import.ts    # Storyblok CMS API import
-├── wemeditate/import.ts   # WeMeditate Rails DB import
-├── meditations/import.ts  # Meditations PostgreSQL import
+├── wemeditate/
+│   ├── import.ts          # WeMeditate Rails data import (reads JSON)
+│   ├── data.json          # Pre-extracted data from Rails PostgreSQL
+│   └── data.bin           # Original PostgreSQL dump (optional, for re-extraction)
+├── meditations/
+│   ├── import.ts          # Meditations data import (reads JSON)
+│   ├── data.json          # Pre-extracted meditation data
+│   └── data.bin           # Original PostgreSQL dump (optional, for re-extraction)
 ├── tags/import.ts         # Cloudinary SVG tags import
 ├── lib/                   # Shared utilities (BaseImporter, Logger, etc.)
 ├── tests/                 # Test infrastructure
 ├── cache/                 # Downloaded files (git-ignored)
 ├── run.ts                 # Unified CLI runner
+├── extract-to-json.ts     # One-time PostgreSQL data extraction script
 └── reset-migrations.sh    # Database migration reset script
 ```
 
@@ -87,13 +94,16 @@ pnpm generate:types
 2. Run with `--dry-run` first to validate
 3. Use `--clear-cache` to re-download files
 
-### Database Issues (PostgreSQL imports)
-```bash
-# Check PostgreSQL is running
-pg_isready
+### Missing data.json Files
+The `wemeditate` and `meditations` imports require pre-extracted JSON data files:
+- `imports/wemeditate/data.json` - WeMeditate Rails database extract
+- `imports/meditations/data.json` - Meditations database extract
 
-# Drop temp database manually if stuck
-dropdb temp_wemeditate_import
+These files were generated from PostgreSQL dumps using `imports/extract-to-json.ts` (one-time extraction).
+If you need to regenerate them from original `data.bin` files:
+```bash
+# Requires PostgreSQL installed locally
+pnpm tsx imports/extract-to-json.ts
 ```
 
 ## Summary Output Format

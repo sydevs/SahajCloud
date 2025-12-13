@@ -27,12 +27,12 @@ export function parseArgs(): CLIArgs {
 }
 
 /**
- * Print usage information for an import script
+ * Print usage information for a seed script
  *
  * @param scriptName - Name of the script (e.g., 'tags', 'meditations')
  */
 export function printUsage(scriptName: string): void {
-  console.log(`Usage: pnpm import ${scriptName} [options]`)
+  console.log(`Usage: pnpm seed ${scriptName} [options]`)
   console.log('\nOptions:')
   console.log('  --dry-run       Validate data without writing to database')
   console.log('  --clear-cache   Clear download cache before import')

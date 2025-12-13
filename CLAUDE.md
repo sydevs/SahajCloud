@@ -177,13 +177,13 @@ Configuration: `src/lib/richEditor.ts`
 - `tsconfig.json` - TypeScript configuration with path aliases
 - `wrangler.toml` - Cloudflare deployment configuration
 
-### Data Import Scripts
+### Data Seed Scripts
 - See [imports/README.md](imports/README.md) for detailed documentation
 - Available: Storyblok, WeMeditate, Meditations, Tags imports
-- Run via `pnpm import <script>` or `pnpm import:<script>`
+- Run via `pnpm seed <script>` or `pnpm seed:<script>`
 - All scripts support `--dry-run` and `--clear-cache` flags
 
-**Note**: Database schema migrations are in `src/migrations/` - these import scripts are for data migration only.
+**Note**: Database schema migrations are in `src/migrations/` - these seed scripts are for data migration only.
 
 ## Development Workflow
 

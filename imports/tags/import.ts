@@ -12,7 +12,7 @@
  * - Imports only English (`en`) locale for localized title fields
  *
  * Usage:
- *   pnpm import tags [flags]
+ *   pnpm seed tags [flags]
  *
  * Flags:
  *   --dry-run      Validate data without writing to database
@@ -21,6 +21,8 @@
 
 import * as fs from 'fs/promises'
 import * as path from 'path'
+
+import type { Payload } from 'payload'
 
 import { BaseImporter, BaseImportOptions, parseArgs } from '../lib'
 
@@ -286,9 +288,25 @@ const MUSIC_TAGS: TagData[] = [
 // TAGS IMPORTER CLASS
 // ============================================================================
 
-class TagsImporter extends BaseImporter<BaseImportOptions> {
+export class TagsImporter extends BaseImporter<BaseImportOptions> {
   protected readonly importName = 'Meditation & Music Tags'
   protected readonly cacheDir = CACHE_DIR
+
+  // ============================================================================
+  // STATIC FACTORY FOR MIGRATIONS
+  // ============================================================================
+
+  /**
+   * Run the importer from a migration with an external Payload instance
+   */
+  static async runFromMigration(payload: Payload): Promise<void> {
+    const importer = new TagsImporter({
+      dryRun: false,
+      clearCache: false,
+      payload,
+    })
+    await importer.run()
+  }
 
   // ============================================================================
   // MAIN IMPORT LOGIC

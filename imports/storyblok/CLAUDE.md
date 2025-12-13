@@ -12,9 +12,9 @@ PAYLOAD_SECRET=your-secret
 ## Commands
 
 ```bash
-pnpm import storyblok --dry-run     # Validate
-pnpm import storyblok               # Full import
-pnpm import storyblok --clear-cache # Re-download assets
+pnpm seed storyblok --dry-run     # Validate
+pnpm seed storyblok               # Full import
+pnpm seed storyblok --clear-cache # Re-download assets
 ```
 
 ## Field Mappings

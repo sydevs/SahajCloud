@@ -33,8 +33,9 @@ const isImportScript = process.argv.some((value) => value.includes('imports/'))
 // Get Cloudflare context (following PayloadCMS official template pattern)
 // Development/CLI: Use wrangler's getPlatformProxy for local/remote bindings
 // Production Build: Use OpenNext's getCloudflareContext for build-time bindings
+// Import scripts: Use wrangler proxy with remote bindings when CLOUDFLARE_ENV !== 'dev'
 const cloudflare =
-  isCLI || !isProduction
+  isCLI || isImportScript || !isProduction
     ? await getCloudflareContextFromWrangler()
     : await getCloudflareContext({ async: true })
 
@@ -193,12 +194,15 @@ const payloadConfig = (overrides?: Partial<Config>) => {
 
 // Adapted from PayloadCMS official template
 // https://github.com/payloadcms/payload/blob/main/templates/with-cloudflare-d1/src/payload.config.ts
+// Import scripts can target production by not setting CLOUDFLARE_ENV (or setting it to empty string)
 function getCloudflareContextFromWrangler(): Promise<CloudflareContext> {
+  const targetProduction =
+    isProduction || (isImportScript && process.env.CLOUDFLARE_ENV !== 'dev')
   return import(/* webpackIgnore: true */ `${'__wrangler'.replaceAll('_', '')}`).then(
     ({ getPlatformProxy }) =>
       getPlatformProxy({
-        environment: process.env.CLOUDFLARE_ENV,
-        remoteBindings: isProduction,
+        environment: process.env.CLOUDFLARE_ENV || undefined,
+        remoteBindings: targetProduction,
       } satisfies GetPlatformProxyOptions),
   )
 }

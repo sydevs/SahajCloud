@@ -9,9 +9,9 @@ Can run independently. Should run **before** meditations import.
 ## Commands
 
 ```bash
-pnpm import tags --dry-run     # Validate
-pnpm import tags               # Full import (idempotent)
-pnpm import tags --clear-cache # Re-download SVGs
+pnpm seed tags --dry-run     # Validate
+pnpm seed tags               # Full seed (idempotent)
+pnpm seed tags --clear-cache # Re-download SVGs
 ```
 
 ## Environment
