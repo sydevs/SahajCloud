@@ -48,6 +48,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
         credentials: 'include',
         body: JSON.stringify({ currentProject: selected }),
       }).catch((error) => {
+        // eslint-disable-next-line no-console
         console.error('Failed to auto-select project:', error)
       })
       return
