@@ -329,7 +329,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         }
 
         // Generate slug from name
-        const slug = enTranslation.name
+        const slug = enTranslation.name!
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/-+/g, '-')
@@ -340,7 +340,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           'authors',
           { slug: { equals: slug } },
           {
-            name: enTranslation.name,
+            name: enTranslation.name!,
             title: enTranslation.title || '',
             description: enTranslation.description || '',
             countryCode: author.country_code || undefined,
@@ -355,7 +355,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             translation.locale !== 'en' &&
             translation.locale &&
             translation.name &&
-            LOCALES.includes(translation.locale)
+            LOCALES.includes(translation.locale as (typeof LOCALES)[number])
           ) {
             await this.payload.update({
               collection: 'authors',
@@ -365,7 +365,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
                 title: translation.title || '',
                 description: translation.description || '',
               },
-              locale: translation.locale,
+              locale: translation.locale as (typeof LOCALES)[number],
             })
           }
         }
@@ -733,7 +733,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         // Generate slug from title
         const slug =
           enTranslation.slug ||
-          enTranslation.name
+          enTranslation.name!
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/-+/g, '-')
@@ -743,7 +743,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         const tagResult = await this.upsert<{ id: number }>(
           'page-tags',
           { slug: { equals: slug } },
-          { title: enTranslation.name },
+          { title: enTranslation.name! },
           { locale: 'en' },
         )
 
@@ -848,7 +848,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         if (tableName === 'treatments') {
           const treatmentId = typeof page.id === 'string' ? parseInt(page.id) : page.id
           if (!this.treatmentThumbnailMap.has(treatmentId)) {
-            this.skip(`Treatment ${page.id} "${enTranslation.name}" has no thumbnail`)
+            this.skip(`Treatment ${page.id} "${enTranslation.name!}" has no thumbnail`)
             continue
           }
         }
@@ -856,7 +856,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         // Generate slug
         const slug =
           enTranslation.slug?.trim() ||
-          enTranslation.name
+          enTranslation.name!
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/-+/g, '-')
@@ -890,7 +890,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           'pages',
           { slug: { equals: slug } },
           {
-            title: enTranslation.name,
+            title: enTranslation.name!,
             slug,
             publishAt: enTranslation.published_at || undefined,
             author: authorId,
@@ -905,7 +905,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             translation.locale !== 'en' &&
             translation.locale &&
             translation.name &&
-            LOCALES.includes(translation.locale)
+            LOCALES.includes(translation.locale as (typeof LOCALES)[number])
           ) {
             await this.payload.update({
               collection: 'pages',
@@ -914,7 +914,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
                 title: translation.name,
                 publishAt: translation.published_at || undefined,
               },
-              locale: translation.locale,
+              locale: translation.locale as (typeof LOCALES)[number],
             })
           }
         }
