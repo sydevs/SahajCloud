@@ -64,8 +64,8 @@ export async function POST(
     })
   }
 
-  // Check if user is admin (only Managers have admin field)
-  if (user.collection !== 'managers' || !('admin' in user) || !user.admin) {
+  // Check if user is admin (Managers with type='admin')
+  if (user.collection !== 'managers' || !('type' in user) || user.type !== 'admin') {
     return new Response(JSON.stringify({ error: 'Admin access required' }), {
       status: 403,
       headers: { 'Content-Type': 'application/json' },
@@ -114,14 +114,22 @@ export async function POST(
       // Get final counts from database
       const counts = await getDatabaseCounts(payload, script as ScriptName)
 
+      // Get report data
+      const report = importer.getReport()
+      const errorMessages = report.getErrors()
+      const warningMessages = report.getWarnings()
+
       // Send completion event
       await sendEvent({
         type: 'complete',
         summary: {
-          created: importer.getReport().getSummary().created,
-          updated: importer.getReport().getSummary().updated,
-          skipped: importer.getReport().getSummary().skipped,
-          errors: importer.getReport().getSummary().errors,
+          created: report.getSummary().created,
+          updated: report.getSummary().updated,
+          skipped: report.getSummary().skipped,
+          errors: report.getSummary().errors,
+          warnings: report.getWarningCount(),
+          errorMessages,
+          warningMessages,
           counts,
         },
       })

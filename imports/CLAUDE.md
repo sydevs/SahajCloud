@@ -4,32 +4,41 @@ Scripts for seeding content from external sources into Payload CMS. All scripts 
 
 ## Quick Start
 
-### CLI (Local Development)
+### CLI Usage
+
+The CLI (`pnpm seed`) is a thin HTTP client that calls the seed API endpoint.
+It can target both local development and production environments.
 
 ```bash
 # Show available scripts
 pnpm seed --help
 
-# Run seed with dry-run validation
+# Run seed with dry-run validation (local dev)
 pnpm seed <script> --dry-run
 
 # Run full seed (idempotent - safe to re-run)
 pnpm seed <script>
+
+# Seed production database
+SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed <script>
 ```
 
-### API Route (Production/Post-Deployment)
+**Required environment variables** (set in `.env` or shell):
+- `ADMIN_EMAIL` - Admin email for authentication
+- `ADMIN_PASSWORD` - Admin password for authentication
+- `SAHAJCLOUD_URL` - Target URL (default: `http://localhost:PORT`)
 
-Seeding can also be triggered via API after deployment:
+### API Route
 
-```bash
-# Trigger seed via API (requires admin authentication)
-POST /api/seed/<script>?dryRun=true
+The CLI calls the seed API endpoint which handles all import logic:
 
-# Scripts: tags, wemeditate, meditations, storyblok
-# Returns: Server-Sent Events (SSE) with progress updates
+```
+POST /api/seed/<script>?dryRun=true&clearCache=false
 ```
 
-The API route streams progress events and returns a final summary with database counts.
+- **Authentication**: Requires admin session (Manager with `admin: true`)
+- **Response**: Server-Sent Events (SSE) with progress updates
+- **Scripts**: `tags`, `wemeditate`, `meditations`, `storyblok`
 
 ## Available Scripts
 
@@ -55,6 +64,11 @@ The API route streams progress events and returns a final summary with database 
 ## Environment Variables
 
 ```bash
+# CLI Authentication (required for pnpm seed)
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=your-password
+SAHAJCLOUD_URL=https://cloud.sydevelopers.com  # Optional, defaults to localhost
+
 # All scripts
 PAYLOAD_SECRET=your-secret-key
 
@@ -92,7 +106,7 @@ imports/
 │   ├── logger.ts          # Console logging (no file output)
 │   └── ...                # Other shared utilities
 ├── cache/                 # Downloaded files (git-ignored, local dev only)
-├── run.ts                 # Unified CLI runner
+├── run.ts                 # CLI runner (HTTP client that calls API endpoint)
 ├── extract-to-json.ts     # One-time PostgreSQL data extraction script
 └── reset-migrations.sh    # Database migration reset script
 

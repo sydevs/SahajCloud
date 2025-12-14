@@ -254,6 +254,17 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info('Loading data from JSON...')
 
     const jsonPath = path.resolve(process.cwd(), 'imports/wemeditate/data.json')
+
+    // Check if data.json exists
+    try {
+      await fs.access(jsonPath)
+    } catch {
+      throw new Error(
+        `Data file not found at: ${jsonPath}\n` +
+          'Run the extraction script first: pnpm tsx imports/extract-to-json.ts',
+      )
+    }
+
     const jsonContent = await fs.readFile(jsonPath, 'utf-8')
     this.data = JSON.parse(jsonContent) as WeMeditateData
 

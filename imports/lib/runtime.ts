@@ -9,19 +9,27 @@
 /**
  * Check if running in Cloudflare Workers environment
  *
- * Detection methods:
- * - CF_PAGES: Set when running on Cloudflare Pages
- * - caches API: Available in Workers but not Node.js
+ * Detection methods (in order of reliability):
+ * 1. CF_PAGES: Set when running on Cloudflare Pages
+ * 2. Environment check: Not browser (no document) + has caches API
  */
 export function isCloudflareWorker(): boolean {
-  // CF_PAGES is set in Cloudflare Pages environment
+  // CF_PAGES is set in Cloudflare Pages environment (most reliable)
   if (typeof process !== 'undefined' && process.env?.CF_PAGES !== undefined) {
     return true
   }
 
-  // Fallback: Check for Workers-specific API
-  // The global `caches` object exists in Workers but not in Node.js
-  if (typeof globalThis !== 'undefined' && 'caches' in globalThis) {
+  // Fallback: Check for Workers-specific combination
+  // - Has `caches` global (Workers runtime)
+  // - Does NOT have `document` (not a browser)
+  // - Does NOT have `window` (not a browser)
+  // This prevents false positives during SSR hydration
+  if (
+    typeof globalThis !== 'undefined' &&
+    'caches' in globalThis &&
+    !('document' in globalThis) &&
+    !('window' in globalThis)
+  ) {
     return true
   }
 

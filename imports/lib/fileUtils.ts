@@ -53,6 +53,7 @@ export class FileUtils {
       '.jpeg': 'image/jpeg',
       '.png': 'image/png',
       '.webp': 'image/webp',
+      '.svg': 'image/svg+xml',
       '.mp4': 'video/mp4',
       '.webm': 'video/webm',
       '.pdf': 'application/pdf',
