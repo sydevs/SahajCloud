@@ -1,5 +1,5 @@
 #!/usr/bin/env tsx
-/* eslint-disable no-console */
+ 
 
 /**
  * WeMeditate Rails Database Import Script
@@ -321,14 +321,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async importAuthors(): Promise<void> {
-    await this.logger.info('\n=== Importing Authors ===')
-
     const authors = this.data.authors
+    const total = authors.length
 
-    await this.logger.info(`Found ${authors.length} authors`)
-    await this.logger.progress(0, authors.length, 'Authors')
-
-    for (let i = 0; i < authors.length; i++) {
+    for (let i = 0; i < total; i++) {
       const author = authors[i]
 
       try {
@@ -357,7 +353,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             countryCode: author.country_code || undefined,
             yearsMeditating: author.years_meditating || undefined,
           },
-          { locale: 'en' },
+          {
+            locale: 'en',
+            identifier: slug,
+            current: i + 1,
+            total,
+          },
         )
 
         // Update other locales
@@ -385,8 +386,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       } catch (error) {
         this.addError(`Importing author ${author.id}`, error as Error)
       }
-
-      await this.logger.progress(i + 1, authors.length, 'Authors')
     }
   }
 
@@ -395,15 +394,11 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async importAlbums(): Promise<void> {
-    await this.logger.info('\n=== Importing Albums (from artists table) ===')
-
     // Artists in WeMeditate represent music albums
     const artists = this.data.artists
+    const total = artists.length
 
-    await this.logger.info(`Found ${artists.length} albums (artists)`)
-    await this.logger.progress(0, artists.length, 'Albums')
-
-    for (let i = 0; i < artists.length; i++) {
+    for (let i = 0; i < total; i++) {
       const artist = artists[i]
 
       try {
@@ -431,8 +426,11 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             locale: 'en',
           })
           this.idMaps.albums.set(artist.id, existing.docs[0].id)
-          this.report.incrementSkipped()
-          await this.logger.progress(i + 1, artists.length, 'Albums')
+          this.report.incrementUpdated()
+          await this.reportDocument('albums', artist.name, 'updated', {
+            current: i + 1,
+            total,
+          })
           continue
         }
 
@@ -495,11 +493,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
         this.idMaps.albums.set(artist.id, albumDoc.id)
         this.report.incrementCreated()
+        await this.reportDocument('albums', artist.name, 'created', {
+          current: i + 1,
+          total,
+        })
       } catch (error) {
         this.addError(`Importing album (artist) ${artist.id}`, error as Error)
       }
-
-      await this.logger.progress(i + 1, artists.length, 'Albums')
     }
   }
 
@@ -542,18 +542,14 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   }
 
   private async importMusic(): Promise<void> {
-    await this.logger.info('\n=== Importing Music (from tracks table) ===')
-
     // Ensure vocals tag exists (it might not be in the tags import)
     await this.ensureVocalsTagExists()
 
     // Use pre-extracted tracks data
     const tracks = this.data.tracks
+    const total = tracks.length
 
-    await this.logger.info(`Found ${tracks.length} music tracks`)
-    await this.logger.progress(0, tracks.length, 'Music tracks')
-
-    for (let i = 0; i < tracks.length; i++) {
+    for (let i = 0; i < total; i++) {
       const track = tracks[i]
 
       try {
@@ -619,7 +615,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             locale: 'en',
           })
           this.report.incrementUpdated()
-          await this.logger.progress(i + 1, tracks.length, 'Music tracks')
+          await this.reportDocument('music', track.title, 'updated', {
+            current: i + 1,
+            total,
+          })
           continue
         }
 
@@ -647,6 +646,11 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           }
         } catch (error) {
           this.addError(`Downloading audio for track ${track.id}: ${audioUrl}`, error as Error)
+          await this.reportDocument('music', track.title, 'error', {
+            error: (error as Error).message,
+            current: i + 1,
+            total,
+          })
           continue
         }
 
@@ -672,11 +676,18 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         })
 
         this.report.incrementCreated()
+        await this.reportDocument('music', track.title, 'created', {
+          current: i + 1,
+          total,
+        })
       } catch (error) {
         this.addError(`Importing track ${track.id}`, error as Error)
+        await this.reportDocument('music', track.title || `track-${track.id}`, 'error', {
+          error: (error as Error).message,
+          current: i + 1,
+          total,
+        })
       }
-
-      await this.logger.progress(i + 1, tracks.length, 'Music tracks')
     }
   }
 
@@ -829,8 +840,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async importPages(tableName: string, _translationsTable: string): Promise<void> {
-    await this.logger.info(`\n=== Importing ${tableName} ===`)
-
     // Map table names to pre-extracted data arrays
     const dataMap: Record<string, typeof this.data.staticPages | typeof this.data.articles> = {
       static_pages: this.data.staticPages,
@@ -840,11 +849,9 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
 
     const pages = dataMap[tableName] || []
+    const total = pages.length
 
-    await this.logger.info(`Found ${pages.length} pages from ${tableName}`)
-    await this.logger.progress(0, pages.length, tableName)
-
-    for (let i = 0; i < pages.length; i++) {
+    for (let i = 0; i < total; i++) {
       const page = pages[i] as any // Use any for dynamic table access
 
       try {
@@ -896,7 +903,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           tags.push(this.idMaps.categories.get(page.category_id)!)
         }
 
-        // Upsert page by slug
+        // Upsert page by slug (upsert auto-reports progress)
         const pageResult = await this.upsert<{ id: number }>(
           'pages',
           { slug: { equals: slug } },
@@ -907,7 +914,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             author: authorId,
             tags: tags.length > 0 ? tags : undefined,
           },
-          { locale: 'en' },
+          {
+            locale: 'en',
+            identifier: slug,
+            current: i + 1,
+            total,
+          },
         )
 
         // Update other locales
@@ -946,8 +958,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       } catch (error) {
         this.addError(`Importing ${tableName} ${page.id}`, error as Error)
       }
-
-      await this.logger.progress(i + 1, pages.length, tableName)
     }
   }
 
@@ -1096,33 +1106,49 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       })
     }
 
-    await this.logger.info(`Found ${mediaUrls.size} unique media files`)
-    await this.logger.progress(0, mediaUrls.size, 'Media files')
+    const mediaUrlArray = Array.from(mediaUrls)
+    const total = mediaUrlArray.length
 
-    let count = 0
-    for (const url of Array.from(mediaUrls)) {
+    for (let i = 0; i < total; i++) {
+      const url = mediaUrlArray[i]
+      const filename = path.basename(url).split('?')[0] // Remove query params for identifier
+
       try {
         const downloadResult = await this.mediaDownloader.downloadAndConvertImage(url)
         const metadata = mediaMetadata.get(url) || { alt: '', credit: '' }
-        const filename = path.basename(
+        const filenameWithoutExt = path.basename(
           downloadResult.localPath,
           path.extname(downloadResult.localPath),
         )
 
         const result = await this.mediaUploader.uploadWithDeduplication(downloadResult.localPath, {
-          alt: metadata.alt || filename,
+          alt: metadata.alt || filenameWithoutExt,
           credit: metadata.credit || '',
         })
 
         if (result) {
           this.idMaps.media.set(url, result.id)
+          this.report.incrementCreated()
+          await this.reportDocument('images', filename, 'created', {
+            current: i + 1,
+            total,
+          })
+        } else {
+          // Deduplication found existing - count as updated
+          this.report.incrementUpdated()
+          await this.reportDocument('images', filename, 'updated', {
+            current: i + 1,
+            total,
+          })
         }
       } catch (error) {
         this.addError(`Importing media ${url}`, error as Error)
+        await this.reportDocument('images', filename, 'error', {
+          error: (error as Error).message,
+          current: i + 1,
+          total,
+        })
       }
-
-      count++
-      await this.logger.progress(count, mediaUrls.size, 'Media files')
     }
   }
 

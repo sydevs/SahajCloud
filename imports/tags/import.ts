@@ -1,4 +1,4 @@
-/* eslint-disable no-console */
+ 
 
 /**
  * Meditation & Music Tags Import Script
@@ -19,10 +19,11 @@
  *   --clear-cache  Clear download cache before import
  */
 
+import type { Payload } from 'payload'
+
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
-import type { Payload } from 'payload'
 
 import { BaseImporter, BaseImportOptions } from '../lib'
 
@@ -322,10 +323,9 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async importMeditationTags(): Promise<void> {
-    await this.logger.info('\n=== Importing Meditation Tags ===')
-    await this.logger.progress(0, MEDITATION_TAGS.length, 'Meditation tags')
+    const total = MEDITATION_TAGS.length
 
-    for (let i = 0; i < MEDITATION_TAGS.length; i++) {
+    for (let i = 0; i < total; i++) {
       const tag = MEDITATION_TAGS[i]
 
       try {
@@ -344,13 +344,17 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
             title: tag.title,
             color: tag.color,
           },
-          { locale: 'en', file: svgFile },
+          {
+            locale: 'en',
+            file: svgFile,
+            identifier: tag.slug,
+            current: i + 1,
+            total,
+          },
         )
       } catch (error) {
         this.addError(`Importing meditation tag "${tag.title}"`, error as Error)
       }
-
-      await this.logger.progress(i + 1, MEDITATION_TAGS.length, 'Meditation tags')
     }
   }
 
@@ -359,10 +363,9 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async importMusicTags(): Promise<void> {
-    await this.logger.info('\n=== Importing Music Tags ===')
-    await this.logger.progress(0, MUSIC_TAGS.length, 'Music tags')
+    const total = MUSIC_TAGS.length
 
-    for (let i = 0; i < MUSIC_TAGS.length; i++) {
+    for (let i = 0; i < total; i++) {
       const tag = MUSIC_TAGS[i]
 
       try {
@@ -381,13 +384,17 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
             slug: tag.slug,
             title: tag.title,
           },
-          { locale: 'en', file: svgFile },
+          {
+            locale: 'en',
+            file: svgFile,
+            identifier: tag.slug,
+            current: i + 1,
+            total,
+          },
         )
       } catch (error) {
         this.addError(`Importing music tag "${tag.title}"`, error as Error)
       }
-
-      await this.logger.progress(i + 1, MUSIC_TAGS.length, 'Music tags')
     }
   }
 
@@ -403,7 +410,6 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
     if (url.startsWith('local:')) {
       const localFilename = url.slice(6) // Remove 'local:' prefix
       const localPath = path.resolve(process.cwd(), 'imports/tags', localFilename)
-      await this.logger.info(`Loading local SVG: ${localFilename}`)
       return fs.readFile(localPath, 'utf-8')
     }
 
@@ -411,12 +417,10 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
 
     // Check cache first
     if (await this.fileUtils.fileExists(cachePath)) {
-      await this.logger.info(`Using cached SVG: ${cacheFilename}`)
       return fs.readFile(cachePath, 'utf-8')
     }
 
     // Download from URL
-    await this.logger.info(`Downloading SVG: ${cacheFilename}`)
     const response = await fetch(url)
     if (!response.ok) {
       throw new Error(`Failed to download SVG: ${response.status} ${response.statusText}`)

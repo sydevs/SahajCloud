@@ -29,19 +29,37 @@ import configPromise from '../../src/payload.config'
 // ============================================================================
 
 /**
- * Progress event data sent during import
+ * Result of importing a single document
  */
-export interface ProgressEvent {
-  type: 'start' | 'progress' | 'complete' | 'error'
-  message?: string
-  collection?: string
+export interface DocumentResult {
+  collection: string
+  identifier: string
+  action: 'created' | 'updated' | 'skipped' | 'error'
+  error?: string
+  warnings?: string[]
+}
+
+/**
+ * Import event sent via SSE
+ */
+export interface ImportEvent {
+  type: 'start' | 'document' | 'complete' | 'error'
+  // For 'start':
+  script?: string
+  dryRun?: boolean
+  // For 'document':
+  document?: DocumentResult
   current?: number
   total?: number
+  // For 'complete':
+  summary?: Record<string, unknown>
+  // For 'error':
+  message?: string
   timestamp: string
 }
 
 /**
- * Callback function for progress events (used by API routes for SSE)
+ * Callback function for import events (used by API routes for SSE)
  */
 export type OnProgressCallback = (data: Record<string, unknown>) => Promise<void>
 
@@ -172,8 +190,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       await this.logger?.error(`Fatal error: ${message}`)
-      // Send error progress event
-      await this.sendProgress({
+      // Send error event
+      await this.sendEvent({
         type: 'error',
         message,
       })
@@ -251,34 +269,63 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   // ============================================================================
 
   /**
-   * Send progress event to callback (if provided)
+   * Send import event to callback (if provided)
    * Used by API routes for SSE streaming
    */
-  protected async sendProgress(data: Partial<ProgressEvent> & { type: ProgressEvent['type'] }): Promise<void> {
+  protected async sendEvent(event: Omit<ImportEvent, 'timestamp'>): Promise<void> {
     if (!this.options.onProgress) return
 
     await this.options.onProgress({
-      ...data,
+      ...event,
       timestamp: new Date().toISOString(),
     })
   }
 
   /**
-   * Helper for subclasses to report progress during import
+   * Report a document result (called automatically by upsert)
+   * Sends SSE event and logs to console
    */
-  protected async reportProgress(
-    message: string,
-    current?: number,
-    total?: number,
-    collection?: string,
+  protected async reportDocument(
+    collection: string,
+    identifier: string,
+    action: DocumentResult['action'],
+    options?: { error?: string; warnings?: string[]; current?: number; total?: number },
   ): Promise<void> {
-    await this.sendProgress({
-      type: 'progress',
-      message,
-      current,
-      total,
+    const document: DocumentResult = {
       collection,
+      identifier,
+      action,
+      error: options?.error,
+      warnings: options?.warnings,
+    }
+
+    // Send SSE event
+    await this.sendEvent({
+      type: 'document',
+      document,
+      current: options?.current,
+      total: options?.total,
     })
+
+    // Console output (CLI mode)
+    if (!this.isWorker) {
+      const icon =
+        action === 'created'
+          ? '✓'
+          : action === 'updated'
+            ? '↻'
+            : action === 'skipped'
+              ? '○'
+              : '✗'
+      const status = action === 'error' ? `error: ${options?.error}` : action
+      console.log(`  ${identifier} ${icon} ${status}`)
+
+      if (options?.warnings?.length) {
+        for (const w of options.warnings) {
+          console.log(`    ⚠ ${w}`)
+        }
+      }
+    }
   }
 
   // ============================================================================
@@ -292,7 +339,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    * @param collection - Payload collection slug
    * @param naturalKey - Where clause to find existing document
    * @param data - Document data to create or update with
-   * @param options - Optional locale and file data
+   * @param options - Optional locale, file data, identifier override, and progress tracking
    * @returns UpsertResult with the document and action taken
    */
   protected async upsert<T extends { id: number | string }>(
@@ -302,11 +349,22 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     options?: {
       locale?: TypedLocale
       file?: FileData
+      /** Override the identifier shown in progress (defaults to naturalKey summary) */
+      identifier?: string
+      /** Current progress index for SSE streaming */
+      current?: number
+      /** Total items for SSE streaming */
+      total?: number
     },
   ): Promise<UpsertResult<T>> {
+    const identifier = options?.identifier || this.summarizeKey(naturalKey)
+
     if (this.options.dryRun) {
-      await this.logger.info(`[DRY RUN] Would upsert ${collection}: ${JSON.stringify(naturalKey)}`)
       this.report.incrementSkipped()
+      await this.reportDocument(collection, identifier, 'skipped', {
+        current: options?.current,
+        total: options?.total,
+      })
       return { doc: data as T, action: 'skipped' }
     }
 
@@ -334,7 +392,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         )
 
         this.report.incrementUpdated()
-        await this.logger.info(`  ↻ Updated ${collection}: ${this.summarizeKey(naturalKey)}`)
+        await this.reportDocument(collection, identifier, 'updated', {
+          current: options?.current,
+          total: options?.total,
+        })
         return { doc: updated as unknown as T, action: 'updated' }
       }
 
@@ -349,7 +410,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       )
 
       this.report.incrementCreated()
-      await this.logger.success(`  ✓ Created ${collection}: ${this.summarizeKey(naturalKey)}`)
+      await this.reportDocument(collection, identifier, 'created', {
+        current: options?.current,
+        total: options?.total,
+      })
       return { doc: created as unknown as T, action: 'created' }
     } catch (error) {
       // Handle slug collision - log for manual review and skip
@@ -361,13 +425,25 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           data: data as Record<string, unknown>,
           error: error instanceof Error ? error.message : String(error),
         })
-        this.addError(`Slug collision in ${collection}`, error as Error)
+        const errorMsg = error instanceof Error ? error.message : String(error)
+        this.report.addError(`Slug collision in ${collection}: ${errorMsg}`)
         this.report.incrementSkipped()
+        await this.reportDocument(collection, identifier, 'skipped', {
+          error: `Slug collision: ${slug}`,
+          current: options?.current,
+          total: options?.total,
+        })
         return { doc: data as T, action: 'skipped' }
       }
 
-      const message = error instanceof Error ? error.message : String(error)
-      this.addError(`Upsert ${collection}`, error instanceof Error ? error : new Error(message))
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      this.report.addError(`Upsert ${collection}: ${errorMsg}`)
+      this.report.incrementErrors()
+      await this.reportDocument(collection, identifier, 'error', {
+        error: errorMsg,
+        current: options?.current,
+        total: options?.total,
+      })
       throw error
     }
   }

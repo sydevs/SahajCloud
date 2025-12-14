@@ -24,7 +24,7 @@ import { getPayload } from 'payload'
 
 import config from '@payload-config'
 
-type ScriptName = 'tags' | 'wemeditate' | 'meditations' | 'storyblok'
+import { verifyCountsForScript, type ScriptName } from '../../../../../../imports/lib/expectedCounts'
 
 const VALID_SCRIPTS: ScriptName[] = ['tags', 'wemeditate', 'meditations', 'storyblok']
 
@@ -114,6 +114,12 @@ export async function POST(
       // Get final counts from database
       const counts = await getDatabaseCounts(payload, script as ScriptName)
 
+      // Verify counts against expected minimums
+      const { results: verification, allPassed: verificationPassed } = verifyCountsForScript(
+        script as ScriptName,
+        counts,
+      )
+
       // Get report data
       const report = importer.getReport()
       const errorMessages = report.getErrors()
@@ -131,6 +137,8 @@ export async function POST(
           errorMessages,
           warningMessages,
           counts,
+          verification,
+          verificationPassed,
         },
       })
     } catch (error) {

@@ -177,88 +177,128 @@ async function* parseSSE(
 }
 
 /**
- * Display progress event in terminal
+ * Document result from import event
  */
-function displayProgress(event: Record<string, unknown>): void {
-  const type = event.type as string
+interface DocumentResult {
+  collection: string
+  identifier: string
+  action: 'created' | 'updated' | 'skipped' | 'error'
+  error?: string
+  warnings?: string[]
+}
 
-  switch (type) {
-    case 'start':
-      console.log(`\n${'='.repeat(60)}`)
-      console.log(`Starting ${event.script} import`)
-      if (event.dryRun) {
-        console.log('Mode: DRY RUN - No data will be written')
-      }
-      console.log('='.repeat(60))
-      break
+/**
+ * Display handler with state for collection headers
+ */
+class ProgressDisplay {
+  private currentCollection = ''
 
-    case 'progress':
-      if (event.current && event.total) {
-        console.log(`  [${event.current}/${event.total}] ${event.message}`)
-      } else {
-        console.log(`  ${event.message}`)
-      }
-      break
+  displayEvent(event: Record<string, unknown>): void {
+    const type = event.type as string
 
-    case 'complete': {
-      const summary = event.summary as Record<string, unknown>
-      console.log('\n' + '='.repeat(60))
-      console.log('IMPORT SUMMARY')
-      console.log('='.repeat(60))
-      console.log('\n📊 Records:')
-      console.log(`  Created:  ${summary.created}`)
-      console.log(`  Updated:  ${summary.updated}`)
-      console.log(`  Skipped:  ${summary.skipped}`)
-      console.log(`  Errors:   ${summary.errors}`)
-
-      const warnings = summary.warnings as number
-      if (warnings > 0) {
-        console.log(`  Warnings: ${warnings}`)
-      }
-
-      const counts = summary.counts as Record<string, number>
-      if (counts && Object.keys(counts).length > 0) {
-        console.log('\n📦 Database Counts:')
-        for (const [collection, count] of Object.entries(counts)) {
-          console.log(`  ${collection}: ${count}`)
+    switch (type) {
+      case 'start':
+        console.log(`\n${'='.repeat(60)}`)
+        console.log(`${event.script} import`)
+        if (event.dryRun) {
+          console.log('Mode: DRY RUN')
         }
-      }
+        console.log('='.repeat(60))
+        break
 
-      // Display error messages
-      const errorMessages = summary.errorMessages as string[] | undefined
-      if (errorMessages && errorMessages.length > 0) {
-        console.log('\n❌ Errors:')
-        for (const msg of errorMessages) {
-          console.log(`  - ${msg}`)
+      case 'document': {
+        const doc = event.document as DocumentResult
+        if (!doc) break
+
+        // Print collection header when collection changes
+        if (doc.collection !== this.currentCollection) {
+          console.log(`\n📁 ${doc.collection}:`)
+          this.currentCollection = doc.collection
         }
-      }
 
-      // Display warning messages
-      const warningMessages = summary.warningMessages as string[] | undefined
-      if (warningMessages && warningMessages.length > 0) {
-        console.log('\n⚠️  Warnings:')
-        for (const msg of warningMessages) {
-          console.log(`  - ${msg}`)
+        // Determine emoji based on action
+        const emoji =
+          doc.action === 'created'
+            ? '✅'
+            : doc.action === 'updated'
+              ? '🔄'
+              : doc.action === 'skipped'
+                ? '⏭️'
+                : '❌'
+
+        // Build status text
+        const status = doc.action === 'error' ? `${doc.error}` : doc.action
+        console.log(`  ${emoji} ${doc.identifier} — ${status}`)
+
+        // Display warnings if any
+        if (doc.warnings?.length) {
+          for (const w of doc.warnings) {
+            console.log(`     ⚠️  ${w}`)
+          }
         }
+        break
       }
 
-      const errorCount = summary.errors as number
-      if (errorCount === 0) {
-        console.log('\n✅ Import completed successfully')
-      } else {
-        console.log(`\n❌ Import completed with ${errorCount} error(s)`)
+      case 'complete': {
+        const summary = event.summary as Record<string, unknown>
+
+        // Summary line with emojis
+        console.log('')
+        console.log(
+          `📊 ✅ ${summary.created} created  🔄 ${summary.updated} updated  ⏭️ ${summary.skipped} skipped  ❌ ${summary.errors} errors`,
+        )
+
+        // Display verification results
+        const verification = summary.verification as
+          | { collection: string; actual: number; expected: number; passed: boolean }[]
+          | undefined
+        const verificationPassed = summary.verificationPassed as boolean | undefined
+
+        if (verification && verification.length > 0) {
+          console.log('\n🔍 Verification:')
+          for (const { collection, actual, expected, passed } of verification) {
+            const emoji = passed ? '✅' : '❌'
+            console.log(`   ${emoji} ${collection}: ${actual} (≥${expected})`)
+          }
+        }
+
+        // Display error messages
+        const errorMessages = summary.errorMessages as string[] | undefined
+        if (errorMessages && errorMessages.length > 0) {
+          console.log('\n🚨 Errors:')
+          for (const msg of errorMessages) {
+            console.log(`   ❌ ${msg}`)
+          }
+        }
+
+        // Display warning messages
+        const warningMessages = summary.warningMessages as string[] | undefined
+        if (warningMessages && warningMessages.length > 0) {
+          console.log('\n⚠️  Warnings:')
+          for (const msg of warningMessages) {
+            console.log(`   ⚠️  ${msg}`)
+          }
+        }
+
+        const errorCount = summary.errors as number
+        if (errorCount === 0 && verificationPassed !== false) {
+          console.log('\n🎉 Import completed successfully!')
+        } else if (verificationPassed === false) {
+          console.log('\n💥 Import failed — verification not met')
+        } else {
+          console.log(`\n💥 Import completed with ${errorCount} error(s)`)
+        }
+        break
       }
-      console.log('='.repeat(60))
-      break
+
+      case 'error':
+        console.error(`\n❌ Error: ${event.message}`)
+        break
     }
+  }
 
-    case 'error':
-      console.error(`\n❌ Error: ${event.message}`)
-      break
-
-    default:
-      // Log unknown event types for debugging
-      console.log(`  [${type}] ${JSON.stringify(event)}`)
+  reset(): void {
+    this.currentCollection = ''
   }
 }
 
@@ -267,6 +307,9 @@ interface ScriptResult {
   success: boolean
   errors: string[]
 }
+
+// Shared display instance for tracking collection state
+const display = new ProgressDisplay()
 
 /**
  * Run a single seed script via the API
@@ -280,8 +323,8 @@ async function runScript(
   const { dryRun, clearCache } = options
   const errors: string[] = []
 
-  console.log(`\n🚀 Running: ${scriptName}`)
-  console.log(`   ${SCRIPT_DESCRIPTIONS[scriptName]}`)
+  // Reset display state for new script
+  display.reset()
 
   // Build query params
   const params = new URLSearchParams()
@@ -289,8 +332,6 @@ async function runScript(
   if (clearCache) params.set('clearCache', 'true')
   const queryString = params.toString()
   const url = `${baseUrl}/api/seed/${scriptName}${queryString ? `?${queryString}` : ''}`
-
-  console.log(`📡 Calling API: POST ${url}\n`)
 
   try {
     // Call the seed API
@@ -318,7 +359,7 @@ async function runScript(
 
     // Parse SSE stream and display progress
     for await (const event of parseSSE(response.body)) {
-      displayProgress(event)
+      display.displayEvent(event)
 
       // Collect error events
       if (event.type === 'error') {
@@ -336,6 +377,11 @@ async function runScript(
           } else if (typeof summary.errors === 'number' && summary.errors > 0) {
             // Fallback if messages not provided
             errors.push(`Import completed with ${summary.errors} error(s)`)
+          }
+
+          // Check verification result
+          if (summary.verificationPassed === false) {
+            errors.push('Count verification failed')
           }
         }
       }

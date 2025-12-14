@@ -1,4 +1,4 @@
-/* eslint-disable no-console */
+ 
 
 /**
  * Storyblok Path Steps Import Script
@@ -19,10 +19,11 @@
  *   --clear-cache  Clear download cache before import
  */
 
+import type { Payload } from 'payload'
+
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
-import type { Payload } from 'payload'
 
 import { BaseImporter, BaseImportOptions, MediaUploader } from '../lib'
 
@@ -168,36 +169,36 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async importLessons(stories: StoryblokStory[]): Promise<void> {
-    await this.logger.info('\n=== Importing Lessons ===')
-    await this.logger.progress(0, stories.length, 'Lessons')
-
-    for (let i = 0; i < stories.length; i++) {
+    const total = stories.length
+    for (let i = 0; i < total; i++) {
       const story = stories[i]
 
       try {
-        await this.importLesson(story)
+        await this.importLesson(story, i + 1, total)
       } catch (error) {
+        // Error already reported by upsert() - just log to report summary
         this.addError(`Importing lesson "${story.name}"`, error as Error)
       }
-
-      await this.logger.progress(i + 1, stories.length, 'Lessons')
     }
   }
 
-  private async importLesson(story: StoryblokStory): Promise<void> {
+  private async importLesson(
+    story: StoryblokStory,
+    current: number,
+    total: number,
+  ): Promise<void> {
     const content = story.content as Record<string, any>
     const stepSlug = story.slug
+    const identifier = story.name
 
     // Extract unit and step for natural key
     const unitNumber = content.Step_info?.[0]?.Unit_number || this.extractUnitFromSlug(stepSlug)
     const stepMatch = stepSlug.match(/step-(\d+)/)
     const stepNumber = stepMatch ? parseInt(stepMatch[1], 10) : 1
 
-    await this.logger.info(`\nProcessing ${story.name} (Unit ${unitNumber}, Step ${stepNumber})...`)
-
     if (this.options.dryRun) {
-      await this.logger.info(`[DRY RUN] Would upsert lesson: ${story.name}`)
       this.report.incrementSkipped()
+      await this.reportDocument('lessons', identifier, 'skipped', { current, total })
       return
     }
 
@@ -265,7 +266,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
         and: [{ unit: { equals: `Unit ${unitNumber}` } }, { step: { equals: stepNumber } }],
       },
       lessonData,
-      { locale: 'en' },
+      { locale: 'en', identifier, current, total },
     )
 
     const lessonId = result.doc.id

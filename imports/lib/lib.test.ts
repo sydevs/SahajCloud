@@ -31,10 +31,7 @@ describe('Logger', () => {
     expect(typeof logger.warn).toBe('function')
     expect(typeof logger.info).toBe('function')
     expect(typeof logger.log).toBe('function')
-  })
-
-  it('should have progress method', () => {
-    expect(typeof logger.progress).toBe('function')
+    expect(typeof logger.skip).toBe('function')
   })
 })
 
