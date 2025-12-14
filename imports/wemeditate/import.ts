@@ -30,7 +30,7 @@ import type { Payload, TypedLocale } from 'payload'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
-import { BaseImporter, BaseImportOptions, parseArgs, MediaUploader } from '../lib'
+import { BaseImporter, BaseImportOptions, MediaUploader } from '../lib'
 
 // ============================================================================
 // WEMEDITATE DATA TYPES (matching extraction script output)
@@ -1592,33 +1592,3 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   }
 }
 
-// ============================================================================
-// MAIN ENTRY POINT
-// ============================================================================
-
-async function main(): Promise<void> {
-  // Check if data.json exists
-  const dataJsonPath = path.resolve(process.cwd(), 'imports/wemeditate/data.json')
-  try {
-    await fs.access(dataJsonPath)
-  } catch {
-    console.error(`Error: Data file not found at ${dataJsonPath}`)
-    console.error('Run the extraction script first: pnpm tsx imports/extract-to-json.ts')
-    process.exit(1)
-  }
-
-  const options = parseArgs()
-  const importer = new WeMeditateImporter(options)
-  await importer.run()
-  process.exit(0)
-}
-
-// Only run when executed directly, not when imported as a module
-// This prevents auto-execution when the migration imports the class
-const isDirectExecution = process.argv[1]?.includes('/imports/')
-if (isDirectExecution) {
-  main().catch((error) => {
-    console.error('Fatal error:', error)
-    process.exit(1)
-  })
-}

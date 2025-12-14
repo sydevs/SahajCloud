@@ -24,7 +24,7 @@ import * as path from 'path'
 
 import type { Payload } from 'payload'
 
-import { BaseImporter, BaseImportOptions, parseArgs } from '../lib'
+import { BaseImporter, BaseImportOptions } from '../lib'
 
 // ============================================================================
 // CONFIGURATION
@@ -457,24 +457,3 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
   }
 }
 
-// ============================================================================
-// MAIN ENTRY POINT
-// ============================================================================
-
-async function main(): Promise<void> {
-  const options = parseArgs()
-
-  const importer = new TagsImporter(options)
-  await importer.run()
-  process.exit(0)
-}
-
-// Only run when executed directly, not when imported as a module
-// This prevents auto-execution when the migration imports the class
-const isDirectExecution = process.argv[1]?.includes('/imports/')
-if (isDirectExecution) {
-  main().catch((error) => {
-    console.error('Fatal error:', error)
-    process.exit(1)
-  })
-}

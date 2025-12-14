@@ -3,7 +3,7 @@
 /**
  * Unified Seed Script Runner
  *
- * A simple CLI to run seed scripts with consistent argument handling.
+ * A CLI to run seed scripts with consistent argument handling and progress visualization.
  *
  * Usage:
  *   pnpm seed <script> [options]
@@ -25,14 +25,19 @@
  *   pnpm seed tags
  */
 
-import { spawn } from 'child_process'
-import * as path from 'path'
+import 'dotenv/config'
 
-const SCRIPTS: Record<string, string> = {
-  storyblok: 'storyblok/import.ts',
-  wemeditate: 'wemeditate/import.ts',
-  meditations: 'meditations/import.ts',
-  tags: 'tags/import.ts',
+import type { BaseImporter, BaseImportOptions } from './lib'
+
+type ScriptName = 'storyblok' | 'wemeditate' | 'meditations' | 'tags'
+
+const VALID_SCRIPTS: ScriptName[] = ['storyblok', 'wemeditate', 'meditations', 'tags']
+
+const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
+  storyblok: 'Seed Path Steps from Storyblok CMS',
+  wemeditate: 'Seed content from WeMeditate Rails database',
+  meditations: 'Seed meditation content from legacy database',
+  tags: 'Seed MeditationTags and MusicTags from Cloudinary',
 }
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache']
@@ -64,10 +69,41 @@ Examples:
 
 function printScripts(): void {
   console.log('\nAvailable scripts:')
-  for (const [name, scriptPath] of Object.entries(SCRIPTS)) {
-    console.log(`  ${name.padEnd(14)} → imports/${scriptPath}`)
+  for (const name of VALID_SCRIPTS) {
+    console.log(`  ${name.padEnd(14)} → ${SCRIPT_DESCRIPTIONS[name]}`)
   }
   console.log('')
+}
+
+/**
+ * Dynamically import and create importer instance
+ */
+async function createImporter(
+  script: ScriptName,
+  options: BaseImportOptions,
+): Promise<BaseImporter> {
+  switch (script) {
+    case 'tags': {
+      const { TagsImporter } = await import('./tags/import')
+      return new TagsImporter(options)
+    }
+    case 'wemeditate': {
+      const { WeMeditateImporter } = await import('./wemeditate/import')
+      return new WeMeditateImporter(options)
+    }
+    case 'meditations': {
+      const { MeditationsImporter } = await import('./meditations/import')
+      return new MeditationsImporter(options)
+    }
+    case 'storyblok': {
+      const token = process.env.STORYBLOK_ACCESS_TOKEN
+      if (!token) {
+        throw new Error('STORYBLOK_ACCESS_TOKEN environment variable is required')
+      }
+      const { StoryblokImporter } = await import('./storyblok/import')
+      return new StoryblokImporter(options, token)
+    }
+  }
 }
 
 async function main(): Promise<void> {
@@ -86,51 +122,40 @@ async function main(): Promise<void> {
   }
 
   // Get script name
-  const scriptName = args[0]
-  const scriptPath = SCRIPTS[scriptName]
+  const scriptName = args[0] as ScriptName
 
-  if (!scriptPath) {
+  if (!VALID_SCRIPTS.includes(scriptName)) {
     console.error(`❌ Unknown script: ${scriptName}`)
     printScripts()
     process.exit(1)
   }
 
-  // Validate options
+  // Parse options
   const scriptArgs = args.slice(1)
   for (const arg of scriptArgs) {
-    const isValidOption = VALID_OPTIONS.some((opt) => arg === opt)
-
-    if (!isValidOption) {
+    if (!VALID_OPTIONS.includes(arg)) {
       console.error(`❌ Unknown option: ${arg}`)
       console.error(`\nValid options: ${VALID_OPTIONS.join(', ')}`)
       process.exit(1)
     }
   }
 
-  // Build full path to script
-  const fullScriptPath = path.join(process.cwd(), 'imports', scriptPath)
+  const options: BaseImportOptions = {
+    dryRun: scriptArgs.includes('--dry-run'),
+    clearCache: scriptArgs.includes('--clear-cache'),
+  }
 
   console.log(`\n🚀 Running: ${scriptName}`)
-  if (scriptArgs.length > 0) {
-    console.log(`   Options: ${scriptArgs.join(' ')}`)
-  }
+  if (options.dryRun) console.log('   Mode: DRY RUN')
+  if (options.clearCache) console.log('   Option: Clear cache')
   console.log('')
 
-  // Run the script using tsx
-  const child = spawn('npx', ['tsx', fullScriptPath, ...scriptArgs], {
-    stdio: 'inherit',
-    cwd: process.cwd(),
-    env: process.env,
-  })
+  // Create and run importer
+  const importer = await createImporter(scriptName, options)
+  await importer.run()
 
-  child.on('error', (error) => {
-    console.error(`❌ Failed to run script: ${error.message}`)
-    process.exit(1)
-  })
-
-  child.on('close', (code) => {
-    process.exit(code ?? 0)
-  })
+  // Exit with success
+  process.exit(0)
 }
 
 main().catch((error) => {

@@ -24,7 +24,7 @@ import * as path from 'path'
 
 import type { Payload } from 'payload'
 
-import { BaseImporter, BaseImportOptions, parseArgs, MediaUploader } from '../lib'
+import { BaseImporter, BaseImportOptions, MediaUploader } from '../lib'
 
 // ============================================================================
 // CONFIGURATION
@@ -746,31 +746,3 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   }
 }
 
-// ============================================================================
-// MAIN ENTRY POINT
-// ============================================================================
-
-async function main(): Promise<void> {
-  const options = parseArgs()
-
-  const token = process.env.STORYBLOK_ACCESS_TOKEN
-  if (!token) {
-    console.error('Error: STORYBLOK_ACCESS_TOKEN environment variable is required')
-    console.error('Please set the token in your environment to use this script.')
-    process.exit(1)
-  }
-
-  const importer = new StoryblokImporter(options, token)
-  await importer.run()
-  process.exit(0)
-}
-
-// Only run when executed directly, not when imported as a module
-// This prevents auto-execution when the migration imports the class
-const isDirectExecution = process.argv[1]?.includes('/imports/')
-if (isDirectExecution) {
-  main().catch((error) => {
-    console.error('Fatal error:', error)
-    process.exit(1)
-  })
-}

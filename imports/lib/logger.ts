@@ -1,13 +1,11 @@
 /**
  * Logger
  *
- * Provides logging to both console and file with timestamps and optional colors
+ * Provides console logging with timestamps and optional colors.
+ * Console-only output (no file logging) for compatibility with Cloudflare Workers.
  */
 
 /* eslint-disable no-console */
-
-import { promises as fs } from 'fs'
-import * as path from 'path'
 
 // ANSI color codes
 const colors = {
@@ -29,16 +27,10 @@ export interface LogOptions {
 }
 
 export class Logger {
-  private logFile: string
   private onWarning?: (message: string) => void
   private onSkip?: (message: string) => void
 
-  constructor(
-    cacheDir: string,
-    onWarning?: (message: string) => void,
-    onSkip?: (message: string) => void,
-  ) {
-    this.logFile = path.join(cacheDir, 'import.log')
+  constructor(onWarning?: (message: string) => void, onSkip?: (message: string) => void) {
     this.onWarning = onWarning
     this.onSkip = onSkip
   }
@@ -52,18 +44,12 @@ export class Logger {
   }
 
   async log(message: string, options: LogOptions = {}): Promise<void> {
-    const timestamp = new Date().toISOString()
-    const logMessage = `[${timestamp}] ${message}\n`
-
     // Console output with optional color
     if (options.color) {
       console.log(`${colors[options.color]}${message}${colors.reset}`)
     } else {
       console.log(message)
     }
-
-    // File output without colors
-    await fs.appendFile(this.logFile, logMessage)
   }
 
   async error(message: string): Promise<void> {

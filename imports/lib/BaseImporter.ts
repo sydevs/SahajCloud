@@ -20,6 +20,7 @@ import { getPayload, Payload, CollectionSlug, Where, TypedLocale } from 'payload
 import { parseArgs, CLIArgs } from './cliParser'
 import { FileUtils } from './fileUtils'
 import { Logger } from './logger'
+import { isCloudflareWorker } from './runtime'
 import { ValidationReport } from './validationReport'
 import configPromise from '../../src/payload.config'
 
@@ -27,10 +28,28 @@ import configPromise from '../../src/payload.config'
 // TYPES
 // ============================================================================
 
+/**
+ * Progress event data sent during import
+ */
+export interface ProgressEvent {
+  type: 'start' | 'progress' | 'complete' | 'error'
+  message?: string
+  collection?: string
+  current?: number
+  total?: number
+  timestamp: string
+}
+
+/**
+ * Callback function for progress events (used by API routes for SSE)
+ */
+export type OnProgressCallback = (data: Record<string, unknown>) => Promise<void>
+
 export interface BaseImportOptions {
   dryRun: boolean
   clearCache: boolean
-  payload?: Payload // Optional external Payload instance (for migrations)
+  payload?: Payload // Optional external Payload instance (for API routes)
+  onProgress?: OnProgressCallback // Optional progress callback for SSE streaming
 }
 
 export interface UpsertResult<T = any> {
@@ -73,11 +92,27 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   // Track slug collisions for manual review
   private collisions: SlugCollision[] = []
 
-  // Track if Payload was injected externally (for migrations)
+  // Track if Payload was injected externally (for API routes)
   private externalPayload: boolean = false
+
+  // Track if running in Cloudflare Workers (no filesystem)
+  private readonly isWorker: boolean
 
   constructor(options: TOptions) {
     this.options = options
+    this.isWorker = isCloudflareWorker()
+  }
+
+  // ============================================================================
+  // PUBLIC API
+  // ============================================================================
+
+  /**
+   * Get the validation report for access to summary data
+   * Used by API routes to get final counts
+   */
+  getReport(): ValidationReport {
+    return this.report
   }
 
   // ============================================================================
@@ -88,25 +123,30 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    * Main entry point - handles initialization, execution, and cleanup
    */
   async run(): Promise<void> {
-    console.log(`\n${'='.repeat(60)}`)
-    console.log(`${this.importName} Import`)
-    console.log('='.repeat(60))
+    // Console output only for CLI mode (not Workers)
+    if (!this.isWorker) {
+      console.log(`\n${'='.repeat(60)}`)
+      console.log(`${this.importName} Import`)
+      console.log('='.repeat(60))
 
-    if (this.options.dryRun) {
-      console.log('\nMode: DRY RUN - No data will be written\n')
+      if (this.options.dryRun) {
+        console.log('\nMode: DRY RUN - No data will be written\n')
+      }
     }
 
     try {
-      // 1. Setup cache directory (before Logger needs it)
-      await this.setupCacheDirectory()
+      // 1. Setup cache directory (skip in Workers - no filesystem)
+      if (!this.isWorker) {
+        await this.setupCacheDirectory()
+      }
 
       // 2. Initialize core utilities
-      this.logger = new Logger(this.cacheDir)
+      this.logger = new Logger()
       this.fileUtils = new FileUtils(this.logger)
       this.report = new ValidationReport()
 
-      // 3. Handle cache clearing (before Payload init, requires fileUtils)
-      if (this.options.clearCache) {
+      // 3. Handle cache clearing (skip in Workers - no filesystem)
+      if (this.options.clearCache && !this.isWorker) {
         await this.clearCache()
       }
 
@@ -127,11 +167,16 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       // 6. Execute import (subclass implementation)
       await this.import()
 
-      // 7. Generate report and print summary
+      // 7. Generate report and print summary (file output only for CLI)
       await this.finalize()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       await this.logger?.error(`Fatal error: ${message}`)
+      // Send error progress event
+      await this.sendProgress({
+        type: 'error',
+        message,
+      })
       throw error
     } finally {
       await this.cleanup()
@@ -185,17 +230,55 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   private async finalize(): Promise<void> {
-    // Write slug collisions file if any
-    await this.writeCollisionsFile()
+    // File operations only for CLI mode (not Workers)
+    if (!this.isWorker) {
+      // Write slug collisions file if any
+      await this.writeCollisionsFile()
 
-    // Generate markdown report
-    const reportPath = path.join(this.cacheDir, 'import-report.md')
-    await this.report.generate(reportPath, this.importName)
+      // Generate markdown report
+      const reportPath = path.join(this.cacheDir, 'import-report.md')
+      await this.report.generate(reportPath, this.importName)
 
-    // Print console summary
-    this.printSummary()
+      // Print console summary
+      this.printSummary()
 
-    await this.logger.success(`\nReport saved to: ${reportPath}`)
+      await this.logger.success(`\nReport saved to: ${reportPath}`)
+    }
+  }
+
+  // ============================================================================
+  // PROGRESS REPORTING
+  // ============================================================================
+
+  /**
+   * Send progress event to callback (if provided)
+   * Used by API routes for SSE streaming
+   */
+  protected async sendProgress(data: Partial<ProgressEvent> & { type: ProgressEvent['type'] }): Promise<void> {
+    if (!this.options.onProgress) return
+
+    await this.options.onProgress({
+      ...data,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  /**
+   * Helper for subclasses to report progress during import
+   */
+  protected async reportProgress(
+    message: string,
+    current?: number,
+    total?: number,
+    collection?: string,
+  ): Promise<void> {
+    await this.sendProgress({
+      type: 'progress',
+      message,
+      current,
+      total,
+      collection,
+    })
   }
 
   // ============================================================================

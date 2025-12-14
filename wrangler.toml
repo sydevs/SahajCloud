@@ -18,6 +18,11 @@ preview_urls = false
 [observability]
 enabled = true
 
+# CPU time limits for Workers
+# Default is 30000ms (30 seconds), increased for seed API routes
+[limits]
+cpu_ms = 300000  # 5 minutes for seeding operations
+
 [assets]
 directory = ".open-next/assets"
 binding = "ASSETS"

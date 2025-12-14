@@ -4,6 +4,8 @@ Scripts for seeding content from external sources into Payload CMS. All scripts 
 
 ## Quick Start
 
+### CLI (Local Development)
+
 ```bash
 # Show available scripts
 pnpm seed --help
@@ -14,6 +16,20 @@ pnpm seed <script> --dry-run
 # Run full seed (idempotent - safe to re-run)
 pnpm seed <script>
 ```
+
+### API Route (Production/Post-Deployment)
+
+Seeding can also be triggered via API after deployment:
+
+```bash
+# Trigger seed via API (requires admin authentication)
+POST /api/seed/<script>?dryRun=true
+
+# Scripts: tags, wemeditate, meditations, storyblok
+# Returns: Server-Sent Events (SSE) with progress updates
+```
+
+The API route streams progress events and returns a final summary with database counts.
 
 ## Available Scripts
 
@@ -69,12 +85,18 @@ imports/
 │   ├── data.json          # Pre-extracted meditation data
 │   └── data.bin           # Original PostgreSQL dump (optional, for re-extraction)
 ├── tags/import.ts         # Cloudinary SVG tags import
-├── lib/                   # Shared utilities (BaseImporter, Logger, etc.)
-├── tests/                 # Test infrastructure
-├── cache/                 # Downloaded files (git-ignored)
+├── lib/
+│   ├── BaseImporter.ts    # Abstract base class for all importers
+│   ├── runtime.ts         # Cloudflare Worker detection utilities
+│   ├── fileUtils.ts       # File download with dual-mode caching
+│   ├── logger.ts          # Console logging (no file output)
+│   └── ...                # Other shared utilities
+├── cache/                 # Downloaded files (git-ignored, local dev only)
 ├── run.ts                 # Unified CLI runner
 ├── extract-to-json.ts     # One-time PostgreSQL data extraction script
 └── reset-migrations.sh    # Database migration reset script
+
+src/app/(payload)/api/seed/[script]/route.ts  # API route for post-deployment seeding
 ```
 
 ## Troubleshooting
@@ -90,9 +112,9 @@ pnpm generate:types
 ```
 
 ### Errors During Import
-1. Check log: `imports/cache/<script>/import.log`
-2. Run with `--dry-run` first to validate
-3. Use `--clear-cache` to re-download files
+1. Run with `--dry-run` first to validate data
+2. Use `--clear-cache` to re-download files
+3. Check console output for detailed error messages
 
 ### Missing data.json Files
 The `wemeditate` and `meditations` imports require pre-extracted JSON data files:

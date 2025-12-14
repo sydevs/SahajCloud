@@ -16,8 +16,8 @@ describe('Logger', () => {
   let logger: Logger
 
   beforeEach(() => {
-    // Create logger with a temp directory (won't actually write files in tests)
-    logger = new Logger('/tmp/test-import-logs')
+    // Create logger (console-only, no file output)
+    logger = new Logger()
   })
 
   it('should be instantiable', () => {
