@@ -96,11 +96,18 @@ const eslintConfig = [
     ignores: [
       '.next/',
       'node_modules/',
-      'src/payload-types.ts',
-      'src/app/(payload)/admin/importMap.js',
       'dist/',
       'build/',
       'coverage/',
+      // Auto-generated payload files
+      'src/payload-types.ts',
+      'src/app/(payload)/admin/importMap.js',
+      'src/app/(payload)/api/graphql-playground/route.ts',
+      'src/app/(payload)/layout.tsx',
+      'src/app/(payload)/admin/[[...segments]]/not-found.tsx',
+      'src/app/(payload)/admin/[[...segments]]/page.tsx',
+      'src/app/(payload)/api/[...slug]/route.ts',
+      'src/app/(payload)/api/graphql/route.ts',
     ],
   },
 ]

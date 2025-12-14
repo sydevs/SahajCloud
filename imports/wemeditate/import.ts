@@ -1613,7 +1613,12 @@ async function main(): Promise<void> {
   process.exit(0)
 }
 
-main().catch((error) => {
-  console.error('Fatal error:', error)
-  process.exit(1)
-})
+// Only run when executed directly, not when imported as a module
+// This prevents auto-execution when the migration imports the class
+const isDirectExecution = process.argv[1]?.includes('/imports/')
+if (isDirectExecution) {
+  main().catch((error) => {
+    console.error('Fatal error:', error)
+    process.exit(1)
+  })
+}
