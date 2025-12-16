@@ -30,10 +30,10 @@ export const Pages: CollectionConfig = {
       },
     },
   },
-  versions: {
-    maxPerDoc: 50,
-    drafts: true,
-  },
+  // versions: {
+  //   maxPerDoc: 20,
+  //   drafts: true,
+  // },
   fields: [
     {
       type: 'tabs',

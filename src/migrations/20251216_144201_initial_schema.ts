@@ -1,6 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-d1-sqlite'
 
-export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): Promise<void> {
+export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE TABLE \`pages\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`slug\` text,
@@ -9,7 +9,6 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`deleted_at\` text,
-  	\`_status\` text DEFAULT 'draft',
   	FOREIGN KEY (\`author_id\`) REFERENCES \`authors\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
   `)
@@ -18,9 +17,8 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   await db.run(sql`CREATE INDEX \`pages_updated_at_idx\` ON \`pages\` (\`updated_at\`);`)
   await db.run(sql`CREATE INDEX \`pages_created_at_idx\` ON \`pages\` (\`created_at\`);`)
   await db.run(sql`CREATE INDEX \`pages_deleted_at_idx\` ON \`pages\` (\`deleted_at\`);`)
-  await db.run(sql`CREATE INDEX \`pages__status_idx\` ON \`pages\` (\`_status\`);`)
   await db.run(sql`CREATE TABLE \`pages_locales\` (
-  	\`title\` text,
+  	\`title\` text NOT NULL,
   	\`content\` text,
   	\`meta_title\` text,
   	\`meta_description\` text,
@@ -49,67 +47,6 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   await db.run(sql`CREATE INDEX \`pages_rels_parent_idx\` ON \`pages_rels\` (\`parent_id\`);`)
   await db.run(sql`CREATE INDEX \`pages_rels_path_idx\` ON \`pages_rels\` (\`path\`);`)
   await db.run(sql`CREATE INDEX \`pages_rels_page_tags_id_idx\` ON \`pages_rels\` (\`page_tags_id\`);`)
-  await db.run(sql`CREATE TABLE \`_pages_v\` (
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`parent_id\` integer,
-  	\`version_slug\` text,
-  	\`version_slug_lock\` integer DEFAULT true,
-  	\`version_author_id\` integer,
-  	\`version_updated_at\` text,
-  	\`version_created_at\` text,
-  	\`version_deleted_at\` text,
-  	\`version__status\` text DEFAULT 'draft',
-  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	\`snapshot\` integer,
-  	\`published_locale\` text,
-  	\`latest\` integer,
-  	FOREIGN KEY (\`parent_id\`) REFERENCES \`pages\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`version_author_id\`) REFERENCES \`authors\`(\`id\`) ON UPDATE no action ON DELETE set null
-  );
-  `)
-  await db.run(sql`CREATE INDEX \`_pages_v_parent_idx\` ON \`_pages_v\` (\`parent_id\`);`)
-  await db.run(sql`CREATE INDEX \`_pages_v_version_version_slug_idx\` ON \`_pages_v\` (\`version_slug\`);`)
-  await db.run(sql`CREATE INDEX \`_pages_v_version_version_author_idx\` ON \`_pages_v\` (\`version_author_id\`);`)
-  await db.run(sql`CREATE INDEX \`_pages_v_version_version_updated_at_idx\` ON \`_pages_v\` (\`version_updated_at\`);`)
-  await db.run(sql`CREATE INDEX \`_pages_v_version_version_created_at_idx\` ON \`_pages_v\` (\`version_created_at\`);`)
-  await db.run(sql`CREATE INDEX \`_pages_v_version_version_deleted_at_idx\` ON \`_pages_v\` (\`version_deleted_at\`);`)
-  await db.run(sql`CREATE INDEX \`_pages_v_version_version__status_idx\` ON \`_pages_v\` (\`version__status\`);`)
-  await db.run(sql`CREATE INDEX \`_pages_v_created_at_idx\` ON \`_pages_v\` (\`created_at\`);`)
-  await db.run(sql`CREATE INDEX \`_pages_v_updated_at_idx\` ON \`_pages_v\` (\`updated_at\`);`)
-  await db.run(sql`CREATE INDEX \`_pages_v_snapshot_idx\` ON \`_pages_v\` (\`snapshot\`);`)
-  await db.run(sql`CREATE INDEX \`_pages_v_published_locale_idx\` ON \`_pages_v\` (\`published_locale\`);`)
-  await db.run(sql`CREATE INDEX \`_pages_v_latest_idx\` ON \`_pages_v\` (\`latest\`);`)
-  await db.run(sql`CREATE TABLE \`_pages_v_locales\` (
-  	\`version_title\` text,
-  	\`version_content\` text,
-  	\`version_meta_title\` text,
-  	\`version_meta_description\` text,
-  	\`version_meta_image_id\` integer,
-  	\`version_publish_at\` text,
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`_locale\` text NOT NULL,
-  	\`_parent_id\` integer NOT NULL,
-  	FOREIGN KEY (\`version_meta_image_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`_pages_v\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE INDEX \`_pages_v_version_meta_version_meta_image_idx\` ON \`_pages_v_locales\` (\`version_meta_image_id\`,\`_locale\`);`)
-  await db.run(sql`CREATE UNIQUE INDEX \`_pages_v_locales_locale_parent_id_unique\` ON \`_pages_v_locales\` (\`_locale\`,\`_parent_id\`);`)
-  await db.run(sql`CREATE TABLE \`_pages_v_rels\` (
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`order\` integer,
-  	\`parent_id\` integer NOT NULL,
-  	\`path\` text NOT NULL,
-  	\`page_tags_id\` integer,
-  	FOREIGN KEY (\`parent_id\`) REFERENCES \`_pages_v\`(\`id\`) ON UPDATE no action ON DELETE cascade,
-  	FOREIGN KEY (\`page_tags_id\`) REFERENCES \`page_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE INDEX \`_pages_v_rels_order_idx\` ON \`_pages_v_rels\` (\`order\`);`)
-  await db.run(sql`CREATE INDEX \`_pages_v_rels_parent_idx\` ON \`_pages_v_rels\` (\`parent_id\`);`)
-  await db.run(sql`CREATE INDEX \`_pages_v_rels_path_idx\` ON \`_pages_v_rels\` (\`path\`);`)
-  await db.run(sql`CREATE INDEX \`_pages_v_rels_page_tags_id_idx\` ON \`_pages_v_rels\` (\`page_tags_id\`);`)
   await db.run(sql`CREATE TABLE \`meditations\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`label\` text NOT NULL,
@@ -243,8 +180,8 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   	\`_parent_id\` integer NOT NULL,
   	\`_path\` text NOT NULL,
   	\`id\` text PRIMARY KEY NOT NULL,
-  	\`title\` text,
-  	\`quote\` text,
+  	\`title\` text NOT NULL,
+  	\`quote\` text NOT NULL,
   	\`block_name\` text,
   	FOREIGN KEY (\`_parent_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
@@ -272,9 +209,9 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   	\`_parent_id\` integer NOT NULL,
   	\`_path\` text NOT NULL,
   	\`id\` text PRIMARY KEY NOT NULL,
-  	\`title\` text,
-  	\`text\` text,
-  	\`image_id\` integer,
+  	\`title\` text NOT NULL,
+  	\`text\` text NOT NULL,
+  	\`image_id\` integer NOT NULL,
   	\`block_name\` text,
   	FOREIGN KEY (\`image_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`_parent_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE cascade
@@ -286,17 +223,16 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   await db.run(sql`CREATE INDEX \`lessons_blocks_text_image_idx\` ON \`lessons_blocks_text\` (\`image_id\`);`)
   await db.run(sql`CREATE TABLE \`lessons\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`title\` text,
+  	\`title\` text NOT NULL,
   	\`meditation_id\` integer,
   	\`intro_audio_id\` integer,
   	\`intro_subtitles\` text,
-  	\`unit\` text,
-  	\`step\` numeric,
+  	\`unit\` text NOT NULL,
+  	\`step\` numeric NOT NULL,
   	\`icon_id\` integer,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`deleted_at\` text,
-  	\`_status\` text DEFAULT 'draft',
   	FOREIGN KEY (\`meditation_id\`) REFERENCES \`meditations\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`intro_audio_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`icon_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null
@@ -308,7 +244,6 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   await db.run(sql`CREATE INDEX \`lessons_updated_at_idx\` ON \`lessons\` (\`updated_at\`);`)
   await db.run(sql`CREATE INDEX \`lessons_created_at_idx\` ON \`lessons\` (\`created_at\`);`)
   await db.run(sql`CREATE INDEX \`lessons_deleted_at_idx\` ON \`lessons\` (\`deleted_at\`);`)
-  await db.run(sql`CREATE INDEX \`lessons__status_idx\` ON \`lessons\` (\`_status\`);`)
   await db.run(sql`CREATE TABLE \`lessons_locales\` (
   	\`article\` text,
   	\`id\` integer PRIMARY KEY NOT NULL,
@@ -318,102 +253,6 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   );
   `)
   await db.run(sql`CREATE UNIQUE INDEX \`lessons_locales_locale_parent_id_unique\` ON \`lessons_locales\` (\`_locale\`,\`_parent_id\`);`)
-  await db.run(sql`CREATE TABLE \`_lessons_v_blocks_cover\` (
-  	\`_order\` integer NOT NULL,
-  	\`_parent_id\` integer NOT NULL,
-  	\`_path\` text NOT NULL,
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`title\` text,
-  	\`quote\` text,
-  	\`_uuid\` text,
-  	\`block_name\` text,
-  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`_lessons_v\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE INDEX \`_lessons_v_blocks_cover_order_idx\` ON \`_lessons_v_blocks_cover\` (\`_order\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_blocks_cover_parent_id_idx\` ON \`_lessons_v_blocks_cover\` (\`_parent_id\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_blocks_cover_path_idx\` ON \`_lessons_v_blocks_cover\` (\`_path\`);`)
-  await db.run(sql`CREATE TABLE \`_lessons_v_blocks_video\` (
-  	\`_order\` integer NOT NULL,
-  	\`_parent_id\` integer NOT NULL,
-  	\`_path\` text NOT NULL,
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`video_id\` integer,
-  	\`_uuid\` text,
-  	\`block_name\` text,
-  	FOREIGN KEY (\`video_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`_lessons_v\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE INDEX \`_lessons_v_blocks_video_order_idx\` ON \`_lessons_v_blocks_video\` (\`_order\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_blocks_video_parent_id_idx\` ON \`_lessons_v_blocks_video\` (\`_parent_id\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_blocks_video_path_idx\` ON \`_lessons_v_blocks_video\` (\`_path\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_blocks_video_video_idx\` ON \`_lessons_v_blocks_video\` (\`video_id\`);`)
-  await db.run(sql`CREATE TABLE \`_lessons_v_blocks_text\` (
-  	\`_order\` integer NOT NULL,
-  	\`_parent_id\` integer NOT NULL,
-  	\`_path\` text NOT NULL,
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`title\` text,
-  	\`text\` text,
-  	\`image_id\` integer,
-  	\`_uuid\` text,
-  	\`block_name\` text,
-  	FOREIGN KEY (\`image_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`_lessons_v\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE INDEX \`_lessons_v_blocks_text_order_idx\` ON \`_lessons_v_blocks_text\` (\`_order\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_blocks_text_parent_id_idx\` ON \`_lessons_v_blocks_text\` (\`_parent_id\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_blocks_text_path_idx\` ON \`_lessons_v_blocks_text\` (\`_path\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_blocks_text_image_idx\` ON \`_lessons_v_blocks_text\` (\`image_id\`);`)
-  await db.run(sql`CREATE TABLE \`_lessons_v\` (
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`parent_id\` integer,
-  	\`version_title\` text,
-  	\`version_meditation_id\` integer,
-  	\`version_intro_audio_id\` integer,
-  	\`version_intro_subtitles\` text,
-  	\`version_unit\` text,
-  	\`version_step\` numeric,
-  	\`version_icon_id\` integer,
-  	\`version_updated_at\` text,
-  	\`version_created_at\` text,
-  	\`version_deleted_at\` text,
-  	\`version__status\` text DEFAULT 'draft',
-  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	\`snapshot\` integer,
-  	\`published_locale\` text,
-  	\`latest\` integer,
-  	FOREIGN KEY (\`parent_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`version_meditation_id\`) REFERENCES \`meditations\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`version_intro_audio_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`version_icon_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null
-  );
-  `)
-  await db.run(sql`CREATE INDEX \`_lessons_v_parent_idx\` ON \`_lessons_v\` (\`parent_id\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_version_version_meditation_idx\` ON \`_lessons_v\` (\`version_meditation_id\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_version_version_intro_audio_idx\` ON \`_lessons_v\` (\`version_intro_audio_id\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_version_version_icon_idx\` ON \`_lessons_v\` (\`version_icon_id\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_version_version_updated_at_idx\` ON \`_lessons_v\` (\`version_updated_at\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_version_version_created_at_idx\` ON \`_lessons_v\` (\`version_created_at\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_version_version_deleted_at_idx\` ON \`_lessons_v\` (\`version_deleted_at\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_version_version__status_idx\` ON \`_lessons_v\` (\`version__status\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_created_at_idx\` ON \`_lessons_v\` (\`created_at\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_updated_at_idx\` ON \`_lessons_v\` (\`updated_at\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_snapshot_idx\` ON \`_lessons_v\` (\`snapshot\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_published_locale_idx\` ON \`_lessons_v\` (\`published_locale\`);`)
-  await db.run(sql`CREATE INDEX \`_lessons_v_latest_idx\` ON \`_lessons_v\` (\`latest\`);`)
-  await db.run(sql`CREATE TABLE \`_lessons_v_locales\` (
-  	\`version_article\` text,
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`_locale\` text NOT NULL,
-  	\`_parent_id\` integer NOT NULL,
-  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`_lessons_v\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE UNIQUE INDEX \`_lessons_v_locales_locale_parent_id_unique\` ON \`_lessons_v_locales\` (\`_locale\`,\`_parent_id\`);`)
   await db.run(sql`CREATE TABLE \`lectures\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`thumbnail_id\` integer NOT NULL,
@@ -1369,13 +1208,10 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   `)
 }
 
-export async function down({ db, payload: _payload, req: _req }: MigrateDownArgs): Promise<void> {
+export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
   await db.run(sql`DROP TABLE \`pages\`;`)
   await db.run(sql`DROP TABLE \`pages_locales\`;`)
   await db.run(sql`DROP TABLE \`pages_rels\`;`)
-  await db.run(sql`DROP TABLE \`_pages_v\`;`)
-  await db.run(sql`DROP TABLE \`_pages_v_locales\`;`)
-  await db.run(sql`DROP TABLE \`_pages_v_rels\`;`)
   await db.run(sql`DROP TABLE \`meditations\`;`)
   await db.run(sql`DROP TABLE \`meditations_rels\`;`)
   await db.run(sql`DROP TABLE \`music\`;`)
@@ -1388,11 +1224,6 @@ export async function down({ db, payload: _payload, req: _req }: MigrateDownArgs
   await db.run(sql`DROP TABLE \`lessons_blocks_text\`;`)
   await db.run(sql`DROP TABLE \`lessons\`;`)
   await db.run(sql`DROP TABLE \`lessons_locales\`;`)
-  await db.run(sql`DROP TABLE \`_lessons_v_blocks_cover\`;`)
-  await db.run(sql`DROP TABLE \`_lessons_v_blocks_video\`;`)
-  await db.run(sql`DROP TABLE \`_lessons_v_blocks_text\`;`)
-  await db.run(sql`DROP TABLE \`_lessons_v\`;`)
-  await db.run(sql`DROP TABLE \`_lessons_v_locales\`;`)
   await db.run(sql`DROP TABLE \`lectures\`;`)
   await db.run(sql`DROP TABLE \`lectures_locales\`;`)
   await db.run(sql`DROP TABLE \`frames_tags\`;`)

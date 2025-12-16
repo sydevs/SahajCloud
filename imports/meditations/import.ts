@@ -1,5 +1,5 @@
 #!/usr/bin/env tsx
-/* eslint-disable no-console */
+ 
 
 /**
  * Meditations Import Script
@@ -37,7 +37,7 @@ import * as path from 'path'
 
 import type { MeditationTag, MusicTag } from '@/payload-types'
 
-import { BaseImporter, BaseImportOptions, parseArgs, TagManager, MediaUploader } from '../lib'
+import { BaseImporter, BaseImportOptions, TagManager, MediaUploader } from '../lib'
 
 // ============================================================================
 // TYPES
@@ -714,9 +714,6 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     attachments: any[],
     blobs: any[],
   ): Promise<void> {
-    await this.logger.info('\n=== Importing Frames ===')
-    await this.logger.progress(0, frames.length, 'Frames')
-
     const validFrameTags = [
       'anahat', 'back', 'bandhan', 'both hands', 'center', 'channel', 'earth', 'ego',
       'feel', 'ham ksham', 'hamsa', 'hand', 'hands', 'ida', 'left', 'lefthanded',
@@ -724,13 +721,18 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       'superego', 'tapping',
     ]
 
-    for (let i = 0; i < frames.length; i++) {
+    const total = frames.length
+    for (let i = 0; i < total; i++) {
       const frame = frames[i]
+      const identifier = `${frame.category}-${frame.id}`
 
       const mappedCategory = this.mapFrameCategory(frame.category)
       if (!mappedCategory) {
         this.skip(`frame with unknown category "${frame.category}"`)
-        await this.logger.progress(i + 1, frames.length, 'Frames')
+        await this.reportDocument('frames', identifier, 'skipped', {
+          current: i + 1,
+          total,
+        })
         continue
       }
 
@@ -751,6 +753,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
           maleAttachment,
           mappedCategory,
           tagValues,
+          i + 1,
+          total,
         )
       }
 
@@ -762,14 +766,18 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
           femaleAttachment,
           mappedCategory,
           tagValues,
+          i + 1,
+          total,
         )
       }
 
       if (!maleAttachment && !femaleAttachment) {
         this.skip(`frame without attachments: ${frame.category}`)
+        await this.reportDocument('frames', identifier, 'skipped', {
+          current: i + 1,
+          total,
+        })
       }
-
-      await this.logger.progress(i + 1, frames.length, 'Frames')
     }
   }
 
@@ -779,8 +787,11 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     attachment: any,
     category: string,
     tagValues: string[],
+    current: number,
+    total: number,
   ): Promise<void> {
     const filename = attachment.blob.filename
+    const identifier = `${category}-${gender}`
 
     // Check for existing frame by filename (use equals for exact match to avoid SQLite LIKE pattern issues)
     const existing = await this.payload.find({
@@ -790,15 +801,22 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     })
 
     if (existing.docs.length > 0) {
-      await this.logger.log(`    ✓ Using existing ${gender} frame: ${filename}`)
       this.idMaps.frames.set(`${legacyFrameId}_${gender}`, existing.docs[0].id)
       this.report.incrementSkipped()
+      await this.reportDocument('frames', identifier, 'skipped', { current, total })
       return
     }
 
     // Download and upload new frame
     const localPath = await this.downloadFile(attachment.blob.key, filename)
-    if (!localPath) return
+    if (!localPath) {
+      await this.reportDocument('frames', identifier, 'error', {
+        error: 'Download failed',
+        current,
+        total,
+      })
+      return
+    }
 
     try {
       const frameData = {
@@ -811,9 +829,15 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       if (result) {
         this.idMaps.frames.set(`${legacyFrameId}_${gender}`, result.id)
         this.report.incrementCreated()
+        await this.reportDocument('frames', identifier, 'created', { current, total })
       }
     } catch (error) {
       this.addError(`Uploading frame ${filename}`, error as Error)
+      await this.reportDocument('frames', identifier, 'error', {
+        error: (error as Error).message,
+        current,
+        total,
+      })
     }
   }
 
@@ -919,15 +943,13 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     attachments: any[],
     blobs: any[],
   ): Promise<void> {
-    await this.logger.info('\n=== Importing Music ===')
-
     // Load existing albums from wemeditate import
     await this.loadExistingAlbums()
 
-    await this.logger.progress(0, musics.length, 'Music')
-
-    for (let i = 0; i < musics.length; i++) {
+    const total = musics.length
+    for (let i = 0; i < total; i++) {
       const music = musics[i]
+      const identifier = music.title || `music-${music.id}`
 
       // Get music tags
       const musicTaggings = taggings.filter(
@@ -941,7 +963,10 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       // If no credit, skip this track
       if (!music.credit) {
         this.skip(`Music "${music.title}": no credit/artist specified`)
-        await this.logger.progress(i + 1, musics.length, 'Music')
+        await this.reportDocument('music', identifier, 'skipped', {
+          current: i + 1,
+          total,
+        })
         continue
       }
 
@@ -950,7 +975,11 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         albumId = await this.getOrCreateAlbumForArtist(music.credit)
       } catch (error) {
         this.addError(`Getting album for music "${music.title}"`, error as Error)
-        await this.logger.progress(i + 1, musics.length, 'Music')
+        await this.reportDocument('music', identifier, 'error', {
+          error: (error as Error).message,
+          current: i + 1,
+          total,
+        })
         continue
       }
 
@@ -981,12 +1010,13 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
               id: existing.docs[0].id,
               data: { tags: musicTagIds },
             })
-            await this.logger.log(`    ✓ Updated tags for: ${music.title} (${musicTagIds.length} tags)`)
-          } else {
-            await this.logger.log(`    ✓ Using existing: ${music.title}`)
           }
           this.idMaps.musics.set(music.id, existing.docs[0].id)
           this.report.incrementSkipped()
+          await this.reportDocument('music', identifier, 'skipped', {
+            current: i + 1,
+            total,
+          })
         } else {
           // Upload with audio file if available
           const musicAttachments = this.getAttachmentsForRecord('Music', music.id, attachments, blobs)
@@ -1014,16 +1044,20 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
           if (result) {
             this.idMaps.musics.set(music.id, result.id)
             this.report.incrementCreated()
-            if (musicTagIds.length > 0) {
-              await this.logger.log(`    ✓ Created: ${music.title} with ${musicTagIds.length} tags`)
-            }
+            await this.reportDocument('music', identifier, 'created', {
+              current: i + 1,
+              total,
+            })
           }
         }
       } catch (error) {
         this.addError(`Importing music "${music.title}"`, error as Error)
+        await this.reportDocument('music', identifier, 'error', {
+          error: (error as Error).message,
+          current: i + 1,
+          total,
+        })
       }
-
-      await this.logger.progress(i + 1, musics.length, 'Music')
     }
   }
 
@@ -1039,11 +1073,10 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     blobs: any[],
     allTags: ImportedData['tags'],
   ): Promise<void> {
-    await this.logger.info('\n=== Importing Meditations ===')
-    await this.logger.progress(0, meditations.length, 'Meditations')
-
-    for (let i = 0; i < meditations.length; i++) {
+    const total = meditations.length
+    for (let i = 0; i < total; i++) {
       const meditation = meditations[i]
+      const identifier = meditation.title
 
       // Generate unique slug with duration
       const baseSlug = meditation.title
@@ -1062,10 +1095,12 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       })
 
       if (existing.docs.length > 0) {
-        await this.logger.log(`    ✓ Using existing: ${meditation.title}`)
         this.idMaps.meditations.set(meditation.id, existing.docs[0].id)
         this.report.incrementSkipped()
-        await this.logger.progress(i + 1, meditations.length, 'Meditations')
+        await this.reportDocument('meditations', identifier, 'skipped', {
+          current: i + 1,
+          total,
+        })
         continue
       }
 
@@ -1078,12 +1113,17 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
           attachments,
           blobs,
           allTags,
+          i + 1,
+          total,
         )
       } catch (error) {
         this.addError(`Importing meditation "${meditation.title}"`, error as Error)
+        await this.reportDocument('meditations', identifier, 'error', {
+          error: (error as Error).message,
+          current: i + 1,
+          total,
+        })
       }
-
-      await this.logger.progress(i + 1, meditations.length, 'Meditations')
     }
   }
 
@@ -1095,6 +1135,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     attachments: any[],
     blobs: any[],
     allTags: ImportedData['tags'],
+    current: number,
+    total: number,
   ): Promise<void> {
     // Get narrator ID and gender
     const narratorIndex = meditation.narrator
@@ -1186,7 +1228,10 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     if (result) {
       this.idMaps.meditations.set(meditation.id, result.id)
       this.report.incrementCreated()
-      await this.logger.log(`    ✓ Created: ${meditation.title} (${narratorGender})`)
+      await this.reportDocument('meditations', meditation.title, 'created', {
+        current,
+        total,
+      })
     }
   }
 
@@ -1232,24 +1277,3 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   }
 }
 
-// ============================================================================
-// MAIN ENTRY POINT
-// ============================================================================
-
-async function main(): Promise<void> {
-  const options = parseArgs()
-
-  const importer = new MeditationsImporter(options)
-  await importer.run()
-  process.exit(0)
-}
-
-// Only run when executed directly, not when imported as a module
-// This prevents auto-execution when the migration imports the class
-const isDirectExecution = process.argv[1]?.includes('/imports/')
-if (isDirectExecution) {
-  main().catch((error) => {
-    console.error('Fatal error:', error)
-    process.exit(1)
-  })
-}
