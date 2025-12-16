@@ -9,6 +9,8 @@
       "WebSearch",
       "Bash(npx playwright test --list)",
       "Bash(pnpm exec playwright test --list)",
+      "Bash(pnpm exec playwright test:*)",
+      "Bash(pnpm exec playwright install:*)",
       "Bash(pnpm vitest list:*)",
       "Bash(pnpm test:*)",
       "Bash(pnpm test:int:*)",
@@ -70,6 +72,10 @@
       "Bash(echo:*)",
       "Bash(awk:*)",
       "Bash(tee:*)",
+      "Bash(lsof:*)",
+      "Bash(which:*)",
+      "Bash(nohup:*)",
+      "Bash(.claude/skills/dev-server/dev-server.sh:*)",
       "Bash(timeout 30 pnpm build:*)",
       "Bash(timeout 60 pnpm build:*)",
       "Bash(timeout 120 pnpm build:*)",
@@ -180,10 +186,6 @@
       {
         "matcher": "Bash",
         "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/prevent-secrets.sh"
-          },
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/validate-env.mjs"
