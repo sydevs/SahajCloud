@@ -4,16 +4,41 @@ Scripts for seeding content from external sources into Payload CMS. All scripts 
 
 ## Quick Start
 
+### CLI Usage
+
+The CLI (`pnpm seed`) is a thin HTTP client that calls the seed API endpoint.
+It can target both local development and production environments.
+
 ```bash
 # Show available scripts
 pnpm seed --help
 
-# Run seed with dry-run validation
+# Run seed with dry-run validation (local dev)
 pnpm seed <script> --dry-run
 
 # Run full seed (idempotent - safe to re-run)
 pnpm seed <script>
+
+# Seed production database
+SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed <script>
 ```
+
+**Required environment variables** (set in `.env` or shell):
+- `ADMIN_EMAIL` - Admin email for authentication
+- `ADMIN_PASSWORD` - Admin password for authentication
+- `SAHAJCLOUD_URL` - Target URL (default: `http://localhost:PORT`)
+
+### API Route
+
+The CLI calls the seed API endpoint which handles all import logic:
+
+```
+POST /api/seed/<script>?dryRun=true&clearCache=false
+```
+
+- **Authentication**: Requires admin session (Manager with `admin: true`)
+- **Response**: Server-Sent Events (SSE) with progress updates
+- **Scripts**: `tags`, `wemeditate`, `meditations`, `storyblok`
 
 ## Available Scripts
 
@@ -39,6 +64,11 @@ pnpm seed <script>
 ## Environment Variables
 
 ```bash
+# CLI Authentication (required for pnpm seed)
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=your-password
+SAHAJCLOUD_URL=https://cloud.sydevelopers.com  # Optional, defaults to localhost
+
 # All scripts
 PAYLOAD_SECRET=your-secret-key
 
@@ -69,12 +99,18 @@ imports/
 │   ├── data.json          # Pre-extracted meditation data
 │   └── data.bin           # Original PostgreSQL dump (optional, for re-extraction)
 ├── tags/import.ts         # Cloudinary SVG tags import
-├── lib/                   # Shared utilities (BaseImporter, Logger, etc.)
-├── tests/                 # Test infrastructure
-├── cache/                 # Downloaded files (git-ignored)
-├── run.ts                 # Unified CLI runner
+├── lib/
+│   ├── BaseImporter.ts    # Abstract base class for all importers
+│   ├── runtime.ts         # Cloudflare Worker detection utilities
+│   ├── fileUtils.ts       # File download with dual-mode caching
+│   ├── logger.ts          # Console logging (no file output)
+│   └── ...                # Other shared utilities
+├── cache/                 # Downloaded files (git-ignored, local dev only)
+├── run.ts                 # CLI runner (HTTP client that calls API endpoint)
 ├── extract-to-json.ts     # One-time PostgreSQL data extraction script
 └── reset-migrations.sh    # Database migration reset script
+
+src/app/(payload)/api/seed/[script]/route.ts  # API route for post-deployment seeding
 ```
 
 ## Troubleshooting
@@ -90,9 +126,9 @@ pnpm generate:types
 ```
 
 ### Errors During Import
-1. Check log: `imports/cache/<script>/import.log`
-2. Run with `--dry-run` first to validate
-3. Use `--clear-cache` to re-download files
+1. Run with `--dry-run` first to validate data
+2. Use `--clear-cache` to re-download files
+3. Check console output for detailed error messages
 
 ### Missing data.json Files
 The `wemeditate` and `meditations` imports require pre-extracted JSON data files:
