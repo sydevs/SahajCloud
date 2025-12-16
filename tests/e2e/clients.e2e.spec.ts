@@ -1,25 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-import type { Page } from '@playwright/test'
-
-/**
- * Helper function to login to admin panel
- */
-async function adminLogin(page: Page) {
-  // Navigate to admin login
-  await page.goto('/admin/login')
-
-  // Wait for login form to be visible (important for server startup time)
-  await page.waitForSelector('input[name="email"]', { timeout: 60000 })
-
-  // Login with default credentials (seeded in global setup)
-  await page.fill('input[name="email"]', 'contact@sydevelopers.com')
-  await page.fill('input[name="password"]', 'evk1VTH5dxz_nhg-mzk')
-  await page.click('button[type="submit"]')
-
-  // Wait for dashboard to load
-  await page.waitForURL('**/admin', { timeout: 30000 })
-}
+import { adminLogin } from '../utils/e2e-helpers'
 
 test.describe('Clients Management UI', () => {
   test.beforeEach(async ({ page }) => {

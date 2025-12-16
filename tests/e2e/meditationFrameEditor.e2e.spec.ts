@@ -1,23 +1,6 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 
-/**
- * Helper function to login to admin panel
- */
-async function adminLogin(page: Page) {
-  // Navigate to admin login
-  await page.goto('/admin/login')
-
-  // Wait for login form to be visible (important for server startup time)
-  await page.waitForSelector('input[name="email"]', { timeout: 60000 })
-
-  // Login with default credentials (seeded in global setup)
-  await page.fill('input[name="email"]', 'contact@sydevelopers.com')
-  await page.fill('input[name="password"]', 'evk1VTH5dxz_nhg-mzk')
-  await page.click('button[type="submit"]')
-
-  // Wait for dashboard to load
-  await page.waitForURL('**/admin', { timeout: 30000 })
-}
+import { adminLogin } from '../utils/e2e-helpers'
 
 /**
  * End-to-end tests for MeditationFrameEditor
@@ -177,14 +160,15 @@ test.describe('MeditationFrameEditor E2E', () => {
     await expect(page.locator('button:has-text("Play")')).toBeVisible()
 
     // Look for timeline elements
-    const hasTimeline = await page.locator('input[type="range"], .timeline, .progress-bar').isVisible()
+    const hasTimeline = await page
+      .locator('input[type="range"], .timeline, .progress-bar')
+      .isVisible()
     if (hasTimeline) {
       // Timeline should be visible
       expect(hasTimeline).toBe(true)
     }
 
     // Should show time display
-    const timePattern = /\d+:\d+/
     const timeElements = await page.locator('text=/\\d+:\\d+/').count()
     expect(timeElements).toBeGreaterThan(0)
   })

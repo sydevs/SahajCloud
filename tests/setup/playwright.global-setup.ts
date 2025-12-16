@@ -9,27 +9,21 @@
  * The database is file-based SQLite, shared between this setup process
  * and the dev server that Playwright starts.
  */
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
-
+/* eslint-disable no-console */
 import type { FullConfig } from '@playwright/test'
+
+import path from 'path'
+
 import { getPayload } from 'payload'
 
 import { e2ePayloadConfig, E2E_DATABASE_PATH } from '../config/e2e-payload.config'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-// Default manager credentials (from CLAUDE.md)
-const DEFAULT_MANAGER = {
-  email: 'contact@sydevelopers.com',
-  password: 'evk1VTH5dxz_nhg-mzk',
-  name: 'E2E Test Admin',
-}
-
-// Path to sample test files
-const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
+import {
+  E2E_CREDENTIALS,
+  SAMPLE_FILES_DIR,
+  createFileObject,
+  createSeedStatus,
+  type SeedStatus,
+} from '../utils/e2e-helpers'
 
 /**
  * Seed the default manager user for authentication
@@ -39,7 +33,7 @@ async function seedDefaultManager(payload: Awaited<ReturnType<typeof getPayload>
   const existing = await payload.find({
     collection: 'managers',
     where: {
-      email: { equals: DEFAULT_MANAGER.email },
+      email: { equals: E2E_CREDENTIALS.email },
     },
     limit: 1,
   })
@@ -55,9 +49,9 @@ async function seedDefaultManager(payload: Awaited<ReturnType<typeof getPayload>
   const manager = await payload.create({
     collection: 'managers',
     data: {
-      email: DEFAULT_MANAGER.email,
-      password: DEFAULT_MANAGER.password,
-      name: DEFAULT_MANAGER.name,
+      email: E2E_CREDENTIALS.email,
+      password: E2E_CREDENTIALS.password,
+      name: E2E_CREDENTIALS.name,
       type: 'admin',
       _verified: true,
     },
@@ -115,27 +109,21 @@ async function seedTestImage(payload: Awaited<ReturnType<typeof getPayload>>) {
     return existing.docs[0]
   }
 
-  // Read sample image file
+  // Read sample image file using shared utility
   const imagePath = path.join(SAMPLE_FILES_DIR, 'image-1050x700.jpg')
-  if (!fs.existsSync(imagePath)) {
+  const fileObject = createFileObject(imagePath, { name: 'e2e-test-thumbnail.jpg' })
+
+  if (!fileObject) {
     console.log('   Sample image not found, skipping image seed...')
     return null
   }
-
-  const fileBuffer = fs.readFileSync(imagePath)
-  const fileData = new Uint8Array(fileBuffer)
 
   const image = await payload.create({
     collection: 'images',
     data: {
       alt: 'E2E Test Thumbnail',
     },
-    file: {
-      data: fileData as unknown as Buffer,
-      mimetype: 'image/jpeg',
-      name: 'e2e-test-thumbnail.jpg',
-      size: fileData.length,
-    },
+    file: fileObject,
   })
 
   console.log('   Created test image')
@@ -164,15 +152,14 @@ async function seedTestMeditation(
     return existing.docs[0]
   }
 
-  // Read sample audio file
+  // Read sample audio file using shared utility
   const audioPath = path.join(SAMPLE_FILES_DIR, 'audio-42s.mp3')
-  if (!fs.existsSync(audioPath)) {
+  const fileObject = createFileObject(audioPath, { name: 'e2e-test-meditation.mp3' })
+
+  if (!fileObject) {
     console.log('   Sample audio not found, skipping meditation seed...')
     return null
   }
-
-  const fileBuffer = fs.readFileSync(audioPath)
-  const fileData = new Uint8Array(fileBuffer)
 
   const meditation = await payload.create({
     collection: 'meditations',
@@ -184,12 +171,7 @@ async function seedTestMeditation(
       narrator: narratorId,
       locale: 'en',
     },
-    file: {
-      data: fileData as unknown as Buffer,
-      mimetype: 'audio/mpeg',
-      name: 'e2e-test-meditation.mp3',
-      size: fileData.length,
-    },
+    file: fileObject,
   })
 
   console.log('   Created test meditation:', meditation.title)
@@ -211,51 +193,47 @@ async function seedTestFrames(payload: Awaited<ReturnType<typeof getPayload>>) {
 
   if (existing.docs.length > 0) {
     console.log('   Test frames already exist, skipping...')
-    return
+    return true
   }
 
-  // Read sample image file for frames
+  // Read sample image file for frames using shared utility
   const imagePath = path.join(SAMPLE_FILES_DIR, 'image-1050x700.jpg')
-  if (!fs.existsSync(imagePath)) {
-    console.log('   Sample image not found, skipping frame seed...')
-    return
-  }
-
-  const fileBuffer = fs.readFileSync(imagePath)
-  const fileData = new Uint8Array(fileBuffer)
 
   // Create a few test frames (using valid category values from FRAME_CATEGORY_OPTIONS)
   const categories = ['mooladhara', 'swadhistan', 'nabhi'] as const
+  let createdCount = 0
+
   for (const category of categories) {
+    const fileObject = createFileObject(imagePath, { name: `e2e-frame-${category}.jpg` })
+
+    if (!fileObject) {
+      console.log('   Sample image not found, skipping frame seed...')
+      return false
+    }
+
     await payload.create({
       collection: 'frames',
       data: {
         imageSet: 'male',
         category,
       },
-      file: {
-        data: fileData as unknown as Buffer,
-        mimetype: 'image/jpeg',
-        name: `e2e-frame-${category}.jpg`,
-        size: fileData.length,
-      },
+      file: fileObject,
     })
+    createdCount++
   }
 
-  console.log('   Created', categories.length, 'test frames')
+  console.log('   Created', createdCount, 'test frames')
+  return true
 }
 
 /**
  * Main global setup function
+ *
+ * Uses SeedStatus tracking for better error recovery - if seeding fails partway through,
+ * subsequent runs will only attempt to seed missing items.
  */
 async function globalSetup(_config: FullConfig) {
   console.log('\n🧪 E2E Test Setup: Initializing database...')
-
-  // Remove existing database for clean start (optional - uncomment for fresh DB each run)
-  // if (fs.existsSync(E2E_DATABASE_PATH)) {
-  //   console.log('   Removing existing E2E database...')
-  //   fs.unlinkSync(E2E_DATABASE_PATH)
-  // }
 
   // Initialize Payload with E2E config
   console.log('   Database path:', E2E_DATABASE_PATH)
@@ -263,29 +241,61 @@ async function globalSetup(_config: FullConfig) {
 
   console.log('\n📦 Seeding test data...')
 
+  // Track seeding status for error recovery
+  const status: SeedStatus = createSeedStatus()
+  let hasErrors = false
+
   try {
-    // Seed essential data
-    await seedDefaultManager(payload)
+    // Seed essential data - manager is always required
+    const manager = await seedDefaultManager(payload)
+    status.manager = !!manager
 
-    // Seed test data for meditation frame editor tests
+    // Seed narrator - independent, no dependencies
     const narrator = await seedNarrator(payload)
-    const image = await seedTestImage(payload)
+    status.narrator = !!narrator
 
-    if (narrator && image) {
-      await seedTestMeditation(payload, narrator.id, image.id)
+    // Seed image - independent, no dependencies
+    const image = await seedTestImage(payload)
+    status.image = !!image
+
+    // Seed meditation - depends on narrator and image
+    if (status.narrator && status.image && narrator && image) {
+      const meditation = await seedTestMeditation(payload, narrator.id, image.id)
+      status.meditation = !!meditation
+    } else {
+      console.log('   Skipping meditation seed (missing narrator or image)')
     }
 
-    await seedTestFrames(payload)
+    // Seed frames - independent
+    const framesResult = await seedTestFrames(payload)
+    status.frames = framesResult
 
-    console.log('\n✅ E2E database setup complete!\n')
+    // Report status
+    const seededCount = Object.values(status).filter(Boolean).length
+    const totalItems = Object.keys(status).length
+
+    if (seededCount === totalItems) {
+      console.log('\n✅ E2E database setup complete!\n')
+    } else {
+      console.log(`\n⚠️ E2E setup partially complete (${seededCount}/${totalItems} items seeded)`)
+      console.log('   Status:', JSON.stringify(status, null, 2))
+      console.log('   Run with CLEAN_E2E_DB=true to reset and retry\n')
+      hasErrors = true
+    }
   } catch (error) {
     console.error('\n❌ E2E setup failed:', error)
+    console.error('   Seed status at failure:', JSON.stringify(status, null, 2))
     throw error
   } finally {
     // Close database connection
     if (payload.db && typeof payload.db.destroy === 'function') {
       await payload.db.destroy()
     }
+  }
+
+  // Don't throw for partial success - tests may still be able to run
+  if (hasErrors && !status.manager) {
+    throw new Error('E2E setup failed: Manager user is required for authentication')
   }
 }
 

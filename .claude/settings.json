@@ -9,6 +9,8 @@
       "WebSearch",
       "Bash(npx playwright test --list)",
       "Bash(pnpm exec playwright test --list)",
+      "Bash(pnpm exec playwright test:*)",
+      "Bash(pnpm exec playwright install:*)",
       "Bash(pnpm vitest list:*)",
       "Bash(pnpm test:*)",
       "Bash(pnpm test:int:*)",
