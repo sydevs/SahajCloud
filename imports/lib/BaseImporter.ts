@@ -20,6 +20,7 @@ import { getPayload, Payload, CollectionSlug, Where, TypedLocale } from 'payload
 import { parseArgs, CLIArgs } from './cliParser'
 import { FileUtils } from './fileUtils'
 import { Logger } from './logger'
+import { isCloudflareWorker } from './runtime'
 import { ValidationReport } from './validationReport'
 import configPromise from '../../src/payload.config'
 
@@ -27,10 +28,46 @@ import configPromise from '../../src/payload.config'
 // TYPES
 // ============================================================================
 
+/**
+ * Result of importing a single document
+ */
+export interface DocumentResult {
+  collection: string
+  identifier: string
+  action: 'created' | 'updated' | 'skipped' | 'error'
+  error?: string
+  warnings?: string[]
+}
+
+/**
+ * Import event sent via SSE
+ */
+export interface ImportEvent {
+  type: 'start' | 'document' | 'complete' | 'error'
+  // For 'start':
+  script?: string
+  dryRun?: boolean
+  // For 'document':
+  document?: DocumentResult
+  current?: number
+  total?: number
+  // For 'complete':
+  summary?: Record<string, unknown>
+  // For 'error':
+  message?: string
+  timestamp: string
+}
+
+/**
+ * Callback function for import events (used by API routes for SSE)
+ */
+export type OnProgressCallback = (data: Record<string, unknown>) => Promise<void>
+
 export interface BaseImportOptions {
   dryRun: boolean
   clearCache: boolean
-  payload?: Payload // Optional external Payload instance (for migrations)
+  payload?: Payload // Optional external Payload instance (for API routes)
+  onProgress?: OnProgressCallback // Optional progress callback for SSE streaming
 }
 
 export interface UpsertResult<T = any> {
@@ -73,11 +110,46 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   // Track slug collisions for manual review
   private collisions: SlugCollision[] = []
 
-  // Track if Payload was injected externally (for migrations)
+  // Track if Payload was injected externally (for API routes)
   private externalPayload: boolean = false
+
+  // Track if running in Cloudflare Workers (no filesystem)
+  private readonly isWorker: boolean
+
+  // Track current operation for heartbeat progress (SSE keep-alive)
+  private currentOperation: string = ''
 
   constructor(options: TOptions) {
     this.options = options
+    this.isWorker = isCloudflareWorker()
+  }
+
+  // ============================================================================
+  // PUBLIC API
+  // ============================================================================
+
+  /**
+   * Get the validation report for access to summary data
+   * Used by API routes to get final counts
+   */
+  getReport(): ValidationReport {
+    return this.report
+  }
+
+  /**
+   * Set the current operation for heartbeat progress tracking
+   * Called during long-running operations to provide context in SSE heartbeats
+   */
+  setCurrentOperation(operation: string): void {
+    this.currentOperation = operation
+  }
+
+  /**
+   * Get the current operation for heartbeat progress tracking
+   * Used by API route to include operation context in heartbeat events
+   */
+  getCurrentOperation(): string {
+    return this.currentOperation
   }
 
   // ============================================================================
@@ -88,25 +160,30 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    * Main entry point - handles initialization, execution, and cleanup
    */
   async run(): Promise<void> {
-    console.log(`\n${'='.repeat(60)}`)
-    console.log(`${this.importName} Import`)
-    console.log('='.repeat(60))
+    // Console output only for CLI mode (not Workers)
+    if (!this.isWorker) {
+      console.log(`\n${'='.repeat(60)}`)
+      console.log(`${this.importName} Import`)
+      console.log('='.repeat(60))
 
-    if (this.options.dryRun) {
-      console.log('\nMode: DRY RUN - No data will be written\n')
+      if (this.options.dryRun) {
+        console.log('\nMode: DRY RUN - No data will be written\n')
+      }
     }
 
     try {
-      // 1. Setup cache directory (before Logger needs it)
-      await this.setupCacheDirectory()
+      // 1. Setup cache directory (skip in Workers - no filesystem)
+      if (!this.isWorker) {
+        await this.setupCacheDirectory()
+      }
 
       // 2. Initialize core utilities
-      this.logger = new Logger(this.cacheDir)
+      this.logger = new Logger()
       this.fileUtils = new FileUtils(this.logger)
       this.report = new ValidationReport()
 
-      // 3. Handle cache clearing (before Payload init, requires fileUtils)
-      if (this.options.clearCache) {
+      // 3. Handle cache clearing (skip in Workers - no filesystem)
+      if (this.options.clearCache && !this.isWorker) {
         await this.clearCache()
       }
 
@@ -127,11 +204,16 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       // 6. Execute import (subclass implementation)
       await this.import()
 
-      // 7. Generate report and print summary
+      // 7. Generate report and print summary (file output only for CLI)
       await this.finalize()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       await this.logger?.error(`Fatal error: ${message}`)
+      // Send error event
+      await this.sendEvent({
+        type: 'error',
+        message,
+      })
       throw error
     } finally {
       await this.cleanup()
@@ -169,6 +251,31 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     await fs.mkdir(path.join(this.cacheDir, 'assets'), { recursive: true })
   }
 
+  /**
+   * Load data file with dual-mode support:
+   * - Local development: Read from filesystem
+   * - Cloudflare Workers: Fetch from URL
+   *
+   * @param localPath - Path to local file (used in local dev)
+   * @param workerUrl - URL to fetch from (required in Workers mode)
+   * @returns File contents as string
+   */
+  protected async loadDataFile(localPath: string, workerUrl?: string): Promise<string> {
+    if (this.isWorker) {
+      if (!workerUrl) {
+        throw new Error(`Worker mode requires URL for data file: ${localPath}`)
+      }
+      const response = await fetch(workerUrl)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${workerUrl}: ${response.status}`)
+      }
+      return response.text()
+    }
+
+    // Local development: read from filesystem
+    return fs.readFile(localPath, 'utf-8')
+  }
+
   private async initializePayload(): Promise<void> {
     await this.logger.info('Initializing Payload CMS...')
     const payloadConfig = await configPromise
@@ -185,17 +292,87 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   private async finalize(): Promise<void> {
-    // Write slug collisions file if any
-    await this.writeCollisionsFile()
+    // File operations only for CLI mode (not Workers)
+    if (!this.isWorker) {
+      // Write slug collisions file if any
+      await this.writeCollisionsFile()
 
-    // Generate markdown report
-    const reportPath = path.join(this.cacheDir, 'import-report.md')
-    await this.report.generate(reportPath, this.importName)
+      // Generate markdown report
+      const reportPath = path.join(this.cacheDir, 'import-report.md')
+      await this.report.generate(reportPath, this.importName)
 
-    // Print console summary
-    this.printSummary()
+      // Print console summary
+      this.printSummary()
 
-    await this.logger.success(`\nReport saved to: ${reportPath}`)
+      await this.logger.success(`\nReport saved to: ${reportPath}`)
+    }
+  }
+
+  // ============================================================================
+  // PROGRESS REPORTING
+  // ============================================================================
+
+  /**
+   * Send import event to callback (if provided)
+   * Used by API routes for SSE streaming
+   */
+  protected async sendEvent(event: Omit<ImportEvent, 'timestamp'>): Promise<void> {
+    if (!this.options.onProgress) return
+
+    const DEBUG = process.env.DEBUG_IMPORT === 'true'
+    if (DEBUG) console.log(`[SSE] Sending event: ${event.type}`)
+    await this.options.onProgress({
+      ...event,
+      timestamp: new Date().toISOString(),
+    })
+    if (DEBUG) console.log(`[SSE] Sent event: ${event.type}`)
+  }
+
+  /**
+   * Report a document result (called automatically by upsert)
+   * Sends SSE event and logs to console
+   */
+  protected async reportDocument(
+    collection: string,
+    identifier: string,
+    action: DocumentResult['action'],
+    options?: { error?: string; warnings?: string[]; current?: number; total?: number },
+  ): Promise<void> {
+    const document: DocumentResult = {
+      collection,
+      identifier,
+      action,
+      error: options?.error,
+      warnings: options?.warnings,
+    }
+
+    // Send SSE event
+    await this.sendEvent({
+      type: 'document',
+      document,
+      current: options?.current,
+      total: options?.total,
+    })
+
+    // Console output (CLI mode)
+    if (!this.isWorker) {
+      const icon =
+        action === 'created'
+          ? '✓'
+          : action === 'updated'
+            ? '↻'
+            : action === 'skipped'
+              ? '○'
+              : '✗'
+      const status = action === 'error' ? `error: ${options?.error}` : action
+      console.log(`  ${identifier} ${icon} ${status}`)
+
+      if (options?.warnings?.length) {
+        for (const w of options.warnings) {
+          console.log(`    ⚠ ${w}`)
+        }
+      }
+    }
   }
 
   // ============================================================================
@@ -209,7 +386,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    * @param collection - Payload collection slug
    * @param naturalKey - Where clause to find existing document
    * @param data - Document data to create or update with
-   * @param options - Optional locale and file data
+   * @param options - Optional locale, file data, identifier override, and progress tracking
    * @returns UpsertResult with the document and action taken
    */
   protected async upsert<T extends { id: number | string }>(
@@ -219,16 +396,36 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     options?: {
       locale?: TypedLocale
       file?: FileData
+      /** Override the identifier shown in progress (defaults to naturalKey summary) */
+      identifier?: string
+      /** Current progress index for SSE streaming */
+      current?: number
+      /** Total items for SSE streaming */
+      total?: number
     },
   ): Promise<UpsertResult<T>> {
+    const identifier = options?.identifier || this.summarizeKey(naturalKey)
+    const DEBUG = process.env.DEBUG_IMPORT === 'true'
+    const startTime = DEBUG ? Date.now() : 0
+
+    // Track current operation for heartbeat context
+    this.setCurrentOperation(`Processing ${collection}:${identifier}`)
+
+    if (DEBUG) console.log(`[UPSERT] Starting ${collection}:${identifier}`)
+
     if (this.options.dryRun) {
-      await this.logger.info(`[DRY RUN] Would upsert ${collection}: ${JSON.stringify(naturalKey)}`)
       this.report.incrementSkipped()
+      await this.reportDocument(collection, identifier, 'skipped', {
+        current: options?.current,
+        total: options?.total,
+      })
       return { doc: data as T, action: 'skipped' }
     }
 
     try {
       // Find existing by natural key (with retry for SQLITE_BUSY)
+      const findStart = DEBUG ? Date.now() : 0
+      if (DEBUG) console.log(`[UPSERT] Finding existing ${collection}:${identifier}`)
       const existing = await this.executeWithRetry(() =>
         this.payload.find({
           collection,
@@ -237,9 +434,16 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           locale: options?.locale,
         }),
       )
+      if (DEBUG) console.log(`[UPSERT] Found ${existing.docs.length} existing for ${collection}:${identifier} (${Date.now() - findStart}ms)`)
 
       if (existing.docs.length > 0) {
         // Update existing (with retry for SQLITE_BUSY)
+        const updateStart = DEBUG ? Date.now() : 0
+        if (DEBUG) console.log(`[UPSERT] Updating ${collection}:${identifier}`)
+        // Track file upload operation for heartbeat
+        if (options?.file) {
+          this.setCurrentOperation(`Uploading ${collection}:${identifier}`)
+        }
         const updated = await this.executeWithRetry(() =>
           this.payload.update({
             collection,
@@ -249,13 +453,25 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             file: options?.file,
           }),
         )
+        if (DEBUG) console.log(`[UPSERT] Updated ${collection}:${identifier} (${Date.now() - updateStart}ms)`)
 
         this.report.incrementUpdated()
-        await this.logger.info(`  ↻ Updated ${collection}: ${this.summarizeKey(naturalKey)}`)
+        const reportStart = DEBUG ? Date.now() : 0
+        await this.reportDocument(collection, identifier, 'updated', {
+          current: options?.current,
+          total: options?.total,
+        })
+        if (DEBUG) console.log(`[UPSERT] Complete ${collection}:${identifier} - total: ${Date.now() - startTime}ms (report: ${Date.now() - reportStart}ms)`)
         return { doc: updated as unknown as T, action: 'updated' }
       }
 
       // Create new (with retry for SQLITE_BUSY)
+      const createStart = DEBUG ? Date.now() : 0
+      if (DEBUG) console.log(`[UPSERT] Creating ${collection}:${identifier}`)
+      // Track file upload operation for heartbeat
+      if (options?.file) {
+        this.setCurrentOperation(`Uploading ${collection}:${identifier}`)
+      }
       const created = await this.executeWithRetry(() =>
         this.payload.create({
           collection,
@@ -264,9 +480,15 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           file: options?.file,
         }),
       )
+      if (DEBUG) console.log(`[UPSERT] Created ${collection}:${identifier} (${Date.now() - createStart}ms)`)
 
       this.report.incrementCreated()
-      await this.logger.success(`  ✓ Created ${collection}: ${this.summarizeKey(naturalKey)}`)
+      const reportStart = DEBUG ? Date.now() : 0
+      await this.reportDocument(collection, identifier, 'created', {
+        current: options?.current,
+        total: options?.total,
+      })
+      if (DEBUG) console.log(`[UPSERT] Complete ${collection}:${identifier} - total: ${Date.now() - startTime}ms (report: ${Date.now() - reportStart}ms)`)
       return { doc: created as unknown as T, action: 'created' }
     } catch (error) {
       // Handle slug collision - log for manual review and skip
@@ -278,13 +500,25 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           data: data as Record<string, unknown>,
           error: error instanceof Error ? error.message : String(error),
         })
-        this.addError(`Slug collision in ${collection}`, error as Error)
+        const errorMsg = error instanceof Error ? error.message : String(error)
+        this.report.addError(`Slug collision in ${collection}: ${errorMsg}`)
         this.report.incrementSkipped()
+        await this.reportDocument(collection, identifier, 'skipped', {
+          error: `Slug collision: ${slug}`,
+          current: options?.current,
+          total: options?.total,
+        })
         return { doc: data as T, action: 'skipped' }
       }
 
-      const message = error instanceof Error ? error.message : String(error)
-      this.addError(`Upsert ${collection}`, error instanceof Error ? error : new Error(message))
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      this.report.addError(`Upsert ${collection}: ${errorMsg}`)
+      this.report.incrementErrors()
+      await this.reportDocument(collection, identifier, 'error', {
+        error: errorMsg,
+        current: options?.current,
+        total: options?.total,
+      })
       throw error
     }
   }
@@ -317,6 +551,91 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   /**
+   * Update document with localized content for all available translations.
+   * Only updates locales that have actual translation content.
+   *
+   * @param collection - Collection slug
+   * @param id - Document ID
+   * @param translations - Array of translation objects with locale field
+   * @param dataExtractor - Function to extract data from each translation (return null to skip)
+   * @param options - Optional settings
+   * @returns Number of locales updated
+   */
+  protected async updateLocales<T extends { locale?: string }>(
+    collection: CollectionSlug,
+    id: number | string,
+    translations: T[],
+    dataExtractor: (translation: T) => Record<string, unknown> | null,
+    options?: {
+      /** Skip this locale (e.g., 'en' if already created with upsert) */
+      excludeLocale?: string
+      /** Only process translations where these fields have non-empty values */
+      requiredFields?: (keyof T)[]
+      /** List of valid locales (defaults to checking against Payload's TypedLocale) */
+      validLocales?: string[]
+    },
+  ): Promise<number> {
+    if (this.options.dryRun) {
+      return 0
+    }
+
+    const DEBUG = process.env.DEBUG_IMPORT === 'true'
+    const startTime = DEBUG ? Date.now() : 0
+    let updatedCount = 0
+
+    for (const translation of translations) {
+      // Skip if no locale
+      if (!translation.locale) continue
+
+      // Skip excluded locale (usually 'en' which was handled in initial upsert)
+      if (options?.excludeLocale && translation.locale === options.excludeLocale) continue
+
+      // Validate against allowed locales if provided
+      if (options?.validLocales && !options.validLocales.includes(translation.locale)) continue
+
+      // Check required fields have non-empty values
+      if (options?.requiredFields) {
+        const hasRequiredContent = options.requiredFields.some((field) => {
+          const value = translation[field]
+          return value !== null && value !== undefined && value !== ''
+        })
+        if (!hasRequiredContent) continue
+      }
+
+      // Extract data for this translation
+      const data = dataExtractor(translation)
+      if (!data) continue
+
+      // Check if extracted data has any non-empty values
+      const hasContent = Object.values(data).some(
+        (v) => v !== null && v !== undefined && v !== '',
+      )
+      if (!hasContent) continue
+
+      // Update the document with locale-specific data
+      const localeStart = DEBUG ? Date.now() : 0
+      // Track current operation for heartbeat context
+      this.setCurrentOperation(`Updating ${collection}:${id} locale=${translation.locale}`)
+      await this.executeWithRetry(() =>
+        this.payload.update({
+          collection,
+          id,
+          data,
+          locale: translation.locale as TypedLocale,
+        }),
+      )
+      if (DEBUG) console.log(`[LOCALE] Updated ${collection}:${id} locale=${translation.locale} (${Date.now() - localeStart}ms)`)
+      updatedCount++
+    }
+
+    if (DEBUG && updatedCount > 0) {
+      console.log(`[LOCALE] Complete ${collection}:${id} - ${updatedCount} locales in ${Date.now() - startTime}ms (avg: ${Math.round((Date.now() - startTime) / updatedCount)}ms/locale)`)
+    }
+
+    return updatedCount
+  }
+
+  /**
    * Create a summary string from a natural key Where clause
    */
   private summarizeKey(key: Where): string {
@@ -341,31 +660,65 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   // ============================================================================
-  // RETRY & COLLISION HANDLING
+  // RETRY & THROTTLING
   // ============================================================================
+
+  /**
+   * Check if an error is a retryable error (database busy or network issues)
+   * Handles both SQLite/D1 database errors and miniflare proxy connection errors
+   */
+  private isRetryableError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false
+    const msg = error.message.toLowerCase()
+    return (
+      // Database busy/lock errors
+      msg.includes('sqlite_busy') ||
+      msg.includes('database is locked') ||
+      msg.includes('d1_error') ||
+      // Network/connection errors from miniflare proxy (undici fetch)
+      msg.includes('fetch failed') ||
+      msg.includes('other side closed') ||
+      msg.includes('socket closed') ||
+      msg.includes('network connection lost') ||
+      msg.includes('und_err_socket')
+    )
+  }
+
+  /**
+   * Small delay between database operations to reduce contention
+   * Only applies when not in dry-run mode
+   */
+  private async throttle(ms: number = 10): Promise<void> {
+    if (!this.options.dryRun && ms > 0) {
+      await new Promise((r) => setTimeout(r, ms))
+    }
+  }
 
   /**
    * Execute an operation with exponential backoff retry for SQLITE_BUSY errors
    */
   private async executeWithRetry<T>(
     operation: () => Promise<T>,
-    maxRetries: number = 5,
-    baseDelay: number = 100,
+    maxRetries: number = 8,
+    baseDelay: number = 150,
   ): Promise<T> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        return await operation()
+        const result = await operation()
+        // Small delay after successful operation to reduce contention
+        await this.throttle(5)
+        return result
       } catch (error) {
-        const isBusy = error instanceof Error && error.message.includes('SQLITE_BUSY')
-
-        if (!isBusy || attempt === maxRetries) {
+        if (!this.isRetryableError(error) || attempt === maxRetries) {
           throw error
         }
 
         const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 100
-        await this.logger.warn(
-          `Database busy, retrying in ${Math.round(delay)}ms (attempt ${attempt}/${maxRetries})`,
-        )
+        const DEBUG = process.env.DEBUG_IMPORT === 'true'
+        if (DEBUG) {
+          const errorMsg = error instanceof Error ? error.message.slice(0, 50) : 'Unknown'
+          console.log(`[RETRY] Retryable error (${errorMsg}...), retrying in ${Math.round(delay)}ms (attempt ${attempt}/${maxRetries})`)
+        }
         await new Promise((r) => setTimeout(r, delay))
       }
     }

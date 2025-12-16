@@ -83,7 +83,7 @@ This is a **Next.js 15** application integrated with **Payload CMS 3.0**, provid
 ### PayloadCMS Documentation
 
 **IMPORTANT**: The comprehensive PayloadCMS documentation for LLMs is available at:
-**https://payloadcms.com/llms-full.txt**
+**https://payloadcms.com/llms.txt**
 
 Consult this documentation for detailed information about Payload CMS features, APIs, and best practices.
 

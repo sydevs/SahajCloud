@@ -91,10 +91,24 @@ export class ValidationReport {
   }
 
   /**
+   * Get all warning messages
+   */
+  getWarnings(): string[] {
+    return [...this.warnings]
+  }
+
+  /**
    * Get error count
    */
   getErrorCount(): number {
     return this.errors.length
+  }
+
+  /**
+   * Get all error messages
+   */
+  getErrors(): string[] {
+    return [...this.errors]
   }
 
   /**
