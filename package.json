@@ -51,6 +51,7 @@
     "cross-env": "^7.0.3",
     "dotenv": "16.4.7",
     "graphql": "^16.11.0",
+    "image-size": "^2.0.2",
     "next": "15.4.10",
     "payload": "^3.68.5",
     "react": "19.2.1",
