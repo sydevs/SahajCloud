@@ -1,15 +1,20 @@
  
 
 /**
- * Meditation & Music Tags Import Script
+ * Tags Import Script
  *
- * Imports MeditationTags (27 items) and MusicTags (7 items) from various sources.
+ * Imports MeditationTags (27 items), MusicTags (7 items), and ImageTags (14 items).
  *
  * Features:
  * - Downloads SVG icons from remote URLs or loads from local files (local: prefix)
  * - Replaces mapped colors with `currentColor` for theming flexibility
  * - Idempotent: safely re-runnable (updates existing, creates new)
  * - Imports only English (`en`) locale for localized title fields
+ *
+ * Image Tags Categories:
+ * - Content type tags: thumbnail, author, icon, stock-photo, placeholder, graphic,
+ *   treatment, lesson, meditation, subtle-system, music
+ * - Orientation tags: landscape, portrait, square (auto-detected on upload)
  *
  * Usage:
  *   pnpm seed tags [flags]
@@ -285,12 +290,36 @@ const MUSIC_TAGS: TagData[] = [
   },
 ]
 
+/**
+ * Image tags for categorizing images.
+ * These are simple text-only tags (no icons, no colors).
+ * Orientation tags (landscape, portrait, square) are auto-detected on upload.
+ */
+const IMAGE_TAGS = [
+  // Content type tags
+  'thumbnail',
+  'author',
+  'icon',
+  'stock-photo',
+  'placeholder',
+  'graphic',
+  'treatment',
+  'lesson',
+  'meditation',
+  'subtle-system',
+  'music',
+  // Orientation tags (auto-detected on upload)
+  'landscape',
+  'portrait',
+  'square',
+]
+
 // ============================================================================
 // TAGS IMPORTER CLASS
 // ============================================================================
 
 export class TagsImporter extends BaseImporter<BaseImportOptions> {
-  protected readonly importName = 'Meditation & Music Tags'
+  protected readonly importName = 'Meditation, Music & Image Tags'
   protected readonly cacheDir = CACHE_DIR
 
   // ============================================================================
@@ -316,6 +345,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
   protected async import(): Promise<void> {
     await this.importMeditationTags()
     await this.importMusicTags()
+    await this.importImageTags()
   }
 
   // ============================================================================
@@ -394,6 +424,41 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
         )
       } catch (error) {
         this.addError(`Importing music tag "${tag.title}"`, error as Error)
+      }
+    }
+  }
+
+  // ============================================================================
+  // IMAGE TAGS
+  // ============================================================================
+
+  /**
+   * Import image tags (simple text-only tags, no icons)
+   */
+  private async importImageTags(): Promise<void> {
+    const total = IMAGE_TAGS.length
+
+    for (let i = 0; i < total; i++) {
+      const tagTitle = IMAGE_TAGS[i]
+
+      try {
+        // Upsert: find by title, update if exists, create if not
+        // Note: ImageTags collection only has title field (no icon, no color)
+        await this.upsert(
+          'image-tags',
+          { title: { equals: tagTitle } },
+          {
+            title: tagTitle,
+          },
+          {
+            locale: 'en',
+            identifier: tagTitle,
+            current: i + 1,
+            total,
+          },
+        )
+      } catch (error) {
+        this.addError(`Importing image tag "${tagTitle}"`, error as Error)
       }
     }
   }

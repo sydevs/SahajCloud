@@ -379,18 +379,20 @@ describe('CleanupOrphanedMedia Job', () => {
   // ==========================================================================
 
   describe('Phase B: Image Orphan Detection', () => {
-    it('trashes orphaned images (no references, no tags)', async () => {
+    it('trashes orphaned images (no references, only auto-generated orientation tags)', async () => {
       // Create an orphan image and backdate it
+      // Note: Images now get orientation tags automatically via beforeChange hook
+      // The cleanup job ignores orientation tags when determining orphan status
       const image = await testData.createMediaImage(payload)
       await backdateCreatedAt(payload, 'images', image.id)
 
-      // Verify image exists
+      // Verify image exists (it should have auto-generated orientation tag)
       expect(await imageExists(payload, image.id)).toBe(true)
 
       // Run cleanup job
       const result = await runCleanupJob(payload)
 
-      // Verify image was trashed
+      // Verify image was trashed (orientation tags don't protect from cleanup)
       expect(result.trashedImages).toBeGreaterThanOrEqual(1)
       expect(await imageInTrash(payload, image.id)).toBe(true)
     })
@@ -669,7 +671,7 @@ describe('CleanupOrphanedMedia Job', () => {
       const orphanFile = await testData.createFile(payload)
       await backdateCreatedAt(payload, 'files', orphanFile.id)
 
-      // 4. Orphan image (will be trashed)
+      // 4. Orphan image (will be trashed - orientation tags are ignored)
       const orphanImage = await testData.createMediaImage(payload)
       await backdateCreatedAt(payload, 'images', orphanImage.id)
 

@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
+import { detectOrientationHook } from '@/hooks/imageHooks'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { createVirtualUrlField } from '@/lib/storage/urlFields'
@@ -65,6 +66,7 @@ export const Images: CollectionConfig = {
   hooks: {
     // Removed: sanitizeFilename (not needed - Cloudflare provides unique IDs)
     // Removed: processFile and convertFile (Sharp processing no longer needed)
+    beforeChange: [detectOrientationHook],
     afterRead: [trackClientUsageHook],
   },
 }

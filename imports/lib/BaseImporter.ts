@@ -491,15 +491,45 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       if (DEBUG) console.log(`[UPSERT] Complete ${collection}:${identifier} - total: ${Date.now() - startTime}ms (report: ${Date.now() - reportStart}ms)`)
       return { doc: created as unknown as T, action: 'created' }
     } catch (error) {
-      // Handle slug collision - log for manual review and skip
+      // Handle slug collision - fetch existing document and return as updated
       if (this.isSlugCollisionError(error)) {
-        const slug = (data.slug as string) || 'unknown'
+        // Extract slug from data or naturalKey (for auto-generated slugs)
+        const slug = (data.slug as string) || this.extractSlugFromKey(naturalKey) || 'unknown'
         this.collisions.push({
           collection,
           slug,
           data: data as Record<string, unknown>,
           error: error instanceof Error ? error.message : String(error),
         })
+
+        // Try to find the existing document with this slug
+        try {
+          const existingBySlug = await this.executeWithRetry(() =>
+            this.payload.find({
+              collection,
+              where: { slug: { equals: slug } },
+              limit: 1,
+              locale: options?.locale,
+            }),
+          )
+
+          if (existingBySlug.docs.length > 0) {
+            // Found existing document - treat as update
+            this.report.incrementUpdated()
+            await this.reportDocument(collection, identifier, 'updated', {
+              warnings: [`Slug collision resolved: found existing document with slug "${slug}"`],
+              current: options?.current,
+              total: options?.total,
+            })
+            return { doc: existingBySlug.docs[0] as unknown as T, action: 'updated' }
+          }
+        } catch (lookupError) {
+          // Failed to look up existing - fall through to skip
+          const lookupMsg = lookupError instanceof Error ? lookupError.message : String(lookupError)
+          this.report.addWarning(`Failed to lookup existing document for slug collision: ${lookupMsg}`)
+        }
+
+        // Fallback: skip if we couldn't find existing
         const errorMsg = error instanceof Error ? error.message : String(error)
         this.report.addError(`Slug collision in ${collection}: ${errorMsg}`)
         this.report.incrementSkipped()
@@ -657,6 +687,33 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       }
     }
     return JSON.stringify(key)
+  }
+
+  /**
+   * Extract slug value from a natural key Where clause
+   * Handles { slug: { equals: 'value' } } pattern
+   */
+  private extractSlugFromKey(key: Where): string | null {
+    if (typeof key === 'object' && key !== null) {
+      // Handle simple { slug: { equals: value } } pattern
+      if ('slug' in key) {
+        const slugCondition = (key as Record<string, unknown>).slug
+        if (typeof slugCondition === 'object' && slugCondition !== null && 'equals' in slugCondition) {
+          const value = (slugCondition as { equals: unknown }).equals
+          if (typeof value === 'string') {
+            return value
+          }
+        }
+      }
+      // Handle 'and' array pattern - look for slug condition in array
+      if ('and' in key && Array.isArray(key.and)) {
+        for (const condition of key.and) {
+          const slug = this.extractSlugFromKey(condition)
+          if (slug) return slug
+        }
+      }
+    }
+    return null
   }
 
   // ============================================================================
