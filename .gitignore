@@ -60,3 +60,11 @@ worker-configuration.d.ts
 .wrangler/state
 .wrangler/tmp
 .open-next
+
+# E2E test database
+tests/.e2e.sqlite
+tests/.e2e.sqlite-wal
+tests/.e2e.sqlite-shm
+
+# Dev server skill state (PID, logs, etc.)
+.claude/skills/dev-server/state/

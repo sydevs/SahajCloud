@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url'
 
 import { CloudflareContext, getCloudflareContext } from '@opennextjs/cloudflare'
 import { sqliteD1Adapter } from '@payloadcms/db-d1-sqlite'
+import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { seoPlugin } from '@payloadcms/plugin-seo'
@@ -26,6 +27,7 @@ const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 const isTestEnvironment = process.env.NODE_ENV === 'test'
+const isE2ETest = process.env.E2E_TEST === 'true'
 const isProduction = process.env.NODE_ENV === 'production'
 const isCLI = process.argv.some((value) => value.match(/^(generate|migrate):?/))
 const isImportScript = process.argv.some((value) => value.includes('imports/'))
@@ -34,10 +36,15 @@ const isImportScript = process.argv.some((value) => value.includes('imports/'))
 // Development/CLI: Use wrangler's getPlatformProxy for local/remote bindings
 // Production Build: Use OpenNext's getCloudflareContext for build-time bindings
 // Import scripts: Use wrangler proxy with remote bindings when CLOUDFLARE_ENV !== 'dev'
-const cloudflare =
-  isCLI || isImportScript || !isProduction
+// E2E Tests: Skip Cloudflare context entirely (uses SQLite file database)
+const cloudflare = isE2ETest
+  ? (null as unknown as CloudflareContext) // E2E tests use SQLite, not D1
+  : isCLI || isImportScript || !isProduction
     ? await getCloudflareContextFromWrangler()
     : await getCloudflareContext({ async: true })
+
+// E2E test database path (file-based SQLite for persistence)
+const E2E_DATABASE_PATH = path.resolve(dirname, '../tests/.e2e.sqlite')
 
 const payloadConfig = (overrides?: Partial<Config>) => {
   const serverUrl = getServerUrl()
@@ -90,9 +97,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           },
         },
       },
-      // Disable admin UI in test environment
-      disable: isTestEnvironment,
-      autoLogin: !isProduction ? { email: 'contact@sydevelopers.com' } : false,
+      // Disable admin UI in unit test environment (but enable for E2E tests)
+      disable: isTestEnvironment && !isE2ETest,
+      // Disable auto-login for E2E tests (tests need to authenticate manually)
+      autoLogin: !isProduction && !isE2ETest ? { email: 'contact@sydevelopers.com' } : false,
     },
     collections,
     globals,
@@ -101,7 +109,17 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     typescript: {
       outputFile: path.resolve(dirname, 'payload-types.ts'),
     },
-    db: sqliteD1Adapter({ binding: cloudflare.env.D1 }),
+    // Database configuration
+    // - E2E Tests: File-based SQLite for persistence across dev server lifecycle
+    // - All other environments: Cloudflare D1 SQLite
+    db: isE2ETest
+      ? sqliteAdapter({
+          client: {
+            url: `file:${E2E_DATABASE_PATH}`,
+          },
+          push: true, // Auto-sync schema
+        })
+      : sqliteD1Adapter({ binding: cloudflare.env.D1 }),
     jobs: {
       tasks,
       deleteJobOnComplete: true,
@@ -126,10 +144,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       },
     },
     // Email configuration
-    // - Test/Import: Disabled to avoid model conflicts and external service dependencies
+    // - Test/Import/E2E: Disabled to avoid model conflicts and external service dependencies
     // - Production: Resend API for transactional emails
     // - Development: Ethereal Email for testing (automatic test email service)
-    ...(isTestEnvironment || isImportScript
+    ...(isTestEnvironment || isImportScript || isE2ETest
       ? {}
       : {
           email: isProduction
@@ -140,48 +158,82 @@ const payloadConfig = (overrides?: Partial<Config>) => {
                 // No transportOptions - uses Ethereal Email in development
               }),
         }),
-    plugins: [
-      sentryPlugin({
-        captureErrors: [400, 403, 404], // Capture additional error codes
-        debug: !isProduction,
-        context: ({ defaultContext, req }) => ({
-          ...defaultContext,
-          tags: {
-            ...defaultContext.tags,
-            locale: req.locale,
-          },
-        }),
-      }),
-      storagePlugin(cloudflare.env as Parameters<typeof storagePlugin>[0]), // Cloudflare-native file storage (Images, Stream, R2)
-      seoPlugin({
-        collections: ['pages'],
-        uploadsCollection: 'images', // Changed from 'media' to 'images'
-        generateTitle: ({ doc }) => `We Meditate — ${doc.title}`,
-        generateDescription: ({ doc }) => doc.content,
-        tabbedUI: true,
-      }),
-      formBuilderPlugin({
-        defaultToEmail: 'contact@sydevelopers.com',
-        formOverrides: {
-          access: roleBasedAccess('forms'),
-          admin: {
-            group: 'Resources',
-            hidden: handleProjectVisibility('forms', ['wemeditate-web']),
-          },
-        },
-        formSubmissionOverrides: {
-          access: roleBasedAccess('form-submissions', { implicitRead: false }),
-          admin: {
-            // Visible in all-content mode or wemeditate-web project
-            hidden: ({ user }) => {
-              const currentProject = user?.currentProject
-              return currentProject !== 'all-content' && currentProject !== 'wemeditate-web'
+    // Plugins configuration
+    // - E2E Tests: Skip Cloudflare-specific plugins (Sentry, Storage) as they require Cloudflare bindings
+    // - All other environments: Full plugin suite
+    plugins: isE2ETest
+      ? [
+          // Only include plugins that don't require Cloudflare bindings for E2E tests
+          seoPlugin({
+            collections: ['pages'],
+            uploadsCollection: 'images',
+            generateTitle: ({ doc }) => `We Meditate — ${doc.title}`,
+            generateDescription: ({ doc }) => doc.content,
+            tabbedUI: true,
+          }),
+          formBuilderPlugin({
+            defaultToEmail: 'contact@sydevelopers.com',
+            formOverrides: {
+              access: roleBasedAccess('forms'),
+              admin: {
+                group: 'Resources',
+                hidden: handleProjectVisibility('forms', ['wemeditate-web']),
+              },
             },
-            group: 'System',
-          },
-        },
-      }),
-    ],
+            formSubmissionOverrides: {
+              access: roleBasedAccess('form-submissions', { implicitRead: false }),
+              admin: {
+                hidden: ({ user }) => {
+                  const currentProject = user?.currentProject
+                  return currentProject !== 'all-content' && currentProject !== 'wemeditate-web'
+                },
+                group: 'System',
+              },
+            },
+          }),
+        ]
+      : [
+          sentryPlugin({
+            captureErrors: [400, 403, 404], // Capture additional error codes
+            debug: !isProduction,
+            context: ({ defaultContext, req }) => ({
+              ...defaultContext,
+              tags: {
+                ...defaultContext.tags,
+                locale: req.locale,
+              },
+            }),
+          }),
+          storagePlugin(cloudflare.env as Parameters<typeof storagePlugin>[0]), // Cloudflare-native file storage (Images, Stream, R2)
+          seoPlugin({
+            collections: ['pages'],
+            uploadsCollection: 'images', // Changed from 'media' to 'images'
+            generateTitle: ({ doc }) => `We Meditate — ${doc.title}`,
+            generateDescription: ({ doc }) => doc.content,
+            tabbedUI: true,
+          }),
+          formBuilderPlugin({
+            defaultToEmail: 'contact@sydevelopers.com',
+            formOverrides: {
+              access: roleBasedAccess('forms'),
+              admin: {
+                group: 'Resources',
+                hidden: handleProjectVisibility('forms', ['wemeditate-web']),
+              },
+            },
+            formSubmissionOverrides: {
+              access: roleBasedAccess('form-submissions', { implicitRead: false }),
+              admin: {
+                // Visible in all-content mode or wemeditate-web project
+                hidden: ({ user }) => {
+                  const currentProject = user?.currentProject
+                  return currentProject !== 'all-content' && currentProject !== 'wemeditate-web'
+                },
+                group: 'System',
+              },
+            },
+          }),
+        ],
     upload: {
       limits: {
         fileSize: 104857600, // 100MB global limit, written in bytes (collections will have their own limits)

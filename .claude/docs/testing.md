@@ -52,7 +52,56 @@ Playwright tests for full application workflows:
 - File upload workflows
 - Role-based UI visibility
 
-## Test Isolation (In-Memory SQLite)
+## E2E Test Database Isolation
+
+E2E tests use a separate file-based SQLite database, isolated from the development D1 database:
+
+### Architecture
+
+- **Database**: File-based SQLite at `tests/.e2e.sqlite`
+- **Global Setup**: `tests/setup/playwright.global-setup.ts` - Seeds test data before tests run
+- **Global Teardown**: `tests/setup/playwright.global-teardown.ts` - Optional cleanup after tests
+- **Config**: `tests/config/e2e-payload.config.ts` - E2E-specific Payload configuration
+
+### Seeded Test Data
+
+Global setup automatically seeds:
+- **Default Manager**: `contact@sydevelopers.com` / `evk1VTH5dxz_nhg-mzk` (admin, verified)
+- **Test Narrator**: Male narrator for meditation testing
+- **Test Image**: Sample thumbnail image
+- **Test Meditation**: Meditation with audio file
+- **Test Frames**: Sample frames for frame editor testing
+
+### Running E2E Tests
+
+```bash
+# Run all E2E tests
+pnpm test:e2e
+
+# Run specific E2E test file
+pnpm exec playwright test tests/e2e/clients.e2e.spec.ts
+
+# Run with UI mode for debugging
+pnpm exec playwright test --ui
+
+# Clean E2E database before run
+CLEAN_E2E_DB=true pnpm test:e2e
+```
+
+### Environment Variables
+
+- `E2E_TEST=true` - Enables E2E test mode (uses file-based SQLite instead of D1)
+- `CLEAN_E2E_DB=true` - Removes E2E database in global teardown
+- `PAYLOAD_SECRET` - Set to `e2e-test-secret-key` for E2E tests
+
+### Key Implementation Details
+
+- E2E tests run on port 4567 (separate from dev server)
+- Manager must have `_verified: true` for login to work (bypasses email verification)
+- Database is preserved between runs for faster iteration (use `CLEAN_E2E_DB=true` to reset)
+- Test files directory: `tests/files/` contains sample audio/image files for seeding
+
+## Integration Test Isolation (In-Memory SQLite)
 
 - **Complete Isolation**: Each test suite runs in its own in-memory SQLite database
 - **Automatic Cleanup**: Databases are automatically created and destroyed per test suite

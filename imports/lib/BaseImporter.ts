@@ -503,25 +503,51 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         })
 
         // Try to find the existing document with this slug
+        // Use case-insensitive 'like' query to handle variations (trailing dashes, case differences)
+        const normalizedSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '')
+        // Also create a version without hyphens for fuzzy matching (e.g., parimala-sab-u vs parimala-sabu)
+        const slugWithoutHyphens = normalizedSlug.replace(/-/g, '')
+
         try {
-          const existingBySlug = await this.executeWithRetry(() =>
+          // Try exact-ish match first
+          let existingBySlug = await this.executeWithRetry(() =>
             this.payload.find({
               collection,
-              where: { slug: { equals: slug } },
-              limit: 1,
+              where: { slug: { like: normalizedSlug } },
+              limit: 5,
               locale: options?.locale,
             }),
           )
 
+          // If not found, try matching without hyphens (more fuzzy)
+          if (existingBySlug.docs.length === 0 && slugWithoutHyphens.length > 3) {
+            // Get all docs with similar starting characters and filter by removing hyphens
+            const searchPrefix = slugWithoutHyphens.substring(0, Math.min(8, slugWithoutHyphens.length))
+            existingBySlug = await this.executeWithRetry(() =>
+              this.payload.find({
+                collection,
+                where: { slug: { like: `%${searchPrefix}%` } },
+                limit: 20,
+                locale: options?.locale,
+              }),
+            )
+            // Filter to find one where slug without hyphens matches
+            existingBySlug.docs = existingBySlug.docs.filter((doc) => {
+              const docSlug = ((doc as unknown as Record<string, unknown>).slug as string) || ''
+              return docSlug.replace(/-/g, '').toLowerCase() === slugWithoutHyphens
+            })
+          }
+
           if (existingBySlug.docs.length > 0) {
             // Found existing document - treat as update
+            const foundDoc = existingBySlug.docs[0]
             this.report.incrementUpdated()
             await this.reportDocument(collection, identifier, 'updated', {
-              warnings: [`Slug collision resolved: found existing document with slug "${slug}"`],
+              warnings: [`Slug collision resolved: found existing document with slug "${(foundDoc as unknown as Record<string, unknown>).slug || slug}"`],
               current: options?.current,
               total: options?.total,
             })
-            return { doc: existingBySlug.docs[0] as unknown as T, action: 'updated' }
+            return { doc: foundDoc as unknown as T, action: 'updated' }
           }
         } catch (lookupError) {
           // Failed to look up existing - fall through to skip
@@ -531,7 +557,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
         // Fallback: skip if we couldn't find existing
         const errorMsg = error instanceof Error ? error.message : String(error)
-        this.report.addError(`Slug collision in ${collection}: ${errorMsg}`)
+        this.report.addError(`Slug collision in ${collection} (slug="${slug}"): ${errorMsg}`)
         this.report.incrementSkipped()
         await this.reportDocument(collection, identifier, 'skipped', {
           error: `Slug collision: ${slug}`,

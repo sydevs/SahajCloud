@@ -354,7 +354,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       const insertIndex = insertAt + 1 // +1 for cover panel
       panels.splice(insertIndex, 0, {
         blockType: 'video',
-        video: videoId,
+        video: parseInt(videoId),
       })
     }
 
