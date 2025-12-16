@@ -7,7 +7,7 @@ import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { fullRichTextEditor } from '@/lib/richEditor'
-import subtitleSchema from '@/lib/subtitlesSchema.json'
+import subtitleSchema from '@/lib/subtitlesSchema.json' with { type: 'json' }
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',

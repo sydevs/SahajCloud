@@ -97,14 +97,23 @@ Access admin panel at http://localhost:{PORT}/admin/login once dev server is run
 
 ### Development
 
-**IMPORTANT - Development Server Port:**
-- **ALWAYS** start dev server with explicit PORT between 4000-4999
-- **NEVER** use port 3000 (causes conflicts)
-- Example: `PORT=4237 pnpm dev` or `PORT=4891 pnpm devsafe`
+**Dev Server Management:**
+Use the dev-server skill to manage a shared development server across all Claude sessions:
+- `.claude/skills/dev-server/dev-server.sh` - Start + tail logs (default)
+- `.claude/skills/dev-server/dev-server.sh status` - Check if running
+- `.claude/skills/dev-server/dev-server.sh restart` - Restart server
+- `.claude/skills/dev-server/dev-server.sh stop` - Stop server
 
-Commands:
-- `PORT={random 4000-4999} pnpm dev` - Start development server
-- `PORT={random 4000-4999} pnpm devsafe` - Clean dev start (removes .next)
+The skill ensures a single server instance is shared, preventing port conflicts.
+
+**Port Configuration:**
+- Default port: 3000 (managed by dev-server skill)
+- Dynamic port: Set `PORT` env var (e.g., `PORT=4000 .claude/skills/dev-server/dev-server.sh`)
+- `SAHAJCLOUD_URL` is automatically derived from `PORT` via `src/lib/serverUrl.ts`
+
+**Manual Commands** (use dev-server skill instead when possible):
+- `pnpm dev` - Start development server
+- `pnpm devsafe` - Clean dev start (removes .next)
 - `pnpm build` - Production build
 - `pnpm start` - Start production server
 

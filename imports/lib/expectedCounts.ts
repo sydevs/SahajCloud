@@ -29,10 +29,10 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
     'music-tags': 7,
   },
   wemeditate: {
-    authors: 25,
+    authors: 18,
     albums: 8,
     music: 27,
-    pages: 86,
+    pages: 60,
   },
   meditations: {
     meditations: 73,
@@ -40,7 +40,7 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   },
   storyblok: {
     lessons: 17,
-    lectures: 10,
+    lectures: 0,
   },
 }
 

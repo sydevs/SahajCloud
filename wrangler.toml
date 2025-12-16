@@ -101,7 +101,7 @@ jurisdiction = "eu"
 [env.dev.vars]
 NODE_ENV = "development"
 NEXT_PUBLIC_LOG_LEVEL = "debug"  # Set to 'debug', 'info', 'warn', 'error', or 'silent'
-SAHAJCLOUD_URL = "http://localhost:3000"
+# SAHAJCLOUD_URL - Automatically derived from PORT env var (see src/lib/serverUrl.ts)
 WEMEDITATE_WEB_URL = "http://localhost:5173"
 SAHAJATLAS_URL = "http://localhost:5174"
 

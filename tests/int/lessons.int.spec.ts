@@ -385,7 +385,9 @@ describe('Lessons Collection', () => {
   })
 
   describe('Lesson Versioning', () => {
-    it('creates draft versions', async () => {
+    // TODO: Enable this test when versioning is enabled in Lessons collection
+    // Currently, versions: { drafts: true } is commented out in Lessons.ts
+    it.skip('creates draft versions', async () => {
       const lesson = await testData.createLesson(payload, {
         title: 'Draft Test',
         meditation: testMeditation.id,

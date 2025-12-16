@@ -22,6 +22,7 @@ export default defineConfig({
     maxConcurrency: 1,
     // Increase timeout for database operations
     testTimeout: 30000,
+    hookTimeout: 60000, // 60 seconds for beforeAll hooks with heavy Payload setup
     // Set NODE_ENV=test for conditional config logic
     env: {
       NODE_ENV: 'test',
