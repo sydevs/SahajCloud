@@ -30,7 +30,7 @@ import type { Payload, TypedLocale } from 'payload'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
-import { BaseImporter, BaseImportOptions, MediaUploader } from '../lib'
+import { BaseImporter, BaseImportOptions, MediaUploader, TagManager } from '../lib'
 import { isCloudflareWorker } from '../lib/runtime'
 
 // ============================================================================
@@ -190,7 +190,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   private data!: WeMeditateData
   private mediaDownloader!: MediaDownloader
   private mediaUploader!: MediaUploader
+  private tagManager!: TagManager
   private defaultThumbnailId: number | string | null = null
+
+  // Image tag IDs
+  private thumbnailTagId: number | null = null
+  private placeholderTagId: number | null = null
 
   // In-memory maps for Phase 2 content conversion (old ID → Payload ID)
   // These are populated during Phase 1 and used during Phase 2
@@ -246,11 +251,31 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       this.mediaDownloader = new MediaDownloader(this.cacheDir, this.logger)
       await this.mediaDownloader.initialize()
       this.mediaUploader = new MediaUploader(this.payload, this.logger)
+      this.tagManager = new TagManager(this.payload, this.logger)
 
       // Pre-cache to avoid N+1 queries during import
       await this.preloadMusicTags()
       await this.mediaUploader.preloadExistingMedia()
+      await this.setupImageTags()
     }
+  }
+
+  /**
+   * Setup image tags for content categorization.
+   * Creates tags if they don't exist and caches their IDs.
+   */
+  private async setupImageTags(): Promise<void> {
+    await this.logger.info('Setting up image tags...')
+
+    const [thumbnailId, placeholderId] = await Promise.all([
+      this.tagManager.ensureTag('image-tags', 'thumbnail'),
+      this.tagManager.ensureTag('image-tags', 'placeholder'),
+    ])
+
+    this.thumbnailTagId = thumbnailId
+    this.placeholderTagId = placeholderId
+
+    await this.logger.info('✓ Image tags ready')
   }
 
   /**
@@ -1434,12 +1459,18 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     const PREVIEW_URL =
       'https://raw.githubusercontent.com/sydevs/SahajCloud/main/imports/wemeditate/preview.png'
 
+    // Tags for default placeholder thumbnail
+    const tags = [this.thumbnailTagId, this.placeholderTagId].filter(
+      (id): id is number => id !== null,
+    )
+
     if (isCloudflareWorker()) {
       // Workers mode: fetch and stream
       const downloadResult = await this.mediaDownloader.downloadAndConvertImage(PREVIEW_URL)
       const result = await this.mediaUploader.uploadWithDeduplication(downloadResult.localPath, {
         alt: 'Video preview placeholder',
         buffer: downloadResult.buffer,
+        tags,
       })
       if (!result) throw new Error('Failed to upload default thumbnail')
       this.defaultThumbnailId = result.id
@@ -1450,6 +1481,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     const previewPath = path.join(__dirname, 'preview.png')
     const result = await this.mediaUploader.uploadWithDeduplication(previewPath, {
       alt: 'Video preview placeholder',
+      tags,
     })
     if (!result) throw new Error('Failed to upload default thumbnail')
     this.defaultThumbnailId = result.id
@@ -1491,11 +1523,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
       if (thumbnailUrl) {
         const downloadResult = await this.mediaDownloader.downloadAndConvertImage(thumbnailUrl)
+        const thumbnailTags = this.thumbnailTagId ? [this.thumbnailTagId] : []
         const uploadResult = await this.mediaUploader.uploadWithDeduplication(
           downloadResult.localPath,
           {
             alt: `Video thumbnail for ${videoId}`,
             buffer: downloadResult.buffer, // Pass buffer for Workers mode
+            tags: thumbnailTags,
           },
         )
         if (uploadResult) return uploadResult.id
@@ -1538,11 +1572,21 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     return tagIds
   }
 
-  private async findPageTagByName(tagName: string): Promise<number | null> {
+  /**
+   * Find a page tag by slug (case-insensitive normalized slug)
+   * Tags are stored with slugs derived from titles, so we search by slug
+   */
+  private async findPageTagBySlug(slug: string): Promise<number | null> {
     try {
+      const normalizedSlug = slug
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+
       const result = await this.payload.find({
         collection: 'page-tags',
-        where: { title: { equals: tagName } },
+        where: { slug: { equals: normalizedSlug } },
         limit: 1,
       })
       return result.docs.length > 0 ? result.docs[0].id : null
@@ -1593,13 +1637,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
       const musicPageTags = this.findMusicTagsBySlug(['strings', 'flute', 'nature'])
       const inspirationPageTags = await Promise.all([
-        this.findPageTagByName('creativity'),
-        this.findPageTagByName('wisdom'),
-        this.findPageTagByName('living'),
-        this.findPageTagByName('events'),
-        this.findPageTagByName('stories'),
+        this.findPageTagBySlug('creativity'),
+        this.findPageTagBySlug('wisdom'),
+        this.findPageTagBySlug('living'),
+        this.findPageTagBySlug('events'),
+        this.findPageTagBySlug('stories'),
       ])
-      const techniquePageTag = await this.findPageTagByName('treatment')
+      const techniquePageTag = await this.findPageTagBySlug('treatment')
 
       const featuredPages = pageMapping.featuredPages.filter((id) => id !== null) as number[]
       const footerPages = pageMapping.footerPages.filter((id) => id !== null) as number[]

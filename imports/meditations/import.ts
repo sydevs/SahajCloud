@@ -294,7 +294,11 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   private mediaUploader!: MediaUploader
   private placeholderMediaId: number | string | null = null
   private pathPlaceholderMediaId: number | string | null = null
-  private meditationThumbnailTagId: number | string | null = null
+
+  // Image tags for categorizing uploaded images
+  private thumbnailTagId: number | null = null
+  private meditationTagId: number | null = null
+  private placeholderTagId: number | null = null
 
   // In-memory maps for import (legacy ID → new Payload ID)
   private idMaps = {
@@ -336,7 +340,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     }
 
     // Setup tags and placeholders
-    await this.setupMeditationThumbnailTag()
+    await this.setupImageTags()
     await this.uploadPlaceholderImages()
 
     // Import in order of dependencies
@@ -504,13 +508,25 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   // TAG SETUP
   // ============================================================================
 
-  private async setupMeditationThumbnailTag(): Promise<void> {
-    await this.logger.info('\nSetting up meditation thumbnail tag...')
-    this.meditationThumbnailTagId = await this.tagManager.ensureTag(
-      'image-tags',
-      'meditation-thumbnail',
-    )
-    await this.logger.log(`    ✓ Tag ready (ID: ${this.meditationThumbnailTagId})`)
+  /**
+   * Setup image tags for categorizing meditation thumbnails.
+   * Uses the new tag pattern: thumbnail + meditation (+ placeholder for placeholders)
+   */
+  private async setupImageTags(): Promise<void> {
+    await this.logger.info('\nSetting up image tags...')
+
+    // Create tags in parallel for efficiency
+    const [thumbnailId, meditationId, placeholderId] = await Promise.all([
+      this.tagManager.ensureTag('image-tags', 'thumbnail'),
+      this.tagManager.ensureTag('image-tags', 'meditation'),
+      this.tagManager.ensureTag('image-tags', 'placeholder'),
+    ])
+
+    this.thumbnailTagId = thumbnailId
+    this.meditationTagId = meditationId
+    this.placeholderTagId = placeholderId
+
+    await this.logger.log(`    ✓ Tags ready: thumbnail(${thumbnailId}), meditation(${meditationId}), placeholder(${placeholderId})`)
   }
 
   private async uploadPlaceholderImages(): Promise<void> {
@@ -536,7 +552,10 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     } else {
       const placeholderPath = path.join(this.cacheDir, 'placeholder.jpg')
       if (await this.fileUtils.fileExists(placeholderPath)) {
-        const tags = this.meditationThumbnailTagId ? [this.meditationThumbnailTagId] : []
+        // Placeholder images get: thumbnail + meditation + placeholder
+        const tags = [this.thumbnailTagId, this.meditationTagId, this.placeholderTagId].filter(
+          (id): id is number => id !== null,
+        )
         const result = await this.uploadToPayload(placeholderPath, 'images', {
           alt: 'Meditation placeholder image',
           tags,
@@ -556,7 +575,10 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     } else {
       const pathPlaceholderPath = path.join(this.cacheDir, 'path.jpg')
       if (await this.fileUtils.fileExists(pathPlaceholderPath)) {
-        const tags = this.meditationThumbnailTagId ? [this.meditationThumbnailTagId] : []
+        // Path placeholder images get: thumbnail + meditation + placeholder
+        const tags = [this.thumbnailTagId, this.meditationTagId, this.placeholderTagId].filter(
+          (id): id is number => id !== null,
+        )
         const result = await this.uploadToPayload(pathPlaceholderPath, 'images', {
           alt: 'Path meditation placeholder image',
           tags,
@@ -1253,10 +1275,12 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     const localPath = await this.downloadFile(artAttachment.blob.key, artAttachment.blob.filename)
     if (!localPath) return null
 
-    const tags = this.meditationThumbnailTagId ? [this.meditationThumbnailTagId] : []
+    const tags = [this.thumbnailTagId, this.meditationTagId].filter(
+      (id): id is number => id !== null,
+    )
     const result = await this.mediaUploader.uploadWithDeduplication(localPath, {
       alt: `${meditation.title} thumbnail`,
-      tags: tags as number[],
+      tags,
     })
 
     return result?.id ?? null

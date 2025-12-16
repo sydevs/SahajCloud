@@ -25,7 +25,7 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 
 
-import { BaseImporter, BaseImportOptions, MediaUploader } from '../lib'
+import { BaseImporter, BaseImportOptions, MediaUploader, TagManager } from '../lib'
 
 // ============================================================================
 // CONFIGURATION
@@ -62,6 +62,12 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
   private token: string
   private mediaUploader!: MediaUploader
+  private tagManager!: TagManager
+
+  // Image tag IDs
+  private lessonTagId: number | null = null
+  private iconTagId: number | null = null
+  private thumbnailTagId: number | null = null
 
   constructor(options: BaseImportOptions, token: string) {
     super(options)
@@ -103,6 +109,8 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   protected async setup(): Promise<void> {
     if (!this.options.dryRun) {
       this.mediaUploader = new MediaUploader(this.payload, this.logger)
+      this.tagManager = new TagManager(this.payload, this.logger)
+      await this.setupImageTags()
     }
 
     // Setup additional cache directories
@@ -111,6 +119,26 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/images'))
     await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/videos'))
     await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/subtitles'))
+  }
+
+  /**
+   * Setup image tags for content categorization.
+   * Creates tags if they don't exist and caches their IDs.
+   */
+  private async setupImageTags(): Promise<void> {
+    await this.logger.info('Setting up image tags...')
+
+    const [lessonId, iconId, thumbnailId] = await Promise.all([
+      this.tagManager.ensureTag('image-tags', 'lesson'),
+      this.tagManager.ensureTag('image-tags', 'icon'),
+      this.tagManager.ensureTag('image-tags', 'thumbnail'),
+    ])
+
+    this.lessonTagId = lessonId
+    this.iconTagId = iconId
+    this.thumbnailTagId = thumbnailId
+
+    await this.logger.info('✓ Image tags ready')
   }
 
   // ============================================================================
@@ -300,7 +328,8 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
           videoPanels.push({ insertAt: panelIndexCounter, videoId })
           panelIndexCounter++
         } else if (panel.Image && panel.Image.url) {
-          const imageId = await this.createMediaFromUrl(panel.Image.url, panel.Title)
+          const lessonTags = this.lessonTagId ? [this.lessonTagId] : []
+          const imageId = await this.createMediaFromUrl(panel.Image.url, panel.Title, lessonTags)
           panels.push({
             blockType: 'text' as const,
             title: this.processTextField(panel.Title || ''),
@@ -340,9 +369,13 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     // Create and attach icon (uploads to Images collection)
     if (content.Step_info?.[0]?.Step_Image?.url) {
       try {
+        const iconTags = [this.iconTagId, this.lessonTagId].filter(
+          (id): id is number => id !== null,
+        )
         const iconId = await this.createMediaFromUrl(
           content.Step_info[0].Step_Image.url,
           `Icon for ${story.name}`,
+          iconTags,
         )
         await this.payload.update({
           collection: 'lessons',
@@ -401,7 +434,11 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // MEDIA HELPERS
   // ============================================================================
 
-  private async createMediaFromUrl(url: string, alt?: string): Promise<number | string> {
+  private async createMediaFromUrl(
+    url: string,
+    alt?: string,
+    tags?: number[],
+  ): Promise<number | string> {
     if (!url) {
       throw new Error('URL is required for creating media')
     }
@@ -414,6 +451,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
     const result = await this.mediaUploader.uploadWithDeduplication(webpPath, {
       alt: alt || filename,
+      tags,
     })
 
     if (!result) {
@@ -586,7 +624,12 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
           if (block.Video_UUID) {
             const videoStory = await this.fetchStoryByUuid(block.Video_UUID as string)
             const content = videoStory.content as Record<string, any>
-            const thumbnailId = await this.createMediaFromUrl(content.Thumbnail?.filename || '')
+            const thumbnailTags = this.thumbnailTagId ? [this.thumbnailTagId] : []
+            const thumbnailId = await this.createMediaFromUrl(
+              content.Thumbnail?.filename || '',
+              undefined,
+              thumbnailTags,
+            )
             const lectureId = await this.upsertLecture(videoStory, thumbnailId)
 
             children.push({

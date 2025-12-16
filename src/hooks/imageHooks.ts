@@ -1,4 +1,4 @@
-import type { CollectionBeforeChangeHook } from 'payload'
+import type { CollectionBeforeChangeHook, Payload } from 'payload'
 
 import imageSize from 'image-size'
 
@@ -28,7 +28,7 @@ function getOrientationFromDimensions(
  * Results are cached in memory to avoid repeated database queries.
  */
 async function getOrCreateOrientationTag(
-  payload: any,
+  payload: Payload,
   orientationName: OrientationName,
 ): Promise<number> {
   // Check cache first

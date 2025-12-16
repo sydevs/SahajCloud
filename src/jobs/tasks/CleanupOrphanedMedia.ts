@@ -1,9 +1,15 @@
 import type { TaskConfig, Where, Payload, PayloadRequest } from 'payload'
 
-import type { Author, Lecture, Lesson, Meditation, Page } from '@/payload-types'
+import type { Author, ImageTag, Lecture, Lesson, Meditation, Page } from '@/payload-types'
 
 /** Maximum documents to fetch per page when scanning for references */
 const PAGINATION_LIMIT = 1000
+
+/**
+ * Auto-generated orientation tags that should be ignored when determining orphan status.
+ * These tags are added automatically via beforeChange hook on image upload.
+ */
+const ORIENTATION_TAG_TITLES = ['landscape', 'portrait', 'square']
 
 type CleanupResult = {
   permanentlyDeletedFiles: number
@@ -23,7 +29,8 @@ type CleanupResult = {
  *
  * Orphan detection:
  * - Files: Any file not referenced by any document in any collection
- * - Images: Any image not referenced by any document AND has no tags (empty tags array)
+ * - Images: Any image not referenced by any document AND has no content tags
+ *   (auto-generated orientation tags like 'landscape', 'portrait', 'square' are ignored)
  *
  * Collections that reference Files:
  * - lessons.introAudio
@@ -305,7 +312,7 @@ async function trashOrphanedMedia(
     }
   }
 
-  // Find orphaned images (older than grace period, not already in trash, not referenced, no tags)
+  // Find orphaned images (older than grace period, not already in trash, not referenced, no content tags)
   const remainingOps = maxOperations - result.trashedFiles
   const potentialOrphanImages = await req.payload.find({
     collection: 'images',
@@ -316,7 +323,7 @@ async function trashOrphanedMedia(
       ],
     },
     limit: remainingOps * 2, // Get more to account for filtering
-    depth: 0,
+    depth: 1, // Include tag objects to check titles
   })
 
   for (const image of potentialOrphanImages.docs) {
@@ -327,9 +334,13 @@ async function trashOrphanedMedia(
       continue
     }
 
-    // Skip if image has tags (tagged images are preserved even if unreferenced)
-    const hasTags = Array.isArray(image.tags) && image.tags.length > 0
-    if (hasTags) {
+    // Skip if image has content tags (ignore auto-generated orientation tags)
+    // Orientation tags (landscape, portrait, square) are auto-generated and don't count as "intentional" tags
+    const hasContentTags = Array.isArray(image.tags) && image.tags.some((tag) => {
+      const tagTitle = typeof tag === 'object' && tag !== null ? (tag as ImageTag).title : null
+      return tagTitle && !ORIENTATION_TAG_TITLES.includes(tagTitle)
+    })
+    if (hasContentTags) {
       result.skippedImages++
       continue
     }
