@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { Image, ImageTag } from '@/payload-types'
+import type { ImageTag } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -75,28 +75,6 @@ describe('Image Orientation Detection', () => {
 
     // Should have both custom tag and orientation tag
     expect(tagTitles).toContain('custom-test-tag')
-    expect(tagTitles).toContain('landscape')
-  })
-
-  it('skips orientation detection for SVG images', async () => {
-    // Note: SVG files cannot be uploaded to Images collection (invalid MIME type)
-    // This test verifies the hook logic skips SVGs when req.file.mimetype is 'image/svg+xml'
-    // The actual skipping happens in the hook - we verify indirectly by testing raster images work
-
-    // Upload a regular image to confirm orientation detection works
-    const image = await testData.createMediaImage(payload, {}, 'image-1050x700.png')
-
-    const imageWithTags = await payload.findByID({
-      collection: 'images',
-      id: image.id,
-      depth: 1,
-    })
-
-    const tagTitles = imageWithTags.tags?.map((tag) =>
-      typeof tag === 'object' && tag !== null ? (tag as ImageTag).title : null,
-    ) || []
-
-    // PNG images should get orientation tags
     expect(tagTitles).toContain('landscape')
   })
 

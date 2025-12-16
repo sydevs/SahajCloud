@@ -124,11 +124,3 @@ export const detectOrientationHook: CollectionBeforeChangeHook = async ({
     return data
   }
 }
-
-/**
- * Clears the orientation tag cache.
- * Useful for testing or when tags are modified externally.
- */
-export function clearOrientationTagCache(): void {
-  orientationTagCache.clear()
-}
