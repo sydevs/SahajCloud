@@ -31,6 +31,7 @@ import * as fs from 'fs/promises'
 import * as path from 'path'
 
 import { BaseImporter, BaseImportOptions, MediaUploader } from '../lib'
+import { isCloudflareWorker } from '../lib/runtime'
 
 // ============================================================================
 // WEMEDITATE DATA TYPES (matching extraction script output)
@@ -213,6 +214,9 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   private treatmentThumbnailMap = new Map<number, number | string>()
   private contentTypeTagMap = new Map<string, number>()
 
+  // Pre-cached music tags (slug → id) to avoid N+1 queries
+  private musicTagCache = new Map<string, number>()
+
   // ============================================================================
   // STATIC FACTORY FOR MIGRATIONS
   // ============================================================================
@@ -242,7 +246,28 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       this.mediaDownloader = new MediaDownloader(this.cacheDir, this.logger)
       await this.mediaDownloader.initialize()
       this.mediaUploader = new MediaUploader(this.payload, this.logger)
+
+      // Pre-cache to avoid N+1 queries during import
+      await this.preloadMusicTags()
+      await this.mediaUploader.preloadExistingMedia()
     }
+  }
+
+  /**
+   * Pre-load all music tags into memory cache to avoid per-track queries
+   */
+  private async preloadMusicTags(): Promise<void> {
+    await this.logger.info('Pre-loading music tags...')
+    const tags = await this.payload.find({
+      collection: 'music-tags',
+      limit: 100,
+    })
+    for (const tag of tags.docs) {
+      if (tag.slug) {
+        this.musicTagCache.set(tag.slug, tag.id)
+      }
+    }
+    await this.logger.info(`✓ Pre-loaded ${this.musicTagCache.size} music tags`)
   }
 
   protected async cleanup(): Promise<void> {
@@ -361,26 +386,18 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           },
         )
 
-        // Update other locales
-        for (const translation of author.translations) {
-          if (
-            translation.locale !== 'en' &&
-            translation.locale &&
-            translation.name &&
-            LOCALES.includes(translation.locale as (typeof LOCALES)[number])
-          ) {
-            await this.payload.update({
-              collection: 'authors',
-              id: authorResult.doc.id,
-              data: {
-                name: translation.name,
-                title: translation.title || '',
-                description: translation.description || '',
-              },
-              locale: translation.locale as (typeof LOCALES)[number],
-            })
-          }
-        }
+        // Update other locales using helper
+        await this.updateLocales(
+          'authors',
+          authorResult.doc.id,
+          author.translations,
+          (t) => ({
+            name: t.name,
+            title: t.title || '',
+            description: t.description || '',
+          }),
+          { excludeLocale: 'en', requiredFields: ['name'], validLocales: [...LOCALES] },
+        )
 
         this.idMaps.authors.set(author.id, authorResult.doc.id)
       } catch (error) {
@@ -586,7 +603,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           for (const filterId of track.instrument_filter_ids) {
             const tagSlug = this.INSTRUMENT_TAG_MAP[filterId]
             if (tagSlug) {
-              const musicTagIds = await this.findMusicTagsBySlug([tagSlug])
+              const musicTagIds = this.findMusicTagsBySlug([tagSlug])
               tagIds.push(...musicTagIds)
             }
           }
@@ -769,17 +786,14 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           { locale: 'en' },
         )
 
-        // Update other locales
-        for (const translation of category.translations) {
-          if (translation.locale !== 'en' && translation.locale && translation.name) {
-            await this.payload.update({
-              collection: 'page-tags',
-              id: tagResult.doc.id,
-              data: { title: translation.name },
-              locale: translation.locale as TypedLocale,
-            })
-          }
-        }
+        // Update other locales using helper
+        await this.updateLocales(
+          'page-tags',
+          tagResult.doc.id,
+          category.translations,
+          (t) => ({ title: t.name }),
+          { excludeLocale: 'en', requiredFields: ['name'] },
+        )
 
         this.idMaps.categories.set(category.id, tagResult.doc.id)
       } catch (error) {
@@ -840,6 +854,9 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async importPages(tableName: string, _translationsTable: string): Promise<void> {
+    const DEBUG = process.env.DEBUG_IMPORT === 'true'
+    if (DEBUG) console.log(`[IMPORT_PAGES] Starting ${tableName}`)
+
     // Map table names to pre-extracted data arrays
     const dataMap: Record<string, typeof this.data.staticPages | typeof this.data.articles> = {
       static_pages: this.data.staticPages,
@@ -850,9 +867,11 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
     const pages = dataMap[tableName] || []
     const total = pages.length
+    if (DEBUG) console.log(`[IMPORT_PAGES] Found ${total} pages in ${tableName}`)
 
     for (let i = 0; i < total; i++) {
       const page = pages[i] as any // Use any for dynamic table access
+      if (DEBUG) console.log(`[IMPORT_PAGES] Processing page ${i + 1}/${total}: ${page.id}`)
 
       try {
         // Find English translation
@@ -922,25 +941,18 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           },
         )
 
-        // Update other locales
-        for (const translation of page.translations) {
-          if (
-            translation.locale !== 'en' &&
-            translation.locale &&
-            translation.name &&
-            LOCALES.includes(translation.locale as (typeof LOCALES)[number])
-          ) {
-            await this.payload.update({
-              collection: 'pages',
-              id: pageResult.doc.id,
-              data: {
-                title: translation.name,
-                publishAt: translation.published_at || undefined,
-              },
-              locale: translation.locale as (typeof LOCALES)[number],
-            })
-          }
-        }
+        // Update other locales using helper
+        type PageTranslation = (typeof page.translations)[number]
+        await this.updateLocales<PageTranslation>(
+          'pages',
+          pageResult.doc.id,
+          page.translations,
+          (t) => ({
+            title: t.name,
+            publishAt: t.published_at || undefined,
+          }),
+          { excludeLocale: 'en', requiredFields: ['name'], validLocales: [...LOCALES] },
+        )
 
         // Store in appropriate ID map
         const mapKeyMap: Record<string, keyof typeof this.idMaps> = {
@@ -1124,6 +1136,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         const result = await this.mediaUploader.uploadWithDeduplication(downloadResult.localPath, {
           alt: metadata.alt || filenameWithoutExt,
           credit: metadata.credit || '',
+          buffer: downloadResult.buffer, // Pass buffer for Workers mode
         })
 
         if (result) {
@@ -1331,18 +1344,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             }
           }
 
-          const existingPage = await this.payload.findByID({
-            collection: 'pages',
-            id: pageId,
-            locale: translation.locale as TypedLocale,
-          })
-
+          // Use translation.name directly instead of fetching existingPage just for the title
           await this.payload.update({
             collection: 'pages',
             id: pageId,
             data: {
-              title: existingPage.title,
-              content: lexicalContent as any,
+              title: translation.name || 'Untitled',
+              content: lexicalContent as any, // Type assertion needed for Lexical content compatibility
             },
             locale: translation.locale as TypedLocale,
           })
@@ -1422,6 +1430,23 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   private async getDefaultThumbnail(): Promise<number | string> {
     if (this.defaultThumbnailId) return this.defaultThumbnailId
 
+    // In Workers mode, fetch from hosted URL; in local mode, read from filesystem
+    const PREVIEW_URL =
+      'https://raw.githubusercontent.com/sydevs/SahajCloud/main/imports/wemeditate/preview.png'
+
+    if (isCloudflareWorker()) {
+      // Workers mode: fetch and stream
+      const downloadResult = await this.mediaDownloader.downloadAndConvertImage(PREVIEW_URL)
+      const result = await this.mediaUploader.uploadWithDeduplication(downloadResult.localPath, {
+        alt: 'Video preview placeholder',
+        buffer: downloadResult.buffer,
+      })
+      if (!result) throw new Error('Failed to upload default thumbnail')
+      this.defaultThumbnailId = result.id
+      return result.id
+    }
+
+    // Local mode: read from filesystem
     const previewPath = path.join(__dirname, 'preview.png')
     const result = await this.mediaUploader.uploadWithDeduplication(previewPath, {
       alt: 'Video preview placeholder',
@@ -1468,7 +1493,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         const downloadResult = await this.mediaDownloader.downloadAndConvertImage(thumbnailUrl)
         const uploadResult = await this.mediaUploader.uploadWithDeduplication(
           downloadResult.localPath,
-          { alt: `Video thumbnail for ${videoId}` },
+          {
+            alt: `Video thumbnail for ${videoId}`,
+            buffer: downloadResult.buffer, // Pass buffer for Workers mode
+          },
         )
         if (uploadResult) return uploadResult.id
       }
@@ -1493,24 +1521,18 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  private async findMusicTagsBySlug(tagSlugs: string[]): Promise<number[]> {
+  /**
+   * Find music tag IDs by slug using pre-cached data (synchronous lookup)
+   * Call preloadMusicTags() before using this method
+   */
+  private findMusicTagsBySlug(tagSlugs: string[]): number[] {
     const tagIds: number[] = []
     for (const slug of tagSlugs) {
-      try {
-        // Music tags are created by the tags import script with SVG icons
-        // We only look up existing tags here
-        const result = await this.payload.find({
-          collection: 'music-tags',
-          where: { slug: { equals: slug } },
-          limit: 1,
-        })
-        if (result.docs.length > 0) {
-          tagIds.push(result.docs[0].id)
-        } else {
-          this.addWarning(`Music tag "${slug}" not found - run tags import first`)
-        }
-      } catch (error) {
-        this.addError(`Finding music tag ${slug}`, error as Error)
+      const tagId = this.musicTagCache.get(slug)
+      if (tagId !== undefined) {
+        tagIds.push(tagId)
+      } else {
+        this.addWarning(`Music tag "${slug}" not found in cache - run tags import first`)
       }
     }
     return tagIds
@@ -1569,7 +1591,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         liveMeditationsPage: await this.findPageBySlug('live-meditations'),
       }
 
-      const musicPageTags = await this.findMusicTagsBySlug(['strings', 'flute', 'nature'])
+      const musicPageTags = this.findMusicTagsBySlug(['strings', 'flute', 'nature'])
       const inspirationPageTags = await Promise.all([
         this.findPageTagByName('creativity'),
         this.findPageTagByName('wisdom'),

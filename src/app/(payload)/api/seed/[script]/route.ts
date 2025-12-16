@@ -18,15 +18,25 @@
  * - dryRun: If 'true', validates without writing to database
  */
 
+import type { BaseImporter } from '../../../../../../imports/lib/BaseImporter'
 import type { NextRequest } from 'next/server'
 
 import { getPayload } from 'payload'
 
 import config from '@payload-config'
 
-import { verifyCountsForScript, type ScriptName } from '../../../../../../imports/lib/expectedCounts'
+import {
+  verifyCountsForScript,
+  type ScriptName,
+} from '../../../../../../imports/lib/expectedCounts'
 
 const VALID_SCRIPTS: ScriptName[] = ['tags', 'wemeditate', 'meditations', 'storyblok']
+
+/**
+ * Heartbeat interval in milliseconds (30 seconds)
+ * Prevents Cloudflare Workers 100-second idle timeout
+ */
+const HEARTBEAT_INTERVAL = 30_000
 
 /**
  * POST /api/seed/:script
@@ -81,13 +91,21 @@ export async function POST(
   const writer = stream.writable.getWriter()
 
   // Helper to send SSE events
+  const DEBUG = process.env.DEBUG_IMPORT === 'true'
   const sendEvent = async (data: Record<string, unknown>) => {
+    // eslint-disable-next-line no-console
+    if (DEBUG) console.log(`[API_SSE] Sending: ${data.type}`)
     const message = `data: ${JSON.stringify(data)}\n\n`
     await writer.write(encoder.encode(message))
+    // eslint-disable-next-line no-console
+    if (DEBUG) console.log(`[API_SSE] Sent: ${data.type}`)
   }
 
   // Run the importer in the background
   const runImporter = async () => {
+    let importerInstance: BaseImporter | null = null
+    let heartbeatInterval: ReturnType<typeof setInterval> | null = null
+
     try {
       await sendEvent({
         type: 'start',
@@ -107,6 +125,36 @@ export async function POST(
         await writer.close()
         return
       }
+
+      // Store importer reference for heartbeat access
+      importerInstance = importer
+      const importStartTime = Date.now()
+
+      // Send initial heartbeat immediately (provides instant feedback)
+      await sendEvent({
+        type: 'heartbeat',
+        operation: 'Starting...',
+        elapsedMs: 0,
+      })
+
+      // Start heartbeat interval to prevent Cloudflare 100-second idle timeout
+      heartbeatInterval = setInterval(async () => {
+        try {
+          const operation = importerInstance?.getCurrentOperation() || 'Processing...'
+          const elapsedMs = Date.now() - importStartTime
+          await sendEvent({
+            type: 'heartbeat',
+            operation,
+            elapsedMs,
+          })
+        } catch {
+          // Stream may be closed, stop heartbeat
+          if (heartbeatInterval) {
+            clearInterval(heartbeatInterval)
+            heartbeatInterval = null
+          }
+        }
+      }, HEARTBEAT_INTERVAL)
 
       // Run the importer
       await importer.run()
@@ -148,6 +196,10 @@ export async function POST(
         message,
       })
     } finally {
+      // Clean up heartbeat interval
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval)
+      }
       await writer.close()
     }
   }

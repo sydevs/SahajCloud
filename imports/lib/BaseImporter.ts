@@ -116,6 +116,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   // Track if running in Cloudflare Workers (no filesystem)
   private readonly isWorker: boolean
 
+  // Track current operation for heartbeat progress (SSE keep-alive)
+  private currentOperation: string = ''
+
   constructor(options: TOptions) {
     this.options = options
     this.isWorker = isCloudflareWorker()
@@ -131,6 +134,22 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    */
   getReport(): ValidationReport {
     return this.report
+  }
+
+  /**
+   * Set the current operation for heartbeat progress tracking
+   * Called during long-running operations to provide context in SSE heartbeats
+   */
+  setCurrentOperation(operation: string): void {
+    this.currentOperation = operation
+  }
+
+  /**
+   * Get the current operation for heartbeat progress tracking
+   * Used by API route to include operation context in heartbeat events
+   */
+  getCurrentOperation(): string {
+    return this.currentOperation
   }
 
   // ============================================================================
@@ -232,6 +251,31 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     await fs.mkdir(path.join(this.cacheDir, 'assets'), { recursive: true })
   }
 
+  /**
+   * Load data file with dual-mode support:
+   * - Local development: Read from filesystem
+   * - Cloudflare Workers: Fetch from URL
+   *
+   * @param localPath - Path to local file (used in local dev)
+   * @param workerUrl - URL to fetch from (required in Workers mode)
+   * @returns File contents as string
+   */
+  protected async loadDataFile(localPath: string, workerUrl?: string): Promise<string> {
+    if (this.isWorker) {
+      if (!workerUrl) {
+        throw new Error(`Worker mode requires URL for data file: ${localPath}`)
+      }
+      const response = await fetch(workerUrl)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${workerUrl}: ${response.status}`)
+      }
+      return response.text()
+    }
+
+    // Local development: read from filesystem
+    return fs.readFile(localPath, 'utf-8')
+  }
+
   private async initializePayload(): Promise<void> {
     await this.logger.info('Initializing Payload CMS...')
     const payloadConfig = await configPromise
@@ -275,10 +319,13 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   protected async sendEvent(event: Omit<ImportEvent, 'timestamp'>): Promise<void> {
     if (!this.options.onProgress) return
 
+    const DEBUG = process.env.DEBUG_IMPORT === 'true'
+    if (DEBUG) console.log(`[SSE] Sending event: ${event.type}`)
     await this.options.onProgress({
       ...event,
       timestamp: new Date().toISOString(),
     })
+    if (DEBUG) console.log(`[SSE] Sent event: ${event.type}`)
   }
 
   /**
@@ -358,6 +405,13 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     },
   ): Promise<UpsertResult<T>> {
     const identifier = options?.identifier || this.summarizeKey(naturalKey)
+    const DEBUG = process.env.DEBUG_IMPORT === 'true'
+    const startTime = DEBUG ? Date.now() : 0
+
+    // Track current operation for heartbeat context
+    this.setCurrentOperation(`Processing ${collection}:${identifier}`)
+
+    if (DEBUG) console.log(`[UPSERT] Starting ${collection}:${identifier}`)
 
     if (this.options.dryRun) {
       this.report.incrementSkipped()
@@ -370,6 +424,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
     try {
       // Find existing by natural key (with retry for SQLITE_BUSY)
+      const findStart = DEBUG ? Date.now() : 0
+      if (DEBUG) console.log(`[UPSERT] Finding existing ${collection}:${identifier}`)
       const existing = await this.executeWithRetry(() =>
         this.payload.find({
           collection,
@@ -378,9 +434,16 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           locale: options?.locale,
         }),
       )
+      if (DEBUG) console.log(`[UPSERT] Found ${existing.docs.length} existing for ${collection}:${identifier} (${Date.now() - findStart}ms)`)
 
       if (existing.docs.length > 0) {
         // Update existing (with retry for SQLITE_BUSY)
+        const updateStart = DEBUG ? Date.now() : 0
+        if (DEBUG) console.log(`[UPSERT] Updating ${collection}:${identifier}`)
+        // Track file upload operation for heartbeat
+        if (options?.file) {
+          this.setCurrentOperation(`Uploading ${collection}:${identifier}`)
+        }
         const updated = await this.executeWithRetry(() =>
           this.payload.update({
             collection,
@@ -390,16 +453,25 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             file: options?.file,
           }),
         )
+        if (DEBUG) console.log(`[UPSERT] Updated ${collection}:${identifier} (${Date.now() - updateStart}ms)`)
 
         this.report.incrementUpdated()
+        const reportStart = DEBUG ? Date.now() : 0
         await this.reportDocument(collection, identifier, 'updated', {
           current: options?.current,
           total: options?.total,
         })
+        if (DEBUG) console.log(`[UPSERT] Complete ${collection}:${identifier} - total: ${Date.now() - startTime}ms (report: ${Date.now() - reportStart}ms)`)
         return { doc: updated as unknown as T, action: 'updated' }
       }
 
       // Create new (with retry for SQLITE_BUSY)
+      const createStart = DEBUG ? Date.now() : 0
+      if (DEBUG) console.log(`[UPSERT] Creating ${collection}:${identifier}`)
+      // Track file upload operation for heartbeat
+      if (options?.file) {
+        this.setCurrentOperation(`Uploading ${collection}:${identifier}`)
+      }
       const created = await this.executeWithRetry(() =>
         this.payload.create({
           collection,
@@ -408,12 +480,15 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           file: options?.file,
         }),
       )
+      if (DEBUG) console.log(`[UPSERT] Created ${collection}:${identifier} (${Date.now() - createStart}ms)`)
 
       this.report.incrementCreated()
+      const reportStart = DEBUG ? Date.now() : 0
       await this.reportDocument(collection, identifier, 'created', {
         current: options?.current,
         total: options?.total,
       })
+      if (DEBUG) console.log(`[UPSERT] Complete ${collection}:${identifier} - total: ${Date.now() - startTime}ms (report: ${Date.now() - reportStart}ms)`)
       return { doc: created as unknown as T, action: 'created' }
     } catch (error) {
       // Handle slug collision - log for manual review and skip
@@ -476,6 +551,91 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   /**
+   * Update document with localized content for all available translations.
+   * Only updates locales that have actual translation content.
+   *
+   * @param collection - Collection slug
+   * @param id - Document ID
+   * @param translations - Array of translation objects with locale field
+   * @param dataExtractor - Function to extract data from each translation (return null to skip)
+   * @param options - Optional settings
+   * @returns Number of locales updated
+   */
+  protected async updateLocales<T extends { locale?: string }>(
+    collection: CollectionSlug,
+    id: number | string,
+    translations: T[],
+    dataExtractor: (translation: T) => Record<string, unknown> | null,
+    options?: {
+      /** Skip this locale (e.g., 'en' if already created with upsert) */
+      excludeLocale?: string
+      /** Only process translations where these fields have non-empty values */
+      requiredFields?: (keyof T)[]
+      /** List of valid locales (defaults to checking against Payload's TypedLocale) */
+      validLocales?: string[]
+    },
+  ): Promise<number> {
+    if (this.options.dryRun) {
+      return 0
+    }
+
+    const DEBUG = process.env.DEBUG_IMPORT === 'true'
+    const startTime = DEBUG ? Date.now() : 0
+    let updatedCount = 0
+
+    for (const translation of translations) {
+      // Skip if no locale
+      if (!translation.locale) continue
+
+      // Skip excluded locale (usually 'en' which was handled in initial upsert)
+      if (options?.excludeLocale && translation.locale === options.excludeLocale) continue
+
+      // Validate against allowed locales if provided
+      if (options?.validLocales && !options.validLocales.includes(translation.locale)) continue
+
+      // Check required fields have non-empty values
+      if (options?.requiredFields) {
+        const hasRequiredContent = options.requiredFields.some((field) => {
+          const value = translation[field]
+          return value !== null && value !== undefined && value !== ''
+        })
+        if (!hasRequiredContent) continue
+      }
+
+      // Extract data for this translation
+      const data = dataExtractor(translation)
+      if (!data) continue
+
+      // Check if extracted data has any non-empty values
+      const hasContent = Object.values(data).some(
+        (v) => v !== null && v !== undefined && v !== '',
+      )
+      if (!hasContent) continue
+
+      // Update the document with locale-specific data
+      const localeStart = DEBUG ? Date.now() : 0
+      // Track current operation for heartbeat context
+      this.setCurrentOperation(`Updating ${collection}:${id} locale=${translation.locale}`)
+      await this.executeWithRetry(() =>
+        this.payload.update({
+          collection,
+          id,
+          data,
+          locale: translation.locale as TypedLocale,
+        }),
+      )
+      if (DEBUG) console.log(`[LOCALE] Updated ${collection}:${id} locale=${translation.locale} (${Date.now() - localeStart}ms)`)
+      updatedCount++
+    }
+
+    if (DEBUG && updatedCount > 0) {
+      console.log(`[LOCALE] Complete ${collection}:${id} - ${updatedCount} locales in ${Date.now() - startTime}ms (avg: ${Math.round((Date.now() - startTime) / updatedCount)}ms/locale)`)
+    }
+
+    return updatedCount
+  }
+
+  /**
    * Create a summary string from a natural key Where clause
    */
   private summarizeKey(key: Where): string {
@@ -500,31 +660,65 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   // ============================================================================
-  // RETRY & COLLISION HANDLING
+  // RETRY & THROTTLING
   // ============================================================================
+
+  /**
+   * Check if an error is a retryable error (database busy or network issues)
+   * Handles both SQLite/D1 database errors and miniflare proxy connection errors
+   */
+  private isRetryableError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false
+    const msg = error.message.toLowerCase()
+    return (
+      // Database busy/lock errors
+      msg.includes('sqlite_busy') ||
+      msg.includes('database is locked') ||
+      msg.includes('d1_error') ||
+      // Network/connection errors from miniflare proxy (undici fetch)
+      msg.includes('fetch failed') ||
+      msg.includes('other side closed') ||
+      msg.includes('socket closed') ||
+      msg.includes('network connection lost') ||
+      msg.includes('und_err_socket')
+    )
+  }
+
+  /**
+   * Small delay between database operations to reduce contention
+   * Only applies when not in dry-run mode
+   */
+  private async throttle(ms: number = 10): Promise<void> {
+    if (!this.options.dryRun && ms > 0) {
+      await new Promise((r) => setTimeout(r, ms))
+    }
+  }
 
   /**
    * Execute an operation with exponential backoff retry for SQLITE_BUSY errors
    */
   private async executeWithRetry<T>(
     operation: () => Promise<T>,
-    maxRetries: number = 5,
-    baseDelay: number = 100,
+    maxRetries: number = 8,
+    baseDelay: number = 150,
   ): Promise<T> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        return await operation()
+        const result = await operation()
+        // Small delay after successful operation to reduce contention
+        await this.throttle(5)
+        return result
       } catch (error) {
-        const isBusy = error instanceof Error && error.message.includes('SQLITE_BUSY')
-
-        if (!isBusy || attempt === maxRetries) {
+        if (!this.isRetryableError(error) || attempt === maxRetries) {
           throw error
         }
 
         const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 100
-        await this.logger.warn(
-          `Database busy, retrying in ${Math.round(delay)}ms (attempt ${attempt}/${maxRetries})`,
-        )
+        const DEBUG = process.env.DEBUG_IMPORT === 'true'
+        if (DEBUG) {
+          const errorMsg = error instanceof Error ? error.message.slice(0, 50) : 'Unknown'
+          console.log(`[RETRY] Retryable error (${errorMsg}...), retrying in ${Math.round(delay)}ms (attempt ${attempt}/${maxRetries})`)
+        }
         await new Promise((r) => setTimeout(r, delay))
       }
     }

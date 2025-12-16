@@ -31,7 +31,7 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "D1"
 database_name = "sahajcloud"
-database_id = "acb19523-d826-45b6-8680-46e6fd3eca86"
+database_id = "562d14ee-f03e-4b57-b0f5-ada69aec1b1b"
 remote = true
 
 # R2 Storage Binding

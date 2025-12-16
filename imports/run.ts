@@ -58,6 +58,20 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache']
 
+/**
+ * Format elapsed milliseconds as human-readable string (e.g., "1m 30s")
+ */
+function formatElapsed(ms: number): string {
+  const seconds = Math.floor(ms / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+
+  if (minutes > 0) {
+    return `${minutes}m ${remainingSeconds}s`
+  }
+  return `${seconds}s`
+}
+
 function printUsage(): void {
   console.log(`
 📦 Seed Script Runner
@@ -206,9 +220,21 @@ class ProgressDisplay {
         console.log('='.repeat(60))
         break
 
+      case 'heartbeat': {
+        // Display heartbeat on same line, overwriting previous heartbeat
+        const operation = (event.operation as string) || 'Processing...'
+        const elapsedMs = (event.elapsedMs as number) || 0
+        const elapsed = formatElapsed(elapsedMs)
+        process.stdout.write(`\r  ⏳ ${operation} (${elapsed})`)
+        break
+      }
+
       case 'document': {
         const doc = event.document as DocumentResult
         if (!doc) break
+
+        // Clear any heartbeat line before printing document
+        process.stdout.write('\r\x1b[K')
 
         // Print collection header when collection changes
         if (doc.collection !== this.currentCollection) {
@@ -240,6 +266,9 @@ class ProgressDisplay {
       }
 
       case 'complete': {
+        // Clear any heartbeat line
+        process.stdout.write('\r\x1b[K')
+
         const summary = event.summary as Record<string, unknown>
 
         // Summary line with emojis
@@ -292,6 +321,8 @@ class ProgressDisplay {
       }
 
       case 'error':
+        // Clear any heartbeat line
+        process.stdout.write('\r\x1b[K')
         console.error(`\n❌ Error: ${event.message}`)
         break
     }
@@ -443,8 +474,7 @@ async function main(): Promise<void> {
   const scripts = scriptsToRun.length > 0 ? scriptsToRun : SCRIPT_RUN_ORDER
 
   // Determine target URL
-  const baseUrl =
-    process.env.SAHAJCLOUD_URL || `http://localhost:${process.env.PORT || 3000}`
+  const baseUrl = process.env.SAHAJCLOUD_URL || `http://localhost:${process.env.PORT || 3000}`
 
   console.log(`\n${'='.repeat(60)}`)
   console.log(`Seed Script Runner`)
