@@ -1,13 +1,18 @@
 /**
  * File Utilities
  *
- * Common file download, caching, and manipulation utilities
+ * Common file download, caching, and manipulation utilities.
+ * Supports dual-mode operation:
+ * - Local development: File caching in `imports/cache/`
+ * - Cloudflare Workers: Streaming without disk
  */
 
 import type { Logger } from './logger'
 
 import { promises as fs } from 'fs'
 import * as path from 'path'
+
+import { isCloudflareWorker } from './runtime'
 
 export interface DownloadOptions {
   maxRetries?: number
@@ -48,6 +53,7 @@ export class FileUtils {
       '.jpeg': 'image/jpeg',
       '.png': 'image/png',
       '.webp': 'image/webp',
+      '.svg': 'image/svg+xml',
       '.mp4': 'video/mp4',
       '.webm': 'video/webm',
       '.pdf': 'application/pdf',
@@ -102,6 +108,73 @@ export class FileUtils {
       const message = error instanceof Error ? error.message : String(error)
       await this.logger.error(`${errorContext}: ${message}`)
       return null
+    }
+  }
+
+  /**
+   * Download file with dual-mode support:
+   * - Local development: Cache to disk for faster iteration
+   * - Cloudflare Workers: Stream directly without disk
+   *
+   * @param url - URL to download from
+   * @param cachePath - Optional cache file path (ignored in Workers)
+   * @returns Buffer containing file contents
+   */
+  async downloadFile(url: string, cachePath?: string): Promise<Buffer> {
+    // In Workers mode: always stream directly
+    if (isCloudflareWorker()) {
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`Failed to download ${url}: ${response.status}`)
+      }
+      return Buffer.from(await response.arrayBuffer())
+    }
+
+    // In local dev: use disk cache if available
+    if (cachePath) {
+      if (await this.fileExists(cachePath)) {
+        await this.logger.info(`  Using cached: ${path.basename(cachePath)}`)
+        return fs.readFile(cachePath)
+      }
+
+      // Download and cache
+      await fs.mkdir(path.dirname(cachePath), { recursive: true })
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`Failed to download ${url}: ${response.status}`)
+      }
+      const buffer = Buffer.from(await response.arrayBuffer())
+      await fs.writeFile(cachePath, buffer)
+      return buffer
+    }
+
+    // No cache path: stream directly
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`Failed to download ${url}: ${response.status}`)
+    }
+    return Buffer.from(await response.arrayBuffer())
+  }
+
+  /**
+   * Download file and return as FileData for Payload upload
+   *
+   * @param url - URL to download from
+   * @param filename - Desired filename for the upload
+   * @param cachePath - Optional cache file path (ignored in Workers)
+   * @returns FileData object ready for Payload upload
+   */
+  async downloadAsFileData(
+    url: string,
+    filename: string,
+    cachePath?: string,
+  ): Promise<{ data: Buffer; name: string; size: number; mimetype: string }> {
+    const buffer = await this.downloadFile(url, cachePath)
+    return {
+      data: buffer,
+      name: filename,
+      size: buffer.length,
+      mimetype: this.getMimeType(filename),
     }
   }
 }

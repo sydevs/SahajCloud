@@ -13,6 +13,8 @@ import type { Payload, TypedLocale } from 'payload'
 import * as crypto from 'crypto'
 import { promises as fs } from 'fs'
 import * as path from 'path'
+
+import { isCloudflareWorker } from './runtime'
 // import * as sharp from 'sharp' // DISABLED: Removed for Cloudflare Workers compatibility
 
 // ============================================================================
@@ -30,6 +32,8 @@ export interface DownloadResult {
   hash: string
   width: number
   height: number
+  /** Buffer for Workers mode (no filesystem) */
+  buffer?: Buffer
 }
 
 // ============================================================================
@@ -54,7 +58,9 @@ export class MediaDownloader {
   }
 
   /**
-   * Download image (no conversion - Cloudflare Workers compatible)
+   * Download image with dual-mode support:
+   * - Local development: Cache to disk
+   * - Cloudflare Workers: Keep in memory (no filesystem)
    */
   async downloadAndConvertImage(url: string): Promise<DownloadResult> {
     // Normalize URL: Fix legacy .co domain to .com
@@ -75,6 +81,29 @@ export class MediaDownloader {
       const filename = `${hash}${ext}`
       const localPath = path.join(this.cacheDir, filename)
 
+      // Workers mode: stream directly without filesystem
+      if (isCloudflareWorker()) {
+        await this.logger.log(`Downloading image (streaming): ${normalizedUrl}`)
+        const response = await fetch(normalizedUrl)
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+        const buffer = Buffer.from(await response.arrayBuffer())
+
+        const result: DownloadResult = {
+          localPath: filename, // Virtual path for reference
+          hash,
+          width: 0,
+          height: 0,
+          buffer, // Keep in memory for Workers
+        }
+
+        this.downloadedFiles.set(normalizedUrl, result)
+        await this.logger.log(`✓ Downloaded (streaming): ${filename}`)
+        return result
+      }
+
+      // Local dev mode: use filesystem cache
       // Check if file already exists
       try {
         await fs.access(localPath)

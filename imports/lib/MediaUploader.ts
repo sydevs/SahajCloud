@@ -22,6 +22,8 @@ export interface MediaUploadOptions {
   credit?: string
   tags?: number[]
   locale?: string | undefined
+  /** Buffer for Workers mode (no filesystem) */
+  buffer?: Buffer
 }
 
 export interface MediaUploadResult {
@@ -43,9 +45,64 @@ export class MediaUploader {
     reused: 0,
   }
 
+  // Track if media has been pre-loaded
+  private isPreloaded = false
+
   constructor(payload: Payload, logger: Logger) {
     this.payload = payload
     this.logger = logger
+  }
+
+  /**
+   * Pre-load all existing media filenames into memory cache.
+   * Call this before uploading to avoid N+1 database queries.
+   */
+  async preloadExistingMedia(): Promise<void> {
+    await this.logger.info('Pre-loading existing media index...')
+
+    let page = 1
+    const limit = 500
+    let hasMore = true
+    let totalLoaded = 0
+
+    while (hasMore) {
+      const result = await this.payload.find({
+        collection: 'images',
+        limit,
+        page,
+        // Only fetch filename field for efficiency
+        depth: 0,
+      })
+
+      for (const doc of result.docs) {
+        if (doc.filename) {
+          // Extract base name for matching (handles Payload's suffixes)
+          const baseName = this.extractBaseName(doc.filename)
+          this.mediaCache.set(baseName, doc.id)
+          // Also cache the full filename for exact matches
+          this.mediaCache.set(doc.filename, doc.id)
+        }
+      }
+
+      totalLoaded += result.docs.length
+      hasMore = result.hasNextPage
+      page++
+    }
+
+    this.isPreloaded = true
+    await this.logger.info(`✓ Pre-loaded ${totalLoaded} media files into cache`)
+  }
+
+  /**
+   * Extract base filename for deduplication matching
+   * Removes Payload's auto-generated suffixes (e.g., "-abc123")
+   */
+  private extractBaseName(filename: string): string {
+    const ext = filename.substring(filename.lastIndexOf('.'))
+    const withoutExt = filename.substring(0, filename.lastIndexOf('.'))
+    // Remove Payload's suffix pattern: -[a-z0-9]+ at the end
+    const baseName = withoutExt.replace(/-[a-z0-9]+$/i, '')
+    return baseName + ext
   }
 
   /**
@@ -125,10 +182,32 @@ export class MediaUploader {
   }
 
   /**
-   * Find existing media in database by filename pattern
-   * Handles Payload's automatic filename suffixes
+   * Find existing media by filename pattern.
+   * Uses pre-loaded cache if available, falls back to database query.
    */
   private async findExistingMedia(filename: string): Promise<number | string | null> {
+    // If pre-loaded, check cache first (synchronous lookup)
+    if (this.isPreloaded) {
+      // Try exact filename match
+      const exactMatch = this.mediaCache.get(filename)
+      if (exactMatch) {
+        await this.logger.log(`    ✓ Found in cache (exact): ${filename}`)
+        return exactMatch
+      }
+
+      // Try base name match (handles Payload suffixes)
+      const baseName = this.extractBaseName(filename)
+      const baseMatch = this.mediaCache.get(baseName)
+      if (baseMatch) {
+        await this.logger.log(`    ✓ Found in cache (base): ${baseName}`)
+        return baseMatch
+      }
+
+      // Not in cache, and cache is complete - no need to query DB
+      return null
+    }
+
+    // Fallback: query database (used when preload wasn't called)
     try {
       const baseNameWithoutExt = filename.substring(0, filename.lastIndexOf('.')) || filename
       const extension = filename.substring(filename.lastIndexOf('.'))
@@ -215,13 +294,15 @@ export class MediaUploader {
 
   /**
    * Upload new media file to Payload
+   * Supports dual-mode: filesystem (local dev) or buffer (Workers)
    */
   private async uploadNewMedia(
     localPath: string,
     options: MediaUploadOptions,
   ): Promise<MediaUploadResult | null> {
     try {
-      const fileBuffer = await fs.readFile(localPath)
+      // Use buffer if provided (Workers mode), otherwise read from filesystem
+      const fileBuffer = options.buffer || (await fs.readFile(localPath))
       const filename = path.basename(localPath)
       const ext = path.extname(filename).toLowerCase()
 

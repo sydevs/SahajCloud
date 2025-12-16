@@ -1,5 +1,5 @@
 #!/usr/bin/env tsx
-/* eslint-disable no-console */
+ 
 
 /**
  * WeMeditate Rails Database Import Script
@@ -30,7 +30,8 @@ import type { Payload, TypedLocale } from 'payload'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
-import { BaseImporter, BaseImportOptions, parseArgs, MediaUploader } from '../lib'
+import { BaseImporter, BaseImportOptions, MediaUploader } from '../lib'
+import { isCloudflareWorker } from '../lib/runtime'
 
 // ============================================================================
 // WEMEDITATE DATA TYPES (matching extraction script output)
@@ -213,6 +214,9 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   private treatmentThumbnailMap = new Map<number, number | string>()
   private contentTypeTagMap = new Map<string, number>()
 
+  // Pre-cached music tags (slug → id) to avoid N+1 queries
+  private musicTagCache = new Map<string, number>()
+
   // ============================================================================
   // STATIC FACTORY FOR MIGRATIONS
   // ============================================================================
@@ -242,7 +246,28 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       this.mediaDownloader = new MediaDownloader(this.cacheDir, this.logger)
       await this.mediaDownloader.initialize()
       this.mediaUploader = new MediaUploader(this.payload, this.logger)
+
+      // Pre-cache to avoid N+1 queries during import
+      await this.preloadMusicTags()
+      await this.mediaUploader.preloadExistingMedia()
     }
+  }
+
+  /**
+   * Pre-load all music tags into memory cache to avoid per-track queries
+   */
+  private async preloadMusicTags(): Promise<void> {
+    await this.logger.info('Pre-loading music tags...')
+    const tags = await this.payload.find({
+      collection: 'music-tags',
+      limit: 100,
+    })
+    for (const tag of tags.docs) {
+      if (tag.slug) {
+        this.musicTagCache.set(tag.slug, tag.id)
+      }
+    }
+    await this.logger.info(`✓ Pre-loaded ${this.musicTagCache.size} music tags`)
   }
 
   protected async cleanup(): Promise<void> {
@@ -254,6 +279,17 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info('Loading data from JSON...')
 
     const jsonPath = path.resolve(process.cwd(), 'imports/wemeditate/data.json')
+
+    // Check if data.json exists
+    try {
+      await fs.access(jsonPath)
+    } catch {
+      throw new Error(
+        `Data file not found at: ${jsonPath}\n` +
+          'Run the extraction script first: pnpm tsx imports/extract-to-json.ts',
+      )
+    }
+
     const jsonContent = await fs.readFile(jsonPath, 'utf-8')
     this.data = JSON.parse(jsonContent) as WeMeditateData
 
@@ -310,14 +346,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async importAuthors(): Promise<void> {
-    await this.logger.info('\n=== Importing Authors ===')
-
     const authors = this.data.authors
+    const total = authors.length
 
-    await this.logger.info(`Found ${authors.length} authors`)
-    await this.logger.progress(0, authors.length, 'Authors')
-
-    for (let i = 0; i < authors.length; i++) {
+    for (let i = 0; i < total; i++) {
       const author = authors[i]
 
       try {
@@ -346,36 +378,31 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             countryCode: author.country_code || undefined,
             yearsMeditating: author.years_meditating || undefined,
           },
-          { locale: 'en' },
+          {
+            locale: 'en',
+            identifier: slug,
+            current: i + 1,
+            total,
+          },
         )
 
-        // Update other locales
-        for (const translation of author.translations) {
-          if (
-            translation.locale !== 'en' &&
-            translation.locale &&
-            translation.name &&
-            LOCALES.includes(translation.locale as (typeof LOCALES)[number])
-          ) {
-            await this.payload.update({
-              collection: 'authors',
-              id: authorResult.doc.id,
-              data: {
-                name: translation.name,
-                title: translation.title || '',
-                description: translation.description || '',
-              },
-              locale: translation.locale as (typeof LOCALES)[number],
-            })
-          }
-        }
+        // Update other locales using helper
+        await this.updateLocales(
+          'authors',
+          authorResult.doc.id,
+          author.translations,
+          (t) => ({
+            name: t.name,
+            title: t.title || '',
+            description: t.description || '',
+          }),
+          { excludeLocale: 'en', requiredFields: ['name'], validLocales: [...LOCALES] },
+        )
 
         this.idMaps.authors.set(author.id, authorResult.doc.id)
       } catch (error) {
         this.addError(`Importing author ${author.id}`, error as Error)
       }
-
-      await this.logger.progress(i + 1, authors.length, 'Authors')
     }
   }
 
@@ -384,15 +411,11 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async importAlbums(): Promise<void> {
-    await this.logger.info('\n=== Importing Albums (from artists table) ===')
-
     // Artists in WeMeditate represent music albums
     const artists = this.data.artists
+    const total = artists.length
 
-    await this.logger.info(`Found ${artists.length} albums (artists)`)
-    await this.logger.progress(0, artists.length, 'Albums')
-
-    for (let i = 0; i < artists.length; i++) {
+    for (let i = 0; i < total; i++) {
       const artist = artists[i]
 
       try {
@@ -420,8 +443,11 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             locale: 'en',
           })
           this.idMaps.albums.set(artist.id, existing.docs[0].id)
-          this.report.incrementSkipped()
-          await this.logger.progress(i + 1, artists.length, 'Albums')
+          this.report.incrementUpdated()
+          await this.reportDocument('albums', artist.name, 'updated', {
+            current: i + 1,
+            total,
+          })
           continue
         }
 
@@ -484,11 +510,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
         this.idMaps.albums.set(artist.id, albumDoc.id)
         this.report.incrementCreated()
+        await this.reportDocument('albums', artist.name, 'created', {
+          current: i + 1,
+          total,
+        })
       } catch (error) {
         this.addError(`Importing album (artist) ${artist.id}`, error as Error)
       }
-
-      await this.logger.progress(i + 1, artists.length, 'Albums')
     }
   }
 
@@ -531,18 +559,14 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   }
 
   private async importMusic(): Promise<void> {
-    await this.logger.info('\n=== Importing Music (from tracks table) ===')
-
     // Ensure vocals tag exists (it might not be in the tags import)
     await this.ensureVocalsTagExists()
 
     // Use pre-extracted tracks data
     const tracks = this.data.tracks
+    const total = tracks.length
 
-    await this.logger.info(`Found ${tracks.length} music tracks`)
-    await this.logger.progress(0, tracks.length, 'Music tracks')
-
-    for (let i = 0; i < tracks.length; i++) {
+    for (let i = 0; i < total; i++) {
       const track = tracks[i]
 
       try {
@@ -579,7 +603,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           for (const filterId of track.instrument_filter_ids) {
             const tagSlug = this.INSTRUMENT_TAG_MAP[filterId]
             if (tagSlug) {
-              const musicTagIds = await this.findMusicTagsBySlug([tagSlug])
+              const musicTagIds = this.findMusicTagsBySlug([tagSlug])
               tagIds.push(...musicTagIds)
             }
           }
@@ -608,7 +632,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             locale: 'en',
           })
           this.report.incrementUpdated()
-          await this.logger.progress(i + 1, tracks.length, 'Music tracks')
+          await this.reportDocument('music', track.title, 'updated', {
+            current: i + 1,
+            total,
+          })
           continue
         }
 
@@ -636,6 +663,11 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           }
         } catch (error) {
           this.addError(`Downloading audio for track ${track.id}: ${audioUrl}`, error as Error)
+          await this.reportDocument('music', track.title, 'error', {
+            error: (error as Error).message,
+            current: i + 1,
+            total,
+          })
           continue
         }
 
@@ -661,11 +693,18 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         })
 
         this.report.incrementCreated()
+        await this.reportDocument('music', track.title, 'created', {
+          current: i + 1,
+          total,
+        })
       } catch (error) {
         this.addError(`Importing track ${track.id}`, error as Error)
+        await this.reportDocument('music', track.title || `track-${track.id}`, 'error', {
+          error: (error as Error).message,
+          current: i + 1,
+          total,
+        })
       }
-
-      await this.logger.progress(i + 1, tracks.length, 'Music tracks')
     }
   }
 
@@ -747,17 +786,14 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           { locale: 'en' },
         )
 
-        // Update other locales
-        for (const translation of category.translations) {
-          if (translation.locale !== 'en' && translation.locale && translation.name) {
-            await this.payload.update({
-              collection: 'page-tags',
-              id: tagResult.doc.id,
-              data: { title: translation.name },
-              locale: translation.locale as TypedLocale,
-            })
-          }
-        }
+        // Update other locales using helper
+        await this.updateLocales(
+          'page-tags',
+          tagResult.doc.id,
+          category.translations,
+          (t) => ({ title: t.name }),
+          { excludeLocale: 'en', requiredFields: ['name'] },
+        )
 
         this.idMaps.categories.set(category.id, tagResult.doc.id)
       } catch (error) {
@@ -818,7 +854,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async importPages(tableName: string, _translationsTable: string): Promise<void> {
-    await this.logger.info(`\n=== Importing ${tableName} ===`)
+    const DEBUG = process.env.DEBUG_IMPORT === 'true'
+    if (DEBUG) console.log(`[IMPORT_PAGES] Starting ${tableName}`)
 
     // Map table names to pre-extracted data arrays
     const dataMap: Record<string, typeof this.data.staticPages | typeof this.data.articles> = {
@@ -829,12 +866,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
 
     const pages = dataMap[tableName] || []
+    const total = pages.length
+    if (DEBUG) console.log(`[IMPORT_PAGES] Found ${total} pages in ${tableName}`)
 
-    await this.logger.info(`Found ${pages.length} pages from ${tableName}`)
-    await this.logger.progress(0, pages.length, tableName)
-
-    for (let i = 0; i < pages.length; i++) {
+    for (let i = 0; i < total; i++) {
       const page = pages[i] as any // Use any for dynamic table access
+      if (DEBUG) console.log(`[IMPORT_PAGES] Processing page ${i + 1}/${total}: ${page.id}`)
 
       try {
         // Find English translation
@@ -885,7 +922,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           tags.push(this.idMaps.categories.get(page.category_id)!)
         }
 
-        // Upsert page by slug
+        // Upsert page by slug (upsert auto-reports progress)
         const pageResult = await this.upsert<{ id: number }>(
           'pages',
           { slug: { equals: slug } },
@@ -896,28 +933,26 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             author: authorId,
             tags: tags.length > 0 ? tags : undefined,
           },
-          { locale: 'en' },
+          {
+            locale: 'en',
+            identifier: slug,
+            current: i + 1,
+            total,
+          },
         )
 
-        // Update other locales
-        for (const translation of page.translations) {
-          if (
-            translation.locale !== 'en' &&
-            translation.locale &&
-            translation.name &&
-            LOCALES.includes(translation.locale as (typeof LOCALES)[number])
-          ) {
-            await this.payload.update({
-              collection: 'pages',
-              id: pageResult.doc.id,
-              data: {
-                title: translation.name,
-                publishAt: translation.published_at || undefined,
-              },
-              locale: translation.locale as (typeof LOCALES)[number],
-            })
-          }
-        }
+        // Update other locales using helper
+        type PageTranslation = (typeof page.translations)[number]
+        await this.updateLocales<PageTranslation>(
+          'pages',
+          pageResult.doc.id,
+          page.translations,
+          (t) => ({
+            title: t.name,
+            publishAt: t.published_at || undefined,
+          }),
+          { excludeLocale: 'en', requiredFields: ['name'], validLocales: [...LOCALES] },
+        )
 
         // Store in appropriate ID map
         const mapKeyMap: Record<string, keyof typeof this.idMaps> = {
@@ -935,8 +970,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       } catch (error) {
         this.addError(`Importing ${tableName} ${page.id}`, error as Error)
       }
-
-      await this.logger.progress(i + 1, pages.length, tableName)
     }
   }
 
@@ -1085,33 +1118,50 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       })
     }
 
-    await this.logger.info(`Found ${mediaUrls.size} unique media files`)
-    await this.logger.progress(0, mediaUrls.size, 'Media files')
+    const mediaUrlArray = Array.from(mediaUrls)
+    const total = mediaUrlArray.length
 
-    let count = 0
-    for (const url of Array.from(mediaUrls)) {
+    for (let i = 0; i < total; i++) {
+      const url = mediaUrlArray[i]
+      const filename = path.basename(url).split('?')[0] // Remove query params for identifier
+
       try {
         const downloadResult = await this.mediaDownloader.downloadAndConvertImage(url)
         const metadata = mediaMetadata.get(url) || { alt: '', credit: '' }
-        const filename = path.basename(
+        const filenameWithoutExt = path.basename(
           downloadResult.localPath,
           path.extname(downloadResult.localPath),
         )
 
         const result = await this.mediaUploader.uploadWithDeduplication(downloadResult.localPath, {
-          alt: metadata.alt || filename,
+          alt: metadata.alt || filenameWithoutExt,
           credit: metadata.credit || '',
+          buffer: downloadResult.buffer, // Pass buffer for Workers mode
         })
 
         if (result) {
           this.idMaps.media.set(url, result.id)
+          this.report.incrementCreated()
+          await this.reportDocument('images', filename, 'created', {
+            current: i + 1,
+            total,
+          })
+        } else {
+          // Deduplication found existing - count as updated
+          this.report.incrementUpdated()
+          await this.reportDocument('images', filename, 'updated', {
+            current: i + 1,
+            total,
+          })
         }
       } catch (error) {
         this.addError(`Importing media ${url}`, error as Error)
+        await this.reportDocument('images', filename, 'error', {
+          error: (error as Error).message,
+          current: i + 1,
+          total,
+        })
       }
-
-      count++
-      await this.logger.progress(count, mediaUrls.size, 'Media files')
     }
   }
 
@@ -1294,18 +1344,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             }
           }
 
-          const existingPage = await this.payload.findByID({
-            collection: 'pages',
-            id: pageId,
-            locale: translation.locale as TypedLocale,
-          })
-
+          // Use translation.name directly instead of fetching existingPage just for the title
           await this.payload.update({
             collection: 'pages',
             id: pageId,
             data: {
-              title: existingPage.title,
-              content: lexicalContent as any,
+              title: translation.name || 'Untitled',
+              content: lexicalContent as any, // Type assertion needed for Lexical content compatibility
             },
             locale: translation.locale as TypedLocale,
           })
@@ -1385,6 +1430,23 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   private async getDefaultThumbnail(): Promise<number | string> {
     if (this.defaultThumbnailId) return this.defaultThumbnailId
 
+    // In Workers mode, fetch from hosted URL; in local mode, read from filesystem
+    const PREVIEW_URL =
+      'https://raw.githubusercontent.com/sydevs/SahajCloud/main/imports/wemeditate/preview.png'
+
+    if (isCloudflareWorker()) {
+      // Workers mode: fetch and stream
+      const downloadResult = await this.mediaDownloader.downloadAndConvertImage(PREVIEW_URL)
+      const result = await this.mediaUploader.uploadWithDeduplication(downloadResult.localPath, {
+        alt: 'Video preview placeholder',
+        buffer: downloadResult.buffer,
+      })
+      if (!result) throw new Error('Failed to upload default thumbnail')
+      this.defaultThumbnailId = result.id
+      return result.id
+    }
+
+    // Local mode: read from filesystem
     const previewPath = path.join(__dirname, 'preview.png')
     const result = await this.mediaUploader.uploadWithDeduplication(previewPath, {
       alt: 'Video preview placeholder',
@@ -1431,7 +1493,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         const downloadResult = await this.mediaDownloader.downloadAndConvertImage(thumbnailUrl)
         const uploadResult = await this.mediaUploader.uploadWithDeduplication(
           downloadResult.localPath,
-          { alt: `Video thumbnail for ${videoId}` },
+          {
+            alt: `Video thumbnail for ${videoId}`,
+            buffer: downloadResult.buffer, // Pass buffer for Workers mode
+          },
         )
         if (uploadResult) return uploadResult.id
       }
@@ -1456,24 +1521,18 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  private async findMusicTagsBySlug(tagSlugs: string[]): Promise<number[]> {
+  /**
+   * Find music tag IDs by slug using pre-cached data (synchronous lookup)
+   * Call preloadMusicTags() before using this method
+   */
+  private findMusicTagsBySlug(tagSlugs: string[]): number[] {
     const tagIds: number[] = []
     for (const slug of tagSlugs) {
-      try {
-        // Music tags are created by the tags import script with SVG icons
-        // We only look up existing tags here
-        const result = await this.payload.find({
-          collection: 'music-tags',
-          where: { slug: { equals: slug } },
-          limit: 1,
-        })
-        if (result.docs.length > 0) {
-          tagIds.push(result.docs[0].id)
-        } else {
-          this.addWarning(`Music tag "${slug}" not found - run tags import first`)
-        }
-      } catch (error) {
-        this.addError(`Finding music tag ${slug}`, error as Error)
+      const tagId = this.musicTagCache.get(slug)
+      if (tagId !== undefined) {
+        tagIds.push(tagId)
+      } else {
+        this.addWarning(`Music tag "${slug}" not found in cache - run tags import first`)
       }
     }
     return tagIds
@@ -1532,7 +1591,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         liveMeditationsPage: await this.findPageBySlug('live-meditations'),
       }
 
-      const musicPageTags = await this.findMusicTagsBySlug(['strings', 'flute', 'nature'])
+      const musicPageTags = this.findMusicTagsBySlug(['strings', 'flute', 'nature'])
       const inspirationPageTags = await Promise.all([
         this.findPageTagByName('creativity'),
         this.findPageTagByName('wisdom'),
@@ -1592,33 +1651,3 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   }
 }
 
-// ============================================================================
-// MAIN ENTRY POINT
-// ============================================================================
-
-async function main(): Promise<void> {
-  // Check if data.json exists
-  const dataJsonPath = path.resolve(process.cwd(), 'imports/wemeditate/data.json')
-  try {
-    await fs.access(dataJsonPath)
-  } catch {
-    console.error(`Error: Data file not found at ${dataJsonPath}`)
-    console.error('Run the extraction script first: pnpm tsx imports/extract-to-json.ts')
-    process.exit(1)
-  }
-
-  const options = parseArgs()
-  const importer = new WeMeditateImporter(options)
-  await importer.run()
-  process.exit(0)
-}
-
-// Only run when executed directly, not when imported as a module
-// This prevents auto-execution when the migration imports the class
-const isDirectExecution = process.argv[1]?.includes('/imports/')
-if (isDirectExecution) {
-  main().catch((error) => {
-    console.error('Fatal error:', error)
-    process.exit(1)
-  })
-}

@@ -16,8 +16,8 @@ describe('Logger', () => {
   let logger: Logger
 
   beforeEach(() => {
-    // Create logger with a temp directory (won't actually write files in tests)
-    logger = new Logger('/tmp/test-import-logs')
+    // Create logger (console-only, no file output)
+    logger = new Logger()
   })
 
   it('should be instantiable', () => {
@@ -31,10 +31,7 @@ describe('Logger', () => {
     expect(typeof logger.warn).toBe('function')
     expect(typeof logger.info).toBe('function')
     expect(typeof logger.log).toBe('function')
-  })
-
-  it('should have progress method', () => {
-    expect(typeof logger.progress).toBe('function')
+    expect(typeof logger.skip).toBe('function')
   })
 })
 

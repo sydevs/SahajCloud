@@ -26,10 +26,10 @@ export const Lessons: CollectionConfig = {
     listSearchableFields: ['title'],
     hidden: handleProjectVisibility('lessons', ['wemeditate-app']),
   },
-  versions: {
-    maxPerDoc: 50,
-    drafts: true,
-  },
+  // versions: {
+  //   maxPerDoc: 20,
+  //   drafts: true,
+  // },
   fields: [
     {
       name: 'title',
