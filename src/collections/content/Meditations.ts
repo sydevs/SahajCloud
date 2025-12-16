@@ -25,6 +25,12 @@ export const Meditations: CollectionConfig = {
     useAsTitle: 'label',
     defaultColumns: ['label', 'thumbnail', 'publishAt', 'tags', 'durationMinutes'],
     hidden: handleProjectVisibility('meditations', ['wemeditate-web', 'wemeditate-app']),
+    livePreview: {
+      url: ({ data }) => {
+        const baseURL = process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173'
+        return `${baseURL}/${data.locale}/preview?collection=meditations&id=${data.id}`
+      },
+    },
   },
   hooks: {
     beforeOperation: [sanitizeFilename],
