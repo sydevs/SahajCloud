@@ -3,8 +3,8 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-d1-sqlite'
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE TABLE \`pages\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`slug\` text,
-  	\`slug_lock\` integer DEFAULT true,
+  	\`generate_slug\` integer DEFAULT true,
+  	\`slug\` text NOT NULL,
   	\`author_id\` integer,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
@@ -57,8 +57,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`duration_minutes\` numeric,
   	\`publish_at\` text,
   	\`title\` text,
-  	\`slug\` text,
-  	\`slug_lock\` integer DEFAULT true,
+  	\`generate_slug\` integer DEFAULT true,
+  	\`slug\` text NOT NULL,
   	\`thumbnail_id\` integer,
   	\`frames\` text,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
@@ -293,7 +293,6 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`file_metadata\` text DEFAULT '{}',
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	\`url\` text,
   	\`thumbnail_u_r_l\` text,
   	\`filename\` text,
   	\`mime_type\` text,
@@ -320,8 +319,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE INDEX \`narrators_created_at_idx\` ON \`narrators\` (\`created_at\`);`)
   await db.run(sql`CREATE TABLE \`authors\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`slug\` text,
-  	\`slug_lock\` integer DEFAULT true,
+  	\`generate_slug\` integer DEFAULT true,
+  	\`slug\` text NOT NULL,
   	\`country_code\` text,
   	\`years_meditating\` numeric,
   	\`image_id\` integer,
@@ -426,8 +425,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE UNIQUE INDEX \`image_tags_locales_locale_parent_id_unique\` ON \`image_tags_locales\` (\`_locale\`,\`_parent_id\`);`)
   await db.run(sql`CREATE TABLE \`meditation_tags\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`slug\` text,
-  	\`slug_lock\` integer DEFAULT true,
+  	\`generate_slug\` integer DEFAULT true,
+  	\`slug\` text NOT NULL,
   	\`color\` text DEFAULT '#000000' NOT NULL,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
@@ -456,8 +455,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE UNIQUE INDEX \`meditation_tags_locales_locale_parent_id_unique\` ON \`meditation_tags_locales\` (\`_locale\`,\`_parent_id\`);`)
   await db.run(sql`CREATE TABLE \`music_tags\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`slug\` text,
-  	\`slug_lock\` integer DEFAULT true,
+  	\`generate_slug\` integer DEFAULT true,
+  	\`slug\` text NOT NULL,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`thumbnail_u_r_l\` text,
@@ -485,8 +484,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE UNIQUE INDEX \`music_tags_locales_locale_parent_id_unique\` ON \`music_tags_locales\` (\`_locale\`,\`_parent_id\`);`)
   await db.run(sql`CREATE TABLE \`page_tags\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`slug\` text,
-  	\`slug_lock\` integer DEFAULT true,
+  	\`generate_slug\` integer DEFAULT true,
+  	\`slug\` text NOT NULL,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL
   );
