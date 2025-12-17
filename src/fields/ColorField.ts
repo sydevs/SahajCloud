@@ -53,7 +53,3 @@ export function colorField(options: ColorFieldOptions = {}): Field {
   }
 }
 
-/**
- * @deprecated Use `colorField()` instead. This returns Field[] for backwards compatibility.
- */
-export const ColorField = (options: ColorFieldOptions = {}): Field[] => [colorField(options)]

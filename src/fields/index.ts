@@ -11,7 +11,7 @@ export { UrlField, UrlField as urlField } from './UrlField'
 export type { UrlFieldOptions } from './UrlField'
 
 // Color field - text field with hex color validation and color picker
-export { colorField, ColorField } from './ColorField'
+export { colorField } from './ColorField'
 export type { ColorFieldOptions } from './ColorField'
 
 // Permissions fields - role-based access control field factories
