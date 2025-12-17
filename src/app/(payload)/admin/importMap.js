@@ -42,7 +42,7 @@ import { default as default_7b4ba381140135af5cae014b3533be0b } from '@/component
 import { default as default_742835b254059f88bfb2f781ea75df90 } from '@/components/branding/Logo'
 import { default as default_b4b93444e002b46abfd0c5006e1279a0 } from '@/components/admin/ProjectSelector'
 import { default as default_70d6a18357c47b1a9d8a541fcd53f95f } from '@/components/AdminProvider.tsx'
-import { default as default_7215358aebef2f123662c81dc8a03dd2 } from '@/components/admin/dashboard'
+import { default as default_0e7b23c75ea046975e1784ba01f82886 } from '@/components/admin/Dashboard'
 
 export const importMap = {
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalCell": RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e,
@@ -89,5 +89,5 @@ export const importMap = {
   "@/components/branding/Logo#default": default_742835b254059f88bfb2f781ea75df90,
   "@/components/admin/ProjectSelector#default": default_b4b93444e002b46abfd0c5006e1279a0,
   "@/components/AdminProvider.tsx#default": default_70d6a18357c47b1a9d8a541fcd53f95f,
-  "@/components/admin/dashboard#default": default_7215358aebef2f123662c81dc8a03dd2
+  "@/components/admin/Dashboard#default": default_0e7b23c75ea046975e1784ba01f82886
 }
