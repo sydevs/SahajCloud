@@ -158,34 +158,20 @@ export const inserterStyles = {
     gap: 'calc(var(--base) * 0.75)',
   } satisfies CSSProperties,
 
-  instructionsPanel: {
-    padding: 'calc(var(--base) * 0.75)',
-    backgroundColor: 'var(--theme-elevation-50)',
-    borderRadius: 'var(--style-radius-s)',
-    border: '1px solid var(--theme-elevation-100)',
-    fontSize: 'calc(var(--base-body-size) * 1px)',
-    color: 'var(--theme-elevation-700)',
-  } satisfies CSSProperties,
-
-  instructionsHighlight: {
-    fontWeight: 600,
-    color: 'var(--theme-success-500)',
-  } satisfies CSSProperties,
-
   categoryFilters: {
     display: 'flex',
     flexWrap: 'wrap' as const,
-    gap: 'calc(var(--base) * 0.25)',
-    padding: 'calc(var(--base) * 0.5) 0',
+    gap: '4px',
+    marginBottom: 'calc(var(--base) * 0.25)',
   } satisfies CSSProperties,
 
   framesGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: 'calc(var(--base) * 0.5)',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 'calc(var(--base) * 0.35)',
     maxHeight: '500px',
     overflowY: 'auto' as const,
-    padding: '4px',
+    padding: '2px',
   } satisfies CSSProperties,
 
   frameCard: {
@@ -235,13 +221,5 @@ export const inserterStyles = {
     ...baseStyles.videoIndicator,
     top: '8px',
     right: '8px',
-  } satisfies CSSProperties,
-
-  headerInfo: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    fontSize: 'calc(var(--base-body-size) * 0.9px)',
-    color: 'var(--theme-elevation-500)',
   } satisfies CSSProperties,
 }

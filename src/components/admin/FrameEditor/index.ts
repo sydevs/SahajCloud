@@ -3,7 +3,17 @@ export { FrameListManager } from './FrameListManager'
 export { FrameInserter } from './FrameInserter'
 
 // Utilities
-export { formatTime, parseTime, validateTimestamp, getCategoryLabel } from './utils'
+export {
+  formatTime,
+  parseTime,
+  validateTimestamp,
+  getCategoryLabel,
+  isVideoFrame,
+  getThumbnailUrl,
+} from './utils'
+
+// Hooks
+export { usePlaybackTime, useLivePreviewAuto } from './hooks'
 
 // Styles
 export { baseStyles, listManagerStyles, inserterStyles } from './styles'

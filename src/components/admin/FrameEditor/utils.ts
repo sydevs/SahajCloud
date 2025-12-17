@@ -61,3 +61,20 @@ export const getCategoryLabel = (value: string): string => {
   const option = FRAME_CATEGORY_OPTIONS.find((opt) => opt.value === value)
   return option?.label || value
 }
+
+/**
+ * Check if a frame is a video based on its mimeType
+ */
+export const isVideoFrame = (mimeType?: string | null): boolean => {
+  return mimeType?.startsWith('video/') ?? false
+}
+
+/**
+ * Get the thumbnail URL for a frame, falling back to the main URL
+ */
+export const getThumbnailUrl = (frame: {
+  thumbnailUrl?: string | null
+  url?: string | null
+}): string | undefined => {
+  return frame.thumbnailUrl || frame.url || undefined
+}
