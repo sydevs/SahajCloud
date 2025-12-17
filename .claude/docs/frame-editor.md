@@ -1,52 +1,86 @@
-# MeditationFrameEditor Architecture
+# Frame Editor Architecture
 
-The **Audio-Synchronized Frame Editor** is a sophisticated custom field component for the Meditations collection that provides audio-synchronized frame management with a rich admin interface.
+The **Frame Editor** provides audio-synchronized frame management for the Meditations collection through two components integrated with PayloadCMS's Live Preview feature.
 
 ## Component Structure
 
-**Location**: `src/components/admin/MeditationFrameEditor/`
+**Components**: `src/components/admin/`
 
-- `index.tsx` - Main component integrating with Payload's field system using `useField` hook
-- `types.ts` - TypeScript interfaces for KeyframeData and component props
-- `MeditationFrameEditorModal.tsx` - Modal wrapper with collapsed/expanded states
-- `AudioPlayer.tsx` - HTML5 audio player with timeline and frame markers
-- `FrameLibrary.tsx` - Grid display of available frames with filtering
-- `FrameManager.tsx` - Current frame list with inline editing capabilities
-- `FramePreview.tsx` - Live slideshow preview synchronized with audio
+- `FrameListManager.tsx` - Custom field component for managing existing frames (timestamps, ordering, removal)
+- `FrameInserter.tsx` - UI component for browsing and inserting new frames from the library
+
+**Types**: `src/types/frames.ts`
+
+- `KeyframeDefinition` - Minimal frame reference (id + timestamp)
+- `KeyframeData` - Enriched frame data with full Frame details
 
 ## Key Features
 
-- **Modal-Based Interface**: Uses Payload's `FullscreenModal` for consistent styling
-  - Collapsed state: Live preview + "Edit Video" button
-  - Expanded state: Two-column layout (preview/audio/frames | frame library)
-- **Audio Integration**: HTML5 audio player with click-to-seek timeline
-- **Frame Synchronization**: Real-time frame switching based on audio timestamp
+- **Live Preview Integration**: Uses PayloadCMS `useLivePreviewContext` to auto-open live preview panel
+- **PostMessage Communication**: Receives `PLAYBACK_TIME_UPDATE` events from live preview iframe
 - **Gender-Based Filtering**: Automatically filters frames by narrator gender (imageSet)
-- **Tag-Based Filtering**: Multi-select tag filtering for frame discovery
-- **Timestamp Validation**: Prevents duplicate timestamps and enforces constraints
-- **First-Frame Rule**: Automatically sets first frame to 0 seconds
+- **Category Filtering**: Toggle categories with Pill components to filter frame library
+- **MM:SS Timestamp Editing**: Inline text inputs with format validation
+- **Duplicate Handling**: Replaces existing frame at same timestamp instead of error
+- **Auto-Sorting**: Frames automatically sorted by timestamp on save
 
-## Data Integration
+## User Interface
 
-- **Field Integration**: Uses `useField<KeyframeData[]>` hook for Payload compatibility
-- **Dynamic Loading**: Loads audio URL and narrator data from sibling fields
-- **API Integration**: Fetches frames and narrator data via Payload's REST API
-- **State Management**: Temporary state for modal with save/cancel functionality
+### Video Tab Structure
 
-## User Workflow
+The Meditations collection uses nested tabs for frame management:
 
-1. User uploads audio file to meditation
-2. "Edit Video" button becomes enabled in collapsed state
-3. Modal opens with frame library filtered by narrator gender
-4. User clicks frames to add them at current audio timestamp
-5. Frame Manager allows timestamp editing with validation
-6. Live Preview shows synchronized slideshow
-7. Save/Cancel maintains data integrity
+```
+Video (tab)
+├── Manage (sub-tab)
+│   └── FrameListManager - Edit timestamps, reorder, remove frames
+└── Insert (sub-tab)
+    └── FrameInserter - Browse and add frames at current playback time
+```
+
+### FrameListManager Features
+
+- Displays current frames with thumbnails and category badges
+- Highlights active frame based on live preview playback time
+- Editable MM:SS timestamp inputs
+- Remove button with visual feedback
+- "No frames" empty state
+
+### FrameInserter Features
+
+- 2-column CSS grid of available frames
+- Category filter pills (click to toggle)
+- Loading and empty states
+- Frames filtered by narrator gender automatically
+- Click frame to insert at current playback time
+
+## Data Flow
+
+1. **Live Preview Opens**: Component calls `setIsLivePreviewing(true)` on mount
+2. **Playback Updates**: Live preview sends `{ type: 'PLAYBACK_TIME_UPDATE', currentTime: number }`
+3. **Active Frame Highlight**: FrameListManager highlights frame at current timestamp
+4. **Frame Insertion**: FrameInserter inserts frame at current playback time, replaces if duplicate
+5. **Timestamp Validation**: Collection-level validation ensures valid timestamps and no duplicates
+6. **Auto-Sort**: `beforeChange` hook sorts frames by timestamp on save
+7. **Data Enrichment**: `afterRead` hook enriches frame data with Frame collection details
+
+## Validation Rules (Collection-Level)
+
+- Timestamps must be >= 0
+- Timestamps must be integers (rounded on save)
+- No duplicate timestamps allowed
+- At least one frame required when audio exists (on update)
+- Frames required to set publishAt date
 
 ## Technical Implementation
 
-- **Custom Field Component**: Registered in Meditations collection as `json` field type
-- **Type Safety**: Full TypeScript integration with payload-types.ts
-- **Error Handling**: Graceful degradation for missing audio or frames
-- **Performance**: Efficient frame loading and caching
-- **Accessibility**: Keyboard navigation and screen reader support
+- **PayloadCMS Hooks**: `useField`, `useForm`, `useLivePreviewContext`
+- **PayloadCMS UI**: `Pill`, `FieldLabel`, `FieldDescription`, `FieldError`, `toast`
+- **CSS Variables**: Uses PayloadCMS theme variables for consistent styling
+- **Type Safety**: Full TypeScript integration with `KeyframeData` and `KeyframeDefinition` types
+
+## Testing
+
+Integration tests in `tests/int/`:
+- `meditationFrames.int.spec.ts` - Frame validation, sorting, enrichment, publish rules
+- `frameFiltering.int.spec.ts` - Frame filtering by gender, category, and pagination
