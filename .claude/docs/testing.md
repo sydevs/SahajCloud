@@ -147,6 +147,28 @@ describe('My Collection', () => {
 })
 ```
 
+## Common Testing Patterns
+
+### Upload Collection Filename Assertions
+
+When testing upload collections (Files, Music, Meditations, etc.), Payload CMS automatically adds numeric suffixes to filenames to prevent collisions. Tests should use regex patterns instead of exact matches:
+
+```typescript
+// ❌ DON'T: Exact match (fails when Payload adds collision suffix)
+expect(music.filename).toBe('audio-42s.mp3')
+
+// ✅ DO: Regex pattern allowing optional numeric suffix
+expect(music.filename).toMatch(/^audio-42s(-\d+)?\.mp3$/)
+
+// For filenames with dots in the name
+const escapedName = format.name.replace('.', '(-\\d+)?\\.')
+expect(music.filename).toMatch(new RegExp(`^${escapedName}$`))
+```
+
+This pattern accounts for filenames like:
+- `audio-42s.mp3` (no collision)
+- `audio-42s-10.mp3` (collision avoided)
+
 ## Test Configuration
 
 - Tests run sequentially (`maxConcurrency: 1`) to prevent resource conflicts
