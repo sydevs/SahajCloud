@@ -8,11 +8,11 @@ import type { Field, FieldHook } from 'payload'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import {
-  createVirtualUrlField,
-  createThumbnailUrlField,
-  createStreamMp4UrlField,
-  createPreviewUrlField,
+  virtualUrlField,
+  previewUrlField,
+  streamMp4UrlField,
 } from '@/lib/storage/urlFields'
+import { sanitizeFilename } from '@/lib/storage/r2NativeAdapter'
 
 // Helper to extract the afterRead hook from a field
 const getAfterReadHook = (field: Field): FieldHook | undefined => {
@@ -35,11 +35,11 @@ describe('URL Field Factories', () => {
     process.env = originalEnv
   })
 
-  describe('createVirtualUrlField', () => {
+  describe('virtualUrlField', () => {
     it('generates Cloudflare Images URL when CLOUDFLARE_IMAGES_DELIVERY_URL is set', () => {
       process.env.CLOUDFLARE_IMAGES_DELIVERY_URL = 'https://imagedelivery.net/abc123'
 
-      const field = createVirtualUrlField({
+      const field = virtualUrlField({
         collection: 'images',
         adapter: 'cloudflare-images',
       })
@@ -54,7 +54,7 @@ describe('URL Field Factories', () => {
     it('falls back to local URL when CLOUDFLARE_IMAGES_DELIVERY_URL is not set', () => {
       delete process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
 
-      const field = createVirtualUrlField({
+      const field = virtualUrlField({
         collection: 'images',
         adapter: 'cloudflare-images',
       })
@@ -67,7 +67,7 @@ describe('URL Field Factories', () => {
     it('generates Cloudflare Stream URL when CLOUDFLARE_STREAM_DELIVERY_URL is set', () => {
       process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
 
-      const field = createVirtualUrlField({
+      const field = virtualUrlField({
         collection: 'frames',
         adapter: 'cloudflare-stream',
       })
@@ -80,7 +80,7 @@ describe('URL Field Factories', () => {
     it('falls back to local URL when CLOUDFLARE_STREAM_DELIVERY_URL is not set', () => {
       delete process.env.CLOUDFLARE_STREAM_DELIVERY_URL
 
-      const field = createVirtualUrlField({
+      const field = virtualUrlField({
         collection: 'frames',
         adapter: 'cloudflare-stream',
       })
@@ -93,7 +93,7 @@ describe('URL Field Factories', () => {
     it('generates R2 URL when CLOUDFLARE_R2_DELIVERY_URL is set', () => {
       process.env.CLOUDFLARE_R2_DELIVERY_URL = 'https://assets.example.com'
 
-      const field = createVirtualUrlField({
+      const field = virtualUrlField({
         collection: 'meditations',
         adapter: 'r2',
       })
@@ -106,7 +106,7 @@ describe('URL Field Factories', () => {
     it('falls back to data.url when R2 delivery URL is not set', () => {
       delete process.env.CLOUDFLARE_R2_DELIVERY_URL
 
-      const field = createVirtualUrlField({
+      const field = virtualUrlField({
         collection: 'meditations',
         adapter: 'r2',
       })
@@ -117,7 +117,7 @@ describe('URL Field Factories', () => {
     })
 
     it('returns undefined when no filename is present', () => {
-      const field = createVirtualUrlField({
+      const field = virtualUrlField({
         collection: 'images',
         adapter: 'cloudflare-images',
       })
@@ -128,7 +128,7 @@ describe('URL Field Factories', () => {
     })
 
     it('returns undefined when data is null', () => {
-      const field = createVirtualUrlField({
+      const field = virtualUrlField({
         collection: 'images',
         adapter: 'cloudflare-images',
       })
@@ -139,7 +139,7 @@ describe('URL Field Factories', () => {
     })
 
     it('creates a virtual field with correct name and type', () => {
-      const field = createVirtualUrlField({
+      const field = virtualUrlField({
         collection: 'images',
         adapter: 'cloudflare-images',
       })
@@ -150,11 +150,11 @@ describe('URL Field Factories', () => {
     })
   })
 
-  describe('createThumbnailUrlField', () => {
+  describe('previewUrlField', () => {
     it('generates Cloudflare Stream thumbnail URL for videos', () => {
       process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
 
-      const field = createThumbnailUrlField({
+      const field = previewUrlField({
         collection: 'frames',
         width: 320,
         height: 320,
@@ -170,7 +170,7 @@ describe('URL Field Factories', () => {
     it('generates Cloudflare Images thumbnail URL for images', () => {
       process.env.CLOUDFLARE_IMAGES_DELIVERY_URL = 'https://imagedelivery.net/abc123'
 
-      const field = createThumbnailUrlField({
+      const field = previewUrlField({
         collection: 'frames',
         width: 320,
         height: 320,
@@ -184,7 +184,7 @@ describe('URL Field Factories', () => {
     it('uses default dimensions of 320x320', () => {
       process.env.CLOUDFLARE_IMAGES_DELIVERY_URL = 'https://imagedelivery.net/abc123'
 
-      const field = createThumbnailUrlField({
+      const field = previewUrlField({
         collection: 'frames',
       })
 
@@ -197,7 +197,7 @@ describe('URL Field Factories', () => {
     it('falls back to local URL for videos when Stream URL is not set', () => {
       delete process.env.CLOUDFLARE_STREAM_DELIVERY_URL
 
-      const field = createThumbnailUrlField({
+      const field = previewUrlField({
         collection: 'frames',
       })
 
@@ -209,7 +209,7 @@ describe('URL Field Factories', () => {
     it('falls back to local URL for images when Images URL is not set', () => {
       delete process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
 
-      const field = createThumbnailUrlField({
+      const field = previewUrlField({
         collection: 'frames',
       })
 
@@ -219,7 +219,7 @@ describe('URL Field Factories', () => {
     })
 
     it('returns local URL for unknown MIME types', () => {
-      const field = createThumbnailUrlField({
+      const field = previewUrlField({
         collection: 'frames',
       })
 
@@ -229,7 +229,7 @@ describe('URL Field Factories', () => {
     })
 
     it('returns undefined when no filename', () => {
-      const field = createThumbnailUrlField({
+      const field = previewUrlField({
         collection: 'frames',
       })
 
@@ -238,22 +238,22 @@ describe('URL Field Factories', () => {
       expect(url).toBeUndefined()
     })
 
-    it('creates a field named thumbnailUrl', () => {
-      const field = createThumbnailUrlField({
+    it('creates a field named previewUrl', () => {
+      const field = previewUrlField({
         collection: 'frames',
       })
 
-      expect(field.name).toBe('thumbnailUrl')
+      expect(field.name).toBe('previewUrl')
       expect(field.type).toBe('text')
       expect('virtual' in field && field.virtual).toBe(true)
     })
   })
 
-  describe('createStreamMp4UrlField', () => {
+  describe('streamMp4UrlField', () => {
     it('generates Cloudflare Stream MP4 URL for videos', () => {
       process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
 
-      const field = createStreamMp4UrlField({
+      const field = streamMp4UrlField({
         collection: 'frames',
       })
 
@@ -265,7 +265,7 @@ describe('URL Field Factories', () => {
     it('returns undefined for non-video MIME types', () => {
       process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
 
-      const field = createStreamMp4UrlField({
+      const field = streamMp4UrlField({
         collection: 'frames',
       })
 
@@ -275,7 +275,7 @@ describe('URL Field Factories', () => {
     })
 
     it('returns undefined when no filename', () => {
-      const field = createStreamMp4UrlField({
+      const field = streamMp4UrlField({
         collection: 'frames',
       })
 
@@ -287,7 +287,7 @@ describe('URL Field Factories', () => {
     it('falls back to local URL when Stream URL is not set', () => {
       delete process.env.CLOUDFLARE_STREAM_DELIVERY_URL
 
-      const field = createStreamMp4UrlField({
+      const field = streamMp4UrlField({
         collection: 'frames',
       })
 
@@ -297,7 +297,7 @@ describe('URL Field Factories', () => {
     })
 
     it('creates a field named streamMp4Url', () => {
-      const field = createStreamMp4UrlField({
+      const field = streamMp4UrlField({
         collection: 'frames',
       })
 
@@ -307,48 +307,11 @@ describe('URL Field Factories', () => {
     })
   })
 
-  describe('createPreviewUrlField', () => {
-    it('returns the thumbnailUrl from data', () => {
-      const field = createPreviewUrlField()
-
-      const hook = getAfterReadHook(field)
-      const url = hook!({ data: { thumbnailUrl: 'https://example.com/thumb.jpg' } } as never)
-      expect(url).toBe('https://example.com/thumb.jpg')
-    })
-
-    it('returns undefined when thumbnailUrl is not present', () => {
-      const field = createPreviewUrlField()
-
-      const hook = getAfterReadHook(field)
-      const url = hook!({ data: {} } as never)
-      expect(url).toBeUndefined()
-    })
-
-    it('creates a field named previewUrl', () => {
-      const field = createPreviewUrlField()
-
-      expect(field.name).toBe('previewUrl')
-      expect(field.type).toBe('text')
-      expect('virtual' in field && field.virtual).toBe(true)
-    })
-  })
 })
 
 describe('R2 Adapter Filename Sanitization', () => {
-  // Test the sanitization logic directly by recreating it
-  // (The actual adapter requires R2 bucket which can't be easily mocked in tests)
-
-  const sanitizeFilename = (filename: string): string => {
-    const slugify = require('slugify')
-    const parts = filename.split('.')
-    const ext = parts.length > 1 ? parts.pop() : ''
-    const baseName = parts.join('.')
-
-    const slugified = slugify(baseName, { strict: true, lower: true })
-    const randomSuffix = (Math.random() + 1).toString(36).substring(2)
-
-    return ext ? `${slugified}-${randomSuffix}.${ext}` : `${slugified}-${randomSuffix}`
-  }
+  // Tests use the exported sanitizeFilename function from r2NativeAdapter
+  // This validates the actual implementation used in production
 
   it('converts filename to URL-safe slug', () => {
     const result = sanitizeFilename('My Test File.mp3')

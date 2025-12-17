@@ -23,9 +23,9 @@ interface VirtualUrlFieldOptions {
 }
 
 /**
- * Options for creating a thumbnail URL field
+ * Options for creating a preview URL field
  */
-interface ThumbnailUrlFieldOptions {
+interface PreviewUrlFieldOptions {
   /**
    * The collection slug (used for development fallback URL)
    */
@@ -45,7 +45,9 @@ interface ThumbnailUrlFieldOptions {
  */
 interface StreamMp4UrlFieldOptions {
   /**
-   * The collection slug (used for development fallback URL)
+   * The collection slug - used only for development fallback URL when
+   * CLOUDFLARE_STREAM_DELIVERY_URL is not configured. In production,
+   * the collection is not needed since Stream URLs are ID-based.
    */
   collection: string
 }
@@ -63,7 +65,7 @@ interface StreamMp4UrlFieldOptions {
  * @example Cloudflare Images (for image collections)
  * ```typescript
  * fields: [
- *   createVirtualUrlField({
+ *   virtualUrlField({
  *     collection: 'images',
  *     adapter: 'cloudflare-images',
  *   }),
@@ -73,14 +75,14 @@ interface StreamMp4UrlFieldOptions {
  * @example R2 Storage (for audio files)
  * ```typescript
  * fields: [
- *   createVirtualUrlField({
+ *   virtualUrlField({
  *     collection: 'music',
  *     adapter: 'r2',
  *   }),
  * ]
  * ```
  */
-export const createVirtualUrlField = (options: VirtualUrlFieldOptions): Field => {
+export const virtualUrlField = (options: VirtualUrlFieldOptions): Field => {
   const { collection, adapter } = options
 
   const afterReadHook: FieldHook = ({ data }) => {
@@ -126,19 +128,19 @@ export const createVirtualUrlField = (options: VirtualUrlFieldOptions): Field =>
 }
 
 /**
- * Creates a virtual thumbnail URL field for mixed media collections
+ * Creates a virtual preview URL field for mixed media collections
  *
  * Handles both image and video content:
  * - Images: Cloudflare Images with size transformations
  * - Videos: Cloudflare Stream thumbnail endpoint
  *
- * @param options - Configuration for thumbnail generation
- * @returns A Field configuration for the virtual thumbnail URL field
+ * @param options - Configuration for preview/thumbnail generation
+ * @returns A Field configuration for the virtual preview URL field
  *
- * @example Frames collection with 320x320 thumbnails
+ * @example Frames collection with 320x320 previews
  * ```typescript
  * fields: [
- *   createThumbnailUrlField({
+ *   previewUrlField({
  *     collection: 'frames',
  *     width: 320,
  *     height: 320,
@@ -146,7 +148,7 @@ export const createVirtualUrlField = (options: VirtualUrlFieldOptions): Field =>
  * ]
  * ```
  */
-export const createThumbnailUrlField = (options: ThumbnailUrlFieldOptions): Field => {
+export const previewUrlField = (options: PreviewUrlFieldOptions): Field => {
   const { collection, width = 320, height = 320 } = options
 
   const afterReadHook: FieldHook = ({ data }) => {
@@ -175,7 +177,7 @@ export const createThumbnailUrlField = (options: ThumbnailUrlFieldOptions): Fiel
   }
 
   return {
-    name: 'thumbnailUrl',
+    name: 'previewUrl',
     type: 'text',
     virtual: true,
     hooks: {
@@ -202,13 +204,13 @@ export const createThumbnailUrlField = (options: ThumbnailUrlFieldOptions): Fiel
  * @example Frames collection
  * ```typescript
  * fields: [
- *   createStreamMp4UrlField({
+ *   streamMp4UrlField({
  *     collection: 'frames',
  *   }),
  * ]
  * ```
  */
-export const createStreamMp4UrlField = (options: StreamMp4UrlFieldOptions): Field => {
+export const streamMp4UrlField = (options: StreamMp4UrlFieldOptions): Field => {
   const { collection } = options
 
   const afterReadHook: FieldHook = ({ data }) => {
@@ -241,27 +243,3 @@ export const createStreamMp4UrlField = (options: StreamMp4UrlFieldOptions): Fiel
   }
 }
 
-/**
- * Creates a virtual preview URL field that delegates to thumbnailUrl
- *
- * This is a convenience field that provides a consistent `previewUrl`
- * field name that uses the same logic as `thumbnailUrl`.
- *
- * @returns A Field configuration for the virtual preview URL field
- */
-export const createPreviewUrlField = (): Field => {
-  const afterReadHook: FieldHook = ({ data }) => {
-    // Delegate to thumbnailUrl - this field exists for backward compatibility
-    return data?.thumbnailUrl
-  }
-
-  return {
-    name: 'previewUrl',
-    type: 'text',
-    virtual: true,
-    hooks: {
-      afterRead: [afterReadHook],
-    },
-    admin: { hidden: true },
-  }
-}

@@ -12,7 +12,7 @@ import { baseStyles, listManagerStyles } from './styles'
 import {
   formatTime,
   getCategoryLabel,
-  getThumbnailUrl,
+  getPreviewUrl,
   isVideoFrame,
   parseTime,
   validateTimestamp,
@@ -50,7 +50,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
   onRemove,
 }) => {
   const isVideo = isVideoFrame(frame.mimeType)
-  const thumbnailUrl = getThumbnailUrl(frame)
+  const previewUrl = getPreviewUrl(frame)
   const categoryLabel = frame.category ? getCategoryLabel(frame.category) : `Frame ${frame.id}`
 
   return (
@@ -62,8 +62,8 @@ const FrameItem: React.FC<FrameItemProps> = ({
     >
       {/* Thumbnail */}
       <div style={baseStyles.thumbnailContainer}>
-        {thumbnailUrl ? (
-          <img src={thumbnailUrl} alt={frame.category || 'Frame'} style={baseStyles.thumbnail} />
+        {previewUrl ? (
+          <img src={previewUrl} alt={frame.category || 'Frame'} style={baseStyles.thumbnail} />
         ) : (
           <div style={baseStyles.thumbnail} />
         )}

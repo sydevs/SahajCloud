@@ -31,6 +31,7 @@ export interface R2NativeConfig {
  * Sanitize filename for safe storage
  *
  * Converts filename to URL-safe slug and adds random suffix to prevent collisions.
+ * Exported for testing purposes.
  *
  * @param filename - Original filename
  * @returns Sanitized filename
@@ -39,7 +40,7 @@ export interface R2NativeConfig {
  * Input: "My Photo (1).mp3"
  * Output: "my-photo-1-xk2j9s.mp3"
  */
-const sanitizeFilename = (filename: string): string => {
+export const sanitizeFilename = (filename: string): string => {
   const parts = filename.split('.')
   const ext = parts.length > 1 ? parts.pop() : ''
   const baseName = parts.join('.')
@@ -123,6 +124,8 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
         await config.bucket.delete(key)
       } catch (error) {
         const key = prefix ? `${prefix}/${filename}` : filename
+        // Using console.error because storage adapters don't have access to Payload's logger.
+        // The adapter is initialized before Payload and doesn't receive req context.
         // eslint-disable-next-line no-console
         console.error('[R2] Delete error:', key, error)
         // Don't throw - deletion errors shouldn't break the app

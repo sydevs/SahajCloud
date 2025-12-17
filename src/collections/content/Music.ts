@@ -3,7 +3,7 @@ import type { CollectionConfig, Field } from 'payload'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess, createFieldAccess } from '@/lib/accessControl'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
-import { createVirtualUrlField } from '@/lib/storage/urlFields'
+import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const Music: CollectionConfig = {
   slug: 'music',
@@ -26,7 +26,7 @@ export const Music: CollectionConfig = {
     afterRead: [trackClientUsageHook],
   },
   fields: [
-    createVirtualUrlField({
+    virtualUrlField({
       collection: 'music',
       adapter: 'r2',
     }),

@@ -56,6 +56,9 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
     })
   }
 
+  // Extract R2 bucket with type narrowing (safe after hasCloudflareConfig check)
+  const r2Bucket = env?.R2 as R2Bucket
+
   // Create storage adapters for Images and Stream
   const imagesAdapter = cloudflareImagesAdapter({
     accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
@@ -73,13 +76,13 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
   // - meditations/music: sanitize filenames (slugify + random suffix)
   // - files: preserve original filenames
   const r2AdapterWithSanitization = r2NativeAdapter({
-    bucket: env!.R2 as R2Bucket,
+    bucket: r2Bucket,
     publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL || '',
     sanitizeFilenames: true,
   })
 
   const r2AdapterWithoutSanitization = r2NativeAdapter({
-    bucket: env!.R2 as R2Bucket,
+    bucket: r2Bucket,
     publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL || '',
     sanitizeFilenames: false,
   })

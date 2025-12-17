@@ -11,7 +11,7 @@ import type { KeyframeData, KeyframeDefinition } from '@/types/frames'
 
 import { useLivePreviewAuto, usePlaybackTime } from './hooks'
 import { baseStyles, inserterStyles } from './styles'
-import { formatTime, getCategoryLabel, getThumbnailUrl, isVideoFrame } from './utils'
+import { formatTime, getCategoryLabel, getPreviewUrl, isVideoFrame } from './utils'
 
 // ============================================================================
 // FrameCard Subcomponent
@@ -35,7 +35,7 @@ const FrameCard: React.FC<FrameCardProps> = ({
   onHover,
 }) => {
   const isVideo = isVideoFrame(frame.mimeType)
-  const thumbnailUrl = getThumbnailUrl(frame)
+  const previewUrl = getPreviewUrl(frame)
 
   return (
     <div
@@ -49,9 +49,9 @@ const FrameCard: React.FC<FrameCardProps> = ({
       onMouseLeave={() => onHover(null)}
       title={`Insert ${getCategoryLabel(frame.category || '')} at ${formatTime(insertionTimestamp)}`}
     >
-      {thumbnailUrl ? (
+      {previewUrl ? (
         <img
-          src={thumbnailUrl}
+          src={previewUrl}
           alt={frame.category || 'Frame'}
           style={inserterStyles.frameThumbnail}
           loading="lazy"

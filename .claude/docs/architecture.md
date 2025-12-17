@@ -46,17 +46,16 @@ The storage system is built on several key components:
 #### URL Field Factories (`urlFields.ts`)
 Factory functions for creating virtual URL fields with consistent CDN URL generation:
 
-- `createVirtualUrlField({ collection, adapter })` - Base URL field for any storage adapter
-- `createThumbnailUrlField({ collection, width?, height? })` - Thumbnail URLs for images/videos
-- `createStreamMp4UrlField({ collection })` - MP4 download URLs for Cloudflare Stream videos
-- `createPreviewUrlField()` - Preview URLs (aliases thumbnailUrl)
+- `virtualUrlField({ collection, adapter })` - Base URL field for any storage adapter
+- `previewUrlField({ collection, width?, height? })` - Preview/thumbnail URLs for images/videos
+- `streamMp4UrlField({ collection })` - MP4 download URLs for Cloudflare Stream videos
 
 **Usage Example**:
 ```typescript
 fields: [
-  createVirtualUrlField({ collection: 'meditations', adapter: 'r2' }),
-  createThumbnailUrlField({ collection: 'frames', width: 320, height: 320 }),
-  createStreamMp4UrlField({ collection: 'frames' }),
+  virtualUrlField({ collection: 'meditations', adapter: 'r2' }),
+  previewUrlField({ collection: 'frames', width: 320, height: 320 }),
+  streamMp4UrlField({ collection: 'frames' }),
 ]
 ```
 
@@ -104,7 +103,7 @@ r2NativeAdapter({
 - **Lectures** (`src/collections/resources/Lectures.ts`) - Lecture video content with thumbnails, URLs, subtitles, and categorization
 
 ### System Collections
-- **Frames** (`src/collections/system/Frames.ts`) - Mixed media upload (images/videos) with Cloudflare Images for images and Cloudflare Stream for videos, automatic thumbnail generation, virtual fields (`thumbnailUrl`, `streamMp4Url`), tags filtering, and imageSet selection
+- **Frames** (`src/collections/system/Frames.ts`) - Mixed media upload (images/videos) with Cloudflare Images for images and Cloudflare Stream for videos, automatic thumbnail generation, virtual fields (`previewUrl`, `streamMp4Url`), tags filtering, and imageSet selection
 - **Files** (`src/collections/system/Files.ts`) - Generic file storage using R2 native bindings for audio, video, and PDF files with trash support and automatic orphan cleanup via the CleanupOrphanedMedia job
 
 ### Tag Collections

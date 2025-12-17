@@ -95,7 +95,7 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
         if (data) {
           data.filename = imageId
         }
-        if (req.file) {
+        if (req?.file) {
           req.file.name = imageId
         }
       } catch (error) {

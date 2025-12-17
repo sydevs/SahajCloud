@@ -138,7 +138,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
         if (data) {
           data.filename = videoId
         }
-        if (req.file) {
+        if (req?.file) {
           req.file.name = videoId
         }
       } catch (error) {
