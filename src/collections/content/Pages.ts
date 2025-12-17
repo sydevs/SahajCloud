@@ -1,7 +1,5 @@
 import type { CollectionConfig } from 'payload'
 
-import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
-
 import {
   TextBoxBlock,
   LayoutBlock,
@@ -10,6 +8,7 @@ import {
   ButtonBlock,
   QuoteBlock,
 } from '@/blocks/pages'
+import { slugField } from '@/fields'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { fullRichTextEditor } from '@/lib/richEditor'
@@ -64,14 +63,7 @@ export const Pages: CollectionConfig = {
         },
       ],
     },
-    ...SlugField('title', {
-      slugOverrides: {
-        unique: true,
-        admin: {
-          position: 'sidebar',
-        },
-      },
-    }),
+    slugField({ useAsSlug: 'title' }),
     {
       name: 'publishAt',
       type: 'date',

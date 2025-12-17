@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { ManagerPermissionsField } from '@/fields/PermissionsField'
+import { managerPermissionsFields } from '@/fields'
 import { hasPermission, adminOrSelfAccess } from '@/lib/accessControl'
 import { getProjectOptions } from '@/lib/projects'
 import { getServerUrl } from '@/lib/serverUrl'
@@ -87,6 +87,6 @@ export const Managers: CollectionConfig = {
         ],
       },
     },
-    ...ManagerPermissionsField(),
+    ...managerPermissionsFields(),
   ],
 }

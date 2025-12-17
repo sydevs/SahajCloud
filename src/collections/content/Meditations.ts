@@ -1,8 +1,6 @@
 import type { CollectionConfig, Validate } from 'payload'
 
-import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
-
-import { MediaField } from '@/fields'
+import { mediaField, slugField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { LOCALES } from '@/lib/locales'
@@ -168,13 +166,9 @@ export const Meditations: CollectionConfig = {
                 return true
               }) as Validate,
             },
-            ...SlugField('title', {
-              slugOverrides: {
-                unique: true,
-              },
-            }),
+            slugField({ useAsSlug: 'title' }),
             {
-              ...MediaField({
+              ...mediaField({
                 name: 'thumbnail',
                 required: false, // Conditionally required via validation
                 tagName: 'meditation-thumbnail',

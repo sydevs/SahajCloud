@@ -10,7 +10,7 @@ import type {
   Where,
 } from 'payload'
 
-import { mergeRolePermissions } from '@/fields/PermissionsField'
+import { mergeRolePermissions } from '@/fields/permissionsField'
 import { LocaleCode } from '@/lib/locales'
 import type { MergedPermissions } from '@/types/permissions'
 import type { ManagerRole, ClientRole, PermissionLevel } from '@/types/roles'

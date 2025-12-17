@@ -280,8 +280,11 @@ export interface Page {
      */
     image?: (number | null) | Image;
   };
-  slug?: string | null;
-  slugLock?: boolean | null;
+  /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  slug: string;
   publishAt?: string | null;
   /**
    * Article author (for article pages)
@@ -351,10 +354,13 @@ export interface ImageTag {
 export interface Author {
   id: number;
   /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  /**
    * URL-friendly identifier (auto-generated from name)
    */
-  slug?: string | null;
-  slugLock?: boolean | null;
+  slug: string;
   name: string;
   /**
    * Professional title (e.g., "Artist, writer and stylist")
@@ -391,10 +397,13 @@ export interface Author {
 export interface PageTag {
   id: number;
   /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  /**
    * URL-friendly identifier (auto-generated from title)
    */
-  slug?: string | null;
-  slugLock?: boolean | null;
+  slug: string;
   /**
    * This localized title will be shown to public users
    */
@@ -451,8 +460,11 @@ export interface Meditation {
   durationMinutes?: number | null;
   publishAt?: string | null;
   title?: string | null;
-  slug?: string | null;
-  slugLock?: boolean | null;
+  /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  slug: string;
   thumbnail?: (number | null) | Image;
   /**
    * Categorize this meditation for seekers to find it
@@ -498,10 +510,13 @@ export interface Narrator {
 export interface MusicTag {
   id: number;
   /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  /**
    * URL-friendly identifier (auto-generated from title)
    */
-  slug?: string | null;
-  slugLock?: boolean | null;
+  slug: string;
   /**
    * Localized title shown to public users
    */
@@ -597,10 +612,13 @@ export interface Album {
 export interface MeditationTag {
   id: number;
   /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  /**
    * URL-friendly identifier (auto-generated from title)
    */
-  slug?: string | null;
-  slugLock?: boolean | null;
+  slug: string;
   /**
    * Localized title shown to public users
    */
@@ -746,10 +764,6 @@ export interface Lecture {
 export interface Frame {
   id: number;
   previewUrl?: string | null;
-  /**
-   * Direct MP4 URL for HTML5 video playback
-   */
-  streamMp4Url?: string | null;
   imageSet: 'male' | 'female';
   category:
     | 'mooladhara'
@@ -1406,8 +1420,8 @@ export interface PagesSelect<T extends boolean = true> {
         description?: T;
         image?: T;
       };
+  generateSlug?: T;
   slug?: T;
-  slugLock?: T;
   publishAt?: T;
   author?: T;
   tags?: T;
@@ -1428,8 +1442,8 @@ export interface MeditationsSelect<T extends boolean = true> {
   durationMinutes?: T;
   publishAt?: T;
   title?: T;
+  generateSlug?: T;
   slug?: T;
-  slugLock?: T;
   thumbnail?: T;
   tags?: T;
   frames?: T;
@@ -1553,7 +1567,6 @@ export interface LecturesSelect<T extends boolean = true> {
  */
 export interface FramesSelect<T extends boolean = true> {
   previewUrl?: T;
-  streamMp4Url?: T;
   imageSet?: T;
   category?: T;
   tags?: T;
@@ -1586,8 +1599,8 @@ export interface NarratorsSelect<T extends boolean = true> {
  * via the `definition` "authors_select".
  */
 export interface AuthorsSelect<T extends boolean = true> {
+  generateSlug?: T;
   slug?: T;
-  slugLock?: T;
   name?: T;
   title?: T;
   description?: T;
@@ -1653,8 +1666,8 @@ export interface ImageTagsSelect<T extends boolean = true> {
  * via the `definition` "meditation-tags_select".
  */
 export interface MeditationTagsSelect<T extends boolean = true> {
+  generateSlug?: T;
   slug?: T;
-  slugLock?: T;
   title?: T;
   color?: T;
   meditations?: T;
@@ -1675,8 +1688,8 @@ export interface MeditationTagsSelect<T extends boolean = true> {
  * via the `definition` "music-tags_select".
  */
 export interface MusicTagsSelect<T extends boolean = true> {
+  generateSlug?: T;
   slug?: T;
-  slugLock?: T;
   title?: T;
   music?: T;
   updatedAt?: T;
@@ -1696,8 +1709,8 @@ export interface MusicTagsSelect<T extends boolean = true> {
  * via the `definition` "page-tags_select".
  */
 export interface PageTagsSelect<T extends boolean = true> {
+  generateSlug?: T;
   slug?: T;
-  slugLock?: T;
   title?: T;
   pages?: T;
   updatedAt?: T;

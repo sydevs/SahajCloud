@@ -108,7 +108,6 @@ When creating factory functions that generate PayloadCMS field configurations, f
 // ✅ DO: Use lowercase camelCase without prefix
 virtualUrlField({ collection, adapter })
 previewUrlField({ collection })
-streamMp4UrlField({ collection })
 slugField('title')
 
 // ❌ DON'T: Use create* prefix
@@ -121,7 +120,7 @@ CreatePreviewUrlField()
 ```
 
 ### Rationale
-- Aligns with PayloadCMS patterns (e.g., `SlugField` from Better Fields plugin)
+- Aligns with PayloadCMS patterns (e.g., `slugField` from Payload's built-in utilities)
 - Keeps the API surface consistent across the codebase
 - Matches common field factory conventions in React/TypeScript ecosystems
 
@@ -140,7 +139,7 @@ fields: [
 // src/collections/system/Frames.ts
 fields: [
   previewUrlField({ collection: 'frames' }),
-  streamMp4UrlField({ collection: 'frames' }),
+  frameUrlField({ collection: 'frames' }),
 ]
 ```
 

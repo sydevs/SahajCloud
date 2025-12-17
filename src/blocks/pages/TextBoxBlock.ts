@@ -1,6 +1,6 @@
 import { Block } from 'payload'
 
-import { MediaField } from '@/fields'
+import { mediaField } from '@/fields'
 
 export const TextBoxBlock: Block = {
   slug: 'textbox',
@@ -9,7 +9,7 @@ export const TextBoxBlock: Block = {
     plural: 'Text Boxes',
   },
   fields: [
-    MediaField({
+    mediaField({
       name: 'image',
       orientation: 'portrait',
       required: true,

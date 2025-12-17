@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { UrlField } from '@/fields'
+import { urlField } from '@/fields'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 
@@ -29,11 +29,11 @@ export const Lectures: CollectionConfig = {
       relationTo: 'images',
       required: true,
     },
-    UrlField({
+    urlField({
       name: 'videoUrl',
       required: true,
     }),
-    UrlField({
+    urlField({
       name: 'subtitlesUrl',
     }),
   ],

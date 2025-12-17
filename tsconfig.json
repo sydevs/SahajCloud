@@ -47,6 +47,7 @@
   "exclude": [
     "node_modules",
     "migration",
-    "opennext.config.ts"
+    "opennext.config.ts",
+    "tests"
   ],
 }

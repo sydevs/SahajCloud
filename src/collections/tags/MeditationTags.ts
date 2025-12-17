@@ -1,8 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
-
-import { ColorField } from '@/fields/ColorField'
+import { colorField, slugField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
@@ -36,14 +34,9 @@ export const MeditationTags: CollectionConfig = {
       adapter: 'cloudflare-images',
     }),
     // Slug auto-generated from title
-    ...SlugField('title', {
-      slugOverrides: {
-        unique: true,
-        admin: {
-          position: 'sidebar',
-          description: 'URL-friendly identifier (auto-generated from title)',
-        },
-      },
+    slugField({
+      useAsSlug: 'title',
+      description: 'URL-friendly identifier (auto-generated from {sourceField})',
     }),
     // Title (localized, for public display)
     {
@@ -56,7 +49,7 @@ export const MeditationTags: CollectionConfig = {
       },
     },
     // Color picker (hex format)
-    ...ColorField({
+    colorField({
       name: 'color',
       label: 'Color',
       required: true,
