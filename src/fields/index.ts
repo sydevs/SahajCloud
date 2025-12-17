@@ -1,6 +1,21 @@
-// Common field utilities
-export { MediaField } from './MediaField'
-export type { MediaFieldOptions } from './MediaField'
-export { UrlField } from './UrlField'
-export type { UrlFieldOptions } from './UrlField'
-export { ManagerPermissionsField, ClientPermissionsField } from './PermissionsField'
+// Field factories for this project - not intended for external use
+// All exports use camelCase naming convention
+
+// Media field - standardized media upload with ThumbnailCell component
+export { mediaField } from './mediaField'
+export type { MediaFieldOptions } from './mediaField'
+
+// URL field - text field with URL validation
+export { urlField } from './urlField'
+export type { UrlFieldOptions } from './urlField'
+
+// Color field - text field with hex color validation and color picker
+export { colorField } from './colorField'
+export type { ColorFieldOptions } from './colorField'
+
+// Slug field - wrapper around Payload's slugField with simplified description handling
+export { slugField } from './slugField'
+export type { SlugFieldOptions } from './slugField'
+
+// Permissions fields - role-based access control field factories
+export { managerPermissionsFields, clientPermissionsFields } from './permissionsField'

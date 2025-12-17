@@ -6,7 +6,7 @@ import { Pill, useDocumentInfo, useField } from '@payloadcms/ui'
 import { PillProps } from '@payloadcms/ui/elements/Pill'
 import React, { useMemo } from 'react'
 
-import { MANAGER_ROLES, mergeRolePermissions } from '@/fields/PermissionsField'
+import { MANAGER_ROLES, mergeRolePermissions } from '@/fields/permissionsField'
 import { getProjectLabel, PROJECT_ICONS } from '@/lib/projects'
 import type { ProjectSlug } from '@/lib/projects'
 import type { ManagerRole, ClientRole, PermissionLevel } from '@/types/roles'

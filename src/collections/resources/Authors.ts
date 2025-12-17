@@ -1,7 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
-
+import { slugField } from '@/fields'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 
@@ -16,15 +15,9 @@ export const Authors: CollectionConfig = {
   },
   fields: [
     // Slug auto-generated from name
-    ...SlugField('name', {
-      slugOverrides: {
-        unique: true,
-        index: true,
-        admin: {
-          position: 'sidebar',
-          description: 'URL-friendly identifier (auto-generated from name)',
-        },
-      },
+    slugField({
+      useAsSlug: 'name',
+      description: 'URL-friendly identifier (auto-generated from {sourceField})',
     }),
     {
       name: 'name',

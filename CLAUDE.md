@@ -35,7 +35,7 @@ Collections & Features:
 - @.claude/docs/video-thumbnails.md - Automatic video thumbnail generation
 
 Integrations:
-- @.claude/docs/plugins.md - SEO, Form Builder, and Better Fields plugins
+- @.claude/docs/plugins.md - SEO, Form Builder plugins, and built-in slug generation
 - @.claude/docs/email.md - Email providers (Ethereal, Resend)
 
 Development:

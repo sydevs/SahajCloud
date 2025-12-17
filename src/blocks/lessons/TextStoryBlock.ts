@@ -1,6 +1,6 @@
 import { Block } from 'payload'
 
-import { MediaField } from '@/fields'
+import { mediaField } from '@/fields'
 
 export const TextStoryBlock: Block = {
   slug: 'text',
@@ -19,7 +19,7 @@ export const TextStoryBlock: Block = {
       type: 'textarea',
       required: true,
     },
-    MediaField({
+    mediaField({
       name: 'image',
       required: true,
     }),

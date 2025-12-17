@@ -20,7 +20,7 @@ export type MediaFieldOptions = {
 /**
  * Creates a standardized media upload field with ThumbnailCell component
  */
-export function MediaField(options: MediaFieldOptions): UploadField {
+export function mediaField(options: MediaFieldOptions): UploadField {
   const { name, label, required = false, localized = false, tagName, admin = {} } = options
 
   // Build filter options based on tagName

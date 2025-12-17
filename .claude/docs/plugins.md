@@ -21,8 +21,29 @@ The system integrates several official Payload plugins:
 - **Admin Groups**: Forms in "Resources", submissions in "System"
 - **Access Control**: Uses standard permission-based access
 
-## Better Fields Plugin (`@nouance/payload-better-fields-plugin`)
+## Built-in Slug Generation
 
-- **Features Used**: SlugField for automatic slug generation
-- **Implementation**: Pages collection uses `SlugField('title')` for auto-generating slugs from titles
-- **Benefits**: Consistent URL-friendly identifiers across content
+Payload provides a built-in `slugField` factory for automatic slug generation:
+
+- **Import**: `import { slugField } from 'payload'`
+- **Usage**: `slugField({ useAsSlug: 'title' })` - returns single RowField (no spread)
+- **Features**:
+  - `unique: true` and `index: true` are hardcoded
+  - `position: 'sidebar'` is the default
+  - Custom descriptions via `overrides` callback
+
+**Example with custom description**:
+```typescript
+slugField({
+  useAsSlug: 'name',
+  overrides: (field) => {
+    if (field.fields[1].type === 'text') {
+      field.fields[1].admin = {
+        ...field.fields[1].admin,
+        description: 'URL-friendly identifier (auto-generated from name)',
+      }
+    }
+    return field
+  },
+})
+```

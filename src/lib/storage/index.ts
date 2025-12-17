@@ -19,6 +19,5 @@ export { routerAdapter } from './routerAdapter'
 export {
   virtualUrlField,
   previewUrlField,
-  streamMp4UrlField,
   frameUrlField,
 } from './urlFields'

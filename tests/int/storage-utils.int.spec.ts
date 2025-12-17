@@ -10,7 +10,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   virtualUrlField,
   previewUrlField,
-  streamMp4UrlField,
   frameUrlField,
 } from '@/lib/storage/urlFields'
 import { sanitizeFilename } from '@/lib/storage/r2NativeAdapter'
@@ -245,64 +244,6 @@ describe('URL Field Factories', () => {
       })
 
       expect(field.name).toBe('previewUrl')
-      expect(field.type).toBe('text')
-      expect('virtual' in field && field.virtual).toBe(true)
-    })
-  })
-
-  describe('streamMp4UrlField', () => {
-    it('generates Cloudflare Stream MP4 URL for videos', () => {
-      process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
-
-      const field = streamMp4UrlField({
-        collection: 'frames',
-      })
-
-      const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'video-id', mimeType: 'video/mp4' } } as never)
-      expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/downloads/default.mp4')
-    })
-
-    it('returns undefined for non-video MIME types', () => {
-      process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
-
-      const field = streamMp4UrlField({
-        collection: 'frames',
-      })
-
-      const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'image.jpg', mimeType: 'image/jpeg' } } as never)
-      expect(url).toBeUndefined()
-    })
-
-    it('returns undefined when no filename', () => {
-      const field = streamMp4UrlField({
-        collection: 'frames',
-      })
-
-      const hook = getAfterReadHook(field)
-      const url = hook!({ data: { mimeType: 'video/mp4' } } as never)
-      expect(url).toBeUndefined()
-    })
-
-    it('falls back to local URL when Stream URL is not set', () => {
-      delete process.env.CLOUDFLARE_STREAM_DELIVERY_URL
-
-      const field = streamMp4UrlField({
-        collection: 'frames',
-      })
-
-      const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'video.mp4', mimeType: 'video/mp4' } } as never)
-      expect(url).toBe('/api/frames/file/video.mp4')
-    })
-
-    it('creates a field named streamMp4Url', () => {
-      const field = streamMp4UrlField({
-        collection: 'frames',
-      })
-
-      expect(field.name).toBe('streamMp4Url')
       expect(field.type).toBe('text')
       expect('virtual' in field && field.virtual).toBe(true)
     })
