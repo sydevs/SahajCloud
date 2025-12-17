@@ -93,7 +93,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         },
         views: {
           dashboard: {
-            Component: '@/components/admin/dashboard',
+            Component: '@/components/admin/Dashboard',
           },
         },
       },

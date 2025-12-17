@@ -257,9 +257,16 @@ TodoWrite({
 
 ## Component Folder Organization Pattern
 
-For related components (UI + wrapper, or component families), organize into a folder with barrel export:
+For related components (UI + wrapper, or component families), organize into a folder with barrel export.
 
-### Folder Structure
+### When to Use Folder Organization
+- Component has multiple related files (UI + wrapper, sub-components)
+- Types should be exported alongside component
+- Component is registered in PayloadCMS config (needs default export)
+- Want clean imports without exposing internal file structure
+- Utility functions are shared between sub-components
+
+### Pattern 1: Field Component (UI + Wrapper)
 
 ```
 src/components/admin/
@@ -269,26 +276,81 @@ src/components/admin/
     └── TagSelectorField.tsx  # PayloadCMS field wrapper
 ```
 
-### Barrel Export (`index.ts`)
-
+**Barrel Export (`index.ts`)**:
 ```typescript
 export { TagSelector, type TagOption, type TagSelectorProps } from './TagSelector'
 export { TagSelectorField } from './TagSelectorField'
 export { default } from './TagSelectorField'  // Default for PayloadCMS component registration
 ```
 
-**Key Points**:
-- Export types alongside components for consumer convenience
-- Default export should be the PayloadCMS-integrated component (for `admin.components.Field` registration)
-- Named exports allow importing specific components when needed
+### Pattern 2: View Component Family (Main + Sub-components)
 
-### Collection Registration
+```
+src/components/admin/
+└── Dashboard/
+    ├── index.ts                    # Barrel export
+    ├── Dashboard.tsx               # Main entry point
+    ├── DefaultDashboard.tsx        # Sub-component
+    ├── FathomDashboard.tsx         # Sub-component
+    ├── MetricsDashboard.tsx        # Sub-component
+    ├── InactiveAccountAlert.tsx    # Sub-component
+    └── ProjectSelectionPrompt.tsx  # Sub-component
+```
 
+**Barrel Export (`index.ts`)**:
+```typescript
+export { default as Dashboard } from './Dashboard'
+export { default as DefaultDashboard } from './DefaultDashboard'
+export { default as FathomDashboard } from './FathomDashboard'
+export { default as MetricsDashboard } from './MetricsDashboard'
+export { default as InactiveAccountAlert } from './InactiveAccountAlert'
+export { default as ProjectSelectionPrompt } from './ProjectSelectionPrompt'
+export { default } from './Dashboard'  // Default for PayloadCMS view registration
+```
+
+### Pattern 3: Component with Utilities
+
+```
+src/components/admin/
+└── ThumbnailCell/
+    ├── index.ts                    # Barrel export
+    ├── ThumbnailCell.tsx           # Main component
+    ├── DirectUploadThumbnail.tsx   # Sub-component
+    ├── RelationshipThumbnail.tsx   # Sub-component
+    └── utils.ts                    # Shared utilities
+```
+
+**Barrel Export (`index.ts`)**:
+```typescript
+export { ThumbnailCell } from './ThumbnailCell'
+export { DirectUploadThumbnail } from './DirectUploadThumbnail'
+export { RelationshipThumbnail } from './RelationshipThumbnail'
+export { getThumbnailDimensions } from './utils'
+export { default } from './ThumbnailCell'
+```
+
+### PayloadCMS Registration
+
+**Field Components**:
 ```typescript
 // In collection config
 admin: {
   components: {
-    Field: '@/components/admin/TagSelector',  // Uses default export (TagSelectorField)
+    Field: '@/components/admin/TagSelector',  // Uses default export
+  },
+}
+```
+
+**View Components**:
+```typescript
+// In payload.config.ts
+admin: {
+  components: {
+    views: {
+      dashboard: {
+        Component: '@/components/admin/Dashboard',  // Uses default export
+      },
+    },
   },
 }
 ```
@@ -296,21 +358,52 @@ admin: {
 ### Import Patterns
 
 ```typescript
-// Import the field wrapper (default export)
-import TagSelectorField from '@/components/admin/TagSelector'
+// Import the main component (default export)
+import Dashboard from '@/components/admin/Dashboard'
 
-// Import specific components or types
-import { TagSelector, type TagOption } from '@/components/admin/TagSelector'
+// Import specific sub-components
+import { FathomDashboard, MetricsDashboard } from '@/components/admin/Dashboard'
 
-// Import everything
-import { TagSelector, TagSelectorField, type TagOption, type TagSelectorProps } from '@/components/admin/TagSelector'
+// Import within the same folder (relative imports)
+import DefaultDashboard from './DefaultDashboard'
+import FathomDashboard from './FathomDashboard'
 ```
 
-### When to Use Folder Organization
-- Component has multiple related files (UI + wrapper, sub-components)
-- Types should be exported alongside component
-- Component is registered in PayloadCMS config (needs default export)
-- Want clean imports without exposing internal file structure
+### Branding Components Example
+
+For thematically related components that don't have a main entry point:
+
+```
+src/components/branding/
+├── index.ts          # Barrel export
+├── Icon.tsx
+├── Logo.tsx
+├── InlineLogo.tsx
+└── ProjectTheme.tsx
+```
+
+**Barrel Export (`index.ts`)**:
+```typescript
+export { default as Icon } from './Icon'
+export { default as Logo } from './Logo'
+export { default as InlineLogo } from './InlineLogo'
+export { default as ProjectTheme } from './ProjectTheme'
+```
+
+**Usage**:
+```typescript
+// Clean imports from consuming files
+import { ProjectTheme } from './branding'
+import { Icon, Logo } from '@/components/branding'
+```
+
+### Key Points
+
+- **Default export**: Required for PayloadCMS component registration (fields, views, graphics)
+- **Named exports**: Allow importing specific components without importing everything
+- **Type exports**: Include alongside component exports for consumer convenience
+- **Folder naming**: Match the main component name (e.g., `Dashboard/` contains `Dashboard.tsx`)
+- **Utilities**: Place shared helper functions in `utils.ts` within the folder
 
 ## Payload File Upload Pattern
 

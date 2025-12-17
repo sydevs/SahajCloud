@@ -1,5 +1,3 @@
-import React from 'react'
-
 import { ProjectSlug } from '@/lib/projects'
 import { Manager } from '@/payload-types'
 import { MergedPermissions } from '@/types/permissions'
