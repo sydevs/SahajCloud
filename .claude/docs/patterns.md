@@ -121,7 +121,7 @@ CreatePreviewUrlField()
 ```
 
 ### Rationale
-- Aligns with PayloadCMS patterns (e.g., `SlugField` from Better Fields plugin)
+- Aligns with PayloadCMS patterns (e.g., `slugField` from Payload's built-in utilities)
 - Keeps the API surface consistent across the codebase
 - Matches common field factory conventions in React/TypeScript ecosystems
 
