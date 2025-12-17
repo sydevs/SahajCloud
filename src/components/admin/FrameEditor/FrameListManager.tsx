@@ -13,197 +13,11 @@ import {
 } from '@payloadcms/ui'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { FRAME_CATEGORY_OPTIONS } from '@/lib/data'
 import type { Narrator } from '@/payload-types'
 import type { KeyframeData } from '@/types/frames'
 
-// ============================================================================
-// Time Format Utilities
-// ============================================================================
-
-/**
- * Format seconds to MM:SS display format
- */
-const formatTime = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${mins}:${secs.toString().padStart(2, '0')}`
-}
-
-/**
- * Parse MM:SS or M:SS format to seconds
- * Returns null if format is invalid
- */
-const parseTime = (timeStr: string): number | null => {
-  const trimmed = timeStr.trim()
-
-  // Match MM:SS or M:SS format
-  const match = trimmed.match(/^(\d+):(\d{1,2})$/)
-  if (!match) return null
-
-  const mins = parseInt(match[1], 10)
-  const secs = parseInt(match[2], 10)
-
-  // Validate seconds < 60
-  if (secs >= 60) return null
-
-  return mins * 60 + secs
-}
-
-/**
- * Validate a timestamp value
- */
-const validateTimestamp = (
-  timestamp: number,
-  existingTimestamps: number[],
-  currentIndex?: number,
-): string | null => {
-  if (timestamp < 0) return 'Timestamp must be 0 or greater'
-  if (!Number.isInteger(timestamp)) return 'Timestamp must be a whole number'
-  if (timestamp > 3600) return 'Timestamp cannot exceed 1 hour (60:00)'
-
-  // Check for duplicates (excluding current frame if provided)
-  const otherTimestamps =
-    currentIndex !== undefined
-      ? existingTimestamps.filter((_, index) => index !== currentIndex)
-      : existingTimestamps
-
-  if (otherTimestamps.includes(timestamp)) {
-    return `Timestamp ${formatTime(timestamp)} is already used by another frame`
-  }
-
-  return null
-}
-
-/**
- * Get the category label for a category value
- */
-const getCategoryLabel = (value: string): string => {
-  const option = FRAME_CATEGORY_OPTIONS.find((opt) => opt.value === value)
-  return option?.label || value
-}
-
-// ============================================================================
-// Styles (using PayloadCMS CSS variables)
-// ============================================================================
-
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 'calc(var(--base) * 0.5)',
-  },
-  frameList: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 'calc(var(--base) * 0.25)',
-  },
-  frameItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 'calc(var(--base) * 0.5)',
-    padding: 'calc(var(--base) * 0.5)',
-    backgroundColor: 'var(--theme-elevation-50)',
-    borderRadius: 'var(--style-radius-s)',
-    border: '1px solid var(--theme-elevation-100)',
-    transition: 'border-color 0.15s ease',
-  },
-  frameItemActive: {
-    borderLeftWidth: '4px',
-    borderLeftColor: 'var(--theme-success-500)',
-    backgroundColor: 'var(--theme-elevation-100)',
-  },
-  thumbnail: {
-    width: '60px',
-    height: '60px',
-    objectFit: 'cover' as const,
-    borderRadius: 'var(--style-radius-s)',
-    backgroundColor: 'var(--theme-elevation-200)',
-    flexShrink: 0,
-  },
-  frameInfo: {
-    flex: 1,
-    minWidth: 0,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '2px',
-  },
-  frameCategory: {
-    fontSize: 'calc(var(--base-body-size) * 1px)',
-    fontWeight: 500,
-    color: 'var(--theme-elevation-800)',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
-  },
-  frameTags: {
-    fontSize: 'calc(var(--base-body-size) * 0.85px)',
-    color: 'var(--theme-elevation-500)',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
-  },
-  timestampInput: {
-    width: '70px',
-    padding: 'calc(var(--base) * 0.25) calc(var(--base) * 0.5)',
-    fontSize: 'calc(var(--base-body-size) * 1px)',
-    textAlign: 'center' as const,
-    border: '1px solid var(--theme-elevation-200)',
-    borderRadius: 'var(--style-radius-s)',
-    backgroundColor: 'var(--theme-input-bg)',
-    color: 'var(--theme-elevation-800)',
-  },
-  timestampInputError: {
-    borderColor: 'var(--theme-error-500)',
-  },
-  removeButton: {
-    padding: 'calc(var(--base) * 0.25)',
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderRadius: 'var(--style-radius-s)',
-    cursor: 'pointer',
-    color: 'var(--theme-elevation-400)',
-    transition: 'color 0.15s ease, background-color 0.15s ease',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyState: {
-    padding: 'calc(var(--base) * 2)',
-    textAlign: 'center' as const,
-    color: 'var(--theme-elevation-500)',
-    backgroundColor: 'var(--theme-elevation-50)',
-    borderRadius: 'var(--style-radius-m)',
-    border: '1px dashed var(--theme-elevation-200)',
-  },
-  loadingState: {
-    padding: 'calc(var(--base) * 1)',
-    textAlign: 'center' as const,
-    color: 'var(--theme-elevation-500)',
-  },
-  videoIndicator: {
-    position: 'absolute' as const,
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: '50%',
-    padding: '6px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  thumbnailContainer: {
-    position: 'relative' as const,
-    width: '60px',
-    height: '60px',
-    flexShrink: 0,
-  },
-}
-
-// ============================================================================
-// Component
-// ============================================================================
+import { baseStyles, listManagerStyles } from './styles'
+import { formatTime, getCategoryLabel, parseTime, validateTimestamp } from './utils'
 
 /**
  * FrameListManager - Custom field component for managing meditation frames
@@ -233,6 +47,11 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
 
   // Current playback time from live preview
   const [currentPlaybackTime, setCurrentPlaybackTime] = useState(0)
+
+  // Local editing state for timestamp inputs
+  // Allows user to type freely without immediate validation/revert
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const [editingValue, setEditingValue] = useState<string>('')
 
   // Loading state for narrator fetch
   const [narrator, setNarrator] = useState<Narrator | null>(null)
@@ -295,10 +114,24 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
     return activeIndex
   }, [frames, currentPlaybackTime])
 
-  // Handle timestamp change
-  const handleTimestampChange = useCallback(
-    (index: number, newTimeStr: string) => {
-      const newTimestamp = parseTime(newTimeStr)
+  // Start editing a timestamp
+  const handleTimestampFocus = useCallback(
+    (index: number) => {
+      setEditingIndex(index)
+      setEditingValue(formatTime(frames[index].timestamp))
+    },
+    [frames],
+  )
+
+  // Commit timestamp change on blur or Enter
+  const handleTimestampCommit = useCallback(
+    (index: number) => {
+      const newTimestamp = parseTime(editingValue)
+
+      // Reset editing state
+      setEditingIndex(null)
+      setEditingValue('')
+
       if (newTimestamp === null) {
         toast.error('Invalid time format. Use MM:SS (e.g., 1:30)')
         return
@@ -318,7 +151,23 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
       updatedFrames.sort((a, b) => a.timestamp - b.timestamp)
       setValue(updatedFrames)
     },
-    [frames, setValue],
+    [frames, setValue, editingValue],
+  )
+
+  // Handle Enter key to commit
+  const handleTimestampKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        handleTimestampCommit(index)
+        ;(e.target as HTMLInputElement).blur()
+      } else if (e.key === 'Escape') {
+        setEditingIndex(null)
+        setEditingValue('')
+        ;(e.target as HTMLInputElement).blur()
+      }
+    },
+    [handleTimestampCommit],
   )
 
   // Handle frame removal
@@ -342,14 +191,14 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
     const thumbnailUrl = frame.thumbnailUrl || frame.url
 
     return (
-      <div style={styles.thumbnailContainer}>
+      <div style={baseStyles.thumbnailContainer}>
         {thumbnailUrl ? (
-          <img src={thumbnailUrl} alt={frame.category || 'Frame'} style={styles.thumbnail} />
+          <img src={thumbnailUrl} alt={frame.category || 'Frame'} style={baseStyles.thumbnail} />
         ) : (
-          <div style={styles.thumbnail} />
+          <div style={baseStyles.thumbnail} />
         )}
         {isVideo && (
-          <div style={styles.videoIndicator}>
+          <div style={listManagerStyles.videoIndicator}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
               <polygon points="5,3 19,12 5,21" />
             </svg>
@@ -370,7 +219,7 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
     return (
       <div className={fieldClasses} id={fieldId}>
         <FieldLabel label={label} path={name} required={required} />
-        <div style={styles.loadingState}>Loading...</div>
+        <div style={baseStyles.loadingState}>Loading...</div>
       </div>
     )
   }
@@ -382,9 +231,9 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
 
-        <div style={styles.container}>
+        <div style={baseStyles.container}>
           {frames.length === 0 ? (
-            <div style={styles.emptyState}>
+            <div style={baseStyles.emptyState}>
               <p style={{ margin: 0, marginBottom: '8px', fontWeight: 500 }}>No frames added yet</p>
               <p style={{ margin: 0, fontSize: 'calc(var(--base-body-size) * 0.9px)' }}>
                 Switch to the &quot;Insert&quot; tab to add frames from the library.
@@ -392,7 +241,7 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
               </p>
             </div>
           ) : (
-            <div style={styles.frameList}>
+            <div style={listManagerStyles.frameList}>
               {frames.map((frame, index) => {
                 const isActive = index === activeFrameIndex
                 const categoryLabel = frame.category
@@ -403,40 +252,36 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
                   <div
                     key={`${frame.id}-${frame.timestamp}`}
                     style={{
-                      ...styles.frameItem,
-                      ...(isActive ? styles.frameItemActive : {}),
+                      ...listManagerStyles.frameItem,
+                      ...(isActive ? listManagerStyles.frameItemActive : {}),
                     }}
                   >
                     {renderThumbnail(frame)}
 
-                    <div style={styles.frameInfo}>
-                      <div style={styles.frameCategory}>{categoryLabel}</div>
+                    <div style={listManagerStyles.frameInfo}>
+                      <div style={baseStyles.frameCategory}>{categoryLabel}</div>
                       {frame.tags && frame.tags.length > 0 && (
-                        <div style={styles.frameTags}>{frame.tags.join(', ')}</div>
+                        <div style={listManagerStyles.frameTags}>{frame.tags.join(', ')}</div>
                       )}
                     </div>
 
                     <input
                       type="text"
-                      value={formatTime(frame.timestamp)}
-                      onChange={(e) => handleTimestampChange(index, e.target.value)}
-                      onBlur={(e) => {
-                        // Re-validate on blur and reset if invalid
-                        const parsed = parseTime(e.target.value)
-                        if (parsed === null) {
-                          e.target.value = formatTime(frame.timestamp)
-                        }
-                      }}
+                      value={editingIndex === index ? editingValue : formatTime(frame.timestamp)}
+                      onChange={(e) => setEditingValue(e.target.value)}
+                      onFocus={() => handleTimestampFocus(index)}
+                      onBlur={() => handleTimestampCommit(index)}
+                      onKeyDown={(e) => handleTimestampKeyDown(e, index)}
                       disabled={readOnly}
-                      style={styles.timestampInput}
-                      title="Frame timestamp (MM:SS)"
+                      style={listManagerStyles.timestampInput}
+                      title="Frame timestamp (MM:SS). Press Enter to save, Escape to cancel."
                     />
 
                     <button
                       type="button"
                       onClick={() => handleRemoveFrame(index)}
                       disabled={readOnly}
-                      style={styles.removeButton}
+                      style={listManagerStyles.removeButton}
                       title="Remove frame"
                       onMouseEnter={(e) => {
                         e.currentTarget.style.color = 'var(--theme-error-500)'
