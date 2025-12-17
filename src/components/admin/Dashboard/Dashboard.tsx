@@ -1,15 +1,13 @@
-import React from 'react'
-
 import { ProjectSlug } from '@/lib/projects'
 import { Manager } from '@/payload-types'
 import { MergedPermissions } from '@/types/permissions'
 import { ManagerRole } from '@/types/roles'
 
-import DefaultDashboard from './dashboard/DefaultDashboard'
-import FathomDashboard from './dashboard/FathomDashboard'
-import InactiveAccountAlert from './dashboard/InactiveAccountAlert'
-import MetricsDashboard from './dashboard/MetricsDashboard'
-import ProjectSelectionPrompt from './dashboard/ProjectSelectionPrompt'
+import DefaultDashboard from './DefaultDashboard'
+import FathomDashboard from './FathomDashboard'
+import InactiveAccountAlert from './InactiveAccountAlert'
+import MetricsDashboard from './MetricsDashboard'
+import ProjectSelectionPrompt from './ProjectSelectionPrompt'
 
 // Type for props that Payload passes to dashboard views
 interface DashboardProps {
