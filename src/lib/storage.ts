@@ -6,7 +6,7 @@
  *
  * All storage adapters handle filename management internally:
  * - Cloudflare Images/Stream: Stores service-generated IDs as filenames
- * - R2: Optionally sanitizes filenames (slugify + random suffix) per collection
+ * - R2: Sanitizes filenames (slugify + random suffix) for all uploads
  *
  * Automatically falls back to local file storage in development when
  * Cloudflare credentials are not configured.
@@ -72,19 +72,11 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
     deliveryUrl: process.env.CLOUDFLARE_STREAM_DELIVERY_URL!,
   })
 
-  // Create R2 adapters with collection-specific configuration
-  // - meditations/music: sanitize filenames (slugify + random suffix)
-  // - files: preserve original filenames
-  const r2AdapterWithSanitization = r2NativeAdapter({
+  // Create R2 adapter for audio and file storage
+  // All filenames are automatically sanitized (slugify + random suffix)
+  const r2Adapter = r2NativeAdapter({
     bucket: r2Bucket,
     publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL || '',
-    sanitizeFilenames: true,
-  })
-
-  const r2AdapterWithoutSanitization = r2NativeAdapter({
-    bucket: r2Bucket,
-    publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL || '',
-    sanitizeFilenames: false,
   })
 
   // Return a single cloudStoragePlugin with all adapters configured
@@ -123,22 +115,22 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
         disablePayloadAccessControl: true,
       },
 
-      // Audio collections - R2 with filename sanitization
-      // Sanitized filenames: "My Audio (1).mp3" -> "my-audio-1-xk2j9s.mp3"
+      // Audio collections - R2 storage
+      // Filenames automatically sanitized: "My Audio (1).mp3" -> "my-audio-1-xk2j9s.mp3"
       meditations: {
-        adapter: r2AdapterWithSanitization,
+        adapter: r2Adapter,
         disableLocalStorage: true,
         disablePayloadAccessControl: true,
       },
       music: {
-        adapter: r2AdapterWithSanitization,
+        adapter: r2Adapter,
         disableLocalStorage: true,
         disablePayloadAccessControl: true,
       },
 
-      // Files collection - R2 without sanitization (preserve original filenames)
+      // Files collection - R2 storage
       files: {
-        adapter: r2AdapterWithoutSanitization,
+        adapter: r2Adapter,
         disableLocalStorage: true,
         disablePayloadAccessControl: true,
       },

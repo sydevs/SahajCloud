@@ -20,10 +20,10 @@ The application uses **Cloudflare-native storage services** for optimal performa
 
 ### R2 Native Bindings (Audio & Generic Files)
 - **Collections**: `meditations`, `music`, `lessons`, `files`
-- **Features**: Direct bucket access, high performance, optional filename sanitization
+- **Features**: Direct bucket access, high performance, automatic filename sanitization
 - **URL Format**: `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>`
 - **Configuration**: Via `wrangler.toml` bindings (no S3-compatible API)
-- **Filename Sanitization**: Enable `sanitizeFilenames: true` for URL-safe slugified filenames with random suffixes
+- **Filename Sanitization**: All filenames are automatically sanitized to URL-safe slugs with random suffixes
 
 ### Development Environment
 - **Automatic Fallback**: Local file storage used when Cloudflare credentials not configured
@@ -60,17 +60,16 @@ fields: [
 ```
 
 #### R2 Native Adapter (`r2NativeAdapter.ts`)
-Custom adapter for direct R2 bucket access with optional filename sanitization:
+Custom adapter for direct R2 bucket access with automatic filename sanitization:
 
 ```typescript
 r2NativeAdapter({
   bucket: env.R2,
   publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL,
-  sanitizeFilenames: true, // Optional: slugify + random suffix
 })
 ```
 
-**Filename Sanitization Process**:
+**Filename Sanitization Process** (applied to all uploads):
 1. Extract base name and extension
 2. Slugify base name (lowercase, URL-safe, strict mode)
 3. Add random 6-character suffix for uniqueness

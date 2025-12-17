@@ -1,7 +1,4 @@
-import type { CollectionBeforeOperationHook, CollectionBeforeValidateHook } from 'payload'
-
-import { PayloadRequest } from 'payload'
-import slugify from 'slugify'
+import type { CollectionBeforeValidateHook } from 'payload'
 
 export type FileMetadata = {
   width?: number
@@ -33,53 +30,6 @@ type ProcessFileHook = ({
   maxMB?: number
   maxMinutes?: number
 }) => CollectionBeforeValidateHook
-
-/**
- * Sanitize uploaded file names for safe storage
- *
- * Converts file names to URL-safe slugs and adds random suffix to prevent collisions.
- *
- * @deprecated This hook is deprecated. Filename sanitization is now handled directly
- * by storage adapters. Use the R2 adapter with `sanitizeFilenames: true` option instead.
- * See `src/lib/storage/r2NativeAdapter.ts` for the current implementation.
- *
- * @param params - Hook parameters
- * @param params.req - Payload request object containing the uploaded file
- *
- * @remarks
- * **Transformation Process:**
- * 1. Extract filename and extension
- * 2. Slugify filename (lowercase, URL-safe, strict mode)
- * 3. Add random 6-character suffix
- * 4. Preserve original file extension
- *
- * **Benefits:**
- * - Prevents special characters in filenames
- * - Avoids filename collisions with random suffix
- * - Creates URL-friendly filenames
- * - Maintains file extension for MIME type detection
- *
- * @example
- * Input filename: "My Photo (1).jpg"
- * Output filename: "my-photo-1-xk2j9s.jpg"
- */
-export const sanitizeFilename: CollectionBeforeOperationHook = async ({
-  req,
-}: {
-  req: PayloadRequest
-}) => {
-  const file = req.file
-  if (typeof file?.name === 'string') {
-    const fileName = file.name.split('.', 2)
-
-    file.name =
-      slugify(fileName[0], { strict: true, lower: true }) +
-      '-' +
-      (Math.random() + 1).toString(36).substring(2) +
-      '.' +
-      fileName[1]
-  }
-}
 
 /**
  * Create a file validation and metadata extraction hook for upload collections

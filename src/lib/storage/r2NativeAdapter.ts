@@ -4,7 +4,7 @@
  * Uses Cloudflare R2 native bindings (not S3-compatible API) for direct bucket access.
  * Better performance and simpler authentication than S3 API layer.
  *
- * Supports optional filename sanitization to create URL-safe filenames with unique suffixes.
+ * Automatically sanitizes filenames to create URL-safe slugs with unique suffixes.
  */
 import type { R2Bucket } from '@cloudflare/workers-types'
 import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
@@ -19,12 +19,6 @@ export interface R2NativeConfig {
   bucket: R2Bucket
   /** Public URL for accessing R2 assets (e.g., "https://assets.sydevelopers.com") */
   publicUrl: string
-  /**
-   * Whether to sanitize filenames before upload.
-   * When true, filenames are slugified and a random suffix is added.
-   * @default false
-   */
-  sanitizeFilenames?: boolean
 }
 
 /**
@@ -57,50 +51,40 @@ export const sanitizeFilename = (filename: string): string => {
  * Uses Cloudflare R2 native bindings for direct bucket access with high performance.
  * Does not use S3-compatible API layer.
  *
+ * Automatically sanitizes all filenames to URL-safe slugs with random suffixes.
+ *
  * @param config - R2 native configuration
  * @returns PayloadCMS storage adapter
  *
- * @example Without filename sanitization (preserves original filenames)
+ * @example
  * ```ts
  * const adapter = r2NativeAdapter({
  *   bucket: env.R2,
  *   publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL,
- * })
- * ```
- *
- * @example With filename sanitization (for audio collections)
- * ```ts
- * const adapter = r2NativeAdapter({
- *   bucket: env.R2,
- *   publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL,
- *   sanitizeFilenames: true,
  * })
  * ```
  */
 export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
-  const { bucket, sanitizeFilenames: shouldSanitize = false } = config
+  const { bucket } = config
 
   return ({ prefix }) => ({
     name: 'r2-native',
 
     handleUpload: async ({ data, file, req }) => {
       try {
-        // Optionally sanitize the filename
-        let finalFilename = file.filename
-        if (shouldSanitize) {
-          finalFilename = sanitizeFilename(file.filename)
+        // Sanitize the filename to URL-safe slug with random suffix
+        const finalFilename = sanitizeFilename(file.filename)
 
-          // Update filename in all locations
-          // - data.filename: The object that will be saved to the database (passed by reference)
-          // - file.filename: The file object used by the storage plugin
-          // - req.file.name: The original request file (for consistency)
-          file.filename = finalFilename
-          if (data) {
-            data.filename = finalFilename
-          }
-          if (req?.file) {
-            req.file.name = finalFilename
-          }
+        // Update filename in all locations
+        // - data.filename: The object that will be saved to the database (passed by reference)
+        // - file.filename: The file object used by the storage plugin
+        // - req.file.name: The original request file (for consistency)
+        file.filename = finalFilename
+        if (data) {
+          data.filename = finalFilename
+        }
+        if (req?.file) {
+          req.file.name = finalFilename
         }
 
         const key = prefix ? `${prefix}/${finalFilename}` : finalFilename
