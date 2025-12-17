@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 
 import { ProjectProvider } from '@/contexts/ProjectContext'
 
-import ProjectTheme from './branding/ProjectTheme'
+import { ProjectTheme } from './branding'
 import ErrorBoundary from './ErrorBoundary'
 
 interface AdminProviderProps {
