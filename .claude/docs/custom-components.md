@@ -300,6 +300,35 @@ return (
 - Use PayloadCMS's `FieldLabel`, `FieldError`, `FieldDescription` components
 - Match exact markup structure of PayloadCMS's built-in fields
 
+## usePayloadAPI Hook Limitations
+
+### Critical: initialParams Timing
+
+The `usePayloadAPI` hook captures `initialParams` on first render using `useState`. This creates issues with chained fetches:
+
+```typescript
+// ❌ Race condition prone
+const [{ data: parent }] = usePayloadAPI(`/api/parents/${id}`)
+const [{ data: children }, { setParams }] = usePayloadAPI('/api/children')
+
+useEffect(() => {
+  if (parent?.type) {
+    setParams({ where: { type: { equals: parent.type } } })
+  }
+}, [parent?.type])
+```
+
+### Solution: Custom Endpoints
+
+Move the data joining to a custom endpoint:
+
+```typescript
+// ✅ No race conditions
+const [{ data }] = usePayloadAPI(id ? `/api/children/by-parent/${id}` : '')
+```
+
+See "PayloadCMS Custom Endpoints Pattern" in [patterns.md](patterns.md) for implementation details.
+
 ## Component Wrapper Pattern (Pure UI + Field Wrapper)
 
 For complex admin components with significant UI logic, separate concerns into:
