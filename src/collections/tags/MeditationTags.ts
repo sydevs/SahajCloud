@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { slugField } from 'payload'
 
-import { ColorField } from '@/fields/ColorField'
+import { colorField } from '@/fields/ColorField'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
@@ -59,7 +59,7 @@ export const MeditationTags: CollectionConfig = {
       },
     },
     // Color picker (hex format)
-    ...ColorField({
+    colorField({
       name: 'color',
       label: 'Color',
       required: true,

@@ -12,7 +12,7 @@ const hexColorValidation: TextFieldSingleValidation = (value) => {
   return true
 }
 
-interface ColorFieldOptions {
+export interface ColorFieldOptions {
   name?: string
   label?: string
   required?: boolean
@@ -24,19 +24,19 @@ interface ColorFieldOptions {
 
 /**
  * Creates a color field with hex validation and a custom color picker component.
- * Returns fields array to match the pattern used by other field plugins.
+ * Returns a single Field (no spread required).
  *
  * @example
  * ```typescript
  * fields: [
- *   ...ColorField({ name: 'color', required: true }),
+ *   colorField({ name: 'color', required: true }),
  * ]
  * ```
  */
-export const ColorField = (options: ColorFieldOptions = {}): Field[] => {
+export function colorField(options: ColorFieldOptions = {}): Field {
   const { name = 'color', label = 'Color', required = false, admin = {} } = options
 
-  const colorField: Field = {
+  return {
     name,
     label,
     type: 'text',
@@ -51,6 +51,9 @@ export const ColorField = (options: ColorFieldOptions = {}): Field[] => {
       },
     },
   }
-
-  return [colorField]
 }
+
+/**
+ * @deprecated Use `colorField()` instead. This returns Field[] for backwards compatibility.
+ */
+export const ColorField = (options: ColorFieldOptions = {}): Field[] => [colorField(options)]
