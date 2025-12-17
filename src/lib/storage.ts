@@ -2,7 +2,11 @@
  * Cloudflare-native storage configuration for Payload CMS
  *
  * Uses Cloudflare Images for image storage, Cloudflare Stream for video storage,
- * and official @payloadcms/storage-r2 for audio files and generic files.
+ * and a custom R2 native adapter for audio files and generic files.
+ *
+ * All storage adapters handle filename management internally:
+ * - Cloudflare Images/Stream: Stores service-generated IDs as filenames
+ * - R2: Optionally sanitizes filenames (slugify + random suffix) per collection
  *
  * Automatically falls back to local file storage in development when
  * Cloudflare credentials are not configured.
@@ -11,10 +15,10 @@ import type { R2Bucket, D1Database } from '@cloudflare/workers-types'
 import type { Plugin } from 'payload'
 
 import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
-import { r2Storage } from '@payloadcms/storage-r2'
 
 import { cloudflareImagesAdapter } from './storage/cloudflareImagesAdapter'
 import { cloudflareStreamAdapter } from './storage/cloudflareStreamAdapter'
+import { r2NativeAdapter } from './storage/r2NativeAdapter'
 import { routerAdapter } from './storage/routerAdapter'
 
 interface CloudflareEnv {
@@ -65,65 +69,76 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
     deliveryUrl: process.env.CLOUDFLARE_STREAM_DELIVERY_URL!,
   })
 
-  // Return a plugin function that combines Images/Stream and official R2 storage
-  return async (incomingConfig) => {
-    // First apply Images/Stream adapters via cloudStoragePlugin
-    let config = await Promise.resolve(
-      cloudStoragePlugin({
-        enabled: true,
-        collections: {
-          // Images collection - Cloudflare Images
-          images: {
-            adapter: imagesAdapter,
-            disableLocalStorage: true,
-            disablePayloadAccessControl: true,
-          },
+  // Create R2 adapters with collection-specific configuration
+  // - meditations/music: sanitize filenames (slugify + random suffix)
+  // - files: preserve original filenames
+  const r2AdapterWithSanitization = r2NativeAdapter({
+    bucket: env!.R2 as R2Bucket,
+    publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL || '',
+    sanitizeFilenames: true,
+  })
 
-          // Frames collection - Router adapter (Images for images, Stream for videos)
-          frames: {
-            adapter: routerAdapter({
-              routes: {
-                'image/': imagesAdapter,
-                'video/': streamAdapter,
-              },
-              default: imagesAdapter,
-            }),
-            disableLocalStorage: true,
-            disablePayloadAccessControl: true,
-          },
+  const r2AdapterWithoutSanitization = r2NativeAdapter({
+    bucket: env!.R2 as R2Bucket,
+    publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL || '',
+    sanitizeFilenames: false,
+  })
 
-          // Tag collections with SVG icons - Cloudflare Images
-          'meditation-tags': {
-            adapter: imagesAdapter,
-            disableLocalStorage: true,
-            disablePayloadAccessControl: true,
-          },
-          'music-tags': {
-            adapter: imagesAdapter,
-            disableLocalStorage: true,
-            disablePayloadAccessControl: true,
-          },
-        },
-      })(incomingConfig),
-    )
+  // Return a single cloudStoragePlugin with all adapters configured
+  return cloudStoragePlugin({
+    enabled: true,
+    collections: {
+      // Images collection - Cloudflare Images
+      images: {
+        adapter: imagesAdapter,
+        disableLocalStorage: true,
+        disablePayloadAccessControl: true,
+      },
 
-    // Then apply official R2 storage for audio/file collections
-    // Type assertion needed due to version mismatch between @cloudflare/workers-types and @payloadcms/storage-r2
-    // NOTE: Not using prefix option because it requires a database column (`prefix`) that doesn't exist
-    // Files will be stored in the root of the R2 bucket with unique filenames
-    // Note: r2Storage automatically sets disableLocalStorage, so we don't need to specify it
-    // Note: lessons collection is NOT an upload collection - it uses FileAttachments
-    config = await Promise.resolve(
-      r2Storage({
-        bucket: env!.R2 as unknown as Parameters<typeof r2Storage>[0]['bucket'],
-        collections: {
-          meditations: true,
-          music: true,
-          files: true,
-        },
-      })(config),
-    )
+      // Frames collection - Router adapter (Images for images, Stream for videos)
+      frames: {
+        adapter: routerAdapter({
+          routes: {
+            'image/': imagesAdapter,
+            'video/': streamAdapter,
+          },
+          default: imagesAdapter,
+        }),
+        disableLocalStorage: true,
+        disablePayloadAccessControl: true,
+      },
 
-    return config
-  }
+      // Tag collections with SVG icons - Cloudflare Images
+      'meditation-tags': {
+        adapter: imagesAdapter,
+        disableLocalStorage: true,
+        disablePayloadAccessControl: true,
+      },
+      'music-tags': {
+        adapter: imagesAdapter,
+        disableLocalStorage: true,
+        disablePayloadAccessControl: true,
+      },
+
+      // Audio collections - R2 with filename sanitization
+      // Sanitized filenames: "My Audio (1).mp3" -> "my-audio-1-xk2j9s.mp3"
+      meditations: {
+        adapter: r2AdapterWithSanitization,
+        disableLocalStorage: true,
+        disablePayloadAccessControl: true,
+      },
+      music: {
+        adapter: r2AdapterWithSanitization,
+        disableLocalStorage: true,
+        disablePayloadAccessControl: true,
+      },
+
+      // Files collection - R2 without sanitization (preserve original filenames)
+      files: {
+        adapter: r2AdapterWithoutSanitization,
+        disableLocalStorage: true,
+        disablePayloadAccessControl: true,
+      },
+    },
+  })
 }

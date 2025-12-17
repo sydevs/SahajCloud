@@ -20,13 +20,64 @@ The application uses **Cloudflare-native storage services** for optimal performa
 
 ### R2 Native Bindings (Audio & Generic Files)
 - **Collections**: `meditations`, `music`, `lessons`, `files`
-- **Features**: Direct bucket access, high performance
+- **Features**: Direct bucket access, high performance, optional filename sanitization
 - **URL Format**: `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>`
 - **Configuration**: Via `wrangler.toml` bindings (no S3-compatible API)
+- **Filename Sanitization**: Enable `sanitizeFilenames: true` for URL-safe slugified filenames with random suffixes
 
 ### Development Environment
 - **Automatic Fallback**: Local file storage used when Cloudflare credentials not configured
 - **No Setup Required**: Development works out of the box without Cloudflare accounts
+
+### Storage Implementation Details
+
+**Location**: `src/lib/storage/`
+
+The storage system is built on several key components:
+
+#### Storage Adapters (`storage.ts`)
+- `cloudflareImagesAdapter` - Handles image uploads to Cloudflare Images
+- `cloudflareStreamAdapter` - Handles video uploads to Cloudflare Stream
+- `r2NativeAdapter` - Direct R2 bucket access for audio/files (custom implementation)
+- `routerAdapter` - Routes uploads to appropriate adapter based on MIME type
+
+**Important**: All adapters modify `data.filename` directly in `handleUpload` to ensure the database stores the correct filename (service-generated ID or sanitized name).
+
+#### URL Field Factories (`urlFields.ts`)
+Factory functions for creating virtual URL fields with consistent CDN URL generation:
+
+- `createVirtualUrlField({ collection, adapter })` - Base URL field for any storage adapter
+- `createThumbnailUrlField({ collection, width?, height? })` - Thumbnail URLs for images/videos
+- `createStreamMp4UrlField({ collection })` - MP4 download URLs for Cloudflare Stream videos
+- `createPreviewUrlField()` - Preview URLs (aliases thumbnailUrl)
+
+**Usage Example**:
+```typescript
+fields: [
+  createVirtualUrlField({ collection: 'meditations', adapter: 'r2' }),
+  createThumbnailUrlField({ collection: 'frames', width: 320, height: 320 }),
+  createStreamMp4UrlField({ collection: 'frames' }),
+]
+```
+
+#### R2 Native Adapter (`r2NativeAdapter.ts`)
+Custom adapter for direct R2 bucket access with optional filename sanitization:
+
+```typescript
+r2NativeAdapter({
+  bucket: env.R2,
+  publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL,
+  sanitizeFilenames: true, // Optional: slugify + random suffix
+})
+```
+
+**Filename Sanitization Process**:
+1. Extract base name and extension
+2. Slugify base name (lowercase, URL-safe, strict mode)
+3. Add random 6-character suffix for uniqueness
+4. Preserve original extension
+
+**Example**: `"My Audio File (1).mp3"` → `"my-audio-file-1-xk2j9s.mp3"`
 
 ## Route Structure
 - `src/app/(frontend)/` - Public-facing Next.js pages
@@ -82,6 +133,9 @@ Custom admin components for tag management:
 - `vitest.config.mts` - Vitest configuration for integration tests
 - `playwright.config.ts` - Playwright configuration for E2E tests
 - `src/lib/richEditor.ts` - Rich text editor configuration presets
+- `src/lib/storage/storage.ts` - Storage adapter configuration and routing
+- `src/lib/storage/urlFields.ts` - URL field factory functions
+- `src/lib/storage/r2NativeAdapter.ts` - Custom R2 storage adapter
 
 ## Component Architecture
 - `src/components/AdminProvider.tsx` - Payload admin UI provider component (wraps with ProjectProvider)

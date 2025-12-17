@@ -38,7 +38,10 @@ type ProcessFileHook = ({
  * Sanitize uploaded file names for safe storage
  *
  * Converts file names to URL-safe slugs and adds random suffix to prevent collisions.
- * This hook should be added to the `beforeOperation` hook array of upload collections.
+ *
+ * @deprecated This hook is deprecated. Filename sanitization is now handled directly
+ * by storage adapters. Use the R2 adapter with `sanitizeFilenames: true` option instead.
+ * See `src/lib/storage/r2NativeAdapter.ts` for the current implementation.
  *
  * @param params - Hook parameters
  * @param params.req - Payload request object containing the uploaded file
@@ -59,18 +62,6 @@ type ProcessFileHook = ({
  * @example
  * Input filename: "My Photo (1).jpg"
  * Output filename: "my-photo-1-xk2j9s.jpg"
- *
- * @example
- * Usage in collection config
- * ```typescript
- * export const Media: CollectionConfig = {
- *   slug: 'media',
- *   upload: true,
- *   hooks: {
- *     beforeOperation: [sanitizeFilename]
- *   }
- * }
- * ```
  */
 export const sanitizeFilename: CollectionBeforeOperationHook = async ({
   req,
