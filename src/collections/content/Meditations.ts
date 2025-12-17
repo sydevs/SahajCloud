@@ -240,7 +240,7 @@ export const Meditations: CollectionConfig = {
                       type: 'json',
                       admin: {
                         components: {
-                          Field: '@/components/admin/FrameListManager',
+                          Field: '@/components/admin/FrameEditor/FrameListManager',
                         },
                       },
                       validate: (value, { data, operation, id }) => {
@@ -263,11 +263,6 @@ export const Meditations: CollectionConfig = {
                         // If no audio, or this is a create operation, frames are optional
                         if (!value || !Array.isArray(value)) {
                           return true
-                        }
-
-                        // Validate array structure if frames exist
-                        if (!Array.isArray(value)) {
-                          return 'Frames must be an array'
                         }
 
                         for (let i = 0; i < value.length; i++) {
@@ -370,7 +365,7 @@ export const Meditations: CollectionConfig = {
                       type: 'ui',
                       admin: {
                         components: {
-                          Field: '@/components/admin/FrameInserter',
+                          Field: '@/components/admin/FrameEditor/FrameInserter',
                         },
                       },
                     },

@@ -5,149 +5,18 @@ import type { UIFieldClientComponent } from 'payload'
 import { Pill, toast, useField, useLivePreviewContext } from '@payloadcms/ui'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { FRAME_CATEGORY_OPTIONS, FRAME_CATEGORIES } from '@/lib/data'
+import { FRAME_CATEGORIES } from '@/lib/data'
 import type { Frame, Narrator } from '@/payload-types'
 import type { KeyframeData, KeyframeDefinition } from '@/types/frames'
+
+import { baseStyles, inserterStyles } from './styles'
+import { formatTime, getCategoryLabel } from './utils'
 
 // ============================================================================
 // Constants
 // ============================================================================
 
 const BATCH_SIZE = 1000
-
-// ============================================================================
-// Time Format Utilities
-// ============================================================================
-
-/**
- * Format seconds to MM:SS display format
- */
-const formatTime = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${mins}:${secs.toString().padStart(2, '0')}`
-}
-
-/**
- * Get the category label for a category value
- */
-const getCategoryLabel = (value: string): string => {
-  const option = FRAME_CATEGORY_OPTIONS.find((opt) => opt.value === value)
-  return option?.label || value
-}
-
-// ============================================================================
-// Styles (using PayloadCMS CSS variables)
-// ============================================================================
-
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 'calc(var(--base) * 0.75)',
-  },
-  instructionsPanel: {
-    padding: 'calc(var(--base) * 0.75)',
-    backgroundColor: 'var(--theme-elevation-50)',
-    borderRadius: 'var(--style-radius-s)',
-    border: '1px solid var(--theme-elevation-100)',
-    fontSize: 'calc(var(--base-body-size) * 1px)',
-    color: 'var(--theme-elevation-700)',
-  },
-  instructionsHighlight: {
-    fontWeight: 600,
-    color: 'var(--theme-success-500)',
-  },
-  categoryFilters: {
-    display: 'flex',
-    flexWrap: 'wrap' as const,
-    gap: 'calc(var(--base) * 0.25)',
-    padding: 'calc(var(--base) * 0.5) 0',
-  },
-  framesGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: 'calc(var(--base) * 0.5)',
-    maxHeight: '500px',
-    overflowY: 'auto' as const,
-    padding: '4px',
-  },
-  frameCard: {
-    position: 'relative' as const,
-    borderRadius: 'var(--style-radius-s)',
-    overflow: 'hidden',
-    border: '2px solid var(--theme-elevation-100)',
-    backgroundColor: 'var(--theme-elevation-50)',
-    cursor: 'pointer',
-    transition: 'border-color 0.15s ease, transform 0.15s ease',
-  },
-  frameCardHover: {
-    borderColor: 'var(--theme-success-400)',
-    transform: 'scale(1.02)',
-  },
-  frameCardSelected: {
-    borderColor: 'var(--theme-success-500)',
-    transform: 'scale(1.05)',
-  },
-  frameThumbnail: {
-    width: '100%',
-    aspectRatio: '1',
-    objectFit: 'cover' as const,
-    display: 'block',
-    backgroundColor: 'var(--theme-elevation-200)',
-  },
-  frameInfo: {
-    padding: 'calc(var(--base) * 0.35)',
-    textAlign: 'center' as const,
-    backgroundColor: 'var(--theme-elevation-100)',
-  },
-  frameCategory: {
-    fontSize: 'calc(var(--base-body-size) * 0.85px)',
-    fontWeight: 500,
-    color: 'var(--theme-elevation-700)',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
-  },
-  videoIndicator: {
-    position: 'absolute' as const,
-    top: '8px',
-    right: '8px',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: '4px',
-    padding: '2px 6px',
-    fontSize: '10px',
-    color: 'white',
-    fontWeight: 500,
-  },
-  loadingState: {
-    padding: 'calc(var(--base) * 2)',
-    textAlign: 'center' as const,
-    color: 'var(--theme-elevation-500)',
-  },
-  errorState: {
-    padding: 'calc(var(--base) * 1)',
-    textAlign: 'center' as const,
-    color: 'var(--theme-error-500)',
-    backgroundColor: 'var(--theme-error-100)',
-    borderRadius: 'var(--style-radius-s)',
-  },
-  emptyState: {
-    padding: 'calc(var(--base) * 2)',
-    textAlign: 'center' as const,
-    color: 'var(--theme-elevation-500)',
-    backgroundColor: 'var(--theme-elevation-50)',
-    borderRadius: 'var(--style-radius-m)',
-    border: '1px dashed var(--theme-elevation-200)',
-  },
-  headerInfo: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    fontSize: 'calc(var(--base-body-size) * 0.9px)',
-    color: 'var(--theme-elevation-500)',
-  },
-}
 
 // ============================================================================
 // Component
@@ -309,9 +178,9 @@ export const FrameInserter: UIFieldClientComponent = () => {
       <div
         key={frame.id}
         style={{
-          ...styles.frameCard,
-          ...(isHovered ? styles.frameCardHover : {}),
-          ...(isClicked ? styles.frameCardSelected : {}),
+          ...inserterStyles.frameCard,
+          ...(isHovered ? inserterStyles.frameCardHover : {}),
+          ...(isClicked ? inserterStyles.frameCardSelected : {}),
         }}
         onClick={() => handleFrameInsert(frame)}
         onMouseEnter={() => setHoveredFrameId(frame.id)}
@@ -322,17 +191,17 @@ export const FrameInserter: UIFieldClientComponent = () => {
           <img
             src={thumbnailUrl}
             alt={frame.category || 'Frame'}
-            style={styles.frameThumbnail}
+            style={inserterStyles.frameThumbnail}
             loading="lazy"
           />
         ) : (
-          <div style={styles.frameThumbnail} />
+          <div style={inserterStyles.frameThumbnail} />
         )}
 
-        {isVideo && <div style={styles.videoIndicator}>{frame.duration}s</div>}
+        {isVideo && <div style={inserterStyles.videoIndicator}>{frame.duration}s</div>}
 
-        <div style={styles.frameInfo}>
-          <div style={styles.frameCategory}>{getCategoryLabel(frame.category || '')}</div>
+        <div style={inserterStyles.frameInfo}>
+          <div style={inserterStyles.frameCategory}>{getCategoryLabel(frame.category || '')}</div>
         </div>
       </div>
     )
@@ -340,23 +209,21 @@ export const FrameInserter: UIFieldClientComponent = () => {
 
   // Loading state
   if (isLoading) {
-    return <div style={styles.loadingState}>Loading frames...</div>
+    return <div style={baseStyles.loadingState}>Loading frames...</div>
   }
 
   // Error state
   if (error) {
-    return <div style={styles.errorState}>Error: {error}</div>
+    return <div style={baseStyles.errorState}>Error: {error}</div>
   }
 
   return (
-    <div style={styles.container}>
+    <div style={inserterStyles.container}>
       {/* Instructions Panel */}
-      <div style={styles.instructionsPanel}>
-        <span style={styles.instructionsHighlight}>Click any frame</span> to insert at{' '}
+      <div style={inserterStyles.instructionsPanel}>
+        <span style={inserterStyles.instructionsHighlight}>Click any frame</span> to insert at{' '}
         <strong>{formatTime(insertionTimestamp)}</strong>
-        {currentFrames.length === 0 && (
-          <span> (first frame will be placed at 0:00)</span>
-        )}
+        {currentFrames.length === 0 && <span> (first frame will be placed at 0:00)</span>}
         {narrator?.gender && (
           <span style={{ marginLeft: '8px', opacity: 0.8 }}>
             Filtered for {narrator.gender} poses
@@ -365,7 +232,7 @@ export const FrameInserter: UIFieldClientComponent = () => {
       </div>
 
       {/* Category Filters */}
-      <div style={styles.categoryFilters}>
+      <div style={inserterStyles.categoryFilters}>
         {FRAME_CATEGORIES.map((category) => (
           <Pill
             key={category}
@@ -378,25 +245,23 @@ export const FrameInserter: UIFieldClientComponent = () => {
       </div>
 
       {/* Header Info */}
-      <div style={styles.headerInfo}>
+      <div style={inserterStyles.headerInfo}>
         <span>
           {filteredFrames.length} frame{filteredFrames.length !== 1 ? 's' : ''}
           {selectedCategory && ` in ${getCategoryLabel(selectedCategory)}`}
         </span>
-        <span>
-          {currentFrames.length} selected
-        </span>
+        <span>{currentFrames.length} selected</span>
       </div>
 
       {/* Frames Grid */}
       {filteredFrames.length === 0 ? (
-        <div style={styles.emptyState}>
+        <div style={baseStyles.emptyState}>
           {selectedCategory
             ? `No frames found in ${getCategoryLabel(selectedCategory)} category.`
             : 'No frames available.'}
         </div>
       ) : (
-        <div style={styles.framesGrid}>{filteredFrames.map(renderFrameCard)}</div>
+        <div style={inserterStyles.framesGrid}>{filteredFrames.map(renderFrameCard)}</div>
       )}
     </div>
   )

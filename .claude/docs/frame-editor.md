@@ -4,10 +4,16 @@ The **Frame Editor** provides audio-synchronized frame management for the Medita
 
 ## Component Structure
 
-**Components**: `src/components/admin/`
+**Location**: `src/components/admin/FrameEditor/`
 
-- `FrameListManager.tsx` - Custom field component for managing existing frames (timestamps, ordering, removal)
-- `FrameInserter.tsx` - UI component for browsing and inserting new frames from the library
+```
+FrameEditor/
+├── index.ts              # Barrel export for components and utilities
+├── FrameListManager.tsx  # Custom field component for managing frames
+├── FrameInserter.tsx     # UI component for browsing and inserting frames
+├── utils.ts              # Shared utilities (formatTime, parseTime, validateTimestamp)
+└── styles.ts             # Shared style objects using PayloadCMS CSS variables
+```
 
 **Types**: `src/types/frames.ts`
 
@@ -78,6 +84,19 @@ Video (tab)
 - **PayloadCMS UI**: `Pill`, `FieldLabel`, `FieldDescription`, `FieldError`, `toast`
 - **CSS Variables**: Uses PayloadCMS theme variables for consistent styling
 - **Type Safety**: Full TypeScript integration with `KeyframeData` and `KeyframeDefinition` types
+
+## Shared Utilities (`utils.ts`)
+
+- `formatTime(seconds)` - Format seconds to MM:SS display format
+- `parseTime(timeStr)` - Parse MM:SS format to seconds (returns null if invalid)
+- `validateTimestamp(timestamp, existingTimestamps, currentIndex?)` - Validate timestamp constraints
+- `getCategoryLabel(value)` - Get human-readable label for frame category
+
+## Shared Styles (`styles.ts`)
+
+- `baseStyles` - Common styles (container, emptyState, loadingState, thumbnail)
+- `listManagerStyles` - FrameListManager-specific styles (frameList, frameItem, timestampInput)
+- `inserterStyles` - FrameInserter-specific styles (framesGrid, frameCard, categoryFilters)
 
 ## Testing
 
