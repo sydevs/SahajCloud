@@ -2,15 +2,7 @@
 
 import type { JSONFieldClientComponent } from 'payload'
 
-import {
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-  toast,
-  useField,
-  useForm,
-  usePayloadAPI,
-} from '@payloadcms/ui'
+import { FieldDescription, FieldError, FieldLabel, toast, useField } from '@payloadcms/ui'
 import React, { useCallback, useMemo, useState } from 'react'
 
 import type { KeyframeData } from '@/types/frames'
@@ -156,20 +148,9 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
   const { value, setValue, showError } = useField<KeyframeData[]>()
   const frames = useMemo(() => value || [], [value])
 
-  // Get form data for narrator field
-  const { getData } = useForm()
-  const formData = getData()
-  const narratorId = formData?.narrator as string | number | undefined
-
   // Custom hooks for shared functionality
   useLivePreviewAuto() // Auto-open live preview panel
   const currentPlaybackTime = usePlaybackTime() // Listen for playback time updates
-
-  // Fetch narrator data with PayloadCMS API hook
-  const [{ data: narrator, isLoading }] = usePayloadAPI(
-    narratorId ? `/api/narrators/${narratorId}` : '',
-    { initialParams: { select: { gender: true, name: true } } },
-  )
 
   // Local editing state for timestamp inputs
   // Allows user to type freely without immediate validation/revert
@@ -269,15 +250,6 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
 
   const fieldId = `field-${name.replace(/\./g, '__')}`
 
-  if (isLoading) {
-    return (
-      <div className={fieldClasses} id={fieldId}>
-        <FieldLabel label={label} path={name} required={required} />
-        <div style={baseStyles.loadingState}>Loading...</div>
-      </div>
-    )
-  }
-
   return (
     <div className={fieldClasses} id={fieldId}>
       <FieldLabel label={label} path={name} required={required} />
@@ -291,7 +263,6 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
               <p style={{ margin: 0, marginBottom: '8px', fontWeight: 500 }}>No frames added yet</p>
               <p style={{ margin: 0, fontSize: 'calc(var(--base-body-size) * 0.9px)' }}>
                 Switch to the &quot;Insert&quot; tab to add frames from the library.
-                {narrator?.gender && ` Frames are filtered for ${narrator.gender} poses.`}
               </p>
             </div>
           ) : (

@@ -280,4 +280,112 @@ describe('Frame Filtering for FrameInserter', () => {
       expect(FRAME_CATEGORIES.length).toBeGreaterThan(0)
     })
   })
+
+  describe('Custom Endpoint: /by-narrator/:narratorId', () => {
+    /**
+     * These tests verify the logic of the custom endpoint by testing
+     * the same operations the endpoint handler performs:
+     * 1. Look up narrator by ID to get gender
+     * 2. Return frames filtered by that gender (imageSet)
+     */
+
+    it('returns frames matching narrator gender (male)', async () => {
+      // Simulate endpoint logic: lookup narrator, filter frames by gender
+      const narrator = await payload.findByID({
+        collection: 'narrators',
+        id: maleNarrator.id,
+        depth: 0,
+      })
+
+      const frames = await payload.find({
+        collection: 'frames',
+        where: { imageSet: { equals: narrator.gender } },
+        limit: 100,
+        depth: 0,
+      })
+
+      expect(frames.docs.length).toBeGreaterThanOrEqual(3)
+      frames.docs.forEach((frame) => {
+        expect(frame.imageSet).toBe('male')
+      })
+    })
+
+    it('returns frames matching narrator gender (female)', async () => {
+      // Simulate endpoint logic: lookup narrator, filter frames by gender
+      const narrator = await payload.findByID({
+        collection: 'narrators',
+        id: femaleNarrator.id,
+        depth: 0,
+      })
+
+      const frames = await payload.find({
+        collection: 'frames',
+        where: { imageSet: { equals: narrator.gender } },
+        limit: 100,
+        depth: 0,
+      })
+
+      expect(frames.docs.length).toBeGreaterThanOrEqual(2)
+      frames.docs.forEach((frame) => {
+        expect(frame.imageSet).toBe('female')
+      })
+    })
+
+    it('throws NotFound when narrator does not exist', async () => {
+      // Simulate endpoint logic: lookup non-existent narrator
+      await expect(
+        payload.findByID({
+          collection: 'narrators',
+          id: 99999, // Non-existent ID
+          depth: 0,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('returns frames with all required fields for display', async () => {
+      // Simulate endpoint logic: verify response structure
+      const narrator = await payload.findByID({
+        collection: 'narrators',
+        id: maleNarrator.id,
+        depth: 0,
+      })
+
+      const frames = await payload.find({
+        collection: 'frames',
+        where: { imageSet: { equals: narrator.gender } },
+        limit: 100,
+        depth: 0,
+      })
+
+      // Verify response has docs array (matching endpoint response format)
+      expect(frames).toHaveProperty('docs')
+      expect(Array.isArray(frames.docs)).toBe(true)
+
+      // Verify each frame has fields needed by FrameInserter
+      frames.docs.forEach((frame) => {
+        expect(frame.id).toBeDefined()
+        expect(frame.category).toBeDefined()
+        expect(frame.imageSet).toBeDefined()
+        // mimeType needed for video detection
+        expect(frame.mimeType).toBeDefined()
+      })
+    })
+
+    it('respects limit parameter', async () => {
+      const narrator = await payload.findByID({
+        collection: 'narrators',
+        id: maleNarrator.id,
+        depth: 0,
+      })
+
+      const frames = await payload.find({
+        collection: 'frames',
+        where: { imageSet: { equals: narrator.gender } },
+        limit: 2, // Custom endpoint uses limit: 100, but verify limit works
+        depth: 0,
+      })
+
+      expect(frames.docs.length).toBeLessThanOrEqual(2)
+    })
+  })
 })

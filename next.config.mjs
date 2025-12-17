@@ -17,15 +17,23 @@ const nextConfig = {
 
     return webpackConfig
   },
-  // Configure CSP headers for Fathom Analytics iframes
+  // Configure CSP headers for Fathom Analytics and Live Preview iframes
   async headers() {
+    // Build frame-src dynamically from environment variables with fallbacks
+    const frameSources = [
+      "'self'",
+      'https://app.usefathom.com',
+      process.env.WEMEDITATE_WEB_URL || 'https://wemeditate.com',
+      process.env.SAHAJATLAS_URL || 'https://atlas.sydevelopers.com',
+    ].join(' ')
+
     return [
       {
         source: '/:path*',
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "frame-src 'self' https://app.usefathom.com;",
+            value: `frame-src ${frameSources};`,
           },
         ],
       },
