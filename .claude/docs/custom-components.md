@@ -174,27 +174,46 @@ pnpm generate:importmap
 
 ## Component Organization
 
-Custom admin components should follow this structure:
+Custom admin components follow a folder-based structure with barrel exports:
 
 ```
 src/components/
-├── admin/                      # Admin UI components
-│   ├── Dashboard.tsx          # Custom views (server components)
-│   ├── ProjectSelector.tsx    # Interactive widgets (client components)
-│   ├── ProjectTheme.tsx       # Theme providers (client components)
-│   └── dashboard/             # Dashboard sub-components
-│       ├── FathomDashboard.tsx    # Client (needs state)
-│       ├── MetricsDashboard.tsx   # Server (data fetching)
-│       └── DefaultDashboard.tsx   # Client (interactive links)
-└── branding/                  # Branding components
-    ├── Logo.tsx              # Client (interactive)
-    └── Icon.tsx              # Client (dynamic rendering)
+├── admin/                          # Admin UI components
+│   ├── ProjectSelector.tsx         # Standalone interactive widgets
+│   ├── Dashboard/                  # Component families use folders
+│   │   ├── index.ts               # Barrel export
+│   │   ├── Dashboard.tsx          # Main entry point (server component)
+│   │   ├── DefaultDashboard.tsx   # Sub-component (client)
+│   │   ├── FathomDashboard.tsx    # Sub-component (client, needs state)
+│   │   ├── MetricsDashboard.tsx   # Sub-component (server, data fetching)
+│   │   ├── InactiveAccountAlert.tsx
+│   │   └── ProjectSelectionPrompt.tsx
+│   └── ThumbnailCell/              # Another component family
+│       ├── index.ts
+│       ├── ThumbnailCell.tsx
+│       ├── DirectUploadThumbnail.tsx
+│       ├── RelationshipThumbnail.tsx
+│       └── utils.ts
+├── branding/                       # Branding components with barrel export
+│   ├── index.ts
+│   ├── Icon.tsx
+│   ├── Logo.tsx
+│   ├── InlineLogo.tsx
+│   └── ProjectTheme.tsx
+└── AdminProvider.tsx               # Provider that wraps admin UI
 ```
+
+**Folder Organization Guidelines**:
+- **Component families** (main + sub-components): Use dedicated folder with barrel export
+- **Standalone components**: Can remain as single files (e.g., `ProjectSelector.tsx`)
+- **Utility functions**: Place in `utils.ts` within component folder
+- **Types**: Export alongside components in barrel export
 
 **Naming Convention**:
 - Server components: No special suffix needed
 - Client components: Include `'use client'` directive at top
-- Descriptive names indicating purpose (Dashboard, Selector, etc.)
+- Folder names: Match main component name (e.g., `Dashboard/` folder contains `Dashboard.tsx`)
+- Barrel exports: Always include default export for PayloadCMS component registration
 
 ## PayloadCMS Custom Field Component Patterns
 
