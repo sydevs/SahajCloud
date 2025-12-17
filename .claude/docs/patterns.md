@@ -447,3 +447,104 @@ trash?: boolean;
 - Deleting an already-trashed item permanently removes it
 - Use `trash: true` option to include trashed items in delete operations
 - Admin UI shows a checkbox to skip trash and permanently delete
+
+## PayloadCMS Custom Endpoints Pattern
+
+When you need to combine data from multiple collections or perform complex server-side logic, use custom endpoints:
+
+### Collection Configuration
+
+```typescript
+export const Frames: CollectionConfig = {
+  slug: 'frames',
+  endpoints: [
+    {
+      path: '/by-narrator/:narratorId',
+      method: 'get',
+      handler: async (req) => {
+        const narratorId = req.routeParams?.narratorId as string
+
+        if (!narratorId) {
+          return Response.json({ error: 'Narrator ID required' }, { status: 400 })
+        }
+
+        // Server-side data joining - single request handles multiple operations
+        const narrator = await req.payload.findByID({
+          collection: 'narrators',
+          id: narratorId,
+          depth: 0,
+        })
+
+        if (!narrator) {
+          return Response.json({ error: 'Narrator not found' }, { status: 404 })
+        }
+
+        const frames = await req.payload.find({
+          collection: 'frames',
+          where: { imageSet: { equals: narrator.gender } },
+          limit: 100,
+          depth: 0,
+        })
+
+        return Response.json(frames)
+      },
+    },
+  ],
+  // ... fields
+}
+```
+
+### Client Usage
+
+```typescript
+// Single API call - no race conditions
+const [{ data, isLoading, isError }] = usePayloadAPI(
+  narratorId ? `/api/frames/by-narrator/${narratorId}` : '',
+)
+```
+
+### When to Use Custom Endpoints
+- Data from multiple collections needed together
+- Complex filtering based on related document properties
+- Avoiding N+1 query problems
+- Eliminating client-side race conditions
+
+### Key Points
+- Endpoints receive full `req` object with `req.payload` for database operations
+- Use `req.routeParams` to access URL parameters
+- Return `Response.json()` for JSON responses
+- Handle errors with appropriate HTTP status codes
+
+## Avoiding Race Conditions with usePayloadAPI
+
+The `usePayloadAPI` hook has a critical limitation: `initialParams` is captured on first render.
+
+### Anti-Pattern (Race Condition)
+
+```typescript
+// ❌ DON'T: Chain fetches with useEffect + setParams
+const [{ data: narrator }] = usePayloadAPI(narratorId ? `/api/narrators/${narratorId}` : '')
+const [{ data: frames }, { setParams }] = usePayloadAPI('/api/frames')
+
+useEffect(() => {
+  if (narrator?.gender) {
+    // This may not trigger a re-fetch reliably!
+    setParams({ where: { imageSet: { equals: narrator.gender } } })
+  }
+}, [narrator?.gender, setParams])
+```
+
+### Correct Pattern (Custom Endpoint)
+
+```typescript
+// ✅ DO: Use a custom endpoint for server-side joining
+const [{ data: frames, isLoading, isError }] = usePayloadAPI(
+  narratorId ? `/api/frames/by-narrator/${narratorId}` : '',
+)
+```
+
+### Why This Matters
+- `initialParams` uses `useState` internally - only captured on mount
+- `setParams` may not synchronize correctly with component lifecycle
+- Race conditions are hard to debug and reproduce
+- Custom endpoints eliminate the problem entirely

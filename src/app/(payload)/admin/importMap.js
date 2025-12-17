@@ -22,7 +22,8 @@ import { SlugComponent as SlugComponent_da067efb33f077846c194de60ea0fbe0 } from 
 import { default as default_4fd1c71fd4f524b65750069436adba15 } from '@/components/admin/PublishStateCell'
 import { default as default_925e2d08db87d7882c9ebbcfdb1030a4 } from '@/components/admin/PublishAtAfterInput'
 import { default as default_c3b32cae85b800f9348e9cdb8fc7a176 } from '@/components/admin/TagSelector'
-import { default as default_87bd5cef84cb6775cdc8956c9ed40dda } from '@/components/admin/MeditationFrameEditor/index.tsx'
+import { default as default_75e666f79b1160c03532515ca11818f3 } from '@/components/admin/FrameEditor/FrameListManager'
+import { default as default_e201aca8b8f7be4559f38e80e7a23040 } from '@/components/admin/FrameEditor/FrameInserter'
 import { default as default_2d3b6dcbebce75fc2ef5ac094f4218f0 } from '@/components/admin/ColorField'
 import { default as default_153ca68fe8ddf15a21abb9e4fd2a6300 } from '@/components/admin/ToggleGroupField'
 import { default as default_49cc57155f60c2bacf9eaa38c760d251 } from '@/components/admin/PermissionsTable'
@@ -68,7 +69,8 @@ export const importMap = {
   "@/components/admin/PublishStateCell#default": default_4fd1c71fd4f524b65750069436adba15,
   "@/components/admin/PublishAtAfterInput#default": default_925e2d08db87d7882c9ebbcfdb1030a4,
   "@/components/admin/TagSelector#default": default_c3b32cae85b800f9348e9cdb8fc7a176,
-  "@/components/admin/MeditationFrameEditor/index.tsx#default": default_87bd5cef84cb6775cdc8956c9ed40dda,
+  "@/components/admin/FrameEditor/FrameListManager#default": default_75e666f79b1160c03532515ca11818f3,
+  "@/components/admin/FrameEditor/FrameInserter#default": default_e201aca8b8f7be4559f38e80e7a23040,
   "@/components/admin/ColorField#default": default_2d3b6dcbebce75fc2ef5ac094f4218f0,
   "@/components/admin/ToggleGroupField#default": default_153ca68fe8ddf15a21abb9e4fd2a6300,
   "@/components/admin/PermissionsTable#default": default_49cc57155f60c2bacf9eaa38c760d251,

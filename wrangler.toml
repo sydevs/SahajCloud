@@ -102,7 +102,7 @@ jurisdiction = "eu"
 NODE_ENV = "development"
 NEXT_PUBLIC_LOG_LEVEL = "debug"  # Set to 'debug', 'info', 'warn', 'error', or 'silent'
 # SAHAJCLOUD_URL - Automatically derived from PORT env var (see src/lib/serverUrl.ts)
-WEMEDITATE_WEB_URL = "http://localhost:5173"
+WEMEDITATE_WEB_URL = "https://wemeditate-web.contact-c66.workers.dev"
 SAHAJATLAS_URL = "http://localhost:5174"
 
 # Cloudflare Services (optional in development - falls back to local storage if not set)
