@@ -14,12 +14,6 @@ import { baseStyles, inserterStyles } from './styles'
 import { formatTime, getCategoryLabel, getThumbnailUrl, isVideoFrame } from './utils'
 
 // ============================================================================
-// Constants & Types
-// ============================================================================
-
-const FRAME_LIMIT = 100
-
-// ============================================================================
 // FrameCard Subcomponent
 // ============================================================================
 
@@ -99,31 +93,11 @@ export const FrameInserter: UIFieldClientComponent = () => {
   useLivePreviewAuto() // Auto-open live preview panel
   const currentPlaybackTime = usePlaybackTime() // Listen for playback time updates
 
-  // Fetch narrator data with PayloadCMS API hook
-  const [{ data: narrator }] = usePayloadAPI(
-    narratorId ? `/api/narrators/${narratorId}` : '',
-    {
-      initialParams: {
-        select: { gender: true, name: true },
-      },
-    },
+  // Fetch frames filtered by narrator's gender using custom endpoint
+  // Server handles the narrator lookup and gender filtering in a single request
+  const [{ data: framesData, isLoading, isError }] = usePayloadAPI(
+    narratorId ? `/api/frames/by-narrator/${narratorId}` : '',
   )
-
-  // Fetch frames with PayloadCMS API hook (filtered by narrator gender)
-  const [{ data: framesData, isLoading, isError: framesError }] = usePayloadAPI('/api/frames', {
-    initialParams: {
-      limit: FRAME_LIMIT,
-      select: {
-        id: true,
-        category: true,
-        mimeType: true,
-        duration: true,
-        thumbnailUrl: true,
-        filename: true,
-      },
-      where: narrator?.gender ? { imageSet: { equals: narrator.gender } } : undefined,
-    },
-  })
 
   // Memoize available frames to prevent unnecessary re-renders
   const availableFrames: Frame[] = useMemo(() => framesData?.docs || [], [framesData?.docs])
@@ -190,7 +164,7 @@ export const FrameInserter: UIFieldClientComponent = () => {
   }
 
   // Error state
-  if (framesError) {
+  if (isError) {
     return <div style={baseStyles.errorState}>Error loading frames</div>
   }
 
