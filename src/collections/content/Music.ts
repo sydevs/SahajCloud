@@ -2,9 +2,8 @@ import type { CollectionConfig, Field } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess, createFieldAccess } from '@/lib/accessControl'
-import { sanitizeFilename } from '@/lib/fieldUtils'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
-import { createVirtualUrlField } from '@/lib/storage/urlFields'
+import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const Music: CollectionConfig = {
   slug: 'music',
@@ -22,12 +21,12 @@ export const Music: CollectionConfig = {
     hidden: handleProjectVisibility('music', ['wemeditate-web', 'wemeditate-app']),
   },
   hooks: {
-    beforeOperation: [sanitizeFilename],
-    // Removed: processFile, convertFile (Sharp processing not needed for audio files)
+    // Filename sanitization is handled by the R2 storage adapter
+    // No collection-level hooks needed for filename management
     afterRead: [trackClientUsageHook],
   },
   fields: [
-    createVirtualUrlField({
+    virtualUrlField({
       collection: 'music',
       adapter: 'r2',
     }),

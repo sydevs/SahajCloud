@@ -4,7 +4,7 @@ import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
 
 import { roleBasedAccess } from '@/lib/accessControl'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
-import { createVirtualUrlField } from '@/lib/storage/urlFields'
+import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const MusicTags: CollectionConfig = {
   slug: 'music-tags',
@@ -26,7 +26,7 @@ export const MusicTags: CollectionConfig = {
   },
   fields: [
     // Virtual URL field for CDN delivery
-    createVirtualUrlField({
+    virtualUrlField({
       collection: 'music-tags',
       adapter: 'cloudflare-images',
     }),

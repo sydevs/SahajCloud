@@ -10,6 +10,32 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 import { validateFileUpload } from './uploadValidation'
 
 /**
+ * Get Cloudflare Stream MP4 download URL for a video
+ * @param filename - The Cloudflare Stream video ID
+ * @returns URL string or undefined if delivery URL not configured
+ */
+export const getCloudflareStreamMp4Url = (filename: string): string | undefined => {
+  const deliveryUrl = process.env.CLOUDFLARE_STREAM_DELIVERY_URL
+  if (!deliveryUrl) return undefined
+  return `${deliveryUrl}/${filename}/downloads/default.mp4`
+}
+
+/**
+ * Get Cloudflare Stream thumbnail URL for a video
+ * @param filename - The Cloudflare Stream video ID
+ * @param height - Thumbnail height in pixels
+ * @returns URL string or undefined if delivery URL not configured
+ */
+export const getCloudflareStreamThumbnailUrl = (
+  filename: string,
+  height: number,
+): string | undefined => {
+  const deliveryUrl = process.env.CLOUDFLARE_STREAM_DELIVERY_URL
+  if (!deliveryUrl) return undefined
+  return `${deliveryUrl}/${filename}/thumbnails/thumbnail.jpg?height=${height}`
+}
+
+/**
  * Configuration for Cloudflare Stream adapter
  */
 export interface CloudflareStreamConfig {
@@ -49,7 +75,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
   return () => ({
     name: 'cloudflare-stream',
 
-    handleUpload: async ({ file, req }) => {
+    handleUpload: async ({ data, file, req }) => {
       try {
         // Validate file before upload
         validateFileUpload(file, { category: 'video' })
@@ -129,10 +155,16 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           })
         }
 
-        // Update both file.filename and req.file.name to the Cloudflare Stream video ID
-        // This ensures PayloadCMS stores the correct ID in the database
+        // Update filename in all locations to ensure PayloadCMS stores the Cloudflare Stream video ID
+        // - data.filename: The object that will be saved to the database (passed by reference)
+        // - file.filename: The file object used by the storage plugin
+        // - req.file.name: The original request file (for consistency)
+        // This eliminates the need for afterChange hooks to sync the filename
         file.filename = videoId
-        if (req.file) {
+        if (data) {
+          data.filename = videoId
+        }
+        if (req?.file) {
           req.file.name = videoId
         }
       } catch (error) {

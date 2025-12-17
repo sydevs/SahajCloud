@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { roleBasedAccess } from '@/lib/accessControl'
 import { adminOnlyVisibility } from '@/lib/projectVisibility'
-import { createVirtualUrlField } from '@/lib/storage/urlFields'
+import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const Files: CollectionConfig = {
   slug: 'files',
@@ -35,7 +35,7 @@ export const Files: CollectionConfig = {
         readOnly: true,
       },
     },
-    createVirtualUrlField({
+    virtualUrlField({
       collection: 'files',
       adapter: 'r2',
     }),

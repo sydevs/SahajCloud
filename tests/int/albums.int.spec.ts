@@ -36,7 +36,8 @@ describe('Albums Collection', () => {
     expect(testAlbum.artistUrl).toBe('https://example.com/artists/various')
     // Accept both image/jpeg and image/jpg (detected based on file content)
     expect(['image/jpeg', 'image/jpg']).toContain(testAlbum.mimeType)
-    expect(testAlbum.filename).toMatch(/^image-1050x700(-\d+)?-.+\.jpg$/)
+    // In tests, Payload may add numeric suffix to avoid collisions
+    expect(testAlbum.filename).toMatch(/^image-1050x700(-\d+)?\.jpg$/)
     expect(testAlbum.filesize).toBeGreaterThan(0)
   })
 
@@ -252,7 +253,10 @@ describe('Albums Collection', () => {
       expect(album).toBeDefined()
       // Accept any of the valid mimetypes for this format
       expect(format.mimetypes).toContain(album.mimeType)
-      expect(album.filename).toMatch(new RegExp(`^${format.name.replace('.', '(-\\d+)?-.+\\.')}$`))
+      // In tests, Payload may add numeric suffix to avoid collisions
+      // Regex: basename(-N)?.extension where -N is optional
+      const escapedName = format.name.replace('.', '(-\\d+)?\\.')
+      expect(album.filename).toMatch(new RegExp(`^${escapedName}$`))
     }
   })
 

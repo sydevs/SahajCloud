@@ -7,7 +7,8 @@ This project uses a comprehensive testing approach with complete test isolation:
 ### DO Test (Our Custom Code)
 
 - **Custom hooks** (`src/hooks/`) - Business logic like `validateClientData`, `checkHighUsageAlert`
-- **Custom utilities** (`src/lib/fieldUtils.ts`) - `sanitizeFilename`, `processFile`
+- **Custom utilities** (`src/lib/fieldUtils.ts`) - `processFile`
+- **Storage utilities** (`src/lib/storage/`) - URL field factories, adapter filename sanitization
 - **Access control functions** (`src/lib/accessControl.ts`) - `hasPermission()`, `roleBasedAccess()`
 - **Custom field logic** - Virtual fields, computed values, custom validation
 - **Document-level permissions** - `customResourceAccess` behavior
@@ -30,7 +31,8 @@ This project uses a comprehensive testing approach with complete test isolation:
 | File | Purpose |
 |------|---------|
 | `client-hooks.int.spec.ts` | Tests for client beforeChange/afterChange hooks |
-| `field-utils.int.spec.ts` | Tests for sanitizeFilename and processFile utilities |
+| `field-utils.int.spec.ts` | Tests for processFile utility |
+| `storage-utils.int.spec.ts` | Tests for URL field factories and R2 adapter filename sanitization |
 | `role-based-access.int.spec.ts` | Tests for hasPermission(), customResourceAccess, locale permissions |
 | `usage-tracking.int.spec.ts` | Tests for API usage tracking job handlers |
 | `[collection].int.spec.ts` | Collection-specific business logic (relationships, custom fields) |
@@ -144,6 +146,28 @@ describe('My Collection', () => {
   })
 })
 ```
+
+## Common Testing Patterns
+
+### Upload Collection Filename Assertions
+
+When testing upload collections (Files, Music, Meditations, etc.), Payload CMS automatically adds numeric suffixes to filenames to prevent collisions. Tests should use regex patterns instead of exact matches:
+
+```typescript
+// ❌ DON'T: Exact match (fails when Payload adds collision suffix)
+expect(music.filename).toBe('audio-42s.mp3')
+
+// ✅ DO: Regex pattern allowing optional numeric suffix
+expect(music.filename).toMatch(/^audio-42s(-\d+)?\.mp3$/)
+
+// For filenames with dots in the name
+const escapedName = format.name.replace('.', '(-\\d+)?\\.')
+expect(music.filename).toMatch(new RegExp(`^${escapedName}$`))
+```
+
+This pattern accounts for filenames like:
+- `audio-42s.mp3` (no collision)
+- `audio-42s-10.mp3` (collision avoided)
 
 ## Test Configuration
 

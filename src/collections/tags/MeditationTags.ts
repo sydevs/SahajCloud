@@ -6,7 +6,7 @@ import { ColorField } from '@/fields/ColorField'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
-import { createVirtualUrlField } from '@/lib/storage/urlFields'
+import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const MeditationTags: CollectionConfig = {
   slug: 'meditation-tags',
@@ -31,7 +31,7 @@ export const MeditationTags: CollectionConfig = {
   },
   fields: [
     // Virtual URL field for CDN delivery
-    createVirtualUrlField({
+    virtualUrlField({
       collection: 'meditation-tags',
       adapter: 'cloudflare-images',
     }),

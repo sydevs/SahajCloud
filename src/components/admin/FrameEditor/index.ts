@@ -9,7 +9,7 @@ export {
   validateTimestamp,
   getCategoryLabel,
   isVideoFrame,
-  getThumbnailUrl,
+  getPreviewUrl,
 } from './utils'
 
 // Hooks

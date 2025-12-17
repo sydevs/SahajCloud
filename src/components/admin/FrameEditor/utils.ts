@@ -70,11 +70,11 @@ export const isVideoFrame = (mimeType?: string | null): boolean => {
 }
 
 /**
- * Get the thumbnail URL for a frame, falling back to the main URL
+ * Get the preview URL for a frame, falling back to the main URL
  */
-export const getThumbnailUrl = (frame: {
-  thumbnailUrl?: string | null
+export const getPreviewUrl = (frame: {
+  previewUrl?: string | null
   url?: string | null
 }): string | undefined => {
-  return frame.thumbnailUrl || frame.url || undefined
+  return frame.previewUrl || frame.url || undefined
 }

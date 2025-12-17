@@ -98,6 +98,52 @@ const { name, label, options } = field as SelectFieldClient
 - Avoids type mismatches and conversion issues
 - Leverages library's type safety and documentation
 
+## Field Factory Naming Convention
+
+When creating factory functions that generate PayloadCMS field configurations, follow the lowercase camelCase pattern without `create` prefix.
+
+### Convention
+
+```typescript
+// ✅ DO: Use lowercase camelCase without prefix
+virtualUrlField({ collection, adapter })
+previewUrlField({ collection })
+streamMp4UrlField({ collection })
+slugField('title')
+
+// ❌ DON'T: Use create* prefix
+createVirtualUrlField()
+createPreviewUrlField()
+
+// ❌ DON'T: Use PascalCase
+VirtualUrlField()
+CreatePreviewUrlField()
+```
+
+### Rationale
+- Aligns with PayloadCMS patterns (e.g., `SlugField` from Better Fields plugin)
+- Keeps the API surface consistent across the codebase
+- Matches common field factory conventions in React/TypeScript ecosystems
+
+### Locations
+- URL field factories: `src/lib/storage/urlFields.ts`
+- Custom field factories: `src/fields/`
+
+### Examples in Codebase
+
+```typescript
+// src/collections/content/Meditations.ts
+fields: [
+  virtualUrlField({ collection: 'meditations', adapter: 'r2' }),
+]
+
+// src/collections/system/Frames.ts
+fields: [
+  previewUrlField({ collection: 'frames' }),
+  streamMp4UrlField({ collection: 'frames' }),
+]
+```
+
 ## Permission Checking Pattern
 
 When implementing or modifying permission checks, follow these guidelines:

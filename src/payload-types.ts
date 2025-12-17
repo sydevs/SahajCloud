@@ -745,12 +745,11 @@ export interface Lecture {
  */
 export interface Frame {
   id: number;
-  thumbnailUrl?: string | null;
+  previewUrl?: string | null;
   /**
    * Direct MP4 URL for HTML5 video playback
    */
   streamMp4Url?: string | null;
-  previewUrl?: string | null;
   imageSet: 'male' | 'female';
   category:
     | 'mooladhara'
@@ -1553,9 +1552,8 @@ export interface LecturesSelect<T extends boolean = true> {
  * via the `definition` "frames_select".
  */
 export interface FramesSelect<T extends boolean = true> {
-  thumbnailUrl?: T;
-  streamMp4Url?: T;
   previewUrl?: T;
+  streamMp4Url?: T;
   imageSet?: T;
   category?: T;
   tags?: T;
