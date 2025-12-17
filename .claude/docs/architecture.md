@@ -49,13 +49,14 @@ Factory functions for creating virtual URL fields with consistent CDN URL genera
 - `virtualUrlField({ collection, adapter })` - Base URL field for any storage adapter
 - `previewUrlField({ collection, width?, height? })` - Preview/thumbnail URLs for images/videos
 - `streamMp4UrlField({ collection })` - MP4 download URLs for Cloudflare Stream videos
+- `frameUrlField({ collection })` - Full resolution URLs for mixed media (images → Cloudflare Images, videos → Stream MP4)
 
 **Usage Example**:
 ```typescript
 fields: [
   virtualUrlField({ collection: 'meditations', adapter: 'r2' }),
+  frameUrlField({ collection: 'frames' }),
   previewUrlField({ collection: 'frames', width: 320, height: 320 }),
-  streamMp4UrlField({ collection: 'frames' }),
 ]
 ```
 
@@ -102,7 +103,7 @@ r2NativeAdapter({
 - **Lectures** (`src/collections/resources/Lectures.ts`) - Lecture video content with thumbnails, URLs, subtitles, and categorization
 
 ### System Collections
-- **Frames** (`src/collections/system/Frames.ts`) - Mixed media upload (images/videos) with Cloudflare Images for images and Cloudflare Stream for videos, automatic thumbnail generation, virtual fields (`previewUrl`, `streamMp4Url`), tags filtering, and imageSet selection
+- **Frames** (`src/collections/system/Frames.ts`) - Mixed media upload (images/videos) with Cloudflare Images for images and Cloudflare Stream for videos, virtual fields (`url` for full resolution, `previewUrl` for thumbnails), tags filtering, and imageSet selection
 - **Files** (`src/collections/system/Files.ts`) - Generic file storage using R2 native bindings for audio, video, and PDF files with trash support and automatic orphan cleanup via the CleanupOrphanedMedia job
 
 ### Tag Collections

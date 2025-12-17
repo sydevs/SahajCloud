@@ -9,6 +9,23 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 import { validateFileUpload } from './uploadValidation'
 
 /**
+ * Get Cloudflare Images URL for a filename
+ * @param filename - The Cloudflare Image ID
+ * @param variant - Optional variant/transformation string (e.g., "format=auto,width=320")
+ * @returns URL string or undefined if delivery URL not configured
+ */
+export const getCloudflareImagesUrl = (
+  filename: string,
+  variant?: string,
+): string | undefined => {
+  const deliveryUrl = process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
+  if (!deliveryUrl) return undefined
+  return variant
+    ? `${deliveryUrl}/${filename}/${variant}`
+    : `${deliveryUrl}/${filename}/`
+}
+
+/**
  * Configuration for Cloudflare Images adapter
  */
 export interface CloudflareImagesConfig {

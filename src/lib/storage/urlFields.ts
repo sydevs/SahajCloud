@@ -1,5 +1,22 @@
 import type { Field, FieldHook } from 'payload'
 
+import { getCloudflareImagesUrl } from './cloudflareImagesAdapter'
+import {
+  getCloudflareStreamMp4Url,
+  getCloudflareStreamThumbnailUrl,
+} from './cloudflareStreamAdapter'
+import { getR2Url } from './r2NativeAdapter'
+
+/**
+ * Get local PayloadCMS fallback URL for development
+ */
+const getLocalFallbackUrl = (collection: string, filename: string): string =>
+  `/api/${collection}/file/${filename}`
+
+// ============================================================================
+// Types
+// ============================================================================
+
 /**
  * Storage adapter type for URL generation
  */
@@ -53,6 +70,16 @@ interface StreamMp4UrlFieldOptions {
 }
 
 /**
+ * Options for creating a frame URL field (mixed image/video content)
+ */
+interface FrameUrlFieldOptions {
+  /**
+   * The collection slug (used for development fallback URL)
+   */
+  collection: string
+}
+
+/**
  * Creates a virtual URL field for upload collections
  *
  * This utility generates a consistent virtual URL field that:
@@ -89,31 +116,17 @@ export const virtualUrlField = (options: VirtualUrlFieldOptions): Field => {
     if (!data?.filename) return undefined
 
     if (adapter === 'cloudflare-images') {
-      // Generate Cloudflare Images URL if in production with credentials
-      const deliveryUrl = process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
-      if (deliveryUrl) {
-        return `${deliveryUrl}/${data.filename}/`
-      }
-      // Fallback to PayloadCMS static file serving in development
-      return `/api/${collection}/file/${data.filename}`
+      return getCloudflareImagesUrl(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
     }
 
     if (adapter === 'cloudflare-stream') {
-      // Generate Cloudflare Stream URL if in production with credentials
-      const deliveryUrl = process.env.CLOUDFLARE_STREAM_DELIVERY_URL
-      if (deliveryUrl) {
-        return `${deliveryUrl}/${data.filename}/downloads/default.mp4`
-      }
-      // Fallback to PayloadCMS static file serving in development
-      return `/api/${collection}/file/${data.filename}`
+      return (
+        getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
+      )
     }
 
-    // R2 Storage
-    if (data.filename && process.env.CLOUDFLARE_R2_DELIVERY_URL) {
-      return `${process.env.CLOUDFLARE_R2_DELIVERY_URL}/${data.filename}`
-    }
-    // Fallback to PayloadCMS-generated URL (local storage in development)
-    return data?.url
+    // R2 Storage - falls back to PayloadCMS-generated URL
+    return getR2Url(data.filename) ?? data?.url
   }
 
   return {
@@ -155,25 +168,22 @@ export const previewUrlField = (options: PreviewUrlFieldOptions): Field => {
     if (!data?.filename) return undefined
 
     if (data.mimeType?.startsWith('video/')) {
-      // Cloudflare Stream thumbnail
-      const deliveryUrl = process.env.CLOUDFLARE_STREAM_DELIVERY_URL
-      if (deliveryUrl) {
-        return `${deliveryUrl}/${data.filename}/thumbnails/thumbnail.jpg?height=${height}`
-      }
-      // Fallback to PayloadCMS static file serving for videos
-      return `/api/${collection}/file/${data.filename}`
-    } else if (data.mimeType?.startsWith('image/')) {
-      // Cloudflare Images thumbnail with transformations
-      const deliveryUrl = process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
-      if (deliveryUrl) {
-        return `${deliveryUrl}/${data.filename}/format=auto,width=${width},height=${height},fit=cover`
-      }
-      // Fallback to PayloadCMS static file serving for images
-      return `/api/${collection}/file/${data.filename}`
+      return (
+        getCloudflareStreamThumbnailUrl(data.filename, height) ??
+        getLocalFallbackUrl(collection, data.filename)
+      )
+    }
+
+    if (data.mimeType?.startsWith('image/')) {
+      const variant = `format=auto,width=${width},height=${height},fit=cover`
+      return (
+        getCloudflareImagesUrl(data.filename, variant) ??
+        getLocalFallbackUrl(collection, data.filename)
+      )
     }
 
     // Fallback for unknown MIME types
-    return `/api/${collection}/file/${data.filename}`
+    return getLocalFallbackUrl(collection, data.filename)
   }
 
   return {
@@ -218,14 +228,9 @@ export const streamMp4UrlField = (options: StreamMp4UrlFieldOptions): Field => {
       return undefined
     }
 
-    // Cloudflare Stream MP4 download URL
-    const deliveryUrl = process.env.CLOUDFLARE_STREAM_DELIVERY_URL
-    if (deliveryUrl) {
-      return `${deliveryUrl}/${data.filename}/downloads/default.mp4`
-    }
-
-    // Fallback to PayloadCMS static file serving
-    return `/api/${collection}/file/${data.filename}`
+    return (
+      getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
+    )
   }
 
   return {
@@ -243,3 +248,52 @@ export const streamMp4UrlField = (options: StreamMp4UrlFieldOptions): Field => {
   }
 }
 
+/**
+ * Creates a virtual URL field for mixed media collections (images and videos)
+ *
+ * Returns full resolution URLs based on content type:
+ * - Images: Cloudflare Images URL (full resolution)
+ * - Videos: Cloudflare Stream MP4 download URL
+ *
+ * @param options - Configuration for URL generation
+ * @returns A Field configuration for the virtual URL field
+ *
+ * @example Frames collection
+ * ```typescript
+ * fields: [
+ *   frameUrlField({
+ *     collection: 'frames',
+ *   }),
+ * ]
+ * ```
+ */
+export const frameUrlField = (options: FrameUrlFieldOptions): Field => {
+  const { collection } = options
+
+  const afterReadHook: FieldHook = ({ data }) => {
+    if (!data?.filename) return undefined
+
+    if (data.mimeType?.startsWith('video/')) {
+      return (
+        getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
+      )
+    }
+
+    if (data.mimeType?.startsWith('image/')) {
+      return getCloudflareImagesUrl(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
+    }
+
+    // Fallback for unknown MIME types
+    return getLocalFallbackUrl(collection, data.filename)
+  }
+
+  return {
+    name: 'url',
+    type: 'text',
+    virtual: true,
+    hooks: {
+      afterRead: [afterReadHook],
+    },
+    admin: { hidden: true },
+  }
+}

@@ -11,6 +11,7 @@ import {
   virtualUrlField,
   previewUrlField,
   streamMp4UrlField,
+  frameUrlField,
 } from '@/lib/storage/urlFields'
 import { sanitizeFilename } from '@/lib/storage/r2NativeAdapter'
 
@@ -302,6 +303,96 @@ describe('URL Field Factories', () => {
       })
 
       expect(field.name).toBe('streamMp4Url')
+      expect(field.type).toBe('text')
+      expect('virtual' in field && field.virtual).toBe(true)
+    })
+  })
+
+  describe('frameUrlField', () => {
+    it('generates Cloudflare Images URL for images', () => {
+      process.env.CLOUDFLARE_IMAGES_DELIVERY_URL = 'https://imagedelivery.net/abc123'
+
+      const field = frameUrlField({
+        collection: 'frames',
+      })
+
+      const hook = getAfterReadHook(field)
+      const url = hook!({ data: { filename: 'image-id', mimeType: 'image/jpeg' } } as never)
+      expect(url).toBe('https://imagedelivery.net/abc123/image-id/')
+    })
+
+    it('generates Cloudflare Stream MP4 URL for videos', () => {
+      process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
+
+      const field = frameUrlField({
+        collection: 'frames',
+      })
+
+      const hook = getAfterReadHook(field)
+      const url = hook!({ data: { filename: 'video-id', mimeType: 'video/mp4' } } as never)
+      expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/downloads/default.mp4')
+    })
+
+    it('falls back to local URL for images when Images URL is not set', () => {
+      delete process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
+
+      const field = frameUrlField({
+        collection: 'frames',
+      })
+
+      const hook = getAfterReadHook(field)
+      const url = hook!({ data: { filename: 'image.jpg', mimeType: 'image/jpeg' } } as never)
+      expect(url).toBe('/api/frames/file/image.jpg')
+    })
+
+    it('falls back to local URL for videos when Stream URL is not set', () => {
+      delete process.env.CLOUDFLARE_STREAM_DELIVERY_URL
+
+      const field = frameUrlField({
+        collection: 'frames',
+      })
+
+      const hook = getAfterReadHook(field)
+      const url = hook!({ data: { filename: 'video.mp4', mimeType: 'video/mp4' } } as never)
+      expect(url).toBe('/api/frames/file/video.mp4')
+    })
+
+    it('falls back to local URL for unknown MIME types', () => {
+      const field = frameUrlField({
+        collection: 'frames',
+      })
+
+      const hook = getAfterReadHook(field)
+      const url = hook!({ data: { filename: 'file.pdf', mimeType: 'application/pdf' } } as never)
+      expect(url).toBe('/api/frames/file/file.pdf')
+    })
+
+    it('returns undefined when no filename', () => {
+      const field = frameUrlField({
+        collection: 'frames',
+      })
+
+      const hook = getAfterReadHook(field)
+      const url = hook!({ data: { mimeType: 'image/jpeg' } } as never)
+      expect(url).toBeUndefined()
+    })
+
+    it('returns undefined when data is null', () => {
+      const field = frameUrlField({
+        collection: 'frames',
+      })
+
+      const hook = getAfterReadHook(field)
+      const url = hook!({ data: null } as never)
+      expect(url).toBeUndefined()
+    })
+
+    it('creates a field named url', () => {
+      const field = frameUrlField({
+        collection: 'frames',
+      })
+
+      expect(field.name).toBe('url')
       expect(field.type).toBe('text')
       expect('virtual' in field && field.virtual).toBe(true)
     })

@@ -16,10 +16,10 @@ import type { Plugin } from 'payload'
 
 import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
 
-import { cloudflareImagesAdapter } from './storage/cloudflareImagesAdapter'
-import { cloudflareStreamAdapter } from './storage/cloudflareStreamAdapter'
-import { r2NativeAdapter } from './storage/r2NativeAdapter'
-import { routerAdapter } from './storage/routerAdapter'
+import { cloudflareImagesAdapter } from './cloudflareImagesAdapter'
+import { cloudflareStreamAdapter } from './cloudflareStreamAdapter'
+import { r2NativeAdapter } from './r2NativeAdapter'
+import { routerAdapter } from './routerAdapter'
 
 interface CloudflareEnv {
   // Using R2Bucket/D1Database from @cloudflare/workers-types

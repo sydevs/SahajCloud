@@ -10,6 +10,32 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 import { validateFileUpload } from './uploadValidation'
 
 /**
+ * Get Cloudflare Stream MP4 download URL for a video
+ * @param filename - The Cloudflare Stream video ID
+ * @returns URL string or undefined if delivery URL not configured
+ */
+export const getCloudflareStreamMp4Url = (filename: string): string | undefined => {
+  const deliveryUrl = process.env.CLOUDFLARE_STREAM_DELIVERY_URL
+  if (!deliveryUrl) return undefined
+  return `${deliveryUrl}/${filename}/downloads/default.mp4`
+}
+
+/**
+ * Get Cloudflare Stream thumbnail URL for a video
+ * @param filename - The Cloudflare Stream video ID
+ * @param height - Thumbnail height in pixels
+ * @returns URL string or undefined if delivery URL not configured
+ */
+export const getCloudflareStreamThumbnailUrl = (
+  filename: string,
+  height: number,
+): string | undefined => {
+  const deliveryUrl = process.env.CLOUDFLARE_STREAM_DELIVERY_URL
+  if (!deliveryUrl) return undefined
+  return `${deliveryUrl}/${filename}/thumbnails/thumbnail.jpg?height=${height}`
+}
+
+/**
  * Configuration for Cloudflare Stream adapter
  */
 export interface CloudflareStreamConfig {
