@@ -61,7 +61,7 @@ export const e2ePayloadConfig = buildConfig({
       },
       views: {
         dashboard: {
-          Component: '@/components/admin/Dashboard',
+          Component: '@/components/admin/dashboard',
         },
       },
     },
