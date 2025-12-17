@@ -54,6 +54,7 @@ const nextConfig = {
     '@payloadcms/db-d1-sqlite',
     '@payloadcms/db-sqlite',
     '@libsql/client',
+    '@libsql/isomorphic-ws', // Required for Cloudflare Workers build
     'better-sqlite3',
     'jose', // JWT library used by PayloadCMS
   ],
