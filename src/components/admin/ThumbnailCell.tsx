@@ -175,6 +175,7 @@ const RelationshipThumbnail: React.FC<{
         },
       },
       limit: 1,
+      select: { id: true, url: true, alt: true },
     },
   })
 

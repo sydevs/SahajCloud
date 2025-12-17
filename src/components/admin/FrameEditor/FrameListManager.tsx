@@ -9,15 +9,129 @@ import {
   toast,
   useField,
   useForm,
-  useLivePreviewContext,
+  usePayloadAPI,
 } from '@payloadcms/ui'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 
-import type { Narrator } from '@/payload-types'
 import type { KeyframeData } from '@/types/frames'
 
+import { useLivePreviewAuto, usePlaybackTime } from './hooks'
 import { baseStyles, listManagerStyles } from './styles'
-import { formatTime, getCategoryLabel, parseTime, validateTimestamp } from './utils'
+import {
+  formatTime,
+  getCategoryLabel,
+  getThumbnailUrl,
+  isVideoFrame,
+  parseTime,
+  validateTimestamp,
+} from './utils'
+
+// ============================================================================
+// FrameItem Subcomponent
+// ============================================================================
+
+interface FrameItemProps {
+  frame: KeyframeData
+  index: number
+  isActive: boolean
+  isEditing: boolean
+  editingValue: string
+  readOnly?: boolean
+  onEditingChange: (value: string) => void
+  onTimestampFocus: (index: number) => void
+  onTimestampCommit: (index: number) => void
+  onTimestampKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, index: number) => void
+  onRemove: (index: number) => void
+}
+
+const FrameItem: React.FC<FrameItemProps> = ({
+  frame,
+  index,
+  isActive,
+  isEditing,
+  editingValue,
+  readOnly,
+  onEditingChange,
+  onTimestampFocus,
+  onTimestampCommit,
+  onTimestampKeyDown,
+  onRemove,
+}) => {
+  const isVideo = isVideoFrame(frame.mimeType)
+  const thumbnailUrl = getThumbnailUrl(frame)
+  const categoryLabel = frame.category ? getCategoryLabel(frame.category) : `Frame ${frame.id}`
+
+  return (
+    <div
+      style={{
+        ...listManagerStyles.frameItem,
+        ...(isActive ? listManagerStyles.frameItemActive : {}),
+      }}
+    >
+      {/* Thumbnail */}
+      <div style={baseStyles.thumbnailContainer}>
+        {thumbnailUrl ? (
+          <img src={thumbnailUrl} alt={frame.category || 'Frame'} style={baseStyles.thumbnail} />
+        ) : (
+          <div style={baseStyles.thumbnail} />
+        )}
+        {isVideo && (
+          <div style={listManagerStyles.videoIndicator}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
+              <polygon points="5,3 19,12 5,21" />
+            </svg>
+          </div>
+        )}
+      </div>
+
+      {/* Frame Info */}
+      <div style={listManagerStyles.frameInfo}>
+        <div style={baseStyles.frameCategory}>{categoryLabel}</div>
+        {frame.tags && frame.tags.length > 0 && (
+          <div style={listManagerStyles.frameTags}>{frame.tags.join(', ')}</div>
+        )}
+      </div>
+
+      {/* Timestamp Input */}
+      <input
+        type="text"
+        value={isEditing ? editingValue : formatTime(frame.timestamp)}
+        onChange={(e) => onEditingChange(e.target.value)}
+        onFocus={() => onTimestampFocus(index)}
+        onBlur={() => onTimestampCommit(index)}
+        onKeyDown={(e) => onTimestampKeyDown(e, index)}
+        disabled={readOnly}
+        style={listManagerStyles.timestampInput}
+        title="Frame timestamp (MM:SS). Press Enter to save, Escape to cancel."
+      />
+
+      {/* Remove Button */}
+      <button
+        type="button"
+        onClick={() => onRemove(index)}
+        disabled={readOnly}
+        style={listManagerStyles.removeButton}
+        title="Remove frame"
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = 'var(--theme-error-500)'
+          e.currentTarget.style.backgroundColor = 'var(--theme-error-100)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = 'var(--theme-elevation-400)'
+          e.currentTarget.style.backgroundColor = 'transparent'
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+        </svg>
+      </button>
+    </div>
+  )
+}
+
+// ============================================================================
+// FrameListManager Component
+// ============================================================================
 
 /**
  * FrameListManager - Custom field component for managing meditation frames
@@ -42,62 +156,25 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
   const { value, setValue, showError } = useField<KeyframeData[]>()
   const frames = useMemo(() => value || [], [value])
 
-  // Live preview context for auto-opening
-  const { setIsLivePreviewing } = useLivePreviewContext()
+  // Get form data for narrator field
+  const { getData } = useForm()
+  const formData = getData()
+  const narratorId = formData?.narrator as string | number | undefined
 
-  // Current playback time from live preview
-  const [currentPlaybackTime, setCurrentPlaybackTime] = useState(0)
+  // Custom hooks for shared functionality
+  useLivePreviewAuto() // Auto-open live preview panel
+  const currentPlaybackTime = usePlaybackTime() // Listen for playback time updates
+
+  // Fetch narrator data with PayloadCMS API hook
+  const [{ data: narrator, isLoading }] = usePayloadAPI(
+    narratorId ? `/api/narrators/${narratorId}` : '',
+    { initialParams: { select: { gender: true, name: true } } },
+  )
 
   // Local editing state for timestamp inputs
   // Allows user to type freely without immediate validation/revert
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editingValue, setEditingValue] = useState<string>('')
-
-  // Loading state for narrator fetch
-  const [narrator, setNarrator] = useState<Narrator | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  // Get form data for narrator field
-  const { getData } = useForm()
-
-  // Auto-open live preview when component mounts
-  useEffect(() => {
-    setIsLivePreviewing(true)
-  }, [setIsLivePreviewing])
-
-  // Listen for playback time updates from live preview iframe
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'PLAYBACK_TIME_UPDATE') {
-        setCurrentPlaybackTime(event.data.currentTime)
-      }
-    }
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [])
-
-  // Load narrator data
-  useEffect(() => {
-    const loadNarrator = async () => {
-      try {
-        setIsLoading(true)
-        const formData = getData()
-        const narratorId = formData?.narrator
-
-        if (narratorId && typeof window !== 'undefined') {
-          const response = await fetch(`/api/narrators/${narratorId}`)
-          if (response.ok) {
-            const data = (await response.json()) as Narrator
-            setNarrator(data)
-          }
-        }
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadNarrator()
-  }, [getData])
 
   // Get the currently active frame based on playback time
   const activeFrameIndex = useMemo(() => {
@@ -185,29 +262,6 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
     [frames, setValue],
   )
 
-  // Render thumbnail
-  const renderThumbnail = (frame: KeyframeData) => {
-    const isVideo = frame.mimeType?.startsWith('video/')
-    const thumbnailUrl = frame.thumbnailUrl || frame.url
-
-    return (
-      <div style={baseStyles.thumbnailContainer}>
-        {thumbnailUrl ? (
-          <img src={thumbnailUrl} alt={frame.category || 'Frame'} style={baseStyles.thumbnail} />
-        ) : (
-          <div style={baseStyles.thumbnail} />
-        )}
-        {isVideo && (
-          <div style={listManagerStyles.videoIndicator}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
-              <polygon points="5,3 19,12 5,21" />
-            </svg>
-          </div>
-        )}
-      </div>
-    )
-  }
-
   // Build CSS classes
   const fieldClasses = ['field-type', 'json', showError && 'error', readOnly && 'read-only']
     .filter(Boolean)
@@ -242,63 +296,22 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
             </div>
           ) : (
             <div style={listManagerStyles.frameList}>
-              {frames.map((frame, index) => {
-                const isActive = index === activeFrameIndex
-                const categoryLabel = frame.category
-                  ? getCategoryLabel(frame.category)
-                  : `Frame ${frame.id}`
-
-                return (
-                  <div
-                    key={`${frame.id}-${frame.timestamp}`}
-                    style={{
-                      ...listManagerStyles.frameItem,
-                      ...(isActive ? listManagerStyles.frameItemActive : {}),
-                    }}
-                  >
-                    {renderThumbnail(frame)}
-
-                    <div style={listManagerStyles.frameInfo}>
-                      <div style={baseStyles.frameCategory}>{categoryLabel}</div>
-                      {frame.tags && frame.tags.length > 0 && (
-                        <div style={listManagerStyles.frameTags}>{frame.tags.join(', ')}</div>
-                      )}
-                    </div>
-
-                    <input
-                      type="text"
-                      value={editingIndex === index ? editingValue : formatTime(frame.timestamp)}
-                      onChange={(e) => setEditingValue(e.target.value)}
-                      onFocus={() => handleTimestampFocus(index)}
-                      onBlur={() => handleTimestampCommit(index)}
-                      onKeyDown={(e) => handleTimestampKeyDown(e, index)}
-                      disabled={readOnly}
-                      style={listManagerStyles.timestampInput}
-                      title="Frame timestamp (MM:SS). Press Enter to save, Escape to cancel."
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFrame(index)}
-                      disabled={readOnly}
-                      style={listManagerStyles.removeButton}
-                      title="Remove frame"
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.color = 'var(--theme-error-500)'
-                        e.currentTarget.style.backgroundColor = 'var(--theme-error-100)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.color = 'var(--theme-elevation-400)'
-                        e.currentTarget.style.backgroundColor = 'transparent'
-                      }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-                      </svg>
-                    </button>
-                  </div>
-                )
-              })}
+              {frames.map((frame, index) => (
+                <FrameItem
+                  key={`${frame.id}-${frame.timestamp}`}
+                  frame={frame}
+                  index={index}
+                  isActive={index === activeFrameIndex}
+                  isEditing={editingIndex === index}
+                  editingValue={editingValue}
+                  readOnly={readOnly}
+                  onEditingChange={setEditingValue}
+                  onTimestampFocus={handleTimestampFocus}
+                  onTimestampCommit={handleTimestampCommit}
+                  onTimestampKeyDown={handleTimestampKeyDown}
+                  onRemove={handleRemoveFrame}
+                />
+              ))}
             </div>
           )}
 

@@ -2,31 +2,88 @@
 
 import type { UIFieldClientComponent } from 'payload'
 
-import { Pill, toast, useField, useLivePreviewContext } from '@payloadcms/ui'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { Pill, toast, useField, usePayloadAPI } from '@payloadcms/ui'
+import React, { useCallback, useMemo, useState } from 'react'
 
 import { FRAME_CATEGORIES } from '@/lib/data'
-import type { Frame, Narrator } from '@/payload-types'
+import type { Frame } from '@/payload-types'
 import type { KeyframeData, KeyframeDefinition } from '@/types/frames'
 
+import { useLivePreviewAuto, usePlaybackTime } from './hooks'
 import { baseStyles, inserterStyles } from './styles'
-import { formatTime, getCategoryLabel } from './utils'
+import { formatTime, getCategoryLabel, getThumbnailUrl, isVideoFrame } from './utils'
 
 // ============================================================================
-// Constants
+// Constants & Types
 // ============================================================================
 
-const BATCH_SIZE = 1000
+const FRAME_LIMIT = 100
 
 // ============================================================================
-// Component
+// FrameCard Subcomponent
+// ============================================================================
+
+interface FrameCardProps {
+  frame: Frame
+  isHovered: boolean
+  isClicked: boolean
+  insertionTimestamp: number
+  onInsert: (frame: Frame) => void
+  onHover: (id: string | number | null) => void
+}
+
+const FrameCard: React.FC<FrameCardProps> = ({
+  frame,
+  isHovered,
+  isClicked,
+  insertionTimestamp,
+  onInsert,
+  onHover,
+}) => {
+  const isVideo = isVideoFrame(frame.mimeType)
+  const thumbnailUrl = getThumbnailUrl(frame)
+
+  return (
+    <div
+      style={{
+        ...inserterStyles.frameCard,
+        ...(isHovered ? inserterStyles.frameCardHover : {}),
+        ...(isClicked ? inserterStyles.frameCardSelected : {}),
+      }}
+      onClick={() => onInsert(frame)}
+      onMouseEnter={() => onHover(frame.id)}
+      onMouseLeave={() => onHover(null)}
+      title={`Insert ${getCategoryLabel(frame.category || '')} at ${formatTime(insertionTimestamp)}`}
+    >
+      {thumbnailUrl ? (
+        <img
+          src={thumbnailUrl}
+          alt={frame.category || 'Frame'}
+          style={inserterStyles.frameThumbnail}
+          loading="lazy"
+        />
+      ) : (
+        <div style={inserterStyles.frameThumbnail} />
+      )}
+
+      {isVideo && <div style={inserterStyles.videoIndicator}>{frame.duration}s</div>}
+
+      <div style={inserterStyles.frameInfo}>
+        <div style={inserterStyles.frameCategory}>{getCategoryLabel(frame.category || '')}</div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// FrameInserter Component
 // ============================================================================
 
 /**
  * FrameInserter - UI component for browsing and inserting frames into meditations
  *
  * Features:
- * - 2-column grid of available frames
+ * - 3-column grid of available frames
  * - Category filtering with Pills (click to toggle)
  * - Gender-based filtering from narrator
  * - Insert frame at current playback time
@@ -38,87 +95,47 @@ export const FrameInserter: UIFieldClientComponent = () => {
   const { value: frames, setValue: setFrames } = useField<KeyframeData[]>({ path: 'frames' })
   const { value: narratorId } = useField<string>({ path: 'narrator' })
 
-  // Live preview context
-  const { setIsLivePreviewing } = useLivePreviewContext()
+  // Custom hooks for shared functionality
+  useLivePreviewAuto() // Auto-open live preview panel
+  const currentPlaybackTime = usePlaybackTime() // Listen for playback time updates
 
-  // Component state
-  const [availableFrames, setAvailableFrames] = useState<Frame[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Fetch narrator data with PayloadCMS API hook
+  const [{ data: narrator }] = usePayloadAPI(
+    narratorId ? `/api/narrators/${narratorId}` : '',
+    {
+      initialParams: {
+        select: { gender: true, name: true },
+      },
+    },
+  )
+
+  // Fetch frames with PayloadCMS API hook (filtered by narrator gender)
+  const [{ data: framesData, isLoading, isError: framesError }] = usePayloadAPI('/api/frames', {
+    initialParams: {
+      limit: FRAME_LIMIT,
+      select: {
+        id: true,
+        category: true,
+        mimeType: true,
+        duration: true,
+        thumbnailUrl: true,
+        filename: true,
+      },
+      where: narrator?.gender ? { imageSet: { equals: narrator.gender } } : undefined,
+    },
+  })
+
+  // Memoize available frames to prevent unnecessary re-renders
+  const availableFrames: Frame[] = useMemo(() => framesData?.docs || [], [framesData?.docs])
+
+  // Component state for UI interactions
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [narrator, setNarrator] = useState<Narrator | null>(null)
-  const [currentPlaybackTime, setCurrentPlaybackTime] = useState(0)
   const [clickedFrameId, setClickedFrameId] = useState<string | number | null>(null)
   const [hoveredFrameId, setHoveredFrameId] = useState<string | number | null>(null)
 
   const currentFrames = useMemo(() => frames || [], [frames])
 
-  // Auto-open live preview when component mounts
-  useEffect(() => {
-    setIsLivePreviewing(true)
-  }, [setIsLivePreviewing])
-
-  // Listen for playback time updates from live preview iframe
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'PLAYBACK_TIME_UPDATE') {
-        setCurrentPlaybackTime(event.data.currentTime)
-      }
-    }
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [])
-
-  // Load narrator data
-  useEffect(() => {
-    const loadNarrator = async () => {
-      if (!narratorId || typeof window === 'undefined') {
-        setNarrator(null)
-        return
-      }
-
-      try {
-        const response = await fetch(`/api/narrators/${narratorId}`)
-        if (response.ok) {
-          const data = (await response.json()) as Narrator
-          setNarrator(data)
-        }
-      } catch {
-        setNarrator(null)
-      }
-    }
-
-    loadNarrator()
-  }, [narratorId])
-
-  // Load frames from API
-  useEffect(() => {
-    const loadFrames = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-
-        let framesUrl = `/api/frames?limit=${BATCH_SIZE}`
-        if (narrator?.gender) {
-          framesUrl += `&where[imageSet][equals]=${narrator.gender}`
-        }
-
-        const response = await fetch(framesUrl)
-        if (!response.ok) throw new Error('Failed to load frames')
-
-        const data = (await response.json()) as { docs: Frame[] }
-        setAvailableFrames(data.docs || [])
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load frames')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadFrames()
-  }, [narrator?.gender])
-
-  // Filter frames by selected category
+  // Filter frames by selected category (client-side, after server-side gender filter)
   const filteredFrames = useMemo(() => {
     if (!selectedCategory) return availableFrames
     return availableFrames.filter((frame) => frame.category === selectedCategory)
@@ -167,70 +184,18 @@ export const FrameInserter: UIFieldClientComponent = () => {
   // Calculate insertion timestamp for display
   const insertionTimestamp = currentFrames.length === 0 ? 0 : Math.round(currentPlaybackTime)
 
-  // Render frame card
-  const renderFrameCard = (frame: Frame) => {
-    const isHovered = hoveredFrameId === frame.id
-    const isClicked = clickedFrameId === frame.id
-    const isVideo = frame.mimeType?.startsWith('video/')
-    const thumbnailUrl = frame.thumbnailUrl || frame.url
-
-    return (
-      <div
-        key={frame.id}
-        style={{
-          ...inserterStyles.frameCard,
-          ...(isHovered ? inserterStyles.frameCardHover : {}),
-          ...(isClicked ? inserterStyles.frameCardSelected : {}),
-        }}
-        onClick={() => handleFrameInsert(frame)}
-        onMouseEnter={() => setHoveredFrameId(frame.id)}
-        onMouseLeave={() => setHoveredFrameId(null)}
-        title={`Click to insert ${getCategoryLabel(frame.category || '')} at ${formatTime(insertionTimestamp)}`}
-      >
-        {thumbnailUrl ? (
-          <img
-            src={thumbnailUrl}
-            alt={frame.category || 'Frame'}
-            style={inserterStyles.frameThumbnail}
-            loading="lazy"
-          />
-        ) : (
-          <div style={inserterStyles.frameThumbnail} />
-        )}
-
-        {isVideo && <div style={inserterStyles.videoIndicator}>{frame.duration}s</div>}
-
-        <div style={inserterStyles.frameInfo}>
-          <div style={inserterStyles.frameCategory}>{getCategoryLabel(frame.category || '')}</div>
-        </div>
-      </div>
-    )
-  }
-
   // Loading state
   if (isLoading) {
     return <div style={baseStyles.loadingState}>Loading frames...</div>
   }
 
   // Error state
-  if (error) {
-    return <div style={baseStyles.errorState}>Error: {error}</div>
+  if (framesError) {
+    return <div style={baseStyles.errorState}>Error loading frames</div>
   }
 
   return (
     <div style={inserterStyles.container}>
-      {/* Instructions Panel */}
-      <div style={inserterStyles.instructionsPanel}>
-        <span style={inserterStyles.instructionsHighlight}>Click any frame</span> to insert at{' '}
-        <strong>{formatTime(insertionTimestamp)}</strong>
-        {currentFrames.length === 0 && <span> (first frame will be placed at 0:00)</span>}
-        {narrator?.gender && (
-          <span style={{ marginLeft: '8px', opacity: 0.8 }}>
-            Filtered for {narrator.gender} poses
-          </span>
-        )}
-      </div>
-
       {/* Category Filters */}
       <div style={inserterStyles.categoryFilters}>
         {FRAME_CATEGORIES.map((category) => (
@@ -244,24 +209,27 @@ export const FrameInserter: UIFieldClientComponent = () => {
         ))}
       </div>
 
-      {/* Header Info */}
-      <div style={inserterStyles.headerInfo}>
-        <span>
-          {filteredFrames.length} frame{filteredFrames.length !== 1 ? 's' : ''}
-          {selectedCategory && ` in ${getCategoryLabel(selectedCategory)}`}
-        </span>
-        <span>{currentFrames.length} selected</span>
-      </div>
-
       {/* Frames Grid */}
       {filteredFrames.length === 0 ? (
         <div style={baseStyles.emptyState}>
           {selectedCategory
-            ? `No frames found in ${getCategoryLabel(selectedCategory)} category.`
+            ? `No frames in ${getCategoryLabel(selectedCategory)}.`
             : 'No frames available.'}
         </div>
       ) : (
-        <div style={inserterStyles.framesGrid}>{filteredFrames.map(renderFrameCard)}</div>
+        <div style={inserterStyles.framesGrid}>
+          {filteredFrames.map((frame) => (
+            <FrameCard
+              key={frame.id}
+              frame={frame}
+              isHovered={hoveredFrameId === frame.id}
+              isClicked={clickedFrameId === frame.id}
+              insertionTimestamp={insertionTimestamp}
+              onInsert={handleFrameInsert}
+              onHover={setHoveredFrameId}
+            />
+          ))}
+        </div>
       )}
     </div>
   )

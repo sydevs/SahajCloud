@@ -2,31 +2,10 @@
 
 import type { FieldClientComponent, RelationshipFieldClient } from 'payload'
 
-import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
+import { FieldDescription, FieldError, FieldLabel, useField, usePayloadAPI } from '@payloadcms/ui'
 import React, { useMemo } from 'react'
-import useSWR from 'swr'
 
 import { TagSelector, type TagOption, type TagSelectorSize } from './TagSelector'
-
-/**
- * Payload API response structure
- */
-interface TagsApiResponse {
-  docs: TagOption[]
-  totalDocs: number
-  limit: number
-  page: number
-}
-
-/**
- * Fetcher function for SWR
- * Required because SWR doesn't have a global fetcher configured
- */
-const fetcher = (url: string): Promise<TagsApiResponse> =>
-  fetch(url).then((res) => {
-    if (!res.ok) throw new Error(`Failed to fetch tags: ${res.statusText}`)
-    return res.json()
-  })
 
 /**
  * Tag Selector Field Component
@@ -44,7 +23,7 @@ const fetcher = (url: string): Promise<TagsApiResponse> =>
  *
  * Features:
  * - Automatic tag loading from API based on relationTo collection
- * - SWR-based caching with request deduplication
+ * - Uses PayloadCMS usePayloadAPI hook with optimized field selection
  * - Loading and error states with user feedback
  * - Full integration with PayloadCMS validation and error handling
  * - Read-only mode support
@@ -103,13 +82,16 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
   // Use Payload's field hook for state management
   const { value, setValue, showError } = useField<(string | number)[] | string | number | null>()
 
-  // Fetch tags from API with SWR caching
+  // Fetch tags from API with PayloadCMS API hook
   const collection = Array.isArray(relationTo) ? relationTo[0] : relationTo
-  const { data, error, isLoading } = useSWR<TagsApiResponse>(
-    `/api/${collection}?limit=100&depth=0`,
-    fetcher,
-  )
-  const tags = data?.docs || []
+  const [{ data, isLoading, isError }] = usePayloadAPI(`/api/${collection}`, {
+    initialParams: {
+      limit: 100,
+      depth: 0,
+      select: { id: true, title: true, url: true, color: true },
+    },
+  })
+  const tags: TagOption[] = data?.docs || []
 
   // Normalize value to array for consistent handling
   const selectedIds = useMemo(() => {
@@ -174,7 +156,7 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
           </div>
         )}
 
-        {error && (
+        {isError && (
           <div
             style={{
               padding: 'calc(var(--base) * 0.5)',
@@ -182,11 +164,11 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
               fontSize: 'calc(var(--base-body-size) * 1px)',
             }}
           >
-            {error.message}
+            Error loading tags
           </div>
         )}
 
-        {!isLoading && !error && tags.length === 0 && (
+        {!isLoading && !isError && tags.length === 0 && (
           <div
             style={{
               padding: 'calc(var(--base) * 0.5)',
@@ -198,7 +180,7 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
           </div>
         )}
 
-        {!isLoading && !error && tags.length > 0 && (
+        {!isLoading && !isError && tags.length > 0 && (
           <TagSelector
             value={selectedIds}
             onChange={handleChange}
