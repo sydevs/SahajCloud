@@ -28,10 +28,10 @@ export const DirectUploadThumbnail: React.FC<DirectUploadThumbnailProps> = ({
   }
 
   if (mimeType?.startsWith('video/')) {
-    // Use thumbnailUrl virtual field (works for both Cloudflare Stream thumbnails and image thumbnails)
-    const thumbnailUrl = rowData?.thumbnailUrl
+    // Use previewUrl virtual field (works for both Cloudflare Stream thumbnails and image thumbnails)
+    const previewUrl = rowData?.previewUrl
 
-    if (thumbnailUrl) {
+    if (previewUrl) {
       // Display generated thumbnail with play button overlay
       return (
         <div
@@ -45,7 +45,7 @@ export const DirectUploadThumbnail: React.FC<DirectUploadThumbnailProps> = ({
           }}
         >
           <img
-            src={thumbnailUrl}
+            src={previewUrl}
             alt={altText}
             style={{
               objectFit: 'cover',

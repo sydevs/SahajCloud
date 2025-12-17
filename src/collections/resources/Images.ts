@@ -3,7 +3,7 @@ import type { CollectionConfig } from 'payload'
 import { detectOrientationHook } from '@/hooks/imageHooks'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
-import { createVirtualUrlField } from '@/lib/storage/urlFields'
+import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const Images: CollectionConfig = {
   slug: 'images',
@@ -58,7 +58,7 @@ export const Images: CollectionConfig = {
         readOnly: true,
       },
     },
-    createVirtualUrlField({
+    virtualUrlField({
       collection: 'images',
       adapter: 'cloudflare-images',
     }),

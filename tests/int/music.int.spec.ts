@@ -48,7 +48,9 @@ describe('Music Collection', () => {
     expect(testMusic.title).toBe('Forest Sounds')
     expect(testMusic.tags).toHaveLength(2)
     expect(testMusic.mimeType).toBe('audio/mpeg')
-    expect(testMusic.filename).toMatch(/^audio-42s(-\d+)?-.+\.mp3$/)
+    // In tests, Payload may add numeric suffix to avoid collisions (audio-42s-N.mp3)
+    // In production with R2 adapter, filename would be sanitized with random suffix
+    expect(testMusic.filename).toMatch(/^audio-42s(-\d+)?\.mp3$/)
     expect(testMusic.filesize).toBeGreaterThan(0)
 
     // Check album relationship
@@ -186,7 +188,10 @@ describe('Music Collection', () => {
 
       expect(music).toBeDefined()
       expect(music.mimeType).toBe(format.mimetype)
-      expect(music.filename).toMatch(new RegExp(`^${format.name.replace('.', '(-\\d+)?-.+\\.')}$`))
+      // In tests, Payload may add numeric suffix to avoid collisions
+      // Regex: basename(-N)?.extension where -N is optional
+      const escapedName = format.name.replace('.', '(-\\d+)?\\.')
+      expect(music.filename).toMatch(new RegExp(`^${escapedName}$`))
     }
   })
 
