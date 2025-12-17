@@ -458,9 +458,6 @@ export interface Meditation {
    * Categorize this meditation for seekers to find it
    */
   tags?: (number | MeditationTag)[] | null;
-  /**
-   * Frames associated with this meditation with audio-synchronized editing
-   */
   frames?:
     | {
         [k: string]: unknown;
