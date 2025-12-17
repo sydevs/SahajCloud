@@ -1,7 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { slugField } from 'payload'
-
+import { slugField } from '@/fields'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { virtualUrlField } from '@/lib/storage/urlFields'
@@ -33,15 +32,7 @@ export const MusicTags: CollectionConfig = {
     // Slug auto-generated from title
     slugField({
       useAsSlug: 'title',
-      overrides: (field) => {
-        if (field.fields[1].type === 'text') {
-          field.fields[1].admin = {
-            ...field.fields[1].admin,
-            description: 'URL-friendly identifier (auto-generated from title)',
-          }
-        }
-        return field
-      },
+      description: 'URL-friendly identifier (auto-generated from {sourceField})',
     }),
     // Title (localized, for public display)
     {

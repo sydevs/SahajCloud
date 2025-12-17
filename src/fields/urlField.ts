@@ -19,7 +19,7 @@ export type UrlFieldOptions = {
  * Creates a standardized URL field with built-in validation
  * for proper URL format and protocol checking
  */
-export function UrlField(options: UrlFieldOptions): TextField {
+export function urlField(options: UrlFieldOptions): TextField {
   const {
     name,
     label,

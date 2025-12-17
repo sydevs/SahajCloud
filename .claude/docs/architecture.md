@@ -48,7 +48,6 @@ Factory functions for creating virtual URL fields with consistent CDN URL genera
 
 - `virtualUrlField({ collection, adapter })` - Base URL field for any storage adapter
 - `previewUrlField({ collection, width?, height? })` - Preview/thumbnail URLs for images/videos
-- `streamMp4UrlField({ collection })` - MP4 download URLs for Cloudflare Stream videos
 - `frameUrlField({ collection })` - Full resolution URLs for mixed media (images → Cloudflare Images, videos → Stream MP4)
 
 **Usage Example**:

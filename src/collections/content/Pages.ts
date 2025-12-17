@@ -1,7 +1,5 @@
 import type { CollectionConfig } from 'payload'
 
-import { slugField } from 'payload'
-
 import {
   TextBoxBlock,
   LayoutBlock,
@@ -10,6 +8,7 @@ import {
   ButtonBlock,
   QuoteBlock,
 } from '@/blocks/pages'
+import { slugField } from '@/fields'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { fullRichTextEditor } from '@/lib/richEditor'

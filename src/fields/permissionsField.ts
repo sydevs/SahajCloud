@@ -215,7 +215,7 @@ function computeAllowedProjects(manager: {
  *
  * @returns Array of Payload field configurations
  */
-export function ManagerPermissionsField(): Field[] {
+export function managerPermissionsFields(): Field[] {
   const roleOptions = Object.values<ManagerRoleConfig>(MANAGER_ROLES).map((role) => ({
     label: role.label,
     value: role.slug,
@@ -357,7 +357,7 @@ export function ManagerPermissionsField(): Field[] {
  *
  * @returns Array of Payload field configurations
  */
-export function ClientPermissionsField(): Field[] {
+export function clientPermissionsFields(): Field[] {
   const roleOptions = Object.values<ClientRoleConfig>(CLIENT_ROLES).map((role) => ({
     label: role.label,
     value: role.slug,

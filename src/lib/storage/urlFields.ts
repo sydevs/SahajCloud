@@ -58,18 +58,6 @@ interface PreviewUrlFieldOptions {
 }
 
 /**
- * Options for creating a Stream MP4 URL field
- */
-interface StreamMp4UrlFieldOptions {
-  /**
-   * The collection slug - used only for development fallback URL when
-   * CLOUDFLARE_STREAM_DELIVERY_URL is not configured. In production,
-   * the collection is not needed since Stream URLs are ID-based.
-   */
-  collection: string
-}
-
-/**
  * Options for creating a frame URL field (mixed image/video content)
  */
 interface FrameUrlFieldOptions {
@@ -198,52 +186,6 @@ export const previewUrlField = (options: PreviewUrlFieldOptions): Field => {
       components: {
         Cell: '@/components/admin/ThumbnailCell',
       },
-    },
-  }
-}
-
-/**
- * Creates a virtual Stream MP4 URL field for video content
- *
- * Generates MP4 download URLs for Cloudflare Stream videos.
- * Only returns a URL when the content is a video.
- *
- * @param options - Configuration for MP4 URL generation
- * @returns A Field configuration for the virtual MP4 URL field
- *
- * @example Frames collection
- * ```typescript
- * fields: [
- *   streamMp4UrlField({
- *     collection: 'frames',
- *   }),
- * ]
- * ```
- */
-export const streamMp4UrlField = (options: StreamMp4UrlFieldOptions): Field => {
-  const { collection } = options
-
-  const afterReadHook: FieldHook = ({ data }) => {
-    if (!data?.mimeType?.startsWith('video/') || !data?.filename) {
-      return undefined
-    }
-
-    return (
-      getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
-    )
-  }
-
-  return {
-    name: 'streamMp4Url',
-    type: 'text',
-    virtual: true,
-    hooks: {
-      afterRead: [afterReadHook],
-    },
-    admin: {
-      readOnly: true,
-      description: 'Direct MP4 URL for HTML5 video playback',
-      condition: (data) => data?.mimeType?.startsWith('video/'),
     },
   }
 }

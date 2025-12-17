@@ -1,8 +1,6 @@
 import type { CollectionConfig, Validate } from 'payload'
 
-import { slugField } from 'payload'
-
-import { MediaField } from '@/fields'
+import { mediaField, slugField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
 import { LOCALES } from '@/lib/locales'
@@ -170,7 +168,7 @@ export const Meditations: CollectionConfig = {
             },
             slugField({ useAsSlug: 'title' }),
             {
-              ...MediaField({
+              ...mediaField({
                 name: 'thumbnail',
                 required: false, // Conditionally required via validation
                 tagName: 'meditation-thumbnail',
