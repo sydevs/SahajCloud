@@ -5,13 +5,11 @@ import { Manager } from '@/payload-types'
 import { MergedPermissions } from '@/types/permissions'
 import { ManagerRole } from '@/types/roles'
 
-import {
-  DefaultDashboard,
-  FathomDashboard,
-  InactiveAccountAlert,
-  MetricsDashboard,
-  ProjectSelectionPrompt,
-} from './dashboard/index'
+import DefaultDashboard from './DefaultDashboard'
+import FathomDashboard from './FathomDashboard'
+import InactiveAccountAlert from './InactiveAccountAlert'
+import MetricsDashboard from './MetricsDashboard'
+import ProjectSelectionPrompt from './ProjectSelectionPrompt'
 
 // Type for props that Payload passes to dashboard views
 interface DashboardProps {
