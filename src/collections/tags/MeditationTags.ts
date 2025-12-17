@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
+import { slugField } from 'payload'
 
 import { ColorField } from '@/fields/ColorField'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
@@ -36,13 +36,16 @@ export const MeditationTags: CollectionConfig = {
       adapter: 'cloudflare-images',
     }),
     // Slug auto-generated from title
-    ...SlugField('title', {
-      slugOverrides: {
-        unique: true,
-        admin: {
-          position: 'sidebar',
-          description: 'URL-friendly identifier (auto-generated from title)',
-        },
+    slugField({
+      useAsSlug: 'title',
+      overrides: (field) => {
+        if (field.fields[1].type === 'text') {
+          field.fields[1].admin = {
+            ...field.fields[1].admin,
+            description: 'URL-friendly identifier (auto-generated from title)',
+          }
+        }
+        return field
       },
     }),
     // Title (localized, for public display)

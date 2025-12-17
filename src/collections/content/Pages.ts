@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { SlugField } from '@nouance/payload-better-fields-plugin/Slug'
+import { slugField } from 'payload'
 
 import {
   TextBoxBlock,
@@ -64,14 +64,7 @@ export const Pages: CollectionConfig = {
         },
       ],
     },
-    ...SlugField('title', {
-      slugOverrides: {
-        unique: true,
-        admin: {
-          position: 'sidebar',
-        },
-      },
-    }),
+    slugField({ useAsSlug: 'title' }),
     {
       name: 'publishAt',
       type: 'date',
