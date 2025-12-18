@@ -70,6 +70,7 @@ export const CLIENT_ROLES: Record<ClientRole, ClientRoleConfig> = {
       files: ['read'],
       pages: ['read'],
       music: ['read'],
+      albums: ['read'],
       forms: ['read'],
       authors: ['read'],
       'meditation-tags': ['read'],
