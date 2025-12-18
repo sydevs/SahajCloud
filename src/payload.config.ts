@@ -204,19 +204,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
             metadata: {
               title: 'Sahaj Cloud API',
               version: '1.0.0',
-              description: `REST API for Sahaj Cloud CMS - We Meditate content management.
-
-## Authentication
-
-API clients authenticate using an API key in the Authorization header:
-
-\`\`\`
-Authorization: clients API-Key <your-api-key>
-\`\`\`
-
-API keys are generated in the Clients collection in the admin panel. Each client has specific permissions controlling which collections and operations they can access.
-
-**Note:** The "Authorize" button in this documentation uses OAuth2 password flow for manager authentication, which is different from client API key authentication.`,
+              description: `REST API for Sahaj Cloud CMS - We Meditate content management.`,
             },
           }),
           scalarPlugin({

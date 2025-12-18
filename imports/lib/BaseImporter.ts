@@ -770,6 +770,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       msg.includes('sqlite_busy') ||
       msg.includes('database is locked') ||
       msg.includes('d1_error') ||
+      msg.includes('failed query') ||
       // Network/connection errors from miniflare proxy (undici fetch)
       msg.includes('fetch failed') ||
       msg.includes('other side closed') ||
