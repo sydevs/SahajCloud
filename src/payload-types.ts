@@ -689,16 +689,15 @@ export interface Lesson {
    * Audio introduction to this lesson.
    */
   introAudio?: (number | null) | File;
-  introSubtitles?: {
-    captions: {
-      duration: number;
-      content: string;
-      startOfParagraph: null;
-      startTime: string;
-      [k: string]: unknown;
-    }[];
-    [k: string]: unknown;
-  };
+  introSubtitles?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   article?: {
     root: {
       type: string;

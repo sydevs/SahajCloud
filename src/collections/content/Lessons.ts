@@ -1,4 +1,3 @@
-import type { JSONSchema4 } from 'json-schema'
 import type { CollectionConfig } from 'payload'
 
 import { TextStoryBlock, VideoStoryBlock, CoverStoryBlock } from '@/blocks/lessons'
@@ -7,7 +6,6 @@ import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess, createFieldAccess } from '@/lib/access'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { fullRichTextEditor } from '@/lib/richEditor'
-import subtitleSchema from '@/lib/subtitlesSchema.json' with { type: 'json' }
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
