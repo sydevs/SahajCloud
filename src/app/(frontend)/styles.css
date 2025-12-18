@@ -160,6 +160,10 @@ body {
   padding-top: 2rem;
   margin-top: 1rem;
   border-top: 2px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .footer-link {
@@ -176,6 +180,26 @@ body {
 .footer-link:hover {
   color: var(--coral-dark);
   gap: 0.5rem;
+}
+
+.footer-link-secondary {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-medium);
+}
+
+.footer-link-secondary:hover {
+  color: var(--coral);
+}
+
+.status-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-badge {
+  border-radius: 3px;
 }
 
 /* Mobile Responsive */
