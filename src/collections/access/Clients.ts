@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { clientPermissionsFields } from '@/fields'
 import { validateClientData, checkHighUsageAlert } from '@/hooks/clientHooks'
-import { adminOrSelfAccess } from '@/lib/accessControl'
+import { adminOrSelfAccess } from '@/lib/access'
 
 export const Clients: CollectionConfig = {
   slug: 'clients',

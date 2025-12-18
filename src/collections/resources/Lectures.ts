@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { urlField } from '@/fields'
-import { roleBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/access'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 
 export const Lectures: CollectionConfig = {
