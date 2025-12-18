@@ -1,4 +1,4 @@
-import { hasPermission } from '@/lib/accessControl'
+import { hasPermission } from '@/lib/access'
 import type { TypedClient, TypedManager } from '@/types/users'
 
 import { ProjectSlug } from './projects'

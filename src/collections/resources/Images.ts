@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { detectOrientationHook } from '@/hooks/imageHooks'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { roleBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/access'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const Images: CollectionConfig = {

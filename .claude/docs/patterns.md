@@ -150,7 +150,7 @@ When implementing or modifying permission checks, follow these guidelines:
 ### For Collection-Level Access
 
 ```typescript
-import { roleBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/access'
 
 export const MyCollection: CollectionConfig = {
   slug: 'my-collection',
@@ -162,7 +162,7 @@ export const MyCollection: CollectionConfig = {
 ### For Operation-Specific Checks
 
 ```typescript
-import { hasPermission } from '@/lib/accessControl'
+import { hasPermission } from '@/lib/access'
 
 const canUpdate = hasPermission({
   user,
@@ -175,7 +175,7 @@ const canUpdate = hasPermission({
 ### For Field-Level Access
 
 ```typescript
-import { createFieldAccess } from '@/lib/accessControl'
+import { createFieldAccess } from '@/lib/access'
 
 fields: [
   {

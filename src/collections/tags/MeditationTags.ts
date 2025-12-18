@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { colorField, slugField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { roleBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/access'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 

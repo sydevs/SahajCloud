@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { slugField } from '@/fields'
-import { roleBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/access'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
