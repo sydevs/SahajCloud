@@ -47,7 +47,7 @@ const VALID_SCRIPTS: ScriptName[] = ['storyblok', 'wemeditate', 'meditations', '
 
 // Dependency order: tags first (referenced by other content), then wemeditate (authors/categories),
 // then storyblok (lessons), finally meditations (may reference tags, narrators, etc.)
-const SCRIPT_RUN_ORDER: ScriptName[] = ['tags', 'wemeditate', 'storyblok', 'meditations']
+const SCRIPT_RUN_ORDER: ScriptName[] = ['tags', 'wemeditate', 'meditations', 'storyblok']
 
 const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   storyblok: 'Seed Path Steps from Storyblok CMS',
