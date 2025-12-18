@@ -52,8 +52,13 @@ export class MediaDownloader {
 
   /**
    * Initialize cache directory
+   * Skips filesystem operations in Cloudflare Workers mode (no filesystem access)
    */
   async initialize(): Promise<void> {
+    // Skip filesystem operations in Workers mode (no filesystem access)
+    if (isCloudflareWorker()) {
+      return
+    }
     await fs.mkdir(this.cacheDir, { recursive: true })
   }
 
