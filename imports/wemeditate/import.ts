@@ -947,14 +947,21 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           tags.push(this.idMaps.categories.get(page.category_id)!)
         }
 
+        // Calculate published state - _status: 'published' if ANY locale has published_at
+        type Translation = { locale: string; published_at?: string }
+        const isPublished = page.translations.some(
+          (t: Translation) => t.published_at && LOCALES.includes(t.locale as (typeof LOCALES)[number]),
+        )
+
         // Upsert page by slug (upsert auto-reports progress)
+        // Use publishSpecificLocale for native per-locale publishing in PayloadCMS
         const pageResult = await this.upsert<{ id: number }>(
           'pages',
           { slug: { equals: slug } },
           {
             title: enTranslation.name!,
             slug,
-            publishAt: enTranslation.published_at || undefined,
+            _status: isPublished ? 'published' : 'draft',
             author: authorId,
             tags: tags.length > 0 ? tags : undefined,
           },
@@ -963,10 +970,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             identifier: slug,
             current: i + 1,
             total,
+            publishSpecificLocale: enTranslation.published_at ? 'en' : undefined,
           },
         )
 
         // Update other locales using helper
+        // Note: _status is not localized, already set above
+        // Use shouldPublish callback for native per-locale publishing
         type PageTranslation = (typeof page.translations)[number]
         await this.updateLocales<PageTranslation>(
           'pages',
@@ -974,9 +984,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           page.translations,
           (t) => ({
             title: t.name,
-            publishAt: t.published_at || undefined,
           }),
-          { excludeLocale: 'en', requiredFields: ['name'], validLocales: [...LOCALES] },
+          {
+            excludeLocale: 'en',
+            requiredFields: ['name'],
+            validLocales: [...LOCALES],
+            shouldPublish: (t) => !!t.published_at,
+          },
         )
 
         // Store in appropriate ID map

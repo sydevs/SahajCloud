@@ -62,6 +62,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       },
     }),
     localization: {
+      defaultLocalePublishOption: 'active',
       locales: LOCALES.map((l) => l.code),
       defaultLocale: DEFAULT_LOCALE,
     },
@@ -248,8 +249,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
 // https://github.com/payloadcms/payload/blob/main/templates/with-cloudflare-d1/src/payload.config.ts
 // Import scripts can target production by not setting CLOUDFLARE_ENV (or setting it to empty string)
 function getCloudflareContextFromWrangler(): Promise<CloudflareContext> {
-  const targetProduction =
-    isProduction || (isImportScript && process.env.CLOUDFLARE_ENV !== 'dev')
+  const targetProduction = isProduction || (isImportScript && process.env.CLOUDFLARE_ENV !== 'dev')
   return import(/* webpackIgnore: true */ `${'__wrangler'.replaceAll('_', '')}`).then(
     ({ getPlatformProxy }) =>
       getPlatformProxy({

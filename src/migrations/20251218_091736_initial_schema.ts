@@ -4,11 +4,12 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE TABLE \`pages\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`generate_slug\` integer DEFAULT true,
-  	\`slug\` text NOT NULL,
+  	\`slug\` text,
   	\`author_id\` integer,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`deleted_at\` text,
+  	\`_status\` text DEFAULT 'draft',
   	FOREIGN KEY (\`author_id\`) REFERENCES \`authors\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
   `)
@@ -17,13 +18,13 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE INDEX \`pages_updated_at_idx\` ON \`pages\` (\`updated_at\`);`)
   await db.run(sql`CREATE INDEX \`pages_created_at_idx\` ON \`pages\` (\`created_at\`);`)
   await db.run(sql`CREATE INDEX \`pages_deleted_at_idx\` ON \`pages\` (\`deleted_at\`);`)
+  await db.run(sql`CREATE INDEX \`pages__status_idx\` ON \`pages\` (\`_status\`);`)
   await db.run(sql`CREATE TABLE \`pages_locales\` (
-  	\`title\` text NOT NULL,
+  	\`title\` text,
   	\`content\` text,
   	\`meta_title\` text,
   	\`meta_description\` text,
   	\`meta_image_id\` integer,
-  	\`publish_at\` text,
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`_locale\` text NOT NULL,
   	\`_parent_id\` integer NOT NULL,
@@ -47,23 +48,85 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE INDEX \`pages_rels_parent_idx\` ON \`pages_rels\` (\`parent_id\`);`)
   await db.run(sql`CREATE INDEX \`pages_rels_path_idx\` ON \`pages_rels\` (\`path\`);`)
   await db.run(sql`CREATE INDEX \`pages_rels_page_tags_id_idx\` ON \`pages_rels\` (\`page_tags_id\`);`)
+  await db.run(sql`CREATE TABLE \`_pages_v\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`parent_id\` integer,
+  	\`version_generate_slug\` integer DEFAULT true,
+  	\`version_slug\` text,
+  	\`version_author_id\` integer,
+  	\`version_updated_at\` text,
+  	\`version_created_at\` text,
+  	\`version_deleted_at\` text,
+  	\`version__status\` text DEFAULT 'draft',
+  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`snapshot\` integer,
+  	\`published_locale\` text,
+  	\`latest\` integer,
+  	\`autosave\` integer,
+  	FOREIGN KEY (\`parent_id\`) REFERENCES \`pages\`(\`id\`) ON UPDATE no action ON DELETE set null,
+  	FOREIGN KEY (\`version_author_id\`) REFERENCES \`authors\`(\`id\`) ON UPDATE no action ON DELETE set null
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`_pages_v_parent_idx\` ON \`_pages_v\` (\`parent_id\`);`)
+  await db.run(sql`CREATE INDEX \`_pages_v_version_version_slug_idx\` ON \`_pages_v\` (\`version_slug\`);`)
+  await db.run(sql`CREATE INDEX \`_pages_v_version_version_author_idx\` ON \`_pages_v\` (\`version_author_id\`);`)
+  await db.run(sql`CREATE INDEX \`_pages_v_version_version_updated_at_idx\` ON \`_pages_v\` (\`version_updated_at\`);`)
+  await db.run(sql`CREATE INDEX \`_pages_v_version_version_created_at_idx\` ON \`_pages_v\` (\`version_created_at\`);`)
+  await db.run(sql`CREATE INDEX \`_pages_v_version_version_deleted_at_idx\` ON \`_pages_v\` (\`version_deleted_at\`);`)
+  await db.run(sql`CREATE INDEX \`_pages_v_version_version__status_idx\` ON \`_pages_v\` (\`version__status\`);`)
+  await db.run(sql`CREATE INDEX \`_pages_v_created_at_idx\` ON \`_pages_v\` (\`created_at\`);`)
+  await db.run(sql`CREATE INDEX \`_pages_v_updated_at_idx\` ON \`_pages_v\` (\`updated_at\`);`)
+  await db.run(sql`CREATE INDEX \`_pages_v_snapshot_idx\` ON \`_pages_v\` (\`snapshot\`);`)
+  await db.run(sql`CREATE INDEX \`_pages_v_published_locale_idx\` ON \`_pages_v\` (\`published_locale\`);`)
+  await db.run(sql`CREATE INDEX \`_pages_v_latest_idx\` ON \`_pages_v\` (\`latest\`);`)
+  await db.run(sql`CREATE INDEX \`_pages_v_autosave_idx\` ON \`_pages_v\` (\`autosave\`);`)
+  await db.run(sql`CREATE TABLE \`_pages_v_locales\` (
+  	\`version_title\` text,
+  	\`version_content\` text,
+  	\`version_meta_title\` text,
+  	\`version_meta_description\` text,
+  	\`version_meta_image_id\` integer,
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`_locale\` text NOT NULL,
+  	\`_parent_id\` integer NOT NULL,
+  	FOREIGN KEY (\`version_meta_image_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null,
+  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`_pages_v\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`_pages_v_version_meta_version_meta_image_idx\` ON \`_pages_v_locales\` (\`version_meta_image_id\`,\`_locale\`);`)
+  await db.run(sql`CREATE UNIQUE INDEX \`_pages_v_locales_locale_parent_id_unique\` ON \`_pages_v_locales\` (\`_locale\`,\`_parent_id\`);`)
+  await db.run(sql`CREATE TABLE \`_pages_v_rels\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`order\` integer,
+  	\`parent_id\` integer NOT NULL,
+  	\`path\` text NOT NULL,
+  	\`page_tags_id\` integer,
+  	FOREIGN KEY (\`parent_id\`) REFERENCES \`_pages_v\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`page_tags_id\`) REFERENCES \`page_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`_pages_v_rels_order_idx\` ON \`_pages_v_rels\` (\`order\`);`)
+  await db.run(sql`CREATE INDEX \`_pages_v_rels_parent_idx\` ON \`_pages_v_rels\` (\`parent_id\`);`)
+  await db.run(sql`CREATE INDEX \`_pages_v_rels_path_idx\` ON \`_pages_v_rels\` (\`path\`);`)
+  await db.run(sql`CREATE INDEX \`_pages_v_rels_page_tags_id_idx\` ON \`_pages_v_rels\` (\`page_tags_id\`);`)
   await db.run(sql`CREATE TABLE \`meditations\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`label\` text NOT NULL,
-  	\`locale\` text DEFAULT 'en' NOT NULL,
-  	\`narrator_id\` integer NOT NULL,
+  	\`label\` text,
+  	\`locale\` text DEFAULT 'en',
+  	\`narrator_id\` integer,
   	\`music_tag_id\` integer,
   	\`file_metadata\` text,
   	\`duration_minutes\` numeric,
-  	\`publish_at\` text,
   	\`title\` text,
   	\`generate_slug\` integer DEFAULT true,
-  	\`slug\` text NOT NULL,
+  	\`slug\` text,
   	\`thumbnail_id\` integer,
   	\`frames\` text,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`deleted_at\` text,
+  	\`_status\` text DEFAULT 'draft',
   	\`thumbnail_u_r_l\` text,
   	\`filename\` text,
   	\`mime_type\` text,
@@ -84,6 +147,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE INDEX \`meditations_updated_at_idx\` ON \`meditations\` (\`updated_at\`);`)
   await db.run(sql`CREATE INDEX \`meditations_created_at_idx\` ON \`meditations\` (\`created_at\`);`)
   await db.run(sql`CREATE INDEX \`meditations_deleted_at_idx\` ON \`meditations\` (\`deleted_at\`);`)
+  await db.run(sql`CREATE INDEX \`meditations__status_idx\` ON \`meditations\` (\`_status\`);`)
   await db.run(sql`CREATE UNIQUE INDEX \`meditations_filename_idx\` ON \`meditations\` (\`filename\`);`)
   await db.run(sql`CREATE TABLE \`meditations_rels\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
@@ -99,6 +163,72 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE INDEX \`meditations_rels_parent_idx\` ON \`meditations_rels\` (\`parent_id\`);`)
   await db.run(sql`CREATE INDEX \`meditations_rels_path_idx\` ON \`meditations_rels\` (\`path\`);`)
   await db.run(sql`CREATE INDEX \`meditations_rels_meditation_tags_id_idx\` ON \`meditations_rels\` (\`meditation_tags_id\`);`)
+  await db.run(sql`CREATE TABLE \`_meditations_v\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`parent_id\` integer,
+  	\`version_label\` text,
+  	\`version_locale\` text DEFAULT 'en',
+  	\`version_narrator_id\` integer,
+  	\`version_music_tag_id\` integer,
+  	\`version_file_metadata\` text,
+  	\`version_duration_minutes\` numeric,
+  	\`version_title\` text,
+  	\`version_generate_slug\` integer DEFAULT true,
+  	\`version_slug\` text,
+  	\`version_thumbnail_id\` integer,
+  	\`version_frames\` text,
+  	\`version_updated_at\` text,
+  	\`version_created_at\` text,
+  	\`version_deleted_at\` text,
+  	\`version__status\` text DEFAULT 'draft',
+  	\`version_thumbnail_u_r_l\` text,
+  	\`version_filename\` text,
+  	\`version_mime_type\` text,
+  	\`version_filesize\` numeric,
+  	\`version_width\` numeric,
+  	\`version_height\` numeric,
+  	\`version_focal_x\` numeric,
+  	\`version_focal_y\` numeric,
+  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`snapshot\` integer,
+  	\`published_locale\` text,
+  	\`latest\` integer,
+  	FOREIGN KEY (\`parent_id\`) REFERENCES \`meditations\`(\`id\`) ON UPDATE no action ON DELETE set null,
+  	FOREIGN KEY (\`version_narrator_id\`) REFERENCES \`narrators\`(\`id\`) ON UPDATE no action ON DELETE set null,
+  	FOREIGN KEY (\`version_music_tag_id\`) REFERENCES \`music_tags\`(\`id\`) ON UPDATE no action ON DELETE set null,
+  	FOREIGN KEY (\`version_thumbnail_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`_meditations_v_parent_idx\` ON \`_meditations_v\` (\`parent_id\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_version_version_narrator_idx\` ON \`_meditations_v\` (\`version_narrator_id\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_version_version_music_tag_idx\` ON \`_meditations_v\` (\`version_music_tag_id\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_version_version_slug_idx\` ON \`_meditations_v\` (\`version_slug\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_version_version_thumbnail_idx\` ON \`_meditations_v\` (\`version_thumbnail_id\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_version_version_updated_at_idx\` ON \`_meditations_v\` (\`version_updated_at\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_version_version_created_at_idx\` ON \`_meditations_v\` (\`version_created_at\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_version_version_deleted_at_idx\` ON \`_meditations_v\` (\`version_deleted_at\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_version_version__status_idx\` ON \`_meditations_v\` (\`version__status\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_version_version_filename_idx\` ON \`_meditations_v\` (\`version_filename\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_created_at_idx\` ON \`_meditations_v\` (\`created_at\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_updated_at_idx\` ON \`_meditations_v\` (\`updated_at\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_snapshot_idx\` ON \`_meditations_v\` (\`snapshot\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_published_locale_idx\` ON \`_meditations_v\` (\`published_locale\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_latest_idx\` ON \`_meditations_v\` (\`latest\`);`)
+  await db.run(sql`CREATE TABLE \`_meditations_v_rels\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`order\` integer,
+  	\`parent_id\` integer NOT NULL,
+  	\`path\` text NOT NULL,
+  	\`meditation_tags_id\` integer,
+  	FOREIGN KEY (\`parent_id\`) REFERENCES \`_meditations_v\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`meditation_tags_id\`) REFERENCES \`meditation_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`_meditations_v_rels_order_idx\` ON \`_meditations_v_rels\` (\`order\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_rels_parent_idx\` ON \`_meditations_v_rels\` (\`parent_id\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_rels_path_idx\` ON \`_meditations_v_rels\` (\`path\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_rels_meditation_tags_id_idx\` ON \`_meditations_v_rels\` (\`meditation_tags_id\`);`)
   await db.run(sql`CREATE TABLE \`music\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`album_id\` integer NOT NULL,
@@ -1211,8 +1341,13 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   await db.run(sql`DROP TABLE \`pages\`;`)
   await db.run(sql`DROP TABLE \`pages_locales\`;`)
   await db.run(sql`DROP TABLE \`pages_rels\`;`)
+  await db.run(sql`DROP TABLE \`_pages_v\`;`)
+  await db.run(sql`DROP TABLE \`_pages_v_locales\`;`)
+  await db.run(sql`DROP TABLE \`_pages_v_rels\`;`)
   await db.run(sql`DROP TABLE \`meditations\`;`)
   await db.run(sql`DROP TABLE \`meditations_rels\`;`)
+  await db.run(sql`DROP TABLE \`_meditations_v\`;`)
+  await db.run(sql`DROP TABLE \`_meditations_v_rels\`;`)
   await db.run(sql`DROP TABLE \`music\`;`)
   await db.run(sql`DROP TABLE \`music_locales\`;`)
   await db.run(sql`DROP TABLE \`music_rels\`;`)
