@@ -13,6 +13,8 @@ import type { Config, Endpoint } from 'payload'
 import { CLIENT_ROLES } from '@/fields/permissionsField'
 import type { ClientRole } from '@/types/roles'
 
+import { isValidClientRole } from './filterByClientRole'
+
 export interface ScalarPluginOptions {
   /** Path to the OpenAPI spec endpoint (default: '/openapi.json') */
   specEndpoint?: string
@@ -165,9 +167,6 @@ function generateScalarHtml(
   <div id="scalar-app"></div>
 
   <script>
-    // Role logos mapping
-    const roleLogos = ${JSON.stringify(ROLE_LOGOS)};
-
     // Handle role selection change
     function handleRoleChange(role) {
       const url = new URL(window.location);
@@ -177,13 +176,6 @@ function generateScalarHtml(
         url.searchParams.delete('role');
       }
       window.location.href = url.toString();
-    }
-
-    // Update logo when role changes (without page reload for preview)
-    function updateLogo(role) {
-      const logo = document.getElementById('role-logo');
-      const logoPath = role ? roleLogos[role] : roleLogos.default;
-      logo.src = '${baseUrl}' + logoPath;
     }
 
     // Set initial role value from URL
@@ -283,9 +275,7 @@ export const scalarPlugin =
             const url = new URL(req.url || `${baseUrl}${docsUrl}`, baseUrl)
             const roleParam = url.searchParams.get('role')
             const role: ClientRole | null =
-              roleParam && Object.keys(CLIENT_ROLES).includes(roleParam)
-                ? (roleParam as ClientRole)
-                : null
+              roleParam && isValidClientRole(roleParam) ? roleParam : null
 
             // Build full spec URL
             const fullSpecUrl = `${baseUrl}/api${specEndpoint}`
