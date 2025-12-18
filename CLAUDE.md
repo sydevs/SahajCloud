@@ -37,6 +37,7 @@ Collections & Features:
 Integrations:
 - @.claude/docs/plugins.md - SEO, Form Builder plugins, and built-in slug generation
 - @.claude/docs/email.md - Email providers (Ethereal, Resend)
+- @.claude/docs/openapi.md - OpenAPI/Scalar API documentation with branding and role filtering
 
 Development:
 - @.claude/docs/patterns.md - Common code patterns and best practices
@@ -138,6 +139,24 @@ The skill ensures a single server instance is shared, preventing port conflicts.
 After making changes to the codebase, always lint the code and fix all TypeScript errors.
 
 If necessary, run `pnpm generate:types` after schema changes.
+
+### File Naming Conventions
+
+**IMPORTANT**: macOS is case-insensitive but TypeScript/Webpack builds are case-sensitive. Always verify exact file casing when importing.
+
+| Directory | Convention | Examples |
+|-----------|------------|----------|
+| `src/collections/` | PascalCase | `Managers.ts`, `Pages.ts` |
+| `src/fields/` | camelCase | `permissionsField.ts`, `slugField.ts` |
+| `src/lib/` | camelCase | `accessControl.ts`, `serverUrl.ts` |
+| `src/components/` | PascalCase | `Dashboard.tsx`, `ProjectSelector.tsx` |
+| `src/types/` | camelCase | `roles.ts`, `users.ts` |
+| `src/blocks/` | PascalCase | `TextBoxBlock.ts`, `GalleryBlock.ts` |
+
+**Import Verification**: Before importing a file, check the actual filename casing to avoid build failures like:
+```
+Type error: File name 'PermissionsField.ts' differs from already included file name 'permissionsField.ts' only in casing.
+```
 
 ### Type Organization Best Practices
 
