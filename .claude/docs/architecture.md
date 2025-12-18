@@ -82,6 +82,64 @@ r2NativeAdapter({
 - `src/app/(payload)/` - Payload CMS admin interface and API routes
 - `src/app/(payload)/api/` - Auto-generated API endpoints including GraphQL
 
+## API Explorer (OpenAPI / Swagger UI)
+
+The application provides interactive REST API documentation using the [payload-oapi](https://github.com/janbuchar/payload-oapi) plugin.
+
+### Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `/api/openapi.json` | OpenAPI 3.1 specification (JSON) |
+| `/api/docs` | Swagger UI interactive documentation |
+| `/api/openapi-auth` | OAuth2 password flow authentication |
+
+### Features
+
+- **Auto-Generated Documentation**: All collection CRUD endpoints documented automatically
+- **Request/Response Schemas**: Generated from Payload field definitions
+- **Query Parameters**: Pagination, sorting, filtering (`where`) documented
+- **Access-Aware Security**: Endpoints requiring auth show security requirements
+- **"Try it Out"**: Test API endpoints directly from Swagger UI
+
+### Authentication in Swagger UI
+
+1. Click "Authorize" button in Swagger UI
+2. Use your manager email/password for OAuth2 authentication
+3. The access token will be used for subsequent "Try it out" requests
+
+### Known Limitations (payload-oapi v0.2.5)
+
+The following features are not supported by the current plugin version:
+
+- **Custom Endpoints Not Documented**: `/api/frames/by-narrator/:narratorId` and `/api/health` are not included in the spec
+- **Collection Exclusion Not Supported**: All collections appear in spec (managers/clients visible but require auth)
+- **API Key Header Format**: Plugin uses OAuth2 password flow instead of `Authorization: clients API-Key <key>` format
+
+**Plugin Review Schedule**: Check for updates quarterly or when new features needed. See [GitHub](https://github.com/janbuchar/payload-oapi) for roadmap.
+
+### Configuration
+
+Located in `src/payload.config.ts`:
+
+```typescript
+import { openapi, swaggerUI } from 'payload-oapi'
+
+plugins: [
+  openapi({
+    openapiVersion: '3.1',
+    metadata: {
+      title: 'Sahaj Cloud API',
+      version: '1.0.0',
+      description: 'REST API for Sahaj Cloud CMS - We Meditate content management',
+    },
+  }),
+  swaggerUI({
+    docsUrl: '/docs',
+  }),
+]
+```
+
 ## Collections
 
 ### Access & User Management
