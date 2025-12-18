@@ -105,11 +105,12 @@ export const Lessons: CollectionConfig = {
               name: 'introSubtitles',
               type: 'json',
               label: 'Intro Subtitles',
-              jsonSchema: {
-                uri: 'a://b/foo.json', // required
-                fileMatch: ['a://b/foo.json'], // required
-                schema: subtitleSchema as JSONSchema4,
-              },
+              // TODO: Re-enable this (see GitHub issue #137)
+              // jsonSchema: {
+              //   uri: 'a://b/foo.json', // required
+              //   fileMatch: ['a://b/foo.json'], // required
+              //   schema: subtitleSchema as JSONSchema4,
+              // },
             },
           ],
         },
