@@ -261,6 +261,34 @@ function generateScalarHtml(specUrl: string, project: ProjectSlug | null, baseUr
       outline: none;
       border-color: var(--scalar-color-accent, #666666);
     }
+
+    /* Mobile responsive header */
+    @media (max-width: 640px) {
+      .api-header {
+        flex-direction: column;
+        align-items: flex-start;
+        height: auto;
+        padding: 12px 16px;
+        gap: 10px;
+      }
+
+      .api-header-left {
+        gap: 10px;
+      }
+
+      .api-header-right {
+        width: 100%;
+      }
+
+      .api-header-label {
+        display: none;
+      }
+
+      .api-header-select {
+        width: 100%;
+        min-width: unset;
+      }
+    }
   </style>
 </head>
 <body>

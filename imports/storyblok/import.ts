@@ -223,6 +223,11 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
         // Error already reported by upsert() - just log to report summary
         this.addError(`Importing lesson "${story.name}"`, error as Error)
       }
+
+      // Add delay between lessons to avoid rate limiting in Workers environment
+      if (i < total - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 500))
+      }
     }
   }
 
@@ -461,26 +466,44 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
     const filename = path.basename(url.split('?')[0])
 
-    // In Workers: fetch directly and pass buffer to uploader
+    // In Workers: fetch directly and pass buffer to uploader with retry logic
     if (isCloudflareWorker()) {
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error(`Failed to download image: ${response.status} ${response.statusText}`)
+      const maxRetries = 3
+      let lastError: Error | null = null
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const response = await fetch(url)
+          if (!response.ok) {
+            throw new Error(`Failed to download image: ${response.status} ${response.statusText}`)
+          }
+          const arrayBuffer = await response.arrayBuffer()
+          const buffer = Buffer.from(arrayBuffer)
+
+          const result = await this.mediaUploader.uploadWithDeduplication(filename, {
+            alt: alt || filename,
+            tags,
+            buffer,
+          })
+
+          if (!result) {
+            throw new Error('Failed to upload media to Cloudflare Images')
+          }
+
+          // Add small delay after successful upload to avoid rate limiting
+          await new Promise((resolve) => setTimeout(resolve, 100))
+          return result.id
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error))
+          if (attempt < maxRetries) {
+            // Exponential backoff: 500ms, 1000ms, 2000ms
+            const delay = 500 * Math.pow(2, attempt - 1)
+            await new Promise((resolve) => setTimeout(resolve, delay))
+          }
+        }
       }
-      const arrayBuffer = await response.arrayBuffer()
-      const buffer = Buffer.from(arrayBuffer)
 
-      const result = await this.mediaUploader.uploadWithDeduplication(filename, {
-        alt: alt || filename,
-        tags,
-        buffer,
-      })
-
-      if (!result) {
-        throw new Error('Failed to upload media')
-      }
-
-      return result.id
+      throw lastError || new Error('Failed to upload media after retries')
     }
 
     // Local dev: download to cache, then upload from path
