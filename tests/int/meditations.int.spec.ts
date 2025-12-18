@@ -88,4 +88,30 @@ describe('Meditations Collection', () => {
 
     expect(meditation._status).toBe('draft')
   })
+
+  describe('Audio File Requirement', () => {
+    it('rejects creation without audio file', async () => {
+      await expect(
+        payload.create({
+          collection: 'meditations',
+          data: {
+            label: 'Test Without Audio',
+            locale: 'en',
+          },
+          draft: true,
+          // No file provided
+        }),
+      ).rejects.toThrow('An audio file is required to create a meditation.')
+    })
+
+    it('accepts creation with audio file', async () => {
+      const meditation = await testData.createMeditation(payload, {
+        narrator: testNarrator.id,
+        thumbnail: testImageMedia.id,
+      })
+
+      expect(meditation).toBeDefined()
+      expect(meditation.filename).toBeDefined()
+    })
+  })
 })

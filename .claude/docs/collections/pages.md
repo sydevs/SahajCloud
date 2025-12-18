@@ -10,8 +10,7 @@ The **Pages Collection** uses Payload's Lexical rich text editor with embedded b
   - `slug` (text, unique, auto-generated) - URL-friendly identifier generated from title using built-in slugField
   - `content` (richText, localized) - Main content area using Lexical editor with embedded blocks
   - `_status` (draft | published) - Publication status managed by PayloadCMS drafts system
-  - `publishedLocales` (select, hasMany) - Locales ready for publication
-  - `category` (select, required) - Page category: technique, artwork, event, knowledge
+  - `author` (relationship, optional) - Relationship to authors collection
   - `tags` (relationship, hasMany, optional) - Relationship to page-tags collection for flexible tag management
 
 ## Embedded Block Components
@@ -70,7 +69,8 @@ Content catalog component:
 ## Key Features
 
 - **Lexical Editor Integration**: Full-featured editor with formatting options and embedded blocks
-- **Drafts System**: PayloadCMS built-in drafts with autosave (60s interval), version history (10 per doc), and scheduled publishing
+- **Drafts System**: PayloadCMS built-in drafts with autosave (60s interval), version history (3 per doc), and scheduled publishing
+- **Per-Locale Publishing**: Uses PayloadCMS native per-locale publishing via `publishSpecificLocale` API option (tracks `published_locale` in versions table)
 - **Character Count Validation**: TextBoxBlock text field enforces 250-character limit with HTML stripping
 - **Gallery Block Validation**: Maximum 10 items per gallery with conditional relationship filtering
 - **Localization Support**: All text content fields support 16 locales (en, es, de, it, fr, ru, ro, cs, uk, el, hy, pl, pt-br, fa, bg, tr)

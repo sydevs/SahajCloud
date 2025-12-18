@@ -947,16 +947,14 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           tags.push(this.idMaps.categories.get(page.category_id)!)
         }
 
-        // Calculate published state across all locales
-        // _status: 'published' if ANY locale has published_at
-        // publishedLocales: array of locale codes that have published_at
+        // Calculate published state - _status: 'published' if ANY locale has published_at
         type Translation = { locale: string; published_at?: string }
-        const publishedLocales = page.translations
-          .filter((t: Translation) => t.published_at && LOCALES.includes(t.locale as (typeof LOCALES)[number]))
-          .map((t: Translation) => t.locale)
-        const isPublished = publishedLocales.length > 0
+        const isPublished = page.translations.some(
+          (t: Translation) => t.published_at && LOCALES.includes(t.locale as (typeof LOCALES)[number]),
+        )
 
         // Upsert page by slug (upsert auto-reports progress)
+        // Use publishSpecificLocale for native per-locale publishing in PayloadCMS
         const pageResult = await this.upsert<{ id: number }>(
           'pages',
           { slug: { equals: slug } },
@@ -964,7 +962,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             title: enTranslation.name!,
             slug,
             _status: isPublished ? 'published' : 'draft',
-            publishedLocales: publishedLocales.length > 0 ? publishedLocales : undefined,
             author: authorId,
             tags: tags.length > 0 ? tags : undefined,
           },
@@ -973,11 +970,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             identifier: slug,
             current: i + 1,
             total,
+            publishSpecificLocale: enTranslation.published_at ? 'en' : undefined,
           },
         )
 
         // Update other locales using helper
-        // Note: _status and publishedLocales are not localized, already set above
+        // Note: _status is not localized, already set above
+        // Use shouldPublish callback for native per-locale publishing
         type PageTranslation = (typeof page.translations)[number]
         await this.updateLocales<PageTranslation>(
           'pages',
@@ -986,7 +985,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           (t) => ({
             title: t.name,
           }),
-          { excludeLocale: 'en', requiredFields: ['name'], validLocales: [...LOCALES] },
+          {
+            excludeLocale: 'en',
+            requiredFields: ['name'],
+            validLocales: [...LOCALES],
+            shouldPublish: (t) => !!t.published_at,
+          },
         )
 
         // Store in appropriate ID map

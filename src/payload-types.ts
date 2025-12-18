@@ -287,29 +287,6 @@ export interface Page {
   generateSlug?: boolean | null;
   slug: string;
   /**
-   * Select which locales are ready for publication.
-   */
-  publishedLocales?:
-    | (
-        | 'en'
-        | 'es'
-        | 'de'
-        | 'it'
-        | 'fr'
-        | 'ru'
-        | 'ro'
-        | 'cs'
-        | 'uk'
-        | 'el'
-        | 'hy'
-        | 'pl'
-        | 'pt-br'
-        | 'fa'
-        | 'bg'
-        | 'tr'
-      )[]
-    | null;
-  /**
    * Article author (for article pages)
    */
   author?: (number | null) | Author;
@@ -1446,7 +1423,6 @@ export interface PagesSelect<T extends boolean = true> {
       };
   generateSlug?: T;
   slug?: T;
-  publishedLocales?: T;
   author?: T;
   tags?: T;
   updatedAt?: T;

@@ -10,7 +10,6 @@ import {
 } from '@/blocks/pages'
 import { slugField } from '@/fields'
 import { roleBasedAccess } from '@/lib/accessControl'
-import { LOCALES } from '@/lib/locales'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { fullRichTextEditor } from '@/lib/richEditor'
 
@@ -70,17 +69,6 @@ export const Pages: CollectionConfig = {
       ],
     },
     slugField({ useAsSlug: 'title' }),
-    {
-      name: 'publishedLocales',
-      type: 'select',
-      hasMany: true,
-      options: LOCALES.map((l) => ({ label: l.label, value: l.code })),
-      admin: {
-        position: 'sidebar',
-        description: 'Select which locales are ready for publication.',
-      },
-      defaultValue: [],
-    },
     {
       name: 'author',
       type: 'relationship',

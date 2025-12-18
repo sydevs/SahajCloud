@@ -89,7 +89,18 @@ describe('Meditation Frames Field', () => {
       expect(updated.frames).toHaveLength(3)
     })
 
-    it('rejects negative timestamps', async () => {
+    it('filters out frames with negative timestamps', async () => {
+      // First ensure meditation has valid frames
+      await payload.update({
+        collection: 'meditations',
+        id: testMeditation.id,
+        data: {
+          frames: [{ id: frameId(testFrame1), timestamp: 0 }],
+        },
+      })
+
+      // Frames with negative timestamps are filtered out by beforeChange hook
+      // If all frames are filtered out, required validation fails
       const frames: KeyframeDefinition[] = [{ id: frameId(testFrame1), timestamp: -5 }]
 
       await expect(
@@ -100,13 +111,13 @@ describe('Meditation Frames Field', () => {
             frames,
           },
         }),
-      ).rejects.toThrow()
+      ).rejects.toThrow() // Throws because all frames filtered out, field is required
     })
 
-    it('rejects non-integer timestamps', async () => {
+    it('rounds non-integer timestamps on read', async () => {
       const frames: KeyframeDefinition[] = [{ id: frameId(testFrame1), timestamp: 10.5 }]
 
-      // Note: The beforeChange hook rounds timestamps, so this should pass but be rounded
+      // Non-integer timestamps are stored as-is but rounded on read (afterRead hook)
       const updated = (await payload.update({
         collection: 'meditations',
         id: testMeditation.id,
@@ -115,7 +126,7 @@ describe('Meditation Frames Field', () => {
         },
       })) as Meditation
 
-      // Timestamp should be rounded to nearest integer
+      // Timestamp should be rounded to nearest integer on read
       expect((updated.frames as KeyframeDefinition[])[0].timestamp).toBe(11)
     })
 
@@ -137,30 +148,97 @@ describe('Meditation Frames Field', () => {
     })
   })
 
-  describe('Duplicate Timestamp Handling', () => {
-    it('rejects duplicate timestamps', async () => {
-      const frames: KeyframeDefinition[] = [
+  describe('Malformed Frame Filtering', () => {
+    it('filters out frames without valid id', async () => {
+      // First ensure meditation has valid frames
+      await payload.update({
+        collection: 'meditations',
+        id: testMeditation.id,
+        data: {
+          frames: [{ id: frameId(testFrame1), timestamp: 0 }],
+        },
+      })
+
+      // Mix of valid and invalid frames - invalid ones are filtered out
+      const frames = [
         { id: frameId(testFrame1), timestamp: 0 },
-        { id: frameId(testFrame2), timestamp: 0 }, // Duplicate timestamp
+        { id: '', timestamp: 30 }, // Empty id - filtered
+        { id: frameId(testFrame2), timestamp: 60 },
+        { timestamp: 90 }, // Missing id - filtered
       ]
 
-      await expect(
-        payload.update({
-          collection: 'meditations',
-          id: testMeditation.id,
-          data: {
-            frames,
-          },
-        }),
-      ).rejects.toThrow() // Validation error for duplicate timestamps
+      const updated = (await payload.update({
+        collection: 'meditations',
+        id: testMeditation.id,
+        data: {
+          frames: frames as KeyframeDefinition[],
+        },
+      })) as Meditation
+
+      // Only valid frames remain
+      expect(updated.frames).toHaveLength(2)
+      const resultFrames = updated.frames as KeyframeDefinition[]
+      expect(String(resultFrames[0].id)).toBe(frameId(testFrame1))
+      expect(String(resultFrames[1].id)).toBe(frameId(testFrame2))
+    })
+
+    it('filters out non-object frames', async () => {
+      // First ensure meditation has valid frames
+      await payload.update({
+        collection: 'meditations',
+        id: testMeditation.id,
+        data: {
+          frames: [{ id: frameId(testFrame1), timestamp: 0 }],
+        },
+      })
+
+      // Mix of valid frames and invalid non-object values
+      const frames = [
+        { id: frameId(testFrame1), timestamp: 0 },
+        null,
+        undefined,
+        'invalid',
+        123,
+        { id: frameId(testFrame2), timestamp: 60 },
+      ]
+
+      const updated = (await payload.update({
+        collection: 'meditations',
+        id: testMeditation.id,
+        data: {
+          frames: frames as unknown as KeyframeDefinition[],
+        },
+      })) as Meditation
+
+      // Only valid frames remain
+      expect(updated.frames).toHaveLength(2)
+    })
+  })
+
+  describe('Timestamp Handling', () => {
+    it('allows duplicate timestamps', async () => {
+      // Duplicate timestamps are allowed - the UI handles replacing frames at the same timestamp
+      const frames: KeyframeDefinition[] = [
+        { id: frameId(testFrame1), timestamp: 0 },
+        { id: frameId(testFrame2), timestamp: 0 }, // Duplicate timestamp - allowed
+      ]
+
+      const updated = (await payload.update({
+        collection: 'meditations',
+        id: testMeditation.id,
+        data: {
+          frames,
+        },
+      })) as Meditation
+
+      expect(updated.frames).toHaveLength(2)
     })
 
     it('allows same frame at different timestamps', async () => {
-      // Note: The validation checks for duplicate timestamps, not duplicate frame IDs
       // This is allowed because you might want the same frame to appear at different times
       const frames: KeyframeDefinition[] = [
         { id: frameId(testFrame1), timestamp: 0 },
-        { id: frameId(testFrame1), timestamp: 30 }, // Same frame, different timestamp - currently allowed
+        { id: frameId(testFrame1), timestamp: 30 }, // Same frame, different timestamp
       ]
 
       const updated = (await payload.update({
@@ -268,9 +346,9 @@ describe('Meditation Frames Field', () => {
       expect(resultFrames[1].timestamp).toBe(45)
     })
 
-    it('requires at least one frame when audio exists', async () => {
-      // Meditation already has audio (created with audio file)
-      // Trying to set empty frames should fail
+    it('requires at least one frame on update', async () => {
+      // Frames field has required: true with condition: ({ id }) => !!id
+      // This means frames are required on updates (when id exists)
       await expect(
         payload.update({
           collection: 'meditations',
@@ -279,22 +357,20 @@ describe('Meditation Frames Field', () => {
             frames: [],
           },
         }),
-      ).rejects.toThrow() // Validation error - at least one frame required
+      ).rejects.toThrow() // Required validation error - frames cannot be empty
     })
   })
 
   describe('Publishing Validation with Frames', () => {
     it('prevents publishing without frames configured', async () => {
-      // Create a new meditation
+      // Create a new meditation (created as draft with no frames)
       const newMeditation = await testData.createMeditation(payload, {
         narrator: testNarrator.id,
         thumbnail: testImageMedia.id,
       })
 
-      // The meditation was just created and has no frames
-      // Validation requires frames when setting _status to published
-      // Note: We can't clear frames on a meditation with audio (requires at least 1)
-      // So we test by trying to publish without having added frames first
+      // Trying to publish should fail because frames are required on update
+      // (condition: ({ id }) => !!id means required when id exists)
       await expect(
         payload.update({
           collection: 'meditations',
@@ -303,7 +379,7 @@ describe('Meditation Frames Field', () => {
             _status: 'published',
           },
         }),
-      ).rejects.toThrow() // Validation error - frames required for publishing
+      ).rejects.toThrow() // Required validation error - frames cannot be empty
     })
 
     it('allows publishing when frames are configured', async () => {

@@ -37,25 +37,14 @@ export const Meditations: CollectionConfig = {
         return `${baseURL}/${data.locale}/preview?collection=meditations&id=${data.id}`
       },
     },
+    components: {
+      edit: {
+        PublishButton: '@/components/admin/buttons/UpdateOnlyPublishButton',
+        SaveDraftButton: '@/components/admin/buttons/NextStepButton',
+      },
+    },
   },
   hooks: {
-    // Filename sanitization is handled by the R2 storage adapter
-    // No collection-level hooks needed for filename management
-    beforeChange: [
-      async ({ data, originalDoc, operation }) => {
-        // Validate frames are configured when publishing
-        if (operation === 'update' && data._status === 'published') {
-          const frames = data.frames || originalDoc?.frames
-          if (!frames || !Array.isArray(frames) || frames.length === 0) {
-            throw new APIError(
-              'Cannot publish meditation without frames. Please add frames in the Video tab first.',
-              400,
-            )
-          }
-        }
-        return data
-      },
-    ],
     afterRead: [trackClientUsageHook],
   },
   fields: [
@@ -217,66 +206,35 @@ export const Meditations: CollectionConfig = {
                           Field: '@/components/admin/FrameEditor/FrameListManager',
                         },
                       },
-                      validate: (value, { data, operation, id }) => {
-                        // Check if audio file has been uploaded
-                        const meditationData = data as { filename?: string; url?: string }
-                        const hasAudio = meditationData?.filename || meditationData?.url
-
-                        // Allow first save (create) without frames, only require on updates
-                        const isUpdate = operation === 'update' || !!id
-
-                        // If audio exists and this is an update, frames are required
-                        if (
-                          hasAudio &&
-                          isUpdate &&
-                          (!value || !Array.isArray(value) || value.length === 0)
-                        ) {
-                          return 'At least one frame is required. Please add frames in the Video tab.'
+                      validate: ((value, options) => {
+                        // Only required during update (not on create)
+                        const isUpdate = options.operation === 'update' || !!options.id
+                        if (isUpdate && (!value || !Array.isArray(value) || value.length === 0)) {
+                          return 'At least one frame is required'
                         }
-
-                        // If no audio, or this is a create operation, frames are optional
-                        if (!value || !Array.isArray(value)) {
-                          return true
-                        }
-
-                        for (let i = 0; i < value.length; i++) {
-                          const frame = value[i]
-
-                          if (!frame || typeof frame !== 'object') {
-                            return `Frame ${i + 1} must be an object`
-                          }
-
-                          if (!frame.id || typeof frame.id !== 'string') {
-                            return `Frame ${i + 1} must have a valid frame relationship ID`
-                          }
-
-                          if (
-                            typeof frame.timestamp !== 'number' ||
-                            frame.timestamp < 0 ||
-                            isNaN(frame.timestamp)
-                          ) {
-                            return `Frame ${i + 1} must have a valid timestamp (number >= 0)`
-                          }
-                        }
-
-                        // Check for duplicate timestamps
-                        const timestamps = value.map((f: { timestamp: number }) => f.timestamp)
-                        const uniqueTimestamps = new Set(timestamps)
-                        if (timestamps.length !== uniqueTimestamps.size) {
-                          return 'Duplicate timestamps are not allowed. Each frame must have a unique timestamp.'
-                        }
-
                         return true
-                      },
+                      }) as Validate,
                       hooks: {
                         beforeChange: [
                           async ({ value }) => {
                             if (!value || !Array.isArray(value)) return []
 
                             return value
-                              .map((v) => {
-                                return { id: v.id, timestamp: v.timestamp } as KeyframeDefinition
+                              .filter((v) => {
+                                // Drop malformed frames silently
+                                if (!v || typeof v !== 'object') return false
+                                if (!v.id) return false
+                                if (
+                                  typeof v.timestamp !== 'number' ||
+                                  v.timestamp < 0 ||
+                                  isNaN(v.timestamp)
+                                )
+                                  return false
+                                return true
                               })
+                              .map(
+                                (v) => ({ id: v.id, timestamp: v.timestamp }) as KeyframeDefinition,
+                              )
                               .sort((a, b) => a.timestamp - b.timestamp)
                           },
                         ],

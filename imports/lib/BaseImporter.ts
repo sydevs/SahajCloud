@@ -402,6 +402,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       current?: number
       /** Total items for SSE streaming */
       total?: number
+      /** Publish this specific locale (uses PayloadCMS native per-locale publishing) */
+      publishSpecificLocale?: TypedLocale
     },
   ): Promise<UpsertResult<T>> {
     const identifier = options?.identifier || this.summarizeKey(naturalKey)
@@ -451,6 +453,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             data,
             locale: options?.locale,
             file: options?.file,
+            publishSpecificLocale: options?.publishSpecificLocale,
           }),
         )
         if (DEBUG) console.log(`[UPSERT] Updated ${collection}:${identifier} (${Date.now() - updateStart}ms)`)
@@ -472,6 +475,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       if (options?.file) {
         this.setCurrentOperation(`Uploading ${collection}:${identifier}`)
       }
+      // Note: publishSpecificLocale is only available on update operations, not create
+      // For new documents, the initial _status field determines publication state
       const created = await this.executeWithRetry(() =>
         this.payload.create({
           collection,
@@ -629,6 +634,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       requiredFields?: (keyof T)[]
       /** List of valid locales (defaults to checking against Payload's TypedLocale) */
       validLocales?: string[]
+      /** Callback to determine if this locale should be published (uses PayloadCMS native per-locale publishing) */
+      shouldPublish?: (translation: T) => boolean
     },
   ): Promise<number> {
     if (this.options.dryRun) {
@@ -672,12 +679,17 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       const localeStart = DEBUG ? Date.now() : 0
       // Track current operation for heartbeat context
       this.setCurrentOperation(`Updating ${collection}:${id} locale=${translation.locale}`)
+      // Determine if this locale should be published using native per-locale publishing
+      const shouldPublishLocale = options?.shouldPublish?.(translation)
       await this.executeWithRetry(() =>
         this.payload.update({
           collection,
           id,
           data,
           locale: translation.locale as TypedLocale,
+          publishSpecificLocale: shouldPublishLocale
+            ? (translation.locale as TypedLocale)
+            : undefined,
         }),
       )
       if (DEBUG) console.log(`[LOCALE] Updated ${collection}:${id} locale=${translation.locale} (${Date.now() - localeStart}ms)`)

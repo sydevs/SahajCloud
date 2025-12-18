@@ -83,7 +83,7 @@ This is a **Next.js 15** application integrated with **Payload CMS 3.0**, provid
 ### PayloadCMS Documentation
 
 **IMPORTANT**: The comprehensive PayloadCMS documentation for LLMs is available at:
-**https://payloadcms.com/llms.txt**
+**https://payloadcms.com/llms-full.txt**
 
 Consult this documentation for detailed information about Payload CMS features, APIs, and best practices.
 
@@ -206,6 +206,10 @@ Configuration: `src/lib/richEditor.ts`
 - **Location**: `src/migrations/`
 - **Running**: `pnpm payload migrate`
 - **Rolling Back**: `pnpm payload migrate:down`
+
+### Git Commands
+- **Prefer working directory commands** - Use `git status`, `git add`, etc. from the project root
+- **Avoid `git -C <path>`** - Only use the `-C` flag when absolutely necessary (e.g., operating on a different repository)
 
 ## PR Completion Requirements
 
