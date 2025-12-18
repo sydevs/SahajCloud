@@ -53,6 +53,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: '**.cloudflarestream.com', // For Stream thumbnails (issue #70)
       },
+      {
+        protocol: 'https',
+        hostname: 'img.shields.io', // For status badges (issue #100)
+      },
     ],
     unoptimized: true, // Required for Cloudflare Workers
   },
