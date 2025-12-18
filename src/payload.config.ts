@@ -9,6 +9,7 @@ import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
+import { openapi, scalar } from 'payload-oapi'
 import { GetPlatformProxyOptions } from 'wrangler'
 
 import { roleBasedAccess } from '@/lib/accessControl'
@@ -165,6 +166,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     plugins: isE2ETest
       ? [
           // Only include plugins that don't require Cloudflare bindings for E2E tests
+          // Note: openapi/swaggerUI plugins excluded - not needed for E2E testing
           seoPlugin({
             collections: ['pages'],
             uploadsCollection: 'images',
@@ -194,6 +196,31 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           }),
         ]
       : [
+          openapi({
+            openapiVersion: '3.1',
+            specEndpoint: '/openapi-raw.json', // Raw spec, filtered version at /openapi.json
+            metadata: {
+              title: 'Sahaj Cloud API',
+              version: '1.0.0',
+              description: `REST API for Sahaj Cloud CMS - We Meditate content management.
+
+## Authentication
+
+API clients authenticate using an API key in the Authorization header:
+
+\`\`\`
+Authorization: clients API-Key <your-api-key>
+\`\`\`
+
+API keys are generated in the Clients collection in the admin panel. Each client has specific permissions controlling which collections and operations they can access.
+
+**Note:** The "Authorize" button in this documentation uses OAuth2 password flow for manager authentication, which is different from client API key authentication.`,
+            },
+          }),
+          scalar({
+            specEndpoint: '/openapi.json', // Uses our filtered spec (not raw)
+            docsUrl: '/docs',
+          }),
           sentryPlugin({
             captureErrors: [400, 403, 404], // Capture additional error codes
             debug: !isProduction,

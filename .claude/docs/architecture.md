@@ -82,6 +82,84 @@ r2NativeAdapter({
 - `src/app/(payload)/` - Payload CMS admin interface and API routes
 - `src/app/(payload)/api/` - Auto-generated API endpoints including GraphQL
 
+## API Explorer (OpenAPI / Scalar)
+
+The application provides interactive REST API documentation using the [payload-oapi](https://github.com/janbuchar/payload-oapi) plugin with [Scalar](https://github.com/scalar/scalar) UI.
+
+### Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `/api/openapi.json` | Filtered OpenAPI 3.1 specification (hides internal operations) |
+| `/api/openapi-raw.json` | Raw OpenAPI 3.1 specification (all operations visible) |
+| `/api/docs` | Scalar interactive documentation |
+| `/api/openapi-auth` | OAuth2 password flow authentication |
+
+### Features
+
+- **Auto-Generated Documentation**: All collection CRUD endpoints documented automatically
+- **Request/Response Schemas**: Generated from Payload field definitions
+- **Query Parameters**: Pagination, sorting, filtering (`where`) documented
+- **Access-Aware Security**: Endpoints requiring auth show security requirements
+- **"Try it Out"**: Test API endpoints directly from Scalar UI
+- **Filtered Spec**: Internal operations hidden via `x-internal: true` markers
+
+### Operation Filtering
+
+The public OpenAPI spec at `/api/openapi.json` filters out internal operations:
+
+**Hidden Operations**:
+- All `DELETE` and `PATCH` operations
+- All `POST` operations except for `form-submissions`
+
+**Hidden Collections**:
+- `managers`, `clients` (access collections)
+- `images`, `files`, `image-tags` (system collections)
+- `payload-kv`, `payload-jobs`, `payload-locked-documents`, `payload-preferences`, `payload-migrations`, `payload-job-stats` (Payload internal)
+
+**Configuration**: Located in `src/lib/openapi/markInternalPaths.ts`
+
+### Authentication in Scalar
+
+1. Click "Authorize" button in Scalar
+2. Use your manager email/password for OAuth2 authentication
+3. The access token will be used for subsequent "Try it out" requests
+
+### Known Limitations (payload-oapi v0.2.5)
+
+The following features are not supported by the current plugin version:
+
+- **Custom Endpoints Not Documented**: `/api/frames/by-narrator/:narratorId` and `/api/health` are not included in the spec
+- **API Key Header Format**: Plugin uses OAuth2 password flow instead of `Authorization: clients API-Key <key>` format
+
+**Plugin Review Schedule**: Check for updates quarterly or when new features needed. See [GitHub](https://github.com/janbuchar/payload-oapi) for roadmap.
+
+### Configuration
+
+Located in `src/payload.config.ts`:
+
+```typescript
+import { openapi, scalar } from 'payload-oapi'
+
+plugins: [
+  openapi({
+    openapiVersion: '3.1',
+    specEndpoint: '/openapi-raw.json', // Raw spec
+    metadata: {
+      title: 'Sahaj Cloud API',
+      version: '1.0.0',
+      description: 'REST API for Sahaj Cloud CMS - We Meditate content management',
+    },
+  }),
+  scalar({
+    specEndpoint: '/openapi.json', // Filtered spec
+    docsUrl: '/docs',
+  }),
+]
+```
+
+**Filtering Route**: `src/app/(payload)/api/openapi.json/route.ts` intercepts spec requests and adds `x-internal: true` markers.
+
 ## Collections
 
 ### Access & User Management
