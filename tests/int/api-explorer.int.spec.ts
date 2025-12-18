@@ -4,8 +4,8 @@
  * These tests verify:
  * 1. The payload-oapi plugin generates valid OpenAPI specs
  * 2. The custom Scalar plugin serves documentation
- * 3. The markInternalPaths utility correctly filters specs
- * 4. Role-based filtering works correctly for each client role
+ * 3. The filterSpec utility correctly filters specs
+ * 4. Project-based filtering works correctly for each project
  */
 import type { Endpoint, PayloadRequest } from 'payload'
 
@@ -21,18 +21,16 @@ import { openapi } from 'payload-oapi'
 import { collections, Managers } from '../../src/collections'
 import { globals } from '../../src/globals'
 import {
-  markInternalPaths,
+  filterSpec,
+  getCollectionsForClientRole,
+  getAllClientRoleCollections,
   ALWAYS_HIDDEN_COLLECTIONS,
   EXCLUDED_OPERATIONS,
   ALLOW_POST_FOR,
-} from '../../src/lib/openapi/markInternalPaths'
-import {
-  getCollectionsForRole,
-  getAllClientCollections,
-  isValidClientRole,
-} from '../../src/lib/openapi/filterByClientRole'
+} from '../../src/lib/openapi/specFilter'
+import { isValidProject } from '../../src/lib/projects'
 import { scalarPlugin } from '../../src/lib/openapi/scalarPlugin'
-import { CLIENT_ROLES } from '../../src/fields/PermissionsField'
+import { CLIENT_ROLES } from '../../src/fields/permissionsField'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -189,17 +187,39 @@ describe('API Explorer', () => {
 
       const html = await response.text()
       expect(html).toContain('<!DOCTYPE html>')
-      // Verify We Meditate branding
-      expect(html).toContain('We Meditate API Documentation')
-      expect(html).toContain('#F07855') // Coral color
-      // Verify role selector
-      expect(html).toContain('client-role-select')
+      // Verify default branding (no project selected)
+      expect(html).toContain('Sahaj Cloud API Documentation')
+      expect(html).toContain('sahaj-cloud.svg') // Default logo
+      // Default theme uses Scalar's built-in theme (no custom colors)
+      expect(html).not.toContain('#F07855') // No coral when no project selected
+      // Verify project selector
+      expect(html).toContain('project-select')
       expect(html).toContain('All Endpoints')
       // Verify Scalar is loaded
       expect(html.toLowerCase()).toContain('scalar')
     })
 
-    it('includes role selector with all client roles', async () => {
+    it('applies project-specific theme when project is selected', async () => {
+      const endpoints = payload.config.endpoints as Endpoint[]
+      const scalarEndpoint = endpoints.find((e) => e.path === '/docs' && e.method === 'get')
+
+      const mockReq = {
+        payload,
+        protocol: 'http',
+        headers: new Headers({ host: 'localhost:3000' }),
+        url: 'http://localhost:3000/api/docs?project=wemeditate-web',
+      } as unknown as PayloadRequest
+
+      const response = await scalarEndpoint!.handler(mockReq)
+      const html = await response.text()
+
+      // Verify We Meditate Web branding
+      expect(html).toContain('WeMeditate Web API Documentation')
+      expect(html).toContain('wemeditate-web.svg') // Project-specific logo
+      expect(html).toContain('#F07855') // Coral theme color
+    })
+
+    it('includes project selector with all projects', async () => {
       const endpoints = payload.config.endpoints as Endpoint[]
       const scalarEndpoint = endpoints.find((e) => e.path === '/docs' && e.method === 'get')
 
@@ -213,7 +233,7 @@ describe('API Explorer', () => {
       const response = await scalarEndpoint!.handler(mockReq)
       const html = await response.text()
 
-      // Verify all client roles are in the selector
+      // Verify all projects are in the selector
       expect(html).toContain('We Meditate Web')
       expect(html).toContain('We Meditate App')
       expect(html).toContain('Sahaj Atlas')
@@ -294,7 +314,7 @@ describe('OpenAPI Spec Marker Utility', () => {
 
   describe('ALWAYS_HIDDEN_COLLECTIONS', () => {
     it('marks excluded collections as internal', () => {
-      const result = markInternalPaths(mockSpec)
+      const result = filterSpec(mockSpec)
 
       // Access collections should be marked internal
       expect(result.paths!['/api/managers']!.get!['x-internal']).toBe(true)
@@ -330,7 +350,7 @@ describe('OpenAPI Spec Marker Utility', () => {
 
   describe('Operation filtering', () => {
     it('marks delete and patch operations as internal', () => {
-      const result = markInternalPaths(mockSpec)
+      const result = filterSpec(mockSpec)
 
       // Delete operations should be marked internal
       expect(result.paths!['/api/pages']!.delete!['x-internal']).toBe(true)
@@ -341,7 +361,7 @@ describe('OpenAPI Spec Marker Utility', () => {
     })
 
     it('marks POST operations as internal except for allowed collections', () => {
-      const result = markInternalPaths(mockSpec)
+      const result = filterSpec(mockSpec)
 
       // Pages POST should be marked internal
       expect(result.paths!['/api/pages']!.post!['x-internal']).toBe(true)
@@ -351,7 +371,7 @@ describe('OpenAPI Spec Marker Utility', () => {
     })
 
     it('does not mark GET operations for non-excluded collections', () => {
-      const result = markInternalPaths(mockSpec)
+      const result = filterSpec(mockSpec)
 
       // Pages GET should NOT be marked internal
       expect(result.paths!['/api/pages']!.get!['x-internal']).toBeUndefined()
@@ -365,54 +385,54 @@ describe('OpenAPI Spec Marker Utility', () => {
   describe('Spec immutability', () => {
     it('does not mutate the original spec', () => {
       const originalSpec = JSON.parse(JSON.stringify(mockSpec))
-      markInternalPaths(mockSpec)
+      filterSpec(mockSpec)
 
       expect(mockSpec).toEqual(originalSpec)
     })
 
     it('handles specs without paths gracefully', () => {
       const emptySpec = { openapi: '3.1.0', info: { title: 'Test', version: '1.0.0' } }
-      const result = markInternalPaths(emptySpec)
+      const result = filterSpec(emptySpec)
 
       expect(result).toEqual(emptySpec)
     })
   })
 
-  describe('Role-based filtering', () => {
-    it('filters to we-meditate-web collections when role is specified', () => {
-      const result = markInternalPaths(mockSpec, { role: 'we-meditate-web' })
+  describe('Project-based filtering', () => {
+    it('filters to wemeditate-web collections when project is specified', () => {
+      const result = filterSpec(mockSpec, { project: 'wemeditate-web' })
 
-      // Pages should be visible (we-meditate-web has pages permission)
+      // Pages should be visible (wemeditate-web has pages permission)
       expect(result.paths!['/api/pages']!.get!['x-internal']).toBeUndefined()
 
-      // Meditations should be visible (we-meditate-web has meditations permission)
+      // Meditations should be visible (wemeditate-web has meditations permission)
       expect(result.paths!['/api/meditations']!.get!['x-internal']).toBeUndefined()
 
-      // Albums should be visible (we-meditate-web has albums permission)
+      // Albums should be visible (wemeditate-web has albums permission)
       expect(result.paths!['/api/albums']!.get!['x-internal']).toBeUndefined()
 
-      // Lessons should be hidden (we-meditate-web does NOT have lessons permission)
+      // Lessons should be hidden (wemeditate-web does NOT have lessons permission)
       expect(result.paths!['/api/lessons']!.get!['x-internal']).toBe(true)
     })
 
-    it('filters to we-meditate-app collections when role is specified', () => {
-      const result = markInternalPaths(mockSpec, { role: 'we-meditate-app' })
+    it('filters to wemeditate-app collections when project is specified', () => {
+      const result = filterSpec(mockSpec, { project: 'wemeditate-app' })
 
       // Meditations should be visible
       expect(result.paths!['/api/meditations']!.get!['x-internal']).toBeUndefined()
 
-      // Lessons should be visible (we-meditate-app has lessons permission)
+      // Lessons should be visible (wemeditate-app has lessons permission)
       expect(result.paths!['/api/lessons']!.get!['x-internal']).toBeUndefined()
 
-      // Pages should be hidden (we-meditate-app does NOT have pages permission)
+      // Pages should be hidden (wemeditate-app does NOT have pages permission)
       expect(result.paths!['/api/pages']!.get!['x-internal']).toBe(true)
 
-      // Albums should be hidden (we-meditate-app does NOT have albums permission)
+      // Albums should be hidden (wemeditate-app does NOT have albums permission)
       expect(result.paths!['/api/albums']!.get!['x-internal']).toBe(true)
     })
 
-    it('filters to sahaj-atlas collections when role is specified', () => {
-      const result = markInternalPaths(mockSpec, { role: 'sahaj-atlas' })
+    it('filters to sahaj-atlas collections when project is specified', () => {
+      const result = filterSpec(mockSpec, { project: 'sahaj-atlas' })
 
       // Most collections should be hidden for sahaj-atlas (minimal permissions)
       expect(result.paths!['/api/pages']!.get!['x-internal']).toBe(true)
@@ -420,16 +440,16 @@ describe('OpenAPI Spec Marker Utility', () => {
       expect(result.paths!['/api/music']!.get!['x-internal']).toBe(true)
     })
 
-    it('shows union of all client collections when no role specified', () => {
-      const result = markInternalPaths(mockSpec)
+    it('shows union of all project collections when no project specified', () => {
+      const result = filterSpec(mockSpec)
 
-      // Pages should be visible (in we-meditate-web)
+      // Pages should be visible (in wemeditate-web)
       expect(result.paths!['/api/pages']!.get!['x-internal']).toBeUndefined()
 
-      // Meditations should be visible (in multiple roles)
+      // Meditations should be visible (in multiple projects)
       expect(result.paths!['/api/meditations']!.get!['x-internal']).toBeUndefined()
 
-      // Lessons should be visible (in we-meditate-app)
+      // Lessons should be visible (in wemeditate-app)
       expect(result.paths!['/api/lessons']!.get!['x-internal']).toBeUndefined()
 
       // System collections should still be hidden
@@ -438,10 +458,10 @@ describe('OpenAPI Spec Marker Utility', () => {
   })
 })
 
-describe('Client Role Filtering Utilities', () => {
-  describe('getCollectionsForRole', () => {
-    it('returns correct collections for we-meditate-web role', () => {
-      const collections = getCollectionsForRole('we-meditate-web')
+describe('Project Filtering Utilities', () => {
+  describe('getCollectionsForClientRole', () => {
+    it('returns correct collections for wemeditate-web project', () => {
+      const collections = getCollectionsForClientRole('wemeditate-web')
 
       expect(collections).toContain('pages')
       expect(collections).toContain('meditations')
@@ -455,8 +475,8 @@ describe('Client Role Filtering Utilities', () => {
       expect(collections).not.toContain('lessons')
     })
 
-    it('returns correct collections for we-meditate-app role', () => {
-      const collections = getCollectionsForRole('we-meditate-app')
+    it('returns correct collections for wemeditate-app project', () => {
+      const collections = getCollectionsForClientRole('wemeditate-app')
 
       expect(collections).toContain('meditations')
       expect(collections).toContain('lessons')
@@ -468,8 +488,8 @@ describe('Client Role Filtering Utilities', () => {
       expect(collections).not.toContain('albums')
     })
 
-    it('returns correct collections for sahaj-atlas role', () => {
-      const collections = getCollectionsForRole('sahaj-atlas')
+    it('returns correct collections for sahaj-atlas project', () => {
+      const collections = getCollectionsForClientRole('sahaj-atlas')
 
       // Sahaj Atlas has minimal permissions
       expect(collections).toContain('sahaj-atlas-settings')
@@ -482,48 +502,48 @@ describe('Client Role Filtering Utilities', () => {
     })
   })
 
-  describe('getAllClientCollections', () => {
-    it('returns union of all client role collections', () => {
-      const allCollections = getAllClientCollections()
+  describe('getAllClientRoleCollections', () => {
+    it('returns union of all project collections', () => {
+      const allCollections = getAllClientRoleCollections()
 
-      // Should include collections from all roles
-      expect(allCollections).toContain('pages') // we-meditate-web
-      expect(allCollections).toContain('lessons') // we-meditate-app
+      // Should include collections from all projects
+      expect(allCollections).toContain('pages') // wemeditate-web
+      expect(allCollections).toContain('lessons') // wemeditate-app
       expect(allCollections).toContain('meditations') // both
-      expect(allCollections).toContain('albums') // we-meditate-web
+      expect(allCollections).toContain('albums') // wemeditate-web
     })
 
     it('does not include duplicates', () => {
-      const allCollections = getAllClientCollections()
+      const allCollections = getAllClientRoleCollections()
       const uniqueCollections = [...new Set(allCollections)]
 
       expect(allCollections.length).toBe(uniqueCollections.length)
     })
   })
 
-  describe('isValidClientRole', () => {
-    it('returns true for valid client roles', () => {
-      expect(isValidClientRole('we-meditate-web')).toBe(true)
-      expect(isValidClientRole('we-meditate-app')).toBe(true)
-      expect(isValidClientRole('sahaj-atlas')).toBe(true)
+  describe('isValidProject', () => {
+    it('returns true for valid projects', () => {
+      expect(isValidProject('wemeditate-web')).toBe(true)
+      expect(isValidProject('wemeditate-app')).toBe(true)
+      expect(isValidProject('sahaj-atlas')).toBe(true)
     })
 
-    it('returns false for invalid roles', () => {
-      expect(isValidClientRole('invalid-role')).toBe(false)
-      expect(isValidClientRole('')).toBe(false)
-      expect(isValidClientRole('admin')).toBe(false)
+    it('returns false for invalid projects', () => {
+      expect(isValidProject('invalid-project')).toBe(false)
+      expect(isValidProject('')).toBe(false)
+      expect(isValidProject('admin')).toBe(false)
     })
   })
 })
 
-describe('CLIENT_ROLES includes albums for we-meditate-web', () => {
-  it('we-meditate-web role has albums permission', () => {
-    const webRole = CLIENT_ROLES['we-meditate-web']
-    expect(webRole.permissions.albums).toEqual(['read'])
+describe('CLIENT_ROLES includes albums for wemeditate-web', () => {
+  it('wemeditate-web project has albums permission', () => {
+    const webProject = CLIENT_ROLES['wemeditate-web']
+    expect(webProject.permissions.albums).toEqual(['read'])
   })
 
-  it('we-meditate-app role does NOT have albums permission', () => {
-    const appRole = CLIENT_ROLES['we-meditate-app']
-    expect(appRole.permissions.albums).toBeUndefined()
+  it('wemeditate-app project does NOT have albums permission', () => {
+    const appProject = CLIENT_ROLES['wemeditate-app']
+    expect(appProject.permissions.albums).toBeUndefined()
   })
 })

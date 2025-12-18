@@ -3,17 +3,15 @@
  *
  * Replaces payload-oapi's basic Scalar plugin with a customized version featuring:
  * - We Meditate coral branding (#F07855)
- * - Client role selector for filtering visible endpoints
- * - Dynamic logo based on selected role
+ * - Project selector for filtering visible endpoints
+ * - Dynamic logo based on selected project
  * - Prioritized HTTP client examples (JS, Node, Dart, Python only)
  */
 
 import type { Config, Endpoint } from 'payload'
 
 import { CLIENT_ROLES } from '@/fields/permissionsField'
-import type { ClientRole } from '@/types/roles'
-
-import { isValidClientRole } from './filterByClientRole'
+import { getProjectLabel, getProjectIcon, type ProjectSlug, isValidProject } from '@/lib/projects'
 
 export interface ScalarPluginOptions {
   /** Path to the OpenAPI spec endpoint (default: '/openapi.json') */
@@ -25,21 +23,108 @@ export interface ScalarPluginOptions {
 }
 
 /**
- * Logo paths for each client role
+ * Theme colors for each project (derived from ProjectTheme.tsx)
+ * Maps to Scalar CSS variables
  */
-const ROLE_LOGOS: Record<ClientRole | 'default', string> = {
-  default: '/images/sahaj-cloud.svg',
-  'we-meditate-web': '/images/wemeditate-web.svg',
-  'we-meditate-app': '/images/wemeditate-app.svg',
-  'sahaj-atlas': '/images/sahaj-atlas.webp',
+interface ThemeColors {
+  accent: string
+  accentDark: string
+  accentLight: string
+  background2Light: string
+  background3Light: string
+  background2Dark: string
+  background3Dark: string
+}
+
+const PROJECT_THEME_COLORS: Record<ProjectSlug, ThemeColors> = {
+  'wemeditate-web': {
+    // Coral theme
+    accent: '#F07855',
+    accentDark: '#D86545',
+    accentLight: '#FF9477',
+    background2Light: '#FFF5F2',
+    background3Light: '#fce4df',
+    background2Dark: '#2d2a29',
+    background3Dark: '#3d3533',
+  },
+  'wemeditate-app': {
+    // Teal theme
+    accent: '#61aaa0',
+    accentDark: '#4c8d84',
+    accentLight: '#72b3a9',
+    background2Light: '#ebf4f3',
+    background3Light: '#c5e0dc',
+    background2Dark: '#1c2b27',
+    background3Dark: '#23352f',
+  },
+  'sahaj-atlas': {
+    // Royal Blue theme
+    accent: '#4a8cd4',
+    accentDark: '#2d6db8',
+    accentLight: '#6fa3dd',
+    background2Light: '#eff3fb',
+    background3Light: '#d6e3f5',
+    background2Dark: '#1b263f',
+    background3Dark: '#22314f',
+  },
 }
 
 /**
- * Generate role selector options from CLIENT_ROLES
+ * Get theme colors for a project
+ * Returns null for no project (uses Scalar's default theme)
  */
-function getRoleSelectorOptions(): string {
+function getThemeColors(project: ProjectSlug | null): ThemeColors | null {
+  if (!project) return null // Use Scalar's default theme
+  return PROJECT_THEME_COLORS[project]
+}
+
+/**
+ * Generate CSS theme overrides for a specific project
+ * Returns empty string for default Scalar theme
+ */
+function generateThemeCss(theme: ThemeColors | null): string {
+  if (!theme) return '' // Use Scalar's default theme
+
+  return `
+    /* Dynamic Theme based on selected project */
+    :root {
+      --scalar-color-1: ${theme.accent};
+      --scalar-color-2: ${theme.accentDark};
+      --scalar-color-3: #333333;
+      --scalar-color-accent: ${theme.accent};
+      --scalar-background-1: #ffffff;
+      --scalar-background-2: ${theme.background2Light};
+      --scalar-background-3: ${theme.background3Light};
+      --scalar-background-accent: ${theme.accent};
+      --scalar-border-color: #eeeeee;
+      --scalar-scrollbar-color: ${theme.accent}4d;
+      --scalar-scrollbar-color-active: ${theme.accent}80;
+    }
+
+    /* Dark mode adjustments */
+    .dark-mode {
+      --scalar-color-1: ${theme.accentLight};
+      --scalar-color-2: ${theme.accent};
+      --scalar-color-3: #f5f5f5;
+      --scalar-color-accent: ${theme.accentLight};
+      --scalar-background-1: #1a1a1a;
+      --scalar-background-2: ${theme.background2Dark};
+      --scalar-background-3: ${theme.background3Dark};
+      --scalar-background-accent: ${theme.accent};
+      --scalar-border-color: #3a3a3a;
+    }
+
+    .api-header-select:focus {
+      box-shadow: 0 0 0 2px ${theme.accent}33;
+    }`
+}
+
+/**
+ * Generate project selector options from CLIENT_ROLES
+ */
+function getProjectSelectorOptions(): string {
   const options = Object.values(CLIENT_ROLES)
-    .map((role) => `<option value="${role.slug}">${role.label}</option>`)
+    .map((project) => `<option value="${project.slug}">${project.label}</option>`)
     .join('\n          ')
 
   return `<option value="">All Endpoints</option>
@@ -47,150 +132,172 @@ function getRoleSelectorOptions(): string {
 }
 
 /**
- * Generate the custom Scalar HTML with branding and role selector
+ * Generate the custom Scalar HTML with branding and project selector
  */
-function generateScalarHtml(
-  specUrl: string,
-  role: ClientRole | null,
-  baseUrl: string,
-): string {
-  const currentLogo = role ? ROLE_LOGOS[role] : ROLE_LOGOS.default
+function generateScalarHtml(specUrl: string, project: ProjectSlug | null, baseUrl: string): string {
+  const currentLogo = getProjectIcon(project)
+  const projectTitle = getProjectLabel(project)
+  const theme = getThemeColors(project)
 
-  // Build the full spec URL with role parameter
-  const fullSpecUrl = role ? `${specUrl}?role=${role}` : specUrl
+  // Build the full spec URL with project parameter
+  const fullSpecUrl = project ? `${specUrl}?project=${project}` : specUrl
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>We Meditate API Documentation</title>
-  <meta name="description" content="REST API documentation for We Meditate content management" />
+  <title>${projectTitle} API Documentation</title>
+  <meta name="description" content="REST API documentation for ${projectTitle}" />
   <link rel="icon" type="image/svg+xml" href="${currentLogo}" />
+  <!-- Critical CSS first to prevent flash of unstyled content -->
   <style>
-    /* We Meditate Coral Theme */
-    :root {
-      --scalar-color-1: #F07855;
-      --scalar-color-2: #D86545;
-      --scalar-color-3: #333333;
-      --scalar-color-accent: #F07855;
-      --scalar-background-1: #ffffff;
-      --scalar-background-2: #FFF5F2;
-      --scalar-background-3: #fce4df;
-      --scalar-background-accent: #F07855;
-      --scalar-border-color: #eeeeee;
-      --scalar-scrollbar-color: rgba(240, 120, 85, 0.3);
-      --scalar-scrollbar-color-active: rgba(240, 120, 85, 0.5);
+    /* CSS Reset and base colors - MUST be first */
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+    }
+    html.dark-mode, html.dark-mode body {
+      background: #1a1a1a;
+    }
+  </style>
+  <!-- Blocking dark mode detection - runs after critical CSS is defined -->
+  <script>
+    (function() {
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark-mode');
+      }
+    })();
+  </script>
+  <!-- Non-critical resources load after dark mode is set -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    ${generateThemeCss(theme)}
+
+    /* Custom Header Bar - scrolls with page */
+    .api-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 48px;
+      padding: 0 20px;
+      background: var(--scalar-background-1, #ffffff);
+      border-bottom: 1px solid var(--scalar-border-color, #eeeeee);
+      box-sizing: border-box;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
-    /* Dark mode adjustments */
-    .dark-mode {
-      --scalar-color-1: #F07855;
-      --scalar-color-2: #FF9477;
-      --scalar-color-3: #e0e0e0;
-      --scalar-color-accent: #F07855;
-      --scalar-background-1: #1a1a1a;
-      --scalar-background-2: #2d2a29;
-      --scalar-background-3: #3d3533;
-      --scalar-background-accent: #F07855;
-      --scalar-border-color: #444444;
+    .dark-mode .api-header {
+      background: var(--scalar-background-1, #1a1a1a);
+      border-bottom-color: var(--scalar-border-color, #3a3a3a);
     }
 
-    /* Role Selector Styles */
-    .role-selector-container {
-      position: fixed;
-      top: 12px;
-      right: 16px;
-      z-index: 1000;
+    .api-header-left {
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 8px 12px;
-      background: var(--scalar-background-2);
-      border: 1px solid var(--scalar-border-color);
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
-    .role-selector-logo {
+    .api-header-logo {
       width: 28px;
       height: 28px;
       border-radius: 6px;
       object-fit: contain;
     }
 
-    .role-selector-label {
-      font-size: 13px;
+    .api-header-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--scalar-color-3, #333333);
+    }
+
+    .dark-mode .api-header-title {
+      color: var(--scalar-color-3, #f5f5f5);
+    }
+
+    .api-header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .api-header-label {
+      font-size: 12px;
       font-weight: 500;
-      color: var(--scalar-color-3);
+      color: var(--scalar-color-3, #333333);
+      opacity: 0.7;
       white-space: nowrap;
     }
 
-    .role-selector-select {
-      padding: 6px 10px;
-      font-size: 13px;
-      border: 1px solid var(--scalar-border-color);
+    .dark-mode .api-header-label {
+      color: var(--scalar-color-3, #f5f5f5);
+    }
+
+    .api-header-select {
+      padding: 5px 10px;
+      font-size: 12px;
+      border: 1px solid var(--scalar-border-color, #eeeeee);
       border-radius: 6px;
-      background: var(--scalar-background-1);
-      color: var(--scalar-color-3);
+      background: var(--scalar-background-1, #ffffff);
+      color: var(--scalar-color-3, #333333);
       cursor: pointer;
-      min-width: 160px;
+      min-width: 150px;
     }
 
-    .role-selector-select:hover {
-      border-color: var(--scalar-color-accent);
+    .dark-mode .api-header-select {
+      border-color: var(--scalar-border-color, #3a3a3a);
+      background: var(--scalar-background-1, #1a1a1a);
+      color: var(--scalar-color-3, #f5f5f5);
     }
 
-    .role-selector-select:focus {
+    .api-header-select:hover {
+      border-color: var(--scalar-color-accent, #666666);
+    }
+
+    .api-header-select:focus {
       outline: none;
-      border-color: var(--scalar-color-accent);
-      box-shadow: 0 0 0 2px rgba(240, 120, 85, 0.2);
-    }
-
-    /* Adjust main content to not overlap with fixed header */
-    .scalar-app {
-      padding-top: 0 !important;
+      border-color: var(--scalar-color-accent, #666666);
     }
   </style>
 </head>
 <body>
-  <!-- Role Selector UI -->
-  <div class="role-selector-container" id="role-selector">
-    <img src="${baseUrl}${currentLogo}" alt="Logo" class="role-selector-logo" id="role-logo" />
-    <span class="role-selector-label">API Client:</span>
-    <select class="role-selector-select" id="client-role-select" onchange="handleRoleChange(this.value)">
-      ${getRoleSelectorOptions()}
-    </select>
-  </div>
-
-  <!-- Scalar API Reference -->
-  <div id="scalar-app"></div>
+  <!-- Custom Header Bar -->
+  <header class="api-header">
+    <div class="api-header-left">
+      <img src="${baseUrl}${currentLogo}" alt="Logo" class="api-header-logo" id="project-logo" />
+      <span class="api-header-title" id="header-title">${projectTitle} API</span>
+    </div>
+    <div class="api-header-right">
+      <label class="api-header-label" for="project-select">Select Project:</label>
+      <select class="api-header-select" id="project-select" onchange="handleProjectChange(this.value)">
+        ${getProjectSelectorOptions()}
+      </select>
+    </div>
+  </header>
 
   <script>
-    // Handle role selection change
-    function handleRoleChange(role) {
+    // Handle project selection change
+    function handleProjectChange(project) {
       const url = new URL(window.location);
-      if (role) {
-        url.searchParams.set('role', role);
+      if (project) {
+        url.searchParams.set('project', project);
       } else {
-        url.searchParams.delete('role');
+        url.searchParams.delete('project');
       }
       window.location.href = url.toString();
     }
 
-    // Set initial role value from URL
+    // Initialize on DOMContentLoaded
     document.addEventListener('DOMContentLoaded', function() {
+      // Set initial project value from URL
       const params = new URLSearchParams(window.location.search);
-      const currentRole = params.get('role') || '';
-      document.getElementById('client-role-select').value = currentRole;
+      const currentProject = params.get('project') || '';
+      document.getElementById('project-select').value = currentProject;
 
-      // Detect dark mode preference
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (prefersDark) {
-        document.documentElement.classList.add('dark-mode');
-      }
-
-      // Watch for system dark mode changes
+      // Watch for system dark mode changes (initial detection is in blocking script above)
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
         if (e.matches) {
           document.documentElement.classList.add('dark-mode');
@@ -198,45 +305,50 @@ function generateScalarHtml(
           document.documentElement.classList.remove('dark-mode');
         }
       });
+
+      var script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/@scalar/api-reference';
+      script.onload = function() {
+        Scalar.createApiReference('#scalar-app', {
+          url: '${fullSpecUrl}',
+          darkMode: window.matchMedia('(prefers-color-scheme: dark)').matches,
+          layout: 'modern',
+          hideModels: true,
+          hideClientButton: true,
+          showDeveloperTools: "never",
+          defaultHttpClient: {
+            targetKey: 'node',
+            clientKey: 'fetch'
+          },
+          hiddenClients: {
+            c: true,
+            clojure: true,
+            csharp: true,
+            go: true,
+            php: true,
+            java: true,
+            kotlin: true,
+            objc: true,
+            ocaml: true,
+            powershell: true,
+            r: true,
+            ruby: true,
+            swift: true
+          },
+          authentication: {
+            preferredSecurityScheme: 'API-Key',
+            securitySchemes: {
+              'API-Key': {
+                value: 'clients API-Key '
+              }
+            }
+          }
+        });
+      };
+      document.body.appendChild(script);
     });
   </script>
-
-  <!-- Load Scalar API Reference -->
-  <script
-    id="api-reference"
-    data-url="${fullSpecUrl}"
-    data-proxy-url="https://proxy.scalar.com"
-  >
-    // Scalar configuration
-    window.scalarConfig = {
-      theme: 'none',
-      layout: 'modern',
-      showSidebar: true,
-      hideModels: false,
-      hideDownloadButton: false,
-      hideTestRequestButton: false,
-      defaultHttpClient: {
-        targetKey: 'javascript',
-        clientKey: 'fetch'
-      },
-      hiddenClients: {
-        c: true,
-        clojure: true,
-        csharp: true,
-        go: true,
-        php: true,
-        java: true,
-        kotlin: true,
-        objc: true,
-        ocaml: true,
-        powershell: true,
-        r: true,
-        ruby: true,
-        swift: true
-      }
-    };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  <div id="scalar-app"></div>
 </body>
 </html>`
 }
@@ -244,13 +356,17 @@ function generateScalarHtml(
 /**
  * Custom Scalar Plugin for PayloadCMS
  *
- * Provides We Meditate branded API documentation with role-based filtering.
+ * Provides We Meditate branded API documentation with project-based filtering.
  *
  * @param options - Plugin configuration options
  * @returns PayloadCMS plugin function
  */
 export const scalarPlugin =
-  ({ specEndpoint = '/openapi.json', docsUrl = '/docs', enabled = true }: ScalarPluginOptions = {}) =>
+  ({
+    specEndpoint = '/openapi.json',
+    docsUrl = '/docs',
+    enabled = true,
+  }: ScalarPluginOptions = {}) =>
   (config: Config): Config => {
     if (!enabled) {
       return config
@@ -266,22 +382,19 @@ export const scalarPlugin =
           method: 'get',
           path: docsUrl,
           handler: async (req) => {
-            // Get base URL from request
-            const protocol = req.protocol || 'http'
-            const host = req.headers.get('host') || 'localhost:3000'
-            const baseUrl = `${protocol}://${host}`
-
-            // Get role from query parameters
-            const url = new URL(req.url || `${baseUrl}${docsUrl}`, baseUrl)
-            const roleParam = url.searchParams.get('role')
-            const role: ClientRole | null =
-              roleParam && isValidClientRole(roleParam) ? roleParam : null
-
-            // Build full spec URL
+            // Construct base URL using payload-oapi pattern
+            const baseUrl = `${req.protocol}//${req.headers.get('host')}`
             const fullSpecUrl = `${baseUrl}/api${specEndpoint}`
 
-            // Generate HTML with branding and role selector
-            const html = generateScalarHtml(fullSpecUrl, role, baseUrl)
+            // Parse project from query string (avoid new URL() which can throw)
+            const queryString = req.url?.split('?')[1] || ''
+            const urlParams = new URLSearchParams(queryString)
+            const projectParam = urlParams.get('project')
+            const project: ProjectSlug | null =
+              projectParam && isValidProject(projectParam) ? projectParam : null
+
+            // Generate HTML with branding and project selector
+            const html = generateScalarHtml(fullSpecUrl, project, baseUrl)
 
             return new Response(html, {
               headers: {

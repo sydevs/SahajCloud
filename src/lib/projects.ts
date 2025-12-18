@@ -25,14 +25,23 @@ export const PROJECTS = [
 export type ProjectSlug = (typeof PROJECTS)[number]['value']
 
 /**
- * Project-specific icon paths
+ * Project-specific icon paths (private)
  * Uses 'sahaj-cloud' as fallback key for admin view
+ * Use getProjectIcon() to access these values
  */
-export const PROJECT_ICONS: Record<ProjectSlug | 'sahaj-cloud', string> = {
+const PROJECT_ICONS: Record<ProjectSlug | 'sahaj-cloud', string> = {
   'sahaj-cloud': '/images/sahaj-cloud.svg',
   'wemeditate-web': '/images/wemeditate-web.svg',
   'wemeditate-app': '/images/wemeditate-app.svg',
   'sahaj-atlas': '/images/sahaj-atlas.webp',
+}
+
+/**
+ * Get logo path for a project (or default for "All Endpoints")
+ */
+export function getProjectIcon(role: ProjectSlug | null): string {
+  if (!role) return PROJECT_ICONS['sahaj-cloud']
+  return PROJECT_ICONS[role]
 }
 
 /**
@@ -41,9 +50,7 @@ export const PROJECT_ICONS: Record<ProjectSlug | 'sahaj-cloud', string> = {
  * @returns Human-readable project label
  */
 export function getProjectLabel(value: ProjectSlug | null): string {
-  if (value === null) {
-    return 'Sahaj Cloud'
-  }
+  if (!value) return 'Sahaj Cloud'
   const project = PROJECTS.find((p) => p.value === value)
   return project?.label || value
 }

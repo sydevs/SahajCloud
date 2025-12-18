@@ -124,7 +124,7 @@ describe('Role-Based Access Control', () => {
     it('blocks API clients from delete operations', () => {
       const clientUser = testData.dummyUser('clients', {
         id: 5,
-        roles: ['we-meditate-web'],
+        roles: ['wemeditate-web'],
         permissions: {
           meditations: ['read', 'create', 'update', 'delete'],
         },
@@ -406,7 +406,7 @@ describe('Role-Based Access Control', () => {
     it('does not grant implicit read to API clients', () => {
       const clientUser = testData.dummyUser('clients', {
         id: 14,
-        roles: ['we-meditate-web'],
+        roles: ['wemeditate-web'],
         permissions: {
           meditations: ['read'],
           pages: ['read'],
