@@ -7,9 +7,10 @@ The **Pages Collection** uses Payload's Lexical rich text editor with embedded b
 - **Location**: `src/collections/content/Pages.ts`
 - **Core Fields**:
   - `title` (text, required, localized) - Page title
-  - `slug` (text, unique, auto-generated) - URL-friendly identifier generated from title using the Better Fields plugin
+  - `slug` (text, unique, auto-generated) - URL-friendly identifier generated from title using built-in slugField
   - `content` (richText, localized) - Main content area using Lexical editor with embedded blocks
-  - `publishAt` (date, optional, localized) - Schedule publishing date (uses PublishStateCell component)
+  - `_status` (draft | published) - Publication status managed by PayloadCMS drafts system
+  - `publishedLocales` (select, hasMany) - Locales ready for publication
   - `category` (select, required) - Page category: technique, artwork, event, knowledge
   - `tags` (relationship, hasMany, optional) - Relationship to page-tags collection for flexible tag management
 
@@ -69,11 +70,11 @@ Content catalog component:
 ## Key Features
 
 - **Lexical Editor Integration**: Full-featured editor with formatting options and embedded blocks
+- **Drafts System**: PayloadCMS built-in drafts with autosave (60s interval), version history (10 per doc), and scheduled publishing
 - **Character Count Validation**: TextBoxBlock text field enforces 250-character limit with HTML stripping
 - **Gallery Block Validation**: Maximum 10 items per gallery with conditional relationship filtering
 - **Localization Support**: All text content fields support 16 locales (en, es, de, it, fr, ru, ro, cs, uk, el, hy, pl, pt-br, fa, bg, tr)
-- **Slug Generation**: Uses Better Fields plugin for automatic slug generation from title
-- **Admin Integration**: Uses PublishStateCell component and slug generation utilities
+- **Slug Generation**: Uses built-in slugField for automatic slug generation from title
 - **Live Preview**: Real-time preview integration with We Meditate Web frontend (configurable via `WEMEDITATE_WEB_URL` environment variable)
 
 ## Testing Coverage

@@ -10,6 +10,7 @@ import {
 } from '@/blocks/pages'
 import { slugField } from '@/fields'
 import { roleBasedAccess } from '@/lib/accessControl'
+import { LOCALES } from '@/lib/locales'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { fullRichTextEditor } from '@/lib/richEditor'
 
@@ -20,7 +21,7 @@ export const Pages: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'publishAt'],
+    defaultColumns: ['title', '_status'],
     hidden: handleProjectVisibility('pages', ['wemeditate-web']),
     livePreview: {
       url: ({ data, locale }) => {
@@ -29,10 +30,15 @@ export const Pages: CollectionConfig = {
       },
     },
   },
-  // versions: {
-  //   maxPerDoc: 20,
-  //   drafts: true,
-  // },
+  versions: {
+    maxPerDoc: 3,
+    drafts: {
+      autosave: {
+        interval: 60000, // 60 seconds
+      },
+      schedulePublish: true,
+    },
+  },
   fields: [
     {
       type: 'tabs',
@@ -65,20 +71,15 @@ export const Pages: CollectionConfig = {
     },
     slugField({ useAsSlug: 'title' }),
     {
-      name: 'publishAt',
-      type: 'date',
-      localized: true,
+      name: 'publishedLocales',
+      type: 'select',
+      hasMany: true,
+      options: LOCALES.map((l) => ({ label: l.label, value: l.code })),
       admin: {
         position: 'sidebar',
-        date: {
-          pickerAppearance: 'dayOnly',
-          minDate: new Date(),
-        },
-        components: {
-          Cell: '@/components/admin/PublishStateCell',
-          afterInput: ['@/components/admin/PublishAtAfterInput'],
-        },
+        description: 'Select which locales are ready for publication.',
       },
+      defaultValue: [],
     },
     {
       name: 'author',

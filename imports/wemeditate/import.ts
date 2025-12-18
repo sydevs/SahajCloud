@@ -947,6 +947,15 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           tags.push(this.idMaps.categories.get(page.category_id)!)
         }
 
+        // Calculate published state across all locales
+        // _status: 'published' if ANY locale has published_at
+        // publishedLocales: array of locale codes that have published_at
+        type Translation = { locale: string; published_at?: string }
+        const publishedLocales = page.translations
+          .filter((t: Translation) => t.published_at && LOCALES.includes(t.locale as (typeof LOCALES)[number]))
+          .map((t: Translation) => t.locale)
+        const isPublished = publishedLocales.length > 0
+
         // Upsert page by slug (upsert auto-reports progress)
         const pageResult = await this.upsert<{ id: number }>(
           'pages',
@@ -954,7 +963,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           {
             title: enTranslation.name!,
             slug,
-            publishAt: enTranslation.published_at || undefined,
+            _status: isPublished ? 'published' : 'draft',
+            publishedLocales: publishedLocales.length > 0 ? publishedLocales : undefined,
             author: authorId,
             tags: tags.length > 0 ? tags : undefined,
           },
@@ -967,6 +977,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         )
 
         // Update other locales using helper
+        // Note: _status and publishedLocales are not localized, already set above
         type PageTranslation = (typeof page.translations)[number]
         await this.updateLocales<PageTranslation>(
           'pages',
@@ -974,7 +985,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           page.translations,
           (t) => ({
             title: t.name,
-            publishAt: t.published_at || undefined,
           }),
           { excludeLocale: 'en', requiredFields: ['name'], validLocales: [...LOCALES] },
         )

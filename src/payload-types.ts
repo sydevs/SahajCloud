@@ -206,6 +206,7 @@ export interface Config {
       resetClientUsage: TaskResetClientUsage;
       trackClientUsage: TaskTrackClientUsage;
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
+      schedulePublish: TaskSchedulePublish;
       inline: {
         input: unknown;
         output: unknown;
@@ -285,7 +286,29 @@ export interface Page {
    */
   generateSlug?: boolean | null;
   slug: string;
-  publishAt?: string | null;
+  /**
+   * Select which locales are ready for publication.
+   */
+  publishedLocales?:
+    | (
+        | 'en'
+        | 'es'
+        | 'de'
+        | 'it'
+        | 'fr'
+        | 'ru'
+        | 'ro'
+        | 'cs'
+        | 'uk'
+        | 'el'
+        | 'hy'
+        | 'pl'
+        | 'pt-br'
+        | 'fa'
+        | 'bg'
+        | 'tr'
+      )[]
+    | null;
   /**
    * Article author (for article pages)
    */
@@ -294,6 +317,7 @@ export interface Page {
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -458,7 +482,6 @@ export interface Meditation {
     | boolean
     | null;
   durationMinutes?: number | null;
-  publishAt?: string | null;
   title?: string | null;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
@@ -482,6 +505,7 @@ export interface Meditation {
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
+  _status?: ('draft' | 'published') | null;
   url?: string | null;
   thumbnailURL?: string | null;
   filename?: string | null;
@@ -1222,7 +1246,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'resetClientUsage' | 'trackClientUsage' | 'cleanupOrphanedMedia';
+        taskSlug: 'inline' | 'resetClientUsage' | 'trackClientUsage' | 'cleanupOrphanedMedia' | 'schedulePublish';
         taskID: string;
         input?:
           | {
@@ -1255,7 +1279,7 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'resetClientUsage' | 'trackClientUsage' | 'cleanupOrphanedMedia') | null;
+  taskSlug?: ('inline' | 'resetClientUsage' | 'trackClientUsage' | 'cleanupOrphanedMedia' | 'schedulePublish') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -1422,12 +1446,13 @@ export interface PagesSelect<T extends boolean = true> {
       };
   generateSlug?: T;
   slug?: T;
-  publishAt?: T;
+  publishedLocales?: T;
   author?: T;
   tags?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1440,7 +1465,6 @@ export interface MeditationsSelect<T extends boolean = true> {
   musicTag?: T;
   fileMetadata?: T;
   durationMinutes?: T;
-  publishAt?: T;
   title?: T;
   generateSlug?: T;
   slug?: T;
@@ -1450,6 +1474,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
+  _status?: T;
   url?: T;
   thumbnailURL?: T;
   filename?: T;
@@ -2211,6 +2236,28 @@ export interface TaskCleanupOrphanedMedia {
     skippedImages: number;
     errors: number;
   };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskSchedulePublish".
+ */
+export interface TaskSchedulePublish {
+  input: {
+    type?: ('publish' | 'unpublish') | null;
+    locale?: string | null;
+    doc?:
+      | ({
+          relationTo: 'pages';
+          value: number | Page;
+        } | null)
+      | ({
+          relationTo: 'meditations';
+          value: number | Meditation;
+        } | null);
+    global?: string | null;
+    user?: (number | null) | Manager;
+  };
+  output?: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

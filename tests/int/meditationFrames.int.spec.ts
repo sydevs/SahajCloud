@@ -283,7 +283,7 @@ describe('Meditation Frames Field', () => {
     })
   })
 
-  describe('PublishAt Validation with Frames', () => {
+  describe('Publishing Validation with Frames', () => {
     it('prevents publishing without frames configured', async () => {
       // Create a new meditation
       const newMeditation = await testData.createMeditation(payload, {
@@ -292,7 +292,7 @@ describe('Meditation Frames Field', () => {
       })
 
       // The meditation was just created and has no frames
-      // Validation requires frames to set publishAt
+      // Validation requires frames when setting _status to published
       // Note: We can't clear frames on a meditation with audio (requires at least 1)
       // So we test by trying to publish without having added frames first
       await expect(
@@ -300,7 +300,7 @@ describe('Meditation Frames Field', () => {
           collection: 'meditations',
           id: newMeditation.id,
           data: {
-            publishAt: new Date().toISOString(),
+            _status: 'published',
           },
         }),
       ).rejects.toThrow() // Validation error - frames required for publishing
@@ -313,17 +313,17 @@ describe('Meditation Frames Field', () => {
         thumbnail: testImageMedia.id,
       })
 
-      // Add frames and set publishAt in same update
+      // Add frames and set _status to published in same update
       const published = (await payload.update({
         collection: 'meditations',
         id: newMeditation.id,
         data: {
           frames: [{ id: frameId(testFrame1), timestamp: 0 }],
-          publishAt: new Date().toISOString(),
+          _status: 'published',
         },
       })) as Meditation
 
-      expect(published.publishAt).toBeDefined()
+      expect(published._status).toBe('published')
       expect(published.frames).toHaveLength(1)
     })
   })

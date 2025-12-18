@@ -1,5 +1,7 @@
 import type { CollectionConfig, Validate } from 'payload'
 
+import { APIError } from 'payload'
+
 import { mediaField, slugField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'
@@ -12,6 +14,12 @@ export const Meditations: CollectionConfig = {
   slug: 'meditations',
   access: roleBasedAccess('meditations'),
   trash: true,
+  versions: {
+    maxPerDoc: 3,
+    drafts: {
+      schedulePublish: true,
+    },
+  },
   upload: {
     staticDir: 'media/meditations',
     bulkUpload: false,
@@ -21,7 +29,7 @@ export const Meditations: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'label',
-    defaultColumns: ['label', 'thumbnail', 'publishAt', 'tags', 'durationMinutes'],
+    defaultColumns: ['label', 'thumbnail', '_status', 'tags', 'durationMinutes'],
     hidden: handleProjectVisibility('meditations', ['wemeditate-web', 'wemeditate-app']),
     livePreview: {
       url: ({ data }) => {
@@ -33,6 +41,21 @@ export const Meditations: CollectionConfig = {
   hooks: {
     // Filename sanitization is handled by the R2 storage adapter
     // No collection-level hooks needed for filename management
+    beforeChange: [
+      async ({ data, originalDoc, operation }) => {
+        // Validate frames are configured when publishing
+        if (operation === 'update' && data._status === 'published') {
+          const frames = data.frames || originalDoc?.frames
+          if (!frames || !Array.isArray(frames) || frames.length === 0) {
+            throw new APIError(
+              'Cannot publish meditation without frames. Please add frames in the Video tab first.',
+              400,
+            )
+          }
+        }
+        return data
+      },
+    ],
     afterRead: [trackClientUsageHook],
   },
   fields: [
@@ -127,32 +150,6 @@ export const Meditations: CollectionConfig = {
             condition: ({ id }) => !!id,
           },
           fields: [
-            {
-              name: 'publishAt',
-              type: 'date',
-              admin: {
-                date: {
-                  pickerAppearance: 'dayOnly',
-                  minDate: new Date(),
-                },
-                components: {
-                  Cell: '@/components/admin/PublishStateCell',
-                  afterInput: ['@/components/admin/PublishAtAfterInput'],
-                },
-              },
-              validate: (value, { data }) => {
-                // If publishAt is set, frames must be configured
-                if (value) {
-                  const meditationData = data as { frames?: KeyframeDefinition[] }
-                  const frames = meditationData?.frames
-
-                  if (!frames || !Array.isArray(frames) || frames.length === 0) {
-                    return 'Cannot set publish date without configuring frames. Please add frames in the Video tab first.'
-                  }
-                }
-                return true
-              },
-            },
             {
               name: 'title',
               type: 'text',

@@ -74,8 +74,7 @@ describe('Meditations Collection', () => {
     ).toBe(testMusicTag.id)
   })
 
-  it('publishes meditation with date', async () => {
-    const publishDate = new Date()
+  it('creates meditation as draft by default', async () => {
     const meditation = await testData.createMeditation(
       payload,
       {
@@ -83,11 +82,10 @@ describe('Meditations Collection', () => {
         thumbnail: testImageMedia.id,
       },
       {
-        title: 'Published Meditation',
-        publishAt: publishDate.toISOString(), // TODO: This should be auto-populated if not specified
+        title: 'Draft Meditation',
       },
     )
 
-    expect(meditation.publishAt).toBeDefined()
+    expect(meditation._status).toBe('draft')
   })
 })
