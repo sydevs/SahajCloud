@@ -166,17 +166,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     plugins: isE2ETest
       ? [
           // Only include plugins that don't require Cloudflare bindings for E2E tests
-          openapi({
-            openapiVersion: '3.1',
-            metadata: {
-              title: 'Sahaj Cloud API',
-              version: '1.0.0',
-              description: 'REST API for Sahaj Cloud CMS - We Meditate content management',
-            },
-          }),
-          swaggerUI({
-            docsUrl: '/docs',
-          }),
+          // Note: openapi/swaggerUI plugins excluded - not needed for E2E testing
           seoPlugin({
             collections: ['pages'],
             uploadsCollection: 'images',
