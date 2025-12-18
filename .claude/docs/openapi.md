@@ -10,8 +10,7 @@ The application provides interactive REST API documentation using custom plugins
 src/lib/openapi/
 ├── index.ts              # Barrel export
 ├── scalarPlugin.ts       # Custom Scalar plugin with branding
-├── filterByClientRole.ts # Role-based collection filtering
-└── markInternalPaths.ts  # Operation filtering and x-internal markers
+└── specFilter.ts         # Spec filtering and project-based collection filtering
 ```
 
 ## Key Components
@@ -21,9 +20,10 @@ src/lib/openapi/
 Custom PayloadCMS plugin providing branded API documentation:
 
 - **We Meditate coral theme** (`#F07855`) with light/dark mode support
-- **Client role selector** dropdown to filter visible endpoints
-- **Dynamic logo** changes based on selected role
+- **Project selector** dropdown to filter visible endpoints
+- **Dynamic logo** changes based on selected project
 - **HTTP client filtering** - shows only JS, Node, Dart, Python examples
+- **Flash prevention** - critical CSS and blocking dark mode detection
 
 **Usage in payload.config.ts**:
 ```typescript
@@ -37,37 +37,38 @@ plugins: [
 ]
 ```
 
-**Role Logos**:
-| Role | Logo |
-|------|------|
+**Project Logos**:
+| Project | Logo |
+|---------|------|
 | All Endpoints (default) | `/images/sahaj-cloud.svg` |
 | We Meditate Web | `/images/wemeditate-web.svg` |
 | We Meditate App | `/images/wemeditate-app.svg` |
 | Sahaj Atlas | `/images/sahaj-atlas.webp` |
 
-### filterByClientRole.ts
+### specFilter.ts
 
-Utilities for role-based collection filtering using `CLIENT_ROLES` as source of truth:
+Filters OpenAPI specifications and provides project-based collection utilities:
 
+**Exported Functions**:
 ```typescript
 import {
-  getCollectionsForRole,
-  getAllClientCollections,
-  isValidClientRole,
-  getClientRoleOptions
-} from '@/lib/openapi'
+  filterSpec,
+  getCollectionsForClientRole,
+  getAllClientRoleCollections,
+  ALWAYS_HIDDEN_COLLECTIONS,
+  EXCLUDED_OPERATIONS,
+  ALLOW_POST_FOR,
+  DEFAULT_FILTER_CONFIG,
+  type FilterOptions,
+  type OpenAPISpec,
+} from '@/lib/openapi/specFilter'
 ```
 
 | Function | Purpose |
 |----------|---------|
-| `getCollectionsForRole(role)` | Get collections accessible to a specific client role |
-| `getAllClientCollections()` | Get union of all collections across all client roles |
-| `isValidClientRole(role)` | Type guard to validate role string |
-| `getClientRoleOptions()` | Get role options for UI dropdowns |
-
-### markInternalPaths.ts
-
-Filters OpenAPI specifications to hide internal operations:
+| `filterSpec(spec, options?)` | Filter spec with project-based and operation filtering |
+| `getCollectionsForClientRole(project)` | Get collections accessible to a specific project |
+| `getAllClientRoleCollections()` | Get union of all collections across all projects |
 
 **ALWAYS_HIDDEN_COLLECTIONS** (System collections always hidden):
 - `managers`, `clients` (access collections)
@@ -80,17 +81,17 @@ Filters OpenAPI specifications to hide internal operations:
 **ALLOW_POST_FOR** (Collections allowing POST):
 - `form-submissions`
 
-**Role-Based Filtering**:
-When a role is specified, only that role's collections are shown. When no role is specified, union of all client collections is shown.
+**Project-Based Filtering**:
+When a project is specified, only that project's collections are shown. When no project is specified, union of all client collections is shown.
 
 ```typescript
-import { markInternalPaths, ALWAYS_HIDDEN_COLLECTIONS } from '@/lib/openapi'
+import { filterSpec, ALWAYS_HIDDEN_COLLECTIONS } from '@/lib/openapi'
 
-// Without role - shows all client collections
-const spec = markInternalPaths(rawSpec)
+// Without project - shows all client collections
+const spec = filterSpec(rawSpec)
 
-// With role - shows only that role's collections
-const spec = markInternalPaths(rawSpec, { role: 'we-meditate-web' })
+// With project - shows only that project's collections
+const spec = filterSpec(rawSpec, { project: 'wemeditate-web' })
 ```
 
 ## Endpoints
@@ -98,27 +99,27 @@ const spec = markInternalPaths(rawSpec, { role: 'we-meditate-web' })
 | Endpoint | Description |
 |----------|-------------|
 | `/api/openapi.json` | Filtered OpenAPI 3.1 spec (hides internal operations) |
-| `/api/openapi.json?role=<role>` | Role-filtered spec |
+| `/api/openapi.json?project=<project>` | Project-filtered spec |
 | `/api/openapi-raw.json` | Raw OpenAPI 3.1 spec (all operations visible) |
 | `/api/docs` | Scalar interactive documentation with We Meditate branding |
-| `/api/docs?role=<role>` | Role-filtered documentation |
+| `/api/docs?project=<project>` | Project-filtered documentation |
 
 ## Route Handler
 
 **Location**: `src/app/(payload)/api/openapi.json/route.ts`
 
 Intercepts requests and applies filtering:
-1. Parses `?role=` query parameter
-2. Validates role against `CLIENT_ROLES`
+1. Parses `?project=` query parameter
+2. Validates project against `PROJECTS` from `src/lib/projects.ts`
 3. Fetches raw spec from `/api/openapi-raw.json`
-4. Applies `markInternalPaths()` with role filtering
+4. Applies `filterSpec()` with project filtering
 5. Returns filtered spec with caching headers
 
 ## Testing
 
 Integration tests in `tests/int/api-explorer.int.spec.ts`:
 - OpenAPI spec generation and validation
-- Role-based filtering for each client role
+- Project-based filtering for each project
 - ALWAYS_HIDDEN_COLLECTIONS verification
 - Operation filtering (DELETE, PATCH hidden)
 - Scalar UI endpoint responses
