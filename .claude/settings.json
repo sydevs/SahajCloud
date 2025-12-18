@@ -6,6 +6,7 @@
       "WebFetch(domain:payloadcms.com)",
       "WebFetch(domain:nextjs.org)",
       "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:www.npmjs.com)",
       "WebSearch",
       "Bash(npx playwright test --list)",
       "Bash(pnpm exec playwright test --list)",

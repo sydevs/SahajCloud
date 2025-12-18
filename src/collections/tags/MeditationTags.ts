@@ -28,10 +28,10 @@ export const MeditationTags: CollectionConfig = {
     afterRead: [trackClientUsageHook],
   },
   fields: [
-    // Virtual URL field for CDN delivery
+    // Virtual URL field for CDN delivery (R2 for SVG support)
     virtualUrlField({
       collection: 'meditation-tags',
-      adapter: 'cloudflare-images',
+      adapter: 'r2',
     }),
     // Slug auto-generated from title
     slugField({

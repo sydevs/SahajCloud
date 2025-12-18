@@ -19,7 +19,7 @@ export const FILE_SIZE_LIMITS = {
  * Allowed MIME types by category
  */
 export const ALLOWED_MIME_TYPES = {
-  image: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'],
+  image: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'],
   video: ['video/mp4', 'video/webm', 'video/quicktime'],
   audio: ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg'],
   document: ['application/pdf'],

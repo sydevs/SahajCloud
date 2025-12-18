@@ -24,10 +24,10 @@ export const MusicTags: CollectionConfig = {
     mimeTypes: ['image/svg+xml'],
   },
   fields: [
-    // Virtual URL field for CDN delivery
+    // Virtual URL field for CDN delivery (R2 for SVG support)
     virtualUrlField({
       collection: 'music-tags',
-      adapter: 'cloudflare-images',
+      adapter: 'r2',
     }),
     // Slug auto-generated from title
     slugField({
