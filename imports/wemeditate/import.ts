@@ -145,6 +145,11 @@ import { MediaDownloader, extractMediaUrls, extractAuthorImageUrl } from '../lib
 const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/wemeditate')
 const STORAGE_BASE_URL = 'https://assets.wemeditate.com/uploads/'
 
+/**
+ * GitHub raw URL base for fetching data files when running in Cloudflare Workers
+ */
+const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/sydevs/SahajCloud/main'
+
 const ARTICLE_TYPE_TAGS: Record<number, string> = {
   0: 'article',
   1: 'artwork',
@@ -303,19 +308,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   private async loadData(): Promise<void> {
     await this.logger.info('Loading data from JSON...')
 
-    const jsonPath = path.resolve(process.cwd(), 'imports/wemeditate/data.json')
+    const localPath = path.resolve(process.cwd(), 'imports/wemeditate/data.json')
+    const workerUrl = `${GITHUB_RAW_BASE}/imports/wemeditate/data.json`
 
-    // Check if data.json exists
-    try {
-      await fs.access(jsonPath)
-    } catch {
-      throw new Error(
-        `Data file not found at: ${jsonPath}\n` +
-          'Run the extraction script first: pnpm tsx imports/extract-to-json.ts',
-      )
-    }
-
-    const jsonContent = await fs.readFile(jsonPath, 'utf-8')
+    const jsonContent = await this.loadDataFile(localPath, workerUrl)
     this.data = JSON.parse(jsonContent) as WeMeditateData
 
     await this.logger.info(

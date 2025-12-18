@@ -93,6 +93,11 @@ interface ImportedData {
 
 const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/meditations')
 
+/**
+ * GitHub raw URL base for fetching data files when running in Cloudflare Workers
+ */
+const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/sydevs/SahajCloud/main'
+
 // ============================================================================
 // TAG MAPPING CONSTANTS
 // ============================================================================
@@ -369,8 +374,10 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   private async loadData(): Promise<ImportedData> {
     await this.logger.info('Loading data from JSON...')
 
-    const jsonPath = path.resolve(process.cwd(), 'imports/meditations/data.json')
-    const jsonContent = await fs.readFile(jsonPath, 'utf-8')
+    const localPath = path.resolve(process.cwd(), 'imports/meditations/data.json')
+    const workerUrl = `${GITHUB_RAW_BASE}/imports/meditations/data.json`
+
+    const jsonContent = await this.loadDataFile(localPath, workerUrl)
     const data = JSON.parse(jsonContent) as ImportedData
 
     await this.logger.info(

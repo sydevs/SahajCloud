@@ -24,8 +24,8 @@ import type { Payload } from 'payload'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
-
 import { BaseImporter, BaseImportOptions, MediaUploader, TagManager } from '../lib'
+import { isCloudflareWorker } from '../lib/runtime'
 
 // ============================================================================
 // CONFIGURATION
@@ -113,12 +113,14 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       await this.setupImageTags()
     }
 
-    // Setup additional cache directories
-    await this.fileUtils.ensureDir(path.join(this.cacheDir, 'videos'))
-    await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/audio'))
-    await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/images'))
-    await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/videos'))
-    await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/subtitles'))
+    // Setup additional cache directories (skip in Workers - no filesystem access)
+    if (!isCloudflareWorker()) {
+      await this.fileUtils.ensureDir(path.join(this.cacheDir, 'videos'))
+      await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/audio'))
+      await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/images'))
+      await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/videos'))
+      await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/subtitles'))
+    }
   }
 
   /**
@@ -173,6 +175,20 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   }
 
   private async fetchStoryByUuid(uuid: string): Promise<StoryblokStory> {
+    // In Workers: fetch directly without caching
+    if (isCloudflareWorker()) {
+      await this.logger.info(`Fetching video story ${uuid}...`)
+      const response = await fetch(
+        `https://api.storyblok.com/v2/cdn/stories/${uuid}?find_by=uuid&token=${this.token}`,
+      )
+      if (!response.ok) {
+        throw new Error(`Storyblok API error: ${response.statusText}`)
+      }
+      const responseData = (await response.json()) as { story: StoryblokStory }
+      return responseData.story
+    }
+
+    // Local dev: use file caching
     const cacheFile = path.join(this.cacheDir, 'videos', `${uuid}.json`)
 
     if (await this.fileUtils.fileExists(cacheFile)) {
@@ -444,6 +460,30 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     }
 
     const filename = path.basename(url.split('?')[0])
+
+    // In Workers: fetch directly and pass buffer to uploader
+    if (isCloudflareWorker()) {
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`Failed to download image: ${response.status} ${response.statusText}`)
+      }
+      const arrayBuffer = await response.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+
+      const result = await this.mediaUploader.uploadWithDeduplication(filename, {
+        alt: alt || filename,
+        tags,
+        buffer,
+      })
+
+      if (!result) {
+        throw new Error('Failed to upload media')
+      }
+
+      return result.id
+    }
+
+    // Local dev: download to cache, then upload from path
     const destPath = path.join(this.cacheDir, 'assets/images', filename)
 
     await this.downloadFile(url, destPath)
@@ -487,14 +527,11 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
     const filename = path.basename(url.split('?')[0])
     const ext = path.extname(filename).toLowerCase()
-    let destPath: string
     let mimeType: string
 
     if (['.mp3', '.mpeg'].includes(ext)) {
-      destPath = path.join(this.cacheDir, 'assets/audio', filename)
       mimeType = 'audio/mpeg'
     } else if (['.mp4'].includes(ext)) {
-      destPath = path.join(this.cacheDir, 'assets/videos', filename)
       mimeType = 'video/mp4'
     } else if (['.jpg', '.jpeg', '.png', '.webp', '.svg'].includes(ext)) {
       // Image files should go to Images collection, not Files
@@ -505,16 +542,33 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       throw new Error(`Unsupported file type: ${ext}`)
     }
 
-    await this.downloadFile(url, destPath)
+    let fileBuffer: Buffer
 
-    const fileBuffer = await fs.readFile(destPath)
+    // In Workers: fetch directly without file caching
+    if (isCloudflareWorker()) {
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.status} ${response.statusText}`)
+      }
+      const arrayBuffer = await response.arrayBuffer()
+      fileBuffer = Buffer.from(arrayBuffer)
+    } else {
+      // Local dev: download to cache then read
+      const destPath =
+        mimeType === 'audio/mpeg'
+          ? path.join(this.cacheDir, 'assets/audio', filename)
+          : path.join(this.cacheDir, 'assets/videos', filename)
+
+      await this.downloadFile(url, destPath)
+      fileBuffer = await fs.readFile(destPath)
+    }
 
     const attachment = await this.payload.create({
       collection: 'files',
       data: {},
       file: {
         data: fileBuffer,
-        name: path.basename(destPath),
+        name: filename,
         size: fileBuffer.length,
         mimetype: mimeType,
       },
@@ -598,6 +652,17 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async parseSubtitles(url: string): Promise<Record<string, unknown>> {
+    // In Workers: fetch directly without file caching
+    if (isCloudflareWorker()) {
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`Failed to download subtitles: ${response.status} ${response.statusText}`)
+      }
+      const data = await response.text()
+      return JSON.parse(data)
+    }
+
+    // Local dev: download to cache then read
     const filename = path.basename(url.split('?')[0])
     const destPath = path.join(this.cacheDir, 'assets/subtitles', filename)
 
