@@ -1,5 +1,7 @@
 # Custom Admin Components Architecture
 
+**Quick Reference**: Key patterns are auto-loaded from `.claude/rules/components.md` and `.claude/rules/admin-ui.md` when working with component files.
+
 PayloadCMS allows extensive customization of the admin UI through custom components. Understanding the server/client component patterns and performance best practices is essential for building efficient admin interfaces.
 
 ## Server vs Client Components

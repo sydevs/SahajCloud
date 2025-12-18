@@ -112,7 +112,7 @@ describe('filterAvailableLocales', () => {
     it('returns all locales for API clients (not filtered)', () => {
       const clientUser = testData.dummyUser('clients', {
         id: 1,
-        roles: ['we-meditate-web'],
+        roles: ['wemeditate-web'],
       })
       const req = createMockRequest(clientUser)
       const result = filterAvailableLocales({ locales: allLocales, req })

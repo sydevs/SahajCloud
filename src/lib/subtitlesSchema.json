@@ -7,7 +7,7 @@
         "type": "object",
         "properties": {
           "duration": {
-            "type": "integer"
+            "type": "number"
           },
           "content": {
             "type": "string"

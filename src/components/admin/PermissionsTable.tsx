@@ -7,7 +7,7 @@ import { PillProps } from '@payloadcms/ui/elements/Pill'
 import React, { useMemo } from 'react'
 
 import { MANAGER_ROLES, mergeRolePermissions } from '@/fields/permissionsField'
-import { getProjectLabel, PROJECT_ICONS } from '@/lib/projects'
+import { getProjectLabel, getProjectIcon } from '@/lib/projects'
 import type { ProjectSlug } from '@/lib/projects'
 import type { ManagerRole, ClientRole, PermissionLevel } from '@/types/roles'
 
@@ -130,7 +130,7 @@ export const PermissionsTable: FieldClientComponent = () => {
                     }}
                   >
                     <img
-                      src={PROJECT_ICONS[project]}
+                      src={getProjectIcon(project)}
                       alt=""
                       style={{
                         width: '24px',

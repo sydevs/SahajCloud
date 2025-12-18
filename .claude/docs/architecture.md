@@ -84,40 +84,60 @@ r2NativeAdapter({
 
 ## API Explorer (OpenAPI / Scalar)
 
-The application provides interactive REST API documentation using the [payload-oapi](https://github.com/janbuchar/payload-oapi) plugin with [Scalar](https://github.com/scalar/scalar) UI.
+The application provides interactive REST API documentation using the [payload-oapi](https://github.com/janbuchar/payload-oapi) plugin for spec generation and a custom Scalar plugin with We Meditate branding.
 
 ### Endpoints
 
 | Endpoint | Description |
 |----------|-------------|
 | `/api/openapi.json` | Filtered OpenAPI 3.1 specification (hides internal operations) |
+| `/api/openapi.json?role=<role>` | Role-filtered spec (shows only collections for specified client role) |
 | `/api/openapi-raw.json` | Raw OpenAPI 3.1 specification (all operations visible) |
-| `/api/docs` | Scalar interactive documentation |
+| `/api/docs` | Scalar interactive documentation with We Meditate branding |
 | `/api/openapi-auth` | OAuth2 password flow authentication |
 
 ### Features
 
+- **We Meditate Branding**: Custom coral theme (#F07855) and dynamic logo based on selected role
+- **Client Role Selector**: Dropdown to filter visible endpoints by API client role
 - **Auto-Generated Documentation**: All collection CRUD endpoints documented automatically
 - **Request/Response Schemas**: Generated from Payload field definitions
 - **Query Parameters**: Pagination, sorting, filtering (`where`) documented
 - **Access-Aware Security**: Endpoints requiring auth show security requirements
 - **"Try it Out"**: Test API endpoints directly from Scalar UI
 - **Filtered Spec**: Internal operations hidden via `x-internal: true` markers
+- **Prioritized HTTP Clients**: Shows only JavaScript, Node.js, Dart, Python examples
 
-### Operation Filtering
+### Client Role Filtering
 
-The public OpenAPI spec at `/api/openapi.json` filters out internal operations:
+The API docs include a role selector dropdown that filters visible endpoints based on client role permissions:
 
-**Hidden Operations**:
-- All `DELETE` and `PATCH` operations
-- All `POST` operations except for `form-submissions`
+| Role | Description | Key Collections |
+|------|-------------|-----------------|
+| All Endpoints | Union of all client role collections | pages, meditations, music, albums, lessons, etc. |
+| We Meditate Web | Web frontend application | pages, meditations, music, albums, forms, authors, tags |
+| We Meditate App | Mobile application | meditations, lessons, lectures, music, narrators, frames, tags |
+| Sahaj Atlas | Atlas application | sahaj-atlas-settings, images, files |
 
-**Hidden Collections**:
+**Usage**: Select a role from the dropdown or use `?role=` query parameter on `/api/openapi.json`.
+
+### Two-Tier Filtering
+
+The filtering system uses a two-tier approach defined in `src/lib/openapi/`:
+
+**1. ALWAYS_HIDDEN_COLLECTIONS** (System collections always hidden):
 - `managers`, `clients` (access collections)
 - `images`, `files`, `image-tags` (system collections)
 - `payload-kv`, `payload-jobs`, `payload-locked-documents`, `payload-preferences`, `payload-migrations`, `payload-job-stats` (Payload internal)
 
-**Configuration**: Located in `src/lib/openapi/markInternalPaths.ts`
+**2. Role-Based Filtering** (Content collections filtered by CLIENT_ROLES):
+- When a role is selected, only that role's collections are shown
+- When no role is selected, union of all client role collections is shown
+- Derived from `CLIENT_ROLES` in `src/fields/PermissionsField.ts`
+
+**Hidden Operations**:
+- All `DELETE` and `PATCH` operations
+- All `POST` operations except for `form-submissions`
 
 ### Authentication in Scalar
 
@@ -139,7 +159,8 @@ The following features are not supported by the current plugin version:
 Located in `src/payload.config.ts`:
 
 ```typescript
-import { openapi, scalar } from 'payload-oapi'
+import { openapi } from 'payload-oapi'
+import { scalarPlugin } from '@/lib/openapi'
 
 plugins: [
   openapi({
@@ -151,14 +172,21 @@ plugins: [
       description: 'REST API for Sahaj Cloud CMS - We Meditate content management',
     },
   }),
-  scalar({
+  scalarPlugin({
     specEndpoint: '/openapi.json', // Filtered spec
     docsUrl: '/docs',
   }),
 ]
 ```
 
-**Filtering Route**: `src/app/(payload)/api/openapi.json/route.ts` intercepts spec requests and adds `x-internal: true` markers.
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/openapi/scalarPlugin.ts` | Custom Scalar plugin with branding and role selector |
+| `src/lib/openapi/markInternalPaths.ts` | Two-tier filtering logic (ALWAYS_HIDDEN + role-based) |
+| `src/lib/openapi/filterByClientRole.ts` | Role-based collection filtering utilities |
+| `src/app/(payload)/api/openapi.json/route.ts` | Route handler with `?role=` parameter support |
 
 ## Collections
 

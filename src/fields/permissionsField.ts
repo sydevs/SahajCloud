@@ -57,8 +57,8 @@ export const MANAGER_ROLES: Record<ManagerRole, ManagerRoleConfig> = {
 // ============================================================================
 
 export const CLIENT_ROLES: Record<ClientRole, ClientRoleConfig> = {
-  'we-meditate-web': {
-    slug: 'we-meditate-web',
+  'wemeditate-web': {
+    slug: 'wemeditate-web',
     label: 'We Meditate Web',
     description: 'Access for We Meditate web frontend application',
     permissions: {
@@ -70,6 +70,7 @@ export const CLIENT_ROLES: Record<ClientRole, ClientRoleConfig> = {
       files: ['read'],
       pages: ['read'],
       music: ['read'],
+      albums: ['read'],
       forms: ['read'],
       authors: ['read'],
       'meditation-tags': ['read'],
@@ -78,8 +79,8 @@ export const CLIENT_ROLES: Record<ClientRole, ClientRoleConfig> = {
       'form-submissions': ['create'],
     },
   },
-  'we-meditate-app': {
-    slug: 'we-meditate-app',
+  'wemeditate-app': {
+    slug: 'wemeditate-app',
     label: 'We Meditate App',
     description: 'Access for We Meditate mobile application',
     permissions: {

@@ -1,5 +1,7 @@
 # Testing Strategy
 
+**Quick Reference**: Key testing rules are auto-loaded from `.claude/rules/tests.md` and `.claude/rules/testing-reqs.md` when working with test files.
+
 This project uses a comprehensive testing approach with complete test isolation:
 
 ## What to Test vs What NOT to Test

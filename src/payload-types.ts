@@ -902,7 +902,7 @@ export interface Client {
   /**
    * Assign API client roles. Roles apply to all locales.
    */
-  roles?: ('we-meditate-web' | 'we-meditate-app' | 'sahaj-atlas')[] | null;
+  roles?: ('wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas')[] | null;
   permissions?:
     | {
         [k: string]: unknown;

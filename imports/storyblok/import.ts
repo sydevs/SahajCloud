@@ -652,53 +652,24 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async parseSubtitles(url: string): Promise<Record<string, unknown>> {
-    // In Workers: fetch directly without file caching
-    if (isCloudflareWorker()) {
-      await this.logger.info(`[DEBUG] Fetching subtitles from: ${url}`)
-      const response = await fetch(url)
+    let rawData: string
 
+    if (isCloudflareWorker()) {
+      // In Workers: fetch directly without file caching
+      const response = await fetch(url)
       if (!response.ok) {
-        await this.logger.error(
-          `[DEBUG] Subtitle fetch failed: ${response.status} ${response.statusText}`,
-        )
         throw new Error(`Failed to download subtitles: ${response.status} ${response.statusText}`)
       }
-
-      const text = await response.text()
-      await this.logger.info(`[DEBUG] Subtitle response length: ${text.length} chars`)
-      await this.logger.info(`[DEBUG] Subtitle response preview: ${text.substring(0, 200)}...`)
-
-      try {
-        const data = JSON.parse(text) as Record<string, unknown>
-        await this.logger.info(`[DEBUG] Parsed subtitle keys: ${Object.keys(data).join(', ')}`)
-        if (data.captions && Array.isArray(data.captions)) {
-          await this.logger.info(`[DEBUG] Captions count: ${data.captions.length}`)
-          if (data.captions[0]) {
-            const firstCaption = data.captions[0] as Record<string, unknown>
-            await this.logger.info(
-              `[DEBUG] First caption keys: ${Object.keys(firstCaption).join(', ')}`,
-            )
-            await this.logger.info(
-              `[DEBUG] First caption types: duration=${typeof firstCaption.duration}, startOfParagraph=${typeof firstCaption.startOfParagraph}, startTime=${typeof firstCaption.startTime}`,
-            )
-          }
-        }
-        return data
-      } catch (parseError) {
-        const errorMsg = parseError instanceof Error ? parseError.message : String(parseError)
-        await this.logger.error(`[DEBUG] JSON parse failed: ${errorMsg}`)
-        await this.logger.error(`[DEBUG] Raw response: ${text.substring(0, 500)}`)
-        throw parseError
-      }
+      rawData = await response.text()
+    } else {
+      // Local dev: download to cache then read
+      const filename = path.basename(url.split('?')[0])
+      const destPath = path.join(this.cacheDir, 'assets/subtitles', filename)
+      await this.downloadFile(url, destPath)
+      rawData = await fs.readFile(destPath, 'utf-8')
     }
 
-    // Local dev: download to cache then read
-    const filename = path.basename(url.split('?')[0])
-    const destPath = path.join(this.cacheDir, 'assets/subtitles', filename)
-
-    await this.downloadFile(url, destPath)
-    const data = await fs.readFile(destPath, 'utf-8')
-    return JSON.parse(data)
+    return JSON.parse(rawData) as Record<string, unknown>
   }
 
   // ============================================================================
