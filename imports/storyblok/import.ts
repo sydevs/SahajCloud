@@ -110,6 +110,11 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     if (!this.options.dryRun) {
       this.mediaUploader = new MediaUploader(this.payload, this.logger)
       this.tagManager = new TagManager(this.payload, this.logger)
+
+      // Pre-load existing media to avoid D1 queries during import
+      // This significantly reduces database load in Workers environment
+      await this.mediaUploader.preloadExistingMedia()
+
       await this.setupImageTags()
     }
 
@@ -226,7 +231,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
       // Add delay between lessons to avoid rate limiting in Workers environment
       if (i < total - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        await new Promise((resolve) => setTimeout(resolve, 1000))
       }
     }
   }
@@ -340,7 +345,8 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       quote: this.processTextareaField(content.Intro_quote || ''),
     })
 
-    for (const panel of sortedPanels) {
+    for (let i = 0; i < sortedPanels.length; i++) {
+      const panel = sortedPanels[i]
       try {
         if (panel.Video && panel.Video.url) {
           const videoUrl = panel.Video.url
@@ -363,6 +369,11 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
             `Panel missing both video and image for ${story.name} - ${this.processTextField(panel.Title || '')}`,
           )
           panelIndexCounter++
+        }
+
+        // Add delay between panels to avoid rate limiting in Workers environment
+        if (i < sortedPanels.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 200))
         }
       } catch (error) {
         this.addError(`Processing panel for ${story.name}`, error as Error)
@@ -404,6 +415,9 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
           data: { icon: typeof iconId === 'string' ? parseInt(iconId) : iconId },
         })
         await this.logger.info(`✓ Added icon to lesson`)
+
+        // Add delay after icon upload to avoid rate limiting
+        await new Promise((resolve) => setTimeout(resolve, 200))
       } catch (error) {
         this.addError(`Creating/attaching icon for ${story.name}`, error as Error)
       }
@@ -468,7 +482,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
     // In Workers: fetch directly and pass buffer to uploader with retry logic
     if (isCloudflareWorker()) {
-      const maxRetries = 3
+      const maxRetries = 5
       let lastError: Error | null = null
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -487,17 +501,23 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
           })
 
           if (!result) {
-            throw new Error('Failed to upload media to Cloudflare Images')
+            throw new Error('MediaUploader returned null - check Payload logs for details')
           }
 
-          // Add small delay after successful upload to avoid rate limiting
-          await new Promise((resolve) => setTimeout(resolve, 100))
+          // Add delay after successful upload to avoid rate limiting
+          await new Promise((resolve) => setTimeout(resolve, 150))
           return result.id
         } catch (error) {
           lastError = error instanceof Error ? error : new Error(String(error))
+          // Log the error to help with debugging
+          // eslint-disable-next-line no-console
+          console.error(
+            `[Storyblok] Upload attempt ${attempt}/${maxRetries} failed for ${filename}:`,
+            lastError.message,
+          )
           if (attempt < maxRetries) {
-            // Exponential backoff: 500ms, 1000ms, 2000ms
-            const delay = 500 * Math.pow(2, attempt - 1)
+            // Longer exponential backoff: 1s, 2s, 4s, 8s
+            const delay = 1000 * Math.pow(2, attempt - 1)
             await new Promise((resolve) => setTimeout(resolve, delay))
           }
         }
