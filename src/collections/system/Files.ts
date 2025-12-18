@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { roleBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/access'
 import { adminOnlyVisibility } from '@/lib/projectVisibility'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 

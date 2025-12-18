@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { roleBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/access'
 import { GENDER_OPTIONS } from '@/lib/data'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 

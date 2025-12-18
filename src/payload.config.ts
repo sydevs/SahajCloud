@@ -12,9 +12,9 @@ import { buildConfig, Config } from 'payload'
 import { openapi, scalar } from 'payload-oapi'
 import { GetPlatformProxyOptions } from 'wrangler'
 
-import { roleBasedAccess } from '@/lib/accessControl'
+import { filterAvailableLocales, roleBasedAccess } from '@/lib/access'
 import { resendAdapter } from '@/lib/email/resendAdapter'
-import { LOCALES, DEFAULT_LOCALE } from '@/lib/locales'
+import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { sentryPlugin } from '@/lib/sentryPlugin'
 import { getServerUrl } from '@/lib/serverUrl'
@@ -64,8 +64,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     }),
     localization: {
       defaultLocalePublishOption: 'active',
-      locales: LOCALES.map((l) => l.code),
+      locales: buildPayloadLocales(),
       defaultLocale: DEFAULT_LOCALE,
+      filterAvailableLocales,
     },
     cors: [
       serverUrl,

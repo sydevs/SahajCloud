@@ -171,7 +171,8 @@ src/types/
 
 **Implementation**:
 - [src/fields/PermissionsField.ts](../../src/fields/PermissionsField.ts) - Role data definitions, field factories, and mergeRolePermissions utility
-- [src/lib/accessControl.ts](../../src/lib/accessControl.ts) - Core permission checking functions
+- [src/lib/access/accessControl.ts](../../src/lib/access/accessControl.ts) - Core permission checking functions
+- [src/lib/access/filterAvailableLocales.ts](../../src/lib/access/filterAvailableLocales.ts) - Admin UI locale filtering based on user permissions
 - [src/components/admin/PermissionsTable.tsx](../../src/components/admin/PermissionsTable.tsx) - Real-time permissions display component
 
 **Collections**:

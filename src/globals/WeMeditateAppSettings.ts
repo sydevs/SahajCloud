@@ -1,6 +1,6 @@
 import type { GlobalConfig } from 'payload'
 
-import { roleBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/access'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 
 export const WeMeditateAppSettings: GlobalConfig = {

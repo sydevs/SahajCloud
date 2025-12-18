@@ -1,7 +1,7 @@
 import type { CollectionConfig, Field } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { roleBasedAccess, createFieldAccess } from '@/lib/accessControl'
+import { roleBasedAccess, createFieldAccess } from '@/lib/access'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 

@@ -9,7 +9,7 @@ import {
   QuoteBlock,
 } from '@/blocks/pages'
 import { slugField } from '@/fields'
-import { roleBasedAccess } from '@/lib/accessControl'
+import { roleBasedAccess } from '@/lib/access'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { fullRichTextEditor } from '@/lib/richEditor'
 

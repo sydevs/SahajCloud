@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { managerPermissionsFields } from '@/fields'
-import { hasPermission, adminOrSelfAccess } from '@/lib/accessControl'
+import { hasPermission, adminOrSelfAccess } from '@/lib/access'
 import { getProjectOptions } from '@/lib/projects'
 import { getServerUrl } from '@/lib/serverUrl'
 

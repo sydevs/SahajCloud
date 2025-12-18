@@ -4,7 +4,7 @@ import type { Payload } from 'payload'
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
 import { mergeRolePermissions } from '../../src/fields/PermissionsField'
-import { hasPermission } from '../../src/lib/accessControl'
+import { hasPermission } from '../../src/lib/access'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
