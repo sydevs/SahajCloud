@@ -9,6 +9,7 @@ import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
+import { openapi, swaggerUI } from 'payload-oapi'
 import { GetPlatformProxyOptions } from 'wrangler'
 
 import { roleBasedAccess } from '@/lib/accessControl'
@@ -165,6 +166,17 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     plugins: isE2ETest
       ? [
           // Only include plugins that don't require Cloudflare bindings for E2E tests
+          openapi({
+            openapiVersion: '3.1',
+            metadata: {
+              title: 'Sahaj Cloud API',
+              version: '1.0.0',
+              description: 'REST API for Sahaj Cloud CMS - We Meditate content management',
+            },
+          }),
+          swaggerUI({
+            docsUrl: '/docs',
+          }),
           seoPlugin({
             collections: ['pages'],
             uploadsCollection: 'images',
@@ -194,6 +206,17 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           }),
         ]
       : [
+          openapi({
+            openapiVersion: '3.1',
+            metadata: {
+              title: 'Sahaj Cloud API',
+              version: '1.0.0',
+              description: 'REST API for Sahaj Cloud CMS - We Meditate content management',
+            },
+          }),
+          swaggerUI({
+            docsUrl: '/docs',
+          }),
           sentryPlugin({
             captureErrors: [400, 403, 404], // Capture additional error codes
             debug: !isProduction,
