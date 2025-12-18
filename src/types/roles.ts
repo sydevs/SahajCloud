@@ -11,7 +11,12 @@ import type { ProjectSlug } from '@/lib/projects'
 // ============================================================================
 
 export type ManagerRole = 'meditations-editor' | 'path-editor' | 'translator'
-export type ClientRole = 'we-meditate-web' | 'we-meditate-app' | 'sahaj-atlas'
+
+/**
+ * ClientRole is derived from ProjectSlug to ensure consistency between
+ * admin project slugs and API client role slugs.
+ */
+export type ClientRole = ProjectSlug
 
 // ============================================================================
 // Permission Level Type

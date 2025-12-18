@@ -9,12 +9,13 @@ import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
-import { openapi, scalar } from 'payload-oapi'
+import { openapi } from 'payload-oapi'
 import { GetPlatformProxyOptions } from 'wrangler'
 
 import { filterAvailableLocales, roleBasedAccess } from '@/lib/access'
 import { resendAdapter } from '@/lib/email/resendAdapter'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
+import { scalarPlugin } from '@/lib/openapi'
 import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { sentryPlugin } from '@/lib/sentryPlugin'
 import { getServerUrl } from '@/lib/serverUrl'
@@ -218,7 +219,7 @@ API keys are generated in the Clients collection in the admin panel. Each client
 **Note:** The "Authorize" button in this documentation uses OAuth2 password flow for manager authentication, which is different from client API key authentication.`,
             },
           }),
-          scalar({
+          scalarPlugin({
             specEndpoint: '/openapi.json', // Uses our filtered spec (not raw)
             docsUrl: '/docs',
           }),

@@ -42,7 +42,7 @@ describe('Client Hooks', () => {
           name: 'Test Client',
           managers: [manager1.id], // Only manager1
           primaryContact: manager2.id, // manager2 not in list
-          roles: ['we-meditate-web'],
+          roles: ['wemeditate-web'],
         },
       })) as Client
 
