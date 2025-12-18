@@ -21,13 +21,19 @@ export async function GET(request: NextRequest) {
     // Get the base URL from the request
     const baseUrl = request.nextUrl.origin
 
-    // Fetch the raw OpenAPI spec from payload-oapi
+    // Fetch the raw OpenAPI spec from payload-oapi with timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
     const rawSpecResponse = await fetch(`${baseUrl}/api/openapi-raw.json`, {
       headers: {
         // Forward relevant headers
         Accept: 'application/json',
       },
+      signal: controller.signal,
     })
+
+    clearTimeout(timeoutId)
 
     if (!rawSpecResponse.ok) {
       return NextResponse.json(
