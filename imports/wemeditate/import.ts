@@ -474,7 +474,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
         // Download album art if available (Albums is an upload collection - file required)
         // The image field is JSONB stored as a quoted string like: "4d892b21f6.jpg"
-        let localImagePath: string | null = null
+        let downloadResult: { localPath: string; buffer?: Buffer } | null = null
         if (artist.image) {
           try {
             // Parse JSONB string - it's stored as "filename.jpg" (quoted string in JSON)
@@ -493,8 +493,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
               const albumArtUrl = imageFilename.startsWith('http')
                 ? imageFilename
                 : `${STORAGE_BASE_URL}artist/image/${artist.id}/${imageFilename}`
-              const downloadResult = await this.mediaDownloader.downloadAndConvertImage(albumArtUrl)
-              localImagePath = downloadResult.localPath
+              downloadResult = await this.mediaDownloader.downloadAndConvertImage(albumArtUrl)
             }
           } catch (error) {
             this.addWarning(
@@ -504,13 +503,19 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         }
 
         // If no album art available, use a placeholder
-        if (!localImagePath) {
-          localImagePath = await this.getOrCreatePlaceholderImage()
+        if (!downloadResult) {
+          downloadResult = await this.getOrCreatePlaceholderImage()
         }
 
         // Create album with file (Albums is an upload collection)
-        const fileBuffer = await fs.readFile(localImagePath)
-        const filename = path.basename(localImagePath)
+        // Use buffer directly in Workers mode, otherwise read from file
+        let fileBuffer: Buffer
+        if (downloadResult.buffer) {
+          fileBuffer = downloadResult.buffer
+        } else {
+          fileBuffer = await fs.readFile(downloadResult.localPath)
+        }
+        const filename = path.basename(downloadResult.localPath)
         const mimeType = this.fileUtils.getMimeType(filename)
 
         const albumDoc = await this.payload.create({
@@ -535,6 +540,11 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           current: i + 1,
           total,
         })
+
+        // Add delay between albums to avoid rate limiting in Workers environment
+        if (i < total - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 300))
+        }
       } catch (error) {
         this.addError(`Importing album (artist) ${artist.id}`, error as Error)
       }
@@ -543,20 +553,42 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
   /**
    * Get or create a placeholder image for albums without artwork
+   * Returns an object with localPath and optional buffer for Workers mode
    */
-  private async getOrCreatePlaceholderImage(): Promise<string> {
+  private async getOrCreatePlaceholderImage(): Promise<{ localPath: string; buffer?: Buffer }> {
+    // Workers mode: return a minimal gray PNG as buffer
+    if (isCloudflareWorker()) {
+      // Minimal 1x1 gray PNG (68 bytes) - generated with proper CRC checksums
+      const minimalPng = Buffer.from([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // PNG signature
+        0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1 dimensions
+        0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, // 8-bit RGB, CRC
+        0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41, 0x54, // IDAT chunk
+        0x08, 0xd7, 0x63, 0x78, 0x78, 0x78, 0x00, 0x00, // compressed gray pixel
+        0x00, 0x04, 0x00, 0x01, 0x27, 0x34, 0x60, 0x3a, // CRC
+        0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, // IEND chunk
+        0xae, 0x42, 0x60, 0x82, // IEND CRC
+      ])
+      return {
+        localPath: 'placeholder-album.png',
+        buffer: minimalPng,
+      }
+    }
+
+    // Local dev mode: use filesystem
     const placeholderPath = path.join(this.cacheDir, 'placeholder-album.png')
 
     // Check if placeholder already exists in cache
     if (await this.fileUtils.fileExists(placeholderPath)) {
-      return placeholderPath
+      return { localPath: placeholderPath }
     }
 
     // Copy the preview.png as placeholder
     const existingPlaceholder = path.resolve(process.cwd(), 'imports/wemeditate/preview.png')
     if (await this.fileUtils.fileExists(existingPlaceholder)) {
       await fs.copyFile(existingPlaceholder, placeholderPath)
-      return placeholderPath
+      return { localPath: placeholderPath }
     }
 
     throw new Error(
@@ -746,9 +778,18 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         return
       }
 
-      // Use the generic music-tag.svg from imports/tags/
-      const svgPath = path.resolve(process.cwd(), 'imports/tags/music-tag.svg')
-      const svgBuffer = await fs.readFile(svgPath)
+      // Get SVG buffer - use inline SVG in Workers mode (no filesystem access)
+      let svgBuffer: Buffer
+      if (isCloudflareWorker()) {
+        // Minimal music note SVG for Workers mode (Material Icons music_note)
+        const svgContent =
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>'
+        svgBuffer = Buffer.from(svgContent, 'utf-8')
+      } else {
+        // Local dev: read from filesystem
+        const svgPath = path.resolve(process.cwd(), 'imports/tags/music-tag.svg')
+        svgBuffer = await fs.readFile(svgPath)
+      }
 
       await this.payload.create({
         collection: 'music-tags',
@@ -1188,6 +1229,11 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             current: i + 1,
             total,
           })
+        }
+
+        // Add delay after each media upload to avoid rate limiting
+        if (i < total - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 100))
         }
       } catch (error) {
         this.addError(`Importing media ${url}`, error as Error)

@@ -38,6 +38,18 @@ import * as path from 'path'
 import type { MeditationTag, MusicTag } from '@/payload-types'
 
 import { BaseImporter, BaseImportOptions, TagManager, MediaUploader } from '../lib'
+import { isCloudflareWorker } from '../lib/runtime'
+
+// ============================================================================
+// FILE DATA TYPE
+// ============================================================================
+
+interface FileData {
+  data: Buffer
+  name: string
+  size: number
+  mimetype: string
+}
 
 // ============================================================================
 // TYPES
@@ -416,25 +428,50 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   // FILE OPERATIONS
   // ============================================================================
 
-  private async downloadFile(storageKey: string, filename: string): Promise<string | null> {
+  /**
+   * Download file with dual-mode support:
+   * - Local development: Cache to disk for faster iteration
+   * - Cloudflare Workers: Stream directly without disk
+   */
+  private async downloadFile(storageKey: string, filename: string): Promise<Buffer | null> {
     try {
+      const baseUrl =
+        process.env.STORAGE_BASE_URL || 'https://storage.googleapis.com/media.sydevelopers.com'
+      const fileUrl = `${baseUrl}/${storageKey}`
+
+      // Workers mode: stream directly to buffer (no filesystem)
+      if (isCloudflareWorker()) {
+        await this.logger.log(`  Downloading: ${filename}`)
+        const response = await fetch(fileUrl)
+        if (!response.ok) {
+          throw new Error(`Failed to download: ${response.status}`)
+        }
+        await this.logger.log(`  ✓ Downloaded: ${filename}`)
+        return Buffer.from(await response.arrayBuffer())
+      }
+
+      // Local mode: use cache
       const sanitizedKey = storageKey.replace(/[^a-zA-Z0-9.-]/g, '_')
       const cachedPath = path.join(this.cacheDir, `${sanitizedKey}_${filename}`)
 
       if (await this.fileUtils.fileExists(cachedPath)) {
         await this.logger.log(`  ✓ Using cached: ${filename}`)
-        return cachedPath
+        return fs.readFile(cachedPath)
       }
 
-      const baseUrl =
-        process.env.STORAGE_BASE_URL || 'https://storage.googleapis.com/media.sydevelopers.com'
-      const fileUrl = `${baseUrl}/${storageKey}`
-
       await this.logger.log(`  Downloading: ${filename}`)
-      await this.fileUtils.downloadFileFetch(fileUrl, cachedPath)
+      const response = await fetch(fileUrl)
+      if (!response.ok) {
+        throw new Error(`Failed to download: ${response.status}`)
+      }
+      const buffer = Buffer.from(await response.arrayBuffer())
+
+      // Cache for future runs
+      await fs.mkdir(path.dirname(cachedPath), { recursive: true })
+      await fs.writeFile(cachedPath, buffer)
       await this.logger.log(`  ✓ Downloaded: ${filename}`)
 
-      return cachedPath
+      return buffer
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       this.addWarning(`Error downloading ${filename}: ${message}`)
@@ -442,27 +479,39 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
+  /**
+   * Create FileData object from buffer for Payload upload
+   */
+  private createFileData(buffer: Buffer, filename: string): FileData {
+    return {
+      data: buffer,
+      name: filename,
+      size: buffer.length,
+      mimetype: this.fileUtils.getMimeType(filename),
+    }
+  }
+
+  /**
+   * Upload file to Payload CMS collection
+   * Accepts FileData object with buffer for Workers-compatible uploads
+   */
   private async uploadToPayload(
-    localPath: string,
+    fileData: FileData,
     collection: CollectionSlug,
     metadata: Record<string, any> = {},
   ): Promise<any | null> {
     try {
-      const fileBuffer = await fs.readFile(localPath)
-      const filename = path.basename(localPath).replace(/^[^_]+_/, '')
-      const mimeType = this.fileUtils.getMimeType(filename)
-
       // Validate MIME type for music collection
       if (collection === 'music') {
         const acceptedMimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg']
 
-        if (filename.toLowerCase().endsWith('.m4a')) {
-          this.skip(`m4a file (MIME detection conflicts): ${filename}`)
+        if (fileData.name.toLowerCase().endsWith('.m4a')) {
+          this.skip(`m4a file (MIME detection conflicts): ${fileData.name}`)
           return null
         }
 
-        if (!acceptedMimeTypes.includes(mimeType)) {
-          this.skip(`unsupported audio format: ${filename} (${mimeType})`)
+        if (!acceptedMimeTypes.includes(fileData.mimetype)) {
+          this.skip(`unsupported audio format: ${fileData.name} (${fileData.mimetype})`)
           return null
         }
       }
@@ -470,12 +519,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       const createOptions: any = {
         collection,
         data: metadata,
-        file: {
-          data: fileBuffer,
-          mimetype: mimeType,
-          name: filename,
-          size: fileBuffer.length,
-        },
+        file: fileData,
       }
 
       if (collection === 'music' || collection === 'meditations') {
@@ -483,15 +527,15 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       }
 
       const result = await this.payload.create(createOptions)
-      await this.logger.log(`    ✓ Uploaded: ${filename}`)
+      await this.logger.log(`    ✓ Uploaded: ${fileData.name}`)
       return result
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       if (message.includes('exceeds maximum allowed duration')) {
-        this.skip(`media (exceeds duration limit): ${path.basename(localPath)}`)
+        this.skip(`media (exceeds duration limit): ${fileData.name}`)
         return null
       }
-      this.addWarning(`Failed to upload ${path.basename(localPath)}: ${message}`)
+      this.addWarning(`Failed to upload ${fileData.name}: ${message}`)
       return null
     }
   }
@@ -536,6 +580,54 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.log(`    ✓ Tags ready: thumbnail(${thumbnailId}), meditation(${meditationId}), placeholder(${placeholderId})`)
   }
 
+  /**
+   * Get placeholder image buffer with dual-mode support:
+   * - Workers mode: fetch from GitHub
+   * - Local mode: read from cache or fetch and cache
+   */
+  private async getPlaceholderBuffer(filename: string): Promise<Buffer | null> {
+    const githubUrl = `${GITHUB_RAW_BASE}/imports/meditations/${filename}`
+
+    // Workers mode: fetch directly from GitHub
+    if (isCloudflareWorker()) {
+      try {
+        await this.logger.log(`  Fetching ${filename} from GitHub...`)
+        const response = await fetch(githubUrl)
+        if (!response.ok) {
+          throw new Error(`Failed to fetch: ${response.status}`)
+        }
+        return Buffer.from(await response.arrayBuffer())
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        this.addWarning(`Error fetching ${filename} from GitHub: ${message}`)
+        return null
+      }
+    }
+
+    // Local mode: use cache
+    const cachedPath = path.join(this.cacheDir, filename)
+    if (await this.fileUtils.fileExists(cachedPath)) {
+      return fs.readFile(cachedPath)
+    }
+
+    // Try to fetch from GitHub and cache
+    try {
+      await this.logger.log(`  Fetching ${filename} from GitHub...`)
+      const response = await fetch(githubUrl)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.status}`)
+      }
+      const buffer = Buffer.from(await response.arrayBuffer())
+      await fs.mkdir(path.dirname(cachedPath), { recursive: true })
+      await fs.writeFile(cachedPath, buffer)
+      return buffer
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.addWarning(`Error fetching ${filename}: ${message}`)
+      return null
+    }
+  }
+
   private async uploadPlaceholderImages(): Promise<void> {
     await this.logger.info('\nChecking placeholder images...')
 
@@ -557,13 +649,14 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       this.placeholderMediaId = existingPlaceholder.docs[0].id
       await this.logger.log(`    ✓ Using existing placeholder.jpg (ID: ${this.placeholderMediaId})`)
     } else {
-      const placeholderPath = path.join(this.cacheDir, 'placeholder.jpg')
-      if (await this.fileUtils.fileExists(placeholderPath)) {
+      const buffer = await this.getPlaceholderBuffer('placeholder.jpg')
+      if (buffer) {
         // Placeholder images get: thumbnail + meditation + placeholder
         const tags = [this.thumbnailTagId, this.meditationTagId, this.placeholderTagId].filter(
           (id): id is number => id !== null,
         )
-        const result = await this.uploadToPayload(placeholderPath, 'images', {
+        const fileData = this.createFileData(buffer, 'placeholder.jpg')
+        const result = await this.uploadToPayload(fileData, 'images', {
           alt: 'Meditation placeholder image',
           tags,
         })
@@ -572,7 +665,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
           await this.logger.log(`    ✓ Uploaded placeholder.jpg (ID: ${this.placeholderMediaId})`)
         }
       } else {
-        this.addWarning('placeholder.jpg not found in cache folder')
+        this.addWarning('placeholder.jpg not available')
       }
     }
 
@@ -580,13 +673,14 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       this.pathPlaceholderMediaId = existingPathPlaceholder.docs[0].id
       await this.logger.log(`    ✓ Using existing path.jpg (ID: ${this.pathPlaceholderMediaId})`)
     } else {
-      const pathPlaceholderPath = path.join(this.cacheDir, 'path.jpg')
-      if (await this.fileUtils.fileExists(pathPlaceholderPath)) {
+      const buffer = await this.getPlaceholderBuffer('path.jpg')
+      if (buffer) {
         // Path placeholder images get: thumbnail + meditation + placeholder
         const tags = [this.thumbnailTagId, this.meditationTagId, this.placeholderTagId].filter(
           (id): id is number => id !== null,
         )
-        const result = await this.uploadToPayload(pathPlaceholderPath, 'images', {
+        const fileData = this.createFileData(buffer, 'path.jpg')
+        const result = await this.uploadToPayload(fileData, 'images', {
           alt: 'Path meditation placeholder image',
           tags,
         })
@@ -595,7 +689,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
           await this.logger.log(`    ✓ Uploaded path.jpg (ID: ${this.pathPlaceholderMediaId})`)
         }
       } else {
-        this.addWarning('path.jpg not found in cache folder')
+        this.addWarning('path.jpg not available')
       }
     }
   }
@@ -837,8 +931,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     }
 
     // Download and upload new frame
-    const localPath = await this.downloadFile(attachment.blob.key, filename)
-    if (!localPath) {
+    const buffer = await this.downloadFile(attachment.blob.key, filename)
+    if (!buffer) {
       await this.reportDocument('frames', identifier, 'error', {
         error: 'Download failed',
         current,
@@ -854,7 +948,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         tags: tagValues as any[],
       }
 
-      const result = await this.uploadToPayload(localPath, 'frames', frameData)
+      const fileData = this.createFileData(buffer, filename)
+      const result = await this.uploadToPayload(fileData, 'frames', frameData)
       if (result) {
         this.idMaps.frames.set(`${legacyFrameId}_${gender}`, result.id)
         this.report.incrementCreated()
@@ -924,8 +1019,12 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
     // Create new album with placeholder image
     await this.logger.info(`    Creating album for artist: ${artistName}`)
-    const placeholderPath = await this.getPlaceholderImagePath()
-    const result = await this.uploadToPayload(placeholderPath, 'albums', {
+    const buffer = await this.getAlbumPlaceholderBuffer()
+    if (!buffer) {
+      throw new Error('No placeholder image available for album creation')
+    }
+    const fileData = this.createFileData(buffer, 'placeholder-album.png')
+    const result = await this.uploadToPayload(fileData, 'albums', {
       title: artistName, // Use artist name as album title
       artist: artistName,
     })
@@ -939,26 +1038,61 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   }
 
   /**
-   * Get path to a placeholder image for album creation
+   * Get album placeholder image buffer with dual-mode support:
+   * - Workers mode: fetch from GitHub
+   * - Local mode: read from cache or fetch and cache
    */
-  private async getPlaceholderImagePath(): Promise<string> {
-    const placeholderPath = path.join(this.cacheDir, 'placeholder-album.jpg')
+  private async getAlbumPlaceholderBuffer(): Promise<Buffer | null> {
+    const filename = 'placeholder-album.png'
+    const githubUrl = `${GITHUB_RAW_BASE}/imports/wemeditate/preview.png`
 
-    // Check if placeholder already exists
-    try {
-      await fs.access(placeholderPath)
-      return placeholderPath
-    } catch {
-      // Create a simple placeholder by copying an existing image or using placeholder.png
-      const existingPlaceholder = path.resolve(process.cwd(), 'imports/wemeditate/preview.png')
+    // Workers mode: fetch directly from GitHub
+    if (isCloudflareWorker()) {
       try {
-        await fs.access(existingPlaceholder)
-        await fs.copyFile(existingPlaceholder, placeholderPath)
-        return placeholderPath
-      } catch {
-        // If no placeholder exists, throw an error
-        throw new Error('No placeholder image available for album creation. Run wemeditate import first.')
+        await this.logger.log(`  Fetching album placeholder from GitHub...`)
+        const response = await fetch(githubUrl)
+        if (!response.ok) {
+          throw new Error(`Failed to fetch: ${response.status}`)
+        }
+        return Buffer.from(await response.arrayBuffer())
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        this.addWarning(`Error fetching album placeholder from GitHub: ${message}`)
+        return null
       }
+    }
+
+    // Local mode: use cache
+    const cachedPath = path.join(this.cacheDir, filename)
+    if (await this.fileUtils.fileExists(cachedPath)) {
+      return fs.readFile(cachedPath)
+    }
+
+    // Try local wemeditate preview.png first
+    const localPlaceholder = path.resolve(process.cwd(), 'imports/wemeditate/preview.png')
+    if (await this.fileUtils.fileExists(localPlaceholder)) {
+      const buffer = await fs.readFile(localPlaceholder)
+      // Cache for future runs
+      await fs.mkdir(path.dirname(cachedPath), { recursive: true })
+      await fs.writeFile(cachedPath, buffer)
+      return buffer
+    }
+
+    // Fallback: fetch from GitHub and cache
+    try {
+      await this.logger.log(`  Fetching album placeholder from GitHub...`)
+      const response = await fetch(githubUrl)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.status}`)
+      }
+      const buffer = Buffer.from(await response.arrayBuffer())
+      await fs.mkdir(path.dirname(cachedPath), { recursive: true })
+      await fs.writeFile(cachedPath, buffer)
+      return buffer
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.addWarning(`Error fetching album placeholder: ${message}`)
+      return null
     }
   }
 
@@ -1053,12 +1187,13 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
           let result
           if (audioAttachment) {
-            const localPath = await this.downloadFile(
+            const buffer = await this.downloadFile(
               audioAttachment.blob.key,
               audioAttachment.blob.filename,
             )
-            if (localPath) {
-              result = await this.uploadToPayload(localPath, 'music', musicData)
+            if (buffer) {
+              const fileData = this.createFileData(buffer, audioAttachment.blob.filename)
+              result = await this.uploadToPayload(fileData, 'music', musicData)
             }
           }
 
@@ -1238,12 +1373,13 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
     let result
     if (audioAttachment) {
-      const localPath = await this.downloadFile(
+      const buffer = await this.downloadFile(
         audioAttachment.blob.key,
         audioAttachment.blob.filename,
       )
-      if (localPath) {
-        result = await this.uploadToPayload(localPath, 'meditations', meditationData)
+      if (buffer) {
+        const fileData = this.createFileData(buffer, audioAttachment.blob.filename)
+        result = await this.uploadToPayload(fileData, 'meditations', meditationData)
       }
     }
 
@@ -1279,15 +1415,17 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
     if (!artAttachment) return null
 
-    const localPath = await this.downloadFile(artAttachment.blob.key, artAttachment.blob.filename)
-    if (!localPath) return null
+    const buffer = await this.downloadFile(artAttachment.blob.key, artAttachment.blob.filename)
+    if (!buffer) return null
 
     const tags = [this.thumbnailTagId, this.meditationTagId].filter(
       (id): id is number => id !== null,
     )
-    const result = await this.mediaUploader.uploadWithDeduplication(localPath, {
+    // Pass buffer in options for Workers mode, use filename as localPath for cache key
+    const result = await this.mediaUploader.uploadWithDeduplication(artAttachment.blob.filename, {
       alt: `${meditation.title} thumbnail`,
       tags,
+      buffer,
     })
 
     return result?.id ?? null

@@ -404,6 +404,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       total?: number
       /** Publish this specific locale (uses PayloadCMS native per-locale publishing) */
       publishSpecificLocale?: TypedLocale
+      /** Force file upload even on update (default: false - skips file on update, assumes existing file is correct) */
+      forceFileUpload?: boolean
     },
   ): Promise<UpsertResult<T>> {
     const identifier = options?.identifier || this.summarizeKey(naturalKey)
@@ -442,8 +444,11 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         // Update existing (with retry for SQLITE_BUSY)
         const updateStart = DEBUG ? Date.now() : 0
         if (DEBUG) console.log(`[UPSERT] Updating ${collection}:${identifier}`)
+        // Skip file upload on update unless forceFileUpload is true
+        // Assumes existing file is correct - only data fields are updated
+        const fileForUpdate = options?.forceFileUpload ? options?.file : undefined
         // Track file upload operation for heartbeat
-        if (options?.file) {
+        if (fileForUpdate) {
           this.setCurrentOperation(`Uploading ${collection}:${identifier}`)
         }
         const updated = await this.executeWithRetry(() =>
@@ -452,7 +457,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             id: existing.docs[0].id,
             data,
             locale: options?.locale,
-            file: options?.file,
+            file: fileForUpdate,
             publishSpecificLocale: options?.publishSpecificLocale,
           }),
         )
