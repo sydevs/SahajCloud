@@ -1214,7 +1214,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       duration: meditation.duration,
       narrator: narratorId,
       tags: meditationTagIds,
-      publishAt: meditation.published ? new Date().toISOString() : undefined,
+      _status: meditation.published ? 'published' : 'draft',
     }
 
     if (thumbnailId) meditationData.thumbnail = thumbnailId

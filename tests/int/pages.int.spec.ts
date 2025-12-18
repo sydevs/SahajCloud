@@ -66,18 +66,36 @@ describe('Pages Collection', () => {
   })
 
   describe('Publish Functionality', () => {
-    it('creates page with publishAt date', async () => {
-      const futureDate = new Date()
-      futureDate.setDate(futureDate.getDate() + 7) // 7 days in the future
-
+    it('creates page as draft by default', async () => {
       const page = await testData.createPage(payload, {
-        title: 'Scheduled Page',
-        publishAt: futureDate.toISOString(),
+        title: 'Draft Page',
       })
 
-      expect(page.publishAt).toBeDefined()
-      const publishDate = new Date(page.publishAt!)
-      expect(publishDate.getTime()).toBeGreaterThanOrEqual(Date.now())
+      expect(page._status).toBe('draft')
+    })
+
+    it('creates page as published', async () => {
+      const page = await testData.createPage(payload, {
+        title: 'Published Page',
+        _status: 'published',
+      })
+
+      expect(page._status).toBe('published')
+    })
+
+    it('can transition from draft to published', async () => {
+      const page = await testData.createPage(payload, {
+        title: 'Transition Page',
+        _status: 'draft',
+      })
+      expect(page._status).toBe('draft')
+
+      const published = await payload.update({
+        collection: 'pages',
+        id: page.id,
+        data: { _status: 'published' },
+      })
+      expect(published._status).toBe('published')
     })
   })
 })

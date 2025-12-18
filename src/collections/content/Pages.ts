@@ -20,7 +20,7 @@ export const Pages: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'publishAt'],
+    defaultColumns: ['title', '_status'],
     hidden: handleProjectVisibility('pages', ['wemeditate-web']),
     livePreview: {
       url: ({ data, locale }) => {
@@ -29,10 +29,15 @@ export const Pages: CollectionConfig = {
       },
     },
   },
-  // versions: {
-  //   maxPerDoc: 20,
-  //   drafts: true,
-  // },
+  versions: {
+    maxPerDoc: 3,
+    drafts: {
+      autosave: {
+        interval: 60000, // 60 seconds
+      },
+      schedulePublish: true,
+    },
+  },
   fields: [
     {
       type: 'tabs',
@@ -64,22 +69,6 @@ export const Pages: CollectionConfig = {
       ],
     },
     slugField({ useAsSlug: 'title' }),
-    {
-      name: 'publishAt',
-      type: 'date',
-      localized: true,
-      admin: {
-        position: 'sidebar',
-        date: {
-          pickerAppearance: 'dayOnly',
-          minDate: new Date(),
-        },
-        components: {
-          Cell: '@/components/admin/PublishStateCell',
-          afterInput: ['@/components/admin/PublishAtAfterInput'],
-        },
-      },
-    },
     {
       name: 'author',
       type: 'relationship',

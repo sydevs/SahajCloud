@@ -89,8 +89,8 @@ r2NativeAdapter({
 - **Clients** (`src/collections/access/Clients.ts`) - API client management with authentication keys, usage tracking, granular collection/locale-based permissions, and high-usage alerts
 
 ### Content Collections
-- **Pages** (`src/collections/content/Pages.ts`) - Rich text content with embedded blocks using Lexical editor, author relationships, tags, auto-generated slugs, and publish scheduling
-- **Meditations** (`src/collections/content/Meditations.ts`) - Guided meditation content with audio files, tags, metadata, frame relationships with timestamps, and locale-specific content filtering
+- **Pages** (`src/collections/content/Pages.ts`) - Rich text content with embedded blocks using Lexical editor, author relationships, tags, auto-generated slugs, drafts system with autosave (60s), version history, and scheduled publishing
+- **Meditations** (`src/collections/content/Meditations.ts`) - Guided meditation content with audio files, tags, metadata, frame relationships with timestamps, locale-specific content filtering, drafts system with scheduled publishing, and beforeChange validation requiring frames for publishing
 - **Albums** (`src/collections/content/Albums.ts`) - Music album groupings with Cloudflare Images artwork, localized title/artist fields, optional artistUrl, and join field for related music tracks
 - **Music** (`src/collections/content/Music.ts`) - Background music tracks with direct audio upload, required album relationship, tags, and localized title field
 - **Lessons** (`src/collections/content/Lessons.ts`) - Meditation lessons (also called "Path Steps" in admin UI) with audio upload, panels array for content sections, unit selection (Unit 1-4), step number, icon, optional meditation relationship, and rich text article field
