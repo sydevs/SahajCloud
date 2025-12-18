@@ -29,14 +29,19 @@ import type { Payload } from 'payload'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 
-
 import { BaseImporter, BaseImportOptions } from '../lib'
+import { isCloudflareWorker } from '../lib/runtime'
 
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
 const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/tags')
+
+/**
+ * GitHub raw URL base for fetching local files when running in Cloudflare Workers
+ */
+const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/sydevs/SahajCloud/main'
 
 // ============================================================================
 // TYPES
@@ -469,35 +474,58 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
 
   /**
    * Download SVG from URL or load from local file (local: prefix)
+   * In Cloudflare Workers, fetches local files from GitHub raw URLs instead of filesystem
    */
   private async downloadSvg(url: string, cacheFilename: string): Promise<string> {
     // Handle local files (local:filename.svg)
     if (url.startsWith('local:')) {
       const localFilename = url.slice(6) // Remove 'local:' prefix
+
+      // In Cloudflare Workers: fetch from GitHub
+      if (isCloudflareWorker()) {
+        const githubUrl = `${GITHUB_RAW_BASE}/imports/tags/${localFilename}`
+        const response = await fetch(githubUrl)
+        if (!response.ok) {
+          throw new Error(`Failed to fetch SVG from GitHub: ${response.status} ${response.statusText}`)
+        }
+        return response.text()
+      }
+
+      // Local dev: read from filesystem
       const localPath = path.resolve(process.cwd(), 'imports/tags', localFilename)
       return fs.readFile(localPath, 'utf-8')
     }
 
-    const cachePath = path.join(this.cacheDir, 'assets', cacheFilename)
+    // For remote URLs, use caching in local dev only
+    if (!isCloudflareWorker()) {
+      const cachePath = path.join(this.cacheDir, 'assets', cacheFilename)
 
-    // Check cache first
-    if (await this.fileUtils.fileExists(cachePath)) {
-      return fs.readFile(cachePath, 'utf-8')
+      // Check cache first
+      if (await this.fileUtils.fileExists(cachePath)) {
+        return fs.readFile(cachePath, 'utf-8')
+      }
+
+      // Download from URL
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`Failed to download SVG: ${response.status} ${response.statusText}`)
+      }
+
+      const svgContent = await response.text()
+
+      // Cache the original SVG
+      await this.fileUtils.ensureDir(path.dirname(cachePath))
+      await fs.writeFile(cachePath, svgContent, 'utf-8')
+
+      return svgContent
     }
 
-    // Download from URL
+    // In Cloudflare Workers: fetch directly without caching
     const response = await fetch(url)
     if (!response.ok) {
       throw new Error(`Failed to download SVG: ${response.status} ${response.statusText}`)
     }
-
-    const svgContent = await response.text()
-
-    // Cache the original SVG
-    await this.fileUtils.ensureDir(path.dirname(cachePath))
-    await fs.writeFile(cachePath, svgContent, 'utf-8')
-
-    return svgContent
+    return response.text()
   }
 
   /**
