@@ -511,12 +511,16 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
 
   /**
    * Create a file object from SVG content for Payload upload
+   * Uses TextEncoder for Workers compatibility (Buffer.from with encoding arg doesn't work in Workers)
    */
   private createSvgFileObject(
     svgContent: string,
     filename: string,
   ): { data: Buffer; mimetype: string; name: string; size: number } {
-    const buffer = Buffer.from(svgContent, 'utf-8')
+    // Use TextEncoder for Workers-compatible string to buffer conversion
+    const encoder = new TextEncoder()
+    const uint8Array = encoder.encode(svgContent)
+    const buffer = Buffer.from(uint8Array)
     return {
       data: buffer,
       mimetype: 'image/svg+xml',

@@ -103,14 +103,14 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
         disablePayloadAccessControl: true,
       },
 
-      // Tag collections with SVG icons - Cloudflare Images
+      // Tag collections with SVG icons - R2 storage (Cloudflare Images doesn't support SVG)
       'meditation-tags': {
-        adapter: imagesAdapter,
+        adapter: r2Adapter,
         disableLocalStorage: true,
         disablePayloadAccessControl: true,
       },
       'music-tags': {
-        adapter: imagesAdapter,
+        adapter: r2Adapter,
         disableLocalStorage: true,
         disablePayloadAccessControl: true,
       },
