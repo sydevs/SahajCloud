@@ -124,6 +124,22 @@ export default async function HomePage() {
           >
             Volunteer & Donate →
           </a>
+          <a
+            href="https://stats.uptimerobot.com/oJ9B8UX9lA"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="footer-link footer-link-secondary status-link"
+          >
+            <Image
+              src="https://img.shields.io/badge/status-operational-brightgreen"
+              alt="Status"
+              width={90}
+              height={20}
+              className="status-badge"
+              unoptimized
+            />
+            <span>Status Page</span>
+          </a>
         </div>
       </div>
     </div>
