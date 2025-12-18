@@ -1,7 +1,5 @@
 import type { CollectionConfig, Validate } from 'payload'
 
-import { APIError } from 'payload'
-
 import { mediaField, slugField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { roleBasedAccess } from '@/lib/accessControl'

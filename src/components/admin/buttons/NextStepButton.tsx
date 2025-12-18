@@ -18,15 +18,16 @@ export default function NextStepButton() {
   const { submit } = useForm()
   const { t } = useTranslation()
 
+  // Hook must be called unconditionally (React rules of hooks)
+  const handleSaveDraft = useCallback(() => {
+    void submit({
+      overrides: { _status: 'draft' },
+      skipValidation: true,
+    })
+  }, [submit])
+
   // Show "Next step" when creating (no id = CREATE operation)
   if (!id) {
-    const handleSaveDraft = useCallback(() => {
-      void submit({
-        overrides: { _status: 'draft' },
-        skipValidation: true,
-      })
-    }, [submit])
-
     return (
       <FormSubmit buttonStyle="primary" onClick={handleSaveDraft} type="button">
         {t('general:next')}
