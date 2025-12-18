@@ -7,9 +7,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This project uses a distributed documentation structure to optimize context loading:
 
 - **Root CLAUDE.md** (this file) - Essential commands, quick references, and project overview
-- **Detailed Documentation** (`.claude/docs/`) - In-depth architecture, patterns, and guides loaded via @import
+- **Auto-loaded Rules** (`.claude/rules/`) - Path-scoped rules that load automatically when working with specific file types
+- **Reference Documentation** (`.claude/docs/`) - In-depth architecture, patterns, and guides loaded via @import
 
-### Available Documentation
+### Auto-Loaded Rules (`.claude/rules/`)
+
+Rules are automatically loaded based on which files you're editing:
+
+| Rule File | Applies When Working With |
+|-----------|---------------------------|
+| `components.md` | `src/components/**/*.tsx` |
+| `admin-ui.md` | `src/components/admin/**/*.tsx`, `src/globals/**/*.ts` |
+| `types.md` | `src/types/**/*.ts`, `**/*.ts` |
+| `collections.md` | `src/collections/**/*.ts`, `src/fields/**/*.ts` |
+| `tests.md` | `tests/**/*.spec.ts` |
+| `code-style.md` | All files (global) |
+| `pr-requirements.md` | All files (global) |
+| `testing-reqs.md` | All files (global) |
+
+### Reference Documentation
 
 Architecture & Configuration:
 - @.claude/docs/environment.md - Environment variables and Wrangler configuration
@@ -21,17 +37,17 @@ Access Control & Security:
 - @.claude/docs/rbac.md - Role-based access control system (managers and clients)
 - @.claude/docs/api-auth.md - API authentication and usage tracking
 
-UI & Admin Customization:
-- @.claude/docs/custom-components.md - Server vs client components, performance patterns
+UI & Admin Components:
+- @.claude/docs/components/custom-components.md - Server vs client components, performance patterns
 - @.claude/docs/styling.md - PayloadCMS CSS variables reference
-- @.claude/docs/navigation.md - Project-focused navigation and dashboards
-- @.claude/docs/branding.md - Project-based branding and theming
-- @.claude/docs/project-visibility.md - Collection visibility filtering by project
+- @.claude/docs/components/navigation.md - Project-focused navigation and dashboards
+- @.claude/docs/components/branding.md - Project-based branding and theming
+- @.claude/docs/components/project-visibility.md - Collection visibility filtering by project
+- @.claude/docs/components/frame-editor.md - Audio-synchronized frame editor component
 
 Collections & Features:
 - @.claude/docs/collections/pages.md - Pages collection with Lexical blocks
 - @.claude/docs/collections/lessons.md - Lessons (Path Steps) collection
-- @.claude/docs/frame-editor.md - Audio-synchronized frame editor component
 - @.claude/docs/video-thumbnails.md - Automatic video thumbnail generation
 
 Integrations:
@@ -40,7 +56,7 @@ Integrations:
 - @.claude/docs/openapi.md - OpenAPI/Scalar API documentation with branding and role filtering
 
 Development:
-- @.claude/docs/patterns.md - Common code patterns and best practices
+- @.claude/docs/patterns.md - Common code patterns (file upload, trash, custom endpoints)
 - @.claude/docs/testing.md - Testing strategy with in-memory SQLite
 - @.claude/docs/decisions/ffmpeg.md - Architectural decision: FFmpeg deprecation
 
@@ -158,36 +174,7 @@ If necessary, run `pnpm generate:types` after schema changes.
 Type error: File name 'PermissionsField.ts' differs from already included file name 'permissionsField.ts' only in casing.
 ```
 
-### Type Organization Best Practices
-
-**When to Create Separate Type Files** (`src/types/`):
-- Complex type hierarchies with 3+ related types
-- Types used across multiple implementation files
-- Types that form a cohesive domain (e.g., roles, users, permissions)
-
-**When to Keep Types Inline**:
-- Simple one-off types used in a single file
-- Component-specific prop types
-- Types tightly coupled to a specific implementation
-
-**Type Organization Pattern**:
-```
-src/types/
-├── [domain].ts  # Domain-specific types (e.g., roles.ts, users.ts)
-├── [shared].ts  # Cross-cutting types (e.g., api.ts, common.ts)
-└── index.ts     # Optional: Re-export all types
-```
-
-**Import Order for Types**:
-1. External package types (from 'payload', 'react', etc.)
-2. Internal type imports from `@/types/`
-3. Internal type imports from other `@/` paths
-4. Relative type imports
-
-**Separation of Types from Data**:
-- Type definitions go in `src/types/`
-- Data/constants remain in implementation files
-- Example: Role TYPES in `src/types/roles.ts`, role DATA (MANAGER_ROLES) in `src/fields/PermissionsField.ts`
+**Note**: Type organization guidelines are in `.claude/rules/types.md` (auto-loaded when working with TypeScript files).
 
 ## Quick Reference
 
