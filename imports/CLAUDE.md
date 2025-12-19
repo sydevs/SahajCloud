@@ -78,6 +78,8 @@ Each script has collection-level metadata in `imports/lib/expectedCounts.ts`:
 | storyblok | lessons | 17 | Yes | None |
 | storyblok | lectures | 0 | No | None |
 
+> **Note (meditations script)**: When targeting `collection=meditations`, the importer automatically runs `narrators`, `frames`, and `tags` imports in the same request (in bulk, without pagination). This ensures the ID maps are populated for keyframe and tag references. The meditations themselves are then processed with pagination if enabled.
+
 ### API Response: Pagination Result
 
 When using pagination parameters, the completion event includes pagination info:

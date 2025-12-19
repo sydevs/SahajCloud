@@ -352,11 +352,20 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   /**
    * Reconstruct ID maps from database when resuming paginated import.
    * Called automatically by BaseImporter when pagination is active.
+   *
+   * NOTE: When targeting `meditations` collection, dependencies (narrators, frames, tags)
+   * are auto-imported in the same request (see import() method). This ensures idMaps
+   * are populated. The counts below are primarily for logging when running in
+   * paginated frames mode (targeting `frames` collection).
+   *
+   * Frame and tag ID maps CANNOT be fully reconstructed from the database because
+   * the legacy source IDs (from the source data) are not stored in Payload.
    */
   protected async reconstructIdMaps(): Promise<void> {
     await this.logger.info('Reconstructing ID maps from database...')
 
     // Reconstruct narrator map (index → id)
+    // Narrators CAN be fully reconstructed because we use gender-based indexing
     const narrators = await this.payload.find({
       collection: 'narrators',
       limit: 10,
@@ -369,16 +378,15 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     }
     await this.logger.info(`✓ Reconstructed ${this.idMaps.narrators.size} narrators`)
 
-    // Reconstruct frames map (we can't fully reconstruct legacy ID mapping,
-    // but we can load existing frames for deduplication by filename)
+    // NOTE: Frame and tag ID maps use legacy source IDs as keys, which are not
+    // stored in Payload. These maps are populated during frame/tag import in
+    // the same request (when targeting meditations). Counts below are informational.
     const framesCount = await this.payload.count({ collection: 'frames' })
     await this.logger.info(`✓ Found ${framesCount.totalDocs} existing frames`)
 
-    // Reconstruct meditation tags map (slug-based lookup is used during import)
     const meditationTagsCount = await this.payload.count({ collection: 'meditation-tags' })
     await this.logger.info(`✓ Found ${meditationTagsCount.totalDocs} existing meditation tags`)
 
-    // Reconstruct music tags map
     const musicTagsCount = await this.payload.count({ collection: 'music-tags' })
     await this.logger.info(`✓ Found ${musicTagsCount.totalDocs} existing music tags`)
 
@@ -407,8 +415,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     await this.uploadPlaceholderImages()
 
     // Import in order of dependencies
-    // Skip if paginating and not targeting this collection
-    if (!isPaginated || this.isCollectionTargeted('narrators')) {
+    // When targeting meditations, also run dependencies to populate idMaps
+    if (!isPaginated || this.isCollectionTargeted('narrators') || this.isCollectionTargeted('meditations')) {
       await this.importNarrators()
     }
 
@@ -422,8 +430,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       await this.importTags(data.tags, data.taggings)
     }
 
-    // Frames
-    if (!isPaginated || this.isCollectionTargeted('frames')) {
+    // Frames - also run when targeting meditations (to populate idMaps for keyframe references)
+    if (!isPaginated || this.isCollectionTargeted('frames') || this.isCollectionTargeted('meditations')) {
       await this.importFrames(data.frames, data.attachments, data.blobs)
     }
 
@@ -875,10 +883,26 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       'superego', 'tapping',
     ]
 
-    // Apply pagination if active
-    const paginatedFrames = this.paginateItems(frames)
+    // Apply pagination if active, BUT run in bulk when meditations is targeted
+    // (we need all frames to populate idMaps for meditation keyframe references)
+    let paginatedFrames: typeof frames
+    let offset: number
+
+    if (this.isCollectionTargeted('meditations')) {
+      // Run all frames in bulk to populate idMaps for meditations
+      paginatedFrames = frames
+      offset = 0
+      this.paginationState = {
+        processedCount: frames.length,
+        hasMore: false,
+        nextOffset: frames.length,
+      }
+    } else {
+      paginatedFrames = this.paginateItems(frames)
+      offset = this.options.pagination?.offset || 0
+    }
+
     const total = frames.length
-    const offset = this.options.pagination?.offset || 0
 
     await this.logger.info(
       `Processing ${paginatedFrames.length} frames (offset: ${offset}, total: ${total})`,

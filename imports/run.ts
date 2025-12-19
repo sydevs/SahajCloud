@@ -41,42 +41,9 @@
 
 import 'dotenv/config'
 
+import type { ScriptMetadata, PaginationResult } from './lib/pagination'
+
 type ScriptName = 'storyblok' | 'wemeditate' | 'meditations' | 'tags'
-
-/**
- * Collection metadata from GET endpoint
- */
-interface CollectionMetadata {
-  slug: string
-  totalItems: number
-  requiresPagination: boolean
-  dependencies: string[]
-  naturalKey: string
-  hasFileUploads?: boolean
-}
-
-/**
- * Script metadata from GET endpoint
- */
-interface ScriptMetadata {
-  collections: CollectionMetadata[]
-  totalItems: number
-  requiresPagination: boolean
-  environment: 'local' | 'workers'
-  recommendedBatchSize: number
-}
-
-/**
- * Pagination result from completion event
- */
-interface PaginationResult {
-  offset: number
-  limit: number
-  processedCount: number
-  hasMore: boolean
-  nextOffset: number
-  collection: string
-}
 
 const VALID_SCRIPTS: ScriptName[] = ['storyblok', 'wemeditate', 'meditations', 'tags']
 
