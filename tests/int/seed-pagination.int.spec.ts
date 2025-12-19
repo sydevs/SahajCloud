@@ -1,0 +1,236 @@
+import { describe, it, expect } from 'vitest'
+
+import {
+  getDefaultBatchSize,
+  getEnvironment,
+  type PaginationOptions,
+} from '../../imports/lib/pagination'
+
+import {
+  getScriptMetadata,
+  getExpectedCounts,
+  verifyCountsForScript,
+  getCollectionMetadata,
+  type ScriptName,
+} from '../../imports/lib/expectedCounts'
+
+describe('Pagination Utilities', () => {
+  describe('getEnvironment', () => {
+    it('returns "local" in test environment', () => {
+      const env = getEnvironment()
+      expect(env).toBe('local')
+    })
+  })
+
+  describe('getDefaultBatchSize', () => {
+    it('returns 100 for local environment without file uploads', () => {
+      // In test environment, this returns local batch size
+      const batchSize = getDefaultBatchSize(false)
+      expect(batchSize).toBe(100)
+    })
+
+    it('returns 10 for any environment with file uploads', () => {
+      // File uploads have reduced batch size regardless of environment
+      // to avoid I/O overhead issues
+      const batchSize = getDefaultBatchSize(true)
+      expect(batchSize).toBe(10)
+    })
+  })
+
+  describe('getScriptMetadata', () => {
+    it('returns metadata for tags script', () => {
+      const metadata = getScriptMetadata('tags')
+
+      expect(metadata).toBeDefined()
+      expect(metadata.collections).toHaveLength(2)
+      expect(metadata.collections[0].slug).toBe('meditation-tags')
+      expect(metadata.collections[1].slug).toBe('music-tags')
+      expect(metadata.requiresPagination).toBe(false)
+      expect(metadata.totalItems).toBe(34) // 27 + 7
+    })
+
+    it('returns metadata for wemeditate script', () => {
+      const metadata = getScriptMetadata('wemeditate')
+
+      expect(metadata).toBeDefined()
+      expect(metadata.collections).toHaveLength(4)
+      expect(metadata.collections.map((c) => c.slug)).toEqual(['authors', 'albums', 'music', 'pages'])
+      expect(metadata.requiresPagination).toBe(true) // pages requires pagination
+    })
+
+    it('returns metadata for meditations script', () => {
+      const metadata = getScriptMetadata('meditations')
+
+      expect(metadata).toBeDefined()
+      expect(metadata.collections).toHaveLength(3)
+      expect(metadata.collections.map((c) => c.slug)).toEqual(['narrators', 'frames', 'meditations'])
+      expect(metadata.requiresPagination).toBe(true) // frames and meditations require pagination
+    })
+
+    it('returns metadata for storyblok script', () => {
+      const metadata = getScriptMetadata('storyblok')
+
+      expect(metadata).toBeDefined()
+      expect(metadata.collections).toHaveLength(2)
+      expect(metadata.collections.map((c) => c.slug)).toEqual(['lessons', 'lectures'])
+      expect(metadata.requiresPagination).toBe(true) // lessons requires pagination for consistency
+    })
+
+    it('includes environment and recommended batch size', () => {
+      const metadata = getScriptMetadata('tags')
+
+      expect(metadata.environment).toBe('local')
+      expect(metadata.recommendedBatchSize).toBeGreaterThan(0)
+    })
+  })
+
+  describe('getCollectionMetadata', () => {
+    it('returns metadata for a specific collection', () => {
+      const framesMetadata = getCollectionMetadata('meditations', 'frames')
+
+      expect(framesMetadata).toBeDefined()
+      expect(framesMetadata?.slug).toBe('frames')
+      expect(framesMetadata?.totalItems).toBe(60)
+      expect(framesMetadata?.requiresPagination).toBe(true)
+      expect(framesMetadata?.hasFileUploads).toBe(true)
+    })
+
+    it('returns undefined for non-existent collection', () => {
+      const metadata = getCollectionMetadata('meditations', 'non-existent')
+      expect(metadata).toBeUndefined()
+    })
+  })
+
+  describe('getExpectedCounts', () => {
+    const scripts: ScriptName[] = ['tags', 'wemeditate', 'meditations', 'storyblok']
+
+    scripts.forEach((script) => {
+      it(`returns expected counts for ${script}`, () => {
+        const counts = getExpectedCounts(script)
+
+        expect(counts).toBeDefined()
+        expect(Object.keys(counts).length).toBeGreaterThan(0)
+      })
+    })
+  })
+
+  describe('verifyCountsForScript', () => {
+    it('passes when actual counts meet expected minimums', () => {
+      const actualCounts = {
+        'meditation-tags': 30,
+        'music-tags': 10,
+      }
+
+      const { results, allPassed } = verifyCountsForScript('tags', actualCounts)
+
+      expect(allPassed).toBe(true)
+      expect(results).toHaveLength(2)
+      expect(results.every((r) => r.passed)).toBe(true)
+    })
+
+    it('fails when actual counts are below expected', () => {
+      const actualCounts = {
+        'meditation-tags': 10, // Expected is 27
+        'music-tags': 7,
+      }
+
+      const { results, allPassed } = verifyCountsForScript('tags', actualCounts)
+
+      expect(allPassed).toBe(false)
+      const failedResult = results.find((r) => r.collection === 'meditation-tags')
+      expect(failedResult?.passed).toBe(false)
+    })
+
+    it('handles missing collections as zero count', () => {
+      const actualCounts = {
+        'meditation-tags': 30,
+        // music-tags missing
+      }
+
+      const { results, allPassed } = verifyCountsForScript('tags', actualCounts)
+
+      expect(allPassed).toBe(false)
+      const musicResult = results.find((r) => r.collection === 'music-tags')
+      expect(musicResult?.actual).toBe(0)
+      expect(musicResult?.passed).toBe(false)
+    })
+  })
+})
+
+describe('Pagination Options', () => {
+  describe('PaginationOptions type', () => {
+    it('accepts valid pagination options', () => {
+      const options: PaginationOptions = {
+        offset: 0,
+        limit: 25,
+        collection: 'meditations',
+      }
+
+      expect(options.offset).toBe(0)
+      expect(options.limit).toBe(25)
+      expect(options.collection).toBe('meditations')
+    })
+
+    it('allows optional collection field', () => {
+      const options: PaginationOptions = {
+        offset: 10,
+        limit: 50,
+      }
+
+      expect(options.collection).toBeUndefined()
+    })
+  })
+})
+
+describe('Collection Metadata', () => {
+  describe('dependency ordering', () => {
+    it('lists wemeditate collections in dependency order', () => {
+      const metadata = getScriptMetadata('wemeditate')
+      const slugs = metadata.collections.map((c) => c.slug)
+
+      // Authors must come before pages (authors are referenced by pages)
+      expect(slugs.indexOf('authors')).toBeLessThan(slugs.indexOf('pages'))
+
+      // Albums must come before music (albums are referenced by music)
+      expect(slugs.indexOf('albums')).toBeLessThan(slugs.indexOf('music'))
+    })
+
+    it('lists meditations collections in dependency order', () => {
+      const metadata = getScriptMetadata('meditations')
+      const slugs = metadata.collections.map((c) => c.slug)
+
+      // Narrators must come before meditations
+      expect(slugs.indexOf('narrators')).toBeLessThan(slugs.indexOf('meditations'))
+
+      // Frames must come before meditations
+      expect(slugs.indexOf('frames')).toBeLessThan(slugs.indexOf('meditations'))
+    })
+  })
+
+  describe('pagination requirements', () => {
+    it('marks small collections as not requiring pagination', () => {
+      const metadata = getScriptMetadata('tags')
+      const meditationTags = metadata.collections.find((c) => c.slug === 'meditation-tags')
+      const musicTags = metadata.collections.find((c) => c.slug === 'music-tags')
+
+      expect(meditationTags?.requiresPagination).toBe(false)
+      expect(musicTags?.requiresPagination).toBe(false)
+    })
+
+    it('marks large collections as requiring pagination', () => {
+      const metadata = getScriptMetadata('wemeditate')
+      const pages = metadata.collections.find((c) => c.slug === 'pages')
+
+      expect(pages?.requiresPagination).toBe(true)
+    })
+
+    it('identifies collections with file uploads', () => {
+      const metadata = getScriptMetadata('meditations')
+      const frames = metadata.collections.find((c) => c.slug === 'frames')
+      const meditations = metadata.collections.find((c) => c.slug === 'meditations')
+
+      expect(frames?.hasFileUploads).toBe(true)
+      expect(meditations?.hasFileUploads).toBe(true)
+    })
+  })
+})

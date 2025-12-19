@@ -41,6 +41,8 @@
 
 import 'dotenv/config'
 
+import type { ScriptMetadata, PaginationResult } from './lib/pagination'
+
 type ScriptName = 'storyblok' | 'wemeditate' | 'meditations' | 'tags'
 
 const VALID_SCRIPTS: ScriptName[] = ['storyblok', 'wemeditate', 'meditations', 'tags']
@@ -343,6 +345,201 @@ interface ScriptResult {
 const display = new ProgressDisplay()
 
 /**
+ * Delay utility for rate limiting between paginated requests
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Fetch script metadata from GET endpoint
+ */
+async function fetchScriptMetadata(
+  scriptName: ScriptName,
+  baseUrl: string,
+  cookies: string,
+): Promise<ScriptMetadata> {
+  const url = `${baseUrl}/api/seed/${scriptName}`
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: { Cookie: cookies },
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Failed to fetch metadata: ${response.status} ${errorText}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Run a single paginated request and return pagination result
+ */
+async function runPaginatedRequest(
+  scriptName: ScriptName,
+  collection: string,
+  offset: number,
+  limit: number,
+  baseUrl: string,
+  cookies: string,
+  options: { dryRun: boolean },
+): Promise<{ success: boolean; errors: string[]; pagination: PaginationResult | null }> {
+  const errors: string[] = []
+
+  // Build query params with pagination
+  const params = new URLSearchParams()
+  if (options.dryRun) params.set('dryRun', 'true')
+  params.set('collection', collection)
+  params.set('offset', String(offset))
+  params.set('limit', String(limit))
+
+  const url = `${baseUrl}/api/seed/${scriptName}?${params.toString()}`
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { Cookie: cookies },
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    errors.push(`API request failed: ${response.status} ${errorText}`)
+    return { success: false, errors, pagination: null }
+  }
+
+  if (!response.body) {
+    errors.push('No response body received')
+    return { success: false, errors, pagination: null }
+  }
+
+  let pagination: PaginationResult | null = null
+
+  // Parse SSE stream
+  for await (const event of parseSSE(response.body)) {
+    display.displayEvent(event)
+
+    if (event.type === 'error') {
+      errors.push(String(event.message || 'Unknown error'))
+    }
+
+    if (event.type === 'complete') {
+      // Extract pagination result
+      pagination = event.pagination as PaginationResult | null
+
+      const summary = event.summary as Record<string, unknown> | undefined
+      if (summary) {
+        const errorMessages = summary.errorMessages as string[] | undefined
+        if (errorMessages && errorMessages.length > 0) {
+          errors.push(...errorMessages)
+        }
+      }
+    }
+  }
+
+  return { success: errors.length === 0, errors, pagination }
+}
+
+/**
+ * Run paginated import for collections that require it
+ */
+async function runPaginatedImport(
+  scriptName: ScriptName,
+  metadata: ScriptMetadata,
+  baseUrl: string,
+  cookies: string,
+  options: { dryRun: boolean; clearCache: boolean },
+): Promise<ScriptResult> {
+  const errors: string[] = []
+  const batchSize = metadata.recommendedBatchSize
+
+  console.log(`\n${'='.repeat(60)}`)
+  console.log(`${scriptName} import (paginated)`)
+  if (options.dryRun) console.log('Mode: DRY RUN')
+  console.log(`Environment: ${metadata.environment}`)
+  console.log(`Batch size: ${batchSize}`)
+  console.log('='.repeat(60))
+
+  // Process each collection in dependency order
+  for (const collection of metadata.collections) {
+    if (collection.totalItems === 0) {
+      console.log(`\n⏭️  Skipping ${collection.slug} (0 items)`)
+      continue
+    }
+
+    console.log(`\n📁 Processing ${collection.slug} (${collection.totalItems} items)`)
+
+    if (!collection.requiresPagination) {
+      // Run without pagination for small collections
+      console.log(`   Running bulk import...`)
+      const result = await runPaginatedRequest(
+        scriptName,
+        collection.slug,
+        0,
+        0, // 0 means use default (all items)
+        baseUrl,
+        cookies,
+        options,
+      )
+
+      if (!result.success) {
+        errors.push(...result.errors)
+      }
+    } else {
+      // Run paginated import
+      let offset = 0
+      let batchNumber = 1
+      let hasMore = true
+
+      while (hasMore) {
+        console.log(`   Batch ${batchNumber}: offset=${offset}, limit=${batchSize}`)
+
+        const result = await runPaginatedRequest(
+          scriptName,
+          collection.slug,
+          offset,
+          batchSize,
+          baseUrl,
+          cookies,
+          options,
+        )
+
+        if (!result.success) {
+          errors.push(...result.errors)
+          break // Stop processing this collection on error
+        }
+
+        if (result.pagination) {
+          hasMore = result.pagination.hasMore
+          offset = result.pagination.nextOffset
+          console.log(
+            `   ✓ Processed ${result.pagination.processedCount} items, hasMore=${hasMore}`,
+          )
+        } else {
+          hasMore = false
+        }
+
+        batchNumber++
+
+        // Add delay between batches to reduce D1 contention
+        if (hasMore) {
+          await delay(1000)
+        }
+      }
+    }
+  }
+
+  const success = errors.length === 0
+  if (success) {
+    console.log(`\n🎉 ${scriptName} import completed successfully!`)
+  } else {
+    console.log(`\n💥 ${scriptName} import completed with ${errors.length} error(s)`)
+  }
+
+  return { script: scriptName, success, errors }
+}
+
+/**
  * Run a single seed script via the API
  */
 async function runScript(
@@ -492,7 +689,29 @@ async function main(): Promise<void> {
     const results: ScriptResult[] = []
 
     for (const scriptName of scripts) {
-      const result = await runScript(scriptName, baseUrl, cookies, { dryRun, clearCache })
+      // Always fetch metadata first to determine if pagination is needed
+      let metadata: ScriptMetadata | null = null
+      try {
+        console.log(`\n📋 Fetching metadata for ${scriptName}...`)
+        metadata = await fetchScriptMetadata(scriptName, baseUrl, cookies)
+        console.log(`   Environment: ${metadata.environment}`)
+        console.log(`   Total items: ${metadata.totalItems}`)
+        console.log(`   Requires pagination: ${metadata.requiresPagination}`)
+      } catch (error) {
+        console.warn(`   ⚠️  Could not fetch metadata: ${error instanceof Error ? error.message : error}`)
+        console.warn(`   Falling back to bulk import...`)
+      }
+
+      let result: ScriptResult
+
+      // Use paginated import if metadata indicates it's needed and we're on Workers
+      if (metadata?.requiresPagination && metadata.environment === 'workers') {
+        result = await runPaginatedImport(scriptName, metadata, baseUrl, cookies, { dryRun, clearCache })
+      } else {
+        // Use bulk import for local dev or small datasets
+        result = await runScript(scriptName, baseUrl, cookies, { dryRun, clearCache })
+      }
+
       results.push(result)
 
       if (!result.success) {
