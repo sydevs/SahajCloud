@@ -1,10 +1,12 @@
 /**
  * Seed API Route
  *
- * POST /api/seed/:script
+ * GET /api/seed/:script
+ *   Returns metadata about the script's collections for pagination planning.
  *
- * Triggers content seeding for the specified script.
- * Streams progress updates via Server-Sent Events.
+ * POST /api/seed/:script
+ *   Triggers content seeding for the specified script.
+ *   Streams progress updates via Server-Sent Events.
  *
  * Scripts:
  * - tags: MeditationTags and MusicTags
@@ -14,11 +16,15 @@
  *
  * Authentication: Requires admin session
  *
- * Query Parameters:
+ * Query Parameters (POST):
  * - dryRun: If 'true', validates without writing to database
+ * - collection: Target collection for paginated import (required if offset/limit used)
+ * - offset: Starting index for pagination (default: 0)
+ * - limit: Maximum items to process (default: environment-based)
  */
 
 import type { BaseImporter } from '../../../../../../imports/lib/BaseImporter'
+import type { PaginationOptions, PaginationResult } from '../../../../../../imports/lib/pagination'
 import type { NextRequest } from 'next/server'
 
 import { getPayload } from 'payload'
@@ -26,6 +32,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 
 import {
+  getScriptMetadata,
   verifyCountsForScript,
   type ScriptName,
 } from '../../../../../../imports/lib/expectedCounts'
@@ -39,7 +46,64 @@ const VALID_SCRIPTS: ScriptName[] = ['tags', 'wemeditate', 'meditations', 'story
 const HEARTBEAT_INTERVAL = 30_000
 
 /**
+ * GET /api/seed/:script
+ *
+ * Returns metadata about the script's collections for pagination planning.
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ script: string }> },
+) {
+  const { script } = await params
+
+  // Validate script name
+  if (!VALID_SCRIPTS.includes(script as ScriptName)) {
+    return new Response(
+      JSON.stringify({
+        error: `Invalid script: ${script}`,
+        validScripts: VALID_SCRIPTS,
+      }),
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
+  }
+
+  // Get Payload instance
+  const payload = await getPayload({ config })
+
+  // Check authentication - require admin session
+  const { user } = await payload.auth({ headers: request.headers })
+
+  if (!user) {
+    return new Response(JSON.stringify({ error: 'Authentication required' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // Check if user is admin
+  if (user.collection !== 'managers' || !('type' in user) || user.type !== 'admin') {
+    return new Response(JSON.stringify({ error: 'Admin access required' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // Return script metadata
+  const metadata = getScriptMetadata(script as ScriptName)
+
+  return new Response(JSON.stringify(metadata), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+/**
  * POST /api/seed/:script
+ *
+ * Triggers content seeding. Supports paginated execution via query params.
  */
 export async function POST(
   request: NextRequest,
@@ -84,6 +148,33 @@ export async function POST(
 
   // Parse query parameters
   const dryRun = request.nextUrl.searchParams.get('dryRun') === 'true'
+  const collection = request.nextUrl.searchParams.get('collection')
+  const offsetParam = request.nextUrl.searchParams.get('offset')
+  const limitParam = request.nextUrl.searchParams.get('limit')
+
+  // Validate pagination params - offset/limit require collection
+  if ((offsetParam !== null || limitParam !== null) && !collection) {
+    return new Response(
+      JSON.stringify({
+        error: 'Pagination requires collection parameter',
+        hint: 'Use ?collection=<name>&offset=<n>&limit=<n>',
+      }),
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
+  }
+
+  // Build pagination options if collection is specified
+  let pagination: PaginationOptions | undefined
+  if (collection) {
+    pagination = {
+      offset: offsetParam ? parseInt(offsetParam, 10) : 0,
+      limit: limitParam ? parseInt(limitParam, 10) : 0, // 0 means use default
+      collection,
+    }
+  }
 
   // Create a readable stream for SSE
   const encoder = new TextEncoder()
@@ -111,11 +202,12 @@ export async function POST(
         type: 'start',
         script,
         dryRun,
+        pagination: pagination || null,
         timestamp: new Date().toISOString(),
       })
 
       // Dynamically import the appropriate importer
-      const importer = await getImporter(script as ScriptName, payload, dryRun, sendEvent)
+      const importer = await getImporter(script as ScriptName, payload, dryRun, sendEvent, pagination)
 
       if (!importer) {
         await sendEvent({
@@ -173,6 +265,19 @@ export async function POST(
       const errorMessages = report.getErrors()
       const warningMessages = report.getWarnings()
 
+      // Build pagination result if paginated
+      let paginationResult: PaginationResult | null = null
+      if (pagination) {
+        paginationResult = {
+          offset: pagination.offset,
+          limit: pagination.limit,
+          processedCount: importer.getProcessedCount(),
+          hasMore: importer.hasMoreItems(),
+          nextOffset: importer.getNextOffset(),
+          collection: pagination.collection,
+        }
+      }
+
       // Send completion event
       await sendEvent({
         type: 'complete',
@@ -188,6 +293,7 @@ export async function POST(
           verification,
           verificationPassed,
         },
+        pagination: paginationResult,
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -225,12 +331,14 @@ async function getImporter(
   payload: Awaited<ReturnType<typeof getPayload>>,
   dryRun: boolean,
   onProgress: (data: Record<string, unknown>) => Promise<void>,
+  pagination?: PaginationOptions,
 ) {
   const options = {
     dryRun,
     clearCache: false,
     payload,
     onProgress,
+    pagination,
   }
 
   switch (script) {

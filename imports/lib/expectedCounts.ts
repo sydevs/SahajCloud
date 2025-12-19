@@ -8,6 +8,9 @@
  * importers to contribute to the same collections).
  */
 
+import type { CollectionMetadata, ScriptMetadata } from './pagination'
+import { getDefaultBatchSize, getEnvironment } from './pagination'
+
 export type ScriptName = 'tags' | 'wemeditate' | 'meditations' | 'storyblok'
 
 export interface ExpectedCounts {
@@ -77,4 +80,146 @@ export function verifyCountsForScript(
   }
 
   return { results, allPassed }
+}
+
+// ============================================================================
+// COLLECTION METADATA FOR PAGINATION
+// ============================================================================
+
+/**
+ * Threshold for when a collection should be paginated
+ * Collections larger than this will require multiple requests on Workers
+ */
+const PAGINATION_THRESHOLD = 50
+
+/**
+ * Collection metadata per script (in dependency order)
+ * Used by CLI to orchestrate paginated imports
+ */
+const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
+  tags: [
+    {
+      slug: 'meditation-tags',
+      totalItems: 27,
+      requiresPagination: false,
+      dependencies: [],
+      naturalKey: 'slug',
+      hasFileUploads: true, // SVG icons
+    },
+    {
+      slug: 'music-tags',
+      totalItems: 7,
+      requiresPagination: false,
+      dependencies: [],
+      naturalKey: 'slug',
+      hasFileUploads: true, // SVG icons
+    },
+  ],
+  wemeditate: [
+    {
+      slug: 'authors',
+      totalItems: 18,
+      requiresPagination: false,
+      dependencies: [],
+      naturalKey: 'slug',
+      hasFileUploads: true, // Author images
+    },
+    {
+      slug: 'albums',
+      totalItems: 8,
+      requiresPagination: false,
+      dependencies: [],
+      naturalKey: 'slug',
+      hasFileUploads: true, // Album artwork
+    },
+    {
+      slug: 'music',
+      totalItems: 27,
+      requiresPagination: false,
+      dependencies: ['albums'],
+      naturalKey: 'slug',
+      hasFileUploads: true, // Audio files
+    },
+    {
+      slug: 'pages',
+      totalItems: 60,
+      requiresPagination: true, // Large collection
+      dependencies: ['authors'],
+      naturalKey: 'slug',
+      hasFileUploads: true, // Media in content
+    },
+  ],
+  meditations: [
+    {
+      slug: 'narrators',
+      totalItems: 2,
+      requiresPagination: false,
+      dependencies: [],
+      naturalKey: 'slug',
+    },
+    {
+      slug: 'frames',
+      totalItems: 60,
+      requiresPagination: true, // Large collection with uploads
+      dependencies: [],
+      naturalKey: 'filename',
+      hasFileUploads: true, // Frame images/videos
+    },
+    {
+      slug: 'meditations',
+      totalItems: 73,
+      requiresPagination: true, // Large collection with uploads
+      dependencies: ['narrators', 'frames', 'meditation-tags', 'music-tags'],
+      naturalKey: 'slug',
+      hasFileUploads: true, // Audio files
+    },
+  ],
+  storyblok: [
+    {
+      slug: 'lessons',
+      totalItems: 17,
+      requiresPagination: true, // For consistency, even though small
+      dependencies: [],
+      naturalKey: 'slug',
+      hasFileUploads: true, // Panel images, audio
+    },
+    {
+      slug: 'lectures',
+      totalItems: 0,
+      requiresPagination: false,
+      dependencies: [],
+      naturalKey: 'slug',
+    },
+  ],
+}
+
+/**
+ * Get metadata for a script including pagination info
+ */
+export function getScriptMetadata(script: ScriptName): ScriptMetadata {
+  const collections = COLLECTION_METADATA[script] || []
+  const totalItems = collections.reduce((sum, c) => sum + c.totalItems, 0)
+  const requiresPagination = collections.some((c) => c.requiresPagination)
+
+  // Check if any collection has file uploads for batch size calculation
+  const hasFileUploads = collections.some((c) => c.hasFileUploads)
+
+  return {
+    collections,
+    totalItems,
+    requiresPagination,
+    environment: getEnvironment(),
+    recommendedBatchSize: getDefaultBatchSize(hasFileUploads),
+  }
+}
+
+/**
+ * Get metadata for a specific collection within a script
+ */
+export function getCollectionMetadata(
+  script: ScriptName,
+  collectionSlug: string,
+): CollectionMetadata | undefined {
+  const collections = COLLECTION_METADATA[script] || []
+  return collections.find((c) => c.slug === collectionSlug)
 }
