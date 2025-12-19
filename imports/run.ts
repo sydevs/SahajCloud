@@ -704,11 +704,11 @@ async function main(): Promise<void> {
 
       let result: ScriptResult
 
-      // Use paginated import if metadata indicates it's needed and we're on Workers
-      if (metadata?.requiresPagination && metadata.environment === 'workers') {
+      // Use paginated import if metadata indicates it's needed
+      if (metadata?.requiresPagination) {
         result = await runPaginatedImport(scriptName, metadata, baseUrl, cookies, { dryRun, clearCache })
       } else {
-        // Use bulk import for local dev or small datasets
+        // Use bulk import for small datasets
         result = await runScript(scriptName, baseUrl, cookies, { dryRun, clearCache })
       }
 
