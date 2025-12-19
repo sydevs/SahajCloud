@@ -27,11 +27,19 @@
 
 import type { Payload, TypedLocale } from 'payload'
 
-import * as fs from 'fs/promises'
 import * as path from 'path'
 
-import { BaseImporter, BaseImportOptions, MediaUploader, TagManager } from '../lib'
-import { isCloudflareWorker } from '../lib/runtime'
+import {
+  BaseImporter,
+  BaseImportOptions,
+  cacheExists,
+  fetchAsset,
+  MediaUploader,
+  rateLimitDelay,
+  readCache,
+  TagManager,
+  writeCache,
+} from '../lib'
 
 // ============================================================================
 // WEMEDITATE DATA TYPES (matching extraction script output)
@@ -508,12 +516,16 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         }
 
         // Create album with file (Albums is an upload collection)
-        // Use buffer directly in Workers mode, otherwise read from file
+        // Use buffer directly in Workers mode, otherwise read from cache
         let fileBuffer: Buffer
         if (downloadResult.buffer) {
           fileBuffer = downloadResult.buffer
         } else {
-          fileBuffer = await fs.readFile(downloadResult.localPath)
+          const cached = await readCache(downloadResult.localPath)
+          if (!cached) {
+            throw new Error(`Failed to read cached file: ${downloadResult.localPath}`)
+          }
+          fileBuffer = cached
         }
         const filename = path.basename(downloadResult.localPath)
         const mimeType = this.fileUtils.getMimeType(filename)
@@ -543,7 +555,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
         // Add delay between albums to avoid rate limiting in Workers environment
         if (i < total - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 300))
+          await rateLimitDelay(300)
         }
       } catch (error) {
         this.addError(`Importing album (artist) ${artist.id}`, error as Error)
@@ -556,44 +568,40 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
    * Returns an object with localPath and optional buffer for Workers mode
    */
   private async getOrCreatePlaceholderImage(): Promise<{ localPath: string; buffer?: Buffer }> {
-    // Workers mode: return a minimal gray PNG as buffer
-    if (isCloudflareWorker()) {
-      // Minimal 1x1 gray PNG (68 bytes) - generated with proper CRC checksums
-      const minimalPng = Buffer.from([
-        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // PNG signature
-        0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
-        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1 dimensions
-        0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, // 8-bit RGB, CRC
-        0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41, 0x54, // IDAT chunk
-        0x08, 0xd7, 0x63, 0x78, 0x78, 0x78, 0x00, 0x00, // compressed gray pixel
-        0x00, 0x04, 0x00, 0x01, 0x27, 0x34, 0x60, 0x3a, // CRC
-        0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, // IEND chunk
-        0xae, 0x42, 0x60, 0x82, // IEND CRC
-      ])
-      return {
-        localPath: 'placeholder-album.png',
-        buffer: minimalPng,
-      }
-    }
-
-    // Local dev mode: use filesystem
     const placeholderPath = path.join(this.cacheDir, 'placeholder-album.png')
 
-    // Check if placeholder already exists in cache
-    if (await this.fileUtils.fileExists(placeholderPath)) {
+    // Check if placeholder already exists in cache (returns false in Workers mode)
+    if (await cacheExists(placeholderPath)) {
       return { localPath: placeholderPath }
     }
 
-    // Copy the preview.png as placeholder
+    // Try to read source file (returns null in Workers mode)
     const existingPlaceholder = path.resolve(process.cwd(), 'imports/wemeditate/preview.png')
-    if (await this.fileUtils.fileExists(existingPlaceholder)) {
-      await fs.copyFile(existingPlaceholder, placeholderPath)
+    const sourceBuffer = await readCache(existingPlaceholder)
+
+    if (sourceBuffer) {
+      // Local dev: cache the placeholder for future use
+      await writeCache(placeholderPath, sourceBuffer)
       return { localPath: placeholderPath }
     }
 
-    throw new Error(
-      'No placeholder image available for album creation. Please add imports/wemeditate/preview.png',
-    )
+    // Workers mode (or source file missing): return minimal gray PNG as buffer
+    // Minimal 1x1 gray PNG (68 bytes) - generated with proper CRC checksums
+    const minimalPng = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // PNG signature
+      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1 dimensions
+      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, // 8-bit RGB, CRC
+      0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41, 0x54, // IDAT chunk
+      0x08, 0xd7, 0x63, 0x78, 0x78, 0x78, 0x00, 0x00, // compressed gray pixel
+      0x00, 0x04, 0x00, 0x01, 0x27, 0x34, 0x60, 0x3a, // CRC
+      0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, // IEND chunk
+      0xae, 0x42, 0x60, 0x82, // IEND CRC
+    ])
+    return {
+      localPath: 'placeholder-album.png',
+      buffer: minimalPng,
+    }
   }
 
   // ============================================================================
@@ -692,41 +700,16 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           continue
         }
 
-        // Download audio file
+        // Download audio file using unified fetchAsset (handles caching in local mode)
         const audioUrl = `${STORAGE_BASE_URL}track/${track.id}/${track.audio}?version=`
-        let fileBuffer: Buffer
         const filename = track.audio
         const mimeType = this.fileUtils.getMimeType(filename)
+        const cacheFilename = `track-${track.id}-${track.audio}`
+        const cachePath = path.join(this.cacheDir, 'audio', cacheFilename)
 
+        let fileBuffer: Buffer
         try {
-          // In Workers: fetch directly without file caching (no filesystem access)
-          if (isCloudflareWorker()) {
-            const response = await fetch(audioUrl)
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-            }
-            const arrayBuffer = await response.arrayBuffer()
-            fileBuffer = Buffer.from(arrayBuffer)
-          } else {
-            // Local dev: download to cache then read
-            const cacheFilename = `track-${track.id}-${track.audio}`
-            const cachePath = path.join(this.cacheDir, 'audio', cacheFilename)
-
-            // Check cache first
-            if (await this.fileUtils.fileExists(cachePath)) {
-              fileBuffer = await fs.readFile(cachePath)
-            } else {
-              // Download audio
-              await fs.mkdir(path.dirname(cachePath), { recursive: true })
-              const response = await fetch(audioUrl)
-              if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-              }
-              const arrayBuffer = await response.arrayBuffer()
-              fileBuffer = Buffer.from(arrayBuffer)
-              await fs.writeFile(cachePath, fileBuffer)
-            }
-          }
+          fileBuffer = await fetchAsset(audioUrl, { cachePath })
         } catch (error) {
           this.addError(`Downloading audio for track ${track.id}: ${audioUrl}`, error as Error)
           await this.reportDocument('music', track.title, 'error', {
@@ -786,17 +769,15 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         return
       }
 
-      // Get SVG buffer - use inline SVG in Workers mode (no filesystem access)
-      let svgBuffer: Buffer
-      if (isCloudflareWorker()) {
-        // Minimal music note SVG for Workers mode (Material Icons music_note)
+      // Try to read SVG from filesystem (returns null in Workers mode)
+      const svgPath = path.resolve(process.cwd(), 'imports/tags/music-tag.svg')
+      let svgBuffer = await readCache(svgPath)
+
+      if (!svgBuffer) {
+        // Workers mode (or file missing): use minimal music note SVG
         const svgContent =
           '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>'
         svgBuffer = Buffer.from(svgContent, 'utf-8')
-      } else {
-        // Local dev: read from filesystem
-        const svgPath = path.resolve(process.cwd(), 'imports/tags/music-tag.svg')
-        svgBuffer = await fs.readFile(svgPath)
       }
 
       await this.payload.create({
@@ -1240,7 +1221,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             if (attempt < maxRetries) {
               // Exponential backoff: 500ms, 1s, 2s
               const delay = 500 * Math.pow(2, attempt - 1)
-              await new Promise((resolve) => setTimeout(resolve, delay))
+              await rateLimitDelay(delay)
             }
           }
         }
@@ -1270,7 +1251,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
         // Add delay after each media upload to avoid rate limiting
         if (i < total - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 100))
+          await rateLimitDelay(100)
         }
       } catch (error) {
         this.addError(`Importing media ${url}`, error as Error)
@@ -1548,7 +1529,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   private async getDefaultThumbnail(): Promise<number | string> {
     if (this.defaultThumbnailId) return this.defaultThumbnailId
 
-    // In Workers mode, fetch from hosted URL; in local mode, read from filesystem
     const PREVIEW_URL =
       'https://raw.githubusercontent.com/sydevs/SahajCloud/main/imports/wemeditate/preview.png'
 
@@ -1557,23 +1537,21 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       (id): id is number => id !== null,
     )
 
-    if (isCloudflareWorker()) {
-      // Workers mode: fetch and stream
+    // Try local file first (returns null in Workers mode)
+    const previewPath = path.join(__dirname, 'preview.png')
+    let buffer: Buffer | undefined = (await readCache(previewPath)) ?? undefined
+    let localPath = previewPath
+
+    if (!buffer) {
+      // Workers mode or local file missing: fetch from URL
       const downloadResult = await this.mediaDownloader.downloadAndConvertImage(PREVIEW_URL)
-      const result = await this.mediaUploader.uploadWithDeduplication(downloadResult.localPath, {
-        alt: 'Video preview placeholder',
-        buffer: downloadResult.buffer,
-        tags,
-      })
-      if (!result) throw new Error('Failed to upload default thumbnail')
-      this.defaultThumbnailId = result.id
-      return result.id
+      buffer = downloadResult.buffer
+      localPath = downloadResult.localPath
     }
 
-    // Local mode: read from filesystem
-    const previewPath = path.join(__dirname, 'preview.png')
-    const result = await this.mediaUploader.uploadWithDeduplication(previewPath, {
+    const result = await this.mediaUploader.uploadWithDeduplication(localPath, {
       alt: 'Video preview placeholder',
+      buffer,
       tags,
     })
     if (!result) throw new Error('Failed to upload default thumbnail')
