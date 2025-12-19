@@ -157,9 +157,35 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // MAIN IMPORT LOGIC
   // ============================================================================
 
+  /**
+   * Reconstruct ID maps from database when resuming paginated import
+   */
+  protected async reconstructIdMaps(): Promise<void> {
+    await this.logger.info('Reconstructing ID maps from database...')
+
+    // For Storyblok, the main cross-document dependencies are image tags
+    // These are set up in setup() method, so we just log existing counts
+    const lessons = await this.payload.find({ collection: 'lessons', limit: 1, depth: 0 })
+    await this.logger.info(`✓ Found ${lessons.totalDocs} existing lessons`)
+
+    const images = await this.payload.find({ collection: 'images', limit: 1, depth: 0 })
+    await this.logger.info(`✓ Found ${images.totalDocs} existing images`)
+  }
+
   protected async import(): Promise<void> {
+    const isPaginated = this.isPaginated()
     const stories = await this.fetchAllPathSteps()
-    await this.importLessons(stories)
+
+    // If not paginated, run full import
+    if (!isPaginated) {
+      await this.importLessons(stories)
+      return
+    }
+
+    // If targeting lessons collection, import with pagination
+    if (this.isCollectionTargeted('lessons')) {
+      await this.importLessons(stories)
+    }
   }
 
   // ============================================================================
@@ -214,19 +240,24 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async importLessons(stories: StoryblokStory[]): Promise<void> {
+    // Apply pagination if enabled for lessons collection
+    const paginatedStories = this.paginateItems(stories)
     const total = stories.length
-    for (let i = 0; i < total; i++) {
-      const story = stories[i]
+    const offset = this.options.pagination?.offset || 0
+
+    for (let i = 0; i < paginatedStories.length; i++) {
+      const story = paginatedStories[i]
+      const globalIndex = offset + i
 
       try {
-        await this.importLesson(story, i + 1, total)
+        await this.importLesson(story, globalIndex + 1, total)
       } catch (error) {
         // Error already reported by upsert() - just log to report summary
         this.addError(`Importing lesson "${story.name}"`, error as Error)
       }
 
       // Add delay between lessons to avoid rate limiting (auto-skips locally)
-      if (i < total - 1) {
+      if (i < paginatedStories.length - 1) {
         await rateLimitDelay(1000)
       }
     }

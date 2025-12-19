@@ -33,12 +33,91 @@ SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed <script>
 The CLI calls the seed API endpoint which handles all import logic:
 
 ```
-POST /api/seed/<script>?dryRun=true&clearCache=false
+GET  /api/seed/<script>                    # Get metadata (collections, batch sizes)
+POST /api/seed/<script>?dryRun=true        # Bulk import (all at once)
+POST /api/seed/<script>?collection=X&offset=0&limit=25  # Paginated import
 ```
 
 - **Authentication**: Requires admin session (Manager with `admin: true`)
 - **Response**: Server-Sent Events (SSE) with progress updates
 - **Scripts**: `tags`, `wemeditate`, `meditations`, `storyblok`
+
+## Pagination Support
+
+Pagination enables large imports to run on Cloudflare Workers without hitting D1 rate limits (~10 queries/sec, 6 simultaneous connections). The CLI automatically uses pagination when running on Workers.
+
+### How It Works
+
+1. **Metadata Fetch**: CLI fetches metadata via GET to determine batch sizes
+2. **Environment Detection**: Automatically uses bulk import locally, pagination on Workers
+3. **Collection Ordering**: Collections are imported in dependency order
+4. **Stateless Execution**: Each request is independent; ID maps are reconstructed from database
+
+### Batch Sizes
+
+| Environment | Without Uploads | With File Uploads |
+|-------------|-----------------|-------------------|
+| Local Dev   | 100             | 10                |
+| Workers     | 25              | 10                |
+
+### Collection Metadata
+
+Each script has collection-level metadata in `imports/lib/expectedCounts.ts`:
+
+| Script | Collection | Items | Paginated? | Dependencies |
+|--------|------------|-------|------------|--------------|
+| tags | meditation-tags | 27 | No | None |
+| tags | music-tags | 7 | No | None |
+| wemeditate | authors | 18 | No | None |
+| wemeditate | albums | 8 | No | None |
+| wemeditate | music | 27 | No | albums |
+| wemeditate | pages | 60 | Yes | authors |
+| meditations | narrators | 2 | No | None |
+| meditations | frames | 60 | Yes | None |
+| meditations | meditations | 73 | Yes | narrators, frames, tags |
+| storyblok | lessons | 17 | Yes | None |
+| storyblok | lectures | 0 | No | None |
+
+### API Response: Pagination Result
+
+When using pagination parameters, the completion event includes pagination info:
+
+```json
+{
+  "type": "complete",
+  "summary": { ... },
+  "pagination": {
+    "offset": 0,
+    "limit": 25,
+    "processedCount": 25,
+    "hasMore": true,
+    "nextOffset": 25,
+    "collection": "meditations"
+  }
+}
+```
+
+### CLI Pagination Mode
+
+The CLI automatically orchestrates paginated imports on Workers:
+
+```
+📋 Fetching metadata for meditations...
+   Environment: workers
+   Total items: 135
+   Requires pagination: true
+
+📁 Processing narrators (2 items)
+   Running bulk import...
+   ✓ 2 items imported
+
+📁 Processing frames (60 items)
+   Batch 1: offset=0, limit=10
+   ✓ Processed 10 items, hasMore=true
+   Batch 2: offset=10, limit=10
+   ✓ Processed 10 items, hasMore=true
+   ...
+```
 
 ## Available Scripts
 
@@ -154,6 +233,8 @@ imports/
 ├── tags/import.ts         # Cloudinary SVG tags import
 ├── lib/
 │   ├── BaseImporter.ts    # Abstract base class for all importers
+│   ├── pagination.ts      # Pagination types and utilities
+│   ├── expectedCounts.ts  # Collection metadata and verification
 │   ├── runtime.ts         # Cloudflare Worker detection (internal use only)
 │   ├── delays.ts          # Rate limiting and retry utilities
 │   ├── dataLoader.ts      # Dual-mode data loading and caching
