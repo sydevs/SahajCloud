@@ -84,6 +84,60 @@ STORAGE_BASE_URL=https://storage.googleapis.com/your-bucket
 1. **Idempotent**: Uses slug-based upsert - finds existing records and updates, or creates new
 2. **Resilient**: Continues on errors, reports all issues at end
 3. **Comprehensive Reporting**: Summary with counts, warnings, errors
+4. **Dual-Mode**: Works identically in local development and Cloudflare Workers
+
+## Dual-Mode Architecture
+
+Import scripts run in two environments with different capabilities:
+- **Local development**: Full filesystem access, caching for faster iteration
+- **Cloudflare Workers**: No filesystem, streaming only
+
+All environment-specific logic is abstracted into `imports/lib/` utilities. **Import scripts should never call `isCloudflareWorker()` directly or use `fs` imports.**
+
+### Delay Utilities (`delays.ts`)
+
+```typescript
+import { rateLimitDelay, withRetry } from '../lib'
+
+// Rate limit delay - skips entirely in local mode (0ms)
+await rateLimitDelay(300)
+
+// Retry with exponential backoff (delays skip locally)
+const result = await withRetry(() => fetchData(), { maxRetries: 3 })
+```
+
+| Function | Local Mode | Workers Mode |
+|----------|------------|--------------|
+| `rateLimitDelay(ms)` | Skips (0ms) | Waits ms |
+| `batchDelay(ms)` | Skips (0ms) | Waits ms |
+| `withRetry(fn, opts)` | Retries with 0ms delays | Retries with exponential backoff |
+
+### Data Loading (`dataLoader.ts`)
+
+```typescript
+import { fetchAsset, readCache, writeCache, loadJsonData } from '../lib'
+
+// Load JSON data file (fs locally, URL in Workers)
+const data = await loadJsonData<MyType>({
+  localPath: 'imports/data.json',
+  workerUrl: 'https://raw.githubusercontent.com/.../data.json',
+})
+
+// Fetch asset with caching (cache only works locally)
+const buffer = await fetchAsset(url, { cachePath: 'imports/cache/file.jpg' })
+
+// Direct cache operations (no-op in Workers)
+const cached = await readCache('imports/cache/file.jpg')
+await writeCache('imports/cache/file.jpg', buffer)
+```
+
+| Function | Local Mode | Workers Mode |
+|----------|------------|--------------|
+| `loadDataFile(source)` | Reads from `localPath` | Fetches from `workerUrl` |
+| `fetchAsset(url, opts)` | Caches to `cachePath` | Streams directly |
+| `readCache(path)` | Returns file buffer | Returns `null` |
+| `writeCache(path, data)` | Writes to disk | No-op |
+| `cacheExists(path)` | Checks file exists | Returns `false` |
 
 ## File Organization
 
@@ -101,8 +155,10 @@ imports/
 ├── tags/import.ts         # Cloudinary SVG tags import
 ├── lib/
 │   ├── BaseImporter.ts    # Abstract base class for all importers
-│   ├── runtime.ts         # Cloudflare Worker detection utilities
-│   ├── fileUtils.ts       # File download with dual-mode caching
+│   ├── runtime.ts         # Cloudflare Worker detection (internal use only)
+│   ├── delays.ts          # Rate limiting and retry utilities
+│   ├── dataLoader.ts      # Dual-mode data loading and caching
+│   ├── fileUtils.ts       # File operations and MIME type detection
 │   ├── logger.ts          # Console logging (no file output)
 │   └── ...                # Other shared utilities
 ├── cache/                 # Downloaded files (git-ignored, local dev only)

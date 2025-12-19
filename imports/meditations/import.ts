@@ -32,13 +32,19 @@
 
 import type { CollectionSlug, Payload } from 'payload'
 
-import { promises as fs } from 'fs'
 import * as path from 'path'
 
 import type { MeditationTag, MusicTag } from '@/payload-types'
 
-import { BaseImporter, BaseImportOptions, TagManager, MediaUploader } from '../lib'
-import { isCloudflareWorker } from '../lib/runtime'
+import {
+  BaseImporter,
+  BaseImportOptions,
+  fetchAsset,
+  MediaUploader,
+  readCache,
+  TagManager,
+  writeCache,
+} from '../lib'
 
 // ============================================================================
 // FILE DATA TYPE
@@ -434,43 +440,26 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
    * - Cloudflare Workers: Stream directly without disk
    */
   private async downloadFile(storageKey: string, filename: string): Promise<Buffer | null> {
+    const baseUrl =
+      process.env.STORAGE_BASE_URL || 'https://storage.googleapis.com/media.sydevelopers.com'
+    const fileUrl = `${baseUrl}/${storageKey}`
+
+    // Build cache path for local mode
+    const sanitizedKey = storageKey.replace(/[^a-zA-Z0-9.-]/g, '_')
+    const cachedPath = path.join(this.cacheDir, `${sanitizedKey}_${filename}`)
+
     try {
-      const baseUrl =
-        process.env.STORAGE_BASE_URL || 'https://storage.googleapis.com/media.sydevelopers.com'
-      const fileUrl = `${baseUrl}/${storageKey}`
-
-      // Workers mode: stream directly to buffer (no filesystem)
-      if (isCloudflareWorker()) {
-        await this.logger.log(`  Downloading: ${filename}`)
-        const response = await fetch(fileUrl)
-        if (!response.ok) {
-          throw new Error(`Failed to download: ${response.status}`)
-        }
-        await this.logger.log(`  ✓ Downloaded: ${filename}`)
-        return Buffer.from(await response.arrayBuffer())
-      }
-
-      // Local mode: use cache
-      const sanitizedKey = storageKey.replace(/[^a-zA-Z0-9.-]/g, '_')
-      const cachedPath = path.join(this.cacheDir, `${sanitizedKey}_${filename}`)
-
-      if (await this.fileUtils.fileExists(cachedPath)) {
+      // Try cache first (returns null in Workers mode)
+      const cached = await readCache(cachedPath)
+      if (cached) {
         await this.logger.log(`  ✓ Using cached: ${filename}`)
-        return fs.readFile(cachedPath)
+        return cached
       }
 
+      // Download and cache (fetchAsset handles caching internally in local mode)
       await this.logger.log(`  Downloading: ${filename}`)
-      const response = await fetch(fileUrl)
-      if (!response.ok) {
-        throw new Error(`Failed to download: ${response.status}`)
-      }
-      const buffer = Buffer.from(await response.arrayBuffer())
-
-      // Cache for future runs
-      await fs.mkdir(path.dirname(cachedPath), { recursive: true })
-      await fs.writeFile(cachedPath, buffer)
+      const buffer = await fetchAsset(fileUrl, { cachePath: cachedPath })
       await this.logger.log(`  ✓ Downloaded: ${filename}`)
-
       return buffer
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -587,40 +576,18 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
    */
   private async getPlaceholderBuffer(filename: string): Promise<Buffer | null> {
     const githubUrl = `${GITHUB_RAW_BASE}/imports/meditations/${filename}`
-
-    // Workers mode: fetch directly from GitHub
-    if (isCloudflareWorker()) {
-      try {
-        await this.logger.log(`  Fetching ${filename} from GitHub...`)
-        const response = await fetch(githubUrl)
-        if (!response.ok) {
-          throw new Error(`Failed to fetch: ${response.status}`)
-        }
-        return Buffer.from(await response.arrayBuffer())
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        this.addWarning(`Error fetching ${filename} from GitHub: ${message}`)
-        return null
-      }
-    }
-
-    // Local mode: use cache
     const cachedPath = path.join(this.cacheDir, filename)
-    if (await this.fileUtils.fileExists(cachedPath)) {
-      return fs.readFile(cachedPath)
-    }
 
-    // Try to fetch from GitHub and cache
     try {
-      await this.logger.log(`  Fetching ${filename} from GitHub...`)
-      const response = await fetch(githubUrl)
-      if (!response.ok) {
-        throw new Error(`Failed to fetch: ${response.status}`)
+      // Try cache first (returns null in Workers mode)
+      const cached = await readCache(cachedPath)
+      if (cached) {
+        return cached
       }
-      const buffer = Buffer.from(await response.arrayBuffer())
-      await fs.mkdir(path.dirname(cachedPath), { recursive: true })
-      await fs.writeFile(cachedPath, buffer)
-      return buffer
+
+      // Fetch from GitHub (handles caching in local mode)
+      await this.logger.log(`  Fetching ${filename} from GitHub...`)
+      return await fetchAsset(githubUrl, { cachePath: cachedPath })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       this.addWarning(`Error fetching ${filename}: ${message}`)
@@ -1045,50 +1012,26 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   private async getAlbumPlaceholderBuffer(): Promise<Buffer | null> {
     const filename = 'placeholder-album.png'
     const githubUrl = `${GITHUB_RAW_BASE}/imports/wemeditate/preview.png`
-
-    // Workers mode: fetch directly from GitHub
-    if (isCloudflareWorker()) {
-      try {
-        await this.logger.log(`  Fetching album placeholder from GitHub...`)
-        const response = await fetch(githubUrl)
-        if (!response.ok) {
-          throw new Error(`Failed to fetch: ${response.status}`)
-        }
-        return Buffer.from(await response.arrayBuffer())
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        this.addWarning(`Error fetching album placeholder from GitHub: ${message}`)
-        return null
-      }
-    }
-
-    // Local mode: use cache
     const cachedPath = path.join(this.cacheDir, filename)
-    if (await this.fileUtils.fileExists(cachedPath)) {
-      return fs.readFile(cachedPath)
-    }
-
-    // Try local wemeditate preview.png first
     const localPlaceholder = path.resolve(process.cwd(), 'imports/wemeditate/preview.png')
-    if (await this.fileUtils.fileExists(localPlaceholder)) {
-      const buffer = await fs.readFile(localPlaceholder)
-      // Cache for future runs
-      await fs.mkdir(path.dirname(cachedPath), { recursive: true })
-      await fs.writeFile(cachedPath, buffer)
-      return buffer
-    }
 
-    // Fallback: fetch from GitHub and cache
     try {
-      await this.logger.log(`  Fetching album placeholder from GitHub...`)
-      const response = await fetch(githubUrl)
-      if (!response.ok) {
-        throw new Error(`Failed to fetch: ${response.status}`)
+      // Try cache first (returns null in Workers mode)
+      const cached = await readCache(cachedPath)
+      if (cached) {
+        return cached
       }
-      const buffer = Buffer.from(await response.arrayBuffer())
-      await fs.mkdir(path.dirname(cachedPath), { recursive: true })
-      await fs.writeFile(cachedPath, buffer)
-      return buffer
+
+      // Local mode: try to seed cache from local source file
+      const localBuffer = await readCache(localPlaceholder)
+      if (localBuffer) {
+        await writeCache(cachedPath, localBuffer)
+        return localBuffer
+      }
+
+      // Fetch from GitHub (handles caching in local mode)
+      await this.logger.log(`  Fetching album placeholder from GitHub...`)
+      return await fetchAsset(githubUrl, { cachePath: cachedPath })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       this.addWarning(`Error fetching album placeholder: ${message}`)
