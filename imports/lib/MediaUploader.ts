@@ -13,6 +13,8 @@ import * as path from 'path'
 
 import type { ImageTag } from '@/payload-types'
 
+import { isCloudflareWorker } from './runtime'
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -301,6 +303,11 @@ export class MediaUploader {
     options: MediaUploadOptions,
   ): Promise<MediaUploadResult | null> {
     try {
+      // In Workers mode, buffer is required (no filesystem access)
+      if (!options.buffer && isCloudflareWorker()) {
+        throw new Error('Buffer is required for uploads in Workers mode')
+      }
+
       // Use buffer if provided (Workers mode), otherwise read from filesystem
       const fileBuffer = options.buffer || (await fs.readFile(localPath))
       const filename = path.basename(localPath)

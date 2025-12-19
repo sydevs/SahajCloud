@@ -1217,23 +1217,52 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           path.extname(downloadResult.localPath),
         )
 
-        const result = await this.mediaUploader.uploadWithDeduplication(downloadResult.localPath, {
-          alt: metadata.alt || filenameWithoutExt,
-          credit: metadata.credit || '',
-          buffer: downloadResult.buffer, // Pass buffer for Workers mode
-        })
+        // Upload with retry logic for Workers mode resilience
+        const maxRetries = 3
+        let result = null
+        let lastError: Error | null = null
 
-        if (result) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            result = await this.mediaUploader.uploadWithDeduplication(downloadResult.localPath, {
+              alt: metadata.alt || filenameWithoutExt,
+              credit: metadata.credit || '',
+              buffer: downloadResult.buffer, // Pass buffer for Workers mode
+            })
+
+            if (result) {
+              break // Success
+            } else {
+              throw new Error('MediaUploader returned null')
+            }
+          } catch (error) {
+            lastError = error instanceof Error ? error : new Error(String(error))
+            if (attempt < maxRetries) {
+              // Exponential backoff: 500ms, 1s, 2s
+              const delay = 500 * Math.pow(2, attempt - 1)
+              await new Promise((resolve) => setTimeout(resolve, delay))
+            }
+          }
+        }
+
+        if (!result) {
+          throw lastError || new Error('Failed to upload media after retries')
+        }
+
+        // Properly handle deduplication vs new upload
+        if (result.wasReused) {
+          // Deduplication found existing media
           this.idMaps.media.set(url, result.id)
-          this.report.incrementCreated()
-          await this.reportDocument('images', filename, 'created', {
+          this.report.incrementUpdated()
+          await this.reportDocument('images', filename, 'updated', {
             current: i + 1,
             total,
           })
         } else {
-          // Deduplication found existing - count as updated
-          this.report.incrementUpdated()
-          await this.reportDocument('images', filename, 'updated', {
+          // New media uploaded
+          this.idMaps.media.set(url, result.id)
+          this.report.incrementCreated()
+          await this.reportDocument('images', filename, 'created', {
             current: i + 1,
             total,
           })
