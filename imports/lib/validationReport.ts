@@ -14,7 +14,7 @@ export interface RecordsSummary {
   created: number
   skipped: number
   errors: number
-  updated?: number
+  updated: number
 }
 
 export interface FieldMapping {
@@ -27,7 +27,7 @@ export class ValidationReport {
   private warnings: string[] = []
   private errors: string[] = []
   private fieldMappings: FieldMapping[] = []
-  private recordsSummary: RecordsSummary = { created: 0, skipped: 0, errors: 0 }
+  private recordsSummary: RecordsSummary = { created: 0, skipped: 0, errors: 0, updated: 0 }
   private importName: string = ''
   private startTime: Date = new Date()
 
@@ -75,7 +75,7 @@ export class ValidationReport {
   }
 
   incrementUpdated(): void {
-    this.recordsSummary.updated = (this.recordsSummary.updated || 0) + 1
+    this.recordsSummary.updated++
   }
 
   /**
@@ -230,7 +230,7 @@ export class ValidationReport {
     this.warnings = []
     this.errors = []
     this.fieldMappings = []
-    this.recordsSummary = { created: 0, skipped: 0, errors: 0 }
+    this.recordsSummary = { created: 0, skipped: 0, errors: 0, updated: 0 }
     this.importName = ''
     this.startTime = new Date()
   }
