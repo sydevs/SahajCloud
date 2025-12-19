@@ -247,6 +247,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   // ============================================================================
 
   private async setupCacheDirectory(): Promise<void> {
+    // Skip in Workers mode (no filesystem access)
+    if (this.isWorker) return
     await fs.mkdir(this.cacheDir, { recursive: true })
     await fs.mkdir(path.join(this.cacheDir, 'assets'), { recursive: true })
   }
@@ -284,6 +286,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   private async clearCache(): Promise<void> {
+    // Skip in Workers mode (no filesystem access)
+    if (this.isWorker) return
     await this.logger.info('Clearing cache directory...')
     await this.fileUtils.clearDir(this.cacheDir)
     // Recreate assets directory

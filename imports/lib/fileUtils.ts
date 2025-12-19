@@ -63,8 +63,13 @@ export class FileUtils {
 
   /**
    * Download file using fetch (alternative method)
+   * Not supported in Workers mode - use streaming instead
    */
   async downloadFileFetch(url: string, destPath: string): Promise<void> {
+    if (isCloudflareWorker()) {
+      throw new Error('downloadFileFetch is not supported in Workers mode - use buffer streaming instead')
+    }
+
     if (await this.fileExists(destPath)) {
       return
     }
@@ -82,15 +87,19 @@ export class FileUtils {
 
   /**
    * Ensure directory exists
+   * No-op in Workers mode (no filesystem access)
    */
   async ensureDir(dirPath: string): Promise<void> {
+    if (isCloudflareWorker()) return
     await fs.mkdir(dirPath, { recursive: true })
   }
 
   /**
    * Clear directory contents
+   * No-op in Workers mode (no filesystem access)
    */
   async clearDir(dirPath: string): Promise<void> {
+    if (isCloudflareWorker()) return
     await fs.rm(dirPath, { recursive: true, force: true })
     await fs.mkdir(dirPath, { recursive: true })
   }

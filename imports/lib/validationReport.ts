@@ -8,6 +8,8 @@
 import { promises as fs } from 'fs'
 import * as path from 'path'
 
+import { isCloudflareWorker } from './runtime'
+
 export interface RecordsSummary {
   created: number
   skipped: number
@@ -113,9 +115,16 @@ export class ValidationReport {
 
   /**
    * Generate the validation report and write to file
+   * Skipped in Workers mode (no filesystem access)
    */
   async generate(outputPath: string, importName: string): Promise<string> {
     this.importName = importName
+
+    // Skip file writing in Workers mode
+    if (isCloudflareWorker()) {
+      return outputPath
+    }
+
     const duration = this.calculateDuration()
     const report = this.buildReport(duration)
 
