@@ -694,25 +694,38 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
         // Download audio file
         const audioUrl = `${STORAGE_BASE_URL}track/${track.id}/${track.audio}?version=`
-        let localAudioPath: string | null = null
+        let fileBuffer: Buffer
+        const filename = track.audio
+        const mimeType = this.fileUtils.getMimeType(filename)
 
         try {
-          const cacheFilename = `track-${track.id}-${track.audio}`
-          const cachePath = path.join(this.cacheDir, 'audio', cacheFilename)
-
-          // Check cache first
-          if (await this.fileUtils.fileExists(cachePath)) {
-            localAudioPath = cachePath
-          } else {
-            // Download audio
-            await fs.mkdir(path.dirname(cachePath), { recursive: true })
+          // In Workers: fetch directly without file caching (no filesystem access)
+          if (isCloudflareWorker()) {
             const response = await fetch(audioUrl)
             if (!response.ok) {
               throw new Error(`HTTP ${response.status}: ${response.statusText}`)
             }
             const arrayBuffer = await response.arrayBuffer()
-            await fs.writeFile(cachePath, Buffer.from(arrayBuffer))
-            localAudioPath = cachePath
+            fileBuffer = Buffer.from(arrayBuffer)
+          } else {
+            // Local dev: download to cache then read
+            const cacheFilename = `track-${track.id}-${track.audio}`
+            const cachePath = path.join(this.cacheDir, 'audio', cacheFilename)
+
+            // Check cache first
+            if (await this.fileUtils.fileExists(cachePath)) {
+              fileBuffer = await fs.readFile(cachePath)
+            } else {
+              // Download audio
+              await fs.mkdir(path.dirname(cachePath), { recursive: true })
+              const response = await fetch(audioUrl)
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+              }
+              const arrayBuffer = await response.arrayBuffer()
+              fileBuffer = Buffer.from(arrayBuffer)
+              await fs.writeFile(cachePath, fileBuffer)
+            }
           }
         } catch (error) {
           this.addError(`Downloading audio for track ${track.id}: ${audioUrl}`, error as Error)
@@ -723,11 +736,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           })
           continue
         }
-
-        // Create music with audio file
-        const fileBuffer = await fs.readFile(localAudioPath)
-        const filename = track.audio
-        const mimeType = this.fileUtils.getMimeType(filename)
 
         await this.payload.create({
           collection: 'music',
