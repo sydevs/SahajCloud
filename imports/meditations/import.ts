@@ -349,6 +349,51 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     await super.cleanup()
   }
 
+  /**
+   * Reconstruct ID maps from database when resuming paginated import.
+   * Called automatically by BaseImporter when pagination is active.
+   *
+   * NOTE: When targeting `meditations` collection, dependencies (narrators, frames, tags)
+   * are auto-imported in the same request (see import() method). This ensures idMaps
+   * are populated. The counts below are primarily for logging when running in
+   * paginated frames mode (targeting `frames` collection).
+   *
+   * Frame and tag ID maps CANNOT be fully reconstructed from the database because
+   * the legacy source IDs (from the source data) are not stored in Payload.
+   */
+  protected async reconstructIdMaps(): Promise<void> {
+    await this.logger.info('Reconstructing ID maps from database...')
+
+    // Reconstruct narrator map (index → id)
+    // Narrators CAN be fully reconstructed because we use gender-based indexing
+    const narrators = await this.payload.find({
+      collection: 'narrators',
+      limit: 10,
+      depth: 0,
+    })
+    for (const narrator of narrators.docs) {
+      // Narrators are indexed 0 (male) and 1 (female)
+      const index = narrator.gender === 'male' ? 0 : 1
+      this.idMaps.narrators.set(index, narrator.id)
+    }
+    await this.logger.info(`✓ Reconstructed ${this.idMaps.narrators.size} narrators`)
+
+    // NOTE: Frame and tag ID maps use legacy source IDs as keys, which are not
+    // stored in Payload. These maps are populated during frame/tag import in
+    // the same request (when targeting meditations). Counts below are informational.
+    const framesCount = await this.payload.count({ collection: 'frames' })
+    await this.logger.info(`✓ Found ${framesCount.totalDocs} existing frames`)
+
+    const meditationTagsCount = await this.payload.count({ collection: 'meditation-tags' })
+    await this.logger.info(`✓ Found ${meditationTagsCount.totalDocs} existing meditation tags`)
+
+    const musicTagsCount = await this.payload.count({ collection: 'music-tags' })
+    await this.logger.info(`✓ Found ${musicTagsCount.totalDocs} existing music tags`)
+
+    // Load existing albums for music matching
+    await this.loadExistingAlbums()
+  }
+
   // ============================================================================
   // MAIN IMPORT LOGIC
   // ============================================================================
@@ -362,23 +407,50 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       return
     }
 
-    // Setup tags and placeholders
+    // Check if we're targeting a specific collection (paginated mode)
+    const isPaginated = this.isPaginated()
+
+    // Setup tags and placeholders (always needed)
     await this.setupImageTags()
     await this.uploadPlaceholderImages()
 
     // Import in order of dependencies
-    await this.importNarrators()
-    await this.importTags(data.tags, data.taggings)
-    await this.importFrames(data.frames, data.attachments, data.blobs)
-    await this.importMusic(data.musics, data.taggings, data.attachments, data.blobs)
-    await this.importMeditations(
-      data.meditations,
-      data.keyframes,
-      data.taggings,
-      data.attachments,
-      data.blobs,
-      data.tags,
-    )
+    // When targeting meditations, also run dependencies to populate idMaps
+    if (!isPaginated || this.isCollectionTargeted('narrators') || this.isCollectionTargeted('meditations')) {
+      await this.importNarrators()
+    }
+
+    // Tags are needed by frames and meditations, import if not paginating or targeting frames/meditations
+    if (
+      !isPaginated ||
+      this.isCollectionTargeted('meditation-tags') ||
+      this.isCollectionTargeted('frames') ||
+      this.isCollectionTargeted('meditations')
+    ) {
+      await this.importTags(data.tags, data.taggings)
+    }
+
+    // Frames - also run when targeting meditations (to populate idMaps for keyframe references)
+    if (!isPaginated || this.isCollectionTargeted('frames') || this.isCollectionTargeted('meditations')) {
+      await this.importFrames(data.frames, data.attachments, data.blobs)
+    }
+
+    // Music (no pagination - small collection)
+    if (!isPaginated) {
+      await this.importMusic(data.musics, data.taggings, data.attachments, data.blobs)
+    }
+
+    // Meditations
+    if (!isPaginated || this.isCollectionTargeted('meditations')) {
+      await this.importMeditations(
+        data.meditations,
+        data.keyframes,
+        data.taggings,
+        data.attachments,
+        data.blobs,
+        data.tags,
+      )
+    }
 
     // Print media upload stats
     const mediaStats = this.mediaUploader.getStats()
@@ -811,16 +883,41 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       'superego', 'tapping',
     ]
 
+    // Apply pagination if active, BUT run in bulk when meditations is targeted
+    // (we need all frames to populate idMaps for meditation keyframe references)
+    let paginatedFrames: typeof frames
+    let offset: number
+
+    if (this.isCollectionTargeted('meditations')) {
+      // Run all frames in bulk to populate idMaps for meditations
+      paginatedFrames = frames
+      offset = 0
+      this.paginationState = {
+        processedCount: frames.length,
+        hasMore: false,
+        nextOffset: frames.length,
+      }
+    } else {
+      paginatedFrames = this.paginateItems(frames)
+      offset = this.options.pagination?.offset || 0
+    }
+
     const total = frames.length
-    for (let i = 0; i < total; i++) {
-      const frame = frames[i]
+
+    await this.logger.info(
+      `Processing ${paginatedFrames.length} frames (offset: ${offset}, total: ${total})`,
+    )
+
+    for (let i = 0; i < paginatedFrames.length; i++) {
+      const frame = paginatedFrames[i]
+      const globalIndex = offset + i
       const identifier = `${frame.category}-${frame.id}`
 
       const mappedCategory = this.mapFrameCategory(frame.category)
       if (!mappedCategory) {
         this.skip(`frame with unknown category "${frame.category}"`)
         await this.reportDocument('frames', identifier, 'skipped', {
-          current: i + 1,
+          current: globalIndex + 1,
           total,
         })
         continue
@@ -843,7 +940,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
           maleAttachment,
           mappedCategory,
           tagValues,
-          i + 1,
+          globalIndex + 1,
           total,
         )
       }
@@ -856,7 +953,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
           femaleAttachment,
           mappedCategory,
           tagValues,
-          i + 1,
+          globalIndex + 1,
           total,
         )
       }
@@ -864,7 +961,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       if (!maleAttachment && !femaleAttachment) {
         this.skip(`frame without attachments: ${frame.category}`)
         await this.reportDocument('frames', identifier, 'skipped', {
-          current: i + 1,
+          current: globalIndex + 1,
           total,
         })
       }
@@ -1180,9 +1277,14 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     blobs: any[],
     allTags: ImportedData['tags'],
   ): Promise<void> {
+    // Apply pagination if enabled for meditations collection
+    const paginatedMeditations = this.paginateItems(meditations)
     const total = meditations.length
-    for (let i = 0; i < total; i++) {
-      const meditation = meditations[i]
+    const offset = this.options.pagination?.offset || 0
+
+    for (let i = 0; i < paginatedMeditations.length; i++) {
+      const meditation = paginatedMeditations[i]
+      const globalIndex = offset + i
       const identifier = meditation.title
 
       // Generate unique slug with duration
@@ -1205,7 +1307,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         this.idMaps.meditations.set(meditation.id, existing.docs[0].id)
         this.report.incrementSkipped()
         await this.reportDocument('meditations', identifier, 'skipped', {
-          current: i + 1,
+          current: globalIndex + 1,
           total,
         })
         continue
@@ -1220,14 +1322,14 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
           attachments,
           blobs,
           allTags,
-          i + 1,
+          globalIndex + 1,
           total,
         )
       } catch (error) {
         this.addError(`Importing meditation "${meditation.title}"`, error as Error)
         await this.reportDocument('meditations', identifier, 'error', {
           error: (error as Error).message,
-          current: i + 1,
+          current: globalIndex + 1,
           total,
         })
       }

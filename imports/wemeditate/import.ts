@@ -313,6 +313,30 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     await super.cleanup()
   }
 
+  /**
+   * Reconstruct ID maps from database when resuming paginated import.
+   * Called automatically by BaseImporter when pagination is active.
+   *
+   * Note: For WeMeditate, the original Rails IDs are not stored in Payload,
+   * so we can't fully reconstruct the old ID → new ID mappings. Instead,
+   * we rely on slug-based lookups during the import process.
+   */
+  protected async reconstructIdMaps(): Promise<void> {
+    await this.logger.info('Reconstructing ID maps from database...')
+
+    // For authors and categories, we can't reconstruct the original Rails ID → Payload ID mapping
+    // because we don't store the Rails IDs. However, we look up by slug during import anyway.
+    // Just log that we're ready for paginated import.
+    const authors = await this.payload.find({ collection: 'authors', limit: 100, depth: 0 })
+    await this.logger.info(`✓ Found ${authors.totalDocs} existing authors`)
+
+    const pageTags = await this.payload.find({ collection: 'page-tags', limit: 100, depth: 0 })
+    await this.logger.info(`✓ Found ${pageTags.totalDocs} existing page-tags`)
+
+    const albums = await this.payload.find({ collection: 'albums', limit: 100, depth: 0 })
+    await this.logger.info(`✓ Found ${albums.totalDocs} existing albums`)
+  }
+
   private async loadData(): Promise<void> {
     await this.logger.info('Loading data from JSON...')
 
@@ -340,34 +364,297 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       return
     }
 
+    // Check if we're targeting a specific collection (paginated mode)
+    const isPaginated = this.isPaginated()
+
     // Phase 1: Import metadata without content
-    await this.logger.info('\n=== PHASE 1: Metadata Import ===')
-    await this.importAuthors()
-    await this.importAlbums()
-    await this.importMusic()
-    await this.importCategories()
-    await this.importContentTypeTags()
-    await this.importPages('static_pages', 'static_page_translations')
-    await this.importPages('articles', 'article_translations')
-    await this.importPages('subtle_system_nodes', 'subtle_system_node_translations')
+    // Skip if paginating pages collection (metadata already imported)
+    if (!isPaginated || !this.isCollectionTargeted('pages')) {
+      await this.logger.info('\n=== PHASE 1: Metadata Import ===')
+
+      if (!isPaginated || this.isCollectionTargeted('authors')) {
+        await this.importAuthors()
+      }
+      if (!isPaginated || this.isCollectionTargeted('albums')) {
+        await this.importAlbums()
+      }
+      if (!isPaginated || this.isCollectionTargeted('music')) {
+        await this.importMusic()
+      }
+
+      // Categories and content type tags are always needed for pages
+      if (!isPaginated) {
+        await this.importCategories()
+        await this.importContentTypeTags()
+        await this.importPages('static_pages', 'static_page_translations')
+        await this.importPages('articles', 'article_translations')
+        await this.importPages('subtle_system_nodes', 'subtle_system_node_translations')
+      }
+    }
 
     // Phase 2: Import content with full conversion
-    await this.logger.info('\n=== PHASE 2: Content Import ===')
+    // For paginated mode on 'pages', we handle this specially
+    if (!isPaginated) {
+      await this.logger.info('\n=== PHASE 2: Content Import ===')
+      await this.buildMeditationTitleMap()
+      await this.importForms()
+      await this.importMedia()
+      await this.importLectures()
+      await this.buildTreatmentThumbnailMap()
+      await this.importPages('treatments', 'treatment_translations')
+
+      // Update pages with converted Lexical content
+      await this.importPagesWithContent('static_pages', 'static_page_translations')
+      await this.importPagesWithContent('articles', 'article_translations')
+      await this.importPagesWithContent('subtle_system_nodes', 'subtle_system_node_translations')
+      await this.importPagesWithContent('treatments', 'treatment_translations')
+
+      // Update global settings
+      await this.updateWeMeditateWebSettings()
+    } else if (this.isCollectionTargeted('pages')) {
+      // Paginated pages import: combine all page types and paginate
+      await this.logger.info('\n=== PAGINATED PAGES IMPORT ===')
+      await this.importPaginatedPages()
+    }
+  }
+
+  /**
+   * Import pages with pagination support.
+   * Combines all page types (static_pages, articles, subtle_system_nodes, treatments)
+   * and applies pagination to the combined list.
+   */
+  private async importPaginatedPages(): Promise<void> {
+    // Ensure categories and content type tags exist
+    await this.importCategories()
+    await this.importContentTypeTags()
+
+    // Build required maps for content conversion
     await this.buildMeditationTitleMap()
     await this.importForms()
     await this.importMedia()
     await this.importLectures()
     await this.buildTreatmentThumbnailMap()
-    await this.importPages('treatments', 'treatment_translations')
 
-    // Update pages with converted Lexical content
-    await this.importPagesWithContent('static_pages', 'static_page_translations')
-    await this.importPagesWithContent('articles', 'article_translations')
-    await this.importPagesWithContent('subtle_system_nodes', 'subtle_system_node_translations')
-    await this.importPagesWithContent('treatments', 'treatment_translations')
+    // Combine all page types into a single array
+    // All page types share the same structure (id, translations)
+    const allPages: Array<{ page: WeMeditateData['staticPages'][number]; tableName: string }> = [
+      ...this.data.staticPages.map((p) => ({ page: p, tableName: 'static_pages' as const })),
+      ...this.data.articles.map((p) => ({ page: p, tableName: 'articles' as const })),
+      ...this.data.subtleSystemNodes.map((p) => ({
+        page: p,
+        tableName: 'subtle_system_nodes' as const,
+      })),
+      ...this.data.treatments.map((p) => ({ page: p, tableName: 'treatments' as const })),
+    ]
 
-    // Update global settings
-    await this.updateWeMeditateWebSettings()
+    // Apply pagination
+    const paginatedPages = this.paginateItems(allPages)
+    const total = allPages.length
+
+    await this.logger.info(
+      `Processing ${paginatedPages.length} pages (offset: ${this.options.pagination?.offset || 0})`,
+    )
+
+    for (let i = 0; i < paginatedPages.length; i++) {
+      const { page, tableName } = paginatedPages[i]
+      const globalIndex = (this.options.pagination?.offset || 0) + i
+
+      try {
+        await this.importSinglePage(page, tableName, globalIndex + 1, total)
+      } catch (error) {
+        this.addError(`Importing ${tableName} ${page.id}`, error as Error)
+      }
+    }
+
+    // Update global settings only on the last batch
+    if (!this.hasMoreItems()) {
+      await this.updateWeMeditateWebSettings()
+    }
+  }
+
+  /**
+   * Import a single page (used by both regular and paginated imports)
+   */
+  private async importSinglePage(
+    page: WeMeditateData['staticPages'][number],
+    tableName: string,
+    current: number,
+    total: number,
+  ): Promise<void> {
+    const pageAny = page as any
+
+    // Find English translation
+    const enTranslation = pageAny.translations.find((t: any) => t.locale === 'en' && t.name)
+    if (!enTranslation) {
+      this.skip(`${tableName} ${page.id}: no English translation`)
+      return
+    }
+
+    // For treatments: check if thumbnail exists
+    if (tableName === 'treatments') {
+      const treatmentId = typeof page.id === 'string' ? parseInt(page.id as string) : page.id
+      if (!this.treatmentThumbnailMap.has(treatmentId)) {
+        this.skip(`Treatment ${page.id} "${enTranslation.name!}" has no thumbnail`)
+        return
+      }
+    }
+
+    // Generate slug
+    const slug =
+      enTranslation.slug?.trim() ||
+      enTranslation.name!
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+
+    // Get author and tags
+    let authorId: number | string | undefined
+    if (pageAny.author_id && this.idMaps.authors.has(pageAny.author_id)) {
+      authorId = this.idMaps.authors.get(pageAny.author_id)
+    }
+
+    const tags: (number | string)[] = []
+    const contentTypeTag = CONTENT_TYPE_TAGS[tableName]
+    if (contentTypeTag) {
+      const tagId = this.contentTypeTagMap.get(`content-type-tag-${contentTypeTag}`)
+      if (tagId) tags.push(tagId)
+    }
+
+    if (pageAny.article_type !== undefined && ARTICLE_TYPE_TAGS[pageAny.article_type]) {
+      const articleTypeTag = ARTICLE_TYPE_TAGS[pageAny.article_type]
+      const tagId = this.contentTypeTagMap.get(`content-type-tag-${articleTypeTag}`)
+      if (tagId) tags.push(tagId)
+    }
+
+    if (pageAny.category_id && this.idMaps.categories.has(pageAny.category_id)) {
+      tags.push(this.idMaps.categories.get(pageAny.category_id)!)
+    }
+
+    // Calculate published state
+    type Translation = { locale: string; published_at?: string }
+    const isPublished = pageAny.translations.some(
+      (t: Translation) => t.published_at && LOCALES.includes(t.locale as (typeof LOCALES)[number]),
+    )
+
+    // Upsert page by slug
+    const pageResult = await this.upsert<{ id: number }>(
+      'pages',
+      { slug: { equals: slug } },
+      {
+        title: enTranslation.name!,
+        slug,
+        _status: isPublished ? 'published' : 'draft',
+        author: authorId,
+        tags: tags.length > 0 ? tags : undefined,
+      },
+      {
+        locale: 'en',
+        identifier: slug,
+        current,
+        total,
+        publishSpecificLocale: enTranslation.published_at ? 'en' : undefined,
+      },
+    )
+
+    // Update other locales
+    type PageTranslation = (typeof pageAny.translations)[number]
+    await this.updateLocales<PageTranslation>(
+      'pages',
+      pageResult.doc.id,
+      pageAny.translations,
+      (t) => ({ title: t.name }),
+      {
+        excludeLocale: 'en',
+        requiredFields: ['name'],
+        validLocales: [...LOCALES],
+        shouldPublish: (t) => !!t.published_at,
+      },
+    )
+
+    // Store in appropriate ID map
+    const mapKeyMap: Record<string, keyof typeof this.idMaps> = {
+      static_pages: 'staticPages',
+      articles: 'articles',
+      subtle_system_nodes: 'subtleSystemNodes',
+      treatments: 'treatments',
+    }
+    const mapKey = mapKeyMap[tableName]
+    if (mapKey) {
+      const numericId = typeof page.id === 'string' ? parseInt(page.id as string) : page.id
+      const idMap = this.idMaps[mapKey] as Map<number, number>
+      idMap.set(numericId, pageResult.doc.id)
+    }
+
+    // Import content for this page
+    await this.importSinglePageContent(page, pageResult.doc.id, tableName)
+  }
+
+  /**
+   * Import content for a single page (Phase 2 for paginated mode)
+   */
+  private async importSinglePageContent(
+    page: WeMeditateData['staticPages'][number],
+    pageId: number,
+    tableName: string,
+  ): Promise<void> {
+    const pageAny = page as any
+    const enTranslation = pageAny.translations.find((t: any) => t.locale === 'en')
+    const pageTitle = enTranslation?.name || 'Unknown'
+
+    for (const translation of pageAny.translations) {
+      if (!translation.locale || !translation.content) continue
+      if (!LOCALES.includes(translation.locale as (typeof LOCALES)[number])) continue
+
+      let content
+      try {
+        if (typeof translation.content === 'string') {
+          const contentStr = translation.content.replace(/=>/g, ':')
+          content = JSON.parse(contentStr)
+        } else {
+          content = translation.content
+        }
+      } catch {
+        continue
+      }
+
+      const context: ConversionContext = {
+        payload: this.payload,
+        logger: this.logger,
+        pageId: page.id,
+        pageTitle,
+        locale: translation.locale,
+        mediaMap: this.idMaps.media,
+        formMap: this.idMaps.forms,
+        lectureMap: this.idMaps.lectures,
+        treatmentMap: this.idMaps.treatments,
+        treatmentThumbnailMap: this.treatmentThumbnailMap,
+        meditationTitleMap: this.meditationTitleMap,
+        meditationRailsTitleMap: this.meditationRailsTitleMap,
+      }
+
+      const lexicalContent = await convertEditorJSToLexical(content, context)
+
+      // For treatments: prepend thumbnail
+      if (tableName === 'treatments') {
+        const numericId = typeof page.id === 'string' ? parseInt(page.id as string) : page.id
+        const thumbnailMediaId = this.treatmentThumbnailMap.get(numericId)
+        if (thumbnailMediaId) {
+          const thumbnailNode = createUploadNode(thumbnailMediaId, 'right')
+          lexicalContent.root.children.unshift(thumbnailNode)
+        }
+      }
+
+      await this.payload.update({
+        collection: 'pages',
+        id: pageId,
+        data: {
+          title: translation.name || 'Untitled',
+          content: lexicalContent as any,
+        },
+        locale: translation.locale as TypedLocale,
+      })
+    }
   }
 
   // ============================================================================
