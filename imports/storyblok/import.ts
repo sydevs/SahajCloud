@@ -21,11 +21,18 @@
 
 import type { Payload } from 'payload'
 
-import * as fs from 'fs/promises'
 import * as path from 'path'
 
-import { BaseImporter, BaseImportOptions, MediaUploader, TagManager } from '../lib'
-import { isCloudflareWorker } from '../lib/runtime'
+import {
+  BaseImporter,
+  BaseImportOptions,
+  fetchAsset,
+  MediaUploader,
+  rateLimitDelay,
+  readCacheText,
+  TagManager,
+  writeCache,
+} from '../lib'
 
 // ============================================================================
 // CONFIGURATION
@@ -118,14 +125,12 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       await this.setupImageTags()
     }
 
-    // Setup additional cache directories (skip in Workers - no filesystem access)
-    if (!isCloudflareWorker()) {
-      await this.fileUtils.ensureDir(path.join(this.cacheDir, 'videos'))
-      await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/audio'))
-      await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/images'))
-      await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/videos'))
-      await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/subtitles'))
-    }
+    // Setup additional cache directories (ensureDir is a no-op in Workers mode)
+    await this.fileUtils.ensureDir(path.join(this.cacheDir, 'videos'))
+    await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/audio'))
+    await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/images'))
+    await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/videos'))
+    await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/subtitles'))
   }
 
   /**
@@ -180,27 +185,15 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   }
 
   private async fetchStoryByUuid(uuid: string): Promise<StoryblokStory> {
-    // In Workers: fetch directly without caching
-    if (isCloudflareWorker()) {
-      await this.logger.info(`Fetching video story ${uuid}...`)
-      const response = await fetch(
-        `https://api.storyblok.com/v2/cdn/stories/${uuid}?find_by=uuid&token=${this.token}`,
-      )
-      if (!response.ok) {
-        throw new Error(`Storyblok API error: ${response.statusText}`)
-      }
-      const responseData = (await response.json()) as { story: StoryblokStory }
-      return responseData.story
-    }
-
-    // Local dev: use file caching
     const cacheFile = path.join(this.cacheDir, 'videos', `${uuid}.json`)
 
-    if (await this.fileUtils.fileExists(cacheFile)) {
-      const data = await fs.readFile(cacheFile, 'utf-8')
-      return JSON.parse(data).story as StoryblokStory
+    // Check cache first (returns null in Workers mode)
+    const cached = await readCacheText(cacheFile)
+    if (cached) {
+      return JSON.parse(cached).story as StoryblokStory
     }
 
+    // Fetch from API
     await this.logger.info(`Fetching video story ${uuid}...`)
     const response = await fetch(
       `https://api.storyblok.com/v2/cdn/stories/${uuid}?find_by=uuid&token=${this.token}`,
@@ -209,7 +202,10 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       throw new Error(`Storyblok API error: ${response.statusText}`)
     }
     const responseData = (await response.json()) as { story: StoryblokStory }
-    await fs.writeFile(cacheFile, JSON.stringify(responseData, null, 2))
+
+    // Cache for local dev (no-op in Workers mode)
+    await writeCache(cacheFile, JSON.stringify(responseData, null, 2))
+
     return responseData.story
   }
 
@@ -229,9 +225,9 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
         this.addError(`Importing lesson "${story.name}"`, error as Error)
       }
 
-      // Add delay between lessons to avoid rate limiting in Workers environment
+      // Add delay between lessons to avoid rate limiting (auto-skips locally)
       if (i < total - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        await rateLimitDelay(1000)
       }
     }
   }
@@ -371,9 +367,9 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
           panelIndexCounter++
         }
 
-        // Add delay between panels to avoid rate limiting in Workers environment
+        // Add delay between panels to avoid rate limiting (auto-skips locally)
         if (i < sortedPanels.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 200))
+          await rateLimitDelay(200)
         }
       } catch (error) {
         this.addError(`Processing panel for ${story.name}`, error as Error)
@@ -416,8 +412,8 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
         })
         await this.logger.info(`✓ Added icon to lesson`)
 
-        // Add delay after icon upload to avoid rate limiting
-        await new Promise((resolve) => setTimeout(resolve, 200))
+        // Add delay after icon upload to avoid rate limiting (auto-skips locally)
+        await rateLimitDelay(200)
       } catch (error) {
         this.addError(`Creating/attaching icon for ${story.name}`, error as Error)
       }
@@ -479,80 +475,47 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     }
 
     const filename = path.basename(url.split('?')[0])
+    const cachePath = path.join(this.cacheDir, 'assets/images', filename)
 
-    // In Workers: fetch directly and pass buffer to uploader with retry logic
-    if (isCloudflareWorker()) {
-      const maxRetries = 5
-      let lastError: Error | null = null
+    // Retry loop for reliability
+    const maxRetries = 5
+    let lastError: Error | null = null
 
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          const response = await fetch(url)
-          if (!response.ok) {
-            throw new Error(`Failed to download image: ${response.status} ${response.statusText}`)
-          }
-          const arrayBuffer = await response.arrayBuffer()
-          const buffer = Buffer.from(arrayBuffer)
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Fetch asset with caching (fetchAsset handles Workers vs local mode)
+        const buffer = await fetchAsset(url, { cachePath })
 
-          const result = await this.mediaUploader.uploadWithDeduplication(filename, {
-            alt: alt || filename,
-            tags,
-            buffer,
-          })
+        const result = await this.mediaUploader.uploadWithDeduplication(filename, {
+          alt: alt || filename,
+          tags,
+          buffer,
+        })
 
-          if (!result) {
-            throw new Error('MediaUploader returned null - check Payload logs for details')
-          }
+        if (!result) {
+          throw new Error('MediaUploader returned null - check Payload logs for details')
+        }
 
-          // Add delay after successful upload to avoid rate limiting
-          await new Promise((resolve) => setTimeout(resolve, 150))
-          return result.id
-        } catch (error) {
-          lastError = error instanceof Error ? error : new Error(String(error))
-          // Log the error to help with debugging
-          // eslint-disable-next-line no-console
-          console.error(
-            `[Storyblok] Upload attempt ${attempt}/${maxRetries} failed for ${filename}:`,
-            lastError.message,
-          )
-          if (attempt < maxRetries) {
-            // Longer exponential backoff: 1s, 2s, 4s, 8s
-            const delay = 1000 * Math.pow(2, attempt - 1)
-            await new Promise((resolve) => setTimeout(resolve, delay))
-          }
+        // Add delay after successful upload to avoid rate limiting (auto-skips locally)
+        await rateLimitDelay(150)
+        return result.id
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error))
+        // Log the error to help with debugging
+        // eslint-disable-next-line no-console
+        console.error(
+          `[Storyblok] Upload attempt ${attempt}/${maxRetries} failed for ${filename}:`,
+          lastError.message,
+        )
+        if (attempt < maxRetries) {
+          // Longer exponential backoff: 1s, 2s, 4s, 8s (auto-skips locally)
+          const delay = 1000 * Math.pow(2, attempt - 1)
+          await rateLimitDelay(delay)
         }
       }
-
-      throw lastError || new Error('Failed to upload media after retries')
     }
 
-    // Local dev: download to cache, then upload from path
-    const destPath = path.join(this.cacheDir, 'assets/images', filename)
-
-    await this.downloadFile(url, destPath)
-    const webpPath = await this.convertImageToWebp(destPath)
-
-    const result = await this.mediaUploader.uploadWithDeduplication(webpPath, {
-      alt: alt || filename,
-      tags,
-    })
-
-    if (!result) {
-      throw new Error('Failed to upload media')
-    }
-
-    return result.id
-  }
-
-  private async downloadFile(url: string, destPath: string): Promise<void> {
-    await this.fileUtils.downloadFileFetch(url, destPath)
-  }
-
-  private async convertImageToWebp(imagePath: string): Promise<string> {
-    // Image conversion disabled for Cloudflare Workers compatibility
-    // Return original image path without WebP conversion
-    await this.logger.info(`Using original image: ${path.basename(imagePath)}`)
-    return imagePath
+    throw lastError || new Error('Failed to upload media after retries')
   }
 
   // ============================================================================
@@ -585,26 +548,14 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       throw new Error(`Unsupported file type: ${ext}`)
     }
 
-    let fileBuffer: Buffer
+    // Determine cache path based on file type
+    const cachePath =
+      mimeType === 'audio/mpeg'
+        ? path.join(this.cacheDir, 'assets/audio', filename)
+        : path.join(this.cacheDir, 'assets/videos', filename)
 
-    // In Workers: fetch directly without file caching
-    if (isCloudflareWorker()) {
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error(`Failed to download file: ${response.status} ${response.statusText}`)
-      }
-      const arrayBuffer = await response.arrayBuffer()
-      fileBuffer = Buffer.from(arrayBuffer)
-    } else {
-      // Local dev: download to cache then read
-      const destPath =
-        mimeType === 'audio/mpeg'
-          ? path.join(this.cacheDir, 'assets/audio', filename)
-          : path.join(this.cacheDir, 'assets/videos', filename)
-
-      await this.downloadFile(url, destPath)
-      fileBuffer = await fs.readFile(destPath)
-    }
+    // Fetch asset with caching (fetchAsset handles Workers vs local mode)
+    const fileBuffer = await fetchAsset(url, { cachePath })
 
     const attachment = await this.payload.create({
       collection: 'files',
@@ -695,22 +646,12 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async parseSubtitles(url: string): Promise<Record<string, unknown>> {
-    let rawData: string
+    const filename = path.basename(url.split('?')[0])
+    const cachePath = path.join(this.cacheDir, 'assets/subtitles', filename)
 
-    if (isCloudflareWorker()) {
-      // In Workers: fetch directly without file caching
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error(`Failed to download subtitles: ${response.status} ${response.statusText}`)
-      }
-      rawData = await response.text()
-    } else {
-      // Local dev: download to cache then read
-      const filename = path.basename(url.split('?')[0])
-      const destPath = path.join(this.cacheDir, 'assets/subtitles', filename)
-      await this.downloadFile(url, destPath)
-      rawData = await fs.readFile(destPath, 'utf-8')
-    }
+    // Fetch asset with caching (fetchAsset handles Workers vs local mode)
+    const buffer = await fetchAsset(url, { cachePath })
+    const rawData = buffer.toString('utf-8')
 
     return JSON.parse(rawData) as Record<string, unknown>
   }

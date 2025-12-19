@@ -18,6 +18,7 @@ import * as path from 'path'
 import { getPayload, Payload, CollectionSlug, Where, TypedLocale } from 'payload'
 
 import { parseArgs, CLIArgs } from './cliParser'
+import { isRetryableError } from './delays'
 import { FileUtils } from './fileUtils'
 import { Logger } from './logger'
 import { isCloudflareWorker } from './runtime'
@@ -768,28 +769,6 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   // ============================================================================
 
   /**
-   * Check if an error is a retryable error (database busy or network issues)
-   * Handles both SQLite/D1 database errors and miniflare proxy connection errors
-   */
-  private isRetryableError(error: unknown): boolean {
-    if (!(error instanceof Error)) return false
-    const msg = error.message.toLowerCase()
-    return (
-      // Database busy/lock errors
-      msg.includes('sqlite_busy') ||
-      msg.includes('database is locked') ||
-      msg.includes('d1_error') ||
-      msg.includes('failed query') ||
-      // Network/connection errors from miniflare proxy (undici fetch)
-      msg.includes('fetch failed') ||
-      msg.includes('other side closed') ||
-      msg.includes('socket closed') ||
-      msg.includes('network connection lost') ||
-      msg.includes('und_err_socket')
-    )
-  }
-
-  /**
    * Small delay between database operations to reduce contention
    * Only applies when not in dry-run mode
    */
@@ -814,7 +793,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         await this.throttle(5)
         return result
       } catch (error) {
-        if (!this.isRetryableError(error) || attempt === maxRetries) {
+        if (!isRetryableError(error) || attempt === maxRetries) {
           throw error
         }
 
