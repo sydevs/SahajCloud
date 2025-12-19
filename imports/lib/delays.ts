@@ -23,17 +23,6 @@ export async function rateLimitDelay(ms: number): Promise<void> {
 }
 
 /**
- * Batch delay - use between processing batches.
- * Slightly longer than rateLimitDelay for batch boundaries.
- * Auto-skips in local development.
- *
- * @param ms - Delay in milliseconds (default: 300ms)
- */
-export async function batchDelay(ms: number = 300): Promise<void> {
-  return rateLimitDelay(ms)
-}
-
-/**
  * Options for retry with exponential backoff
  */
 export interface RetryOptions {

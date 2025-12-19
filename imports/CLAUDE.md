@@ -109,7 +109,6 @@ const result = await withRetry(() => fetchData(), { maxRetries: 3 })
 | Function | Local Mode | Workers Mode |
 |----------|------------|--------------|
 | `rateLimitDelay(ms)` | Skips (0ms) | Waits ms |
-| `batchDelay(ms)` | Skips (0ms) | Waits ms |
 | `withRetry(fn, opts)` | Retries with 0ms delays | Retries with exponential backoff |
 
 ### Data Loading (`dataLoader.ts`)

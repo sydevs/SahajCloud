@@ -23,9 +23,16 @@ import type { Payload } from 'payload'
 
 import * as path from 'path'
 
-import { BaseImporter, BaseImportOptions, MediaUploader, TagManager } from '../lib'
-import { fetchAsset, readCacheText, writeCache } from '../lib/dataLoader'
-import { rateLimitDelay } from '../lib/delays'
+import {
+  BaseImporter,
+  BaseImportOptions,
+  fetchAsset,
+  MediaUploader,
+  rateLimitDelay,
+  readCacheText,
+  TagManager,
+  writeCache,
+} from '../lib'
 
 // ============================================================================
 // CONFIGURATION

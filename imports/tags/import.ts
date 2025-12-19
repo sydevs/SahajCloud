@@ -28,8 +28,7 @@ import type { Payload } from 'payload'
 
 import * as path from 'path'
 
-import { BaseImporter, BaseImportOptions } from '../lib'
-import { loadDataFile, readCacheText, writeCache } from '../lib/dataLoader'
+import { BaseImporter, BaseImportOptions, readCacheText, writeCache } from '../lib'
 
 // ============================================================================
 // CONFIGURATION
@@ -482,7 +481,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
       const localPath = path.resolve(process.cwd(), 'imports/tags', localFilename)
       const workerUrl = `${GITHUB_RAW_BASE}/imports/tags/${localFilename}`
 
-      return loadDataFile({ localPath, workerUrl })
+      return this.loadDataFile(localPath, workerUrl)
     }
 
     // For remote URLs: check cache, download if needed, cache result
