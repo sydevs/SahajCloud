@@ -21,6 +21,12 @@ import { parseArgs, CLIArgs } from './cliParser'
 import { isRetryableError } from './delays'
 import { FileUtils } from './fileUtils'
 import { Logger } from './logger'
+import {
+  PaginationOptions,
+  PaginationState,
+  createInitialPaginationState,
+  calculatePaginationState,
+} from './pagination'
 import { isCloudflareWorker } from './runtime'
 import { ValidationReport } from './validationReport'
 import configPromise from '../../src/payload.config'
@@ -69,6 +75,7 @@ export interface BaseImportOptions {
   clearCache: boolean
   payload?: Payload // Optional external Payload instance (for API routes)
   onProgress?: OnProgressCallback // Optional progress callback for SSE streaming
+  pagination?: PaginationOptions // Optional pagination for multi-step execution
 }
 
 export interface UpsertResult<T = any> {
@@ -120,6 +127,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   // Track current operation for heartbeat progress (SSE keep-alive)
   private currentOperation: string = ''
 
+  // Pagination state for multi-step execution
+  protected paginationState: PaginationState = createInitialPaginationState()
+
   constructor(options: TOptions) {
     this.options = options
     this.isWorker = isCloudflareWorker()
@@ -151,6 +161,151 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    */
   getCurrentOperation(): string {
     return this.currentOperation
+  }
+
+  // ============================================================================
+  // PAGINATION METHODS
+  // ============================================================================
+
+  /**
+   * Get paginated slice of items
+   * Updates internal pagination state for reporting
+   *
+   * @param items - Full array of items to paginate
+   * @returns Slice of items based on offset and limit
+   */
+  protected paginateItems<T>(items: T[]): T[] {
+    const pagination = this.options.pagination
+    if (!pagination || pagination.limit <= 0) {
+      // No pagination - return all items
+      this.paginationState = {
+        processedCount: items.length,
+        hasMore: false,
+        nextOffset: items.length,
+      }
+      return items
+    }
+
+    const { offset, limit } = pagination
+    const slice = items.slice(offset, offset + limit)
+
+    this.paginationState = calculatePaginationState(
+      items.length,
+      offset,
+      limit,
+      slice.length,
+    )
+
+    return slice
+  }
+
+  /**
+   * Check if pagination is active for this run
+   */
+  protected isPaginated(): boolean {
+    const pagination = this.options.pagination
+    return pagination !== undefined && pagination.limit > 0
+  }
+
+  /**
+   * Check if a specific collection is targeted by pagination filter
+   * Returns true if no collection filter is set (all collections targeted)
+   *
+   * @param collection - Collection slug to check
+   * @returns Whether this collection should be processed
+   */
+  protected isCollectionTargeted(collection: string): boolean {
+    const pagination = this.options.pagination
+    if (!pagination?.collection) {
+      // No filter = all collections targeted
+      return true
+    }
+    return pagination.collection === collection
+  }
+
+  /**
+   * Get number of items processed in current batch
+   */
+  getProcessedCount(): number {
+    return this.paginationState.processedCount
+  }
+
+  /**
+   * Check if more items remain after current batch
+   */
+  hasMoreItems(): boolean {
+    return this.paginationState.hasMore
+  }
+
+  /**
+   * Get starting index for next batch
+   */
+  getNextOffset(): number {
+    return this.paginationState.nextOffset
+  }
+
+  /**
+   * Get current pagination options (if set)
+   */
+  getPaginationOptions(): PaginationOptions | undefined {
+    return this.options.pagination
+  }
+
+  /**
+   * Reconstruct ID map from existing database records
+   * Used to restore relationships between paginated requests
+   *
+   * @param collection - Collection slug to query
+   * @param naturalKeyField - Field to use as map key
+   * @returns Map of natural key values to document IDs
+   */
+  protected async reconstructIdMap(
+    collection: CollectionSlug,
+    naturalKeyField: string,
+  ): Promise<Map<string, string | number>> {
+    const idMap = new Map<string, string | number>()
+
+    if (this.options.dryRun || !this.payload) {
+      return idMap
+    }
+
+    this.setCurrentOperation(`Rebuilding ${collection} ID map...`)
+
+    // Query all existing records (paginated for large collections)
+    const BATCH_SIZE = 500
+    let page = 1
+    let hasMore = true
+
+    while (hasMore) {
+      const result = await this.payload.find({
+        collection,
+        limit: BATCH_SIZE,
+        page,
+        depth: 0,
+      })
+
+      for (const doc of result.docs) {
+        const key = (doc as unknown as Record<string, unknown>)[naturalKeyField]
+        if (key !== null && key !== undefined) {
+          idMap.set(String(key), doc.id)
+        }
+      }
+
+      hasMore = result.hasNextPage
+      page++
+    }
+
+    await this.logger.info(`Rebuilt ${collection} ID map: ${idMap.size} entries`)
+    return idMap
+  }
+
+  /**
+   * Hook for subclasses to reconstruct ID maps before import
+   * Override this method to specify which maps to rebuild for paginated runs
+   * Called automatically when pagination is active
+   */
+  protected async reconstructIdMaps(): Promise<void> {
+    // Default: no-op. Subclasses override to reconstruct their specific maps.
   }
 
   // ============================================================================
@@ -202,7 +357,12 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       // 5. Hook for subclass-specific setup
       await this.setup()
 
-      // 6. Execute import (subclass implementation)
+      // 6. Reconstruct ID maps for paginated runs (after setup, before import)
+      if (this.isPaginated()) {
+        await this.reconstructIdMaps()
+      }
+
+      // 7. Execute import (subclass implementation)
       await this.import()
 
       // 7. Generate report and print summary (file output only for CLI)
