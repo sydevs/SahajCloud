@@ -44,12 +44,12 @@ POST /api/seed/<script>?collection=X&offset=0&limit=25  # Paginated import
 
 ## Pagination Support
 
-Pagination enables large imports to run on Cloudflare Workers without hitting D1 rate limits (~10 queries/sec, 6 simultaneous connections). The CLI automatically uses pagination when running on Workers.
+Pagination enables large imports to run on Cloudflare Workers without hitting D1 rate limits (~10 queries/sec, 6 simultaneous connections). The CLI uses pagination for all collections where `requiresPagination: true`, regardless of environment, ensuring test parity between local and production.
 
 ### How It Works
 
 1. **Metadata Fetch**: CLI fetches metadata via GET to determine batch sizes
-2. **Environment Detection**: Automatically uses bulk import locally, pagination on Workers
+2. **Automatic Pagination**: Uses pagination for large collections (batch sizes are environment-aware: 100 locally, 25 on Workers)
 3. **Collection Ordering**: Collections are imported in dependency order
 4. **Stateless Execution**: Each request is independent; ID maps are reconstructed from database
 
