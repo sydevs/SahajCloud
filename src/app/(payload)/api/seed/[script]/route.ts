@@ -18,6 +18,7 @@
  *
  * Query Parameters (POST):
  * - dryRun: If 'true', validates without writing to database
+ * - update: If 'true', updates existing records (default: skip existing)
  * - collection: Target collection for paginated import (required if offset/limit used)
  * - offset: Starting index for pagination (default: 0)
  * - limit: Maximum items to process (default: environment-based)
@@ -148,6 +149,7 @@ export async function POST(
 
   // Parse query parameters
   const dryRun = request.nextUrl.searchParams.get('dryRun') === 'true'
+  const updateMode = request.nextUrl.searchParams.get('update') === 'true'
   const collection = request.nextUrl.searchParams.get('collection')
   const offsetParam = request.nextUrl.searchParams.get('offset')
   const limitParam = request.nextUrl.searchParams.get('limit')
@@ -207,7 +209,7 @@ export async function POST(
       })
 
       // Dynamically import the appropriate importer
-      const importer = await getImporter(script as ScriptName, payload, dryRun, sendEvent, pagination)
+      const importer = await getImporter(script as ScriptName, payload, dryRun, updateMode, sendEvent, pagination)
 
       if (!importer) {
         await sendEvent({
@@ -330,12 +332,14 @@ async function getImporter(
   script: ScriptName,
   payload: Awaited<ReturnType<typeof getPayload>>,
   dryRun: boolean,
+  updateMode: boolean,
   onProgress: (data: Record<string, unknown>) => Promise<void>,
   pagination?: PaginationOptions,
 ) {
   const options = {
     dryRun,
     clearCache: false,
+    updateMode,
     payload,
     onProgress,
     pagination,

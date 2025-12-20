@@ -342,6 +342,17 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     if (!this.options.dryRun) {
       this.tagManager = new TagManager(this.payload, this.logger)
       this.mediaUploader = new MediaUploader(this.payload, this.logger)
+
+      // Preload collections for efficient skip/update mode
+      // This dramatically reduces D1 queries by caching existence checks
+      await Promise.all([
+        this.preloadCollection('frames', 'filename'),
+        this.preloadCollection('meditations', 'slug'),
+        this.preloadCollection('narrators', 'slug'),
+        this.preloadCollection('meditation-tags', 'slug'),
+        this.preloadCollection('music-tags', 'slug'),
+        this.preloadCollection('music', 'slug'),
+      ])
     }
   }
 
@@ -394,6 +405,126 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     await this.loadExistingAlbums()
   }
 
+  /**
+   * Rebuild frames idMap by matching legacy frame data to existing frames.
+   * Uses filename matching since legacy IDs aren't stored in Payload.
+   *
+   * This is called when skip mode is enabled and we need to know which frames
+   * already exist to properly reference them in meditations.
+   *
+   * @param frames - Legacy frame data from source
+   * @param attachments - Attachment records linking frames to blobs
+   * @param blobs - Blob records with filenames
+   */
+  private async rebuildFramesIdMap(
+    frames: ImportedData['frames'],
+    attachments: ImportedData['attachments'],
+    blobs: ImportedData['blobs'],
+  ): Promise<void> {
+    await this.logger.info('Rebuilding frames idMap from existing data...')
+
+    // Preload all existing frames (just need id + filename)
+    const existingFrames = await this.preloadCollection('frames', 'filename')
+
+    let mappedCount = 0
+
+    // For each legacy frame, compute expected filename and match
+    for (const frame of frames) {
+      const frameAttachments = this.getAttachmentsForRecord('Frame', frame.id, attachments, blobs)
+
+      // Process male frame
+      const maleAtt = frameAttachments.find((att) => att.name === 'male')
+      if (maleAtt?.blob?.filename) {
+        const filename = maleAtt.blob.filename
+        const existing = existingFrames.get(filename)
+        if (existing) {
+          this.idMaps.frames.set(`${frame.id}_male`, existing.id)
+          mappedCount++
+        }
+      }
+
+      // Process female frame
+      const femaleAtt = frameAttachments.find((att) => att.name === 'female')
+      if (femaleAtt?.blob?.filename) {
+        const filename = femaleAtt.blob.filename
+        const existing = existingFrames.get(filename)
+        if (existing) {
+          this.idMaps.frames.set(`${frame.id}_female`, existing.id)
+          mappedCount++
+        }
+      }
+    }
+
+    await this.logger.info(`✓ Rebuilt ${mappedCount} frame mappings from ${existingFrames.size} existing frames`)
+  }
+
+  /**
+   * Rebuild tag idMaps by matching legacy tag names to existing tags.
+   * Uses the same mapping logic as importTags().
+   *
+   * @param tags - Legacy tag data from source
+   * @param taggings - Tagging relationships to determine which tags are used
+   */
+  private async rebuildTagsIdMaps(
+    tags: ImportedData['tags'],
+    taggings: ImportedData['taggings'],
+  ): Promise<void> {
+    await this.logger.info('Rebuilding tags idMaps from existing data...')
+
+    // Filter taggings to only those with context = 'tags'
+    const filteredTaggings = taggings.filter((t) => t.context === 'tags')
+
+    const meditationTagIds = new Set<number>()
+    const musicTagIds = new Set<number>()
+
+    filteredTaggings.forEach((tagging) => {
+      if (tagging.taggable_type === 'Meditation') {
+        meditationTagIds.add(tagging.tag_id)
+      } else if (tagging.taggable_type === 'Music') {
+        musicTagIds.add(tagging.tag_id)
+      }
+    })
+
+    // Preload existing tags
+    const [meditationTagsCache, musicTagsCache] = await Promise.all([
+      this.preloadCollection('meditation-tags', 'slug'),
+      this.preloadCollection('music-tags', 'slug'),
+    ])
+
+    let meditationMapped = 0
+    let musicMapped = 0
+
+    for (const tag of tags) {
+      const legacyName = tag.name.toLowerCase().trim()
+
+      // Map meditation tags
+      if (meditationTagIds.has(tag.id)) {
+        const mappedSlug = LEGACY_TO_MEDITATION_TAG_SLUG[legacyName]
+        if (mappedSlug) {
+          const existingTag = meditationTagsCache.get(mappedSlug)
+          if (existingTag) {
+            this.idMaps.meditationTags.set(tag.id, existingTag.id as number)
+            meditationMapped++
+          }
+        }
+      }
+
+      // Map music tags
+      if (musicTagIds.has(tag.id)) {
+        const mappedSlug = LEGACY_TO_MUSIC_TAG_SLUG[legacyName]
+        if (mappedSlug) {
+          const existingTag = musicTagsCache.get(mappedSlug)
+          if (existingTag) {
+            this.idMaps.musicTags.set(tag.id, existingTag.id as number)
+            musicMapped++
+          }
+        }
+      }
+    }
+
+    await this.logger.info(`✓ Rebuilt ${meditationMapped} meditation tags, ${musicMapped} music tags`)
+  }
+
   // ============================================================================
   // MAIN IMPORT LOGIC
   // ============================================================================
@@ -410,6 +541,9 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     // Check if we're targeting a specific collection (paginated mode)
     const isPaginated = this.isPaginated()
 
+    // Check if we're in skip mode (not update mode) - can use rebuild instead of full import
+    const isSkipMode = !this.options.updateMode
+
     // Setup tags and placeholders (always needed)
     await this.setupImageTags()
     await this.uploadPlaceholderImages()
@@ -420,18 +554,35 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       await this.importNarrators()
     }
 
-    // Tags are needed by frames and meditations, import if not paginating or targeting frames/meditations
-    if (
+    // Tags are needed by frames and meditations
+    // In skip mode when targeting meditations (not frames), rebuild tags idMaps instead of importing
+    const shouldImportTags =
       !isPaginated ||
       this.isCollectionTargeted('meditation-tags') ||
-      this.isCollectionTargeted('frames') ||
-      this.isCollectionTargeted('meditations')
-    ) {
+      this.isCollectionTargeted('frames')
+    const shouldRebuildTags =
+      isSkipMode &&
+      this.isCollectionTargeted('meditations') &&
+      !this.isCollectionTargeted('frames') &&
+      !this.isCollectionTargeted('meditation-tags')
+
+    if (shouldRebuildTags) {
+      await this.rebuildTagsIdMaps(data.tags, data.taggings)
+    } else if (shouldImportTags || this.isCollectionTargeted('meditations')) {
       await this.importTags(data.tags, data.taggings)
     }
 
     // Frames - also run when targeting meditations (to populate idMaps for keyframe references)
-    if (!isPaginated || this.isCollectionTargeted('frames') || this.isCollectionTargeted('meditations')) {
+    // In skip mode when targeting meditations (not frames), rebuild frames idMap instead of importing
+    const shouldImportFrames = !isPaginated || this.isCollectionTargeted('frames')
+    const shouldRebuildFrames =
+      isSkipMode &&
+      this.isCollectionTargeted('meditations') &&
+      !this.isCollectionTargeted('frames')
+
+    if (shouldRebuildFrames) {
+      await this.rebuildFramesIdMap(data.frames, data.attachments, data.blobs)
+    } else if (shouldImportFrames || this.isCollectionTargeted('meditations')) {
       await this.importFrames(data.frames, data.attachments, data.blobs)
     }
 

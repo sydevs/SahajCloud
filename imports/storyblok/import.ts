@@ -123,6 +123,12 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       await this.mediaUploader.preloadExistingMedia()
 
       await this.setupImageTags()
+
+      // Preload collections for efficient skip/update mode
+      // Note: Lessons use compound key (unit+step), so we preload with a custom cache key
+      await this.preloadCollection('lectures', 'videoUrl')
+      // Preload lessons by building composite key from unit + step
+      await this.preloadLessonsWithCompositeKey()
     }
 
     // Setup additional cache directories (ensureDir is a no-op in Workers mode)
@@ -131,6 +137,50 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/images'))
     await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/videos'))
     await this.fileUtils.ensureDir(path.join(this.cacheDir, 'assets/subtitles'))
+  }
+
+  /**
+   * Preload lessons with composite key (unit + step) for efficient skip/update mode.
+   * Since lessons use a compound natural key, we build a custom cache key.
+   */
+  private async preloadLessonsWithCompositeKey(): Promise<void> {
+    await this.logger.info('Preloading lessons with composite key...')
+
+    const BATCH_SIZE = 100
+    let page = 1
+    let hasMore = true
+    let count = 0
+
+    while (hasMore) {
+      const result = await this.payload.find({
+        collection: 'lessons',
+        limit: BATCH_SIZE,
+        page,
+        depth: 0,
+        select: {
+          id: true,
+          unit: true,
+          step: true,
+        },
+      })
+
+      for (const doc of result.docs) {
+        // Build composite key: "Unit 1-3" for unit="Unit 1", step=3
+        const compositeKey = `${doc.unit}-${doc.step}`
+        // Store in preload cache with 'lessons' collection
+        if (!this.preloadCache.has('lessons')) {
+          this.preloadCache.set('lessons', new Map())
+        }
+        // Cast through unknown to PreloadedDoc (doc has id from Payload)
+        this.preloadCache.get('lessons')!.set(compositeKey, { id: doc.id, unit: doc.unit, step: doc.step })
+        count++
+      }
+
+      hasMore = result.hasNextPage
+      page++
+    }
+
+    await this.logger.info(`✓ Preloaded ${count} lessons with composite keys`)
   }
 
   /**
@@ -257,8 +307,9 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       }
 
       // Add delay between lessons to avoid rate limiting (auto-skips locally)
+      // Reduced from 1000ms since bulk preloading reduces DB queries
       if (i < paginatedStories.length - 1) {
-        await rateLimitDelay(1000)
+        await rateLimitDelay(300)
       }
     }
   }
@@ -400,7 +451,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
         // Add delay between panels to avoid rate limiting (auto-skips locally)
         if (i < sortedPanels.length - 1) {
-          await rateLimitDelay(200)
+          await rateLimitDelay(50)
         }
       } catch (error) {
         this.addError(`Processing panel for ${story.name}`, error as Error)
@@ -444,7 +495,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
         await this.logger.info(`✓ Added icon to lesson`)
 
         // Add delay after icon upload to avoid rate limiting (auto-skips locally)
-        await rateLimitDelay(200)
+        await rateLimitDelay(50)
       } catch (error) {
         this.addError(`Creating/attaching icon for ${story.name}`, error as Error)
       }
@@ -528,7 +579,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
         }
 
         // Add delay after successful upload to avoid rate limiting (auto-skips locally)
-        await rateLimitDelay(150)
+        await rateLimitDelay(50)
         return result.id
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error))

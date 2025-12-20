@@ -141,6 +141,47 @@ The CLI automatically orchestrates paginated imports on Workers:
 |------|-------------|
 | `--dry-run` | Validate data without writing to database |
 | `--clear-cache` | Clear downloaded files before import |
+| `--update` | Update existing records (default: skip existing) |
+
+## Skip Mode vs Update Mode
+
+By default, seed scripts run in **skip mode** - existing documents are skipped entirely (no updates, no file re-uploads). This dramatically reduces D1 queries and speeds up imports when adding new content.
+
+Use `--update` flag to enable **update mode** (upsert behavior) when content has changed:
+
+| Mode | Behavior | D1 Queries | Use Case |
+|------|----------|------------|----------|
+| Skip (default) | Skip existing docs, only create new | Minimal (bulk preload + creates) | Adding new content, resuming failed imports |
+| Update (`--update`) | Update existing + create new | Bulk preload + update/create per doc | Content has changed, fixing data issues |
+
+### How It Works
+
+1. **Bulk Preload**: On startup, each importer preloads relevant collections into memory with only the fields needed for existence checks (id + natural key)
+2. **Skip Mode**: If document exists in preload cache, skip entirely (no DB operation, no file upload)
+3. **Update Mode**: If document exists, update directly using cached ID (no find query needed)
+4. **New Documents**: If not in cache, create new document
+
+### Query Reduction
+
+| Scenario | Before (per-doc find) | After (bulk preload) |
+|----------|----------------------|---------------------|
+| 73 meditations, all exist | 146 queries (find + skip) | 2 queries (preload + done) |
+| 73 meditations, all new | 146 queries (find + create) | ~75 queries (preload + creates) |
+| 73 meditations with --update | 146 queries (find + update) | ~75 queries (preload + updates) |
+
+### Examples
+
+```bash
+# Skip mode (default) - fastest for adding new content
+pnpm seed meditations
+
+# Update mode - when content has changed
+pnpm seed meditations --update
+
+# Dry run still works with both modes
+pnpm seed meditations --dry-run
+pnpm seed meditations --update --dry-run
+```
 
 ## Environment Variables
 

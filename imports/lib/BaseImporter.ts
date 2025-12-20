@@ -73,6 +73,7 @@ export type OnProgressCallback = (data: Record<string, unknown>) => Promise<void
 export interface BaseImportOptions {
   dryRun: boolean
   clearCache: boolean
+  updateMode?: boolean // If true, update existing docs; if false/undefined, skip them
   payload?: Payload // Optional external Payload instance (for API routes)
   onProgress?: OnProgressCallback // Optional progress callback for SSE streaming
   pagination?: PaginationOptions // Optional pagination for multi-step execution
@@ -97,6 +98,10 @@ export interface SlugCollision {
   error: string
 }
 
+// Type for preloaded document cache (id + natural key + any additional fields)
+export type PreloadedDoc = { id: string | number; [key: string]: unknown }
+export type PreloadCache = Map<string, PreloadedDoc>
+
 // ============================================================================
 // BASE IMPORTER CLASS
 // ============================================================================
@@ -120,6 +125,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
   // Track if Payload was injected externally (for API routes)
   private externalPayload: boolean = false
+
+  // Cache of preloaded collections for skip/update decisions
+  protected preloadCache: Map<CollectionSlug, PreloadCache> = new Map()
 
   // Track if running in Cloudflare Workers (no filesystem)
   private readonly isWorker: boolean
@@ -201,10 +209,13 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
   /**
    * Check if pagination is active for this run
+   * Pagination is active when targeting a specific collection OR when explicit limit is set
    */
   protected isPaginated(): boolean {
     const pagination = this.options.pagination
-    return pagination !== undefined && pagination.limit > 0
+    if (!pagination) return false
+    // Pagination is active if collection filter is set OR explicit limit > 0
+    return pagination.collection !== undefined || pagination.limit > 0
   }
 
   /**
@@ -306,6 +317,107 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    */
   protected async reconstructIdMaps(): Promise<void> {
     // Default: no-op. Subclasses override to reconstruct their specific maps.
+  }
+
+  // ============================================================================
+  // PRELOAD METHODS (for skip/update mode optimization)
+  // ============================================================================
+
+  /**
+   * Bulk fetch a collection for skip/update decision-making.
+   * Uses Payload's `select` parameter for minimal data transfer.
+   *
+   * @param collection - Collection to preload
+   * @param naturalKeyField - Field to use as cache key (e.g., 'slug', 'filename')
+   * @param additionalFields - Additional fields to select beyond id and naturalKeyField
+   * @returns PreloadCache map of natural key values to document data
+   */
+  protected async preloadCollection(
+    collection: CollectionSlug,
+    naturalKeyField: string,
+    additionalFields?: string[],
+  ): Promise<PreloadCache> {
+    // Return cached version if already preloaded
+    if (this.preloadCache.has(collection)) {
+      return this.preloadCache.get(collection)!
+    }
+
+    // Skip preloading in dry-run mode (no Payload instance)
+    if (this.options.dryRun || !this.payload) {
+      const emptyCache: PreloadCache = new Map()
+      this.preloadCache.set(collection, emptyCache)
+      return emptyCache
+    }
+
+    const cache: PreloadCache = new Map()
+    const BATCH_SIZE = 500
+    let page = 1
+    let hasMore = true
+
+    // Build select object - only fetch id and natural key (+ any additional fields)
+    const select: Record<string, true> = {
+      id: true,
+      [naturalKeyField]: true,
+    }
+    if (additionalFields) {
+      for (const field of additionalFields) {
+        select[field] = true
+      }
+    }
+
+    this.setCurrentOperation(`Preloading ${collection}...`)
+    await this.logger.info(`Preloading ${collection}...`)
+
+    while (hasMore) {
+      const result = await this.executeWithRetry(() =>
+        this.payload.find({
+          collection,
+          limit: BATCH_SIZE,
+          page,
+          depth: 0,
+          select,
+        }),
+      )
+
+      for (const doc of result.docs) {
+        const key = String((doc as unknown as Record<string, unknown>)[naturalKeyField])
+        if (key) {
+          cache.set(key, doc as unknown as PreloadedDoc)
+        }
+      }
+
+      hasMore = result.hasNextPage
+      page++
+    }
+
+    await this.logger.info(`✓ Preloaded ${cache.size} ${collection}`)
+    this.preloadCache.set(collection, cache)
+    return cache
+  }
+
+  /**
+   * Get a preloaded document by natural key value.
+   *
+   * @param collection - Collection slug
+   * @param naturalKeyValue - The natural key value to look up
+   * @returns PreloadedDoc if exists in cache, undefined otherwise
+   */
+  protected getPreloaded(
+    collection: CollectionSlug,
+    naturalKeyValue: string,
+  ): PreloadedDoc | undefined {
+    return this.preloadCache.get(collection)?.get(naturalKeyValue)
+  }
+
+  /**
+   * Check if a document exists in preload cache.
+   *
+   * @param collection - Collection slug
+   * @param naturalKeyValue - The natural key value to check
+   * @returns true if document exists in cache
+   */
+  protected hasPreloaded(collection: CollectionSlug, naturalKeyValue: string): boolean {
+    return this.preloadCache.get(collection)?.has(naturalKeyValue) ?? false
   }
 
   // ============================================================================
@@ -592,9 +704,84 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     }
 
     try {
-      // Find existing by natural key (with retry for SQLITE_BUSY)
+      // Check preload cache first (if collection was preloaded)
+      const keyValue = this.extractNaturalKeyValue(naturalKey)
+      const preloadedDoc = keyValue ? this.getPreloaded(collection, keyValue) : undefined
+      const isPreloaded = this.preloadCache.has(collection)
+
+      if (DEBUG) console.log(`[UPSERT] ${collection}:${identifier} - preloaded: ${isPreloaded}, exists: ${!!preloadedDoc}`)
+
+      // SKIP MODE (default): If doc exists in preload cache, skip entirely (no DB ops)
+      if (!this.options.updateMode && preloadedDoc) {
+        this.report.incrementSkipped()
+        await this.reportDocument(collection, identifier, 'skipped', {
+          current: options?.current,
+          total: options?.total,
+        })
+        if (DEBUG) console.log(`[UPSERT] Skipped ${collection}:${identifier} (exists in cache)`)
+        return { doc: preloadedDoc as T, action: 'skipped' }
+      }
+
+      // UPDATE MODE with preloaded doc: Use cached ID to update directly (no find query!)
+      if (this.options.updateMode && preloadedDoc) {
+        const updateStart = DEBUG ? Date.now() : 0
+        if (DEBUG) console.log(`[UPSERT] Updating ${collection}:${identifier} (using cached ID)`)
+        // Skip file upload on update unless forceFileUpload is true
+        const fileForUpdate = options?.forceFileUpload ? options?.file : undefined
+        if (fileForUpdate) {
+          this.setCurrentOperation(`Uploading ${collection}:${identifier}`)
+        }
+        const updated = await this.executeWithRetry(() =>
+          this.payload.update({
+            collection,
+            id: preloadedDoc.id,
+            data,
+            locale: options?.locale,
+            file: fileForUpdate,
+            publishSpecificLocale: options?.publishSpecificLocale,
+          }),
+        )
+        if (DEBUG) console.log(`[UPSERT] Updated ${collection}:${identifier} (${Date.now() - updateStart}ms)`)
+
+        this.report.incrementUpdated()
+        await this.reportDocument(collection, identifier, 'updated', {
+          current: options?.current,
+          total: options?.total,
+        })
+        if (DEBUG) console.log(`[UPSERT] Complete ${collection}:${identifier} - total: ${Date.now() - startTime}ms`)
+        return { doc: updated as unknown as T, action: 'updated' }
+      }
+
+      // Doc doesn't exist in preload cache (or collection wasn't preloaded)
+      // If collection was preloaded and doc not found, create new directly
+      if (isPreloaded && !preloadedDoc) {
+        const createStart = DEBUG ? Date.now() : 0
+        if (DEBUG) console.log(`[UPSERT] Creating ${collection}:${identifier} (not in cache)`)
+        if (options?.file) {
+          this.setCurrentOperation(`Uploading ${collection}:${identifier}`)
+        }
+        const created = await this.executeWithRetry(() =>
+          this.payload.create({
+            collection,
+            data,
+            locale: options?.locale,
+            file: options?.file,
+          }),
+        )
+        if (DEBUG) console.log(`[UPSERT] Created ${collection}:${identifier} (${Date.now() - createStart}ms)`)
+
+        this.report.incrementCreated()
+        await this.reportDocument(collection, identifier, 'created', {
+          current: options?.current,
+          total: options?.total,
+        })
+        if (DEBUG) console.log(`[UPSERT] Complete ${collection}:${identifier} - total: ${Date.now() - startTime}ms`)
+        return { doc: created as unknown as T, action: 'created' }
+      }
+
+      // FALLBACK: Collection wasn't preloaded - use original find-then-update/create pattern
       const findStart = DEBUG ? Date.now() : 0
-      if (DEBUG) console.log(`[UPSERT] Finding existing ${collection}:${identifier}`)
+      if (DEBUG) console.log(`[UPSERT] Finding existing ${collection}:${identifier} (fallback)`)
       const existing = await this.executeWithRetry(() =>
         this.payload.find({
           collection,
@@ -922,6 +1109,45 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       }
     }
     return null
+  }
+
+  /**
+   * Extract the value from a natural key Where clause.
+   * Supports:
+   * - Simple: { field: { equals: 'value' } }
+   * - Compound: { and: [{ field1: { equals: 'value1' } }, { field2: { equals: 'value2' } }] }
+   *
+   * For compound keys, values are joined with '-' (e.g., "Unit 1-3")
+   *
+   * @param naturalKey - Where clause to extract value from
+   * @returns The string value, or undefined if pattern doesn't match
+   */
+  private extractNaturalKeyValue(naturalKey: Where): string | undefined {
+    if (typeof naturalKey !== 'object' || naturalKey === null) return undefined
+
+    const entries = Object.entries(naturalKey)
+    if (entries.length !== 1) return undefined
+
+    const [key, condition] = entries[0]
+
+    // Handle compound AND conditions: { and: [{ unit: { equals: 'Unit 1' } }, { step: { equals: 3 } }] }
+    // Builds composite key by joining values with '-' (e.g., "Unit 1-3")
+    if (key === 'and' && Array.isArray(condition)) {
+      const values: string[] = []
+      for (const subCondition of condition as Where[]) {
+        const value = this.extractNaturalKeyValue(subCondition)
+        if (value) values.push(value)
+      }
+      // Only return composite key if all conditions extracted successfully
+      return values.length === condition.length ? values.join('-') : undefined
+    }
+
+    // Handle simple conditions: { field: { equals: 'value' } }
+    if (typeof condition === 'object' && condition !== null && 'equals' in condition) {
+      const value = (condition as { equals: unknown }).equals
+      return value !== null && value !== undefined ? String(value) : undefined
+    }
+    return undefined
   }
 
   // ============================================================================
