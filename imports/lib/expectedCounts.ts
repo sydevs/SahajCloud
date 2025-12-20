@@ -9,6 +9,7 @@
  */
 
 import type { CollectionMetadata, ScriptMetadata } from './pagination'
+
 import { getDefaultBatchSize, getEnvironment } from './pagination'
 
 export type ScriptName = 'tags' | 'wemeditate' | 'meditations' | 'storyblok'
@@ -67,6 +68,7 @@ export interface VerificationResult {
 export function verifyCountsForScript(
   script: ScriptName,
   actualCounts: Record<string, number>,
+  pagination?: { collection?: string; offset: number; limit: number },
 ): { results: VerificationResult[]; allPassed: boolean } {
   const expected = EXPECTED_COUNTS[script]
   const results: VerificationResult[] = []
@@ -74,8 +76,16 @@ export function verifyCountsForScript(
 
   for (const [collection, expectedCount] of Object.entries(expected)) {
     const actual = actualCounts[collection] || 0
-    const passed = actual >= expectedCount
-    results.push({ collection, actual, expected: expectedCount, passed })
+
+    // Adjust expected count for paginated collection
+    let adjustedExpected = expectedCount
+    if (pagination?.collection === collection && pagination.limit > 0) {
+      // Expected = min(offset + limit, total_expected)
+      adjustedExpected = Math.min(pagination.offset + pagination.limit, expectedCount)
+    }
+
+    const passed = actual >= adjustedExpected
+    results.push({ collection, actual, expected: adjustedExpected, passed })
     if (!passed) allPassed = false
   }
 
