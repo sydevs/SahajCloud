@@ -342,6 +342,25 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
   }
 
   // ============================================================================
+  // LIFECYCLE
+  // ============================================================================
+
+  /**
+   * Preload collections for skip mode optimization.
+   * This allows upsert() to skip existing documents without individual find() queries.
+   */
+  protected async setup(): Promise<void> {
+    if (this.options.dryRun) return
+
+    // Preload all tag collections for efficient skip/update mode
+    await Promise.all([
+      this.preloadCollection('meditation-tags', 'slug'),
+      this.preloadCollection('music-tags', 'slug'),
+      this.preloadCollection('image-tags', 'title'), // image-tags uses title as natural key
+    ])
+  }
+
+  // ============================================================================
   // MAIN IMPORT LOGIC
   // ============================================================================
 

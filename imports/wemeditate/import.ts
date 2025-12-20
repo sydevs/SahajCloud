@@ -270,6 +270,16 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       await this.preloadMusicTags()
       await this.mediaUploader.preloadExistingMedia()
       await this.setupImageTags()
+
+      // Preload collections for efficient skip/update mode
+      // This dramatically reduces D1 queries by caching existence checks
+      await Promise.all([
+        this.preloadCollection('authors', 'slug'),
+        this.preloadCollection('albums', 'title'), // WeMeditate looks up albums by title
+        this.preloadCollection('music', 'title'), // WeMeditate looks up music by title
+        this.preloadCollection('pages', 'slug'),
+        this.preloadCollection('page-tags', 'slug'),
+      ])
     }
   }
 
@@ -841,8 +851,9 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         })
 
         // Add delay between albums to avoid rate limiting in Workers environment
+        // Reduced from 300ms since bulk preloading reduces DB queries
         if (i < total - 1) {
-          await rateLimitDelay(300)
+          await rateLimitDelay(100)
         }
       } catch (error) {
         this.addError(`Importing album (artist) ${artist.id}`, error as Error)
@@ -1538,7 +1549,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
         // Add delay after each media upload to avoid rate limiting
         if (i < total - 1) {
-          await rateLimitDelay(100)
+          await rateLimitDelay(50)
         }
       } catch (error) {
         this.addError(`Importing media ${url}`, error as Error)

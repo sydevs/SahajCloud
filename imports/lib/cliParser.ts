@@ -9,6 +9,7 @@
 export interface CLIArgs {
   dryRun: boolean
   clearCache: boolean
+  updateMode: boolean
   [key: string]: boolean | string | undefined
 }
 
@@ -23,6 +24,7 @@ export function parseArgs(): CLIArgs {
   return {
     dryRun: args.includes('--dry-run'),
     clearCache: args.includes('--clear-cache'),
+    updateMode: args.includes('--update'),
   }
 }
 
@@ -36,4 +38,5 @@ export function printUsage(scriptName: string): void {
   console.log('\nOptions:')
   console.log('  --dry-run       Validate data without writing to database')
   console.log('  --clear-cache   Clear download cache before import')
+  console.log('  --update        Update existing records (default: skip existing)')
 }

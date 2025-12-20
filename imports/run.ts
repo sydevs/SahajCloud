@@ -58,7 +58,7 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   tags: 'Seed MeditationTags and MusicTags from Cloudinary',
 }
 
-const VALID_OPTIONS = ['--dry-run', '--clear-cache']
+const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
 
 /**
  * Format elapsed milliseconds as human-readable string (e.g., "1m 30s")
@@ -93,6 +93,7 @@ Available Scripts:
 Options:
   --dry-run      Validate data without writing to database
   --clear-cache  Clear download cache before import
+  --update       Update existing records (default: skip existing)
 
 Environment Variables:
   SAHAJCLOUD_URL  Target URL (default: http://localhost:PORT)
@@ -100,9 +101,9 @@ Environment Variables:
   ADMIN_PASSWORD  Admin password for authentication
 
 Examples:
-  pnpm seed                           # Run all scripts in order
+  pnpm seed                           # Run all scripts in order (skip existing)
   pnpm seed --dry-run                 # Dry run all scripts
-  pnpm seed storyblok --dry-run       # Run single script
+  pnpm seed storyblok --update        # Update existing records
   pnpm seed tags wemeditate           # Run multiple scripts
   pnpm seed wemeditate --clear-cache
 
@@ -384,13 +385,14 @@ async function runPaginatedRequest(
   limit: number,
   baseUrl: string,
   cookies: string,
-  options: { dryRun: boolean },
+  options: { dryRun: boolean; updateMode: boolean },
 ): Promise<{ success: boolean; errors: string[]; pagination: PaginationResult | null }> {
   const errors: string[] = []
 
   // Build query params with pagination
   const params = new URLSearchParams()
   if (options.dryRun) params.set('dryRun', 'true')
+  if (options.updateMode) params.set('update', 'true')
   params.set('collection', collection)
   params.set('offset', String(offset))
   params.set('limit', String(limit))
@@ -448,7 +450,7 @@ async function runPaginatedImport(
   metadata: ScriptMetadata,
   baseUrl: string,
   cookies: string,
-  options: { dryRun: boolean; clearCache: boolean },
+  options: { dryRun: boolean; clearCache: boolean; updateMode: boolean },
 ): Promise<ScriptResult> {
   const errors: string[] = []
   const batchSize = metadata.recommendedBatchSize
@@ -479,7 +481,7 @@ async function runPaginatedImport(
         0, // 0 means use default (all items)
         baseUrl,
         cookies,
-        options,
+        { dryRun: options.dryRun, updateMode: options.updateMode },
       )
 
       if (!result.success) {
@@ -501,7 +503,7 @@ async function runPaginatedImport(
           batchSize,
           baseUrl,
           cookies,
-          options,
+          { dryRun: options.dryRun, updateMode: options.updateMode },
         )
 
         if (!result.success) {
@@ -522,8 +524,9 @@ async function runPaginatedImport(
         batchNumber++
 
         // Add delay between batches to reduce D1 contention
+        // Reduced from 1000ms since bulk preloading reduces DB queries
         if (hasMore) {
-          await delay(1000)
+          await delay(200)
         }
       }
     }
@@ -546,9 +549,9 @@ async function runScript(
   scriptName: ScriptName,
   baseUrl: string,
   cookies: string,
-  options: { dryRun: boolean; clearCache: boolean },
+  options: { dryRun: boolean; clearCache: boolean; updateMode: boolean },
 ): Promise<ScriptResult> {
-  const { dryRun, clearCache } = options
+  const { dryRun, clearCache, updateMode } = options
   const errors: string[] = []
 
   // Reset display state for new script
@@ -558,6 +561,7 @@ async function runScript(
   const params = new URLSearchParams()
   if (dryRun) params.set('dryRun', 'true')
   if (clearCache) params.set('clearCache', 'true')
+  if (updateMode) params.set('update', 'true')
   const queryString = params.toString()
   const url = `${baseUrl}/api/seed/${scriptName}${queryString ? `?${queryString}` : ''}`
 
@@ -666,6 +670,7 @@ async function main(): Promise<void> {
 
   const dryRun = optionArgs.includes('--dry-run')
   const clearCache = optionArgs.includes('--clear-cache')
+  const updateMode = optionArgs.includes('--update')
 
   // If no scripts specified, run all in dependency order
   const scripts = scriptsToRun.length > 0 ? scriptsToRun : SCRIPT_RUN_ORDER
@@ -678,6 +683,7 @@ async function main(): Promise<void> {
   console.log(`${'='.repeat(60)}`)
   console.log(`Target: ${baseUrl}`)
   console.log(`Scripts: ${scripts.join(' → ')}`)
+  console.log(`Mode: ${updateMode ? 'UPDATE existing' : 'SKIP existing'}`)
   if (dryRun) console.log('Mode: DRY RUN')
   if (clearCache) console.log('Option: Clear cache')
 
@@ -706,10 +712,10 @@ async function main(): Promise<void> {
 
       // Use paginated import if metadata indicates it's needed
       if (metadata?.requiresPagination) {
-        result = await runPaginatedImport(scriptName, metadata, baseUrl, cookies, { dryRun, clearCache })
+        result = await runPaginatedImport(scriptName, metadata, baseUrl, cookies, { dryRun, clearCache, updateMode })
       } else {
         // Use bulk import for small datasets
-        result = await runScript(scriptName, baseUrl, cookies, { dryRun, clearCache })
+        result = await runScript(scriptName, baseUrl, cookies, { dryRun, clearCache, updateMode })
       }
 
       results.push(result)
