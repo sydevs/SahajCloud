@@ -386,8 +386,10 @@ async function getDatabaseCounts(
       case 'tags': {
         const meditationTags = await payload.count({ collection: 'meditation-tags' })
         const musicTags = await payload.count({ collection: 'music-tags' })
+        const imageTags = await payload.count({ collection: 'image-tags' })
         counts['meditation-tags'] = meditationTags.totalDocs
         counts['music-tags'] = musicTags.totalDocs
+        counts['image-tags'] = imageTags.totalDocs
         break
       }
       case 'wemeditate': {
@@ -402,8 +404,10 @@ async function getDatabaseCounts(
         break
       }
       case 'meditations': {
+        const narrators = await payload.count({ collection: 'narrators' })
         const meditations = await payload.count({ collection: 'meditations' })
         const frames = await payload.count({ collection: 'frames' })
+        counts['narrators'] = narrators.totalDocs
         counts['meditations'] = meditations.totalDocs
         counts['frames'] = frames.totalDocs
         break
