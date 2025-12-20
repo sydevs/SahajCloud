@@ -167,6 +167,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       dependencies: ['authors'],
       naturalKey: 'slug',
       hasFileUploads: true, // Media in content
+      batchSize: 5, // Pages have many embedded images, reduce batch size to avoid D1 rate limits
     },
   ],
   meditations: [
@@ -224,12 +225,21 @@ export function getScriptMetadata(script: ScriptName): ScriptMetadata {
   // Check if any collection has file uploads for batch size calculation
   const hasFileUploads = collections.some((c) => c.hasFileUploads)
 
+  // Use minimum batch size from collections with explicit batchSize, or fall back to default
+  const collectionBatchSizes = collections
+    .filter((c) => c.batchSize !== undefined)
+    .map((c) => c.batchSize!)
+  const recommendedBatchSize =
+    collectionBatchSizes.length > 0
+      ? Math.min(...collectionBatchSizes)
+      : getDefaultBatchSize(hasFileUploads)
+
   return {
     collections,
     totalItems,
     requiresPagination,
     environment: getEnvironment(),
-    recommendedBatchSize: getDefaultBatchSize(hasFileUploads),
+    recommendedBatchSize,
   }
 }
 
