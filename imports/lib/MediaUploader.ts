@@ -26,6 +26,8 @@ export interface MediaUploadOptions {
   locale?: string | undefined
   /** Buffer for Workers mode (no filesystem) */
   buffer?: Buffer
+  /** Source URL for error reporting */
+  sourceUrl?: string
 }
 
 export interface MediaUploadResult {
@@ -178,7 +180,8 @@ export class MediaUploader {
       return result
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      await this.logger.error(`Failed to upload ${path.basename(localPath)}: ${message}`)
+      const sourceInfo = options.sourceUrl ? ` from ${options.sourceUrl}` : ''
+      await this.logger.error(`Failed to upload ${path.basename(localPath)}${sourceInfo}: ${message}`)
       return null
     }
   }

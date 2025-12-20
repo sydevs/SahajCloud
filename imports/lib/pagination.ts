@@ -52,6 +52,8 @@ export interface CollectionMetadata {
   naturalKey: string
   /** Whether this collection involves file uploads (reduces batch size) */
   hasFileUploads?: boolean
+  /** Override batch size for this collection (takes precedence over hasFileUploads) */
+  batchSize?: number
 }
 
 /**

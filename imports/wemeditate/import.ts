@@ -762,6 +762,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
               artistUrl: artist.url || undefined,
             },
             locale: 'en',
+            overrideAccess: true,
           })
           this.idMaps.albums.set(artist.id, existingFromCache.id)
           this.report.incrementUpdated()
@@ -836,6 +837,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             size: fileBuffer.length,
           },
           locale: 'en',
+          overrideAccess: true,
         })
 
         this.idMaps.albums.set(artist.id, albumDoc.id)
@@ -1496,6 +1498,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
               alt: metadata.alt || filenameWithoutExt,
               credit: metadata.credit || '',
               buffer: downloadResult.buffer, // Pass buffer for Workers mode
+              sourceUrl: url, // Include source URL in error messages
             })
 
             if (result) {

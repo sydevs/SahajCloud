@@ -794,7 +794,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
   /**
    * Get placeholder image buffer with dual-mode support:
-   * - Workers mode: fetch from GitHub
+   * - Workers mode: fetch from GitHub directly
    * - Local mode: read from cache or fetch and cache
    */
   private async getPlaceholderBuffer(filename: string): Promise<Buffer | null> {
@@ -808,12 +808,29 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         return cached
       }
 
-      // Fetch from GitHub (handles caching in local mode)
+      // Fetch from GitHub
       await this.logger.log(`  Fetching ${filename} from GitHub...`)
-      return await fetchAsset(githubUrl, { cachePath: cachedPath })
+      const response = await fetch(githubUrl)
+      if (!response.ok) {
+        await this.logger.warn(`Failed to fetch placeholder ${filename}: ${response.status}`)
+        return null
+      }
+
+      const arrayBuffer = await response.arrayBuffer()
+      if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+        await this.logger.warn(`Empty response for placeholder ${filename}`)
+        return null
+      }
+
+      const buffer = Buffer.from(arrayBuffer)
+
+      // Cache for local mode (no-op in Workers)
+      await writeCache(cachedPath, buffer)
+
+      return buffer
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      this.addWarning(`Error fetching ${filename}: ${message}`)
+      await this.logger.warn(`Error fetching ${filename}: ${message}`)
       return null
     }
   }
