@@ -150,6 +150,95 @@ const options = parseArgs()
 
 ## Key Patterns
 
+### Preload Pattern (Skip/Update Mode Optimization)
+
+Preload collections in `setup()` for efficient skip/update decisions without per-item queries:
+
+```typescript
+protected async setup(): Promise<void> {
+  // Preload all collections that will be checked for existing docs
+  await Promise.all([
+    this.preloadCollection('meditation-tags', 'slug'),  // naturalKey = 'slug'
+    this.preloadCollection('frames', 'filename'),       // naturalKey = 'filename'
+  ])
+}
+
+protected async import(): Promise<void> {
+  for (const item of items) {
+    // Skip mode: if doc exists in cache, upsert() skips it entirely (no DB ops)
+    // Update mode: if doc exists in cache, upsert() updates it using cached ID
+    await this.upsert('meditation-tags', { slug: { equals: item.slug } }, data)
+  }
+}
+```
+
+**Preload Methods:**
+- `preloadCollection(collection, naturalKey, additionalFields?)` - Bulk fetch for cache
+- `getPreloaded(collection, keyValue)` - Get cached doc by natural key
+- `hasPreloaded(collection, keyValue)` - Check if doc exists in cache
+
+### Pagination Pattern (Cloudflare Workers)
+
+For large imports that exceed Workers CPU limits:
+
+```typescript
+protected async import(): Promise<void> {
+  // Check if targeting a specific collection
+  if (!this.isCollectionTargeted('meditations')) {
+    return  // Skip if not targeted
+  }
+
+  const items = await this.loadItems()
+  const batch = this.paginateItems(items)  // Returns slice based on offset/limit
+
+  for (const item of batch) {
+    await this.processItem(item)
+  }
+}
+
+// Optional: Override to rebuild ID maps for paginated runs
+protected async reconstructIdMaps(): Promise<void> {
+  // Called automatically when isPaginated() is true, before import()
+  this.narratorIdMap = await this.reconstructIdMap('narrators', 'slug')
+}
+```
+
+**Pagination Methods:**
+- `isPaginated()` - Check if pagination is active
+- `isCollectionTargeted(collection)` - Check if collection should be processed
+- `paginateItems(items)` - Get slice based on offset/limit
+- `reconstructIdMap(collection, naturalKey)` - Rebuild ID map from existing docs
+- `reconstructIdMaps()` - Hook for subclasses to rebuild maps (called before import)
+
+### Error Handling Architecture
+
+Two-tier error handling:
+
+**Helper Classes** (payloadHelpers, fileUtils, MediaUploader):
+- Use `logger.error()` - log but don't track
+- Return null/false on failure
+- Caller decides how to handle
+
+**Importer Classes** (extend BaseImporter):
+- Use `addError()` - log AND track in report
+- Check helper return values and call addError() if tracking needed
+
+```typescript
+// In helper class
+async uploadFile(path: string): Promise<string | null> {
+  try { ... } catch (error) {
+    await this.logger.error(`Failed: ${error}`)  // Log only
+    return null
+  }
+}
+
+// In importer class
+const id = await helper.uploadFile(path)
+if (!id) {
+  this.addError('Uploading file', new Error('Failed'))  // Track in report
+}
+```
+
 ### Resilient Error Handling
 
 ```typescript
