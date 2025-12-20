@@ -1131,15 +1131,10 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     const filename = attachment.blob.filename
     const identifier = `${category}-${gender}`
 
-    // Check for existing frame by filename (use equals for exact match to avoid SQLite LIKE pattern issues)
-    const existing = await this.payload.find({
-      collection: 'frames',
-      where: { filename: { equals: filename } },
-      limit: 1,
-    })
-
-    if (existing.docs.length > 0) {
-      this.idMaps.frames.set(`${legacyFrameId}_${gender}`, existing.docs[0].id)
+    // Check preload cache first (fast, in-memory) - frames are preloaded by filename in setup()
+    const existingFromCache = this.getPreloaded('frames', filename)
+    if (existingFromCache) {
+      this.idMaps.frames.set(`${legacyFrameId}_${gender}`, existingFromCache.id)
       this.report.incrementSkipped()
       await this.reportDocument('frames', identifier, 'skipped', { current, total })
       return

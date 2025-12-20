@@ -750,25 +750,20 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           continue
         }
 
-        // Check if album already exists
-        const existing = await this.payload.find({
-          collection: 'albums',
-          where: { title: { equals: artist.name } },
-          limit: 1,
-        })
-
-        if (existing.docs.length > 0) {
+        // Check preload cache first (fast, in-memory) - albums are preloaded by title in setup()
+        const existingFromCache = this.getPreloaded('albums', artist.name)
+        if (existingFromCache) {
           // Album exists - update metadata only (can't update file on upload collections)
           await this.payload.update({
             collection: 'albums',
-            id: existing.docs[0].id,
+            id: existingFromCache.id,
             data: {
               artist: artist.name,
               artistUrl: artist.url || undefined,
             },
             locale: 'en',
           })
-          this.idMaps.albums.set(artist.id, existing.docs[0].id)
+          this.idMaps.albums.set(artist.id, existingFromCache.id)
           this.report.incrementUpdated()
           await this.reportDocument('albums', artist.name, 'updated', {
             current: i + 1,
@@ -968,22 +963,16 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           }
         }
 
-        // Check if music already exists by title
-        const existing = await this.payload.find({
-          collection: 'music',
-          where: { title: { equals: track.title } },
-          limit: 1,
-          locale: 'en',
-        })
-
         // Convert album ID to number for Payload type compatibility
         const numericAlbumId = typeof albumId === 'string' ? parseInt(albumId, 10) : albumId
 
-        if (existing.docs.length > 0) {
+        // Check preload cache first (fast, in-memory) - music is preloaded by title in setup()
+        const existingFromCache = this.getPreloaded('music', track.title)
+        if (existingFromCache) {
           // Update existing music with album and tags
           await this.payload.update({
             collection: 'music',
-            id: existing.docs[0].id,
+            id: existingFromCache.id,
             data: {
               album: numericAlbumId,
               tags: tagIds.length > 0 ? tagIds : undefined,

@@ -1,18 +1,18 @@
 import { describe, it, expect } from 'vitest'
 
 import {
-  getDefaultBatchSize,
-  getEnvironment,
-  type PaginationOptions,
-} from '../../imports/lib/pagination'
-
-import {
   getScriptMetadata,
   getExpectedCounts,
   verifyCountsForScript,
   getCollectionMetadata,
   type ScriptName,
 } from '../../imports/lib/expectedCounts'
+import {
+  getDefaultBatchSize,
+  getEnvironment,
+  type PaginationOptions,
+} from '../../imports/lib/pagination'
+
 
 describe('Pagination Utilities', () => {
   describe('getEnvironment', () => {
@@ -153,6 +153,87 @@ describe('Pagination Utilities', () => {
       const musicResult = results.find((r) => r.collection === 'music-tags')
       expect(musicResult?.actual).toBe(0)
       expect(musicResult?.passed).toBe(false)
+    })
+
+    describe('with pagination', () => {
+      it('adjusts expected count for paginated collection', () => {
+        const actualCounts = {
+          'meditation-tags': 10,
+          'music-tags': 7,
+        }
+        const pagination = { collection: 'meditation-tags', offset: 0, limit: 10 }
+        const { results, allPassed } = verifyCountsForScript('tags', actualCounts, pagination)
+
+        // meditation-tags: expects min(0+10, 27) = 10, actual = 10 → passes
+        const meditationResult = results.find((r) => r.collection === 'meditation-tags')
+        expect(meditationResult?.expected).toBe(10)
+        expect(meditationResult?.passed).toBe(true)
+        expect(allPassed).toBe(true)
+      })
+
+      it('uses full expected count for non-paginated collections', () => {
+        const actualCounts = {
+          'meditation-tags': 10,
+          'music-tags': 7,
+        }
+        const pagination = { collection: 'meditation-tags', offset: 0, limit: 10 }
+        const { results } = verifyCountsForScript('tags', actualCounts, pagination)
+
+        // music-tags: not paginated, expects full 7
+        const musicResult = results.find((r) => r.collection === 'music-tags')
+        expect(musicResult?.expected).toBe(7)
+      })
+
+      it('caps adjusted expected at full count', () => {
+        const actualCounts = {
+          'meditation-tags': 27,
+          'music-tags': 7,
+        }
+        const pagination = { collection: 'meditation-tags', offset: 20, limit: 100 }
+        const { results } = verifyCountsForScript('tags', actualCounts, pagination)
+
+        // Expected = min(20+100, 27) = 27 (capped at full count)
+        const meditationResult = results.find((r) => r.collection === 'meditation-tags')
+        expect(meditationResult?.expected).toBe(27)
+      })
+
+      it('does not adjust when limit is 0 (bulk import)', () => {
+        const actualCounts = {
+          'meditation-tags': 10,
+          'music-tags': 7,
+        }
+        const pagination = { collection: 'meditation-tags', offset: 0, limit: 0 }
+        const { results, allPassed } = verifyCountsForScript('tags', actualCounts, pagination)
+
+        // limit=0 means bulk import, should use full expected count (27)
+        const meditationResult = results.find((r) => r.collection === 'meditation-tags')
+        expect(meditationResult?.expected).toBe(27)
+        expect(meditationResult?.passed).toBe(false) // actual 10 < expected 27
+        expect(allPassed).toBe(false)
+      })
+
+      it('adjusts for intermediate batch correctly', () => {
+        // Simulating batch 3 of pages import (offset=20, limit=10)
+        const actualCounts = {
+          authors: 18,
+          albums: 8,
+          music: 27,
+          pages: 30, // After 3 batches
+        }
+        const pagination = { collection: 'pages', offset: 20, limit: 10 }
+        const { results, allPassed } = verifyCountsForScript('wemeditate', actualCounts, pagination)
+
+        // pages: expects min(20+10, 60) = 30, actual = 30 → passes
+        const pagesResult = results.find((r) => r.collection === 'pages')
+        expect(pagesResult?.expected).toBe(30)
+        expect(pagesResult?.passed).toBe(true)
+
+        // Other collections use full expected counts
+        const authorsResult = results.find((r) => r.collection === 'authors')
+        expect(authorsResult?.expected).toBe(18)
+
+        expect(allPassed).toBe(true)
+      })
     })
   })
 })

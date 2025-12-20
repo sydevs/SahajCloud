@@ -256,10 +256,11 @@ export async function POST(
       // Get final counts from database
       const counts = await getDatabaseCounts(payload, script as ScriptName)
 
-      // Verify counts against expected minimums
+      // Verify counts against expected minimums (adjusted for pagination if applicable)
       const { results: verification, allPassed: verificationPassed } = verifyCountsForScript(
         script as ScriptName,
         counts,
+        pagination,
       )
 
       // Get report data

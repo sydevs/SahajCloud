@@ -16,13 +16,11 @@ import { validateFileUpload } from './uploadValidation'
  */
 export const getCloudflareImagesUrl = (
   filename: string,
-  variant?: string,
+  variant = 'public',
 ): string | undefined => {
   const deliveryUrl = process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
   if (!deliveryUrl) return undefined
-  return variant
-    ? `${deliveryUrl}/${filename}/${variant}`
-    : `${deliveryUrl}/${filename}/`
+  return `${deliveryUrl}/${filename}/${variant}`
 }
 
 /**
@@ -76,7 +74,10 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
         const blob = new Blob([uint8Array], { type: file.mimeType })
         formData.append('file', blob, file.filename)
 
-        req.payload.logger.info({ msg: 'Uploading image to Cloudflare Images', filename: file.filename })
+        req.payload.logger.info({
+          msg: 'Uploading image to Cloudflare Images',
+          filename: file.filename,
+        })
 
         const response = await fetch(
           `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/images/v1`,
