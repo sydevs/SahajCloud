@@ -1064,9 +1064,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
       if (!svgBuffer) {
         // Workers mode (or file missing): use minimal music note SVG
+        // Use TextEncoder for Workers compatibility (Buffer.from with encoding arg doesn't work in Workers)
         const svgContent =
           '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>'
-        svgBuffer = Buffer.from(svgContent, 'utf-8')
+        const encoder = new TextEncoder()
+        const uint8Array = encoder.encode(svgContent)
+        svgBuffer = Buffer.from(uint8Array)
       }
 
       await this.payload.create({

@@ -167,7 +167,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       dependencies: ['authors'],
       naturalKey: 'slug',
       hasFileUploads: true, // Media in content
-      batchSize: 5, // Pages have many embedded images, reduce batch size to avoid D1 rate limits
+      batchSize: 2, // Pages have many embedded images, reduce batch size to avoid D1 rate limits
     },
   ],
   meditations: [

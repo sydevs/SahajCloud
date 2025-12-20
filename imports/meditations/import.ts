@@ -732,6 +732,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         collection,
         data: metadata,
         file: fileData,
+        overrideAccess: true, // Bypass access control for seed script
       }
 
       if (collection === 'music' || collection === 'meditations') {
