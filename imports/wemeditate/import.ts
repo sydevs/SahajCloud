@@ -822,6 +822,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         const filename = path.basename(downloadResult.localPath)
         const mimeType = this.fileUtils.getMimeType(filename)
 
+        // In Workers, ensure we pass a clean Buffer without ArrayBuffer offset issues
+        // The Workers Buffer polyfill can have issues with byteOffset when creating Uint8Array views
+        const cleanBuffer = Buffer.from(new Uint8Array(fileBuffer))
+
         const albumDoc = await this.payload.create({
           collection: 'albums',
           data: {
@@ -830,10 +834,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             artistUrl: artist.url || undefined,
           },
           file: {
-            data: fileBuffer,
+            data: cleanBuffer,
             mimetype: mimeType,
             name: filename,
-            size: fileBuffer.length,
+            size: cleanBuffer.length,
           },
           locale: 'en',
           overrideAccess: true,
