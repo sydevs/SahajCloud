@@ -32,7 +32,6 @@ import * as path from 'path'
 import {
   BaseImporter,
   BaseImportOptions,
-  cacheExists,
   fetchAsset,
   MediaUploader,
   rateLimitDelay,
@@ -859,46 +858,43 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   }
 
   /**
-   * Get or create a placeholder image for albums without artwork
-   * Returns an object with localPath and optional buffer for Workers mode
+   * Get placeholder image for albums without artwork.
+   * Fetches from GitHub in Workers mode, uses local file in dev mode.
    */
   private async getOrCreatePlaceholderImage(): Promise<{ localPath: string; buffer?: Buffer }> {
-    const placeholderPath = path.join(this.cacheDir, 'placeholder-album.png')
+    const filename = 'placeholder-album.png'
+    const githubUrl = `${GITHUB_RAW_BASE}/imports/wemeditate/preview.png`
+    const cachedPath = path.join(this.cacheDir, filename)
+    const localPlaceholder = path.resolve(process.cwd(), 'imports/wemeditate/preview.png')
 
-    // Check if placeholder already exists in cache (returns false in Workers mode)
-    if (await cacheExists(placeholderPath)) {
-      return { localPath: placeholderPath }
-    }
+    try {
+      // Try cache first (returns null in Workers mode)
+      const cached = await readCache(cachedPath)
+      if (cached) {
+        return { localPath: cachedPath }
+      }
 
-    // Try to read source file (returns null in Workers mode)
-    const existingPlaceholder = path.resolve(process.cwd(), 'imports/wemeditate/preview.png')
-    const sourceBuffer = await readCache(existingPlaceholder)
+      // Local mode: try to seed cache from local source file
+      const localBuffer = await readCache(localPlaceholder)
+      if (localBuffer) {
+        await writeCache(cachedPath, localBuffer)
+        return { localPath: cachedPath }
+      }
 
-    if (sourceBuffer) {
-      // Local dev: cache the placeholder for future use
-      await writeCache(placeholderPath, sourceBuffer)
-      return { localPath: placeholderPath }
-    }
+      // Fetch from GitHub (handles caching in local mode)
+      await this.logger.log(`  Fetching album placeholder from GitHub...`)
+      const buffer = await fetchAsset(githubUrl, { cachePath: cachedPath })
+      if (buffer) {
+        return { localPath: filename, buffer }
+      }
 
-    // Workers mode (or source file missing): return minimal gray PNG as buffer
-    // Minimal 1x1 gray PNG (68 bytes) - generated with proper CRC checksums
-    // Use Uint8Array directly for Workers compatibility (avoid Node.js Buffer polyfill issues)
-    const pngBytes = new Uint8Array([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // PNG signature
-      0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
-      0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1 dimensions
-      0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, // 8-bit RGB, CRC
-      0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41, 0x54, // IDAT chunk
-      0x08, 0xd7, 0x63, 0x78, 0x78, 0x78, 0x00, 0x00, // compressed gray pixel
-      0x00, 0x04, 0x00, 0x01, 0x27, 0x34, 0x60, 0x3a, // CRC
-      0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, // IEND chunk
-      0xae, 0x42, 0x60, 0x82, // IEND CRC
-    ])
-    // Convert to Buffer using Uint8Array constructor (Workers-compatible)
-    const minimalPng = Buffer.from(pngBytes.buffer, pngBytes.byteOffset, pngBytes.byteLength)
-    return {
-      localPath: 'placeholder-album.png',
-      buffer: minimalPng,
+      // Fallback failed
+      this.addWarning('Failed to fetch album placeholder from GitHub')
+      return { localPath: filename }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      this.addWarning(`Error fetching album placeholder: ${message}`)
+      return { localPath: filename }
     }
   }
 
