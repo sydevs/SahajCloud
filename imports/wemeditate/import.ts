@@ -882,7 +882,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
     // Workers mode (or source file missing): return minimal gray PNG as buffer
     // Minimal 1x1 gray PNG (68 bytes) - generated with proper CRC checksums
-    const minimalPng = Buffer.from([
+    // Use Uint8Array directly for Workers compatibility (avoid Node.js Buffer polyfill issues)
+    const pngBytes = new Uint8Array([
       0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // PNG signature
       0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
       0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1 dimensions
@@ -893,6 +894,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, // IEND chunk
       0xae, 0x42, 0x60, 0x82, // IEND CRC
     ])
+    // Convert to Buffer using Uint8Array constructor (Workers-compatible)
+    const minimalPng = Buffer.from(pngBytes.buffer, pngBytes.byteOffset, pngBytes.byteLength)
     return {
       localPath: 'placeholder-album.png',
       buffer: minimalPng,
