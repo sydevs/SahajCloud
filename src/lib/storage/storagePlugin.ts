@@ -90,6 +90,13 @@ export const storagePlugin = (env?: CloudflareEnv): Plugin => {
         disablePayloadAccessControl: true,
       },
 
+      // Albums collection - Cloudflare Images (album artwork)
+      albums: {
+        adapter: imagesAdapter,
+        disableLocalStorage: true,
+        disablePayloadAccessControl: true,
+      },
+
       // Frames collection - Router adapter (Images for images, Stream for videos)
       frames: {
         adapter: routerAdapter({
