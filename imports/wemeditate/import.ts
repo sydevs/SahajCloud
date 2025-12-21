@@ -27,7 +27,12 @@
 
 import type { Payload, TypedLocale } from 'payload'
 
+import { readFile } from 'fs/promises'
 import * as path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 import {
   BaseImporter,
@@ -825,22 +830,66 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         // The Workers Buffer polyfill can have issues with byteOffset when creating Uint8Array views
         const cleanBuffer = Buffer.from(new Uint8Array(fileBuffer))
 
-        const albumDoc = await this.payload.create({
-          collection: 'albums',
-          data: {
-            title: artist.name,
-            artist: artist.name,
-            artistUrl: artist.url || undefined,
-          },
-          file: {
-            data: cleanBuffer,
-            mimetype: mimeType,
-            name: filename,
-            size: cleanBuffer.length,
-          },
-          locale: 'en',
-          overrideAccess: true,
-        })
+        // Try to create album, with fallback to placeholder if Buffer polyfill fails
+        let albumDoc: Awaited<ReturnType<typeof this.payload.create>>
+        try {
+          albumDoc = await this.payload.create({
+            collection: 'albums',
+            data: {
+              title: artist.name,
+              artist: artist.name,
+              artistUrl: artist.url || undefined,
+            },
+            file: {
+              data: cleanBuffer,
+              mimetype: mimeType,
+              name: filename,
+              size: cleanBuffer.length,
+            },
+            locale: 'en',
+            overrideAccess: true,
+          })
+        } catch (uploadError) {
+          // Buffer polyfill error in Workers - fallback to placeholder
+          const errorMsg = uploadError instanceof Error ? uploadError.message : String(uploadError)
+          if (errorMsg.includes('offset') || errorMsg.includes('Buffer')) {
+            this.addWarning(
+              `Album art upload failed for ${artist.name} (Buffer issue), trying placeholder: ${errorMsg}`,
+            )
+            // Try with local preview.png placeholder
+            try {
+              const placeholderPath = path.join(__dirname, 'preview.png')
+              const placeholderBuffer = await readFile(placeholderPath)
+              albumDoc = await this.payload.create({
+                collection: 'albums',
+                data: {
+                  title: artist.name,
+                  artist: artist.name,
+                  artistUrl: artist.url || undefined,
+                },
+                file: {
+                  data: placeholderBuffer,
+                  mimetype: 'image/png',
+                  name: 'preview.png',
+                  size: placeholderBuffer.length,
+                },
+                locale: 'en',
+                overrideAccess: true,
+              })
+            } catch (placeholderError) {
+              // Both attempts failed - skip this album but continue with others
+              const placeholderMsg =
+                placeholderError instanceof Error ? placeholderError.message : String(placeholderError)
+              this.addError(
+                `Skipping album for ${artist.name} - both original and placeholder uploads failed`,
+                new Error(placeholderMsg),
+              )
+              continue
+            }
+          } else {
+            throw uploadError
+          }
+        }
 
         this.idMaps.albums.set(artist.id, albumDoc.id)
         this.report.incrementCreated()
