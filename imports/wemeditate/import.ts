@@ -37,7 +37,6 @@ import {
   rateLimitDelay,
   readCache,
   TagManager,
-  writeCache,
 } from '../lib'
 
 // ============================================================================
@@ -863,42 +862,21 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
   /**
    * Get placeholder image for albums without artwork.
-   * Fetches from GitHub in Workers mode, uses local file in dev mode.
+   * Uses mediaDownloader for consistent handling across local/Workers modes.
    */
   private async getOrCreatePlaceholderImage(): Promise<{ localPath: string; buffer?: Buffer }> {
-    const filename = 'placeholder-album.png'
     const githubUrl = `${GITHUB_RAW_BASE}/imports/wemeditate/preview.png`
-    const cachedPath = path.join(this.cacheDir, filename)
-    const localPlaceholder = path.resolve(process.cwd(), 'imports/wemeditate/preview.png')
 
     try {
-      // Try cache first (returns null in Workers mode)
-      const cached = await readCache(cachedPath)
-      if (cached) {
-        return { localPath: cachedPath }
-      }
-
-      // Local mode: try to seed cache from local source file
-      const localBuffer = await readCache(localPlaceholder)
-      if (localBuffer) {
-        await writeCache(cachedPath, localBuffer)
-        return { localPath: cachedPath }
-      }
-
-      // Fetch from GitHub (handles caching in local mode)
+      // Use mediaDownloader for consistent handling (it works for other albums)
       await this.logger.log(`  Fetching album placeholder from GitHub...`)
-      const buffer = await fetchAsset(githubUrl, { cachePath: cachedPath })
-      if (buffer) {
-        return { localPath: filename, buffer }
-      }
-
-      // Fallback failed
-      this.addWarning('Failed to fetch album placeholder from GitHub')
-      return { localPath: filename }
+      const result = await this.mediaDownloader.downloadAndConvertImage(githubUrl)
+      return result
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       this.addWarning(`Error fetching album placeholder: ${message}`)
-      return { localPath: filename }
+      // Return empty result - will fail later but with better error
+      return { localPath: 'placeholder-album.png' }
     }
   }
 
