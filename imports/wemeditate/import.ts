@@ -330,24 +330,50 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
    * Reconstruct ID maps from database when resuming paginated import.
    * Called automatically by BaseImporter when pagination is active.
    *
-   * Note: For WeMeditate, the original Rails IDs are not stored in Payload,
-   * so we can't fully reconstruct the old ID → new ID mappings. Instead,
-   * we rely on slug-based lookups during the import process.
+   * This method rebuilds the legacy ID → Payload ID mappings needed for
+   * cross-collection references (e.g., music tracks referencing albums).
    */
   protected async reconstructIdMaps(): Promise<void> {
     await this.logger.info('Reconstructing ID maps from database...')
 
+    // Load source data to get artist info (needed for music → album mapping)
+    // This is required because reconstructIdMaps() is called before import()
+    await this.loadData()
+
     // For authors and categories, we can't reconstruct the original Rails ID → Payload ID mapping
     // because we don't store the Rails IDs. However, we look up by slug during import anyway.
-    // Just log that we're ready for paginated import.
     const authors = await this.payload.find({ collection: 'authors', limit: 100, depth: 0 })
     await this.logger.info(`✓ Found ${authors.totalDocs} existing authors`)
 
     const pageTags = await this.payload.find({ collection: 'page-tags', limit: 100, depth: 0 })
     await this.logger.info(`✓ Found ${pageTags.totalDocs} existing page-tags`)
 
+    // Rebuild albums map: legacy artist ID → Payload album ID
+    // Albums are named after artists (album.title = artist.name), so we can match by title
     const albums = await this.payload.find({ collection: 'albums', limit: 100, depth: 0 })
     await this.logger.info(`✓ Found ${albums.totalDocs} existing albums`)
+
+    // Create a map of album title → Payload ID
+    const albumsByTitle = new Map<string, number | string>()
+    for (const album of albums.docs) {
+      if (album.title) {
+        albumsByTitle.set(album.title, album.id)
+      }
+    }
+
+    // Map legacy artist IDs to Payload album IDs by matching artist name to album title
+    // Note: artist.id in data.json is string but typed as number - convert safely
+    for (const artist of this.data.artists) {
+      const albumId = albumsByTitle.get(artist.name)
+      if (albumId) {
+        // artist.id is typed as number but is actually string in JSON - cast and convert
+        const rawId = artist.id as unknown
+        const numericArtistId = typeof rawId === 'string' ? parseInt(rawId, 10) : Number(rawId)
+        this.idMaps.albums.set(numericArtistId, albumId)
+      }
+    }
+
+    await this.logger.info(`✓ Rebuilt albums map: ${this.idMaps.albums.size} mappings`)
   }
 
   private async loadData(): Promise<void> {
@@ -967,9 +993,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         }
 
         // Get album ID from first artist (tracks can have multiple artists)
+        // Note: artist_ids from data.json are strings but typed as number[] - convert to number for Map lookup
         let albumId: number | string | undefined
         if (track.artist_ids && track.artist_ids.length > 0) {
-          const firstArtistId = track.artist_ids[0]
+          const firstArtistId =
+            typeof track.artist_ids[0] === 'string'
+              ? parseInt(track.artist_ids[0] as unknown as string, 10)
+              : track.artist_ids[0]
           albumId = this.idMaps.albums.get(firstArtistId)
           if (!albumId) {
             this.addWarning(
@@ -1508,9 +1538,27 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     const mediaUrlArray = Array.from(mediaUrls)
     const total = mediaUrlArray.length
 
+    // Batch pause configuration to avoid Cloudflare Images rate limiting
+    // Cloudflare Images has rate limits of ~100 requests per 5-minute window
+    // Using small batches (15) to stay well under rate limit
+    const BATCH_SIZE = 15
+    const BATCH_PAUSE_MS = 180000 // 3 minutes
+
     for (let i = 0; i < total; i++) {
       const url = mediaUrlArray[i]
       const filename = path.basename(url).split('?')[0] // Remove query params for identifier
+
+      // Batch pause BEFORE uploads (every 40 items) to stay under rate limits
+      // This runs at the START of iteration, so pause happens before upload attempt
+      if (i > 0 && i % BATCH_SIZE === 0) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `\n    ⏸️  BATCH PAUSE: ${i} uploads done. Waiting ${BATCH_PAUSE_MS / 1000}s for rate limit reset...\n`,
+        )
+        await rateLimitDelay(BATCH_PAUSE_MS)
+        // eslint-disable-next-line no-console
+        console.log(`    ⏸️  Resuming after pause...\n`)
+      }
 
       try {
         const downloadResult = await this.mediaDownloader.downloadAndConvertImage(url)
@@ -1572,9 +1620,9 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           })
         }
 
-        // Add delay after each media upload to avoid rate limiting
+        // Small delay after each successful upload for additional rate limit protection
         if (i < total - 1) {
-          await rateLimitDelay(50)
+          await rateLimitDelay(500)
         }
       } catch (error) {
         this.addError(`Importing media ${url}`, error as Error)
