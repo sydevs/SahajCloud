@@ -1,13 +1,12 @@
 import type { CollectionConfig } from 'payload'
 
-import { managerPermissionsFields } from '@/fields'
-import { adminOnlyHidden, adminOrSelfAccess } from '@/lib/access'
+import { MANAGER_ROLE_OPTIONS } from '@/generated/access'
 import { getProjectOptions } from '@/lib/projects'
 import { getServerUrl } from '@/lib/serverUrl'
 
 export const Managers: CollectionConfig = {
   slug: 'managers',
-  access: adminOrSelfAccess(),
+  // Access control is applied by accessPlugin with self-access pattern
   auth: {
     verify: {
       generateEmailHTML: ({ token, user }) => {
@@ -52,7 +51,6 @@ export const Managers: CollectionConfig = {
     lockTime: 600 * 1000, // 10 minutes
   },
   admin: {
-    hidden: adminOnlyHidden,
     group: 'Access',
     useAsTitle: 'name',
     defaultColumns: ['name', 'email', 'type', '_verified'],
@@ -82,6 +80,72 @@ export const Managers: CollectionConfig = {
         ],
       },
     },
-    ...managerPermissionsFields(),
+    // Manager type field (segmented control for access level)
+    {
+      name: 'type',
+      type: 'select',
+      required: true,
+      defaultValue: 'manager',
+      options: [
+        { label: 'Inactive', value: 'inactive' },
+        { label: 'Manager', value: 'manager' },
+        { label: 'Admin', value: 'admin' },
+      ],
+      admin: {
+        description:
+          "Set the manager's access level. Admin grants full access, Manager uses role-based permissions, Inactive blocks all access.",
+        components: {
+          Field: '@/components/admin/ToggleGroupField',
+        },
+      },
+      access: {
+        // Only admins can update the type field
+        update: ({ req: { user } }) => {
+          return user?.collection === 'managers' && user.type === 'admin'
+        },
+      },
+    },
+
+    // Roles field (localized multi-select)
+    {
+      name: 'roles',
+      type: 'select',
+      hasMany: true,
+      localized: true,
+      options: [...MANAGER_ROLE_OPTIONS],
+      admin: {
+        description:
+          'Assign roles for each locale. Different roles can be assigned for different languages.',
+        condition: (data) => data.type === 'manager',
+        components: {
+          afterInput: ['@/components/admin/PermissionsTable'],
+        },
+      },
+      access: {
+        // Only admins can update roles
+        update: ({ req: { user } }) => {
+          return user?.collection === 'managers' && user.type === 'admin'
+        },
+      },
+    },
+
+    // Custom Resource Access
+    {
+      name: 'customResourceAccess',
+      type: 'relationship',
+      relationTo: ['pages'],
+      hasMany: true,
+      admin: {
+        description:
+          'Grant update access to specific documents. Useful for giving access to individual pages without broader permissions.',
+        condition: (data) => data.type === 'manager',
+      },
+      access: {
+        // Only admins can update custom resource access
+        update: ({ req: { user } }) => {
+          return user?.collection === 'managers' && user.type === 'admin'
+        },
+      },
+    },
   ],
 }

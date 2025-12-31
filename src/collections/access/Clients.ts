@@ -1,8 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
-import { clientPermissionsFields } from '@/fields'
+import { CLIENT_ROLE_OPTIONS } from '@/generated/access'
 import { validateClientData, checkHighUsageAlert } from '@/hooks/clientHooks'
-import { adminOnlyHidden, adminOrSelfAccess } from '@/lib/access'
 
 export const Clients: CollectionConfig = {
   slug: 'clients',
@@ -20,12 +19,10 @@ export const Clients: CollectionConfig = {
     plural: 'Services',
   },
   admin: {
-    hidden: adminOnlyHidden,
     group: 'Access',
     useAsTitle: 'name',
     defaultColumns: ['name', 'active'],
   },
-  access: adminOrSelfAccess({ allowSelfUpdate: false }),
   fields: [
     {
       name: 'name',
@@ -44,7 +41,19 @@ export const Clients: CollectionConfig = {
         description: 'Purpose and usage notes for this client',
       },
     },
-    ...clientPermissionsFields(),
+    // Roles field (non-localized multi-select)
+    {
+      name: 'roles',
+      type: 'select',
+      hasMany: true,
+      options: [...CLIENT_ROLE_OPTIONS],
+      admin: {
+        description: 'Assign API client roles. Roles apply to all locales.',
+        components: {
+          afterInput: ['@/components/admin/PermissionsTable'],
+        },
+      },
+    },
     {
       name: 'managers',
       type: 'relationship',

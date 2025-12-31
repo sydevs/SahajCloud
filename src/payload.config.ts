@@ -12,170 +12,13 @@ import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 import { GetPlatformProxyOptions } from 'wrangler'
 
-import {
-  accessPlugin,
-  filterAvailableLocales,
-  handleProjectVisibility, // Used for formBuilderPlugin overrides
-  roleBasedAccess, // Used for formBuilderPlugin overrides
-  type AccessPluginOptions,
-} from '@/lib/access'
+import { accessPluginConfig } from '@/config/accessConfig'
+import { accessPlugin, filterAvailableLocales } from '@/lib/access'
 import { resendAdapter } from '@/lib/email/resendAdapter'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { scalarPlugin } from '@/lib/openapi'
 import { sentryPlugin } from '@/lib/sentryPlugin'
 import { getServerUrl } from '@/lib/serverUrl'
-
-// Access Plugin Configuration - Single source of truth for RBAC and project visibility
-const accessPluginConfig: AccessPluginOptions = {
-  projects: {
-    'wemeditate-web': {
-      collections: [
-        'pages',
-        'meditations',
-        'music',
-        'albums',
-        'forms',
-        'authors',
-        'page-tags',
-        'meditation-tags',
-        'music-tags',
-        'narrators',
-        'frames',
-      ],
-      globals: ['we-meditate-web-settings'],
-    },
-    'wemeditate-app': {
-      collections: [
-        'meditations',
-        'music',
-        'albums',
-        'lessons',
-        'lectures',
-        'frames',
-        'narrators',
-        'meditation-tags',
-        'music-tags',
-      ],
-      globals: ['we-meditate-app-settings'],
-    },
-    'sahaj-atlas': {
-      collections: [],
-      globals: ['sahaj-atlas-settings'],
-    },
-  },
-  roles: {
-    managers: {
-      'meditations-editor': {
-        label: 'Meditations Editor',
-        description: 'Can create and edit meditations, upload related media and files',
-        project: 'wemeditate-app',
-        permissions: {
-          meditations: ['create', 'update'],
-          images: ['create'],
-          files: ['create'],
-        },
-      },
-      'path-editor': {
-        label: 'Path Editor',
-        description: 'Can edit lessons and lectures, upload related media and files',
-        project: 'wemeditate-app',
-        permissions: {
-          lessons: ['update'],
-          lectures: ['update'],
-          images: ['create'],
-          files: ['create'],
-        },
-      },
-      translator: {
-        label: 'Translator',
-        description: 'Can edit localized fields in pages and music',
-        project: 'wemeditate-web',
-        permissions: {
-          pages: ['translate'],
-          music: ['translate'],
-        },
-      },
-    },
-    clients: {
-      'wemeditate-web': {
-        label: 'We Meditate Web',
-        description: 'Access for We Meditate web frontend application',
-        project: 'wemeditate-web',
-        permissions: {
-          'we-meditate-web-settings': ['read'],
-          meditations: ['read'],
-          frames: ['read'],
-          narrators: ['read'],
-          images: ['read'],
-          files: ['read'],
-          pages: ['read'],
-          music: ['read'],
-          albums: ['read'],
-          forms: ['read'],
-          authors: ['read'],
-          'meditation-tags': ['read'],
-          'page-tags': ['read'],
-          'music-tags': ['read'],
-          'form-submissions': ['create'],
-        },
-      },
-      'wemeditate-app': {
-        label: 'We Meditate App',
-        description: 'Access for We Meditate mobile application',
-        project: 'wemeditate-app',
-        permissions: {
-          'we-meditate-app-settings': ['read'],
-          meditations: ['read'],
-          frames: ['read'],
-          narrators: ['read'],
-          lessons: ['read'],
-          lectures: ['read'],
-          music: ['read'],
-          albums: ['read'],
-          images: ['read'],
-          files: ['read'],
-          'meditation-tags': ['read'],
-          'page-tags': ['read'],
-          'music-tags': ['read'],
-        },
-      },
-      'sahaj-atlas': {
-        label: 'Sahaj Atlas',
-        description: 'Access for Sahaj Atlas application',
-        project: 'sahaj-atlas',
-        permissions: {
-          'sahaj-atlas-settings': ['read'],
-          images: ['read'],
-          files: ['read'],
-        },
-      },
-    },
-  },
-  bypass: {
-    managers: ({ user, collection, operation, docId }) => {
-      // 1. Inactive manager blocking
-      if (user.type === 'inactive') return 'deny'
-
-      // 2. Admin bypass (full access)
-      if (user.type === 'admin') return 'allow'
-
-      // 3. customResourceAccess: Allow update for specific documents
-      if (operation === 'update' && docId && user.customResourceAccess?.length) {
-        const hasAccess = user.customResourceAccess.some(
-          (access) => access.relationTo === collection && String(access.value) === String(docId),
-        )
-        if (hasAccess) return 'allow'
-      }
-      return 'continue'
-    },
-    clients: ({ user }) => {
-      // 1. Inactive client blocking
-      if (!user.active) return 'deny'
-
-      return 'continue'
-    },
-  },
-}
 
 import { collections, Managers } from './collections'
 import { globals } from './globals'
@@ -295,12 +138,12 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           defaultJobsCollection.admin = {}
         }
 
-        // Only visible in all-content mode
+        // Only visible in all-content mode for admins
+        // Access control is handled by accessPlugin (payload-jobs is a RESTRICTED_COLLECTION)
         defaultJobsCollection.admin.hidden = ({ user }) => {
           const currentProject = user?.currentProject
           return currentProject !== 'all-content' || user?.type !== 'admin'
         }
-        defaultJobsCollection.access = roleBasedAccess('payload-jobs', { implicitRead: false })
         return defaultJobsCollection
       },
     },
@@ -324,8 +167,6 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // - All other environments: Full plugin suite
     plugins: isE2ETest
       ? [
-          // Access Plugin: Unified RBAC and project visibility
-          accessPlugin(accessPluginConfig),
           // Only include plugins that don't require Cloudflare bindings for E2E tests
           // Note: openapi/swaggerUI plugins excluded - not needed for E2E testing
           seoPlugin({
@@ -338,27 +179,16 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           formBuilderPlugin({
             defaultToEmail: 'contact@sydevelopers.com',
             formOverrides: {
-              access: roleBasedAccess('forms'),
-              admin: {
-                group: 'Resources',
-                hidden: handleProjectVisibility('forms', ['wemeditate-web']),
-              },
+              admin: { group: 'Resources' },
             },
             formSubmissionOverrides: {
-              access: roleBasedAccess('form-submissions', { implicitRead: false }),
-              admin: {
-                hidden: ({ user }) => {
-                  const currentProject = user?.currentProject
-                  return currentProject !== 'all-content' && currentProject !== 'wemeditate-web'
-                },
-                group: 'System',
-              },
+              admin: { group: 'System' },
             },
           }),
+          // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
+          accessPlugin(accessPluginConfig),
         ]
       : [
-          // Access Plugin: Unified RBAC and project visibility (must be first to configure access before other plugins)
-          accessPlugin(accessPluginConfig),
           openapi({
             openapiVersion: '3.1',
             specEndpoint: '/openapi-raw.json', // Raw spec, filtered version at /openapi.json
@@ -394,24 +224,14 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           formBuilderPlugin({
             defaultToEmail: 'contact@sydevelopers.com',
             formOverrides: {
-              access: roleBasedAccess('forms'),
-              admin: {
-                group: 'Resources',
-                hidden: handleProjectVisibility('forms', ['wemeditate-web']),
-              },
+              admin: { group: 'Resources' },
             },
             formSubmissionOverrides: {
-              access: roleBasedAccess('form-submissions', { implicitRead: false }),
-              admin: {
-                // Visible in all-content mode or wemeditate-web project
-                hidden: ({ user }) => {
-                  const currentProject = user?.currentProject
-                  return currentProject !== 'all-content' && currentProject !== 'wemeditate-web'
-                },
-                group: 'System',
-              },
+              admin: { group: 'System' },
             },
           }),
+          // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
+          accessPlugin(accessPluginConfig),
         ],
     upload: {
       limits: {

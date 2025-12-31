@@ -31,10 +31,13 @@ import type { Config, Plugin } from 'payload'
 
 import { applyLocalizedFieldAccess } from './localizedFields'
 import { buildPermissionLookup, buildProjectLookup } from './lookupTables'
-import { createCollectionAccess, createGlobalAccess, createPermissionChecker } from './permissions'
+import {
+  createCollectionAccess,
+  createGlobalAccess,
+  createPermissionChecker,
+} from './permissions'
 import { createSchemaExtension } from './schemaExtension'
-import { AUTH_COLLECTIONS } from './types'
-import { adminOnlyHidden, createCollectionHiddenFunction, createGlobalHiddenFunction } from './visibility'
+import { createCollectionHiddenFunction, createGlobalHiddenFunction } from './visibility'
 
 /**
  * Create the access plugin
@@ -58,19 +61,8 @@ export function accessPlugin(options: AccessPluginOptions): Plugin {
       config.collections = config.collections.map((collection) => {
         const slug = collection.slug
 
-        // Skip auth collections (they use adminOrSelfAccess)
-        if (AUTH_COLLECTIONS.includes(slug)) {
-          // Still apply hidden function for project visibility
-          return {
-            ...collection,
-            admin: {
-              ...collection.admin,
-              hidden: adminOnlyHidden,
-            },
-          }
-        }
-
         // Apply access control, visibility, and field access
+        // Self-access (read/update own document) is built into hasPermission
         return {
           ...collection,
           // Apply role-based access control
@@ -131,7 +123,6 @@ export function accessPlugin(options: AccessPluginOptions): Plugin {
 
 // Re-export types and utilities for consumers
 export { isAPIClient, createFieldAccess, createPermissionChecker } from './permissions'
-export { adminOnlyHidden } from './visibility'
 export type {
   AccessPluginOptions,
   BypassResult,
@@ -147,5 +138,4 @@ export type {
   TypedClient,
   TypedManager,
 } from './types'
-export { AUTH_COLLECTIONS, RESTRICTED_COLLECTIONS } from './types'
 export { getManagerRoleSlugs, getClientRoleSlugs, getProjectSlugs, getRoleProject } from './lookupTables'

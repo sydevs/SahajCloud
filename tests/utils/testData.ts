@@ -705,6 +705,11 @@ export const testData = {
       } as TypedUser
     }
 
-    return baseUser as TypedUser
+    // Add active field for clients (bypass function requires active: true)
+    return {
+      ...baseUser,
+      active: true, // Default to active client
+      ...overrides, // Allow overriding active
+    } as TypedUser
   },
 }

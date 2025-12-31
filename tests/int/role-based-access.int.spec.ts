@@ -5,7 +5,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { ManagerRole } from '../../src/lib/access'
 
 import { getPermissionsForRoles } from '../../src/generated/access'
-import { hasPermission } from '../../src/lib/access'
+import { hasPermission } from '../utils/permissionTestHelpers'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -149,6 +149,7 @@ describe('Role-Based Access Control', () => {
 
     it('blocks access to restricted collections for non-admins', () => {
       // Permissions are computed from roles, not explicitly set
+      // meditations-editor is in wemeditate-app project
       const editorUser = testData.dummyUser('managers', {
         id: 7,
         roles: ['meditations-editor'],
@@ -165,10 +166,15 @@ describe('Role-Based Access Control', () => {
         hasPermission({ user: editorUser, collection: 'payload-jobs', operation: 'read' }),
       ).toBe(false)
 
-      // form-submissions is NOT restricted - managers with roles get implicit read access
+      // lessons is in wemeditate-app project - should have implicit read access
+      expect(
+        hasPermission({ user: editorUser, collection: 'lessons', operation: 'read' }),
+      ).toBe(true)
+
+      // form-submissions is only in wemeditate-web project - should NOT have access
       expect(
         hasPermission({ user: editorUser, collection: 'form-submissions', operation: 'read' }),
-      ).toBe(true)
+      ).toBe(false)
     })
   })
 
@@ -347,27 +353,38 @@ describe('Role-Based Access Control', () => {
   })
 
   describe('Implicit Read Access', () => {
-    it('grants read to all non-restricted collections for managers with roles', () => {
+    it('grants read to project collections for managers with roles', () => {
       // Permissions are computed from roles, not explicitly set
+      // Translator role is in wemeditate-web project
       const managerUser = testData.dummyUser('managers', {
         id: 12,
         roles: ['translator'],
       })
 
-      // Should have implicit read to various collections
-      const nonRestrictedCollections = [
+      // Should have implicit read to collections in wemeditate-web project
+      const webProjectCollections = [
+        'pages',
         'meditations',
         'frames',
         'narrators',
-        'media',
         'music',
         'authors',
-        'lectures',
+        'albums',
+        'forms',
+        'form-submissions',
       ]
 
-      nonRestrictedCollections.forEach((collection) => {
+      webProjectCollections.forEach((collection) => {
         expect(hasPermission({ user: managerUser, collection, operation: 'read' })).toBe(true)
       })
+
+      // Should NOT have implicit read to collections only in other projects
+      expect(hasPermission({ user: managerUser, collection: 'lessons', operation: 'read' })).toBe(
+        false,
+      )
+      expect(hasPermission({ user: managerUser, collection: 'lectures', operation: 'read' })).toBe(
+        false,
+      )
     })
 
     it('blocks read to restricted collections even with implicit access', () => {

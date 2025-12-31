@@ -258,24 +258,3 @@ export interface PermissionCheckArgs {
   docId?: string | number
 }
 
-// ============================================================================
-// Constants
-// ============================================================================
-
-/**
- * Collections that should be excluded from plugin modification
- * (they use adminOrSelfAccess instead)
- */
-export const AUTH_COLLECTIONS: readonly string[] = ['managers', 'clients'] as const
-
-/**
- * Collections that are always restricted (admin-only)
- */
-export const RESTRICTED_COLLECTIONS: readonly string[] = [
-  'managers',
-  'clients',
-  'payload-jobs',
-  'payload-locked-documents',
-  'payload-preferences',
-  'payload-migrations',
-] as const

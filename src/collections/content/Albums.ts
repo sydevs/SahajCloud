@@ -1,7 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { createFieldAccess } from '@/lib/access'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const Albums: CollectionConfig = {
@@ -36,19 +35,16 @@ export const Albums: CollectionConfig = {
       type: 'text',
       required: true,
       localized: true,
-      access: createFieldAccess('music', true),
     },
     {
       name: 'artist',
       type: 'text',
       required: true,
       localized: true,
-      access: createFieldAccess('music', true),
     },
     {
       name: 'artistUrl',
       type: 'text',
-      access: createFieldAccess('music', false),
       admin: {
         description: 'Artist website or profile URL',
       },

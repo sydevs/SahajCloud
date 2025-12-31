@@ -16,14 +16,13 @@ import type {
   TypedManager,
 } from './types'
 import type { CollectionConfig, GlobalConfig, PayloadRequest } from 'payload'
-import type { LocaleCode } from '@/lib/locales'
 
 import {
   CLIENT_ROLE_PROJECTS,
   MANAGER_ROLE_PROJECTS,
   PROJECT_COLLECTIONS,
 } from '@/generated/access'
-import { RESTRICTED_COLLECTIONS } from './types'
+import type { LocaleCode } from '@/lib/locales'
 
 // ============================================================================
 // Utility Functions
@@ -98,7 +97,7 @@ export function createPermissionChecker(
    * Permission checking flow:
    * 1. Block null users
    * 2. Call user-provided bypass function (handles inactive, admin, customResourceAccess)
-   * 3. Block access to restricted collections
+   * 3. Self-access check (user can read/update their own document if collection matches)
    * 4. O(1) permission lookup
    * 5. Handle translate permission for localized fields
    * 6. Handle project-based implicit read access
@@ -143,12 +142,15 @@ export function createPermissionChecker(
       // 'continue' falls through to normal checking
     }
 
-    // 3. Block access to restricted collections for non-admins
-    if (RESTRICTED_COLLECTIONS.includes(collection)) {
-      return false
+    // 3. Self-access check: user can read/update their own document
+    // Must match both collection AND document id
+    if (docId && user.collection === collection && String(user.id) === String(docId)) {
+      if (operation === 'read' || operation === 'update') {
+        return true
+      }
     }
 
-    // 4. Get user's roles (locale-aware for managers)
+    // 4. Get user's roles (locale-aware for managers) and perform O(1) permission lookup
     const currentLocale = locale || ('en' as LocaleCode)
     const roles = extractRoleSlugs(
       isClient ? (user as TypedClient).roles : (user as TypedManager).roles,
@@ -361,3 +363,4 @@ export function hasWritePermission(
     hasPermission({ user, collection, operation: 'delete' })
   )
 }
+

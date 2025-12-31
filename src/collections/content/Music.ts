@@ -1,7 +1,6 @@
-import type { CollectionConfig, Field } from 'payload'
+import type { CollectionConfig } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { createFieldAccess } from '@/lib/access'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const Music: CollectionConfig = {
@@ -32,7 +31,6 @@ export const Music: CollectionConfig = {
       type: 'text',
       required: true,
       localized: true,
-      access: createFieldAccess('music', true),
     },
     {
       name: 'album',
@@ -62,7 +60,5 @@ export const Music: CollectionConfig = {
         readOnly: true,
       },
     },
-  ].map((field) => {
-    return { access: createFieldAccess('music', false), ...field } as Field
-  }),
+  ],
 }

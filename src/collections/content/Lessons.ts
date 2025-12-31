@@ -3,12 +3,10 @@ import type { CollectionConfig } from 'payload'
 import { TextStoryBlock, VideoStoryBlock, CoverStoryBlock } from '@/blocks/lessons'
 import { QuoteBlock } from '@/blocks/pages'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { createFieldAccess } from '@/lib/access'
 import { fullRichTextEditor } from '@/lib/richEditor'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
-  // access and admin.hidden are applied by accessPlugin
   trash: true,
   defaultSort: ['unit', 'step'],
   labels: {
@@ -131,7 +129,6 @@ export const Lessons: CollectionConfig = {
               type: 'select',
               required: true,
               options: Array.from({ length: 4 }, (_, i) => `Unit ${i + 1}`),
-              access: createFieldAccess('lessons', false),
             },
             {
               name: 'step',
@@ -140,13 +137,11 @@ export const Lessons: CollectionConfig = {
               admin: {
                 description: 'This will determine the order of the path steps',
               },
-              access: createFieldAccess('lessons', false),
             },
             {
               name: 'icon',
               type: 'upload',
               relationTo: 'images',
-              access: createFieldAccess('lessons', false),
             },
           ],
         },
