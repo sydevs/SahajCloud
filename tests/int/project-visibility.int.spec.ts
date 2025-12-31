@@ -9,7 +9,7 @@ import {
   isValidProject,
   type ProjectSlug,
 } from '../../src/lib/projects'
-import { adminOnlyVisibility, handleProjectVisibility } from '../../src/lib/projectVisibility'
+import { adminOnlyHidden, handleProjectVisibility } from '../../src/lib/access'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 // Type for testing visibility functions
@@ -168,22 +168,22 @@ describe('Project Visibility System', () => {
     })
   })
 
-  describe('adminOnlyVisibility', () => {
+  describe('adminOnlyHidden', () => {
     it('should hide collection for non-admin users', () => {
-      expect(adminOnlyVisibility({ user: undefined })).toBe(true)
-      expect(adminOnlyVisibility({ user: {} as MockUser })).toBe(true)
-      expect(adminOnlyVisibility({ user: { admin: false } as MockUser })).toBe(true)
+      expect(adminOnlyHidden({ user: undefined })).toBe(true)
+      expect(adminOnlyHidden({ user: {} as MockUser })).toBe(true)
+      expect(adminOnlyHidden({ user: { admin: false } as MockUser })).toBe(true)
     })
 
     it('should show collection for admin users', () => {
-      expect(adminOnlyVisibility({ user: { type: 'admin' as const } as MockUser })).toBe(false)
+      expect(adminOnlyHidden({ user: { type: 'admin' as const } as MockUser })).toBe(false)
     })
 
     it('should handle truthy non-boolean admin values safely', () => {
       // This tests the security fix: admin !== true (not just !admin)
-      expect(adminOnlyVisibility({ user: { admin: 'yes' } as MockUser })).toBe(true)
-      expect(adminOnlyVisibility({ user: { admin: 1 } as MockUser })).toBe(true)
-      expect(adminOnlyVisibility({ user: { admin: {} } as MockUser })).toBe(true)
+      expect(adminOnlyHidden({ user: { admin: 'yes' } as MockUser })).toBe(true)
+      expect(adminOnlyHidden({ user: { admin: 1 } as MockUser })).toBe(true)
+      expect(adminOnlyHidden({ user: { admin: {} } as MockUser })).toBe(true)
     })
   })
 

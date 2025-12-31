@@ -1,3 +1,4 @@
+import type { ClientRole, ManagerRole, PermissionLevel, TypedClient, TypedManager } from './types'
 import type {
   CollectionConfig,
   CollectionSlug,
@@ -10,11 +11,8 @@ import type {
   Where,
 } from 'payload'
 
-import { mergeRolePermissions } from '@/fields/permissionsField'
-import { LocaleCode } from '@/lib/locales'
-import type { MergedPermissions } from '@/types/permissions'
-import type { ManagerRole, ClientRole, PermissionLevel } from '@/types/roles'
-import type { TypedClient, TypedManager } from '@/types/users'
+import { getPermissionsForRoles } from '@/generated/access'
+import type { LocaleCode } from '@/lib/locales'
 
 // ============================================================================
 // Utility Functions
@@ -119,18 +117,15 @@ export const hasPermission = ({
     return false
   }
 
-  // Ensure permissions are computed
-  if (!user.permissions) {
-    // Compute permissions on-the-fly if not present
-    const currentLocale = locale || ('en' as LocaleCode)
-    const roleSlugs = extractRoleSlugs(
-      isClient ? (user as TypedClient).roles : (user as TypedManager).roles,
-      currentLocale,
-      isClient,
-    )
-    const collection = isClient ? 'clients' : 'managers'
-    user.permissions = mergeRolePermissions(roleSlugs, collection)
-  }
+  // Compute permissions from roles (no longer cached on user object)
+  const currentLocale = locale || ('en' as LocaleCode)
+  const roleSlugs = extractRoleSlugs(
+    isClient ? (user as TypedClient).roles : (user as TypedManager).roles,
+    currentLocale,
+    isClient,
+  )
+  const userCollection = isClient ? 'clients' : 'managers'
+  const permissions = getPermissionsForRoles(roleSlugs, userCollection)
 
   // Check custom resource access for managers (document-level update permission)
   if (!isClient && operation === 'update' && docId) {
@@ -143,20 +138,8 @@ export const hasPermission = ({
     }
   }
 
-  // Check role-based permissions
-  // Type guard: ensure permissions is an object
-  if (
-    !user.permissions ||
-    typeof user.permissions !== 'object' ||
-    Array.isArray(user.permissions)
-  ) {
-    return false
-  }
-
-  // Get collection permissions (cast to PermissionLevel[] since we're accessing a collection, not 'projects')
-  const collectionPerms = (user.permissions as MergedPermissions)[collection] as
-    | PermissionLevel[]
-    | undefined
+  // Get collection permissions from computed permissions object
+  const collectionPerms = permissions[collection] as PermissionLevel[] | undefined
 
   /**
    * IMPLICIT READ ACCESS FOR MANAGERS:
@@ -170,7 +153,7 @@ export const hasPermission = ({
    */
   if (!isClient && !collectionPerms && operation === 'read') {
     // Check if user has any roles at all
-    const hasAnyRoles = Object.keys(user.permissions as MergedPermissions).length > 0
+    const hasAnyRoles = Object.keys(permissions).length > 0
     return hasAnyRoles
   }
 
@@ -250,24 +233,22 @@ export const createLocaleFilter = (user: TypedUser | null, collection: string): 
     return true
   }
 
-  // Ensure permissions are computed and is an object
-  if (
-    !user.permissions ||
-    typeof user.permissions !== 'object' ||
-    Array.isArray(user.permissions)
-  ) {
-    return !isClient // Default: managers get read access, clients don't
-  }
+  // Compute permissions from roles
+  const roleSlugs = extractRoleSlugs(
+    isClient ? (user as TypedClient).roles : (user as TypedManager).roles,
+    'en' as LocaleCode,
+    isClient,
+  )
+  const userCollection = isClient ? 'clients' : 'managers'
+  const permissions = getPermissionsForRoles(roleSlugs, userCollection)
 
-  // Get collection permissions (cast to PermissionLevel[] since we're accessing a collection, not 'projects')
-  const collectionPerms = (user.permissions as MergedPermissions)[collection] as
-    | PermissionLevel[]
-    | undefined
+  // Get collection permissions from computed permissions object
+  const collectionPerms = permissions[collection] as PermissionLevel[] | undefined
 
   // If no permission for this collection
   if (!collectionPerms) {
     // Managers with roles get implicit read access
-    const hasAnyRoles = Object.keys(user.permissions as MergedPermissions).length > 0
+    const hasAnyRoles = Object.keys(permissions).length > 0
     return !isClient && hasAnyRoles
   }
 

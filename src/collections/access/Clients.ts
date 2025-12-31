@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { clientPermissionsFields } from '@/fields'
 import { validateClientData, checkHighUsageAlert } from '@/hooks/clientHooks'
-import { adminOrSelfAccess } from '@/lib/access'
+import { adminOnlyHidden, adminOrSelfAccess } from '@/lib/access'
 
 export const Clients: CollectionConfig = {
   slug: 'clients',
@@ -20,7 +20,7 @@ export const Clients: CollectionConfig = {
     plural: 'Services',
   },
   admin: {
-    hidden: ({ user }) => user?.type !== 'admin',
+    hidden: adminOnlyHidden,
     group: 'Access',
     useAsTitle: 'name',
     defaultColumns: ['name', 'active'],

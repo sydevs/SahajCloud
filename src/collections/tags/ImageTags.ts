@@ -1,15 +1,10 @@
 import type { CollectionConfig } from 'payload'
 
-import { roleBasedAccess } from '@/lib/access'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
-
 export const ImageTags: CollectionConfig = {
   slug: 'image-tags',
-  access: roleBasedAccess('images'),
   admin: {
     group: 'Tags',
     useAsTitle: 'title',
-    hidden: handleProjectVisibility('image-tags', ['wemeditate-web', 'wemeditate-app', 'sahaj-atlas']),
   },
   fields: [
     {

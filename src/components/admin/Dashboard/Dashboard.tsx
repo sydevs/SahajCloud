@@ -1,7 +1,8 @@
-import { ProjectSlug } from '@/lib/projects'
-import { Manager } from '@/payload-types'
-import { MergedPermissions } from '@/types/permissions'
-import { ManagerRole } from '@/types/roles'
+import { MANAGER_ROLE_PROJECTS } from '@/generated/access'
+import type { ManagerRole } from '@/lib/access'
+import type { ProjectSlug } from '@/lib/projects'
+import type { Manager } from '@/payload-types'
+
 
 import DefaultDashboard from './DefaultDashboard'
 import FathomDashboard from './FathomDashboard'
@@ -16,10 +17,43 @@ interface DashboardProps {
     currentProject?: ProjectSlug
     type?: Manager['type']
     roles?: ManagerRole[] | Record<string, ManagerRole[]>
-    permissions?: MergedPermissions
     [key: string]: unknown
   }
   [key: string]: unknown
+}
+
+/**
+ * Extract all unique projects from a user's roles
+ * Handles both flat array and localized object formats
+ */
+function getAllowedProjects(roles?: ManagerRole[] | Record<string, ManagerRole[]>): ProjectSlug[] {
+  if (!roles) return []
+
+  // Collect all role slugs from all locales
+  const allRoleSlugs: ManagerRole[] = []
+
+  if (Array.isArray(roles)) {
+    // Flat array format
+    allRoleSlugs.push(...roles)
+  } else {
+    // Localized object format - collect roles from all locales
+    Object.values(roles).forEach((localeRoles) => {
+      if (Array.isArray(localeRoles)) {
+        allRoleSlugs.push(...localeRoles)
+      }
+    })
+  }
+
+  // Extract unique projects from all roles
+  const projects = new Set<ProjectSlug>()
+  allRoleSlugs.forEach((roleSlug) => {
+    const project = MANAGER_ROLE_PROJECTS[roleSlug] as ProjectSlug | undefined
+    if (project) {
+      projects.add(project)
+    }
+  })
+
+  return Array.from(projects)
 }
 
 /**
@@ -52,7 +86,7 @@ export default function Dashboard(props: DashboardProps) {
 
     // Case 3: Regular managers - show project selector
     // ProjectProvider handles auto-selection for single-project managers
-    const allowedProjects = user?.permissions?.projects || []
+    const allowedProjects = getAllowedProjects(user?.roles)
     return <ProjectSelectionPrompt allowedProjects={allowedProjects} />
   }
 

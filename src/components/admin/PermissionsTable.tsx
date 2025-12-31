@@ -6,10 +6,10 @@ import { Pill, useDocumentInfo, useField } from '@payloadcms/ui'
 import { PillProps } from '@payloadcms/ui/elements/Pill'
 import React, { useMemo } from 'react'
 
-import { MANAGER_ROLES, mergeRolePermissions } from '@/fields/permissionsField'
-import { getProjectLabel, getProjectIcon } from '@/lib/projects'
+import { getPermissionsForRoles, MANAGER_ROLE_PROJECTS } from '@/generated/access'
+import type { ClientRole, ManagerRole, PermissionLevel } from '@/lib/access'
 import type { ProjectSlug } from '@/lib/projects'
-import type { ManagerRole, ClientRole, PermissionLevel } from '@/types/roles'
+import { getProjectIcon, getProjectLabel } from '@/lib/projects'
 
 /**
  * PermissionsTable Component
@@ -34,8 +34,8 @@ export const PermissionsTable: FieldClientComponent = () => {
       return { permissions: {}, projects: [] }
     }
 
-    const collection = isClient ? 'clients' : 'managers'
-    const permissions = mergeRolePermissions(roles, collection)
+    const collectionType = isClient ? 'clients' : 'managers'
+    const permissions = getPermissionsForRoles(roles, collectionType)
 
     // Compute projects for managers only
     const projects = isClient
@@ -43,7 +43,7 @@ export const PermissionsTable: FieldClientComponent = () => {
       : [
           ...new Set(
             roles
-              .map((roleSlug) => MANAGER_ROLES[roleSlug as ManagerRole]?.project)
+              .map((roleSlug) => MANAGER_ROLE_PROJECTS[roleSlug])
               .filter((project): project is ProjectSlug => project !== undefined),
           ),
         ]

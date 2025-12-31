@@ -1,9 +1,10 @@
-import type { ManagerRole } from '../../src/types/roles'
 import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { mergeRolePermissions } from '../../src/fields/PermissionsField'
+import type { ManagerRole } from '../../src/lib/access'
+
+import { getPermissionsForRoles } from '../../src/generated/access'
 import { hasPermission } from '../../src/lib/access'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -42,25 +43,22 @@ describe('Role-Based Access Control', () => {
     })
 
     it('restricts meditations-editor to specific collections', () => {
+      // Permissions are computed from roles, not explicitly set
       const editorUser = testData.dummyUser('managers', {
         id: 2,
         roles: ['meditations-editor'],
-        permissions: {
-          meditations: ['read', 'create', 'update'],
-          media: ['read', 'create'],
-          'file-attachments': ['read', 'create'],
-        },
       })
 
-      // Should have access to meditations
+      // Should have access to meditations (from role definition)
       expect(
         hasPermission({ user: editorUser, collection: 'meditations', operation: 'create' }),
       ).toBe(true)
-      expect(hasPermission({ user: editorUser, collection: 'media', operation: 'create' })).toBe(
+      // Should have access to images (renamed from 'media')
+      expect(hasPermission({ user: editorUser, collection: 'images', operation: 'create' })).toBe(
         true,
       )
 
-      // Should NOT have access to managers or clients
+      // Should NOT have access to managers or clients (restricted collections)
       expect(hasPermission({ user: editorUser, collection: 'managers', operation: 'read' })).toBe(
         false,
       )
@@ -70,13 +68,10 @@ describe('Role-Based Access Control', () => {
     })
 
     it('restricts translator to translate permission only', () => {
+      // Permissions are computed from roles, not explicitly set
       const translatorUser = testData.dummyUser('managers', {
         id: 3,
         roles: ['translator'],
-        permissions: {
-          pages: ['read', 'translate'],
-          music: ['read', 'translate'],
-        },
       })
 
       // Should have read access
@@ -122,12 +117,10 @@ describe('Role-Based Access Control', () => {
     })
 
     it('blocks API clients from delete operations', () => {
+      // Permissions are computed from roles, not explicitly set
       const clientUser = testData.dummyUser('clients', {
         id: 5,
         roles: ['wemeditate-web'],
-        permissions: {
-          meditations: ['read', 'create', 'update', 'delete'],
-        },
       })
 
       // Read should work
@@ -142,12 +135,10 @@ describe('Role-Based Access Control', () => {
     })
 
     it('grants managers implicit read access with roles', () => {
+      // Permissions are computed from roles, not explicitly set
       const managerUser = testData.dummyUser('managers', {
         id: 6,
         roles: ['translator'],
-        permissions: {
-          pages: ['read', 'translate'],
-        },
       })
 
       // Should have implicit read access to non-restricted collections
@@ -157,12 +148,10 @@ describe('Role-Based Access Control', () => {
     })
 
     it('blocks access to restricted collections for non-admins', () => {
+      // Permissions are computed from roles, not explicitly set
       const editorUser = testData.dummyUser('managers', {
         id: 7,
         roles: ['meditations-editor'],
-        permissions: {
-          meditations: ['read', 'create', 'update'],
-        },
       })
 
       // Should be blocked from restricted collections (managers, clients, payload-jobs)
@@ -318,26 +307,23 @@ describe('Role-Based Access Control', () => {
       }
 
       // English locale permissions
-      const enPermissions = mergeRolePermissions(managerData.roles.en as ManagerRole[], 'managers')
+      const enPermissions = getPermissionsForRoles(managerData.roles.en as ManagerRole[], 'managers')
       expect(enPermissions.meditations).toBeDefined()
       expect(enPermissions.meditations).toContain('create')
       expect(enPermissions.pages).toBeUndefined() // No translator role in English
 
       // Czech locale permissions
-      const csPermissions = mergeRolePermissions(managerData.roles.cs as ManagerRole[], 'managers')
+      const csPermissions = getPermissionsForRoles(managerData.roles.cs as ManagerRole[], 'managers')
       expect(csPermissions.pages).toBeDefined()
       expect(csPermissions.pages).toContain('translate')
       expect(csPermissions.meditations).toBeUndefined() // No meditations-editor role in Czech
     })
 
     it('grants implicit read based on roles in current locale', () => {
+      // Permissions are computed from roles, not explicitly set
       const managerUser = testData.dummyUser('managers', {
         id: 10,
         roles: ['translator'], // Has roles in current locale
-        permissions: {
-          pages: ['read', 'translate'],
-          music: ['read', 'translate'],
-        },
       })
 
       // Should have implicit read access to narrators
@@ -347,10 +333,10 @@ describe('Role-Based Access Control', () => {
     })
 
     it('denies implicit read when no roles in current locale', () => {
+      // Empty roles = no permissions computed
       const managerUser = testData.dummyUser('managers', {
         id: 11,
         roles: [], // No roles in current locale
-        permissions: {},
       })
 
       // Should NOT have implicit read access
@@ -362,12 +348,10 @@ describe('Role-Based Access Control', () => {
 
   describe('Implicit Read Access', () => {
     it('grants read to all non-restricted collections for managers with roles', () => {
+      // Permissions are computed from roles, not explicitly set
       const managerUser = testData.dummyUser('managers', {
         id: 12,
         roles: ['translator'],
-        permissions: {
-          pages: ['read', 'translate'],
-        },
       })
 
       // Should have implicit read to various collections
@@ -387,12 +371,10 @@ describe('Role-Based Access Control', () => {
     })
 
     it('blocks read to restricted collections even with implicit access', () => {
+      // Permissions are computed from roles, not explicitly set
       const managerUser = testData.dummyUser('managers', {
         id: 13,
         roles: ['translator'],
-        permissions: {
-          pages: ['read', 'translate'],
-        },
       })
 
       // Restricted collections should be blocked
@@ -404,13 +386,10 @@ describe('Role-Based Access Control', () => {
     })
 
     it('does not grant implicit read to API clients', () => {
+      // Permissions are computed from roles, not explicitly set
       const clientUser = testData.dummyUser('clients', {
         id: 14,
         roles: ['wemeditate-web'],
-        permissions: {
-          meditations: ['read'],
-          pages: ['read'],
-        },
       })
 
       // Should NOT have access to collections not in permissions
@@ -422,10 +401,10 @@ describe('Role-Based Access Control', () => {
 
   describe('Concurrent Permission Checks', () => {
     it('handles concurrent permission checks without race conditions', async () => {
+      // Permissions are computed from roles dynamically
       const managerUser = testData.dummyUser('managers', {
         id: 17,
         roles: ['meditations-editor', 'translator'],
-        permissions: undefined, // Let permissions be computed dynamically
       })
 
       // Simulate concurrent permission checks
@@ -462,9 +441,9 @@ describe('Role-Based Access Control', () => {
         roles: ['translator'],
       }
 
-      // Simulate multiple concurrent mergeRolePermissions calls
+      // Simulate multiple concurrent getPermissionsForRoles calls
       const computations = Array.from({ length: 10 }, () =>
-        mergeRolePermissions(managerData.roles as ManagerRole[], 'managers'),
+        getPermissionsForRoles(managerData.roles as ManagerRole[], 'managers'),
       )
 
       // All should produce identical results

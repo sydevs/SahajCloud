@@ -1,14 +1,9 @@
 import type { GlobalConfig } from 'payload'
 
-import { roleBasedAccess } from '@/lib/access'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
-
 export const WeMeditateAppSettings: GlobalConfig = {
   slug: 'we-meditate-app-settings',
-  access: roleBasedAccess('we-meditate-app-settings'),
   admin: {
     group: 'System',
-    hidden: handleProjectVisibility('we-meditate-app-settings', ['wemeditate-app'], { excludeFromAdminView: true }),
   },
   label: 'WeMeditate App',
   fields: [

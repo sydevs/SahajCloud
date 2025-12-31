@@ -1,17 +1,13 @@
 import type { CollectionConfig } from 'payload'
 
 import { slugField } from '@/fields'
-import { roleBasedAccess } from '@/lib/access'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
 
 export const Authors: CollectionConfig = {
   slug: 'authors',
-  access: roleBasedAccess('pages'),
   admin: {
     group: 'Resources',
     useAsTitle: 'name',
     defaultColumns: ['name', 'title', 'countryCode'],
-    hidden: handleProjectVisibility('authors', ['wemeditate-web']),
   },
   fields: [
     // Slug auto-generated from name

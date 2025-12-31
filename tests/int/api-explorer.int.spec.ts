@@ -30,7 +30,7 @@ import {
 } from '../../src/lib/openapi/specFilter'
 import { isValidProject } from '../../src/lib/projects'
 import { scalarPlugin } from '../../src/lib/openapi/scalarPlugin'
-import { CLIENT_ROLES } from '../../src/fields/permissionsField'
+import { CLIENT_PERMISSIONS } from '../../src/generated/access'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -427,8 +427,8 @@ describe('OpenAPI Spec Marker Utility', () => {
       // Pages should be hidden (wemeditate-app does NOT have pages permission)
       expect(result.paths!['/api/pages']!.get!['x-internal']).toBe(true)
 
-      // Albums should be hidden (wemeditate-app does NOT have albums permission)
-      expect(result.paths!['/api/albums']!.get!['x-internal']).toBe(true)
+      // Albums should be visible (wemeditate-app HAS albums permission)
+      expect(result.paths!['/api/albums']!.get!['x-internal']).toBeUndefined()
     })
 
     it('filters to sahaj-atlas collections when project is specified', () => {
@@ -482,10 +482,10 @@ describe('Project Filtering Utilities', () => {
       expect(collections).toContain('lessons')
       expect(collections).toContain('lectures')
       expect(collections).toContain('music')
+      expect(collections).toContain('albums')
 
-      // Should NOT contain pages or albums
+      // Should NOT contain pages
       expect(collections).not.toContain('pages')
-      expect(collections).not.toContain('albums')
     })
 
     it('returns correct collections for sahaj-atlas project', () => {
@@ -536,14 +536,14 @@ describe('Project Filtering Utilities', () => {
   })
 })
 
-describe('CLIENT_ROLES includes albums for wemeditate-web', () => {
+describe('CLIENT_PERMISSIONS includes albums', () => {
   it('wemeditate-web project has albums permission', () => {
-    const webProject = CLIENT_ROLES['wemeditate-web']
-    expect(webProject.permissions.albums).toEqual(['read'])
+    const webPermissions = CLIENT_PERMISSIONS['wemeditate-web']
+    expect(webPermissions.albums).toEqual(['read'])
   })
 
-  it('wemeditate-app project does NOT have albums permission', () => {
-    const appProject = CLIENT_ROLES['wemeditate-app']
-    expect(appProject.permissions.albums).toBeUndefined()
+  it('wemeditate-app project has albums permission', () => {
+    const appPermissions = CLIENT_PERMISSIONS['wemeditate-app']
+    expect(appPermissions.albums).toEqual(['read'])
   })
 })

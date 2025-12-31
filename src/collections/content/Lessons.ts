@@ -3,13 +3,12 @@ import type { CollectionConfig } from 'payload'
 import { TextStoryBlock, VideoStoryBlock, CoverStoryBlock } from '@/blocks/lessons'
 import { QuoteBlock } from '@/blocks/pages'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { roleBasedAccess, createFieldAccess } from '@/lib/access'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
+import { createFieldAccess } from '@/lib/access'
 import { fullRichTextEditor } from '@/lib/richEditor'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
-  access: roleBasedAccess('lessons'),
+  // access and admin.hidden are applied by accessPlugin
   trash: true,
   defaultSort: ['unit', 'step'],
   labels: {
@@ -22,7 +21,6 @@ export const Lessons: CollectionConfig = {
     defaultColumns: ['title', 'step'],
     groupBy: true,
     listSearchableFields: ['title'],
-    hidden: handleProjectVisibility('lessons', ['wemeditate-app']),
   },
   // versions: {
   //   maxPerDoc: 20,

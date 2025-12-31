@@ -5,13 +5,12 @@
  * in the locale selector based on the authenticated user's roles.
  */
 
+import type { TypedManager } from './types'
 import type { Locale, PayloadRequest } from 'payload'
 
 import type { LocaleCode } from '@/lib/locales'
-import type { ManagerRole } from '@/types/roles'
-import type { TypedManager } from '@/types/users'
 
-import { isAPIClient } from './accessControl'
+import { isAPIClient } from './permissions'
 
 type FilterAvailableLocalesArgs = {
   locales: Locale[]
@@ -52,7 +51,7 @@ export const filterAvailableLocales = ({
   if (manager.type === 'admin') return locales
 
   // Regular managers - English + locales with roles
-  const roles = manager.roles as Record<LocaleCode, ManagerRole[]> | undefined
+  const roles = manager.roles as Record<LocaleCode, string[]> | undefined
 
   // If roles is not a localized object, return only English
   if (!roles || typeof roles !== 'object' || Array.isArray(roles)) {

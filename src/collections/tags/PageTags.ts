@@ -2,12 +2,9 @@ import type { CollectionConfig } from 'payload'
 
 import { slugField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { roleBasedAccess } from '@/lib/access'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
 
 export const PageTags: CollectionConfig = {
   slug: 'page-tags',
-  access: roleBasedAccess('pages'),
   labels: {
     singular: 'Page Category',
     plural: 'Page Categories',
@@ -15,7 +12,6 @@ export const PageTags: CollectionConfig = {
   admin: {
     group: 'Tags',
     useAsTitle: 'title',
-    hidden: handleProjectVisibility('page-tags', ['wemeditate-web']),
   },
   hooks: {
     afterRead: [trackClientUsageHook],

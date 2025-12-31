@@ -11,7 +11,7 @@
  * 2. Client role filtering - Content collections filtered by CLIENT_ROLES permissions
  */
 
-import { CLIENT_ROLES } from '@/fields/permissionsField'
+import { CLIENT_PERMISSIONS } from '@/generated/access'
 import { type ProjectSlug } from '@/lib/projects'
 
 /**
@@ -21,9 +21,9 @@ import { type ProjectSlug } from '@/lib/projects'
  * @returns Array of collection slugs the role can access
  */
 export function getCollectionsForClientRole(role: ProjectSlug): string[] {
-  const roleConfig = CLIENT_ROLES[role]
-  if (!roleConfig) return []
-  return Object.keys(roleConfig.permissions)
+  const rolePermissions = CLIENT_PERMISSIONS[role]
+  if (!rolePermissions) return []
+  return Object.keys(rolePermissions)
 }
 
 /**
@@ -35,8 +35,8 @@ export function getCollectionsForClientRole(role: ProjectSlug): string[] {
 export function getAllClientRoleCollections(): string[] {
   const allCollections = new Set<string>()
 
-  Object.values(CLIENT_ROLES).forEach((roleConfig) => {
-    Object.keys(roleConfig.permissions).forEach((collection) => {
+  Object.values(CLIENT_PERMISSIONS).forEach((rolePermissions) => {
+    Object.keys(rolePermissions).forEach((collection) => {
       allCollections.add(collection)
     })
   })

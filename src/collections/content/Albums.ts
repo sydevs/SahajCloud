@@ -1,8 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { roleBasedAccess, createFieldAccess } from '@/lib/access'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
+import { createFieldAccess } from '@/lib/access'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const Albums: CollectionConfig = {
@@ -11,7 +10,6 @@ export const Albums: CollectionConfig = {
     singular: 'Album',
     plural: 'Albums',
   },
-  access: roleBasedAccess('music'), // Shares permissions with Music collection
   trash: true,
   disableDuplicate: true,
   upload: {
@@ -24,7 +22,6 @@ export const Albums: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'artist', 'filename'],
-    hidden: handleProjectVisibility('music', ['wemeditate-web', 'wemeditate-app']),
   },
   hooks: {
     afterRead: [trackClientUsageHook],

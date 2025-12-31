@@ -2,8 +2,6 @@ import type { CollectionConfig } from 'payload'
 
 import { colorField, slugField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { roleBasedAccess } from '@/lib/access'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const MeditationTags: CollectionConfig = {
@@ -12,11 +10,9 @@ export const MeditationTags: CollectionConfig = {
     singular: 'Meditation Category',
     plural: 'Meditation Categories',
   },
-  access: roleBasedAccess('meditations'),
   admin: {
     group: 'Tags',
     useAsTitle: 'title',
-    hidden: handleProjectVisibility('meditation-tags', ['wemeditate-web', 'wemeditate-app']),
     defaultColumns: ['title', 'filename', 'color'],
   },
   upload: {

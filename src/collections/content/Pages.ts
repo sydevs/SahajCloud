@@ -9,19 +9,15 @@ import {
   QuoteBlock,
 } from '@/blocks/pages'
 import { slugField } from '@/fields'
-import { roleBasedAccess } from '@/lib/access'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { fullRichTextEditor } from '@/lib/richEditor'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
-  access: roleBasedAccess('pages'),
   trash: true,
   admin: {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', '_status'],
-    hidden: handleProjectVisibility('pages', ['wemeditate-web']),
     livePreview: {
       url: ({ data, locale }) => {
         const baseURL = process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173'

@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { managerPermissionsFields } from '@/fields'
-import { hasPermission, adminOrSelfAccess } from '@/lib/access'
+import { adminOnlyHidden, adminOrSelfAccess } from '@/lib/access'
 import { getProjectOptions } from '@/lib/projects'
 import { getServerUrl } from '@/lib/serverUrl'
 
@@ -52,12 +52,7 @@ export const Managers: CollectionConfig = {
     lockTime: 600 * 1000, // 10 minutes
   },
   admin: {
-    hidden: ({ user }) => {
-      if (!user) return true
-      // Cast to the user type expected by hasPermission
-      const typedUser = user as Parameters<typeof hasPermission>[0]['user']
-      return !hasPermission({ user: typedUser, collection: 'managers', operation: 'read' })
-    },
+    hidden: adminOnlyHidden,
     group: 'Access',
     useAsTitle: 'name',
     defaultColumns: ['name', 'email', 'type', '_verified'],

@@ -10,7 +10,7 @@
 
 import type { Config, Endpoint } from 'payload'
 
-import { CLIENT_ROLES } from '@/fields/permissionsField'
+import { CLIENT_ROLE_OPTIONS } from '@/generated/access'
 import { getProjectLabel, getProjectIcon, type ProjectSlug, isValidProject } from '@/lib/projects'
 
 export interface ScalarPluginOptions {
@@ -120,11 +120,11 @@ function generateThemeCss(theme: ThemeColors | null): string {
 }
 
 /**
- * Generate project selector options from CLIENT_ROLES
+ * Generate project selector options from CLIENT_ROLE_OPTIONS
  */
 function getProjectSelectorOptions(): string {
-  const options = Object.values(CLIENT_ROLES)
-    .map((project) => `<option value="${project.slug}">${project.label}</option>`)
+  const options = CLIENT_ROLE_OPTIONS
+    .map((option) => `<option value="${option.value}">${option.label}</option>`)
     .join('\n          ')
 
   return `<option value="">All Endpoints</option>

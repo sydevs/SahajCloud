@@ -2,7 +2,6 @@ import type { CollectionConfig } from 'payload'
 
 import { detectOrientationHook } from '@/hooks/imageHooks'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { roleBasedAccess } from '@/lib/access'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const Images: CollectionConfig = {
@@ -16,7 +15,6 @@ export const Images: CollectionConfig = {
     useAsTitle: 'filename',
     defaultColumns: ['filename', 'alt', 'credit', 'tags'],
   },
-  access: roleBasedAccess('images'),
   trash: true,
   disableDuplicate: true,
   upload: {

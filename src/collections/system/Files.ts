@@ -1,7 +1,5 @@
 import type { CollectionConfig } from 'payload'
 
-import { roleBasedAccess } from '@/lib/access'
-import { adminOnlyVisibility } from '@/lib/projectVisibility'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const Files: CollectionConfig = {
@@ -10,11 +8,9 @@ export const Files: CollectionConfig = {
     singular: 'File',
     plural: 'Files',
   },
-  access: roleBasedAccess('files'),
   trash: true,
   disableDuplicate: true,
   admin: {
-    hidden: adminOnlyVisibility,
     group: 'System',
     useAsTitle: 'filename',
     description:

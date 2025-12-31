@@ -60,6 +60,21 @@ export type SupportedTimezones =
   | 'Pacific/Noumea'
   | 'Pacific/Auckland'
   | 'Pacific/Fiji';
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ProjectSlug".
+ */
+export type ProjectSlug = 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas';
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ManagerRole".
+ */
+export type ManagerRole = 'meditations-editor' | 'path-editor' | 'translator';
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ClientRole".
+ */
+export type ClientRole = 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas';
 
 export interface Config {
   auth: {
@@ -855,15 +870,6 @@ export interface Manager {
         value: number | Page;
       }[]
     | null;
-  permissions?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -902,15 +908,6 @@ export interface Client {
    * Assign API client roles. Roles apply to all locales.
    */
   roles?: ('wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas')[] | null;
-  permissions?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
   /**
    * Users who can manage this client
    */
@@ -1726,7 +1723,6 @@ export interface ManagersSelect<T extends boolean = true> {
   type?: T;
   roles?: T;
   customResourceAccess?: T;
-  permissions?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -1754,7 +1750,6 @@ export interface ClientsSelect<T extends boolean = true> {
   name?: T;
   notes?: T;
   roles?: T;
-  permissions?: T;
   managers?: T;
   primaryContact?: T;
   domains?: T;
