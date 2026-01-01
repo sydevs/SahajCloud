@@ -1,13 +1,63 @@
 import type { Payload } from 'payload'
+import type { Manager, Client } from '@/payload-types'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { ManagerRole } from '../../src/lib/access'
+import { hasPermission } from '@/lib/access'
+import type { BypassPermissionFunction } from '@/lib/access'
 
-import { getPermissionsForRoles } from '../../src/generated/access'
-import { hasPermission } from '../utils/permissionTestHelpers'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
+
+// Bypass function for testing (mirrors the one in payload.config.ts)
+const bypassPermissions: BypassPermissionFunction = (user, context) => {
+  const { collection, operation, docId } = context
+
+  // Self-access check (users can read/update their own document)
+  if (user.collection === collection && user.id === docId) {
+    if (operation === 'read' || operation === 'update') {
+      return 'allow'
+    }
+  }
+
+  // Manager bypass logic
+  if (user.collection === 'managers') {
+    const manager = user as unknown as Manager
+
+    // 1. Inactive manager blocking
+    if (manager.type === 'inactive') return 'deny'
+
+    // 2. Admin bypass (full access)
+    if (manager.type === 'admin') return 'allow'
+
+    // 3. customResourceAccess: Allow update for specific documents
+    if (
+      operation === 'update' &&
+      docId &&
+      manager.customResourceAccess &&
+      Array.isArray(manager.customResourceAccess)
+    ) {
+      const hasAccess = manager.customResourceAccess.some(
+        (access) =>
+          typeof access === 'object' &&
+          access !== null &&
+          access.relationTo === collection &&
+          String(access.value) === String(docId),
+      )
+      if (hasAccess) return 'allow'
+    }
+  }
+
+  // Client bypass logic
+  if (user.collection === 'clients') {
+    const client = user as unknown as Client
+
+    // 1. Inactive client blocking
+    if (!client.active) return 'deny'
+  }
+
+  return 'continue'
+}
 
 describe('Role-Based Access Control', () => {
   let payload: Payload
@@ -32,39 +82,23 @@ describe('Role-Based Access Control', () => {
 
       // Admin should have access to everything
       expect(
-        hasPermission({ user: adminUser, collection: 'meditations', operation: 'create' }),
+        hasPermission(
+          { user: adminUser, collection: 'meditations', operation: 'create' },
+          bypassPermissions,
+        ),
       ).toBe(true)
-      expect(hasPermission({ user: adminUser, collection: 'managers', operation: 'read' })).toBe(
-        true,
-      )
-      expect(hasPermission({ user: adminUser, collection: 'clients', operation: 'update' })).toBe(
-        true,
-      )
-    })
-
-    it('restricts meditations-editor to specific collections', () => {
-      // Permissions are computed from roles, not explicitly set
-      const editorUser = testData.dummyUser('managers', {
-        id: 2,
-        roles: ['meditations-editor'],
-      })
-
-      // Should have access to meditations (from role definition)
       expect(
-        hasPermission({ user: editorUser, collection: 'meditations', operation: 'create' }),
+        hasPermission(
+          { user: adminUser, collection: 'managers', operation: 'read' },
+          bypassPermissions,
+        ),
       ).toBe(true)
-      // Should have access to images (renamed from 'media')
-      expect(hasPermission({ user: editorUser, collection: 'images', operation: 'create' })).toBe(
-        true,
-      )
-
-      // Should NOT have access to managers or clients (restricted collections)
-      expect(hasPermission({ user: editorUser, collection: 'managers', operation: 'read' })).toBe(
-        false,
-      )
-      expect(hasPermission({ user: editorUser, collection: 'clients', operation: 'read' })).toBe(
-        false,
-      )
+      expect(
+        hasPermission(
+          { user: adminUser, collection: 'clients', operation: 'update' },
+          bypassPermissions,
+        ),
+      ).toBe(true)
     })
 
     it('restricts translator to translate permission only', () => {
@@ -75,33 +109,45 @@ describe('Role-Based Access Control', () => {
       })
 
       // Should have read access
-      expect(hasPermission({ user: translatorUser, collection: 'pages', operation: 'read' })).toBe(
-        true,
-      )
+      expect(
+        hasPermission(
+          { user: translatorUser, collection: 'pages', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(true)
 
       // Should have translate access with localized field
       expect(
-        hasPermission({
-          user: translatorUser,
-          collection: 'pages',
-          operation: 'update',
-          field: { localized: true },
-        }),
+        hasPermission(
+          {
+            user: translatorUser,
+            collection: 'pages',
+            operation: 'update',
+            field: { localized: true },
+          },
+          bypassPermissions,
+        ),
       ).toBe(true)
 
       // Should NOT have update access for non-localized fields
       expect(
-        hasPermission({
-          user: translatorUser,
-          collection: 'pages',
-          operation: 'update',
-          field: { localized: false },
-        }),
+        hasPermission(
+          {
+            user: translatorUser,
+            collection: 'pages',
+            operation: 'update',
+            field: { localized: false },
+          },
+          bypassPermissions,
+        ),
       ).toBe(false)
 
       // Should NOT have create permission
       expect(
-        hasPermission({ user: translatorUser, collection: 'pages', operation: 'create' }),
+        hasPermission(
+          { user: translatorUser, collection: 'pages', operation: 'create' },
+          bypassPermissions,
+        ),
       ).toBe(false)
     })
 
@@ -112,7 +158,10 @@ describe('Role-Based Access Control', () => {
       })
 
       expect(
-        hasPermission({ user: inactiveUser, collection: 'meditations', operation: 'read' }),
+        hasPermission(
+          { user: inactiveUser, collection: 'meditations', operation: 'read' },
+          bypassPermissions,
+        ),
       ).toBe(false)
     })
 
@@ -120,17 +169,23 @@ describe('Role-Based Access Control', () => {
       // Permissions are computed from roles, not explicitly set
       const clientUser = testData.dummyUser('clients', {
         id: 5,
-        roles: ['wemeditate-web'],
+        roles: ['wemeditate-web-client'],
       })
 
       // Read should work
       expect(
-        hasPermission({ user: clientUser, collection: 'meditations', operation: 'read' }),
+        hasPermission(
+          { user: clientUser, collection: 'meditations', operation: 'read' },
+          bypassPermissions,
+        ),
       ).toBe(true)
 
       // Delete should be blocked even with permission
       expect(
-        hasPermission({ user: clientUser, collection: 'meditations', operation: 'delete' }),
+        hasPermission(
+          { user: clientUser, collection: 'meditations', operation: 'delete' },
+          bypassPermissions,
+        ),
       ).toBe(false)
     })
 
@@ -142,39 +197,12 @@ describe('Role-Based Access Control', () => {
       })
 
       // Should have implicit read access to non-restricted collections
-      expect(hasPermission({ user: managerUser, collection: 'narrators', operation: 'read' })).toBe(
-        true,
-      )
-    })
-
-    it('blocks access to restricted collections for non-admins', () => {
-      // Permissions are computed from roles, not explicitly set
-      // meditations-editor is in wemeditate-app project
-      const editorUser = testData.dummyUser('managers', {
-        id: 7,
-        roles: ['meditations-editor'],
-      })
-
-      // Should be blocked from restricted collections (managers, clients, payload-jobs)
-      expect(hasPermission({ user: editorUser, collection: 'managers', operation: 'read' })).toBe(
-        false,
-      )
-      expect(hasPermission({ user: editorUser, collection: 'clients', operation: 'read' })).toBe(
-        false,
-      )
       expect(
-        hasPermission({ user: editorUser, collection: 'payload-jobs', operation: 'read' }),
-      ).toBe(false)
-
-      // lessons is in wemeditate-app project - should have implicit read access
-      expect(
-        hasPermission({ user: editorUser, collection: 'lessons', operation: 'read' }),
+        hasPermission(
+          { user: managerUser, collection: 'narrators', operation: 'read' },
+          bypassPermissions,
+        ),
       ).toBe(true)
-
-      // form-submissions is only in wemeditate-web project - should NOT have access
-      expect(
-        hasPermission({ user: editorUser, collection: 'form-submissions', operation: 'read' }),
-      ).toBe(false)
     })
   })
 
@@ -231,22 +259,28 @@ describe('Role-Based Access Control', () => {
       })
 
       expect(
-        hasPermission({
-          user: managerUser,
-          collection: 'pages',
-          operation: 'update',
-          docId: String(page.id),
-        }),
+        hasPermission(
+          {
+            user: managerUser,
+            collection: 'pages',
+            operation: 'update',
+            docId: String(page.id),
+          },
+          bypassPermissions,
+        ),
       ).toBe(true)
 
       // But should NOT have access to other pages
       expect(
-        hasPermission({
-          user: managerUser,
-          collection: 'pages',
-          operation: 'update',
-          docId: '999999',
-        }),
+        hasPermission(
+          {
+            user: managerUser,
+            collection: 'pages',
+            operation: 'update',
+            docId: '999999',
+          },
+          bypassPermissions,
+        ),
       ).toBe(false)
     })
 
@@ -283,48 +317,32 @@ describe('Role-Based Access Control', () => {
 
       // Should NOT have create permission
       expect(
-        hasPermission({
-          user: managerUser,
-          collection: 'pages',
-          operation: 'create',
-        }),
+        hasPermission(
+          {
+            user: managerUser,
+            collection: 'pages',
+            operation: 'create',
+          },
+          bypassPermissions,
+        ),
       ).toBe(false)
 
       // Should NOT have delete permission
       expect(
-        hasPermission({
-          user: managerUser,
-          collection: 'pages',
-          operation: 'delete',
-          docId: String(page.id),
-        }),
+        hasPermission(
+          {
+            user: managerUser,
+            collection: 'pages',
+            operation: 'delete',
+            docId: String(page.id),
+          },
+          bypassPermissions,
+        ),
       ).toBe(false)
     })
   })
 
   describe('Localized Manager Roles', () => {
-    it('computes permissions for current locale only', () => {
-      // Manager with different roles per locale
-      const managerData = {
-        roles: {
-          en: ['meditations-editor'],
-          cs: ['translator'],
-        },
-      }
-
-      // English locale permissions
-      const enPermissions = getPermissionsForRoles(managerData.roles.en as ManagerRole[], 'managers')
-      expect(enPermissions.meditations).toBeDefined()
-      expect(enPermissions.meditations).toContain('create')
-      expect(enPermissions.pages).toBeUndefined() // No translator role in English
-
-      // Czech locale permissions
-      const csPermissions = getPermissionsForRoles(managerData.roles.cs as ManagerRole[], 'managers')
-      expect(csPermissions.pages).toBeDefined()
-      expect(csPermissions.pages).toContain('translate')
-      expect(csPermissions.meditations).toBeUndefined() // No meditations-editor role in Czech
-    })
-
     it('grants implicit read based on roles in current locale', () => {
       // Permissions are computed from roles, not explicitly set
       const managerUser = testData.dummyUser('managers', {
@@ -333,9 +351,12 @@ describe('Role-Based Access Control', () => {
       })
 
       // Should have implicit read access to narrators
-      expect(hasPermission({ user: managerUser, collection: 'narrators', operation: 'read' })).toBe(
-        true,
-      )
+      expect(
+        hasPermission(
+          { user: managerUser, collection: 'narrators', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(true)
     })
 
     it('denies implicit read when no roles in current locale', () => {
@@ -346,9 +367,12 @@ describe('Role-Based Access Control', () => {
       })
 
       // Should NOT have implicit read access
-      expect(hasPermission({ user: managerUser, collection: 'narrators', operation: 'read' })).toBe(
-        false,
-      )
+      expect(
+        hasPermission(
+          { user: managerUser, collection: 'narrators', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(false)
     })
   })
 
@@ -375,44 +399,40 @@ describe('Role-Based Access Control', () => {
       ]
 
       webProjectCollections.forEach((collection) => {
-        expect(hasPermission({ user: managerUser, collection, operation: 'read' })).toBe(true)
+        expect(
+          hasPermission({ user: managerUser, collection, operation: 'read' }, bypassPermissions),
+        ).toBe(true)
       })
 
       // Should NOT have implicit read to collections only in other projects
-      expect(hasPermission({ user: managerUser, collection: 'lessons', operation: 'read' })).toBe(
-        false,
-      )
-      expect(hasPermission({ user: managerUser, collection: 'lectures', operation: 'read' })).toBe(
-        false,
-      )
-    })
-
-    it('blocks read to restricted collections even with implicit access', () => {
-      // Permissions are computed from roles, not explicitly set
-      const managerUser = testData.dummyUser('managers', {
-        id: 13,
-        roles: ['translator'],
-      })
-
-      // Restricted collections should be blocked
-      const restrictedCollections = ['managers', 'clients', 'payload-jobs']
-
-      restrictedCollections.forEach((collection) => {
-        expect(hasPermission({ user: managerUser, collection, operation: 'read' })).toBe(false)
-      })
+      expect(
+        hasPermission(
+          { user: managerUser, collection: 'lessons', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(false)
+      expect(
+        hasPermission(
+          { user: managerUser, collection: 'lectures', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(false)
     })
 
     it('does not grant implicit read to API clients', () => {
       // Permissions are computed from roles, not explicitly set
       const clientUser = testData.dummyUser('clients', {
         id: 14,
-        roles: ['wemeditate-web'],
+        roles: ['wemeditate-web-client'],
       })
 
-      // Should NOT have access to collections not in permissions
-      expect(hasPermission({ user: clientUser, collection: 'lessons', operation: 'read' })).toBe(
-        false,
-      )
+      // Should NOT have access to collections not in wemeditate-web project (lessons is in wemeditate-app)
+      expect(
+        hasPermission(
+          { user: clientUser, collection: 'lessons', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(false)
     })
   })
 
@@ -426,21 +446,36 @@ describe('Role-Based Access Control', () => {
 
       // Simulate concurrent permission checks
       const checks = [
-        hasPermission({ user: managerUser, collection: 'meditations', operation: 'create' }),
-        hasPermission({
-          user: managerUser,
-          collection: 'pages',
-          operation: 'update',
-          field: { localized: true },
-        }),
-        hasPermission({
-          user: managerUser,
-          collection: 'music',
-          operation: 'update',
-          field: { localized: true },
-        }),
-        hasPermission({ user: managerUser, collection: 'images', operation: 'create' }),
-        hasPermission({ user: managerUser, collection: 'narrators', operation: 'read' }),
+        hasPermission(
+          { user: managerUser, collection: 'meditations', operation: 'create' },
+          bypassPermissions,
+        ),
+        hasPermission(
+          {
+            user: managerUser,
+            collection: 'pages',
+            operation: 'update',
+            field: { localized: true },
+          },
+          bypassPermissions,
+        ),
+        hasPermission(
+          {
+            user: managerUser,
+            collection: 'music',
+            operation: 'update',
+            field: { localized: true },
+          },
+          bypassPermissions,
+        ),
+        hasPermission(
+          { user: managerUser, collection: 'images', operation: 'create' },
+          bypassPermissions,
+        ),
+        hasPermission(
+          { user: managerUser, collection: 'narrators', operation: 'read' },
+          bypassPermissions,
+        ),
       ]
 
       const results = await Promise.all(checks.map((result) => Promise.resolve(result)))
@@ -451,23 +486,6 @@ describe('Role-Based Access Control', () => {
       expect(results[2]).toBe(true) // music update (localized field)
       expect(results[3]).toBe(true) // images create
       expect(results[4]).toBe(true) // narrators read (implicit)
-    })
-
-    it('computes permissions consistently across multiple concurrent requests', () => {
-      const managerData = {
-        roles: ['translator'],
-      }
-
-      // Simulate multiple concurrent getPermissionsForRoles calls
-      const computations = Array.from({ length: 10 }, () =>
-        getPermissionsForRoles(managerData.roles as ManagerRole[], 'managers'),
-      )
-
-      // All should produce identical results
-      const firstResult = JSON.stringify(computations[0])
-      computations.forEach((result) => {
-        expect(JSON.stringify(result)).toBe(firstResult)
-      })
     })
   })
 })

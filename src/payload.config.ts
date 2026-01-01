@@ -12,13 +12,13 @@ import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 import { GetPlatformProxyOptions } from 'wrangler'
 
-import { accessPluginConfig } from '@/config/accessConfig'
 import { accessPlugin, filterAvailableLocales } from '@/lib/access'
 import { resendAdapter } from '@/lib/email/resendAdapter'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { scalarPlugin } from '@/lib/openapi'
 import { sentryPlugin } from '@/lib/sentryPlugin'
 import { getServerUrl } from '@/lib/serverUrl'
+import type { Client, Manager } from '@/payload-types'
 
 import { collections, Managers } from './collections'
 import { globals } from './globals'
@@ -133,19 +133,6 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           queue: 'nightly',
         },
       ],
-      jobsCollectionOverrides: ({ defaultJobsCollection }) => {
-        if (!defaultJobsCollection.admin) {
-          defaultJobsCollection.admin = {}
-        }
-
-        // Only visible in all-content mode for admins
-        // Access control is handled by accessPlugin (payload-jobs is a RESTRICTED_COLLECTION)
-        defaultJobsCollection.admin.hidden = ({ user }) => {
-          const currentProject = user?.currentProject
-          return currentProject !== 'all-content' || user?.type !== 'admin'
-        }
-        return defaultJobsCollection
-      },
     },
     // Email configuration
     // - Test/Import/E2E: Disabled to avoid model conflicts and external service dependencies
@@ -163,76 +150,114 @@ const payloadConfig = (overrides?: Partial<Config>) => {
               }),
         }),
     // Plugins configuration
-    // - E2E Tests: Skip Cloudflare-specific plugins (Sentry, Storage) as they require Cloudflare bindings
-    // - All other environments: Full plugin suite
-    plugins: isE2ETest
-      ? [
-          // Only include plugins that don't require Cloudflare bindings for E2E tests
-          // Note: openapi/swaggerUI plugins excluded - not needed for E2E testing
-          seoPlugin({
-            collections: ['pages'],
-            uploadsCollection: 'images',
-            generateTitle: ({ doc }) => `We Meditate — ${doc.title}`,
-            generateDescription: ({ doc }) => doc.content,
-            tabbedUI: true,
-          }),
-          formBuilderPlugin({
-            defaultToEmail: 'contact@sydevelopers.com',
-            formOverrides: {
-              admin: { group: 'Resources' },
-            },
-            formSubmissionOverrides: {
-              admin: { group: 'System' },
-            },
-          }),
-          // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
-          accessPlugin(accessPluginConfig),
-        ]
-      : [
-          openapi({
-            openapiVersion: '3.1',
-            specEndpoint: '/openapi-raw.json', // Raw spec, filtered version at /openapi.json
-            metadata: {
-              title: 'Sahaj Cloud API',
-              version: '1.0.0',
-              description: `REST API for Sahaj Cloud CMS - We Meditate content management.`,
-            },
-          }),
-          scalarPlugin({
-            specEndpoint: '/openapi.json', // Uses our filtered spec (not raw)
-            docsUrl: '/docs',
-          }),
-          sentryPlugin({
-            captureErrors: [400, 403, 404], // Capture additional error codes
-            debug: !isProduction,
-            context: ({ defaultContext, req }) => ({
-              ...defaultContext,
-              tags: {
-                ...defaultContext.tags,
-                locale: req.locale,
-              },
-            }),
-          }),
-          storagePlugin(cloudflare.env as Parameters<typeof storagePlugin>[0]), // Cloudflare-native file storage (Images, Stream, R2)
-          seoPlugin({
-            collections: ['pages'],
-            uploadsCollection: 'images', // Changed from 'media' to 'images'
-            generateTitle: ({ doc }) => `We Meditate — ${doc.title}`,
-            generateDescription: ({ doc }) => doc.content,
-            tabbedUI: true,
-          }),
-          formBuilderPlugin({
-            defaultToEmail: 'contact@sydevelopers.com',
-            formOverrides: {
-              admin: { group: 'Resources' },
-            },
-            formSubmissionOverrides: {
-              admin: { group: 'System' },
-            },
-          }),
-          // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
-          accessPlugin(accessPluginConfig),
-        ],
+    // All plugins use `enabled` attribute for conditional loading based on environment
+    plugins: [
+      // OpenAPI spec generation (disabled in E2E tests)
+      openapi({
+        openapiVersion: '3.1',
+        specEndpoint: '/openapi-raw.json', // Raw spec, filtered version at /openapi.json
+        metadata: {
+          title: 'Sahaj Cloud API',
+          version: '1.0.0',
+          description: `REST API for Sahaj Cloud CMS - We Meditate content management.`,
+        },
+        enabled: !isE2ETest, // Skip in E2E tests
+      }),
+      // Scalar API documentation UI (disabled in E2E tests)
+      scalarPlugin({
+        specEndpoint: '/openapi.json', // Uses our filtered spec (not raw)
+        docsUrl: '/docs',
+        enabled: !isE2ETest, // Skip in E2E tests
+      }),
+      // Sentry error tracking (disabled in E2E tests)
+      sentryPlugin({
+        captureErrors: [400, 403, 404], // Capture additional error codes
+        debug: !isProduction,
+        context: ({ defaultContext, req }) => ({
+          ...defaultContext,
+          tags: {
+            ...defaultContext.tags,
+            locale: req.locale,
+          },
+        }),
+        enabled: !isE2ETest, // Skip in E2E tests
+      }),
+      // Cloudflare-native file storage (disabled in E2E tests)
+      storagePlugin({
+        env: cloudflare?.env,
+        enabled: !isE2ETest, // Skip in E2E tests - requires Cloudflare bindings
+      }),
+      // SEO plugin (enabled in all environments)
+      seoPlugin({
+        collections: ['pages'],
+        uploadsCollection: 'images',
+        generateTitle: ({ doc }) => `We Meditate — ${doc.title}`,
+        generateDescription: ({ doc }) => doc.content,
+        tabbedUI: true,
+      }),
+      // Form builder plugin (enabled in all environments)
+      formBuilderPlugin({
+        defaultToEmail: 'contact@sydevelopers.com',
+        formOverrides: {
+          admin: { group: 'Resources' },
+        },
+        formSubmissionOverrides: {
+          admin: { group: 'System' },
+        },
+      }),
+      // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
+      accessPlugin({
+        enabled: true,
+        bypassPermissions: (user, context) => {
+          const { collection, operation, docId } = context
+
+          // Self-access check (users can read/update their own document)
+          if (user.collection === collection && user.id === docId) {
+            if (operation === 'read' || operation === 'update') {
+              return 'allow'
+            }
+          }
+
+          // Manager bypass logic
+          if (user.collection === 'managers') {
+            const manager = user as unknown as Manager
+
+            // 1. Inactive manager blocking
+            if (manager.type === 'inactive') return 'deny'
+
+            // 2. Admin bypass (full access)
+            if (manager.type === 'admin') return 'allow'
+
+            // 3. customResourceAccess: Allow update for specific documents
+            if (
+              operation === 'update' &&
+              docId &&
+              manager.customResourceAccess &&
+              Array.isArray(manager.customResourceAccess)
+            ) {
+              const hasAccess = manager.customResourceAccess.some(
+                (access) =>
+                  typeof access === 'object' &&
+                  access !== null &&
+                  access.relationTo === collection &&
+                  String(access.value) === String(docId),
+              )
+              if (hasAccess) return 'allow'
+            }
+          }
+
+          // Client bypass logic
+          if (user.collection === 'clients') {
+            const client = user as unknown as Client
+
+            // 1. Inactive client blocking
+            if (!client.active) return 'deny'
+          }
+
+          return 'continue'
+        },
+      }),
+    ],
     upload: {
       limits: {
         fileSize: 104857600, // 100MB global limit, written in bytes (collections will have their own limits)

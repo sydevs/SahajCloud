@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { CLIENT_ROLE_OPTIONS } from '@/generated/access'
+import { getRoleOptions } from '@/lib/access'
 import { validateClientData, checkHighUsageAlert } from '@/hooks/clientHooks'
 
 export const Clients: CollectionConfig = {
@@ -46,7 +46,11 @@ export const Clients: CollectionConfig = {
       name: 'roles',
       type: 'select',
       hasMany: true,
-      options: [...CLIENT_ROLE_OPTIONS],
+      options: getRoleOptions([
+        'wemeditate-web-client',
+        'wemeditate-app-client',
+        'sahaj-atlas-client',
+      ]),
       admin: {
         description: 'Assign API client roles. Roles apply to all locales.',
         components: {

@@ -6,7 +6,8 @@ import { useMemo, useState } from 'react'
 
 import { useProject } from '@/contexts/ProjectContext'
 import { clientLogger } from '@/lib/clientLogger'
-import { PROJECTS, ProjectSlug } from '@/lib/projects'
+import { getProjectOptions } from '@/lib/access'
+import type { ProjectSlug } from '@/payload-types'
 
 // Define Option type for ReactSelect
 interface SelectOption {
@@ -34,18 +35,21 @@ const ProjectSelector = () => {
       })
     }
 
+    // Get all project options
+    const allProjects = getProjectOptions()
+
     // Get allowed projects from cached permissions field
     const allowedProjects =
       user?.type === 'admin'
-        ? PROJECTS.map((p) => p.value) // Admins see all projects
+        ? allProjects.map((p) => p.value) // Admins see all projects
         : (user?.permissions?.projects as ProjectSlug[]) || []
 
     // Add projects the user has access to
     allowedProjects.forEach((projectValue) => {
-      const projectConfig = PROJECTS.find((p) => p.value === projectValue)
+      const projectConfig = allProjects.find((p) => p.value === projectValue)
       if (projectConfig) {
         options.push({
-          value: projectConfig.value,
+          value: projectConfig.value as ProjectSlug,
           label: projectConfig.label,
         })
       }

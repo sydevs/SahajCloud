@@ -67,14 +67,15 @@ export type SupportedTimezones =
 export type ProjectSlug = 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas';
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "ManagerRole".
+ * via the `definition` "RoleSlug".
  */
-export type ManagerRole = 'meditations-editor' | 'path-editor' | 'translator';
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "ClientRole".
- */
-export type ClientRole = 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas';
+export type RoleSlug =
+  | 'meditations-editor'
+  | 'path-editor'
+  | 'translator'
+  | 'wemeditate-web-client'
+  | 'wemeditate-app-client'
+  | 'sahaj-atlas-client';
 
 export interface Config {
   auth: {
@@ -907,7 +908,7 @@ export interface Client {
   /**
    * Assign API client roles. Roles apply to all locales.
    */
-  roles?: ('wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas')[] | null;
+  roles?: ('wemeditate-web-client' | 'wemeditate-app-client' | 'sahaj-atlas-client')[] | null;
   /**
    * Users who can manage this client
    */

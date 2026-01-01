@@ -1,141 +1,423 @@
 /**
- * Access Plugin for PayloadCMS
+ * Consolidated Access Plugin for PayloadCMS
  *
- * Consolidates Role-Based Access Control (RBAC) and Project Visibility
- * into a single plugin. Provides:
+ * This file consolidates all access control logic into a single module:
+ * - Permission checking (hasPermission, hasAnyPermission)
+ * - Access config creation (collections, globals, fields)
+ * - Visibility functions (admin.hidden)
+ * - Main plugin export
  *
- * - Pre-computed O(1) permission checking via lookup tables
- * - Automatic access control application to collections
- * - Automatic admin.hidden application based on project config
- * - Automatic field-level access for localized fields
- * - Type generation via typescript.schema
- *
- * @example
- * ```typescript
- * import { accessPlugin } from '@/lib/access'
- *
- * export default buildConfig({
- *   plugins: [
- *     accessPlugin({
- *       projects: { ... },
- *       roles: { managers: { ... }, clients: { ... } },
- *       bypass: { ... },
- *     }),
- *   ],
- * })
- * ```
+ * Simplified architecture with:
+ * - Static functions (no factory pattern)
+ * - Explicit lookup tables from data.ts
+ * - Bypass logic configured in payload.config.ts
  */
 
-import type { AccessPluginOptions } from './types'
-import type { Config, Plugin } from 'payload'
+import type { CollectionSlug, Config } from 'payload'
 
-import { applyLocalizedFieldAccess } from './localizedFields'
-import { buildPermissionLookup, buildProjectLookup } from './lookupTables'
+import type {
+  BypassPermissionFunction,
+  PermissionCheckArgs,
+  PermissionLevel,
+  TypedAuthUser,
+} from './types'
+
 import {
-  createCollectionAccess,
-  createGlobalAccess,
-  createPermissionChecker,
-} from './permissions'
+  getPermissionsForRole,
+  getRoleProject,
+  isCollectionVisibleInProject,
+  isTranslatableCollection,
+} from './config'
 import { createSchemaExtension } from './schemaExtension'
-import { createCollectionHiddenFunction, createGlobalHiddenFunction } from './visibility'
+
+// ============================================================================
+// PLUGIN OPTIONS
+// ============================================================================
+
+export interface AccessPluginOptions {
+  /** Whether to enable the plugin */
+  enabled?: boolean
+  /** Bypass function for custom access logic (inactive users, admins, etc.) */
+  bypassPermissions?: BypassPermissionFunction
+}
+
+// ============================================================================
+// STATIC PERMISSION CHECKER
+// ============================================================================
 
 /**
- * Create the access plugin
+ * Check if a user has permission for an operation
  *
- * @param options - Plugin configuration
- * @returns PayloadCMS plugin
+ * Flow:
+ * 1. Null user → deny
+ * 2. Bypass checks (if provided, includes self-access, inactive, admin) → allow/deny/continue
+ * 3. Implicit read access (project-based, differentiated for managers vs clients)
+ * 4. Extract roles (handles flat and localized)
+ * 5. Check explicit permissions via getPermissionsForRole
+ * 6. Default → deny
+ *
+ * @param args - Permission check arguments
+ * @param bypassFn - Optional bypass function
+ * @returns true if permission granted, false otherwise
  */
-export function accessPlugin(options: AccessPluginOptions): Plugin {
-  // Build lookup tables at plugin load time (once)
-  const permissionLookup = buildPermissionLookup(options.roles, options.projects)
-  const projectLookup = buildProjectLookup(options.projects)
+export function hasPermission(
+  args: PermissionCheckArgs,
+  bypassFn?: BypassPermissionFunction,
+): boolean {
+  const { user, collection, operation, locale, docId, field } = args
 
-  // Create permission checker with lookup tables bound
-  const hasPermission = createPermissionChecker(permissionLookup, options.bypass)
+  // 1. Null user check
+  if (!user) return false
 
-  return (incomingConfig: Config): Config => {
-    const config = { ...incomingConfig }
+  // 2. Bypass checks (if provided)
+  if (bypassFn) {
+    const bypassResult = bypassFn(user as TypedAuthUser, {
+      collection,
+      operation,
+      docId,
+    })
+    if (bypassResult === 'allow') return true
+    if (bypassResult === 'deny') return false
+    // 'continue' - proceed with normal checks
+  }
 
-    // Process collections
-    if (config.collections) {
-      config.collections = config.collections.map((collection) => {
-        const slug = collection.slug
+  // 3. IMPLICIT READ (moved up - early exit for performance)
+  if (operation === 'read') {
+    const roles = extractRoles((user as TypedAuthUser).roles, locale)
+    const userCollection = (user as TypedAuthUser).collection
 
-        // Apply access control, visibility, and field access
-        // Self-access (read/update own document) is built into hasPermission
-        return {
-          ...collection,
-          // Apply role-based access control
-          access: {
-            ...createCollectionAccess(hasPermission, slug),
-            // Preserve any existing access overrides
-            ...collection.access,
-          },
-          admin: {
-            ...collection.admin,
-            // Apply project-based visibility
-            hidden: createCollectionHiddenFunction(projectLookup, hasPermission, slug),
-          },
-          // Apply localized field access
-          fields: applyLocalizedFieldAccess(collection.fields || [], slug, hasPermission),
+    for (const role of roles) {
+      const project = getRoleProject(role)
+
+      // API clients: Only grant implicit read to collections in their project
+      // (no access to shared collections without explicit permissions)
+      if (userCollection === 'clients') {
+        if (project && isCollectionVisibleInProject(collection, project)) {
+          return true
         }
-      })
+        continue
+      }
+
+      // Managers: Use standard visibility check (includes shared collections)
+      if (isCollectionVisibleInProject(collection, project || null)) return true
+    }
+  }
+
+  // 4. Extract roles (only if implicit read failed)
+  const roles = extractRoles((user as TypedAuthUser).roles, locale)
+  if (!roles.length) return false
+
+  // 5. EXPLICIT PERMISSIONS (read directly from ROLES via getPermissionsForRole)
+  for (const role of roles) {
+    const rolePermissions = getPermissionsForRole(role)
+    const permissions = rolePermissions?.[collection] as PermissionLevel[] | undefined
+    if (!permissions) continue
+
+    // Direct operation match
+    if (permissions.includes(operation as PermissionLevel)) return true
+
+    // Translate permission grants update access EXCEPT for non-localized fields
+    // - field.localized === true (localized field) → translate works
+    // - field.localized === false (non-localized field) → translate blocked
+    // - field === undefined (collection-level) → translate works
+    if (
+      operation === 'update' &&
+      field?.localized !== false &&
+      permissions.includes('translate' as PermissionLevel)
+    ) {
+      return true
+    }
+  }
+
+  return false
+}
+
+/**
+ * Extract roles from user object
+ * Handles both flat array (clients) and localized object (managers)
+ *
+ * @param roles - User roles (flat or localized)
+ * @param locale - Current locale for localized roles
+ * @returns Array of role slugs
+ */
+function extractRoles(
+  roles: string[] | Record<string, string[]> | undefined,
+  locale?: string,
+): string[] {
+  if (!roles) return []
+  if (Array.isArray(roles)) return roles
+  return locale ? roles[locale] || [] : []
+}
+
+/**
+ * Check if user has ANY of the specified permissions (OR logic)
+ *
+ * @param args - Permission check arguments without operation
+ * @param bypassFn - Optional bypass function
+ * @returns true if user has at least one of the operations
+ */
+export function hasAnyPermission(
+  args: Omit<PermissionCheckArgs, 'operation'> & { operations: string[] },
+  bypassFn?: BypassPermissionFunction,
+): boolean {
+  const { operations, ...rest } = args
+  return operations.some((operation) =>
+    hasPermission({ ...rest, operation: operation as any }, bypassFn),
+  )
+}
+
+// ============================================================================
+// ACCESS CONFIG HELPERS
+// ============================================================================
+
+/**
+ * Create unified access config for collections, globals, or fields
+ * No wrappers - used directly throughout the plugin
+ *
+ * @param collection - Collection slug
+ * @param operations - Operations to create access handlers for
+ * @param bypassFn - Optional bypass function
+ * @param fieldContext - Optional field context for field-level access
+ * @returns Access config object with specified operations
+ */
+function createAccessConfig(
+  collection: string,
+  operations: Array<'read' | 'create' | 'update' | 'delete'>,
+  bypassFn?: BypassPermissionFunction,
+  fieldContext?: { localized: boolean },
+) {
+  const accessConfig: Record<string, (args: any) => boolean> = {}
+
+  for (const operation of operations) {
+    accessConfig[operation] = ({ req, id }: any) => {
+      const args = {
+        user: req.user,
+        collection,
+        operation,
+        locale: req.locale,
+        ...(id && { docId: id }),
+        ...(fieldContext && { field: fieldContext }),
+      }
+      return hasPermission(args, bypassFn)
+    }
+  }
+
+  return accessConfig
+}
+
+// ============================================================================
+// FIELD ACCESS FOR TRANSLATABLE COLLECTIONS
+// ============================================================================
+
+/**
+ * Apply field-level access control to non-localized fields in translatable collections
+ *
+ * For collections with translate permissions, this restricts access to non-localized fields
+ * so that users with only translate permission cannot modify them.
+ *
+ * Recursively traverses the field tree and applies access control to fields that are:
+ * - NOT localized (localized is false or missing)
+ * - NOT container fields (no 'fields' property)
+ * - NOT ui fields (type !== 'ui')
+ *
+ * Users with explicit update permission will still have access via standard permission checking.
+ *
+ * @param fields - Array of field configurations
+ * @param collection - Collection slug for permission checking
+ * @param bypassFn - Optional bypass function for custom access logic
+ * @returns Modified field configurations with access control
+ */
+function applyFieldAccessForTranslatableCollections(
+  fields: any[],
+  collection: CollectionSlug,
+  bypassFn?: BypassPermissionFunction,
+): any[] {
+  return fields.map((field) => {
+    // Handle tabs field type
+    if (field.type === 'tabs' && 'tabs' in field) {
+      return {
+        ...field,
+        tabs: field.tabs.map((tab: any) => {
+          if ('fields' in tab) {
+            return {
+              ...tab,
+              fields: applyFieldAccessForTranslatableCollections(tab.fields, collection, bypassFn),
+            }
+          }
+          return tab
+        }),
+      }
     }
 
-    // Process globals
-    if (config.globals) {
-      config.globals = config.globals.map((global) => {
-        const slug = global.slug
-
-        return {
-          ...global,
-          // Apply role-based access control
-          access: {
-            ...createGlobalAccess(hasPermission, slug),
-            // Preserve any existing access overrides
-            ...global.access,
-          },
-          admin: {
-            ...global.admin,
-            // Apply project-based visibility
-            hidden: createGlobalHiddenFunction(projectLookup, hasPermission, slug),
-          },
-        }
-      })
+    // Handle fields with nested fields (groups, arrays, rows, collapsibles)
+    if ('fields' in field && Array.isArray(field.fields)) {
+      return {
+        ...field,
+        fields: applyFieldAccessForTranslatableCollections(field.fields, collection, bypassFn),
+      }
     }
 
-    // Add typescript.schema extension for type generation
-    const existingSchema = config.typescript?.schema
-    const schemaArray = existingSchema
-      ? Array.isArray(existingSchema)
-        ? existingSchema
-        : [existingSchema]
-      : []
-
-    config.typescript = {
-      ...config.typescript,
-      schema: [...schemaArray, createSchemaExtension(options)],
+    // Handle blocks field type
+    if (field.type === 'blocks' && 'blocks' in field) {
+      return {
+        ...field,
+        blocks: field.blocks.map((block: any) => ({
+          ...block,
+          fields: applyFieldAccessForTranslatableCollections(block.fields, collection, bypassFn),
+        })),
+      }
     }
 
-    return config
+    // Check if this is an editable field (not a container, not UI)
+    const isEditableField = !('fields' in field) && field.type !== 'ui'
+
+    // Check if field is non-localized
+    const isNonLocalized = !field.localized // missing or false
+
+    // Apply access control to non-localized editable fields without existing access
+    if (isEditableField && isNonLocalized && !field.access) {
+      return {
+        ...field,
+        // Field-level access control with localized: false
+        // This blocks users with only translate permission (see hasPermission logic)
+        access: createAccessConfig(collection, ['read', 'create', 'update', 'delete'], bypassFn, {
+          localized: false,
+        }),
+      }
+    }
+
+    return field
+  })
+}
+
+// ============================================================================
+// VISIBILITY HELPERS
+// ============================================================================
+
+/**
+ * Create unified hidden function for collections and globals
+ * No wrappers - used directly throughout the plugin
+ *
+ * Collection/global is hidden if:
+ * - User has no permission for checkOperations
+ * - User's currentProject doesn't match allowed projects
+ *
+ * @param slug - Collection or global slug
+ * @param checkOperations - Operations to check for visibility
+ * @param bypassFn - Optional bypass function
+ * @returns Hidden function for admin UI
+ */
+function createHidden(slug: CollectionSlug, bypassFn?: BypassPermissionFunction) {
+  return ({ user }: { user: any }) => {
+    if (!user) return true
+
+    // Check if user has any write permission
+    const hasWrite = hasAnyPermission(
+      {
+        user: user as TypedAuthUser,
+        collection: slug,
+        operations: ['create', 'update', 'delete'],
+      },
+      bypassFn,
+    )
+    if (!hasWrite) return true
+
+    // Check project visibility using unified logic
+    return !isCollectionVisibleInProject(slug, user.currentProject)
   }
 }
 
-// Re-export types and utilities for consumers
-export { isAPIClient, createFieldAccess, createPermissionChecker } from './permissions'
-export type {
-  AccessPluginOptions,
-  BypassResult,
-  ClientBypassArgs,
-  ClientBypassFn,
-  ClientRoleConfig,
-  ManagerBypassArgs,
-  ManagerBypassFn,
-  ManagerRoleConfig,
-  PermissionCheckArgs,
-  PermissionLevel,
-  ProjectConfig,
-  TypedClient,
-  TypedManager,
-} from './types'
-export { getManagerRoleSlugs, getClientRoleSlugs, getProjectSlugs, getRoleProject } from './lookupTables'
+// ============================================================================
+// MAIN PLUGIN EXPORT
+// ============================================================================
+
+/**
+ * Access Plugin for PayloadCMS
+ *
+ * Applies role-based access control and project visibility to all collections and globals.
+ *
+ * @param options - Plugin configuration
+ * @returns PayloadCMS plugin
+ *
+ * @example
+ * ```typescript
+ * plugins: [
+ *   accessPlugin({
+ *     enabled: true,
+ *     bypassPermissions: (user, context) => {
+ *       if (user.collection === 'managers') {
+ *         if (user.type === 'inactive') return 'deny'
+ *         if (user.type === 'admin') return 'allow'
+ *       }
+ *       return 'continue'
+ *     },
+ *   }),
+ * ]
+ * ```
+ */
+export function accessPlugin(options: AccessPluginOptions = {}): (config: Config) => Config {
+  const { enabled = true, bypassPermissions } = options
+
+  // If disabled, return no-op
+  if (!enabled) {
+    return (config: Config) => config
+  }
+
+  return (config: Config): Config => {
+    return {
+      ...config,
+
+      // Apply to collections
+      collections: config.collections?.map((collection) => ({
+        ...collection,
+        // Apply role-based access control (preserve existing overrides)
+        access: {
+          ...createAccessConfig(
+            collection.slug,
+            ['read', 'create', 'update', 'delete'],
+            bypassPermissions,
+          ),
+          ...collection.access,
+        },
+        admin: {
+          ...collection.admin,
+          // Apply project-based visibility
+          hidden: createHidden(collection.slug as CollectionSlug, bypassPermissions),
+        },
+        // Only apply field-level access if collection has translate permissions
+        fields: isTranslatableCollection(collection.slug)
+          ? applyFieldAccessForTranslatableCollections(
+              collection.fields || [],
+              collection.slug as CollectionSlug,
+              bypassPermissions,
+            )
+          : collection.fields || [],
+      })),
+
+      // Apply to globals
+      globals: config.globals?.map((global) => ({
+        ...global,
+        // Apply role-based access control (preserve existing overrides)
+        access: {
+          ...createAccessConfig(
+            global.slug as CollectionSlug,
+            ['read', 'update'],
+            bypassPermissions,
+          ),
+          ...global.access,
+        },
+        admin: {
+          ...global.admin,
+          // Apply project-based visibility
+          hidden: createHidden(global.slug as CollectionSlug),
+        },
+      })),
+
+      // Add TypeScript schema extension
+      typescript: {
+        ...config.typescript,
+        schema: [...(config.typescript?.schema || []), createSchemaExtension()],
+      },
+    }
+  }
+}

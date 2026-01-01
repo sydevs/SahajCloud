@@ -1,186 +1,337 @@
 # Role-Based Access Control System
 
-The CMS implements a role-based permission system with predefined roles for Managers and API Clients. Managers can optionally have a global admin flag that bypasses all permissions.
+The CMS implements a unified role-based permission system via the `accessPlugin`. This plugin consolidates RBAC and project visibility with a simplified architecture:
+
+- Static permission checking functions (no factory pattern)
+- Explicit O(1) lookup tables (no runtime derivation)
+- Automatic access control application to all collections
+- Automatic admin.hidden application based on project config
+- Automatic field-level access for localized fields
+- Bypass logic configured in payload.config.ts
+
+## Configuration
+
+Access control configuration is defined in `src/lib/access/config.ts` (single source of truth for projects and roles), while bypass logic is configured in `payload.config.ts`:
+
+**Configuration**: [src/lib/access/config.ts](../../src/lib/access/config.ts) - Projects and role definitions
+**Data Layer**: [src/lib/access/data.ts](../../src/lib/access/data.ts) - Internal lookup tables and public lookup functions
+
+**Plugin Configuration**: [src/payload.config.ts](../../src/payload.config.ts)
+
+```typescript
+import { accessPlugin } from '@/lib/access'
+import type { Client, Manager } from '@/payload-types'
+
+plugins: [
+  accessPlugin({
+    enabled: true,
+    bypassPermissions: (user, context) => {
+      const { collection, operation, docId } = context
+
+      // Manager bypass logic
+      if (user.collection === 'managers') {
+        const manager = user as unknown as Manager
+        if (manager.type === 'inactive') return 'deny'
+        if (manager.type === 'admin') return 'allow'
+        // customResourceAccess check...
+      }
+
+      // Client bypass logic
+      if (user.collection === 'clients') {
+        const client = user as unknown as Client
+        if (!client.active) return 'deny'
+      }
+
+      return 'continue'
+    },
+  }),
+]
+```
 
 ## Manager Roles
 
-### Admin Boolean Field
-- **Purpose**: Global administrative privilege that bypasses all role-based restrictions
-- **Behavior**: When `admin: true`, the roles, customResourceAccess, and permissions fields are hidden in the admin UI
+### Manager Type Field
+- **Purpose**: Controls access level via select field (`inactive` | `manager` | `admin`)
+- **Behavior**: When `type: 'admin'`, the roles and customResourceAccess fields are hidden in the admin UI
 - **Scope**: Admin status applies to all locales (not locale-specific)
 
 ### Available Manager Roles (3 roles)
 1. **meditations-editor**: Can create and edit meditations, upload related media and files
-2. **path-editor**: Can edit lessons and external videos, upload related media and files
-3. **translator**: Can edit localized fields in pages and music (read-only for non-localized fields)
+2. **path-editor**: Can edit lessons and lectures, upload related media and files
+3. **translator**: Can edit localized fields in pages, music, and albums (read-only for non-localized fields)
 
 ### Manager Role Characteristics
 - **Localized**: Roles can be assigned per-locale (e.g., translator for French, meditations-editor for English)
 - **Multiple Roles**: Managers can have multiple roles per locale
-- **Read Access**: All managers have implicit read access to non-restricted collections
-- **Collection Visibility**: Collections only appear in admin UI if the manager has appropriate role permissions
+- **Project-Based Read Access**: Managers get implicit read access to collections in their role's project
+- **Collection Visibility**: Collections only appear in admin UI if the manager has write permissions
 - **Custom Resource Access**: Managers can be granted update access to specific documents (e.g., individual pages)
 
 ## API Client Roles
 
 ### Available Client Roles (3 roles)
-1. **we-meditate-web**: Access for We Meditate web frontend application
-2. **we-meditate-app**: Access for We Meditate mobile application
+1. **wemeditate-web**: Access for We Meditate web frontend application
+2. **wemeditate-app**: Access for We Meditate mobile application
 3. **sahaj-atlas**: Access for Sahaj Atlas application
 
 ### Client Role Characteristics
 - **Not Localized**: Client roles apply to all locales
 - **Read-Only by Default**: Clients primarily have read access to content
-- **Form Submissions**: Clients can create form submissions
-- **No Delete Access**: Clients never get delete access, even with manage-level permissions
-- **Collection Restrictions**: Managers and Clients collections are completely blocked
+- **Form Submissions**: wemeditate-web client can create form submissions
 
 ## Permission System Architecture
 
-### Permissions Data Structure
+### Access Plugin Flow
 
-Permissions use a simplified map structure:
+The `accessPlugin` automatically applies access control to all collections:
+
 ```typescript
-// Role permission definition
-permissions: {
-  meditations: ['read', 'create', 'update'],
-  media: ['read', 'create']
-}
+// In payload.config.ts
+plugins: [
+  accessPlugin(accessPluginConfig),
+]
+```
 
-// Merged permissions (same structure)
-type MergedPermissions = {
-  [collection: string]: PermissionLevel[]
+The plugin:
+1. Builds lookup tables at initialization (O(1) runtime lookups)
+2. Applies `access` config to each collection
+3. Applies `admin.hidden` based on project visibility
+4. Applies field-level access to localized fields
+
+### Bypass Functions
+
+Bypass functions are checked FIRST and can short-circuit permission checking. They are configured in `payload.config.ts` as the `bypassPermissions` option:
+
+```typescript
+bypassPermissions: (user, context) => {
+  const { collection, operation, docId } = context
+
+  if (user.collection === 'managers') {
+    if (user.type === 'inactive') return 'deny'   // Block immediately
+    if (user.type === 'admin') return 'allow'     // Grant immediately
+  }
+
+  return 'continue'  // Continue to role checking
 }
 ```
 
-### Field Factories
+**Results**:
+- `'allow'` - Grant access immediately, skip further checks
+- `'deny'` - Block access immediately, skip further checks
+- `'continue'` - Continue with normal role-based checking
 
-**ManagerPermissionsField()**: Returns 4 fields for Managers collection:
-1. `admin` (boolean) - Global admin flag
-2. `roles` (select with hasMany, localized) - Manager role selection with PermissionsTable afterInput (hidden if admin)
-3. `customResourceAccess` (relationship) - Document-level permissions (hidden if admin)
-4. `permissions` (virtual json, hidden) - **IMPORTANT**: Automatic permission caching via afterRead hook
+### Permission Checking Flow
 
-**ClientPermissionsField()**: Returns 2 fields for Clients collection:
-1. `roles` (select with hasMany) - Client role selection with PermissionsTable afterInput
-2. `permissions` (virtual json, hidden) - **IMPORTANT**: Automatic permission caching via afterRead hook
+1. Block null users
+2. Call bypass function (handles self-access, inactive, admin, customResourceAccess)
+3. O(1) permission lookup via pre-computed lookup tables
+4. Handle translate permission for localized fields
+5. Handle project-based implicit read access
 
-### Virtual Permissions Field (Automatic Caching)
-- When managers/clients are fetched from database, the afterRead hook populates the `permissions` field
-- The access control system checks this field first and uses it if present
-- Only computes permissions on-demand if the cached field is missing
-- Provides efficient permission caching without requiring separate cache management
-- For managers: Locale-aware computation based on current request locale
+## Permission Checking Usage
+
+The access control system provides a static permission checking API with no configuration needed.
+
+### Primary API: hasPermission
+
+Check permission for a single operation (most common use case):
+
+```typescript
+import { hasPermission } from '@/lib/access'
+
+// Check single permission (clear and simple)
+const canRead = hasPermission({
+  user,
+  collection: 'pages',
+  operation: 'read',
+})
+
+// Check update permission for localized field
+const canEditLocalized = hasPermission({
+  user,
+  collection: 'pages',
+  operation: 'update',
+  field: { localized: true },
+})
+
+// Check create permission
+const canCreate = hasPermission({
+  user,
+  collection: 'meditations',
+  operation: 'create',
+})
+
+// With bypass function (for testing or custom logic)
+const canUpdate = hasPermission({
+  user,
+  collection: 'pages',
+  operation: 'update',
+}, bypassFn)
+```
+
+### Helper: hasAnyPermission
+
+For visibility checking and complex scenarios requiring multiple operations:
+
+```typescript
+import { hasAnyPermission } from '@/lib/access'
+
+// Check for any write permission (OR logic)
+const hasWrite = hasAnyPermission({
+  user,
+  collection: 'pages',
+  operations: ['create', 'update', 'delete'],
+})
+
+// With bypass function
+const hasWriteWithBypass = hasAnyPermission({
+  user,
+  collection: 'pages',
+  operations: ['create', 'update', 'delete'],
+}, bypassFn)
+
+// Visibility checking - hide if no write access
+if (!hasWrite) {
+  // Hide collection from admin UI
+}
+```
+
+### API Design Philosophy
+
+- **Static Functions**: No configuration or factory pattern needed
+- **Direct Imports**: Import `hasPermission` directly from `@/lib/access`
+- **Optional Bypass**: Pass bypass function as second parameter when needed
+- **Simple API**: Clear, predictable, type-safe
+
+### Permissions Data Structure
+
+Permissions are defined per-role in the config:
+
+```typescript
+'meditations-editor': {
+  label: 'Meditations Editor',
+  project: 'wemeditate-app',
+  permissions: {
+    meditations: ['create', 'update'],
+    narrators: ['create', 'update'],
+    images: ['create'],
+    files: ['create'],
+  },
+}
+```
 
 ### PermissionsTable Component
 - Displays computed permissions in real-time as roles are selected
 - Shown as `afterInput` component on the `roles` field
-- Automatically computes permissions using `mergeRolePermissions()`
 - Color-coded operation pills (read: gray, create: blue, update: orange, delete: red)
 
-## Access Control Functions
+## Important Behaviors
 
-- **roleBasedAccess()**: Main access control function used by all collections
-- **hasPermission()**: Core permission checking - checks user permissions for a collection/operation
-- **mergeRolePermissions(roles: (ManagerRole | ClientRole)[], collectionSlug: 'clients' | 'managers')**: Merge permissions from multiple roles into unified permissions object
-- **createFieldAccess()**: Field-level access control for translate permission
-- **createLocaleFilter()**: Query filtering based on locale permissions
-- **isAPIClient()**: Type guard to check if user is an API client
-- **extractRoleSlugs()**: Internal helper to extract role slugs from localized/non-localized role structures
+### Project-Based Implicit Read Access
 
-## Permission Checking Flow
+#### Manager Implicit Read Behavior
 
-1. Check if user is active → Block if inactive
-2. Check if user is a manager with `admin: true` → Grant full access
-3. Check if collection is restricted (managers, clients, payload-jobs) → Block for non-admins
-4. **Check/compute cached permissions**:
-   - If `user.permissions` exists → Use cached permissions (populated by virtual field's afterRead hook)
-   - If missing → Compute on-demand using `mergeRolePermissions()` and cache on user object
-5. Check document-level permissions via `customResourceAccess` (managers only, update operations)
-6. Check collection-specific permissions from merged permissions object
-7. Check if operation is delete and user is a client → Block (clients can't delete)
-8. Apply implicit read access for managers (any manager with roles can read non-restricted collections)
-9. Apply locale filtering based on user's role permissions
+Managers get implicit read access to:
+- Collections in their role's associated project
+- Shared collections (collections not in any project)
 
-## Important Behaviors & Limitations
+**Example**: A "translator" (wemeditate-web project) can read pages, meditations, music, etc. (wemeditate-web project) AND shared collections like image-tags.
 
-### Implicit Read Access
-- Managers with ANY role get read access to ALL non-restricted collections
-- Example: A "translator" (pages/music only) can still read meditations, frames, narrators, etc.
-- Rationale: Improves UX by allowing content discovery without explicit permissions
-- Restricted collections (managers, clients, payload-jobs) are always blocked
+#### API Client Implicit Read Behavior
+
+API clients get implicit read access ONLY to collections in their role's associated project:
+
+- `wemeditate-web` client → Can read pages, meditations, music, etc. (wemeditate-web project)
+- `wemeditate-app` client → Can read meditations, lessons, lectures, etc. (wemeditate-app project)
+- `sahaj-atlas` client → Can read images, files (sahaj-atlas project)
+
+**Important**: API clients do NOT get access to shared collections (collections not in any project) unless they have explicit permissions.
 
 ### Localized Manager Roles
 - Manager roles are per-locale - different roles can be assigned for different languages
 - Access checks use the current request locale (`req.locale`) only
-- **Limitation**: When accessing content with a different locale, permissions are computed for that locale's roles
 - **Example**: Manager has "meditations-editor" in English but "translator" in Czech:
   - Viewing meditation in English admin UI → Can edit
   - Viewing same meditation in Czech admin UI → Cannot edit (only translate permission)
-- **Workaround**: Assign same roles to all locales if consistent permissions needed
 
 ### Client Roles (Not Localized)
 - API client roles apply to ALL locales uniformly
 - Clients get same permissions regardless of `?locale=` parameter
-- **Rationale**: API clients typically need consistent cross-locale access
 
 ### customResourceAccess (Document-Level Permissions)
 - Allows managers to update specific documents without collection-level update permission
 - Only applies to `pages` collection (configurable via relationTo)
 - Only grants update permission, not create or delete
-- **Example**: Translator can update specific pages assigned to them via customResourceAccess
-- Checked during update operations before collection-level permissions
+- Checked in the bypass function before collection-level permissions
 
-### Admin-Only Collections
-- `forms` and `authors` collections are managed exclusively by admins
-- No manager roles have create/update permissions for these collections
-- Web clients have read-only access to `forms` and `authors`
-
-## Type Organization
-
-The RBAC system uses a well-organized type structure with types separated into dedicated files in the `src/types/` directory:
-
-**Type Files Structure**:
-```
-src/types/
-├── roles.ts        # Role type definitions
-├── users.ts        # User type definitions
-└── permissions.ts  # Permission structure types
-```
-
-**[src/types/roles.ts](../../src/types/roles.ts)** - Role type definitions:
-- `ManagerRole` - Manager role enum type
-- `ClientRole` - Client role enum type
-- `PermissionLevel` - Permission operations type
-- Role configuration interfaces
-
-**[src/types/users.ts](../../src/types/users.ts)** - User type definitions:
-- `TypedManager` - Extended manager user type
-- `TypedClient` - Extended client user type
-
-**[src/types/permissions.ts](../../src/types/permissions.ts)** - Permission structure types:
-- `MergedPermissions` - Cached permissions structure
-- `CollectionPermissions` - Helper type for type-safe collection permission access
+### Self-Access Pattern
+- Users can always read and update their own document in their auth collection
+- Implemented in the bypass function (checked before role-based permissions)
+- Ensures users can manage their own profile
 
 ## Key Files
 
-**Type Definitions**:
-- [src/types/roles.ts](../../src/types/roles.ts) - Role type definitions
-- [src/types/users.ts](../../src/types/users.ts) - User type definitions
-- [src/types/permissions.ts](../../src/types/permissions.ts) - Permission structure types
+**Configuration**:
+- [src/lib/access/config.ts](../../src/lib/access/config.ts) - Single source of truth for projects and roles
+- [src/lib/access/data.ts](../../src/lib/access/data.ts) - Internal lookup tables and public lookup functions
+- [src/payload.config.ts](../../src/payload.config.ts) - Plugin configuration with bypass logic
 
-**Implementation**:
-- [src/fields/PermissionsField.ts](../../src/fields/PermissionsField.ts) - Role data definitions, field factories, and mergeRolePermissions utility
-- [src/lib/access/accessControl.ts](../../src/lib/access/accessControl.ts) - Core permission checking functions
-- [src/lib/access/filterAvailableLocales.ts](../../src/lib/access/filterAvailableLocales.ts) - Admin UI locale filtering based on user permissions
-- [src/components/admin/PermissionsTable.tsx](../../src/components/admin/PermissionsTable.tsx) - Real-time permissions display component
+**Plugin Implementation**:
+- [src/lib/access/accessPlugin.ts](../../src/lib/access/accessPlugin.ts) - Consolidated plugin (permission checking, access configs, visibility, main export)
+- [src/lib/access/localizedFields.ts](../../src/lib/access/localizedFields.ts) - Auto field access for localized fields
+- [src/lib/access/filterAvailableLocales.ts](../../src/lib/access/filterAvailableLocales.ts) - Admin UI locale filtering
+- [src/lib/access/schemaExtension.ts](../../src/lib/access/schemaExtension.ts) - TypeScript schema extension
+- [src/lib/access/types.ts](../../src/lib/access/types.ts) - Plugin type definitions
+- [src/lib/access/index.ts](../../src/lib/access/index.ts) - Barrel export
+
+**Admin Components**:
+- [src/components/admin/PermissionsTable.tsx](../../src/components/admin/PermissionsTable.tsx) - Real-time permissions display
 
 **Collections**:
-- [src/collections/access/Managers.ts](../../src/collections/access/Managers.ts) - Manager collection
-- [src/collections/access/Clients.ts](../../src/collections/access/Clients.ts) - Client collection
-- All content collections - Use `roleBasedAccess()` for access control
+- [src/collections/access/Managers.ts](../../src/collections/access/Managers.ts) - Manager collection with type, roles, customResourceAccess fields
+- [src/collections/access/Clients.ts](../../src/collections/access/Clients.ts) - Client collection with roles field
 
 ## Testing
+
 - [tests/int/role-based-access.int.spec.ts](../../tests/int/role-based-access.int.spec.ts) - Comprehensive RBAC integration tests
-- [tests/int/managers.int.spec.ts](../../tests/int/managers.int.spec.ts) - Manager collection tests
 - [tests/utils/testData.ts](../../tests/utils/testData.ts) - Test helpers for creating managers and clients with roles
+
+## Adding New Roles
+
+1. Add role definition to `src/lib/access/config.ts` in the `ROLES` constant:
+```typescript
+export const ROLES = {
+  managers: {
+    'new-role': {
+      label: 'New Role',
+      description: 'Description of the role',
+      project: 'wemeditate-web' as const,  // Associate with a project
+      permissions: {
+        'collection-slug': ['read', 'create', 'update'] as PermissionLevel[],
+      },
+    },
+    // ... existing roles
+  },
+}
+```
+
+2. Add role to explicit lookup tables in `src/lib/access/data.ts`:
+```typescript
+const ROLE_TO_PROJECT: Record<string, string> = {
+  'new-role': 'wemeditate-web',
+  // ... existing mappings
+}
+
+const PERMISSION_LOOKUP = {
+  managers: {
+    'new-role': {
+      'collection-slug': ['read', 'create', 'update'] as PermissionLevel[],
+    },
+    // ... existing permissions
+  },
+}
+```
+
+3. Run `pnpm generate:types` to update TypeScript types (includes ManagerRole/ClientRole unions)
+
+4. Add tests in `tests/int/role-based-access.int.spec.ts`

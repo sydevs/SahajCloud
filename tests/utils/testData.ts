@@ -22,8 +22,9 @@ import type {
   File,
   Author,
   Lecture,
+  ManagerRole,
+  ClientRole,
 } from '@/payload-types'
-import type { ManagerRole, ClientRole } from '@/lib/access'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

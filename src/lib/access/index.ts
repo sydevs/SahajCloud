@@ -3,41 +3,59 @@
  *
  * This module provides:
  * - accessPlugin: Main plugin for unified RBAC and project visibility
+ * - hasPermission: Static permission checking function
  * - filterAvailableLocales: Locale filtering for admin UI
+ * - Helper functions for projects, roles, and permissions (consolidated from projects.ts and data.ts)
  * - Utility types and functions
+ *
+ * Simplified Architecture:
+ * - Static functions (no factory pattern)
+ * - No exported constants (all access via functions)
+ * - Bypass logic configured in payload.config.ts
  */
 
-// Main plugin
-export { accessPlugin } from './accessPlugin'
+// ============================================================================
+// PLUGIN (main export)
+// ============================================================================
 
-// Locale filtering
+export { accessPlugin, hasPermission, hasAnyPermission } from './accessPlugin'
+export type { AccessPluginOptions } from './accessPlugin'
+
+// ============================================================================
+// UTILITIES
+// ============================================================================
+
 export { filterAvailableLocales } from './filterAvailableLocales'
 
-// Types
+// ============================================================================
+// HELPER FUNCTIONS (public API - consolidated from projects.ts and data.ts)
+// ============================================================================
+
+export {
+  // Type generation helpers
+  getProjectSlugs,
+  getRoleSlugs,
+  // UI/Branding functions (from projects.ts)
+  getProjectIcon,
+  getProjectLabel,
+  getProjectOptions,
+  isValidProject,
+  // Access control functions (from data.ts)
+  getRoleProject,
+  getProjectCollections,
+  getRoleOptions,
+  getPermissionsForRole,
+  // Unified visibility helper
+  isCollectionVisibleInProject,
+} from './config'
+
+// ============================================================================
+// TYPES (public API)
+// ============================================================================
+
 export type {
-  AccessPluginOptions,
-  ProjectConfig,
-  ManagerRoleConfig,
-  ClientRoleConfig,
-  BypassResult,
-  ManagerBypassFn,
-  ClientBypassFn,
-  // Role types (re-exported from payload-types via types.ts)
-  ManagerRole,
-  ClientRole,
-  // Permission type (defined in types.ts, not generated)
+  BypassPermissionFunction,
   PermissionLevel,
-  // Lookup types
-  PermissionLookup,
-  ProjectLookup,
-  TypedManager,
-  TypedClient,
+  PermissionCheckArgs,
+  TypedAuthUser,
 } from './types'
-
-
-// Permission checking utilities (for custom access control)
-export { isAPIClient, hasWritePermission, createFieldAccess } from './permissions'
-
-// Factory exports for tests (to use same permission logic as production)
-export { createPermissionChecker } from './permissions'
-export { buildPermissionLookup } from './lookupTables'

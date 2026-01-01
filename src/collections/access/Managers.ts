@@ -1,7 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { MANAGER_ROLE_OPTIONS } from '@/generated/access'
-import { getProjectOptions } from '@/lib/projects'
+import { getRoleOptions, getProjectOptions } from '@/lib/access'
 import { getServerUrl } from '@/lib/serverUrl'
 
 export const Managers: CollectionConfig = {
@@ -112,7 +111,7 @@ export const Managers: CollectionConfig = {
       type: 'select',
       hasMany: true,
       localized: true,
-      options: [...MANAGER_ROLE_OPTIONS],
+      options: getRoleOptions(['meditations-editor', 'path-editor', 'translator']),
       admin: {
         description:
           'Assign roles for each locale. Different roles can be assigned for different languages.',

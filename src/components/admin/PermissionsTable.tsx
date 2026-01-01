@@ -6,10 +6,15 @@ import { Pill, useDocumentInfo, useField } from '@payloadcms/ui'
 import { PillProps } from '@payloadcms/ui/elements/Pill'
 import React, { useMemo } from 'react'
 
-import { getPermissionsForRoles, MANAGER_ROLE_PROJECTS } from '@/generated/access'
-import type { ClientRole, ManagerRole, PermissionLevel } from '@/lib/access'
-import type { ProjectSlug } from '@/lib/projects'
-import { getProjectIcon, getProjectLabel } from '@/lib/projects'
+import type { PermissionLevel } from '@/lib/access'
+import {
+  getPermissionsForRole,
+  getProjectCollections,
+  getProjectIcon,
+  getProjectLabel,
+  getRoleProject,
+} from '@/lib/access'
+import type { ProjectSlug } from '@/payload-types'
 
 /**
  * PermissionsTable Component
@@ -22,20 +27,33 @@ import { getProjectIcon, getProjectLabel } from '@/lib/projects'
  * Works for both managers (localized roles) and clients (non-localized roles).
  */
 export const PermissionsTable: FieldClientComponent = () => {
-  const { value: roles } = useField<(ManagerRole | ClientRole)[]>()
+  const { value: roles } = useField<string[]>()
   const { collectionSlug } = useDocumentInfo()
 
   // Determine if this is a client (API client) or manager (admin user)
   const isClient = collectionSlug === 'clients'
 
   // Compute permissions and projects from roles
-  const { permissions, projects } = useMemo(() => {
+  const { permissions, projects, implicitReadCollections } = useMemo(() => {
     if (!roles || roles.length === 0) {
-      return { permissions: {}, projects: [] }
+      return { permissions: {}, projects: [], implicitReadCollections: [] }
     }
 
-    const collectionType = isClient ? 'clients' : 'managers'
-    const permissions = getPermissionsForRoles(roles, collectionType)
+    // Merge permissions from all roles
+    const merged: Record<string, Set<PermissionLevel>> = {}
+
+    for (const roleSlug of roles) {
+      const rolePerms = getPermissionsForRole(roleSlug)
+      for (const [collection, perms] of Object.entries(rolePerms)) {
+        if (!merged[collection]) merged[collection] = new Set()
+        perms.forEach((p) => merged[collection].add(p as PermissionLevel))
+      }
+    }
+
+    // Convert Sets back to arrays
+    const permissions = Object.fromEntries(
+      Object.entries(merged).map(([k, v]) => [k, Array.from(v)])
+    )
 
     // Compute projects for managers only
     const projects = isClient
@@ -43,12 +61,27 @@ export const PermissionsTable: FieldClientComponent = () => {
       : [
           ...new Set(
             roles
-              .map((roleSlug) => MANAGER_ROLE_PROJECTS[roleSlug])
+              .map((roleSlug) => getRoleProject(roleSlug))
               .filter((project): project is ProjectSlug => project !== undefined),
           ),
         ]
 
-    return { permissions, projects }
+    // Compute implicit read collections
+    const allProjectCollections = new Set<string>()
+    for (const roleSlug of roles) {
+      const project = getRoleProject(roleSlug)
+      if (project) {
+        const collections = getProjectCollections(project)
+        collections.forEach((c) => allProjectCollections.add(c))
+      }
+    }
+
+    // Filter out collections that already have explicit permissions
+    const implicitReadCollections = Array.from(allProjectCollections)
+      .filter((collection) => !permissions[collection])
+      .sort()
+
+    return { permissions, projects, implicitReadCollections }
   }, [roles, isClient])
 
   if (!permissions || Object.keys(permissions).length === 0) {
@@ -109,6 +142,25 @@ export const PermissionsTable: FieldClientComponent = () => {
               </tr>
             ))}
         </tbody>
+        {implicitReadCollections.length > 0 && (
+          <tbody>
+            <tr style={{ borderTop: '2px solid var(--theme-elevation-200)' }}>
+              <td style={{ ...cellStyle, fontWeight: 600, fontStyle: 'italic' }}>
+                Read Access
+              </td>
+              <td
+                style={{
+                  ...cellStyle,
+                  fontSize: '12px',
+                  color: 'var(--theme-elevation-600)',
+                  textTransform: 'capitalize',
+                }}
+              >
+                {implicitReadCollections.map((c) => c.replace(/-/g, ' ')).join(', ')}
+              </td>
+            </tr>
+          </tbody>
+        )}
         {!isClient && projects.length > 0 && (
           <tfoot>
             <tr

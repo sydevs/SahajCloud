@@ -53,12 +53,9 @@ Filters OpenAPI specifications and provides project-based collection utilities:
 ```typescript
 import {
   filterSpec,
-  getCollectionsForClientRole,
-  getAllClientRoleCollections,
   ALWAYS_HIDDEN_COLLECTIONS,
   EXCLUDED_OPERATIONS,
   ALLOW_POST_FOR,
-  DEFAULT_FILTER_CONFIG,
   type FilterOptions,
   type OpenAPISpec,
 } from '@/lib/openapi/specFilter'
@@ -67,8 +64,8 @@ import {
 | Function | Purpose |
 |----------|---------|
 | `filterSpec(spec, options?)` | Filter spec with project-based and operation filtering |
-| `getCollectionsForClientRole(project)` | Get collections accessible to a specific project |
-| `getAllClientRoleCollections()` | Get union of all collections across all projects |
+
+**Note**: specFilter.ts now uses `getProjectCollections()` and `getRoleOptions()` from `@/lib/access` for collection lookups instead of having redundant helper functions.
 
 **ALWAYS_HIDDEN_COLLECTIONS** (System collections always hidden):
 - `managers`, `clients` (access collections)

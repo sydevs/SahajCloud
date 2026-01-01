@@ -2,13 +2,12 @@
  * Schema Extension for Access Plugin
  *
  * Generates TypeScript types via PayloadCMS's typescript.schema configuration.
- * Adds ProjectSlug, ManagerRole, ClientRole, and PermissionLevel types.
+ * Adds ProjectSlug and RoleSlug types.
  */
 
-import type { AccessPluginOptions } from './types'
 import type { JSONSchema4 } from 'json-schema'
 
-import { getClientRoleSlugs, getManagerRoleSlugs, getProjectSlugs } from './lookupTables'
+import { getProjectSlugs, getRoleSlugs } from './config'
 
 /**
  * Create a typescript.schema function for generating role and project types
@@ -17,45 +16,28 @@ import { getClientRoleSlugs, getManagerRoleSlugs, getProjectSlugs } from './look
  * When `pnpm generate:types` runs, it will add the following types to payload-types.ts:
  *
  * - ProjectSlug: Union of project slugs
- * - ManagerRole: Union of manager role slugs
- * - ClientRole: Union of client role slugs
- * - PermissionLevel: Union of permission operations
+ * - RoleSlug: Union of all role slugs
  *
- * @param options - Access plugin options
  * @returns Schema extension function for typescript.schema
  */
-export function createSchemaExtension(options: AccessPluginOptions) {
-  return function schemaExtension({ jsonSchema }: { jsonSchema: JSONSchema4 }): JSONSchema4 {
-    // Extract slugs from config
-    const projectSlugs = getProjectSlugs(options.projects)
-    const managerRoleSlugs = getManagerRoleSlugs(options.roles)
-    const clientRoleSlugs = getClientRoleSlugs(options.roles)
-
+export function createSchemaExtension() {
+  return function schemaExtension({ jsonSchema }: { jsonSchema: JSONSchema4; [key: string]: any }): JSONSchema4 {
     // Ensure definitions object exists
     if (!jsonSchema.definitions) {
       jsonSchema.definitions = {}
     }
 
-    // Add ProjectSlug type
+    // Add ProjectSlug type using getProjectSlugs()
     jsonSchema.definitions.ProjectSlug = {
       type: 'string',
-      enum: projectSlugs,
+      enum: getProjectSlugs(),
     }
 
-    // Add ManagerRole type
-    jsonSchema.definitions.ManagerRole = {
+    // Add RoleSlug type using getRoleSlugs()
+    jsonSchema.definitions.RoleSlug = {
       type: 'string',
-      enum: managerRoleSlugs,
+      enum: getRoleSlugs(),
     }
-
-    // Add ClientRole type
-    jsonSchema.definitions.ClientRole = {
-      type: 'string',
-      enum: clientRoleSlugs,
-    }
-
-    // Note: PermissionLevel is defined in src/lib/access/types.ts (not generated)
-    // because it's Operation | 'translate' which can't be represented in JSON schema
 
     return jsonSchema
   }

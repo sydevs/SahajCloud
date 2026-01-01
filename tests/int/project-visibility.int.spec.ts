@@ -2,13 +2,8 @@ import type { Payload } from 'payload'
 
 import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 
-import {
-  PROJECTS,
-  getProjectLabel,
-  getProjectOptions,
-  isValidProject,
-  type ProjectSlug,
-} from '../../src/lib/projects'
+import { getProjectLabel, getProjectOptions, isValidProject } from '../../src/lib/access'
+import type { ProjectSlug } from '../../src/payload-types'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Project Visibility System', () => {
@@ -25,13 +20,14 @@ describe('Project Visibility System', () => {
     await cleanup()
   })
 
-  describe('projects.ts utilities', () => {
-    describe('PROJECTS constant', () => {
-      it('should contain all three projects', () => {
-        expect(PROJECTS).toHaveLength(3)
-        expect(PROJECTS.map((p) => p.value)).toContain('wemeditate-web')
-        expect(PROJECTS.map((p) => p.value)).toContain('wemeditate-app')
-        expect(PROJECTS.map((p) => p.value)).toContain('sahaj-atlas')
+  describe('project utilities', () => {
+    describe('getProjectOptions()', () => {
+      it('should return all three projects', () => {
+        const projects = getProjectOptions()
+        expect(projects).toHaveLength(3)
+        expect(projects.map((p) => p.value)).toContain('wemeditate-web')
+        expect(projects.map((p) => p.value)).toContain('wemeditate-app')
+        expect(projects.map((p) => p.value)).toContain('sahaj-atlas')
       })
     })
 

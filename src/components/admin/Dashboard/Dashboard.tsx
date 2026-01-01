@@ -1,8 +1,5 @@
-import { MANAGER_ROLE_PROJECTS } from '@/generated/access'
-import type { ManagerRole } from '@/lib/access'
-import type { ProjectSlug } from '@/lib/projects'
-import type { Manager } from '@/payload-types'
-
+import { getRoleProject } from '@/lib/access'
+import type { Manager, ProjectSlug } from '@/payload-types'
 
 import DefaultDashboard from './DefaultDashboard'
 import FathomDashboard from './FathomDashboard'
@@ -16,7 +13,7 @@ interface DashboardProps {
     id?: string | number
     currentProject?: ProjectSlug
     type?: Manager['type']
-    roles?: ManagerRole[] | Record<string, ManagerRole[]>
+    roles?: string[] | Record<string, string[]>
     [key: string]: unknown
   }
   [key: string]: unknown
@@ -26,11 +23,11 @@ interface DashboardProps {
  * Extract all unique projects from a user's roles
  * Handles both flat array and localized object formats
  */
-function getAllowedProjects(roles?: ManagerRole[] | Record<string, ManagerRole[]>): ProjectSlug[] {
+function getAllowedProjects(roles?: string[] | Record<string, string[]>): ProjectSlug[] {
   if (!roles) return []
 
   // Collect all role slugs from all locales
-  const allRoleSlugs: ManagerRole[] = []
+  const allRoleSlugs: string[] = []
 
   if (Array.isArray(roles)) {
     // Flat array format
@@ -47,7 +44,7 @@ function getAllowedProjects(roles?: ManagerRole[] | Record<string, ManagerRole[]
   // Extract unique projects from all roles
   const projects = new Set<ProjectSlug>()
   allRoleSlugs.forEach((roleSlug) => {
-    const project = MANAGER_ROLE_PROJECTS[roleSlug] as ProjectSlug | undefined
+    const project = getRoleProject(roleSlug) as ProjectSlug | undefined
     if (project) {
       projects.add(project)
     }

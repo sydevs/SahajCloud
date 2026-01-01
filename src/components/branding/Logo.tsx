@@ -1,7 +1,7 @@
 'use client'
 
 import { useProject } from '@/contexts/ProjectContext'
-import { getProjectLabel } from '@/lib/projects'
+import { getProjectLabel } from '@/lib/access'
 
 import Icon from './Icon'
 

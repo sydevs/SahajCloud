@@ -8,41 +8,14 @@
  *
  * Two-tier filtering approach:
  * 1. ALWAYS_HIDDEN_COLLECTIONS - System collections always hidden from public docs
- * 2. Client role filtering - Content collections filtered by CLIENT_ROLES permissions
+ * 2. Client role filtering - Content collections filtered by project-based implicit reads
  */
 
-import { CLIENT_PERMISSIONS } from '@/generated/access'
-import { type ProjectSlug } from '@/lib/projects'
+import type { CollectionSlug } from 'payload'
 
-/**
- * Get collections accessible to a specific client role
- *
- * @param role - The client role to get collections for
- * @returns Array of collection slugs the role can access
- */
-export function getCollectionsForClientRole(role: ProjectSlug): string[] {
-  const rolePermissions = CLIENT_PERMISSIONS[role]
-  if (!rolePermissions) return []
-  return Object.keys(rolePermissions)
-}
+import { getProjectCollections, getProjectOptions } from '@/lib/access'
+import type { ProjectSlug } from '@/payload-types'
 
-/**
- * Get union of all collections accessible across all client roles
- * Used when no specific role is selected ("All Endpoints" view)
- *
- * @returns Array of unique collection slugs accessible by any client role
- */
-export function getAllClientRoleCollections(): string[] {
-  const allCollections = new Set<string>()
-
-  Object.values(CLIENT_PERMISSIONS).forEach((rolePermissions) => {
-    Object.keys(rolePermissions).forEach((collection) => {
-      allCollections.add(collection)
-    })
-  })
-
-  return Array.from(allCollections)
-}
 
 /**
  * Collections that are ALWAYS hidden from public API docs regardless of role.
@@ -219,10 +192,16 @@ export function filterSpec(
     return spec
   }
 
-  // Get allowed collections based on project/client role (or all client role collections if none specified)
+  // Get allowed collections based on project (or all project collections if none specified)
   const allowedCollections = project
-    ? getCollectionsForClientRole(project)
-    : getAllClientRoleCollections()
+    ? getProjectCollections(project)
+    : Array.from(
+        new Set(
+          getProjectOptions()
+            .map((opt) => getProjectCollections(opt.value))
+            .flat(),
+        ),
+      )
 
   // Deep clone to avoid mutating the original
   const markedSpec = JSON.parse(JSON.stringify(spec)) as OpenAPISpec
@@ -236,7 +215,7 @@ export function filterSpec(
 
     // Check if this collection should be hidden
     const isAlwaysHidden = ALWAYS_HIDDEN_COLLECTIONS.includes(collection)
-    const isNotInAllowedCollections = !allowedCollections.includes(collection)
+    const isNotInAllowedCollections = !allowedCollections.includes(collection as CollectionSlug)
 
     // Process each HTTP method
     const methods: HttpMethod[] = ['get', 'post', 'patch', 'delete', 'put', 'options', 'head']
@@ -279,14 +258,4 @@ export function filterSpec(
   injectSecurityScheme(markedSpec)
 
   return markedSpec
-}
-
-/**
- * Legacy default configuration for backward compatibility.
- * @deprecated Use filterSpec with options instead
- */
-export const DEFAULT_FILTER_CONFIG = {
-  excludeCollections: ALWAYS_HIDDEN_COLLECTIONS,
-  excludeOperations: EXCLUDED_OPERATIONS,
-  allowPostFor: ALLOW_POST_FOR,
 }

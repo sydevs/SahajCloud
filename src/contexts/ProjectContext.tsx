@@ -3,7 +3,7 @@
 import { useAuth } from '@payloadcms/ui'
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
-import { ProjectSlug } from '@/lib/projects'
+import type { ProjectSlug } from '@/payload-types'
 
 interface ProjectContextType {
   currentProject: ProjectSlug | null
