@@ -36,17 +36,23 @@ const canUpdate = hasPermission({
 ## Permission Checking Flow
 
 1. Block null users
-2. Call bypass function (handles inactive, admin, customResourceAccess)
-3. O(1) permission lookup via pre-computed lookup tables
-4. Handle translate permission for localized fields
-5. Handle project-based implicit read access
+2. Call bypass function (ordered by frequency):
+   - Admin managers: allow
+   - Inactive managers/clients: deny
+   - customResourceAccess: allow for specific documents
+   - Self-access: allow read/update of own document
+3. Extract roles (handles flat array for clients, localized for managers)
+4. Unified permission check per role:
+   - Implicit read: project-based visibility (includes shared collections)
+   - Explicit permissions: role configuration
+   - Translate: localized field updates only
+5. Default: deny
 
 ## Key Behaviors
 
-- **Implicit Read Access**: Managers with roles can read collections in their role's project + shared collections
+- **Implicit Read Access**: Both managers and API clients can read collections in their role's project + shared collections
 - **Localized Roles**: Manager permissions are per-locale (checks `req.locale`)
 - **Client Roles**: Apply uniformly to all locales
-- **API Clients**: Only get implicit read for collections in their project (not shared collections)
 
 ## Field Factory Naming Convention
 
@@ -86,12 +92,13 @@ pnpm generate:types
 
 ### 3. Add Tests
 ```typescript
+import { hasPermission, bypassPermissions } from '@/lib/access'
+
 const manager = await testData.createManager(payload, { roles: ['my-new-role'] })
-const canCreate = hasPermission({
-  user: manager,
-  collection: 'my-collection',
-  operation: 'create'
-})
+const canCreate = hasPermission(
+  { user: manager, collection: 'my-collection', operation: 'create' },
+  bypassPermissions
+)
 expect(canCreate).toBe(true)
 ```
 
