@@ -54,6 +54,7 @@ export {
   getRoleOptions,
   getPermissionsForRole,
   getReadableCollections,
+  getProjectsFromRoles,
   // Unified visibility helper
   isCollectionVisibleInProject,
 } from './config'

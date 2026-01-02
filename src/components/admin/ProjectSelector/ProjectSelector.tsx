@@ -4,9 +4,9 @@ import { ReactSelect, toast, useAuth, useRouteTransition } from '@payloadcms/ui'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
+import { getProjectOptions, getProjectsFromRoles } from '@/lib/access'
 import { useProject } from '@/contexts/ProjectContext'
 import { clientLogger } from '@/lib/clientLogger'
-import { getProjectOptions } from '@/lib/access'
 import type { ProjectSlug } from '@/payload-types'
 
 // Define Option type for ReactSelect
@@ -38,11 +38,11 @@ const ProjectSelector = () => {
     // Get all project options
     const allProjects = getProjectOptions()
 
-    // Get allowed projects from cached permissions field
+    // Compute allowed projects from user's roles
     const allowedProjects =
       user?.type === 'admin'
         ? allProjects.map((p) => p.value) // Admins see all projects
-        : (user?.permissions?.projects as ProjectSlug[]) || []
+        : (getProjectsFromRoles(user?.roles) as ProjectSlug[])
 
     // Add projects the user has access to
     allowedProjects.forEach((projectValue) => {
@@ -56,7 +56,7 @@ const ProjectSelector = () => {
     })
 
     return options
-  }, [user?.type, user?.permissions?.projects])
+  }, [user?.type, user?.roles])
 
   const handleProjectChange = async (option: unknown) => {
     // Handle single option (not multi-select)

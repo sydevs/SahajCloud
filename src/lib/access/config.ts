@@ -401,6 +401,35 @@ export function isCollectionVisibleInProject(
 }
 
 /**
+ * Extract projects from a user's roles
+ *
+ * Handles both localized (managers) and flat array (clients) role formats.
+ * Used by ProjectSelector and ProjectContext to determine allowed projects.
+ *
+ * @param roles - Roles in either format (localized Record or flat array)
+ * @returns Array of unique project slugs
+ */
+export function getProjectsFromRoles(
+  roles: InternalRoleSlug[] | Record<string, InternalRoleSlug[]> | undefined | null,
+): InternalProjectSlug[] {
+  if (!roles) return []
+
+  // Flatten roles if localized (Record<locale, roles[]>)
+  const allRoles: InternalRoleSlug[] = Array.isArray(roles)
+    ? roles
+    : (Object.values(roles).flat() as InternalRoleSlug[])
+
+  // Map to projects and deduplicate
+  const projects = new Set<InternalProjectSlug>()
+  for (const role of allRoles) {
+    const project = getRoleProject(role)
+    if (project) projects.add(project)
+  }
+
+  return Array.from(projects)
+}
+
+/**
  * Get all collections with implicit read access for given roles
  *
  * This is a higher-level function that builds on isCollectionVisibleInProject.
