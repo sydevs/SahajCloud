@@ -7,10 +7,13 @@
  * Generic Implementation: Works with any auth collection.
  */
 
-import type { TypedAuthUser } from './types'
 import type { Locale, PayloadRequest } from 'payload'
 
+import type { RoleSlug } from '@/payload-types'
+
 import type { LocaleCode } from '@/lib/locales'
+
+import type { TypedAuthUser } from './types'
 
 type FilterAvailableLocalesArgs = {
   locales: Locale[]
@@ -61,7 +64,7 @@ export const filterAvailableLocales = ({
   }
 
   // Roles is a localized object
-  const localizedRoles = roles as Record<LocaleCode, string[]>
+  const localizedRoles = roles as Record<LocaleCode, RoleSlug[]>
 
   // Find all locales where the manager has at least one role
   const localesWithRoles = Object.keys(localizedRoles).filter(

@@ -13,9 +13,18 @@
  * - Bypass logic configured in payload.config.ts
  */
 
-import type { CollectionSlug, Config } from 'payload'
+import type { CollectionSlug, Config, Operation } from 'payload'
 
-import type { BypassPermissionFunction, PermissionCheckArgs, TypedAuthUser } from './types'
+import type { RoleSlug } from '@/payload-types'
+
+import type { LocaleCode } from '@/lib/locales'
+
+import type {
+  BypassPermissionFunction,
+  PermissionCheckArgs,
+  PermissionLevel,
+  TypedAuthUser,
+} from './types'
 
 import {
   getPermissionsForRole,
@@ -130,9 +139,9 @@ export function hasPermission(
  * @returns Array of role slugs
  */
 function extractRoles(
-  roles: string[] | Record<string, string[]> | undefined,
-  locale?: string,
-): string[] {
+  roles: RoleSlug[] | Record<LocaleCode, RoleSlug[]> | undefined,
+  locale?: LocaleCode,
+): RoleSlug[] {
   if (!roles) return []
   if (Array.isArray(roles)) return roles
   return locale ? roles[locale] || [] : []
@@ -146,12 +155,12 @@ function extractRoles(
  * @returns true if user has at least one of the operations
  */
 export function hasAnyPermission(
-  args: Omit<PermissionCheckArgs, 'operation'> & { operations: string[] },
+  args: Omit<PermissionCheckArgs, 'operation'> & { operations: PermissionLevel[] },
   bypassFn?: BypassPermissionFunction,
 ): boolean {
   const { operations, ...rest } = args
   return operations.some((operation) =>
-    hasPermission({ ...rest, operation: operation as any }, bypassFn),
+    hasPermission({ ...rest, operation: operation as Operation }, bypassFn),
   )
 }
 
@@ -170,7 +179,7 @@ export function hasAnyPermission(
  * @returns Access config object with specified operations
  */
 function createAccessConfig(
-  collection: string,
+  collection: CollectionSlug,
   operations: Array<'read' | 'create' | 'update' | 'delete'>,
   bypassFn?: BypassPermissionFunction,
   fieldContext?: { localized: boolean },
@@ -357,50 +366,48 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
       ...config,
 
       // Apply to collections
-      collections: config.collections?.map((collection) => ({
-        ...collection,
-        // Apply role-based access control (preserve existing overrides)
-        access: {
-          ...createAccessConfig(
-            collection.slug,
-            ['read', 'create', 'update', 'delete'],
-            bypassPermissions,
-          ),
-          ...collection.access,
-        },
-        admin: {
-          ...collection.admin,
-          // Apply project-based visibility
-          hidden: createHidden(collection.slug as CollectionSlug, bypassPermissions),
-        },
-        // Only apply field-level access if collection has translate permissions
-        fields: isTranslatableCollection(collection.slug)
-          ? applyFieldAccessForTranslatableCollections(
-              collection.fields || [],
-              collection.slug as CollectionSlug,
-              bypassPermissions,
-            )
-          : collection.fields || [],
-      })),
+      collections: config.collections?.map((collection) => {
+        const slug = collection.slug as CollectionSlug
+        return {
+          ...collection,
+          // Apply role-based access control (preserve existing overrides)
+          access: {
+            ...createAccessConfig(slug, ['read', 'create', 'update', 'delete'], bypassPermissions),
+            ...collection.access,
+          },
+          admin: {
+            ...collection.admin,
+            // Apply project-based visibility
+            hidden: createHidden(slug, bypassPermissions),
+          },
+          // Only apply field-level access if collection has translate permissions
+          fields: isTranslatableCollection(slug)
+            ? applyFieldAccessForTranslatableCollections(
+                collection.fields || [],
+                slug,
+                bypassPermissions,
+              )
+            : collection.fields || [],
+        }
+      }),
 
       // Apply to globals
-      globals: config.globals?.map((global) => ({
-        ...global,
-        // Apply role-based access control (preserve existing overrides)
-        access: {
-          ...createAccessConfig(
-            global.slug as CollectionSlug,
-            ['read', 'update'],
-            bypassPermissions,
-          ),
-          ...global.access,
-        },
-        admin: {
-          ...global.admin,
-          // Apply project-based visibility
-          hidden: createHidden(global.slug as CollectionSlug, bypassPermissions),
-        },
-      })),
+      globals: config.globals?.map((global) => {
+        const slug = global.slug as CollectionSlug
+        return {
+          ...global,
+          // Apply role-based access control (preserve existing overrides)
+          access: {
+            ...createAccessConfig(slug, ['read', 'update'], bypassPermissions),
+            ...global.access,
+          },
+          admin: {
+            ...global.admin,
+            // Apply project-based visibility
+            hidden: createHidden(slug, bypassPermissions),
+          },
+        }
+      }),
 
       // Add TypeScript schema extension
       typescript: {

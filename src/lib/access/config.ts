@@ -139,6 +139,16 @@ const ROLES = {
   },
 } as const
 
+// =============================================================================
+// Internal Type Aliases (derived from constants, not payload-types)
+// =============================================================================
+
+/** Project slug type derived from PROJECTS constant */
+type InternalProjectSlug = keyof typeof PROJECTS
+
+/** Role slug type derived from ROLES constant */
+type InternalRoleSlug = keyof typeof ROLES
+
 /**
  * Admin view constants (for null project handling)
  */
@@ -154,12 +164,12 @@ const ADMIN_VIEW_ICON = '/images/sahaj-cloud.svg'
  * Computed once at module load from ROLES configuration
  * Used to determine if field-level access should be applied
  */
-const TRANSLATABLE_COLLECTIONS: Set<string> = (() => {
-  const collections = new Set<string>()
+const TRANSLATABLE_COLLECTIONS: Set<CollectionSlug> = (() => {
+  const collections = new Set<CollectionSlug>()
   Object.values(ROLES).forEach((roleConfig) => {
     Object.entries(roleConfig.permissions).forEach(([collection, permissions]) => {
       if (permissions.includes('translate' as PermissionLevel)) {
-        collections.add(collection)
+        collections.add(collection as CollectionSlug)
       }
     })
   })
@@ -170,20 +180,25 @@ const TRANSLATABLE_COLLECTIONS: Set<string> = (() => {
  * Project to collections mapping (includes globals)
  * Computed once at module load from PROJECTS configuration
  */
-const PROJECT_TO_COLLECTIONS: Record<string, CollectionSlug[]> = Object.entries(PROJECTS).reduce(
+const PROJECT_TO_COLLECTIONS: Record<InternalProjectSlug, CollectionSlug[]> = Object.entries(
+  PROJECTS,
+).reduce(
   (acc, [projectSlug, projectConfig]) => {
-    acc[projectSlug] = [...projectConfig.collections, ...projectConfig.globals] as CollectionSlug[]
+    acc[projectSlug as InternalProjectSlug] = [
+      ...projectConfig.collections,
+      ...projectConfig.globals,
+    ] as CollectionSlug[]
     return acc
   },
-  {} as Record<string, CollectionSlug[]>,
+  {} as Record<InternalProjectSlug, CollectionSlug[]>,
 )
 
 /**
  * Reverse lookup: collection -> projects that include it
  * Computed from PROJECT_TO_COLLECTIONS
  */
-const COLLECTION_TO_PROJECTS: Record<string, string[]> = Object.entries(
-  PROJECT_TO_COLLECTIONS,
+const COLLECTION_TO_PROJECTS: Record<CollectionSlug, InternalProjectSlug[]> = (
+  Object.entries(PROJECT_TO_COLLECTIONS) as [InternalProjectSlug, CollectionSlug[]][]
 ).reduce(
   (acc, [project, collections]) => {
     collections.forEach((collection) => {
@@ -192,7 +207,7 @@ const COLLECTION_TO_PROJECTS: Record<string, string[]> = Object.entries(
     })
     return acc
   },
-  {} as Record<string, string[]>,
+  {} as Record<CollectionSlug, InternalProjectSlug[]>,
 )
 
 /**
@@ -216,16 +231,16 @@ const ALL_PROJECT_COLLECTIONS: CollectionSlug[] = (() => {
  * Get array of project slugs for TypeScript type generation
  * @returns Array of project slugs
  */
-export function getProjectSlugs(): string[] {
-  return Object.keys(PROJECTS)
+export function getProjectSlugs(): InternalProjectSlug[] {
+  return Object.keys(PROJECTS) as InternalProjectSlug[]
 }
 
 /**
  * Get array of role slugs for TypeScript type generation
  * @returns Array of role slugs
  */
-export function getRoleSlugs(): string[] {
-  return Object.keys(ROLES)
+export function getRoleSlugs(): InternalRoleSlug[] {
+  return Object.keys(ROLES) as InternalRoleSlug[]
 }
 
 // =============================================================================
@@ -237,9 +252,9 @@ export function getRoleSlugs(): string[] {
  * @param project - Project slug or null for admin view
  * @returns Icon file path
  */
-export function getProjectIcon(project: string | null): string {
+export function getProjectIcon(project: InternalProjectSlug | null): string {
   if (!project) return ADMIN_VIEW_ICON
-  const projectConfig = PROJECTS[project as keyof typeof PROJECTS]
+  const projectConfig = PROJECTS[project]
   return projectConfig?.icon || ADMIN_VIEW_ICON
 }
 
@@ -248,9 +263,9 @@ export function getProjectIcon(project: string | null): string {
  * @param project - Project slug or null for admin view
  * @returns Human-readable project label
  */
-export function getProjectLabel(project: string | null): string {
+export function getProjectLabel(project: InternalProjectSlug | null): string {
   if (!project) return ADMIN_VIEW_LABEL
-  const projectConfig = PROJECTS[project as keyof typeof PROJECTS]
+  const projectConfig = PROJECTS[project]
   return projectConfig?.label || project
 }
 
@@ -258,11 +273,13 @@ export function getProjectLabel(project: string | null): string {
  * Get project select options for Payload fields and UI selectors
  * @returns Array of project options with value and label
  */
-export function getProjectOptions(): Array<{ value: string; label: string }> {
-  return Object.entries(PROJECTS).map(([value, config]) => ({
-    value,
-    label: config.label,
-  }))
+export function getProjectOptions(): Array<{ value: InternalProjectSlug; label: string }> {
+  return (Object.entries(PROJECTS) as [InternalProjectSlug, (typeof PROJECTS)[InternalProjectSlug]][]).map(
+    ([value, config]) => ({
+      value,
+      label: config.label,
+    }),
+  )
 }
 
 /**
@@ -283,8 +300,8 @@ export function isValidProject(value: string | null): boolean {
  * @param role - Role slug
  * @returns Project slug or undefined
  */
-export function getRoleProject(role: string): string | undefined {
-  const roleConfig = ROLES[role as keyof typeof ROLES]
+export function getRoleProject(role: InternalRoleSlug): InternalProjectSlug | undefined {
+  const roleConfig = ROLES[role]
   return roleConfig?.project
 }
 
@@ -293,7 +310,7 @@ export function getRoleProject(role: string): string | undefined {
  * @param project - Project slug
  * @returns Array of collection/global slugs
  */
-export function getProjectCollections(project: string): CollectionSlug[] {
+export function getProjectCollections(project: InternalProjectSlug): CollectionSlug[] {
   return PROJECT_TO_COLLECTIONS[project] || []
 }
 
@@ -305,9 +322,9 @@ export function getProjectCollections(project: string): CollectionSlug[] {
  * @param role - Role slug
  * @returns Permissions object mapping collection slugs to permission levels
  */
-export function getPermissionsForRole(role: string): Record<string, PermissionLevel[]> {
-  const roleConfig = ROLES[role as keyof typeof ROLES]
-  return roleConfig?.permissions || {}
+export function getPermissionsForRole(role: InternalRoleSlug): Record<CollectionSlug, PermissionLevel[]> {
+  const roleConfig = ROLES[role]
+  return (roleConfig?.permissions || {}) as Record<CollectionSlug, PermissionLevel[]>
 }
 
 /**
@@ -316,9 +333,11 @@ export function getPermissionsForRole(role: string): Record<string, PermissionLe
  * @returns Array of role options with value and label
  * @throws Error if any role slug is invalid
  */
-export function getRoleOptions(allowedRoles: string[]): Array<{ label: string; value: string }> {
+export function getRoleOptions(
+  allowedRoles: InternalRoleSlug[],
+): Array<{ label: string; value: InternalRoleSlug }> {
   return allowedRoles.map((roleSlug) => {
-    const roleConfig = ROLES[roleSlug as keyof typeof ROLES]
+    const roleConfig = ROLES[roleSlug]
     if (!roleConfig) {
       throw new Error(
         `Invalid role slug: "${roleSlug}". Valid roles are: ${Object.keys(ROLES).join(', ')}`,
@@ -342,7 +361,7 @@ export function getAllProjectCollections(): CollectionSlug[] {
  * @param collection - Collection slug
  * @returns True if collection has translate permissions
  */
-export function isTranslatableCollection(collection: string): boolean {
+export function isTranslatableCollection(collection: CollectionSlug): boolean {
   return TRANSLATABLE_COLLECTIONS.has(collection)
 }
 
@@ -364,8 +383,8 @@ export function isTranslatableCollection(collection: string): boolean {
  * @returns True if collection should be visible
  */
 export function isCollectionVisibleInProject(
-  collection: string,
-  currentProject: string | null,
+  collection: CollectionSlug,
+  currentProject: InternalProjectSlug | null,
 ): boolean {
   const allowedProjects = COLLECTION_TO_PROJECTS[collection]
 
@@ -392,8 +411,8 @@ export function isCollectionVisibleInProject(
  * @param roles - Array of role slugs
  * @returns Array of collection slugs readable by these roles
  */
-export function getReadableCollections(roles: string[]): string[] {
-  const collections = new Set<string>()
+export function getReadableCollections(roles: InternalRoleSlug[]): CollectionSlug[] {
+  const collections = new Set<CollectionSlug>()
 
   // Get all collections visible for each role's project
   for (const role of roles) {
@@ -409,11 +428,11 @@ export function getReadableCollections(roles: string[]): string[] {
 
   // Also add shared collections (not in any project)
   // These are visible to all users via isCollectionVisibleInProject returning true
-  Object.keys(COLLECTION_TO_PROJECTS).forEach((collection) => {
+  ;(Object.keys(COLLECTION_TO_PROJECTS) as CollectionSlug[]).forEach((collection) => {
     if (!COLLECTION_TO_PROJECTS[collection]?.length) {
       collections.add(collection)
     }
   })
 
-  return Array.from(collections).sort()
+  return Array.from(collections).sort() as CollectionSlug[]
 }

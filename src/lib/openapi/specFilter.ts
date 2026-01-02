@@ -11,17 +11,16 @@
  * 2. Client role filtering - Content collections filtered by project-based implicit reads
  */
 
-import type { CollectionSlug } from 'payload'
+import type { CollectionSlug, GlobalSlug } from 'payload'
 
 import { getAllProjectCollections, getProjectCollections } from '@/lib/access'
 import type { ProjectSlug } from '@/payload-types'
-
 
 /**
  * Collections that are ALWAYS hidden from public API docs regardless of role.
  * These are system/internal collections that should never be exposed.
  */
-export const ALWAYS_HIDDEN_COLLECTIONS = [
+export const ALWAYS_HIDDEN_COLLECTIONS: (CollectionSlug | GlobalSlug)[] = [
   // Access collections - internal user management
   'managers',
   'clients',
@@ -37,7 +36,7 @@ export const ALWAYS_HIDDEN_COLLECTIONS = [
   'payload-locked-documents',
   'payload-preferences',
   'payload-migrations',
-  'payload-job-stats',
+  'payload-jobs-stats',
 ]
 
 /**
@@ -50,7 +49,7 @@ export const EXCLUDED_OPERATIONS = ['delete', 'patch'] as const
  * Collections allowed to have POST operations visible.
  * These are collections where API clients can create new documents.
  */
-export const ALLOW_POST_FOR = ['form-submissions']
+export const ALLOW_POST_FOR: CollectionSlug[] = ['form-submissions']
 
 export interface FilterOptions {
   /** Project/client role to filter collections by (null = all client role collections) */
@@ -182,10 +181,7 @@ function injectSecurityScheme(spec: OpenAPISpec): OpenAPISpec {
  * @param options - Configuration for filtering (optional project parameter)
  * @returns Modified spec with x-internal markers and security scheme added
  */
-export function filterSpec(
-  spec: OpenAPISpec,
-  options: FilterOptions = {},
-): OpenAPISpec {
+export function filterSpec(spec: OpenAPISpec, options: FilterOptions = {}): OpenAPISpec {
   const { project } = options
 
   if (!spec.paths) {
@@ -193,9 +189,7 @@ export function filterSpec(
   }
 
   // Get allowed collections based on project (or all project collections if none specified)
-  const allowedCollections = project
-    ? getProjectCollections(project)
-    : getAllProjectCollections()
+  const allowedCollections = project ? getProjectCollections(project) : getAllProjectCollections()
 
   // Deep clone to avoid mutating the original
   const markedSpec = JSON.parse(JSON.stringify(spec)) as OpenAPISpec
@@ -208,7 +202,7 @@ export function filterSpec(
     }
 
     // Check if this collection should be hidden
-    const isAlwaysHidden = ALWAYS_HIDDEN_COLLECTIONS.includes(collection)
+    const isAlwaysHidden = ALWAYS_HIDDEN_COLLECTIONS.includes(collection as CollectionSlug)
     const isNotInAllowedCollections = !allowedCollections.includes(collection as CollectionSlug)
 
     // Process each HTTP method
@@ -238,7 +232,7 @@ export function filterSpec(
       }
 
       // Mark POST operations unless collection is in ALLOW_POST_FOR
-      if (method === 'post' && !ALLOW_POST_FOR.includes(collection)) {
+      if (method === 'post' && !ALLOW_POST_FOR.includes(collection as CollectionSlug)) {
         shouldMark = true
       }
 

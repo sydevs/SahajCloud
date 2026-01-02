@@ -7,6 +7,8 @@
 
 import type { CollectionSlug, Operation, TypedUser } from 'payload'
 
+import type { ProjectSlug, RoleSlug } from '@/payload-types'
+
 import type { LocaleCode } from '@/lib/locales'
 
 // ============================================================================
@@ -36,7 +38,7 @@ export type BypassPermissionFunction = (
   user: TypedAuthUser,
   context: {
     collection: CollectionSlug
-    operation: string
+    operation: PermissionLevel
     docId?: string | number
   },
 ) => 'allow' | 'deny' | 'continue'
@@ -50,22 +52,22 @@ export type BypassPermissionFunction = (
  * Works with any auth collection (managers, clients, or custom)
  *
  * Role structure is auto-detected:
- * - Array of strings = flat roles (e.g., clients)
+ * - Array of RoleSlug = flat roles (e.g., clients)
  * - Object with locale keys = localized roles (e.g., managers)
  */
 export type TypedAuthUser = TypedUser & {
   /** Auth collection this user belongs to */
-  collection: string
+  collection: 'managers' | 'clients'
   /** User's roles - can be flat array or localized object */
-  roles?: string[] | Record<string, string[]>
+  roles?: RoleSlug[] | Record<LocaleCode, RoleSlug[]>
   /** Custom resource access for document-level permissions */
-  customResourceAccess?: Array<{ relationTo: string; value: string | number }>
+  customResourceAccess?: Array<{ relationTo: CollectionSlug; value: string | number }>
   /** Currently selected project (for managers) */
-  currentProject?: string | null
+  currentProject?: ProjectSlug | null
   /** Whether the user is active (for clients) */
   active?: boolean
-  /** User type (for managers: 'admin' | 'manager' | 'inactive') */
-  type?: string
+  /** User type (for managers) */
+  type?: 'admin' | 'manager' | 'inactive'
 }
 
 // ============================================================================

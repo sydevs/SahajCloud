@@ -1,6 +1,6 @@
 'use client'
 
-import type { FieldClientComponent } from 'payload'
+import type { CollectionSlug, FieldClientComponent } from 'payload'
 
 import { Pill, useDocumentInfo, useField } from '@payloadcms/ui'
 import { PillProps } from '@payloadcms/ui/elements/Pill'
@@ -14,7 +14,7 @@ import {
   getReadableCollections,
   getRoleProject,
 } from '@/lib/access'
-import type { ProjectSlug } from '@/payload-types'
+import type { ProjectSlug, RoleSlug } from '@/payload-types'
 
 /**
  * PermissionsTable Component
@@ -27,7 +27,7 @@ import type { ProjectSlug } from '@/payload-types'
  * Works for both managers (localized roles) and clients (non-localized roles).
  */
 export const PermissionsTable: FieldClientComponent = () => {
-  const { value: roles } = useField<string[]>()
+  const { value: roles } = useField<RoleSlug[]>()
   const { collectionSlug } = useDocumentInfo()
 
   // Determine if this is a client (API client) or manager (admin user)
@@ -40,19 +40,23 @@ export const PermissionsTable: FieldClientComponent = () => {
     }
 
     // Merge permissions from all roles
-    const merged: Record<string, Set<PermissionLevel>> = {}
+    const merged: Record<CollectionSlug, Set<PermissionLevel>> = {} as Record<
+      CollectionSlug,
+      Set<PermissionLevel>
+    >
 
     for (const roleSlug of roles) {
       const rolePerms = getPermissionsForRole(roleSlug)
       for (const [collection, perms] of Object.entries(rolePerms)) {
-        if (!merged[collection]) merged[collection] = new Set()
-        perms.forEach((p) => merged[collection].add(p as PermissionLevel))
+        const collSlug = collection as CollectionSlug
+        if (!merged[collSlug]) merged[collSlug] = new Set()
+        perms.forEach((p) => merged[collSlug].add(p as PermissionLevel))
       }
     }
 
     // Convert Sets back to arrays
     const permissions = Object.fromEntries(
-      Object.entries(merged).map(([k, v]) => [k, Array.from(v)])
+      Object.entries(merged).map(([k, v]) => [k, Array.from(v)]),
     )
 
     // Compute projects for managers only
@@ -68,8 +72,9 @@ export const PermissionsTable: FieldClientComponent = () => {
 
     // Compute implicit read collections using helper
     // Filter out collections that already have explicit permissions
-    const implicitReadCollections = getReadableCollections(roles)
-      .filter((collection) => !permissions[collection])
+    const implicitReadCollections = getReadableCollections(roles).filter(
+      (collection) => !permissions[collection],
+    )
 
     return { permissions, projects, implicitReadCollections }
   }, [roles, isClient])
