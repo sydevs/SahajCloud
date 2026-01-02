@@ -1,8 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
 import { slugField } from '@/fields'
-import { roleBasedAccess } from '@/lib/access'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const MusicTags: CollectionConfig = {
@@ -11,11 +9,9 @@ export const MusicTags: CollectionConfig = {
     singular: 'Music Category',
     plural: 'Music Categories',
   },
-  access: roleBasedAccess('music'),
   admin: {
-    group: 'Tags',
+    group: 'Metadata',
     useAsTitle: 'title',
-    hidden: handleProjectVisibility('music-tags', ['wemeditate-web', 'wemeditate-app']),
     defaultColumns: ['title', 'filename'],
   },
   upload: {

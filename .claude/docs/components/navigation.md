@@ -1,24 +1,23 @@
 # Project-Focused Navigation
 
-The CMS implements project-focused navigation to manage content for four distinct projects (All Content, WeMeditate Web, WeMeditate App, Sahaj Atlas). The system dynamically filters sidebar collections based on the currently selected project.
+The CMS implements project-focused navigation to manage content for three distinct projects (WeMeditate Web, WeMeditate App, Sahaj Atlas) plus an "Admin View" that shows all collections. The system dynamically filters sidebar collections based on the currently selected project.
 
 ## Projects Configuration
 
-- **File**: [src/lib/projects.ts](../../src/lib/projects.ts) - Centralized configuration (single source of truth)
-- **Projects**:
-  - `all-content` (All Content) - Access to all content across projects
+- **File**: [src/lib/access/config.ts](../../src/lib/access/config.ts) - Centralized configuration (single source of truth)
+- **Projects** (3 defined):
   - `wemeditate-web` (WeMeditate Web) - Web application content
   - `wemeditate-app` (WeMeditate App) - Mobile application content
   - `sahaj-atlas` (Sahaj Atlas) - Atlas application content
-- **Default Project**: `all-content`
-- **Helper Functions**: `getProjectLabel()`, `getProjectOptions()`, `isValidProject()`
+- **Admin View**: When `currentProject` is `null`, shows all collections (labeled "Sahaj Cloud")
+- **Helper Functions**: Exported from `@/lib/access`: `getProjectLabel()`, `getProjectOptions()`, `isValidProject()`
 
 ## Manager Profile
 
 - **Field**: `currentProject` in Managers collection ([src/collections/access/Managers.ts](../../src/collections/access/Managers.ts))
-- **Type**: Select field with project options
+- **Type**: Select field with project options (nullable)
 - **Position**: Sidebar
-- **Default**: DEFAULT_PROJECT ('all-content')
+- **Default**: `null` (shows "Sahaj Cloud" / admin view)
 - **Purpose**: Stores user's currently selected project preference
 
 ## ProjectSelector Component
@@ -70,16 +69,7 @@ Collections use `admin.hidden` functions to control visibility based on `user.cu
 
 ### Example Implementation
 
-[src/collections/content/Pages.ts](../../src/collections/content/Pages.ts):
-
-```typescript
-admin: {
-  hidden: ({ user }) => {
-    const currentProject = user?.currentProject
-    return currentProject !== 'wemeditate-web' && currentProject !== 'all-content'
-  },
-}
-```
+The `accessPlugin` automatically generates `admin.hidden` functions for all collections based on the project configuration. No manual setup is required - collections are automatically shown/hidden based on project assignments in `src/lib/access/config.ts`.
 
 ## Technical Notes
 

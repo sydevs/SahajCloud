@@ -42,7 +42,7 @@ The Lessons collection (labeled as "Path Steps" in the admin UI) provides medita
 
 ## Key Implementation Notes
 
-- Uses `permissionBasedAccess()` for consistent access control
+- Access control is applied automatically by `accessPlugin` (no manual configuration needed)
 - First panel must be a Cover Panel with title and quote (validated)
 - Panels use union block types for flexible content structure: CoverStoryBlock, TextStoryBlock, VideoStoryBlock
 - File attachments (via Files collection) for introAudio and icon support cascade deletion via ownership system

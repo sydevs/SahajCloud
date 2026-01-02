@@ -3,13 +3,10 @@ import type { CollectionConfig } from 'payload'
 import { TextStoryBlock, VideoStoryBlock, CoverStoryBlock } from '@/blocks/lessons'
 import { QuoteBlock } from '@/blocks/pages'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { roleBasedAccess, createFieldAccess } from '@/lib/access'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { fullRichTextEditor } from '@/lib/richEditor'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
-  access: roleBasedAccess('lessons'),
   trash: true,
   defaultSort: ['unit', 'step'],
   labels: {
@@ -22,7 +19,6 @@ export const Lessons: CollectionConfig = {
     defaultColumns: ['title', 'step'],
     groupBy: true,
     listSearchableFields: ['title'],
-    hidden: handleProjectVisibility('lessons', ['wemeditate-app']),
   },
   // versions: {
   //   maxPerDoc: 20,
@@ -133,7 +129,6 @@ export const Lessons: CollectionConfig = {
               type: 'select',
               required: true,
               options: Array.from({ length: 4 }, (_, i) => `Unit ${i + 1}`),
-              access: createFieldAccess('lessons', false),
             },
             {
               name: 'step',
@@ -142,13 +137,11 @@ export const Lessons: CollectionConfig = {
               admin: {
                 description: 'This will determine the order of the path steps',
               },
-              access: createFieldAccess('lessons', false),
             },
             {
               name: 'icon',
               type: 'upload',
               relationTo: 'images',
-              access: createFieldAccess('lessons', false),
             },
           ],
         },

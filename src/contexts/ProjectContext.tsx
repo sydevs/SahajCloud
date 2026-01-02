@@ -3,7 +3,8 @@
 import { useAuth } from '@payloadcms/ui'
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
-import { ProjectSlug } from '@/lib/projects'
+import { getProjectsFromRoles } from '@/lib/access'
+import type { ProjectSlug } from '@/payload-types'
 
 interface ProjectContextType {
   currentProject: ProjectSlug | null
@@ -20,8 +21,8 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!user) return
 
-    // Get allowed projects from cached permissions field
-    const allowedProjects = (user.permissions?.projects as ProjectSlug[]) || []
+    // Compute allowed projects from user's roles
+    const allowedProjects = getProjectsFromRoles(user.roles) as ProjectSlug[]
     const current = user.currentProject
 
     // Case 1: Admin with no project selected - use null (admin view)
@@ -56,7 +57,7 @@ export const ProjectProvider = ({ children }: { children: ReactNode }) => {
 
     // Case 4: Multiple projects or invalid current - require manual selection
     setCurrentProject(null)
-  }, [user, user?.id, user?.permissions?.projects, user?.currentProject, user?.type])
+  }, [user, user?.id, user?.roles, user?.currentProject, user?.type])
 
   return (
     <ProjectContext.Provider value={{ currentProject, setCurrentProject }}>

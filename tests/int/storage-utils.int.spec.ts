@@ -48,7 +48,7 @@ describe('URL Field Factories', () => {
       expect(hook).toBeDefined()
 
       const url = hook!({ data: { filename: 'test-image-id' } } as never)
-      expect(url).toBe('https://imagedelivery.net/abc123/test-image-id/')
+      expect(url).toBe('https://imagedelivery.net/abc123/test-image-id/public')
     })
 
     it('falls back to local URL when CLOUDFLARE_IMAGES_DELIVERY_URL is not set', () => {
@@ -259,7 +259,7 @@ describe('URL Field Factories', () => {
 
       const hook = getAfterReadHook(field)
       const url = hook!({ data: { filename: 'image-id', mimeType: 'image/jpeg' } } as never)
-      expect(url).toBe('https://imagedelivery.net/abc123/image-id/')
+      expect(url).toBe('https://imagedelivery.net/abc123/image-id/public')
     })
 
     it('generates Cloudflare Stream MP4 URL for videos', () => {

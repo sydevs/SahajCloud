@@ -2,15 +2,12 @@ import type { CollectionConfig, Validate } from 'payload'
 
 import { mediaField, slugField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { roleBasedAccess } from '@/lib/access'
 import { LOCALES } from '@/lib/locales'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 import { KeyframeData, KeyframeDefinition } from '@/types/frames'
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
-  access: roleBasedAccess('meditations'),
   trash: true,
   versions: {
     maxPerDoc: 3,
@@ -28,7 +25,6 @@ export const Meditations: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'label',
     defaultColumns: ['label', 'thumbnail', '_status', 'tags', 'durationMinutes'],
-    hidden: handleProjectVisibility('meditations', ['wemeditate-web', 'wemeditate-app']),
     livePreview: {
       url: ({ data }) => {
         const baseURL = process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173'

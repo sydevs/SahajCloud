@@ -1,9 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { roleBasedAccess } from '@/lib/access'
 import { FRAME_CATEGORY_OPTIONS, GENDER_OPTIONS } from '@/lib/data'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { frameUrlField, previewUrlField } from '@/lib/storage/urlFields'
 
 export const Frames: CollectionConfig = {
@@ -12,7 +10,6 @@ export const Frames: CollectionConfig = {
     singular: 'Meditation Frame',
   },
   slug: 'frames',
-  access: roleBasedAccess('frames'),
   indexes: [
     {
       fields: ['imageSet'],
@@ -68,7 +65,6 @@ export const Frames: CollectionConfig = {
     // imageSizes removed - using Cloudflare Images flexible variants and Stream thumbnails
   },
   admin: {
-    hidden: handleProjectVisibility('frames', ['wemeditate-app']),
     group: 'Resources',
     useAsTitle: 'filename',
     defaultColumns: ['category', 'tags', 'previewUrl', 'imageSet'],

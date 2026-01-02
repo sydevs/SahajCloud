@@ -1,14 +1,9 @@
 import type { GlobalConfig } from 'payload'
 
-import { roleBasedAccess } from '@/lib/access'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
-
 export const SahajAtlasSettings: GlobalConfig = {
   slug: 'sahaj-atlas-settings',
-  access: roleBasedAccess('sahaj-atlas-settings'),
   admin: {
     group: 'System',
-    hidden: handleProjectVisibility('sahaj-atlas-settings', ['sahaj-atlas'], { excludeFromAdminView: true }),
   },
   label: 'Sahaj Atlas',
   fields: [

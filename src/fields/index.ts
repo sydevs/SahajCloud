@@ -16,6 +16,3 @@ export type { ColorFieldOptions } from './colorField'
 // Slug field - wrapper around Payload's slugField with simplified description handling
 export { slugField } from './slugField'
 export type { SlugFieldOptions } from './slugField'
-
-// Permissions fields - role-based access control field factories
-export { managerPermissionsFields, clientPermissionsFields } from './permissionsField'

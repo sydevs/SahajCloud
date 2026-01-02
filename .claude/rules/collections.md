@@ -10,18 +10,19 @@ Rules for PayloadCMS collections and field configurations.
 
 ## Access Control
 
-### Collection-Level Access
-```typescript
-import { roleBasedAccess } from '@/lib/access'
+Access control is **automatically applied by `accessPlugin`**. Collections do NOT need manual access configuration.
 
-export const MyCollection: CollectionConfig = {
-  slug: 'my-collection',
-  access: roleBasedAccess('my-collection'),
-  // ... fields
-}
-```
+### How It Works
 
-### Operation-Specific Checks
+The `accessPlugin` in `payload.config.ts` automatically:
+1. Applies `access` config to all collections
+2. Applies `admin.hidden` functions for project visibility
+3. Applies field-level access to translatable collections
+
+### Checking Permissions Manually
+
+For custom logic outside collections, use `hasPermission`:
+
 ```typescript
 import { hasPermission } from '@/lib/access'
 
@@ -29,40 +30,29 @@ const canUpdate = hasPermission({
   user,
   collection: 'meditations',
   operation: 'update',
-  locale: req.locale,
 })
-```
-
-### Field-Level Access
-```typescript
-import { createFieldAccess } from '@/lib/access'
-
-fields: [
-  {
-    name: 'title',
-    type: 'text',
-    localized: true,
-    access: createFieldAccess('pages', true), // second param: localized
-  }
-]
 ```
 
 ## Permission Checking Flow
 
-1. Check if user is active
-2. Check if manager with `admin: true` → Grant full access
-3. Check if collection is restricted (managers, clients, payload-jobs)
-4. Check cached permissions from `user.permissions`
-5. Check document-level permissions via `customResourceAccess`
-6. Check collection-specific permissions
-7. API clients never get delete access
+1. Block null users
+2. Call bypass function (ordered by frequency):
+   - Admin managers: allow
+   - Inactive managers/clients: deny
+   - customResourceAccess: allow for specific documents
+   - Self-access: allow read/update of own document
+3. Extract roles (handles flat array for clients, localized for managers)
+4. Unified permission check per role:
+   - Implicit read: project-based visibility (includes shared collections)
+   - Explicit permissions: role configuration
+   - Translate: localized field updates only
+5. Default: deny
 
 ## Key Behaviors
 
-- **Implicit Read Access**: Any manager with roles can read non-restricted collections
+- **Implicit Read Access**: Both managers and API clients can read collections in their role's project + shared collections
 - **Localized Roles**: Manager permissions are per-locale (checks `req.locale`)
 - **Client Roles**: Apply uniformly to all locales
-- **Restricted Collections**: managers, clients, payload-jobs are admin-only
 
 ## Field Factory Naming Convention
 
@@ -79,39 +69,39 @@ VirtualUrlField()
 
 ## Adding New Roles
 
-### 1. Define Role in PermissionsField.ts
+### 1. Define Role in config.ts
 ```typescript
-export const MANAGER_ROLES: Record<ManagerRole, ManagerRoleConfig> = {
+// src/lib/access/config.ts
+const ROLES = {
   'my-new-role': {
-    slug: 'my-new-role',
     label: 'My New Role',
-    project: 'wemeditate-web',
+    description: 'Description of the role',
+    project: 'wemeditate-web' as const,
     permissions: {
-      'my-collection': ['read', 'create', 'update'],
-      'media': ['read', 'create'],
+      'my-collection': ['create', 'update'] as PermissionLevel[],
     },
   },
+  // ... existing roles
 }
 ```
 
-### 2. Apply roleBasedAccess() to Collection
-
-### 3. Update Project Visibility
-```typescript
-admin: {
-  hidden: handleProjectVisibility('my-collection', ['wemeditate-web']),
-}
+### 2. Run Type Generation
+```bash
+pnpm generate:types
 ```
 
-### 4. Add Tests
+### 3. Add Tests
 ```typescript
+import { hasPermission, bypassPermissions } from '@/lib/access'
+
 const manager = await testData.createManager(payload, { roles: ['my-new-role'] })
-const canCreate = hasPermission({
-  user: manager,
-  collection: 'my-collection',
-  operation: 'create'
-})
+const canCreate = hasPermission(
+  { user: manager, collection: 'my-collection', operation: 'create' },
+  bypassPermissions
+)
 expect(canCreate).toBe(true)
 ```
+
+**Note**: No manual collection access or visibility setup needed - plugin handles automatically.
 
 Full RBAC reference: @.claude/docs/rbac.md

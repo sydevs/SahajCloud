@@ -19,8 +19,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import { generateV31Spec } from 'payload-oapi/dist/openapi/generators.js'
 
+import { isValidProject } from '@/lib/access'
 import { filterSpec, type OpenAPISpec } from '@/lib/openapi/specFilter'
-import { isValidProject, type ProjectSlug } from '@/lib/projects'
+import type { ProjectSlug } from '@/payload-types'
 
 import config from '@payload-config'
 

@@ -32,6 +32,14 @@ Include test results summary:
 - Build: ✓ Success
 ```
 
+## Documentation Sync
+
+For PRs that change architecture or APIs:
+- Check if `.claude/docs/` references need updating
+- Check if `.claude/rules/` patterns need updating
+- Update any code examples that reference changed functions
+- Run `pnpm generate:access` if RBAC config changes
+
 ## Quick Verification Commands
 
 ```bash

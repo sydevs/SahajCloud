@@ -48,7 +48,8 @@ describe('Clients Collection', () => {
       expect(client).toBeDefined()
       expect(client.name).toBe('Test Client App')
       expect(client.notes).toBe('A test client application')
-      expect(client.permissions).toBeDefined()
+      // Permissions are computed from roles, not stored on the client
+      expect(client.roles).toBeDefined()
       expect(client.active).toBe(true)
 
       // Check managers - may be populated objects or IDs

@@ -1,13 +1,10 @@
-import type { CollectionConfig, Field } from 'payload'
+import type { CollectionConfig } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { roleBasedAccess, createFieldAccess } from '@/lib/access'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const Music: CollectionConfig = {
   slug: 'music',
-  access: roleBasedAccess('music'),
   trash: true,
   upload: {
     staticDir: 'media/music',
@@ -18,7 +15,6 @@ export const Music: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'album', 'duration', 'tags'],
-    hidden: handleProjectVisibility('music', ['wemeditate-web', 'wemeditate-app']),
   },
   hooks: {
     // Filename sanitization is handled by the R2 storage adapter
@@ -35,7 +31,6 @@ export const Music: CollectionConfig = {
       type: 'text',
       required: true,
       localized: true,
-      access: createFieldAccess('music', true),
     },
     {
       name: 'album',
@@ -65,7 +60,5 @@ export const Music: CollectionConfig = {
         readOnly: true,
       },
     },
-  ].map((field) => {
-    return { access: createFieldAccess('music', false), ...field } as Field
-  }),
+  ],
 }

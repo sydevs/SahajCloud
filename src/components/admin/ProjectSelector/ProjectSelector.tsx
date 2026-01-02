@@ -4,9 +4,10 @@ import { ReactSelect, toast, useAuth, useRouteTransition } from '@payloadcms/ui'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
+import { getProjectOptions, getProjectsFromRoles } from '@/lib/access'
 import { useProject } from '@/contexts/ProjectContext'
 import { clientLogger } from '@/lib/clientLogger'
-import { PROJECTS, ProjectSlug } from '@/lib/projects'
+import type { ProjectSlug } from '@/payload-types'
 
 // Define Option type for ReactSelect
 interface SelectOption {
@@ -34,25 +35,28 @@ const ProjectSelector = () => {
       })
     }
 
-    // Get allowed projects from cached permissions field
+    // Get all project options
+    const allProjects = getProjectOptions()
+
+    // Compute allowed projects from user's roles
     const allowedProjects =
       user?.type === 'admin'
-        ? PROJECTS.map((p) => p.value) // Admins see all projects
-        : (user?.permissions?.projects as ProjectSlug[]) || []
+        ? allProjects.map((p) => p.value) // Admins see all projects
+        : (getProjectsFromRoles(user?.roles) as ProjectSlug[])
 
     // Add projects the user has access to
     allowedProjects.forEach((projectValue) => {
-      const projectConfig = PROJECTS.find((p) => p.value === projectValue)
+      const projectConfig = allProjects.find((p) => p.value === projectValue)
       if (projectConfig) {
         options.push({
-          value: projectConfig.value,
+          value: projectConfig.value as ProjectSlug,
           label: projectConfig.label,
         })
       }
     })
 
     return options
-  }, [user?.type, user?.permissions?.projects])
+  }, [user?.type, user?.roles])
 
   const handleProjectChange = async (option: unknown) => {
     // Handle single option (not multi-select)

@@ -1,7 +1,7 @@
 'use client'
 
-import type { ProjectSlug } from '@/lib/projects'
-import { getProjectLabel } from '@/lib/projects'
+import { getProjectLabel } from '@/lib/access'
+import type { ProjectSlug } from '@/payload-types'
 
 import ProjectSelector from '../ProjectSelector'
 

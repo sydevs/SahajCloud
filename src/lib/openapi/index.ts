@@ -11,7 +11,6 @@ export {
   ALWAYS_HIDDEN_COLLECTIONS,
   EXCLUDED_OPERATIONS,
   ALLOW_POST_FOR,
-  DEFAULT_FILTER_CONFIG,
   type FilterOptions,
   type OpenAPISpec,
 } from './specFilter'

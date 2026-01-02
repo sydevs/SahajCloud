@@ -22,15 +22,17 @@ import { collections, Managers } from '../../src/collections'
 import { globals } from '../../src/globals'
 import {
   filterSpec,
-  getCollectionsForClientRole,
-  getAllClientRoleCollections,
   ALWAYS_HIDDEN_COLLECTIONS,
   EXCLUDED_OPERATIONS,
   ALLOW_POST_FOR,
 } from '../../src/lib/openapi/specFilter'
-import { isValidProject } from '../../src/lib/projects'
+import {
+  getProjectCollections,
+  getProjectOptions,
+  isValidProject,
+  getRoleProject,
+} from '../../src/lib/access'
 import { scalarPlugin } from '../../src/lib/openapi/scalarPlugin'
-import { CLIENT_ROLES } from '../../src/fields/permissionsField'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -234,8 +236,8 @@ describe('API Explorer', () => {
       const html = await response.text()
 
       // Verify all projects are in the selector
-      expect(html).toContain('We Meditate Web')
-      expect(html).toContain('We Meditate App')
+      expect(html).toContain('WeMeditate Web')
+      expect(html).toContain('WeMeditate App')
       expect(html).toContain('Sahaj Atlas')
     })
   })
@@ -427,8 +429,8 @@ describe('OpenAPI Spec Marker Utility', () => {
       // Pages should be hidden (wemeditate-app does NOT have pages permission)
       expect(result.paths!['/api/pages']!.get!['x-internal']).toBe(true)
 
-      // Albums should be hidden (wemeditate-app does NOT have albums permission)
-      expect(result.paths!['/api/albums']!.get!['x-internal']).toBe(true)
+      // Albums should be visible (wemeditate-app HAS albums permission)
+      expect(result.paths!['/api/albums']!.get!['x-internal']).toBeUndefined()
     })
 
     it('filters to sahaj-atlas collections when project is specified', () => {
@@ -459,9 +461,9 @@ describe('OpenAPI Spec Marker Utility', () => {
 })
 
 describe('Project Filtering Utilities', () => {
-  describe('getCollectionsForClientRole', () => {
+  describe('getProjectCollections', () => {
     it('returns correct collections for wemeditate-web project', () => {
-      const collections = getCollectionsForClientRole('wemeditate-web')
+      const collections = getProjectCollections('wemeditate-web')
 
       expect(collections).toContain('pages')
       expect(collections).toContain('meditations')
@@ -476,20 +478,20 @@ describe('Project Filtering Utilities', () => {
     })
 
     it('returns correct collections for wemeditate-app project', () => {
-      const collections = getCollectionsForClientRole('wemeditate-app')
+      const collections = getProjectCollections('wemeditate-app')
 
       expect(collections).toContain('meditations')
       expect(collections).toContain('lessons')
       expect(collections).toContain('lectures')
       expect(collections).toContain('music')
+      expect(collections).toContain('albums')
 
-      // Should NOT contain pages or albums
+      // Should NOT contain pages
       expect(collections).not.toContain('pages')
-      expect(collections).not.toContain('albums')
     })
 
     it('returns correct collections for sahaj-atlas project', () => {
-      const collections = getCollectionsForClientRole('sahaj-atlas')
+      const collections = getProjectCollections('sahaj-atlas')
 
       // Sahaj Atlas has minimal permissions
       expect(collections).toContain('sahaj-atlas-settings')
@@ -502,9 +504,15 @@ describe('Project Filtering Utilities', () => {
     })
   })
 
-  describe('getAllClientRoleCollections', () => {
+  describe('Project collections union', () => {
     it('returns union of all project collections', () => {
-      const allCollections = getAllClientRoleCollections()
+      const allCollections = Array.from(
+        new Set(
+          getProjectOptions()
+            .map((opt) => getProjectCollections(opt.value))
+            .flat(),
+        ),
+      )
 
       // Should include collections from all projects
       expect(allCollections).toContain('pages') // wemeditate-web
@@ -514,7 +522,13 @@ describe('Project Filtering Utilities', () => {
     })
 
     it('does not include duplicates', () => {
-      const allCollections = getAllClientRoleCollections()
+      const allCollections = Array.from(
+        new Set(
+          getProjectOptions()
+            .map((opt) => getProjectCollections(opt.value))
+            .flat(),
+        ),
+      )
       const uniqueCollections = [...new Set(allCollections)]
 
       expect(allCollections.length).toBe(uniqueCollections.length)
@@ -536,14 +550,16 @@ describe('Project Filtering Utilities', () => {
   })
 })
 
-describe('CLIENT_ROLES includes albums for wemeditate-web', () => {
-  it('wemeditate-web project has albums permission', () => {
-    const webProject = CLIENT_ROLES['wemeditate-web']
-    expect(webProject.permissions.albums).toEqual(['read'])
+describe('albums collection is accessible to client roles', () => {
+  it('wemeditate-web project includes albums collection', () => {
+    const project = getRoleProject('wemeditate-web-client')!
+    const projectCollections = getProjectCollections(project)
+    expect(projectCollections).toContain('albums')
   })
 
-  it('wemeditate-app project does NOT have albums permission', () => {
-    const appProject = CLIENT_ROLES['wemeditate-app']
-    expect(appProject.permissions.albums).toBeUndefined()
+  it('wemeditate-app project includes albums collection', () => {
+    const project = getRoleProject('wemeditate-app-client')!
+    const projectCollections = getProjectCollections(project)
+    expect(projectCollections).toContain('albums')
   })
 })
