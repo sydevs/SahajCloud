@@ -16,24 +16,20 @@ import type { BypassPermissionFunction } from './types'
 export const bypassPermissions: BypassPermissionFunction = (user, context) => {
   const { collection, operation, docId } = context
 
-  // Self-access check (users can read/update their own document)
-  if (user.collection === collection && user.id === docId) {
-    if (operation === 'read' || operation === 'update') {
-      return 'allow'
-    }
-  }
-
-  // Manager bypass logic
+  // =========================================================================
+  // MANAGER BYPASS (ordered by frequency for optimal short-circuiting)
+  // =========================================================================
   if (user.collection === 'managers') {
     const manager = user as unknown as Manager
 
-    // 1. Inactive manager blocking
-    if (manager.type === 'inactive') return 'deny'
-
-    // 2. Admin bypass (full access)
+    // 1. Admin bypass (most common success path for managers)
     if (manager.type === 'admin') return 'allow'
 
+    // 2. Inactive manager blocking (quick rejection)
+    if (manager.type === 'inactive') return 'deny'
+
     // 3. customResourceAccess: Allow update for specific documents
+    //    Only checked for update operations with a docId
     if (
       operation === 'update' &&
       docId &&
@@ -49,14 +45,30 @@ export const bypassPermissions: BypassPermissionFunction = (user, context) => {
       )
       if (hasAccess) return 'allow'
     }
+
+    // Fall through to self-access check below
   }
 
-  // Client bypass logic
+  // =========================================================================
+  // CLIENT BYPASS (high volume, simple check)
+  // =========================================================================
   if (user.collection === 'clients') {
     const client = user as unknown as Client
 
-    // 1. Inactive client blocking
+    // Inactive client blocking
     if (!client.active) return 'deny'
+
+    // Fall through to self-access check below
+  }
+
+  // =========================================================================
+  // SELF-ACCESS (rare - users accessing their own document)
+  // Applies to both managers and clients, checked last
+  // =========================================================================
+  if (user.collection === collection && user.id === docId) {
+    if (operation === 'read' || operation === 'update') {
+      return 'allow'
+    }
   }
 
   return 'continue'
