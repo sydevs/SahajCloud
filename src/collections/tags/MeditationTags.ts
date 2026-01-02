@@ -11,7 +11,7 @@ export const MeditationTags: CollectionConfig = {
     plural: 'Meditation Categories',
   },
   admin: {
-    group: 'Tags',
+    group: 'Metadata',
     useAsTitle: 'title',
     defaultColumns: ['title', 'filename', 'color'],
   },

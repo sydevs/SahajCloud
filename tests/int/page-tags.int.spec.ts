@@ -99,7 +99,7 @@ describe('PageTags Collection', () => {
     const config = payload.collections['page-tags'].config
     // PageTags has admin configuration (hidden functions are applied by accessPlugin in production)
     expect(config.admin).toBeDefined()
-    expect(config.admin?.group).toBe('Tags')
+    expect(config.admin?.group).toBe('Metadata')
   })
 
   it('uses title as admin display field', async () => {

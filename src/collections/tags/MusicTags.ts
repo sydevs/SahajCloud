@@ -10,7 +10,7 @@ export const MusicTags: CollectionConfig = {
     plural: 'Music Categories',
   },
   admin: {
-    group: 'Tags',
+    group: 'Metadata',
     useAsTitle: 'title',
     defaultColumns: ['title', 'filename'],
   },

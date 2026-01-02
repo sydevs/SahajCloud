@@ -50,7 +50,7 @@ export const Managers: CollectionConfig = {
     lockTime: 600 * 1000, // 10 minutes
   },
   admin: {
-    group: 'Access',
+    group: 'System',
     useAsTitle: 'name',
     defaultColumns: ['name', 'email', 'type', '_verified'],
   },

@@ -5,7 +5,7 @@ import { slugField } from '@/fields'
 export const Authors: CollectionConfig = {
   slug: 'authors',
   admin: {
-    group: 'Resources',
+    group: 'Metadata',
     useAsTitle: 'name',
     defaultColumns: ['name', 'title', 'countryCode'],
   },

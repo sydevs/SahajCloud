@@ -19,7 +19,7 @@ export const Clients: CollectionConfig = {
     plural: 'Services',
   },
   admin: {
-    group: 'Access',
+    group: 'System',
     useAsTitle: 'name',
     defaultColumns: ['name', 'active'],
   },

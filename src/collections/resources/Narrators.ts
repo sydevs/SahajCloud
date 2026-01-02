@@ -6,7 +6,7 @@ import { GENDER_OPTIONS } from '@/lib/data'
 export const Narrators: CollectionConfig = {
   slug: 'narrators',
   admin: {
-    group: 'Resources',
+    group: 'Metadata',
     useAsTitle: 'name',
   },
   hooks: {

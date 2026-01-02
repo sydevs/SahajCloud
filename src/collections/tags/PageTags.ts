@@ -10,7 +10,7 @@ export const PageTags: CollectionConfig = {
     plural: 'Page Categories',
   },
   admin: {
-    group: 'Tags',
+    group: 'Metadata',
     useAsTitle: 'title',
   },
   hooks: {

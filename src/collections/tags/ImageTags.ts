@@ -3,7 +3,7 @@ import type { CollectionConfig } from 'payload'
 export const ImageTags: CollectionConfig = {
   slug: 'image-tags',
   admin: {
-    group: 'Tags',
+    group: 'Metadata',
     useAsTitle: 'title',
   },
   fields: [
