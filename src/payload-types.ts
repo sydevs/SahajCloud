@@ -72,7 +72,7 @@ export type ProjectSlug = 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas';
 export type RoleSlug =
   | 'meditations-editor'
   | 'path-editor'
-  | 'translator'
+  | 'web-translator'
   | 'wemeditate-web-client'
   | 'wemeditate-app-client'
   | 'sahaj-atlas-client';
@@ -861,7 +861,7 @@ export interface Manager {
   /**
    * Assign roles for each locale. Different roles can be assigned for different languages.
    */
-  roles?: ('meditations-editor' | 'path-editor' | 'translator')[] | null;
+  roles?: ('meditations-editor' | 'path-editor' | 'web-translator')[] | null;
   /**
    * Grant update access to specific documents. Useful for giving access to individual pages without broader permissions.
    */

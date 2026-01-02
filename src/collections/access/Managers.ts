@@ -111,7 +111,7 @@ export const Managers: CollectionConfig = {
       type: 'select',
       hasMany: true,
       localized: true,
-      options: getRoleOptions(['meditations-editor', 'path-editor', 'translator']),
+      options: getRoleOptions(['meditations-editor', 'path-editor', 'web-translator']),
       admin: {
         description:
           'Assign roles for each locale. Different roles can be assigned for different languages.',

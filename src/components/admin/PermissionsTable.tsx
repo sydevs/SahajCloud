@@ -34,9 +34,9 @@ export const PermissionsTable: FieldClientComponent = () => {
   const isClient = collectionSlug === 'clients'
 
   // Compute permissions and projects from roles
-  const { permissions, projects, implicitReadCollections } = useMemo(() => {
+  const { permissions, projects, readableCollections } = useMemo(() => {
     if (!roles || roles.length === 0) {
-      return { permissions: {}, projects: [], implicitReadCollections: [] }
+      return { permissions: {}, projects: [], readableCollections: [] }
     }
 
     // Merge permissions from all roles
@@ -70,13 +70,11 @@ export const PermissionsTable: FieldClientComponent = () => {
           ),
         ]
 
-    // Compute implicit read collections using helper
+    // Compute readable collections using helper
     // Filter out collections that already have explicit permissions
-    const implicitReadCollections = getReadableCollections(roles).filter(
-      (collection) => !permissions[collection],
-    )
+    const readableCollections = getReadableCollections(roles)
 
-    return { permissions, projects, implicitReadCollections }
+    return { permissions, projects, readableCollections }
   }, [roles, isClient])
 
   if (!permissions || Object.keys(permissions).length === 0) {
@@ -137,25 +135,6 @@ export const PermissionsTable: FieldClientComponent = () => {
               </tr>
             ))}
         </tbody>
-        {implicitReadCollections.length > 0 && (
-          <tbody>
-            <tr style={{ borderTop: '2px solid var(--theme-elevation-200)' }}>
-              <td style={{ ...cellStyle, fontWeight: 600, fontStyle: 'italic' }}>
-                Read Access
-              </td>
-              <td
-                style={{
-                  ...cellStyle,
-                  fontSize: '12px',
-                  color: 'var(--theme-elevation-600)',
-                  textTransform: 'capitalize',
-                }}
-              >
-                {implicitReadCollections.map((c) => c.replace(/-/g, ' ')).join(', ')}
-              </td>
-            </tr>
-          </tbody>
-        )}
         {!isClient && projects.length > 0 && (
           <tfoot>
             <tr
@@ -164,30 +143,68 @@ export const PermissionsTable: FieldClientComponent = () => {
                 backgroundColor: 'var(--theme-elevation-50)',
               }}
             >
-              <td style={{ ...cellStyle, fontWeight: 600 }}>Allowed Projects</td>
+              <td style={{ ...cellStyle, fontWeight: 600 }}>Project Access</td>
               <td style={cellStyle}>
-                {projects.map((project) => (
-                  <div
-                    key={project}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 'calc(var(--base) * 0.25)',
-                      padding: 'calc(var(--base) * 0.1)',
-                    }}
-                  >
-                    <img
-                      src={getProjectIcon(project)}
-                      alt=""
+                {/* Projects on a single line */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 'calc(var(--base) * 0.5)',
+                    alignItems: 'center',
+                  }}
+                >
+                  {projects.map((project, index) => (
+                    <React.Fragment key={project}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 'calc(var(--base) * 0.25)',
+                        }}
+                      >
+                        <img
+                          src={getProjectIcon(project)}
+                          alt=""
+                          style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '25%',
+                          }}
+                        />
+                        <span>{getProjectLabel(project)}</span>
+                      </div>
+                    </React.Fragment>
+                  ))}
+                </div>
+
+                {/* Readable collections section */}
+                {readableCollections.length > 0 && (
+                  <div style={{ marginTop: 'calc(var(--base) * 0.5)' }}>
+                    <div
                       style={{
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '25%',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: 'var(--theme-elevation-500)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        marginBottom: '4px',
                       }}
-                    />
-                    {getProjectLabel(project)}
+                    >
+                      Allows read access for:
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '12px',
+                        color: 'var(--theme-elevation-600)',
+                        textTransform: 'capitalize',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {readableCollections.map((c) => c.replace(/-/g, ' ')).join(', ')}
+                    </div>
                   </div>
-                ))}
+                )}
               </td>
             </tr>
           </tfoot>

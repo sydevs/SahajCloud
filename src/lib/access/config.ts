@@ -80,8 +80,8 @@ const ROLES = {
     description: 'Can create and edit meditations, upload related media and files',
     project: 'wemeditate-app' as const,
     permissions: {
-      meditations: ['create', 'update'] as PermissionLevel[],
-      narrators: ['create', 'update'] as PermissionLevel[],
+      meditations: ['update', 'create'] as PermissionLevel[],
+      narrators: ['update', 'create'] as PermissionLevel[],
       images: ['create'] as PermissionLevel[],
       files: ['create'] as PermissionLevel[],
     },
@@ -97,8 +97,8 @@ const ROLES = {
       files: ['create'] as PermissionLevel[],
     },
   },
-  translator: {
-    label: 'Translator',
+  'web-translator': {
+    label: 'Web Translator',
     description: 'Can edit localized fields in pages, music, and albums',
     project: 'wemeditate-web' as const,
     permissions: {
@@ -274,12 +274,12 @@ export function getProjectLabel(project: InternalProjectSlug | null): string {
  * @returns Array of project options with value and label
  */
 export function getProjectOptions(): Array<{ value: InternalProjectSlug; label: string }> {
-  return (Object.entries(PROJECTS) as [InternalProjectSlug, (typeof PROJECTS)[InternalProjectSlug]][]).map(
-    ([value, config]) => ({
-      value,
-      label: config.label,
-    }),
-  )
+  return (
+    Object.entries(PROJECTS) as [InternalProjectSlug, (typeof PROJECTS)[InternalProjectSlug]][]
+  ).map(([value, config]) => ({
+    value,
+    label: config.label,
+  }))
 }
 
 /**
@@ -322,7 +322,9 @@ export function getProjectCollections(project: InternalProjectSlug): CollectionS
  * @param role - Role slug
  * @returns Permissions object mapping collection slugs to permission levels
  */
-export function getPermissionsForRole(role: InternalRoleSlug): Record<CollectionSlug, PermissionLevel[]> {
+export function getPermissionsForRole(
+  role: InternalRoleSlug,
+): Record<CollectionSlug, PermissionLevel[]> {
   const roleConfig = ROLES[role]
   return (roleConfig?.permissions || {}) as Record<CollectionSlug, PermissionLevel[]>
 }
