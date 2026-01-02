@@ -53,12 +53,9 @@ Filters OpenAPI specifications and provides project-based collection utilities:
 ```typescript
 import {
   filterSpec,
-  getCollectionsForClientRole,
-  getAllClientRoleCollections,
   ALWAYS_HIDDEN_COLLECTIONS,
   EXCLUDED_OPERATIONS,
   ALLOW_POST_FOR,
-  DEFAULT_FILTER_CONFIG,
   type FilterOptions,
   type OpenAPISpec,
 } from '@/lib/openapi/specFilter'
@@ -67,8 +64,8 @@ import {
 | Function | Purpose |
 |----------|---------|
 | `filterSpec(spec, options?)` | Filter spec with project-based and operation filtering |
-| `getCollectionsForClientRole(project)` | Get collections accessible to a specific project |
-| `getAllClientRoleCollections()` | Get union of all collections across all projects |
+
+**Note**: specFilter.ts now uses `getProjectCollections()` and `getRoleOptions()` from `@/lib/access` for collection lookups instead of having redundant helper functions.
 
 **ALWAYS_HIDDEN_COLLECTIONS** (System collections always hidden):
 - `managers`, `clients` (access collections)
@@ -108,12 +105,12 @@ const spec = filterSpec(rawSpec, { project: 'wemeditate-web' })
 
 **Location**: `src/app/(payload)/api/openapi.json/route.ts`
 
-Intercepts requests and applies filtering:
+Generates and filters the OpenAPI spec:
 1. Parses `?project=` query parameter
-2. Validates project against `PROJECTS` from `src/lib/projects.ts`
-3. Fetches raw spec from `/api/openapi-raw.json`
+2. Validates project using `isValidProject()` from `@/lib/access`
+3. Generates spec directly using `payload-oapi` internals (avoids self-referential fetch issues)
 4. Applies `filterSpec()` with project filtering
-5. Returns filtered spec with caching headers
+5. Returns filtered spec with caching headers (Cloudflare Cache API in production)
 
 ## Testing
 

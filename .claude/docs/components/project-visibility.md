@@ -2,171 +2,179 @@
 
 The CMS implements a project-based visibility system that dynamically shows/hides collections in the admin sidebar based on the manager's currently selected project. This allows multiple frontend applications to share a single CMS while maintaining clean, focused admin interfaces.
 
+## How It Works
+
+Project visibility is automatically managed by the `accessPlugin`. No manual configuration is needed on individual collections.
+
+```typescript
+// In payload.config.ts - visibility is automatic
+import { accessPlugin, bypassPermissions } from '@/lib/access'
+
+plugins: [
+  accessPlugin({
+    enabled: true,
+    bypassPermissions,
+  }),
+]
+```
+
+The plugin automatically generates `admin.hidden` functions for all collections and globals based on the project configuration in `src/lib/access/config.ts`.
+
 ## Project Values
 
-The system supports four project contexts defined in `src/lib/projects.ts`:
+The system supports three project contexts defined in `src/lib/access/config.ts`:
 
 - **wemeditate-web** - We Meditate website frontend
 - **wemeditate-app** - We Meditate mobile application
 - **sahaj-atlas** - Sahaj Atlas mapping application
-- **all-content** - Special mode showing collections across all projects (content managers only)
 
-## Helper Functions
+Additionally, the manager's `currentProject` field can be `null` to show all collections (admin view).
 
-**Location**: `src/lib/projectVisibility.ts`
+## Visibility Logic
 
-### handleProjectVisibility()
+For each collection/global, the `accessPlugin` generates a hidden function with this logic:
 
-Creates dynamic `admin.hidden` functions for collections and globals based on project visibility and write permissions:
+1. **Write Permission Check**: If user has no write permission (create/update/delete) for the collection, hide it
+2. **Not In Any Project**: If collection is not listed in any project, show it (implicitly shared across all projects)
+3. **Admin View**: If user's `currentProject` is `null`, show all collections they have write access to
+4. **Project Match**: If user's current project is in the allowed projects list, show it
+5. **Otherwise**: Hide the collection
 
 ```typescript
-handleProjectVisibility(
-  collectionSlug: string,
-  allowedProjects: ProjectSlug[],
-  options?: { excludeFromAdminView?: boolean }
-)
-```
-
-**Parameters**:
-- `collectionSlug` - Collection slug to check write permissions (create/update/delete). Users without write access to this collection will not see it.
-- `allowedProjects` - Array of project values where collection should be visible
-- `options.excludeFromAdminView` - If true, collection is hidden even in "all-content" mode (default: false)
-
-**Behavior**:
-1. First checks if user has write permissions (create, update, or delete) for the specified collection
-2. If no write access, the collection is hidden regardless of project
-3. Then checks if user's current project is in the allowed projects list
-4. Note: The `update` permission check also covers `translate` permission (translators can see collections they can translate)
-
-**Examples**:
-```typescript
-// Visible only in Web project (requires write access to pages)
-admin: {
-  hidden: handleProjectVisibility('pages', ['wemeditate-web'])
-}
-
-// Visible in Web + App (requires write access to meditations)
-admin: {
-  hidden: handleProjectVisibility('meditations', ['wemeditate-web', 'wemeditate-app'])
-}
-
-// Global settings: visible only in specific project, excluded from all-content mode
-admin: {
-  hidden: handleProjectVisibility('we-meditate-web-settings', ['wemeditate-web'], { excludeFromAdminView: true })
+// Generated hidden function (conceptual)
+hidden: ({ user }) => {
+  if (!hasWritePermission(user, collectionSlug)) return true
+  if (!projectsContainingCollection.length) return false  // Shared
+  if (!user.currentProject) return false  // Admin view
+  return !projectsContainingCollection.includes(user.currentProject)
 }
 ```
 
-### adminOnlyVisibility
+## Project Configuration
 
-Shorthand for collections that should only be visible to admin users (bypasses project filtering):
+Collections are assigned to projects in `src/lib/access/config.ts`:
 
 ```typescript
-admin: {
-  hidden: adminOnlyVisibility
-}
+// PROJECTS is an internal constant (not exported)
+const PROJECTS = {
+  'wemeditate-web': {
+    label: 'WeMeditate Web',
+    icon: '/images/wemeditate-web.svg',
+    collections: [
+      'pages', 'meditations', 'music', 'albums',
+      'forms', 'form-submissions', 'authors',
+      'page-tags', 'meditation-tags', 'music-tags',
+      'narrators', 'frames', 'images', 'files',
+    ],
+    globals: ['we-meditate-web-settings'],
+  },
+  'wemeditate-app': {
+    label: 'WeMeditate App',
+    icon: '/images/wemeditate-app.svg',
+    collections: [
+      'meditations', 'music', 'albums', 'lessons',
+      'lectures', 'frames', 'narrators',
+      'meditation-tags', 'music-tags', 'images', 'files',
+    ],
+    globals: ['we-meditate-app-settings'],
+  },
+  'sahaj-atlas': {
+    label: 'Sahaj Atlas',
+    icon: '/images/sahaj-atlas.webp',
+    collections: ['images', 'files'],
+    globals: ['sahaj-atlas-settings'],
+  },
+} as const
 ```
 
-## Collection Visibility Rules
+## Collection Visibility Matrix
 
-| Collection/Global | Visible In Projects | All-Content Mode | Notes |
-|------------------|---------------------|------------------|-------|
+Collections are visible based on which projects include them AND whether the user has write permission:
+
+| Collection/Global | wemeditate-web | wemeditate-app | sahaj-atlas | Shared |
+|------------------|----------------|----------------|-------------|--------|
 | **Content** |
-| Pages | web, app, atlas | ✅ Visible | Cross-project content |
-| Meditations | web, app | ✅ Visible | Shared meditation content |
-| Music | web, app | ✅ Visible | Background music tracks |
-| Lessons | web, app | ✅ Visible | Path Steps content |
+| pages | ✅ | | | |
+| meditations | ✅ | ✅ | | |
+| music | ✅ | ✅ | | |
+| albums | ✅ | ✅ | | |
+| lessons | | ✅ | | |
+| lectures | | ✅ | | |
 | **Resources** |
-| Media | web, app, atlas | ✅ Visible | Shared media library |
-| Authors | web, app, atlas | ✅ Visible | Article authors |
-| Narrators | app | ❌ Hidden | App-specific, excluded from all-content |
-| External Videos | web, app | ✅ Visible | Not used in Atlas |
-| Frames | app | ✅ Visible | Meditation pose images/videos |
+| images | ✅ | ✅ | ✅ | |
+| files | ✅ | ✅ | ✅ | |
+| authors | ✅ | | | |
+| narrators | ✅ | ✅ | | |
+| frames | ✅ | ✅ | | |
 | **Tags** |
-| Page Tags | web | ✅ Visible | Requires write access to page-tags |
-| Meditation Tags | web, app | ✅ Visible | Requires write access to meditation-tags |
-| Music Tags | web, app | ✅ Visible | Requires write access to music-tags |
-| Image Tags | web, app, atlas | ✅ Visible | Requires write access to image-tags |
-| **System** |
-| Managers | all-content only | Admin-only | User management |
-| Clients | all-content only | Admin-only | API client management |
-| File Attachments | (none) | ❌ Hidden | Completely hidden, internal use |
-| Forms | web, app, atlas | ✅ Visible | Form definitions |
-| Form Submissions | web, all-content | ❌ Hidden | Web-specific submissions |
-| Payload Jobs | all-content only | Admin-only | Background jobs |
+| page-tags | ✅ | | | |
+| meditation-tags | ✅ | ✅ | | |
+| music-tags | ✅ | ✅ | | |
+| image-tags | | | | ✅ |
+| **Forms** |
+| forms | ✅ | | | |
+| form-submissions | ✅ | | | |
 | **Globals** |
-| WeMeditate Web Settings | web only | ❌ Hidden | Web-specific configuration |
+| we-meditate-web-settings | ✅ | | | |
+| we-meditate-app-settings | | ✅ | | |
+| sahaj-atlas-settings | | | ✅ | |
+
+**Note**: "Shared" collections (like `image-tags`) are not in any project and are visible to all users with write permission.
 
 ## Special Behaviors
 
-### All-Content Mode
-- Special project value that shows collections across all projects
-- Typically used by content managers who need cross-project visibility
-- Collections with `excludeAllContent: true` remain hidden in this mode
-- System collections (Managers, Clients, Payload Jobs) only visible in all-content mode
+### Admin View (null currentProject)
+- When `user.currentProject` is `null`, all collections the user has write access to are shown
+- Admin users can access all collections regardless of project
+- Controlled via the manager's `currentProject` field in the Managers collection
 
-### ExcludeAllContent Option
-- Used for project-exclusive content that shouldn't appear in all-content mode
-- Examples: Narrators (app-only), WeMeditate Web Settings (web-only)
-- Ensures strict project isolation for sensitive or project-specific collections
+### Shared Collections
+- Collections not listed in any project (like `image-tags`) are visible across all projects
+- Useful for shared resources that all projects need access to
+- Note: `images` and `files` are now explicitly included in all three projects rather than being implicitly shared
 
 ### Project Switching UX
 - When managers switch projects via ProjectSelector component, they're automatically redirected to `/admin`
 - Prevents viewing collections that become hidden after project switch
 - Implemented in `src/components/admin/ProjectSelector.tsx` using `router.push('/admin')`
 
-## Implementation Details
+## Key Files
 
-### Collection Configuration
+**Configuration**:
+- [src/lib/access/config.ts](../../../src/lib/access/config.ts) - Project definitions, lookup tables, and helper functions (single source of truth)
+- [src/lib/access/bypassPermissions.ts](../../../src/lib/access/bypassPermissions.ts) - Shared bypass function
+- [src/payload.config.ts](../../../src/payload.config.ts) - Plugin configuration
 
-Collections use `handleProjectVisibility()` in their admin config:
+**Plugin Implementation**:
+- [src/lib/access/accessPlugin.ts](../../../src/lib/access/accessPlugin.ts) - Consolidated plugin (permission checking, access configs, visibility)
 
-```typescript
-export const Lectures: CollectionConfig = {
-  slug: 'lectures',
-  access: roleBasedAccess('lectures'),
-  admin: {
-    group: 'Resources',
-    hidden: handleProjectVisibility('lectures', ['wemeditate-web', 'wemeditate-app']),
-  },
-  // ... fields
-}
-```
+**Admin Components**:
+- [src/components/admin/ProjectSelector.tsx](../../../src/components/admin/ProjectSelector.tsx) - Project switching dropdown
 
-### Global Configuration
+## Adding Collections to Projects
 
-Globals use the same helper function:
+To add a collection to a project, update `src/lib/access/config.ts`:
 
 ```typescript
-export const WeMeditateWebSettings: GlobalConfig = {
-  slug: 'we-meditate-web-settings',
-  admin: {
-    group: 'System',
-    hidden: handleProjectVisibility('we-meditate-web-settings', ['wemeditate-web'], { excludeFromAdminView: true }),
+const PROJECTS = {
+  'wemeditate-web': {
+    label: 'WeMeditate Web',
+    icon: '/images/wemeditate-web.svg',
+    collections: [
+      // ... existing collections
+      'new-collection',  // Add here
+    ],
+    globals: ['we-meditate-web-settings'],
   },
-  // ... fields
-}
+} as const
 ```
 
-### Custom Visibility Functions
+The lookup tables (`PROJECT_TO_COLLECTIONS`, `COLLECTION_TO_PROJECTS`) are automatically computed at module load from the `PROJECTS` configuration - no manual updates needed.
 
-For complex visibility rules, implement custom functions in `src/payload.config.ts`:
-
-```typescript
-// Form Submissions: visible in all-content OR wemeditate-web
-formSubmissionOverrides: {
-  admin: {
-    hidden: ({ user }) => {
-      const currentProject = user?.currentProject
-      return currentProject !== 'all-content' && currentProject !== 'wemeditate-web'
-    },
-  },
-}
-```
+The collection will automatically become visible when the user selects that project (if they have write permission).
 
 ## Testing
 
-The project visibility system is tested through:
-- Admin UI navigation after project switching
-- Collection visibility checks in different project modes
-- All-content mode filtering behavior
-- ExcludeAllContent option functionality
+Project visibility is tested through:
+- `tests/int/role-based-access.int.spec.ts` - Permission and visibility integration tests
+- Admin UI manual testing after project switching

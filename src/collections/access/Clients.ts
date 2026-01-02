@@ -1,8 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
-import { clientPermissionsFields } from '@/fields'
+import { getRoleOptions } from '@/lib/access'
 import { validateClientData, checkHighUsageAlert } from '@/hooks/clientHooks'
-import { adminOrSelfAccess } from '@/lib/access'
 
 export const Clients: CollectionConfig = {
   slug: 'clients',
@@ -20,12 +19,10 @@ export const Clients: CollectionConfig = {
     plural: 'Services',
   },
   admin: {
-    hidden: ({ user }) => user?.type !== 'admin',
-    group: 'Access',
+    group: 'System',
     useAsTitle: 'name',
     defaultColumns: ['name', 'active'],
   },
-  access: adminOrSelfAccess({ allowSelfUpdate: false }),
   fields: [
     {
       name: 'name',
@@ -44,7 +41,23 @@ export const Clients: CollectionConfig = {
         description: 'Purpose and usage notes for this client',
       },
     },
-    ...clientPermissionsFields(),
+    // Roles field (non-localized multi-select)
+    {
+      name: 'roles',
+      type: 'select',
+      hasMany: true,
+      options: getRoleOptions([
+        'wemeditate-web-client',
+        'wemeditate-app-client',
+        'sahaj-atlas-client',
+      ]),
+      admin: {
+        description: 'Assign API client roles. Roles apply to all locales.',
+        components: {
+          afterInput: ['@/components/admin/PermissionsTable'],
+        },
+      },
+    },
     {
       name: 'managers',
       type: 'relationship',

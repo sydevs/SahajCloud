@@ -1,4 +1,4 @@
-import type { Field, FieldHook } from 'payload'
+import type { CollectionSlug, Field, FieldHook } from 'payload'
 
 import { getCloudflareImagesUrl } from './cloudflareImagesAdapter'
 import {
@@ -10,7 +10,7 @@ import { getR2Url } from './r2NativeAdapter'
 /**
  * Get local PayloadCMS fallback URL for development
  */
-const getLocalFallbackUrl = (collection: string, filename: string): string =>
+const getLocalFallbackUrl = (collection: CollectionSlug, filename: string): string =>
   `/api/${collection}/file/${filename}`
 
 // ============================================================================
@@ -29,7 +29,7 @@ interface VirtualUrlFieldOptions {
   /**
    * The collection slug (used for development fallback URL)
    */
-  collection: string
+  collection: CollectionSlug
   /**
    * Storage adapter type
    * - cloudflare-images: Uses CLOUDFLARE_IMAGES_DELIVERY_URL
@@ -46,7 +46,7 @@ interface PreviewUrlFieldOptions {
   /**
    * The collection slug (used for development fallback URL)
    */
-  collection: string
+  collection: CollectionSlug
   /**
    * Width for thumbnail transformation (default: 320)
    */
@@ -64,7 +64,7 @@ interface FrameUrlFieldOptions {
   /**
    * The collection slug (used for development fallback URL)
    */
-  collection: string
+  collection: CollectionSlug
 }
 
 /**

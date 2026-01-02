@@ -12,14 +12,12 @@ import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 import { GetPlatformProxyOptions } from 'wrangler'
 
-import { filterAvailableLocales, roleBasedAccess } from '@/lib/access'
+import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/lib/access'
 import { resendAdapter } from '@/lib/email/resendAdapter'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { scalarPlugin } from '@/lib/openapi'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
 import { sentryPlugin } from '@/lib/sentryPlugin'
 import { getServerUrl } from '@/lib/serverUrl'
-
 import { collections, Managers } from './collections'
 import { globals } from './globals'
 import { tasks } from './jobs'
@@ -133,19 +131,6 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           queue: 'nightly',
         },
       ],
-      jobsCollectionOverrides: ({ defaultJobsCollection }) => {
-        if (!defaultJobsCollection.admin) {
-          defaultJobsCollection.admin = {}
-        }
-
-        // Only visible in all-content mode
-        defaultJobsCollection.admin.hidden = ({ user }) => {
-          const currentProject = user?.currentProject
-          return currentProject !== 'all-content' || user?.type !== 'admin'
-        }
-        defaultJobsCollection.access = roleBasedAccess('payload-jobs', { implicitRead: false })
-        return defaultJobsCollection
-      },
     },
     // Email configuration
     // - Test/Import/E2E: Disabled to avoid model conflicts and external service dependencies
@@ -163,95 +148,67 @@ const payloadConfig = (overrides?: Partial<Config>) => {
               }),
         }),
     // Plugins configuration
-    // - E2E Tests: Skip Cloudflare-specific plugins (Sentry, Storage) as they require Cloudflare bindings
-    // - All other environments: Full plugin suite
-    plugins: isE2ETest
-      ? [
-          // Only include plugins that don't require Cloudflare bindings for E2E tests
-          // Note: openapi/swaggerUI plugins excluded - not needed for E2E testing
-          seoPlugin({
-            collections: ['pages'],
-            uploadsCollection: 'images',
-            generateTitle: ({ doc }) => `We Meditate — ${doc.title}`,
-            generateDescription: ({ doc }) => doc.content,
-            tabbedUI: true,
-          }),
-          formBuilderPlugin({
-            defaultToEmail: 'contact@sydevelopers.com',
-            formOverrides: {
-              access: roleBasedAccess('forms'),
-              admin: {
-                group: 'Resources',
-                hidden: handleProjectVisibility('forms', ['wemeditate-web']),
-              },
-            },
-            formSubmissionOverrides: {
-              access: roleBasedAccess('form-submissions', { implicitRead: false }),
-              admin: {
-                hidden: ({ user }) => {
-                  const currentProject = user?.currentProject
-                  return currentProject !== 'all-content' && currentProject !== 'wemeditate-web'
-                },
-                group: 'System',
-              },
-            },
-          }),
-        ]
-      : [
-          openapi({
-            openapiVersion: '3.1',
-            specEndpoint: '/openapi-raw.json', // Raw spec, filtered version at /openapi.json
-            metadata: {
-              title: 'Sahaj Cloud API',
-              version: '1.0.0',
-              description: `REST API for Sahaj Cloud CMS - We Meditate content management.`,
-            },
-          }),
-          scalarPlugin({
-            specEndpoint: '/openapi.json', // Uses our filtered spec (not raw)
-            docsUrl: '/docs',
-          }),
-          sentryPlugin({
-            captureErrors: [400, 403, 404], // Capture additional error codes
-            debug: !isProduction,
-            context: ({ defaultContext, req }) => ({
-              ...defaultContext,
-              tags: {
-                ...defaultContext.tags,
-                locale: req.locale,
-              },
-            }),
-          }),
-          storagePlugin(cloudflare.env as Parameters<typeof storagePlugin>[0]), // Cloudflare-native file storage (Images, Stream, R2)
-          seoPlugin({
-            collections: ['pages'],
-            uploadsCollection: 'images', // Changed from 'media' to 'images'
-            generateTitle: ({ doc }) => `We Meditate — ${doc.title}`,
-            generateDescription: ({ doc }) => doc.content,
-            tabbedUI: true,
-          }),
-          formBuilderPlugin({
-            defaultToEmail: 'contact@sydevelopers.com',
-            formOverrides: {
-              access: roleBasedAccess('forms'),
-              admin: {
-                group: 'Resources',
-                hidden: handleProjectVisibility('forms', ['wemeditate-web']),
-              },
-            },
-            formSubmissionOverrides: {
-              access: roleBasedAccess('form-submissions', { implicitRead: false }),
-              admin: {
-                // Visible in all-content mode or wemeditate-web project
-                hidden: ({ user }) => {
-                  const currentProject = user?.currentProject
-                  return currentProject !== 'all-content' && currentProject !== 'wemeditate-web'
-                },
-                group: 'System',
-              },
-            },
-          }),
-        ],
+    // All plugins use `enabled` attribute for conditional loading based on environment
+    plugins: [
+      // OpenAPI spec generation (disabled in E2E tests)
+      openapi({
+        openapiVersion: '3.1',
+        specEndpoint: '/openapi-raw.json', // Raw spec, filtered version at /openapi.json
+        metadata: {
+          title: 'Sahaj Cloud API',
+          version: '1.0.0',
+          description: `REST API for Sahaj Cloud CMS - We Meditate content management.`,
+        },
+        enabled: !isE2ETest, // Skip in E2E tests
+      }),
+      // Scalar API documentation UI (disabled in E2E tests)
+      scalarPlugin({
+        specEndpoint: '/openapi.json', // Uses our filtered spec (not raw)
+        docsUrl: '/docs',
+        enabled: !isE2ETest, // Skip in E2E tests
+      }),
+      // Sentry error tracking (disabled in E2E tests)
+      sentryPlugin({
+        captureErrors: [400, 403, 404], // Capture additional error codes
+        debug: !isProduction,
+        context: ({ defaultContext, req }) => ({
+          ...defaultContext,
+          tags: {
+            ...defaultContext.tags,
+            locale: req.locale,
+          },
+        }),
+        enabled: !isE2ETest, // Skip in E2E tests
+      }),
+      // Cloudflare-native file storage (disabled in E2E tests)
+      storagePlugin({
+        env: cloudflare?.env,
+        enabled: !isE2ETest, // Skip in E2E tests - requires Cloudflare bindings
+      }),
+      // SEO plugin (enabled in all environments)
+      seoPlugin({
+        collections: ['pages'],
+        uploadsCollection: 'images',
+        generateTitle: ({ doc }) => `We Meditate — ${doc.title}`,
+        generateDescription: ({ doc }) => doc.content,
+        tabbedUI: true,
+      }),
+      // Form builder plugin (enabled in all environments)
+      formBuilderPlugin({
+        defaultToEmail: 'contact@sydevelopers.com',
+        formOverrides: {
+          admin: { group: 'Resources' },
+        },
+        formSubmissionOverrides: {
+          admin: { group: 'System' },
+        },
+      }),
+      // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
+      accessPlugin({
+        enabled: true,
+        bypassPermissions,
+      }),
+    ],
     upload: {
       limits: {
         fileSize: 104857600, // 100MB global limit, written in bytes (collections will have their own limits)

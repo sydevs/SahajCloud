@@ -163,9 +163,10 @@ describe('ValidationReport', () => {
     })
 
     it('should allow setting complete summary', () => {
-      report.setRecordsSummary({ created: 10, skipped: 5, errors: 2 })
+      report.setRecordsSummary({ created: 10, updated: 3, skipped: 5, errors: 2 })
       const summary = report.getSummary()
       expect(summary.created).toBe(10)
+      expect(summary.updated).toBe(3)
       expect(summary.skipped).toBe(5)
       expect(summary.errors).toBe(2)
     })

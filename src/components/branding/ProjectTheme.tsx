@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 
 import { useProject } from '@/contexts/ProjectContext'
-import { ProjectSlug } from '@/lib/projects'
+import type { ProjectSlug } from '@/payload-types'
 
 interface ThemeColors {
   light: Record<string, string>

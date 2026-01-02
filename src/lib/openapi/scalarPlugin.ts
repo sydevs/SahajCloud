@@ -10,8 +10,8 @@
 
 import type { Config, Endpoint } from 'payload'
 
-import { CLIENT_ROLES } from '@/fields/permissionsField'
-import { getProjectLabel, getProjectIcon, type ProjectSlug, isValidProject } from '@/lib/projects'
+import { getProjectIcon, getProjectLabel, getProjectOptions, isValidProject } from '@/lib/access'
+import type { ProjectSlug } from '@/payload-types'
 
 export interface ScalarPluginOptions {
   /** Path to the OpenAPI spec endpoint (default: '/openapi.json') */
@@ -120,11 +120,11 @@ function generateThemeCss(theme: ThemeColors | null): string {
 }
 
 /**
- * Generate project selector options from CLIENT_ROLES
+ * Generate project selector options from project metadata
  */
 function getProjectSelectorOptions(): string {
-  const options = Object.values(CLIENT_ROLES)
-    .map((project) => `<option value="${project.slug}">${project.label}</option>`)
+  const options = getProjectOptions()
+    .map((option) => `<option value="${option.value}">${option.label}</option>`)
     .join('\n          ')
 
   return `<option value="">All Endpoints</option>
@@ -419,7 +419,7 @@ export const scalarPlugin =
             const urlParams = new URLSearchParams(queryString)
             const projectParam = urlParams.get('project')
             const project: ProjectSlug | null =
-              projectParam && isValidProject(projectParam) ? projectParam : null
+              projectParam && isValidProject(projectParam) ? (projectParam as ProjectSlug) : null
 
             // Generate HTML with branding and project selector
             const html = generateScalarHtml(fullSpecUrl, project, baseUrl)

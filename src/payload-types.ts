@@ -60,6 +60,22 @@ export type SupportedTimezones =
   | 'Pacific/Noumea'
   | 'Pacific/Auckland'
   | 'Pacific/Fiji';
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ProjectSlug".
+ */
+export type ProjectSlug = 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas';
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "RoleSlug".
+ */
+export type RoleSlug =
+  | 'meditations-editor'
+  | 'path-editor'
+  | 'web-translator'
+  | 'wemeditate-web-client'
+  | 'wemeditate-app-client'
+  | 'sahaj-atlas-client';
 
 export interface Config {
   auth: {
@@ -845,7 +861,7 @@ export interface Manager {
   /**
    * Assign roles for each locale. Different roles can be assigned for different languages.
    */
-  roles?: ('meditations-editor' | 'path-editor' | 'translator')[] | null;
+  roles?: ('meditations-editor' | 'path-editor' | 'web-translator')[] | null;
   /**
    * Grant update access to specific documents. Useful for giving access to individual pages without broader permissions.
    */
@@ -854,15 +870,6 @@ export interface Manager {
         relationTo: 'pages';
         value: number | Page;
       }[]
-    | null;
-  permissions?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
     | null;
   updatedAt: string;
   createdAt: string;
@@ -901,16 +908,7 @@ export interface Client {
   /**
    * Assign API client roles. Roles apply to all locales.
    */
-  roles?: ('wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas')[] | null;
-  permissions?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  roles?: ('wemeditate-web-client' | 'wemeditate-app-client' | 'sahaj-atlas-client')[] | null;
   /**
    * Users who can manage this client
    */
@@ -1726,7 +1724,6 @@ export interface ManagersSelect<T extends boolean = true> {
   type?: T;
   roles?: T;
   customResourceAccess?: T;
-  permissions?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -1754,7 +1751,6 @@ export interface ClientsSelect<T extends boolean = true> {
   name?: T;
   notes?: T;
   roles?: T;
-  permissions?: T;
   managers?: T;
   primaryContact?: T;
   domains?: T;

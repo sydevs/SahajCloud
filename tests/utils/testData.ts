@@ -22,8 +22,9 @@ import type {
   File,
   Author,
   Lecture,
+  ManagerRole,
+  ClientRole,
 } from '@/payload-types'
-import type { ManagerRole, ClientRole } from '@/types/roles'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -705,6 +706,11 @@ export const testData = {
       } as TypedUser
     }
 
-    return baseUser as TypedUser
+    // Add active field for clients (bypass function requires active: true)
+    return {
+      ...baseUser,
+      active: true, // Default to active client
+      ...overrides, // Allow overriding active
+    } as TypedUser
   },
 }

@@ -3,7 +3,7 @@
 import Image, { ImageProps } from 'next/image'
 
 import { useProject } from '@/contexts/ProjectContext'
-import { getProjectIcon } from '@/lib/projects'
+import { getProjectIcon } from '@/lib/access'
 
 interface IconProps {
   alt?: string

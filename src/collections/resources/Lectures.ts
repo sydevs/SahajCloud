@@ -1,12 +1,9 @@
 import type { CollectionConfig } from 'payload'
 
 import { urlField } from '@/fields'
-import { roleBasedAccess } from '@/lib/access'
-import { handleProjectVisibility } from '@/lib/projectVisibility'
 
 export const Lectures: CollectionConfig = {
   slug: 'lectures',
-  access: roleBasedAccess('lectures'),
   labels: {
     singular: 'Lecture',
     plural: 'Lectures',
@@ -14,7 +11,6 @@ export const Lectures: CollectionConfig = {
   admin: {
     group: 'Resources',
     useAsTitle: 'title',
-    hidden: handleProjectVisibility('lectures', ['wemeditate-web', 'wemeditate-app']),
   },
   fields: [
     {

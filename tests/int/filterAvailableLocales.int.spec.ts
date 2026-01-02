@@ -1,4 +1,11 @@
-import type { Locale, PayloadRequest } from 'payload'
+/**
+ * filterAvailableLocales Tests
+ *
+ * Tests the admin UI locale filtering based on user permissions.
+ * Locale configuration tests are in locales.int.spec.ts
+ */
+
+import type { PayloadRequest } from 'payload'
 
 import { describe, it, expect } from 'vitest'
 
@@ -19,63 +26,6 @@ function createMockRequest(user: unknown): PayloadRequest {
 }
 
 describe('filterAvailableLocales', () => {
-  describe('locale configuration', () => {
-    it('builds all 16 locales with proper configuration', () => {
-      expect(allLocales).toHaveLength(16)
-      expect(allLocales.map((l) => l.code)).toEqual([
-        'en',
-        'es',
-        'de',
-        'it',
-        'fr',
-        'ru',
-        'ro',
-        'cs',
-        'uk',
-        'el',
-        'hy',
-        'pl',
-        'pt-br',
-        'fa',
-        'bg',
-        'tr',
-      ])
-    })
-
-    it('sets RTL for Farsi locale', () => {
-      const farsiLocale = allLocales.find((l) => l.code === 'fa')
-      expect(farsiLocale?.rtl).toBe(true)
-    })
-
-    it('sets fallbackLocale to English for non-English locales', () => {
-      const nonEnglishLocales = allLocales.filter((l) => l.code !== 'en')
-      nonEnglishLocales.forEach((locale) => {
-        expect(locale.fallbackLocale).toBe('en')
-      })
-    })
-
-    it('does not set fallbackLocale for English', () => {
-      const englishLocale = allLocales.find((l) => l.code === 'en')
-      expect(englishLocale?.fallbackLocale).toBeUndefined()
-    })
-
-    it('has proper labels from ISO 639-1 or overrides', () => {
-      const englishLocale = allLocales.find((l) => l.code === 'en')
-      expect(englishLocale?.label).toBe('English')
-
-      const germanLocale = allLocales.find((l) => l.code === 'de')
-      expect(germanLocale?.label).toBe('German')
-
-      // Check override for Brazilian Portuguese
-      const ptBrLocale = allLocales.find((l) => l.code === 'pt-br')
-      expect(ptBrLocale?.label).toBe('Brazilian Portuguese')
-
-      // Check override for Farsi
-      const farsiLocale = allLocales.find((l) => l.code === 'fa')
-      expect(farsiLocale?.label).toBe('Farsi/Persian')
-    })
-  })
-
   describe('unauthenticated requests', () => {
     it('returns only English for unauthenticated requests', () => {
       const req = createMockRequest(null)
