@@ -45,9 +45,12 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
   const { env, enabled = true } = options
 
   return (config) => {
-    // Early return if plugin is disabled
+    // Early return if plugin is disabled - use cloudStoragePlugin for consistent behavior
     if (!enabled) {
-      return config
+      return cloudStoragePlugin({
+        enabled: false,
+        collections: {},
+      })(config)
     }
 
     // Check if Cloudflare credentials are available

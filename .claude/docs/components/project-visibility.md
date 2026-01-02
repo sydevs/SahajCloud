@@ -53,8 +53,11 @@ hidden: ({ user }) => {
 Collections are assigned to projects in `src/lib/access/config.ts`:
 
 ```typescript
-export const PROJECTS = {
+// PROJECTS is an internal constant (not exported)
+const PROJECTS = {
   'wemeditate-web': {
+    label: 'WeMeditate Web',
+    icon: '/images/wemeditate-web.svg',
     collections: [
       'pages', 'meditations', 'music', 'albums',
       'forms', 'form-submissions', 'authors',
@@ -64,6 +67,8 @@ export const PROJECTS = {
     globals: ['we-meditate-web-settings'],
   },
   'wemeditate-app': {
+    label: 'WeMeditate App',
+    icon: '/images/wemeditate-app.svg',
     collections: [
       'meditations', 'music', 'albums', 'lessons',
       'lectures', 'frames', 'narrators',
@@ -72,6 +77,8 @@ export const PROJECTS = {
     globals: ['we-meditate-app-settings'],
   },
   'sahaj-atlas': {
+    label: 'Sahaj Atlas',
+    icon: '/images/sahaj-atlas.webp',
     collections: ['images', 'files'],
     globals: ['sahaj-atlas-settings'],
   },
@@ -132,8 +139,7 @@ Collections are visible based on which projects include them AND whether the use
 ## Key Files
 
 **Configuration**:
-- [src/lib/access/config.ts](../../../src/lib/access/config.ts) - Project definitions (single source of truth)
-- [src/lib/access/data.ts](../../../src/lib/access/data.ts) - Internal lookup tables and public lookup functions
+- [src/lib/access/config.ts](../../../src/lib/access/config.ts) - Project definitions, lookup tables, and helper functions (single source of truth)
 - [src/payload.config.ts](../../../src/payload.config.ts) - Plugin configuration with bypass logic
 
 **Plugin Implementation**:
@@ -144,32 +150,23 @@ Collections are visible based on which projects include them AND whether the use
 
 ## Adding Collections to Projects
 
-To add a collection to a project:
+To add a collection to a project, update `src/lib/access/config.ts`:
 
-1. Update `src/lib/access/config.ts`:
 ```typescript
-export const PROJECTS = {
+const PROJECTS = {
   'wemeditate-web': {
+    label: 'WeMeditate Web',
+    icon: '/images/wemeditate-web.svg',
     collections: [
       // ... existing collections
       'new-collection',  // Add here
     ],
+    globals: ['we-meditate-web-settings'],
   },
 } as const
 ```
 
-2. Update internal lookup tables in `src/lib/access/data.ts`:
-```typescript
-const COLLECTION_TO_PROJECTS: Record<string, string[]> = {
-  'new-collection': ['wemeditate-web'],
-  // ... other mappings
-}
-
-const PROJECT_TO_COLLECTIONS: Record<string, string[]> = {
-  'wemeditate-web': [...existingCollections, 'new-collection'],
-  // ... other projects
-}
-```
+The lookup tables (`PROJECT_TO_COLLECTIONS`, `COLLECTION_TO_PROJECTS`) are automatically computed at module load from the `PROJECTS` configuration - no manual updates needed.
 
 The collection will automatically become visible when the user selects that project (if they have write permission).
 

@@ -13,8 +13,7 @@ The CMS implements a unified role-based permission system via the `accessPlugin`
 
 Access control configuration is defined in `src/lib/access/config.ts` (single source of truth for projects and roles), while bypass logic is configured in `payload.config.ts`:
 
-**Configuration**: [src/lib/access/config.ts](../../src/lib/access/config.ts) - Projects and role definitions
-**Data Layer**: [src/lib/access/data.ts](../../src/lib/access/data.ts) - Internal lookup tables and public lookup functions
+**Configuration**: [src/lib/access/config.ts](../../src/lib/access/config.ts) - Projects, roles, lookup tables, and helper functions (single source of truth)
 
 **Plugin Configuration**: [src/payload.config.ts](../../src/payload.config.ts)
 
@@ -70,9 +69,11 @@ plugins: [
 ## API Client Roles
 
 ### Available Client Roles (3 roles)
-1. **wemeditate-web**: Access for We Meditate web frontend application
-2. **wemeditate-app**: Access for We Meditate mobile application
-3. **sahaj-atlas**: Access for Sahaj Atlas application
+1. **wemeditate-web-client**: Access for We Meditate web frontend application
+2. **wemeditate-app-client**: Access for We Meditate mobile application
+3. **sahaj-atlas-client**: Access for Sahaj Atlas application
+
+**Note**: Client roles use a `-client` suffix to distinguish them from project slugs. This is intentional to provide clear type separation between projects and client API roles.
 
 ### Client Role Characteristics
 - **Not Localized**: Client roles apply to all locales
@@ -241,9 +242,9 @@ Managers get implicit read access to:
 
 API clients get implicit read access ONLY to collections in their role's associated project:
 
-- `wemeditate-web` client → Can read pages, meditations, music, etc. (wemeditate-web project)
-- `wemeditate-app` client → Can read meditations, lessons, lectures, etc. (wemeditate-app project)
-- `sahaj-atlas` client → Can read images, files (sahaj-atlas project)
+- `wemeditate-web-client` → Can read pages, meditations, music, etc. (wemeditate-web project)
+- `wemeditate-app-client` → Can read meditations, lessons, lectures, etc. (wemeditate-app project)
+- `sahaj-atlas-client` → Can read images, files (sahaj-atlas project)
 
 **Important**: API clients do NOT get access to shared collections (collections not in any project) unless they have explicit permissions.
 
@@ -269,16 +270,20 @@ API clients get implicit read access ONLY to collections in their role's associa
 - Implemented in the bypass function (checked before role-based permissions)
 - Ensures users can manage their own profile
 
+### Restricted Collections (Implicit Access Control)
+Access collections (`managers`, `clients`) and system collections (`payload-jobs`, `payload-kv`, etc.) are implicitly restricted:
+- They are not listed in any project configuration
+- Only users with explicit permissions or admin bypass can access them
+- This is handled automatically by the project-based implicit read logic - no hardcoded restrictions needed
+
 ## Key Files
 
 **Configuration**:
-- [src/lib/access/config.ts](../../src/lib/access/config.ts) - Single source of truth for projects and roles
-- [src/lib/access/data.ts](../../src/lib/access/data.ts) - Internal lookup tables and public lookup functions
+- [src/lib/access/config.ts](../../src/lib/access/config.ts) - Single source of truth for projects, roles, lookup tables, and helper functions
 - [src/payload.config.ts](../../src/payload.config.ts) - Plugin configuration with bypass logic
 
 **Plugin Implementation**:
-- [src/lib/access/accessPlugin.ts](../../src/lib/access/accessPlugin.ts) - Consolidated plugin (permission checking, access configs, visibility, main export)
-- [src/lib/access/localizedFields.ts](../../src/lib/access/localizedFields.ts) - Auto field access for localized fields
+- [src/lib/access/accessPlugin.ts](../../src/lib/access/accessPlugin.ts) - Consolidated plugin (permission checking, access configs, visibility, field-level access)
 - [src/lib/access/filterAvailableLocales.ts](../../src/lib/access/filterAvailableLocales.ts) - Admin UI locale filtering
 - [src/lib/access/schemaExtension.ts](../../src/lib/access/schemaExtension.ts) - TypeScript schema extension
 - [src/lib/access/types.ts](../../src/lib/access/types.ts) - Plugin type definitions
@@ -300,38 +305,22 @@ API clients get implicit read access ONLY to collections in their role's associa
 
 1. Add role definition to `src/lib/access/config.ts` in the `ROLES` constant:
 ```typescript
-export const ROLES = {
-  managers: {
-    'new-role': {
-      label: 'New Role',
-      description: 'Description of the role',
-      project: 'wemeditate-web' as const,  // Associate with a project
-      permissions: {
-        'collection-slug': ['read', 'create', 'update'] as PermissionLevel[],
-      },
+const ROLES = {
+  // Manager roles
+  'new-role': {
+    label: 'New Role',
+    description: 'Description of the role',
+    project: 'wemeditate-web' as const,  // Associate with a project
+    permissions: {
+      'collection-slug': ['create', 'update'] as PermissionLevel[],
     },
-    // ... existing roles
   },
-}
+  // ... existing roles
+} as const
 ```
 
-2. Add role to explicit lookup tables in `src/lib/access/data.ts`:
-```typescript
-const ROLE_TO_PROJECT: Record<string, string> = {
-  'new-role': 'wemeditate-web',
-  // ... existing mappings
-}
+The lookup tables are automatically computed at module load from the `ROLES` configuration - no manual updates needed.
 
-const PERMISSION_LOOKUP = {
-  managers: {
-    'new-role': {
-      'collection-slug': ['read', 'create', 'update'] as PermissionLevel[],
-    },
-    // ... existing permissions
-  },
-}
-```
+2. Run `pnpm generate:types` to update TypeScript types (includes RoleSlug union)
 
-3. Run `pnpm generate:types` to update TypeScript types (includes ManagerRole/ClientRole unions)
-
-4. Add tests in `tests/int/role-based-access.int.spec.ts`
+3. Add tests in `tests/int/role-based-access.int.spec.ts`

@@ -105,12 +105,12 @@ const spec = filterSpec(rawSpec, { project: 'wemeditate-web' })
 
 **Location**: `src/app/(payload)/api/openapi.json/route.ts`
 
-Intercepts requests and applies filtering:
+Generates and filters the OpenAPI spec:
 1. Parses `?project=` query parameter
-2. Validates project against `PROJECTS` from `src/lib/projects.ts`
-3. Fetches raw spec from `/api/openapi-raw.json`
+2. Validates project using `isValidProject()` from `@/lib/access`
+3. Generates spec directly using `payload-oapi` internals (avoids self-referential fetch issues)
 4. Applies `filterSpec()` with project filtering
-5. Returns filtered spec with caching headers
+5. Returns filtered spec with caching headers (Cloudflare Cache API in production)
 
 ## Testing
 
