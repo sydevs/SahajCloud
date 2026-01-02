@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { bypassPermissions, hasPermission } from '@/lib/access'
+import { bypassPermissions, hasAnyPermission, hasPermission } from '@/lib/access'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -461,6 +461,117 @@ describe('Role-Based Access Control', () => {
       expect(results[2]).toBe(true) // music update (localized field)
       expect(results[3]).toBe(true) // images create
       expect(results[4]).toBe(true) // narrators read (implicit)
+    })
+  })
+
+  describe('hasAnyPermission() Function', () => {
+    it('returns true if user has ANY of the specified operations (OR logic)', () => {
+      // meditations-editor can create and update meditations, but not delete
+      const editorUser = testData.dummyUser('managers', {
+        id: 20,
+        roles: ['meditations-editor'],
+      })
+
+      // Should return true - has create permission
+      expect(
+        hasAnyPermission(
+          {
+            user: editorUser,
+            collection: 'meditations',
+            operations: ['create', 'update', 'delete'],
+          },
+          bypassPermissions,
+        ),
+      ).toBe(true)
+
+      // Should return true - has update permission
+      expect(
+        hasAnyPermission(
+          {
+            user: editorUser,
+            collection: 'meditations',
+            operations: ['delete', 'update'],
+          },
+          bypassPermissions,
+        ),
+      ).toBe(true)
+    })
+
+    it('returns false if user has NONE of the specified operations', () => {
+      // meditations-editor cannot create/update/delete pages
+      const editorUser = testData.dummyUser('managers', {
+        id: 21,
+        roles: ['meditations-editor'],
+      })
+
+      expect(
+        hasAnyPermission(
+          {
+            user: editorUser,
+            collection: 'pages',
+            operations: ['create', 'update', 'delete'],
+          },
+          bypassPermissions,
+        ),
+      ).toBe(false)
+    })
+
+    it('works correctly for visibility checking (typical use case)', () => {
+      // Translator can translate pages but not create/delete
+      const translatorUser = testData.dummyUser('managers', {
+        id: 22,
+        roles: ['translator'],
+      })
+
+      // Has translate permission which grants localized field update
+      // So hasAnyPermission with ['create', 'update', 'delete'] should be true
+      // because translate implies update capability for localized fields
+      expect(
+        hasAnyPermission(
+          {
+            user: translatorUser,
+            collection: 'pages',
+            operations: ['create', 'update', 'delete'],
+          },
+          bypassPermissions,
+        ),
+      ).toBe(true)
+
+      // Manager with no roles should have no write access
+      const noRolesUser = testData.dummyUser('managers', {
+        id: 23,
+        roles: [],
+      })
+
+      expect(
+        hasAnyPermission(
+          {
+            user: noRolesUser,
+            collection: 'pages',
+            operations: ['create', 'update', 'delete'],
+          },
+          bypassPermissions,
+        ),
+      ).toBe(false)
+    })
+
+    it('respects admin bypass', () => {
+      const adminUser = testData.dummyUser('managers', {
+        id: 24,
+        type: 'admin' as const,
+      })
+
+      // Admin should have all permissions
+      expect(
+        hasAnyPermission(
+          {
+            user: adminUser,
+            collection: 'managers',
+            operations: ['create', 'update', 'delete'],
+          },
+          bypassPermissions,
+        ),
+      ).toBe(true)
     })
   })
 })

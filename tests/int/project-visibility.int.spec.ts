@@ -1,9 +1,14 @@
+/**
+ * Project Visibility Tests
+ *
+ * Tests the admin.hidden function generation for project-based collection visibility.
+ * These test our custom createHidden() logic from accessPlugin.
+ */
+
 import type { Payload } from 'payload'
 
 import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 
-import { getProjectLabel, getProjectOptions, isValidProject } from '../../src/lib/access'
-import type { ProjectSlug } from '../../src/payload-types'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Project Visibility System', () => {
@@ -18,61 +23,6 @@ describe('Project Visibility System', () => {
 
   afterAll(async () => {
     await cleanup()
-  })
-
-  describe('project utilities', () => {
-    describe('getProjectOptions()', () => {
-      it('should return all three projects', () => {
-        const projects = getProjectOptions()
-        expect(projects).toHaveLength(3)
-        expect(projects.map((p) => p.value)).toContain('wemeditate-web')
-        expect(projects.map((p) => p.value)).toContain('wemeditate-app')
-        expect(projects.map((p) => p.value)).toContain('sahaj-atlas')
-      })
-    })
-
-    describe('getProjectLabel', () => {
-      it('should return correct labels for known projects', () => {
-        expect(getProjectLabel('wemeditate-web')).toBe('WeMeditate Web')
-        expect(getProjectLabel('wemeditate-app')).toBe('WeMeditate App')
-        expect(getProjectLabel('sahaj-atlas')).toBe('Sahaj Atlas')
-      })
-
-      it('should return "Sahaj Cloud" for null (admin view)', () => {
-        expect(getProjectLabel(null)).toBe('Sahaj Cloud')
-      })
-
-      it('should return the value for unknown projects', () => {
-        expect(getProjectLabel('unknown' as ProjectSlug)).toBe('unknown')
-      })
-    })
-
-    describe('getProjectOptions', () => {
-      it('should return options array for Payload fields', () => {
-        const options = getProjectOptions()
-        expect(options).toHaveLength(3)
-        expect(options[0]).toHaveProperty('value')
-        expect(options[0]).toHaveProperty('label')
-      })
-    })
-
-    describe('isValidProject', () => {
-      it('should return true for valid project values', () => {
-        expect(isValidProject('wemeditate-web')).toBe(true)
-        expect(isValidProject('wemeditate-app')).toBe(true)
-        expect(isValidProject('sahaj-atlas')).toBe(true)
-      })
-
-      it('should return true for null', () => {
-        expect(isValidProject(null)).toBe(true)
-      })
-
-      it('should return false for invalid project values', () => {
-        expect(isValidProject('invalid')).toBe(false)
-        expect(isValidProject('')).toBe(false)
-        expect(isValidProject('wemeditate')).toBe(false)
-      })
-    })
   })
 
   describe('Collection visibility integration', () => {

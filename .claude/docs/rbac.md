@@ -90,22 +90,13 @@ The plugin:
 
 ### Bypass Functions
 
-Bypass functions are checked FIRST and can short-circuit permission checking. They are configured in `payload.config.ts` as the `bypassPermissions` option:
+Bypass functions are checked FIRST and can short-circuit permission checking. The shared bypass function is defined in `src/lib/access/bypassPermissions.ts` and handles:
+- Self-access (users can read/update their own document)
+- Inactive user blocking
+- Admin bypass (full access)
+- Custom resource access (document-level permissions)
 
-```typescript
-bypassPermissions: (user, context) => {
-  const { collection, operation, docId } = context
-
-  if (user.collection === 'managers') {
-    if (user.type === 'inactive') return 'deny'   // Block immediately
-    if (user.type === 'admin') return 'allow'     // Grant immediately
-  }
-
-  return 'continue'  // Continue to role checking
-}
-```
-
-**Results**:
+**Return values**:
 - `'allow'` - Grant access immediately, skip further checks
 - `'deny'` - Block access immediately, skip further checks
 - `'continue'` - Continue with normal role-based checking
