@@ -11,41 +11,30 @@ The CMS implements a unified role-based permission system via the `accessPlugin`
 
 ## Configuration
 
-Access control configuration is defined in `src/lib/access/config.ts` (single source of truth for projects and roles), while bypass logic is configured in `payload.config.ts`:
+Access control configuration is defined in `src/lib/access/config.ts` (single source of truth for projects and roles), while bypass logic is in `src/lib/access/bypassPermissions.ts`:
 
 **Configuration**: [src/lib/access/config.ts](../../src/lib/access/config.ts) - Projects, roles, lookup tables, and helper functions (single source of truth)
+
+**Bypass Logic**: [src/lib/access/bypassPermissions.ts](../../src/lib/access/bypassPermissions.ts) - Shared bypass function
 
 **Plugin Configuration**: [src/payload.config.ts](../../src/payload.config.ts)
 
 ```typescript
-import { accessPlugin } from '@/lib/access'
-import type { Client, Manager } from '@/payload-types'
+import { accessPlugin, bypassPermissions } from '@/lib/access'
 
 plugins: [
   accessPlugin({
     enabled: true,
-    bypassPermissions: (user, context) => {
-      const { collection, operation, docId } = context
-
-      // Manager bypass logic
-      if (user.collection === 'managers') {
-        const manager = user as unknown as Manager
-        if (manager.type === 'inactive') return 'deny'
-        if (manager.type === 'admin') return 'allow'
-        // customResourceAccess check...
-      }
-
-      // Client bypass logic
-      if (user.collection === 'clients') {
-        const client = user as unknown as Client
-        if (!client.active) return 'deny'
-      }
-
-      return 'continue'
-    },
+    bypassPermissions,
   }),
 ]
 ```
+
+The bypass function handles:
+- Self-access (users can read/update their own document)
+- Inactive user blocking (managers and clients)
+- Admin bypass (full access for admin managers)
+- Custom resource access (document-level permissions)
 
 ## Manager Roles
 
@@ -230,23 +219,15 @@ Permissions are defined per-role in the config:
 
 ### Project-Based Implicit Read Access
 
-#### Manager Implicit Read Behavior
-
-Managers get implicit read access to:
+Both managers and API clients get the same implicit read access:
 - Collections in their role's associated project
 - Shared collections (collections not in any project)
 
-**Example**: A "translator" (wemeditate-web project) can read pages, meditations, music, etc. (wemeditate-web project) AND shared collections like image-tags.
-
-#### API Client Implicit Read Behavior
-
-API clients get implicit read access ONLY to collections in their role's associated project:
-
-- `wemeditate-web-client` → Can read pages, meditations, music, etc. (wemeditate-web project)
-- `wemeditate-app-client` → Can read meditations, lessons, lectures, etc. (wemeditate-app project)
-- `sahaj-atlas-client` → Can read images, files (sahaj-atlas project)
-
-**Important**: API clients do NOT get access to shared collections (collections not in any project) unless they have explicit permissions.
+**Examples**:
+- A "translator" (wemeditate-web project) can read pages, meditations, music, etc. (wemeditate-web project) AND shared collections like image-tags.
+- `wemeditate-web-client` → Can read pages, meditations, music, etc. (wemeditate-web project) AND shared collections
+- `wemeditate-app-client` → Can read meditations, lessons, lectures, etc. (wemeditate-app project) AND shared collections
+- `sahaj-atlas-client` → Can read images, files (sahaj-atlas project) AND shared collections
 
 ### Localized Manager Roles
 - Manager roles are per-locale - different roles can be assigned for different languages
@@ -280,7 +261,8 @@ Access collections (`managers`, `clients`) and system collections (`payload-jobs
 
 **Configuration**:
 - [src/lib/access/config.ts](../../src/lib/access/config.ts) - Single source of truth for projects, roles, lookup tables, and helper functions
-- [src/payload.config.ts](../../src/payload.config.ts) - Plugin configuration with bypass logic
+- [src/lib/access/bypassPermissions.ts](../../src/lib/access/bypassPermissions.ts) - Shared bypass function for accessPlugin and tests
+- [src/payload.config.ts](../../src/payload.config.ts) - Plugin configuration
 
 **Plugin Implementation**:
 - [src/lib/access/accessPlugin.ts](../../src/lib/access/accessPlugin.ts) - Consolidated plugin (permission checking, access configs, visibility, field-level access)

@@ -1,63 +1,11 @@
 import type { Payload } from 'payload'
-import type { Manager, Client } from '@/payload-types'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { hasPermission } from '@/lib/access'
-import type { BypassPermissionFunction } from '@/lib/access'
+import { bypassPermissions, hasPermission } from '@/lib/access'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
-
-// Bypass function for testing (mirrors the one in payload.config.ts)
-const bypassPermissions: BypassPermissionFunction = (user, context) => {
-  const { collection, operation, docId } = context
-
-  // Self-access check (users can read/update their own document)
-  if (user.collection === collection && user.id === docId) {
-    if (operation === 'read' || operation === 'update') {
-      return 'allow'
-    }
-  }
-
-  // Manager bypass logic
-  if (user.collection === 'managers') {
-    const manager = user as unknown as Manager
-
-    // 1. Inactive manager blocking
-    if (manager.type === 'inactive') return 'deny'
-
-    // 2. Admin bypass (full access)
-    if (manager.type === 'admin') return 'allow'
-
-    // 3. customResourceAccess: Allow update for specific documents
-    if (
-      operation === 'update' &&
-      docId &&
-      manager.customResourceAccess &&
-      Array.isArray(manager.customResourceAccess)
-    ) {
-      const hasAccess = manager.customResourceAccess.some(
-        (access) =>
-          typeof access === 'object' &&
-          access !== null &&
-          access.relationTo === collection &&
-          String(access.value) === String(docId),
-      )
-      if (hasAccess) return 'allow'
-    }
-  }
-
-  // Client bypass logic
-  if (user.collection === 'clients') {
-    const client = user as unknown as Client
-
-    // 1. Inactive client blocking
-    if (!client.active) return 'deny'
-  }
-
-  return 'continue'
-}
 
 describe('Role-Based Access Control', () => {
   let payload: Payload
@@ -137,6 +85,33 @@ describe('Role-Based Access Control', () => {
             collection: 'pages',
             operation: 'update',
             field: { localized: false },
+          },
+          bypassPermissions,
+        ),
+      ).toBe(false)
+
+      // Should NOT have update access for fields without explicit localized property
+      // (implicitly non-localized in PayloadCMS)
+      expect(
+        hasPermission(
+          {
+            user: translatorUser,
+            collection: 'pages',
+            operation: 'update',
+            field: {},
+          },
+          bypassPermissions,
+        ),
+      ).toBe(false)
+
+      // Should NOT have update access for fields with undefined localized
+      expect(
+        hasPermission(
+          {
+            user: translatorUser,
+            collection: 'pages',
+            operation: 'update',
+            field: { localized: undefined },
           },
           bypassPermissions,
         ),

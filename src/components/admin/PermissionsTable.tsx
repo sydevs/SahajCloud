@@ -9,9 +9,9 @@ import React, { useMemo } from 'react'
 import type { PermissionLevel } from '@/lib/access'
 import {
   getPermissionsForRole,
-  getProjectCollections,
   getProjectIcon,
   getProjectLabel,
+  getReadableCollections,
   getRoleProject,
 } from '@/lib/access'
 import type { ProjectSlug } from '@/payload-types'
@@ -66,20 +66,10 @@ export const PermissionsTable: FieldClientComponent = () => {
           ),
         ]
 
-    // Compute implicit read collections
-    const allProjectCollections = new Set<string>()
-    for (const roleSlug of roles) {
-      const project = getRoleProject(roleSlug)
-      if (project) {
-        const collections = getProjectCollections(project)
-        collections.forEach((c) => allProjectCollections.add(c))
-      }
-    }
-
+    // Compute implicit read collections using helper
     // Filter out collections that already have explicit permissions
-    const implicitReadCollections = Array.from(allProjectCollections)
+    const implicitReadCollections = getReadableCollections(roles)
       .filter((collection) => !permissions[collection])
-      .sort()
 
     return { permissions, projects, implicitReadCollections }
   }, [roles, isClient])

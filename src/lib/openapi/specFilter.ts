@@ -13,7 +13,7 @@
 
 import type { CollectionSlug } from 'payload'
 
-import { getProjectCollections, getProjectOptions } from '@/lib/access'
+import { getAllProjectCollections, getProjectCollections } from '@/lib/access'
 import type { ProjectSlug } from '@/payload-types'
 
 
@@ -195,13 +195,7 @@ export function filterSpec(
   // Get allowed collections based on project (or all project collections if none specified)
   const allowedCollections = project
     ? getProjectCollections(project)
-    : Array.from(
-        new Set(
-          getProjectOptions()
-            .map((opt) => getProjectCollections(opt.value))
-            .flat(),
-        ),
-      )
+    : getAllProjectCollections()
 
   // Deep clone to avoid mutating the original
   const markedSpec = JSON.parse(JSON.stringify(spec)) as OpenAPISpec

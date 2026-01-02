@@ -12,14 +12,12 @@ import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 import { GetPlatformProxyOptions } from 'wrangler'
 
-import { accessPlugin, filterAvailableLocales } from '@/lib/access'
+import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/lib/access'
 import { resendAdapter } from '@/lib/email/resendAdapter'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { scalarPlugin } from '@/lib/openapi'
 import { sentryPlugin } from '@/lib/sentryPlugin'
 import { getServerUrl } from '@/lib/serverUrl'
-import type { Client, Manager } from '@/payload-types'
-
 import { collections, Managers } from './collections'
 import { globals } from './globals'
 import { tasks } from './jobs'
@@ -208,54 +206,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({
         enabled: true,
-        bypassPermissions: (user, context) => {
-          const { collection, operation, docId } = context
-
-          // Self-access check (users can read/update their own document)
-          if (user.collection === collection && user.id === docId) {
-            if (operation === 'read' || operation === 'update') {
-              return 'allow'
-            }
-          }
-
-          // Manager bypass logic
-          if (user.collection === 'managers') {
-            const manager = user as unknown as Manager
-
-            // 1. Inactive manager blocking
-            if (manager.type === 'inactive') return 'deny'
-
-            // 2. Admin bypass (full access)
-            if (manager.type === 'admin') return 'allow'
-
-            // 3. customResourceAccess: Allow update for specific documents
-            if (
-              operation === 'update' &&
-              docId &&
-              manager.customResourceAccess &&
-              Array.isArray(manager.customResourceAccess)
-            ) {
-              const hasAccess = manager.customResourceAccess.some(
-                (access) =>
-                  typeof access === 'object' &&
-                  access !== null &&
-                  access.relationTo === collection &&
-                  String(access.value) === String(docId),
-              )
-              if (hasAccess) return 'allow'
-            }
-          }
-
-          // Client bypass logic
-          if (user.collection === 'clients') {
-            const client = user as unknown as Client
-
-            // 1. Inactive client blocking
-            if (!client.active) return 'deny'
-          }
-
-          return 'continue'
-        },
+        bypassPermissions,
       }),
     ],
     upload: {

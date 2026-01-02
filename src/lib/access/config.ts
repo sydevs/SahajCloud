@@ -11,7 +11,6 @@
  */
 
 import type { CollectionSlug } from 'payload'
-
 import type { PermissionLevel } from './types'
 
 // =============================================================================
@@ -196,6 +195,19 @@ const COLLECTION_TO_PROJECTS: Record<string, string[]> = Object.entries(
   {} as Record<string, string[]>,
 )
 
+/**
+ * All collections across all projects (union)
+ * Computed once at module load for O(1) access
+ * Used by OpenAPI spec filter when no specific project is selected
+ */
+const ALL_PROJECT_COLLECTIONS: CollectionSlug[] = (() => {
+  const allCollections = new Set<CollectionSlug>()
+  Object.values(PROJECT_TO_COLLECTIONS).forEach((collections) => {
+    collections.forEach((c) => allCollections.add(c))
+  })
+  return Array.from(allCollections)
+})()
+
 // =============================================================================
 // Type Generation Helpers (for schemaExtension.ts)
 // =============================================================================
@@ -302,15 +314,26 @@ export function getPermissionsForRole(role: string): Record<string, PermissionLe
  * Get role options filtered by allowed roles
  * @param allowedRoles - Array of role slugs to include
  * @returns Array of role options with value and label
+ * @throws Error if any role slug is invalid
  */
 export function getRoleOptions(allowedRoles: string[]): Array<{ label: string; value: string }> {
-  return allowedRoles
-    .map((roleSlug) => {
-      const roleConfig = ROLES[roleSlug as keyof typeof ROLES]
-      if (!roleConfig) return null
-      return { label: roleConfig.label, value: roleSlug }
-    })
-    .filter(Boolean) as Array<{ label: string; value: string }>
+  return allowedRoles.map((roleSlug) => {
+    const roleConfig = ROLES[roleSlug as keyof typeof ROLES]
+    if (!roleConfig) {
+      throw new Error(
+        `Invalid role slug: "${roleSlug}". Valid roles are: ${Object.keys(ROLES).join(', ')}`,
+      )
+    }
+    return { label: roleConfig.label, value: roleSlug }
+  })
+}
+
+/**
+ * Get all collections across all projects (union)
+ * @returns Pre-computed array of all collection slugs from all projects
+ */
+export function getAllProjectCollections(): CollectionSlug[] {
+  return ALL_PROJECT_COLLECTIONS
 }
 
 /**
@@ -354,4 +377,43 @@ export function isCollectionVisibleInProject(
 
   // Check if current project includes this collection
   return allowedProjects.includes(currentProject)
+}
+
+/**
+ * Get all collections with implicit read access for given roles
+ *
+ * This is a higher-level function that builds on isCollectionVisibleInProject.
+ * For each role, it finds the associated project and adds all collections visible in that project.
+ *
+ * Includes:
+ * - Project collections (collections in the role's project)
+ * - Shared collections (collections not in any project, visible to all)
+ *
+ * @param roles - Array of role slugs
+ * @returns Array of collection slugs readable by these roles
+ */
+export function getReadableCollections(roles: string[]): string[] {
+  const collections = new Set<string>()
+
+  // Get all collections visible for each role's project
+  for (const role of roles) {
+    const project = getRoleProject(role)
+    // Use isCollectionVisibleInProject to check each collection
+    // This ensures we use the same visibility logic everywhere
+    getAllProjectCollections().forEach((collection) => {
+      if (isCollectionVisibleInProject(collection, project || null)) {
+        collections.add(collection)
+      }
+    })
+  }
+
+  // Also add shared collections (not in any project)
+  // These are visible to all users via isCollectionVisibleInProject returning true
+  Object.keys(COLLECTION_TO_PROJECTS).forEach((collection) => {
+    if (!COLLECTION_TO_PROJECTS[collection]?.length) {
+      collections.add(collection)
+    }
+  })
+
+  return Array.from(collections).sort()
 }

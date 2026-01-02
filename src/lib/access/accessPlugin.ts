@@ -15,12 +15,7 @@
 
 import type { CollectionSlug, Config } from 'payload'
 
-import type {
-  BypassPermissionFunction,
-  PermissionCheckArgs,
-  PermissionLevel,
-  TypedAuthUser,
-} from './types'
+import type { BypassPermissionFunction, PermissionCheckArgs, TypedAuthUser } from './types'
 
 import {
   getPermissionsForRole,
@@ -81,51 +76,39 @@ export function hasPermission(
     // 'continue' - proceed with normal checks
   }
 
-  // 3. IMPLICIT READ (moved up - early exit for performance)
-  if (operation === 'read') {
-    const roles = extractRoles((user as TypedAuthUser).roles, locale)
-    const userCollection = (user as TypedAuthUser).collection
+  // 3. Extract roles ONCE (handles flat array for clients, localized object for managers)
+  const roles = extractRoles((user as TypedAuthUser).roles, locale)
+  if (!roles.length) return false
 
+  // 4. IMPLICIT READ (early exit for performance)
+  // Both managers and API clients get the same implicit read behavior:
+  // - Collections in their role's project are readable
+  // - Shared collections (not in any project) are readable by all
+  if (operation === 'read') {
     for (const role of roles) {
       const project = getRoleProject(role)
-
-      // API clients: Only grant implicit read to collections in their project
-      // (no access to shared collections without explicit permissions)
-      if (userCollection === 'clients') {
-        if (project && isCollectionVisibleInProject(collection, project)) {
-          return true
-        }
-        continue
-      }
-
-      // Managers: Use standard visibility check (includes shared collections)
+      // Unified visibility check - includes shared collections when project is null
       if (isCollectionVisibleInProject(collection, project || null)) return true
     }
   }
 
-  // 4. Extract roles (only if implicit read failed)
-  const roles = extractRoles((user as TypedAuthUser).roles, locale)
-  if (!roles.length) return false
-
   // 5. EXPLICIT PERMISSIONS (read directly from ROLES via getPermissionsForRole)
   for (const role of roles) {
     const rolePermissions = getPermissionsForRole(role)
-    const permissions = rolePermissions?.[collection] as PermissionLevel[] | undefined
+    const permissions = rolePermissions?.[collection]
     if (!permissions) continue
 
-    // Direct operation match
-    if (permissions.includes(operation as PermissionLevel)) return true
+    // Direct operation match (includes 'update' permission granting full update access)
+    if (permissions.includes(operation)) return true
 
-    // Translate permission grants update access EXCEPT for non-localized fields
-    // - field.localized === true (localized field) → translate works
-    // - field.localized === false (non-localized field) → translate blocked
-    // - field === undefined (collection-level) → translate works
-    if (
-      operation === 'update' &&
-      field?.localized !== false &&
-      permissions.includes('translate' as PermissionLevel)
-    ) {
-      return true
+    // Translate permission grants update access ONLY for localized fields
+    // - Collection-level checks (field undefined) → allowed (no specific field restriction)
+    // - Localized fields (field.localized === true) → allowed
+    // - Non-localized fields (field.localized is false or undefined) → blocked
+    if (operation === 'update' && permissions.includes('translate')) {
+      if (!field) return true // Collection-level check
+      if (field.localized === true) return true // Explicitly localized field
+      // Non-localized field (localized is false or undefined) → fall through to deny
     }
   }
 
@@ -409,7 +392,7 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
         admin: {
           ...global.admin,
           // Apply project-based visibility
-          hidden: createHidden(global.slug as CollectionSlug),
+          hidden: createHidden(global.slug as CollectionSlug, bypassPermissions),
         },
       })),
 

@@ -8,10 +8,12 @@ Project visibility is automatically managed by the `accessPlugin`. No manual con
 
 ```typescript
 // In payload.config.ts - visibility is automatic
+import { accessPlugin, bypassPermissions } from '@/lib/access'
+
 plugins: [
   accessPlugin({
     enabled: true,
-    bypassPermissions: (user, context) => { /* ... */ },
+    bypassPermissions,
   }),
 ]
 ```
@@ -140,7 +142,8 @@ Collections are visible based on which projects include them AND whether the use
 
 **Configuration**:
 - [src/lib/access/config.ts](../../../src/lib/access/config.ts) - Project definitions, lookup tables, and helper functions (single source of truth)
-- [src/payload.config.ts](../../../src/payload.config.ts) - Plugin configuration with bypass logic
+- [src/lib/access/bypassPermissions.ts](../../../src/lib/access/bypassPermissions.ts) - Shared bypass function
+- [src/payload.config.ts](../../../src/payload.config.ts) - Plugin configuration
 
 **Plugin Implementation**:
 - [src/lib/access/accessPlugin.ts](../../../src/lib/access/accessPlugin.ts) - Consolidated plugin (permission checking, access configs, visibility)
