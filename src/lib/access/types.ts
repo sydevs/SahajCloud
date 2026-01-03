@@ -5,11 +5,10 @@
  * bypass functions, and user types.
  */
 
-import type { CollectionSlug, Operation, TypedUser } from 'payload'
-
-import type { ProjectSlug, RoleSlug } from '@/payload-types'
+import type { CollectionSlug, GlobalSlug, Operation, TypedUser } from 'payload'
 
 import type { LocaleCode } from '@/lib/locales'
+import type { ProjectSlug, RoleSlug } from '@/payload-types'
 
 // ============================================================================
 // Permission Level Type
@@ -21,6 +20,12 @@ import type { LocaleCode } from '@/lib/locales'
  * - 'translate' for localized field updates only
  */
 export type PermissionLevel = Operation | 'translate'
+
+/**
+ * Union type for any Payload collection or global slug
+ * Used throughout access control for unified permission checking
+ */
+export type ContentSlug = CollectionSlug | GlobalSlug
 
 // ============================================================================
 // Bypass Permission Function
@@ -37,7 +42,7 @@ export type PermissionLevel = Operation | 'translate'
 export type BypassPermissionFunction = (
   user: TypedAuthUser,
   context: {
-    collection: CollectionSlug
+    collection: ContentSlug
     operation: PermissionLevel
     docId?: string | number
   },
@@ -81,7 +86,7 @@ export interface PermissionCheckArgs {
   /** The authenticated user */
   user: TypedUser | null
   /** Collection or global slug being accessed */
-  collection: CollectionSlug
+  collection: ContentSlug
   /** Operation to check */
   operation: Operation
   /** Current locale for manager role extraction */

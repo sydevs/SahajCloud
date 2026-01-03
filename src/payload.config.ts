@@ -18,6 +18,7 @@ import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { scalarPlugin } from '@/lib/openapi'
 import { sentryPlugin } from '@/lib/sentryPlugin'
 import { getServerUrl } from '@/lib/serverUrl'
+
 import { collections, Managers } from './collections'
 import { globals } from './globals'
 import { tasks } from './jobs'

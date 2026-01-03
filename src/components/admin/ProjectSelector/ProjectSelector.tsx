@@ -4,8 +4,8 @@ import { ReactSelect, toast, useAuth, useRouteTransition } from '@payloadcms/ui'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
-import { getProjectOptions, getProjectsFromRoles } from '@/lib/access'
 import { useProject } from '@/contexts/ProjectContext'
+import { getProjectOptions, getProjectsFromRoles } from '@/lib/access'
 import { clientLogger } from '@/lib/clientLogger'
 import type { ProjectSlug } from '@/payload-types'
 

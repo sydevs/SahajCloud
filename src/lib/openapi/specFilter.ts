@@ -11,16 +11,17 @@
  * 2. Client role filtering - Content collections filtered by project-based implicit reads
  */
 
-import type { CollectionSlug, GlobalSlug } from 'payload'
+import type { CollectionSlug } from 'payload'
 
 import { getAllProjectCollections, getProjectCollections } from '@/lib/access'
+import type { ContentSlug } from '@/lib/access/types'
 import type { ProjectSlug } from '@/payload-types'
 
 /**
  * Collections that are ALWAYS hidden from public API docs regardless of role.
  * These are system/internal collections that should never be exposed.
  */
-export const ALWAYS_HIDDEN_COLLECTIONS: (CollectionSlug | GlobalSlug)[] = [
+export const ALWAYS_HIDDEN_COLLECTIONS: ContentSlug[] = [
   // Access collections - internal user management
   'managers',
   'clients',
@@ -202,8 +203,8 @@ export function filterSpec(spec: OpenAPISpec, options: FilterOptions = {}): Open
     }
 
     // Check if this collection should be hidden
-    const isAlwaysHidden = ALWAYS_HIDDEN_COLLECTIONS.includes(collection as CollectionSlug)
-    const isNotInAllowedCollections = !allowedCollections.includes(collection as CollectionSlug)
+    const isAlwaysHidden = ALWAYS_HIDDEN_COLLECTIONS.includes(collection as ContentSlug)
+    const isNotInAllowedCollections = !allowedCollections.includes(collection as ContentSlug)
 
     // Process each HTTP method
     const methods: HttpMethod[] = ['get', 'post', 'patch', 'delete', 'put', 'options', 'head']

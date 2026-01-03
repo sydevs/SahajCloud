@@ -10,8 +10,8 @@
  * - Lookup tables and helper functions (from src/lib/access/data.ts)
  */
 
+import type { ContentSlug, PermissionLevel } from './types'
 import type { CollectionSlug } from 'payload'
-import type { PermissionLevel } from './types'
 
 // =============================================================================
 // Internal Configuration (NOT exported - use helper functions)
@@ -180,24 +180,24 @@ const TRANSLATABLE_COLLECTIONS: Set<CollectionSlug> = (() => {
  * Project to collections mapping (includes globals)
  * Computed once at module load from PROJECTS configuration
  */
-const PROJECT_TO_COLLECTIONS: Record<InternalProjectSlug, CollectionSlug[]> = Object.entries(
+const PROJECT_TO_COLLECTIONS: Record<InternalProjectSlug, ContentSlug[]> = Object.entries(
   PROJECTS,
 ).reduce(
   (acc, [projectSlug, projectConfig]) => {
     acc[projectSlug as InternalProjectSlug] = [
       ...projectConfig.collections,
       ...projectConfig.globals,
-    ] as CollectionSlug[]
+    ] as ContentSlug[]
     return acc
   },
-  {} as Record<InternalProjectSlug, CollectionSlug[]>,
+  {} as Record<InternalProjectSlug, ContentSlug[]>,
 )
 
 /**
  * Reverse lookup: collection -> projects that include it
  * Computed from PROJECT_TO_COLLECTIONS
  */
-const COLLECTION_TO_PROJECTS: Record<CollectionSlug, InternalProjectSlug[]> = (
+const COLLECTION_TO_PROJECTS: Record<ContentSlug, InternalProjectSlug[]> = (
   Object.entries(PROJECT_TO_COLLECTIONS) as [InternalProjectSlug, CollectionSlug[]][]
 ).reduce(
   (acc, [project, collections]) => {
@@ -207,7 +207,7 @@ const COLLECTION_TO_PROJECTS: Record<CollectionSlug, InternalProjectSlug[]> = (
     })
     return acc
   },
-  {} as Record<CollectionSlug, InternalProjectSlug[]>,
+  {} as Record<ContentSlug, InternalProjectSlug[]>,
 )
 
 /**
@@ -215,8 +215,8 @@ const COLLECTION_TO_PROJECTS: Record<CollectionSlug, InternalProjectSlug[]> = (
  * Computed once at module load for O(1) access
  * Used by OpenAPI spec filter when no specific project is selected
  */
-const ALL_PROJECT_COLLECTIONS: CollectionSlug[] = (() => {
-  const allCollections = new Set<CollectionSlug>()
+const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
+  const allCollections = new Set<ContentSlug>()
   Object.values(PROJECT_TO_COLLECTIONS).forEach((collections) => {
     collections.forEach((c) => allCollections.add(c))
   })
@@ -310,7 +310,7 @@ export function getRoleProject(role: InternalRoleSlug): InternalProjectSlug | un
  * @param project - Project slug
  * @returns Array of collection/global slugs
  */
-export function getProjectCollections(project: InternalProjectSlug): CollectionSlug[] {
+export function getProjectCollections(project: InternalProjectSlug): ContentSlug[] {
   return PROJECT_TO_COLLECTIONS[project] || []
 }
 
@@ -322,11 +322,9 @@ export function getProjectCollections(project: InternalProjectSlug): CollectionS
  * @param role - Role slug
  * @returns Permissions object mapping collection slugs to permission levels
  */
-export function getPermissionsForRole(
-  role: InternalRoleSlug,
-): Record<CollectionSlug, PermissionLevel[]> {
+export function getPermissionsForRole(role: InternalRoleSlug) {
   const roleConfig = ROLES[role]
-  return (roleConfig?.permissions || {}) as Record<CollectionSlug, PermissionLevel[]>
+  return (roleConfig?.permissions || {}) as Record<ContentSlug, PermissionLevel[]>
 }
 
 /**
@@ -335,9 +333,7 @@ export function getPermissionsForRole(
  * @returns Array of role options with value and label
  * @throws Error if any role slug is invalid
  */
-export function getRoleOptions(
-  allowedRoles: InternalRoleSlug[],
-): Array<{ label: string; value: InternalRoleSlug }> {
+export function getRoleOptions(allowedRoles: InternalRoleSlug[]) {
   return allowedRoles.map((roleSlug) => {
     const roleConfig = ROLES[roleSlug]
     if (!roleConfig) {
@@ -353,7 +349,7 @@ export function getRoleOptions(
  * Get all collections across all projects (union)
  * @returns Pre-computed array of all collection slugs from all projects
  */
-export function getAllProjectCollections(): CollectionSlug[] {
+export function getAllProjectCollections(): ContentSlug[] {
   return ALL_PROJECT_COLLECTIONS
 }
 
@@ -385,9 +381,9 @@ export function isTranslatableCollection(collection: CollectionSlug): boolean {
  * @returns True if collection should be visible
  */
 export function isCollectionVisibleInProject(
-  collection: CollectionSlug,
+  collection: ContentSlug,
   currentProject: InternalProjectSlug | null,
-): boolean {
+) {
   const allowedProjects = COLLECTION_TO_PROJECTS[collection]
 
   // Not in any project → visible to all (shared collection)
@@ -442,8 +438,8 @@ export function getProjectsFromRoles(
  * @param roles - Array of role slugs
  * @returns Array of collection slugs readable by these roles
  */
-export function getReadableCollections(roles: InternalRoleSlug[]): CollectionSlug[] {
-  const collections = new Set<CollectionSlug>()
+export function getReadableCollections(roles: InternalRoleSlug[]): ContentSlug[] {
+  const collections = new Set<ContentSlug>()
 
   // Get all collections visible for each role's project
   for (const role of roles) {
@@ -459,11 +455,11 @@ export function getReadableCollections(roles: InternalRoleSlug[]): CollectionSlu
 
   // Also add shared collections (not in any project)
   // These are visible to all users via isCollectionVisibleInProject returning true
-  ;(Object.keys(COLLECTION_TO_PROJECTS) as CollectionSlug[]).forEach((collection) => {
+  ;(Object.keys(COLLECTION_TO_PROJECTS) as ContentSlug[]).forEach((collection) => {
     if (!COLLECTION_TO_PROJECTS[collection]?.length) {
       collections.add(collection)
     }
   })
 
-  return Array.from(collections).sort() as CollectionSlug[]
+  return Array.from(collections).sort() as ContentSlug[]
 }
