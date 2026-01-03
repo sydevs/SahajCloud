@@ -1573,6 +1573,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       // Batch pause BEFORE uploads (every 40 items) to stay under rate limits
       // This runs at the START of iteration, so pause happens before upload attempt
       if (i > 0 && i % BATCH_SIZE === 0) {
+        this.setCurrentOperation(`Waiting for rate limit reset (${i}/${total} done)`)
         // eslint-disable-next-line no-console
         console.log(
           `\n    ⏸️  BATCH PAUSE: ${i} uploads done. Waiting ${BATCH_PAUSE_MS / 1000}s for rate limit reset...\n`,
@@ -1583,6 +1584,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       }
 
       try {
+        // Track current operation for heartbeat context
+        this.setCurrentOperation(`Downloading images:${filename} (${i + 1}/${total})`)
         const downloadResult = await this.mediaDownloader.downloadAndConvertImage(url)
         const metadata = mediaMetadata.get(url) || { alt: '', credit: '' }
         const filenameWithoutExt = path.basename(
@@ -1591,12 +1594,19 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         )
 
         // Upload with retry logic for Workers mode resilience
+        this.setCurrentOperation(`Uploading images:${filename} (${i + 1}/${total})`)
         const maxRetries = 3
         let result = null
         let lastError: Error | null = null
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
+            // Update operation for each retry attempt
+            if (attempt > 1) {
+              this.setCurrentOperation(
+                `Uploading images:${filename} (${i + 1}/${total}) - retry ${attempt}/${maxRetries}`,
+              )
+            }
             result = await this.mediaUploader.uploadWithDeduplication(downloadResult.localPath, {
               alt: metadata.alt || filenameWithoutExt,
               credit: metadata.credit || '',
@@ -1611,9 +1621,14 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             }
           } catch (error) {
             lastError = error instanceof Error ? error : new Error(String(error))
+            // Check if it's a timeout/abort error
+            const isTimeout = lastError.name === 'AbortError' || lastError.message.includes('aborted')
             if (attempt < maxRetries) {
-              // Exponential backoff: 500ms, 1s, 2s
-              const delay = 500 * Math.pow(2, attempt - 1)
+              // Exponential backoff: 500ms, 1s, 2s (longer for timeouts)
+              const delay = isTimeout ? 2000 * attempt : 500 * Math.pow(2, attempt - 1)
+              this.addWarning(
+                `Upload attempt ${attempt} failed for ${filename}: ${lastError.message}. Retrying in ${delay}ms...`,
+              )
               await rateLimitDelay(delay)
             }
           }

@@ -89,7 +89,15 @@ export class MediaDownloader {
       // Workers mode: stream directly without filesystem
       if (isCloudflareWorker()) {
         await this.logger.log(`Downloading image (streaming): ${normalizedUrl}`)
-        const response = await fetch(normalizedUrl)
+        // Add timeout to prevent indefinite hangs
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+        let response: Response
+        try {
+          response = await fetch(normalizedUrl, { signal: controller.signal })
+        } finally {
+          clearTimeout(timeoutId)
+        }
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`)
         }
@@ -129,7 +137,15 @@ export class MediaDownloader {
 
       // Download image
       await this.logger.log(`Downloading image: ${normalizedUrl}`)
-      const response = await fetch(normalizedUrl)
+      // Add timeout to prevent indefinite hangs
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+      let response: Response
+      try {
+        response = await fetch(normalizedUrl, { signal: controller.signal })
+      } finally {
+        clearTimeout(timeoutId)
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
