@@ -104,6 +104,18 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
 
         req.payload.logger.info({ msg: 'Image uploaded successfully', imageId })
 
+        // Preserve original filename in fileMetadata for seed script deduplication
+        // The original filename (e.g., "f47ac10b58cc4372.jpg") is used for matching
+        // since the stored filename will be the Cloudflare Image ID
+        if (data) {
+          data.fileMetadata = {
+            ...(typeof data.fileMetadata === 'object' && data.fileMetadata !== null
+              ? data.fileMetadata
+              : {}),
+            originalFilename: file.filename,
+          }
+        }
+
         // Update filename in all locations to ensure PayloadCMS stores the Cloudflare Image ID
         // - data.filename: The object that will be saved to the database (passed by reference)
         // - file.filename: The file object used by the storage plugin

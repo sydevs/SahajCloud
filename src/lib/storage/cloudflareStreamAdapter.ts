@@ -155,6 +155,18 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           })
         }
 
+        // Preserve original filename in fileMetadata for seed script deduplication
+        // The original filename (e.g., "f47ac10b58cc4372.mp4") is used for matching
+        // since the stored filename will be the Cloudflare Stream video ID
+        if (data) {
+          data.fileMetadata = {
+            ...(typeof data.fileMetadata === 'object' && data.fileMetadata !== null
+              ? data.fileMetadata
+              : {}),
+            originalFilename: file.filename,
+          }
+        }
+
         // Update filename in all locations to ensure PayloadCMS stores the Cloudflare Stream video ID
         // - data.filename: The object that will be saved to the database (passed by reference)
         // - file.filename: The file object used by the storage plugin

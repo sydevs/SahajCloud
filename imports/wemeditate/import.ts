@@ -782,7 +782,20 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         // Check preload cache first (fast, in-memory) - albums are preloaded by title in setup()
         const existingFromCache = this.getPreloaded('albums', artist.name)
         if (existingFromCache) {
-          // Album exists - update metadata only (can't update file on upload collections)
+          // Always record the ID mapping (needed for music import)
+          this.idMaps.albums.set(artist.id, existingFromCache.id)
+
+          if (!this.options.updateMode) {
+            // SKIP MODE: Don't update, just record the mapping
+            this.report.incrementSkipped()
+            await this.reportDocument('albums', artist.name, 'skipped', {
+              current: i + 1,
+              total,
+            })
+            continue
+          }
+
+          // UPDATE MODE: Update metadata only (can't update file on upload collections)
           await this.payload.update({
             collection: 'albums',
             id: existingFromCache.id,
@@ -793,7 +806,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             locale: 'en',
             overrideAccess: true,
           })
-          this.idMaps.albums.set(artist.id, existingFromCache.id)
           this.report.incrementUpdated()
           await this.reportDocument('albums', artist.name, 'updated', {
             current: i + 1,
@@ -1031,7 +1043,17 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         // Check preload cache first (fast, in-memory) - music is preloaded by title in setup()
         const existingFromCache = this.getPreloaded('music', track.title)
         if (existingFromCache) {
-          // Update existing music with album and tags
+          if (!this.options.updateMode) {
+            // SKIP MODE: Don't update existing music
+            this.report.incrementSkipped()
+            await this.reportDocument('music', track.title, 'skipped', {
+              current: i + 1,
+              total,
+            })
+            continue
+          }
+
+          // UPDATE MODE: Update existing music with album and tags
           await this.payload.update({
             collection: 'music',
             id: existingFromCache.id,
