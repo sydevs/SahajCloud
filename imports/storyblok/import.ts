@@ -298,17 +298,19 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     for (let i = 0; i < paginatedStories.length; i++) {
       const story = paginatedStories[i]
       const globalIndex = offset + i
+      let wasSkipped = false
 
       try {
-        await this.importLesson(story, globalIndex + 1, total)
+        const result = await this.importLesson(story, globalIndex + 1, total)
+        wasSkipped = result.wasSkipped
       } catch (error) {
         // Error already reported by upsert() - just log to report summary
         this.addError(`Importing lesson "${story.name}"`, error as Error)
       }
 
       // Add delay between lessons to avoid rate limiting (auto-skips locally)
-      // Reduced from 1000ms since bulk preloading reduces DB queries
-      if (i < paginatedStories.length - 1) {
+      // OPTIMIZATION: Only delay after actual creates/updates, not skips
+      if (!wasSkipped && i < paginatedStories.length - 1) {
         await rateLimitDelay(300)
       }
     }
@@ -318,7 +320,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     story: StoryblokStory,
     current: number,
     total: number,
-  ): Promise<void> {
+  ): Promise<{ wasSkipped: boolean }> {
     const content = story.content as Record<string, any>
     const stepSlug = story.slug
     const identifier = story.name
@@ -331,7 +333,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     if (this.options.dryRun) {
       this.report.incrementSkipped()
       await this.reportDocument('lessons', identifier, 'skipped', { current, total })
-      return
+      return { wasSkipped: true }
     }
 
     // Build composite key for preload cache lookup (matches preloadLessonsWithCompositeKey format)
@@ -341,14 +343,14 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     if (!this.options.updateMode && this.hasPreloaded('lessons', compositeKey)) {
       this.report.incrementSkipped()
       await this.reportDocument('lessons', identifier, 'skipped', { current, total })
-      return
+      return { wasSkipped: true }
     }
 
     // Build lesson data (uploads panel images/videos - only reached if creating/updating)
     const panels = await this.buildPanels(story)
     if (panels.length === 0) {
       this.addError(`No valid panels found for ${story.name}`, 'Skipping lesson creation')
-      return
+      return { wasSkipped: true }
     }
 
     // Find related meditation if referenced
@@ -417,6 +419,9 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     if (result.action !== 'skipped') {
       await this.attachLessonFiles(lessonId, story, content)
     }
+
+    // Return whether this was a skip (for rate limiting optimization)
+    return { wasSkipped: result.action === 'skipped' }
   }
 
   private async buildPanels(story: StoryblokStory): Promise<any[]> {
