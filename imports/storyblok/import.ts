@@ -76,6 +76,9 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   private iconTagId: number | null = null
   private thumbnailTagId: number | null = null
 
+  // Meditation lookup cache (lowercase title → id)
+  private meditationTitleCache = new Map<string, number>()
+
   constructor(options: BaseImportOptions, token: string) {
     super(options)
     this.token = token
@@ -129,6 +132,8 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       await this.preloadCollection('lectures', 'videoUrl')
       // Preload lessons by building composite key from unit + step
       await this.preloadLessonsWithCompositeKey()
+      // Preload meditations for lesson relationship lookups
+      await this.preloadMeditationTitles()
     }
 
     // Setup additional cache directories (ensureDir is a no-op in Workers mode)
@@ -181,6 +186,38 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     }
 
     await this.logger.info(`✓ Preloaded ${count} lessons with composite keys`)
+  }
+
+  /**
+   * Preload meditation titles for efficient lesson relationship lookups.
+   * Stores lowercase titles for case-insensitive matching and prefix search.
+   */
+  private async preloadMeditationTitles(): Promise<void> {
+    await this.logger.info('Preloading meditation titles...')
+
+    const BATCH_SIZE = 500
+    let page = 1
+    let hasMore = true
+
+    while (hasMore) {
+      const result = await this.payload.find({
+        collection: 'meditations',
+        limit: BATCH_SIZE,
+        page,
+        depth: 0,
+        select: { id: true, title: true },
+      })
+
+      for (const doc of result.docs) {
+        if (doc.title) {
+          this.meditationTitleCache.set(doc.title.toLowerCase(), doc.id as number)
+        }
+      }
+      hasMore = result.hasNextPage
+      page++
+    }
+
+    await this.logger.info(`✓ Preloaded ${this.meditationTitleCache.size} meditation titles`)
   }
 
   /**
@@ -710,34 +747,26 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // MEDITATION LOOKUP
   // ============================================================================
 
-  private async findMeditationByTitle(title: string): Promise<number | null> {
-    let result = await this.payload.find({
-      collection: 'meditations',
-      where: { title: { equals: title } },
-      limit: 1,
-    })
+  private findMeditationByTitle(title: string): number | null {
+    const searchLower = title.toLowerCase()
 
-    if (result.docs.length > 0) {
-      return result.docs[0].id as number
+    // Exact match first (O(1) lookup)
+    if (this.meditationTitleCache.has(searchLower)) {
+      return this.meditationTitleCache.get(searchLower)!
     }
 
-    // Try prefix match
-    result = await this.payload.find({
-      collection: 'meditations',
-      limit: 200,
-    })
+    // Prefix match in memory (avoids DB query)
+    for (const [cachedTitle, id] of this.meditationTitleCache) {
+      if (
+        cachedTitle.startsWith(searchLower) &&
+        (cachedTitle.length === searchLower.length ||
+          !/\d/.test(cachedTitle.charAt(searchLower.length)))
+      ) {
+        return id
+      }
+    }
 
-    const meditation = result.docs.find((doc) => {
-      const titleLower = doc.title?.toLowerCase() || ''
-      const searchLower = title.toLowerCase()
-      return (
-        titleLower.startsWith(searchLower) &&
-        (titleLower.length === searchLower.length ||
-          !/\d/.test(titleLower.charAt(searchLower.length)))
-      )
-    })
-
-    return meditation ? (meditation.id as number) : null
+    return null
   }
 
   // ============================================================================

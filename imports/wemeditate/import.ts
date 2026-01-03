@@ -2056,18 +2056,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  private async findPageBySlug(slug: string): Promise<number | null> {
-    try {
-      const result = await this.payload.find({
-        collection: 'pages',
-        where: { slug: { equals: slug } },
-        limit: 1,
-        locale: 'en',
-      })
-      return result.docs.length > 0 ? result.docs[0].id : null
-    } catch {
-      return null
-    }
+  private findPageBySlug(slug: string): number | null {
+    // Use preloaded cache from setup() - no DB query needed
+    const cached = this.getPreloaded('pages', slug)
+    return cached ? (cached.id as number) : null
   }
 
   /**

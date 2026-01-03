@@ -334,6 +334,9 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     albumsByArtist: new Map<string, number | string>(), // key: artist name (lowercase)
   }
 
+  // Preload cache for music lookup (composite key: "title|albumId")
+  private musicCache: Map<string, number | string> = new Map()
+
   // ============================================================================
   // LIFECYCLE
   // ============================================================================
@@ -353,6 +356,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         this.preloadCollection('meditation-tags', 'slug'),
         this.preloadCollection('music-tags', 'slug'),
         this.preloadCollection('music', 'slug'),
+        this.preloadMusicWithCompositeKey(),
       ])
     }
   }
@@ -1224,6 +1228,38 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   }
 
   /**
+   * Pre-load music tracks with composite key (title|albumId) for O(1) lookups.
+   * This eliminates per-record queries in importMusics().
+   */
+  private async preloadMusicWithCompositeKey(): Promise<void> {
+    await this.logger.info('Pre-loading music with composite keys...')
+    const BATCH_SIZE = 500
+    let page = 1
+    let hasMore = true
+
+    while (hasMore) {
+      const result = await this.payload.find({
+        collection: 'music',
+        limit: BATCH_SIZE,
+        page,
+        depth: 0,
+        select: { id: true, title: true, album: true },
+      })
+
+      for (const doc of result.docs) {
+        if (doc.title && doc.album) {
+          // Composite key: "title|albumId"
+          const key = `${doc.title}|${doc.album}`
+          this.musicCache.set(key, doc.id)
+        }
+      }
+      hasMore = result.hasNextPage
+      page++
+    }
+    await this.logger.info(`✓ Pre-loaded ${this.musicCache.size} music tracks`)
+  }
+
+  /**
    * Get or create an album for a music track based on the credit/artist.
    * First tries to find an existing album by artist name.
    * If not found, creates a new album with a placeholder image.
@@ -1361,35 +1397,27 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       }
 
       try {
-        // Check for existing music by title AND album (to avoid false matches with same title in different albums)
-        const existing = await this.payload.find({
-          collection: 'music',
-          where: {
-            and: [
-              { title: { equals: music.title } },
-              { album: { equals: albumId } },
-            ],
-          },
-          limit: 1,
-        })
+        // Check preload cache for existing music by title AND album (composite key)
+        const cacheKey = `${music.title}|${albumId}`
+        const existingId = this.musicCache.get(cacheKey)
 
-        if (existing.docs.length > 0) {
+        if (existingId) {
           // SKIP MODE: Just reuse existing music, don't update
           // UPDATE MODE: Update existing music with tags
           if (this.options.updateMode && musicTagIds.length > 0) {
             await this.payload.update({
               collection: 'music',
-              id: existing.docs[0].id,
+              id: existingId,
               data: { tags: musicTagIds },
             })
-            this.idMaps.musics.set(music.id, existing.docs[0].id)
+            this.idMaps.musics.set(music.id, existingId)
             this.report.incrementUpdated()
             await this.reportDocument('music', identifier, 'updated', {
               current: i + 1,
               total,
             })
           } else {
-            this.idMaps.musics.set(music.id, existing.docs[0].id)
+            this.idMaps.musics.set(music.id, existingId)
             this.report.incrementSkipped()
             await this.reportDocument('music', identifier, 'skipped', {
               current: i + 1,
@@ -1423,6 +1451,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
           if (result) {
             this.idMaps.musics.set(music.id, result.id)
+            // Add to cache so subsequent imports in same session can find it
+            this.musicCache.set(cacheKey, result.id)
             this.report.incrementCreated()
             await this.reportDocument('music', identifier, 'created', {
               current: i + 1,
