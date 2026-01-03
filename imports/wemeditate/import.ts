@@ -1627,11 +1627,22 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         if (result.wasReused) {
           // Deduplication found existing media
           this.idMaps.media.set(url, result.id)
-          this.report.incrementUpdated()
-          await this.reportDocument('images', filename, 'updated', {
-            current: i + 1,
-            total,
-          })
+
+          if (!this.options.updateMode) {
+            // SKIP MODE: Report as skipped (no actual update happened)
+            this.report.incrementSkipped()
+            await this.reportDocument('images', filename, 'skipped', {
+              current: i + 1,
+              total,
+            })
+          } else {
+            // UPDATE MODE: Report as updated (MediaUploader may have updated tags)
+            this.report.incrementUpdated()
+            await this.reportDocument('images', filename, 'updated', {
+              current: i + 1,
+              total,
+            })
+          }
         } else {
           // New media uploaded
           this.idMaps.media.set(url, result.id)
