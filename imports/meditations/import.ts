@@ -1148,10 +1148,12 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     total: number,
   ): Promise<void> {
     const filename = attachment.blob.filename
-    const identifier = `${category}-${gender}`
+    // Include filename in identifier for unique identification (multiple frames can share same category)
+    const identifier = `${category}-${gender} (${filename})`
 
-    // Check preload cache first (fast, in-memory)
+    // Check preload cache (fast, in-memory)
     // Preload caches by both filename (Cloudflare ID) and originalFilename (source filename)
+    // No fallback DB query needed - preloadCollection() already indexes by originalFilename
     const existingFromCache = this.getPreloaded('frames', filename)
     if (existingFromCache) {
       this.idMaps.frames.set(`${legacyFrameId}_${gender}`, existingFromCache.id)
@@ -1160,33 +1162,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       return
     }
 
-    // Fallback: Query database for frames with matching originalFilename in fileMetadata
-    // This handles cases where the preload cache missed due to encoding/casing differences
-    const filenameWithoutExt = filename.substring(0, filename.lastIndexOf('.')) || filename
-    const existingFromDb = await this.payload.find({
-      collection: 'frames',
-      where: {
-        and: [
-          { imageSet: { equals: gender } },
-          { filename: { contains: filenameWithoutExt } },
-        ],
-      },
-      limit: 5,
-    })
-
-    // Check if any result matches our frame (by originalFilename or filename pattern)
-    for (const doc of existingFromDb.docs) {
-      const fileMetadata = doc.fileMetadata as { originalFilename?: string } | undefined
-      const originalFilename = fileMetadata?.originalFilename
-      if (originalFilename === filename || doc.filename?.includes(filenameWithoutExt)) {
-        this.idMaps.frames.set(`${legacyFrameId}_${gender}`, doc.id)
-        this.report.incrementSkipped()
-        await this.reportDocument('frames', identifier, 'skipped', { current, total })
-        return
-      }
-    }
-
-    // Download and upload new frame
+    // Not in cache = doesn't exist in DB. Download and upload new frame.
     const buffer = await this.downloadFile(attachment.blob.key, filename)
     if (!buffer) {
       await this.reportDocument('frames', identifier, 'error', {
