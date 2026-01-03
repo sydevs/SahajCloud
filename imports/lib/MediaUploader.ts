@@ -60,6 +60,9 @@ export class MediaUploader {
   /**
    * Pre-load all existing media filenames into memory cache.
    * Call this before uploading to avoid N+1 database queries.
+   *
+   * For Cloudflare Images: Uses fileMetadata.originalFilename for matching
+   * since the stored filename is the Cloudflare Image ID.
    */
   async preloadExistingMedia(): Promise<void> {
     await this.logger.info('Pre-loading existing media index...')
@@ -74,16 +77,34 @@ export class MediaUploader {
         collection: 'images',
         limit,
         page,
-        // Only fetch filename field for efficiency
         depth: 0,
+        select: {
+          filename: true,
+          fileMetadata: true, // Fetch for originalFilename (Cloudflare Images)
+        },
       })
 
       for (const doc of result.docs) {
+        // For Cloudflare Images: Use originalFilename from fileMetadata for matching
+        // This is stored before the filename is replaced with the Cloudflare Image ID
+        const originalFilename =
+          typeof doc.fileMetadata === 'object' &&
+          doc.fileMetadata !== null &&
+          'originalFilename' in doc.fileMetadata
+            ? (doc.fileMetadata as { originalFilename?: string }).originalFilename
+            : undefined
+
+        if (originalFilename) {
+          // Cache by original filename and its base name
+          const baseName = this.extractBaseName(originalFilename)
+          this.mediaCache.set(baseName, doc.id)
+          this.mediaCache.set(originalFilename, doc.id)
+        }
+
+        // Also cache by current filename for backward compatibility (local dev, old images)
         if (doc.filename) {
-          // Extract base name for matching (handles Payload's suffixes)
           const baseName = this.extractBaseName(doc.filename)
           this.mediaCache.set(baseName, doc.id)
-          // Also cache the full filename for exact matches
           this.mediaCache.set(doc.filename, doc.id)
         }
       }

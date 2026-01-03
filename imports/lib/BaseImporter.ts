@@ -327,6 +327,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
    * Bulk fetch a collection for skip/update decision-making.
    * Uses Payload's `select` parameter for minimal data transfer.
    *
+   * For upload collections using Cloudflare Images/Stream, also caches by
+   * `fileMetadata.originalFilename` to enable deduplication when the stored
+   * filename is replaced with a Cloudflare-generated ID.
+   *
    * @param collection - Collection to preload
    * @param naturalKeyField - Field to use as cache key (e.g., 'slug', 'filename')
    * @param additionalFields - Additional fields to select beyond id and naturalKeyField
@@ -354,10 +358,17 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     let page = 1
     let hasMore = true
 
+    // For upload collections using 'filename' as key, also fetch fileMetadata
+    // to enable deduplication by originalFilename (Cloudflare Images/Stream)
+    const isUploadCollection = naturalKeyField === 'filename'
+
     // Build select object - only fetch id and natural key (+ any additional fields)
     const select: Record<string, true> = {
       id: true,
       [naturalKeyField]: true,
+    }
+    if (isUploadCollection) {
+      select.fileMetadata = true
     }
     if (additionalFields) {
       for (const field of additionalFields) {
@@ -380,7 +391,26 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       )
 
       for (const doc of result.docs) {
-        const key = String((doc as unknown as Record<string, unknown>)[naturalKeyField])
+        const docRecord = doc as unknown as Record<string, unknown>
+
+        // For upload collections: also cache by originalFilename from fileMetadata
+        // This enables deduplication when Cloudflare Images/Stream replaces filename with ID
+        if (isUploadCollection) {
+          const fileMetadata = docRecord.fileMetadata
+          const originalFilename =
+            typeof fileMetadata === 'object' &&
+            fileMetadata !== null &&
+            'originalFilename' in fileMetadata
+              ? (fileMetadata as { originalFilename?: string }).originalFilename
+              : undefined
+
+          if (originalFilename) {
+            cache.set(originalFilename, doc as unknown as PreloadedDoc)
+          }
+        }
+
+        // Always cache by the natural key field
+        const key = String(docRecord[naturalKeyField])
         if (key) {
           cache.set(key, doc as unknown as PreloadedDoc)
         }
@@ -793,7 +823,18 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       if (DEBUG) console.log(`[UPSERT] Found ${existing.docs.length} existing for ${collection}:${identifier} (${Date.now() - findStart}ms)`)
 
       if (existing.docs.length > 0) {
-        // Update existing (with retry for SQLITE_BUSY)
+        // SKIP MODE: Skip existing documents (same as preloaded cache behavior)
+        if (!this.options.updateMode) {
+          this.report.incrementSkipped()
+          await this.reportDocument(collection, identifier, 'skipped', {
+            current: options?.current,
+            total: options?.total,
+          })
+          if (DEBUG) console.log(`[UPSERT] Skipped ${collection}:${identifier} (exists in fallback find)`)
+          return { doc: existing.docs[0] as unknown as T, action: 'skipped' }
+        }
+
+        // UPDATE MODE: Update existing (with retry for SQLITE_BUSY)
         const updateStart = DEBUG ? Date.now() : 0
         if (DEBUG) console.log(`[UPSERT] Updating ${collection}:${identifier}`)
         // Skip file upload on update unless forceFileUpload is true
