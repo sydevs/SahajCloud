@@ -88,6 +88,7 @@ For full documentation, see: https://github.com/sydevs/claude-plugins
   - If a conversation summary is provided, acknowledge key decisions from it
   - Proceed with implementation only if continuation intent is clear
 - When researching or fetching documentation, prefer specialized MCP tools over generic tools:
+  - Use `payloadcms-docs` MCP server for PayloadCMS documentation (fetch_docs, list_doc_sources)
   - Use `mcp__plugin_sydevs-web_cloudflare-docs__search_cloudflare_documentation` for Cloudflare documentation (not WebFetch)
   - Use Sentry MCP tools for Sentry-related queries (not WebFetch)
   - Use GitHub MCP tools for GitHub operations (not gh CLI or WebFetch)
@@ -99,10 +100,11 @@ This is a **Next.js 15** application integrated with **Payload CMS 3.0**, provid
 
 ### PayloadCMS Documentation
 
-**IMPORTANT**: The comprehensive PayloadCMS documentation for LLMs is available at:
-**https://payloadcms.com/llms-full.txt**
+Use the `payloadcms-docs` MCP server for PayloadCMS documentation:
+- `list_doc_sources` - List available documentation sections
+- `fetch_docs` - Fetch specific documentation pages
 
-Consult this documentation for detailed information about Payload CMS features, APIs, and best practices.
+The MCP server caches documentation from https://payloadcms.com/llms.txt to avoid rate limiting.
 
 ## Admin Access
 Username: contact@sydevelopers.com
