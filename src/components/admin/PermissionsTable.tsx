@@ -154,7 +154,7 @@ export const PermissionsTable: FieldClientComponent = () => {
                     alignItems: 'center',
                   }}
                 >
-                  {projects.map((project, index) => (
+                  {projects.map((project) => (
                     <React.Fragment key={project}>
                       <div
                         style={{

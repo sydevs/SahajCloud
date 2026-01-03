@@ -7,13 +7,11 @@
  * Generic Implementation: Works with any auth collection.
  */
 
+import type { TypedAuthUser } from './types'
 import type { Locale, PayloadRequest } from 'payload'
 
-import type { RoleSlug } from '@/payload-types'
-
 import type { LocaleCode } from '@/lib/locales'
-
-import type { TypedAuthUser } from './types'
+import type { RoleSlug } from '@/payload-types'
 
 type FilterAvailableLocalesArgs = {
   locales: Locale[]

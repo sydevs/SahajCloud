@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
+import { checkHighUsageAlert, validateClientData } from '@/hooks/clientHooks'
 import { getRoleOptions } from '@/lib/access'
-import { validateClientData, checkHighUsageAlert } from '@/hooks/clientHooks'
 
 export const Clients: CollectionConfig = {
   slug: 'clients',

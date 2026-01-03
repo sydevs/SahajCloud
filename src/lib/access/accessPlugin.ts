@@ -13,26 +13,33 @@
  * - Bypass logic configured in payload.config.ts
  */
 
-import type { CollectionSlug, Config, Operation } from 'payload'
-
-import type { RoleSlug } from '@/payload-types'
-
-import type { LocaleCode } from '@/lib/locales'
-
 import type {
   BypassPermissionFunction,
+  ContentSlug,
   PermissionCheckArgs,
   PermissionLevel,
   TypedAuthUser,
 } from './types'
+import type {
+  AccessArgs,
+  CollectionConfig,
+  CollectionSlug,
+  Config,
+  Field,
+  Operation,
+} from 'payload'
+
+import type { LocaleCode } from '@/lib/locales'
+import type { RoleSlug } from '@/payload-types'
 
 import {
   getPermissionsForRole,
+  getProjectSlugs,
   getRoleProject,
+  getRoleSlugs,
   isCollectionVisibleInProject,
   isTranslatableCollection,
 } from './config'
-import { createSchemaExtension } from './schemaExtension'
 
 // ============================================================================
 // PLUGIN OPTIONS
@@ -179,20 +186,20 @@ export function hasAnyPermission(
  * @returns Access config object with specified operations
  */
 function createAccessConfig(
-  collection: CollectionSlug,
+  collection: ContentSlug,
   operations: Array<'read' | 'create' | 'update' | 'delete'>,
   bypassFn?: BypassPermissionFunction,
   fieldContext?: { localized: boolean },
 ) {
-  const accessConfig: Record<string, (args: any) => boolean> = {}
+  const accessConfig: CollectionConfig['access'] = {}
 
   for (const operation of operations) {
-    accessConfig[operation] = ({ req, id }: any) => {
+    accessConfig[operation] = ({ req, id }: AccessArgs) => {
       const args = {
         user: req.user,
         collection,
         operation,
-        locale: req.locale,
+        locale: req.locale === 'all' ? undefined : req.locale,
         ...(id && { docId: id }),
         ...(fieldContext && { field: fieldContext }),
       }
@@ -226,7 +233,7 @@ function createAccessConfig(
  * @returns Modified field configurations with access control
  */
 function applyFieldAccessForTranslatableCollections(
-  fields: any[],
+  fields: Field[],
   collection: CollectionSlug,
   bypassFn?: BypassPermissionFunction,
 ): any[] {
@@ -270,7 +277,7 @@ function applyFieldAccessForTranslatableCollections(
     const isEditableField = !('fields' in field) && field.type !== 'ui'
 
     // Check if field is non-localized
-    const isNonLocalized = !field.localized // missing or false
+    const isNonLocalized = !('localized' in field) || !field.localized
 
     // Apply access control to non-localized editable fields without existing access
     if (isEditableField && isNonLocalized && !field.access) {
@@ -305,14 +312,16 @@ function applyFieldAccessForTranslatableCollections(
  * @param bypassFn - Optional bypass function
  * @returns Hidden function for admin UI
  */
-function createHidden(slug: CollectionSlug, bypassFn?: BypassPermissionFunction) {
-  return ({ user }: { user: any }) => {
+function createHidden(slug: ContentSlug, bypassFn?: BypassPermissionFunction) {
+  // Use unknown to accommodate both CollectionConfig (ClientUser) and GlobalConfig (Manager | Client)
+  return (args: { user: unknown }): boolean => {
+    const user = args.user as TypedAuthUser | null
     if (!user) return true
 
     // Check if user has any write permission
     const hasWrite = hasAnyPermission(
       {
-        user: user as TypedAuthUser,
+        user,
         collection: slug,
         operations: ['create', 'update', 'delete'],
       },
@@ -321,7 +330,7 @@ function createHidden(slug: CollectionSlug, bypassFn?: BypassPermissionFunction)
     if (!hasWrite) return true
 
     // Check project visibility using unified logic
-    return !isCollectionVisibleInProject(slug, user.currentProject)
+    return !isCollectionVisibleInProject(slug, user.currentProject ?? null)
   }
 }
 
@@ -393,7 +402,7 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
 
       // Apply to globals
       globals: config.globals?.map((global) => {
-        const slug = global.slug as CollectionSlug
+        const slug = global.slug as ContentSlug
         return {
           ...global,
           // Apply role-based access control (preserve existing overrides)
@@ -409,10 +418,26 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
         }
       }),
 
-      // Add TypeScript schema extension
+      // Add TypeScript schema extension for ProjectSlug and RoleSlug types
       typescript: {
         ...config.typescript,
-        schema: [...(config.typescript?.schema || []), createSchemaExtension()],
+        schema: [
+          ...(config.typescript?.schema || []),
+          ({ jsonSchema }) => {
+            if (!jsonSchema.definitions) {
+              jsonSchema.definitions = {}
+            }
+            jsonSchema.definitions.ProjectSlug = {
+              type: 'string',
+              enum: getProjectSlugs(),
+            }
+            jsonSchema.definitions.RoleSlug = {
+              type: 'string',
+              enum: getRoleSlugs(),
+            }
+            return jsonSchema
+          },
+        ],
       },
     }
   }
