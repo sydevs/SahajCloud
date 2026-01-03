@@ -345,9 +345,10 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
       // Preload collections for efficient skip/update mode
       // This dramatically reduces D1 queries by caching existence checks
+      // Note: meditations preloaded by title (more reliable than generated slug which may differ from stored)
       await Promise.all([
         this.preloadCollection('frames', 'filename'),
-        this.preloadCollection('meditations', 'slug'),
+        this.preloadCollection('meditations', 'title'),
         this.preloadCollection('narrators', 'slug'),
         this.preloadCollection('meditation-tags', 'slug'),
         this.preloadCollection('music-tags', 'slug'),
@@ -1149,13 +1150,40 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     const filename = attachment.blob.filename
     const identifier = `${category}-${gender}`
 
-    // Check preload cache first (fast, in-memory) - frames are preloaded by filename in setup()
+    // Check preload cache first (fast, in-memory)
+    // Preload caches by both filename (Cloudflare ID) and originalFilename (source filename)
     const existingFromCache = this.getPreloaded('frames', filename)
     if (existingFromCache) {
       this.idMaps.frames.set(`${legacyFrameId}_${gender}`, existingFromCache.id)
       this.report.incrementSkipped()
       await this.reportDocument('frames', identifier, 'skipped', { current, total })
       return
+    }
+
+    // Fallback: Query database for frames with matching originalFilename in fileMetadata
+    // This handles cases where the preload cache missed due to encoding/casing differences
+    const filenameWithoutExt = filename.substring(0, filename.lastIndexOf('.')) || filename
+    const existingFromDb = await this.payload.find({
+      collection: 'frames',
+      where: {
+        and: [
+          { imageSet: { equals: gender } },
+          { filename: { contains: filenameWithoutExt } },
+        ],
+      },
+      limit: 5,
+    })
+
+    // Check if any result matches our frame (by originalFilename or filename pattern)
+    for (const doc of existingFromDb.docs) {
+      const fileMetadata = doc.fileMetadata as { originalFilename?: string } | undefined
+      const originalFilename = fileMetadata?.originalFilename
+      if (originalFilename === filename || doc.filename?.includes(filenameWithoutExt)) {
+        this.idMaps.frames.set(`${legacyFrameId}_${gender}`, doc.id)
+        this.report.incrementSkipped()
+        await this.reportDocument('frames', identifier, 'skipped', { current, total })
+        return
+      }
     }
 
     // Download and upload new frame
@@ -1370,20 +1398,28 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         })
 
         if (existing.docs.length > 0) {
-          // Update existing music with tags (upsert pattern)
-          if (musicTagIds.length > 0) {
+          // SKIP MODE: Just reuse existing music, don't update
+          // UPDATE MODE: Update existing music with tags
+          if (this.options.updateMode && musicTagIds.length > 0) {
             await this.payload.update({
               collection: 'music',
               id: existing.docs[0].id,
               data: { tags: musicTagIds },
             })
+            this.idMaps.musics.set(music.id, existing.docs[0].id)
+            this.report.incrementUpdated()
+            await this.reportDocument('music', identifier, 'updated', {
+              current: i + 1,
+              total,
+            })
+          } else {
+            this.idMaps.musics.set(music.id, existing.docs[0].id)
+            this.report.incrementSkipped()
+            await this.reportDocument('music', identifier, 'skipped', {
+              current: i + 1,
+              total,
+            })
           }
-          this.idMaps.musics.set(music.id, existing.docs[0].id)
-          this.report.incrementSkipped()
-          await this.reportDocument('music', identifier, 'skipped', {
-            current: i + 1,
-            total,
-          })
         } else {
           // Upload with audio file if available
           const musicAttachments = this.getAttachmentsForRecord('Music', music.id, attachments, blobs)
@@ -1460,15 +1496,11 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         ? `${baseSlug}-${meditation.duration}`
         : `${baseSlug}-${meditation.id}`
 
-      // Check for existing meditation by slug
-      const existing = await this.payload.find({
-        collection: 'meditations',
-        where: { slug: { equals: uniqueSlug } },
-        limit: 1,
-      })
-
-      if (existing.docs.length > 0) {
-        this.idMaps.meditations.set(meditation.id, existing.docs[0].id)
+      // Check for existing meditation using preload cache (by title for reliability)
+      // Title is more reliable than slug since PayloadCMS slugField may auto-generate different slug
+      const existingFromCache = this.getPreloaded('meditations', meditation.title)
+      if (existingFromCache) {
+        this.idMaps.meditations.set(meditation.id, existingFromCache.id)
         this.report.incrementSkipped()
         await this.reportDocument('meditations', identifier, 'skipped', {
           current: globalIndex + 1,
