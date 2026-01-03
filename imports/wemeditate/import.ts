@@ -596,6 +596,25 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       },
     )
 
+    // Store in appropriate ID map (always needed for relationships)
+    const mapKeyMap: Record<string, keyof typeof this.idMaps> = {
+      static_pages: 'staticPages',
+      articles: 'articles',
+      subtle_system_nodes: 'subtleSystemNodes',
+      treatments: 'treatments',
+    }
+    const mapKey = mapKeyMap[tableName]
+    if (mapKey) {
+      const numericId = typeof page.id === 'string' ? parseInt(page.id as string) : page.id
+      const idMap = this.idMaps[mapKey] as Map<number, number>
+      idMap.set(numericId, pageResult.doc.id)
+    }
+
+    // OPTIMIZATION: Skip locale updates and content import if record was skipped (no DB work needed)
+    if (pageResult.action === 'skipped') {
+      return
+    }
+
     // Update other locales
     type PageTranslation = (typeof pageAny.translations)[number]
     await this.updateLocales<PageTranslation>(
@@ -610,20 +629,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         shouldPublish: (t) => !!t.published_at,
       },
     )
-
-    // Store in appropriate ID map
-    const mapKeyMap: Record<string, keyof typeof this.idMaps> = {
-      static_pages: 'staticPages',
-      articles: 'articles',
-      subtle_system_nodes: 'subtleSystemNodes',
-      treatments: 'treatments',
-    }
-    const mapKey = mapKeyMap[tableName]
-    if (mapKey) {
-      const numericId = typeof page.id === 'string' ? parseInt(page.id as string) : page.id
-      const idMap = this.idMaps[mapKey] as Map<number, number>
-      idMap.set(numericId, pageResult.doc.id)
-    }
 
     // Import content for this page
     await this.importSinglePageContent(page, pageResult.doc.id, tableName)
@@ -741,6 +746,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           },
         )
 
+        this.idMaps.authors.set(author.id, authorResult.doc.id)
+
+        // OPTIMIZATION: Skip locale updates if record was skipped (no DB work needed)
+        if (authorResult.action === 'skipped') {
+          continue
+        }
+
         // Update other locales using helper
         await this.updateLocales(
           'authors',
@@ -753,8 +765,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           }),
           { excludeLocale: 'en', requiredFields: ['name'], validLocales: [...LOCALES] },
         )
-
-        this.idMaps.authors.set(author.id, authorResult.doc.id)
       } catch (error) {
         this.addError(`Importing author ${author.id}`, error as Error)
       }
@@ -1211,6 +1221,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           { locale: 'en' },
         )
 
+        this.idMaps.categories.set(category.id, tagResult.doc.id)
+
+        // OPTIMIZATION: Skip locale updates if record was skipped (no DB work needed)
+        if (tagResult.action === 'skipped') {
+          continue
+        }
+
         // Update other locales using helper
         await this.updateLocales(
           'page-tags',
@@ -1219,8 +1236,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           (t) => ({ title: t.name }),
           { excludeLocale: 'en', requiredFields: ['name'] },
         )
-
-        this.idMaps.categories.set(category.id, tagResult.doc.id)
       } catch (error) {
         this.addError(`Importing category ${category.id}`, error as Error)
       }
@@ -1374,6 +1389,25 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           },
         )
 
+        // Store in appropriate ID map (always needed for relationships)
+        const mapKeyMap: Record<string, keyof typeof this.idMaps> = {
+          static_pages: 'staticPages',
+          articles: 'articles',
+          subtle_system_nodes: 'subtleSystemNodes',
+          treatments: 'treatments',
+        }
+        const mapKey = mapKeyMap[tableName]
+        if (mapKey) {
+          const numericId = typeof page.id === 'string' ? parseInt(page.id) : page.id
+          const idMap = this.idMaps[mapKey] as Map<number, number>
+          idMap.set(numericId, pageResult.doc.id)
+        }
+
+        // OPTIMIZATION: Skip locale updates if record was skipped (no DB work needed)
+        if (pageResult.action === 'skipped') {
+          continue
+        }
+
         // Update other locales using helper
         // Note: _status is not localized, already set above
         // Use shouldPublish callback for native per-locale publishing
@@ -1392,20 +1426,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             shouldPublish: (t) => !!t.published_at,
           },
         )
-
-        // Store in appropriate ID map
-        const mapKeyMap: Record<string, keyof typeof this.idMaps> = {
-          static_pages: 'staticPages',
-          articles: 'articles',
-          subtle_system_nodes: 'subtleSystemNodes',
-          treatments: 'treatments',
-        }
-        const mapKey = mapKeyMap[tableName]
-        if (mapKey) {
-          const numericId = typeof page.id === 'string' ? parseInt(page.id) : page.id
-          const idMap = this.idMaps[mapKey] as Map<number, number>
-          idMap.set(numericId, pageResult.doc.id)
-        }
       } catch (error) {
         this.addError(`Importing ${tableName} ${page.id}`, error as Error)
       }
@@ -1562,26 +1582,16 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
     // Batch pause configuration to avoid Cloudflare Images rate limiting
     // Cloudflare Images has rate limits of ~100 requests per 5-minute window
-    // Using small batches (15) to stay well under rate limit
+    // Using small batches (15) with 60s pause = 75 requests/5min (well under limit)
+    // NOTE: Pause must be <100s to avoid Cloudflare Workers idle timeout
+    // OPTIMIZATION: Only count actual uploads, not skipped/reused images
     const BATCH_SIZE = 15
-    const BATCH_PAUSE_MS = 180000 // 3 minutes
+    const BATCH_PAUSE_MS = 60000 // 1 minute (must be under Cloudflare's 100s idle timeout)
+    let actualUploadsInBatch = 0 // Track actual uploads, not iterations
 
     for (let i = 0; i < total; i++) {
       const url = mediaUrlArray[i]
       const filename = path.basename(url).split('?')[0] // Remove query params for identifier
-
-      // Batch pause BEFORE uploads (every 40 items) to stay under rate limits
-      // This runs at the START of iteration, so pause happens before upload attempt
-      if (i > 0 && i % BATCH_SIZE === 0) {
-        this.setCurrentOperation(`Waiting for rate limit reset (${i}/${total} done)`)
-        // eslint-disable-next-line no-console
-        console.log(
-          `\n    ⏸️  BATCH PAUSE: ${i} uploads done. Waiting ${BATCH_PAUSE_MS / 1000}s for rate limit reset...\n`,
-        )
-        await rateLimitDelay(BATCH_PAUSE_MS)
-        // eslint-disable-next-line no-console
-        console.log(`    ⏸️  Resuming after pause...\n`)
-      }
 
       try {
         // Track current operation for heartbeat context
@@ -1640,7 +1650,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
         // Properly handle deduplication vs new upload
         if (result.wasReused) {
-          // Deduplication found existing media
+          // Deduplication found existing media - NO rate limiting needed (no Cloudflare API call)
           this.idMaps.media.set(url, result.id)
 
           if (!this.options.updateMode) {
@@ -1658,19 +1668,34 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
               total,
             })
           }
+          // NO delay for skipped/reused images - no Cloudflare API call was made
         } else {
-          // New media uploaded
+          // New media uploaded - apply rate limiting
           this.idMaps.media.set(url, result.id)
           this.report.incrementCreated()
           await this.reportDocument('images', filename, 'created', {
             current: i + 1,
             total,
           })
-        }
 
-        // Small delay after each successful upload for additional rate limit protection
-        if (i < total - 1) {
-          await rateLimitDelay(500)
+          // Track actual upload and apply rate limiting
+          actualUploadsInBatch++
+
+          // Batch pause after BATCH_SIZE actual uploads
+          if (actualUploadsInBatch >= BATCH_SIZE) {
+            this.setCurrentOperation(`Waiting for rate limit reset (${actualUploadsInBatch} uploads done)`)
+            // eslint-disable-next-line no-console
+            console.log(
+              `\n    ⏸️  BATCH PAUSE: ${actualUploadsInBatch} uploads done. Waiting ${BATCH_PAUSE_MS / 1000}s for rate limit reset...\n`,
+            )
+            await rateLimitDelay(BATCH_PAUSE_MS)
+            actualUploadsInBatch = 0
+            // eslint-disable-next-line no-console
+            console.log(`    ⏸️  Resuming after pause...\n`)
+          } else if (i < total - 1) {
+            // Small delay between actual uploads only
+            await rateLimitDelay(500)
+          }
         }
       } catch (error) {
         this.addError(`Importing media ${url}`, error as Error)
