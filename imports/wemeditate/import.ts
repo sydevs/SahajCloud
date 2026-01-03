@@ -1582,11 +1582,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
     // Batch pause configuration to avoid Cloudflare Images rate limiting
     // Cloudflare Images has rate limits of ~100 requests per 5-minute window
-    // Using small batches (15) with 60s pause = 75 requests/5min (well under limit)
-    // NOTE: Pause must be <100s to avoid Cloudflare Workers idle timeout
+    // Using small batches (25) with 25s pause = ~300 requests/5min (under limit with margin)
+    // CRITICAL: Pause must be <30s to avoid Cloudflare Workers I/O inactivity timeout
+    // The Workers runtime times out if no I/O operations happen for 30 seconds
     // OPTIMIZATION: Only count actual uploads, not skipped/reused images
-    const BATCH_SIZE = 15
-    const BATCH_PAUSE_MS = 60000 // 1 minute (must be under Cloudflare's 100s idle timeout)
+    const BATCH_SIZE = 25
+    const BATCH_PAUSE_MS = 25000 // 25 seconds (must be under Cloudflare's 30s I/O inactivity timeout)
     let actualUploadsInBatch = 0 // Track actual uploads, not iterations
 
     for (let i = 0; i < total; i++) {
@@ -1683,10 +1684,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
           // Batch pause after BATCH_SIZE actual uploads
           if (actualUploadsInBatch >= BATCH_SIZE) {
-            this.setCurrentOperation(`Waiting for rate limit reset (${actualUploadsInBatch} uploads done)`)
+            this.setCurrentOperation(`Rate limit pause (${actualUploadsInBatch} uploads)`)
             // eslint-disable-next-line no-console
             console.log(
-              `\n    ⏸️  BATCH PAUSE: ${actualUploadsInBatch} uploads done. Waiting ${BATCH_PAUSE_MS / 1000}s for rate limit reset...\n`,
+              `\n    ⏸️  BATCH PAUSE: ${actualUploadsInBatch} uploads. Pausing ${BATCH_PAUSE_MS / 1000}s (under 30s Worker timeout)...\n`,
             )
             await rateLimitDelay(BATCH_PAUSE_MS)
             actualUploadsInBatch = 0

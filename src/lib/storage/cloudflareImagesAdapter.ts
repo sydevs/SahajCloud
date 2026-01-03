@@ -69,8 +69,10 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
         validateFileUpload(file, { category: 'image' })
 
         const formData = new FormData()
-        // Convert Buffer to Uint8Array for browser compatibility
-        const uint8Array = new Uint8Array(file.buffer)
+        // Convert Buffer to Uint8Array for Cloudflare Workers compatibility
+        // Using Uint8Array.from() handles both Node.js Buffers and ArrayBuffers correctly
+        // Direct Uint8Array(buffer) can fail in Workers with Buffer polyfill
+        const uint8Array = Uint8Array.from(file.buffer)
         const blob = new Blob([uint8Array], { type: file.mimeType })
         formData.append('file', blob, file.filename)
 

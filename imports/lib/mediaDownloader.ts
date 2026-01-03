@@ -18,6 +18,28 @@ import { isCloudflareWorker } from './runtime'
 // import * as sharp from 'sharp' // DISABLED: Removed for Cloudflare Workers compatibility
 
 // ============================================================================
+// URL TRANSFORMATION
+// ============================================================================
+
+/**
+ * Transform CarrierWave preview URL to original quality URL.
+ * Strips size prefixes (small_, medium_, large_, huge_, tiny_) from filename.
+ *
+ * Legacy WeMeditate Rails used CarrierWave which generates size variants:
+ * - small_ (360px), medium_ (720px), large_ (1440px), huge_ (2880px), tiny_ (180px)
+ * - Original images have no prefix
+ *
+ * @example
+ * getOriginalImageUrl('https://.../media_file/file/205/small_background.jpg')
+ * // Returns: 'https://.../media_file/file/205/background.jpg'
+ */
+function getOriginalImageUrl(url: string): string {
+  // Match CarrierWave size prefixes at start of filename
+  // Pattern: /path/small_filename.jpg -> /path/filename.jpg
+  return url.replace(/\/(small|medium|large|huge|tiny)_([^/]+)$/, '/$2')
+}
+
+// ============================================================================
 // TYPES
 // ============================================================================
 
@@ -68,8 +90,9 @@ export class MediaDownloader {
    * - Cloudflare Workers: Keep in memory (no filesystem)
    */
   async downloadAndConvertImage(url: string): Promise<DownloadResult> {
-    // Normalize URL: Fix legacy .co domain to .com
-    const normalizedUrl = url.replace('assets.wemeditate.co/', 'assets.wemeditate.com/')
+    // Normalize URL: Fix legacy .co domain to .com, then get original quality
+    let normalizedUrl = url.replace('assets.wemeditate.co/', 'assets.wemeditate.com/')
+    normalizedUrl = getOriginalImageUrl(normalizedUrl)
 
     // Check cache (using normalized URL)
     if (this.downloadedFiles.has(normalizedUrl)) {
