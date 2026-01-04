@@ -112,6 +112,24 @@ export class MediaDownloader {
   }
 
   /**
+   * Extract the filename that would be used for caching from a URL.
+   * Does NOT download the file - just normalizes URL and extracts filename.
+   *
+   * This allows checking if media exists BEFORE downloading,
+   * avoiding unnecessary HTTP requests for media that already exists.
+   *
+   * @param url - The media URL to extract filename from
+   * @returns The normalized filename (e.g., "background.jpg")
+   */
+  getFilenameFromUrl(url: string): string {
+    // Normalize URL: Fix legacy .co domain to .com, then get original quality
+    let normalizedUrl = url.replace('assets.wemeditate.co/', 'assets.wemeditate.com/')
+    normalizedUrl = getOriginalImageUrl(normalizedUrl)
+    const urlPath = new URL(normalizedUrl).pathname
+    return path.basename(urlPath)
+  }
+
+  /**
    * Download image with dual-mode support:
    * - Local development: Cache to disk
    * - Cloudflare Workers: Keep in memory (no filesystem)

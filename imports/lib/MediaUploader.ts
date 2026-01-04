@@ -77,6 +77,29 @@ export class MediaUploader {
   }
 
   /**
+   * Check if media with this filename already exists in cache.
+   * Call preloadExistingMedia() first to populate the cache.
+   *
+   * This method allows checking for existing media BEFORE downloading,
+   * avoiding unnecessary HTTP requests for media that already exists.
+   *
+   * @param filename - The filename to check (e.g., "background.jpg")
+   * @returns The existing media ID if found, null otherwise
+   */
+  existsInCache(filename: string): number | string | null {
+    // Try exact filename match
+    if (this.mediaCache.has(filename)) {
+      return this.mediaCache.get(filename)!
+    }
+    // Try base name match (handles Payload suffixes like "-abc123")
+    const baseName = this.extractBaseName(filename)
+    if (this.mediaCache.has(baseName)) {
+      return this.mediaCache.get(baseName)!
+    }
+    return null
+  }
+
+  /**
    * Pre-load all existing media filenames into memory cache.
    * Call this before uploading to avoid N+1 database queries.
    *
