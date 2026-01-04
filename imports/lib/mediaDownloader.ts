@@ -40,6 +40,8 @@ const URL_OVERRIDES: Record<string, string> = {
     'https://raw.githubusercontent.com/sydevs/SahajCloud/main/imports/wemeditate/assets/void.jpg',
   'media_file/file/415/':
     'https://raw.githubusercontent.com/sydevs/SahajCloud/main/imports/wemeditate/assets/void.jpg',
+  'media_file/file/211/':
+    'https://raw.githubusercontent.com/sydevs/SahajCloud/main/imports/wemeditate/assets/void.jpg',
 }
 
 /**
