@@ -147,7 +147,12 @@ import {
   createUploadNode,
   type ConversionContext,
 } from '../lib/lexicalConverter'
-import { MediaDownloader, extractMediaUrls, extractAuthorImageUrl } from '../lib/mediaDownloader'
+import {
+  MediaDownloader,
+  extractMediaUrls,
+  extractAuthorImageUrl,
+  getOriginalImageUrl,
+} from '../lib/mediaDownloader'
 
 // ============================================================================
 // CONFIGURATION
@@ -1574,8 +1579,11 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
 
     // Scan treatment thumbnails from pre-extracted data
+    // Apply getOriginalImageUrl to strip CarrierWave prefixes (e.g., small_)
     for (const treatment of this.data.treatmentThumbnails) {
-      const thumbnailUrl = `${STORAGE_BASE_URL}media_file/file/${treatment.media_file_id}/${treatment.thumbnail_file}`
+      const thumbnailUrl = getOriginalImageUrl(
+        `${STORAGE_BASE_URL}media_file/file/${treatment.media_file_id}/${treatment.thumbnail_file}`,
+      )
       mediaUrls.add(thumbnailUrl)
       mediaMetadata.set(thumbnailUrl, {
         alt: `Thumbnail for ${treatment.treatment_name || 'treatment'}`,
@@ -1800,8 +1808,11 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
 
     // Scan treatment thumbnails
+    // Apply getOriginalImageUrl to strip CarrierWave prefixes (e.g., small_)
     for (const treatment of this.data.treatmentThumbnails) {
-      const thumbnailUrl = `${STORAGE_BASE_URL}media_file/file/${treatment.media_file_id}/${treatment.thumbnail_file}`
+      const thumbnailUrl = getOriginalImageUrl(
+        `${STORAGE_BASE_URL}media_file/file/${treatment.media_file_id}/${treatment.thumbnail_file}`,
+      )
       mediaUrls.add(thumbnailUrl)
       mediaMetadata.set(thumbnailUrl, {
         alt: `Thumbnail for ${treatment.treatment_name || 'treatment'}`,
