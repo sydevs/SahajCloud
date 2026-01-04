@@ -16,6 +16,25 @@ import type { ImageTag } from '@/payload-types'
 import { isCloudflareWorker } from './runtime'
 
 // ============================================================================
+// ERRORS
+// ============================================================================
+
+/**
+ * Custom error for media upload failures.
+ * Provides detailed context for debugging upload issues.
+ */
+export class MediaUploadError extends Error {
+  constructor(
+    message: string,
+    public readonly filename: string,
+    public readonly sourceUrl?: string,
+  ) {
+    super(message)
+    this.name = 'MediaUploadError'
+  }
+}
+
+// ============================================================================
 // TYPES
 // ============================================================================
 
@@ -144,7 +163,7 @@ export class MediaUploader {
   async uploadWithDeduplication(
     localPath: string,
     options: MediaUploadOptions = {},
-  ): Promise<MediaUploadResult | null> {
+  ): Promise<MediaUploadResult> {
     try {
       const filename = path.basename(localPath)
 
@@ -192,18 +211,16 @@ export class MediaUploader {
 
       // Upload new media file
       const result = await this.uploadNewMedia(localPath, options)
-      if (result) {
-        this.mediaCache.set(filename, result.id)
-        this.stats.uploaded++
-        await this.logger.log(`    ✓ Uploaded new media: ${result.filename}`)
-      }
+      this.mediaCache.set(filename, result.id)
+      this.stats.uploaded++
+      await this.logger.log(`    ✓ Uploaded new media: ${result.filename}`)
 
       return result
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       const sourceInfo = options.sourceUrl ? ` from ${options.sourceUrl}` : ''
       await this.logger.error(`Failed to upload ${path.basename(localPath)}${sourceInfo}: ${message}`)
-      return null
+      throw new MediaUploadError(message, path.basename(localPath), options.sourceUrl)
     }
   }
 
@@ -325,7 +342,7 @@ export class MediaUploader {
   private async uploadNewMedia(
     localPath: string,
     options: MediaUploadOptions,
-  ): Promise<MediaUploadResult | null> {
+  ): Promise<MediaUploadResult> {
     try {
       // In Workers mode, buffer is required (no filesystem access)
       if (!options.buffer && isCloudflareWorker()) {
