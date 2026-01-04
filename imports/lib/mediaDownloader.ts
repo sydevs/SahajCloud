@@ -30,6 +30,30 @@ const FILE_SIZE_LIMIT = 10 * 1024 * 1024
  */
 const CARRIERWAVE_SIZES = ['huge', 'large', 'medium', 'small', 'tiny'] as const
 
+/**
+ * URL overrides for broken images that need replacement.
+ * Maps original URL patterns to replacement URLs (GitHub raw).
+ * Used when legacy server returns corrupted data.
+ */
+const URL_OVERRIDES: Record<string, string> = {
+  'media_file/file/494/':
+    'https://raw.githubusercontent.com/sydevs/sy-devs-cms/main/imports/wemeditate/assets/void.jpg',
+}
+
+/**
+ * Check if URL has an override and return the replacement URL.
+ * @param url - The original URL to check
+ * @returns The replacement URL if an override exists, null otherwise
+ */
+function getUrlOverride(url: string): string | null {
+  for (const [pattern, replacement] of Object.entries(URL_OVERRIDES)) {
+    if (url.includes(pattern)) {
+      return replacement
+    }
+  }
+  return null
+}
+
 // ============================================================================
 // URL TRANSFORMATION
 // ============================================================================
@@ -46,7 +70,7 @@ const CARRIERWAVE_SIZES = ['huge', 'large', 'medium', 'small', 'tiny'] as const
  * getOriginalImageUrl('https://.../media_file/file/205/small_background.jpg')
  * // Returns: 'https://.../media_file/file/205/background.jpg'
  */
-function getOriginalImageUrl(url: string): string {
+export function getOriginalImageUrl(url: string): string {
   // Match CarrierWave size prefixes at start of filename
   // Pattern: /path/small_filename.jpg -> /path/filename.jpg
   return url.replace(/\/(small|medium|large|huge|tiny)_([^/]+)$/, '/$2')
@@ -122,8 +146,10 @@ export class MediaDownloader {
    * @returns The normalized filename (e.g., "background.jpg")
    */
   getFilenameFromUrl(url: string): string {
-    // Normalize URL: Fix legacy .co domain to .com, then get original quality
-    let normalizedUrl = url.replace('assets.wemeditate.co/', 'assets.wemeditate.com/')
+    // Normalize URL: Fix legacy domains and Google Storage URLs, then get original quality
+    let normalizedUrl = url
+      .replace('assets.wemeditate.co/', 'assets.wemeditate.com/')
+      .replace('https://storage.googleapis.com/wemeditate/', 'https://assets.wemeditate.com/')
     normalizedUrl = getOriginalImageUrl(normalizedUrl)
     const urlPath = new URL(normalizedUrl).pathname
     return path.basename(urlPath)
@@ -135,8 +161,16 @@ export class MediaDownloader {
    * - Cloudflare Workers: Keep in memory (no filesystem)
    */
   async downloadAndConvertImage(url: string): Promise<DownloadResult> {
-    // Normalize URL: Fix legacy .co domain to .com, then get original quality
-    let normalizedUrl = url.replace('assets.wemeditate.co/', 'assets.wemeditate.com/')
+    // Check for URL overrides (broken images with replacement URLs)
+    const override = getUrlOverride(url)
+    if (override) {
+      url = override
+    }
+
+    // Normalize URL: Fix legacy domains and Google Storage URLs, then get original quality
+    let normalizedUrl = url
+      .replace('assets.wemeditate.co/', 'assets.wemeditate.com/')
+      .replace('https://storage.googleapis.com/wemeditate/', 'https://assets.wemeditate.com/')
     normalizedUrl = getOriginalImageUrl(normalizedUrl)
 
     // Check cache (using normalized URL)
