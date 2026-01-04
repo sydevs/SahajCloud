@@ -470,7 +470,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     // Build required maps for content conversion
     await this.buildMeditationTitleMap()
     await this.importForms()
-    await this.importMedia()
+
+    // PAGINATED MODE OPTIMIZATION: Import global media (authors, thumbnails) ONCE
+    // Then process page-specific media inline with each page to reduce HTTP requests per invocation
+    await this.importGlobalMedia()
     await this.importLectures()
     await this.buildTreatmentThumbnailMap()
 
@@ -499,6 +502,9 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       const globalIndex = (this.options.pagination?.offset || 0) + i
 
       try {
+        // PAGINATED MODE: Import media for THIS page only before processing
+        // This ensures we only download media needed for the current batch
+        await this.importMediaForPage(page)
         await this.importSinglePage(page, tableName, globalIndex + 1, total)
       } catch (error) {
         this.addError(`Importing ${tableName} ${page.id}`, error as Error)
@@ -1592,10 +1598,25 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
     for (let i = 0; i < total; i++) {
       const url = mediaUrlArray[i]
-      // Extract filename from URL for pre-download logging and error reporting
-      const preDownloadFilename = path.basename(url).split('?')[0]
+      // Extract normalized filename from URL for cache lookup and error reporting
+      // Uses getFilenameFromUrl() to normalize URL (fix .co domain, strip CarrierWave prefix)
+      const preDownloadFilename = this.mediaDownloader.getFilenameFromUrl(url)
 
       try {
+        // PRE-DOWNLOAD CACHE CHECK: Skip download if media already exists
+        // This avoids unnecessary HTTP requests for media that already exists in the database
+        const existingMediaId = this.mediaUploader.existsInCache(preDownloadFilename)
+        if (existingMediaId && !this.options.updateMode) {
+          // SKIP MODE: Media exists and we're not updating - no download needed!
+          this.idMaps.media.set(url, existingMediaId)
+          this.report.incrementSkipped()
+          await this.reportDocument('images', preDownloadFilename, 'skipped', {
+            current: i + 1,
+            total,
+          })
+          continue // Skip download entirely - major HTTP request savings!
+        }
+
         // Track current operation for heartbeat context
         this.setCurrentOperation(`Downloading images:${preDownloadFilename} (${i + 1}/${total})`)
         const downloadResult = await this.mediaDownloader.downloadAndConvertImage(url)
@@ -1665,6 +1686,175 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         }
       } catch (error) {
         this.addError(`Importing media ${url}`, error as Error)
+        await this.reportDocument('images', preDownloadFilename, 'error', {
+          error: (error as Error).message,
+          current: i + 1,
+          total,
+        })
+      }
+    }
+  }
+
+  /**
+   * Import media files for a single page's content.
+   * Used in paginated mode to process media per-page instead of all at once.
+   *
+   * This reduces HTTP requests per worker invocation by only processing
+   * the media needed for the current page, with pre-download cache checking.
+   *
+   * @param page - The page object containing translations with content
+   */
+  private async importMediaForPage(page: WeMeditateData['staticPages'][number]): Promise<void> {
+    const mediaUrls = new Set<string>()
+    const mediaMetadata = new Map<string, { alt: string; credit: string }>()
+
+    // Extract media URLs from this page's translations only
+    for (const translation of page.translations) {
+      if (!translation.content) continue
+      let content
+      try {
+        content =
+          typeof translation.content === 'string'
+            ? JSON.parse(translation.content)
+            : translation.content
+      } catch {
+        continue
+      }
+
+      const urls = extractMediaUrls(content, STORAGE_BASE_URL)
+      urls.forEach((url) => mediaUrls.add(url))
+
+      // Also extract metadata from media blocks
+      if (content.blocks) {
+        for (const block of content.blocks) {
+          if (block.type === 'media' && block.data.items) {
+            for (const item of block.data.items) {
+              if (item.image?.preview) {
+                mediaMetadata.set(item.image.preview, {
+                  alt: item.alt || '',
+                  credit: item.credit || '',
+                })
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // No media in this page - skip
+    if (mediaUrls.size === 0) return
+
+    const mediaUrlArray = Array.from(mediaUrls)
+
+    for (let i = 0; i < mediaUrlArray.length; i++) {
+      const url = mediaUrlArray[i]
+      const preDownloadFilename = this.mediaDownloader.getFilenameFromUrl(url)
+
+      try {
+        // PRE-DOWNLOAD CACHE CHECK: Skip if already exists
+        const existingMediaId = this.mediaUploader.existsInCache(preDownloadFilename)
+        if (existingMediaId && !this.options.updateMode) {
+          this.idMaps.media.set(url, existingMediaId)
+          // Don't increment skipped count here - it will be counted when we actually skip the page
+          continue
+        }
+
+        // Download and upload
+        const downloadResult = await this.mediaDownloader.downloadAndConvertImage(url)
+        const filename = downloadResult.originalFilename
+        const metadata = mediaMetadata.get(url) || { alt: '', credit: '' }
+        const filenameWithoutExt = path.basename(filename, path.extname(filename))
+
+        const result = await this.mediaUploader.uploadWithDeduplication(downloadResult.localPath, {
+          alt: metadata.alt || filenameWithoutExt,
+          credit: metadata.credit || '',
+          buffer: downloadResult.buffer,
+          sourceUrl: url,
+        })
+
+        this.idMaps.media.set(url, result.id)
+      } catch (error) {
+        this.addError(`Importing media for page ${page.id}: ${url}`, error as Error)
+      }
+    }
+  }
+
+  /**
+   * Import author images and treatment thumbnails (non-page media).
+   * Used in paginated mode to process global media once at the start.
+   */
+  private async importGlobalMedia(): Promise<void> {
+    await this.logger.info('\n=== Importing Global Media (Authors & Thumbnails) ===')
+
+    const mediaUrls = new Set<string>()
+    const mediaMetadata = new Map<string, { alt: string; credit: string }>()
+
+    // Scan author images
+    for (const author of this.data.authors) {
+      if (!author.image) continue
+      const imageUrl = extractAuthorImageUrl(author.image, STORAGE_BASE_URL)
+      if (imageUrl) {
+        mediaUrls.add(imageUrl)
+        mediaMetadata.set(imageUrl, { alt: 'Author profile image', credit: '' })
+      }
+    }
+
+    // Scan treatment thumbnails
+    for (const treatment of this.data.treatmentThumbnails) {
+      const thumbnailUrl = `${STORAGE_BASE_URL}media_file/file/${treatment.media_file_id}/${treatment.thumbnail_file}`
+      mediaUrls.add(thumbnailUrl)
+      mediaMetadata.set(thumbnailUrl, {
+        alt: `Thumbnail for ${treatment.treatment_name || 'treatment'}`,
+        credit: '',
+      })
+    }
+
+    const total = mediaUrls.size
+    if (total === 0) return
+
+    await this.logger.info(`Processing ${total} global media files...`)
+    const mediaUrlArray = Array.from(mediaUrls)
+
+    for (let i = 0; i < mediaUrlArray.length; i++) {
+      const url = mediaUrlArray[i]
+      const preDownloadFilename = this.mediaDownloader.getFilenameFromUrl(url)
+
+      try {
+        // PRE-DOWNLOAD CACHE CHECK
+        const existingMediaId = this.mediaUploader.existsInCache(preDownloadFilename)
+        if (existingMediaId && !this.options.updateMode) {
+          this.idMaps.media.set(url, existingMediaId)
+          this.report.incrementSkipped()
+          await this.reportDocument('images', preDownloadFilename, 'skipped', {
+            current: i + 1,
+            total,
+          })
+          continue
+        }
+
+        // Download and upload
+        const downloadResult = await this.mediaDownloader.downloadAndConvertImage(url)
+        const filename = downloadResult.originalFilename
+        const metadata = mediaMetadata.get(url) || { alt: '', credit: '' }
+        const filenameWithoutExt = path.basename(filename, path.extname(filename))
+
+        const result = await this.mediaUploader.uploadWithDeduplication(downloadResult.localPath, {
+          alt: metadata.alt || filenameWithoutExt,
+          credit: metadata.credit || '',
+          buffer: downloadResult.buffer,
+          sourceUrl: url,
+        })
+
+        this.idMaps.media.set(url, result.id)
+        if (result.wasReused) {
+          this.report.incrementSkipped()
+          await this.reportDocument('images', filename, 'skipped', { current: i + 1, total })
+        } else {
+          this.report.incrementCreated()
+          await this.reportDocument('images', filename, 'created', { current: i + 1, total })
+        }
+      } catch (error) {
+        this.addError(`Importing global media ${url}`, error as Error)
         await this.reportDocument('images', preDownloadFilename, 'error', {
           error: (error as Error).message,
           current: i + 1,
