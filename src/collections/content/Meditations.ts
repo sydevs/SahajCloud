@@ -28,7 +28,7 @@ export const Meditations: CollectionConfig = {
     livePreview: {
       url: ({ data }) => {
         const baseURL = process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173'
-        return `${baseURL}/${data.locale}/preview?collection=meditations&id=${data.id}`
+        return `${baseURL}/${data.locale}/preview/embed?collection=meditations&id=${data.id}`
       },
     },
     components: {
