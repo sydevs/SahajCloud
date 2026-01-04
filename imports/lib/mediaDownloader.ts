@@ -30,36 +30,6 @@ const FILE_SIZE_LIMIT = 10 * 1024 * 1024
  */
 const CARRIERWAVE_SIZES = ['huge', 'large', 'medium', 'small', 'tiny'] as const
 
-/**
- * URL overrides for broken images that need replacement.
- * Maps original URL patterns to replacement URLs (GitHub raw).
- * Used when legacy server returns corrupted data.
- */
-const URL_OVERRIDES: Record<string, string> = {
-  'media_file/file/494/':
-    'https://raw.githubusercontent.com/sydevs/SahajCloud/main/imports/wemeditate/assets/void.jpg',
-  'media_file/file/415/':
-    'https://raw.githubusercontent.com/sydevs/SahajCloud/main/imports/wemeditate/assets/void.jpg',
-  'media_file/file/211/':
-    'https://raw.githubusercontent.com/sydevs/SahajCloud/main/imports/wemeditate/assets/void.jpg',
-  'media_file/file/479/':
-    'https://raw.githubusercontent.com/sydevs/SahajCloud/main/imports/wemeditate/assets/void.jpg',
-}
-
-/**
- * Check if URL has an override and return the replacement URL.
- * @param url - The original URL to check
- * @returns The replacement URL if an override exists, null otherwise
- */
-function getUrlOverride(url: string): string | null {
-  for (const [pattern, replacement] of Object.entries(URL_OVERRIDES)) {
-    if (url.includes(pattern)) {
-      return replacement
-    }
-  }
-  return null
-}
-
 // ============================================================================
 // URL TRANSFORMATION
 // ============================================================================
@@ -167,12 +137,6 @@ export class MediaDownloader {
    * - Cloudflare Workers: Keep in memory (no filesystem)
    */
   async downloadAndConvertImage(url: string): Promise<DownloadResult> {
-    // Check for URL overrides (broken images with replacement URLs)
-    const override = getUrlOverride(url)
-    if (override) {
-      url = override
-    }
-
     // Normalize URL: Fix legacy domains and Google Storage URLs, then get original quality
     let normalizedUrl = url
       .replace('assets.wemeditate.co/', 'assets.wemeditate.com/')
