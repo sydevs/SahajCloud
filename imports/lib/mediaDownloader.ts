@@ -38,6 +38,8 @@ const CARRIERWAVE_SIZES = ['huge', 'large', 'medium', 'small', 'tiny'] as const
 const URL_OVERRIDES: Record<string, string> = {
   'media_file/file/494/':
     'https://raw.githubusercontent.com/sydevs/SahajCloud/main/imports/wemeditate/assets/void.jpg',
+  'media_file/file/415/':
+    'https://raw.githubusercontent.com/sydevs/SahajCloud/main/imports/wemeditate/assets/void.jpg',
 }
 
 /**
