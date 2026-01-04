@@ -373,7 +373,13 @@ export class MediaUploader {
       }
 
       // Use buffer if provided (Workers mode), otherwise read from filesystem
-      const fileBuffer = options.buffer || (await fs.readFile(localPath))
+      let fileBuffer = options.buffer || (await fs.readFile(localPath))
+
+      // In Workers, ensure we pass a clean Buffer without ArrayBuffer offset issues
+      // The Workers Buffer polyfill can have issues with byteOffset when creating Uint8Array views
+      if (isCloudflareWorker() && options.buffer) {
+        fileBuffer = Buffer.from(new Uint8Array(fileBuffer))
+      }
       const filename = path.basename(localPath)
       const ext = path.extname(filename).toLowerCase()
 
