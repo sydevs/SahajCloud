@@ -11,6 +11,7 @@
  */
 
 import type { BypassPermissionFunction } from './types'
+
 import type { Client, Manager } from '@/payload-types'
 
 export const bypassPermissions: BypassPermissionFunction = (user, context) => {

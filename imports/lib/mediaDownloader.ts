@@ -18,6 +18,19 @@ import { isCloudflareWorker } from './runtime'
 // import * as sharp from 'sharp' // DISABLED: Removed for Cloudflare Workers compatibility
 
 // ============================================================================
+// CONSTANTS
+// ============================================================================
+
+/** Cloudflare Images file size limit (10 MB) */
+const FILE_SIZE_LIMIT = 10 * 1024 * 1024
+
+/**
+ * CarrierWave size variants in descending order (largest to smallest).
+ * Used for fallback when original image exceeds size limit.
+ */
+const CARRIERWAVE_SIZES = ['huge', 'large', 'medium', 'small', 'tiny'] as const
+
+// ============================================================================
 // URL TRANSFORMATION
 // ============================================================================
 
@@ -37,6 +50,18 @@ function getOriginalImageUrl(url: string): string {
   // Match CarrierWave size prefixes at start of filename
   // Pattern: /path/small_filename.jpg -> /path/filename.jpg
   return url.replace(/\/(small|medium|large|huge|tiny)_([^/]+)$/, '/$2')
+}
+
+/**
+ * Add CarrierWave size prefix to a URL.
+ * Used for fallback to smaller variants when original is too large.
+ *
+ * @example
+ * getVariantUrl('https://.../media_file/file/205/background.jpg', 'huge')
+ * // Returns: 'https://.../media_file/file/205/huge_background.jpg'
+ */
+function getVariantUrl(url: string, size: (typeof CARRIERWAVE_SIZES)[number]): string {
+  return url.replace(/\/([^/]+)$/, `/${size}_$1`)
 }
 
 // ============================================================================
@@ -117,19 +142,9 @@ export class MediaDownloader {
       // Workers mode: stream directly without filesystem
       if (isCloudflareWorker()) {
         await this.logger.log(`Downloading image (streaming): ${normalizedUrl}`)
-        // Add timeout to prevent indefinite hangs
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
-        let response: Response
-        try {
-          response = await fetch(normalizedUrl, { signal: controller.signal })
-        } finally {
-          clearTimeout(timeoutId)
-        }
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-        }
-        const buffer = Buffer.from(await response.arrayBuffer())
+
+        // Download with automatic fallback for oversized files
+        const { buffer, usedVariant } = await this.downloadWithFallback(normalizedUrl)
 
         const result: DownloadResult = {
           localPath: filename, // Virtual path for reference
@@ -141,7 +156,8 @@ export class MediaDownloader {
         }
 
         this.downloadedFiles.set(normalizedUrl, result)
-        await this.logger.log(`✓ Downloaded (streaming): ${filename}`)
+        const variantInfo = usedVariant ? ` (using ${usedVariant}_ variant)` : ''
+        await this.logger.log(`✓ Downloaded (streaming): ${filename}${variantInfo}`)
         return result
       }
 
@@ -165,27 +181,13 @@ export class MediaDownloader {
         // File doesn't exist, download it
       }
 
-      // Download image
+      // Download image with automatic fallback for oversized files
       await this.logger.log(`Downloading image: ${normalizedUrl}`)
-      // Add timeout to prevent indefinite hangs
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
-      let response: Response
-      try {
-        response = await fetch(normalizedUrl, { signal: controller.signal })
-      } finally {
-        clearTimeout(timeoutId)
-      }
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const arrayBuffer = await response.arrayBuffer()
-      const buffer = Buffer.from(arrayBuffer)
+      const { buffer, usedVariant } = await this.downloadWithFallback(normalizedUrl)
 
       // Save file as-is (no WebP conversion)
       await fs.writeFile(localPath, buffer)
+      const variantInfo = usedVariant ? ` (using ${usedVariant}_ variant)` : ''
 
       const result: DownloadResult = {
         localPath,
@@ -196,7 +198,7 @@ export class MediaDownloader {
       }
 
       this.downloadedFiles.set(normalizedUrl, result)
-      await this.logger.log(`✓ Downloaded: ${filename}`)
+      await this.logger.log(`✓ Downloaded: ${filename}${variantInfo}`)
 
       return result
     } catch (error) {
@@ -261,6 +263,62 @@ export class MediaDownloader {
     return {
       downloaded: this.downloadedFiles.size,
     }
+  }
+
+  /**
+   * Download a buffer from URL with timeout
+   * @private
+   */
+  private async downloadBuffer(url: string): Promise<Buffer> {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+    try {
+      const response = await fetch(url, { signal: controller.signal })
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+      return Buffer.from(await response.arrayBuffer())
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  }
+
+  /**
+   * Try to download a smaller CarrierWave variant if original is too large
+   * @private
+   */
+  private async downloadWithFallback(originalUrl: string): Promise<{ buffer: Buffer; usedVariant?: string }> {
+    // Try original first
+    const buffer = await this.downloadBuffer(originalUrl)
+
+    // Check if within size limit
+    if (buffer.length <= FILE_SIZE_LIMIT) {
+      return { buffer }
+    }
+
+    // Original too large - try fallback sizes
+    const sizeMB = (buffer.length / 1024 / 1024).toFixed(2)
+    await this.logger.log(`Original image too large (${sizeMB} MB), trying fallback sizes...`)
+
+    for (const size of CARRIERWAVE_SIZES) {
+      const variantUrl = getVariantUrl(originalUrl, size)
+      try {
+        const variantBuffer = await this.downloadBuffer(variantUrl)
+        if (variantBuffer.length <= FILE_SIZE_LIMIT) {
+          const variantSizeMB = (variantBuffer.length / 1024 / 1024).toFixed(2)
+          await this.logger.log(`Using ${size}_ variant (${variantSizeMB} MB)`)
+          return { buffer: variantBuffer, usedVariant: size }
+        }
+      } catch {
+        // Variant doesn't exist or failed, try next
+        continue
+      }
+    }
+
+    // No suitable variant found
+    throw new Error(
+      `No suitable size variant found under ${FILE_SIZE_LIMIT / 1024 / 1024} MB limit (original: ${sizeMB} MB)`,
+    )
   }
 }
 
