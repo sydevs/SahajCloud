@@ -1592,17 +1592,18 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
     for (let i = 0; i < total; i++) {
       const url = mediaUrlArray[i]
-      const filename = path.basename(url).split('?')[0] // Remove query params for identifier
+      // Extract filename from URL for pre-download logging and error reporting
+      const preDownloadFilename = path.basename(url).split('?')[0]
 
       try {
         // Track current operation for heartbeat context
-        this.setCurrentOperation(`Downloading images:${filename} (${i + 1}/${total})`)
+        this.setCurrentOperation(`Downloading images:${preDownloadFilename} (${i + 1}/${total})`)
         const downloadResult = await this.mediaDownloader.downloadAndConvertImage(url)
+
+        // Use the original filename from download result (with CarrierWave prefix stripped)
+        const filename = downloadResult.originalFilename
         const metadata = mediaMetadata.get(url) || { alt: '', credit: '' }
-        const filenameWithoutExt = path.basename(
-          downloadResult.localPath,
-          path.extname(downloadResult.localPath),
-        )
+        const filenameWithoutExt = path.basename(filename, path.extname(filename))
 
         // Upload with retry logic for Workers mode resilience
         this.setCurrentOperation(`Uploading images:${filename} (${i + 1}/${total})`)
@@ -1700,7 +1701,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         }
       } catch (error) {
         this.addError(`Importing media ${url}`, error as Error)
-        await this.reportDocument('images', filename, 'error', {
+        await this.reportDocument('images', preDownloadFilename, 'error', {
           error: (error as Error).message,
           current: i + 1,
           total,

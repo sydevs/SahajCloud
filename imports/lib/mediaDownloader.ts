@@ -56,6 +56,8 @@ export interface DownloadResult {
   height: number
   /** Buffer for Workers mode (no filesystem) */
   buffer?: Buffer
+  /** Original filename after URL transformation (e.g., without CarrierWave size prefix) */
+  originalFilename: string
 }
 
 // ============================================================================
@@ -109,6 +111,9 @@ export class MediaDownloader {
       const filename = `${hash}${ext}`
       const localPath = path.join(this.cacheDir, filename)
 
+      // Extract original filename from normalized URL (after CarrierWave prefix stripped)
+      const originalFilename = path.basename(urlPath)
+
       // Workers mode: stream directly without filesystem
       if (isCloudflareWorker()) {
         await this.logger.log(`Downloading image (streaming): ${normalizedUrl}`)
@@ -132,6 +137,7 @@ export class MediaDownloader {
           width: 0,
           height: 0,
           buffer, // Keep in memory for Workers
+          originalFilename,
         }
 
         this.downloadedFiles.set(normalizedUrl, result)
@@ -150,6 +156,7 @@ export class MediaDownloader {
           hash,
           width: 0, // Dimension extraction disabled
           height: 0, // Dimension extraction disabled
+          originalFilename,
         }
 
         this.downloadedFiles.set(normalizedUrl, result)
@@ -185,6 +192,7 @@ export class MediaDownloader {
         hash,
         width: 0, // Dimension extraction disabled
         height: 0, // Dimension extraction disabled
+        originalFilename,
       }
 
       this.downloadedFiles.set(normalizedUrl, result)
