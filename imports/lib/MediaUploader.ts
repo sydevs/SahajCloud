@@ -373,10 +373,10 @@ export class MediaUploader {
       }
 
       // Use buffer if provided (Workers mode), otherwise read from filesystem
-      let fileBuffer = options.buffer || (await fs.readFile(localPath))
+      let fileBuffer: Buffer = options.buffer || (await fs.readFile(localPath))
 
-      // In Workers, ensure we pass a clean Buffer without ArrayBuffer offset issues
-      // The Workers Buffer polyfill can have issues with byteOffset when creating Uint8Array views
+      // In Workers, ensure we pass a clean Buffer without ArrayBuffer offset issues.
+      // This matches the pattern used in album imports (import.ts:890).
       if (isCloudflareWorker() && options.buffer) {
         fileBuffer = Buffer.from(new Uint8Array(fileBuffer))
       }
