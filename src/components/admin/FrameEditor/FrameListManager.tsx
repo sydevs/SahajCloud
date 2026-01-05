@@ -137,12 +137,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
  * - Auto-sorts frames by timestamp after changes
  */
 export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) => {
-  const {
-    name,
-    label,
-    required,
-    admin: { description } = {},
-  } = field
+  const { name, admin: { description } = {} } = field
 
   // Field state
   const { value, setValue, showError } = useField<KeyframeData[]>()
@@ -252,8 +247,6 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
 
   return (
     <div className={fieldClasses} id={fieldId}>
-      <FieldLabel label={label} path={name} required={required} />
-
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
 

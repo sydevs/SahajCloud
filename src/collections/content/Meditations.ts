@@ -35,6 +35,7 @@ export const Meditations: CollectionConfig = {
       edit: {
         PublishButton: '@/components/admin/buttons/UpdateOnlyPublishButton',
         SaveDraftButton: '@/components/admin/buttons/NextStepButton',
+        Upload: '@/components/admin/AudioUpload',
       },
     },
   },
@@ -189,8 +190,8 @@ export const Meditations: CollectionConfig = {
               type: 'tabs',
               tabs: [
                 {
-                  label: 'Manage',
-                  description: 'Edit frame timestamps and order',
+                  label: 'Frames',
+                  description: 'Remove or re-order frames',
                   fields: [
                     {
                       name: 'frames',
@@ -283,8 +284,8 @@ export const Meditations: CollectionConfig = {
                   ],
                 },
                 {
-                  label: 'Insert',
-                  description: 'Browse and add new frames',
+                  label: 'Add New',
+                  description: 'Add new frames to the meditation',
                   fields: [
                     {
                       name: 'frameInserter',
