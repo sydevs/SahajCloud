@@ -299,7 +299,20 @@ export class MediaDownloader {
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
-      return Buffer.from(await response.arrayBuffer())
+      const arrayBuffer = await response.arrayBuffer()
+
+      // In Cloudflare Workers, Buffer methods can cause "offset" type errors.
+      // Use manual indexed copy which is the only reliable method.
+      if (isCloudflareWorker()) {
+        const bytes = new Uint8Array(arrayBuffer)
+        const cleanBuffer = Buffer.alloc(bytes.length)
+        for (let i = 0; i < bytes.length; i++) {
+          cleanBuffer[i] = bytes[i]
+        }
+        return cleanBuffer
+      }
+
+      return Buffer.from(arrayBuffer)
     } finally {
       clearTimeout(timeoutId)
     }
