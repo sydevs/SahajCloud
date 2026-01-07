@@ -12,7 +12,7 @@ interface FrameThumbnailProps {
 
 const videoIndicatorStyle: CSSProperties = {
   position: 'absolute',
-  bottom: '4px',
+  top: '4px',
   left: '4px',
   backgroundColor: 'rgba(0, 0, 0, 0.6)',
   borderRadius: '50%',

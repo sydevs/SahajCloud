@@ -204,6 +204,10 @@ export const inserterStyles = {
     transform: 'scale(1.05)',
   } satisfies CSSProperties,
 
+  thumbnailContainer: {
+    position: 'relative' as const,
+  } satisfies CSSProperties,
+
   frameThumbnail: {
     width: '100%',
     aspectRatio: '1',
@@ -212,19 +216,30 @@ export const inserterStyles = {
     backgroundColor: 'var(--theme-elevation-200)',
   } satisfies CSSProperties,
 
+  categoryPill: {
+    position: 'absolute' as const,
+    bottom: '4px',
+    left: '4px',
+    right: '4px',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    color: 'white',
+    fontSize: 'calc(var(--base-body-size) * 0.75px)',
+    fontWeight: 500,
+    padding: '2px 6px',
+    borderRadius: '4px',
+    textAlign: 'center' as const,
+    transition: 'opacity 0.15s ease',
+  } satisfies CSSProperties,
+
   frameInfo: {
     padding: 'calc(var(--base) * 0.35)',
     textAlign: 'center' as const,
-    backgroundColor: 'var(--theme-elevation-100)',
   } satisfies CSSProperties,
 
-  frameCategory: {
-    fontSize: 'calc(var(--base-body-size) * 0.85px)',
+  frameTags: {
+    fontSize: 'calc(var(--base-body-size) * 0.8px)',
     fontWeight: 500,
     color: 'var(--theme-elevation-700)',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
   } satisfies CSSProperties,
 
   videoIndicator: {

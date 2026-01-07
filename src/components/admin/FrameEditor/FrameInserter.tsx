@@ -23,6 +23,7 @@ interface FrameCardProps {
   frame: Frame
   isClicked: boolean
   insertionTimestamp: number
+  selectedCategory: string | null
   onInsert: (frame: Frame) => void
 }
 
@@ -30,6 +31,7 @@ const FrameCard: React.FC<FrameCardProps> = ({
   frame,
   isClicked,
   insertionTimestamp,
+  selectedCategory,
   onInsert,
 }) => {
   return (
@@ -38,11 +40,18 @@ const FrameCard: React.FC<FrameCardProps> = ({
       onClick={() => onInsert(frame)}
       title={`Insert ${getCategoryLabel(frame.category || '')} at ${formatTime(insertionTimestamp)}`}
     >
-      <FrameThumbnail frame={frame} style={inserterStyles.frameThumbnail} />
-
-      <div style={inserterStyles.frameInfo}>
-        <div style={inserterStyles.frameCategory}>{getCategoryLabel(frame.category || '')}</div>
+      {/* Thumbnail with category pill overlay */}
+      <div style={inserterStyles.thumbnailContainer}>
+        <FrameThumbnail frame={frame} style={inserterStyles.frameThumbnail} />
+        <div style={inserterStyles.categoryPill}>{getCategoryLabel(frame.category || '')}</div>
       </div>
+
+      {/* Tags below thumbnail */}
+      {frame.tags && frame.tags.length > 0 && (
+        <div style={inserterStyles.frameInfo}>
+          <div style={inserterStyles.frameTags}>{frame.tags.join(', ')}</div>
+        </div>
+      )}
     </div>
   )
 }
@@ -188,6 +197,7 @@ export const FrameInserter: UIFieldClientComponent = () => {
               frame={frame}
               isClicked={clickedFrameId === frame.id}
               insertionTimestamp={insertionTimestamp}
+              selectedCategory={selectedCategory}
               onInsert={handleFrameInsert}
             />
           ))}
