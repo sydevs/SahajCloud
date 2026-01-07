@@ -68,13 +68,3 @@ export const getCategoryLabel = (value: string): string => {
 export const isVideoFrame = (mimeType?: string | null): boolean => {
   return mimeType?.startsWith('video/') ?? false
 }
-
-/**
- * Get the preview URL for a frame, falling back to the main URL
- */
-export const getPreviewUrl = (frame: {
-  previewUrl?: string | null
-  url?: string | null
-}): string | undefined => {
-  return frame.previewUrl || frame.url || undefined
-}

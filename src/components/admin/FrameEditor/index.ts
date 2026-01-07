@@ -1,6 +1,7 @@
 // Components
 export { FrameListManager } from './FrameListManager'
 export { FrameInserter } from './FrameInserter'
+export { FrameThumbnail } from './FrameThumbnail'
 
 // Utilities
 export {
@@ -9,11 +10,10 @@ export {
   validateTimestamp,
   getCategoryLabel,
   isVideoFrame,
-  getPreviewUrl,
 } from './utils'
 
 // Hooks
-export { usePlaybackTime, useLivePreviewAuto } from './hooks'
+export { usePlaybackTime, useSeekToTime, useLivePreviewAuto, useAvailableFrames } from './hooks'
 
 // Styles
 export { baseStyles, listManagerStyles, inserterStyles } from './styles'

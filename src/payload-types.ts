@@ -458,7 +458,7 @@ export interface Meditation {
     | 'bg'
     | 'tr';
   /**
-   * This should be the name of the yogi who did the recording. We need this for dynamic followup audio clips.
+   * This should be the name of the yogi who did the recording. We need this for dynamic followup audio clips. Cannot be changed after creation.
    */
   narrator: number | Narrator;
   /**

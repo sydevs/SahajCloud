@@ -1,7 +1,10 @@
 'use client'
 
 import { useLivePreviewContext } from '@payloadcms/ui'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import useSWR from 'swr'
+
+import type { Frame } from '@/payload-types'
 
 /**
  * Hook to listen for playback time updates from the live preview iframe
@@ -24,6 +27,25 @@ export const usePlaybackTime = (): number => {
 }
 
 /**
+ * Hook to send seek commands to the live preview iframe
+ * Sends SEEK_TO_TIME messages via PostMessage API
+ */
+export const useSeekToTime = (): ((timestamp: number) => void) => {
+  const seekToTime = useCallback((timestamp: number) => {
+    // Find the PayloadCMS live preview iframe
+    const iframe = document.querySelector<HTMLIFrameElement>('iframe[src*="/preview/embed"]')
+
+    if (iframe?.contentWindow && iframe.src) {
+      // Derive target origin from iframe src (secure, no env needed)
+      const targetOrigin = new URL(iframe.src).origin
+      iframe.contentWindow.postMessage({ type: 'SEEK_TO_TIME', timestamp }, targetOrigin)
+    }
+  }, [])
+
+  return seekToTime
+}
+
+/**
  * Hook to auto-enable live preview when component mounts
  */
 export const useLivePreviewAuto = (): void => {
@@ -32,4 +54,45 @@ export const useLivePreviewAuto = (): void => {
   useEffect(() => {
     setIsLivePreviewing(true)
   }, [setIsLivePreviewing])
+}
+
+/**
+ * SWR fetcher with error handling and proper typing
+ */
+const frameFetcher = async (url: string): Promise<{ docs?: Frame[] }> => {
+  const res = await fetch(url)
+  if (!res.ok) {
+    throw new Error(`Failed to fetch: ${res.status} ${res.statusText}`)
+  }
+  return res.json() as Promise<{ docs?: Frame[] }>
+}
+
+/**
+ * Hook to fetch and cache available frames for a narrator
+ * Uses SWR for automatic caching, deduplication, and revalidation
+ */
+export const useAvailableFrames = (
+  narratorId: string | null,
+): {
+  frames: Frame[]
+  isLoading: boolean
+  isError: boolean
+  error: string | null
+} => {
+  const { data, error, isLoading } = useSWR(
+    narratorId ? `/api/frames/by-narrator/${narratorId}` : null,
+    frameFetcher,
+    {
+      revalidateOnFocus: false, // Don't refetch when window regains focus
+      revalidateOnReconnect: false, // Don't refetch on network reconnect
+      dedupingInterval: 300000, // 5 minutes - deduplication window
+    },
+  )
+
+  return {
+    frames: data?.docs || [],
+    isLoading,
+    isError: !!error,
+    error: error instanceof Error ? error.message : null,
+  }
 }

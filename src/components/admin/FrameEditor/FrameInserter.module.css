@@ -1,0 +1,19 @@
+.frame-card {
+  position: relative;
+  border-radius: var(--style-radius-s);
+  overflow: hidden;
+  border: 2px solid var(--theme-elevation-100);
+  background-color: var(--theme-elevation-100);
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.frame-card:hover {
+  border-color: var(--theme-success-400);
+  transform: scale(1.02);
+}
+
+.frame-card_clicked {
+  border-color: var(--theme-success-500);
+  transform: scale(1.05);
+}

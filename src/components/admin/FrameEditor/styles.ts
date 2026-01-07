@@ -88,12 +88,14 @@ export const listManagerStyles = {
     padding: 'calc(var(--base) * 0.5)',
     backgroundColor: 'var(--theme-elevation-50)',
     borderRadius: 'var(--style-radius-s)',
-    border: '1px solid var(--theme-elevation-100)',
-    transition: 'border-color 0.15s ease',
+    borderTop: '1px solid var(--theme-elevation-100)',
+    borderRight: '1px solid var(--theme-elevation-100)',
+    borderBottom: '1px solid var(--theme-elevation-100)',
+    borderLeft: '3px solid transparent',
+    transition: 'border-color 0.15s ease, background-color 0.15s ease',
   } satisfies CSSProperties,
 
   frameItemActive: {
-    borderLeftWidth: '4px',
     borderLeftColor: 'var(--theme-success-500)',
     backgroundColor: 'var(--theme-elevation-100)',
   } satisfies CSSProperties,
@@ -162,15 +164,23 @@ export const inserterStyles = {
     display: 'flex',
     flexWrap: 'wrap' as const,
     gap: '4px',
-    marginBottom: 'calc(var(--base) * 0.25)',
+    top: '68px', // Offset for PayloadCMS sticky header
+    left: 'calc(var(--gutter-h) * -1)',
+    right: 'calc(var(--gutter-h) * -1)',
+    zIndex: 10,
+    paddingTop: 'calc(var(--base) * 0.5)',
+    paddingBottom: 'calc(var(--base) * 0.5)',
+  } satisfies CSSProperties,
+
+  filterPillElement: {
+    flex: '1 1 auto',
+    justifyContent: 'center',
   } satisfies CSSProperties,
 
   framesGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
     gap: 'calc(var(--base) * 0.35)',
-    maxHeight: '500px',
-    overflowY: 'auto' as const,
     padding: '2px',
   } satisfies CSSProperties,
 
@@ -194,6 +204,10 @@ export const inserterStyles = {
     transform: 'scale(1.05)',
   } satisfies CSSProperties,
 
+  thumbnailContainer: {
+    position: 'relative' as const,
+  } satisfies CSSProperties,
+
   frameThumbnail: {
     width: '100%',
     aspectRatio: '1',
@@ -202,19 +216,30 @@ export const inserterStyles = {
     backgroundColor: 'var(--theme-elevation-200)',
   } satisfies CSSProperties,
 
+  categoryPill: {
+    position: 'absolute' as const,
+    bottom: '4px',
+    left: '4px',
+    right: '4px',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    color: 'white',
+    fontSize: 'calc(var(--base-body-size) * 0.75px)',
+    fontWeight: 500,
+    padding: '2px 6px',
+    borderRadius: '4px',
+    textAlign: 'center' as const,
+    transition: 'opacity 0.15s ease',
+  } satisfies CSSProperties,
+
   frameInfo: {
     padding: 'calc(var(--base) * 0.35)',
     textAlign: 'center' as const,
-    backgroundColor: 'var(--theme-elevation-100)',
   } satisfies CSSProperties,
 
-  frameCategory: {
-    fontSize: 'calc(var(--base-body-size) * 0.85px)',
+  frameTags: {
+    fontSize: 'calc(var(--base-body-size) * 0.8px)',
     fontWeight: 500,
     color: 'var(--theme-elevation-700)',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
   } satisfies CSSProperties,
 
   videoIndicator: {

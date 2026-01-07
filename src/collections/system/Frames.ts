@@ -38,9 +38,11 @@ export const Frames: CollectionConfig = {
         }
 
         // Get frames filtered by narrator's gender (imageSet)
+        // Sort by mimeType to show images before videos (image/* < video/*)
         const frames = await req.payload.find({
           collection: 'frames',
           where: { imageSet: { equals: narrator.gender } },
+          sort: 'mimeType',
           limit: 100,
           depth: 0,
         })

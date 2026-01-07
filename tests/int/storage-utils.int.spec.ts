@@ -194,16 +194,18 @@ describe('URL Field Factories', () => {
       expect(url).toContain('height=320')
     })
 
-    it('falls back to local URL for videos when Stream URL is not set', () => {
+    it('returns undefined for videos when Stream URL is not set (component handles fallback)', () => {
       delete process.env.CLOUDFLARE_STREAM_DELIVERY_URL
 
       const field = previewUrlField({
         collection: 'frames',
       })
 
+      // Videos return undefined when Stream is not configured
+      // The FrameThumbnail component handles fallback by rendering <video> element
       const hook = getAfterReadHook(field)
       const url = hook!({ data: { filename: 'video.mp4', mimeType: 'video/mp4' } } as never)
-      expect(url).toBe('/api/frames/file/video.mp4')
+      expect(url).toBeUndefined()
     })
 
     it('falls back to local URL for images when Images URL is not set', () => {
