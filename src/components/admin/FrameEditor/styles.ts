@@ -88,12 +88,14 @@ export const listManagerStyles = {
     padding: 'calc(var(--base) * 0.5)',
     backgroundColor: 'var(--theme-elevation-50)',
     borderRadius: 'var(--style-radius-s)',
-    border: '1px solid var(--theme-elevation-100)',
-    transition: 'border-color 0.15s ease',
+    borderTop: '1px solid var(--theme-elevation-100)',
+    borderRight: '1px solid var(--theme-elevation-100)',
+    borderBottom: '1px solid var(--theme-elevation-100)',
+    borderLeft: '3px solid transparent',
+    transition: 'border-color 0.15s ease, background-color 0.15s ease',
   } satisfies CSSProperties,
 
   frameItemActive: {
-    borderLeftWidth: '4px',
     borderLeftColor: 'var(--theme-success-500)',
     backgroundColor: 'var(--theme-elevation-100)',
   } satisfies CSSProperties,
@@ -162,15 +164,12 @@ export const inserterStyles = {
     display: 'flex',
     flexWrap: 'wrap' as const,
     gap: '4px',
-    // position: 'sticky' as const,
     top: '68px', // Offset for PayloadCMS sticky header
     left: 'calc(var(--gutter-h) * -1)',
     right: 'calc(var(--gutter-h) * -1)',
     zIndex: 10,
-    // backgroundColor: 'var(--theme-elevation-0)',
     paddingTop: 'calc(var(--base) * 0.5)',
     paddingBottom: 'calc(var(--base) * 0.5)',
-    // marginBottom: 0,
   } satisfies CSSProperties,
 
   filterPillElement: {

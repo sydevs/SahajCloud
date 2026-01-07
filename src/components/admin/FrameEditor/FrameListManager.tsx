@@ -7,16 +7,11 @@ import React, { useCallback, useMemo, useState } from 'react'
 
 import type { KeyframeData } from '@/types/frames'
 
+import styles from './FrameListManager.module.css'
 import { FrameThumbnail } from './FrameThumbnail'
-import { useLivePreviewAuto, usePlaybackTime } from './hooks'
+import { useLivePreviewAuto, usePlaybackTime, useSeekToTime } from './hooks'
 import { baseStyles, listManagerStyles } from './styles'
-import {
-  formatTime,
-  getCategoryLabel,
-  isVideoFrame,
-  parseTime,
-  validateTimestamp,
-} from './utils'
+import { formatTime, getCategoryLabel, parseTime, validateTimestamp } from './utils'
 
 // ============================================================================
 // FrameItem Subcomponent
@@ -34,6 +29,7 @@ interface FrameItemProps {
   onTimestampCommit: (index: number) => void
   onTimestampKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, index: number) => void
   onRemove: (index: number) => void
+  onSeek: (timestamp: number) => void
 }
 
 const FrameItem: React.FC<FrameItemProps> = ({
@@ -49,27 +45,12 @@ const FrameItem: React.FC<FrameItemProps> = ({
   onTimestampKeyDown,
   onRemove,
 }) => {
-  const isVideo = isVideoFrame(frame.mimeType)
   const categoryLabel = frame.category ? getCategoryLabel(frame.category) : `Frame ${frame.id}`
 
   return (
-    <div
-      style={{
-        ...listManagerStyles.frameItem,
-        ...(isActive ? listManagerStyles.frameItemActive : {}),
-      }}
-    >
+    <div className={`${styles['frame-item']}${isActive ? ` ${styles['frame-item_active']}` : ''}`}>
       {/* Thumbnail */}
-      <div style={baseStyles.thumbnailContainer}>
-        <FrameThumbnail frame={frame} style={baseStyles.thumbnail} />
-        {isVideo && (
-          <div style={listManagerStyles.videoIndicator}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
-              <polygon points="5,3 19,12 5,21" />
-            </svg>
-          </div>
-        )}
-      </div>
+      <FrameThumbnail frame={frame} style={baseStyles.thumbnail} />
 
       {/* Frame Info */}
       <div style={listManagerStyles.frameInfo}>
@@ -95,18 +76,10 @@ const FrameItem: React.FC<FrameItemProps> = ({
       {/* Remove Button */}
       <button
         type="button"
+        className={styles['frame-item__remove']}
         onClick={() => onRemove(index)}
         disabled={readOnly}
-        style={listManagerStyles.removeButton}
         title="Remove frame"
-        onMouseEnter={(e) => {
-          e.currentTarget.style.color = 'var(--theme-error-500)'
-          e.currentTarget.style.backgroundColor = 'var(--theme-error-100)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.color = 'var(--theme-elevation-400)'
-          e.currentTarget.style.backgroundColor = 'transparent'
-        }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
           <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
@@ -246,6 +219,19 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
         <FieldError path={name} showError={showError} />
 
         <div style={baseStyles.container}>
+          {frames.length > 0 && (
+            <div
+              style={{
+                fontSize: 'calc(var(--base-body-size) * 0.85px)',
+                color: 'var(--theme-elevation-500)',
+                marginTop: 'calc(var(--base) * 0.25)',
+              }}
+            >
+              Current playback: {formatTime(currentPlaybackTime)} | {frames.length} frame
+              {frames.length !== 1 ? 's' : ''}
+            </div>
+          )}
+
           {frames.length === 0 ? (
             <div style={baseStyles.emptyState}>
               <p style={{ margin: 0, marginBottom: '8px', fontWeight: 500 }}>No frames added yet</p>
@@ -271,19 +257,6 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
                   onRemove={handleRemoveFrame}
                 />
               ))}
-            </div>
-          )}
-
-          {frames.length > 0 && (
-            <div
-              style={{
-                fontSize: 'calc(var(--base-body-size) * 0.85px)',
-                color: 'var(--theme-elevation-500)',
-                marginTop: 'calc(var(--base) * 0.25)',
-              }}
-            >
-              Current playback: {formatTime(currentPlaybackTime)} | {frames.length} frame
-              {frames.length !== 1 ? 's' : ''}
             </div>
           )}
         </div>

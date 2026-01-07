@@ -9,10 +9,11 @@ import { FRAME_CATEGORIES } from '@/lib/data'
 import type { Frame } from '@/payload-types'
 import type { KeyframeData } from '@/types/frames'
 
+import styles from './FrameInserter.module.css'
 import { FrameThumbnail } from './FrameThumbnail'
 import { useAvailableFrames, useLivePreviewAuto, usePlaybackTime } from './hooks'
 import { baseStyles, inserterStyles } from './styles'
-import { formatTime, getCategoryLabel, isVideoFrame } from './utils'
+import { formatTime, getCategoryLabel } from './utils'
 
 // ============================================================================
 // FrameCard Subcomponent
@@ -20,38 +21,24 @@ import { formatTime, getCategoryLabel, isVideoFrame } from './utils'
 
 interface FrameCardProps {
   frame: Frame
-  isHovered: boolean
   isClicked: boolean
   insertionTimestamp: number
   onInsert: (frame: Frame) => void
-  onHover: (id: string | number | null) => void
 }
 
 const FrameCard: React.FC<FrameCardProps> = ({
   frame,
-  isHovered,
   isClicked,
   insertionTimestamp,
   onInsert,
-  onHover,
 }) => {
-  const isVideo = isVideoFrame(frame.mimeType)
-
   return (
     <div
-      style={{
-        ...inserterStyles.frameCard,
-        ...(isHovered ? inserterStyles.frameCardHover : {}),
-        ...(isClicked ? inserterStyles.frameCardSelected : {}),
-      }}
+      className={`${styles['frame-card']}${isClicked ? ` ${styles['frame-card_clicked']}` : ''}`}
       onClick={() => onInsert(frame)}
-      onMouseEnter={() => onHover(frame.id)}
-      onMouseLeave={() => onHover(null)}
       title={`Insert ${getCategoryLabel(frame.category || '')} at ${formatTime(insertionTimestamp)}`}
     >
-      <FrameThumbnail frame={frame} style={inserterStyles.frameThumbnail} lazyLoad />
-
-      {isVideo && <div style={inserterStyles.videoIndicator}>{frame.duration}s</div>}
+      <FrameThumbnail frame={frame} style={inserterStyles.frameThumbnail} />
 
       <div style={inserterStyles.frameInfo}>
         <div style={inserterStyles.frameCategory}>{getCategoryLabel(frame.category || '')}</div>
@@ -92,7 +79,6 @@ export const FrameInserter: UIFieldClientComponent = () => {
   // Component state for UI interactions
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [clickedFrameId, setClickedFrameId] = useState<string | number | null>(null)
-  const [hoveredFrameId, setHoveredFrameId] = useState<string | number | null>(null)
 
   const currentFrames = useMemo(() => frames || [], [frames])
 
@@ -200,11 +186,9 @@ export const FrameInserter: UIFieldClientComponent = () => {
             <FrameCard
               key={frame.id}
               frame={frame}
-              isHovered={hoveredFrameId === frame.id}
               isClicked={clickedFrameId === frame.id}
               insertionTimestamp={insertionTimestamp}
               onInsert={handleFrameInsert}
-              onHover={setHoveredFrameId}
             />
           ))}
         </div>
