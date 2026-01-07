@@ -60,7 +60,16 @@ export const FrameThumbnail: React.FC<FrameThumbnailProps> = ({
   if (isVideo && url) {
     return (
       <div style={{ position: 'relative', ...style }}>
-        <video src={url} style={style} muted preload="metadata" playsInline />
+        <video
+          src={url}
+          style={{ ...style, pointerEvents: 'none' }}
+          muted
+          preload="metadata"
+          playsInline
+          disablePictureInPicture
+          controlsList="nodownload nofullscreen noremoteplayback"
+          disableRemotePlayback
+        />
         {videoIndicator}
       </div>
     )
