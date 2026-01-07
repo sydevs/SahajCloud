@@ -2,17 +2,17 @@
 
 import type { JSONFieldClientComponent } from 'payload'
 
-import { FieldDescription, FieldError, FieldLabel, toast, useField } from '@payloadcms/ui'
+import { FieldDescription, FieldError, toast, useField } from '@payloadcms/ui'
 import React, { useCallback, useMemo, useState } from 'react'
 
 import type { KeyframeData } from '@/types/frames'
 
+import { FrameThumbnail } from './FrameThumbnail'
 import { useLivePreviewAuto, usePlaybackTime } from './hooks'
 import { baseStyles, listManagerStyles } from './styles'
 import {
   formatTime,
   getCategoryLabel,
-  getPreviewUrl,
   isVideoFrame,
   parseTime,
   validateTimestamp,
@@ -50,7 +50,6 @@ const FrameItem: React.FC<FrameItemProps> = ({
   onRemove,
 }) => {
   const isVideo = isVideoFrame(frame.mimeType)
-  const previewUrl = getPreviewUrl(frame)
   const categoryLabel = frame.category ? getCategoryLabel(frame.category) : `Frame ${frame.id}`
 
   return (
@@ -62,11 +61,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
     >
       {/* Thumbnail */}
       <div style={baseStyles.thumbnailContainer}>
-        {previewUrl ? (
-          <img src={previewUrl} alt={frame.category || 'Frame'} style={baseStyles.thumbnail} />
-        ) : (
-          <div style={baseStyles.thumbnail} />
-        )}
+        <FrameThumbnail frame={frame} style={baseStyles.thumbnail} />
         {isVideo && (
           <div style={listManagerStyles.videoIndicator}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="white">

@@ -162,15 +162,26 @@ export const inserterStyles = {
     display: 'flex',
     flexWrap: 'wrap' as const,
     gap: '4px',
-    marginBottom: 'calc(var(--base) * 0.25)',
+    // position: 'sticky' as const,
+    top: '68px', // Offset for PayloadCMS sticky header
+    left: 'calc(var(--gutter-h) * -1)',
+    right: 'calc(var(--gutter-h) * -1)',
+    zIndex: 10,
+    // backgroundColor: 'var(--theme-elevation-0)',
+    paddingTop: 'calc(var(--base) * 0.5)',
+    paddingBottom: 'calc(var(--base) * 0.5)',
+    // marginBottom: 0,
+  } satisfies CSSProperties,
+
+  filterPillElement: {
+    flex: '1 1 auto',
+    justifyContent: 'center',
   } satisfies CSSProperties,
 
   framesGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
     gap: 'calc(var(--base) * 0.35)',
-    maxHeight: '500px',
-    overflowY: 'auto' as const,
     padding: '2px',
   } satisfies CSSProperties,
 

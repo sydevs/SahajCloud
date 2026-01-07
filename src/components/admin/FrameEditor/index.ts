@@ -1,6 +1,7 @@
 // Components
 export { FrameListManager } from './FrameListManager'
 export { FrameInserter } from './FrameInserter'
+export { FrameThumbnail } from './FrameThumbnail'
 
 // Utilities
 export {
@@ -9,7 +10,6 @@ export {
   validateTimestamp,
   getCategoryLabel,
   isVideoFrame,
-  getPreviewUrl,
 } from './utils'
 
 // Hooks

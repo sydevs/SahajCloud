@@ -9,9 +9,10 @@ import { FRAME_CATEGORIES } from '@/lib/data'
 import type { Frame } from '@/payload-types'
 import type { KeyframeData } from '@/types/frames'
 
+import { FrameThumbnail } from './FrameThumbnail'
 import { useAvailableFrames, useLivePreviewAuto, usePlaybackTime } from './hooks'
 import { baseStyles, inserterStyles } from './styles'
-import { formatTime, getCategoryLabel, getPreviewUrl, isVideoFrame } from './utils'
+import { formatTime, getCategoryLabel, isVideoFrame } from './utils'
 
 // ============================================================================
 // FrameCard Subcomponent
@@ -35,7 +36,6 @@ const FrameCard: React.FC<FrameCardProps> = ({
   onHover,
 }) => {
   const isVideo = isVideoFrame(frame.mimeType)
-  const previewUrl = getPreviewUrl(frame)
 
   return (
     <div
@@ -49,16 +49,7 @@ const FrameCard: React.FC<FrameCardProps> = ({
       onMouseLeave={() => onHover(null)}
       title={`Insert ${getCategoryLabel(frame.category || '')} at ${formatTime(insertionTimestamp)}`}
     >
-      {previewUrl ? (
-        <img
-          src={previewUrl}
-          alt={frame.category || 'Frame'}
-          style={inserterStyles.frameThumbnail}
-          loading="lazy"
-        />
-      ) : (
-        <div style={inserterStyles.frameThumbnail} />
-      )}
+      <FrameThumbnail frame={frame} style={inserterStyles.frameThumbnail} lazyLoad />
 
       {isVideo && <div style={inserterStyles.videoIndicator}>{frame.duration}s</div>}
 
@@ -172,16 +163,28 @@ export const FrameInserter: UIFieldClientComponent = () => {
   return (
     <div style={inserterStyles.container}>
       {/* Category Filters */}
-      <div style={inserterStyles.categoryFilters}>
-        {FRAME_CATEGORIES.map((category) => (
-          <Pill
-            key={category}
-            pillStyle={selectedCategory === category ? 'success' : undefined}
-            onClick={() => handleCategoryToggle(category)}
-          >
-            {getCategoryLabel(category)}
-          </Pill>
-        ))}
+      <div
+        className="doc-controls"
+        style={{
+          top: 66,
+          marginLeft: 'calc(var(--gutter-h) * -1)',
+          width: 'calc(100% + var(--gutter-h) * 2)',
+          padding: '0 var(--gutter-h)',
+        }}
+      >
+        <div style={inserterStyles.categoryFilters}>
+          {FRAME_CATEGORIES.map((category) => (
+            <Pill
+              key={category}
+              size="small"
+              pillStyle={selectedCategory === category ? 'success' : 'warning'}
+              onClick={() => handleCategoryToggle(category)}
+              elementProps={{ ref: () => {}, style: inserterStyles.filterPillElement }}
+            >
+              {getCategoryLabel(category)}
+            </Pill>
+          ))}
+        </div>
       </div>
 
       {/* Frames Grid */}
