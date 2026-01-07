@@ -2,6 +2,7 @@
 
 import { useLivePreviewContext } from '@payloadcms/ui'
 import { useCallback, useEffect, useState } from 'react'
+import useSWR from 'swr'
 
 import type { Frame } from '@/payload-types'
 
@@ -56,14 +57,19 @@ export const useLivePreviewAuto = (): void => {
 }
 
 /**
- * Module-level cache for available frames by narrator ID
- * Persists across component remounts but clears on page navigation
+ * SWR fetcher with error handling and proper typing
  */
-const frameCache = new Map<string, Frame[]>()
+const frameFetcher = async (url: string): Promise<{ docs?: Frame[] }> => {
+  const res = await fetch(url)
+  if (!res.ok) {
+    throw new Error(`Failed to fetch: ${res.status} ${res.statusText}`)
+  }
+  return res.json() as Promise<{ docs?: Frame[] }>
+}
 
 /**
  * Hook to fetch and cache available frames for a narrator
- * Uses module-level cache to avoid re-fetching when switching tabs
+ * Uses SWR for automatic caching, deduplication, and revalidation
  */
 export const useAvailableFrames = (
   narratorId: string | null,
@@ -71,43 +77,22 @@ export const useAvailableFrames = (
   frames: Frame[]
   isLoading: boolean
   isError: boolean
+  error: string | null
 } => {
-  // Initialize from cache if available
-  const [frames, setFrames] = useState<Frame[]>(() =>
-    narratorId ? frameCache.get(narratorId) || [] : [],
+  const { data, error, isLoading } = useSWR(
+    narratorId ? `/api/frames/by-narrator/${narratorId}` : null,
+    frameFetcher,
+    {
+      revalidateOnFocus: false, // Don't refetch when window regains focus
+      revalidateOnReconnect: false, // Don't refetch on network reconnect
+      dedupingInterval: 300000, // 5 minutes - deduplication window
+    },
   )
-  const [isLoading, setIsLoading] = useState(narratorId ? !frameCache.has(narratorId) : false)
-  const [isError, setIsError] = useState(false)
 
-  useEffect(() => {
-    if (!narratorId) {
-      setFrames([])
-      setIsLoading(false)
-      return
-    }
-
-    // Use cached data if available
-    if (frameCache.has(narratorId)) {
-      setFrames(frameCache.get(narratorId)!)
-      setIsLoading(false)
-      return
-    }
-
-    // Fetch and cache
-    setIsLoading(true)
-    fetch(`/api/frames/by-narrator/${narratorId}`)
-      .then((res) => res.json() as Promise<{ docs?: Frame[] }>)
-      .then((data) => {
-        const docs = data.docs || []
-        frameCache.set(narratorId, docs)
-        setFrames(docs)
-        setIsLoading(false)
-      })
-      .catch(() => {
-        setIsError(true)
-        setIsLoading(false)
-      })
-  }, [narratorId])
-
-  return { frames, isLoading, isError }
+  return {
+    frames: data?.docs || [],
+    isLoading,
+    isError: !!error,
+    error: error instanceof Error ? error.message : null,
+  }
 }

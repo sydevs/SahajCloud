@@ -23,7 +23,6 @@ interface FrameCardProps {
   frame: Frame
   isClicked: boolean
   insertionTimestamp: number
-  selectedCategory: string | null
   onInsert: (frame: Frame) => void
 }
 
@@ -31,7 +30,6 @@ const FrameCard: React.FC<FrameCardProps> = ({
   frame,
   isClicked,
   insertionTimestamp,
-  selectedCategory,
   onInsert,
 }) => {
   return (
@@ -82,8 +80,8 @@ export const FrameInserter: UIFieldClientComponent = () => {
 
   // Fetch frames filtered by narrator's gender using custom endpoint
   // Server handles the narrator lookup and gender filtering in a single request
-  // Uses module-level cache to avoid re-fetching when switching tabs
-  const { frames: availableFrames, isLoading, isError } = useAvailableFrames(narratorId)
+  // Uses module-level cache with TTL to avoid re-fetching when switching tabs
+  const { frames: availableFrames, isLoading, isError, error } = useAvailableFrames(narratorId)
 
   // Component state for UI interactions
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -152,7 +150,7 @@ export const FrameInserter: UIFieldClientComponent = () => {
 
   // Error state
   if (isError) {
-    return <div style={baseStyles.errorState}>Error loading frames</div>
+    return <div style={baseStyles.errorState}>{error || 'Error loading frames'}</div>
   }
 
   return (
@@ -197,7 +195,6 @@ export const FrameInserter: UIFieldClientComponent = () => {
               frame={frame}
               isClicked={clickedFrameId === frame.id}
               insertionTimestamp={insertionTimestamp}
-              selectedCategory={selectedCategory}
               onInsert={handleFrameInsert}
             />
           ))}

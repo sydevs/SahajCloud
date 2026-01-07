@@ -91,7 +91,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
       {/* Remove Button */}
       <button
         type="button"
-        className={styles['frame-item__remove']}
+        className={styles['frame-item_remove']}
         onClick={() => onRemove(index)}
         disabled={readOnly}
         title="Remove frame"

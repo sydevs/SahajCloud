@@ -20,7 +20,7 @@
   background-color: var(--theme-elevation-100);
 }
 
-.frame-item__remove {
+.frame-item_remove {
   padding: calc(var(--base) * 0.25);
   background-color: transparent;
   border: none;
@@ -33,7 +33,7 @@
   justify-content: center;
 }
 
-.frame-item__remove:hover {
+.frame-item_remove:hover {
   color: var(--theme-error-500);
   background-color: var(--theme-error-100);
 }
