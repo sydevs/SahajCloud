@@ -75,7 +75,12 @@ export const Meditations: CollectionConfig = {
               required: true,
               admin: {
                 description:
-                  'This should be the name of the yogi who did the recording. We need this for dynamic followup audio clips.',
+                  'This should be the name of the yogi who did the recording. We need this for dynamic followup audio clips. Cannot be changed after creation.',
+              },
+              access: {
+                // Narrator can only be set during creation, not update
+                // This simplifies frame caching since narrator won't change during editing
+                update: () => false,
               },
               validate: ((value, options) => {
                 // Only required during update

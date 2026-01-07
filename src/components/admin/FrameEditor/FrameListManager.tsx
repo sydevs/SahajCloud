@@ -2,21 +2,16 @@
 
 import type { JSONFieldClientComponent } from 'payload'
 
-import { FieldDescription, FieldError, FieldLabel, toast, useField } from '@payloadcms/ui'
+import { FieldDescription, FieldError, toast, useField } from '@payloadcms/ui'
 import React, { useCallback, useMemo, useState } from 'react'
 
 import type { KeyframeData } from '@/types/frames'
 
-import { useLivePreviewAuto, usePlaybackTime } from './hooks'
+import styles from './FrameListManager.module.css'
+import { FrameThumbnail } from './FrameThumbnail'
+import { useLivePreviewAuto, usePlaybackTime, useSeekToTime } from './hooks'
 import { baseStyles, listManagerStyles } from './styles'
-import {
-  formatTime,
-  getCategoryLabel,
-  getPreviewUrl,
-  isVideoFrame,
-  parseTime,
-  validateTimestamp,
-} from './utils'
+import { formatTime, getCategoryLabel, parseTime, validateTimestamp } from './utils'
 
 // ============================================================================
 // FrameItem Subcomponent
@@ -34,6 +29,7 @@ interface FrameItemProps {
   onTimestampCommit: (index: number) => void
   onTimestampKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, index: number) => void
   onRemove: (index: number) => void
+  onSeek: (timestamp: number) => void
 }
 
 const FrameItem: React.FC<FrameItemProps> = ({
@@ -48,33 +44,28 @@ const FrameItem: React.FC<FrameItemProps> = ({
   onTimestampCommit,
   onTimestampKeyDown,
   onRemove,
+  onSeek,
 }) => {
-  const isVideo = isVideoFrame(frame.mimeType)
-  const previewUrl = getPreviewUrl(frame)
+  const [isHovered, setIsHovered] = useState(false)
   const categoryLabel = frame.category ? getCategoryLabel(frame.category) : `Frame ${frame.id}`
+
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Only seek if click wasn't on input or button
+    const target = e.target as HTMLElement
+    if (target.tagName !== 'INPUT' && target.tagName !== 'BUTTON' && !target.closest('button')) {
+      onSeek(frame.timestamp)
+    }
+  }
 
   return (
     <div
-      style={{
-        ...listManagerStyles.frameItem,
-        ...(isActive ? listManagerStyles.frameItemActive : {}),
-      }}
+      className={`${styles['frame-item']}${isActive ? ` ${styles['frame-item_active']}` : ''}${isHovered && !isActive ? ` ${styles['frame-item_hover']}` : ''}`}
+      onClick={handleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Thumbnail */}
-      <div style={baseStyles.thumbnailContainer}>
-        {previewUrl ? (
-          <img src={previewUrl} alt={frame.category || 'Frame'} style={baseStyles.thumbnail} />
-        ) : (
-          <div style={baseStyles.thumbnail} />
-        )}
-        {isVideo && (
-          <div style={listManagerStyles.videoIndicator}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
-              <polygon points="5,3 19,12 5,21" />
-            </svg>
-          </div>
-        )}
-      </div>
+      <FrameThumbnail frame={frame} style={baseStyles.thumbnail} />
 
       {/* Frame Info */}
       <div style={listManagerStyles.frameInfo}>
@@ -100,18 +91,10 @@ const FrameItem: React.FC<FrameItemProps> = ({
       {/* Remove Button */}
       <button
         type="button"
+        className={styles['frame-item_remove']}
         onClick={() => onRemove(index)}
         disabled={readOnly}
-        style={listManagerStyles.removeButton}
         title="Remove frame"
-        onMouseEnter={(e) => {
-          e.currentTarget.style.color = 'var(--theme-error-500)'
-          e.currentTarget.style.backgroundColor = 'var(--theme-error-100)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.color = 'var(--theme-elevation-400)'
-          e.currentTarget.style.backgroundColor = 'transparent'
-        }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
           <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
@@ -146,6 +129,7 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
   // Custom hooks for shared functionality
   useLivePreviewAuto() // Auto-open live preview panel
   const currentPlaybackTime = usePlaybackTime() // Listen for playback time updates
+  const seekToTime = useSeekToTime() // Send seek commands to live preview
 
   // Local editing state for timestamp inputs
   // Allows user to type freely without immediate validation/revert
@@ -251,6 +235,19 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
         <FieldError path={name} showError={showError} />
 
         <div style={baseStyles.container}>
+          {frames.length > 0 && (
+            <div
+              style={{
+                fontSize: 'calc(var(--base-body-size) * 0.85px)',
+                color: 'var(--theme-elevation-500)',
+                marginTop: 'calc(var(--base) * 0.25)',
+              }}
+            >
+              Current playback: {formatTime(currentPlaybackTime)} | {frames.length} frame
+              {frames.length !== 1 ? 's' : ''}
+            </div>
+          )}
+
           {frames.length === 0 ? (
             <div style={baseStyles.emptyState}>
               <p style={{ margin: 0, marginBottom: '8px', fontWeight: 500 }}>No frames added yet</p>
@@ -274,21 +271,9 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
                   onTimestampCommit={handleTimestampCommit}
                   onTimestampKeyDown={handleTimestampKeyDown}
                   onRemove={handleRemoveFrame}
+                  onSeek={seekToTime}
                 />
               ))}
-            </div>
-          )}
-
-          {frames.length > 0 && (
-            <div
-              style={{
-                fontSize: 'calc(var(--base-body-size) * 0.85px)',
-                color: 'var(--theme-elevation-500)',
-                marginTop: 'calc(var(--base) * 0.25)',
-              }}
-            >
-              Current playback: {formatTime(currentPlaybackTime)} | {frames.length} frame
-              {frames.length !== 1 ? 's' : ''}
             </div>
           )}
         </div>
