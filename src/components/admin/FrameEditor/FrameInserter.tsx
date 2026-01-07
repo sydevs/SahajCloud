@@ -2,14 +2,14 @@
 
 import type { UIFieldClientComponent } from 'payload'
 
-import { Pill, toast, useField, usePayloadAPI } from '@payloadcms/ui'
+import { Pill, toast, useField } from '@payloadcms/ui'
 import React, { useCallback, useMemo, useState } from 'react'
 
 import { FRAME_CATEGORIES } from '@/lib/data'
 import type { Frame } from '@/payload-types'
-import type { KeyframeData, KeyframeDefinition } from '@/types/frames'
+import type { KeyframeData } from '@/types/frames'
 
-import { useLivePreviewAuto, usePlaybackTime } from './hooks'
+import { useAvailableFrames, useLivePreviewAuto, usePlaybackTime } from './hooks'
 import { baseStyles, inserterStyles } from './styles'
 import { formatTime, getCategoryLabel, getPreviewUrl, isVideoFrame } from './utils'
 
@@ -95,12 +95,8 @@ export const FrameInserter: UIFieldClientComponent = () => {
 
   // Fetch frames filtered by narrator's gender using custom endpoint
   // Server handles the narrator lookup and gender filtering in a single request
-  const [{ data: framesData, isLoading, isError }] = usePayloadAPI(
-    narratorId ? `/api/frames/by-narrator/${narratorId}` : '',
-  )
-
-  // Memoize available frames to prevent unnecessary re-renders
-  const availableFrames: Frame[] = useMemo(() => framesData?.docs || [], [framesData?.docs])
+  // Uses module-level cache to avoid re-fetching when switching tabs
+  const { frames: availableFrames, isLoading, isError } = useAvailableFrames(narratorId)
 
   // Component state for UI interactions
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -127,25 +123,30 @@ export const FrameInserter: UIFieldClientComponent = () => {
       const timestamp = currentFrames.length === 0 ? 0 : Math.round(currentPlaybackTime)
 
       // Check for existing frame at this timestamp
-      const existingIndex = currentFrames.findIndex((f) => f.timestamp === timestamp)
+      const existingIndex = currentFrames.findIndex((f: KeyframeData) => f.timestamp === timestamp)
 
-      let newFrames: KeyframeDefinition[]
+      // Create enriched frame data for immediate display in FrameListManager
+      // Server's beforeChange hook will strip this down to { id, timestamp } on save
+      const frameData: KeyframeData = {
+        ...frame,
+        timestamp,
+      }
+
+      let newFrames: KeyframeData[]
       let message: string
 
       if (existingIndex !== -1) {
         // Replace existing frame
         newFrames = [...currentFrames]
-        newFrames[existingIndex] = { id: frame.id, timestamp }
+        newFrames[existingIndex] = frameData
         message = `Frame replaced at ${formatTime(timestamp)}`
       } else {
         // Add new frame
-        newFrames = [...currentFrames, { id: frame.id, timestamp }].sort(
-          (a, b) => a.timestamp - b.timestamp,
-        )
+        newFrames = [...currentFrames, frameData].sort((a, b) => a.timestamp - b.timestamp)
         message = `Frame added at ${formatTime(timestamp)}`
       }
 
-      setFrames(newFrames as KeyframeData[])
+      setFrames(newFrames)
       toast.success(message)
 
       // Visual click feedback

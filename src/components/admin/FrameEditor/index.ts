@@ -13,7 +13,7 @@ export {
 } from './utils'
 
 // Hooks
-export { usePlaybackTime, useLivePreviewAuto } from './hooks'
+export { usePlaybackTime, useLivePreviewAuto, useAvailableFrames } from './hooks'
 
 // Styles
 export { baseStyles, listManagerStyles, inserterStyles } from './styles'
