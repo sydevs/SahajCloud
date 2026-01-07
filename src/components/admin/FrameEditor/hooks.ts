@@ -1,7 +1,7 @@
 'use client'
 
 import { useLivePreviewContext } from '@payloadcms/ui'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import type { Frame } from '@/payload-types'
 
@@ -23,6 +23,25 @@ export const usePlaybackTime = (): number => {
   }, [])
 
   return currentPlaybackTime
+}
+
+/**
+ * Hook to send seek commands to the live preview iframe
+ * Sends SEEK_TO_TIME messages via PostMessage API
+ */
+export const useSeekToTime = (): ((timestamp: number) => void) => {
+  const seekToTime = useCallback((timestamp: number) => {
+    // Find the PayloadCMS live preview iframe
+    const iframe = document.querySelector<HTMLIFrameElement>('iframe[src*="/preview/embed"]')
+
+    if (iframe?.contentWindow && iframe.src) {
+      // Derive target origin from iframe src (secure, no env needed)
+      const targetOrigin = new URL(iframe.src).origin
+      iframe.contentWindow.postMessage({ type: 'SEEK_TO_TIME', timestamp }, targetOrigin)
+    }
+  }, [])
+
+  return seekToTime
 }
 
 /**

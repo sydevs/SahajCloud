@@ -44,11 +44,26 @@ const FrameItem: React.FC<FrameItemProps> = ({
   onTimestampCommit,
   onTimestampKeyDown,
   onRemove,
+  onSeek,
 }) => {
+  const [isHovered, setIsHovered] = useState(false)
   const categoryLabel = frame.category ? getCategoryLabel(frame.category) : `Frame ${frame.id}`
 
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Only seek if click wasn't on input or button
+    const target = e.target as HTMLElement
+    if (target.tagName !== 'INPUT' && target.tagName !== 'BUTTON' && !target.closest('button')) {
+      onSeek(frame.timestamp)
+    }
+  }
+
   return (
-    <div className={`${styles['frame-item']}${isActive ? ` ${styles['frame-item_active']}` : ''}`}>
+    <div
+      className={`${styles['frame-item']}${isActive ? ` ${styles['frame-item_active']}` : ''}${isHovered && !isActive ? ` ${styles['frame-item_hover']}` : ''}`}
+      onClick={handleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       {/* Thumbnail */}
       <FrameThumbnail frame={frame} style={baseStyles.thumbnail} />
 
@@ -114,6 +129,7 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
   // Custom hooks for shared functionality
   useLivePreviewAuto() // Auto-open live preview panel
   const currentPlaybackTime = usePlaybackTime() // Listen for playback time updates
+  const seekToTime = useSeekToTime() // Send seek commands to live preview
 
   // Local editing state for timestamp inputs
   // Allows user to type freely without immediate validation/revert
@@ -255,6 +271,7 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
                   onTimestampCommit={handleTimestampCommit}
                   onTimestampKeyDown={handleTimestampKeyDown}
                   onRemove={handleRemoveFrame}
+                  onSeek={seekToTime}
                 />
               ))}
             </div>

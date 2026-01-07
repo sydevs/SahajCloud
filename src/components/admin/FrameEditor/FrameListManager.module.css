@@ -8,6 +8,11 @@
   border: 1px solid var(--theme-elevation-100);
   border-left: 3px solid transparent;
   transition: border-color 0.15s ease, background-color 0.15s ease;
+  cursor: pointer;
+}
+
+.frame-item_hover {
+  background-color: var(--theme-elevation-100);
 }
 
 .frame-item_active {
