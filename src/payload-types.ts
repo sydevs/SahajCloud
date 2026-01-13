@@ -482,6 +482,7 @@ export interface Meditation {
   generateSlug?: boolean | null;
   slug: string;
   thumbnail?: (number | null) | Image;
+  type: 'daily' | 'lesson' | 'realization';
   /**
    * Categorize this meditation for seekers to find it
    */
@@ -680,10 +681,17 @@ export interface Lesson {
         blockType: 'cover';
       }
     | {
-        /**
-         * Video file for this panel.
-         */
         video?: (number | null) | File;
+        text?: string | null;
+        subtitles?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
         id?: string | null;
         blockName?: string | null;
         blockType: 'video';
@@ -1442,6 +1450,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   generateSlug?: T;
   slug?: T;
   thumbnail?: T;
+  type?: T;
   tags?: T;
   frames?: T;
   updatedAt?: T;
@@ -1523,6 +1532,8 @@ export interface LessonsSelect<T extends boolean = true> {
           | T
           | {
               video?: T;
+              text?: T;
+              subtitles?: T;
               id?: T;
               blockName?: T;
             };

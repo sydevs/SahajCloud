@@ -81,6 +81,9 @@ export const Lessons: CollectionConfig = {
               type: 'relationship',
               relationTo: 'meditations',
               required: false,
+              filterOptions: {
+                type: { equals: 'lesson' },
+              },
               admin: {
                 description:
                   'Link to a related guided meditation that complements this lesson content.',

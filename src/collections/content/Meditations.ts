@@ -169,6 +169,22 @@ export const Meditations: CollectionConfig = {
               }) as Validate,
             },
             {
+              name: 'type',
+              type: 'select',
+              required: true,
+              defaultValue: 'daily',
+              options: [
+                { label: 'Daily', value: 'daily' },
+                { label: 'Path', value: 'lesson' },
+                { label: 'Self-Realization', value: 'realization' },
+              ],
+              admin: {
+                components: {
+                  Field: '@/components/admin/ToggleGroupField',
+                },
+              },
+            },
+            {
               name: 'tags',
               type: 'relationship',
               relationTo: 'meditation-tags',

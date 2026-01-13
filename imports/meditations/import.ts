@@ -352,7 +352,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       await Promise.all([
         this.preloadCollection('frames', 'filename'),
         this.preloadCollection('meditations', 'title'),
-        this.preloadCollection('narrators', 'slug'),
+        this.preloadCollection('narrators', 'name'),
         this.preloadCollection('meditation-tags', 'slug'),
         this.preloadCollection('music-tags', 'slug'),
         this.preloadCollection('music', 'slug'),
@@ -559,13 +559,17 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     }
 
     // Import in order of dependencies
-    // When targeting meditations, also run dependencies to populate idMaps
-    if (!isPaginated || this.isCollectionTargeted('narrators') || this.isCollectionTargeted('meditations')) {
+    // Narrators - import on first batch only (they don't change between batches)
+    if (!isPaginated || this.isCollectionTargeted('narrators')) {
+      await this.importNarrators()
+    } else if (this.isCollectionTargeted('meditations') && isFirstBatch) {
+      // When targeting meditations, import narrators only on first batch
       await this.importNarrators()
     }
 
     // Tags are needed by frames and meditations
     // In skip mode when targeting meditations (not frames), rebuild tags idMaps instead of importing
+    // On subsequent batches when targeting meditations, just rebuild idMaps (no re-import needed)
     const shouldImportTags =
       !isPaginated ||
       this.isCollectionTargeted('meditation-tags') ||
@@ -575,8 +579,13 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       this.isCollectionTargeted('meditations') &&
       !this.isCollectionTargeted('frames') &&
       !this.isCollectionTargeted('meditation-tags')
+    const isSubsequentMeditationsBatch =
+      this.isCollectionTargeted('meditations') &&
+      !this.isCollectionTargeted('meditation-tags') &&
+      !this.isCollectionTargeted('frames') &&
+      !isFirstBatch
 
-    if (shouldRebuildTags) {
+    if (shouldRebuildTags || isSubsequentMeditationsBatch) {
       await this.rebuildTagsIdMaps(data.tags, data.taggings)
     } else if (shouldImportTags || this.isCollectionTargeted('meditations')) {
       await this.importTags(data.tags, data.taggings)
@@ -584,13 +593,14 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
     // Frames - also run when targeting meditations (to populate idMaps for keyframe references)
     // In skip mode when targeting meditations (not frames), rebuild frames idMap instead of importing
+    // On subsequent batches when targeting meditations, just rebuild idMap (no re-import needed)
     const shouldImportFrames = !isPaginated || this.isCollectionTargeted('frames')
     const shouldRebuildFrames =
       isSkipMode &&
       this.isCollectionTargeted('meditations') &&
       !this.isCollectionTargeted('frames')
 
-    if (shouldRebuildFrames) {
+    if (shouldRebuildFrames || isSubsequentMeditationsBatch) {
       await this.rebuildFramesIdMap(data.frames, data.attachments, data.blobs)
     } else if (shouldImportFrames || this.isCollectionTargeted('meditations')) {
       await this.importFrames(data.frames, data.attachments, data.blobs)
@@ -1177,8 +1187,36 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     const existingFromCache = this.getPreloaded('frames', filename)
     if (existingFromCache) {
       this.idMaps.frames.set(`${legacyFrameId}_${gender}`, existingFromCache.id)
-      this.report.incrementSkipped()
-      await this.reportDocument('frames', identifier, 'skipped', { current, total })
+
+      // Skip mode: just skip
+      if (!this.options.updateMode) {
+        this.report.incrementSkipped()
+        await this.reportDocument('frames', identifier, 'skipped', { current, total })
+        return
+      }
+
+      // Update mode: update metadata (category, tags, imageSet) without re-uploading image
+      try {
+        const frameData = {
+          imageSet: gender,
+          category: category as any,
+          tags: tagValues as any[],
+        }
+        await this.payload.update({
+          collection: 'frames',
+          id: existingFromCache.id,
+          data: frameData,
+        })
+        this.report.incrementUpdated()
+        await this.reportDocument('frames', identifier, 'updated', { current, total })
+      } catch (error) {
+        this.addError(`Updating frame ${filename}`, error as Error)
+        await this.reportDocument('frames', identifier, 'error', {
+          error: (error as Error).message,
+          current,
+          total,
+        })
+      }
       return
     }
 
@@ -1524,11 +1562,38 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       const existingFromCache = this.getPreloaded('meditations', meditation.title)
       if (existingFromCache) {
         this.idMaps.meditations.set(meditation.id, existingFromCache.id)
-        this.report.incrementSkipped()
-        await this.reportDocument('meditations', identifier, 'skipped', {
-          current: globalIndex + 1,
-          total,
-        })
+
+        // Skip mode: just skip
+        if (!this.options.updateMode) {
+          this.report.incrementSkipped()
+          await this.reportDocument('meditations', identifier, 'skipped', {
+            current: globalIndex + 1,
+            total,
+          })
+          continue
+        }
+
+        // Update mode: update metadata without re-uploading audio
+        try {
+          await this.updateMeditation(
+            meditation,
+            existingFromCache.id as number | string,
+            keyframes,
+            taggings,
+            attachments,
+            blobs,
+            allTags,
+            globalIndex + 1,
+            total,
+          )
+        } catch (error) {
+          this.addError(`Updating meditation "${meditation.title}"`, error as Error)
+          await this.reportDocument('meditations', identifier, 'error', {
+            error: (error as Error).message,
+            current: globalIndex + 1,
+            total,
+          })
+        }
         continue
       }
 
@@ -1620,6 +1685,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       duration: meditation.duration,
       narrator: narratorId,
       tags: meditationTagIds,
+      type: this.getMeditationType(meditation.title),
       _status: meditation.published ? 'published' : 'draft',
     }
 
@@ -1662,6 +1728,96 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         total,
       })
     }
+  }
+
+  /**
+   * Update an existing meditation with metadata only (no audio re-upload).
+   * Used in update mode to efficiently update tags, frames, thumbnail, etc.
+   */
+  private async updateMeditation(
+    meditation: ImportedData['meditations'][0],
+    existingId: number | string,
+    keyframes: ImportedData['keyframes'],
+    taggings: ImportedData['taggings'],
+    attachments: any[],
+    blobs: any[],
+    allTags: ImportedData['tags'],
+    current: number,
+    total: number,
+  ): Promise<void> {
+    // Get narrator ID and gender
+    const narratorIndex = meditation.narrator
+    const narratorId = this.idMaps.narrators.get(narratorIndex)
+    const narratorGender = narratorIndex === 0 ? 'male' : 'female'
+
+    // Build frames array
+    const meditationKeyframes = keyframes.filter((kf) => kf.media_id === meditation.id)
+    const frames = meditationKeyframes
+      .map((kf) => {
+        const frameKey = `${kf.frame_id}_${narratorGender}`
+        const frameId = this.idMaps.frames.get(frameKey)
+        const timestamp = typeof kf.seconds === 'number' ? kf.seconds : 0
+
+        if (!frameId) {
+          this.addWarning(`Frame ${kf.frame_id} not found for ${meditation.title}`)
+          return null
+        }
+
+        return { id: frameId, timestamp }
+      })
+      .filter((f): f is NonNullable<typeof f> => f !== null)
+      .sort((a, b) => a.timestamp - b.timestamp)
+
+    // Remove duplicate timestamps
+    const seen = new Set<number>()
+    const validFrames = frames.filter((f) => {
+      if (seen.has(f.timestamp)) return false
+      seen.add(f.timestamp)
+      return true
+    })
+
+    // Get meditation tags
+    const meditationTaggings = taggings.filter(
+      (t) => t.taggable_type === 'Meditation' && t.taggable_id === meditation.id && t.context === 'tags',
+    )
+    const meditationTagIds = meditationTaggings
+      .map((t) => this.idMaps.meditationTags.get(t.tag_id))
+      .filter((id): id is number => Boolean(id))
+
+    // Handle thumbnail (reuse existing if possible, update if source has new one)
+    let thumbnailId = await this.getThumbnailId(meditation, attachments, blobs)
+    if (!thumbnailId) {
+      const hasPathTag = this.checkHasPathTag(meditation.id, meditationTaggings, allTags)
+      thumbnailId = hasPathTag ? this.pathPlaceholderMediaId : this.placeholderMediaId
+    }
+
+    // Build update data (metadata only, no audio file)
+    const updateData: any = {
+      title: meditation.title,
+      label: meditation.title,
+      duration: meditation.duration,
+      narrator: narratorId,
+      tags: meditationTagIds,
+      type: this.getMeditationType(meditation.title),
+      _status: meditation.published ? 'published' : 'draft',
+    }
+
+    if (thumbnailId) updateData.thumbnail = thumbnailId
+    if (validFrames.length > 0) updateData.frames = validFrames
+
+    // Update the meditation (no file upload)
+    await this.payload.update({
+      collection: 'meditations',
+      id: existingId,
+      data: updateData,
+      locale: 'en',
+    })
+
+    this.report.incrementUpdated()
+    await this.reportDocument('meditations', meditation.title, 'updated', {
+      current,
+      total,
+    })
   }
 
   private async getThumbnailId(
@@ -1707,6 +1863,16 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       }
     }
     return false
+  }
+
+  private getMeditationType(title: string): 'daily' | 'lesson' | 'realization' {
+    if (title === 'First meditation') {
+      return 'realization'
+    }
+    if (title.startsWith('Step')) {
+      return 'lesson'
+    }
+    return 'daily'
   }
 }
 
