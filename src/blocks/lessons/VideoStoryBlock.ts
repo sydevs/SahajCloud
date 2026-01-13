@@ -11,9 +11,22 @@ export const VideoStoryBlock: Block = {
       name: 'video',
       type: 'upload',
       relationTo: 'files',
-      admin: {
-        description: 'Video file for this panel.',
-      },
+    },
+    {
+      name: 'text',
+      type: 'text',
+      label: 'Text',
+    },
+    {
+      name: 'subtitles',
+      type: 'json',
+      label: 'Subtitles',
+      // TODO: Re-enable this (see GitHub issue #137)
+      // jsonSchema: {
+      //   uri: 'a://b/foo.json', // required
+      //   fileMatch: ['a://b/foo.json'], // required
+      //   schema: subtitleSchema as JSONSchema4,
+      // },
     },
   ],
 }

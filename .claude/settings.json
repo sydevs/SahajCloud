@@ -10,6 +10,7 @@
       "WebFetch(domain:docs.claude.com)",
       "WebFetch(domain:code.claude.com)",
       "WebFetch(domain:guides.scalar.com)",
+      "WebFetch(domain:developers.cloudflare.com)",
       "WebSearch",
       "Bash(npx playwright test --list)",
       "Bash(pnpm exec playwright test --list)",
@@ -101,7 +102,8 @@
       "Bash(timeout 180 pnpm generate:*)",
       "Bash(timeout 300 pnpm generate:*)",
       "Bash(time pnpm build:*)",
-      "mcp__payloadcms-docs__*"
+      "mcp__payloadcms-docs__*",
+      "mcp__plugin_sydevs-web_cloudflare-docs__*"
     ]
   },
   "hooks": {
