@@ -17,6 +17,7 @@
     "seed": "cross-env NODE_OPTIONS=--no-deprecation tsx imports/run.ts",
     "seed:dev": "cross-env NODE_OPTIONS=--no-deprecation ADMIN_EMAIL=contact@sydevelopers.com ADMIN_PASSWORD=evk1VTH5dxz_nhg-mzk tsx imports/run.ts",
     "seed:prod": "cross-env NODE_OPTIONS=--no-deprecation SAHAJCLOUD_URL=https://cloud.sydevelopers.com ADMIN_EMAIL=contact@sydevelopers.com tsx imports/run.ts",
+    "reset": "cross-env NODE_OPTIONS=--no-deprecation tsx imports/reset-storage.ts",
     "generate:importmap": "cross-env NODE_OPTIONS=--no-deprecation payload generate:importmap",
     "generate:types": "cross-env NODE_OPTIONS=--no-deprecation payload generate:types && wrangler types",
     "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",

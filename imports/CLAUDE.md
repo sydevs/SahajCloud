@@ -341,13 +341,52 @@ No errors - import completed successfully!
 
 ---
 
-## Database Reset Script
+## Reset Scripts
 
-A separate script for completely resetting migrations and the production database.
+### Database and Asset Storage Reset
 
-### reset-migrations.sh
+A comprehensive reset script that clears databases and all Cloudflare asset storage (R2, Images, Stream).
 
-**WARNING**: This script deletes ALL data in the production database.
+```bash
+# Reset both environments (default, prompts for confirmation)
+pnpm reset
+
+# Reset local environment only
+pnpm reset --local
+
+# Reset production environment only (prompts for confirmation)
+pnpm reset --production
+
+# Skip confirmation prompt (for automation)
+pnpm reset --yes
+```
+
+**Environment Variables Required for Production Reset**:
+```bash
+CLOUDFLARE_ACCOUNT_ID=your-account-id           # Already in wrangler.toml
+CLOUDFLARE_API_KEY=your-api-token               # For Images & Stream deletion
+CLOUDFLARE_R2_ACCESS_KEY_ID=your-r2-key         # For R2 bucket deletion
+CLOUDFLARE_R2_SECRET_ACCESS_KEY=your-r2-secret  # For R2 bucket deletion
+```
+
+**What it resets**:
+
+| Component | Local | Production |
+|-----------|-------|------------|
+| Database | `local.db`, `.wrangler/state/`, `tests/.e2e.sqlite` | D1 `sahajcloud` (drops all tables) |
+| R2 | N/A | `sahajcloud` bucket (batch delete via S3 API) |
+| Images | N/A | All Cloudflare Images (individual delete) |
+| Stream | N/A | All Cloudflare Stream videos (individual delete) |
+| Local uploads | `public/{images,meditations,...}` | N/A |
+
+**After reset**:
+1. Run local migrations: `pnpm payload migrate`
+2. Deploy production migrations: `pnpm run deploy:database`
+3. Re-seed data: `pnpm seed`
+
+### Migration Reset Script (Legacy)
+
+**WARNING**: The `reset-migrations.sh` script is now legacy. Use `pnpm reset --production` instead for database resets.
 
 ```bash
 # Preview what will happen (no changes made)
@@ -357,18 +396,15 @@ A separate script for completely resetting migrations and the production databas
 ./imports/reset-migrations.sh
 ```
 
-**What it does**:
+**What it does** (in addition to database reset):
 1. Deletes all migration files in `src/migrations/`
 2. Resets `src/migrations/index.ts` to empty array
-3. Drops ALL tables in production D1 database
-4. Generates a fresh initial migration
-5. Renames migration to `*_initial_schema`
-6. Deploys migration to production
-7. Verifies success
+3. Generates a fresh initial migration
+4. Renames migration to `*_initial_schema`
+5. Deploys migration to production
 
 **Use cases**:
 - Consolidating multiple migrations into a single initial migration
 - Fixing migration state inconsistencies
-- Complete fresh start of production database
 
 **Note**: The `payload migrate:fresh` command doesn't work with Cloudflare D1 adapter. This script uses wrangler to drop tables directly.
