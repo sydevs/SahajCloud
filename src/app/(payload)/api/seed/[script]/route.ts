@@ -41,10 +41,10 @@ import {
 const VALID_SCRIPTS: ScriptName[] = ['tags', 'wemeditate', 'meditations', 'storyblok']
 
 /**
- * Heartbeat interval in milliseconds (30 seconds)
+ * Heartbeat interval in milliseconds (5 seconds)
  * Prevents Cloudflare Workers 100-second idle timeout
  */
-const HEARTBEAT_INTERVAL = 30_000
+const HEARTBEAT_INTERVAL = 5_000
 
 /**
  * GET /api/seed/:script
@@ -232,7 +232,7 @@ export async function POST(
       })
 
       // Start heartbeat interval to prevent Cloudflare 100-second idle timeout
-      heartbeatInterval = setInterval(async () => {
+      const sendHeartbeat = async () => {
         try {
           const operation = importerInstance?.getCurrentOperation() || 'Processing...'
           const elapsedMs = Date.now() - importStartTime
@@ -248,7 +248,11 @@ export async function POST(
             heartbeatInterval = null
           }
         }
-      }, HEARTBEAT_INTERVAL)
+      }
+
+      // Send initial heartbeat immediately, then continue at interval
+      await sendHeartbeat()
+      heartbeatInterval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL)
 
       // Run the importer
       await importer.run()

@@ -50,7 +50,7 @@ export interface DocumentResult {
  * Import event sent via SSE
  */
 export interface ImportEvent {
-  type: 'start' | 'document' | 'complete' | 'error'
+  type: 'start' | 'document' | 'complete' | 'error' | 'info'
   // For 'start':
   script?: string
   dryRun?: boolean
@@ -60,7 +60,7 @@ export interface ImportEvent {
   total?: number
   // For 'complete':
   summary?: Record<string, unknown>
-  // For 'error':
+  // For 'error' and 'info':
   message?: string
   timestamp: string
 }
@@ -682,6 +682,22 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     }
   }
 
+  /**
+   * Send an informational message via SSE
+   * Used for progress summaries and status updates
+   */
+  protected async sendInfo(message: string): Promise<void> {
+    await this.sendEvent({
+      type: 'info',
+      message,
+    })
+
+    // Also log to console in non-worker mode
+    if (!this.isWorker) {
+      console.log(`  ${message}`)
+    }
+  }
+
   // ============================================================================
   // IDEMPOTENT UPSERT OPERATIONS
   // ============================================================================
@@ -1279,11 +1295,31 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
   }
 
   /**
-   * Log a skipped item and increment skip counter
+   * Log a skipped item, increment skip counter, and optionally send SSE event
+   *
+   * @param message - Skip reason message
+   * @param options - Optional context for SSE reporting
    */
-  protected skip(message: string): void {
+  protected async skip(
+    message: string,
+    options?: {
+      collection?: string
+      identifier?: string
+      current?: number
+      total?: number
+    },
+  ): Promise<void> {
     this.report.incrementSkipped()
-    this.logger.skip(message)
+    await this.logger.skip(message)
+
+    // Send SSE event if context is provided
+    if (options?.collection && options?.identifier) {
+      await this.reportDocument(options.collection, options.identifier, 'skipped', {
+        error: message,
+        current: options.current,
+        total: options.total,
+      })
+    }
   }
 
   // ============================================================================

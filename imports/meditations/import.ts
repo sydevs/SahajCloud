@@ -549,9 +549,14 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     // Check if we're in skip mode (not update mode) - can use rebuild instead of full import
     const isSkipMode = !this.options.updateMode
 
-    // Setup tags and placeholders (always needed)
-    await this.setupImageTags()
-    await this.uploadPlaceholderImages()
+    // Check if this is the first batch (offset=0) to avoid re-running setup on subsequent batches
+    const isFirstBatch = !this.options.pagination?.offset || this.options.pagination.offset === 0
+
+    // Setup tags and placeholders - only on first batch (they check for existing and skip if found)
+    if (isFirstBatch) {
+      await this.setupImageTags()
+      await this.uploadPlaceholderImages()
+    }
 
     // Import in order of dependencies
     // When targeting meditations, also run dependencies to populate idMaps
@@ -723,12 +728,18 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         const acceptedMimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg']
 
         if (fileData.name.toLowerCase().endsWith('.m4a')) {
-          this.skip(`m4a file (MIME detection conflicts): ${fileData.name}`)
+          await this.skip(`m4a file (MIME detection conflicts): ${fileData.name}`, {
+            collection,
+            identifier: fileData.name,
+          })
           return null
         }
 
         if (!acceptedMimeTypes.includes(fileData.mimetype)) {
-          this.skip(`unsupported audio format: ${fileData.name} (${fileData.mimetype})`)
+          await this.skip(`unsupported audio format: ${fileData.name} (${fileData.mimetype})`, {
+            collection,
+            identifier: fileData.name,
+          })
           return null
         }
       }
@@ -750,7 +761,10 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       if (message.includes('exceeds maximum allowed duration')) {
-        this.skip(`media (exceeds duration limit): ${fileData.name}`)
+        await this.skip(`media (exceeds duration limit): ${fileData.name}`, {
+          collection,
+          identifier: fileData.name,
+        })
         return null
       }
       this.addWarning(`Failed to upload ${fileData.name}: ${message}`)
@@ -1089,8 +1103,9 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
       const mappedCategory = this.mapFrameCategory(frame.category)
       if (!mappedCategory) {
-        this.skip(`frame with unknown category "${frame.category}"`)
-        await this.reportDocument('frames', identifier, 'skipped', {
+        await this.skip(`frame with unknown category "${frame.category}"`, {
+          collection: 'frames',
+          identifier,
           current: globalIndex + 1,
           total,
         })
@@ -1133,8 +1148,9 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       }
 
       if (!maleAttachment && !femaleAttachment) {
-        this.skip(`frame without attachments: ${frame.category}`)
-        await this.reportDocument('frames', identifier, 'skipped', {
+        await this.skip(`frame without attachments: ${frame.category}`, {
+          collection: 'frames',
+          identifier,
           current: globalIndex + 1,
           total,
         })
@@ -1369,8 +1385,9 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       // Get album based on credit field (artist name)
       // If no credit, skip this track
       if (!music.credit) {
-        this.skip(`Music "${music.title}": no credit/artist specified`)
-        await this.reportDocument('music', identifier, 'skipped', {
+        await this.skip(`Music "${music.title}": no credit/artist specified`, {
+          collection: 'music',
+          identifier,
           current: i + 1,
           total,
         })
