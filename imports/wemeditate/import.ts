@@ -45,6 +45,25 @@ import {
 } from '../lib'
 
 // ============================================================================
+// SLUG NORMALIZATION HELPER
+// ============================================================================
+
+/**
+ * Normalize a string for consistent slug generation.
+ * Handles:
+ * 1. Trim whitespace (e.g., "Jahnavi Rawal " → "Jahnavi Rawal")
+ * 2. Unicode diacritics (e.g., "Sabău" → "Sabau")
+ * 3. Lowercase (e.g., "Hampstead-Meeting" → "hampstead-meeting")
+ */
+function normalizeForSlug(str: string): string {
+  return str
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+    .toLowerCase()
+}
+
+// ============================================================================
 // WEMEDITATE DATA TYPES (matching extraction script output)
 // ============================================================================
 
@@ -468,18 +487,29 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
    * and applies pagination to the combined list.
    */
   private async importPaginatedPages(): Promise<void> {
-    // Ensure categories and content type tags exist
-    await this.importCategories()
-    await this.importContentTypeTags()
+    // Check if this is the first batch (offset=0) to avoid re-running pre-work on subsequent batches
+    const isFirstBatch = !this.options.pagination?.offset || this.options.pagination.offset === 0
 
-    // Build required maps for content conversion
+    if (isFirstBatch) {
+      // PRE-WORK: Only run once on first batch
+      // Categories, content type tags, forms, global media, and lectures are imported once
+      // Subsequent batches skip these since they're already complete
+
+      // Ensure categories and content type tags exist
+      await this.importCategories()
+      await this.importContentTypeTags()
+
+      // Import forms (only once)
+      await this.importForms()
+
+      // Import global media (authors, thumbnails) ONCE
+      // Then process page-specific media inline with each page to reduce HTTP requests per invocation
+      await this.importGlobalMedia()
+      await this.importLectures()
+    }
+
+    // ALWAYS rebuild maps (read-only queries needed for content conversion in every batch)
     await this.buildMeditationTitleMap()
-    await this.importForms()
-
-    // PAGINATED MODE OPTIMIZATION: Import global media (authors, thumbnails) ONCE
-    // Then process page-specific media inline with each page to reduce HTTP requests per invocation
-    await this.importGlobalMedia()
-    await this.importLectures()
     await this.buildTreatmentThumbnailMap()
 
     // Combine all page types into a single array
@@ -506,10 +536,15 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       const { page, tableName } = paginatedPages[i]
       const globalIndex = (this.options.pagination?.offset || 0) + i
 
+      // Get page name for logging
+      const pageAny = page as any
+      const enTranslation = pageAny.translations?.find((t: any) => t.locale === 'en' && t.name)
+      const pageName = enTranslation?.name || `${tableName}-${page.id}`
+
       try {
         // PAGINATED MODE: Import media for THIS page only before processing
         // This ensures we only download media needed for the current batch
-        await this.importMediaForPage(page)
+        await this.importMediaForPage(page, globalIndex + 1, total, pageName)
         await this.importSinglePage(page, tableName, globalIndex + 1, total)
       } catch (error) {
         this.addError(`Importing ${tableName} ${page.id}`, error as Error)
@@ -536,7 +571,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     // Find English translation
     const enTranslation = pageAny.translations.find((t: any) => t.locale === 'en' && t.name)
     if (!enTranslation) {
-      this.skip(`${tableName} ${page.id}: no English translation`)
+      await this.skip(`${tableName} ${page.id}: no English translation`, {
+        collection: 'pages',
+        identifier: `${tableName}-${page.id}`,
+        current,
+        total,
+      })
       return
     }
 
@@ -544,19 +584,27 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     if (tableName === 'treatments') {
       const treatmentId = typeof page.id === 'string' ? parseInt(page.id as string) : page.id
       if (!this.treatmentThumbnailMap.has(treatmentId)) {
-        this.skip(`Treatment ${page.id} "${enTranslation.name!}" has no thumbnail`)
+        await this.skip(`Treatment ${page.id} "${enTranslation.name!}" has no thumbnail`, {
+          collection: 'pages',
+          identifier: `treatment-${page.id}`,
+          current,
+          total,
+        })
         return
       }
     }
 
-    // Generate slug
-    const slug =
-      enTranslation.slug?.trim() ||
-      enTranslation.name!
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '')
+    // Generate slug (normalized for consistent matching)
+    const normalizedName = normalizeForSlug(enTranslation.name!)
+    const slug = enTranslation.slug
+      ? normalizeForSlug(enTranslation.slug)
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '')
+      : normalizedName
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '')
 
     // Get author and tags
     let authorId: number | string | undefined
@@ -727,13 +775,18 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         // Find English translation
         const enTranslation = author.translations.find((t: any) => t.locale === 'en' && t.name)
         if (!enTranslation) {
-          this.skip(`Author ${author.id}: no English translation`)
+          await this.skip(`Author ${author.id}: no English translation`, {
+            collection: 'authors',
+            identifier: `author-${author.id}`,
+            current: i + 1,
+            total,
+          })
           continue
         }
 
-        // Generate slug from name
-        const slug = enTranslation.name!
-          .toLowerCase()
+        // Generate slug from name (normalized for consistent matching)
+        const normalizedName = normalizeForSlug(enTranslation.name!)
+        const slug = normalizedName
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/-+/g, '-')
           .replace(/^-|-$/g, '')
@@ -743,7 +796,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           'authors',
           { slug: { equals: slug } },
           {
-            name: enTranslation.name!,
+            name: normalizedName,
             title: enTranslation.title || '',
             description: enTranslation.description || '',
             countryCode: author.country_code || undefined,
@@ -796,7 +849,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
       try {
         if (!artist.name) {
-          this.skip(`Artist ${artist.id}: no name`)
+          await this.skip(`Artist ${artist.id}: no name`, {
+            collection: 'albums',
+            identifier: `artist-${artist.id}`,
+            current: i + 1,
+            total,
+          })
           continue
         }
 
@@ -1016,12 +1074,22 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
       try {
         if (!track.title) {
-          this.skip(`Track ${track.id}: no English title`)
+          await this.skip(`Track ${track.id}: no English title`, {
+            collection: 'music',
+            identifier: `track-${track.id}`,
+            current: i + 1,
+            total,
+          })
           continue
         }
 
         if (!track.audio) {
-          this.skip(`Track ${track.id} "${track.title}": no audio file`)
+          await this.skip(`Track ${track.id} "${track.title}": no audio file`, {
+            collection: 'music',
+            identifier: `track-${track.id}`,
+            current: i + 1,
+            total,
+          })
           continue
         }
 
@@ -1042,7 +1110,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         }
 
         if (!albumId) {
-          this.skip(`Track ${track.id} "${track.title}": no album association`)
+          await this.skip(`Track ${track.id} "${track.title}": no album association`, {
+            collection: 'music',
+            identifier: `track-${track.id}`,
+            current: i + 1,
+            total,
+          })
           continue
         }
 
@@ -1204,31 +1277,41 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info('\n=== Importing Categories as Page Tags ===')
 
     const categories = this.data.categories
+    const total = categories.length
 
-    await this.logger.info(`Found ${categories.length} categories`)
+    await this.logger.info(`Found ${total} categories`)
 
-    for (const category of categories) {
+    for (let i = 0; i < total; i++) {
+      const category = categories[i]
       try {
         const enTranslation = category.translations.find((t: any) => t.locale === 'en' && t.name)
         if (!enTranslation) {
-          this.skip(`Category ${category.id}: no English translation`)
+          await this.skip(`Category ${category.id}: no English translation`, {
+            collection: 'page-tags',
+            identifier: `category-${category.id}`,
+            current: i + 1,
+            total,
+          })
           continue
         }
 
-        // Generate slug from title
-        const slug =
-          enTranslation.slug ||
-          enTranslation.name!
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/-+/g, '-')
-            .replace(/^-|-$/g, '')
+        // Generate slug from title (normalized for consistent matching)
+        const normalizedTitle = normalizeForSlug(enTranslation.name!)
+        const slug = enTranslation.slug
+          ? normalizeForSlug(enTranslation.slug)
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '')
+          : normalizedTitle
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '')
 
         // Upsert page tag by slug
         const tagResult = await this.upsert<{ id: number }>(
           'page-tags',
           { slug: { equals: slug } },
-          { title: enTranslation.name! },
+          { title: normalizedTitle },
           { locale: 'en' },
         )
 
@@ -1328,7 +1411,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         // Find English translation
         const enTranslation = page.translations.find((t: any) => t.locale === 'en' && t.name)
         if (!enTranslation) {
-          this.skip(`${tableName} ${page.id}: no English translation`)
+          await this.skip(`${tableName} ${page.id}: no English translation`, {
+            collection: 'pages',
+            identifier: `${tableName}-${page.id}`,
+            current: i + 1,
+            total,
+          })
           continue
         }
 
@@ -1336,19 +1424,27 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         if (tableName === 'treatments') {
           const treatmentId = typeof page.id === 'string' ? parseInt(page.id) : page.id
           if (!this.treatmentThumbnailMap.has(treatmentId)) {
-            this.skip(`Treatment ${page.id} "${enTranslation.name!}" has no thumbnail`)
+            await this.skip(`Treatment ${page.id} "${enTranslation.name!}" has no thumbnail`, {
+              collection: 'pages',
+              identifier: `treatment-${page.id}`,
+              current: i + 1,
+              total,
+            })
             continue
           }
         }
 
-        // Generate slug
-        const slug =
-          enTranslation.slug?.trim() ||
-          enTranslation.name!
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/-+/g, '-')
-            .replace(/^-|-$/g, '')
+        // Generate slug (normalized for consistent matching)
+        const normalizedName = normalizeForSlug(enTranslation.name!)
+        const slug = enTranslation.slug
+          ? normalizeForSlug(enTranslation.slug)
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '')
+          : normalizedName
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '')
 
         // Get author and tags
         let authorId: number | string | undefined
@@ -1641,6 +1737,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           credit: metadata.credit || '',
           buffer: downloadResult.buffer, // Pass buffer for Workers mode
           sourceUrl: url, // Include source URL in error messages
+          originalFilename: filename,
         })
 
         // Properly handle deduplication vs new upload
@@ -1711,8 +1808,16 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
    * the media needed for the current page, with pre-download cache checking.
    *
    * @param page - The page object containing translations with content
+   * @param pageIndex - Current page index (1-based) for progress reporting
+   * @param totalPages - Total number of pages being processed
+   * @param pageName - Page name for logging
    */
-  private async importMediaForPage(page: WeMeditateData['staticPages'][number]): Promise<void> {
+  private async importMediaForPage(
+    page: WeMeditateData['staticPages'][number],
+    pageIndex: number,
+    totalPages: number,
+    pageName: string,
+  ): Promise<void> {
     const mediaUrls = new Set<string>()
     const mediaMetadata = new Map<string, { alt: string; credit: string }>()
 
@@ -1749,10 +1854,16 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       }
     }
 
-    // No media in this page - skip
-    if (mediaUrls.size === 0) return
+    // No media in this page - log and skip
+    if (mediaUrls.size === 0) {
+      await this.sendInfo(`Page ${pageIndex}/${totalPages} "${pageName}": 0 images`)
+      return
+    }
 
     const mediaUrlArray = Array.from(mediaUrls)
+    let created = 0
+    let skipped = 0
+    let errors = 0
 
     for (let i = 0; i < mediaUrlArray.length; i++) {
       const url = mediaUrlArray[i]
@@ -1763,7 +1874,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         const existingMediaId = this.mediaUploader.existsInCache(preDownloadFilename)
         if (existingMediaId && !this.options.updateMode) {
           this.idMaps.media.set(url, existingMediaId)
-          // Don't increment skipped count here - it will be counted when we actually skip the page
+          this.report.incrementSkipped()
+          skipped++
           continue
         }
 
@@ -1778,13 +1890,33 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           credit: metadata.credit || '',
           buffer: downloadResult.buffer,
           sourceUrl: url,
+          originalFilename: filename,
         })
 
         this.idMaps.media.set(url, result.id)
+
+        if (result.wasReused) {
+          this.report.incrementSkipped()
+          skipped++
+        } else {
+          this.report.incrementCreated()
+          created++
+        }
       } catch (error) {
         this.addError(`Importing media for page ${page.id}: ${url}`, error as Error)
+        errors++
       }
     }
+
+    // Per-page summary
+    const parts = []
+    if (created > 0) parts.push(`${created} created`)
+    if (skipped > 0) parts.push(`${skipped} skipped`)
+    if (errors > 0) parts.push(`${errors} errors`)
+    const summary = parts.length > 0 ? parts.join(', ') : 'no changes'
+    await this.sendInfo(
+      `Page ${pageIndex}/${totalPages} "${pageName}": ${mediaUrlArray.length} images (${summary})`,
+    )
   }
 
   /**
@@ -1854,6 +1986,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           credit: metadata.credit || '',
           buffer: downloadResult.buffer,
           sourceUrl: url,
+          originalFilename: filename,
         })
 
         this.idMaps.media.set(url, result.id)
@@ -2118,13 +2251,39 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       for (const row of this.data.treatmentThumbnails) {
         const treatmentId = row.treatment_id
 
+        // Construct URL and extract filename (normalized to strip CarrierWave prefixes)
         const thumbnailUrl = `${STORAGE_BASE_URL}media_file/file/${row.media_file_id}/${row.thumbnail_file}`
-        const mediaId = this.idMaps.media.get(thumbnailUrl)
+        const filename = this.mediaDownloader.getFilenameFromUrl(thumbnailUrl)
+
+        // Look up by filename in media cache (populated by preloadExistingMedia or importGlobalMedia)
+        let mediaId = this.mediaUploader.existsInCache(filename)
+
+        // If not in cache, query DB directly by filename pattern
+        // This handles cases where images were uploaded before originalFilename was stored
+        if (!mediaId) {
+          mediaId = await this.mediaUploader.findMediaByFilename(filename)
+        }
+
+        // If still not found, search by alt text (for Cloudflare Images with hash filenames)
+        // Alt text is set to "Thumbnail for {treatment_name}" during importGlobalMedia
+        if (!mediaId && row.treatment_name) {
+          const altText = `Thumbnail for ${row.treatment_name}`
+          const result = await this.payload.find({
+            collection: 'images',
+            where: { alt: { equals: altText } },
+            limit: 1,
+            depth: 0,
+          })
+          if (result.docs.length > 0) {
+            mediaId = result.docs[0].id
+          }
+        }
+
         if (mediaId) {
           this.treatmentThumbnailMap.set(treatmentId, mediaId)
         } else {
           this.addWarning(
-            `Thumbnail for treatment ${treatmentId} "${row.treatment_name || 'unknown'}" not found in media map`,
+            `Thumbnail for treatment ${treatmentId} "${row.treatment_name || 'unknown'}" not found in media cache (filename: ${filename})`,
           )
         }
       }

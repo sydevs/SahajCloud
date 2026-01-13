@@ -100,7 +100,8 @@
       "Bash(timeout 120 pnpm generate:*)",
       "Bash(timeout 180 pnpm generate:*)",
       "Bash(timeout 300 pnpm generate:*)",
-      "Bash(time pnpm build:*)"
+      "Bash(time pnpm build:*)",
+      "mcp__payloadcms-docs__*"
     ]
   },
   "hooks": {

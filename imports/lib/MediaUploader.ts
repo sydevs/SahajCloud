@@ -47,6 +47,8 @@ export interface MediaUploadOptions {
   buffer?: Buffer
   /** Source URL for error reporting */
   sourceUrl?: string
+  /** Original filename for cache lookup (used when localPath has hash-based filename) */
+  originalFilename?: string
 }
 
 export interface MediaUploadResult {
@@ -197,11 +199,11 @@ export class MediaUploader {
       // Payload adds unique suffixes like "-abc123" to filenames, so we need to check
       // if the filename starts with our base filename (without extension)
       if (!existingMediaId) {
-        const foundId = await this.findExistingMedia(filename)
+        const foundId = await this.findMediaByFilename(filename)
         if (foundId) {
           existingMediaId = foundId
           // Add to cache for future lookups
-          this.mediaCache.set(filename, existingMediaId)
+          this.mediaCache.set(filename, foundId)
         }
       }
 
@@ -212,6 +214,11 @@ export class MediaUploader {
           // Update tags if provided
           if (options.tags && options.tags.length > 0) {
             await this.updateMediaTags(existingMediaId, options.tags)
+          }
+
+          // Also cache by original filename if provided (for hash-based localPath lookups)
+          if (options.originalFilename && options.originalFilename !== filename) {
+            this.mediaCache.set(options.originalFilename, existingMediaId)
           }
 
           this.stats.reused++
@@ -235,6 +242,10 @@ export class MediaUploader {
       // Upload new media file
       const result = await this.uploadNewMedia(localPath, options)
       this.mediaCache.set(filename, result.id)
+      // Also cache by original filename if provided (for hash-based localPath lookups)
+      if (options.originalFilename && options.originalFilename !== filename) {
+        this.mediaCache.set(options.originalFilename, result.id)
+      }
       this.stats.uploaded++
       await this.logger.log(`    ✓ Uploaded new media: ${result.filename}`)
 
@@ -250,8 +261,9 @@ export class MediaUploader {
   /**
    * Find existing media by filename pattern.
    * Uses pre-loaded cache if available, falls back to database query.
+   * Public method for direct lookups when cache might not have the mapping.
    */
-  private async findExistingMedia(filename: string): Promise<number | string | null> {
+  async findMediaByFilename(filename: string): Promise<number | string | null> {
     // If pre-loaded, check cache first (synchronous lookup)
     if (this.isPreloaded) {
       // Try exact filename match
@@ -394,12 +406,17 @@ export class MediaUploader {
       const mimeType = mimeTypes[ext] || 'application/octet-stream'
 
       // Create media document
+      // Store originalFilename in fileMetadata for lookup after Cloudflare Images
+      // replaces the filename with its ID
       const media = await this.payload.create({
         collection: 'images',
         data: {
           alt: options.alt || '',
           credit: options.credit || '',
           tags: options.tags || [],
+          fileMetadata: {
+            originalFilename: filename,
+          },
         },
         file: {
           data: fileBuffer,

@@ -213,15 +213,23 @@ class ProgressDisplay {
   displayEvent(event: Record<string, unknown>): void {
     const type = event.type as string
 
+    // Extract pagination context from event (available in start and complete events)
+    const pagination = event.pagination as { offset?: number; hasMore?: boolean } | null
+
     switch (type) {
-      case 'start':
-        console.log(`\n${'='.repeat(60)}`)
-        console.log(`${event.script} import`)
-        if (event.dryRun) {
-          console.log('Mode: DRY RUN')
+      case 'start': {
+        // Only show header on first batch (offset=0 or non-paginated)
+        const isFirstBatch = !pagination?.offset
+        if (isFirstBatch) {
+          console.log(`\n${'='.repeat(60)}`)
+          console.log(`${event.script} import`)
+          if (event.dryRun) {
+            console.log('Mode: DRY RUN')
+          }
+          console.log('='.repeat(60))
         }
-        console.log('='.repeat(60))
         break
+      }
 
       case 'heartbeat': {
         // Display heartbeat on same line, overwriting previous heartbeat
@@ -271,6 +279,14 @@ class ProgressDisplay {
       case 'complete': {
         // Clear any heartbeat line
         process.stdout.write('\r\x1b[K')
+
+        // For intermediate batches (hasMore=true), suppress the full summary
+        // Only show the full summary on the final batch or non-paginated imports
+        const isIntermediateBatch = pagination?.hasMore === true
+        if (isIntermediateBatch) {
+          // Silent completion for intermediate batches - progress shown by CLI's batch loop
+          break
+        }
 
         const summary = event.summary as Record<string, unknown>
 
@@ -322,6 +338,12 @@ class ProgressDisplay {
         }
         break
       }
+
+      case 'info':
+        // Clear any heartbeat line
+        process.stdout.write('\r\x1b[K')
+        console.log(`  ℹ️  ${event.message}`)
+        break
 
       case 'error':
         // Clear any heartbeat line
