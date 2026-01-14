@@ -230,19 +230,18 @@ export async function deleteAllCloudflareVideos(
 }
 
 /**
- * Count images in Cloudflare Images
+ * Count images in Cloudflare Images using the Stats endpoint
  */
 export async function countCloudflareImages(
   accountId: string,
   apiToken: string,
 ): Promise<number> {
-  const response = await cfRequest<{ images: CloudflareImage[] }>(
-    `/accounts/${accountId}/images/v1?page=1&per_page=1`,
+  const response = await cfRequest<{ count: { current: number; allowed: number } }>(
+    `/accounts/${accountId}/images/v1/stats`,
     apiToken,
   )
 
-  // The API returns total_count in result_info
-  return response.result_info?.total_count || 0
+  return response.result?.count?.current || 0
 }
 
 /**
