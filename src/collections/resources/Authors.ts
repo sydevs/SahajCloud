@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { slugField } from '@/fields'
+import { mediaField, slugField } from '@/fields'
 
 export const Authors: CollectionConfig = {
   slug: 'authors',
@@ -51,14 +51,12 @@ export const Authors: CollectionConfig = {
         description: 'Years of meditation experience',
       },
     },
-    {
+    mediaField({
       name: 'photo',
-      type: 'upload',
-      relationTo: 'images',
       admin: {
         description: 'Author profile photo',
       },
-    },
+    }),
     {
       name: 'articles',
       type: 'join',

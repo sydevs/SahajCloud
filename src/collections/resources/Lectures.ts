@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { urlField } from '@/fields'
+import { mediaField, urlField } from '@/fields'
 
 export const Lectures: CollectionConfig = {
   slug: 'lectures',
@@ -11,6 +11,7 @@ export const Lectures: CollectionConfig = {
   admin: {
     group: 'Resources',
     useAsTitle: 'title',
+    defaultColumns: ['title', 'thumbnail'],
   },
   fields: [
     {
@@ -19,12 +20,10 @@ export const Lectures: CollectionConfig = {
       required: true,
       localized: true,
     },
-    {
+    mediaField({
       name: 'thumbnail',
-      type: 'upload',
-      relationTo: 'images',
       required: true,
-    },
+    }),
     urlField({
       name: 'videoUrl',
       required: true,

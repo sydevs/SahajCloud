@@ -10,7 +10,12 @@
 
 /* eslint-disable no-console */
 
-import 'dotenv/config'
+import dotenv from 'dotenv'
+
+// Load env files in order (later files override earlier)
+// Following Next.js convention: .env.local takes precedence over .env
+dotenv.config({ path: '.env' })
+dotenv.config({ path: '.env.local', override: true })
 
 import { promises as fs } from 'fs'
 import * as path from 'path'

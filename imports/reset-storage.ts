@@ -19,7 +19,12 @@
  *   CLOUDFLARE_R2_SECRET_ACCESS_KEY - R2 S3 API secret key
  */
 
-import 'dotenv/config'
+import dotenv from 'dotenv'
+
+// Load env files in order (later files override earlier)
+// Following Next.js convention: .env.local takes precedence over .env
+dotenv.config({ path: '.env' })
+dotenv.config({ path: '.env.local', override: true })
 import { execSync, spawnSync } from 'child_process'
 import { existsSync, rmSync } from 'fs'
 import { resolve } from 'path'
@@ -193,8 +198,7 @@ function getD1Tables(): string[] {
     `d1 execute ${PROD_DB_NAME} --remote --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';"`,
   )
 
-  const tables =
-    result?.results?.map((r) => r.name).filter((name) => name && name !== 'name') || []
+  const tables = result?.results?.map((r) => r.name).filter((name) => name && name !== 'name') || []
   log(`  Found ${tables.length} tables`, CYAN)
 
   return tables
@@ -244,7 +248,10 @@ async function resetProductionR2(): Promise<void> {
 
   if (!accountId || !accessKeyId || !secretAccessKey) {
     log('  Missing R2 credentials - skipping', YELLOW)
-    log('  Required: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_R2_ACCESS_KEY_ID, CLOUDFLARE_R2_SECRET_ACCESS_KEY', YELLOW)
+    log(
+      '  Required: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_R2_ACCESS_KEY_ID, CLOUDFLARE_R2_SECRET_ACCESS_KEY',
+      YELLOW,
+    )
     return
   }
 
@@ -480,7 +487,9 @@ async function main(): Promise<void> {
 
   // Print warning banner
   console.log(`\n${RED}${'╔'.padEnd(62, '═')}╗${RESET}`)
-  console.log(`${RED}║${RESET}  ${BOLD}${RED}WARNING: This will permanently delete data!${RESET}                  ${RED}║${RESET}`)
+  console.log(
+    `${RED}║${RESET}  ${BOLD}${RED}WARNING: This will permanently delete data!${RESET}                  ${RED}║${RESET}`,
+  )
   console.log(`${RED}${'╚'.padEnd(62, '═')}╝${RESET}`)
 
   // Print what will be reset

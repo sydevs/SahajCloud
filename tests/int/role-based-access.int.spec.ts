@@ -53,7 +53,7 @@ describe('Role-Based Access Control', () => {
       // Permissions are computed from roles, not explicitly set
       const translatorUser = testData.dummyUser('managers', {
         id: 3,
-        roles: ['translator'],
+        roles: ['web-translator'],
       })
 
       // Should have read access
@@ -168,7 +168,7 @@ describe('Role-Based Access Control', () => {
       // Permissions are computed from roles, not explicitly set
       const managerUser = testData.dummyUser('managers', {
         id: 6,
-        roles: ['translator'],
+        roles: ['web-translator'],
       })
 
       // Should have implicit read access to non-restricted collections
@@ -322,7 +322,7 @@ describe('Role-Based Access Control', () => {
       // Permissions are computed from roles, not explicitly set
       const managerUser = testData.dummyUser('managers', {
         id: 10,
-        roles: ['translator'], // Has roles in current locale
+        roles: ['web-translator'], // Has roles in current locale
       })
 
       // Should have implicit read access to narrators
@@ -357,7 +357,7 @@ describe('Role-Based Access Control', () => {
       // Translator role is in wemeditate-web project
       const managerUser = testData.dummyUser('managers', {
         id: 12,
-        roles: ['translator'],
+        roles: ['web-translator'],
       })
 
       // Should have implicit read to collections in wemeditate-web project
@@ -416,7 +416,7 @@ describe('Role-Based Access Control', () => {
       // Permissions are computed from roles dynamically
       const managerUser = testData.dummyUser('managers', {
         id: 17,
-        roles: ['meditations-editor', 'translator'],
+        roles: ['meditations-editor', 'web-translator'],
       })
 
       // Simulate concurrent permission checks
@@ -520,7 +520,7 @@ describe('Role-Based Access Control', () => {
       // Translator can translate pages but not create/delete
       const translatorUser = testData.dummyUser('managers', {
         id: 22,
-        roles: ['translator'],
+        roles: ['web-translator'],
       })
 
       // Has translate permission which grants localized field update

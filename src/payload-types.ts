@@ -730,7 +730,7 @@ export interface Lesson {
    * This will determine the order of the path steps
    */
   step: number;
-  icon?: (number | null) | Image;
+  icon: number | Image;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;

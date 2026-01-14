@@ -2364,7 +2364,7 @@
           "name": "icon_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "updated_at": {
@@ -9252,6 +9252,6 @@
   "internal": {
     "indexes": {}
   },
-  "id": "d279d8f0-6a29-410f-93b4-b8ce50d7f9aa",
+  "id": "054e896c-e0dc-4e5c-a637-a5a06c86397e",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }
