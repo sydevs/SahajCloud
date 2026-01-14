@@ -652,7 +652,7 @@ export const testData = {
    * // Create dummy translator with permissions
    * dummyUser('managers', {
    *   type: 'manager',
-   *   roles: { en: ['translator'] },
+   *   roles: { en: ['web-translator'] },
    *   permissions: { pages: ['read', 'translate'], projects: ['wemeditate-web'] }
    * })
    */

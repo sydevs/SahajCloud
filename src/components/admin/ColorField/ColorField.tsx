@@ -33,7 +33,7 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
     admin: { description, className, style } = {},
   } = field
 
-  const { value, setValue, showError } = useField<string>({ path: name })
+  const { value, setValue, showError } = useField<string>()
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

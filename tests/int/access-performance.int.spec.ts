@@ -31,7 +31,7 @@ describe('Access Control Performance', () => {
   const translator = testData.dummyUser('managers', {
     id: 3,
     type: 'manager' as const,
-    roles: { en: ['translator'] },
+    roles: { en: ['web-translator'] },
   })
 
   const inactiveManager = testData.dummyUser('managers', {
@@ -48,7 +48,7 @@ describe('Access Control Performance', () => {
   const managerWithCustomAccess = testData.dummyUser('managers', {
     id: 6,
     type: 'manager' as const,
-    roles: { en: ['translator'] },
+    roles: { en: ['web-translator'] },
     customResourceAccess: [
       { relationTo: 'pages', value: '1' },
       { relationTo: 'pages', value: '2' },
