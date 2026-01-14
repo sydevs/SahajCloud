@@ -1,5 +1,3 @@
-export { ThumbnailCell } from './ThumbnailCell'
-export { DirectUploadThumbnail } from './DirectUploadThumbnail'
-export { RelationshipThumbnail } from './RelationshipThumbnail'
-export { getThumbnailDimensions } from './utils'
-export { default } from './ThumbnailCell'
+export { BaseThumbnailCell } from './BaseThumbnailCell'
+export { PreviewUrlThumbnailCell } from './PreviewUrlThumbnailCell'
+export { RelationshipThumbnailCell } from './RelationshipThumbnailCell'

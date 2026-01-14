@@ -67,57 +67,9 @@ export function mediaField(options: MediaFieldOptions): UploadField {
     filterOptions,
     admin: {
       components: {
-        Cell: '@/components/admin/ThumbnailCell',
+        Cell: '@/components/admin/ThumbnailCell/RelationshipThumbnailCell',
       },
       ...(admin as Record<string, unknown>),
     },
-  }
-}
-
-/**
- * Generate orientation filter conditions based on width/height ratio
- * from fileMetadata stored in Media collection
- * @internal Reserved for future orientation filtering feature
- */
-function _getOrientationFilter(orientation: MediaFieldOptions['orientation']) {
-  switch (orientation) {
-    case 'landscape':
-      return [
-        // Images with landscape orientation (width > height)
-        {
-          'fileMetadata.width': {
-            greater_than_equal: {
-              path: 'fileMetadata.height',
-            },
-          },
-        },
-      ]
-
-    case 'portrait':
-      return [
-        // Images with portrait orientation (height > width)
-        {
-          'fileMetadata.height': {
-            greater_than_equal: {
-              path: 'fileMetadata.width',
-            },
-          },
-        },
-      ]
-
-    case 'square':
-      return [
-        // Images with square orientation (width = height)
-        {
-          'fileMetadata.width': {
-            equals: {
-              path: 'fileMetadata.height',
-            },
-          },
-        },
-      ]
-
-    default:
-      return []
   }
 }

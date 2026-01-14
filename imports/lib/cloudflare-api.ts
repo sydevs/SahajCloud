@@ -86,11 +86,7 @@ async function listImages(
 /**
  * Delete a single image
  */
-async function deleteImage(
-  accountId: string,
-  apiToken: string,
-  imageId: string,
-): Promise<boolean> {
+async function deleteImage(accountId: string, apiToken: string, imageId: string): Promise<boolean> {
   const encodedId = encodeURIComponent(imageId)
   const response = await cfRequest<Record<string, never>>(
     `/accounts/${accountId}/images/v1/${encodedId}`,
@@ -172,11 +168,7 @@ async function listVideos(
 /**
  * Delete a single video
  */
-async function deleteVideo(
-  accountId: string,
-  apiToken: string,
-  videoId: string,
-): Promise<boolean> {
+async function deleteVideo(accountId: string, apiToken: string, videoId: string): Promise<boolean> {
   const response = await cfRequest<Record<string, never>>(
     `/accounts/${accountId}/stream/${videoId}`,
     apiToken,
@@ -230,28 +222,21 @@ export async function deleteAllCloudflareVideos(
 }
 
 /**
- * Count images in Cloudflare Images
+ * Count images in Cloudflare Images using the Stats endpoint
  */
-export async function countCloudflareImages(
-  accountId: string,
-  apiToken: string,
-): Promise<number> {
-  const response = await cfRequest<{ images: CloudflareImage[] }>(
-    `/accounts/${accountId}/images/v1?page=1&per_page=1`,
+export async function countCloudflareImages(accountId: string, apiToken: string): Promise<number> {
+  const response = await cfRequest<{ count: { current: number; allowed: number } }>(
+    `/accounts/${accountId}/images/v1/stats`,
     apiToken,
   )
 
-  // The API returns total_count in result_info
-  return response.result_info?.total_count || 0
+  return response.result?.count?.current || 0
 }
 
 /**
  * Count videos in Cloudflare Stream
  */
-export async function countCloudflareVideos(
-  accountId: string,
-  apiToken: string,
-): Promise<number> {
+export async function countCloudflareVideos(accountId: string, apiToken: string): Promise<number> {
   // Stream doesn't provide a direct count, so we fetch with minimal data
   const response = await cfRequest<CloudflareVideo[]>(
     `/accounts/${accountId}/stream?per_page=1`,

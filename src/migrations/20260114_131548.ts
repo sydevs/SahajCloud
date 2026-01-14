@@ -330,7 +330,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	\`intro_subtitles\` text,
   	\`unit\` text NOT NULL,
   	\`step\` numeric NOT NULL,
-  	\`icon_id\` integer,
+  	\`icon_id\` integer NOT NULL,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`deleted_at\` text,

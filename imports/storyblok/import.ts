@@ -1,5 +1,3 @@
- 
-
 /**
  * Storyblok Path Steps Import Script
  *
@@ -177,7 +175,9 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
           this.preloadCache.set('lessons', new Map())
         }
         // Cast through unknown to PreloadedDoc (doc has id from Payload)
-        this.preloadCache.get('lessons')!.set(compositeKey, { id: doc.id, unit: doc.unit, step: doc.step })
+        this.preloadCache
+          .get('lessons')!
+          .set(compositeKey, { id: doc.id, unit: doc.unit, step: doc.step })
         count++
       }
 
@@ -422,12 +422,16 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       }
     }
 
+    // Create icon from source data (required field - must be done before lesson creation)
+    const iconId = await this.createLessonIcon(story, content)
+
     // Build lesson data
     const lessonData: Record<string, any> = {
       title: this.processTextField(story.name),
       unit: `Unit ${unitNumber}`,
       step: stepNumber,
       panels,
+      icon: iconId,
     }
 
     if (meditationId) {
@@ -509,35 +513,30 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     return panels
   }
 
+  /**
+   * Creates and uploads the lesson icon from source data.
+   * @throws Error if no icon URL is found in source data
+   */
+  private async createLessonIcon(
+    story: StoryblokStory,
+    content: Record<string, any>,
+  ): Promise<number> {
+    const iconUrl = content.Step_info?.[0]?.Step_Image?.url
+    if (!iconUrl) {
+      throw new Error(`No icon URL found in source data`)
+    }
+
+    const iconTags = [this.iconTagId, this.lessonTagId].filter((id): id is number => id !== null)
+    const iconId = await this.createMediaFromUrl(iconUrl, `Icon for ${story.name}`, iconTags)
+    return typeof iconId === 'string' ? parseInt(iconId) : iconId
+  }
+
   private async attachLessonFiles(
     lessonId: number | string,
     story: StoryblokStory,
     content: Record<string, any>,
   ): Promise<void> {
-    // Create and attach icon (uploads to Images collection)
-    if (content.Step_info?.[0]?.Step_Image?.url) {
-      try {
-        const iconTags = [this.iconTagId, this.lessonTagId].filter(
-          (id): id is number => id !== null,
-        )
-        const iconId = await this.createMediaFromUrl(
-          content.Step_info[0].Step_Image.url,
-          `Icon for ${story.name}`,
-          iconTags,
-        )
-        await this.payload.update({
-          collection: 'lessons',
-          id: lessonId,
-          data: { icon: typeof iconId === 'string' ? parseInt(iconId) : iconId },
-        })
-        await this.logger.info(`✓ Added icon to lesson`)
-
-        // Add delay after icon upload to avoid rate limiting (auto-skips locally)
-        await rateLimitDelay(50)
-      } catch (error) {
-        this.addError(`Creating/attaching icon for ${story.name}`, error as Error)
-      }
-    }
+    // Note: Icon is now created in importLesson() before the lesson is created
 
     // Create and attach intro audio (uploads to Files collection)
     if (content.Audio_intro?.[0]?.Audio_track?.filename) {
@@ -955,4 +954,3 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     return 3
   }
 }
-

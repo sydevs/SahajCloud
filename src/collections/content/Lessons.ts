@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { QuoteBlock } from '@/blocks/pages'
+import { mediaField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { fullRichTextEditor } from '@/lib/richEditor'
 
@@ -15,7 +16,7 @@ export const Lessons: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'step'],
+    defaultColumns: ['title', 'step', 'icon'],
     groupBy: true,
     listSearchableFields: ['title'],
   },
@@ -150,11 +151,10 @@ export const Lessons: CollectionConfig = {
                 description: 'This will determine the order of the path steps',
               },
             },
-            {
+            mediaField({
               name: 'icon',
-              type: 'upload',
-              relationTo: 'images',
-            },
+              required: true,
+            }),
           ],
         },
       ],
