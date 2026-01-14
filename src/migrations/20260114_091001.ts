@@ -1,6 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-d1-sqlite'
 
-export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): Promise<void> {
+export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE TABLE \`pages\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`generate_slug\` integer DEFAULT true,
@@ -122,6 +122,7 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   	\`generate_slug\` integer DEFAULT true,
   	\`slug\` text,
   	\`thumbnail_id\` integer,
+  	\`type\` text DEFAULT 'daily',
   	\`frames\` text,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
@@ -176,6 +177,7 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   	\`version_generate_slug\` integer DEFAULT true,
   	\`version_slug\` text,
   	\`version_thumbnail_id\` integer,
+  	\`version_type\` text DEFAULT 'daily',
   	\`version_frames\` text,
   	\`version_updated_at\` text,
   	\`version_created_at\` text,
@@ -305,52 +307,21 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   );
   `)
   await db.run(sql`CREATE UNIQUE INDEX \`albums_locales_locale_parent_id_unique\` ON \`albums_locales\` (\`_locale\`,\`_parent_id\`);`)
-  await db.run(sql`CREATE TABLE \`lessons_blocks_cover\` (
+  await db.run(sql`CREATE TABLE \`lessons_panels\` (
   	\`_order\` integer NOT NULL,
   	\`_parent_id\` integer NOT NULL,
-  	\`_path\` text NOT NULL,
   	\`id\` text PRIMARY KEY NOT NULL,
-  	\`title\` text NOT NULL,
-  	\`quote\` text NOT NULL,
-  	\`block_name\` text,
+  	\`title\` text,
+  	\`text\` text,
+  	\`media_id\` integer,
+  	\`subtitles\` text,
+  	FOREIGN KEY (\`media_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE set null,
   	FOREIGN KEY (\`_parent_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
-  await db.run(sql`CREATE INDEX \`lessons_blocks_cover_order_idx\` ON \`lessons_blocks_cover\` (\`_order\`);`)
-  await db.run(sql`CREATE INDEX \`lessons_blocks_cover_parent_id_idx\` ON \`lessons_blocks_cover\` (\`_parent_id\`);`)
-  await db.run(sql`CREATE INDEX \`lessons_blocks_cover_path_idx\` ON \`lessons_blocks_cover\` (\`_path\`);`)
-  await db.run(sql`CREATE TABLE \`lessons_blocks_video\` (
-  	\`_order\` integer NOT NULL,
-  	\`_parent_id\` integer NOT NULL,
-  	\`_path\` text NOT NULL,
-  	\`id\` text PRIMARY KEY NOT NULL,
-  	\`video_id\` integer,
-  	\`block_name\` text,
-  	FOREIGN KEY (\`video_id\`) REFERENCES \`files\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE INDEX \`lessons_blocks_video_order_idx\` ON \`lessons_blocks_video\` (\`_order\`);`)
-  await db.run(sql`CREATE INDEX \`lessons_blocks_video_parent_id_idx\` ON \`lessons_blocks_video\` (\`_parent_id\`);`)
-  await db.run(sql`CREATE INDEX \`lessons_blocks_video_path_idx\` ON \`lessons_blocks_video\` (\`_path\`);`)
-  await db.run(sql`CREATE INDEX \`lessons_blocks_video_video_idx\` ON \`lessons_blocks_video\` (\`video_id\`);`)
-  await db.run(sql`CREATE TABLE \`lessons_blocks_text\` (
-  	\`_order\` integer NOT NULL,
-  	\`_parent_id\` integer NOT NULL,
-  	\`_path\` text NOT NULL,
-  	\`id\` text PRIMARY KEY NOT NULL,
-  	\`title\` text NOT NULL,
-  	\`text\` text NOT NULL,
-  	\`image_id\` integer NOT NULL,
-  	\`block_name\` text,
-  	FOREIGN KEY (\`image_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null,
-  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE INDEX \`lessons_blocks_text_order_idx\` ON \`lessons_blocks_text\` (\`_order\`);`)
-  await db.run(sql`CREATE INDEX \`lessons_blocks_text_parent_id_idx\` ON \`lessons_blocks_text\` (\`_parent_id\`);`)
-  await db.run(sql`CREATE INDEX \`lessons_blocks_text_path_idx\` ON \`lessons_blocks_text\` (\`_path\`);`)
-  await db.run(sql`CREATE INDEX \`lessons_blocks_text_image_idx\` ON \`lessons_blocks_text\` (\`image_id\`);`)
+  await db.run(sql`CREATE INDEX \`lessons_panels_order_idx\` ON \`lessons_panels\` (\`_order\`);`)
+  await db.run(sql`CREATE INDEX \`lessons_panels_parent_id_idx\` ON \`lessons_panels\` (\`_parent_id\`);`)
+  await db.run(sql`CREATE INDEX \`lessons_panels_media_idx\` ON \`lessons_panels\` (\`media_id\`);`)
   await db.run(sql`CREATE TABLE \`lessons\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`title\` text NOT NULL,
@@ -453,14 +424,14 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   	\`slug\` text NOT NULL,
   	\`country_code\` text,
   	\`years_meditating\` numeric,
-  	\`image_id\` integer,
+  	\`photo_id\` integer,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	FOREIGN KEY (\`image_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null
+  	FOREIGN KEY (\`photo_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
   `)
   await db.run(sql`CREATE UNIQUE INDEX \`authors_slug_idx\` ON \`authors\` (\`slug\`);`)
-  await db.run(sql`CREATE INDEX \`authors_image_idx\` ON \`authors\` (\`image_id\`);`)
+  await db.run(sql`CREATE INDEX \`authors_photo_idx\` ON \`authors\` (\`photo_id\`);`)
   await db.run(sql`CREATE INDEX \`authors_updated_at_idx\` ON \`authors\` (\`updated_at\`);`)
   await db.run(sql`CREATE INDEX \`authors_created_at_idx\` ON \`authors\` (\`created_at\`);`)
   await db.run(sql`CREATE TABLE \`authors_locales\` (
@@ -1337,7 +1308,7 @@ export async function up({ db, payload: _payload, req: _req }: MigrateUpArgs): P
   `)
 }
 
-export async function down({ db, payload: _payload, req: _req }: MigrateDownArgs): Promise<void> {
+export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
   await db.run(sql`DROP TABLE \`pages\`;`)
   await db.run(sql`DROP TABLE \`pages_locales\`;`)
   await db.run(sql`DROP TABLE \`pages_rels\`;`)
@@ -1353,9 +1324,7 @@ export async function down({ db, payload: _payload, req: _req }: MigrateDownArgs
   await db.run(sql`DROP TABLE \`music_rels\`;`)
   await db.run(sql`DROP TABLE \`albums\`;`)
   await db.run(sql`DROP TABLE \`albums_locales\`;`)
-  await db.run(sql`DROP TABLE \`lessons_blocks_cover\`;`)
-  await db.run(sql`DROP TABLE \`lessons_blocks_video\`;`)
-  await db.run(sql`DROP TABLE \`lessons_blocks_text\`;`)
+  await db.run(sql`DROP TABLE \`lessons_panels\`;`)
   await db.run(sql`DROP TABLE \`lessons\`;`)
   await db.run(sql`DROP TABLE \`lessons_locales\`;`)
   await db.run(sql`DROP TABLE \`lectures\`;`)

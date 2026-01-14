@@ -412,13 +412,13 @@ describe('CleanupOrphanedMedia Job', () => {
       expect(await imageInTrash(payload, image.id)).toBe(false)
     })
 
-    it('preserves images referenced by authors.image', async () => {
+    it('preserves images referenced by authors.photo', async () => {
       // Create an image for author
       const image = await testData.createMediaImage(payload)
       await backdateCreatedAt(payload, 'images', image.id)
 
-      // Create author with this image (unique name to avoid slug collision)
-      await testData.createAuthor(payload, { name: `Author ${uniqueId()}`, image: image.id })
+      // Create author with this photo (unique name to avoid slug collision)
+      await testData.createAuthor(payload, { name: `Author ${uniqueId()}`, photo: image.id })
 
       // Run cleanup job
       await runCleanupJob(payload)
@@ -476,8 +476,6 @@ describe('CleanupOrphanedMedia Job', () => {
       expect(await imageExists(payload, image.id)).toBe(true)
       expect(await imageInTrash(payload, image.id)).toBe(false)
     })
-
-    // Note: lessons.panels[].image test removed - panels now reference files collection via 'media' field
 
     it('preserves images referenced in pages TextBoxBlock', async () => {
       // Create an image for TextBoxBlock
@@ -605,7 +603,7 @@ describe('CleanupOrphanedMedia Job', () => {
       await backdateCreatedAt(payload, 'images', image2.id)
 
       // Reference both images (unique names to avoid slug collision)
-      await testData.createAuthor(payload, { name: `Author ${uniqueId()}`, image: image1.id })
+      await testData.createAuthor(payload, { name: `Author ${uniqueId()}`, photo: image1.id })
       await testData.createLecture(payload, { thumbnail: image2.id })
 
       // Run cleanup job

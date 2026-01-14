@@ -643,8 +643,8 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   /**
-   * Creates a file attachment for audio/video files.
-   * Note: Image files should use createMediaFromUrl() instead, which uploads to Images collection.
+   * Creates a file attachment for audio, video, and image files.
+   * Uploads to the Files collection.
    */
   private async createFileAttachment(url: string): Promise<string> {
     if (!url) {
@@ -654,25 +654,29 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     const filename = path.basename(url.split('?')[0])
     const ext = path.extname(filename).toLowerCase()
     let mimeType: string
+    let cacheSubdir: string
 
     if (['.mp3', '.mpeg'].includes(ext)) {
       mimeType = 'audio/mpeg'
+      cacheSubdir = 'audio'
     } else if (['.mp4'].includes(ext)) {
       mimeType = 'video/mp4'
-    } else if (['.jpg', '.jpeg', '.png', '.webp', '.svg'].includes(ext)) {
-      // Image files should go to Images collection, not Files
-      throw new Error(
-        `Image files should use createMediaFromUrl() instead of createFileAttachment(). File: ${filename}`,
-      )
+      cacheSubdir = 'videos'
+    } else if (['.jpg', '.jpeg'].includes(ext)) {
+      mimeType = 'image/jpeg'
+      cacheSubdir = 'images'
+    } else if (['.png'].includes(ext)) {
+      mimeType = 'image/png'
+      cacheSubdir = 'images'
+    } else if (['.webp'].includes(ext)) {
+      mimeType = 'image/webp'
+      cacheSubdir = 'images'
     } else {
       throw new Error(`Unsupported file type: ${ext}`)
     }
 
     // Determine cache path based on file type
-    const cachePath =
-      mimeType === 'audio/mpeg'
-        ? path.join(this.cacheDir, 'assets/audio', filename)
-        : path.join(this.cacheDir, 'assets/videos', filename)
+    const cachePath = path.join(this.cacheDir, `assets/${cacheSubdir}`, filename)
 
     // Fetch asset with caching (fetchAsset handles Workers vs local mode)
     const fileBuffer = await fetchAsset(url, { cachePath })

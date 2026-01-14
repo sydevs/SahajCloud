@@ -26,7 +26,8 @@ import { default as default_e201aca8b8f7be4559f38e80e7a23040 } from '@/component
 import { default as default_b6e352da4aa0be71471f8ee68e4b93ce } from '@/components/admin/buttons/UpdateOnlyPublishButton'
 import { default as default_5540237f7045343fb48f4dc881ba5b8a } from '@/components/admin/buttons/NextStepButton'
 import { default as default_277d6fd41e8d1febac87b7e86938523f } from '@/components/admin/AudioUpload'
-import { default as default_2d3b6dcbebce75fc2ef5ac094f4218f0 } from '@/components/admin/ColorField'
+import { default as default_673fb432cb45f37a951f8916cb366397 } from '@/components/admin/ColorField/ColorCell'
+import { default as default_c76ed6d3c3881bbd4c90e56dac27b1a7 } from '@/components/admin/ColorField/ColorField'
 import { default as default_49cc57155f60c2bacf9eaa38c760d251 } from '@/components/admin/PermissionsTable'
 import { default as default_e2e03d4215a583971e90a375f6eb68f9 } from '@/components/admin/HighUsageAlert'
 import { HorizontalRuleFeatureClient as HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -74,7 +75,8 @@ export const importMap = {
   "@/components/admin/buttons/UpdateOnlyPublishButton#default": default_b6e352da4aa0be71471f8ee68e4b93ce,
   "@/components/admin/buttons/NextStepButton#default": default_5540237f7045343fb48f4dc881ba5b8a,
   "@/components/admin/AudioUpload#default": default_277d6fd41e8d1febac87b7e86938523f,
-  "@/components/admin/ColorField#default": default_2d3b6dcbebce75fc2ef5ac094f4218f0,
+  "@/components/admin/ColorField/ColorCell#default": default_673fb432cb45f37a951f8916cb366397,
+  "@/components/admin/ColorField/ColorField#default": default_c76ed6d3c3881bbd4c90e56dac27b1a7,
   "@/components/admin/PermissionsTable#default": default_49cc57155f60c2bacf9eaa38c760d251,
   "@/components/admin/HighUsageAlert#default": default_e2e03d4215a583971e90a375f6eb68f9,
   "@payloadcms/richtext-lexical/client#HorizontalRuleFeatureClient": HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,

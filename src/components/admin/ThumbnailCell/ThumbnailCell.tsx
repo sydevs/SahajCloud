@@ -17,11 +17,13 @@ export const ThumbnailCell: React.FC<
   // Determine the type of cell data we're dealing with
   const isPreviewUrl =
     typeof cellData === 'string' && (cellData.startsWith('/') || cellData.startsWith('http'))
+  // Media relationship: either a numeric ID or a string ID (not a URL)
   const isMediaRelationship =
-    typeof cellData === 'string' &&
-    !cellData.startsWith('/') &&
-    !cellData.startsWith('http') &&
-    cellData.length > 10
+    typeof cellData === 'number' ||
+    (typeof cellData === 'string' &&
+      !cellData.startsWith('/') &&
+      !cellData.startsWith('http') &&
+      cellData.length > 10)
   const isDirectUpload =
     rowData?.url &&
     (rowData.mimeType?.startsWith('image/') || rowData.mimeType?.startsWith('video/'))
@@ -75,8 +77,10 @@ export const ThumbnailCell: React.FC<
       </div>
     )
   } else if (isMediaRelationship) {
-    // For thumbnail relationship - cellData contains Media ID
-    content = <RelationshipThumbnail cellData={cellData} aspectRatio={aspectRatio} size={size} />
+    // For thumbnail relationship - cellData contains Media ID (number or string)
+    content = (
+      <RelationshipThumbnail cellData={String(cellData)} aspectRatio={aspectRatio} size={size} />
+    )
   } else if (isDirectUpload) {
     // For direct upload thumbnails (backward compatibility)
     content = <DirectUploadThumbnail rowData={rowData} cellData={cellData} />

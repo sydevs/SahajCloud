@@ -396,9 +396,9 @@ export interface Author {
    */
   yearsMeditating?: number | null;
   /**
-   * Author profile image
+   * Author profile photo
    */
-  image?: (number | null) | Image;
+  photo?: (number | null) | Image;
   articles?: {
     docs?: (number | Page)[];
     hasNextPage?: boolean;
@@ -1582,7 +1582,7 @@ export interface AuthorsSelect<T extends boolean = true> {
   description?: T;
   countryCode?: T;
   yearsMeditating?: T;
-  image?: T;
+  photo?: T;
   articles?: T;
   updatedAt?: T;
   createdAt?: T;

@@ -37,7 +37,7 @@ type CleanupResult = {
  * - lessons.panels[].video (VideoStoryBlock)
  *
  * Collections that reference Images:
- * - authors.image
+ * - authors.photo
  * - lectures.thumbnail
  * - lessons.icon
  * - lessons.panels[].image (TextStoryBlock)
@@ -414,10 +414,10 @@ async function getAllReferencedFileIds(payload: Payload): Promise<Set<number>> {
 async function getAllReferencedImageIds(payload: Payload): Promise<Set<number>> {
   const referencedIds = new Set<number>()
 
-  // Authors: image field
-  await collectReferencedIds<Author>(payload, 'authors', { image: { exists: true } }, (doc) => {
-    if (doc.image) {
-      const id = extractId(doc.image)
+  // Authors: photo field
+  await collectReferencedIds<Author>(payload, 'authors', { photo: { exists: true } }, (doc) => {
+    if (doc.photo) {
+      const id = extractId(doc.photo)
       if (id) referencedIds.add(id)
     }
   })

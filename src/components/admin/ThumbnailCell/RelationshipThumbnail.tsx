@@ -27,7 +27,7 @@ export const RelationshipThumbnail: React.FC<RelationshipThumbnailProps> = ({
         },
       },
       limit: 1,
-      select: { id: true, url: true, alt: true },
+      select: { id: true, url: true, alt: true, filename: true },
     },
   })
 
