@@ -12,6 +12,7 @@ export const PageTags: CollectionConfig = {
   admin: {
     group: 'Metadata',
     useAsTitle: 'title',
+    defaultColumns: ['title', 'pages'],
   },
   hooks: {
     afterRead: [trackClientUsageHook],
@@ -35,6 +36,11 @@ export const PageTags: CollectionConfig = {
       type: 'join',
       collection: 'pages',
       on: 'tags',
+      admin: {
+        components: {
+          Cell: '@/components/admin/RelationshipCountCell',
+        },
+      },
     },
   ],
 }

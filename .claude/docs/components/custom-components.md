@@ -217,6 +217,157 @@ src/components/
 - Folder names: Match main component name (e.g., `Dashboard/` folder contains `Dashboard.tsx`)
 - Barrel exports: Always include default export for PayloadCMS component registration
 
+## Custom Cell Components
+
+Cell components display field values in list views. PayloadCMS provides two component types:
+
+### DefaultCellComponentProps (Client Components)
+
+Use for interactive cells that need browser APIs or React hooks:
+
+```typescript
+'use client'
+
+import type { DefaultCellComponentProps, JoinFieldClient } from 'payload'
+
+export const MyCell: React.FC<DefaultCellComponentProps> = ({
+  cellData,      // Field value for this cell
+  rowData,       // Full document data (access id, other fields)
+  field,         // Field configuration object
+  collectionSlug, // Current collection slug
+  linkURL,       // Optional navigation URL (first column)
+}) => {
+  // For typed access to field properties
+  const joinField = field as JoinFieldClient
+
+  return <span>{cellData}</span>
+}
+```
+
+### DefaultServerCellComponentProps (Server Components - Recommended)
+
+Use for cells that need access to Payload configuration (collection labels, etc.):
+
+```typescript
+import type { DefaultServerCellComponentProps, JoinField } from 'payload'
+
+export const MyCell: React.FC<DefaultServerCellComponentProps> = ({
+  cellData,
+  rowData,
+  field,
+  payload,  // Full Payload instance - access collections, config, etc.
+}) => {
+  const joinField = field as JoinField
+
+  // Access collection configuration
+  const targetCollection = payload.collections[joinField.collection]
+  const labels = targetCollection?.config?.labels
+
+  return <span>{labels?.plural}</span>
+}
+```
+
+**Benefits of Server Cell Components**:
+- Access to `payload.collections` for collection labels and config
+- No client-side JavaScript overhead
+- Can use Next.js `Link` component for navigation
+- Type-safe access to full Payload configuration
+
+### Join Field Cell Data Structure
+
+Join fields return a special data structure in `cellData`:
+
+```typescript
+interface JoinFieldData {
+  docs: Array<{ id: string | number; [key: string]: unknown }>
+  totalDocs?: number
+  limit?: number
+}
+
+// Usage in cell component
+const joinData = cellData as JoinFieldData | null
+const count = joinData?.docs?.length ?? 0
+```
+
+### Extracting Collection Labels
+
+Collection labels can be complex types - use a helper function:
+
+```typescript
+/**
+ * Extract string label from PayloadCMS label type
+ * Labels can be: string | LabelFunction | Record<string, string> (i18n)
+ */
+function extractLabel(label: unknown): string | null {
+  if (!label) return null
+  if (typeof label === 'string') return label.toLowerCase()
+  if (typeof label === 'object' && label !== null && 'en' in label) {
+    return ((label as Record<string, string>).en ?? '').toLowerCase()
+  }
+  return null
+}
+
+// Usage
+const labels = payload.collections['pages']?.config?.labels
+const displayLabel = extractLabel(count === 1 ? labels?.singular : labels?.plural)
+```
+
+### Example: RelationshipCountCell
+
+Complete example showing server cell component pattern:
+
+```typescript
+import type { CollectionConfig, DefaultServerCellComponentProps, JoinField } from 'payload'
+import Link from 'next/link'
+
+export const RelationshipCountCell: React.FC<DefaultServerCellComponentProps> = ({
+  cellData,
+  rowData,
+  field,
+  payload,
+}) => {
+  const joinField = field as JoinField
+  const joinData = cellData as { docs: Array<{ id: string | number }> } | null
+  const count = joinData?.docs?.length ?? 0
+
+  // Get target collection slug (can be array for polymorphic)
+  const targetSlug = Array.isArray(joinField.collection)
+    ? joinField.collection[0]
+    : joinField.collection
+
+  // Access collection labels from Payload config
+  const targetCollection = payload.collections[targetSlug]
+  const labels = targetCollection?.config?.labels
+  const label = count === 1
+    ? extractLabel(labels?.singular)
+    : extractLabel(labels?.plural) ?? joinField.name
+
+  // Build filtered list URL
+  const href = `/admin/collections/${targetSlug}?where[${joinField.on}][in][]=${rowData.id}`
+
+  if (count === 0) {
+    return <span style={{ color: 'var(--theme-elevation-400)' }}>0 {label}</span>
+  }
+
+  return <Link href={href}>{count} {label}</Link>
+}
+```
+
+**Registration** (in collection config):
+```typescript
+{
+  name: 'articles',
+  type: 'join',
+  collection: 'pages',
+  on: 'author',
+  admin: {
+    components: {
+      Cell: '@/components/admin/RelationshipCountCell',
+    },
+  },
+}
+```
+
 ## PayloadCMS Custom Field Component Patterns
 
 When creating custom field components for PayloadCMS, follow these patterns for clean, type-safe implementations:

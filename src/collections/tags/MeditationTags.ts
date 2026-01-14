@@ -13,7 +13,7 @@ export const MeditationTags: CollectionConfig = {
   admin: {
     group: 'Metadata',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'filename', 'color'],
+    defaultColumns: ['title', 'filename', 'color', 'meditations'],
   },
   upload: {
     staticDir: 'media/meditation-tags',
@@ -59,6 +59,11 @@ export const MeditationTags: CollectionConfig = {
       type: 'join',
       collection: 'meditations',
       on: 'tags',
+      admin: {
+        components: {
+          Cell: '@/components/admin/RelationshipCountCell',
+        },
+      },
     },
   ],
 }

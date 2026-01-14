@@ -5,6 +5,7 @@ export const ImageTags: CollectionConfig = {
   admin: {
     group: 'Metadata',
     useAsTitle: 'title',
+    defaultColumns: ['title', 'images'],
   },
   fields: [
     {
@@ -18,6 +19,11 @@ export const ImageTags: CollectionConfig = {
       type: 'join',
       collection: 'images',
       on: 'tags',
+      admin: {
+        components: {
+          Cell: '@/components/admin/RelationshipCountCell',
+        },
+      },
     },
   ],
 }
