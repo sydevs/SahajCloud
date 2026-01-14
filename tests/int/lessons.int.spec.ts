@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { Image, Meditation } from '@/payload-types'
+import type { File, Meditation } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -10,8 +10,8 @@ import { createTestEnvironment } from '../utils/testHelpers'
 describe('Lessons Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let testPanelImage1: Image
-  let testPanelImage2: Image
+  let testPanelMedia1: File
+  let testPanelMedia2: File
   let testMeditation: Meditation
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let testNarrator: any
@@ -21,14 +21,15 @@ describe('Lessons Collection', () => {
     payload = testEnv.payload
     cleanup = testEnv.cleanup
 
-    // Create test resources
-    testPanelImage1 = await testData.createMediaImage(payload, { alt: 'Panel image 1' })
-    testPanelImage2 = await testData.createMediaImage(payload, { alt: 'Panel image 2' })
+    // Create test resources - use files for panel media
+    testPanelMedia1 = await testData.createFile(payload, {}, 'image-1050x700.jpg')
+    testPanelMedia2 = await testData.createFile(payload, {}, 'image-1050x700.webp')
 
     // Create narrator for meditation
     testNarrator = await testData.createNarrator(payload, { name: 'Test Narrator' })
 
     // Create meditation for lesson relationships
+    // Note: Lessons collection filters meditations by type='lesson'
     testMeditation = await testData.createMeditation(
       payload,
       {
@@ -36,6 +37,7 @@ describe('Lessons Collection', () => {
       },
       {
         title: 'Test Meditation for Lessons',
+        type: 'lesson',
       },
     )
   })
@@ -51,15 +53,13 @@ describe('Lessons Collection', () => {
         meditation: testMeditation.id,
         panels: [
           {
-            blockType: 'cover' as const,
             title: 'Welcome',
-            quote: 'Learn the basics of breathing meditation',
+            text: 'Learn the basics of breathing meditation',
           },
           {
-            blockType: 'text' as const,
             title: 'Introduction',
             text: 'Learn the basics of breathing meditation',
-            image: testPanelImage1.id,
+            media: testPanelMedia1.id,
           },
         ],
       })
@@ -68,39 +68,31 @@ describe('Lessons Collection', () => {
       expect(lesson.title).toBe('Introduction to Breathing')
       expect(lesson.meditation).toBe(testMeditation.id)
       expect(lesson.panels).toHaveLength(2)
-      expect(lesson.panels[0].blockType).toBe('cover')
-      // Type narrowing for block types
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const coverPanel = lesson.panels[0] as any
-      expect(coverPanel.title).toBe('Welcome')
-      expect(coverPanel.quote).toBe('Learn the basics of breathing meditation')
-      expect(lesson.panels[1].blockType).toBe('text')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const textPanel = lesson.panels[1] as any
-      expect(textPanel.title).toBe('Introduction')
-      expect(textPanel.text).toBe('Learn the basics of breathing meditation')
+      expect(lesson.panels[0].title).toBe('Welcome')
+      expect(lesson.panels[0].text).toBe('Learn the basics of breathing meditation')
+      expect(lesson.panels[1].title).toBe('Introduction')
+      expect(lesson.panels[1].text).toBe('Learn the basics of breathing meditation')
+      expect(lesson.panels[1].media).toBe(testPanelMedia1.id)
     })
 
-    it('creates a lesson with video panels', async () => {
+    it('creates a lesson with media panels', async () => {
       const lesson = await testData.createLesson(payload, {
-        title: 'Video Lesson',
+        title: 'Media Lesson',
         meditation: testMeditation.id,
         panels: [
           {
-            blockType: 'cover' as const,
-            title: 'Video Lesson',
-            quote: 'Welcome to our video lesson',
+            title: 'Media Lesson',
+            text: 'Welcome to our media lesson',
           },
           {
-            blockType: 'video' as const,
-            video: null, // Would be a FileAttachment ID
+            media: testPanelMedia1.id,
           },
         ],
       })
 
       expect(lesson.panels).toHaveLength(2)
-      expect(lesson.panels[0].blockType).toBe('cover')
-      expect(lesson.panels[1].blockType).toBe('video')
+      expect(lesson.panels[0].title).toBe('Media Lesson')
+      expect(lesson.panels[1].media).toBe(testPanelMedia1.id)
     })
 
     it('creates a lesson with multiple panels', async () => {
@@ -109,27 +101,20 @@ describe('Lessons Collection', () => {
         meditation: testMeditation.id,
         panels: [
           {
-            blockType: 'cover' as const,
             title: 'Multi-Panel Lesson',
-            quote: 'Welcome to our multi-panel lesson',
+            text: 'Welcome to our multi-panel lesson',
           },
           {
-            blockType: 'text' as const,
             title: 'Panel 2',
             text: 'Second panel text',
-            image: testPanelImage2.id,
+            media: testPanelMedia2.id,
           },
         ],
       })
 
       expect(lesson.panels).toHaveLength(2)
-      // Type narrowing for block types
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const panel1 = lesson.panels[0] as any
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const panel2 = lesson.panels[1] as any
-      expect(panel1.title).toBe('Multi-Panel Lesson')
-      expect(panel2.title).toBe('Panel 2')
+      expect(lesson.panels[0].title).toBe('Multi-Panel Lesson')
+      expect(lesson.panels[1].title).toBe('Panel 2')
     })
 
     it('creates a lesson with content field', async () => {
@@ -160,15 +145,13 @@ describe('Lessons Collection', () => {
         },
         panels: [
           {
-            blockType: 'cover' as const,
             title: 'Content Lesson',
-            quote: 'Welcome to our content lesson',
+            text: 'Welcome to our content lesson',
           },
           {
-            blockType: 'text' as const,
             title: 'Content',
             text: 'Lesson content',
-            image: testPanelImage1.id,
+            media: testPanelMedia1.id,
           },
         ],
       })
@@ -216,15 +199,13 @@ describe('Lessons Collection', () => {
         meditation: testMeditation.id,
         panels: [
           {
-            blockType: 'cover' as const,
             title: 'Original Title',
-            quote: 'Welcome to the lesson',
+            text: 'Welcome to the lesson',
           },
           {
-            blockType: 'text' as const,
             title: 'Panel',
             text: 'Text',
-            image: testPanelImage1.id,
+            media: testPanelMedia1.id,
           },
         ],
       })
@@ -246,15 +227,13 @@ describe('Lessons Collection', () => {
         meditation: testMeditation.id,
         panels: [
           {
-            blockType: 'cover' as const,
             title: 'Panel Update Test',
-            quote: 'Welcome to the lesson',
+            text: 'Welcome to the lesson',
           },
           {
-            blockType: 'text' as const,
             title: 'Original',
             text: 'Original text',
-            image: testPanelImage1.id,
+            media: testPanelMedia1.id,
           },
         ],
       })
@@ -265,29 +244,22 @@ describe('Lessons Collection', () => {
         data: {
           panels: [
             {
-              blockType: 'cover' as const,
               title: 'Updated Cover',
-              quote: 'Updated welcome message',
+              text: 'Updated welcome message',
             },
             {
-              blockType: 'text' as const,
               title: 'Updated',
               text: 'Updated text',
-              image: testPanelImage2.id,
+              media: testPanelMedia2.id,
             },
           ],
         },
       })
 
       expect(updated.panels).toHaveLength(2)
-      // Type narrowing for block types
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const coverPanel = updated.panels[0] as any
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const textPanel = updated.panels[1] as any
-      expect(coverPanel.title).toBe('Updated Cover')
-      expect(textPanel.title).toBe('Updated')
-      expect(textPanel.text).toBe('Updated text')
+      expect(updated.panels[0].title).toBe('Updated Cover')
+      expect(updated.panels[1].title).toBe('Updated')
+      expect(updated.panels[1].text).toBe('Updated text')
     })
   })
 
@@ -298,15 +270,13 @@ describe('Lessons Collection', () => {
         meditation: testMeditation.id,
         panels: [
           {
-            blockType: 'cover' as const,
             title: 'To Be Deleted',
-            quote: 'Welcome to the lesson',
+            text: 'Welcome to the lesson',
           },
           {
-            blockType: 'text' as const,
             title: 'Delete me',
             text: 'This will be deleted',
-            image: testPanelImage1.id,
+            media: testPanelMedia1.id,
           },
         ],
       })
@@ -405,5 +375,4 @@ describe('Lessons Collection', () => {
       expect(draft._status).toBe('draft')
     })
   })
-
 })

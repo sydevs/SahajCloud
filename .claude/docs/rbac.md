@@ -46,10 +46,10 @@ The bypass function handles:
 ### Available Manager Roles (3 roles)
 1. **meditations-editor**: Can create and edit meditations, upload related media and files
 2. **path-editor**: Can edit lessons and lectures, upload related media and files
-3. **translator**: Can edit localized fields in pages, music, and albums (read-only for non-localized fields)
+3. **web-translator**: Can edit localized fields in pages, music, and albums (read-only for non-localized fields)
 
 ### Manager Role Characteristics
-- **Localized**: Roles can be assigned per-locale (e.g., translator for French, meditations-editor for English)
+- **Localized**: Roles can be assigned per-locale (e.g., web-translator for French, meditations-editor for English)
 - **Multiple Roles**: Managers can have multiple roles per locale
 - **Project-Based Read Access**: Managers get implicit read access to collections in their role's project
 - **Collection Visibility**: Collections only appear in admin UI if the manager has write permissions
@@ -215,7 +215,7 @@ Both managers and API clients get the same implicit read access:
 - Shared collections (collections not in any project)
 
 **Examples**:
-- A "translator" (wemeditate-web project) can read pages, meditations, music, etc. (wemeditate-web project) AND shared collections like image-tags.
+- A "web-translator" (wemeditate-web project) can read pages, meditations, music, etc. (wemeditate-web project) AND shared collections like image-tags.
 - `wemeditate-web-client` → Can read pages, meditations, music, etc. (wemeditate-web project) AND shared collections
 - `wemeditate-app-client` → Can read meditations, lessons, lectures, etc. (wemeditate-app project) AND shared collections
 - `sahaj-atlas-client` → Can read images, files (sahaj-atlas project) AND shared collections
@@ -223,7 +223,7 @@ Both managers and API clients get the same implicit read access:
 ### Localized Manager Roles
 - Manager roles are per-locale - different roles can be assigned for different languages
 - Access checks use the current request locale (`req.locale`) only
-- **Example**: Manager has "meditations-editor" in English but "translator" in Czech:
+- **Example**: Manager has "meditations-editor" in English but "web-translator" in Czech:
   - Viewing meditation in English admin UI → Can edit
   - Viewing same meditation in Czech admin UI → Cannot edit (only translate permission)
 

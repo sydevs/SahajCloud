@@ -111,8 +111,8 @@ export const testData = {
   },
 
   /**
-   * Create a File using sample audio file
-   * Note: Files collection only accepts audio/video/PDF (no images)
+   * Create a File using sample file
+   * Note: Files collection accepts audio, video, PDF, and images (jpeg, png, webp)
    */
   async createFile(
     payload: Payload,
@@ -139,6 +139,12 @@ export const testData = {
       mimetype = 'video/mpeg'
     } else if (extension === 'pdf') {
       mimetype = 'application/pdf'
+    } else if (extension === 'jpg' || extension === 'jpeg') {
+      mimetype = 'image/jpeg'
+    } else if (extension === 'png') {
+      mimetype = 'image/png'
+    } else if (extension === 'webp') {
+      mimetype = 'image/webp'
     } else {
       mimetype = `audio/${extension}` // Default to audio
     }
@@ -542,63 +548,34 @@ export const testData = {
   },
 
   /**
-   * Create a lesson with audio file
+   * Create a lesson with panels
    */
   async createLesson(payload: Payload, overrides: Partial<Lesson> = {}): Promise<Lesson> {
     // Create a default meditation if not provided
+    // Note: Lessons collection filters meditations by type='lesson'
     let meditation = overrides.meditation
     if (!meditation) {
-      const defaultMeditation = await testData.createMeditation(payload)
+      const defaultMeditation = await testData.createMeditation(payload, undefined, { type: 'lesson' })
       meditation = defaultMeditation.id
     }
 
     // Icon is optional in test environment
     const icon = overrides.icon
 
-    // Create a default image if panels need images and they're not provided
-    let defaultImage: Image | undefined
-    if (!overrides.panels || overrides.panels.length === 0) {
-      defaultImage = await testData.createMediaImage(payload)
-    }
-
-    // Ensure panels have the correct structure with blockType
-    // First panel must be a CoverStoryBlock
+    // Use provided panels or create default panels
     const panelsData = overrides.panels || [
       {
-        blockType: 'cover' as const,
         title: 'Test Lesson Title',
-        quote: 'Test quote from Shri Mataji',
-      },
-      {
-        blockType: 'text' as const,
-        title: 'Default Panel',
-        text: 'Default panel text',
-        image: defaultImage?.id,
+        text: 'Test intro text',
       },
     ]
-
-    // Add blockType to panels if missing
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const formattedPanels = panelsData.map((panel: any) => {
-      if (!panel.blockType) {
-        // Default to text block if it has title/text/image fields
-        if ('title' in panel || 'text' in panel || 'image' in panel) {
-          return { ...panel, blockType: 'text' as const }
-        }
-        // Default to video block if it has video field
-        if ('video' in panel) {
-          return { ...panel, blockType: 'video' as const }
-        }
-      }
-      return panel
-    })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lessonData: any = {
       title: overrides.title || 'Test Lesson',
       unit: overrides.unit || 'Unit 1',
       step: overrides.step || 1,
-      panels: formattedPanels,
+      panels: panelsData,
       meditation: typeof meditation === 'number' ? meditation : meditation?.id,
       introAudio: overrides.introAudio || undefined,
       introSubtitles: overrides.introSubtitles || undefined,
@@ -675,7 +652,7 @@ export const testData = {
    * // Create dummy translator with permissions
    * dummyUser('managers', {
    *   type: 'manager',
-   *   roles: { en: ['translator'] },
+   *   roles: { en: ['web-translator'] },
    *   permissions: { pages: ['read', 'translate'], projects: ['wemeditate-web'] }
    * })
    */

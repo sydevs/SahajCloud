@@ -18,7 +18,7 @@ import React, { useCallback } from 'react'
  *   type: 'text',
  *   admin: {
  *     components: {
- *       Field: '@/components/admin/ColorField',
+ *       Field: '@/components/admin/ColorField/ColorField',
  *     },
  *   },
  * }
@@ -33,7 +33,7 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
     admin: { description, className, style } = {},
   } = field
 
-  const { value, setValue, showError } = useField<string>({ path: name })
+  const { value, setValue, showError } = useField<string>()
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

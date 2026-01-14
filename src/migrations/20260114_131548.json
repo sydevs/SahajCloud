@@ -871,6 +871,14 @@
           "notNull": false,
           "autoincrement": false
         },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'daily'"
+        },
         "frames": {
           "name": "frames",
           "type": "text",
@@ -1265,6 +1273,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "version_type": {
+          "name": "version_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'daily'"
         },
         "version_frames": {
           "name": "version_frames",
@@ -2184,8 +2200,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "lessons_blocks_cover": {
-      "name": "lessons_blocks_cover",
+    "lessons_panels": {
+      "name": "lessons_panels",
       "columns": {
         "_order": {
           "name": "_order",
@@ -2197,13 +2213,6 @@
         "_parent_id": {
           "name": "_parent_id",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_path": {
-          "name": "_path",
-          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -2219,228 +2228,25 @@
           "name": "title",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "quote": {
-          "name": "quote",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "block_name": {
-          "name": "block_name",
-          "type": "text",
-          "primaryKey": false,
           "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "lessons_blocks_cover_order_idx": {
-          "name": "lessons_blocks_cover_order_idx",
-          "columns": [
-            "_order"
-          ],
-          "isUnique": false
-        },
-        "lessons_blocks_cover_parent_id_idx": {
-          "name": "lessons_blocks_cover_parent_id_idx",
-          "columns": [
-            "_parent_id"
-          ],
-          "isUnique": false
-        },
-        "lessons_blocks_cover_path_idx": {
-          "name": "lessons_blocks_cover_path_idx",
-          "columns": [
-            "_path"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "lessons_blocks_cover_parent_id_fk": {
-          "name": "lessons_blocks_cover_parent_id_fk",
-          "tableFrom": "lessons_blocks_cover",
-          "tableTo": "lessons",
-          "columnsFrom": [
-            "_parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "lessons_blocks_video": {
-      "name": "lessons_blocks_video",
-      "columns": {
-        "_order": {
-          "name": "_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_parent_id": {
-          "name": "_parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_path": {
-          "name": "_path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "video_id": {
-          "name": "video_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "block_name": {
-          "name": "block_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "lessons_blocks_video_order_idx": {
-          "name": "lessons_blocks_video_order_idx",
-          "columns": [
-            "_order"
-          ],
-          "isUnique": false
-        },
-        "lessons_blocks_video_parent_id_idx": {
-          "name": "lessons_blocks_video_parent_id_idx",
-          "columns": [
-            "_parent_id"
-          ],
-          "isUnique": false
-        },
-        "lessons_blocks_video_path_idx": {
-          "name": "lessons_blocks_video_path_idx",
-          "columns": [
-            "_path"
-          ],
-          "isUnique": false
-        },
-        "lessons_blocks_video_video_idx": {
-          "name": "lessons_blocks_video_video_idx",
-          "columns": [
-            "video_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "lessons_blocks_video_video_id_files_id_fk": {
-          "name": "lessons_blocks_video_video_id_files_id_fk",
-          "tableFrom": "lessons_blocks_video",
-          "tableTo": "files",
-          "columnsFrom": [
-            "video_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "lessons_blocks_video_parent_id_fk": {
-          "name": "lessons_blocks_video_parent_id_fk",
-          "tableFrom": "lessons_blocks_video",
-          "tableTo": "lessons",
-          "columnsFrom": [
-            "_parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "lessons_blocks_text": {
-      "name": "lessons_blocks_text",
-      "columns": {
-        "_order": {
-          "name": "_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_parent_id": {
-          "name": "_parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_path": {
-          "name": "_path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
           "autoincrement": false
         },
         "text": {
           "name": "text",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
-        "image_id": {
-          "name": "image_id",
+        "media_id": {
+          "name": "media_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
-        "block_name": {
-          "name": "block_name",
+        "subtitles": {
+          "name": "subtitles",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -2448,42 +2254,35 @@
         }
       },
       "indexes": {
-        "lessons_blocks_text_order_idx": {
-          "name": "lessons_blocks_text_order_idx",
+        "lessons_panels_order_idx": {
+          "name": "lessons_panels_order_idx",
           "columns": [
             "_order"
           ],
           "isUnique": false
         },
-        "lessons_blocks_text_parent_id_idx": {
-          "name": "lessons_blocks_text_parent_id_idx",
+        "lessons_panels_parent_id_idx": {
+          "name": "lessons_panels_parent_id_idx",
           "columns": [
             "_parent_id"
           ],
           "isUnique": false
         },
-        "lessons_blocks_text_path_idx": {
-          "name": "lessons_blocks_text_path_idx",
+        "lessons_panels_media_idx": {
+          "name": "lessons_panels_media_idx",
           "columns": [
-            "_path"
-          ],
-          "isUnique": false
-        },
-        "lessons_blocks_text_image_idx": {
-          "name": "lessons_blocks_text_image_idx",
-          "columns": [
-            "image_id"
+            "media_id"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "lessons_blocks_text_image_id_images_id_fk": {
-          "name": "lessons_blocks_text_image_id_images_id_fk",
-          "tableFrom": "lessons_blocks_text",
-          "tableTo": "images",
+        "lessons_panels_media_id_files_id_fk": {
+          "name": "lessons_panels_media_id_files_id_fk",
+          "tableFrom": "lessons_panels",
+          "tableTo": "files",
           "columnsFrom": [
-            "image_id"
+            "media_id"
           ],
           "columnsTo": [
             "id"
@@ -2491,9 +2290,9 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "lessons_blocks_text_parent_id_fk": {
-          "name": "lessons_blocks_text_parent_id_fk",
-          "tableFrom": "lessons_blocks_text",
+        "lessons_panels_parent_id_fk": {
+          "name": "lessons_panels_parent_id_fk",
+          "tableFrom": "lessons_panels",
           "tableTo": "lessons",
           "columnsFrom": [
             "_parent_id"
@@ -2565,7 +2364,7 @@
           "name": "icon_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "updated_at": {
@@ -3208,8 +3007,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "image_id": {
-          "name": "image_id",
+        "photo_id": {
+          "name": "photo_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -3240,10 +3039,10 @@
           ],
           "isUnique": true
         },
-        "authors_image_idx": {
-          "name": "authors_image_idx",
+        "authors_photo_idx": {
+          "name": "authors_photo_idx",
           "columns": [
-            "image_id"
+            "photo_id"
           ],
           "isUnique": false
         },
@@ -3263,12 +3062,12 @@
         }
       },
       "foreignKeys": {
-        "authors_image_id_images_id_fk": {
-          "name": "authors_image_id_images_id_fk",
+        "authors_photo_id_images_id_fk": {
+          "name": "authors_photo_id_images_id_fk",
           "tableFrom": "authors",
           "tableTo": "images",
           "columnsFrom": [
-            "image_id"
+            "photo_id"
           ],
           "columnsTo": [
             "id"
@@ -9453,6 +9252,6 @@
   "internal": {
     "indexes": {}
   },
-  "id": "3d154214-8e85-4ade-b1ac-4a371c2067f7",
+  "id": "054e896c-e0dc-4e5c-a637-a5a06c86397e",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

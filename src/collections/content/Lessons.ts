@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
-import { TextStoryBlock, VideoStoryBlock, CoverStoryBlock } from '@/blocks/lessons'
 import { QuoteBlock } from '@/blocks/pages'
+import { mediaField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { fullRichTextEditor } from '@/lib/richEditor'
 
@@ -16,7 +16,7 @@ export const Lessons: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'step'],
+    defaultColumns: ['title', 'step', 'icon'],
     groupBy: true,
     listSearchableFields: ['title'],
   },
@@ -39,36 +39,46 @@ export const Lessons: CollectionConfig = {
           fields: [
             {
               name: 'panels',
-              type: 'blocks',
+              type: 'array',
               required: true,
-              minRows: 2,
+              minRows: 1,
               admin: {
                 isSortable: true,
-                description:
-                  'Story panels to introduce this lesson. First panel must be a Cover Panel.',
+                description: 'Story panels to introduce this lesson.',
               },
-              blocks: [CoverStoryBlock, VideoStoryBlock, TextStoryBlock],
               defaultValue: [
                 {
-                  blockType: 'cover',
-                  title: '',
-                  quote: '',
-                },
-                {
-                  blockType: 'text',
                   title: '',
                   text: '',
                 },
               ],
-              validate: (value: unknown) => {
-                if (!Array.isArray(value) || value.length === 0) {
-                  return 'At least one panel is required'
-                }
-                if (value[0]?.blockType !== 'cover') {
-                  return 'First panel must be a Cover Panel'
-                }
-                return true
-              },
+              fields: [
+                {
+                  name: 'title',
+                  type: 'text',
+                },
+                {
+                  name: 'text',
+                  type: 'textarea',
+                },
+                {
+                  name: 'media',
+                  type: 'upload',
+                  relationTo: 'files',
+                  admin: {
+                    description: 'Image or video for this panel.',
+                  },
+                },
+                {
+                  name: 'subtitles',
+                  type: 'json',
+                  label: 'Subtitles',
+                  admin: {
+                    condition: (_, siblingData) => !!siblingData?.media,
+                    description: 'Subtitles for video media (JSON format).',
+                  },
+                },
+              ],
             },
           ],
         },
@@ -141,11 +151,10 @@ export const Lessons: CollectionConfig = {
                 description: 'This will determine the order of the path steps',
               },
             },
-            {
+            mediaField({
               name: 'icon',
-              type: 'upload',
-              relationTo: 'images',
-            },
+              required: true,
+            }),
           ],
         },
       ],

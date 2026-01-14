@@ -396,9 +396,9 @@ export interface Author {
    */
   yearsMeditating?: number | null;
   /**
-   * Author profile image
+   * Author profile photo
    */
-  image?: (number | null) | Image;
+  photo?: (number | null) | Image;
   articles?: {
     docs?: (number | Page)[];
     hasNextPage?: boolean;
@@ -670,41 +670,29 @@ export interface Lesson {
   id: number;
   title: string;
   /**
-   * Story panels to introduce this lesson. First panel must be a Cover Panel.
+   * Story panels to introduce this lesson.
    */
-  panels: (
-    | {
-        title: string;
-        quote: string;
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'cover';
-      }
-    | {
-        video?: (number | null) | File;
-        text?: string | null;
-        subtitles?:
-          | {
-              [k: string]: unknown;
-            }
-          | unknown[]
-          | string
-          | number
-          | boolean
-          | null;
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'video';
-      }
-    | {
-        title: string;
-        text: string;
-        image: number | Image;
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'text';
-      }
-  )[];
+  panels: {
+    title?: string | null;
+    text?: string | null;
+    /**
+     * Image or video for this panel.
+     */
+    media?: (number | null) | File;
+    /**
+     * Subtitles for video media (JSON format).
+     */
+    subtitles?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    id?: string | null;
+  }[];
   /**
    * Link to a related guided meditation that complements this lesson content.
    */
@@ -742,13 +730,13 @@ export interface Lesson {
    * This will determine the order of the path steps
    */
   step: number;
-  icon?: (number | null) | Image;
+  icon: number | Image;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
 }
 /**
- * Audio, video, and PDF files used by other collections. Orphaned files are automatically moved to trash and permanently deleted during monthly cleanup.
+ * Media files (images, audio, video) and PDFs used by other collections. Orphaned files are automatically moved to trash and permanently deleted during monthly cleanup.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "files".
@@ -1520,32 +1508,11 @@ export interface LessonsSelect<T extends boolean = true> {
   panels?:
     | T
     | {
-        cover?:
-          | T
-          | {
-              title?: T;
-              quote?: T;
-              id?: T;
-              blockName?: T;
-            };
-        video?:
-          | T
-          | {
-              video?: T;
-              text?: T;
-              subtitles?: T;
-              id?: T;
-              blockName?: T;
-            };
-        text?:
-          | T
-          | {
-              title?: T;
-              text?: T;
-              image?: T;
-              id?: T;
-              blockName?: T;
-            };
+        title?: T;
+        text?: T;
+        media?: T;
+        subtitles?: T;
+        id?: T;
       };
   meditation?: T;
   introAudio?: T;
@@ -1615,7 +1582,7 @@ export interface AuthorsSelect<T extends boolean = true> {
   description?: T;
   countryCode?: T;
   yearsMeditating?: T;
-  image?: T;
+  photo?: T;
   articles?: T;
   updatedAt?: T;
   createdAt?: T;

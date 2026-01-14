@@ -351,7 +351,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       // Note: meditations preloaded by title (more reliable than generated slug which may differ from stored)
       await Promise.all([
         this.preloadCollection('frames', 'filename'),
-        this.preloadCollection('meditations', 'title'),
+        this.preloadCollection('meditations', 'label'),
         this.preloadCollection('narrators', 'name'),
         this.preloadCollection('meditation-tags', 'slug'),
         this.preloadCollection('music-tags', 'slug'),
@@ -552,10 +552,15 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     // Check if this is the first batch (offset=0) to avoid re-running setup on subsequent batches
     const isFirstBatch = !this.options.pagination?.offset || this.options.pagination.offset === 0
 
-    // Setup tags and placeholders - only on first batch (they check for existing and skip if found)
+    // Setup tags and placeholders
+    // - First batch: create if they don't exist, then cache IDs
+    // - Subsequent batches: just look up existing IDs (needed for thumbnail assignment)
     if (isFirstBatch) {
       await this.setupImageTags()
       await this.uploadPlaceholderImages()
+    } else {
+      // On subsequent batches, just look up existing placeholder IDs
+      await this.lookupPlaceholderIds()
     }
 
     // Import in order of dependencies
@@ -868,16 +873,16 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   private async uploadPlaceholderImages(): Promise<void> {
     await this.logger.info('\nChecking placeholder images...')
 
-    // Check for existing placeholders
+    // Check for existing placeholders by alt text (filename changes with Cloudflare Images)
     const [existingPlaceholder, existingPathPlaceholder] = await Promise.all([
       this.payload.find({
         collection: 'images',
-        where: { filename: { equals: 'placeholder.jpg' } },
+        where: { alt: { equals: 'Meditation placeholder image' } },
         limit: 1,
       }),
       this.payload.find({
         collection: 'images',
-        where: { filename: { equals: 'path.jpg' } },
+        where: { alt: { equals: 'Path meditation placeholder image' } },
         limit: 1,
       }),
     ])
@@ -928,6 +933,33 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       } else {
         this.addWarning('path.jpg not available')
       }
+    }
+  }
+
+  /**
+   * Look up existing placeholder IDs without uploading.
+   * Used on subsequent batches after placeholders have been created.
+   */
+  private async lookupPlaceholderIds(): Promise<void> {
+    const [existingPlaceholder, existingPathPlaceholder] = await Promise.all([
+      this.payload.find({
+        collection: 'images',
+        where: { alt: { equals: 'Meditation placeholder image' } },
+        limit: 1,
+      }),
+      this.payload.find({
+        collection: 'images',
+        where: { alt: { equals: 'Path meditation placeholder image' } },
+        limit: 1,
+      }),
+    ])
+
+    if (existingPlaceholder.docs.length > 0) {
+      this.placeholderMediaId = existingPlaceholder.docs[0].id
+    }
+
+    if (existingPathPlaceholder.docs.length > 0) {
+      this.pathPlaceholderMediaId = existingPathPlaceholder.docs[0].id
     }
   }
 
@@ -1236,6 +1268,9 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         imageSet: gender,
         category: category as any,
         tags: tagValues as any[],
+        // Store original filename for preload cache matching in development mode
+        // (Cloudflare adapters set this automatically, but local storage doesn't)
+        fileMetadata: { originalFilename: filename },
       }
 
       const fileData = this.createFileData(buffer, filename)
@@ -1530,6 +1565,31 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   // MEDITATIONS IMPORT
   // ============================================================================
 
+  /**
+   * Generate a unique label for meditations that share the same base title.
+   * Adds duration suffix like "(5 min)" when multiple meditations have the same title.
+   * The label is used for admin display and cache indexing, while title stays clean.
+   */
+  private generateUniqueLabel(
+    meditation: ImportedData['meditations'][0],
+    titleCounts: Map<string, number>,
+  ): string {
+    const baseTitle = meditation.title
+    const count = titleCounts.get(baseTitle) || 1
+
+    // If title is unique (count === 1), use it as-is
+    if (count === 1) return baseTitle
+
+    // Multiple meditations share this title - add duration suffix to label
+    if (meditation.duration) {
+      const minutes = Math.round(meditation.duration / 60)
+      return `${baseTitle} (${minutes} min)`
+    }
+
+    // Fallback: add legacy ID as suffix
+    return `${baseTitle} (${meditation.id})`
+  }
+
   private async importMeditations(
     meditations: ImportedData['meditations'],
     keyframes: ImportedData['keyframes'],
@@ -1538,6 +1598,12 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     blobs: any[],
     allTags: ImportedData['tags'],
   ): Promise<void> {
+    // Build map of title occurrence counts for duplicate detection
+    const titleCounts = new Map<string, number>()
+    for (const m of meditations) {
+      titleCounts.set(m.title, (titleCounts.get(m.title) || 0) + 1)
+    }
+
     // Apply pagination if enabled for meditations collection
     const paginatedMeditations = this.paginateItems(meditations)
     const total = meditations.length
@@ -1546,10 +1612,13 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     for (let i = 0; i < paginatedMeditations.length; i++) {
       const meditation = paginatedMeditations[i]
       const globalIndex = offset + i
-      const identifier = meditation.title
+
+      // Generate unique label for meditations with duplicate base titles
+      const uniqueLabel = this.generateUniqueLabel(meditation, titleCounts)
+      const identifier = uniqueLabel
 
       // Generate unique slug with duration
-      const baseSlug = meditation.title
+      const baseSlug = uniqueLabel
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '')
@@ -1557,9 +1626,9 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         ? `${baseSlug}-${meditation.duration}`
         : `${baseSlug}-${meditation.id}`
 
-      // Check for existing meditation using preload cache (by title for reliability)
-      // Title is more reliable than slug since PayloadCMS slugField may auto-generate different slug
-      const existingFromCache = this.getPreloaded('meditations', meditation.title)
+      // Check for existing meditation using preload cache (by unique label)
+      // Label is unique after duration suffix is added for duplicates
+      const existingFromCache = this.getPreloaded('meditations', uniqueLabel)
       if (existingFromCache) {
         this.idMaps.meditations.set(meditation.id, existingFromCache.id)
 
@@ -1577,6 +1646,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         try {
           await this.updateMeditation(
             meditation,
+            uniqueLabel,
             existingFromCache.id as number | string,
             keyframes,
             taggings,
@@ -1600,6 +1670,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       try {
         await this.createMeditation(
           meditation,
+          uniqueLabel,
           uniqueSlug,
           keyframes,
           taggings,
@@ -1622,6 +1693,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
   private async createMeditation(
     meditation: ImportedData['meditations'][0],
+    label: string,
     slug: string,
     keyframes: ImportedData['keyframes'],
     taggings: ImportedData['taggings'],
@@ -1679,7 +1751,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
     const meditationData: any = {
       title: meditation.title,
-      label: meditation.title,
+      label,
       locale: 'en',
       slug,
       duration: meditation.duration,
@@ -1736,6 +1808,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
    */
   private async updateMeditation(
     meditation: ImportedData['meditations'][0],
+    label: string,
     existingId: number | string,
     keyframes: ImportedData['keyframes'],
     taggings: ImportedData['taggings'],
@@ -1794,7 +1867,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     // Build update data (metadata only, no audio file)
     const updateData: any = {
       title: meditation.title,
-      label: meditation.title,
+      label,
       duration: meditation.duration,
       narrator: narratorId,
       tags: meditationTagIds,
@@ -1833,10 +1906,20 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     )
     const artAttachment = meditationAttachments.find((att) => att.name === 'art')
 
-    if (!artAttachment) return null
+    if (!artAttachment) {
+      // Log available attachments to help diagnose issues
+      const availableNames = meditationAttachments.map((a) => a.name).join(', ') || 'none'
+      await this.logger.log(
+        `    ⚠ No 'art' attachment for meditation ${meditation.id} (available: ${availableNames})`,
+      )
+      return null
+    }
 
     const buffer = await this.downloadFile(artAttachment.blob.key, artAttachment.blob.filename)
-    if (!buffer) return null
+    if (!buffer) {
+      await this.logger.log(`    ⚠ Failed to download thumbnail: ${artAttachment.blob.filename}`)
+      return null
+    }
 
     const tags = [this.thumbnailTagId, this.meditationTagId].filter(
       (id): id is number => id !== null,
@@ -1848,6 +1931,9 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       buffer,
     })
 
+    await this.logger.log(
+      `    ✓ Thumbnail ${result.wasReused ? 'reused' : 'uploaded'}: ${result.filename} (ID: ${result.id})`,
+    )
     return result?.id ?? null
   }
 
