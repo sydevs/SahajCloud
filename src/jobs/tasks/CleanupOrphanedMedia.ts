@@ -37,7 +37,7 @@ type CleanupResult = {
  * - lessons.panels[].video (VideoStoryBlock)
  *
  * Collections that reference Images:
- * - authors.image
+ * - authors.photo
  * - lectures.thumbnail
  * - lessons.icon
  * - lessons.panels[].image (TextStoryBlock)
@@ -387,18 +387,18 @@ async function trashOrphanedMedia(
 async function getAllReferencedFileIds(payload: Payload): Promise<Set<number>> {
   const referencedIds = new Set<number>()
 
-  // Lessons: introAudio field and panels[].video
+  // Lessons: introAudio field and panels[].media
   await collectReferencedIds<Lesson>(payload, 'lessons', {}, (lesson) => {
     if (lesson.introAudio) {
       const id = extractId(lesson.introAudio)
       if (id) referencedIds.add(id)
     }
 
-    // Check panels for video blocks
+    // Check panels for media (images and videos)
     if (Array.isArray(lesson.panels)) {
       for (const panel of lesson.panels) {
-        if (panel.blockType === 'video' && panel.video) {
-          const id = extractId(panel.video)
+        if (panel.media) {
+          const id = extractId(panel.media)
           if (id) referencedIds.add(id)
         }
       }
@@ -414,10 +414,10 @@ async function getAllReferencedFileIds(payload: Payload): Promise<Set<number>> {
 async function getAllReferencedImageIds(payload: Payload): Promise<Set<number>> {
   const referencedIds = new Set<number>()
 
-  // Authors: image field
-  await collectReferencedIds<Author>(payload, 'authors', { image: { exists: true } }, (doc) => {
-    if (doc.image) {
-      const id = extractId(doc.image)
+  // Authors: photo field
+  await collectReferencedIds<Author>(payload, 'authors', { photo: { exists: true } }, (doc) => {
+    if (doc.photo) {
+      const id = extractId(doc.photo)
       if (id) referencedIds.add(id)
     }
   })
@@ -448,23 +448,18 @@ async function getAllReferencedImageIds(payload: Payload): Promise<Set<number>> 
     },
   )
 
-  // Lessons: icon field and panels[].image
-  await collectReferencedIds<Lesson>(payload, 'lessons', {}, (lesson) => {
-    if (lesson.icon) {
-      const id = extractId(lesson.icon)
-      if (id) referencedIds.add(id)
-    }
-
-    // Check panels for text blocks with images
-    if (Array.isArray(lesson.panels)) {
-      for (const panel of lesson.panels) {
-        if (panel.blockType === 'text' && panel.image) {
-          const id = extractId(panel.image)
-          if (id) referencedIds.add(id)
-        }
+  // Lessons: icon field only (panels now reference files collection, not images)
+  await collectReferencedIds<Lesson>(
+    payload,
+    'lessons',
+    { icon: { exists: true } },
+    (lesson) => {
+      if (lesson.icon) {
+        const id = extractId(lesson.icon)
+        if (id) referencedIds.add(id)
       }
-    }
-  })
+    },
+  )
 
   // Pages: content blocks (TextBoxBlock, LayoutBlock, GalleryBlock)
   await collectReferencedIds<Page>(payload, 'pages', {}, (page) => {
