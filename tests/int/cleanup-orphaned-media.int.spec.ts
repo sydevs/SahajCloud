@@ -345,22 +345,20 @@ describe('CleanupOrphanedMedia Job', () => {
       expect(await fileInTrash(payload, file.id)).toBe(false)
     })
 
-    it('preserves files referenced by lessons.panels[].video', async () => {
+    it('preserves files referenced by lessons.panels[].media', async () => {
       // Create a video file
       const videoFile = await testData.createFile(payload, {}, 'video-30s.mp4')
       await backdateCreatedAt(payload, 'files', videoFile.id)
 
-      // Create lesson with video panel
+      // Create lesson with media panel
       await testData.createLesson(payload, {
         panels: [
           {
-            blockType: 'cover' as const,
             title: 'Cover Panel',
-            quote: 'Test quote',
+            text: 'Test text',
           },
           {
-            blockType: 'video' as const,
-            video: videoFile.id,
+            media: videoFile.id,
           },
         ],
       })
@@ -479,35 +477,7 @@ describe('CleanupOrphanedMedia Job', () => {
       expect(await imageInTrash(payload, image.id)).toBe(false)
     })
 
-    it('preserves images referenced by lessons.panels[].image', async () => {
-      // Create an image for lesson panel
-      const image = await testData.createMediaImage(payload)
-      await backdateCreatedAt(payload, 'images', image.id)
-
-      // Create lesson with text panel containing this image
-      await testData.createLesson(payload, {
-        panels: [
-          {
-            blockType: 'cover' as const,
-            title: 'Cover Panel',
-            quote: 'Test quote',
-          },
-          {
-            blockType: 'text' as const,
-            title: 'Text Panel',
-            text: 'Panel content',
-            image: image.id,
-          },
-        ],
-      })
-
-      // Run cleanup job
-      await runCleanupJob(payload)
-
-      // Verify image is preserved
-      expect(await imageExists(payload, image.id)).toBe(true)
-      expect(await imageInTrash(payload, image.id)).toBe(false)
-    })
+    // Note: lessons.panels[].image test removed - panels now reference files collection via 'media' field
 
     it('preserves images referenced in pages TextBoxBlock', async () => {
       // Create an image for TextBoxBlock

@@ -467,14 +467,11 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     const sortedPanels = introStories.sort((a: any, b: any) => a.Order_number - b.Order_number)
 
     const panels: any[] = []
-    const videoPanels: Array<{ insertAt: number; videoId: string }> = []
-    let panelIndexCounter = 0
 
-    // Add cover panel first
+    // Add cover panel first (quote becomes text)
     panels.push({
-      blockType: 'cover' as const,
       title: story.name,
-      quote: this.processTextareaField(content.Intro_quote || ''),
+      text: this.processTextareaField(content.Intro_quote || ''),
     })
 
     for (let i = 0; i < sortedPanels.length; i++) {
@@ -483,24 +480,21 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
         if (panel.Video && panel.Video.url) {
           const videoUrl = panel.Video.url
           await this.logger.info(`Creating video attachment from: ${videoUrl}`)
-          const videoId = await this.createFileAttachment(videoUrl)
-          videoPanels.push({ insertAt: panelIndexCounter, videoId })
-          panelIndexCounter++
+          const mediaId = await this.createFileAttachment(videoUrl)
+          panels.push({ media: parseInt(mediaId) })
         } else if (panel.Image && panel.Image.url) {
-          const lessonTags = this.lessonTagId ? [this.lessonTagId] : []
-          const imageId = await this.createMediaFromUrl(panel.Image.url, panel.Title, lessonTags)
+          const imageUrl = panel.Image.url
+          await this.logger.info(`Creating image attachment from: ${imageUrl}`)
+          const mediaId = await this.createFileAttachment(imageUrl)
           panels.push({
-            blockType: 'text' as const,
             title: this.processTextField(panel.Title || ''),
             text: this.processTextareaField(panel.Text || ''),
-            image: imageId,
+            media: parseInt(mediaId),
           })
-          panelIndexCounter++
         } else {
           this.addWarning(
             `Panel missing both video and image for ${story.name} - ${this.processTextField(panel.Title || '')}`,
           )
-          panelIndexCounter++
         }
 
         // Add delay between panels to avoid rate limiting (auto-skips locally)
@@ -510,16 +504,6 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       } catch (error) {
         this.addError(`Processing panel for ${story.name}`, error as Error)
       }
-    }
-
-    // Insert video panels at correct positions
-    const sortedVideoPanels = [...videoPanels].sort((a, b) => b.insertAt - a.insertAt)
-    for (const { insertAt, videoId } of sortedVideoPanels) {
-      const insertIndex = insertAt + 1 // +1 for cover panel
-      panels.splice(insertIndex, 0, {
-        blockType: 'video',
-        video: parseInt(videoId),
-      })
     }
 
     return panels
