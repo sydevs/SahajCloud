@@ -56,6 +56,9 @@ export const Albums: CollectionConfig = {
       on: 'album',
       admin: {
         description: 'Music tracks in this album',
+        components: {
+          Cell: '@/components/admin/RelationshipCountCell',
+        },
       },
     },
   ],

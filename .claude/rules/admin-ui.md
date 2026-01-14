@@ -135,3 +135,42 @@ const { hasMany = false } = field as RelationshipFieldClient
 The hook captures `initialParams` on first render. Avoid chained fetches with setParams.
 
 **Solution**: Use custom endpoints for server-side data joining. See patterns.md for details.
+
+## Custom Cell Components
+
+Cell components display field values in list views. Choose the right type:
+
+### Server Cell (Recommended)
+Use `DefaultServerCellComponentProps` when you need:
+- Access to collection config (labels, etc.) via `payload.collections`
+- No interactivity (static display)
+
+```typescript
+import type { DefaultServerCellComponentProps, JoinField } from 'payload'
+
+export const MyCell: React.FC<DefaultServerCellComponentProps> = ({
+  cellData, rowData, field, payload,
+}) => {
+  const labels = payload.collections['pages']?.config?.labels
+  return <span>{labels?.plural}</span>
+}
+```
+
+### Client Cell
+Use `DefaultCellComponentProps` only when you need:
+- React hooks (useState, useEffect)
+- Event handlers (onClick, etc.)
+- Browser APIs
+
+### Join Field Data Structure
+```typescript
+// cellData for join fields
+interface JoinFieldData {
+  docs: Array<{ id: string | number }>
+  totalDocs?: number
+  limit?: number
+}
+const count = (cellData as JoinFieldData)?.docs?.length ?? 0
+```
+
+Full reference: @.claude/docs/components/custom-components.md#custom-cell-components
