@@ -1,41 +1,61 @@
 'use client'
 
-import type { DefaultCellComponentProps } from 'payload'
+import type { DefaultCellComponentProps, UploadFieldClient } from 'payload'
 
-import { usePayloadAPI } from '@payloadcms/ui'
+import { useDocumentDrawer, usePayloadAPI } from '@payloadcms/ui'
 
 import { BaseThumbnailCell } from './BaseThumbnailCell'
 
 /**
- * Thumbnail cell for media relationship fields
- * Fetches media document via API since cellData contains just the media ID
+ * Thumbnail cell for upload relationship fields (e.g., photo -> images)
+ * Fetches the related document via API since cellData contains just the ID
+ *
+ * Opens the related document in a drawer overlay when clicked
  */
 export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
   cellData,
   collectionSlug,
+  field,
 }) => {
-  // cellData is the media ID (number or string)
-  const mediaId = cellData != null ? String(cellData) : null
+  // Get the target collection from the field config
+  const uploadField = field as UploadFieldClient
+  const relationTo = Array.isArray(uploadField.relationTo)
+    ? uploadField.relationTo[0]
+    : uploadField.relationTo
 
-  const [{ data: media }] = usePayloadAPI(mediaId ? '/api/images' : '', {
-    initialParams: mediaId
+  // cellData is the related document ID (number or string)
+  const relatedId = cellData != null ? String(cellData) : null
+
+  // Document drawer for opening related document in overlay
+  // useDocumentDrawer expects number | null | undefined for id
+  const [DocumentDrawer, , { openDrawer }] = useDocumentDrawer({
+    collectionSlug: relationTo,
+    id: relatedId != null ? Number(relatedId) : undefined,
+  })
+
+  const [{ data: relatedDoc }] = usePayloadAPI(relatedId ? `/api/${relationTo}` : '', {
+    initialParams: relatedId
       ? {
-          where: { id: { equals: mediaId } },
+          where: { id: { equals: relatedId } },
           limit: 1,
           select: { id: true, url: true, mimeType: true, filename: true },
         }
       : undefined,
   })
 
-  const mediaDoc = media?.docs?.[0]
+  const doc = relatedDoc?.docs?.[0]
 
   return (
-    <BaseThumbnailCell
-      thumbnailUrl={mediaDoc?.url as string | undefined}
-      mimeType={mediaDoc?.mimeType as string | undefined}
-      filename={mediaDoc?.filename as string | undefined}
-      collectionSlug={collectionSlug}
-    />
+    <>
+      <BaseThumbnailCell
+        thumbnailUrl={doc?.url as string | undefined}
+        mimeType={doc?.mimeType as string | undefined}
+        filename={doc?.filename as string | undefined}
+        collectionSlug={collectionSlug}
+        onClick={relatedId ? openDrawer : undefined}
+      />
+      <DocumentDrawer />
+    </>
   )
 }
 
