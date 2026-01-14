@@ -1,5 +1,3 @@
- 
-
 /**
  * Storyblok Path Steps Import Script
  *
@@ -177,7 +175,9 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
           this.preloadCache.set('lessons', new Map())
         }
         // Cast through unknown to PreloadedDoc (doc has id from Payload)
-        this.preloadCache.get('lessons')!.set(compositeKey, { id: doc.id, unit: doc.unit, step: doc.step })
+        this.preloadCache
+          .get('lessons')!
+          .set(compositeKey, { id: doc.id, unit: doc.unit, step: doc.step })
         count++
       }
 
@@ -517,7 +517,10 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
    * Creates and uploads the lesson icon from source data.
    * @throws Error if no icon URL is found in source data
    */
-  private async createLessonIcon(story: StoryblokStory, content: Record<string, any>): Promise<number> {
+  private async createLessonIcon(
+    story: StoryblokStory,
+    content: Record<string, any>,
+  ): Promise<number> {
     const iconUrl = content.Step_info?.[0]?.Step_Image?.url
     if (!iconUrl) {
       throw new Error(`No icon URL found in source data`)
@@ -951,4 +954,3 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     return 3
   }
 }
-
