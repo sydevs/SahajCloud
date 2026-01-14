@@ -14,13 +14,21 @@ export const Files: CollectionConfig = {
     group: 'Resources',
     useAsTitle: 'filename',
     description:
-      'Audio, video, and PDF files used by other collections. Orphaned files are automatically moved to trash and permanently deleted during monthly cleanup.',
+      'Media files (images, audio, video) and PDFs used by other collections. Orphaned files are automatically moved to trash and permanently deleted during monthly cleanup.',
     defaultColumns: ['filename', 'mimeType', 'createdAt'],
   },
   upload: {
     hideRemoveFile: true,
     staticDir: 'media/files',
-    mimeTypes: ['application/pdf', 'audio/mpeg', 'video/mpeg', 'video/mp4'],
+    mimeTypes: [
+      'application/pdf',
+      'audio/mpeg',
+      'video/mpeg',
+      'video/mp4',
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+    ],
   },
   fields: [
     {

@@ -1,13 +1,13 @@
 import type { CollectionConfig } from 'payload'
 
-import { slugField } from '@/fields'
+import { mediaField, slugField } from '@/fields'
 
 export const Authors: CollectionConfig = {
   slug: 'authors',
   admin: {
     group: 'Metadata',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'title', 'countryCode'],
+    defaultColumns: ['name', 'photo', 'countryCode'],
   },
   fields: [
     // Slug auto-generated from name
@@ -51,14 +51,12 @@ export const Authors: CollectionConfig = {
         description: 'Years of meditation experience',
       },
     },
-    {
-      name: 'image',
-      type: 'upload',
-      relationTo: 'images',
+    mediaField({
+      name: 'photo',
       admin: {
-        description: 'Author profile image',
+        description: 'Author profile photo',
       },
-    },
+    }),
     {
       name: 'articles',
       type: 'join',

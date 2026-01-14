@@ -99,6 +99,7 @@ const eslintConfig = [
       'dist/',
       'build/',
       'coverage/',
+      'migrations',
       // Auto-generated payload files
       'src/payload-types.ts',
       'src/app/(payload)/admin/importMap.js',

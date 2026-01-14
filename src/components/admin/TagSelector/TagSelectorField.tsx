@@ -88,7 +88,7 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
     initialParams: {
       limit: 100,
       depth: 0,
-      select: { id: true, title: true, url: true, color: true },
+      select: { id: true, title: true, url: true, color: true, filename: true },
     },
   })
   const tags: TagOption[] = data?.docs || []
