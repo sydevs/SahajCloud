@@ -190,6 +190,7 @@ export const Meditations: CollectionConfig = {
               relationTo: 'meditation-tags',
               hasMany: true,
               admin: {
+                condition: (data) => data.type === 'daily',
                 description: 'Categorize this meditation for seekers to find it',
                 components: {
                   Field: '@/components/admin/TagSelector',

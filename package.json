@@ -57,6 +57,7 @@
     "payload-oapi": "^0.2.5",
     "react": "19.2.1",
     "react-dom": "19.2.1",
+    "react-inlinesvg": "^4.2.0",
     "resend": "^6.5.2",
     "slugify": "^1.6.6",
     "styled-components": "^6.1.19",
