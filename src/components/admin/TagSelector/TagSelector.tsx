@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import SVG from 'react-inlinesvg'
 
 /**
  * Tag option structure for TagSelector
@@ -110,6 +111,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
 }) => {
   // Get size preset values
   const sizes = SIZE_PRESETS[size]
+
   // Helper: Check if a tag ID is currently selected (handles type coercion)
   const isTagSelected = (tagId: string | number): boolean => {
     return value.some((id) => String(id) === String(tagId))
@@ -255,18 +257,31 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
               }}
             >
               {tag.url ? (
-                <img
-                  src={tag.url}
-                  alt=""
-                  style={{
-                    width: sizes.icon,
-                    height: sizes.icon,
-                    objectFit: 'contain',
-                    // When selected, make SVG white using CSS filter
-                    filter: isSelected ? 'brightness(0) invert(1)' : 'none',
-                    transition: 'filter 0.15s ease',
-                  }}
-                />
+                // Use react-inlinesvg for SVG files, img for others
+                tag.url.toLowerCase().endsWith('.svg') ? (
+                  <SVG
+                    src={tag.url}
+                    width={sizes.icon}
+                    height={sizes.icon}
+                    style={{
+                      color: isSelected ? 'white' : 'var(--theme-elevation-800)',
+                      transition: 'color 0.15s ease',
+                    }}
+                  />
+                ) : (
+                  // Fallback to img for non-SVG images
+                  <img
+                    src={tag.url}
+                    alt=""
+                    style={{
+                      width: sizes.icon,
+                      height: sizes.icon,
+                      objectFit: 'contain',
+                      filter: isSelected ? 'brightness(0) invert(1)' : 'none',
+                      transition: 'filter 0.15s ease',
+                    }}
+                  />
+                )
               ) : (
                 // Fallback if no icon
                 <span
@@ -285,13 +300,10 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
               style={{
                 fontSize: sizes.title,
                 fontWeight: 500,
-                color: 'var(--theme-elevation-600)',
+                color: 'var(--theme-elevation-700)',
                 textAlign: 'center',
                 lineHeight: 1.2,
                 maxWidth: '100%',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
               }}
             >
               {tag.title}
