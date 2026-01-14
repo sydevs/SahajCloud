@@ -559,8 +559,12 @@ export const testData = {
       meditation = defaultMeditation.id
     }
 
-    // Icon is optional in test environment
-    const icon = overrides.icon
+    // Icon is required - create a default image if not provided
+    let icon = overrides.icon
+    if (!icon) {
+      const iconImage = await testData.createMediaImage(payload)
+      icon = iconImage.id
+    }
 
     // Use provided panels or create default panels
     const panelsData = overrides.panels || [
@@ -580,11 +584,7 @@ export const testData = {
       introAudio: overrides.introAudio || undefined,
       introSubtitles: overrides.introSubtitles || undefined,
       article: overrides.article || undefined,
-    }
-
-    // Only add icon if provided
-    if (icon) {
-      lessonData.icon = icon
+      icon: typeof icon === 'number' ? icon : icon,
     }
 
     const lesson = (await payload.create({
