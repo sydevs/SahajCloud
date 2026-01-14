@@ -67,7 +67,7 @@ export function mediaField(options: MediaFieldOptions): UploadField {
     filterOptions,
     admin: {
       components: {
-        Cell: '@/components/admin/ThumbnailCell',
+        Cell: '@/components/admin/ThumbnailCell/RelationshipThumbnailCell',
       },
       ...(admin as Record<string, unknown>),
     },

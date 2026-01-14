@@ -183,7 +183,7 @@ export const previewUrlField = (options: PreviewUrlFieldOptions): Field => {
     admin: {
       hidden: true,
       components: {
-        Cell: '@/components/admin/ThumbnailCell',
+        Cell: '@/components/admin/ThumbnailCell/PreviewUrlThumbnailCell',
       },
     },
   }
