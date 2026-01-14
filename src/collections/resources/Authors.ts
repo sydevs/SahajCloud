@@ -7,7 +7,7 @@ export const Authors: CollectionConfig = {
   admin: {
     group: 'Metadata',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'photo', 'countryCode'],
+    defaultColumns: ['name', 'photo', 'articles'],
   },
   fields: [
     // Slug auto-generated from name
@@ -62,6 +62,11 @@ export const Authors: CollectionConfig = {
       type: 'join',
       collection: 'pages',
       on: 'author',
+      admin: {
+        components: {
+          Cell: '@/components/admin/RelationshipCountCell',
+        },
+      },
     },
   ],
 }

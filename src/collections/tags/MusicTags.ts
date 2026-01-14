@@ -12,7 +12,7 @@ export const MusicTags: CollectionConfig = {
   admin: {
     group: 'Metadata',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'filename'],
+    defaultColumns: ['title', 'filename', 'music'],
   },
   upload: {
     staticDir: 'media/music-tags',
@@ -46,6 +46,11 @@ export const MusicTags: CollectionConfig = {
       type: 'join',
       collection: 'music',
       on: 'tags',
+      admin: {
+        components: {
+          Cell: '@/components/admin/RelationshipCountCell',
+        },
+      },
     },
   ],
 }
