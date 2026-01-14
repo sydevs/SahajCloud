@@ -82,7 +82,7 @@ export const RelationshipCountCell: React.FC<DefaultServerCellComponentProps> = 
   // Build navigation URL
   const href =
     targetCollectionSlug && relationField && documentId
-      ? `/admin/collections/${targetCollectionSlug}?where[${relationField}][in]=${documentId}`
+      ? `/admin/collections/${targetCollectionSlug}?where[${relationField}][in][]=${documentId}`
       : null
 
   // Empty state
