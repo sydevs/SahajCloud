@@ -584,7 +584,7 @@ export const testData = {
       introAudio: overrides.introAudio || undefined,
       introSubtitles: overrides.introSubtitles || undefined,
       article: overrides.article || undefined,
-      icon: typeof icon === 'number' ? icon : icon,
+      icon,
     }
 
     const lesson = (await payload.create({

@@ -62,8 +62,9 @@ export const RelationshipCountCell: React.FC<DefaultServerCellComponentProps> = 
   const joinField = field as JoinField
 
   // Extract count from join field data
+  // Use totalDocs for accurate count (docs.length may be limited by pagination)
   const joinData = cellData as JoinFieldData | null
-  const count = joinData?.docs?.length ?? 0
+  const count = joinData?.totalDocs ?? 0
 
   // Get field configuration for navigation
   const targetCollectionSlug = Array.isArray(joinField?.collection)
