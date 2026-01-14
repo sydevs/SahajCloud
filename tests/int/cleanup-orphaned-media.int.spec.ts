@@ -345,22 +345,20 @@ describe('CleanupOrphanedMedia Job', () => {
       expect(await fileInTrash(payload, file.id)).toBe(false)
     })
 
-    it('preserves files referenced by lessons.panels[].video', async () => {
+    it('preserves files referenced by lessons.panels[].media', async () => {
       // Create a video file
       const videoFile = await testData.createFile(payload, {}, 'video-30s.mp4')
       await backdateCreatedAt(payload, 'files', videoFile.id)
 
-      // Create lesson with video panel
+      // Create lesson with media panel
       await testData.createLesson(payload, {
         panels: [
           {
-            blockType: 'cover' as const,
             title: 'Cover Panel',
-            quote: 'Test quote',
+            text: 'Test text',
           },
           {
-            blockType: 'video' as const,
-            video: videoFile.id,
+            media: videoFile.id,
           },
         ],
       })
@@ -414,13 +412,13 @@ describe('CleanupOrphanedMedia Job', () => {
       expect(await imageInTrash(payload, image.id)).toBe(false)
     })
 
-    it('preserves images referenced by authors.image', async () => {
+    it('preserves images referenced by authors.photo', async () => {
       // Create an image for author
       const image = await testData.createMediaImage(payload)
       await backdateCreatedAt(payload, 'images', image.id)
 
-      // Create author with this image (unique name to avoid slug collision)
-      await testData.createAuthor(payload, { name: `Author ${uniqueId()}`, image: image.id })
+      // Create author with this photo (unique name to avoid slug collision)
+      await testData.createAuthor(payload, { name: `Author ${uniqueId()}`, photo: image.id })
 
       // Run cleanup job
       await runCleanupJob(payload)
@@ -470,36 +468,6 @@ describe('CleanupOrphanedMedia Job', () => {
 
       // Create lesson with this icon
       await testData.createLesson(payload, { icon: image.id })
-
-      // Run cleanup job
-      await runCleanupJob(payload)
-
-      // Verify image is preserved
-      expect(await imageExists(payload, image.id)).toBe(true)
-      expect(await imageInTrash(payload, image.id)).toBe(false)
-    })
-
-    it('preserves images referenced by lessons.panels[].image', async () => {
-      // Create an image for lesson panel
-      const image = await testData.createMediaImage(payload)
-      await backdateCreatedAt(payload, 'images', image.id)
-
-      // Create lesson with text panel containing this image
-      await testData.createLesson(payload, {
-        panels: [
-          {
-            blockType: 'cover' as const,
-            title: 'Cover Panel',
-            quote: 'Test quote',
-          },
-          {
-            blockType: 'text' as const,
-            title: 'Text Panel',
-            text: 'Panel content',
-            image: image.id,
-          },
-        ],
-      })
 
       // Run cleanup job
       await runCleanupJob(payload)
@@ -635,7 +603,7 @@ describe('CleanupOrphanedMedia Job', () => {
       await backdateCreatedAt(payload, 'images', image2.id)
 
       // Reference both images (unique names to avoid slug collision)
-      await testData.createAuthor(payload, { name: `Author ${uniqueId()}`, image: image1.id })
+      await testData.createAuthor(payload, { name: `Author ${uniqueId()}`, photo: image1.id })
       await testData.createLecture(payload, { thumbnail: image2.id })
 
       // Run cleanup job

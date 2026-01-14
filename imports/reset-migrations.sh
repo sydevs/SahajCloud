@@ -111,7 +111,7 @@ log_step "Step 3: Generating DROP TABLE statements"
 
 echo "Fetching table list from production database..."
 
-TABLES_JSON=$(wrangler d1 execute "$DB_NAME" --remote --command \
+TABLES_JSON=$(pnpm exec wrangler d1 execute "$DB_NAME" --remote --command \
   "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name;" \
   2>/dev/null)
 
@@ -142,7 +142,7 @@ log_step "Step 4: Dropping all tables in production"
 if [[ -f "$TEMP_SQL_FILE" ]]; then
   if [[ "$DRY_RUN" == false ]]; then
     echo "Executing DROP statements..."
-    wrangler d1 execute "$DB_NAME" --remote --file="$TEMP_SQL_FILE"
+    pnpm exec wrangler d1 execute "$DB_NAME" --remote --file="$TEMP_SQL_FILE"
     echo "All tables dropped"
 
     # Cleanup temp file
@@ -159,7 +159,7 @@ fi
 # Step 5: Verify database is empty
 log_step "Step 5: Verifying database is empty"
 
-REMAINING=$(wrangler d1 execute "$DB_NAME" --remote --command \
+REMAINING=$(pnpm exec wrangler d1 execute "$DB_NAME" --remote --command \
   "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';" \
   2>/dev/null | grep -o '"count": [0-9]*' | sed 's/"count": //')
 
@@ -221,11 +221,11 @@ fi
 log_step "Step 8: Verifying migration"
 
 echo "Checking payload_migrations table..."
-wrangler d1 execute "$DB_NAME" --remote --command "SELECT * FROM payload_migrations;"
+pnpm exec wrangler d1 execute "$DB_NAME" --remote --command "SELECT * FROM payload_migrations;"
 
 echo ""
 echo "Counting tables..."
-TABLE_COUNT=$(wrangler d1 execute "$DB_NAME" --remote --command \
+TABLE_COUNT=$(pnpm exec wrangler d1 execute "$DB_NAME" --remote --command \
   "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';" \
   2>/dev/null | grep -o '"count": [0-9]*' | sed 's/"count": //')
 

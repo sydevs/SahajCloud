@@ -7,7 +7,7 @@ export const Authors: CollectionConfig = {
   admin: {
     group: 'Metadata',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'title', 'countryCode'],
+    defaultColumns: ['name', 'photo', 'countryCode'],
   },
   fields: [
     // Slug auto-generated from name
@@ -52,11 +52,11 @@ export const Authors: CollectionConfig = {
       },
     },
     {
-      name: 'image',
+      name: 'photo',
       type: 'upload',
       relationTo: 'images',
       admin: {
-        description: 'Author profile image',
+        description: 'Author profile photo',
       },
     },
     {

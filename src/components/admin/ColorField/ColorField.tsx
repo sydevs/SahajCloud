@@ -18,7 +18,7 @@ import React, { useCallback } from 'react'
  *   type: 'text',
  *   admin: {
  *     components: {
- *       Field: '@/components/admin/ColorField',
+ *       Field: '@/components/admin/ColorField/ColorField',
  *     },
  *   },
  * }

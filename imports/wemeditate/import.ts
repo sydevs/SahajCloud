@@ -1,5 +1,4 @@
 #!/usr/bin/env tsx
- 
 
 /**
  * WeMeditate Rails Database Import Script
@@ -60,7 +59,6 @@ function normalizeForSlug(str: string): string {
     .trim()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
-    .toLowerCase()
 }
 
 // ============================================================================
@@ -812,6 +810,70 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
         this.idMaps.authors.set(author.id, authorResult.doc.id)
 
+        // Link author image if available
+        if (author.image) {
+          // Construct image URL similar to album art pattern
+          // Author images are stored as plain filenames (e.g., "eddc874d5f.jpg")
+          const imageFilename =
+            typeof author.image === 'string' ? author.image : String(author.image)
+          const imageUrl = imageFilename.startsWith('http')
+            ? imageFilename
+            : `${STORAGE_BASE_URL}author/image/${author.id}/${imageFilename}`
+
+          if (imageUrl) {
+            // Try to get from cache first
+            let imageId = this.idMaps.media.get(imageUrl)
+
+            // If not in cache, try to upload now
+            if (!imageId) {
+              try {
+                const downloadResult = await this.mediaDownloader.downloadAndConvertImage(imageUrl)
+                const result = await this.mediaUploader.uploadWithDeduplication(
+                  downloadResult.localPath,
+                  {
+                    alt: 'Author profile photo',
+                    buffer: downloadResult.buffer,
+                    sourceUrl: imageUrl,
+                    originalFilename: downloadResult.originalFilename,
+                  },
+                )
+                imageId = result.id
+                this.idMaps.media.set(imageUrl, imageId)
+                await this.logger.log(
+                  `    ✓ Uploaded author image: ${downloadResult.originalFilename}`,
+                )
+              } catch (error) {
+                this.addWarning(
+                  `Failed to upload image for author ${author.id}: ${(error as Error).message}`,
+                )
+              }
+            }
+
+            // Update author with image (if we have an image ID)
+            if (imageId) {
+              // Check if author already has this image to avoid unnecessary updates
+              const existing = await this.payload.findByID({
+                collection: 'authors',
+                id: authorResult.doc.id,
+                depth: 0,
+              })
+              const existingImageId =
+                typeof existing.photo === 'number' ? existing.photo : existing.photo?.id
+
+              if (existingImageId !== imageId) {
+                await this.payload.update({
+                  collection: 'authors',
+                  id: authorResult.doc.id,
+                  data: { photo: imageId as number },
+                  locale: 'en',
+                  overrideAccess: true,
+                })
+                await this.logger.log(`    ✓ Linked author image`)
+              }
+            }
+          }
+        }
+
         // OPTIMIZATION: Skip locale updates if record was skipped (no DB work needed)
         if (authorResult.action === 'skipped') {
           continue
@@ -996,7 +1058,9 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             } catch (placeholderError) {
               // Both attempts failed - skip this album but continue with others
               const placeholderMsg =
-                placeholderError instanceof Error ? placeholderError.message : String(placeholderError)
+                placeholderError instanceof Error
+                  ? placeholderError.message
+                  : String(placeholderError)
               this.addError(
                 `Skipping album for ${artist.name} - both original and placeholder uploads failed`,
                 new Error(placeholderMsg),
@@ -1472,7 +1536,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         // Calculate published state - _status: 'published' if ANY locale has published_at
         type Translation = { locale: string; published_at?: string }
         const isPublished = page.translations.some(
-          (t: Translation) => t.published_at && LOCALES.includes(t.locale as (typeof LOCALES)[number]),
+          (t: Translation) =>
+            t.published_at && LOCALES.includes(t.locale as (typeof LOCALES)[number]),
         )
 
         // Upsert page by slug (upsert auto-reports progress)
@@ -2133,7 +2198,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     const pageIdMap = this.idMaps[mapKey] as Map<number, number>
 
     for (const page of pagesWithContent) {
-      const numericId = typeof page.id === 'string' ? parseInt(page.id as unknown as string) : page.id
+      const numericId =
+        typeof page.id === 'string' ? parseInt(page.id as unknown as string) : page.id
       const pageId = pageIdMap.get(numericId)
       if (!pageId) {
         this.addWarning(`Page ${page.id} from ${tableName} not in ID map`)
@@ -2527,4 +2593,3 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 }
-
