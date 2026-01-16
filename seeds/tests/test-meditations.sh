@@ -12,7 +12,7 @@ echo ""
 
 # Setup test database
 echo "📦 Initializing SQLite test database..."
-pnpm tsx imports/tests/setup-test-db.ts setup
+pnpm tsx seeds/tests/setup-test-db.ts setup
 echo ""
 
 # Set test environment variables
@@ -22,8 +22,8 @@ export PAYLOAD_SECRET="test-secret-key-12345"
 export STORAGE_BASE_URL="https://storage.googleapis.com/test-bucket"
 
 # Check if data.bin exists
-if [ ! -f "imports/meditations/data.bin" ]; then
-    echo "⚠️  data.bin not found at imports/meditations/data.bin"
+if [ ! -f "seeds/meditations/data.bin" ]; then
+    echo "⚠️  data.bin not found at seeds/meditations/data.bin"
     echo "   This script requires a PostgreSQL dump file to test"
     echo "   Skipping tests that require data.bin"
     echo ""
@@ -37,7 +37,7 @@ fi
 echo "🧪 Test 1: Dry Run"
 echo "-------------------"
 if [ "$HAS_DATA_BIN" = true ]; then
-    pnpm tsx imports/meditations/import.ts --dry-run || {
+    pnpm tsx seeds/meditations/import.ts --dry-run || {
         echo "❌ Dry run failed"
         exit 1
     }
@@ -50,7 +50,7 @@ echo ""
 echo "🧪 Test 2: Actual Import"
 echo "-------------------------"
 if [ "$HAS_DATA_BIN" = true ]; then
-    pnpm tsx imports/meditations/import.ts || {
+    pnpm tsx seeds/meditations/import.ts || {
         echo "❌ Import failed"
         exit 1
     }
@@ -67,13 +67,13 @@ else
 fi
 echo ""
 echo "📊 Test database contains:"
-pnpm tsx imports/tests/check-db-stats.ts
+pnpm tsx seeds/tests/check-db-stats.ts
 
 # Cleanup
 echo ""
 read -p "Clean up test database? (y/N) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    pnpm tsx imports/tests/setup-test-db.ts cleanup
+    pnpm tsx seeds/tests/setup-test-db.ts cleanup
     echo "✓ Cleanup complete"
 fi

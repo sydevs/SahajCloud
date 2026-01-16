@@ -34,7 +34,7 @@ import { BaseImporter, BaseImportOptions, readCacheText, writeCache } from '../l
 // CONFIGURATION
 // ============================================================================
 
-const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/tags')
+const CACHE_DIR = path.resolve(process.cwd(), 'seeds/cache/tags')
 
 /**
  * GitHub raw URL base for fetching local files when running in Cloudflare Workers
@@ -497,8 +497,8 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
     // Handle local files (local:filename.svg)
     if (url.startsWith('local:')) {
       const localFilename = url.slice(6) // Remove 'local:' prefix
-      const localPath = path.resolve(process.cwd(), 'imports/tags', localFilename)
-      const workerUrl = `${GITHUB_RAW_BASE}/imports/tags/${localFilename}`
+      const localPath = path.resolve(process.cwd(), 'seeds/tags', localFilename)
+      const workerUrl = `${GITHUB_RAW_BASE}/seeds/tags/${localFilename}`
 
       return this.loadDataFile(localPath, workerUrl)
     }

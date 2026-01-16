@@ -62,7 +62,7 @@ Pagination enables large imports to run on Cloudflare Workers without hitting D1
 
 ### Collection Metadata
 
-Each script has collection-level metadata in `imports/lib/expectedCounts.ts`:
+Each script has collection-level metadata in `seeds/lib/expectedCounts.ts`:
 
 | Script | Collection | Items | Paginated? | Dependencies |
 |--------|------------|-------|------------|--------------|
@@ -214,7 +214,7 @@ Import scripts run in two environments with different capabilities:
 - **Local development**: Full filesystem access, caching for faster iteration
 - **Cloudflare Workers**: No filesystem, streaming only
 
-All environment-specific logic is abstracted into `imports/lib/` utilities. **Import scripts should never call `isCloudflareWorker()` directly or use `fs` imports.**
+All environment-specific logic is abstracted into `seeds/lib/` utilities. **Import scripts should never call `isCloudflareWorker()` directly or use `fs` imports.**
 
 ### Delay Utilities (`delays.ts`)
 
@@ -240,16 +240,16 @@ import { fetchAsset, readCache, writeCache, loadJsonData } from '../lib'
 
 // Load JSON data file (fs locally, URL in Workers)
 const data = await loadJsonData<MyType>({
-  localPath: 'imports/data.json',
+  localPath: 'seeds/data.json',
   workerUrl: 'https://raw.githubusercontent.com/.../data.json',
 })
 
 // Fetch asset with caching (cache only works locally)
-const buffer = await fetchAsset(url, { cachePath: 'imports/cache/file.jpg' })
+const buffer = await fetchAsset(url, { cachePath: 'seeds/cache/file.jpg' })
 
 // Direct cache operations (no-op in Workers)
-const cached = await readCache('imports/cache/file.jpg')
-await writeCache('imports/cache/file.jpg', buffer)
+const cached = await readCache('seeds/cache/file.jpg')
+await writeCache('seeds/cache/file.jpg', buffer)
 ```
 
 | Function | Local Mode | Workers Mode |
@@ -263,7 +263,7 @@ await writeCache('imports/cache/file.jpg', buffer)
 ## File Organization
 
 ```
-imports/
+seeds/
 ├── storyblok/import.ts    # Storyblok CMS API import
 ├── wemeditate/
 │   ├── import.ts          # WeMeditate Rails data import (reads JSON)
@@ -311,14 +311,14 @@ pnpm generate:types
 
 ### Missing data.json Files
 The `wemeditate` and `meditations` imports require pre-extracted JSON data files:
-- `imports/wemeditate/data.json` - WeMeditate Rails database extract
-- `imports/meditations/data.json` - Meditations database extract
+- `seeds/wemeditate/data.json` - WeMeditate Rails database extract
+- `seeds/meditations/data.json` - Meditations database extract
 
-These files were generated from PostgreSQL dumps using `imports/extract-to-json.ts` (one-time extraction).
+These files were generated from PostgreSQL dumps using `seeds/extract-to-json.ts` (one-time extraction).
 If you need to regenerate them from original `data.bin` files:
 ```bash
 # Requires PostgreSQL installed locally
-pnpm tsx imports/extract-to-json.ts
+pnpm tsx seeds/extract-to-json.ts
 ```
 
 ## Summary Output Format
@@ -390,10 +390,10 @@ CLOUDFLARE_R2_SECRET_ACCESS_KEY=your-r2-secret  # For R2 bucket deletion
 
 ```bash
 # Preview what will happen (no changes made)
-./imports/reset-migrations.sh --dry-run
+./seeds/reset-migrations.sh --dry-run
 
 # Execute full reset
-./imports/reset-migrations.sh
+./seeds/reset-migrations.sh
 ```
 
 **What it does** (in addition to database reset):

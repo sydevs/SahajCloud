@@ -172,10 +172,10 @@ Use this when you need to consolidate migrations into a single initial migration
 
 ```bash
 # Preview what will happen (no changes made)
-./imports/reset-migrations.sh --dry-run
+./seeds/reset-migrations.sh --dry-run
 
 # Execute full reset
-./imports/reset-migrations.sh
+./seeds/reset-migrations.sh
 ```
 
 **Manual Steps** (if script fails):

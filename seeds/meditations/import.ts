@@ -11,7 +11,7 @@
  * in the source data to the `artist` field on albums.
  *
  * DATA SOURCE:
- * - JSON file (imports/meditations/data.json) - pre-extracted from legacy PostgreSQL
+ * - JSON file (seeds/meditations/data.json) - pre-extracted from legacy PostgreSQL
  * - Google Cloud Storage - for downloading media files
  *
  * Features:
@@ -109,7 +109,7 @@ interface ImportedData {
 // CONFIGURATION
 // ============================================================================
 
-const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/meditations')
+const CACHE_DIR = path.resolve(process.cwd(), 'seeds/cache/meditations')
 
 /**
  * GitHub raw URL base for fetching data files when running in Cloudflare Workers
@@ -119,7 +119,7 @@ const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/sydevs/SahajCloud/mai
 // ============================================================================
 // TAG MAPPING CONSTANTS
 // ============================================================================
-// Maps legacy tag names from PostgreSQL to predefined tag slugs from imports/tags/import.ts
+// Maps legacy tag names from PostgreSQL to predefined tag slugs from seeds/tags/import.ts
 // These mappings ensure meditations use the same tags that the tags import script creates
 
 const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
@@ -640,8 +640,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   private async loadData(): Promise<ImportedData> {
     await this.logger.info('Loading data from JSON...')
 
-    const localPath = path.resolve(process.cwd(), 'imports/meditations/data.json')
-    const workerUrl = `${GITHUB_RAW_BASE}/imports/meditations/data.json`
+    const localPath = path.resolve(process.cwd(), 'seeds/meditations/data.json')
+    const workerUrl = `${GITHUB_RAW_BASE}/seeds/meditations/data.json`
 
     const jsonContent = await this.loadDataFile(localPath, workerUrl)
     const data = JSON.parse(jsonContent) as ImportedData
@@ -833,7 +833,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
    * - Local mode: read from cache or fetch and cache
    */
   private async getPlaceholderBuffer(filename: string): Promise<Buffer | null> {
-    const githubUrl = `${GITHUB_RAW_BASE}/imports/meditations/${filename}`
+    const githubUrl = `${GITHUB_RAW_BASE}/seeds/meditations/${filename}`
     const cachedPath = path.join(this.cacheDir, filename)
 
     try {
@@ -1401,9 +1401,9 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
    */
   private async getAlbumPlaceholderBuffer(): Promise<Buffer | null> {
     const filename = 'placeholder-album.png'
-    const githubUrl = `${GITHUB_RAW_BASE}/imports/wemeditate/preview.png`
+    const githubUrl = `${GITHUB_RAW_BASE}/seeds/wemeditate/preview.png`
     const cachedPath = path.join(this.cacheDir, filename)
-    const localPlaceholder = path.resolve(process.cwd(), 'imports/wemeditate/preview.png')
+    const localPlaceholder = path.resolve(process.cwd(), 'seeds/wemeditate/preview.png')
 
     try {
       // Try cache first (returns null in Workers mode)

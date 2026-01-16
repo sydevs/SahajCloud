@@ -41,8 +41,8 @@ next-env.d.ts
 
 /media
 
-# Import cache (contains downloaded data and files)
-/imports/cache
+# Seed cache (contains downloaded data and files)
+/seeds/cache
 
 # Playwright
 node_modules/
