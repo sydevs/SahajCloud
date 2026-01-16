@@ -341,6 +341,171 @@ No errors - import completed successfully!
 
 ---
 
+## Creating a New Seed Script
+
+This section provides a checklist and code patterns for implementing new seed scripts.
+
+### Checklist
+
+1. **Create script folder**: `seeds/<script-name>/`
+2. **Create import file**: `seeds/<script-name>/import.ts` extending `BaseImporter`
+3. **Add script metadata**: Update `seeds/lib/expectedCounts.ts` with collection metadata
+4. **Register script**: Add to `getImporter()` function in `src/app/(payload)/api/seed/[script]/route.ts`
+5. **Document**: Add script to "Available Scripts" table in `seeds/CLAUDE.md`
+
+### Code Template
+
+```typescript
+import path from 'path'
+import { BaseImporter, type BaseImportOptions } from '../lib'
+
+export interface MyScriptOptions extends BaseImportOptions {
+  // Add any script-specific options here
+}
+
+export class MyScriptImporter extends BaseImporter<MyScriptOptions> {
+  protected readonly importName = 'My Script'
+  protected readonly cacheDir = path.resolve(process.cwd(), 'seeds/cache/my-script')
+
+  protected async setup(): Promise<void> {
+    // Preload collections for skip/update optimization
+    // This enables O(1) lookups for existing documents
+    await this.preloadCollection('target-collection', 'slug')
+  }
+
+  protected async import(): Promise<void> {
+    const items = await this.loadData()
+
+    for (const item of items) {
+      try {
+        await this.upsert(
+          'target-collection',
+          { slug: { equals: item.slug } },
+          {
+            title: item.title,
+            slug: item.slug,
+            // ... other fields
+          },
+          { identifier: item.slug } // Always pass explicit identifier
+        )
+      } catch (error) {
+        // Resilient error handling - continue processing other items
+        this.addError(`Item ${item.id}`, error)
+        continue
+      }
+    }
+  }
+
+  private async loadData(): Promise<MyDataType[]> {
+    // Use loadJsonData for dual-mode (local/Workers) support
+    const { loadJsonData } = await import('../lib/dataLoader')
+    return loadJsonData<MyDataType[]>({
+      localPath: 'seeds/my-script/data.json',
+      workerUrl: 'https://raw.githubusercontent.com/sydevs/SahajCloud/main/seeds/my-script/data.json',
+    })
+  }
+}
+
+export default MyScriptImporter
+```
+
+### Required Patterns
+
+#### 1. Preload Pattern
+Preload collections in `setup()` for skip/update optimization:
+```typescript
+protected async setup(): Promise<void> {
+  // Single field preload
+  await this.preloadCollection('meditations', 'slug')
+
+  // Multi-field preload (for composite keys)
+  await this.preloadCollection('music', 'slug', ['id', 'slug', 'album'])
+}
+```
+
+#### 2. Upsert Pattern with Natural Keys
+Always use natural keys (not IDs) for idempotent imports:
+```typescript
+await this.upsert(
+  'pages',
+  { slug: { equals: page.slug } },  // Natural key where clause
+  { title: page.title, slug: page.slug },
+  { identifier: page.slug }  // Explicit identifier for logging
+)
+```
+
+#### 3. Error Handling
+Use per-item try/catch with `this.addError()` for resilient imports:
+```typescript
+for (const item of items) {
+  try {
+    await this.processItem(item)
+  } catch (error) {
+    this.addError(`Item ${item.id}`, error)
+    continue  // Keep processing other items
+  }
+}
+```
+
+#### 4. Pagination Support
+For collections that may exceed 25 items in production, enable pagination in `expectedCounts.ts`:
+```typescript
+'my-collection': {
+  expectedCount: 100,
+  requiresPagination: true,  // Enables paginated import on Workers
+  hasFileUploads: false,
+}
+```
+
+#### 5. Media Upload Pattern
+For file uploads, use the MediaUploader helper:
+```typescript
+import { MediaUploader } from '../lib/MediaUploader'
+
+const uploader = new MediaUploader(this.payload, this.options.dryRun)
+const media = await uploader.uploadFromUrl({
+  url: item.imageUrl,
+  collection: 'images',
+  filename: `${item.slug}.jpg`,
+  alt: item.title,
+})
+```
+
+#### 6. Locale Handling
+For localized content, specify locale in upsert:
+```typescript
+await this.upsert(
+  'pages',
+  { slug: { equals: page.slug } },
+  { title: { en: page.title_en, cs: page.title_cs } },
+  { identifier: page.slug, locale: 'en' }
+)
+```
+
+---
+
+## Identified Inconsistencies
+
+The following inconsistencies exist across seed scripts and are documented for future standardization:
+
+| Area | Current State | Recommended Pattern | Priority |
+|------|---------------|---------------------|----------|
+| Data source | Mixed: embedded constants (tags), JSON files (wemeditate/meditations), API fetch (storyblok) | Document rationale for each approach | Low |
+| Error handling | Mixed: try/catch per-item vs entire loop | Per-item with `this.addError()` continuation | Medium |
+| Locale handling | Varies: hardcoded 'en', full 16-locale, none | Document requirements per script | Low |
+| Custom preload | storyblok uses manual composite keys | Consider `preloadWithCompositeKey()` helper | Medium |
+| Identifier passing | Inconsistent explicit vs auto-generated | Always pass explicit `identifier` | Low |
+
+### Follow-up Issues
+
+These inconsistencies should be addressed in separate issues:
+
+1. **Standardize error handling** - Ensure all scripts use per-item try/catch with `this.addError()`
+2. **Add preloadWithCompositeKey helper** - Abstract storyblok's composite key pattern into BaseImporter
+3. **Standardize identifier passing** - Update all scripts to pass explicit identifiers
+
+---
+
 ## Reset Scripts
 
 ### Database and Asset Storage Reset
