@@ -214,7 +214,7 @@ Import scripts run in two environments with different capabilities:
 - **Local development**: Full filesystem access, caching for faster iteration
 - **Cloudflare Workers**: No filesystem, streaming only
 
-All environment-specific logic is abstracted into `seeds/lib/` utilities. **Import scripts should never call `isCloudflareWorker()` directly or use `fs` imports.**
+All environment-specific logic is abstracted into `seeds/lib/` utilities. **Seed scripts should never call `isCloudflareWorker()` directly or use `fs` imports.**
 
 ### Delay Utilities (`delays.ts`)
 

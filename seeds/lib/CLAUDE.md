@@ -1,4 +1,4 @@
-# Import Utilities Library
+# Seed Utilities Library
 
 Shared utilities for import scripts. All imports should extend `BaseImporter`.
 
@@ -264,7 +264,7 @@ const fileData: FileData = {
 }
 ```
 
-### Creating New Import Scripts
+### Creating New Seed Scripts
 
 1. Create `seeds/<name>/import.ts`
 2. Extend `BaseImporter`
