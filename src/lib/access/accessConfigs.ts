@@ -9,8 +9,8 @@
  * - createFieldAccessConfig: Create access config for field-level access
  */
 
-import type { BypassPermissionFunction, ContentSlug } from './types'
-import type { AccessArgs, CollectionConfig, FieldAccess, PayloadRequest } from 'payload'
+import type { BypassPermissionFunction, ContentSlug, FieldAccessConfig } from './types'
+import type { AccessArgs, CollectionConfig, PayloadRequest } from 'payload'
 
 import { hasPermission } from './permissions'
 
@@ -43,15 +43,6 @@ export function createAccessConfig(
   }
 
   return accessConfig
-}
-
-/**
- * Field access configuration type for field-level access control
- */
-export type FieldAccessConfig = {
-  read?: FieldAccess
-  create?: FieldAccess
-  update?: FieldAccess
 }
 
 /**
