@@ -280,3 +280,121 @@ const [{ data: frames, isLoading, isError }] = usePayloadAPI(
 - `setParams` may not synchronize correctly with component lifecycle
 - Race conditions are hard to debug and reproduce
 - Custom endpoints eliminate the problem entirely
+
+## Schema Introspection Pattern
+
+When you need to discover which fields reference a particular collection (e.g., finding all fields that reference `files` or `images`), use the schema introspection utilities in `src/lib/schemaUtils.ts`.
+
+### Use Case: Orphan Detection
+
+The `CleanupOrphanedMedia` job uses schema introspection to auto-discover all references to files/images without hardcoding collection/field knowledge:
+
+```typescript
+import {
+  discoverReferencesForCollection,
+  extractIdsFromDocument,
+  extractIdsFromLexicalContent,
+  groupByCollection,
+} from '@/lib/schemaUtils'
+
+// Discover all fields that reference 'files' collection
+const fileRefs = discoverReferencesForCollection(payload, 'files')
+// Returns: [
+//   { collection: 'lessons', fieldPath: 'introAudio', fieldType: 'upload', ... },
+//   { collection: 'lessons', fieldPath: 'panels.*.media', fieldType: 'upload', ... },
+// ]
+
+// Group by source collection for efficient scanning
+const byCollection = groupByCollection(fileRefs)
+
+// Extract IDs from documents using discovered field paths
+for (const [collectionSlug, refs] of byCollection) {
+  const docs = await payload.find({ collection: collectionSlug, limit: 1000 })
+  for (const doc of docs.docs) {
+    for (const ref of refs) {
+      const ids = extractIdsFromDocument(doc, ref)
+      // ids is a Set<number> of referenced IDs
+    }
+  }
+}
+```
+
+### Supported Field Container Types
+
+The schema introspection traverses all Payload CMS field container types:
+
+| Container | Traversal | Example Path |
+|-----------|-----------|--------------|
+| Simple | Direct field | `lessons.introAudio` |
+| Tabs | `tabs[].fields[]` | Fields inside named/unnamed tabs |
+| Groups | `group.fields[]` | Nested group fields |
+| Rows | `row.fields[]` | Layout row fields |
+| Arrays | `array.fields[]` + wildcard | `panels.*.media` |
+| Blocks | `blocks[].fields[]` | PayloadCMS blocks fields |
+| Collapsible | `collapsible.fields[]` | Expandable sections |
+| RichText | Generic Lexical traversal | `content` (marker reference) |
+
+### Handling Lexical Rich Text Fields
+
+Lexical editor blocks can contain upload/relationship fields, but their definitions are complex to access at runtime. The solution is **generic content traversal**:
+
+```typescript
+// Schema introspection creates a "marker" reference for richText fields
+// { collection: 'pages', fieldPath: 'content', isLexicalBlock: true }
+
+// At scan time, use generic traversal to find all IDs in Lexical content
+const lexicalContent = doc.content
+const ids = extractIdsFromLexicalContent(lexicalContent)
+// Finds all numeric IDs in block fields (TextBoxBlock.image, GalleryBlock.items, etc.)
+```
+
+The generic traversal:
+1. Recursively walks the Lexical content tree
+2. Identifies block nodes (`type: 'block'`)
+3. Scans all non-metadata fields for numeric ID values
+4. Handles both direct IDs and arrays of objects with nested IDs
+
+### Key Points
+- Use `discoverReferencesForCollection()` to auto-discover field references
+- Wildcard `*` in field paths represents array indices (e.g., `panels.*.media`)
+- Lexical blocks use generic content traversal instead of block-specific introspection
+- The `isLexicalBlock` flag indicates a richText field needing special handling
+- This pattern eliminates hardcoded collection/field knowledge for maintenance-free discovery
+
+## Common JavaScript Pitfalls
+
+### parseInt Parses Partial Strings
+
+**Problem**: `parseInt()` parses the initial numeric portion of a string, ignoring non-numeric suffixes:
+
+```typescript
+// ❌ Unexpected behavior
+parseInt('123abc', 10)           // Returns 123, not NaN!
+parseInt('1748234234_abcdef', 10) // Returns 1748234234, not NaN!
+```
+
+This caused a subtle bug in schema introspection where Lexical block item IDs like `'1748234234_abcdef'` were incorrectly parsed as valid numeric IDs.
+
+**Solution**: Use a regex to validate fully numeric strings before parsing:
+
+```typescript
+// ✅ Correct: Validate string is fully numeric
+function isNumericString(str: string): boolean {
+  return /^\d+$/.test(str)
+}
+
+function extractId(value: unknown): number | null {
+  if (typeof value === 'number') return value
+  if (typeof value === 'string' && isNumericString(value)) {
+    return parseInt(value, 10)
+  }
+  // ... handle objects with .id property
+  return null
+}
+```
+
+### Key Points
+- Always validate strings are fully numeric before using `parseInt()`
+- Use `/^\d+$/` regex to check for digits-only strings
+- This applies when extracting IDs from mixed data structures
+- See `src/lib/schemaUtils.ts` for the production implementation
