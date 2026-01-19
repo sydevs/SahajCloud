@@ -41,12 +41,12 @@ The application features a dynamic project-based branding system that adapts the
 
 ### ProjectTheme Component
 
-[src/components/admin/ProjectTheme.tsx](../../src/components/admin/ProjectTheme.tsx):
+[src/components/branding/ProjectTheme.tsx](../../src/components/branding/ProjectTheme.tsx):
 - Dynamically applies project-specific theme colors via CSS variables
 - Injects `--theme-elevation-*` variables (0-1000) for light and dark modes
 - Automatically updates on project switch or theme mode change
 - Uses MutationObserver to detect dark/light mode toggles
-- Theme definitions embedded in component with coral (wemeditate-web), teal (wemeditate-app), and royal blue (sahaj-atlas) palettes
+- Elevation scales are carefully tuned visual designs derived from the brand colors
 
 ## Configuration
 
@@ -66,12 +66,29 @@ The application features a dynamic project-based branding system that adapts the
   - Footer: "We Meditate • Powered by Payload CMS"
 - **Metadata**: Updated in `src/app/(frontend)/layout.tsx` with "We Meditate Admin" title
 
-## Color Palette
+## Brand Color Source of Truth
 
-- **Primary Coral**: `#F07855`
-- **Coral Light**: `#FF9477`
-- **Coral Dark**: `#D86545`
-- **Gradients**: Linear gradients using coral variations
+**Location**: [src/lib/branding/themeColors.ts](../../src/lib/branding/themeColors.ts)
+
+All project brand colors are defined in a single source of truth module that provides:
+
+- **`PROJECT_BRAND_COLORS`**: Core brand colors (primary, dark, light) for each project
+- **Color utilities**: `lighten`, `darken`, `tint`, `shade` functions for color manipulation
+- **`deriveScalarTheme()`**: Programmatically generates Scalar API docs theme from brand colors
+- **`getScalarThemeColors()`**: Helper to get Scalar theme for a specific project
+
+### Color Palette by Project
+
+| Project | Primary | Dark | Light |
+|---------|---------|------|-------|
+| WeMeditate Web | `#F07855` (coral) | `#D86545` | `#FF9477` |
+| WeMeditate App | `#61aaa0` (teal) | `#4c8d84` | `#72b3a9` |
+| Sahaj Atlas | `#4a8cd4` (royal blue) | `#2d6db8` | `#6fa3dd` |
+
+### Consumers
+
+- **Scalar API docs** (`src/lib/openapi/scalarPlugin.ts`): Uses `getScalarThemeColors()` for derived theme
+- **PayloadCMS admin** (`src/components/branding/ProjectTheme.tsx`): Uses brand colors as basis for elevation scales
 
 ## External Image Configuration
 
