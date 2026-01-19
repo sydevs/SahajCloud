@@ -1,6 +1,13 @@
-import type { TaskConfig, Where, Payload, PayloadRequest } from 'payload'
+import type { CollectionSlug, TaskConfig, Payload, PayloadRequest } from 'payload'
 
-import type { Author, ImageTag, Lecture, Lesson, Meditation, Page } from '@/payload-types'
+import {
+  discoverReferencesForCollection,
+  extractIdsFromDocument,
+  extractIdsFromLexicalContent,
+  groupByCollection,
+  type FieldReference,
+} from '@/lib/schemaUtils'
+import type { ImageTag } from '@/payload-types'
 
 /** Maximum documents to fetch per page when scanning for references */
 const PAGINATION_LIMIT = 1000
@@ -32,17 +39,9 @@ type CleanupResult = {
  * - Images: Any image not referenced by any document AND has no content tags
  *   (auto-generated orientation tags like 'landscape', 'portrait', 'square' are ignored)
  *
- * Collections that reference Files:
- * - lessons.introAudio
- * - lessons.panels[].video (VideoStoryBlock)
- *
- * Collections that reference Images:
- * - authors.photo
- * - lectures.thumbnail
- * - lessons.icon
- * - lessons.panels[].image (TextStoryBlock)
- * - meditations.thumbnail
- * - pages.content (Lexical blocks: TextBoxBlock.image, LayoutBlock.items[].image, GalleryBlock.items)
+ * References are auto-discovered via schema introspection - no hardcoded collection
+ * or field knowledge required. Adding new collections with file/image references
+ * requires no changes to this job.
  */
 export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
   retries: 2,
@@ -256,9 +255,9 @@ async function trashOrphanedMedia(
 ): Promise<void> {
   req.payload.logger.info({ msg: 'Phase B: Trashing orphaned media' })
 
-  // Get all referenced file and image IDs
-  const referencedFiles = await getAllReferencedFileIds(req.payload)
-  const referencedImages = await getAllReferencedImageIds(req.payload)
+  // Get all referenced file and image IDs using schema introspection
+  const referencedFiles = await getAllReferencedIds(req.payload, 'files')
+  const referencedImages = await getAllReferencedIds(req.payload, 'images')
 
   req.payload.logger.info({
     msg: 'Reference scan completed',
@@ -336,10 +335,12 @@ async function trashOrphanedMedia(
 
     // Skip if image has content tags (ignore auto-generated orientation tags)
     // Orientation tags (landscape, portrait, square) are auto-generated and don't count as "intentional" tags
-    const hasContentTags = Array.isArray(image.tags) && image.tags.some((tag) => {
-      const tagTitle = typeof tag === 'object' && tag !== null ? (tag as ImageTag).title : null
-      return tagTitle && !ORIENTATION_TAG_TITLES.includes(tagTitle)
-    })
+    const hasContentTags =
+      Array.isArray(image.tags) &&
+      image.tags.some((tag) => {
+        const tagTitle = typeof tag === 'object' && tag !== null ? (tag as ImageTag).title : null
+        return tagTitle && !ORIENTATION_TAG_TITLES.includes(tagTitle)
+      })
     if (hasContentTags) {
       result.skippedImages++
       continue
@@ -382,116 +383,90 @@ async function trashOrphanedMedia(
 }
 
 /**
- * Get all file IDs that are referenced by any document
+ * Get all IDs of a target collection that are referenced by any document.
+ * Uses schema introspection to automatically discover all references.
  */
-async function getAllReferencedFileIds(payload: Payload): Promise<Set<number>> {
-  const referencedIds = new Set<number>()
-
-  // Lessons: introAudio field and panels[].media
-  await collectReferencedIds<Lesson>(payload, 'lessons', {}, (lesson) => {
-    if (lesson.introAudio) {
-      const id = extractId(lesson.introAudio)
-      if (id) referencedIds.add(id)
-    }
-
-    // Check panels for media (images and videos)
-    if (Array.isArray(lesson.panels)) {
-      for (const panel of lesson.panels) {
-        if (panel.media) {
-          const id = extractId(panel.media)
-          if (id) referencedIds.add(id)
-        }
-      }
-    }
-  })
-
-  return referencedIds
-}
-
-/**
- * Get all image IDs that are referenced by any document
- */
-async function getAllReferencedImageIds(payload: Payload): Promise<Set<number>> {
-  const referencedIds = new Set<number>()
-
-  // Authors: photo field
-  await collectReferencedIds<Author>(payload, 'authors', { photo: { exists: true } }, (doc) => {
-    if (doc.photo) {
-      const id = extractId(doc.photo)
-      if (id) referencedIds.add(id)
-    }
-  })
-
-  // Lectures: thumbnail field
-  await collectReferencedIds<Lecture>(
-    payload,
-    'lectures',
-    { thumbnail: { exists: true } },
-    (doc) => {
-      if (doc.thumbnail) {
-        const id = extractId(doc.thumbnail)
-        if (id) referencedIds.add(id)
-      }
-    },
-  )
-
-  // Meditations: thumbnail field
-  await collectReferencedIds<Meditation>(
-    payload,
-    'meditations',
-    { thumbnail: { exists: true } },
-    (doc) => {
-      if (doc.thumbnail) {
-        const id = extractId(doc.thumbnail)
-        if (id) referencedIds.add(id)
-      }
-    },
-  )
-
-  // Lessons: icon field only (panels now reference files collection, not images)
-  await collectReferencedIds<Lesson>(
-    payload,
-    'lessons',
-    { icon: { exists: true } },
-    (lesson) => {
-      if (lesson.icon) {
-        const id = extractId(lesson.icon)
-        if (id) referencedIds.add(id)
-      }
-    },
-  )
-
-  // Pages: content blocks (TextBoxBlock, LayoutBlock, GalleryBlock)
-  await collectReferencedIds<Page>(payload, 'pages', {}, (page) => {
-    extractImageIdsFromLexicalContent(page.content, referencedIds)
-  })
-
-  return referencedIds
-}
-
-/**
- * Helper to collect referenced IDs from a collection with pagination
- */
-async function collectReferencedIds<T>(
+async function getAllReferencedIds(
   payload: Payload,
-  collection: 'authors' | 'lectures' | 'meditations' | 'lessons' | 'pages' | 'files' | 'images',
-  where: Where,
-  processDoc: (doc: T) => void,
+  targetCollection: 'files' | 'images',
+): Promise<Set<number>> {
+  const referencedIds = new Set<number>()
+
+  // Discover all field references to the target collection
+  const references = discoverReferencesForCollection(payload, targetCollection)
+
+  // Log discovered references for debugging
+  payload.logger.info({
+    msg: `Discovered ${references.length} field references to ${targetCollection}`,
+    references: references.map((r) => ({
+      collection: r.collection,
+      fieldPath: r.fieldPath,
+      isLexicalBlock: r.isLexicalBlock,
+    })),
+  })
+
+  // Separate regular field references from Lexical (richText) references
+  const regularReferences = references.filter((r) => !r.isLexicalBlock)
+  const lexicalReferences = references.filter((r) => r.isLexicalBlock)
+
+  // Group regular references by source collection for efficient scanning
+  const byCollection = groupByCollection(regularReferences)
+
+  // Scan regular field references
+  for (const [collectionSlug, collectionRefs] of byCollection) {
+    await scanCollectionForReferences(
+      payload,
+      collectionSlug,
+      collectionRefs,
+      referencedIds,
+    )
+  }
+
+  // Scan Lexical content for block references
+  // Each lexical reference represents a richText field that may contain blocks
+  const lexicalByCollection = groupByCollection(lexicalReferences)
+  for (const [collectionSlug, collectionRefs] of lexicalByCollection) {
+    for (const ref of collectionRefs) {
+      await scanCollectionForLexicalReferences(
+        payload,
+        collectionSlug,
+        ref.fieldPath,
+        referencedIds,
+      )
+    }
+  }
+
+  return referencedIds
+}
+
+/**
+ * Scan a collection for references using discovered field paths.
+ */
+async function scanCollectionForReferences(
+  payload: Payload,
+  collectionSlug: string,
+  references: FieldReference[],
+  referencedIds: Set<number>,
 ): Promise<void> {
   let page = 1
   let hasMore = true
 
   while (hasMore) {
     const result = await payload.find({
-      collection,
-      where,
+      collection: collectionSlug as CollectionSlug,
       limit: PAGINATION_LIMIT,
       page,
       depth: 0,
     })
 
     for (const doc of result.docs) {
-      processDoc(doc as T)
+      const docRecord = doc as unknown as Record<string, unknown>
+      for (const ref of references) {
+        const ids = extractIdsFromDocument(docRecord, ref)
+        for (const id of ids) {
+          referencedIds.add(id)
+        }
+      }
     }
 
     hasMore = result.hasNextPage
@@ -500,81 +475,39 @@ async function collectReferencedIds<T>(
 }
 
 /**
- * Extract image IDs from Lexical rich text content
+ * Scan a collection's Lexical content for block references.
+ * Uses generic Lexical traversal to find all upload/relationship IDs.
  */
-function extractImageIdsFromLexicalContent(
-  content: Page['content'],
+async function scanCollectionForLexicalReferences(
+  payload: Payload,
+  collectionSlug: string,
+  richTextFieldPath: string,
   referencedIds: Set<number>,
-): void {
-  if (!content || typeof content !== 'object') return
+): Promise<void> {
+  let page = 1
+  let hasMore = true
 
-  const contentObj = content as Record<string, unknown>
+  while (hasMore) {
+    const result = await payload.find({
+      collection: collectionSlug as CollectionSlug,
+      limit: PAGINATION_LIMIT,
+      page,
+      depth: 0,
+    })
 
-  // Check if this is a block with image references
-  if (contentObj.type === 'block') {
-    const fields = contentObj.fields as Record<string, unknown> | undefined
-    // Note: blockType is stored inside fields per Payload's Lexical block structure
-    const blockType = fields?.blockType as string | undefined
-
-    if (fields) {
-      // TextBoxBlock: image field
-      if (fields.image) {
-        const id = extractId(fields.image)
-        if (id) referencedIds.add(id)
-      }
-
-      // LayoutBlock: items[].image
-      if (Array.isArray(fields.items) && blockType === 'layout') {
-        for (const item of fields.items) {
-          if (typeof item === 'object' && item !== null) {
-            const itemFields = item as Record<string, unknown>
-            if (itemFields.image) {
-              const id = extractId(itemFields.image)
-              if (id) referencedIds.add(id)
-            }
-          }
-        }
-      }
-
-      // GalleryBlock: items (array of image IDs)
-      if (Array.isArray(fields.items) && blockType === 'gallery') {
-        for (const item of fields.items) {
-          const id = extractId(item)
-          if (id) referencedIds.add(id)
+    for (const doc of result.docs) {
+      const docRecord = doc as unknown as Record<string, unknown>
+      const content = docRecord[richTextFieldPath]
+      if (content) {
+        // Use generic Lexical traversal to extract all IDs
+        const ids = extractIdsFromLexicalContent(content)
+        for (const id of ids) {
+          referencedIds.add(id)
         }
       }
     }
-  }
 
-  // Recursively process children
-  if (contentObj.root && typeof contentObj.root === 'object') {
-    extractImageIdsFromLexicalContent(contentObj.root as Page['content'], referencedIds)
+    hasMore = result.hasNextPage
+    page++
   }
-
-  if (Array.isArray(contentObj.children)) {
-    for (const child of contentObj.children) {
-      extractImageIdsFromLexicalContent(child as Page['content'], referencedIds)
-    }
-  }
-}
-
-/**
- * Extract numeric ID from a relationship field value
- * (can be number, string, or populated object)
- */
-function extractId(value: unknown): number | null {
-  if (typeof value === 'number') return value
-  if (typeof value === 'string') {
-    const parsed = parseInt(value, 10)
-    return isNaN(parsed) ? null : parsed
-  }
-  if (typeof value === 'object' && value !== null) {
-    const obj = value as Record<string, unknown>
-    if (typeof obj.id === 'number') return obj.id
-    if (typeof obj.id === 'string') {
-      const parsed = parseInt(obj.id, 10)
-      return isNaN(parsed) ? null : parsed
-    }
-  }
-  return null
 }

@@ -240,6 +240,7 @@ Custom admin components for tag management:
 - `src/lib/storage/storage.ts` - Storage adapter configuration and routing
 - `src/lib/storage/urlFields.ts` - URL field factory functions
 - `src/lib/storage/r2NativeAdapter.ts` - Custom R2 storage adapter
+- `src/lib/schemaUtils.ts` - Schema introspection utilities for auto-discovering field references
 
 ## Component Architecture
 - `src/components/AdminProvider.tsx` - Payload admin UI provider component (wraps with ProjectProvider)
@@ -336,3 +337,47 @@ The system includes seed scripts for seeding content from external sources into 
 All scripts extend `BaseImporter` for idempotent upserts, resilient error handling, and comprehensive reporting.
 
 **Note**: Database schema migrations are in `src/migrations/` using PayloadCMS's built-in migration system.
+
+## Scheduled Jobs
+
+The application uses PayloadCMS's built-in jobs system for background task processing.
+
+### CleanupOrphanedMedia Job
+
+**Location**: `src/jobs/tasks/CleanupOrphanedMedia.ts`
+
+Automatically cleans up orphaned files and images that are no longer referenced by any collection. Runs monthly via scheduled task.
+
+**Two-Phase Cleanup Process**:
+
+1. **Phase A - Permanent Deletion**: Permanently deletes items already in trash (soft-deleted with `deletedAt` timestamp) that have been there for the grace period
+2. **Phase B - Orphan Detection**: Identifies unreferenced media and moves them to trash (soft delete)
+
+**Schema-Driven Discovery**:
+
+Instead of hardcoding which collections reference files/images, the job uses schema introspection utilities (`src/lib/schemaUtils.ts`) to auto-discover all references:
+
+```typescript
+// Auto-discovers all fields referencing 'files' or 'images' collections
+const fileRefs = discoverReferencesForCollection(payload, 'files')
+const imageRefs = discoverReferencesForCollection(payload, 'images')
+```
+
+**Key Features**:
+- **Grace Period**: Items are soft-deleted first, then permanently deleted after 30+ days
+- **Tag-Based Preservation**: Images with non-orientation tags are preserved (e.g., tagged as "featured")
+- **Lexical Content Scanning**: Scans rich text content for embedded block references
+- **Comprehensive Logging**: Logs discovered references and cleanup operations
+
+**Configuration**:
+- Registered in `src/payload.config.ts` under `jobs.tasks`
+- Scheduled via PayloadCMS job queue system
+
+### Job Files
+
+| File | Purpose |
+|------|---------|
+| `src/jobs/tasks/CleanupOrphanedMedia.ts` | Orphan media cleanup implementation |
+| `src/lib/schemaUtils.ts` | Schema introspection utilities for field discovery |
+| `tests/int/cleanup-orphaned-media.int.spec.ts` | Integration tests for cleanup job |
+| `tests/int/schema-utils.int.spec.ts` | Tests for schema introspection utilities |
