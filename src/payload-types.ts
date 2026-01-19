@@ -744,6 +744,7 @@ export interface Lesson {
 export interface File {
   id: number;
   createdAt: string;
+  previewUrl?: string | null;
   updatedAt: string;
   deletedAt?: string | null;
   url?: string | null;
@@ -1615,6 +1616,7 @@ export interface ImagesSelect<T extends boolean = true> {
  */
 export interface FilesSelect<T extends boolean = true> {
   createdAt?: T;
+  previewUrl?: T;
   updatedAt?: T;
   deletedAt?: T;
   url?: T;

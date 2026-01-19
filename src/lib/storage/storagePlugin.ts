@@ -18,8 +18,8 @@ import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
 
 import { cloudflareImagesAdapter } from './cloudflareImagesAdapter'
 import { cloudflareStreamAdapter } from './cloudflareStreamAdapter'
+import { mixedMediaAdapter } from './mixedMediaAdapter'
 import { r2NativeAdapter } from './r2NativeAdapter'
-import { routerAdapter } from './routerAdapter'
 
 interface StoragePluginOptions {
   /**
@@ -118,14 +118,14 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
           disablePayloadAccessControl: true,
         },
 
-        // Frames collection - Router adapter (Images for images, Stream for videos)
+        // Frames collection - Mixed media adapter (Images for images, Stream for videos, R2 for others)
         frames: {
-          adapter: routerAdapter({
+          adapter: mixedMediaAdapter({
             routes: {
               'image/': imagesAdapter,
               'video/': streamAdapter,
             },
-            default: imagesAdapter,
+            r2Adapter: r2Adapter,
           }),
           disableLocalStorage: true,
           disablePayloadAccessControl: true,
@@ -156,9 +156,15 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
           disablePayloadAccessControl: true,
         },
 
-        // Files collection - R2 storage
+        // Files collection - Mixed media adapter (Images for images, Stream for videos, R2 for others)
         files: {
-          adapter: r2Adapter,
+          adapter: mixedMediaAdapter({
+            routes: {
+              'image/': imagesAdapter,
+              'video/': streamAdapter,
+            },
+            r2Adapter: r2Adapter,
+          }),
           disableLocalStorage: true,
           disablePayloadAccessControl: true,
         },

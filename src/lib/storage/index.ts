@@ -13,11 +13,15 @@ export { storagePlugin as default } from './storagePlugin'
 export { cloudflareImagesAdapter, getCloudflareImagesUrl } from './cloudflareImagesAdapter'
 export { cloudflareStreamAdapter, getCloudflareStreamMp4Url, getCloudflareStreamThumbnailUrl } from './cloudflareStreamAdapter'
 export { r2NativeAdapter, getR2Url, sanitizeFilename } from './r2NativeAdapter'
-export { routerAdapter } from './routerAdapter'
+export { mixedMediaAdapter } from './mixedMediaAdapter'
+
+// MIME type utilities
+export { getMimeCategory } from './mimeUtils'
+export type { MimeCategory } from './mimeUtils'
 
 // URL field factories
 export {
   virtualUrlField,
   previewUrlField,
-  frameUrlField,
+  mixedMediaUrlField,
 } from './urlFields'

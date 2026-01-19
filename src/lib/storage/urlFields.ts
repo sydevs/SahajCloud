@@ -5,6 +5,7 @@ import {
   getCloudflareStreamMp4Url,
   getCloudflareStreamThumbnailUrl,
 } from './cloudflareStreamAdapter'
+import { getMimeCategory } from './mimeUtils'
 import { getR2Url } from './r2NativeAdapter'
 
 /**
@@ -58,9 +59,9 @@ interface PreviewUrlFieldOptions {
 }
 
 /**
- * Options for creating a frame URL field (mixed image/video content)
+ * Options for creating a mixed media URL field (images, videos, and other files)
  */
-interface FrameUrlFieldOptions {
+interface MixedMediaUrlFieldOptions {
   /**
    * The collection slug (used for development fallback URL)
    */
@@ -190,11 +191,12 @@ export const previewUrlField = (options: PreviewUrlFieldOptions): Field => {
 }
 
 /**
- * Creates a virtual URL field for mixed media collections (images and videos)
+ * Creates a virtual URL field for mixed media collections (images, videos, and other files)
  *
  * Returns full resolution URLs based on content type:
  * - Images: Cloudflare Images URL (full resolution)
  * - Videos: Cloudflare Stream MP4 download URL
+ * - Other (PDFs, audio, etc.): R2 Storage URL
  *
  * @param options - Configuration for URL generation
  * @returns A Field configuration for the virtual URL field
@@ -202,30 +204,41 @@ export const previewUrlField = (options: PreviewUrlFieldOptions): Field => {
  * @example Frames collection
  * ```typescript
  * fields: [
- *   frameUrlField({
+ *   mixedMediaUrlField({
  *     collection: 'frames',
  *   }),
  * ]
  * ```
+ *
+ * @example Files collection
+ * ```typescript
+ * fields: [
+ *   mixedMediaUrlField({
+ *     collection: 'files',
+ *   }),
+ * ]
+ * ```
  */
-export const frameUrlField = (options: FrameUrlFieldOptions): Field => {
+export const mixedMediaUrlField = (options: MixedMediaUrlFieldOptions): Field => {
   const { collection } = options
 
   const afterReadHook: FieldHook = ({ data }) => {
     if (!data?.filename) return undefined
 
-    if (data.mimeType?.startsWith('video/')) {
+    const category = getMimeCategory(data.mimeType)
+
+    if (category === 'video') {
       return (
         getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
       )
     }
 
-    if (data.mimeType?.startsWith('image/')) {
+    if (category === 'image') {
       return getCloudflareImagesUrl(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
     }
 
-    // Fallback for unknown MIME types
-    return getLocalFallbackUrl(collection, data.filename)
+    // 'other' category (PDFs, audio, etc.) - use R2 URL or local fallback
+    return getR2Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
   }
 
   return {

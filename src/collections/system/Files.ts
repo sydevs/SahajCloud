@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { virtualUrlField } from '@/lib/storage/urlFields'
+import { mixedMediaUrlField, previewUrlField } from '@/lib/storage/urlFields'
 
 export const Files: CollectionConfig = {
   slug: 'files',
@@ -15,7 +15,7 @@ export const Files: CollectionConfig = {
     useAsTitle: 'filename',
     description:
       'Media files (images, audio, video) and PDFs used by other collections. Orphaned files are automatically moved to trash and permanently deleted during monthly cleanup.',
-    defaultColumns: ['filename', 'mimeType', 'createdAt'],
+    defaultColumns: ['previewUrl', 'filename', 'mimeType', 'createdAt'],
   },
   upload: {
     hideRemoveFile: true,
@@ -39,9 +39,7 @@ export const Files: CollectionConfig = {
         readOnly: true,
       },
     },
-    virtualUrlField({
-      collection: 'files',
-      adapter: 'r2',
-    }),
+    mixedMediaUrlField({ collection: 'files' }),
+    previewUrlField({ collection: 'files' }),
   ],
 }
