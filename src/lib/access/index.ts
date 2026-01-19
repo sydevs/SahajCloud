@@ -42,12 +42,12 @@ export {
   // Type generation helpers
   getProjectSlugs,
   getRoleSlugs,
-  // UI/Branding functions (from projects.ts)
+  // UI/Branding functions (from config/projects.ts)
   getProjectIcon,
   getProjectLabel,
   getProjectOptions,
   isValidProject,
-  // Access control functions (from data.ts)
+  // Access control functions (from config/roles.ts)
   getRoleProject,
   getProjectCollections,
   getAllProjectCollections,

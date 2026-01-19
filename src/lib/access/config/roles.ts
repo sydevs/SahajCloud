@@ -13,7 +13,11 @@
 import type { ContentSlug, PermissionLevel } from '../types'
 import type { CollectionSlug } from 'payload'
 
-import { getAllProjectCollections, isCollectionVisibleInProject } from './projects'
+import {
+  getAllProjectCollections,
+  isCollectionVisibleInProject,
+  type InternalProjectSlug,
+} from './projects'
 
 // =============================================================================
 // Internal Configuration (NOT exported - use helper functions)
@@ -95,9 +99,6 @@ const ROLES = {
 
 /** Role slug type derived from ROLES constant */
 type InternalRoleSlug = keyof typeof ROLES
-
-/** Project slug type (must match projects.ts) */
-type InternalProjectSlug = 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas'
 
 // =============================================================================
 // Computed Lookup Tables (internal only, computed at module load)

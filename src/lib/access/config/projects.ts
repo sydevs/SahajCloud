@@ -77,11 +77,11 @@ const ADMIN_VIEW_LABEL = 'Sahaj Cloud'
 const ADMIN_VIEW_ICON = '/images/sahaj-cloud.svg'
 
 // =============================================================================
-// Internal Type Alias
+// Type Export (for use by roles.ts)
 // =============================================================================
 
 /** Project slug type derived from PROJECTS constant */
-type InternalProjectSlug = keyof typeof PROJECTS
+export type InternalProjectSlug = keyof typeof PROJECTS
 
 // =============================================================================
 // Computed Lookup Tables (internal only, computed at module load)
