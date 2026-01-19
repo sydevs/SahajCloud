@@ -1,44 +1,50 @@
 /**
- * Router Storage Adapter for PayloadCMS
+ * Mixed Media Storage Adapter for PayloadCMS
  *
- * Routes files to different storage adapters based on MIME type.
- * Used for collections with mixed media types (e.g., Frames with images and videos).
+ * Routes files to different storage adapters based on MIME type:
+ * - Images → Cloudflare Images (automatic WebP/AVIF optimization)
+ * - Videos → Cloudflare Stream (transcoding, thumbnails, HLS streaming)
+ * - Other → R2 Storage (PDFs, audio, generic files)
+ *
+ * Used for collections with mixed media types (e.g., Files, Frames).
  */
 import type { Adapter, GeneratedAdapter } from '@payloadcms/plugin-cloud-storage/types'
 
+import { getMimeCategory } from './mimeUtils'
+
 /**
- * Configuration for router adapter
+ * Configuration for mixed media adapter
  */
-export interface RouterConfig {
+export interface MixedMediaAdapterConfig {
   /** Map of MIME type prefixes to storage adapters (e.g., "image/" -> imagesAdapter) */
   routes: {
     [mimeTypePrefix: string]: Adapter
   }
-  /** Default adapter for unmatched MIME types */
-  default: Adapter
+  /** R2 adapter used as the default fallback for unmatched MIME types (PDFs, audio, etc.) */
+  r2Adapter: Adapter
 }
 
 /**
- * Create router storage adapter
+ * Create mixed media storage adapter
  *
  * Routes files to different storage adapters based on MIME type prefix matching.
- * Useful for collections with mixed media types (e.g., images and videos).
+ * R2 is used as the hardcoded default for any files that don't match image/* or video/*.
  *
- * @param config - Router configuration with MIME type routes
+ * @param config - Mixed media adapter configuration with routes and R2 adapter
  * @returns PayloadCMS storage adapter
  *
  * @example
  * ```ts
- * const adapter = routerAdapter({
+ * const adapter = mixedMediaAdapter({
  *   routes: {
  *     'image/': cloudflareImagesAdapter(imagesConfig),
  *     'video/': cloudflareStreamAdapter(streamConfig),
  *   },
- *   default: cloudflareImagesAdapter(imagesConfig),
+ *   r2Adapter: r2NativeAdapter(r2Config),
  * })
  * ```
  */
-export const routerAdapter = (config: RouterConfig): Adapter => {
+export const mixedMediaAdapter = (config: MixedMediaAdapterConfig): Adapter => {
   return ({ collection, prefix }) => {
     // Generate all adapters upfront
     const adapters: Record<string, GeneratedAdapter> = {}
@@ -46,25 +52,28 @@ export const routerAdapter = (config: RouterConfig): Adapter => {
     for (const [key, adapter] of Object.entries(config.routes)) {
       adapters[key] = adapter({ collection, prefix })
     }
-    adapters.default = config.default({ collection, prefix })
+
+    // R2 is the hardcoded default for unmatched MIME types
+    const r2GeneratedAdapter = config.r2Adapter({ collection, prefix })
 
     // Helper to select adapter based on MIME type
     const selectAdapter = (mimeType: string | undefined): GeneratedAdapter => {
-      if (!mimeType) {
-        return adapters.default
+      const category = getMimeCategory(mimeType)
+
+      // Route based on category
+      if (category === 'image' && adapters['image/']) {
+        return adapters['image/']
+      }
+      if (category === 'video' && adapters['video/']) {
+        return adapters['video/']
       }
 
-      for (const [mimePrefix, adapter] of Object.entries(adapters)) {
-        if (mimePrefix !== 'default' && mimeType.startsWith(mimePrefix)) {
-          return adapter
-        }
-      }
-
-      return adapters.default
+      // Fall back to R2 for 'other' category (PDFs, audio, etc.)
+      return r2GeneratedAdapter
     }
 
     return {
-      name: 'router-adapter',
+      name: 'mixed-media-adapter',
 
       handleUpload: async (args) => {
         const adapter = selectAdapter(args.file.mimeType)

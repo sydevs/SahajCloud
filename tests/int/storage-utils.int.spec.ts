@@ -1,18 +1,19 @@
 /**
  * Integration tests for storage utilities and URL field factories
  *
- * Tests the URL field generation logic and R2 adapter filename sanitization.
+ * Tests the URL field generation logic, MIME utilities, and R2 adapter filename sanitization.
  */
 import type { Field, FieldHook } from 'payload'
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
+import { getMimeCategory } from '@/lib/storage/mimeUtils'
+import { sanitizeFilename } from '@/lib/storage/r2NativeAdapter'
 import {
   virtualUrlField,
   previewUrlField,
-  frameUrlField,
+  mixedMediaUrlField,
 } from '@/lib/storage/urlFields'
-import { sanitizeFilename } from '@/lib/storage/r2NativeAdapter'
 
 // Helper to extract the afterRead hook from a field
 const getAfterReadHook = (field: Field): FieldHook | undefined => {
@@ -251,11 +252,11 @@ describe('URL Field Factories', () => {
     })
   })
 
-  describe('frameUrlField', () => {
+  describe('mixedMediaUrlField', () => {
     it('generates Cloudflare Images URL for images', () => {
       process.env.CLOUDFLARE_IMAGES_DELIVERY_URL = 'https://imagedelivery.net/abc123'
 
-      const field = frameUrlField({
+      const field = mixedMediaUrlField({
         collection: 'frames',
       })
 
@@ -267,7 +268,7 @@ describe('URL Field Factories', () => {
     it('generates Cloudflare Stream MP4 URL for videos', () => {
       process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
 
-      const field = frameUrlField({
+      const field = mixedMediaUrlField({
         collection: 'frames',
       })
 
@@ -276,10 +277,34 @@ describe('URL Field Factories', () => {
       expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/downloads/default.mp4')
     })
 
+    it('generates R2 URL for PDFs', () => {
+      process.env.CLOUDFLARE_R2_DELIVERY_URL = 'https://assets.example.com'
+
+      const field = mixedMediaUrlField({
+        collection: 'files',
+      })
+
+      const hook = getAfterReadHook(field)
+      const url = hook!({ data: { filename: 'document.pdf', mimeType: 'application/pdf' } } as never)
+      expect(url).toBe('https://assets.example.com/document.pdf')
+    })
+
+    it('generates R2 URL for audio files', () => {
+      process.env.CLOUDFLARE_R2_DELIVERY_URL = 'https://assets.example.com'
+
+      const field = mixedMediaUrlField({
+        collection: 'files',
+      })
+
+      const hook = getAfterReadHook(field)
+      const url = hook!({ data: { filename: 'audio.mp3', mimeType: 'audio/mpeg' } } as never)
+      expect(url).toBe('https://assets.example.com/audio.mp3')
+    })
+
     it('falls back to local URL for images when Images URL is not set', () => {
       delete process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
 
-      const field = frameUrlField({
+      const field = mixedMediaUrlField({
         collection: 'frames',
       })
 
@@ -291,7 +316,7 @@ describe('URL Field Factories', () => {
     it('falls back to local URL for videos when Stream URL is not set', () => {
       delete process.env.CLOUDFLARE_STREAM_DELIVERY_URL
 
-      const field = frameUrlField({
+      const field = mixedMediaUrlField({
         collection: 'frames',
       })
 
@@ -300,18 +325,20 @@ describe('URL Field Factories', () => {
       expect(url).toBe('/api/frames/file/video.mp4')
     })
 
-    it('falls back to local URL for unknown MIME types', () => {
-      const field = frameUrlField({
-        collection: 'frames',
+    it('falls back to local URL for PDFs when R2 URL is not set', () => {
+      delete process.env.CLOUDFLARE_R2_DELIVERY_URL
+
+      const field = mixedMediaUrlField({
+        collection: 'files',
       })
 
       const hook = getAfterReadHook(field)
       const url = hook!({ data: { filename: 'file.pdf', mimeType: 'application/pdf' } } as never)
-      expect(url).toBe('/api/frames/file/file.pdf')
+      expect(url).toBe('/api/files/file/file.pdf')
     })
 
     it('returns undefined when no filename', () => {
-      const field = frameUrlField({
+      const field = mixedMediaUrlField({
         collection: 'frames',
       })
 
@@ -321,7 +348,7 @@ describe('URL Field Factories', () => {
     })
 
     it('returns undefined when data is null', () => {
-      const field = frameUrlField({
+      const field = mixedMediaUrlField({
         collection: 'frames',
       })
 
@@ -331,7 +358,7 @@ describe('URL Field Factories', () => {
     })
 
     it('creates a field named url', () => {
-      const field = frameUrlField({
+      const field = mixedMediaUrlField({
         collection: 'frames',
       })
 
@@ -394,5 +421,49 @@ describe('R2 Adapter Filename Sanitization', () => {
     const result = sanitizeFilename('my.file.name.mp3')
     // Slugify removes dots, so they become merged (my.file.name -> myfilename)
     expect(result).toMatch(/^myfilename-[a-z0-9]+\.mp3$/)
+  })
+})
+
+describe('MIME Type Utilities', () => {
+  describe('getMimeCategory', () => {
+    it('returns "image" for image MIME types', () => {
+      expect(getMimeCategory('image/jpeg')).toBe('image')
+      expect(getMimeCategory('image/png')).toBe('image')
+      expect(getMimeCategory('image/webp')).toBe('image')
+      expect(getMimeCategory('image/gif')).toBe('image')
+      expect(getMimeCategory('image/svg+xml')).toBe('image')
+    })
+
+    it('returns "video" for video MIME types', () => {
+      expect(getMimeCategory('video/mp4')).toBe('video')
+      expect(getMimeCategory('video/webm')).toBe('video')
+      expect(getMimeCategory('video/mpeg')).toBe('video')
+      expect(getMimeCategory('video/quicktime')).toBe('video')
+    })
+
+    it('returns "other" for PDF MIME type', () => {
+      expect(getMimeCategory('application/pdf')).toBe('other')
+    })
+
+    it('returns "other" for audio MIME types', () => {
+      expect(getMimeCategory('audio/mpeg')).toBe('other')
+      expect(getMimeCategory('audio/wav')).toBe('other')
+      expect(getMimeCategory('audio/ogg')).toBe('other')
+      expect(getMimeCategory('audio/aac')).toBe('other')
+    })
+
+    it('returns "other" for undefined MIME type', () => {
+      expect(getMimeCategory(undefined)).toBe('other')
+    })
+
+    it('returns "other" for empty string MIME type', () => {
+      expect(getMimeCategory('')).toBe('other')
+    })
+
+    it('returns "other" for unknown MIME types', () => {
+      expect(getMimeCategory('application/json')).toBe('other')
+      expect(getMimeCategory('text/plain')).toBe('other')
+      expect(getMimeCategory('application/octet-stream')).toBe('other')
+    })
   })
 })

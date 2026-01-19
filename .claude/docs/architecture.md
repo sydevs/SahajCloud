@@ -35,27 +35,33 @@ The application uses **Cloudflare-native storage services** for optimal performa
 
 The storage system is built on several key components:
 
-#### Storage Adapters (`storage.ts`)
+#### Storage Adapters (`storagePlugin.ts`)
 - `cloudflareImagesAdapter` - Handles image uploads to Cloudflare Images
 - `cloudflareStreamAdapter` - Handles video uploads to Cloudflare Stream
 - `r2NativeAdapter` - Direct R2 bucket access for audio/files (custom implementation)
-- `routerAdapter` - Routes uploads to appropriate adapter based on MIME type
+- `mixedMediaAdapter` - Routes uploads to appropriate adapter based on MIME type (images → Cloudflare Images, videos → Cloudflare Stream, other → R2)
 
 **Important**: All adapters modify `data.filename` directly in `handleUpload` to ensure the database stores the correct filename (service-generated ID or sanitized name).
+
+#### MIME Type Utilities (`mimeUtils.ts`)
+Shared utilities for consistent MIME type classification:
+
+- `getMimeCategory(mimeType)` - Returns `'image'`, `'video'`, or `'other'` based on MIME type prefix
+- Used by both `mixedMediaAdapter` and `mixedMediaUrlField` to ensure consistent routing logic
 
 #### URL Field Factories (`urlFields.ts`)
 Factory functions for creating virtual URL fields with consistent CDN URL generation:
 
 - `virtualUrlField({ collection, adapter })` - Base URL field for any storage adapter
 - `previewUrlField({ collection, width?, height? })` - Preview/thumbnail URLs for images/videos
-- `frameUrlField({ collection })` - Full resolution URLs for mixed media (images → Cloudflare Images, videos → Stream MP4)
+- `mixedMediaUrlField({ collection })` - Full resolution URLs for mixed media (images → Cloudflare Images, videos → Stream MP4, other → R2)
 
 **Usage Example**:
 ```typescript
 fields: [
   virtualUrlField({ collection: 'meditations', adapter: 'r2' }),
-  frameUrlField({ collection: 'frames' }),
-  previewUrlField({ collection: 'frames', width: 320, height: 320 }),
+  mixedMediaUrlField({ collection: 'files' }),
+  previewUrlField({ collection: 'files', width: 320, height: 320 }),
 ]
 ```
 
@@ -209,7 +215,7 @@ plugins: [
 
 ### System Collections
 - **Frames** (`src/collections/system/Frames.ts`) - Mixed media upload (images/videos) with Cloudflare Images for images and Cloudflare Stream for videos, virtual fields (`url` for full resolution, `previewUrl` for thumbnails), tags filtering, and imageSet selection
-- **Files** (`src/collections/system/Files.ts`) - Generic file storage using R2 native bindings for audio, video, and PDF files with trash support and automatic orphan cleanup via the CleanupOrphanedMedia job
+- **Files** (`src/collections/system/Files.ts`) - Mixed media storage with intelligent routing: images → Cloudflare Images (WebP/AVIF optimization), videos → Cloudflare Stream (transcoding, HLS), other files (PDFs, audio) → R2. Includes virtual `url` and `previewUrl` fields, trash support, and automatic orphan cleanup via the CleanupOrphanedMedia job
 
 ### Tag Collections
 - **ImageTags** (`src/collections/tags/ImageTags.ts`) - Tag system for image files with title field
@@ -237,7 +243,9 @@ Custom admin components for tag management:
 - `vitest.config.mts` - Vitest configuration for integration tests
 - `playwright.config.ts` - Playwright configuration for E2E tests
 - `src/lib/richEditor.ts` - Rich text editor configuration presets
-- `src/lib/storage/storage.ts` - Storage adapter configuration and routing
+- `src/lib/storage/storagePlugin.ts` - Storage plugin configuration and adapter routing
+- `src/lib/storage/mixedMediaAdapter.ts` - Mixed media adapter (routes to Images/Stream/R2 based on MIME type)
+- `src/lib/storage/mimeUtils.ts` - Shared MIME type classification utilities
 - `src/lib/storage/urlFields.ts` - URL field factory functions
 - `src/lib/storage/r2NativeAdapter.ts` - Custom R2 storage adapter
 - `src/lib/schemaUtils.ts` - Schema introspection utilities for auto-discovering field references
