@@ -55,10 +55,16 @@ export const PROJECT_BRAND_COLORS: Record<ProjectSlug, BrandColors> = {
 
 /**
  * Convert hex color to HSL components
+ * @throws Error if hex color format is invalid
  */
 function hexToHsl(hex: string): { h: number; s: number; l: number } {
   // Remove # prefix if present
   const cleanHex = hex.replace('#', '')
+
+  // Validate hex format (must be exactly 6 hex characters)
+  if (!/^[0-9A-Fa-f]{6}$/.test(cleanHex)) {
+    throw new Error(`Invalid hex color format: "${hex}". Expected format: #RRGGBB or RRGGBB`)
+  }
 
   // Parse RGB values
   const r = parseInt(cleanHex.substring(0, 2), 16) / 255
