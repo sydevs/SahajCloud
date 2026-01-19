@@ -11,9 +11,12 @@ The CMS implements a unified role-based permission system via the `accessPlugin`
 
 ## Configuration
 
-Access control configuration is defined in `src/lib/access/config.ts` (single source of truth for projects and roles), while bypass logic is in `src/lib/access/bypassPermissions.ts`:
+Access control configuration is split into focused sub-modules within `src/lib/access/config/` (single source of truth for projects and roles), while bypass logic is in `src/lib/access/bypassPermissions.ts`:
 
-**Configuration**: [src/lib/access/config.ts](../../src/lib/access/config.ts) - Projects, roles, lookup tables, and helper functions (single source of truth)
+**Configuration** (modular structure):
+- [src/lib/access/config/projects.ts](../../src/lib/access/config/projects.ts) - Project configuration, lookup tables, and helper functions
+- [src/lib/access/config/roles.ts](../../src/lib/access/config/roles.ts) - Role configuration, lookup tables, and helper functions
+- [src/lib/access/config/index.ts](../../src/lib/access/config/index.ts) - Barrel export
 
 **Bypass Logic**: [src/lib/access/bypassPermissions.ts](../../src/lib/access/bypassPermissions.ts) - Shared bypass function
 
@@ -250,8 +253,10 @@ Access collections (`managers`, `clients`) and system collections (`payload-jobs
 
 ## Key Files
 
-**Configuration**:
-- [src/lib/access/config.ts](../../src/lib/access/config.ts) - Single source of truth for projects, roles, lookup tables, and helper functions
+**Configuration** (modular structure):
+- [src/lib/access/config/projects.ts](../../src/lib/access/config/projects.ts) - Project configuration, lookup tables, and helper functions
+- [src/lib/access/config/roles.ts](../../src/lib/access/config/roles.ts) - Role configuration, lookup tables, and helper functions
+- [src/lib/access/config/index.ts](../../src/lib/access/config/index.ts) - Barrel export
 - [src/lib/access/bypassPermissions.ts](../../src/lib/access/bypassPermissions.ts) - Shared bypass function for accessPlugin and tests
 - [src/payload.config.ts](../../src/payload.config.ts) - Plugin configuration
 
@@ -266,7 +271,6 @@ Access collections (`managers`, `clients`) and system collections (`payload-jobs
 
 **Supporting Modules**:
 - [src/lib/access/filterAvailableLocales.ts](../../src/lib/access/filterAvailableLocales.ts) - Admin UI locale filtering
-- [src/lib/access/schemaExtension.ts](../../src/lib/access/schemaExtension.ts) - TypeScript schema extension
 
 **Admin Components**:
 - [src/components/admin/PermissionsTable.tsx](../../src/components/admin/PermissionsTable.tsx) - Real-time permissions display
@@ -282,7 +286,7 @@ Access collections (`managers`, `clients`) and system collections (`payload-jobs
 
 ## Adding New Roles
 
-1. Add role definition to `src/lib/access/config.ts` in the `ROLES` constant:
+1. Add role definition to `src/lib/access/config/roles.ts` in the `ROLES` constant:
 ```typescript
 const ROLES = {
   // Manager roles

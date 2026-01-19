@@ -18,11 +18,11 @@ plugins: [
 ]
 ```
 
-The plugin automatically generates `admin.hidden` functions for all collections and globals based on the project configuration in `src/lib/access/config.ts`.
+The plugin automatically generates `admin.hidden` functions for all collections and globals based on the project configuration in `src/lib/access/config/projects.ts`.
 
 ## Project Values
 
-The system supports three project contexts defined in `src/lib/access/config.ts`:
+The system supports three project contexts defined in `src/lib/access/config/projects.ts`:
 
 - **wemeditate-web** - We Meditate website frontend
 - **wemeditate-app** - We Meditate mobile application
@@ -52,7 +52,7 @@ hidden: ({ user }) => {
 
 ## Project Configuration
 
-Collections are assigned to projects in `src/lib/access/config.ts`:
+Collections are assigned to projects in `src/lib/access/config/projects.ts`:
 
 ```typescript
 // PROJECTS is an internal constant (not exported)
@@ -141,7 +141,9 @@ Collections are visible based on which projects include them AND whether the use
 ## Key Files
 
 **Configuration**:
-- [src/lib/access/config.ts](../../../src/lib/access/config.ts) - Project definitions, lookup tables, and helper functions (single source of truth)
+- [src/lib/access/config/projects.ts](../../../src/lib/access/config/projects.ts) - Project definitions, lookup tables, and helper functions
+- [src/lib/access/config/roles.ts](../../../src/lib/access/config/roles.ts) - Role definitions and role helper functions
+- [src/lib/access/config/index.ts](../../../src/lib/access/config/index.ts) - Barrel export
 - [src/lib/access/bypassPermissions.ts](../../../src/lib/access/bypassPermissions.ts) - Shared bypass function
 - [src/payload.config.ts](../../../src/payload.config.ts) - Plugin configuration
 
@@ -153,7 +155,7 @@ Collections are visible based on which projects include them AND whether the use
 
 ## Adding Collections to Projects
 
-To add a collection to a project, update `src/lib/access/config.ts`:
+To add a collection to a project, update `src/lib/access/config/projects.ts`:
 
 ```typescript
 const PROJECTS = {
