@@ -8,16 +8,16 @@
  * anywhere (migrations, CI/CD, Cloudflare Workers).
  *
  * Usage:
- *   pnpm tsx imports/extract-to-json.ts
+ *   pnpm tsx seeds/extract-to-json.ts
  *
  * Prerequisites:
  *   - PostgreSQL installed (psql, createdb, pg_restore)
- *   - imports/meditations/data.bin exists
- *   - imports/wemeditate/data.bin exists
+ *   - seeds/meditations/data.bin exists
+ *   - seeds/wemeditate/data.bin exists
  *
  * Output:
- *   - imports/meditations/data.json
- *   - imports/wemeditate/data.json
+ *   - seeds/meditations/data.json
+ *   - seeds/wemeditate/data.json
  */
 
 import { execSync } from 'child_process'
@@ -33,11 +33,11 @@ import { Client } from 'pg'
 const MEDITATIONS_DB = 'temp_extract_meditations'
 const WEMEDITATE_DB = 'temp_extract_wemeditate'
 
-const MEDITATIONS_BIN = path.resolve(process.cwd(), 'imports/meditations/data.bin')
-const WEMEDITATE_BIN = path.resolve(process.cwd(), 'imports/wemeditate/data.bin')
+const MEDITATIONS_BIN = path.resolve(process.cwd(), 'seeds/meditations/data.bin')
+const WEMEDITATE_BIN = path.resolve(process.cwd(), 'seeds/wemeditate/data.bin')
 
-const MEDITATIONS_JSON = path.resolve(process.cwd(), 'imports/meditations/data.json')
-const WEMEDITATE_JSON = path.resolve(process.cwd(), 'imports/wemeditate/data.json')
+const MEDITATIONS_JSON = path.resolve(process.cwd(), 'seeds/meditations/data.json')
+const WEMEDITATE_JSON = path.resolve(process.cwd(), 'seeds/wemeditate/data.json')
 
 // ============================================================================
 // TYPES (matching import script interfaces)
@@ -232,7 +232,7 @@ async function extractMeditationsData(): Promise<void> {
   try {
     await fs.access(MEDITATIONS_BIN)
   } catch {
-    console.log('  ⚠ Skipping: imports/meditations/data.bin not found')
+    console.log('  ⚠ Skipping: seeds/meditations/data.bin not found')
     return
   }
 
@@ -281,7 +281,7 @@ async function extractMeditationsData(): Promise<void> {
 
     // Write to JSON
     await fs.writeFile(MEDITATIONS_JSON, JSON.stringify(data, null, 2))
-    console.log(`\n✓ Written to: imports/meditations/data.json`)
+    console.log(`\n✓ Written to: seeds/meditations/data.json`)
   } finally {
     await cleanupDatabase(client, MEDITATIONS_DB)
   }
@@ -300,7 +300,7 @@ async function extractWeMeditateData(): Promise<void> {
   try {
     await fs.access(WEMEDITATE_BIN)
   } catch {
-    console.log('  ⚠ Skipping: imports/wemeditate/data.bin not found')
+    console.log('  ⚠ Skipping: seeds/wemeditate/data.bin not found')
     return
   }
 
@@ -493,7 +493,7 @@ async function extractWeMeditateData(): Promise<void> {
 
     // Write to JSON
     await fs.writeFile(WEMEDITATE_JSON, JSON.stringify(data, null, 2))
-    console.log(`\n✓ Written to: imports/wemeditate/data.json`)
+    console.log(`\n✓ Written to: seeds/wemeditate/data.json`)
   } finally {
     await cleanupDatabase(client, WEMEDITATE_DB)
   }

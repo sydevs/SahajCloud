@@ -23,8 +23,8 @@ export interface ExpectedCounts {
  *
  * Sources:
  * - tags: Hardcoded in TagsImporter (27 meditation + 7 music + 14 image)
- * - wemeditate: imports/wemeditate/data.json counts
- * - meditations: imports/meditations/data.json counts
+ * - wemeditate: seeds/wemeditate/data.json counts
+ * - meditations: seeds/meditations/data.json counts
  * - storyblok: Based on current Storyblok content
  */
 export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {

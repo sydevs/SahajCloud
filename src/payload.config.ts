@@ -31,16 +31,16 @@ const isTestEnvironment = process.env.NODE_ENV === 'test'
 const isE2ETest = process.env.E2E_TEST === 'true'
 const isProduction = process.env.NODE_ENV === 'production'
 const isCLI = process.argv.some((value) => value.match(/^(generate|migrate):?/))
-const isImportScript = process.argv.some((value) => value.includes('imports/'))
+const isSeedScript = process.argv.some((value) => value.includes('seeds/'))
 
 // Get Cloudflare context (following PayloadCMS official template pattern)
 // Development/CLI: Use wrangler's getPlatformProxy for local/remote bindings
 // Production Build: Use OpenNext's getCloudflareContext for build-time bindings
-// Import scripts: Use wrangler proxy with remote bindings when CLOUDFLARE_ENV !== 'dev'
+// Seed scripts: Use wrangler proxy with remote bindings when CLOUDFLARE_ENV !== 'dev'
 // E2E Tests: Skip Cloudflare context entirely (uses SQLite file database)
 const cloudflare = isE2ETest
   ? (null as unknown as CloudflareContext) // E2E tests use SQLite, not D1
-  : isCLI || isImportScript || !isProduction
+  : isCLI || isSeedScript || !isProduction
     ? await getCloudflareContextFromWrangler()
     : await getCloudflareContext({ async: true })
 
@@ -137,7 +137,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // - Test/Import/E2E: Disabled to avoid model conflicts and external service dependencies
     // - Production: Resend API for transactional emails
     // - Development: Ethereal Email for testing (automatic test email service)
-    ...(isTestEnvironment || isImportScript || isE2ETest
+    ...(isTestEnvironment || isSeedScript || isE2ETest
       ? {}
       : {
           email: isProduction
@@ -224,7 +224,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
 // https://github.com/payloadcms/payload/blob/main/templates/with-cloudflare-d1/src/payload.config.ts
 // Import scripts can target production by not setting CLOUDFLARE_ENV (or setting it to empty string)
 function getCloudflareContextFromWrangler(): Promise<CloudflareContext> {
-  const targetProduction = isProduction || (isImportScript && process.env.CLOUDFLARE_ENV !== 'dev')
+  const targetProduction = isProduction || (isSeedScript && process.env.CLOUDFLARE_ENV !== 'dev')
   return import(/* webpackIgnore: true */ `${'__wrangler'.replaceAll('_', '')}`).then(
     ({ getPlatformProxy }) =>
       getPlatformProxy({

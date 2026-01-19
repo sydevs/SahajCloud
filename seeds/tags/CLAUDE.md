@@ -50,7 +50,7 @@ Background music categories (no colors):
 
 1. Downloads SVG icons from Cloudinary URLs
 2. Replaces hardcoded hex colors (`#RRGGBB`, `#RGB`) with `currentColor`
-3. Caches locally in `imports/cache/tags/assets/`
+3. Caches locally in `seeds/cache/tags/assets/`
 4. Uploads as SVG file attachments
 
 **Before** (hardcoded):

@@ -2,7 +2,7 @@
  * Runtime Detection Utilities
  *
  * Detects execution environment to enable dual-mode operation:
- * - Local development: File caching in `imports/cache/`
+ * - Local development: File caching in `seeds/cache/`
  * - Cloudflare Workers: Streaming without disk
  */
 
