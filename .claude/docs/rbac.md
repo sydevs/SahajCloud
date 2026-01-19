@@ -255,12 +255,18 @@ Access collections (`managers`, `clients`) and system collections (`payload-jobs
 - [src/lib/access/bypassPermissions.ts](../../src/lib/access/bypassPermissions.ts) - Shared bypass function for accessPlugin and tests
 - [src/payload.config.ts](../../src/payload.config.ts) - Plugin configuration
 
-**Plugin Implementation**:
-- [src/lib/access/accessPlugin.ts](../../src/lib/access/accessPlugin.ts) - Consolidated plugin (permission checking, access configs, visibility, field-level access)
+**Plugin Implementation** (modular architecture):
+- [src/lib/access/accessPlugin.ts](../../src/lib/access/accessPlugin.ts) - Main plugin orchestration
+- [src/lib/access/permissions.ts](../../src/lib/access/permissions.ts) - Permission checking (`hasPermission`, `hasAnyPermission`)
+- [src/lib/access/accessConfigs.ts](../../src/lib/access/accessConfigs.ts) - Access configuration factories
+- [src/lib/access/fieldAccess.ts](../../src/lib/access/fieldAccess.ts) - Field-level access for translatable collections
+- [src/lib/access/visibility.ts](../../src/lib/access/visibility.ts) - Admin UI visibility (`createHidden`)
+- [src/lib/access/types.ts](../../src/lib/access/types.ts) - Plugin type definitions
+- [src/lib/access/index.ts](../../src/lib/access/index.ts) - Barrel export (public API)
+
+**Supporting Modules**:
 - [src/lib/access/filterAvailableLocales.ts](../../src/lib/access/filterAvailableLocales.ts) - Admin UI locale filtering
 - [src/lib/access/schemaExtension.ts](../../src/lib/access/schemaExtension.ts) - TypeScript schema extension
-- [src/lib/access/types.ts](../../src/lib/access/types.ts) - Plugin type definitions
-- [src/lib/access/index.ts](../../src/lib/access/index.ts) - Barrel export
 
 **Admin Components**:
 - [src/components/admin/PermissionsTable.tsx](../../src/components/admin/PermissionsTable.tsx) - Real-time permissions display

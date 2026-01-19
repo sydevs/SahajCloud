@@ -5,7 +5,7 @@
  * bypass functions, and user types.
  */
 
-import type { CollectionSlug, GlobalSlug, Operation, TypedUser } from 'payload'
+import type { CollectionSlug, FieldAccess, GlobalSlug, Operation, TypedUser } from 'payload'
 
 import type { LocaleCode } from '@/lib/locales'
 import type { ProjectSlug, RoleSlug } from '@/payload-types'
@@ -95,4 +95,18 @@ export interface PermissionCheckArgs {
   docId?: string | number
   /** Field metadata for field-level permissions (e.g., { localized: true }) */
   field?: { localized?: boolean }
+}
+
+// ============================================================================
+// Field Access Config Type
+// ============================================================================
+
+/**
+ * Field access configuration type for field-level access control
+ * Used for non-localized fields in translatable collections
+ */
+export type FieldAccessConfig = {
+  read?: FieldAccess
+  create?: FieldAccess
+  update?: FieldAccess
 }
