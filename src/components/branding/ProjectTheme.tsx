@@ -14,6 +14,10 @@ interface ThemeColors {
  * Theme color mappings for each project
  * Uses subtle tints of brand colors for elevation variables
  * Null/undefined currentProject uses default PayloadCMS colors (no entry needed)
+ *
+ * Brand colors (primary, dark, light) are defined in @/lib/branding/themeColors.ts
+ * as the single source of truth. These elevation scales are carefully tuned
+ * visual designs derived from those brand colors for the PayloadCMS admin panel.
  */
 const PROJECT_THEMES: Record<ProjectSlug, ThemeColors> = {
   'wemeditate-web': {

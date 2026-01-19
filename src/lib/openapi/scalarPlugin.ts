@@ -11,6 +11,7 @@
 import type { Config, Endpoint } from 'payload'
 
 import { getProjectIcon, getProjectLabel, getProjectOptions, isValidProject } from '@/lib/access'
+import { getScalarThemeColors, type ScalarThemeColors } from '@/lib/branding'
 import type { ProjectSlug } from '@/payload-types'
 
 export interface ScalarPluginOptions {
@@ -23,66 +24,16 @@ export interface ScalarPluginOptions {
 }
 
 /**
- * Theme colors for each project (derived from ProjectTheme.tsx)
- * Maps to Scalar CSS variables
+ * Theme colors are derived from the shared brand colors in @/lib/branding.
+ * This ensures consistency between Scalar API docs and PayloadCMS admin themes.
+ * See: src/lib/branding/themeColors.ts for the single source of truth.
  */
-interface ThemeColors {
-  accent: string
-  accentDark: string
-  accentLight: string
-  background2Light: string
-  background3Light: string
-  background2Dark: string
-  background3Dark: string
-}
-
-const PROJECT_THEME_COLORS: Record<ProjectSlug, ThemeColors> = {
-  'wemeditate-web': {
-    // Coral theme
-    accent: '#F07855',
-    accentDark: '#D86545',
-    accentLight: '#FF9477',
-    background2Light: '#FFF5F2',
-    background3Light: '#fce4df',
-    background2Dark: '#2d2a29',
-    background3Dark: '#3d3533',
-  },
-  'wemeditate-app': {
-    // Teal theme
-    accent: '#61aaa0',
-    accentDark: '#4c8d84',
-    accentLight: '#72b3a9',
-    background2Light: '#ebf4f3',
-    background3Light: '#c5e0dc',
-    background2Dark: '#1c2b27',
-    background3Dark: '#23352f',
-  },
-  'sahaj-atlas': {
-    // Royal Blue theme
-    accent: '#4a8cd4',
-    accentDark: '#2d6db8',
-    accentLight: '#6fa3dd',
-    background2Light: '#eff3fb',
-    background3Light: '#d6e3f5',
-    background2Dark: '#1b263f',
-    background3Dark: '#22314f',
-  },
-}
-
-/**
- * Get theme colors for a project
- * Returns null for no project (uses Scalar's default theme)
- */
-function getThemeColors(project: ProjectSlug | null): ThemeColors | null {
-  if (!project) return null // Use Scalar's default theme
-  return PROJECT_THEME_COLORS[project]
-}
 
 /**
  * Generate CSS theme overrides for a specific project
  * Returns empty string for default Scalar theme
  */
-function generateThemeCss(theme: ThemeColors | null): string {
+function generateThemeCss(theme: ScalarThemeColors | null): string {
   if (!theme) return '' // Use Scalar's default theme
 
   return `
@@ -137,7 +88,7 @@ function getProjectSelectorOptions(): string {
 function generateScalarHtml(specUrl: string, project: ProjectSlug | null, baseUrl: string): string {
   const currentLogo = getProjectIcon(project)
   const projectTitle = getProjectLabel(project)
-  const theme = getThemeColors(project)
+  const theme = getScalarThemeColors(project)
 
   // Build the full spec URL with project parameter
   const fullSpecUrl = project ? `${specUrl}?project=${project}` : specUrl
