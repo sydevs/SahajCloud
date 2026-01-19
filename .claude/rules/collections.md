@@ -69,9 +69,9 @@ VirtualUrlField()
 
 ## Adding New Roles
 
-### 1. Define Role in config.ts
+### 1. Define Role in roles.ts
 ```typescript
-// src/lib/access/config.ts
+// src/lib/access/config/roles.ts
 const ROLES = {
   'my-new-role': {
     label: 'My New Role',
