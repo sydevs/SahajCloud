@@ -325,7 +325,7 @@ Configuration located in `src/lib/richEditor.ts`
 
 The system includes seed scripts for seeding content from external sources into Payload CMS.
 
-**Documentation**: See [imports/CLAUDE.md](../../imports/CLAUDE.md) for commands, environment variables, and troubleshooting.
+**Documentation**: See [seeds/CLAUDE.md](../../seeds/CLAUDE.md) for commands, environment variables, and troubleshooting.
 
 **Available Seed Scripts**:
 - **Storyblok** (`pnpm seed storyblok`) - Path Steps from Storyblok CMS to Lessons

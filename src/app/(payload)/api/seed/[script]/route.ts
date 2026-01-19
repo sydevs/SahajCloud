@@ -24,8 +24,8 @@
  * - limit: Maximum items to process (default: environment-based)
  */
 
-import type { BaseImporter } from '../../../../../../imports/lib/BaseImporter'
-import type { PaginationOptions, PaginationResult } from '../../../../../../imports/lib/pagination'
+import type { BaseImporter } from '../../../../../../seeds/lib/BaseImporter'
+import type { PaginationOptions, PaginationResult } from '../../../../../../seeds/lib/pagination'
 import type { NextRequest } from 'next/server'
 
 import { getPayload } from 'payload'
@@ -36,7 +36,7 @@ import {
   getScriptMetadata,
   verifyCountsForScript,
   type ScriptName,
-} from '../../../../../../imports/lib/expectedCounts'
+} from '../../../../../../seeds/lib/expectedCounts'
 
 const VALID_SCRIPTS: ScriptName[] = ['tags', 'wemeditate', 'meditations', 'storyblok']
 
@@ -352,15 +352,15 @@ async function getImporter(
 
   switch (script) {
     case 'tags': {
-      const { TagsImporter } = await import('../../../../../../imports/tags/import')
+      const { TagsImporter } = await import('../../../../../../seeds/tags/import')
       return new TagsImporter(options)
     }
     case 'wemeditate': {
-      const { WeMeditateImporter } = await import('../../../../../../imports/wemeditate/import')
+      const { WeMeditateImporter } = await import('../../../../../../seeds/wemeditate/import')
       return new WeMeditateImporter(options)
     }
     case 'meditations': {
-      const { MeditationsImporter } = await import('../../../../../../imports/meditations/import')
+      const { MeditationsImporter } = await import('../../../../../../seeds/meditations/import')
       return new MeditationsImporter(options)
     }
     case 'storyblok': {
@@ -368,7 +368,7 @@ async function getImporter(
       if (!token) {
         throw new Error('STORYBLOK_ACCESS_TOKEN environment variable is required')
       }
-      const { StoryblokImporter } = await import('../../../../../../imports/storyblok/import')
+      const { StoryblokImporter } = await import('../../../../../../seeds/storyblok/import')
       return new StoryblokImporter(options, token)
     }
     default:

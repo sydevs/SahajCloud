@@ -1,4 +1,4 @@
-# Import Utilities Library
+# Seed Utilities Library
 
 Shared utilities for import scripts. All imports should extend `BaseImporter`.
 
@@ -11,7 +11,7 @@ Abstract base class providing common functionality for all imports.
 ```typescript
 class MyImporter extends BaseImporter<BaseImportOptions> {
   protected readonly importName = 'My Import'  // Display name
-  protected readonly cacheDir = path.resolve(process.cwd(), 'imports/cache/my-import')
+  protected readonly cacheDir = path.resolve(process.cwd(), 'seeds/cache/my-import')
 
   protected async import(): Promise<void> {
     // Your import logic here
@@ -264,12 +264,12 @@ const fileData: FileData = {
 }
 ```
 
-### Creating New Import Scripts
+### Creating New Seed Scripts
 
-1. Create `imports/<name>/import.ts`
+1. Create `seeds/<name>/import.ts`
 2. Extend `BaseImporter`
 3. Implement `import()` method
-4. Add to `imports/run.ts` SCRIPTS map
+4. Add to `seeds/run.ts` SCRIPTS map
 5. Add npm script to `package.json`
 
 ## File Structure

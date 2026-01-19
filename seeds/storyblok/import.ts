@@ -36,7 +36,7 @@ import {
 // CONFIGURATION
 // ============================================================================
 
-const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/storyblok')
+const CACHE_DIR = path.resolve(process.cwd(), 'seeds/cache/storyblok')
 
 // ============================================================================
 // TYPES

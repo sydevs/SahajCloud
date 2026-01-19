@@ -130,7 +130,7 @@ function uniqueId(): string {
 
 /**
  * Create Lexical content with TextBoxBlock containing image
- * Structure based on createBlockNode in imports/lib/lexicalConverter.ts:
+ * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts:
  * - blockType goes INSIDE fields
  * - version: 2 for block nodes
  */
@@ -162,7 +162,7 @@ function createLexicalWithTextBoxBlock(imageId: number): Page['content'] {
 
 /**
  * Create Lexical content with LayoutBlock containing image
- * Structure based on createBlockNode in imports/lib/lexicalConverter.ts
+ * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts
  */
 function createLexicalWithLayoutBlock(imageId: number): Page['content'] {
   return {
@@ -198,7 +198,7 @@ function createLexicalWithLayoutBlock(imageId: number): Page['content'] {
 /**
  * Create Lexical content with GalleryBlock containing images
  * Note: GalleryBlock requires minRows: 3 images
- * Structure based on createBlockNode in imports/lib/lexicalConverter.ts
+ * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts
  */
 function createLexicalWithGalleryBlock(imageIds: number[]): Page['content'] {
   return {

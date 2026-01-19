@@ -22,23 +22,23 @@ Testing infrastructure for import scripts using in-memory SQLite.
 
 ```bash
 # Initialize test database
-pnpm tsx imports/tests/setup-test-db.ts setup
+pnpm tsx seeds/tests/setup-test-db.ts setup
 
 # View collection counts
-pnpm tsx imports/tests/check-db-stats.ts
+pnpm tsx seeds/tests/check-db-stats.ts
 
 # View tag information
-pnpm tsx imports/tests/check-tags.ts
+pnpm tsx seeds/tests/check-tags.ts
 ```
 
 ### Test Runners
 
 ```bash
 # Storyblok (requires API token)
-./imports/tests/test-storyblok.sh
+./seeds/tests/test-storyblok.sh
 
 # Meditations (requires data.bin)
-./imports/tests/test-meditations.sh
+./seeds/tests/test-meditations.sh
 ```
 
 ### Manual Testing
@@ -47,13 +47,13 @@ pnpm tsx imports/tests/check-tags.ts
 export PAYLOAD_SECRET="test-secret-key-12345"
 
 # Dry run
-pnpm tsx imports/meditations/import.ts --dry-run
+pnpm tsx seeds/meditations/import.ts --dry-run
 
 # Full import
-pnpm tsx imports/meditations/import.ts
+pnpm tsx seeds/meditations/import.ts
 
 # Check results
-pnpm tsx imports/tests/check-db-stats.ts
+pnpm tsx seeds/tests/check-db-stats.ts
 ```
 
 ## Test Results
@@ -85,7 +85,7 @@ Note: PostgreSQL only needed for meditations/wemeditate imports
 Expected for Storyblok tests without API access.
 
 ### "data.bin not found"
-Place PostgreSQL dump at `imports/meditations/data.bin`
+Place PostgreSQL dump at `seeds/meditations/data.bin`
 
 ### "Better SQLite build errors"
 ```bash

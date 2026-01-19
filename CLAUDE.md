@@ -195,8 +195,8 @@ Configuration: `src/lib/richEditor.ts`
 - `wrangler.toml` - Cloudflare deployment configuration
 
 ### Data Seed Scripts
-- See [imports/README.md](imports/README.md) for detailed documentation
-- Available: Storyblok, WeMeditate, Meditations, Tags imports
+- See [seeds/CLAUDE.md](seeds/CLAUDE.md) for detailed documentation
+- Available: Storyblok, WeMeditate, Meditations, Tags seeds
 - Run via `pnpm seed <script>` or `pnpm seed:<script>`
 - All scripts support `--dry-run` and `--clear-cache` flags
 

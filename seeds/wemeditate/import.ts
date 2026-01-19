@@ -13,7 +13,7 @@
  * - No PostgreSQL dependency - can run anywhere (migrations, CI/CD, Workers)
  *
  * DATA SOURCE:
- * - JSON file (imports/wemeditate/data.json) - pre-extracted from legacy Rails PostgreSQL
+ * - JSON file (seeds/wemeditate/data.json) - pre-extracted from legacy Rails PostgreSQL
  * - WeMeditate assets server - for downloading media files
  *
  * Usage:
@@ -175,7 +175,7 @@ import {
 // CONFIGURATION
 // ============================================================================
 
-const CACHE_DIR = path.resolve(process.cwd(), 'imports/cache/wemeditate')
+const CACHE_DIR = path.resolve(process.cwd(), 'seeds/cache/wemeditate')
 const STORAGE_BASE_URL = 'https://assets.wemeditate.com/uploads/'
 
 /**
@@ -401,8 +401,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   private async loadData(): Promise<void> {
     await this.logger.info('Loading data from JSON...')
 
-    const localPath = path.resolve(process.cwd(), 'imports/wemeditate/data.json')
-    const workerUrl = `${GITHUB_RAW_BASE}/imports/wemeditate/data.json`
+    const localPath = path.resolve(process.cwd(), 'seeds/wemeditate/data.json')
+    const workerUrl = `${GITHUB_RAW_BASE}/seeds/wemeditate/data.json`
 
     const jsonContent = await this.loadDataFile(localPath, workerUrl)
     this.data = JSON.parse(jsonContent) as WeMeditateData
@@ -1095,7 +1095,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
    * Uses mediaDownloader for consistent handling across local/Workers modes.
    */
   private async getOrCreatePlaceholderImage(): Promise<{ localPath: string; buffer?: Buffer }> {
-    const githubUrl = `${GITHUB_RAW_BASE}/imports/wemeditate/preview.png`
+    const githubUrl = `${GITHUB_RAW_BASE}/seeds/wemeditate/preview.png`
 
     try {
       // Use mediaDownloader for consistent handling (it works for other albums)
@@ -1299,7 +1299,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       }
 
       // Try to read SVG from filesystem (returns null in Workers mode)
-      const svgPath = path.resolve(process.cwd(), 'imports/tags/music-tag.svg')
+      const svgPath = path.resolve(process.cwd(), 'seeds/tags/music-tag.svg')
       let svgBuffer = await readCache(svgPath)
 
       if (!svgBuffer) {
@@ -2366,7 +2366,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     if (this.defaultThumbnailId) return this.defaultThumbnailId
 
     const PREVIEW_URL =
-      'https://raw.githubusercontent.com/sydevs/SahajCloud/main/imports/wemeditate/preview.png'
+      'https://raw.githubusercontent.com/sydevs/SahajCloud/main/seeds/wemeditate/preview.png'
 
     // Tags for default placeholder thumbnail
     const tags = [this.thumbnailTagId, this.placeholderTagId].filter(

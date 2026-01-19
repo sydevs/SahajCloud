@@ -6,12 +6,12 @@ import {
   verifyCountsForScript,
   getCollectionMetadata,
   type ScriptName,
-} from '../../imports/lib/expectedCounts'
+} from '../../seeds/lib/expectedCounts'
 import {
   getDefaultBatchSize,
   getEnvironment,
   type PaginationOptions,
-} from '../../imports/lib/pagination'
+} from '../../seeds/lib/pagination'
 
 
 describe('Pagination Utilities', () => {

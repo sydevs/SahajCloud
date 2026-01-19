@@ -19,7 +19,7 @@ Imports content from Rails-based WeMeditate PostgreSQL database into Payload CMS
 ## Prerequisites
 
 - PostgreSQL installed (`psql`, `createdb`, `pg_restore` commands available)
-- `imports/wemeditate/data.bin` file exists
+- `seeds/wemeditate/data.bin` file exists
 - `PAYLOAD_SECRET` environment variable set
 
 ## Commands
