@@ -361,6 +361,63 @@ The generic traversal:
 - The `isLexicalBlock` flag indicates a richText field needing special handling
 - This pattern eliminates hardcoded collection/field knowledge for maintenance-free discovery
 
+## Storage Adapter Naming Pattern
+
+When creating or renaming storage adapters and their associated URL fields:
+
+### Naming Convention
+- **Adapter**: `<purpose>Adapter` (e.g., `mixedMediaAdapter`, `cloudflareImagesAdapter`)
+- **URL Field Factory**: `<purpose>UrlField` (e.g., `mixedMediaUrlField`, `virtualUrlField`)
+- **Config Interface**: `<AdapterName>Config` (e.g., `MixedMediaAdapterConfig`)
+
+### Shared Logic Extraction
+When adapter and URL field need identical routing logic, extract to shared utility:
+
+```typescript
+// src/lib/storage/mimeUtils.ts
+export type MimeCategory = 'image' | 'video' | 'other'
+
+export function getMimeCategory(mimeType: string | undefined): MimeCategory {
+  if (!mimeType) return 'other'
+  if (mimeType.startsWith('image/')) return 'image'
+  if (mimeType.startsWith('video/')) return 'video'
+  return 'other'
+}
+```
+
+### Adapter Factory Pattern
+
+```typescript
+export const mixedMediaAdapter = (config: MixedMediaAdapterConfig): Adapter => {
+  const { routes, r2Adapter } = config
+
+  return {
+    name: 'mixed-media-adapter',
+    handleUpload: async (args) => {
+      const { file, data } = args
+      const category = getMimeCategory(file.mimetype)
+
+      // Route to appropriate adapter
+      for (const [prefix, adapter] of Object.entries(routes)) {
+        if (file.mimetype?.startsWith(prefix)) {
+          return adapter.handleUpload(args)
+        }
+      }
+
+      // Default to R2 for 'other' category
+      return r2Adapter.handleUpload(args)
+    },
+    // ... other adapter methods
+  }
+}
+```
+
+### Key Points
+- Always use shared utility for routing logic used by both adapter and URL field
+- Name interface parameters clearly (e.g., `r2Adapter` not `default`)
+- Update barrel exports in `index.ts` when renaming
+- Update storagePlugin.ts collection configurations
+
 ## Common JavaScript Pitfalls
 
 ### parseInt Parses Partial Strings
