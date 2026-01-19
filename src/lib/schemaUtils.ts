@@ -325,67 +325,14 @@ export function extractIdsFromDocument(
 }
 
 /**
- * Group Lexical block references by collection and rich text field.
- * This helps with efficient content extraction.
- */
-interface LexicalFieldGroup {
-  collection: string
-  richTextFieldPath: string
-  blocks: Array<{
-    blockSlug: string
-    references: FieldReference[]
-  }>
-}
-
-/**
- * Group Lexical block references for efficient extraction.
- */
-export function groupLexicalReferences(references: FieldReference[]): LexicalFieldGroup[] {
-  const groups = new Map<string, LexicalFieldGroup>()
-
-  for (const ref of references) {
-    if (!ref.isLexicalBlock || !ref.blockSlug) continue
-
-    // Extract the rich text field path (everything before the block-specific path)
-    // e.g., 'content.blocks.textbox.image' -> 'content'
-    const pathParts = ref.fieldPath.split('.')
-    const richTextFieldPath = pathParts[0] // First part is always the richText field name
-
-    const groupKey = `${ref.collection}:${richTextFieldPath}`
-
-    if (!groups.has(groupKey)) {
-      groups.set(groupKey, {
-        collection: ref.collection,
-        richTextFieldPath,
-        blocks: [],
-      })
-    }
-
-    const group = groups.get(groupKey)!
-    let blockGroup = group.blocks.find((b) => b.blockSlug === ref.blockSlug)
-    if (!blockGroup) {
-      blockGroup = { blockSlug: ref.blockSlug, references: [] }
-      group.blocks.push(blockGroup)
-    }
-    blockGroup.references.push(ref)
-  }
-
-  return Array.from(groups.values())
-}
-
-/**
  * Extract IDs from Lexical rich text content using generic traversal.
  * This function scans all block nodes and extracts upload/relationship IDs
  * from any field that looks like an upload reference.
  *
  * @param content - The Lexical content object
- * @param _blockReferences - Optional block references (for API compatibility, not used in generic traversal)
  * @returns Set of numeric IDs found in the content
  */
-export function extractIdsFromLexicalContent(
-  content: unknown,
-  _blockReferences?: Array<{ blockSlug: string; references: FieldReference[] }>,
-): Set<number> {
+export function extractIdsFromLexicalContent(content: unknown): Set<number> {
   const ids = new Set<number>()
 
   if (!content || typeof content !== 'object') return ids

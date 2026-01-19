@@ -2,8 +2,6 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import type { Page } from '@/payload-types'
-
 import {
   discoverReferencesForCollection,
   extractId,
@@ -13,106 +11,12 @@ import {
   type FieldReference,
 } from '@/lib/schemaUtils'
 
+import {
+  createLexicalWithGalleryBlock,
+  createLexicalWithLayoutBlock,
+  createLexicalWithTextBoxBlock,
+} from '../utils/lexicalTestHelpers'
 import { createTestEnvironment } from '../utils/testHelpers'
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Generate unique ID for test entities
- */
-function uniqueId(): string {
-  return `${Date.now()}_${Math.random().toString(36).substring(7)}`
-}
-
-/**
- * Create Lexical content with TextBoxBlock containing image
- */
-function createLexicalWithTextBoxBlock(imageId: number): Page['content'] {
-  return {
-    root: {
-      type: 'root',
-      children: [
-        {
-          type: 'block',
-          version: 2,
-          fields: {
-            id: uniqueId(),
-            blockName: 'Text Box',
-            blockType: 'textbox',
-            image: imageId,
-            imagePosition: 'left',
-            text: 'Test content',
-          },
-        },
-      ],
-      direction: null,
-      format: '',
-      indent: 0,
-      version: 1,
-    },
-  } as unknown as Page['content']
-}
-
-/**
- * Create Lexical content with LayoutBlock containing images in items
- */
-function createLexicalWithLayoutBlock(imageIds: number[]): Page['content'] {
-  return {
-    root: {
-      type: 'root',
-      children: [
-        {
-          type: 'block',
-          version: 2,
-          fields: {
-            id: uniqueId(),
-            blockName: 'Layout',
-            blockType: 'layout',
-            style: 'grid',
-            items: imageIds.map((id) => ({
-              id: uniqueId(),
-              image: id,
-              title: 'Test Item',
-            })),
-          },
-        },
-      ],
-      direction: null,
-      format: '',
-      indent: 0,
-      version: 1,
-    },
-  } as unknown as Page['content']
-}
-
-/**
- * Create Lexical content with GalleryBlock containing images
- */
-function createLexicalWithGalleryBlock(imageIds: number[]): Page['content'] {
-  return {
-    root: {
-      type: 'root',
-      children: [
-        {
-          type: 'block',
-          version: 2,
-          fields: {
-            id: uniqueId(),
-            blockName: 'Image Gallery',
-            blockType: 'gallery',
-            items: imageIds,
-          },
-        },
-      ],
-      direction: null,
-      format: '',
-      indent: 0,
-      version: 1,
-    },
-  } as unknown as Page['content']
-}
 
 // ============================================================================
 // TEST SUITE
