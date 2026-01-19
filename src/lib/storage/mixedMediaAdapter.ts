@@ -28,7 +28,7 @@ export interface MixedMediaAdapterConfig {
  * Create mixed media storage adapter
  *
  * Routes files to different storage adapters based on MIME type prefix matching.
- * R2 is used as the hardcoded default for any files that don't match image/* or video/*.
+ * The provided R2 adapter is used as the default fallback for any files that don't match image/* or video/*.
  *
  * @param config - Mixed media adapter configuration with routes and R2 adapter
  * @returns PayloadCMS storage adapter
@@ -53,7 +53,7 @@ export const mixedMediaAdapter = (config: MixedMediaAdapterConfig): Adapter => {
       adapters[key] = adapter({ collection, prefix })
     }
 
-    // R2 is the hardcoded default for unmatched MIME types
+    // R2 adapter is used as the default fallback for unmatched MIME types
     const r2GeneratedAdapter = config.r2Adapter({ collection, prefix })
 
     // Helper to select adapter based on MIME type

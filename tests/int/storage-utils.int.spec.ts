@@ -23,6 +23,14 @@ const getAfterReadHook = (field: Field): FieldHook | undefined => {
   return undefined
 }
 
+// Type for test hook data
+type TestHookData = { filename?: string; mimeType?: string; url?: string } | null
+
+// Helper to call a hook with test data (avoids `as never` casts throughout tests)
+const callHook = (hook: FieldHook, data: TestHookData): unknown => {
+  return hook({ data } as Parameters<FieldHook>[0])
+}
+
 describe('URL Field Factories', () => {
   const originalEnv = process.env
 
@@ -48,7 +56,7 @@ describe('URL Field Factories', () => {
       const hook = getAfterReadHook(field)
       expect(hook).toBeDefined()
 
-      const url = hook!({ data: { filename: 'test-image-id' } } as never)
+      const url = callHook(hook!, { filename: 'test-image-id' })
       expect(url).toBe('https://imagedelivery.net/abc123/test-image-id/public')
     })
 
@@ -61,7 +69,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'test-image.jpg' } } as never)
+      const url = callHook(hook!, { filename: 'test-image.jpg' })
       expect(url).toBe('/api/images/file/test-image.jpg')
     })
 
@@ -74,7 +82,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'video-id' } } as never)
+      const url = callHook(hook!, { filename: 'video-id' })
       expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/downloads/default.mp4')
     })
 
@@ -87,7 +95,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'test-video.mp4' } } as never)
+      const url = callHook(hook!, { filename: 'test-video.mp4' })
       expect(url).toBe('/api/frames/file/test-video.mp4')
     })
 
@@ -100,7 +108,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'meditation-file.mp3' } } as never)
+      const url = callHook(hook!, { filename: 'meditation-file.mp3' })
       expect(url).toBe('https://assets.example.com/meditation-file.mp3')
     })
 
@@ -113,7 +121,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'test.mp3', url: '/local/path/test.mp3' } } as never)
+      const url = callHook(hook!, { filename: 'test.mp3', url: '/local/path/test.mp3' })
       expect(url).toBe('/local/path/test.mp3')
     })
 
@@ -124,7 +132,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: {} } as never)
+      const url = callHook(hook!, {})
       expect(url).toBeUndefined()
     })
 
@@ -135,7 +143,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: null } as never)
+      const url = callHook(hook!, null)
       expect(url).toBeUndefined()
     })
 
@@ -162,7 +170,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'video-id', mimeType: 'video/mp4' } } as never)
+      const url = callHook(hook!, { filename: 'video-id', mimeType: 'video/mp4' })
       expect(url).toBe(
         'https://customer-test.cloudflarestream.com/video-id/thumbnails/thumbnail.jpg?height=320',
       )
@@ -178,7 +186,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'image-id', mimeType: 'image/jpeg' } } as never)
+      const url = callHook(hook!, { filename: 'image-id', mimeType: 'image/jpeg' })
       expect(url).toBe('https://imagedelivery.net/abc123/image-id/format=auto,width=320,height=320,fit=cover')
     })
 
@@ -190,7 +198,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'image-id', mimeType: 'image/jpeg' } } as never)
+      const url = callHook(hook!, { filename: 'image-id', mimeType: 'image/jpeg' })
       expect(url).toContain('width=320')
       expect(url).toContain('height=320')
     })
@@ -205,7 +213,7 @@ describe('URL Field Factories', () => {
       // Videos return undefined when Stream is not configured
       // The FrameThumbnail component handles fallback by rendering <video> element
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'video.mp4', mimeType: 'video/mp4' } } as never)
+      const url = callHook(hook!, { filename: 'video.mp4', mimeType: 'video/mp4' })
       expect(url).toBeUndefined()
     })
 
@@ -217,7 +225,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'image.jpg', mimeType: 'image/jpeg' } } as never)
+      const url = callHook(hook!, { filename: 'image.jpg', mimeType: 'image/jpeg' })
       expect(url).toBe('/api/frames/file/image.jpg')
     })
 
@@ -227,7 +235,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'file.pdf', mimeType: 'application/pdf' } } as never)
+      const url = callHook(hook!, { filename: 'file.pdf', mimeType: 'application/pdf' })
       expect(url).toBe('/api/frames/file/file.pdf')
     })
 
@@ -237,7 +245,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { mimeType: 'video/mp4' } } as never)
+      const url = callHook(hook!, { mimeType: 'video/mp4' })
       expect(url).toBeUndefined()
     })
 
@@ -261,7 +269,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'image-id', mimeType: 'image/jpeg' } } as never)
+      const url = callHook(hook!, { filename: 'image-id', mimeType: 'image/jpeg' })
       expect(url).toBe('https://imagedelivery.net/abc123/image-id/public')
     })
 
@@ -273,7 +281,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'video-id', mimeType: 'video/mp4' } } as never)
+      const url = callHook(hook!, { filename: 'video-id', mimeType: 'video/mp4' })
       expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/downloads/default.mp4')
     })
 
@@ -285,7 +293,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'document.pdf', mimeType: 'application/pdf' } } as never)
+      const url = callHook(hook!, { filename: 'document.pdf', mimeType: 'application/pdf' })
       expect(url).toBe('https://assets.example.com/document.pdf')
     })
 
@@ -297,7 +305,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'audio.mp3', mimeType: 'audio/mpeg' } } as never)
+      const url = callHook(hook!, { filename: 'audio.mp3', mimeType: 'audio/mpeg' })
       expect(url).toBe('https://assets.example.com/audio.mp3')
     })
 
@@ -309,7 +317,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'image.jpg', mimeType: 'image/jpeg' } } as never)
+      const url = callHook(hook!, { filename: 'image.jpg', mimeType: 'image/jpeg' })
       expect(url).toBe('/api/frames/file/image.jpg')
     })
 
@@ -321,7 +329,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'video.mp4', mimeType: 'video/mp4' } } as never)
+      const url = callHook(hook!, { filename: 'video.mp4', mimeType: 'video/mp4' })
       expect(url).toBe('/api/frames/file/video.mp4')
     })
 
@@ -333,7 +341,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { filename: 'file.pdf', mimeType: 'application/pdf' } } as never)
+      const url = callHook(hook!, { filename: 'file.pdf', mimeType: 'application/pdf' })
       expect(url).toBe('/api/files/file/file.pdf')
     })
 
@@ -343,7 +351,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: { mimeType: 'image/jpeg' } } as never)
+      const url = callHook(hook!, { mimeType: 'image/jpeg' })
       expect(url).toBeUndefined()
     })
 
@@ -353,7 +361,7 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = hook!({ data: null } as never)
+      const url = callHook(hook!, null)
       expect(url).toBeUndefined()
     })
 
