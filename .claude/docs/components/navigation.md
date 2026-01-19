@@ -4,7 +4,7 @@ The CMS implements project-focused navigation to manage content for three distin
 
 ## Projects Configuration
 
-- **File**: [src/lib/access/config.ts](../../src/lib/access/config.ts) - Centralized configuration (single source of truth)
+- **File**: [src/lib/access/config/](../../src/lib/access/config/) - Centralized configuration (single source of truth)
 - **Projects** (3 defined):
   - `wemeditate-web` (WeMeditate Web) - Web application content
   - `wemeditate-app` (WeMeditate App) - Mobile application content
@@ -69,7 +69,7 @@ Collections use `admin.hidden` functions to control visibility based on `user.cu
 
 ### Example Implementation
 
-The `accessPlugin` automatically generates `admin.hidden` functions for all collections based on the project configuration. No manual setup is required - collections are automatically shown/hidden based on project assignments in `src/lib/access/config.ts`.
+The `accessPlugin` automatically generates `admin.hidden` functions for all collections based on the project configuration. No manual setup is required - collections are automatically shown/hidden based on project assignments in `src/lib/access/config/projects.ts`.
 
 ## Technical Notes
 
