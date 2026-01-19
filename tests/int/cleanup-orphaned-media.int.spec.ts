@@ -2,8 +2,12 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import type { Page } from '@/payload-types'
-
+import {
+  createLexicalWithGalleryBlock,
+  createLexicalWithLayoutBlock,
+  createLexicalWithTextBoxBlock,
+  uniqueId,
+} from '../utils/lexicalTestHelpers'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -119,109 +123,6 @@ async function imageInTrash(payload: Payload, id: number): Promise<boolean> {
     trash: true, // Include soft-deleted documents in results
   })
   return result.docs.length > 0
-}
-
-/**
- * Generate unique ID for test entities
- */
-function uniqueId(): string {
-  return `${Date.now()}_${Math.random().toString(36).substring(7)}`
-}
-
-/**
- * Create Lexical content with TextBoxBlock containing image
- * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts:
- * - blockType goes INSIDE fields
- * - version: 2 for block nodes
- */
-function createLexicalWithTextBoxBlock(imageId: number): Page['content'] {
-  return {
-    root: {
-      type: 'root',
-      children: [
-        {
-          type: 'block',
-          version: 2,
-          fields: {
-            id: uniqueId(),
-            blockName: 'Text Box',
-            blockType: 'textbox',
-            image: imageId,
-            imagePosition: 'left',
-            text: 'Test content',
-          },
-        },
-      ],
-      direction: null,
-      format: '',
-      indent: 0,
-      version: 1,
-    },
-  } as unknown as Page['content']
-}
-
-/**
- * Create Lexical content with LayoutBlock containing image
- * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts
- */
-function createLexicalWithLayoutBlock(imageId: number): Page['content'] {
-  return {
-    root: {
-      type: 'root',
-      children: [
-        {
-          type: 'block',
-          version: 2,
-          fields: {
-            id: uniqueId(),
-            blockName: 'Layout',
-            blockType: 'layout',
-            style: 'grid',
-            items: [
-              {
-                id: uniqueId(),
-                image: imageId,
-                title: 'Test Item',
-              },
-            ],
-          },
-        },
-      ],
-      direction: null,
-      format: '',
-      indent: 0,
-      version: 1,
-    },
-  } as unknown as Page['content']
-}
-
-/**
- * Create Lexical content with GalleryBlock containing images
- * Note: GalleryBlock requires minRows: 3 images
- * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts
- */
-function createLexicalWithGalleryBlock(imageIds: number[]): Page['content'] {
-  return {
-    root: {
-      type: 'root',
-      children: [
-        {
-          type: 'block',
-          version: 2,
-          fields: {
-            id: uniqueId(),
-            blockName: 'Image Gallery',
-            blockType: 'gallery',
-            items: imageIds,
-          },
-        },
-      ],
-      direction: null,
-      format: '',
-      indent: 0,
-      version: 1,
-    },
-  } as unknown as Page['content']
 }
 
 // ============================================================================
@@ -502,7 +403,7 @@ describe('CleanupOrphanedMedia Job', () => {
 
       // Create page with LayoutBlock containing this image
       await testData.createPage(payload, {
-        content: createLexicalWithLayoutBlock(image.id),
+        content: createLexicalWithLayoutBlock([image.id]),
       })
 
       // Run cleanup job
