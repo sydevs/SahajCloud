@@ -55,16 +55,14 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
       })(config)
     }
 
-    // Check if Cloudflare credentials are available from validated env
-    const hasCloudflareCredentials =
-      env &&
-      serverEnv.CLOUDFLARE_ACCOUNT_ID &&
-      serverEnv.CLOUDFLARE_API_KEY &&
-      serverEnv.CLOUDFLARE_IMAGES_DELIVERY_URL &&
-      serverEnv.CLOUDFLARE_STREAM_DELIVERY_URL
+    // Extract and validate Cloudflare credentials from validated env
+    const accountId = serverEnv.CLOUDFLARE_ACCOUNT_ID
+    const apiKey = serverEnv.CLOUDFLARE_API_KEY
+    const imagesDeliveryUrl = serverEnv.CLOUDFLARE_IMAGES_DELIVERY_URL
+    const streamDeliveryUrl = serverEnv.CLOUDFLARE_STREAM_DELIVERY_URL
 
     // If no env or missing credentials, use local storage (development fallback)
-    if (!hasCloudflareCredentials) {
+    if (!env || !accountId || !apiKey || !imagesDeliveryUrl || !streamDeliveryUrl) {
       return cloudStoragePlugin({
         enabled: false, // Disables cloud storage, uses local file storage
         collections: {},
@@ -76,21 +74,24 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
     const envObj = env as Record<string, unknown>
     const r2Bucket = requireBinding<R2Bucket>(envObj.R2 as R2Bucket | undefined, 'R2')
 
-    // Create storage adapters for Images and Stream using validated env
+    // Create storage adapters for Images and Stream using validated credentials
+    // TypeScript now knows these are defined (not undefined) after the check above
     const imagesAdapter = cloudflareImagesAdapter({
-      accountId: serverEnv.CLOUDFLARE_ACCOUNT_ID!,
-      apiKey: serverEnv.CLOUDFLARE_API_KEY!,
-      deliveryUrl: serverEnv.CLOUDFLARE_IMAGES_DELIVERY_URL!,
+      accountId,
+      apiKey,
+      deliveryUrl: imagesDeliveryUrl,
     })
 
     const streamAdapter = cloudflareStreamAdapter({
-      accountId: serverEnv.CLOUDFLARE_ACCOUNT_ID!,
-      apiKey: serverEnv.CLOUDFLARE_API_KEY!,
-      deliveryUrl: serverEnv.CLOUDFLARE_STREAM_DELIVERY_URL!,
+      accountId,
+      apiKey,
+      deliveryUrl: streamDeliveryUrl,
     })
 
     // Create R2 adapter for audio and file storage
     // All filenames are automatically sanitized (slugify + random suffix)
+    // Note: R2_DELIVERY_URL may be undefined in development, falling back to empty string
+    // The R2 adapter handles empty publicUrl by not generating public URLs
     const r2Adapter = r2NativeAdapter({
       bucket: r2Bucket,
       publicUrl: serverEnv.CLOUDFLARE_R2_DELIVERY_URL || '',

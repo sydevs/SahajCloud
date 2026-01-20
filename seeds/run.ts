@@ -48,7 +48,7 @@ dotenv.config({ path: '.env.local', override: true })
 
 import type { ScriptMetadata, PaginationResult } from './lib/pagination'
 
-import { serverEnv } from '../src/lib/env'
+import { seedEnv } from './env'
 
 type ScriptName = 'storyblok' | 'wemeditate' | 'meditations' | 'tags'
 
@@ -131,8 +131,8 @@ function printScripts(): void {
  * Authenticate with the API and return session cookies
  */
 async function authenticate(baseUrl: string): Promise<string> {
-  const email = serverEnv.ADMIN_EMAIL
-  const password = serverEnv.ADMIN_PASSWORD
+  const email = seedEnv.ADMIN_EMAIL
+  const password = seedEnv.ADMIN_PASSWORD
 
   if (!email || !password) {
     throw new Error(
@@ -705,7 +705,7 @@ async function main(): Promise<void> {
   const scripts = scriptsToRun.length > 0 ? scriptsToRun : SCRIPT_RUN_ORDER
 
   // Determine target URL
-  const baseUrl = serverEnv.SAHAJCLOUD_URL || `http://localhost:${serverEnv.PORT}`
+  const baseUrl = seedEnv.SAHAJCLOUD_URL || `http://localhost:${seedEnv.PORT}`
 
   console.log(`\n${'='.repeat(60)}`)
   console.log(`Seed Script Runner`)

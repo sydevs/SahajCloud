@@ -37,7 +37,7 @@ import {
   countCloudflareVideos,
 } from './lib/cloudflare-api'
 import { createR2Client, deleteAllR2Objects, countR2Objects } from './lib/r2-client'
-import { serverEnv } from '../src/lib/env'
+import { seedEnv } from './env'
 
 // Configuration
 const LOCAL_DB_PATH = 'local.db'
@@ -243,9 +243,9 @@ function resetProductionDatabase(): void {
 async function resetProductionR2(): Promise<void> {
   logStep('Clearing production R2 bucket')
 
-  const accountId = serverEnv.CLOUDFLARE_ACCOUNT_ID
-  const accessKeyId = serverEnv.CLOUDFLARE_R2_ACCESS_KEY_ID
-  const secretAccessKey = serverEnv.CLOUDFLARE_R2_SECRET_ACCESS_KEY
+  const accountId = seedEnv.CLOUDFLARE_ACCOUNT_ID
+  const accessKeyId = seedEnv.CLOUDFLARE_R2_ACCESS_KEY_ID
+  const secretAccessKey = seedEnv.CLOUDFLARE_R2_SECRET_ACCESS_KEY
 
   if (!accountId || !accessKeyId || !secretAccessKey) {
     log('  Missing R2 credentials - skipping', YELLOW)
@@ -281,9 +281,9 @@ async function resetProductionR2(): Promise<void> {
 async function resetDevR2(): Promise<void> {
   logStep('Clearing development R2 bucket')
 
-  const accountId = serverEnv.CLOUDFLARE_ACCOUNT_ID
-  const accessKeyId = serverEnv.CLOUDFLARE_R2_ACCESS_KEY_ID
-  const secretAccessKey = serverEnv.CLOUDFLARE_R2_SECRET_ACCESS_KEY
+  const accountId = seedEnv.CLOUDFLARE_ACCOUNT_ID
+  const accessKeyId = seedEnv.CLOUDFLARE_R2_ACCESS_KEY_ID
+  const secretAccessKey = seedEnv.CLOUDFLARE_R2_SECRET_ACCESS_KEY
 
   if (!accountId || !accessKeyId || !secretAccessKey) {
     log('  Missing R2 credentials - skipping', YELLOW)
@@ -319,8 +319,8 @@ async function resetDevR2(): Promise<void> {
 async function resetCloudflareImages(): Promise<void> {
   logStep('Clearing Cloudflare Images')
 
-  const accountId = serverEnv.CLOUDFLARE_ACCOUNT_ID
-  const apiKey = serverEnv.CLOUDFLARE_API_KEY
+  const accountId = seedEnv.CLOUDFLARE_ACCOUNT_ID
+  const apiKey = seedEnv.CLOUDFLARE_API_KEY
 
   if (!accountId || !apiKey) {
     log('  Missing credentials - skipping', YELLOW)
@@ -351,8 +351,8 @@ async function resetCloudflareImages(): Promise<void> {
 async function resetCloudflareStream(): Promise<void> {
   logStep('Clearing Cloudflare Stream')
 
-  const accountId = serverEnv.CLOUDFLARE_ACCOUNT_ID
-  const apiKey = serverEnv.CLOUDFLARE_API_KEY
+  const accountId = seedEnv.CLOUDFLARE_ACCOUNT_ID
+  const apiKey = seedEnv.CLOUDFLARE_API_KEY
 
   if (!accountId || !apiKey) {
     log('  Missing credentials - skipping', YELLOW)
