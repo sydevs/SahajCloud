@@ -1,5 +1,5 @@
-import type { CollectionConfig } from 'payload'
 import type { JSONSchema4 } from 'json-schema'
+import type { CollectionConfig } from 'payload'
 
 import { QuoteBlock } from '@/blocks/pages'
 import { mediaField } from '@/fields'
