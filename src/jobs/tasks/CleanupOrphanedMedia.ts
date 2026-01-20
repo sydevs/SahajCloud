@@ -90,13 +90,30 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
     const maxOperations = 500
     const gracePeriodHours = 24
 
-    // Calculate cutoff time (24 hours ago)
-    const cutoffTime = new Date()
-    cutoffTime.setHours(cutoffTime.getHours() - gracePeriodHours)
+    // Determine date range based on current month (rotates through 3 ranges)
+    const currentMonth = new Date().getMonth() // 0-11
+    const rangeIndex = currentMonth % 3 // 0, 1, or 2
+    const rangeEndMonthsAgo = rangeIndex
+    const rangeStartMonthsAgo = rangeIndex + 1
+
+    // Calculate range end (with grace period)
+    const rangeEnd = new Date()
+    rangeEnd.setMonth(rangeEnd.getMonth() - rangeEndMonthsAgo)
+    rangeEnd.setHours(rangeEnd.getHours() - gracePeriodHours)
+
+    // Calculate range start
+    const rangeStart = new Date()
+    rangeStart.setMonth(rangeStart.getMonth() - rangeStartMonthsAgo)
+
+    // Human-readable labels for logging
+    const rangeLabels = ['0-1mo', '1-2mo', '2-3mo']
+    const rangeLabel = rangeLabels[rangeIndex]
 
     req.payload.logger.info({
       msg: 'Starting orphaned media cleanup',
-      cutoffTime: cutoffTime.toISOString(),
+      rangeLabel,
+      rangeStart: rangeStart.toISOString(),
+      rangeEnd: rangeEnd.toISOString(),
       maxOperations,
       gracePeriodHours,
     })
@@ -117,7 +134,7 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
       // Phase B: Move newly detected orphans to trash
       const remainingOps = maxOperations - getTotalOperations(result)
       if (remainingOps > 0) {
-        await trashOrphanedMedia(req, result, remainingOps, cutoffTime)
+        await trashOrphanedMedia(req, result, remainingOps, rangeStart, rangeEnd)
       }
 
       req.payload.logger.info({
@@ -151,6 +168,88 @@ function getTotalOperations(result: CleanupResult): number {
 }
 
 /**
+ * Generic helper for processing items (delete or trash) with consistent logging and error handling.
+ *
+ * @param config.req - Payload request object
+ * @param config.collection - Target collection ('files' or 'images')
+ * @param config.docs - Documents to process
+ * @param config.operation - 'delete' for permanent deletion, 'trash' for soft delete
+ * @param config.result - CleanupResult object to update counters
+ * @param config.resultKey - Which counter to increment on success
+ * @param config.maxItemsToProcess - Maximum number of items to process (for early exit optimization)
+ */
+interface ProcessItemsConfig<T extends { id: number; filename?: string | null; createdAt?: string }> {
+  req: PayloadRequest
+  collection: 'files' | 'images'
+  docs: T[]
+  operation: 'delete' | 'trash'
+  result: CleanupResult
+  resultKey: keyof CleanupResult
+  maxItemsToProcess?: number
+}
+
+async function processItems<T extends { id: number; filename?: string | null; createdAt?: string }>(
+  config: ProcessItemsConfig<T>,
+): Promise<void> {
+  const { req, collection, docs, operation, result, resultKey, maxItemsToProcess } = config
+  const itemType = collection === 'files' ? 'file' : 'image'
+  const idKey = collection === 'files' ? 'fileId' : 'imageId'
+
+  let processedCount = 0
+
+  for (const doc of docs) {
+    // Early exit if we've reached the maximum number of items to process
+    if (maxItemsToProcess !== undefined && processedCount >= maxItemsToProcess) {
+      break
+    }
+
+    try {
+      if (operation === 'delete') {
+        // Permanent deletion: trash: true required so delete() can find trashed documents
+        await req.payload.delete({
+          collection,
+          id: doc.id,
+          trash: true,
+        })
+        ;(result[resultKey] as number)++
+        processedCount++
+        req.payload.logger.info({
+          msg: `Permanently deleted trashed ${itemType}`,
+          [idKey]: doc.id,
+          filename: doc.filename,
+        })
+      } else {
+        // Soft delete: set deletedAt to move to trash
+        await req.payload.update({
+          collection,
+          id: doc.id,
+          data: {
+            deletedAt: new Date().toISOString(),
+          },
+        })
+        ;(result[resultKey] as number)++
+        processedCount++
+        req.payload.logger.info({
+          msg: `Moved orphaned ${itemType} to trash`,
+          [idKey]: doc.id,
+          filename: doc.filename,
+          createdAt: doc.createdAt,
+        })
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const actionMsg = operation === 'delete' ? 'permanently delete trashed' : 'trash orphaned'
+      req.payload.logger.error({
+        msg: `Failed to ${actionMsg} ${itemType}`,
+        [idKey]: doc.id,
+        error: errorMessage,
+      })
+      result.errors++
+    }
+  }
+}
+
+/**
  * Phase A: Permanently delete items that are already in trash (have deletedAt set)
  */
 async function permanentlyDeleteTrashedItems(
@@ -160,7 +259,7 @@ async function permanentlyDeleteTrashedItems(
 ): Promise<void> {
   req.payload.logger.info({ msg: 'Phase A: Permanently deleting trashed items' })
 
-  // Find and permanently delete trashed files
+  // Find trashed files for permanent deletion
   // Note: trash: true is required to include soft-deleted documents in query results
   const trashedFiles = await req.payload.find({
     collection: 'files',
@@ -172,33 +271,16 @@ async function permanentlyDeleteTrashedItems(
     trash: true,
   })
 
-  for (const file of trashedFiles.docs) {
-    try {
-      // Permanently delete trashed item
-      // Note: trash: true required so delete() can find the trashed document
-      await req.payload.delete({
-        collection: 'files',
-        id: file.id,
-        trash: true,
-      })
-      result.permanentlyDeletedFiles++
-      req.payload.logger.info({
-        msg: `Permanently deleted trashed file`,
-        fileId: file.id,
-        filename: file.filename,
-      })
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      req.payload.logger.error({
-        msg: `Failed to permanently delete trashed file`,
-        fileId: file.id,
-        error: errorMessage,
-      })
-      result.errors++
-    }
-  }
+  await processItems({
+    req,
+    collection: 'files',
+    docs: trashedFiles.docs,
+    operation: 'delete',
+    result,
+    resultKey: 'permanentlyDeletedFiles',
+  })
 
-  // Find and permanently delete trashed images
+  // Find trashed images for permanent deletion
   // Note: trash: true is required to include soft-deleted documents in query results
   const remainingOps = maxOperations - result.permanentlyDeletedFiles
   const trashedImages = await req.payload.find({
@@ -211,31 +293,14 @@ async function permanentlyDeleteTrashedItems(
     trash: true,
   })
 
-  for (const image of trashedImages.docs) {
-    try {
-      // Permanently delete trashed item
-      // Note: trash: true required so delete() can find the trashed document
-      await req.payload.delete({
-        collection: 'images',
-        id: image.id,
-        trash: true,
-      })
-      result.permanentlyDeletedImages++
-      req.payload.logger.info({
-        msg: `Permanently deleted trashed image`,
-        imageId: image.id,
-        filename: image.filename,
-      })
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      req.payload.logger.error({
-        msg: `Failed to permanently delete trashed image`,
-        imageId: image.id,
-        error: errorMessage,
-      })
-      result.errors++
-    }
-  }
+  await processItems({
+    req,
+    collection: 'images',
+    docs: trashedImages.docs,
+    operation: 'delete',
+    result,
+    resultKey: 'permanentlyDeletedImages',
+  })
 
   req.payload.logger.info({
     msg: 'Phase A completed',
@@ -251,7 +316,8 @@ async function trashOrphanedMedia(
   req: PayloadRequest,
   result: CleanupResult,
   maxOperations: number,
-  cutoffTime: Date,
+  rangeStart: Date,
+  rangeEnd: Date,
 ): Promise<void> {
   req.payload.logger.info({ msg: 'Phase B: Trashing orphaned media' })
 
@@ -265,12 +331,13 @@ async function trashOrphanedMedia(
     referencedImageCount: referencedImages.size,
   })
 
-  // Find orphaned files (older than grace period, not already in trash, not referenced)
+  // Find orphaned files (in date range, not already in trash, not referenced)
   const potentialOrphanFiles = await req.payload.find({
     collection: 'files',
     where: {
       and: [
-        { createdAt: { less_than: cutoffTime.toISOString() } },
+        { createdAt: { greater_than_equal: rangeStart.toISOString() } },
+        { createdAt: { less_than: rangeEnd.toISOString() } },
         { deletedAt: { exists: false } }, // Not already in trash
       ],
     },
@@ -278,46 +345,27 @@ async function trashOrphanedMedia(
     depth: 0,
   })
 
-  for (const file of potentialOrphanFiles.docs) {
-    if (result.trashedFiles >= maxOperations / 2) break
+  // Filter unreferenced files and process with early exit
+  const orphanFiles = potentialOrphanFiles.docs.filter((file) => !referencedFiles.has(file.id))
 
-    if (!referencedFiles.has(file.id)) {
-      try {
-        // Soft delete: set deletedAt to move to trash
-        // Note: payload.delete() hard-deletes; use update() for soft delete
-        await req.payload.update({
-          collection: 'files',
-          id: file.id,
-          data: {
-            deletedAt: new Date().toISOString(),
-          },
-        })
-        result.trashedFiles++
-        req.payload.logger.info({
-          msg: `Moved orphaned file to trash`,
-          fileId: file.id,
-          filename: file.filename,
-          createdAt: file.createdAt,
-        })
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error)
-        req.payload.logger.error({
-          msg: `Failed to trash orphaned file`,
-          fileId: file.id,
-          error: errorMessage,
-        })
-        result.errors++
-      }
-    }
-  }
+  await processItems({
+    req,
+    collection: 'files',
+    docs: orphanFiles,
+    operation: 'trash',
+    result,
+    resultKey: 'trashedFiles',
+    maxItemsToProcess: Math.floor(maxOperations / 2),
+  })
 
-  // Find orphaned images (older than grace period, not already in trash, not referenced, no content tags)
+  // Find orphaned images (in date range, not already in trash, not referenced, no content tags)
   const remainingOps = maxOperations - result.trashedFiles
   const potentialOrphanImages = await req.payload.find({
     collection: 'images',
     where: {
       and: [
-        { createdAt: { less_than: cutoffTime.toISOString() } },
+        { createdAt: { greater_than_equal: rangeStart.toISOString() } },
+        { createdAt: { less_than: rangeEnd.toISOString() } },
         { deletedAt: { exists: false } }, // Not already in trash
       ],
     },
@@ -325,16 +373,16 @@ async function trashOrphanedMedia(
     depth: 1, // Include tag objects to check titles
   })
 
-  for (const image of potentialOrphanImages.docs) {
-    if (result.trashedImages >= remainingOps) break
-
+  // Filter unreferenced images without content tags, tracking skipped count
+  // Orientation tags (landscape, portrait, square) are auto-generated and don't count as "intentional" tags
+  // Note: We filter inline and track skipped images, but processItems() handles the early exit
+  const orphanImages = potentialOrphanImages.docs.filter((image) => {
     // Skip if image is referenced
     if (referencedImages.has(image.id)) {
-      continue
+      return false
     }
 
     // Skip if image has content tags (ignore auto-generated orientation tags)
-    // Orientation tags (landscape, portrait, square) are auto-generated and don't count as "intentional" tags
     const hasContentTags =
       Array.isArray(image.tags) &&
       image.tags.some((tag) => {
@@ -343,36 +391,21 @@ async function trashOrphanedMedia(
       })
     if (hasContentTags) {
       result.skippedImages++
-      continue
+      return false
     }
 
-    try {
-      // Soft delete: set deletedAt to move to trash
-      // Note: payload.delete() hard-deletes; use update() for soft delete
-      await req.payload.update({
-        collection: 'images',
-        id: image.id,
-        data: {
-          deletedAt: new Date().toISOString(),
-        },
-      })
-      result.trashedImages++
-      req.payload.logger.info({
-        msg: `Moved orphaned image to trash`,
-        imageId: image.id,
-        filename: image.filename,
-        createdAt: image.createdAt,
-      })
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      req.payload.logger.error({
-        msg: `Failed to trash orphaned image`,
-        imageId: image.id,
-        error: errorMessage,
-      })
-      result.errors++
-    }
-  }
+    return true
+  })
+
+  await processItems({
+    req,
+    collection: 'images',
+    docs: orphanImages,
+    operation: 'trash',
+    result,
+    resultKey: 'trashedImages',
+    maxItemsToProcess: remainingOps,
+  })
 
   req.payload.logger.info({
     msg: 'Phase B completed',
