@@ -117,12 +117,12 @@ describe('Rate Limiting Utilities', () => {
     })
 
     describe('RateLimitValidationError properties', () => {
-      it('should have correct status code', () => {
+      it('should have correct HTTP status', () => {
         try {
           validateUserId('short')
         } catch (error) {
           expect(error).toBeInstanceOf(RateLimitValidationError)
-          expect((error as RateLimitValidationError).statusCode).toBe(400)
+          expect((error as RateLimitValidationError).status).toBe(400)
         }
       })
 

@@ -58,7 +58,7 @@ Per-user API rate limiting using Cloudflare Workers Rate Limiting Binding preven
 2. `beforeOperation` hook extracts client ID, IP address, and user ID
 3. Composite rate limit key is built: `user:{clientId}:{ip}:{userId}`
 4. Cloudflare Rate Limiter checks if limit is exceeded
-5. Request is allowed (200) or rejected (429 with Retry-After header)
+5. Request is allowed (200) or rejected (429 Too Many Requests)
 
 ### Rate Limit Details
 
@@ -100,11 +100,10 @@ X-User-ID: user_12345678
 ```json
 {
   "errors": [{
-    "message": "Rate limit exceeded. Please wait before making more requests."
+    "message": "Rate limit exceeded. Maximum 500 requests per minute."
   }]
 }
 ```
-Includes `Retry-After` header with seconds until limit resets.
 
 ### Excluded from Rate Limiting
 

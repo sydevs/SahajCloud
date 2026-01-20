@@ -67,7 +67,7 @@ export function validateUserId(userId: string | null): string | null {
  * Returns 400 Bad Request for invalid X-User-ID format.
  */
 export class RateLimitValidationError extends Error {
-  statusCode = 400
+  status = 400
   constructor(message: string) {
     super(message)
     this.name = 'RateLimitValidationError'
@@ -76,13 +76,12 @@ export class RateLimitValidationError extends Error {
 
 /**
  * Custom error class for rate limit exceeded.
- * Returns 429 Too Many Requests with Retry-After header.
+ * Returns 429 Too Many Requests.
  *
  * Note: User ID is intentionally NOT included in the error message for privacy.
  */
 export class RateLimitExceededError extends Error {
-  statusCode = 429
-  retryAfter = 60
+  status = 429
   constructor() {
     super('Rate limit exceeded. Maximum 500 requests per minute.')
     this.name = 'RateLimitExceededError'
