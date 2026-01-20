@@ -74,7 +74,7 @@ function createBaseTestConfig(emailConfig?: any) {
     collections: getTestCollections(),
     globals,
     editor: lexicalEditor(),
-    secret: process.env.PAYLOAD_SECRET || 'test-secret-key',
+    secret: 'test-secret-key-with-32-chars-min',
     typescript: {
       outputFile: path.resolve(__dirname, '../../src/payload-types.ts'),
     },

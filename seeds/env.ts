@@ -63,6 +63,16 @@ const SeedEnvSchema = z.object({
    * Target URL for seed operations
    */
   SAHAJCLOUD_URL: z.url().optional(),
+
+  /**
+   * Storage base URL
+   * Base URL for accessing uploaded media files
+   * Used for importing files from external sources
+   */
+  STORAGE_BASE_URL: z
+    .url()
+    .optional()
+    .default('https://storage.googleapis.com/media.sydevelopers.com'),
 })
 
 // Type inference for TypeScript
