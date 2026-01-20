@@ -767,8 +767,19 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     // Fetch asset with caching (fetchAsset handles Workers vs local mode)
     const buffer = await fetchAsset(url, { cachePath })
     const rawData = buffer.toString('utf-8')
+    const parsed = JSON.parse(rawData) as {
+      captions?: Array<Record<string, unknown>>
+    }
 
-    return JSON.parse(rawData) as Record<string, unknown>
+    // Strip legacy startOfParagraph field from all captions (always null in Storyblok data)
+    if (parsed.captions && Array.isArray(parsed.captions)) {
+      parsed.captions = parsed.captions.map((caption) => {
+        const { startOfParagraph, ...rest } = caption
+        return rest
+      })
+    }
+
+    return parsed
   }
 
   // ============================================================================

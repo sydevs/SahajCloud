@@ -375,4 +375,56 @@ describe('Lessons Collection', () => {
       expect(draft._status).toBe('draft')
     })
   })
+
+  describe('Subtitle Validation (JSON Schema)', () => {
+    it('accepts valid subtitle data with required fields only', async () => {
+      const validSubtitles = {
+        captions: [
+          {
+            duration: 0,
+            content: 'Welcome to the first lesson',
+            startTime: '00:00:00.300',
+          },
+          {
+            duration: 2,
+            content: 'This is the second caption',
+            startTime: '00:00:02.500',
+          },
+        ],
+      }
+
+      const lesson = await testData.createLesson(payload, {
+        title: 'Subtitle Validation Test',
+        meditation: testMeditation.id,
+        introSubtitles: validSubtitles,
+      })
+
+      expect(lesson.introSubtitles).toEqual(validSubtitles)
+    })
+
+    it('accepts subtitle data even if startOfParagraph field is present', async () => {
+      // Note: JSON Schema validation only affects Monaco editor, not API validation
+      // The Storyblok importer strips this field, but API doesn't enforce it
+      const subtitlesWithLegacyField = {
+        captions: [
+          {
+            duration: 0,
+            content: 'Caption with legacy field',
+            startOfParagraph: null,
+            startTime: '00:00:00.300',
+          },
+        ],
+      }
+
+      const lesson = await testData.createLesson(payload, {
+        title: 'Subtitle with legacy field',
+        meditation: testMeditation.id,
+        introSubtitles: subtitlesWithLegacyField,
+      })
+
+      // PayloadCMS doesn't enforce jsonSchema at API level
+      // Data is stored as-is; schema only guides Monaco editor
+      expect(lesson.introSubtitles).toEqual(subtitlesWithLegacyField)
+    })
+  })
 })
