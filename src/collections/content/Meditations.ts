@@ -2,6 +2,7 @@ import type { CollectionConfig, Validate } from 'payload'
 
 import { mediaField, slugField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { serverEnv } from '@/lib/env'
 import { LOCALES } from '@/lib/locales'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 import { KeyframeData, KeyframeDefinition } from '@/types/frames'
@@ -27,7 +28,7 @@ export const Meditations: CollectionConfig = {
     defaultColumns: ['label', 'thumbnail', '_status', 'tags', 'durationMinutes'],
     livePreview: {
       url: ({ data }) => {
-        const baseURL = process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173'
+        const baseURL = serverEnv.WEMEDITATE_WEB_URL
         return `${baseURL}/${data.locale}/preview/embed?collection=meditations&id=${data.id}`
       },
     },

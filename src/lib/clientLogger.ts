@@ -16,13 +16,15 @@
  */
 import * as Sentry from '@sentry/react'
 
+import { clientEnv } from '@/lib/env'
+
 type LogContext = Record<string, unknown>
 type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug'
 
 // Log levels in order of verbosity (lower index = less verbose)
 const LOG_LEVELS: LogLevel[] = ['silent', 'error', 'warn', 'info', 'debug']
 
-const configuredLevel = (process.env.NEXT_PUBLIC_LOG_LEVEL as LogLevel) || 'silent'
+const configuredLevel = clientEnv.NEXT_PUBLIC_LOG_LEVEL || 'silent'
 const currentLevelIndex = LOG_LEVELS.indexOf(configuredLevel)
 
 /**

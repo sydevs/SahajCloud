@@ -45,6 +45,7 @@ import {
   TagManager,
   writeCache,
 } from '../lib'
+import { seedEnv } from 'seeds/env'
 
 // ============================================================================
 // FILE DATA TYPE
@@ -688,8 +689,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
    * - Cloudflare Workers: Stream directly without disk
    */
   private async downloadFile(storageKey: string, filename: string): Promise<Buffer | null> {
-    const baseUrl =
-      process.env.STORAGE_BASE_URL || 'https://storage.googleapis.com/media.sydevelopers.com'
+    const baseUrl = seedEnv.STORAGE_BASE_URL
     const fileUrl = `${baseUrl}/${storageKey}`
 
     // Build cache path for local mode

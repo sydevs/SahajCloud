@@ -5,7 +5,7 @@ import { QuoteBlock } from '@/blocks/pages'
 import { mediaField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { fullRichTextEditor } from '@/lib/richEditor'
-import subtitleSchema from '@/lib/subtitlesSchema.json'
+import subtitleSchema from '@/lib/subtitlesSchema.json' with { type: 'json' }
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',

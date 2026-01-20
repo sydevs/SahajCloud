@@ -21,6 +21,7 @@ import type { Payload } from 'payload'
 
 import * as path from 'path'
 
+import { seedEnv } from '../env'
 import {
   BaseImporter,
   BaseImportOptions,
@@ -92,7 +93,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
    * Requires STORYBLOK_ACCESS_TOKEN environment variable.
    */
   static async runFromMigration(payload: Payload): Promise<void> {
-    const token = process.env.STORYBLOK_ACCESS_TOKEN
+    const token = seedEnv.STORYBLOK_ACCESS_TOKEN
     if (!token) {
       throw new Error(
         'STORYBLOK_ACCESS_TOKEN environment variable is required for Storyblok migration',

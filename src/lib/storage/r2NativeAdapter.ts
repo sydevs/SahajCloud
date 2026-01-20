@@ -11,12 +11,14 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
 import slugify from 'slugify'
 
+import { serverEnv } from '@/lib/env'
+
 /**
  * Get R2 storage URL for a filename
  * @returns URL string or undefined if delivery URL not configured
  */
 export const getR2Url = (filename: string): string | undefined => {
-  const deliveryUrl = process.env.CLOUDFLARE_R2_DELIVERY_URL
+  const deliveryUrl = serverEnv.CLOUDFLARE_R2_DELIVERY_URL
   if (!deliveryUrl) return undefined
   return `${deliveryUrl}/${filename}`
 }
