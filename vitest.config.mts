@@ -26,7 +26,7 @@ export default defineConfig({
     // Set NODE_ENV=test for conditional config logic
     env: {
       NODE_ENV: 'test',
-      PAYLOAD_SECRET: 'test-secret-key',
+      PAYLOAD_SECRET: 'test-secret-key-with-32-chars-minimum',
     },
     // Mock CSS imports to prevent errors in tests
     css: {

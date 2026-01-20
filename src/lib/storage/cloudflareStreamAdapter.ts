@@ -9,6 +9,8 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
 import { z } from 'zod'
 
+import { serverEnv } from '@/lib/env'
+
 import { CloudflareStreamDownloadsResponseSchema, CloudflareStreamResponseSchema } from './cloudflareSchemas'
 import { validateFileUpload } from './uploadValidation'
 
@@ -18,7 +20,7 @@ import { validateFileUpload } from './uploadValidation'
  * @returns URL string or undefined if delivery URL not configured
  */
 export const getCloudflareStreamMp4Url = (filename: string): string | undefined => {
-  const deliveryUrl = process.env.CLOUDFLARE_STREAM_DELIVERY_URL
+  const deliveryUrl = serverEnv.CLOUDFLARE_STREAM_DELIVERY_URL
   if (!deliveryUrl) return undefined
   return `${deliveryUrl}/${filename}/downloads/default.mp4`
 }
@@ -33,7 +35,7 @@ export const getCloudflareStreamThumbnailUrl = (
   filename: string,
   height: number,
 ): string | undefined => {
-  const deliveryUrl = process.env.CLOUDFLARE_STREAM_DELIVERY_URL
+  const deliveryUrl = serverEnv.CLOUDFLARE_STREAM_DELIVERY_URL
   if (!deliveryUrl) return undefined
   return `${deliveryUrl}/${filename}/thumbnails/thumbnail.jpg?height=${height}`
 }

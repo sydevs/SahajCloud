@@ -14,6 +14,7 @@ import { GetPlatformProxyOptions } from 'wrangler'
 
 import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/lib/access'
 import { resendAdapter } from '@/lib/email/resendAdapter'
+import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { scalarPlugin } from '@/lib/openapi'
 import { sentryPlugin } from '@/lib/sentryPlugin'
@@ -55,10 +56,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     debug: true, // Enable verbose error logging for troubleshooting R2 uploads
     // Logger configuration - uses Pino under the hood
     // Controlled by NEXT_PUBLIC_LOG_LEVEL: 'silent' | 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
-    ...(process.env.NEXT_PUBLIC_LOG_LEVEL && {
+    ...(serverEnv.NEXT_PUBLIC_LOG_LEVEL && {
       logger: {
         options: {
-          level: process.env.NEXT_PUBLIC_LOG_LEVEL,
+          level: serverEnv.NEXT_PUBLIC_LOG_LEVEL,
         },
       },
     }),
@@ -70,13 +71,13 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     },
     cors: [
       serverUrl,
-      process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173',
-      process.env.SAHAJATLAS_URL || 'http://localhost:5174',
+      serverEnv.WEMEDITATE_WEB_URL,
+      serverEnv.SAHAJATLAS_URL,
     ],
     csrf: [
       serverUrl,
-      process.env.WEMEDITATE_WEB_URL || 'http://localhost:5173',
-      process.env.SAHAJATLAS_URL || 'http://localhost:5174',
+      serverEnv.WEMEDITATE_WEB_URL,
+      serverEnv.SAHAJATLAS_URL,
     ],
     admin: {
       user: Managers.slug,
@@ -108,7 +109,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     collections,
     globals,
     editor: lexicalEditor(),
-    secret: process.env.PAYLOAD_SECRET || '',
+    secret: serverEnv.PAYLOAD_SECRET,
     typescript: {
       outputFile: path.resolve(dirname, 'payload-types.ts'),
     },
@@ -224,11 +225,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
 // https://github.com/payloadcms/payload/blob/main/templates/with-cloudflare-d1/src/payload.config.ts
 // Import scripts can target production by not setting CLOUDFLARE_ENV (or setting it to empty string)
 function getCloudflareContextFromWrangler(): Promise<CloudflareContext> {
-  const targetProduction = isProduction || (isSeedScript && process.env.CLOUDFLARE_ENV !== 'dev')
+  const targetProduction = isProduction || (isSeedScript && serverEnv.CLOUDFLARE_ENV !== 'dev')
   return import(/* webpackIgnore: true */ `${'__wrangler'.replaceAll('_', '')}`).then(
     ({ getPlatformProxy }) =>
       getPlatformProxy({
-        environment: process.env.CLOUDFLARE_ENV || undefined,
+        environment: serverEnv.CLOUDFLARE_ENV || undefined,
         remoteBindings: targetProduction,
       } satisfies GetPlatformProxyOptions),
   )

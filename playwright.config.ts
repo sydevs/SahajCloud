@@ -53,7 +53,7 @@ export default defineConfig({
     env: {
       E2E_TEST: 'true',
       PORT: '4567',
-      PAYLOAD_SECRET: 'e2e-test-secret-key',
+      PAYLOAD_SECRET: 'e2e-test-secret-key-with-32-chars-minimum',
     },
   },
 })

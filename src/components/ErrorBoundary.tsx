@@ -3,6 +3,8 @@
 import * as Sentry from '@sentry/react'
 import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 
+import { clientEnv } from '@/lib/env'
+
 interface ErrorBoundaryState {
   hasError: boolean
   error?: Error
@@ -21,7 +23,7 @@ function initializeSentry() {
 
   // Initialize Sentry for client-side error tracking (production only)
   if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
-    const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
+    const dsn = clientEnv.NEXT_PUBLIC_SENTRY_DSN
 
     if (dsn) {
       Sentry.init({

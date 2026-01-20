@@ -12,6 +12,8 @@ import type { Config, PayloadRequest } from 'payload'
 
 import * as Sentry from '@sentry/cloudflare'
 
+import { serverEnv } from '@/lib/env'
+
 /**
  * Context object for Sentry error capture
  */
@@ -85,7 +87,7 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
 
   return (config: Config): Config => {
     // Skip plugin if disabled or no DSN configured
-    if (!enabled || !process.env.NEXT_PUBLIC_SENTRY_DSN) {
+    if (!enabled || !serverEnv.NEXT_PUBLIC_SENTRY_DSN) {
       return config
     }
 

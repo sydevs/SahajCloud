@@ -8,6 +8,8 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
 import { z } from 'zod'
 
+import { serverEnv } from '@/lib/env'
+
 import { CloudflareImagesResponseSchema } from './cloudflareSchemas'
 import { validateFileUpload } from './uploadValidation'
 
@@ -21,7 +23,7 @@ export const getCloudflareImagesUrl = (
   filename: string,
   variant = 'public',
 ): string | undefined => {
-  const deliveryUrl = process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
+  const deliveryUrl = serverEnv.CLOUDFLARE_IMAGES_DELIVERY_URL
   if (!deliveryUrl) return undefined
   return `${deliveryUrl}/${filename}/${variant}`
 }

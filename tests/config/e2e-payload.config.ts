@@ -73,7 +73,7 @@ export const e2ePayloadConfig = buildConfig({
   collections,
   globals,
   editor: lexicalEditor(),
-  secret: process.env.PAYLOAD_SECRET || 'e2e-test-secret-key',
+  secret: 'e2e-test-secret-key-with-32-chars',
   typescript: {
     outputFile: path.resolve(__dirname, '../../src/payload-types.ts'),
   },

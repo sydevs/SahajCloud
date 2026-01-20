@@ -16,6 +16,8 @@ import type { Plugin } from 'payload'
 
 import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
 
+import { requireBinding, serverEnv } from '@/lib/env'
+
 import { cloudflareImagesAdapter } from './cloudflareImagesAdapter'
 import { cloudflareStreamAdapter } from './cloudflareStreamAdapter'
 import { mixedMediaAdapter } from './mixedMediaAdapter'
@@ -53,51 +55,46 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
       })(config)
     }
 
-    // Check if Cloudflare credentials are available
-    const hasCloudflareCredentials =
-      env &&
-      process.env.CLOUDFLARE_ACCOUNT_ID &&
-      process.env.CLOUDFLARE_API_KEY &&
-      process.env.CLOUDFLARE_IMAGES_DELIVERY_URL &&
-      process.env.CLOUDFLARE_STREAM_DELIVERY_URL
+    // Extract and validate Cloudflare credentials from validated env
+    const accountId = serverEnv.CLOUDFLARE_ACCOUNT_ID
+    const apiKey = serverEnv.CLOUDFLARE_API_KEY
+    const imagesDeliveryUrl = serverEnv.CLOUDFLARE_IMAGES_DELIVERY_URL
+    const streamDeliveryUrl = serverEnv.CLOUDFLARE_STREAM_DELIVERY_URL
 
     // If no env or missing credentials, use local storage (development fallback)
-    if (!hasCloudflareCredentials) {
+    if (!env || !accountId || !apiKey || !imagesDeliveryUrl || !streamDeliveryUrl) {
       return cloudStoragePlugin({
         enabled: false, // Disables cloud storage, uses local file storage
         collections: {},
       })(config)
     }
 
-    // Env and credentials provided - validate R2 bucket binding
+    // Env and credentials provided - validate R2 bucket binding using helper
     // Type assertion needed since env is unknown - runtime validation ensures correctness
     const envObj = env as Record<string, unknown>
+    const r2Bucket = requireBinding<R2Bucket>(envObj.R2 as R2Bucket | undefined, 'R2')
 
-    if (!envObj.R2) {
-      throw new Error('storagePlugin: R2 bucket binding is required when env is provided')
-    }
-
-    // Extract R2 bucket with type narrowing (safe after validation)
-    const r2Bucket = envObj.R2 as R2Bucket
-
-    // Create storage adapters for Images and Stream
+    // Create storage adapters for Images and Stream using validated credentials
+    // TypeScript now knows these are defined (not undefined) after the check above
     const imagesAdapter = cloudflareImagesAdapter({
-      accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
-      apiKey: process.env.CLOUDFLARE_API_KEY!,
-      deliveryUrl: process.env.CLOUDFLARE_IMAGES_DELIVERY_URL!,
+      accountId,
+      apiKey,
+      deliveryUrl: imagesDeliveryUrl,
     })
 
     const streamAdapter = cloudflareStreamAdapter({
-      accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
-      apiKey: process.env.CLOUDFLARE_API_KEY!,
-      deliveryUrl: process.env.CLOUDFLARE_STREAM_DELIVERY_URL!,
+      accountId,
+      apiKey,
+      deliveryUrl: streamDeliveryUrl,
     })
 
     // Create R2 adapter for audio and file storage
     // All filenames are automatically sanitized (slugify + random suffix)
+    // Note: R2_DELIVERY_URL may be undefined in development, falling back to empty string
+    // The R2 adapter handles empty publicUrl by not generating public URLs
     const r2Adapter = r2NativeAdapter({
       bucket: r2Bucket,
-      publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL || '',
+      publicUrl: serverEnv.CLOUDFLARE_R2_DELIVERY_URL || '',
     })
 
     // Return a single cloudStoragePlugin with all adapters configured
