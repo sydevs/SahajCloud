@@ -696,18 +696,15 @@ export interface Video {
    * Tags for organizing and filtering videos
    */
   tags?: (number | VideoTag)[] | null;
-  /**
-   * Auto-populated video metadata (duration, format, etc.)
-   */
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  fileMetadata?: {
+    captions: {
+      duration: number;
+      content: string;
+      startTime: string;
+      [k: string]: unknown;
+    }[];
+    [k: string]: unknown;
+  };
   updatedAt: string;
   createdAt: string;
   url?: string | null;

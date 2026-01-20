@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { slugField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { createRateLimitHook } from '@/lib/rateLimiting'
 
 export const VideoTags: CollectionConfig = {
   slug: 'video-tags',
@@ -15,6 +16,7 @@ export const VideoTags: CollectionConfig = {
     defaultColumns: ['title', 'videos'],
   },
   hooks: {
+    beforeOperation: [createRateLimitHook()],
     afterRead: [trackClientUsageHook],
   },
   fields: [
