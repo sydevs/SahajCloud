@@ -112,7 +112,10 @@ export const Lessons: CollectionConfig = {
               name: 'introSubtitles',
               type: 'json',
               label: 'Intro Subtitles',
-              // TODO: Re-enable this (see GitHub issue #137)
+              // jsonSchema validation is disabled due to Ajv compatibility issues in
+              // Cloudflare Workers environment (see GitHub issue #137). The error occurs
+              // during schema compilation: "schemaPath:#/definitions/nonNegativeInteger/type"
+              // Re-enable once issue #137 is resolved.
               // jsonSchema: {
               //   uri: 'a://b/foo.json', // required
               //   fileMatch: ['a://b/foo.json'], // required
