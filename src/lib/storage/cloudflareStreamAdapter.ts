@@ -7,6 +7,9 @@
  */
 import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
+import { z } from 'zod'
+
+import { CloudflareStreamDownloadsResponseSchema, CloudflareStreamResponseSchema } from './cloudflareSchemas'
 import { validateFileUpload } from './uploadValidation'
 
 /**
@@ -45,12 +48,6 @@ export interface CloudflareStreamConfig {
   apiKey: string
   /** Base delivery URL with customer code (e.g., "https://customer-<code>.cloudflarestream.com") */
   deliveryUrl: string
-}
-
-interface CloudflareStreamResponse {
-  success: boolean
-  errors?: Array<{ message: string }>
-  result?: { uid: string }
 }
 
 /**
@@ -102,10 +99,10 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           },
         )
 
-        const uploadResult = (await uploadResponse.json()) as CloudflareStreamResponse
+        const uploadResult = CloudflareStreamResponseSchema.parse(await uploadResponse.json())
 
         if (!uploadResult.success) {
-          const errors = uploadResult.errors?.map((e) => e.message).join(', ') || 'Unknown error'
+          const errors = uploadResult.errors.map((e) => e.message).join(', ')
           throw new Error(`Cloudflare Stream upload failed: ${errors}`)
         }
 
@@ -129,20 +126,12 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
             },
           )
 
-          const downloadsResult = (await downloadsResponse.json()) as {
-            success: boolean
-            result?: {
-              default?: {
-                status: 'inprogress' | 'ready'
-                url: string
-                percentComplete?: number
-              }
-            }
-            errors?: Array<{ message: string }>
-          }
+          const downloadsResult = CloudflareStreamDownloadsResponseSchema.parse(
+            await downloadsResponse.json(),
+          )
 
           if (!downloadsResult.success) {
-            const errors = downloadsResult.errors?.map((e) => e.message).join(', ') || 'Unknown error'
+            const errors = downloadsResult.errors.map((e) => e.message).join(', ')
             req.payload.logger.warn({ msg: 'Failed to enable MP4 downloads', videoId, errors })
           } else {
             const downloadStatus = downloadsResult.result?.default?.status || 'unknown'
@@ -182,6 +171,16 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           req.file.name = videoId
         }
       } catch (error) {
+        // Handle Zod validation errors with detailed messages
+        if (error instanceof z.ZodError) {
+          req.payload.logger.error({
+            msg: 'Cloudflare Stream API response validation failed',
+            filename: file.filename,
+            validationIssues: error.issues,
+          })
+          throw new Error(`Cloudflare API response validation failed: ${error.message}`)
+        }
+
         req.payload.logger.error({
           msg: 'Cloudflare Stream upload error',
           filename: file.filename,
@@ -205,11 +204,11 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           },
         )
 
-        const result = (await response.json()) as CloudflareStreamResponse
+        const result = CloudflareStreamResponseSchema.parse(await response.json())
 
         if (!result.success && response.status !== 404) {
           // Ignore 404 errors (video already deleted)
-          const errors = result.errors?.map((e) => e.message).join(', ') || 'Unknown error'
+          const errors = result.errors.map((e) => e.message).join(', ')
           // eslint-disable-next-line no-console
           console.error(`[Cloudflare Stream] Delete warning for ${videoId}: ${errors}`)
         }
