@@ -12,9 +12,6 @@
           "content": {
             "type": "string"
           },
-          "startOfParagraph": {
-            "type": ["boolean", "null"]
-          },
           "startTime": {
             "type": "string"
           }

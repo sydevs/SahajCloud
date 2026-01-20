@@ -116,7 +116,7 @@ export const Lessons: CollectionConfig = {
               label: 'Intro Subtitles',
               admin: {
                 description:
-                  'Subtitles for intro audio (JSON format with captions array). Fixed issue #137 by making startOfParagraph optional.',
+                  'Subtitles for intro audio (JSON format). Schema: duration, content, startTime.',
               },
               jsonSchema: {
                 uri: 'a://subtitles.json',

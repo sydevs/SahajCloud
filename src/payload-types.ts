@@ -705,7 +705,6 @@ export interface Lesson {
     captions: {
       duration: number;
       content: string;
-      startOfParagraph?: boolean | null;
       startTime: string;
       [k: string]: unknown;
     }[];
