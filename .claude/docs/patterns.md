@@ -455,3 +455,191 @@ function extractId(value: unknown): number | null {
 - Use `/^\d+$/` regex to check for digits-only strings
 - This applies when extracting IDs from mixed data structures
 - See `src/lib/schemaUtils.ts` for the production implementation
+
+## External API Response Validation with Zod
+
+When integrating with external APIs (like Cloudflare, Stripe, etc.), use Zod schemas for runtime validation instead of TypeScript type assertions.
+
+### Why Use Zod for API Validation?
+
+**Benefits**:
+1. **Runtime Type Safety**: Catches API contract changes immediately
+2. **Better Error Messages**: Zod provides detailed path-based validation errors
+3. **Self-Documenting**: Schemas serve as living API documentation
+4. **Type Inference**: Single source of truth for both runtime and TypeScript types
+5. **Industry Standard**: Widely adopted (Next.js, Vercel, T3 Stack)
+
+**Anti-Pattern** (Type Assertions):
+```typescript
+// ❌ DON'T: No runtime validation
+interface ApiResponse {
+  success: boolean
+  errors?: Array<{ message: string }>
+  result?: { id: string }
+}
+
+const result = (await response.json()) as ApiResponse
+
+if (!result.success) {
+  const errors = result.errors?.map((e) => e.message).join(', ') || 'Unknown error'
+  throw new Error(`API failed: ${errors}`)
+}
+
+// result.result.id might be undefined!
+const id = result.result?.id
+if (!id) {
+  throw new Error('Response missing ID')
+}
+```
+
+### Pattern: Centralized Zod Schemas
+
+**Step 1**: Create a schemas file (e.g., `src/lib/storage/cloudflareSchemas.ts`):
+
+```typescript
+import { z } from 'zod'
+
+/**
+ * Common API error schema
+ */
+export const ApiErrorSchema = z.object({
+  code: z.number().optional(),
+  message: z.string(),
+})
+
+/**
+ * Base API response structure
+ */
+const BaseResponseSchema = z.object({
+  success: z.boolean(),
+  errors: z.array(ApiErrorSchema).default([]),
+  messages: z.array(z.string()).optional(),
+})
+
+/**
+ * Specific API response with required fields
+ */
+export const ApiResponseSchema = BaseResponseSchema.extend({
+  result: z
+    .object({
+      id: z.string().min(1), // Required field - no optional chaining needed!
+      name: z.string().optional(),
+      created: z.string().optional(),
+    })
+    .optional(), // Optional when success: false
+})
+
+// Type inference for TypeScript
+export type ApiResponse = z.infer<typeof ApiResponseSchema>
+```
+
+**Step 2**: Use schemas with `.parse()` for validation:
+
+```typescript
+import { z } from 'zod'
+import { ApiResponseSchema } from './schemas'
+
+try {
+  // ✅ DO: Runtime validation with Zod
+  const result = ApiResponseSchema.parse(await response.json())
+
+  if (!result.success) {
+    // errors is guaranteed to be an array (no optional chaining)
+    const errors = result.errors.map((e) => e.message).join(', ')
+    throw new Error(`API failed: ${errors}`)
+  }
+
+  // TypeScript knows result.result.id exists when success is true
+  const id = result.result?.id
+  if (!id) {
+    throw new Error('Response missing ID')
+  }
+
+  // Use the validated data safely
+  return id
+} catch (error) {
+  // Handle Zod validation errors separately
+  if (error instanceof z.ZodError) {
+    logger.error({
+      msg: 'API response validation failed',
+      validationIssues: error.issues,
+    })
+    throw new Error(`API response validation failed: ${error.message}`)
+  }
+  throw error
+}
+```
+
+### Schema Design Guidelines
+
+1. **Optional vs Required Fields**:
+   - Mark top-level `result` as optional (absent when `success: false`)
+   - Use `.default([])` for arrays to avoid optional chaining
+   - Require critical fields within result (e.g., `id: z.string().min(1)`)
+
+2. **Field Completeness**:
+   - Include all documented API fields
+   - Mark rarely-used fields as optional
+   - Allows future use without schema changes
+
+3. **Validation Constraints**:
+   - Use `.min(1)` for non-empty strings
+   - Use `.url()` for URL fields
+   - Use `.enum()` for fixed values
+
+### Error Handling Pattern
+
+```typescript
+try {
+  const result = ApiResponseSchema.parse(await response.json())
+
+  // Handle API-level errors (success: false)
+  if (!result.success) {
+    const errors = result.errors.map((e) => e.message).join(', ')
+    throw new Error(`API operation failed: ${errors}`)
+  }
+
+  // Use validated data
+  return result.result.id
+} catch (error) {
+  // Handle Zod validation errors (malformed response)
+  if (error instanceof z.ZodError) {
+    payload.logger.error({
+      msg: 'API response validation failed',
+      validationIssues: error.issues,
+    })
+    throw new Error(`API response validation failed: ${error.message}`)
+  }
+
+  // Re-throw API errors or other errors
+  throw error
+}
+```
+
+### When to Use This Pattern
+
+- **External API integrations** (Cloudflare, Stripe, etc.)
+- **Webhook payloads** from third-party services
+- **Data imports** from external systems
+- **Any untrusted data source** where the shape isn't guaranteed
+
+### When NOT to Use This Pattern
+
+- **Internal PayloadCMS collections** (already validated)
+- **TypeScript-first code** within your codebase
+- **Performance-critical paths** (though Zod is quite fast)
+- **Simple boolean/string checks** (overkill for trivial validation)
+
+### Real-World Example
+
+See Cloudflare API integration:
+- **Schemas**: `src/lib/storage/cloudflareSchemas.ts`
+- **Usage**: `src/lib/storage/cloudflareImagesAdapter.ts`
+- **Usage**: `src/lib/storage/cloudflareStreamAdapter.ts`
+
+### Key Points
+- Use Zod for external API response validation
+- Create centralized schema files for each API
+- Handle `z.ZodError` separately from API errors
+- Leverage type inference (`z.infer<>`) for TypeScript types
+- Validate at API boundaries, trust internal types

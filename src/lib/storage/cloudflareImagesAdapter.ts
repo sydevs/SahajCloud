@@ -6,6 +6,9 @@
  */
 import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
+import { z } from 'zod'
+
+import { CloudflareImagesResponseSchema } from './cloudflareSchemas'
 import { validateFileUpload } from './uploadValidation'
 
 /**
@@ -33,12 +36,6 @@ export interface CloudflareImagesConfig {
   apiKey: string
   /** Base delivery URL including account hash (e.g., "https://imagedelivery.net/<hash>") */
   deliveryUrl: string
-}
-
-interface CloudflareImagesResponse {
-  success: boolean
-  errors?: Array<{ message: string }>
-  result?: { id: string }
 }
 
 /**
@@ -96,10 +93,10 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
           },
         )
 
-        const result = (await response.json()) as CloudflareImagesResponse
+        const result = CloudflareImagesResponseSchema.parse(await response.json())
 
         if (!result.success) {
-          const errors = result.errors?.map((e) => e.message).join(', ') || 'Unknown error'
+          const errors = result.errors.map((e) => e.message).join(', ')
           throw new Error(`Cloudflare Images upload failed: ${errors}`)
         }
 
@@ -135,6 +132,16 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
           req.file.name = imageId
         }
       } catch (error) {
+        // Handle Zod validation errors with detailed messages
+        if (error instanceof z.ZodError) {
+          req.payload.logger.error({
+            msg: 'Cloudflare Images API response validation failed',
+            filename: file.filename,
+            validationIssues: error.issues,
+          })
+          throw new Error(`Cloudflare API response validation failed: ${error.message}`)
+        }
+
         req.payload.logger.error({
           msg: 'Cloudflare Images upload error',
           filename: file.filename,
@@ -158,11 +165,11 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
           },
         )
 
-        const result = (await response.json()) as CloudflareImagesResponse
+        const result = CloudflareImagesResponseSchema.parse(await response.json())
 
         if (!result.success && response.status !== 404) {
           // Ignore 404 errors (image already deleted)
-          const errors = result.errors?.map((e) => e.message).join(', ') || 'Unknown error'
+          const errors = result.errors.map((e) => e.message).join(', ')
           // eslint-disable-next-line no-console
           console.error(`[Cloudflare Images] Delete warning for ${imageId}: ${errors}`)
         }
