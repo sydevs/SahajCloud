@@ -79,9 +79,13 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
 
         const formData = new FormData()
         // Convert Buffer to Uint8Array for Cloudflare Workers compatibility
-        // Using Uint8Array.from() handles both Node.js Buffers and ArrayBuffers correctly
-        // Direct Uint8Array(buffer) can fail in Workers with Buffer polyfill
-        const uint8Array = Uint8Array.from(file.buffer)
+        // IMPORTANT: The Workers Buffer polyfill has multiple broken methods.
+        // Do NOT use: Uint8Array.from(), buffer.buffer, buffer.byteOffset, or set().
+        // Use manual indexed copy which is the only reliable method.
+        const uint8Array = new Uint8Array(file.buffer.length)
+        for (let i = 0; i < file.buffer.length; i++) {
+          uint8Array[i] = file.buffer[i]
+        }
         const blob = new Blob([uint8Array], { type: file.mimeType })
         formData.append('file', blob, file.filename)
 

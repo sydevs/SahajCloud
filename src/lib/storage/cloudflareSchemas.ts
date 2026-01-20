@@ -53,7 +53,7 @@ export const CloudflareStreamResponseSchema = CloudflareBaseResponseSchema.exten
   result: z
     .object({
       uid: z.string().min(1),
-      thumbnail: z.string().optional(),
+      thumbnail: z.url().optional(),
       thumbnailTimestampPct: z.number().optional(),
       readyToStream: z.boolean().optional(),
       status: z
@@ -68,7 +68,7 @@ export const CloudflareStreamResponseSchema = CloudflareBaseResponseSchema.exten
       created: z.string().optional(),
       modified: z.string().optional(),
       size: z.number().optional(),
-      preview: z.string().optional(),
+      preview: z.url().optional(),
       allowedOrigins: z.array(z.string()).optional(),
       requireSignedURLs: z.boolean().optional(),
       uploaded: z.string().optional(),
@@ -84,8 +84,8 @@ export const CloudflareStreamResponseSchema = CloudflareBaseResponseSchema.exten
         .optional(),
       playback: z
         .object({
-          hls: z.string().optional(),
-          dash: z.string().optional(),
+          hls: z.url().optional(),
+          dash: z.url().optional(),
         })
         .optional(),
       watermark: z
@@ -108,7 +108,7 @@ export const CloudflareStreamDownloadsResponseSchema = CloudflareBaseResponseSch
       default: z
         .object({
           status: z.enum(['inprogress', 'ready', 'error']),
-          url: z.string().url().optional(),
+          url: z.url().optional(),
           percentComplete: z.number().min(0).max(100).optional(),
         })
         .optional(),
@@ -119,4 +119,6 @@ export const CloudflareStreamDownloadsResponseSchema = CloudflareBaseResponseSch
 // Type inference for TypeScript
 export type CloudflareImagesResponse = z.infer<typeof CloudflareImagesResponseSchema>
 export type CloudflareStreamResponse = z.infer<typeof CloudflareStreamResponseSchema>
-export type CloudflareStreamDownloadsResponse = z.infer<typeof CloudflareStreamDownloadsResponseSchema>
+export type CloudflareStreamDownloadsResponse = z.infer<
+  typeof CloudflareStreamDownloadsResponseSchema
+>
