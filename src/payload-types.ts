@@ -88,6 +88,7 @@ export interface Config {
     meditations: Meditation;
     music: Music;
     albums: Album;
+    videos: Video;
     lessons: Lesson;
     lectures: Lecture;
     frames: Frame;
@@ -99,6 +100,7 @@ export interface Config {
     'meditation-tags': MeditationTag;
     'music-tags': MusicTag;
     'page-tags': PageTag;
+    'video-tags': VideoTag;
     managers: Manager;
     clients: Client;
     forms: Form;
@@ -128,12 +130,16 @@ export interface Config {
     'page-tags': {
       pages: 'pages';
     };
+    'video-tags': {
+      videos: 'videos';
+    };
   };
   collectionsSelect: {
     pages: PagesSelect<false> | PagesSelect<true>;
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
     music: MusicSelect<false> | MusicSelect<true>;
     albums: AlbumsSelect<false> | AlbumsSelect<true>;
+    videos: VideosSelect<false> | VideosSelect<true>;
     lessons: LessonsSelect<false> | LessonsSelect<true>;
     lectures: LecturesSelect<false> | LecturesSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
@@ -145,6 +151,7 @@ export interface Config {
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
     'music-tags': MusicTagsSelect<false> | MusicTagsSelect<true>;
     'page-tags': PageTagsSelect<false> | PageTagsSelect<true>;
+    'video-tags': VideoTagsSelect<false> | VideoTagsSelect<true>;
     managers: ManagersSelect<false> | ManagersSelect<true>;
     clients: ClientsSelect<false> | ClientsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
@@ -661,6 +668,83 @@ export interface MeditationTag {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "videos".
+ */
+export interface Video {
+  id: number;
+  previewUrl?: string | null;
+  /**
+   * Video title shown to users
+   */
+  title: string;
+  /**
+   * Array of subtitle entries: [{startTime, endTime, text}]
+   */
+  subtitles?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Tags for organizing and filtering videos
+   */
+  tags?: (number | VideoTag)[] | null;
+  /**
+   * Auto-populated video metadata (duration, format, etc.)
+   */
+  fileMetadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "video-tags".
+ */
+export interface VideoTag {
+  id: number;
+  /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  /**
+   * URL-friendly identifier (auto-generated from title)
+   */
+  slug: string;
+  /**
+   * This localized title will be shown to public users
+   */
+  title: string;
+  videos?: {
+    docs?: (number | Video)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1290,6 +1374,10 @@ export interface PayloadLockedDocument {
         value: number | Album;
       } | null)
     | ({
+        relationTo: 'videos';
+        value: number | Video;
+      } | null)
+    | ({
         relationTo: 'lessons';
         value: number | Lesson;
       } | null)
@@ -1332,6 +1420,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'page-tags';
         value: number | PageTag;
+      } | null)
+    | ({
+        relationTo: 'video-tags';
+        value: number | VideoTag;
       } | null)
     | ({
         relationTo: 'managers';
@@ -1490,6 +1582,28 @@ export interface AlbumsSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "videos_select".
+ */
+export interface VideosSelect<T extends boolean = true> {
+  previewUrl?: T;
+  title?: T;
+  subtitles?: T;
+  tags?: T;
+  fileMetadata?: T;
+  updatedAt?: T;
+  createdAt?: T;
   url?: T;
   thumbnailURL?: T;
   filename?: T;
@@ -1691,6 +1805,18 @@ export interface PageTagsSelect<T extends boolean = true> {
   slug?: T;
   title?: T;
   pages?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "video-tags_select".
+ */
+export interface VideoTagsSelect<T extends boolean = true> {
+  generateSlug?: T;
+  slug?: T;
+  title?: T;
+  videos?: T;
   updatedAt?: T;
   createdAt?: T;
 }

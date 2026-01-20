@@ -206,6 +206,7 @@ plugins: [
 - **Albums** (`src/collections/content/Albums.ts`) - Music album groupings with Cloudflare Images artwork, localized title/artist fields, optional artistUrl, and join field for related music tracks
 - **Music** (`src/collections/content/Music.ts`) - Background music tracks with direct audio upload, required album relationship, tags, and localized title field
 - **Lessons** (`src/collections/content/Lessons.ts`) - Meditation lessons (also called "Path Steps" in admin UI) with audio upload, panels array for content sections, unit selection (Unit 1-4), step number, icon, optional meditation relationship, and rich text article field
+- **Videos** (`src/collections/content/Videos.ts`) - Video storage using Cloudflare Stream with automatic transcoding and HLS streaming, localized title, subtitles JSON field, virtual URL fields (`url` for MP4 download, `previewUrl` for thumbnails), tags relationship, and read-only fileMetadata
 
 ### Resource Collections
 - **Images** (`src/collections/resources/Images.ts`) - Image storage using Cloudflare Images with automatic format optimization (WebP, AVIF), dynamic transformations, tags, credit info, and virtual `url` field for Cloudflare CDN delivery
@@ -222,6 +223,7 @@ plugins: [
 - **MeditationTags** (`src/collections/tags/MeditationTags.ts`) - Upload collection for meditation tags with SVG icons, **color picker field**, auto-generated slug from localized title, and bidirectional relationships
 - **MusicTags** (`src/collections/tags/MusicTags.ts`) - Upload collection for music tags with SVG icons, auto-generated slug from localized title, and bidirectional relationships (**note: no color field**, unlike MeditationTags)
 - **PageTags** (`src/collections/tags/PageTags.ts`) - Tag system for pages with auto-generated slug from localized title and bidirectional relationships
+- **VideoTags** (`src/collections/tags/VideoTags.ts`) - Tag system for videos with auto-generated slug from localized title and bidirectional join relationship to Videos collection
 
 #### Tag Collection Admin Components
 

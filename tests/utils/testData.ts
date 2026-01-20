@@ -17,9 +17,11 @@ import type {
   MusicTag,
   ImageTag,
   PageTag,
+  VideoTag,
   Page,
   Lesson,
   File,
+  Video,
   Author,
   Lecture,
   ManagerRole,
@@ -258,6 +260,69 @@ export const testData = {
         ...overrides,
       },
     })) as PageTag
+  },
+
+  /**
+   * Create a video tag
+   */
+  async createVideoTag(payload: Payload, overrides: Partial<VideoTag> = {}): Promise<VideoTag> {
+    // Generate unique title suffix if no title override provided
+    const uniqueId = Math.random().toString(36).substring(7)
+    const defaultTitle = overrides.title || `Test Video Tag ${uniqueId}`
+
+    return (await payload.create({
+      collection: 'video-tags',
+      data: {
+        title: defaultTitle,
+        ...overrides,
+      },
+    })) as VideoTag
+  },
+
+  /**
+   * Create a video with file upload
+   * Note: In test environment without Cloudflare Stream, uses local storage
+   */
+  async createVideo(
+    payload: Payload,
+    overrides: Partial<Video> = {},
+    sampleFile = 'video-30s.mp4',
+  ): Promise<Video> {
+    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
+    const fileBuffer = fs.readFileSync(filePath)
+    // Convert Buffer to Uint8Array for compatibility with file-type library
+    const fileData = new Uint8Array(fileBuffer)
+
+    // Determine MIME type based on extension
+    const extension = path.extname(sampleFile).slice(1).toLowerCase()
+    let mimetype: string
+    if (extension === 'mp4') {
+      mimetype = 'video/mp4'
+    } else if (extension === 'webm') {
+      mimetype = 'video/webm'
+    } else if (extension === 'mov') {
+      mimetype = 'video/quicktime'
+    } else {
+      mimetype = `video/${extension}`
+    }
+
+    // Generate unique title to avoid collisions
+    const uniqueId = Math.random().toString(36).substring(7)
+    const defaultTitle = overrides.title || `Test Video ${uniqueId}`
+
+    return (await payload.create({
+      collection: 'videos',
+      data: {
+        title: defaultTitle,
+        ...overrides,
+      },
+      file: {
+        data: fileData as unknown as Buffer,
+        mimetype,
+        name: sampleFile,
+        size: fileData.length,
+      },
+    })) as Video
   },
 
   /**
