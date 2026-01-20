@@ -369,6 +369,8 @@ describe('Role-Based Access Control', () => {
         'music',
         'authors',
         'albums',
+        'videos',
+        'video-tags',
         'forms',
         'form-submissions',
       ]
@@ -408,6 +410,46 @@ describe('Role-Based Access Control', () => {
           bypassPermissions,
         ),
       ).toBe(false)
+    })
+
+    it('grants read access to Videos and VideoTags in both wemeditate projects', () => {
+      // wemeditate-web-client should have read access to videos and video-tags
+      const webClient = testData.dummyUser('clients', {
+        id: 15,
+        roles: ['wemeditate-web-client'],
+      })
+
+      expect(
+        hasPermission(
+          { user: webClient, collection: 'videos', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(true)
+      expect(
+        hasPermission(
+          { user: webClient, collection: 'video-tags', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(true)
+
+      // wemeditate-app-client should also have read access to videos and video-tags
+      const appClient = testData.dummyUser('clients', {
+        id: 16,
+        roles: ['wemeditate-app-client'],
+      })
+
+      expect(
+        hasPermission(
+          { user: appClient, collection: 'videos', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(true)
+      expect(
+        hasPermission(
+          { user: appClient, collection: 'video-tags', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(true)
     })
   })
 

@@ -128,6 +128,13 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
           disablePayloadAccessControl: true,
         },
 
+        // Videos collection - Cloudflare Stream only (video-only collection)
+        videos: {
+          adapter: streamAdapter,
+          disableLocalStorage: true,
+          disablePayloadAccessControl: true,
+        },
+
         // Tag collections with SVG icons - R2 storage (Cloudflare Images doesn't support SVG)
         'meditation-tags': {
           adapter: r2Adapter,
