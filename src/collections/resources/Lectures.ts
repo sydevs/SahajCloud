@@ -1,12 +1,16 @@
 import type { CollectionConfig } from 'payload'
 
 import { mediaField, urlField } from '@/fields'
+import { createRateLimitHook } from '@/lib/rateLimiting'
 
 export const Lectures: CollectionConfig = {
   slug: 'lectures',
   labels: {
     singular: 'Lecture',
     plural: 'Lectures',
+  },
+  hooks: {
+    beforeOperation: [createRateLimitHook()],
   },
   admin: {
     group: 'Resources',

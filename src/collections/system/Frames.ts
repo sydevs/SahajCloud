@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { FRAME_CATEGORY_OPTIONS, GENDER_OPTIONS } from '@/lib/data'
+import { createRateLimitHook } from '@/lib/rateLimiting'
 import { mixedMediaUrlField, previewUrlField } from '@/lib/storage/urlFields'
 
 export const Frames: CollectionConfig = {
@@ -73,6 +74,7 @@ export const Frames: CollectionConfig = {
     groupBy: true,
   },
   hooks: {
+    beforeOperation: [createRateLimitHook()],
     // Filename handling is done directly in storage adapters:
     // - Cloudflare Images/Stream adapters update data.filename to the service-generated ID
     // - No collection-level hooks needed for filename management

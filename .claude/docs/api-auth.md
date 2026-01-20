@@ -48,6 +48,83 @@ Collection-level tracking:
 - **Daily Limits**: Automatic alerts for high usage (>1,000 requests/day)
 - **Sentry Integration**: High usage events logged with client details
 
+## Rate Limiting Architecture
+
+Per-user API rate limiting using Cloudflare Workers Rate Limiting Binding prevents "noisy neighbor" issues where one abusive user can exhaust rate limits for all users sharing the same API key.
+
+### How It Works
+
+1. Client sends request with API key and optional `X-User-ID` header
+2. `beforeOperation` hook extracts client ID, IP address, and user ID
+3. Composite rate limit key is built: `user:{clientId}:{ip}:{userId}`
+4. Cloudflare Rate Limiter checks if limit is exceeded
+5. Request is allowed (200) or rejected (429 Too Many Requests)
+
+### Rate Limit Details
+
+| Setting | Value |
+|---------|-------|
+| Limit | 500 requests |
+| Period | 60 seconds |
+| Scope | Per unique (Client + IP + User ID) combination |
+
+### X-User-ID Header
+
+Optional header for per-user rate limiting isolation:
+
+- **Format**: 8-64 alphanumeric characters, dashes, and underscores
+- **Pattern**: `^[a-zA-Z0-9-_]{8,64}$`
+- **Purpose**: Provides separate rate limit quota per end-user
+- **Without Header**: Falls back to IP-based rate limiting only
+- **Privacy**: User ID is NOT included in error responses
+
+**Example**:
+```
+GET /api/meditations HTTP/1.1
+Authorization: clients API-Key abc123xyz
+X-User-ID: user_12345678
+```
+
+### Error Responses
+
+**400 Bad Request** - Invalid X-User-ID format:
+```json
+{
+  "errors": [{
+    "message": "Invalid X-User-ID format. Must be 8-64 alphanumeric characters, dashes, or underscores."
+  }]
+}
+```
+
+**429 Too Many Requests** - Rate limit exceeded:
+```json
+{
+  "errors": [{
+    "message": "Rate limit exceeded. Maximum 500 requests per minute."
+  }]
+}
+```
+
+### Excluded from Rate Limiting
+
+- **Admin routes**: Managers collection (admin users)
+- **Development environment**: Rate limiting disabled in development
+- **Non-client requests**: Only API client requests are rate limited
+
+### Monitoring
+
+- **Sentry Events**: Warning-level events captured when rate limits are hit
+- **Pino Logging**: Rate limit events logged with client ID, IP, and timestamp
+- **Fail-Open**: On rate limiter errors, requests are allowed (better to allow than incorrectly block)
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/lib/rateLimiting.ts` | Core rate limiting logic and hook factory |
+| `wrangler.toml` | Cloudflare Rate Limiting Binding configuration |
+| `src/lib/openapi/rateLimitingDocs.ts` | X-User-ID parameter OpenAPI documentation |
+
 ## Testing
 
 - **Integration Tests** (`tests/int/clients.int.spec.ts`): Client CRUD operations

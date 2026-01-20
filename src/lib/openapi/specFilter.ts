@@ -17,6 +17,8 @@ import { getAllProjectCollections, getProjectCollections } from '@/lib/access'
 import type { ContentSlug } from '@/lib/access/types'
 import type { ProjectSlug } from '@/payload-types'
 
+import { xUserIdParameter } from './rateLimitingDocs'
+
 /**
  * Collections that are ALWAYS hidden from public API docs regardless of role.
  * These are system/internal collections that should never be exposed.
@@ -61,6 +63,7 @@ type HttpMethod = 'get' | 'post' | 'patch' | 'delete' | 'put' | 'options' | 'hea
 
 interface OpenAPIOperation {
   'x-internal'?: boolean
+  parameters?: Array<{ $ref?: string; [key: string]: unknown }>
   [key: string]: unknown
 }
 
@@ -85,8 +88,18 @@ interface OpenAPISecurityScheme {
   [key: string]: unknown
 }
 
+interface OpenAPIParameter {
+  name: string
+  in: 'header' | 'query' | 'path' | 'cookie'
+  required?: boolean
+  schema?: Record<string, unknown>
+  description?: string
+  [key: string]: unknown
+}
+
 interface OpenAPIComponents {
   securitySchemes?: Record<string, OpenAPISecurityScheme>
+  parameters?: Record<string, OpenAPIParameter>
   [key: string]: unknown
 }
 
@@ -160,6 +173,55 @@ function injectSecurityScheme(spec: OpenAPISpec): OpenAPISpec {
 
   // Add global security requirement (all endpoints require API-Key)
   spec.security = [{ 'API-Key': [] }]
+
+  return spec
+}
+
+/**
+ * Injects the X-User-ID parameter into the OpenAPI spec.
+ * This parameter is used for per-user rate limiting to provide isolated quotas.
+ *
+ * The parameter is:
+ * 1. Added to spec.components.parameters as a reusable definition
+ * 2. Referenced in all non-internal GET operations
+ *
+ * @param spec - The OpenAPI specification object
+ * @returns Modified spec with X-User-ID parameter injected
+ */
+function injectRateLimitingParameter(spec: OpenAPISpec): OpenAPISpec {
+  // Ensure components exists
+  if (!spec.components) {
+    spec.components = {}
+  }
+
+  // Ensure parameters exists
+  if (!spec.components.parameters) {
+    spec.components.parameters = {}
+  }
+
+  // Add X-User-ID parameter definition
+  spec.components.parameters['X-User-ID'] = xUserIdParameter
+
+  // Add $ref to all non-internal GET operations
+  if (spec.paths) {
+    for (const pathItem of Object.values(spec.paths)) {
+      const operation = pathItem.get
+      if (operation && !operation['x-internal']) {
+        // Initialize parameters array if not present
+        if (!operation.parameters) {
+          operation.parameters = []
+        }
+
+        // Add X-User-ID reference if not already present
+        const hasXUserId = operation.parameters.some(
+          (p) => p.$ref === '#/components/parameters/X-User-ID',
+        )
+        if (!hasXUserId) {
+          operation.parameters.push({ $ref: '#/components/parameters/X-User-ID' })
+        }
+      }
+    }
+  }
 
   return spec
 }
@@ -245,6 +307,9 @@ export function filterSpec(spec: OpenAPISpec, options: FilterOptions = {}): Open
 
   // Inject API-Key security scheme for client authentication
   injectSecurityScheme(markedSpec)
+
+  // Inject X-User-ID parameter for rate limiting (only to non-internal GET operations)
+  injectRateLimitingParameter(markedSpec)
 
   return markedSpec
 }

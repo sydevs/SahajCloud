@@ -4,6 +4,7 @@ import { mediaField, slugField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { serverEnv } from '@/lib/env'
 import { LOCALES } from '@/lib/locales'
+import { createRateLimitHook } from '@/lib/rateLimiting'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 import { KeyframeData, KeyframeDefinition } from '@/types/frames'
 
@@ -41,6 +42,7 @@ export const Meditations: CollectionConfig = {
     },
   },
   hooks: {
+    beforeOperation: [createRateLimitHook()],
     afterRead: [trackClientUsageHook],
   },
   fields: [

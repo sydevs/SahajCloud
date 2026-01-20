@@ -1,9 +1,13 @@
 import type { CollectionConfig } from 'payload'
 
 import { mediaField, slugField } from '@/fields'
+import { createRateLimitHook } from '@/lib/rateLimiting'
 
 export const Authors: CollectionConfig = {
   slug: 'authors',
+  hooks: {
+    beforeOperation: [createRateLimitHook()],
+  },
   admin: {
     group: 'Metadata',
     useAsTitle: 'name',
