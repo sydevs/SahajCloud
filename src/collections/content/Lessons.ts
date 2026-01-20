@@ -1,9 +1,11 @@
 import type { CollectionConfig } from 'payload'
+import type { JSONSchema4 } from 'json-schema'
 
 import { QuoteBlock } from '@/blocks/pages'
 import { mediaField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { fullRichTextEditor } from '@/lib/richEditor'
+import subtitleSchema from '@/lib/subtitlesSchema.json'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
@@ -112,15 +114,15 @@ export const Lessons: CollectionConfig = {
               name: 'introSubtitles',
               type: 'json',
               label: 'Intro Subtitles',
-              // jsonSchema validation is disabled due to Ajv compatibility issues in
-              // Cloudflare Workers environment (see GitHub issue #137). The error occurs
-              // during schema compilation: "schemaPath:#/definitions/nonNegativeInteger/type"
-              // Re-enable once issue #137 is resolved.
-              // jsonSchema: {
-              //   uri: 'a://b/foo.json', // required
-              //   fileMatch: ['a://b/foo.json'], // required
-              //   schema: subtitleSchema as JSONSchema4,
-              // },
+              admin: {
+                description:
+                  'Subtitles for intro audio (JSON format with captions array). Fixed issue #137 by making startOfParagraph optional.',
+              },
+              jsonSchema: {
+                uri: 'a://subtitles.json',
+                fileMatch: ['a://subtitles.json'],
+                schema: subtitleSchema as JSONSchema4,
+              },
             },
           ],
         },

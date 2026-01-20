@@ -701,15 +701,16 @@ export interface Lesson {
    * Audio introduction to this lesson.
    */
   introAudio?: (number | null) | File;
-  introSubtitles?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  introSubtitles?: {
+    captions: {
+      duration: number;
+      content: string;
+      startOfParagraph?: boolean | null;
+      startTime: string;
+      [k: string]: unknown;
+    }[];
+    [k: string]: unknown;
+  };
   article?: {
     root: {
       type: string;

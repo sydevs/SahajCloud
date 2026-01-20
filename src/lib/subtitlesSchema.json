@@ -13,13 +13,13 @@
             "type": "string"
           },
           "startOfParagraph": {
-            "type": "null"
+            "type": ["boolean", "null"]
           },
           "startTime": {
             "type": "string"
           }
         },
-        "required": ["duration", "content", "startOfParagraph", "startTime"]
+        "required": ["duration", "content", "startTime"]
       }
     }
   },

@@ -375,4 +375,99 @@ describe('Lessons Collection', () => {
       expect(draft._status).toBe('draft')
     })
   })
+
+  describe('Subtitle Validation (JSON Schema)', () => {
+    it('accepts valid subtitle data with all required fields', async () => {
+      const validSubtitles = {
+        captions: [
+          {
+            duration: 0,
+            content: 'Welcome to the first lesson',
+            startTime: '00:00:00.300',
+          },
+          {
+            duration: 2,
+            content: 'This is the second caption',
+            startTime: '00:00:02.500',
+          },
+        ],
+      }
+
+      const lesson = await testData.createLesson(payload, {
+        title: 'Subtitle Validation Test',
+        meditation: testMeditation.id,
+        introSubtitles: validSubtitles,
+      })
+
+      expect(lesson.introSubtitles).toEqual(validSubtitles)
+    })
+
+    it('accepts subtitle data with optional startOfParagraph as null', async () => {
+      const subtitlesWithNull = {
+        captions: [
+          {
+            duration: 0,
+            content: 'Caption with null startOfParagraph',
+            startOfParagraph: null,
+            startTime: '00:00:00.300',
+          },
+        ],
+      }
+
+      const lesson = await testData.createLesson(payload, {
+        title: 'Subtitle with null',
+        meditation: testMeditation.id,
+        introSubtitles: subtitlesWithNull,
+      })
+
+      expect(lesson.introSubtitles).toEqual(subtitlesWithNull)
+    })
+
+    it('accepts subtitle data with optional startOfParagraph as boolean', async () => {
+      const subtitlesWithBoolean = {
+        captions: [
+          {
+            duration: 0,
+            content: 'First paragraph',
+            startOfParagraph: true,
+            startTime: '00:00:00.300',
+          },
+          {
+            duration: 2,
+            content: 'Continuing same paragraph',
+            startOfParagraph: false,
+            startTime: '00:00:02.500',
+          },
+        ],
+      }
+
+      const lesson = await testData.createLesson(payload, {
+        title: 'Subtitle with boolean',
+        meditation: testMeditation.id,
+        introSubtitles: subtitlesWithBoolean,
+      })
+
+      expect(lesson.introSubtitles).toEqual(subtitlesWithBoolean)
+    })
+
+    it('accepts subtitle data without optional startOfParagraph field', async () => {
+      const subtitlesWithoutOptional = {
+        captions: [
+          {
+            duration: 0,
+            content: 'Caption without startOfParagraph',
+            startTime: '00:00:00.300',
+          },
+        ],
+      }
+
+      const lesson = await testData.createLesson(payload, {
+        title: 'Subtitle without optional field',
+        meditation: testMeditation.id,
+        introSubtitles: subtitlesWithoutOptional,
+      })
+
+      expect(lesson.introSubtitles).toEqual(subtitlesWithoutOptional)
+    })
+  })
 })
