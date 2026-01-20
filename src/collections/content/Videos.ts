@@ -2,6 +2,8 @@ import type { CollectionConfig } from 'payload'
 
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
 import { previewUrlField, virtualUrlField } from '@/lib/storage/urlFields'
+import { JSONSchema4 } from 'json-schema'
+import subtitleSchema from '@/lib/subtitlesSchema.json' with { type: 'json' }
 
 export const Videos: CollectionConfig = {
   slug: 'videos',
@@ -59,6 +61,11 @@ export const Videos: CollectionConfig = {
         position: 'sidebar',
         readOnly: true,
         description: 'Auto-populated video metadata (duration, format, etc.)',
+      },
+      jsonSchema: {
+        uri: 'a://subtitles.json',
+        fileMatch: ['a://subtitles.json'],
+        schema: subtitleSchema as JSONSchema4,
       },
     },
   ],
