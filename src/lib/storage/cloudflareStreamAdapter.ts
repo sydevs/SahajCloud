@@ -7,6 +7,9 @@
  */
 import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
+import { z } from 'zod'
+
+import { CloudflareStreamDownloadsResponseSchema, CloudflareStreamResponseSchema } from './cloudflareSchemas'
 import { validateFileUpload } from './uploadValidation'
 
 /**
@@ -47,12 +50,6 @@ export interface CloudflareStreamConfig {
   deliveryUrl: string
 }
 
-interface CloudflareStreamResponse {
-  success: boolean
-  errors?: Array<{ message: string }>
-  result?: { uid: string }
-}
-
 /**
  * Create Cloudflare Stream storage adapter
  *
@@ -82,9 +79,13 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
 
         const formData = new FormData()
         // Convert Buffer to Uint8Array for Cloudflare Workers compatibility
-        // Using Uint8Array.from() handles both Node.js Buffers and ArrayBuffers correctly
-        // Direct Uint8Array(buffer) can fail in Workers with Buffer polyfill
-        const uint8Array = Uint8Array.from(file.buffer)
+        // IMPORTANT: The Workers Buffer polyfill has multiple broken methods.
+        // Do NOT use: Uint8Array.from(), buffer.buffer, buffer.byteOffset, or set().
+        // Use manual indexed copy which is the only reliable method.
+        const uint8Array = new Uint8Array(file.buffer.length)
+        for (let i = 0; i < file.buffer.length; i++) {
+          uint8Array[i] = file.buffer[i]
+        }
         const blob = new Blob([uint8Array], { type: file.mimeType })
         formData.append('file', blob, file.filename)
 
@@ -102,10 +103,10 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           },
         )
 
-        const uploadResult = (await uploadResponse.json()) as CloudflareStreamResponse
+        const uploadResult = CloudflareStreamResponseSchema.parse(await uploadResponse.json())
 
         if (!uploadResult.success) {
-          const errors = uploadResult.errors?.map((e) => e.message).join(', ') || 'Unknown error'
+          const errors = uploadResult.errors.map((e) => e.message).join(', ')
           throw new Error(`Cloudflare Stream upload failed: ${errors}`)
         }
 
@@ -129,20 +130,12 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
             },
           )
 
-          const downloadsResult = (await downloadsResponse.json()) as {
-            success: boolean
-            result?: {
-              default?: {
-                status: 'inprogress' | 'ready'
-                url: string
-                percentComplete?: number
-              }
-            }
-            errors?: Array<{ message: string }>
-          }
+          const downloadsResult = CloudflareStreamDownloadsResponseSchema.parse(
+            await downloadsResponse.json(),
+          )
 
           if (!downloadsResult.success) {
-            const errors = downloadsResult.errors?.map((e) => e.message).join(', ') || 'Unknown error'
+            const errors = downloadsResult.errors.map((e) => e.message).join(', ')
             req.payload.logger.warn({ msg: 'Failed to enable MP4 downloads', videoId, errors })
           } else {
             const downloadStatus = downloadsResult.result?.default?.status || 'unknown'
@@ -182,6 +175,16 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           req.file.name = videoId
         }
       } catch (error) {
+        // Handle Zod validation errors with detailed messages
+        if (error instanceof z.ZodError) {
+          req.payload.logger.error({
+            msg: 'Cloudflare Stream API response validation failed',
+            filename: file.filename,
+            validationIssues: error.issues,
+          })
+          throw new Error(`Cloudflare API response validation failed: ${error.message}`)
+        }
+
         req.payload.logger.error({
           msg: 'Cloudflare Stream upload error',
           filename: file.filename,
@@ -205,11 +208,11 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           },
         )
 
-        const result = (await response.json()) as CloudflareStreamResponse
+        const result = CloudflareStreamResponseSchema.parse(await response.json())
 
         if (!result.success && response.status !== 404) {
           // Ignore 404 errors (video already deleted)
-          const errors = result.errors?.map((e) => e.message).join(', ') || 'Unknown error'
+          const errors = result.errors.map((e) => e.message).join(', ')
           // eslint-disable-next-line no-console
           console.error(`[Cloudflare Stream] Delete warning for ${videoId}: ${errors}`)
         }
