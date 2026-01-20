@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { slugField } from '@/fields'
+import { createRateLimitHook } from '@/lib/rateLimiting'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const MusicTags: CollectionConfig = {
@@ -13,6 +14,9 @@ export const MusicTags: CollectionConfig = {
     group: 'Metadata',
     useAsTitle: 'title',
     defaultColumns: ['title', 'filename', 'music'],
+  },
+  hooks: {
+    beforeOperation: [createRateLimitHook()],
   },
   upload: {
     staticDir: 'media/music-tags',

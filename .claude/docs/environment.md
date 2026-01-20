@@ -34,6 +34,28 @@ Copy from `.env.example` and configure:
 - R2 bucket is configured via `wrangler.toml` bindings (no environment variables needed)
 - `CLOUDFLARE_R2_DELIVERY_URL` - Public URL for R2-stored assets (e.g., `https://assets.sydevelopers.com`)
 
+#### Rate Limiting Binding (API Rate Limiting)
+- Configured via `wrangler.toml` using modern `[[ratelimits]]` syntax
+- No environment variables needed - binding is accessed via `getCloudflareContext()`
+- Rate limiting is automatically disabled in development environment
+
+**Wrangler Configuration**:
+```toml
+# Production (top-level)
+[[ratelimits]]
+name = "API_RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 500, period = 60 }
+
+# Development (must also be defined)
+[[env.dev.ratelimits]]
+name = "API_RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 500, period = 60 }
+```
+
+**Note**: The `namespace_id` is arbitrary and identifies this rate limiter instance. The same ID should be used across environments for consistency.
+
 #### Finding Cloudflare Credentials
 
 **Account ID**:

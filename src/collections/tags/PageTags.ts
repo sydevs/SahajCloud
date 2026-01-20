@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { slugField } from '@/fields'
 import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { createRateLimitHook } from '@/lib/rateLimiting'
 
 export const PageTags: CollectionConfig = {
   slug: 'page-tags',
@@ -15,6 +16,7 @@ export const PageTags: CollectionConfig = {
     defaultColumns: ['title', 'pages'],
   },
   hooks: {
+    beforeOperation: [createRateLimitHook()],
     afterRead: [trackClientUsageHook],
   },
   fields: [

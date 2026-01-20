@@ -1,8 +1,10 @@
 import type { CollectionConfig } from 'payload'
 
-import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { previewUrlField, virtualUrlField } from '@/lib/storage/urlFields'
 import { JSONSchema4 } from 'json-schema'
+
+import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
+import { createRateLimitHook } from '@/lib/rateLimiting'
+import { previewUrlField, virtualUrlField } from '@/lib/storage/urlFields'
 import subtitleSchema from '@/lib/subtitlesSchema.json' with { type: 'json' }
 
 export const Videos: CollectionConfig = {
@@ -22,6 +24,7 @@ export const Videos: CollectionConfig = {
     defaultColumns: ['title', 'tags', 'previewUrl'],
   },
   hooks: {
+    beforeOperation: [createRateLimitHook()],
     afterRead: [trackClientUsageHook],
   },
   fields: [
