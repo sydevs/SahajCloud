@@ -1,5 +1,5 @@
 import { CleanupOrphanedMedia } from './tasks/CleanupOrphanedMedia'
-import { ResetUsage, TrackUsage } from './tasks/TrackUsage'
 
 // Export all tasks as an array
-export const tasks = [ResetUsage, TrackUsage, CleanupOrphanedMedia]
+// Note: TrackUsage and ResetUsage tasks are auto-registered by the usagePlugin
+export const tasks = [CleanupOrphanedMedia]

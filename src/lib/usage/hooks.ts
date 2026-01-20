@@ -1,22 +1,28 @@
 /**
- * Rate Limiting Module
+ * Usage Plugin Hooks
  *
- * Implements per-user API rate limiting using Cloudflare Workers Rate Limiting Binding.
- * This prevents the "noisy neighbor" problem where one abusive user can exhaust
- * rate limits for all other users sharing the same API key.
- *
- * Rate Limit: 500 requests per 60 seconds per unique (Client + IP + User ID) key
- *
- * @see https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/
+ * Hook factories for rate limiting and usage tracking.
  */
 
+import type { ConsumerConfig } from './types'
 import type { RateLimit } from '@cloudflare/workers-types'
-import type { CollectionBeforeOperationHook, PayloadRequest } from 'payload'
+import type {
+  CollectionAfterReadHook,
+  CollectionBeforeChangeHook,
+  CollectionBeforeOperationHook,
+  PayloadRequest,
+} from 'payload'
 
 import { getCloudflareContext } from '@opennextjs/cloudflare'
 import * as Sentry from '@sentry/cloudflare'
 
 import { serverEnv } from '@/lib/env'
+
+import { RateLimitExceededError, RateLimitValidationError } from './types'
+
+// ============================================================================
+// RATE LIMITING
+// ============================================================================
 
 /**
  * Builds a composite key for rate limiting.
@@ -25,11 +31,6 @@ import { serverEnv } from '@/lib/env'
  * - Client ID (API key owner)
  * - IP address (from CF-Connecting-IP header)
  * - User ID (self-reported via X-User-ID header)
- *
- * @param clientId - The authenticated API client's ID
- * @param ip - Client IP address (null if not available)
- * @param userId - Self-reported user ID from X-User-ID header (null if not provided)
- * @returns Composite rate limit key
  */
 export function buildRateLimitKey(
   clientId: string | number,
@@ -43,11 +44,6 @@ export function buildRateLimitKey(
  * Validates the X-User-ID header format.
  *
  * Valid format: 8-64 alphanumeric characters (including dash and underscore)
- * This balances security (minimum length) with flexibility (common ID formats).
- *
- * @param userId - The raw X-User-ID header value
- * @returns Validated user ID or null if not provided
- * @throws Error if user ID format is invalid
  */
 export function validateUserId(userId: string | null): string | null {
   if (!userId) return null
@@ -63,48 +59,15 @@ export function validateUserId(userId: string | null): string | null {
 }
 
 /**
- * Custom error class for rate limit validation failures.
- * Returns 400 Bad Request for invalid X-User-ID format.
- */
-export class RateLimitValidationError extends Error {
-  status = 400
-  constructor(message: string) {
-    super(message)
-    this.name = 'RateLimitValidationError'
-  }
-}
-
-/**
- * Custom error class for rate limit exceeded.
- * Returns 429 Too Many Requests.
- *
- * Note: User ID is intentionally NOT included in the error message for privacy.
- */
-export class RateLimitExceededError extends Error {
-  status = 429
-  constructor() {
-    super('Rate limit exceeded. Maximum 500 requests per minute.')
-    this.name = 'RateLimitExceededError'
-  }
-}
-
-/**
  * Checks rate limit for the current request.
  *
- * Flow:
- * 1. Only applies to API client requests (not managers/admin)
- * 2. Disabled in development environment
- * 3. Validates X-User-ID format if provided
- * 4. Builds composite key and checks against rate limiter
- * 5. Logs to Sentry and Pino on rate limit hits
- * 6. Fails open on errors (allows request through)
- *
  * @param req - Payload request object
+ * @param consumerCollections - List of consumer collection slugs
  * @returns true if allowed, throws if rate limited or validation fails
  */
-export async function checkRateLimit(req: PayloadRequest): Promise<boolean> {
-  // Only rate limit API client requests (not managers)
-  if (req.user?.collection !== 'clients') {
+async function checkRateLimit(req: PayloadRequest, consumerCollections: string[]): Promise<boolean> {
+  // Only rate limit API consumer requests (not managers)
+  if (!req.user?.collection || !consumerCollections.includes(req.user.collection)) {
     return true
   }
 
@@ -191,22 +154,76 @@ export async function checkRateLimit(req: PayloadRequest): Promise<boolean> {
 /**
  * Creates a beforeOperation hook for rate limiting.
  *
- * Usage:
- * ```typescript
- * import { createRateLimitHook } from '@/lib/rateLimiting'
- *
- * export const MyCollection: CollectionConfig = {
- *   slug: 'my-collection',
- *   hooks: {
- *     beforeOperation: [createRateLimitHook()],
- *   },
- * }
- * ```
- *
+ * @param consumers - Consumer configurations
  * @returns beforeOperation hook function
  */
-export function createRateLimitHook(): CollectionBeforeOperationHook {
+export function createRateLimitHook(consumers: ConsumerConfig[]): CollectionBeforeOperationHook {
+  const consumerCollections = consumers.map((c) => c.collection)
+
   return async ({ req }) => {
-    await checkRateLimit(req)
+    await checkRateLimit(req, consumerCollections)
+  }
+}
+
+// ============================================================================
+// USAGE TRACKING
+// ============================================================================
+
+/**
+ * Creates an afterRead hook for usage tracking.
+ * Queues a job to increment usage stats for the consumer.
+ *
+ * @param consumers - Consumer configurations
+ * @returns afterRead hook function
+ */
+export function createUsageTrackingHook(consumers: ConsumerConfig[]): CollectionAfterReadHook {
+  const consumerCollections = consumers.map((c) => c.collection)
+
+  return async ({ doc, req }) => {
+    // Only track usage for consumer collection requests (e.g., clients)
+    if (req.user?.collection && consumerCollections.includes(req.user.collection) && req.user?.id) {
+      // Note: Cast task slug since plugin-registered tasks aren't in generated types
+      await req.payload.jobs.queue({
+        task: 'trackUsage' as 'inline',
+        input: {
+          consumerId: String(req.user.id),
+          consumerCollection: req.user.collection,
+        },
+      })
+    }
+
+    return doc
+  }
+}
+
+// ============================================================================
+// CONSUMER COLLECTION HOOKS
+// ============================================================================
+
+/**
+ * Creates a beforeChange hook for initializing usage stats.
+ * Only applies to consumer collections on create operation.
+ *
+ * @param config - Consumer configuration
+ * @returns beforeChange hook function
+ */
+export function createInitStatsHook(config: ConsumerConfig): CollectionBeforeChangeHook {
+  const { statsFieldPath = 'usage' } = config
+
+  return async ({ data, operation }) => {
+    // Initialize usage stats on creation
+    if (operation === 'create') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const dataAny = data as any
+      if (!dataAny[statsFieldPath]) {
+        dataAny[statsFieldPath] = {
+          dailyRequests: 0,
+          peakDailyRequests: 0,
+          lastRequestAt: null,
+        }
+      }
+    }
+
+    return data
   }
 }

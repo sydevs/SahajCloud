@@ -226,9 +226,9 @@ export interface Config {
       });
   jobs: {
     tasks: {
-      resetClientUsage: TaskResetClientUsage;
-      trackClientUsage: TaskTrackClientUsage;
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
+      trackUsage: TaskTrackUsage;
+      resetUsage: TaskResetUsage;
       schedulePublish: TaskSchedulePublish;
       inline: {
         input: unknown;
@@ -1010,11 +1010,7 @@ export interface Client {
   /**
    * API usage statistics
    */
-  usageStats?: {
-    /**
-     * All-time request count
-     */
-    totalRequests?: number | null;
+  usage?: {
     /**
      * Today's request count
      */
@@ -1022,7 +1018,7 @@ export interface Client {
     /**
      * Maximum historical request count
      */
-    maxDailyRequests?: number | null;
+    peakDailyRequests?: number | null;
     /**
      * Last API call timestamp
      */
@@ -1298,7 +1294,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'resetClientUsage' | 'trackClientUsage' | 'cleanupOrphanedMedia' | 'schedulePublish';
+        taskSlug: 'inline' | 'cleanupOrphanedMedia' | 'trackUsage' | 'resetUsage' | 'schedulePublish';
         taskID: string;
         input?:
           | {
@@ -1331,7 +1327,7 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'resetClientUsage' | 'trackClientUsage' | 'cleanupOrphanedMedia' | 'schedulePublish') | null;
+  taskSlug?: ('inline' | 'cleanupOrphanedMedia' | 'trackUsage' | 'resetUsage' | 'schedulePublish') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -1859,12 +1855,11 @@ export interface ClientsSelect<T extends boolean = true> {
   domains?: T;
   active?: T;
   keyGeneratedAt?: T;
-  usageStats?:
+  usage?:
     | T
     | {
-        totalRequests?: T;
         dailyRequests?: T;
-        maxDailyRequests?: T;
+        peakDailyRequests?: T;
         lastRequestAt?: T;
         highUsageAlert?: T;
       };
@@ -2280,24 +2275,6 @@ export interface PayloadJobsStatsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskResetClientUsage".
- */
-export interface TaskResetClientUsage {
-  input?: unknown;
-  output?: unknown;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskTrackClientUsage".
- */
-export interface TaskTrackClientUsage {
-  input: {
-    clientId: string;
-  };
-  output?: unknown;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TaskCleanupOrphanedMedia".
  */
 export interface TaskCleanupOrphanedMedia {
@@ -2310,6 +2287,25 @@ export interface TaskCleanupOrphanedMedia {
     skippedImages: number;
     errors: number;
   };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskTrackUsage".
+ */
+export interface TaskTrackUsage {
+  input: {
+    consumerId: string;
+    consumerCollection: string;
+  };
+  output?: unknown;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskResetUsage".
+ */
+export interface TaskResetUsage {
+  input?: unknown;
+  output?: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

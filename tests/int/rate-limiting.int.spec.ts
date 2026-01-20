@@ -11,7 +11,7 @@ import {
   buildRateLimitKey,
   RateLimitValidationError,
   validateUserId,
-} from '@/lib/rateLimiting'
+} from '@/lib/usage'
 
 describe('Rate Limiting Utilities', () => {
   describe('buildRateLimitKey', () => {

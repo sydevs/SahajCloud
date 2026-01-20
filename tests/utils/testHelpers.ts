@@ -14,6 +14,8 @@ import { buildConfig } from 'payload'
 // Project imports
 import type { Manager, Client } from '@/payload-types'
 
+import { usagePlugin } from '@/lib/usage'
+
 import { EmailTestAdapter } from './emailTestAdapter'
 import { testData } from './testData'
 import { collections, Managers } from '../../src/collections'
@@ -66,7 +68,8 @@ function getTestCollections(): CollectionConfig[] {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function createBaseTestConfig(emailConfig?: any) {
-  return buildConfig({
+  // Build config with usagePlugin to get tasks auto-registered
+  const baseConfig = buildConfig({
     admin: {
       user: Managers.slug,
       disable: true, // Disable admin UI in tests
@@ -89,6 +92,18 @@ function createBaseTestConfig(emailConfig?: any) {
       tasks,
       deleteJobOnComplete: true,
     },
+    plugins: [
+      usagePlugin({
+        enabled: true,
+        consumers: [
+          {
+            collection: 'clients',
+            statsFieldPath: 'usage',
+            highUsageThreshold: 1000,
+          },
+        ],
+      }),
+    ],
     email:
       emailConfig ||
       nodemailerAdapter({
@@ -103,6 +118,8 @@ function createBaseTestConfig(emailConfig?: any) {
         } as any,
       }),
   })
+
+  return baseConfig
 }
 
 /**

@@ -10,15 +10,11 @@ import {
 } from '@/blocks/pages'
 import { slugField } from '@/fields'
 import { serverEnv } from '@/lib/env'
-import { createRateLimitHook } from '@/lib/rateLimiting'
 import { fullRichTextEditor } from '@/lib/richEditor'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
   trash: true,
-  hooks: {
-    beforeOperation: [createRateLimitHook()],
-  },
   admin: {
     group: 'Content',
     useAsTitle: 'title',

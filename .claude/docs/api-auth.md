@@ -4,33 +4,36 @@ The system implements secure REST API authentication for third-party clients wit
 
 ## Key Components
 
-### Clients Collection (`src/collections/Clients.ts`)
+### Clients Collection (`src/collections/access/Clients.ts`)
 
 Manages API clients with authentication keys:
 - `useAPIKey: true` enables API key generation for each client
 - Managers can regenerate keys and manage client settings
 - Virtual `highUsageAlert` field indicates when daily limits are exceeded
+- `usage` field group contains: `dailyRequests`, `peakDailyRequests`, `lastRequestAt`
 
-### Usage Tracking (`src/lib/apiUsageTracking.ts`)
+### Usage Plugin (`src/lib/usage/`)
 
-Simplified request monitoring:
-- In-memory counter with batch database updates every 10 requests
-- Automatic daily counter reset at midnight UTC
-- High usage alerts via Sentry when exceeding 1,000 requests/day
+Consolidated rate limiting and usage tracking via auto-applied hooks:
+- `createRateLimitHook()` - beforeOperation hook for per-user rate limiting
+- `createUsageTrackingHook()` - afterRead hook queues tracking job
+- `createInitStatsHook()` - beforeChange hook initializes stats on consumer creation
+- `createTrackUsageTask()` - increments dailyRequests, triggers high usage alerts
+- `createResetUsageTask()` - resets counters at midnight UTC
 
 ### Client Hooks (`src/hooks/clientHooks.ts`)
 
-Collection-level tracking:
-- `createAPITrackingHook()`: Applied to all collections for usage monitoring
-- Validates client data and manages relationships
+Client-specific validation:
+- `validateClientData` - Ensures primaryContact is in managers list
 
 ## API Authentication Flow
 
 1. Client sends request with header: `Authorization: clients API-Key <key>`
 2. Payload authenticates using the encrypted API key
-3. Access control middleware enforces read-only permissions
-4. Usage tracking records the request in memory
-5. Batch updates persist usage stats to database
+3. `beforeOperation` hook checks rate limits (production only)
+4. Access control middleware enforces read-only permissions
+5. `afterRead` hook queues usage tracking job
+6. Job handler increments usage stats asynchronously
 
 ## Security Features
 
@@ -43,10 +46,10 @@ Collection-level tracking:
 
 ## Usage Monitoring
 
-- **Real-time Tracking**: Request counts updated in memory
-- **Efficient Storage**: Batch updates reduce database load
+- **Async Tracking**: Request counts updated via job queue for performance
 - **Daily Limits**: Automatic alerts for high usage (>1,000 requests/day)
-- **Sentry Integration**: High usage events logged with client details
+- **Peak Tracking**: `peakDailyRequests` tracks highest daily usage
+- **Reset Schedule**: Daily counters reset at midnight UTC via scheduled job
 
 ## Rate Limiting Architecture
 
@@ -110,6 +113,7 @@ X-User-ID: user_12345678
 - **Admin routes**: Managers collection (admin users)
 - **Development environment**: Rate limiting disabled in development
 - **Non-client requests**: Only API client requests are rate limited
+- **Consumer collections**: Client collection excluded from tracking hooks
 
 ### Monitoring
 
@@ -121,13 +125,15 @@ X-User-ID: user_12345678
 
 | File | Purpose |
 |------|---------|
-| `src/lib/rateLimiting.ts` | Core rate limiting logic and hook factory |
+| `src/lib/usage/usagePlugin.ts` | Main plugin orchestration |
+| `src/lib/usage/hooks.ts` | Rate limiting and tracking hooks |
+| `src/lib/usage/tasks.ts` | trackUsage and resetUsage task factories |
+| `src/lib/usage/types.ts` | Type definitions and constants |
 | `wrangler.toml` | Cloudflare Rate Limiting Binding configuration |
-| `src/lib/openapi/rateLimitingDocs.ts` | X-User-ID parameter OpenAPI documentation |
 
 ## Testing
 
 - **Integration Tests** (`tests/int/clients.int.spec.ts`): Client CRUD operations
-- **API Auth Tests** (`tests/int/api-auth.int.spec.ts`): Authentication flow
+- **API Tests** (`tests/int/api.int.spec.ts`): Usage tracking and reset jobs
 - **E2E Tests** (`tests/e2e/clients.e2e.spec.ts`): Admin UI functionality
 - **Test Helpers**: Factory functions for creating test clients and requests

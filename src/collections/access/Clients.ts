@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { checkHighUsageAlert, validateClientData } from '@/hooks/clientHooks'
+import { validateClientData } from '@/hooks/clientHooks'
 import { getRoleOptions } from '@/lib/access'
 
 export const Clients: CollectionConfig = {
@@ -103,22 +103,13 @@ export const Clients: CollectionConfig = {
       },
     },
     {
-      name: 'usageStats',
+      name: 'usage',
       type: 'group',
       admin: {
         description: 'API usage statistics',
         position: 'sidebar',
       },
       fields: [
-        {
-          name: 'totalRequests',
-          type: 'number',
-          defaultValue: 0,
-          admin: {
-            readOnly: true,
-            description: 'All-time request count',
-          },
-        },
         {
           name: 'dailyRequests',
           type: 'number',
@@ -129,7 +120,7 @@ export const Clients: CollectionConfig = {
           },
         },
         {
-          name: 'maxDailyRequests',
+          name: 'peakDailyRequests',
           type: 'number',
           defaultValue: 0,
           admin: {
@@ -167,6 +158,5 @@ export const Clients: CollectionConfig = {
   ],
   hooks: {
     beforeChange: [validateClientData],
-    afterChange: [checkHighUsageAlert],
   },
 }

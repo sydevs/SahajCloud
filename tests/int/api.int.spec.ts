@@ -54,9 +54,10 @@ describe('API', () => {
       // Verify job was queued for each document read
       if (result.docs.length > 0) {
         expect(queueSpy).toHaveBeenCalledWith({
-          task: 'trackClientUsage',
+          task: 'trackUsage',
           input: {
-            clientId: testClient.id,
+            consumerId: String(testClient.id),
+            consumerCollection: 'clients',
           },
         })
       }
@@ -71,15 +72,15 @@ describe('API', () => {
         id: testClient.id,
       })) as Client
 
-      const initialDailyRequests = initialClient.usageStats?.dailyRequests || 0
+      const initialDailyRequests = initialClient.usage?.dailyRequests || 0
 
       // Run the usage tracking job handler directly
-      const trackUsageTask = payload.config.jobs?.tasks?.find((t) => t.slug === 'trackClientUsage')
+      const trackUsageTask = payload.config.jobs?.tasks?.find((t) => t.slug === 'trackUsage')
       expect(trackUsageTask).toBeDefined()
 
       if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
         await trackUsageTask.handler({
-          input: { clientId: testClient.id },
+          input: { consumerId: String(testClient.id), consumerCollection: 'clients' },
           job: {} as never,
           req: { payload } as unknown as PayloadRequest,
           inlineTask: (() => {}) as never,
@@ -93,14 +94,14 @@ describe('API', () => {
         id: testClient.id,
       })) as Client
 
-      expect(updatedClient.usageStats?.dailyRequests).toBe(initialDailyRequests + 1)
-      expect(updatedClient.usageStats?.lastRequestAt).toBeDefined()
+      expect(updatedClient.usage?.dailyRequests).toBe(initialDailyRequests + 1)
+      expect(updatedClient.usage?.lastRequestAt).toBeDefined()
 
       // Safe to assert after checking it's defined above
-      const updatedLastRequestAt = updatedClient.usageStats!.lastRequestAt!
+      const updatedLastRequestAt = updatedClient.usage!.lastRequestAt!
       expect(new Date(updatedLastRequestAt).getTime()).toBeGreaterThan(
-        initialClient.usageStats?.lastRequestAt
-          ? new Date(initialClient.usageStats.lastRequestAt).getTime()
+        initialClient.usage?.lastRequestAt
+          ? new Date(initialClient.usage.lastRequestAt).getTime()
           : 0,
       )
     })
@@ -112,15 +113,15 @@ describe('API', () => {
         id: testClient.id,
       })) as Client
 
-      const initialDailyRequests = initialClient.usageStats?.dailyRequests || 0
+      const initialDailyRequests = initialClient.usage?.dailyRequests || 0
 
       // Run the job handler multiple times
-      const trackUsageTask = payload.config.jobs?.tasks?.find((t) => t.slug === 'trackClientUsage')
+      const trackUsageTask = payload.config.jobs?.tasks?.find((t) => t.slug === 'trackUsage')
 
       for (let i = 0; i < 5; i++) {
         if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
           await trackUsageTask.handler({
-            input: { clientId: testClient.id },
+            input: { consumerId: String(testClient.id), consumerCollection: 'clients' },
             job: {} as never,
             req: { payload } as unknown as PayloadRequest,
             inlineTask: (() => {}) as never,
@@ -135,18 +136,18 @@ describe('API', () => {
         id: testClient.id,
       })) as Client
 
-      expect(updatedClient.usageStats?.dailyRequests).toBe(initialDailyRequests + 5)
+      expect(updatedClient.usage?.dailyRequests).toBe(initialDailyRequests + 5)
     })
 
     it('resets daily counters via scheduled job', async () => {
       // First, set some usage
-      const trackUsageTask = payload.config.jobs?.tasks?.find((t) => t.slug === 'trackClientUsage')
+      const trackUsageTask = payload.config.jobs?.tasks?.find((t) => t.slug === 'trackUsage')
 
       // Track some usage
       for (let i = 0; i < 3; i++) {
         if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
           await trackUsageTask.handler({
-            input: { clientId: testClient.id },
+            input: { consumerId: String(testClient.id), consumerCollection: 'clients' },
             job: {} as never,
             req: { payload } as unknown as PayloadRequest,
             inlineTask: (() => {}) as never,
@@ -161,11 +162,11 @@ describe('API', () => {
         id: testClient.id,
       })) as Client
 
-      expect(clientBeforeReset.usageStats?.dailyRequests).toBeGreaterThan(0)
-      const dailyRequestsBeforeReset = clientBeforeReset.usageStats?.dailyRequests || 0
+      expect(clientBeforeReset.usage?.dailyRequests).toBeGreaterThan(0)
+      const dailyRequestsBeforeReset = clientBeforeReset.usage?.dailyRequests || 0
 
       // Run the reset job
-      const resetTask = payload.config.jobs?.tasks?.find((t) => t.slug === 'resetClientUsage')
+      const resetTask = payload.config.jobs?.tasks?.find((t) => t.slug === 'resetUsage')
       expect(resetTask).toBeDefined()
 
       if (resetTask && typeof resetTask.handler === 'function') {
@@ -184,29 +185,28 @@ describe('API', () => {
         id: testClient.id,
       })) as Client
 
-      expect(clientAfterReset.usageStats?.dailyRequests).toBe(0)
-      expect(clientAfterReset.usageStats?.maxDailyRequests).toBe(
-        Math.max(clientBeforeReset.usageStats?.maxDailyRequests || 0, dailyRequestsBeforeReset),
+      expect(clientAfterReset.usage?.dailyRequests).toBe(0)
+      expect(clientAfterReset.usage?.peakDailyRequests).toBe(
+        Math.max(clientBeforeReset.usage?.peakDailyRequests || 0, dailyRequestsBeforeReset),
       )
     })
 
-    it('preserves maxDailyRequests when resetting', async () => {
-      // Set an initial maxDailyRequests
+    it('preserves peakDailyRequests when resetting', async () => {
+      // Set an initial peakDailyRequests
       await payload.update({
         collection: 'clients',
         id: testClient.id,
         data: {
-          usageStats: {
-            totalRequests: 100,
+          usage: {
             dailyRequests: 50,
-            maxDailyRequests: 75,
+            peakDailyRequests: 75,
             lastRequestAt: new Date().toISOString(),
           },
         },
       })
 
       // Run reset job
-      const resetTask = payload.config.jobs?.tasks?.find((t) => t.slug === 'resetClientUsage')
+      const resetTask = payload.config.jobs?.tasks?.find((t) => t.slug === 'resetUsage')
       if (resetTask && typeof resetTask.handler === 'function') {
         await resetTask.handler({
           input: {},
@@ -217,33 +217,32 @@ describe('API', () => {
         })
       }
 
-      // Verify maxDailyRequests is preserved
+      // Verify peakDailyRequests is preserved
       const client = (await payload.findByID({
         collection: 'clients',
         id: testClient.id,
       })) as Client
 
-      expect(client.usageStats?.dailyRequests).toBe(0)
-      expect(client.usageStats?.maxDailyRequests).toBe(75) // Should preserve the higher value
+      expect(client.usage?.dailyRequests).toBe(0)
+      expect(client.usage?.peakDailyRequests).toBe(75) // Should preserve the higher value
     })
 
-    it('updates maxDailyRequests if current daily is higher', async () => {
-      // Set usage with dailyRequests higher than maxDailyRequests
+    it('updates peakDailyRequests if current daily is higher', async () => {
+      // Set usage with dailyRequests higher than peakDailyRequests
       await payload.update({
         collection: 'clients',
         id: testClient.id,
         data: {
-          usageStats: {
-            totalRequests: 100,
+          usage: {
             dailyRequests: 100,
-            maxDailyRequests: 75,
+            peakDailyRequests: 75,
             lastRequestAt: new Date().toISOString(),
           },
         },
       })
 
       // Run reset job
-      const resetTask = payload.config.jobs?.tasks?.find((t) => t.slug === 'resetClientUsage')
+      const resetTask = payload.config.jobs?.tasks?.find((t) => t.slug === 'resetUsage')
       if (resetTask && typeof resetTask.handler === 'function') {
         await resetTask.handler({
           input: {},
@@ -254,30 +253,29 @@ describe('API', () => {
         })
       }
 
-      // Verify maxDailyRequests was updated
+      // Verify peakDailyRequests was updated
       const client = (await payload.findByID({
         collection: 'clients',
         id: testClient.id,
       })) as Client
 
-      expect(client.usageStats?.dailyRequests).toBe(0)
-      expect(client.usageStats?.maxDailyRequests).toBe(100) // Should update to the higher value
+      expect(client.usage?.dailyRequests).toBe(0)
+      expect(client.usage?.peakDailyRequests).toBe(100) // Should update to the higher value
     })
 
     it('only resets clients with daily requests > 0', async () => {
       // Create a client with 0 daily requests
       const zeroUsageClient = await testData.createClient(payload, adminUserId, {
         name: 'Zero Usage Client',
-        usageStats: {
-          totalRequests: 50,
+        usage: {
           dailyRequests: 0,
-          maxDailyRequests: 10,
+          peakDailyRequests: 10,
           lastRequestAt: new Date().toISOString(),
         },
       })
 
       // Run reset job
-      const resetTask = payload.config.jobs?.tasks?.find((t) => t.slug === 'resetClientUsage')
+      const resetTask = payload.config.jobs?.tasks?.find((t) => t.slug === 'resetUsage')
       if (resetTask && typeof resetTask.handler === 'function') {
         await resetTask.handler({
           input: {},
@@ -294,9 +292,8 @@ describe('API', () => {
         id: zeroUsageClient.id,
       })) as Client
 
-      expect(client.usageStats?.totalRequests).toBe(50) // Unchanged
-      expect(client.usageStats?.dailyRequests).toBe(0) // Still 0
-      expect(client.usageStats?.maxDailyRequests).toBe(10) // Unchanged
+      expect(client.usage?.dailyRequests).toBe(0) // Still 0
+      expect(client.usage?.peakDailyRequests).toBe(10) // Unchanged
     })
   })
 
@@ -309,9 +306,9 @@ describe('API', () => {
       // Test the virtual field logic
       const clientsCollection = payload.config.collections.find((c) => c.slug === 'clients')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const usageStatsField = clientsCollection?.fields.find((f: any) => f.name === 'usageStats') as any
+      const usageField = clientsCollection?.fields.find((f: any) => f.name === 'usage') as any
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const highUsageAlertField = usageStatsField?.fields?.find((f: any) => f.name === 'highUsageAlert')
+      const highUsageAlertField = usageField?.fields?.find((f: any) => f.name === 'highUsageAlert')
 
       expect(highUsageAlertField).toBeDefined()
       expect(highUsageAlertField?.virtual).toBe(true)
