@@ -54,6 +54,103 @@ Copy from `.env.example` and configure:
 - `WEMEDITATE_WEB_URL` - Preview URL for We Meditate Web frontend (default: http://localhost:5173)
 - `SAHAJATLAS_URL` - Preview URL for Sahaj Atlas frontend (default: http://localhost:5174)
 
+## Environment Variable Validation
+
+The application uses Zod for type-safe environment variable validation. All environment variables are validated at module load time with clear error messages.
+
+### Validation Module
+
+**Location**: `src/lib/env.ts`
+
+Exports two validated environment objects:
+- `serverEnv` - Server-only variables (secrets, API keys)
+- `clientEnv` - Client-accessible variables (NEXT_PUBLIC_* prefix)
+
+### Usage Patterns
+
+**Server-side code**:
+```typescript
+import { serverEnv } from '@/lib/env'
+
+const accountId = serverEnv.CLOUDFLARE_ACCOUNT_ID // Type-safe, validated
+```
+
+**Client-side code**:
+```typescript
+import { clientEnv } from '@/lib/env'
+
+const logLevel = clientEnv.NEXT_PUBLIC_LOG_LEVEL // Type-safe, validated
+```
+
+**Cloudflare Workers bindings**:
+```typescript
+import { requireBinding } from '@/lib/env'
+
+const r2 = requireBinding<R2Bucket>(env.R2, 'R2')
+```
+
+### Adding New Environment Variables
+
+1. Add to `src/lib/env.ts` in appropriate schema (server or client)
+2. Add Zod validation rules:
+   ```typescript
+   NEW_VAR: z.string().min(10).optional(),
+   ```
+3. Update `.env.example` with description and validation notes
+4. Run `pnpm generate:types` if needed
+5. Import `serverEnv` or `clientEnv` in your code
+
+### Validation Rules
+
+- **PAYLOAD_SECRET**: Min 32 chars (security requirement)
+- **URL fields**: Valid HTTPS URLs (localhost allowed in dev)
+- **API keys**: Min 20 chars
+- **Enums**: Strict type checking (e.g., LOG_LEVEL: 'silent' | 'error' | 'warn' | 'info' | 'debug')
+- **Optional fields**: Use `.optional()` for dev fallbacks
+
+### Error Messages
+
+When validation fails, Zod provides detailed error messages:
+```
+Environment validation error:
+{
+  "PAYLOAD_SECRET": ["String must contain at least 32 character(s)"],
+  "CLOUDFLARE_IMAGES_DELIVERY_URL": ["Invalid url"]
+}
+```
+
+### Server/Client Environment Separation
+
+Following Next.js best practices, environment variables are separated into two schemas:
+
+**Server Environment** (`serverEnv`):
+- All server-only variables (secrets, API keys)
+- NEXT_PUBLIC_* variables (needed for server-side usage)
+- NODE_ENV for type safety
+
+**Client Environment** (`clientEnv`):
+- Only NEXT_PUBLIC_* variables (intentionally public)
+- Exposed to browser bundle
+
+### Optional vs Required Strategy
+
+**Development (Local)**:
+- `PAYLOAD_SECRET` → Required (min 32 chars)
+- Cloudflare credentials → Optional (fallback to local file storage)
+- Email API → Optional (fallback to Ethereal Email)
+- Sentry DSN → Optional (error tracking disabled)
+
+**Production (Cloudflare Workers)**:
+- `PAYLOAD_SECRET` → Always required
+- Cloudflare credentials → Required when `env` binding is provided
+- Runtime validation via `requireBinding<T>()` helper for R2/D1 bindings
+
+### Fail-Fast vs Graceful Degradation
+
+- **Fail-Fast**: PAYLOAD_SECRET missing → App won't start
+- **Graceful Degradation**: Cloudflare vars missing in dev → Use local storage
+- **Module-Level Validation**: Validate on import, not on first access
+
 ## Wrangler Configuration
 
 The application uses **Wrangler Environments** to manage different configurations for development and production.

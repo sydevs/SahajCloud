@@ -1,0 +1,300 @@
+/**
+ * Environment Variable Validation with Zod
+ *
+ * This module provides type-safe environment variable validation using Zod.
+ * All environment variables are validated at module load time with clear error messages.
+ *
+ * **Architecture**:
+ * - Server-only variables (secrets, API keys) in `serverEnv`
+ * - Client-accessible variables (NEXT_PUBLIC_* prefix) in `clientEnv`
+ * - Optional variables for dev environment (Cloudflare, email, etc.)
+ * - Fail-fast validation on module import
+ *
+ * **Usage**:
+ * ```typescript
+ * import { serverEnv, clientEnv, requireBinding } from '@/lib/env'
+ *
+ * // Server-side
+ * const secret = serverEnv.PAYLOAD_SECRET
+ *
+ * // Client-side
+ * const logLevel = clientEnv.NEXT_PUBLIC_LOG_LEVEL
+ *
+ * // Cloudflare Workers bindings
+ * const r2 = requireBinding<R2Bucket>(env.R2, 'R2')
+ * ```
+ */
+import { z } from 'zod'
+
+/**
+ * Server-side environment variables schema
+ *
+ * These variables are NEVER exposed to the client and include:
+ * - Secrets and API keys
+ * - Database connection strings
+ * - Internal service URLs
+ */
+const ServerEnvSchema = z.object({
+  // ============================================
+  // REQUIRED - Core Application
+  // ============================================
+
+  /**
+   * PayloadCMS encryption secret
+   * Must be at least 32 characters for security
+   */
+  PAYLOAD_SECRET: z.string().min(32, 'PAYLOAD_SECRET must be at least 32 characters'),
+
+  // ============================================
+  // OPTIONAL - Cloudflare Services (Production)
+  // ============================================
+
+  /**
+   * Cloudflare Account ID
+   * Required for Cloudflare Images, Stream, and R2 in production
+   * Optional in development (falls back to local file storage)
+   */
+  CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
+
+  /**
+   * Cloudflare API Key (unified token for Images and Stream)
+   * Required for Cloudflare services in production
+   * Optional in development
+   */
+  CLOUDFLARE_API_KEY: z.string().min(20).optional(),
+
+  /**
+   * Cloudflare Images delivery URL
+   * Format: https://imagedelivery.net/<hash>
+   */
+  CLOUDFLARE_IMAGES_DELIVERY_URL: z.string().url().optional(),
+
+  /**
+   * Cloudflare Stream delivery URL
+   * Format: https://customer-<code>.cloudflarestream.com
+   */
+  CLOUDFLARE_STREAM_DELIVERY_URL: z.string().url().optional(),
+
+  /**
+   * Cloudflare R2 public delivery URL
+   * Custom domain configured in Cloudflare R2 + CDN
+   */
+  CLOUDFLARE_R2_DELIVERY_URL: z.string().url().optional(),
+
+  /**
+   * Wrangler environment selection
+   * - 'dev': Uses [env.dev] configuration from wrangler.toml
+   * - undefined/empty: Uses default (production) configuration
+   */
+  CLOUDFLARE_ENV: z.enum(['dev']).optional(),
+
+  // ============================================
+  // OPTIONAL - Email Services
+  // ============================================
+
+  /**
+   * Resend API key for transactional emails
+   * Required for production email sending
+   * Falls back to Ethereal Email in development if not set
+   */
+  RESEND_API_KEY: z.string().min(20).optional(),
+
+  // ============================================
+  // OPTIONAL - Application URLs
+  // ============================================
+
+  /**
+   * Sahaj Cloud server URL
+   * Auto-derived from PORT if not set (http://localhost:{PORT})
+   */
+  SAHAJCLOUD_URL: z.string().url().optional(),
+
+  /**
+   * We Meditate Web frontend URL for live preview
+   * @default http://localhost:5173
+   */
+  WEMEDITATE_WEB_URL: z.string().url().optional().default('http://localhost:5173'),
+
+  /**
+   * Sahaj Atlas frontend URL for live preview
+   * @default http://localhost:5174
+   */
+  SAHAJATLAS_URL: z.string().url().optional().default('http://localhost:5174'),
+
+  /**
+   * Server port number
+   * @default 3000
+   */
+  PORT: z.coerce.number().int().min(1).max(65535).optional().default(3000),
+
+  // ============================================
+  // OPTIONAL - Seed Scripts & Migration Tools
+  // ============================================
+
+  /**
+   * Admin email for seed scripts
+   * Only required when running seed scripts that create admin users
+   */
+  ADMIN_EMAIL: z.string().email().optional(),
+
+  /**
+   * Admin password for seed scripts
+   * Minimum 8 characters
+   */
+  ADMIN_PASSWORD: z.string().min(8).optional(),
+
+  /**
+   * Storyblok CMS access token
+   * Only required for importing Path Steps from Storyblok
+   */
+  STORYBLOK_ACCESS_TOKEN: z.string().optional(),
+
+  /**
+   * Cloudflare R2 S3-compatible access key ID
+   * Only required for R2 reset scripts (S3 API compatibility)
+   */
+  CLOUDFLARE_R2_ACCESS_KEY_ID: z.string().optional(),
+
+  /**
+   * Cloudflare R2 S3-compatible secret access key
+   * Only required for R2 reset scripts (S3 API compatibility)
+   */
+  CLOUDFLARE_R2_SECRET_ACCESS_KEY: z.string().optional(),
+
+  // ============================================
+  // FRAMEWORK - Node.js/Next.js Environment
+  // ============================================
+
+  /**
+   * Node.js environment mode
+   * Automatically set by Next.js/Node.js - included for type safety
+   */
+  NODE_ENV: z.enum(['development', 'production', 'test']).optional(),
+
+  // ============================================
+  // CLIENT-ACCESSIBLE - Also needed server-side
+  // ============================================
+
+  /**
+   * Log level for both client and server-side logging
+   * Controls Payload's Pino logger and client-side console output
+   * NEXT_PUBLIC_ prefix makes it accessible on both server and client
+   *
+   * @default 'silent' (client), varies by NODE_ENV (server)
+   */
+  NEXT_PUBLIC_LOG_LEVEL: z
+    .enum(['silent', 'error', 'warn', 'info', 'debug'])
+    .optional(),
+
+  /**
+   * Sentry DSN for error tracking (both server and client)
+   * NEXT_PUBLIC_ prefix makes it accessible on both server and client
+   */
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+})
+
+/**
+ * Client-side environment variables schema
+ *
+ * These variables are intentionally exposed to the client via NEXT_PUBLIC_ prefix:
+ * - Error tracking configuration
+ * - Client-side logging levels
+ * - Public API endpoints
+ */
+const ClientEnvSchema = z.object({
+  /**
+   * Sentry DSN for client-side error tracking
+   * Optional - error tracking disabled if not set
+   */
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+
+  /**
+   * Log level for both client and server-side logging
+   * Controls Payload's Pino logger and client-side console output
+   *
+   * @default 'silent' (client), varies by NODE_ENV (server)
+   */
+  NEXT_PUBLIC_LOG_LEVEL: z
+    .enum(['silent', 'error', 'warn', 'info', 'debug'])
+    .optional(),
+})
+
+// Type inference for TypeScript
+export type ServerEnv = z.infer<typeof ServerEnvSchema>
+export type ClientEnv = z.infer<typeof ClientEnvSchema>
+
+/**
+ * Validated server-side environment variables
+ *
+ * Throws validation error on module import if environment is invalid.
+ * Provides type-safe access to all server-side environment variables.
+ */
+export const serverEnv = (() => {
+  try {
+    return ServerEnvSchema.parse(process.env)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const formatted = error.format()
+      // eslint-disable-next-line no-console
+      console.error('❌ Environment validation error (server):')
+      // eslint-disable-next-line no-console
+      console.error(JSON.stringify(formatted, null, 2))
+      throw new Error('Invalid server environment variables. See errors above.')
+    }
+    throw error
+  }
+})()
+
+/**
+ * Validated client-side environment variables
+ *
+ * Throws validation error on module import if environment is invalid.
+ * Provides type-safe access to all client-accessible environment variables.
+ */
+export const clientEnv = (() => {
+  try {
+    return ClientEnvSchema.parse(process.env)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const formatted = error.format()
+      // eslint-disable-next-line no-console
+      console.error('❌ Environment validation error (client):')
+      // eslint-disable-next-line no-console
+      console.error(JSON.stringify(formatted, null, 2))
+      throw new Error('Invalid client environment variables. See errors above.')
+    }
+    throw error
+  }
+})()
+
+/**
+ * Runtime validation helper for Cloudflare Workers bindings
+ *
+ * Validates that a required Cloudflare binding (R2, D1, KV, etc.) is present
+ * and returns it with proper TypeScript typing.
+ *
+ * **Usage**:
+ * ```typescript
+ * import type { R2Bucket } from '@cloudflare/workers-types'
+ * import { requireBinding } from '@/lib/env'
+ *
+ * // In storagePlugin or other Cloudflare-specific code
+ * const r2Bucket = requireBinding<R2Bucket>(env.R2, 'R2')
+ * ```
+ *
+ * @param binding - The binding value to validate (can be undefined)
+ * @param name - Name of the binding for error messages
+ * @returns The validated binding with proper type
+ * @throws Error if binding is undefined or null
+ *
+ * @template T - The expected binding type (R2Bucket, D1Database, etc.)
+ */
+export function requireBinding<T>(binding: T | undefined | null, name: string): T {
+  if (binding === undefined || binding === null) {
+    throw new Error(
+      `Required Cloudflare binding "${name}" is not available. ` +
+        `Ensure the binding is configured in wrangler.toml and the env object is provided.`,
+    )
+  }
+  return binding
+}

@@ -8,11 +8,13 @@
  */
 import * as Sentry from '@sentry/react'
 
+import { clientEnv } from '@/lib/env'
+
 // Initialize Sentry for client-side errors only
 // Server-side errors are handled by the Sentry plugin
-if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+if (clientEnv.NEXT_PUBLIC_SENTRY_DSN) {
   Sentry.init({
-    dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    dsn: clientEnv.NEXT_PUBLIC_SENTRY_DSN,
     environment: process.env.NODE_ENV,
     // Disable performance tracing, only capture errors
     tracesSampleRate: 0,

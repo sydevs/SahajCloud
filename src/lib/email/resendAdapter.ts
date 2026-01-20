@@ -2,9 +2,11 @@ import type { EmailAdapter } from 'payload'
 
 import { Resend } from 'resend'
 
+import { serverEnv } from '@/lib/env'
+
 export const resendAdapter = (): EmailAdapter => {
   return ({ payload }) => {
-    const apiKey = process.env.RESEND_API_KEY
+    const apiKey = serverEnv.RESEND_API_KEY
 
     if (!apiKey) {
       payload.logger.warn({ msg: 'Resend API key not configured - email will not be sent' })

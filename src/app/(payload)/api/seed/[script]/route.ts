@@ -30,6 +30,8 @@ import type { NextRequest } from 'next/server'
 
 import { getPayload } from 'payload'
 
+import { serverEnv } from '@/lib/env'
+
 import config from '@payload-config'
 
 import {
@@ -364,7 +366,7 @@ async function getImporter(
       return new MeditationsImporter(options)
     }
     case 'storyblok': {
-      const token = process.env.STORYBLOK_ACCESS_TOKEN
+      const token = serverEnv.STORYBLOK_ACCESS_TOKEN
       if (!token) {
         throw new Error('STORYBLOK_ACCESS_TOKEN environment variable is required')
       }
