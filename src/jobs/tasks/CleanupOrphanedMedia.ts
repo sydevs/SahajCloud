@@ -90,13 +90,30 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
     const maxOperations = 500
     const gracePeriodHours = 24
 
-    // Calculate cutoff time (24 hours ago)
-    const cutoffTime = new Date()
-    cutoffTime.setHours(cutoffTime.getHours() - gracePeriodHours)
+    // Determine date range based on current month (rotates through 3 ranges)
+    const currentMonth = new Date().getMonth() // 0-11
+    const rangeIndex = currentMonth % 3 // 0, 1, or 2
+    const rangeEndMonthsAgo = rangeIndex
+    const rangeStartMonthsAgo = rangeIndex + 1
+
+    // Calculate range end (with grace period)
+    const rangeEnd = new Date()
+    rangeEnd.setMonth(rangeEnd.getMonth() - rangeEndMonthsAgo)
+    rangeEnd.setHours(rangeEnd.getHours() - gracePeriodHours)
+
+    // Calculate range start
+    const rangeStart = new Date()
+    rangeStart.setMonth(rangeStart.getMonth() - rangeStartMonthsAgo)
+
+    // Human-readable labels for logging
+    const rangeLabels = ['0-1mo', '1-2mo', '2-3mo']
+    const rangeLabel = rangeLabels[rangeIndex]
 
     req.payload.logger.info({
       msg: 'Starting orphaned media cleanup',
-      cutoffTime: cutoffTime.toISOString(),
+      rangeLabel,
+      rangeStart: rangeStart.toISOString(),
+      rangeEnd: rangeEnd.toISOString(),
       maxOperations,
       gracePeriodHours,
     })
@@ -117,7 +134,7 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
       // Phase B: Move newly detected orphans to trash
       const remainingOps = maxOperations - getTotalOperations(result)
       if (remainingOps > 0) {
-        await trashOrphanedMedia(req, result, remainingOps, cutoffTime)
+        await trashOrphanedMedia(req, result, remainingOps, rangeStart, rangeEnd)
       }
 
       req.payload.logger.info({
@@ -159,24 +176,33 @@ function getTotalOperations(result: CleanupResult): number {
  * @param config.operation - 'delete' for permanent deletion, 'trash' for soft delete
  * @param config.result - CleanupResult object to update counters
  * @param config.resultKey - Which counter to increment on success
+ * @param config.maxItemsToProcess - Maximum number of items to process (for early exit optimization)
  */
-interface ProcessItemsConfig<T extends { id: number; filename?: string | null }> {
+interface ProcessItemsConfig<T extends { id: number; filename?: string | null; createdAt?: string }> {
   req: PayloadRequest
   collection: 'files' | 'images'
   docs: T[]
   operation: 'delete' | 'trash'
   result: CleanupResult
   resultKey: keyof CleanupResult
+  maxItemsToProcess?: number
 }
 
-async function processItems<T extends { id: number; filename?: string | null }>(
+async function processItems<T extends { id: number; filename?: string | null; createdAt?: string }>(
   config: ProcessItemsConfig<T>,
 ): Promise<void> {
-  const { req, collection, docs, operation, result, resultKey } = config
+  const { req, collection, docs, operation, result, resultKey, maxItemsToProcess } = config
   const itemType = collection === 'files' ? 'file' : 'image'
   const idKey = collection === 'files' ? 'fileId' : 'imageId'
 
+  let processedCount = 0
+
   for (const doc of docs) {
+    // Early exit if we've reached the maximum number of items to process
+    if (maxItemsToProcess !== undefined && processedCount >= maxItemsToProcess) {
+      break
+    }
+
     try {
       if (operation === 'delete') {
         // Permanent deletion: trash: true required so delete() can find trashed documents
@@ -186,6 +212,7 @@ async function processItems<T extends { id: number; filename?: string | null }>(
           trash: true,
         })
         ;(result[resultKey] as number)++
+        processedCount++
         req.payload.logger.info({
           msg: `Permanently deleted trashed ${itemType}`,
           [idKey]: doc.id,
@@ -201,10 +228,12 @@ async function processItems<T extends { id: number; filename?: string | null }>(
           },
         })
         ;(result[resultKey] as number)++
+        processedCount++
         req.payload.logger.info({
           msg: `Moved orphaned ${itemType} to trash`,
           [idKey]: doc.id,
           filename: doc.filename,
+          createdAt: doc.createdAt,
         })
       }
     } catch (error) {
@@ -230,7 +259,7 @@ async function permanentlyDeleteTrashedItems(
 ): Promise<void> {
   req.payload.logger.info({ msg: 'Phase A: Permanently deleting trashed items' })
 
-  // Find trashed files
+  // Find trashed files for permanent deletion
   // Note: trash: true is required to include soft-deleted documents in query results
   const trashedFiles = await req.payload.find({
     collection: 'files',
@@ -251,7 +280,7 @@ async function permanentlyDeleteTrashedItems(
     resultKey: 'permanentlyDeletedFiles',
   })
 
-  // Find trashed images
+  // Find trashed images for permanent deletion
   // Note: trash: true is required to include soft-deleted documents in query results
   const remainingOps = maxOperations - result.permanentlyDeletedFiles
   const trashedImages = await req.payload.find({
@@ -287,7 +316,8 @@ async function trashOrphanedMedia(
   req: PayloadRequest,
   result: CleanupResult,
   maxOperations: number,
-  cutoffTime: Date,
+  rangeStart: Date,
+  rangeEnd: Date,
 ): Promise<void> {
   req.payload.logger.info({ msg: 'Phase B: Trashing orphaned media' })
 
@@ -301,12 +331,13 @@ async function trashOrphanedMedia(
     referencedImageCount: referencedImages.size,
   })
 
-  // Find orphaned files (older than grace period, not already in trash, not referenced)
+  // Find orphaned files (in date range, not already in trash, not referenced)
   const potentialOrphanFiles = await req.payload.find({
     collection: 'files',
     where: {
       and: [
-        { createdAt: { less_than: cutoffTime.toISOString() } },
+        { createdAt: { greater_than_equal: rangeStart.toISOString() } },
+        { createdAt: { less_than: rangeEnd.toISOString() } },
         { deletedAt: { exists: false } }, // Not already in trash
       ],
     },
@@ -314,10 +345,8 @@ async function trashOrphanedMedia(
     depth: 0,
   })
 
-  // Filter unreferenced files and limit to half of max operations
-  const orphanFiles = potentialOrphanFiles.docs
-    .filter((file) => !referencedFiles.has(file.id))
-    .slice(0, Math.floor(maxOperations / 2))
+  // Filter unreferenced files and process with early exit
+  const orphanFiles = potentialOrphanFiles.docs.filter((file) => !referencedFiles.has(file.id))
 
   await processItems({
     req,
@@ -326,15 +355,17 @@ async function trashOrphanedMedia(
     operation: 'trash',
     result,
     resultKey: 'trashedFiles',
+    maxItemsToProcess: Math.floor(maxOperations / 2),
   })
 
-  // Find orphaned images (older than grace period, not already in trash, not referenced, no content tags)
+  // Find orphaned images (in date range, not already in trash, not referenced, no content tags)
   const remainingOps = maxOperations - result.trashedFiles
   const potentialOrphanImages = await req.payload.find({
     collection: 'images',
     where: {
       and: [
-        { createdAt: { less_than: cutoffTime.toISOString() } },
+        { createdAt: { greater_than_equal: rangeStart.toISOString() } },
+        { createdAt: { less_than: rangeEnd.toISOString() } },
         { deletedAt: { exists: false } }, // Not already in trash
       ],
     },
@@ -344,6 +375,7 @@ async function trashOrphanedMedia(
 
   // Filter unreferenced images without content tags, tracking skipped count
   // Orientation tags (landscape, portrait, square) are auto-generated and don't count as "intentional" tags
+  // Note: We filter inline and track skipped images, but processItems() handles the early exit
   const orphanImages = potentialOrphanImages.docs.filter((image) => {
     // Skip if image is referenced
     if (referencedImages.has(image.id)) {
@@ -368,10 +400,11 @@ async function trashOrphanedMedia(
   await processItems({
     req,
     collection: 'images',
-    docs: orphanImages.slice(0, remainingOps),
+    docs: orphanImages,
     operation: 'trash',
     result,
     resultKey: 'trashedImages',
+    maxItemsToProcess: remainingOps,
   })
 
   req.payload.logger.info({

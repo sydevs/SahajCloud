@@ -1,6 +1,6 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import {
   createLexicalWithGalleryBlock,
@@ -565,6 +565,166 @@ describe('CleanupOrphanedMedia Job', () => {
       expect(await imageInTrash(payload, orphanImage.id)).toBe(true)
       expect(await imageExists(payload, taggedImage.id)).toBe(true)
       expect(await imageInTrash(payload, taggedImage.id)).toBe(false)
+    })
+  })
+
+  // ==========================================================================
+  // DATE RANGE ROTATION
+  // ==========================================================================
+
+  describe('Date Range Rotation', () => {
+    it('processes 0-1 month range when month % 3 === 0', async () => {
+      // Mock date to January (month 0)
+      const mockDate = new Date('2025-01-15T12:00:00Z')
+      vi.setSystemTime(mockDate)
+
+      // Create files at different ages
+      // 2 weeks old (should be in 0-1 month range)
+      const file2weeksOld = await testData.createFile(payload)
+      const twoWeeksAgo = new Date(mockDate)
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
+      await payload.update({
+        collection: 'files',
+        id: file2weeksOld.id,
+        data: { createdAt: twoWeeksAgo.toISOString() },
+      })
+
+      // 2 months old (should NOT be in 0-1 month range)
+      const file2moOld = await testData.createFile(payload)
+      const twoMonthsAgo = new Date(mockDate)
+      twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)
+      await payload.update({
+        collection: 'files',
+        id: file2moOld.id,
+        data: { createdAt: twoMonthsAgo.toISOString() },
+      })
+
+      // Run cleanup job
+      await runCleanupJob(payload)
+
+      // Verify: Only 0-1 month old file processed
+      expect(await fileInTrash(payload, file2weeksOld.id)).toBe(true)
+      expect(await fileInTrash(payload, file2moOld.id)).toBe(false)
+
+      // Restore real time
+      vi.useRealTimers()
+    })
+
+    it('processes 1-2 month range when month % 3 === 1', async () => {
+      // Mock date to February (month 1)
+      const mockDate = new Date('2025-02-15T12:00:00Z')
+      vi.setSystemTime(mockDate)
+
+      // Create files at different ages
+      // 1.5 months old (should be in 1-2 month range)
+      const file1p5moOld = await testData.createFile(payload)
+      const onePointFiveMonthsAgo = new Date(mockDate)
+      onePointFiveMonthsAgo.setMonth(onePointFiveMonthsAgo.getMonth() - 1)
+      onePointFiveMonthsAgo.setDate(onePointFiveMonthsAgo.getDate() - 15)
+      await payload.update({
+        collection: 'files',
+        id: file1p5moOld.id,
+        data: { createdAt: onePointFiveMonthsAgo.toISOString() },
+      })
+
+      // 2 weeks old (should NOT be in 1-2 month range)
+      const file2weeksOld = await testData.createFile(payload)
+      const twoWeeksAgo = new Date(mockDate)
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
+      await payload.update({
+        collection: 'files',
+        id: file2weeksOld.id,
+        data: { createdAt: twoWeeksAgo.toISOString() },
+      })
+
+      // Run cleanup job
+      await runCleanupJob(payload)
+
+      // Verify: Only 1-2 month old file processed
+      expect(await fileInTrash(payload, file1p5moOld.id)).toBe(true)
+      expect(await fileInTrash(payload, file2weeksOld.id)).toBe(false)
+
+      // Restore real time
+      vi.useRealTimers()
+    })
+
+    it('processes 2-3 month range when month % 3 === 2', async () => {
+      // Mock date to March (month 2)
+      const mockDate = new Date('2025-03-15T12:00:00Z')
+      vi.setSystemTime(mockDate)
+
+      // Create files at different ages
+      // 2.5 months old (should be in 2-3 month range)
+      const file2p5moOld = await testData.createFile(payload)
+      const twoPointFiveMonthsAgo = new Date(mockDate)
+      twoPointFiveMonthsAgo.setMonth(twoPointFiveMonthsAgo.getMonth() - 2)
+      twoPointFiveMonthsAgo.setDate(twoPointFiveMonthsAgo.getDate() - 15)
+      await payload.update({
+        collection: 'files',
+        id: file2p5moOld.id,
+        data: { createdAt: twoPointFiveMonthsAgo.toISOString() },
+      })
+
+      // 1 month old (should NOT be in 2-3 month range)
+      const file1moOld = await testData.createFile(payload)
+      const oneMonthAgo = new Date(mockDate)
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
+      await payload.update({
+        collection: 'files',
+        id: file1moOld.id,
+        data: { createdAt: oneMonthAgo.toISOString() },
+      })
+
+      // Run cleanup job
+      await runCleanupJob(payload)
+
+      // Verify: Only 2-3 month old file processed
+      expect(await fileInTrash(payload, file2p5moOld.id)).toBe(true)
+      expect(await fileInTrash(payload, file1moOld.id)).toBe(false)
+
+      // Restore real time
+      vi.useRealTimers()
+    })
+
+    it('Phase A always processes trashed items regardless of age', async () => {
+      // Mock date to January (month 0, which processes 0-1 month range)
+      const mockDate = new Date('2025-01-15T12:00:00Z')
+      vi.setSystemTime(mockDate)
+
+      // Create trashed file from 6 months ago (outside any Phase B range)
+      const trashedFile = await testData.createFile(payload)
+      const sixMonthsAgo = new Date(mockDate)
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+      await payload.update({
+        collection: 'files',
+        id: trashedFile.id,
+        data: {
+          createdAt: sixMonthsAgo.toISOString(),
+          deletedAt: new Date(mockDate).toISOString(),
+        },
+      })
+
+      // Verify file is in trash
+      expect(await fileInTrash(payload, trashedFile.id)).toBe(true)
+
+      // Run cleanup job
+      const result = await runCleanupJob(payload)
+
+      // Verify file was permanently deleted even though it's outside Phase B date range
+      expect(result.permanentlyDeletedFiles).toBeGreaterThanOrEqual(1)
+
+      // Verify file no longer exists (even in trash)
+      const trashedFiles = await payload.find({
+        collection: 'files',
+        where: {
+          and: [{ id: { equals: trashedFile.id } }, { deletedAt: { exists: true } }],
+        },
+        trash: true,
+      })
+      expect(trashedFiles.docs).toHaveLength(0)
+
+      // Restore real time
+      vi.useRealTimers()
     })
   })
 })
