@@ -66,7 +66,7 @@ export const Frames: CollectionConfig = {
     // imageSizes removed - using Cloudflare Images flexible variants and Stream thumbnails
   },
   admin: {
-    group: 'Resources',
+    group: 'Media',
     useAsTitle: 'filename',
     defaultColumns: ['category', 'tags', 'previewUrl', 'imageSet'],
     groupBy: true,
