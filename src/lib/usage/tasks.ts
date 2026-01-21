@@ -4,50 +4,44 @@
  * Task configurations for usage tracking and daily reset.
  */
 
-import type { TrackUsageInput } from './types'
+import type { ApiConsumerWithStats } from './types'
 import type { TaskConfig } from 'payload'
 
-import {
-  CONSUMER_COLLECTIONS,
-  HIGH_USAGE_THRESHOLD,
-  STATS_FIELD_PATH,
-} from './types'
+import { API_CONSUMER_COLLECTIONS, HIGH_USAGE_THRESHOLD } from './types'
 
 // ============================================================================
 // TRACK USAGE TASK
 // ============================================================================
 
 /**
- * Task that increments daily request counter for a consumer.
+ * Task that increments daily request counter for an API consumer.
  *
  * Triggered by afterRead hook on each API request.
  * Also logs high usage alerts when threshold is exceeded.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const trackUsageTask: TaskConfig<any> = {
+export const trackUsageTask: TaskConfig<'trackUsage'> = {
   slug: 'trackUsage',
   retries: 3,
-  inputSchema: [{ name: 'consumerId', type: 'text', required: true }],
+  inputSchema: [{ name: 'apiConsumerId', type: 'text', required: true }],
   handler: async ({ input, req }) => {
-    const { consumerId } = input as TrackUsageInput
+    const { apiConsumerId } = input
 
     // Currently only 'clients' collection is supported
-    const collection = CONSUMER_COLLECTIONS[0]
+    const collection = API_CONSUMER_COLLECTIONS[0]
 
-    const consumer = await req.payload.findByID({
+    const apiConsumer = (await req.payload.findByID({
       collection,
-      id: consumerId,
-    })
+      id: apiConsumerId,
+    })) as ApiConsumerWithStats
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stats = (consumer as any)?.[STATS_FIELD_PATH] || {}
+    const stats = apiConsumer?.usage || {}
     const newDailyRequests = (stats.dailyRequests || 0) + 1
 
     await req.payload.update({
       collection,
-      id: consumerId,
+      id: apiConsumerId,
       data: {
-        [STATS_FIELD_PATH]: {
+        usage: {
           dailyRequests: newDailyRequests,
           peakDailyRequests: stats.peakDailyRequests || 0,
           lastRequestAt: new Date().toISOString(),
@@ -60,9 +54,8 @@ export const trackUsageTask: TaskConfig<any> = {
       req.payload.logger.warn({
         msg: 'High usage alert',
         collection,
-        consumerId,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        consumerName: (consumer as any)?.name || 'Unknown',
+        apiConsumerId,
+        apiConsumerName: apiConsumer?.name || 'Unknown',
         dailyRequests: newDailyRequests,
         threshold: HIGH_USAGE_THRESHOLD,
       })
@@ -81,10 +74,9 @@ export const trackUsageTask: TaskConfig<any> = {
  *
  * - Updates peakDailyRequests if current is higher
  * - Resets dailyRequests to 0
- * - Only processes consumers with dailyRequests > 0
+ * - Only processes API consumers with dailyRequests > 0
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resetUsageTask: TaskConfig<any> = {
+export const resetUsageTask: TaskConfig<'resetUsage'> = {
   slug: 'resetUsage',
   label: 'Reset Usage Counters',
   retries: 2,
@@ -92,24 +84,24 @@ export const resetUsageTask: TaskConfig<any> = {
   outputSchema: [],
   schedule: [{ cron: '0 0 * * *', queue: 'nightly' }],
   handler: async ({ req }) => {
-    for (const collection of CONSUMER_COLLECTIONS) {
-      const consumersWithUsage = await req.payload.find({
+    for (const collection of API_CONSUMER_COLLECTIONS) {
+      const apiConsumersWithUsage = await req.payload.find({
         collection,
-        where: { [`${STATS_FIELD_PATH}.dailyRequests`]: { greater_than: 0 } },
+        where: { 'usage.dailyRequests': { greater_than: 0 } },
         limit: 1000,
       })
 
-      for (const consumer of consumersWithUsage.docs) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const stats = (consumer as any)[STATS_FIELD_PATH] || {}
+      for (const doc of apiConsumersWithUsage.docs) {
+        const apiConsumer = doc as ApiConsumerWithStats
+        const stats = apiConsumer.usage || {}
         const dailyRequests = stats.dailyRequests || 0
         const peakDailyRequests = stats.peakDailyRequests || 0
 
         await req.payload.update({
           collection,
-          id: consumer.id,
+          id: apiConsumer.id,
           data: {
-            [STATS_FIELD_PATH]: {
+            usage: {
               ...stats,
               peakDailyRequests: Math.max(peakDailyRequests, dailyRequests),
               dailyRequests: 0,

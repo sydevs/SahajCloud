@@ -11,15 +11,10 @@ import type { CollectionSlug } from 'payload'
 // ============================================================================
 
 /**
- * Consumer collections that can make API requests.
+ * API consumer collections that can make API requests.
  * These collections are excluded from rate limiting (they ARE the rate-limited entity).
  */
-export const CONSUMER_COLLECTIONS: CollectionSlug[] = ['clients']
-
-/**
- * Field path for usage statistics on consumer documents.
- */
-export const STATS_FIELD_PATH = 'usage'
+export const API_CONSUMER_COLLECTIONS: CollectionSlug[] = ['clients']
 
 /**
  * Daily request threshold for high usage alerts.
@@ -40,60 +35,24 @@ export const SYSTEM_EXCLUSIONS: CollectionSlug[] = [
 ]
 
 // ============================================================================
-// PLUGIN OPTIONS
+// API CONSUMER TYPES
 // ============================================================================
 
 /**
- * Plugin configuration options for usagePlugin
+ * Usage statistics stored on API consumer documents (e.g., clients)
  */
-export interface UsagePluginOptions {
-  /**
-   * Whether to enable the plugin
-   * @default true
-   */
-  enabled?: boolean
-
-  /**
-   * Additional collections to exclude from rate limiting and usage tracking
-   */
-  exclude?: CollectionSlug[]
-}
-
-// ============================================================================
-// TASK INPUTS
-// ============================================================================
-
-/**
- * Input for the trackUsage task
- */
-export interface TrackUsageInput {
-  consumerId: string
-}
-
-// ============================================================================
-// ERROR CLASSES
-// ============================================================================
-
-/**
- * Custom error class for rate limit validation failures.
- * Returns 400 Bad Request for invalid X-User-ID format.
- */
-export class RateLimitValidationError extends Error {
-  status = 400
-  constructor(message: string) {
-    super(message)
-    this.name = 'RateLimitValidationError'
-  }
+export interface ApiConsumerStats {
+  dailyRequests?: number | null
+  peakDailyRequests?: number | null
+  lastRequestAt?: string | null
 }
 
 /**
- * Custom error class for rate limit exceeded.
- * Returns 429 Too Many Requests.
+ * API consumer document with usage stats (minimal interface for type safety)
  */
-export class RateLimitExceededError extends Error {
-  status = 429
-  constructor() {
-    super('Rate limit exceeded. Maximum 500 requests per minute.')
-    this.name = 'RateLimitExceededError'
-  }
+export interface ApiConsumerWithStats {
+  id: number | string
+  name?: string
+  usage?: ApiConsumerStats
 }
+

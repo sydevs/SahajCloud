@@ -33,16 +33,18 @@ export const HighUsageAlert = ({ clientProps }: HighUsageAlertProps) => {
     return null
   }
   
+  // Using PayloadCMS CSS variables for spacing/radius with amber warning colors
+  // PayloadCMS theme system doesn't include semantic warning colors
   return (
-    <div style={{ 
-      padding: '12px',
-      backgroundColor: '#fef3c7',
-      border: '1px solid #f59e0b',
-      borderRadius: '4px',
-      marginTop: '8px'
+    <div style={{
+      padding: 'calc(var(--base) * 0.6)',
+      backgroundColor: 'color-mix(in srgb, var(--theme-elevation-100) 50%, #fef3c7 50%)',
+      border: '1px solid var(--theme-elevation-200)',
+      borderRadius: 'var(--style-radius-s)',
+      marginTop: 'calc(var(--base) * 0.4)'
     }}>
-      <strong style={{ color: '#d97706' }}>⚠️ High Usage Alert</strong>
-      <p style={{ margin: '4px 0 0 0', color: '#92400e' }}>
+      <strong style={{ color: 'var(--theme-elevation-800)' }}>⚠️ High Usage Alert</strong>
+      <p style={{ margin: 'calc(var(--base) * 0.2) 0 0 0', color: 'var(--theme-elevation-600)' }}>
         {dailyRequests.toLocaleString()} requests today (limit: {threshold.toLocaleString()})
       </p>
     </div>

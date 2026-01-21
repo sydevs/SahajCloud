@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { validateClientData } from '@/hooks/clientHooks'
 import { getRoleOptions } from '@/lib/access'
+import { HIGH_USAGE_THRESHOLD } from '@/lib/usage'
 
 export const Clients: CollectionConfig = {
   slug: 'clients',
@@ -142,12 +143,12 @@ export const Clients: CollectionConfig = {
           virtual: true,
           admin: {
             readOnly: true,
-            description: 'Indicates if daily limit exceeded (>1000 requests)',
+            description: `Indicates if daily limit exceeded (>${HIGH_USAGE_THRESHOLD} requests)`,
             components: {
               Field: {
                 path: '@/components/admin/HighUsageAlert',
                 clientProps: {
-                  threshold: 1000,
+                  threshold: HIGH_USAGE_THRESHOLD,
                 },
               },
             },

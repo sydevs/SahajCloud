@@ -15,11 +15,10 @@ Manages API clients with authentication keys:
 ### Usage Plugin (`src/lib/usage/`)
 
 Consolidated rate limiting and usage tracking via auto-applied hooks:
-- `createRateLimitHook()` - beforeOperation hook for per-user rate limiting
-- `createUsageTrackingHook()` - afterRead hook queues tracking job
-- `createInitStatsHook()` - beforeChange hook initializes stats on consumer creation
-- `createTrackUsageTask()` - increments dailyRequests, triggers high usage alerts
-- `createResetUsageTask()` - resets counters at midnight UTC
+- `rateLimitHook` - beforeOperation hook for per-user rate limiting
+- `usageTrackingHook` - afterRead hook queues tracking job
+- `trackUsageTask` - task that increments dailyRequests, triggers high usage alerts
+- `resetUsageTask` - scheduled task that resets counters at midnight UTC
 
 ### Client Hooks (`src/hooks/clientHooks.ts`)
 

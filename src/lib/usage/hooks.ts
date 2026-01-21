@@ -1,7 +1,7 @@
 /**
  * Usage Plugin Hooks
  *
- * Hook factories for rate limiting and usage tracking.
+ * Hooks for rate limiting and usage tracking.
  */
 
 import type { RateLimit } from '@cloudflare/workers-types'
@@ -9,10 +9,12 @@ import type { CollectionAfterReadHook, CollectionBeforeOperationHook, PayloadReq
 
 import { getCloudflareContext } from '@opennextjs/cloudflare'
 import * as Sentry from '@sentry/cloudflare'
+import { APIError } from 'payload'
+import { z } from 'zod'
 
 import { serverEnv } from '@/lib/env'
 
-import { CONSUMER_COLLECTIONS, RateLimitExceededError, RateLimitValidationError } from './types'
+import { API_CONSUMER_COLLECTIONS } from './types'
 
 // ============================================================================
 // RATE LIMITING UTILITIES
@@ -32,95 +34,97 @@ export function buildRateLimitKey(
 }
 
 /**
- * Validates the X-User-ID header format.
- *
+ * Zod schema for X-User-ID header validation.
  * Valid format: 8-64 alphanumeric characters (including dash and underscore)
  */
-export function validateUserId(userId: string | null): string | null {
-  if (!userId) return null
-
-  if (!/^[a-zA-Z0-9-_]{8,64}$/.test(userId)) {
-    throw new RateLimitValidationError(
-      'Invalid X-User-ID format. Must be 8-64 alphanumeric characters (including dash and underscore).',
-    )
-  }
-
-  return userId
-}
+const userIdSchema = z
+  .string()
+  .regex(
+    /^[a-zA-Z0-9-_]{8,64}$/,
+    'Invalid X-User-ID format. Must be 8-64 alphanumeric characters (including dash and underscore).',
+  )
 
 // ============================================================================
 // RATE LIMIT HOOK
 // ============================================================================
 
 /**
- * Creates a beforeOperation hook for rate limiting API consumer requests.
- *
- * Only applies to requests from consumer collections (e.g., clients).
- * Skipped in development since rate limiting requires Cloudflare edge infrastructure.
+ * Core rate limiting logic. Throws APIError on validation failure or rate limit exceeded.
+ * Does NOT catch errors - that's handled by the hook wrapper.
  */
-export function createRateLimitHook(): CollectionBeforeOperationHook {
-  return async ({ req }) => {
-    // Only rate limit consumer requests
-    if (!req.user?.collection || !CONSUMER_COLLECTIONS.includes(req.user.collection)) {
-      return
+async function checkRateLimit(req: PayloadRequest): Promise<void> {
+  const { env } = await getCloudflareContext({ async: true })
+  const rateLimiter = (env as { API_RATE_LIMITER?: RateLimit }).API_RATE_LIMITER
+
+  // Fail open if binding unavailable
+  if (!rateLimiter) {
+    req.payload.logger.warn({ msg: 'Rate limiter binding not available' })
+    return
+  }
+
+  // Extract and validate X-User-ID header
+  const rawUserId = req.headers?.get?.('x-user-id') || null
+  let userId: string | null = null
+
+  if (rawUserId) {
+    const result = userIdSchema.safeParse(rawUserId)
+    if (!result.success) {
+      throw new APIError(result.error.issues[0].message, 400)
+    }
+    userId = result.data
+  }
+
+  // Check rate limit
+  const clientIP = req.headers?.get?.('cf-connecting-ip') || null
+  const key = buildRateLimitKey(req.user!.id, clientIP, userId)
+  const { success } = await rateLimiter.limit({ key })
+
+  if (!success) {
+    // Log to Sentry and Pino
+    if (serverEnv.NEXT_PUBLIC_SENTRY_DSN) {
+      Sentry.withScope((scope) => {
+        scope.setTag('clientId', String(req.user!.id))
+        scope.setLevel('warning')
+        Sentry.captureMessage('API rate limit exceeded')
+      })
     }
 
-    // Skip in development - rate limiting requires Cloudflare edge
-    if (process.env.NODE_ENV !== 'production') {
-      return
-    }
+    req.payload.logger.warn({
+      msg: 'Rate limit exceeded',
+      clientId: req.user!.id,
+      userId: userId || 'none',
+    })
 
-    await checkRateLimit(req)
+    throw new APIError('Rate limit exceeded. Maximum 500 requests per minute.', 429)
   }
 }
 
 /**
- * Checks rate limit for the current request using Cloudflare Workers Rate Limiting.
+ * beforeOperation hook for rate limiting API client requests.
+ *
+ * Only applies to requests from API consumer collections (e.g., clients).
+ * Skipped in development since rate limiting requires Cloudflare edge infrastructure.
  */
-async function checkRateLimit(req: PayloadRequest): Promise<void> {
+export const rateLimitHook: CollectionBeforeOperationHook = async ({ req }) => {
+  // Only rate limit API consumer requests
+  if (!req.user?.collection || !API_CONSUMER_COLLECTIONS.includes(req.user.collection)) {
+    return
+  }
+
+  // Skip in development - rate limiting requires Cloudflare edge
+  if (process.env.NODE_ENV !== 'production') {
+    return
+  }
+
   try {
-    const { env } = await getCloudflareContext({ async: true })
-    const rateLimiter = (env as { API_RATE_LIMITER?: RateLimit }).API_RATE_LIMITER
-
-    // Fail open if binding unavailable
-    if (!rateLimiter) {
-      req.payload.logger.warn({ msg: 'Rate limiter binding not available' })
-      return
-    }
-
-    // Extract and validate headers
-    const clientIP = req.headers?.get?.('cf-connecting-ip') || null
-    const userId = validateUserId(req.headers?.get?.('x-user-id') || null)
-
-    // Check rate limit
-    const key = buildRateLimitKey(req.user!.id, clientIP, userId)
-    const { success } = await rateLimiter.limit({ key })
-
-    if (!success) {
-      // Log to Sentry and Pino
-      if (serverEnv.NEXT_PUBLIC_SENTRY_DSN) {
-        Sentry.withScope((scope) => {
-          scope.setTag('clientId', String(req.user!.id))
-          scope.setLevel('warning')
-          Sentry.captureMessage('API rate limit exceeded')
-        })
-      }
-
-      req.payload.logger.warn({
-        msg: 'Rate limit exceeded',
-        clientId: req.user!.id,
-        userId: userId || 'none',
-      })
-
-      throw new RateLimitExceededError()
-    }
+    await checkRateLimit(req)
   } catch (error) {
-    // Re-throw custom errors
-    if (error instanceof RateLimitValidationError || error instanceof RateLimitExceededError) {
+    // Re-throw API errors (validation failures, rate limit exceeded)
+    if (error instanceof APIError) {
       throw error
     }
 
-    // Fail open for unexpected errors
+    // Fail open for unexpected errors (Cloudflare binding issues, etc.)
     req.payload.logger.error({
       msg: 'Rate limiting error - failing open',
       error: error instanceof Error ? error.message : String(error),
@@ -133,20 +137,22 @@ async function checkRateLimit(req: PayloadRequest): Promise<void> {
 // ============================================================================
 
 /**
- * Creates an afterRead hook for usage tracking.
+ * afterRead hook for usage tracking.
  *
- * Queues a job to increment usage stats for the consumer.
+ * Queues a job to increment usage stats for the API consumer.
  */
-export function createUsageTrackingHook(): CollectionAfterReadHook {
-  return async ({ doc, req }) => {
-    // Only track for consumer requests
-    if (req.user?.collection && CONSUMER_COLLECTIONS.includes(req.user.collection) && req.user?.id) {
-      await req.payload.jobs.queue({
-        task: 'trackUsage' as 'inline',
-        input: { consumerId: String(req.user.id) },
-      })
-    }
-
-    return doc
+export const usageTrackingHook: CollectionAfterReadHook = async ({ doc, req }) => {
+  // Only track for API consumer requests
+  if (
+    req.user?.collection &&
+    API_CONSUMER_COLLECTIONS.includes(req.user.collection) &&
+    req.user?.id
+  ) {
+    await req.payload.jobs.queue({
+      task: 'trackUsage',
+      input: { apiConsumerId: String(req.user.id) },
+    })
   }
+
+  return doc
 }

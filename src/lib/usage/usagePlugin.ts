@@ -7,12 +7,11 @@
  * - afterRead: Usage tracking via job queue
  */
 
-import type { UsagePluginOptions } from './types'
 import type { CollectionSlug, Config } from 'payload'
 
-import { createRateLimitHook, createUsageTrackingHook } from './hooks'
+import { rateLimitHook, usageTrackingHook } from './hooks'
 import { resetUsageTask, trackUsageTask } from './tasks'
-import { CONSUMER_COLLECTIONS, SYSTEM_EXCLUSIONS } from './types'
+import { API_CONSUMER_COLLECTIONS, SYSTEM_EXCLUSIONS } from './types'
 
 /**
  * Usage Plugin for PayloadCMS
@@ -24,7 +23,9 @@ import { CONSUMER_COLLECTIONS, SYSTEM_EXCLUSIONS } from './types'
  * ]
  * ```
  */
-export function usagePlugin(options: UsagePluginOptions = {}): (config: Config) => Config {
+export function usagePlugin(
+  options: { enabled?: boolean; exclude?: CollectionSlug[] } = {},
+): (config: Config) => Config {
   const { enabled = true, exclude = [] } = options
 
   if (!enabled) {
@@ -34,13 +35,9 @@ export function usagePlugin(options: UsagePluginOptions = {}): (config: Config) 
   // Build exclusion set
   const exclusions = new Set<CollectionSlug>([
     ...SYSTEM_EXCLUSIONS,
-    ...CONSUMER_COLLECTIONS,
+    ...API_CONSUMER_COLLECTIONS,
     ...exclude,
   ])
-
-  // Create hooks once
-  const rateLimitHook = createRateLimitHook()
-  const usageTrackingHook = createUsageTrackingHook()
 
   return (config: Config): Config => ({
     ...config,

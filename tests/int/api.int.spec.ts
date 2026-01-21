@@ -55,7 +55,7 @@ describe('API', () => {
       if (result.docs.length > 0) {
         expect(queueSpy).toHaveBeenCalledWith({
           task: 'trackUsage',
-          input: { consumerId: String(testClient.id) },
+          input: { apiConsumerId: String(testClient.id) },
         })
       }
 
@@ -77,7 +77,7 @@ describe('API', () => {
 
       if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
         await trackUsageTask.handler({
-          input: { consumerId: String(testClient.id) },
+          input: { apiConsumerId: String(testClient.id) },
           job: {} as never,
           req: { payload } as unknown as PayloadRequest,
           inlineTask: (() => {}) as never,
@@ -118,7 +118,7 @@ describe('API', () => {
       for (let i = 0; i < 5; i++) {
         if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
           await trackUsageTask.handler({
-            input: { consumerId: String(testClient.id) },
+            input: { apiConsumerId: String(testClient.id) },
             job: {} as never,
             req: { payload } as unknown as PayloadRequest,
             inlineTask: (() => {}) as never,
@@ -144,7 +144,7 @@ describe('API', () => {
       for (let i = 0; i < 3; i++) {
         if (trackUsageTask && typeof trackUsageTask.handler === 'function') {
           await trackUsageTask.handler({
-            input: { consumerId: String(testClient.id) },
+            input: { apiConsumerId: String(testClient.id) },
             job: {} as never,
             req: { payload } as unknown as PayloadRequest,
             inlineTask: (() => {}) as never,

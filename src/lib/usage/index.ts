@@ -17,21 +17,14 @@
 export { usagePlugin } from './usagePlugin'
 
 // Type exports
-export type { TrackUsageInput, UsagePluginOptions } from './types'
-export {
-  CONSUMER_COLLECTIONS,
-  HIGH_USAGE_THRESHOLD,
-  RateLimitExceededError,
-  RateLimitValidationError,
-  STATS_FIELD_PATH,
-  SYSTEM_EXCLUSIONS,
-} from './types'
+export type { ApiConsumerStats, ApiConsumerWithStats } from './types'
+export { API_CONSUMER_COLLECTIONS, HIGH_USAGE_THRESHOLD, SYSTEM_EXCLUSIONS } from './types'
 
-// Hook factories (for testing)
-export { createRateLimitHook, createUsageTrackingHook } from './hooks'
+// Hook exports (for testing)
+export { rateLimitHook, usageTrackingHook } from './hooks'
 
 // Rate limiting utilities (for testing)
-export { buildRateLimitKey, validateUserId } from './hooks'
+export { buildRateLimitKey } from './hooks'
 
 // Task configs (for testing)
 export { resetUsageTask, trackUsageTask } from './tasks'
