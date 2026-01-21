@@ -82,7 +82,10 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    * - 'production': Uses [env.production] configuration from wrangler.toml
    * - undefined/empty: Uses default (production) configuration
    */
-  CLOUDFLARE_ENV: z.enum(['dev', 'production']).optional(),
+  CLOUDFLARE_ENV: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.enum(['dev', 'production']).optional(),
+  ),
 
   // ============================================
   // OPTIONAL - Email Services
