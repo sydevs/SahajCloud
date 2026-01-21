@@ -1033,7 +1033,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
           } else {
             this.addWarning(`Predefined tag "${mappedSlug}" not found - run tags import first`)
           }
-        } else {
+        } else if (legacyName !== 'path') {
+          // 'path' tag is handled by setting type='lesson', not via tag mapping
           this.addWarning(`No mapping for meditation tag "${tag.name}"`)
         }
       }
@@ -1726,10 +1727,12 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       .map((t) => this.idMaps.meditationTags.get(t.tag_id))
       .filter((id): id is number => Boolean(id))
 
+    // Check for path tag (used for type and thumbnail)
+    const hasPathTag = this.checkHasPathTag(meditation.id, meditationTaggings, allTags)
+
     // Handle thumbnail
     let thumbnailId = await this.getThumbnailId(meditation, attachments, blobs)
     if (!thumbnailId) {
-      const hasPathTag = this.checkHasPathTag(meditation.id, meditationTaggings, allTags)
       thumbnailId = hasPathTag ? this.pathPlaceholderMediaId : this.placeholderMediaId
     }
 
@@ -1741,7 +1744,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       duration: meditation.duration,
       narrator: narratorId,
       tags: meditationTagIds,
-      type: this.getMeditationType(meditation.title),
+      type: this.getMeditationType(meditation.title, hasPathTag),
       _status: meditation.published ? 'published' : 'draft',
     }
 
@@ -1841,10 +1844,12 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       .map((t) => this.idMaps.meditationTags.get(t.tag_id))
       .filter((id): id is number => Boolean(id))
 
+    // Check for path tag (used for type and thumbnail)
+    const hasPathTag = this.checkHasPathTag(meditation.id, meditationTaggings, allTags)
+
     // Handle thumbnail (reuse existing if possible, update if source has new one)
     let thumbnailId = await this.getThumbnailId(meditation, attachments, blobs)
     if (!thumbnailId) {
-      const hasPathTag = this.checkHasPathTag(meditation.id, meditationTaggings, allTags)
       thumbnailId = hasPathTag ? this.pathPlaceholderMediaId : this.placeholderMediaId
     }
 
@@ -1855,7 +1860,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       duration: meditation.duration,
       narrator: narratorId,
       tags: meditationTagIds,
-      type: this.getMeditationType(meditation.title),
+      type: this.getMeditationType(meditation.title, hasPathTag),
       _status: meditation.published ? 'published' : 'draft',
     }
 
@@ -1933,7 +1938,11 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     return false
   }
 
-  private getMeditationType(title: string): 'daily' | 'lesson' | 'realization' {
+  private getMeditationType(title: string, hasPathTag: boolean): 'daily' | 'lesson' | 'realization' {
+    // 'path' tag takes priority - sets type to 'lesson' (displays as "Path" in UI)
+    if (hasPathTag) {
+      return 'lesson'
+    }
     if (title === 'First meditation') {
       return 'realization'
     }
