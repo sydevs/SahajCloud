@@ -53,6 +53,9 @@ export const Images: CollectionConfig = {
         'icon',
         'stock-photo',
         'technique',
+        'meditation',
+        'placeholder',
+        'lesson',
       ],
       admin: {
         description: 'Tags to categorize this image',

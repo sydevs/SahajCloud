@@ -59,7 +59,7 @@ export const Videos: CollectionConfig = {
       options: ['testimonial', 'workshop', 'event', 'technique'],
       admin: {
         components: {
-          Field: '@/components/admin/TagSelector',
+          Field: '@/components/admin/ToggleGroupField',
         },
       },
     },

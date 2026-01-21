@@ -83,7 +83,6 @@ export const Pages: CollectionConfig = {
       name: 'tags',
       type: 'select',
       hasMany: true,
-      required: true,
       options: ['wisdom', 'lifestyle', 'creativity', 'event', 'technique'],
       admin: {
         position: 'sidebar',

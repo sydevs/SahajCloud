@@ -63,10 +63,13 @@ describe('Videos Collection', () => {
   })
 
   it('supports subtitles JSON field', async () => {
-    const subtitles = [
-      { startTime: 0, endTime: 5, text: 'Hello' },
-      { startTime: 5, endTime: 10, text: 'World' },
-    ]
+    // Subtitles format matches the JSON schema in src/lib/subtitlesSchema.json
+    const subtitles = {
+      captions: [
+        { duration: 5, content: 'Hello', startTime: '00:00:00' },
+        { duration: 5, content: 'World', startTime: '00:00:05' },
+      ],
+    }
 
     const videoWithSubtitles = await testData.createVideo(payload, {
       title: 'Video with Subtitles',

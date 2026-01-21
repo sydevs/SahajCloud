@@ -271,6 +271,7 @@ export const testData = {
       collection: 'videos',
       data: {
         title: defaultTitle,
+        tags: ['testimonial'], // Default tag for required field
         ...overrides,
       },
       file: {

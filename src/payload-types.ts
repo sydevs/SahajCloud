@@ -318,7 +318,21 @@ export interface Image {
   /**
    * Tags to categorize this image
    */
-  tags?: ('landscape' | 'portrait' | 'square' | 'thumbnail' | 'author' | 'icon' | 'stock-photo' | 'technique')[] | null;
+  tags?:
+    | (
+        | 'landscape'
+        | 'portrait'
+        | 'square'
+        | 'thumbnail'
+        | 'author'
+        | 'icon'
+        | 'stock-photo'
+        | 'technique'
+        | 'meditation'
+        | 'placeholder'
+        | 'lesson'
+      )[]
+    | null;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -624,23 +638,7 @@ export interface Video {
    * Video title shown to users
    */
   title: string;
-  /**
-   * Array of subtitle entries: [{startTime, endTime, text}]
-   */
-  subtitles?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Tags for organizing and filtering videos
-   */
-  tags?: ('testimonial' | 'workshop' | 'event' | 'technique')[] | null;
-  fileMetadata?: {
+  subtitles?: {
     captions: {
       duration: number;
       content: string;
@@ -649,6 +647,19 @@ export interface Video {
     }[];
     [k: string]: unknown;
   };
+  tags: ('testimonial' | 'workshop' | 'event' | 'technique')[];
+  /**
+   * Auto-populated video metadata (duration, format, etc.)
+   */
+  fileMetadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
