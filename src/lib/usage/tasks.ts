@@ -51,48 +51,44 @@ interface AbuseMilestoneReport {
 async function reportAbuseMilestones(req: { payload: Payload }): Promise<void> {
   const milestonesToReport: AbuseMilestoneReport[] = []
 
-  // Query for first-time high usage (about to go from 0 to 1)
-  const firstTimeAbusers = await req.payload.find({
+  // Single query for both milestone conditions:
+  // - First-time high usage (highUsageDays = 0, about to become 1)
+  // - Becoming persistent abuser (highUsageDays = 9, about to become 10)
+  const clientsAtMilestones = await req.payload.find({
     collection: 'clients',
     where: {
       and: [
-        { 'usage.highUsageDays': { equals: 0 } },
         { 'usage.dailyRequests': { greater_than: HIGH_USAGE_THRESHOLD } },
+        {
+          or: [
+            { 'usage.highUsageDays': { equals: 0 } },
+            { 'usage.highUsageDays': { equals: ABUSE_MILESTONES.PERSISTENT_ABUSER - 1 } },
+          ],
+        },
       ],
     },
     limit: 100,
     depth: 0,
   })
 
-  for (const client of firstTimeAbusers.docs as Client[]) {
-    milestonesToReport.push({
-      clientId: client.id,
-      clientName: client.name || 'Unknown',
-      milestone: 'first_high_usage',
-      highUsageDays: ABUSE_MILESTONES.FIRST_HIGH_USAGE,
-    })
-  }
+  for (const client of clientsAtMilestones.docs as Client[]) {
+    const currentHighUsageDays = client.usage?.highUsageDays || 0
 
-  // Query for becoming persistent abuser (about to go from 9 to 10)
-  const becomingPersistent = await req.payload.find({
-    collection: 'clients',
-    where: {
-      and: [
-        { 'usage.highUsageDays': { equals: ABUSE_MILESTONES.PERSISTENT_ABUSER - 1 } },
-        { 'usage.dailyRequests': { greater_than: HIGH_USAGE_THRESHOLD } },
-      ],
-    },
-    limit: 100,
-    depth: 0,
-  })
-
-  for (const client of becomingPersistent.docs as Client[]) {
-    milestonesToReport.push({
-      clientId: client.id,
-      clientName: client.name || 'Unknown',
-      milestone: 'persistent_abuser',
-      highUsageDays: ABUSE_MILESTONES.PERSISTENT_ABUSER,
-    })
+    if (currentHighUsageDays === 0) {
+      milestonesToReport.push({
+        clientId: client.id,
+        clientName: client.name || 'Unknown',
+        milestone: 'first_high_usage',
+        highUsageDays: ABUSE_MILESTONES.FIRST_HIGH_USAGE,
+      })
+    } else if (currentHighUsageDays === ABUSE_MILESTONES.PERSISTENT_ABUSER - 1) {
+      milestonesToReport.push({
+        clientId: client.id,
+        clientName: client.name || 'Unknown',
+        milestone: 'persistent_abuser',
+        highUsageDays: ABUSE_MILESTONES.PERSISTENT_ABUSER,
+      })
+    }
   }
 
   // Report to Sentry if DSN is configured and we have milestones to report

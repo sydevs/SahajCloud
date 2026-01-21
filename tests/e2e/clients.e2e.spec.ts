@@ -24,23 +24,22 @@ test.describe('Clients Management UI', () => {
     await page.waitForURL(/\/admin\/collections\/clients\/\w+/)
     await page.waitForLoadState('networkidle')
 
-    // Look for usage stats section - use more flexible selector
+    // Look for usage section in sidebar
     await expect(
-      page.locator('text=Usage Stats').or(page.locator('[data-testid="usage-stats"]')),
+      page.locator('text=API usage statistics').or(page.locator('[data-testid="usage"]')),
     ).toBeVisible()
 
-    // Check for usage stat fields with more flexible selectors
+    // Check for usage fields with current field names
     await expect(
-      page.locator('text=Total Requests').or(page.locator('[data-field="totalRequests"]')),
+      page.locator('text="Today\'s request count"').or(page.locator('[data-field="dailyRequests"]')),
     ).toBeVisible()
     await expect(
-      page.locator('text=Daily Requests').or(page.locator('[data-field="dailyRequests"]')),
+      page
+        .locator('text="Maximum historical request count"')
+        .or(page.locator('[data-field="peakDailyRequests"]')),
     ).toBeVisible()
     await expect(
-      page.locator('text=Last Request At').or(page.locator('[data-field="lastRequestAt"]')),
-    ).toBeVisible()
-    await expect(
-      page.locator('text=Last Reset At').or(page.locator('[data-field="lastResetAt"]')),
+      page.locator('text="Last API call timestamp"').or(page.locator('[data-field="lastRequestAt"]')),
     ).toBeVisible()
   })
 
