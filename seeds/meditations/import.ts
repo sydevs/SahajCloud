@@ -997,7 +997,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     })
 
     await this.logger.info(`    ℹ️  ${meditationTagIds.size} tags used by meditations`)
-    await this.logger.info(`    ℹ️  ${songTagIds.size} tags used by music`)
+    await this.logger.info(`    ℹ️  ${songTagIds.size} tags used by songs`)
 
     // Load existing predefined tags
     const [existingMeditationTags, existingSongTags] = await Promise.all([

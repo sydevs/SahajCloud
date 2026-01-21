@@ -63,7 +63,7 @@ const PROJECTS = {
     collections: [
       'pages', 'meditations', 'songs', 'albums',
       'videos', 'forms', 'form-submissions', 'authors',
-      'page-tags', 'meditation-tags', 'song-tags', 'video-tags',
+      'meditation-tags', 'song-tags',
       'narrators', 'frames', 'images', 'files',
     ],
     globals: ['we-meditate-web-settings'],
@@ -74,7 +74,7 @@ const PROJECTS = {
     collections: [
       'meditations', 'songs', 'albums', 'videos', 'lessons',
       'lectures', 'frames', 'narrators',
-      'meditation-tags', 'song-tags', 'video-tags', 'images', 'files',
+      'meditation-tags', 'song-tags', 'images', 'files',
     ],
     globals: ['we-meditate-app-settings'],
   },
