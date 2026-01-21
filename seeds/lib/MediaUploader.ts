@@ -8,13 +8,10 @@
 import type { Logger } from './logger'
 import type { Payload } from 'payload'
 
-import type { Image } from '@/payload-types'
+import type { ImageTag } from '@/types/tags'
 
 import { promises as fs } from 'fs'
 import * as path from 'path'
-
-/** Image tag enum values (inline strings from Images collection) */
-type ImageTagValue = NonNullable<NonNullable<Image['tags']>[number]>
 
 import { isCloudflareWorker } from './runtime'
 
@@ -363,8 +360,8 @@ export class MediaUploader {
           collection: 'images',
           id: mediaId,
           data: {
-            // Cast to ImageTagValue[] - seed scripts use valid enum values
-            tags: mergedTags as ImageTagValue[],
+            // Cast to ImageTag[] - seed scripts use valid enum values
+            tags: mergedTags as ImageTag[],
           },
         })
       }
@@ -417,8 +414,8 @@ export class MediaUploader {
         data: {
           alt: options.alt || '',
           credit: options.credit || '',
-          // Cast to ImageTagValue[] - seed scripts use valid enum values
-          tags: (options.tags || []) as ImageTagValue[],
+          // Cast to ImageTag[] - seed scripts use valid enum values
+          tags: (options.tags || []) as ImageTag[],
           fileMetadata: {
             originalFilename: filename,
           },

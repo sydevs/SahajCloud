@@ -55,7 +55,6 @@ export const Videos: CollectionConfig = {
     {
       name: 'tags',
       type: 'select',
-      hasMany: true,
       required: true,
       options: ['testimonial', 'workshop', 'event', 'technique'],
       admin: {
@@ -72,11 +71,6 @@ export const Videos: CollectionConfig = {
         position: 'sidebar',
         readOnly: true,
         description: 'Auto-populated video metadata (duration, format, etc.)',
-      },
-      jsonSchema: {
-        uri: 'a://subtitles.json',
-        fileMatch: ['a://subtitles.json'],
-        schema: subtitleSchema as JSONSchema4,
       },
     },
   ],

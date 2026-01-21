@@ -7,10 +7,7 @@
 import type { Logger } from './logger'
 import type { CollectionSlug, Payload } from 'payload'
 
-import type { Image } from '@/payload-types'
-
-/** Image tag enum values (inline strings from Images collection) */
-type ImageTagValue = NonNullable<NonNullable<Image['tags']>[number]>
+import type { ImageTag } from '@/types/tags'
 
 export class TagManager {
   private payload: Payload
@@ -88,8 +85,8 @@ export class TagManager {
           collection: 'images',
           id: imageId,
           data: {
-            // Cast to ImageTagValue[] - seed scripts use valid enum values
-            tags: mergedTags as ImageTagValue[],
+            // Cast to ImageTag[] - seed scripts use valid enum values
+            tags: mergedTags as ImageTag[],
           },
         })
         await this.logger.info(

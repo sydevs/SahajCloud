@@ -7,7 +7,7 @@ import {
   groupByCollection,
   type FieldReference,
 } from '@/lib/schemaUtils'
-import type { Image } from '@/payload-types'
+import type { ImageTag } from '@/types/tags'
 
 /** Maximum documents to fetch per page when scanning for references */
 const PAGINATION_LIMIT = 1000
@@ -386,7 +386,7 @@ async function trashOrphanedMedia(
     // Image tags are now inline enum strings, not relationships
     const hasContentTags =
       Array.isArray(image.tags) &&
-      (image.tags as NonNullable<Image['tags']>).some(
+      (image.tags as ImageTag[]).some(
         (tag) => typeof tag === 'string' && !ORIENTATION_TAG_TITLES.includes(tag),
       )
     if (hasContentTags) {
