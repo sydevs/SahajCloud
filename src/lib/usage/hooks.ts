@@ -14,7 +14,7 @@ import { z } from 'zod'
 
 import { serverEnv } from '@/lib/env'
 
-import { API_CONSUMER_COLLECTIONS } from './types'
+import { RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_SECONDS } from './constants'
 
 // ============================================================================
 // RATE LIMITING UTILITIES
@@ -95,7 +95,10 @@ async function checkRateLimit(req: PayloadRequest): Promise<void> {
       userId: userId || 'none',
     })
 
-    throw new APIError('Rate limit exceeded. Maximum 500 requests per minute.', 429)
+    throw new APIError(
+      `Rate limit exceeded. Maximum ${RATE_LIMIT_MAX_REQUESTS} requests per ${RATE_LIMIT_PERIOD_SECONDS === 60 ? 'minute' : `${RATE_LIMIT_PERIOD_SECONDS} seconds`}.`,
+      429,
+    )
   }
 }
 
@@ -106,8 +109,8 @@ async function checkRateLimit(req: PayloadRequest): Promise<void> {
  * Skipped in development since rate limiting requires Cloudflare edge infrastructure.
  */
 export const rateLimitHook: CollectionBeforeOperationHook = async ({ req }) => {
-  // Only rate limit API consumer requests
-  if (!req.user?.collection || !API_CONSUMER_COLLECTIONS.includes(req.user.collection)) {
+  // Only rate limit client requests
+  if (req.user?.collection !== 'clients') {
     return
   }
 
@@ -142,12 +145,8 @@ export const rateLimitHook: CollectionBeforeOperationHook = async ({ req }) => {
  * Queues a job to increment usage stats for the API consumer.
  */
 export const usageTrackingHook: CollectionAfterReadHook = async ({ doc, req }) => {
-  // Only track for API consumer requests
-  if (
-    req.user?.collection &&
-    API_CONSUMER_COLLECTIONS.includes(req.user.collection) &&
-    req.user?.id
-  ) {
+  // Only track for client requests
+  if (req.user?.collection === 'clients' && req.user?.id) {
     await req.payload.jobs.queue({
       task: 'trackUsage',
       input: { apiConsumerId: String(req.user.id) },

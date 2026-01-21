@@ -9,9 +9,9 @@
 
 import type { CollectionSlug, Config } from 'payload'
 
+import { SYSTEM_EXCLUSIONS } from './constants'
 import { rateLimitHook, usageTrackingHook } from './hooks'
 import { resetUsageTask, trackUsageTask } from './tasks'
-import { API_CONSUMER_COLLECTIONS, SYSTEM_EXCLUSIONS } from './types'
 
 /**
  * Usage Plugin for PayloadCMS
@@ -35,7 +35,7 @@ export function usagePlugin(
   // Build exclusion set
   const exclusions = new Set<CollectionSlug>([
     ...SYSTEM_EXCLUSIONS,
-    ...API_CONSUMER_COLLECTIONS,
+    'clients',
     ...exclude,
   ])
 

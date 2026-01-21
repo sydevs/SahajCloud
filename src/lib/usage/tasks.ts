@@ -4,10 +4,11 @@
  * Task configurations for usage tracking and daily reset.
  */
 
-import type { ApiConsumerWithStats } from './types'
 import type { TaskConfig } from 'payload'
 
-import { API_CONSUMER_COLLECTIONS, HIGH_USAGE_THRESHOLD } from './types'
+import type { Client } from '@/payload-types'
+
+import { HIGH_USAGE_THRESHOLD } from './constants'
 
 // ============================================================================
 // TRACK USAGE TASK
@@ -26,19 +27,16 @@ export const trackUsageTask: TaskConfig<'trackUsage'> = {
   handler: async ({ input, req }) => {
     const { apiConsumerId } = input
 
-    // Currently only 'clients' collection is supported
-    const collection = API_CONSUMER_COLLECTIONS[0]
-
-    const apiConsumer = (await req.payload.findByID({
-      collection,
+    const client = (await req.payload.findByID({
+      collection: 'clients',
       id: apiConsumerId,
-    })) as ApiConsumerWithStats
+    })) as Client
 
-    const stats = apiConsumer?.usage || {}
+    const stats = client?.usage || {}
     const newDailyRequests = (stats.dailyRequests || 0) + 1
 
     await req.payload.update({
-      collection,
+      collection: 'clients',
       id: apiConsumerId,
       data: {
         usage: {
@@ -53,9 +51,8 @@ export const trackUsageTask: TaskConfig<'trackUsage'> = {
     if (newDailyRequests > HIGH_USAGE_THRESHOLD) {
       req.payload.logger.warn({
         msg: 'High usage alert',
-        collection,
-        apiConsumerId,
-        apiConsumerName: apiConsumer?.name || 'Unknown',
+        clientId: apiConsumerId,
+        clientName: client?.name || 'Unknown',
         dailyRequests: newDailyRequests,
         threshold: HIGH_USAGE_THRESHOLD,
       })
@@ -84,31 +81,28 @@ export const resetUsageTask: TaskConfig<'resetUsage'> = {
   outputSchema: [],
   schedule: [{ cron: '0 0 * * *', queue: 'nightly' }],
   handler: async ({ req }) => {
-    for (const collection of API_CONSUMER_COLLECTIONS) {
-      const apiConsumersWithUsage = await req.payload.find({
-        collection,
-        where: { 'usage.dailyRequests': { greater_than: 0 } },
-        limit: 1000,
-      })
+    const clientsWithUsage = await req.payload.find({
+      collection: 'clients',
+      where: { 'usage.dailyRequests': { greater_than: 0 } },
+      limit: 1000,
+    })
 
-      for (const doc of apiConsumersWithUsage.docs) {
-        const apiConsumer = doc as ApiConsumerWithStats
-        const stats = apiConsumer.usage || {}
-        const dailyRequests = stats.dailyRequests || 0
-        const peakDailyRequests = stats.peakDailyRequests || 0
+    for (const client of clientsWithUsage.docs as Client[]) {
+      const stats = client.usage || {}
+      const dailyRequests = stats.dailyRequests || 0
+      const peakDailyRequests = stats.peakDailyRequests || 0
 
-        await req.payload.update({
-          collection,
-          id: apiConsumer.id,
-          data: {
-            usage: {
-              ...stats,
-              peakDailyRequests: Math.max(peakDailyRequests, dailyRequests),
-              dailyRequests: 0,
-            },
+      await req.payload.update({
+        collection: 'clients',
+        id: client.id,
+        data: {
+          usage: {
+            ...stats,
+            peakDailyRequests: Math.max(peakDailyRequests, dailyRequests),
+            dailyRequests: 0,
           },
-        })
-      }
+        },
+      })
     }
 
     return { output: null }

@@ -2,6 +2,8 @@
 
 import { useFormFields } from '@payloadcms/ui'
 
+import { HIGH_USAGE_THRESHOLD } from '@/lib/usage'
+
 interface HighUsageAlertProps {
   path: string
   clientProps?: {
@@ -21,7 +23,7 @@ interface FormFieldValue {
 
 export const HighUsageAlert = ({ clientProps }: HighUsageAlertProps) => {
   const fields = useFormFields(([fields]) => fields)
-  const threshold = clientProps?.threshold || 1000
+  const threshold = clientProps?.threshold || HIGH_USAGE_THRESHOLD
   
   // Extract daily requests from form fields
   const usageField = fields?.usage as FormFieldValue | undefined

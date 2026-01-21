@@ -16,9 +16,13 @@
 // Main plugin export
 export { usagePlugin } from './usagePlugin'
 
-// Type exports
-export type { ApiConsumerStats, ApiConsumerWithStats } from './types'
-export { API_CONSUMER_COLLECTIONS, HIGH_USAGE_THRESHOLD, SYSTEM_EXCLUSIONS } from './types'
+// Constant exports
+export {
+  HIGH_USAGE_THRESHOLD,
+  RATE_LIMIT_MAX_REQUESTS,
+  RATE_LIMIT_PERIOD_SECONDS,
+  SYSTEM_EXCLUSIONS,
+} from './constants'
 
 // Hook exports (for testing)
 export { rateLimitHook, usageTrackingHook } from './hooks'
