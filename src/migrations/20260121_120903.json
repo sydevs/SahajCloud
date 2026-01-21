@@ -2,6 +2,73 @@
   "version": "6",
   "dialect": "sqlite",
   "tables": {
+    "pages_tags": {
+      "name": "pages_tags",
+      "columns": {
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "pages_tags_order_idx": {
+          "name": "pages_tags_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "pages_tags_parent_idx": {
+          "name": "pages_tags_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "pages_tags_parent_fk": {
+          "name": "pages_tags_parent_fk",
+          "tableFrom": "pages_tags",
+          "tableTo": "pages",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "pages": {
       "name": "pages",
       "columns": {
@@ -239,21 +306,14 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "pages_rels": {
-      "name": "pages_rels",
+    "_pages_v_version_tags": {
+      "name": "_pages_v_version_tags",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
         "order": {
           "name": "order",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
         "parent_id": {
@@ -263,71 +323,44 @@
           "notNull": true,
           "autoincrement": false
         },
-        "path": {
-          "name": "path",
+        "value": {
+          "name": "value",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
-        "page_tags_id": {
-          "name": "page_tags_id",
+        "id": {
+          "name": "id",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
+          "primaryKey": true,
+          "notNull": true,
           "autoincrement": false
         }
       },
       "indexes": {
-        "pages_rels_order_idx": {
-          "name": "pages_rels_order_idx",
+        "_pages_v_version_tags_order_idx": {
+          "name": "_pages_v_version_tags_order_idx",
           "columns": [
             "order"
           ],
           "isUnique": false
         },
-        "pages_rels_parent_idx": {
-          "name": "pages_rels_parent_idx",
+        "_pages_v_version_tags_parent_idx": {
+          "name": "_pages_v_version_tags_parent_idx",
           "columns": [
             "parent_id"
-          ],
-          "isUnique": false
-        },
-        "pages_rels_path_idx": {
-          "name": "pages_rels_path_idx",
-          "columns": [
-            "path"
-          ],
-          "isUnique": false
-        },
-        "pages_rels_page_tags_id_idx": {
-          "name": "pages_rels_page_tags_id_idx",
-          "columns": [
-            "page_tags_id"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "pages_rels_parent_fk": {
-          "name": "pages_rels_parent_fk",
-          "tableFrom": "pages_rels",
-          "tableTo": "pages",
+        "_pages_v_version_tags_parent_fk": {
+          "name": "_pages_v_version_tags_parent_fk",
+          "tableFrom": "_pages_v_version_tags",
+          "tableTo": "_pages_v",
           "columnsFrom": [
             "parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "pages_rels_page_tags_fk": {
-          "name": "pages_rels_page_tags_fk",
-          "tableFrom": "pages_rels",
-          "tableTo": "page_tags",
-          "columnsFrom": [
-            "page_tags_id"
           ],
           "columnsTo": [
             "id"
@@ -676,107 +709,6 @@
           "tableTo": "_pages_v",
           "columnsFrom": [
             "_parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "_pages_v_rels": {
-      "name": "_pages_v_rels",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "order": {
-          "name": "order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "path": {
-          "name": "path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "page_tags_id": {
-          "name": "page_tags_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "_pages_v_rels_order_idx": {
-          "name": "_pages_v_rels_order_idx",
-          "columns": [
-            "order"
-          ],
-          "isUnique": false
-        },
-        "_pages_v_rels_parent_idx": {
-          "name": "_pages_v_rels_parent_idx",
-          "columns": [
-            "parent_id"
-          ],
-          "isUnique": false
-        },
-        "_pages_v_rels_path_idx": {
-          "name": "_pages_v_rels_path_idx",
-          "columns": [
-            "path"
-          ],
-          "isUnique": false
-        },
-        "_pages_v_rels_page_tags_id_idx": {
-          "name": "_pages_v_rels_page_tags_id_idx",
-          "columns": [
-            "page_tags_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "_pages_v_rels_parent_fk": {
-          "name": "_pages_v_rels_parent_fk",
-          "tableFrom": "_pages_v_rels",
-          "tableTo": "_pages_v",
-          "columnsFrom": [
-            "parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "_pages_v_rels_page_tags_fk": {
-          "name": "_pages_v_rels_page_tags_fk",
-          "tableFrom": "_pages_v_rels",
-          "tableTo": "page_tags",
-          "columnsFrom": [
-            "page_tags_id"
           ],
           "columnsTo": [
             "id"
@@ -2200,6 +2132,200 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "videos": {
+      "name": "videos",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "subtitles": {
+          "name": "subtitles",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tags": {
+          "name": "tags",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "file_metadata": {
+          "name": "file_metadata",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'{}'"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "thumbnail_u_r_l": {
+          "name": "thumbnail_u_r_l",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "filename": {
+          "name": "filename",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "filesize": {
+          "name": "filesize",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "width": {
+          "name": "width",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "height": {
+          "name": "height",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "focal_x": {
+          "name": "focal_x",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "focal_y": {
+          "name": "focal_y",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "videos_updated_at_idx": {
+          "name": "videos_updated_at_idx",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "videos_created_at_idx": {
+          "name": "videos_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "videos_filename_idx": {
+          "name": "videos_filename_idx",
+          "columns": [
+            "filename"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "videos_locales": {
+      "name": "videos_locales",
+      "columns": {
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_locale": {
+          "name": "_locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "videos_locales_locale_parent_id_unique": {
+          "name": "videos_locales_locale_parent_id_unique",
+          "columns": [
+            "_locale",
+            "_parent_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "videos_locales_parent_id_fk": {
+          "name": "videos_locales_parent_id_fk",
+          "tableFrom": "videos_locales",
+          "tableTo": "videos",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "lessons_panels": {
       "name": "lessons_panels",
       "columns": {
@@ -3155,6 +3281,73 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "images_tags": {
+      "name": "images_tags",
+      "columns": {
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "images_tags_order_idx": {
+          "name": "images_tags_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "images_tags_parent_idx": {
+          "name": "images_tags_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "images_tags_parent_fk": {
+          "name": "images_tags_parent_fk",
+          "tableFrom": "images_tags",
+          "tableTo": "images",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "images": {
       "name": "images",
       "columns": {
@@ -3355,107 +3548,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "images_rels": {
-      "name": "images_rels",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "order": {
-          "name": "order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "path": {
-          "name": "path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "image_tags_id": {
-          "name": "image_tags_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "images_rels_order_idx": {
-          "name": "images_rels_order_idx",
-          "columns": [
-            "order"
-          ],
-          "isUnique": false
-        },
-        "images_rels_parent_idx": {
-          "name": "images_rels_parent_idx",
-          "columns": [
-            "parent_id"
-          ],
-          "isUnique": false
-        },
-        "images_rels_path_idx": {
-          "name": "images_rels_path_idx",
-          "columns": [
-            "path"
-          ],
-          "isUnique": false
-        },
-        "images_rels_image_tags_id_idx": {
-          "name": "images_rels_image_tags_id_idx",
-          "columns": [
-            "image_tags_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "images_rels_parent_fk": {
-          "name": "images_rels_parent_fk",
-          "tableFrom": "images_rels",
-          "tableTo": "images",
-          "columnsFrom": [
-            "parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "images_rels_image_tags_fk": {
-          "name": "images_rels_image_tags_fk",
-          "tableFrom": "images_rels",
-          "tableTo": "image_tags",
-          "columnsFrom": [
-            "image_tags_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "files": {
       "name": "files",
       "columns": {
@@ -3570,115 +3662,6 @@
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "image_tags": {
-      "name": "image_tags",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        }
-      },
-      "indexes": {
-        "image_tags_updated_at_idx": {
-          "name": "image_tags_updated_at_idx",
-          "columns": [
-            "updated_at"
-          ],
-          "isUnique": false
-        },
-        "image_tags_created_at_idx": {
-          "name": "image_tags_created_at_idx",
-          "columns": [
-            "created_at"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "image_tags_locales": {
-      "name": "image_tags_locales",
-      "columns": {
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_locale": {
-          "name": "_locale",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_parent_id": {
-          "name": "_parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "image_tags_locales_locale_parent_id_unique": {
-          "name": "image_tags_locales_locale_parent_id_unique",
-          "columns": [
-            "_locale",
-            "_parent_id"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "image_tags_locales_parent_id_fk": {
-          "name": "image_tags_locales_parent_id_fk",
-          "tableFrom": "image_tags_locales",
-          "tableTo": "image_tags",
-          "columnsFrom": [
-            "_parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -4065,137 +4048,6 @@
           "name": "music_tags_locales_parent_id_fk",
           "tableFrom": "music_tags_locales",
           "tableTo": "music_tags",
-          "columnsFrom": [
-            "_parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "page_tags": {
-      "name": "page_tags",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "generate_slug": {
-          "name": "generate_slug",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false,
-          "default": true
-        },
-        "slug": {
-          "name": "slug",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-        }
-      },
-      "indexes": {
-        "page_tags_slug_idx": {
-          "name": "page_tags_slug_idx",
-          "columns": [
-            "slug"
-          ],
-          "isUnique": true
-        },
-        "page_tags_updated_at_idx": {
-          "name": "page_tags_updated_at_idx",
-          "columns": [
-            "updated_at"
-          ],
-          "isUnique": false
-        },
-        "page_tags_created_at_idx": {
-          "name": "page_tags_created_at_idx",
-          "columns": [
-            "created_at"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "page_tags_locales": {
-      "name": "page_tags_locales",
-      "columns": {
-        "title": {
-          "name": "title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_locale": {
-          "name": "_locale",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_parent_id": {
-          "name": "_parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "page_tags_locales_locale_parent_id_unique": {
-          "name": "page_tags_locales_locale_parent_id_unique",
-          "columns": [
-            "_locale",
-            "_parent_id"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "page_tags_locales_parent_id_fk": {
-          "name": "page_tags_locales_parent_id_fk",
-          "tableFrom": "page_tags_locales",
-          "tableTo": "page_tags",
           "columnsFrom": [
             "_parent_id"
           ],
@@ -7461,6 +7313,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "videos_id": {
+          "name": "videos_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "lessons_id": {
           "name": "lessons_id",
           "type": "integer",
@@ -7510,13 +7369,6 @@
           "notNull": false,
           "autoincrement": false
         },
-        "image_tags_id": {
-          "name": "image_tags_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "meditation_tags_id": {
           "name": "meditation_tags_id",
           "type": "integer",
@@ -7526,13 +7378,6 @@
         },
         "music_tags_id": {
           "name": "music_tags_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "page_tags_id": {
-          "name": "page_tags_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -7617,6 +7462,13 @@
           ],
           "isUnique": false
         },
+        "payload_locked_documents_rels_videos_id_idx": {
+          "name": "payload_locked_documents_rels_videos_id_idx",
+          "columns": [
+            "videos_id"
+          ],
+          "isUnique": false
+        },
         "payload_locked_documents_rels_lessons_id_idx": {
           "name": "payload_locked_documents_rels_lessons_id_idx",
           "columns": [
@@ -7666,13 +7518,6 @@
           ],
           "isUnique": false
         },
-        "payload_locked_documents_rels_image_tags_id_idx": {
-          "name": "payload_locked_documents_rels_image_tags_id_idx",
-          "columns": [
-            "image_tags_id"
-          ],
-          "isUnique": false
-        },
         "payload_locked_documents_rels_meditation_tags_id_idx": {
           "name": "payload_locked_documents_rels_meditation_tags_id_idx",
           "columns": [
@@ -7684,13 +7529,6 @@
           "name": "payload_locked_documents_rels_music_tags_id_idx",
           "columns": [
             "music_tags_id"
-          ],
-          "isUnique": false
-        },
-        "payload_locked_documents_rels_page_tags_id_idx": {
-          "name": "payload_locked_documents_rels_page_tags_id_idx",
-          "columns": [
-            "page_tags_id"
           ],
           "isUnique": false
         },
@@ -7789,6 +7627,19 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
+        "payload_locked_documents_rels_videos_fk": {
+          "name": "payload_locked_documents_rels_videos_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "videos",
+          "columnsFrom": [
+            "videos_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
         "payload_locked_documents_rels_lessons_fk": {
           "name": "payload_locked_documents_rels_lessons_fk",
           "tableFrom": "payload_locked_documents_rels",
@@ -7880,19 +7731,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payload_locked_documents_rels_image_tags_fk": {
-          "name": "payload_locked_documents_rels_image_tags_fk",
-          "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "image_tags",
-          "columnsFrom": [
-            "image_tags_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "payload_locked_documents_rels_meditation_tags_fk": {
           "name": "payload_locked_documents_rels_meditation_tags_fk",
           "tableFrom": "payload_locked_documents_rels",
@@ -7912,19 +7750,6 @@
           "tableTo": "music_tags",
           "columnsFrom": [
             "music_tags_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "payload_locked_documents_rels_page_tags_fk": {
-          "name": "payload_locked_documents_rels_page_tags_fk",
-          "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "page_tags",
-          "columnsFrom": [
-            "page_tags_id"
           ],
           "columnsTo": [
             "id"
@@ -8248,6 +8073,73 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "we_meditate_web_settings_inspiration_page_tags": {
+      "name": "we_meditate_web_settings_inspiration_page_tags",
+      "columns": {
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "we_meditate_web_settings_inspiration_page_tags_order_idx": {
+          "name": "we_meditate_web_settings_inspiration_page_tags_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "we_meditate_web_settings_inspiration_page_tags_parent_idx": {
+          "name": "we_meditate_web_settings_inspiration_page_tags_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "we_meditate_web_settings_inspiration_page_tags_parent_fk": {
+          "name": "we_meditate_web_settings_inspiration_page_tags_parent_fk",
+          "tableFrom": "we_meditate_web_settings_inspiration_page_tags",
+          "tableTo": "we_meditate_web_settings",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "we_meditate_web_settings": {
       "name": "we_meditate_web_settings",
       "columns": {
@@ -8365,13 +8257,6 @@
         },
         "techniques_page_id": {
           "name": "techniques_page_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "technique_page_tag_id": {
-          "name": "technique_page_tag_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -8523,13 +8408,6 @@
           "name": "we_meditate_web_settings_techniques_page_idx",
           "columns": [
             "techniques_page_id"
-          ],
-          "isUnique": false
-        },
-        "we_meditate_web_settings_technique_page_tag_idx": {
-          "name": "we_meditate_web_settings_technique_page_tag_idx",
-          "columns": [
-            "technique_page_tag_id"
           ],
           "isUnique": false
         },
@@ -8764,19 +8642,6 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "we_meditate_web_settings_technique_page_tag_id_page_tags_id_fk": {
-          "name": "we_meditate_web_settings_technique_page_tag_id_page_tags_id_fk",
-          "tableFrom": "we_meditate_web_settings",
-          "tableTo": "page_tags",
-          "columnsFrom": [
-            "technique_page_tag_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "we_meditate_web_settings_inspiration_page_id_pages_id_fk": {
           "name": "we_meditate_web_settings_inspiration_page_id_pages_id_fk",
           "tableFrom": "we_meditate_web_settings",
@@ -8865,13 +8730,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "page_tags_id": {
-          "name": "page_tags_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -8909,13 +8767,6 @@
             "music_tags_id"
           ],
           "isUnique": false
-        },
-        "we_meditate_web_settings_rels_page_tags_id_idx": {
-          "name": "we_meditate_web_settings_rels_page_tags_id_idx",
-          "columns": [
-            "page_tags_id"
-          ],
-          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -8951,19 +8802,6 @@
           "tableTo": "music_tags",
           "columnsFrom": [
             "music_tags_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "we_meditate_web_settings_rels_page_tags_fk": {
-          "name": "we_meditate_web_settings_rels_page_tags_fk",
-          "tableFrom": "we_meditate_web_settings_rels",
-          "tableTo": "page_tags",
-          "columnsFrom": [
-            "page_tags_id"
           ],
           "columnsTo": [
             "id"
@@ -9252,6 +9090,6 @@
   "internal": {
     "indexes": {}
   },
-  "id": "054e896c-e0dc-4e5c-a637-a5a06c86397e",
+  "id": "864e8d5b-763d-4be3-aa98-e95ed47b878f",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }
