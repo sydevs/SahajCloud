@@ -1,11 +1,6 @@
-import type { CollectionBeforeChangeHook, Payload } from 'payload'
+import type { CollectionBeforeChangeHook } from 'payload'
 
 import imageSize from 'image-size'
-
-import type { ImageTag } from '@/payload-types'
-
-// Cache for orientation tag IDs (avoids repeated database lookups)
-const orientationTagCache: Map<string, number> = new Map()
 
 type OrientationName = 'landscape' | 'portrait' | 'square'
 
@@ -21,43 +16,6 @@ function getOrientationFromDimensions(
   if (ratio > 1.1) return 'landscape'
   if (ratio < 0.9) return 'portrait'
   return 'square'
-}
-
-/**
- * Gets or creates an orientation tag by name.
- * Results are cached in memory to avoid repeated database queries.
- */
-async function getOrCreateOrientationTag(
-  payload: Payload,
-  orientationName: OrientationName,
-): Promise<number> {
-  // Check cache first
-  const cachedId = orientationTagCache.get(orientationName)
-  if (cachedId) {
-    return cachedId
-  }
-
-  // Look up tag in database
-  const existing = await payload.find({
-    collection: 'image-tags',
-    where: { title: { equals: orientationName } },
-    limit: 1,
-  })
-
-  if (existing.docs.length > 0) {
-    const tagId = existing.docs[0].id as number
-    orientationTagCache.set(orientationName, tagId)
-    return tagId
-  }
-
-  // Create tag if it doesn't exist
-  const created = await payload.create({
-    collection: 'image-tags',
-    data: { title: orientationName },
-  })
-  const tagId = created.id as number
-  orientationTagCache.set(orientationName, tagId)
-  return tagId
 }
 
 /**
@@ -100,18 +58,11 @@ export const detectOrientationHook: CollectionBeforeChangeHook = async ({
       dimensions.height,
     )
 
-    // Get or create orientation tag
-    const tagId = await getOrCreateOrientationTag(req.payload, orientationName)
-
     // Merge orientation tag with existing tags (if any)
-    const existingTags = Array.isArray(data.tags)
-      ? data.tags.map((tag: number | ImageTag) =>
-          typeof tag === 'number' ? tag : tag.id,
-        )
-      : []
+    const existingTags = Array.isArray(data.tags) ? (data.tags as string[]) : []
 
     // Use Set to ensure no duplicates
-    const mergedTags = Array.from(new Set([...existingTags, tagId]))
+    const mergedTags = Array.from(new Set([...existingTags, orientationName]))
 
     return { ...data, tags: mergedTags }
   } catch (error) {

@@ -113,8 +113,11 @@ const stats = uploader.getStats()  // { uploaded: number, reused: number }
 import { TagManager } from '../lib'
 const tagManager = new TagManager(payload, logger)
 
+// For meditation-tags and music-tags collections (require SVG icons)
 const tagId = await tagManager.ensureTag('meditation-tags', 'My Tag')
-await tagManager.addTagsToImage(imageId, [tagId])
+
+// For image tags (now inline enum strings - pass string array directly)
+await tagManager.addTagsToImage(imageId, ['thumbnail', 'meditation'])
 ```
 
 ### LexicalConverter

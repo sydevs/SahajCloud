@@ -31,7 +31,6 @@ export const ALWAYS_HIDDEN_COLLECTIONS: ContentSlug[] = [
   // System collections - internal file storage
   'images',
   'files',
-  'image-tags',
 
   // Payload internal collections
   'payload-kv',

@@ -7,6 +7,11 @@
 import type { Logger } from './logger'
 import type { CollectionSlug, Payload } from 'payload'
 
+import type { Image } from '@/payload-types'
+
+/** Image tag enum values (inline strings from Images collection) */
+type ImageTagValue = NonNullable<NonNullable<Image['tags']>[number]>
+
 export class TagManager {
   private payload: Payload
   private logger: Logger
@@ -58,17 +63,11 @@ export class TagManager {
   }
 
   /**
-   * Ensure image import tag (uses image-tags collection)
+   * Add string tags to an image document
+   * Image tags are now inline enum select values, not relationships
    */
-  async ensureImageTag(importTag: string): Promise<number> {
-    return this.ensureTag('image-tags', importTag)
-  }
-
-  /**
-   * Add tags to an image document
-   */
-  async addTagsToImage(imageId: number, tagIds: number[]): Promise<void> {
-    if (tagIds.length === 0) return
+  async addTagsToImage(imageId: number, tags: string[]): Promise<void> {
+    if (tags.length === 0) return
 
     try {
       // Get current image document
@@ -77,25 +76,25 @@ export class TagManager {
         id: imageId,
       })
 
-      // Get current tags
-      const currentTags = Array.isArray(image.tags)
-        ? image.tags.map((tag: number | { id: number }) =>
-            typeof tag === 'number' ? tag : tag.id,
-          )
-        : []
+      // Get current tags (now string array)
+      const currentTags = Array.isArray(image.tags) ? (image.tags as string[]) : []
 
-      // Find tags to add (not already present)
-      const tagsToAdd = tagIds.filter((tagId) => !currentTags.includes(tagId))
+      // Merge tags (deduplicate)
+      const mergedTags = Array.from(new Set([...currentTags, ...tags]))
 
-      if (tagsToAdd.length > 0) {
+      // Only update if there are new tags to add
+      if (mergedTags.length > currentTags.length) {
         await this.payload.update({
           collection: 'images',
           id: imageId,
           data: {
-            tags: [...currentTags, ...tagsToAdd],
+            // Cast to ImageTagValue[] - seed scripts use valid enum values
+            tags: mergedTags as ImageTagValue[],
           },
         })
-        await this.logger.info(`Added ${tagsToAdd.length} tags to image ${imageId}`)
+        await this.logger.info(
+          `Added ${mergedTags.length - currentTags.length} tags to image ${imageId}`,
+        )
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)

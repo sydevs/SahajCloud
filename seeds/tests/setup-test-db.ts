@@ -27,14 +27,13 @@ async function setupTestDatabase() {
 
     // The database and collections are automatically created by Payload
     // based on the schema defined in collections/
+    // Note: image-tags, page-tags, video-tags removed - now inline enum select values
     console.log('Collections created automatically from schema:')
     const collectionNames = [
       'managers',
       'images',
-      'image-tags',
       'meditation-tags',
       'music-tags',
-      'page-tags',
       'narrators',
       'frames',
       'meditations',

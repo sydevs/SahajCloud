@@ -15,9 +15,6 @@ import type {
   Client,
   MeditationTag,
   MusicTag,
-  ImageTag,
-  PageTag,
-  VideoTag,
   Page,
   Lesson,
   File,
@@ -236,48 +233,8 @@ export const testData = {
     })) as MusicTag
   },
 
-  /**
-   * Create an image tag
-   */
-  async createImageTag(payload: Payload, overrides: Partial<ImageTag> = {}): Promise<ImageTag> {
-    return (await payload.create({
-      collection: 'image-tags',
-      data: {
-        title: 'Test Image Tag',
-        ...overrides,
-      },
-    })) as ImageTag
-  },
-
-  /**
-   * Create a page tag
-   */
-  async createPageTag(payload: Payload, overrides: Partial<PageTag> = {}): Promise<PageTag> {
-    return (await payload.create({
-      collection: 'page-tags',
-      data: {
-        title: 'Test Page Tag',
-        ...overrides,
-      },
-    })) as PageTag
-  },
-
-  /**
-   * Create a video tag
-   */
-  async createVideoTag(payload: Payload, overrides: Partial<VideoTag> = {}): Promise<VideoTag> {
-    // Generate unique title suffix if no title override provided
-    const uniqueId = Math.random().toString(36).substring(7)
-    const defaultTitle = overrides.title || `Test Video Tag ${uniqueId}`
-
-    return (await payload.create({
-      collection: 'video-tags',
-      data: {
-        title: defaultTitle,
-        ...overrides,
-      },
-    })) as VideoTag
-  },
+  // Note: createImageTag, createPageTag, createVideoTag removed
+  // These tags are now inline enum select values, not separate collections
 
   /**
    * Create a video with file upload

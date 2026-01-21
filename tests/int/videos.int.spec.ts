@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { VideoTag, Video } from '@/payload-types'
+import type { Video } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -11,20 +11,20 @@ describe('Videos Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let testVideo: Video
-  let testTag: VideoTag
+
+  // Video tags are now inline enum strings
+  const testimonialTag = 'testimonial'
+  const workshopTag = 'workshop'
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
     payload = testEnv.payload
     cleanup = testEnv.cleanup
 
-    // Create a tag for testing relationships
-    testTag = await testData.createVideoTag(payload, { title: 'test-category' })
-
-    // Create test video
+    // Create test video with string tags
     testVideo = await testData.createVideo(payload, {
       title: 'Test Video',
-      tags: [testTag.id],
+      tags: [testimonialTag],
     })
   })
 
@@ -48,9 +48,7 @@ describe('Videos Collection', () => {
   it('has title field configured', async () => {
     // Verify title field exists in the collection
     const config = payload.collections['videos'].config
-    const titleField = config.fields.find(
-      (f) => 'name' in f && f.name === 'title',
-    )
+    const titleField = config.fields.find((f) => 'name' in f && f.name === 'title')
 
     expect(titleField).toBeDefined()
     expect(titleField).toHaveProperty('type', 'text')
@@ -90,37 +88,22 @@ describe('Videos Collection', () => {
     expect((fileMetadataField as { admin: { readOnly: boolean } }).admin.readOnly).toBe(true)
   })
 
-  it('supports tag relationships (hasMany)', async () => {
-    const tag1 = await testData.createVideoTag(payload, { title: 'category-1' })
-    const tag2 = await testData.createVideoTag(payload, { title: 'category-2' })
-
+  it('supports tag selection (hasMany with string enum)', async () => {
     const videoWithTags = await testData.createVideo(payload, {
       title: 'Multi-tag Video',
-      tags: [tag1.id, tag2.id],
+      tags: [testimonialTag, workshopTag],
     })
 
     expect(videoWithTags.tags).toBeDefined()
     expect(videoWithTags.tags!.length).toBe(2)
-
-    // Verify populated tags
-    const fetchedVideo = await payload.findByID({
-      collection: 'videos',
-      id: videoWithTags.id,
-      depth: 1,
-    })
-
-    const tagIds = fetchedVideo.tags?.map((tag) =>
-      typeof tag === 'object' && tag !== null ? (tag as VideoTag).id : tag,
-    )
-    expect(tagIds).toContain(tag1.id)
-    expect(tagIds).toContain(tag2.id)
+    expect(videoWithTags.tags).toContain(testimonialTag)
+    expect(videoWithTags.tags).toContain(workshopTag)
   })
 
   it('accepts only video MIME types', async () => {
     const config = payload.collections['videos'].config
-    const mimeTypes = config.upload && typeof config.upload === 'object'
-      ? config.upload.mimeTypes
-      : undefined
+    const mimeTypes =
+      config.upload && typeof config.upload === 'object' ? config.upload.mimeTypes : undefined
 
     expect(mimeTypes).toBeDefined()
     expect(mimeTypes).toContain('video/mp4')
@@ -149,21 +132,33 @@ describe('Videos Collection', () => {
 
   it('supports different video formats', async () => {
     // Test MP4
-    const mp4Video = await testData.createVideo(payload, {
-      title: 'MP4 Video',
-    }, 'video-30s.mp4')
+    const mp4Video = await testData.createVideo(
+      payload,
+      {
+        title: 'MP4 Video',
+      },
+      'video-30s.mp4',
+    )
     expect(mp4Video.mimeType).toBe('video/mp4')
 
     // Test WebM
-    const webmVideo = await testData.createVideo(payload, {
-      title: 'WebM Video',
-    }, 'video-30s.webm')
+    const webmVideo = await testData.createVideo(
+      payload,
+      {
+        title: 'WebM Video',
+      },
+      'video-30s.webm',
+    )
     expect(webmVideo.mimeType).toBe('video/webm')
 
     // Test MOV (QuickTime)
-    const movVideo = await testData.createVideo(payload, {
-      title: 'MOV Video',
-    }, 'video-30s.mov')
+    const movVideo = await testData.createVideo(
+      payload,
+      {
+        title: 'MOV Video',
+      },
+      'video-30s.mov',
+    )
     // MOV files can be detected as video/quicktime or video/mpeg
     expect(movVideo.mimeType).toMatch(/video\/(quicktime|mpeg)/)
   })
@@ -184,9 +179,7 @@ describe('Videos Collection', () => {
   it('has previewUrl virtual field configured', async () => {
     // Verify the previewUrl field is configured in the collection
     const config = payload.collections['videos'].config
-    const previewUrlField = config.fields.find(
-      (f) => 'name' in f && f.name === 'previewUrl',
-    )
+    const previewUrlField = config.fields.find((f) => 'name' in f && f.name === 'previewUrl')
 
     expect(previewUrlField).toBeDefined()
     expect(previewUrlField).toHaveProperty('virtual', true)

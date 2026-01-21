@@ -7,7 +7,7 @@ import {
   groupByCollection,
   type FieldReference,
 } from '@/lib/schemaUtils'
-import type { ImageTag } from '@/payload-types'
+import type { Image } from '@/payload-types'
 
 /** Maximum documents to fetch per page when scanning for references */
 const PAGINATION_LIMIT = 1000
@@ -383,12 +383,12 @@ async function trashOrphanedMedia(
     }
 
     // Skip if image has content tags (ignore auto-generated orientation tags)
+    // Image tags are now inline enum strings, not relationships
     const hasContentTags =
       Array.isArray(image.tags) &&
-      image.tags.some((tag) => {
-        const tagTitle = typeof tag === 'object' && tag !== null ? (tag as ImageTag).title : null
-        return tagTitle && !ORIENTATION_TAG_TITLES.includes(tagTitle)
-      })
+      (image.tags as NonNullable<Image['tags']>).some(
+        (tag) => typeof tag === 'string' && !ORIENTATION_TAG_TITLES.includes(tag),
+      )
     if (hasContentTags) {
       result.skippedImages++
       return false

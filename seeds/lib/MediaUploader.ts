@@ -8,10 +8,13 @@
 import type { Logger } from './logger'
 import type { Payload } from 'payload'
 
+import type { Image } from '@/payload-types'
+
 import { promises as fs } from 'fs'
 import * as path from 'path'
 
-import type { ImageTag } from '@/payload-types'
+/** Image tag enum values (inline strings from Images collection) */
+type ImageTagValue = NonNullable<NonNullable<Image['tags']>[number]>
 
 import { isCloudflareWorker } from './runtime'
 
@@ -41,7 +44,8 @@ export class MediaUploadError extends Error {
 export interface MediaUploadOptions {
   alt?: string
   credit?: string
-  tags?: number[]
+  /** Image tags (inline enum string values) */
+  tags?: string[]
   locale?: string | undefined
   /** Buffer for Workers mode (no filesystem) */
   buffer?: Buffer
@@ -340,18 +344,17 @@ export class MediaUploader {
 
   /**
    * Update tags on existing media
+   * Tags are now inline enum string values, not collection IDs
    */
-  private async updateMediaTags(mediaId: number | string, newTags: number[]): Promise<void> {
+  private async updateMediaTags(mediaId: number | string, newTags: string[]): Promise<void> {
     try {
       const media = await this.payload.findByID({
         collection: 'images',
         id: mediaId,
       })
 
-      // Merge existing tags with new tags
-      const existingTags = Array.isArray(media.tags)
-        ? media.tags.map((tag: number | ImageTag) => (typeof tag === 'number' ? tag : tag.id))
-        : []
+      // Merge existing tags with new tags (both are string arrays now)
+      const existingTags = Array.isArray(media.tags) ? (media.tags as string[]) : []
 
       const mergedTags = Array.from(new Set([...existingTags, ...newTags]))
 
@@ -360,7 +363,8 @@ export class MediaUploader {
           collection: 'images',
           id: mediaId,
           data: {
-            tags: mergedTags,
+            // Cast to ImageTagValue[] - seed scripts use valid enum values
+            tags: mergedTags as ImageTagValue[],
           },
         })
       }
@@ -413,7 +417,8 @@ export class MediaUploader {
         data: {
           alt: options.alt || '',
           credit: options.credit || '',
-          tags: options.tags || [],
+          // Cast to ImageTagValue[] - seed scripts use valid enum values
+          tags: (options.tags || []) as ImageTagValue[],
           fileMetadata: {
             originalFilename: filename,
           },

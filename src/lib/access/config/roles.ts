@@ -77,11 +77,9 @@ const ROLES = {
     label: 'We Meditate App',
     description: 'Access for We Meditate mobile application',
     project: 'wemeditate-app' as const,
-    permissions: {
-      // All collections/globals get implicit read via project parameter
-      // Only explicit permissions needed for non-project collections
-      'page-tags': ['read'] as PermissionLevel[], // Not in wemeditate-app project
-    },
+    // All collections/globals get implicit read via project parameter
+    // No explicit permissions needed
+    permissions: {},
   },
   'sahaj-atlas-client': {
     label: 'Sahaj Atlas',
