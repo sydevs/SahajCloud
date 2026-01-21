@@ -9,7 +9,7 @@ export const Lectures: CollectionConfig = {
     plural: 'Lectures',
   },
   admin: {
-    group: 'Resources',
+    group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'thumbnail'],
   },

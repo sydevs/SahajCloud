@@ -10,7 +10,7 @@ export const Images: CollectionConfig = {
     plural: 'Images',
   },
   admin: {
-    group: 'Resources',
+    group: 'Media',
     useAsTitle: 'filename',
     defaultColumns: ['filename', 'alt', 'credit', 'tags'],
   },

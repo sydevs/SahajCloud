@@ -17,7 +17,7 @@ export const Videos: CollectionConfig = {
     mimeTypes: ['video/mp4', 'video/webm', 'video/quicktime'],
   },
   admin: {
-    group: 'Content',
+    group: 'Media',
     useAsTitle: 'title',
     defaultColumns: ['title', 'tags', 'previewUrl'],
   },

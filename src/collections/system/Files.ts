@@ -11,7 +11,7 @@ export const Files: CollectionConfig = {
   trash: true,
   disableDuplicate: true,
   admin: {
-    group: 'Resources',
+    group: 'Media',
     useAsTitle: 'filename',
     description:
       'Media files (images, audio, video) and PDFs used by other collections. Orphaned files are automatically moved to trash and permanently deleted during monthly cleanup.',
