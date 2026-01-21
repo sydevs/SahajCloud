@@ -14,7 +14,7 @@ export const Songs: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'album', 'duration', 'tags'],
-    hidden: () => true, // Always hidden - managed through Albums
+    hidden: true, // Always hidden - managed through Albums
   },
   fields: [
     virtualUrlField({

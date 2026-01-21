@@ -12,7 +12,7 @@
  */
 
 import type { BypassPermissionFunction, ContentSlug } from './types'
-import type { CollectionSlug, Config } from 'payload'
+import type { ClientUser, CollectionSlug, Config } from 'payload'
 
 import { createAccessConfig } from './accessConfigs'
 import { getProjectSlugs, getRoleSlugs, isTranslatableCollection } from './config'
@@ -85,8 +85,23 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
           },
           admin: {
             ...collection.admin,
-            // Apply project-based visibility
-            hidden: createHidden(slug, bypassPermissions),
+            // Respect existing hidden config, otherwise apply project-based visibility
+            hidden:
+              collection.admin?.hidden === true
+                ? true
+                : typeof collection.admin?.hidden === 'function'
+                  ? (args) => {
+                      // If original hidden returns true, respect it
+                      if (
+                        typeof collection.admin?.hidden === 'function' &&
+                        collection.admin!.hidden!(args)
+                      )
+                        return true
+
+                      // Otherwise, apply project-based visibility
+                      return createHidden(slug, bypassPermissions)(args)
+                    }
+                  : createHidden(slug, bypassPermissions),
           },
           // Only apply field-level access if collection has translate permissions
           fields: isTranslatableCollection(slug)
