@@ -1,7 +1,8 @@
 import type { CollectionConfig } from 'payload'
 
-import { checkHighUsageAlert, validateClientData } from '@/hooks/clientHooks'
+import { validateClientData } from '@/hooks/clientHooks'
 import { getRoleOptions } from '@/lib/access'
+import { calculateAbuseScore } from '@/lib/usage'
 
 export const Clients: CollectionConfig = {
   slug: 'clients',
@@ -103,7 +104,7 @@ export const Clients: CollectionConfig = {
       },
     },
     {
-      name: 'usageStats',
+      name: 'usage',
       type: 'group',
       admin: {
         description: 'API usage statistics',
@@ -111,12 +112,23 @@ export const Clients: CollectionConfig = {
       },
       fields: [
         {
-          name: 'totalRequests',
-          type: 'number',
-          defaultValue: 0,
+          name: 'abuseScore',
+          type: 'json',
+          virtual: true,
+          hooks: {
+            afterRead: [
+              ({ siblingData }) => {
+                if (!siblingData) return null
+                return calculateAbuseScore(siblingData)
+              },
+            ],
+          },
           admin: {
             readOnly: true,
-            description: 'All-time request count',
+            components: {
+              beforeInput: ['@/components/admin/AbuseScore/AbuseScoreField'],
+              Cell: '@/components/admin/AbuseScore/AbuseScoreCell',
+            },
           },
         },
         {
@@ -129,7 +141,7 @@ export const Clients: CollectionConfig = {
           },
         },
         {
-          name: 'maxDailyRequests',
+          name: 'peakDailyRequests',
           type: 'number',
           defaultValue: 0,
           admin: {
@@ -145,21 +157,39 @@ export const Clients: CollectionConfig = {
             description: 'Last API call timestamp',
           },
         },
+        // Abuse detection fields
         {
-          name: 'highUsageAlert',
-          type: 'checkbox',
-          virtual: true,
+          name: 'totalRequests',
+          type: 'number',
+          defaultValue: 0,
           admin: {
             readOnly: true,
-            description: 'Indicates if daily limit exceeded (>1000 requests)',
-            components: {
-              Field: {
-                path: '@/components/admin/HighUsageAlert',
-                clientProps: {
-                  threshold: 1000,
-                },
-              },
-            },
+            description: 'Lifetime total requests (never resets)',
+          },
+        },
+        {
+          name: 'highUsageDays',
+          type: 'number',
+          defaultValue: 0,
+          admin: {
+            readOnly: true,
+            description: 'Count of days exceeding threshold',
+          },
+        },
+        {
+          name: 'lastHighUsageAt',
+          type: 'date',
+          admin: {
+            readOnly: true,
+            description: 'Last date threshold was exceeded',
+          },
+        },
+        {
+          name: 'firstRequestAt',
+          type: 'date',
+          admin: {
+            readOnly: true,
+            description: 'First API request (tracking start)',
           },
         },
       ],
@@ -167,6 +197,5 @@ export const Clients: CollectionConfig = {
   ],
   hooks: {
     beforeChange: [validateClientData],
-    afterChange: [checkHighUsageAlert],
   },
 }

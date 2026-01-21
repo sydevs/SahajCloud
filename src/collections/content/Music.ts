@@ -1,7 +1,5 @@
 import type { CollectionConfig } from 'payload'
 
-import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { createRateLimitHook } from '@/lib/rateLimiting'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const Music: CollectionConfig = {
@@ -16,12 +14,6 @@ export const Music: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'album', 'duration', 'tags'],
-  },
-  hooks: {
-    beforeOperation: [createRateLimitHook()],
-    // Filename sanitization is handled by the R2 storage adapter
-    // No collection-level hooks needed for filename management
-    afterRead: [trackClientUsageHook],
   },
   fields: [
     virtualUrlField({

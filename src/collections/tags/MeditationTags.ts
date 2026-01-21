@@ -1,8 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
 import { colorField, slugField } from '@/fields'
-import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { createRateLimitHook } from '@/lib/rateLimiting'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const MeditationTags: CollectionConfig = {
@@ -20,10 +18,6 @@ export const MeditationTags: CollectionConfig = {
     staticDir: 'media/meditation-tags',
     hideRemoveFile: true,
     mimeTypes: ['image/svg+xml'],
-  },
-  hooks: {
-    beforeOperation: [createRateLimitHook()],
-    afterRead: [trackClientUsageHook],
   },
   fields: [
     // Virtual URL field for CDN delivery (R2 for SVG support)

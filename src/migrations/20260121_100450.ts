@@ -1,6 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-d1-sqlite'
 
-export async function up({ db }: MigrateUpArgs): Promise<void> {
+export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE TABLE \`pages\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`generate_slug\` integer DEFAULT true,
@@ -307,6 +307,48 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   );
   `)
   await db.run(sql`CREATE UNIQUE INDEX \`albums_locales_locale_parent_id_unique\` ON \`albums_locales\` (\`_locale\`,\`_parent_id\`);`)
+  await db.run(sql`CREATE TABLE \`videos\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`subtitles\` text,
+  	\`file_metadata\` text DEFAULT '{}',
+  	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`thumbnail_u_r_l\` text,
+  	\`filename\` text,
+  	\`mime_type\` text,
+  	\`filesize\` numeric,
+  	\`width\` numeric,
+  	\`height\` numeric,
+  	\`focal_x\` numeric,
+  	\`focal_y\` numeric
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`videos_updated_at_idx\` ON \`videos\` (\`updated_at\`);`)
+  await db.run(sql`CREATE INDEX \`videos_created_at_idx\` ON \`videos\` (\`created_at\`);`)
+  await db.run(sql`CREATE UNIQUE INDEX \`videos_filename_idx\` ON \`videos\` (\`filename\`);`)
+  await db.run(sql`CREATE TABLE \`videos_locales\` (
+  	\`title\` text NOT NULL,
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`_locale\` text NOT NULL,
+  	\`_parent_id\` integer NOT NULL,
+  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`videos\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  );
+  `)
+  await db.run(sql`CREATE UNIQUE INDEX \`videos_locales_locale_parent_id_unique\` ON \`videos_locales\` (\`_locale\`,\`_parent_id\`);`)
+  await db.run(sql`CREATE TABLE \`videos_rels\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`order\` integer,
+  	\`parent_id\` integer NOT NULL,
+  	\`path\` text NOT NULL,
+  	\`video_tags_id\` integer,
+  	FOREIGN KEY (\`parent_id\`) REFERENCES \`videos\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`video_tags_id\`) REFERENCES \`video_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`videos_rels_order_idx\` ON \`videos_rels\` (\`order\`);`)
+  await db.run(sql`CREATE INDEX \`videos_rels_parent_idx\` ON \`videos_rels\` (\`parent_id\`);`)
+  await db.run(sql`CREATE INDEX \`videos_rels_path_idx\` ON \`videos_rels\` (\`path\`);`)
+  await db.run(sql`CREATE INDEX \`videos_rels_video_tags_id_idx\` ON \`videos_rels\` (\`video_tags_id\`);`)
   await db.run(sql`CREATE TABLE \`lessons_panels\` (
   	\`_order\` integer NOT NULL,
   	\`_parent_id\` integer NOT NULL,
@@ -603,6 +645,26 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   );
   `)
   await db.run(sql`CREATE UNIQUE INDEX \`page_tags_locales_locale_parent_id_unique\` ON \`page_tags_locales\` (\`_locale\`,\`_parent_id\`);`)
+  await db.run(sql`CREATE TABLE \`video_tags\` (
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`generate_slug\` integer DEFAULT true,
+  	\`slug\` text NOT NULL,
+  	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
+  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL
+  );
+  `)
+  await db.run(sql`CREATE UNIQUE INDEX \`video_tags_slug_idx\` ON \`video_tags\` (\`slug\`);`)
+  await db.run(sql`CREATE INDEX \`video_tags_updated_at_idx\` ON \`video_tags\` (\`updated_at\`);`)
+  await db.run(sql`CREATE INDEX \`video_tags_created_at_idx\` ON \`video_tags\` (\`created_at\`);`)
+  await db.run(sql`CREATE TABLE \`video_tags_locales\` (
+  	\`title\` text NOT NULL,
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	\`_locale\` text NOT NULL,
+  	\`_parent_id\` integer NOT NULL,
+  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`video_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  );
+  `)
+  await db.run(sql`CREATE UNIQUE INDEX \`video_tags_locales_locale_parent_id_unique\` ON \`video_tags_locales\` (\`_locale\`,\`_parent_id\`);`)
   await db.run(sql`CREATE TABLE \`managers_roles\` (
   	\`order\` integer NOT NULL,
   	\`parent_id\` integer NOT NULL,
@@ -679,10 +741,13 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   	\`domains\` text,
   	\`active\` integer DEFAULT true,
   	\`key_generated_at\` text,
-  	\`usage_stats_total_requests\` numeric DEFAULT 0,
-  	\`usage_stats_daily_requests\` numeric DEFAULT 0,
-  	\`usage_stats_max_daily_requests\` numeric DEFAULT 0,
-  	\`usage_stats_last_request_at\` text,
+  	\`usage_daily_requests\` numeric DEFAULT 0,
+  	\`usage_peak_daily_requests\` numeric DEFAULT 0,
+  	\`usage_last_request_at\` text,
+  	\`usage_total_requests\` numeric DEFAULT 0,
+  	\`usage_high_usage_days\` numeric DEFAULT 0,
+  	\`usage_last_high_usage_at\` text,
+  	\`usage_first_request_at\` text,
   	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	\`enable_a_p_i_key\` integer,
@@ -1082,6 +1147,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   	\`meditations_id\` integer,
   	\`music_id\` integer,
   	\`albums_id\` integer,
+  	\`videos_id\` integer,
   	\`lessons_id\` integer,
   	\`lectures_id\` integer,
   	\`frames_id\` integer,
@@ -1093,6 +1159,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   	\`meditation_tags_id\` integer,
   	\`music_tags_id\` integer,
   	\`page_tags_id\` integer,
+  	\`video_tags_id\` integer,
   	\`managers_id\` integer,
   	\`clients_id\` integer,
   	\`forms_id\` integer,
@@ -1102,6 +1169,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   	FOREIGN KEY (\`meditations_id\`) REFERENCES \`meditations\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`music_id\`) REFERENCES \`music\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`albums_id\`) REFERENCES \`albums\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`videos_id\`) REFERENCES \`videos\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`lessons_id\`) REFERENCES \`lessons\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`lectures_id\`) REFERENCES \`lectures\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`frames_id\`) REFERENCES \`frames\`(\`id\`) ON UPDATE no action ON DELETE cascade,
@@ -1113,6 +1181,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   	FOREIGN KEY (\`meditation_tags_id\`) REFERENCES \`meditation_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`music_tags_id\`) REFERENCES \`music_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`page_tags_id\`) REFERENCES \`page_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade,
+  	FOREIGN KEY (\`video_tags_id\`) REFERENCES \`video_tags\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`managers_id\`) REFERENCES \`managers\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`clients_id\`) REFERENCES \`clients\`(\`id\`) ON UPDATE no action ON DELETE cascade,
   	FOREIGN KEY (\`forms_id\`) REFERENCES \`forms\`(\`id\`) ON UPDATE no action ON DELETE cascade,
@@ -1126,6 +1195,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_meditations_id_idx\` ON \`payload_locked_documents_rels\` (\`meditations_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_music_id_idx\` ON \`payload_locked_documents_rels\` (\`music_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_albums_id_idx\` ON \`payload_locked_documents_rels\` (\`albums_id\`);`)
+  await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_videos_id_idx\` ON \`payload_locked_documents_rels\` (\`videos_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_lessons_id_idx\` ON \`payload_locked_documents_rels\` (\`lessons_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_lectures_id_idx\` ON \`payload_locked_documents_rels\` (\`lectures_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_frames_id_idx\` ON \`payload_locked_documents_rels\` (\`frames_id\`);`)
@@ -1137,6 +1207,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_meditation_tags_id_idx\` ON \`payload_locked_documents_rels\` (\`meditation_tags_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_music_tags_id_idx\` ON \`payload_locked_documents_rels\` (\`music_tags_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_page_tags_id_idx\` ON \`payload_locked_documents_rels\` (\`page_tags_id\`);`)
+  await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_video_tags_id_idx\` ON \`payload_locked_documents_rels\` (\`video_tags_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_managers_id_idx\` ON \`payload_locked_documents_rels\` (\`managers_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_clients_id_idx\` ON \`payload_locked_documents_rels\` (\`clients_id\`);`)
   await db.run(sql`CREATE INDEX \`payload_locked_documents_rels_forms_id_idx\` ON \`payload_locked_documents_rels\` (\`forms_id\`);`)
@@ -1308,7 +1379,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   `)
 }
 
-export async function down({ db }: MigrateDownArgs): Promise<void> {
+export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
   await db.run(sql`DROP TABLE \`pages\`;`)
   await db.run(sql`DROP TABLE \`pages_locales\`;`)
   await db.run(sql`DROP TABLE \`pages_rels\`;`)
@@ -1324,6 +1395,9 @@ export async function down({ db }: MigrateDownArgs): Promise<void> {
   await db.run(sql`DROP TABLE \`music_rels\`;`)
   await db.run(sql`DROP TABLE \`albums\`;`)
   await db.run(sql`DROP TABLE \`albums_locales\`;`)
+  await db.run(sql`DROP TABLE \`videos\`;`)
+  await db.run(sql`DROP TABLE \`videos_locales\`;`)
+  await db.run(sql`DROP TABLE \`videos_rels\`;`)
   await db.run(sql`DROP TABLE \`lessons_panels\`;`)
   await db.run(sql`DROP TABLE \`lessons\`;`)
   await db.run(sql`DROP TABLE \`lessons_locales\`;`)
@@ -1346,6 +1420,8 @@ export async function down({ db }: MigrateDownArgs): Promise<void> {
   await db.run(sql`DROP TABLE \`music_tags_locales\`;`)
   await db.run(sql`DROP TABLE \`page_tags\`;`)
   await db.run(sql`DROP TABLE \`page_tags_locales\`;`)
+  await db.run(sql`DROP TABLE \`video_tags\`;`)
+  await db.run(sql`DROP TABLE \`video_tags_locales\`;`)
   await db.run(sql`DROP TABLE \`managers_roles\`;`)
   await db.run(sql`DROP TABLE \`managers_sessions\`;`)
   await db.run(sql`DROP TABLE \`managers\`;`)

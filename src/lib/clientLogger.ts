@@ -16,7 +16,7 @@
  */
 import * as Sentry from '@sentry/react'
 
-import { clientEnv } from '@/lib/env'
+import { clientEnv } from '@/lib/env/client'
 
 type LogContext = Record<string, unknown>
 type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug'

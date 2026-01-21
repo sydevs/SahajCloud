@@ -47,30 +47,26 @@ describe('Client Hooks', () => {
       })) as Client
 
       // primaryContact should have been added to managers
-      const managerIds = client.managers?.map((m) =>
-        typeof m === 'object' ? m.id : m,
-      )
+      const managerIds = client.managers?.map((m) => (typeof m === 'object' ? m.id : m))
       expect(managerIds).toContain(manager2.id)
       expect(managerIds).toContain(manager1.id)
     })
 
-    it('initializes usageStats on create', async () => {
+    it('initializes usage stats on create', async () => {
       const client = await testData.createClient(payload, adminUserId)
 
-      expect(client.usageStats).toBeDefined()
-      expect(client.usageStats?.totalRequests).toBe(0)
-      expect(client.usageStats?.dailyRequests).toBe(0)
-      expect(client.usageStats?.maxDailyRequests).toBe(0)
-      expect(client.usageStats?.lastRequestAt).toBeNull()
+      expect(client.usage).toBeDefined()
+      expect(client.usage?.dailyRequests).toBe(0)
+      expect(client.usage?.peakDailyRequests).toBe(0)
+      expect(client.usage?.lastRequestAt).toBeNull()
     })
 
-    it('preserves existing usageStats on update', async () => {
+    it('preserves existing usage stats on update', async () => {
       const client = await testData.createClient(payload, adminUserId, {
         name: 'Usage Stats Client',
-        usageStats: {
-          totalRequests: 100,
+        usage: {
           dailyRequests: 50,
-          maxDailyRequests: 75,
+          peakDailyRequests: 75,
           lastRequestAt: new Date().toISOString(),
         },
       })
@@ -84,33 +80,12 @@ describe('Client Hooks', () => {
         },
       })) as Client
 
-      // usageStats should be preserved
-      expect(updated.usageStats?.totalRequests).toBe(100)
-      expect(updated.usageStats?.dailyRequests).toBe(50)
-      expect(updated.usageStats?.maxDailyRequests).toBe(75)
+      // usage should be preserved
+      expect(updated.usage?.dailyRequests).toBe(50)
+      expect(updated.usage?.peakDailyRequests).toBe(75)
     })
   })
 
-  describe('checkHighUsageAlert', () => {
-    // Note: The actual logging test is removed because Payload's Pino logger
-    // doesn't use console.warn directly. The hook functionality is verified
-    // by the log output during tests: "[WARN] High usage alert for API client"
-    // The business logic is simple: dailyRequests > 1000 triggers the log
-
-    it('creates client without error when usage is high', async () => {
-      // This test verifies the hook doesn't throw errors with high usage
-      const client = await testData.createClient(payload, adminUserId, {
-        name: 'High Usage Client',
-        usageStats: {
-          totalRequests: 5000,
-          dailyRequests: 1001,
-          maxDailyRequests: 900,
-          lastRequestAt: new Date().toISOString(),
-        },
-      })
-
-      expect(client).toBeDefined()
-      expect(client.usageStats?.dailyRequests).toBe(1001)
-    })
-  })
+  // Note: checkHighUsageAlert hook was removed and moved to usagePlugin.
+  // High usage alerts are now handled by the trackUsage task handler.
 })

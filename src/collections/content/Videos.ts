@@ -2,8 +2,6 @@ import type { CollectionConfig } from 'payload'
 
 import { JSONSchema4 } from 'json-schema'
 
-import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { createRateLimitHook } from '@/lib/rateLimiting'
 import { previewUrlField, virtualUrlField } from '@/lib/storage/urlFields'
 import subtitleSchema from '@/lib/subtitlesSchema.json' with { type: 'json' }
 
@@ -22,10 +20,6 @@ export const Videos: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'tags', 'previewUrl'],
-  },
-  hooks: {
-    beforeOperation: [createRateLimitHook()],
-    afterRead: [trackClientUsageHook],
   },
   fields: [
     // Virtual URL fields for Cloudflare Stream

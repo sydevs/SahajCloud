@@ -391,3 +391,31 @@ const imageRefs = discoverReferencesForCollection(payload, 'images')
 | `src/lib/schemaUtils.ts` | Schema introspection utilities for field discovery |
 | `tests/int/cleanup-orphaned-media.int.spec.ts` | Integration tests for cleanup job |
 | `tests/int/schema-utils.int.spec.ts` | Tests for schema introspection utilities |
+
+### Usage Tracking Jobs
+
+**Location**: `src/lib/usage/tasks.ts`
+
+The usage plugin auto-registers two tasks for API usage tracking:
+
+**trackUsage Task**:
+- Increments `dailyRequests` counter for the consumer
+- Updates `lastRequestAt` timestamp
+- Triggers high usage alert if threshold exceeded (logged to Pino)
+- Queued asynchronously via `afterRead` hook
+
+**resetUsage Task**:
+- Runs at midnight UTC daily via cron schedule
+- Finds all consumers with `dailyRequests > 0`
+- Updates `peakDailyRequests` if current is higher
+- Resets `dailyRequests` to 0
+
+**Configuration**:
+- Tasks auto-registered by `usagePlugin` in `src/payload.config.ts`
+- Consumer collections configurable via plugin options
+
+| File | Purpose |
+|------|---------|
+| `src/lib/usage/tasks.ts` | Task factory functions |
+| `src/lib/usage/usagePlugin.ts` | Plugin orchestration and task registration |
+| `tests/int/api.int.spec.ts` | Integration tests for usage tracking |

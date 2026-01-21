@@ -67,9 +67,8 @@ describe('Clients Collection', () => {
 
       // API key should not be generated yet
       expect(client.apiKey).toBeNull()
-      expect(client.usageStats).toBeDefined()
-      expect(client.usageStats?.totalRequests).toBe(0)
-      expect(client.usageStats?.dailyRequests).toBe(0)
+      expect(client.usage).toBeDefined()
+      expect(client.usage?.dailyRequests).toBe(0)
     })
 
     it('enforces primary contact is in managers list', async () => {
@@ -200,11 +199,10 @@ describe('Clients Collection', () => {
     it('initializes usage stats on creation', async () => {
       const client = await testData.createClient(payload, testUser.id)
 
-      expect(client.usageStats).toBeDefined()
-      expect(client.usageStats?.totalRequests).toBe(0)
-      expect(client.usageStats?.dailyRequests).toBe(0)
+      expect(client.usage).toBeDefined()
+      expect(client.usage?.dailyRequests).toBe(0)
       // The field structure should exist even if values are null
-      expect(typeof client.usageStats).toBe('object')
+      expect(typeof client.usage).toBe('object')
     })
   })
 })
