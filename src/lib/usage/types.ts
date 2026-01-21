@@ -7,6 +7,39 @@
 import type { CollectionSlug } from 'payload'
 
 // ============================================================================
+// CONSTANTS
+// ============================================================================
+
+/**
+ * Consumer collections that can make API requests.
+ * These collections are excluded from rate limiting (they ARE the rate-limited entity).
+ */
+export const CONSUMER_COLLECTIONS: CollectionSlug[] = ['clients']
+
+/**
+ * Field path for usage statistics on consumer documents.
+ */
+export const STATS_FIELD_PATH = 'usage'
+
+/**
+ * Daily request threshold for high usage alerts.
+ */
+export const HIGH_USAGE_THRESHOLD = 1000
+
+/**
+ * System collections always excluded from usage tracking and rate limiting.
+ * These are Payload internal collections that should never be rate limited.
+ */
+export const SYSTEM_EXCLUSIONS: CollectionSlug[] = [
+  'payload-preferences' as CollectionSlug,
+  'payload-migrations' as CollectionSlug,
+  'payload-jobs' as CollectionSlug,
+  'payload-job-stats' as CollectionSlug,
+  'payload-locked-documents' as CollectionSlug,
+  'payload-kv' as CollectionSlug,
+]
+
+// ============================================================================
 // PLUGIN OPTIONS
 // ============================================================================
 
@@ -21,36 +54,9 @@ export interface UsagePluginOptions {
   enabled?: boolean
 
   /**
-   * Consumer collections that store API consumers (e.g., ['clients'])
-   * These collections will receive usage initialization hooks
-   */
-  consumers: ConsumerConfig[]
-
-  /**
-   * Collections to exclude from rate limiting and usage tracking
-   * Consumer collections and Payload system collections are always excluded automatically
+   * Additional collections to exclude from rate limiting and usage tracking
    */
   exclude?: CollectionSlug[]
-}
-
-/**
- * Configuration for a consumer collection
- */
-export interface ConsumerConfig {
-  /** Collection slug for the consumer (e.g., 'clients') */
-  collection: CollectionSlug
-
-  /**
-   * Field path for the usage statistics group
-   * @default 'usage'
-   */
-  statsFieldPath?: string
-
-  /**
-   * Threshold for high usage alerts (requests per day)
-   * Required - no default to ensure conscious configuration
-   */
-  highUsageThreshold: number
 }
 
 // ============================================================================
@@ -62,25 +68,7 @@ export interface ConsumerConfig {
  */
 export interface TrackUsageInput {
   consumerId: string
-  consumerCollection: CollectionSlug
 }
-
-// ============================================================================
-// SYSTEM EXCLUSIONS
-// ============================================================================
-
-/**
- * System collections always excluded from usage tracking and rate limiting.
- * These are Payload internal collections that should never be rate limited.
- */
-export const SYSTEM_EXCLUSIONS: CollectionSlug[] = [
-  'payload-preferences' as CollectionSlug,
-  'payload-migrations' as CollectionSlug,
-  'payload-jobs' as CollectionSlug,
-  'payload-job-stats' as CollectionSlug,
-  'payload-locked-documents' as CollectionSlug,
-  'payload-kv' as CollectionSlug,
-]
 
 // ============================================================================
 // ERROR CLASSES
@@ -101,8 +89,6 @@ export class RateLimitValidationError extends Error {
 /**
  * Custom error class for rate limit exceeded.
  * Returns 429 Too Many Requests.
- *
- * Note: User ID is intentionally NOT included in the error message for privacy.
  */
 export class RateLimitExceededError extends Error {
   status = 429

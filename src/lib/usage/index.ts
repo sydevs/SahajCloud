@@ -8,13 +8,7 @@
  * import { usagePlugin } from '@/lib/usage'
  *
  * plugins: [
- *   usagePlugin({
- *     consumers: [{
- *       collection: 'clients',
- *       statsFieldPath: 'usage',
- *       highUsageThreshold: 1000,
- *     }],
- *   }),
+ *   usagePlugin({ enabled: true }),
  * ]
  * ```
  */
@@ -23,14 +17,21 @@
 export { usagePlugin } from './usagePlugin'
 
 // Type exports
-export type { ConsumerConfig, TrackUsageInput, UsagePluginOptions } from './types'
-export { RateLimitExceededError, RateLimitValidationError, SYSTEM_EXCLUSIONS } from './types'
+export type { TrackUsageInput, UsagePluginOptions } from './types'
+export {
+  CONSUMER_COLLECTIONS,
+  HIGH_USAGE_THRESHOLD,
+  RateLimitExceededError,
+  RateLimitValidationError,
+  STATS_FIELD_PATH,
+  SYSTEM_EXCLUSIONS,
+} from './types'
 
 // Hook factories (for testing)
-export { createInitStatsHook, createRateLimitHook, createUsageTrackingHook } from './hooks'
+export { createRateLimitHook, createUsageTrackingHook } from './hooks'
 
 // Rate limiting utilities (for testing)
 export { buildRateLimitKey, validateUserId } from './hooks'
 
-// Task factories (for testing)
-export { createResetUsageTask, createTrackUsageTask } from './tasks'
+// Task configs (for testing)
+export { resetUsageTask, trackUsageTask } from './tasks'

@@ -1,91 +1,75 @@
 /**
  * Usage Plugin Tasks
  *
- * Task factories for usage tracking and reset jobs.
+ * Task configurations for usage tracking and daily reset.
  */
 
-import type { ConsumerConfig, TrackUsageInput } from './types'
+import type { TrackUsageInput } from './types'
 import type { TaskConfig } from 'payload'
+
+import {
+  CONSUMER_COLLECTIONS,
+  HIGH_USAGE_THRESHOLD,
+  STATS_FIELD_PATH,
+} from './types'
 
 // ============================================================================
 // TRACK USAGE TASK
 // ============================================================================
 
 /**
- * Creates the trackUsage task configuration.
+ * Task that increments daily request counter for a consumer.
  *
- * This task:
- * 1. Increments dailyRequests counter for the consumer
- * 2. Updates lastRequestAt timestamp
- * 3. Triggers high usage alert if threshold exceeded (logged to Pino)
- *
- * @param consumers - Consumer configurations
- * @returns TaskConfig for trackUsage
+ * Triggered by afterRead hook on each API request.
+ * Also logs high usage alerts when threshold is exceeded.
  */
-// Note: Cast return type since plugin-registered tasks aren't in generated types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createTrackUsageTask(consumers: ConsumerConfig[]): TaskConfig<any> {
-  // Create lookup map for stats field paths and thresholds
-  const configMap = Object.fromEntries(consumers.map((c) => [c.collection, c]))
+export const trackUsageTask: TaskConfig<any> = {
+  slug: 'trackUsage',
+  retries: 3,
+  inputSchema: [{ name: 'consumerId', type: 'text', required: true }],
+  handler: async ({ input, req }) => {
+    const { consumerId } = input as TrackUsageInput
 
-  return {
-    retries: 3,
-    slug: 'trackUsage',
-    inputSchema: [
-      { name: 'consumerId', type: 'text', required: true },
-      { name: 'consumerCollection', type: 'text', required: true },
-    ],
-    handler: async ({ input, req }) => {
-      const { consumerId, consumerCollection } = input as TrackUsageInput
-      const config = configMap[consumerCollection]
+    // Currently only 'clients' collection is supported
+    const collection = CONSUMER_COLLECTIONS[0]
 
-      if (!config) {
-        req.payload.logger.warn({
-          msg: 'Unknown consumer collection for usage tracking',
-          consumerCollection,
-        })
-        return { output: null }
-      }
+    const consumer = await req.payload.findByID({
+      collection,
+      id: consumerId,
+    })
 
-      const statsFieldPath = config.statsFieldPath || 'usage'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stats = (consumer as any)?.[STATS_FIELD_PATH] || {}
+    const newDailyRequests = (stats.dailyRequests || 0) + 1
 
-      const consumer = await req.payload.findByID({
-        collection: consumerCollection,
-        id: consumerId,
-      })
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const currentStats = (consumer as any)?.[statsFieldPath] || {}
-      const newDailyRequests = (currentStats.dailyRequests || 0) + 1
-
-      await req.payload.update({
-        collection: consumerCollection,
-        id: consumerId,
-        data: {
-          [statsFieldPath]: {
-            lastRequestAt: new Date().toISOString(),
-            dailyRequests: newDailyRequests,
-            peakDailyRequests: currentStats.peakDailyRequests || 0,
-          },
-        },
-      })
-
-      // Check high usage alert (after increment)
-      if (newDailyRequests > config.highUsageThreshold) {
-        req.payload.logger.warn({
-          msg: 'High usage alert',
-          collection: consumerCollection,
-          consumerId,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          consumerName: (consumer as any)?.name || 'Unknown',
+    await req.payload.update({
+      collection,
+      id: consumerId,
+      data: {
+        [STATS_FIELD_PATH]: {
           dailyRequests: newDailyRequests,
-          threshold: config.highUsageThreshold,
-        })
-      }
+          peakDailyRequests: stats.peakDailyRequests || 0,
+          lastRequestAt: new Date().toISOString(),
+        },
+      },
+    })
 
-      return { output: null }
-    },
-  }
+    // Log high usage alert
+    if (newDailyRequests > HIGH_USAGE_THRESHOLD) {
+      req.payload.logger.warn({
+        msg: 'High usage alert',
+        collection,
+        consumerId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        consumerName: (consumer as any)?.name || 'Unknown',
+        dailyRequests: newDailyRequests,
+        threshold: HIGH_USAGE_THRESHOLD,
+      })
+    }
+
+    return { output: null }
+  },
 }
 
 // ============================================================================
@@ -93,67 +77,48 @@ export function createTrackUsageTask(consumers: ConsumerConfig[]): TaskConfig<an
 // ============================================================================
 
 /**
- * Creates the resetUsage task configuration.
+ * Task that resets daily counters at midnight UTC.
  *
- * This task:
- * 1. Runs at midnight UTC daily
- * 2. Finds all consumers with dailyRequests > 0
- * 3. Updates peakDailyRequests if current dailyRequests is higher
- * 4. Resets dailyRequests to 0
- *
- * @param consumers - Consumer configurations
- * @returns TaskConfig for resetUsage
+ * - Updates peakDailyRequests if current is higher
+ * - Resets dailyRequests to 0
+ * - Only processes consumers with dailyRequests > 0
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createResetUsageTask(consumers: ConsumerConfig[]): TaskConfig<any> {
-  return {
-    retries: 2,
-    label: 'Reset Usage Counters',
-    slug: 'resetUsage',
-    inputSchema: [],
-    outputSchema: [],
-    schedule: [
-      {
-        cron: '0 0 * * *', // Every day at midnight UTC
-        queue: 'nightly',
-      },
-    ],
-    handler: async ({ req }) => {
-      for (const config of consumers) {
-        const statsFieldPath = config.statsFieldPath || 'usage'
+export const resetUsageTask: TaskConfig<any> = {
+  slug: 'resetUsage',
+  label: 'Reset Usage Counters',
+  retries: 2,
+  inputSchema: [],
+  outputSchema: [],
+  schedule: [{ cron: '0 0 * * *', queue: 'nightly' }],
+  handler: async ({ req }) => {
+    for (const collection of CONSUMER_COLLECTIONS) {
+      const consumersWithUsage = await req.payload.find({
+        collection,
+        where: { [`${STATS_FIELD_PATH}.dailyRequests`]: { greater_than: 0 } },
+        limit: 1000,
+      })
 
-        // Find consumers with usage > 0
-        const consumersWithUsage = await req.payload.find({
-          collection: config.collection,
-          where: {
-            [`${statsFieldPath}.dailyRequests`]: {
-              greater_than: 0,
+      for (const consumer of consumersWithUsage.docs) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stats = (consumer as any)[STATS_FIELD_PATH] || {}
+        const dailyRequests = stats.dailyRequests || 0
+        const peakDailyRequests = stats.peakDailyRequests || 0
+
+        await req.payload.update({
+          collection,
+          id: consumer.id,
+          data: {
+            [STATS_FIELD_PATH]: {
+              ...stats,
+              peakDailyRequests: Math.max(peakDailyRequests, dailyRequests),
+              dailyRequests: 0,
             },
           },
-          limit: 1000, // Process up to 1000 consumers per collection
         })
-
-        for (const consumer of consumersWithUsage.docs) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const stats = (consumer as any)[statsFieldPath] || {}
-          const dailyRequests = stats.dailyRequests || 0
-          const peakDailyRequests = stats.peakDailyRequests || 0
-
-          await req.payload.update({
-            collection: config.collection,
-            id: consumer.id,
-            data: {
-              [statsFieldPath]: {
-                ...stats,
-                peakDailyRequests: Math.max(peakDailyRequests, dailyRequests),
-                dailyRequests: 0,
-              },
-            },
-          })
-        }
       }
+    }
 
-      return { output: null }
-    },
-  }
+    return { output: null }
+  },
 }

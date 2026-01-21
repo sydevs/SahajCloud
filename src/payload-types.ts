@@ -2295,7 +2295,6 @@ export interface TaskCleanupOrphanedMedia {
 export interface TaskTrackUsage {
   input: {
     consumerId: string;
-    consumerCollection: string;
   };
   output?: unknown;
 }

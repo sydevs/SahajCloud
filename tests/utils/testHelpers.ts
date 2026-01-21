@@ -92,18 +92,7 @@ function createBaseTestConfig(emailConfig?: any) {
       tasks,
       deleteJobOnComplete: true,
     },
-    plugins: [
-      usagePlugin({
-        enabled: true,
-        consumers: [
-          {
-            collection: 'clients',
-            statsFieldPath: 'usage',
-            highUsageThreshold: 1000,
-          },
-        ],
-      }),
-    ],
+    plugins: [usagePlugin({ enabled: true })],
     email:
       emailConfig ||
       nodemailerAdapter({

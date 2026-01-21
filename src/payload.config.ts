@@ -207,16 +207,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         },
       }),
       // Usage Plugin: Rate limiting and usage tracking (disabled in E2E tests)
-      usagePlugin({
-        enabled: !isE2ETest,
-        consumers: [
-          {
-            collection: 'clients',
-            statsFieldPath: 'usage',
-            highUsageThreshold: 1000,
-          },
-        ],
-      }),
+      usagePlugin({ enabled: !isE2ETest, exclude: ['managers', 'clients'] }),
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({
         enabled: true,
