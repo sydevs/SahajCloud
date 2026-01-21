@@ -1,5 +1,3 @@
- 
-
 /**
  * Tags Import Script
  *
@@ -266,6 +264,12 @@ const SONG_TAGS: TagData[] = [
     iconUrl: 'local:music-strings.svg',
   },
   {
+    title: 'Vocals',
+    slug: 'piano',
+    color: '#1E6C71',
+    iconUrl: 'local:music-tag.svg',
+  },
+  {
     title: 'Piano',
     slug: 'piano',
     color: '#1E6C71',
@@ -492,4 +496,3 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 }
-
