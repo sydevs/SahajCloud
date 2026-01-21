@@ -44,10 +44,10 @@ test.describe('Clients Management UI', () => {
     ).toBeVisible()
   })
 
-  // TODO: Fix test - Needs seeded client with high usage stats to test alert display
-  test.skip('shows high usage alert when threshold exceeded', async ({ page }) => {
-    // This test would require creating a client with high usage
-    // For now, we'll just verify the alert field exists
+  // TODO: Fix test - Needs seeded client with usage stats to test abuse score display
+  test.skip('shows abuse score for client', async ({ page }) => {
+    // This test would require creating a client with usage data
+    // For now, we'll just verify the abuse score field exists
 
     // Navigate to an existing client
     await page.goto('/admin/collections/clients')
@@ -61,19 +61,19 @@ test.describe('Clients Management UI', () => {
     // Wait for page to load
     await page.waitForLoadState('networkidle')
 
-    // Look for high usage alert field - this might be a virtual field that only shows when usage is high
-    const alertVisible = await page
-      .locator('text=High Usage Alert')
-      .or(page.locator('[data-field="highUsageAlert"]'))
+    // Look for abuse score field - this is a UI field that displays when usage data exists
+    const scoreVisible = await page
+      .locator('text=Abuse Score')
+      .or(page.locator('[data-field="abuseScore"]'))
       .isVisible()
 
-    // Since this is a virtual field that might not always be visible, just check if it exists when present
-    if (alertVisible) {
+    // Since this displays when usage data exists, check if it's visible
+    if (scoreVisible) {
       await expect(
-        page.locator('text=High Usage Alert').or(page.locator('[data-field="highUsageAlert"]')),
+        page.locator('text=Abuse Score').or(page.locator('[data-field="abuseScore"]')),
       ).toBeVisible()
     } else {
-      // If not visible, that's expected for low-usage clients
+      // If not visible, that's expected for clients with no usage data
     }
   })
 

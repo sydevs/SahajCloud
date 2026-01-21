@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { validateClientData } from '@/hooks/clientHooks'
 import { getRoleOptions } from '@/lib/access'
-import { HIGH_USAGE_THRESHOLD } from '@/lib/usage'
+import { calculateAbuseScore } from '@/lib/usage'
 
 export const Clients: CollectionConfig = {
   slug: 'clients',
@@ -112,6 +112,26 @@ export const Clients: CollectionConfig = {
       },
       fields: [
         {
+          name: 'abuseScore',
+          type: 'json',
+          virtual: true,
+          hooks: {
+            afterRead: [
+              ({ siblingData }) => {
+                if (!siblingData) return null
+                return calculateAbuseScore(siblingData)
+              },
+            ],
+          },
+          admin: {
+            readOnly: true,
+            components: {
+              beforeInput: ['@/components/admin/AbuseScore/AbuseScoreField'],
+              Cell: '@/components/admin/AbuseScore/AbuseScoreCell',
+            },
+          },
+        },
+        {
           name: 'dailyRequests',
           type: 'number',
           defaultValue: 0,
@@ -137,21 +157,39 @@ export const Clients: CollectionConfig = {
             description: 'Last API call timestamp',
           },
         },
+        // Abuse detection fields
         {
-          name: 'highUsageAlert',
-          type: 'checkbox',
-          virtual: true,
+          name: 'totalRequests',
+          type: 'number',
+          defaultValue: 0,
           admin: {
             readOnly: true,
-            description: `Indicates if daily limit exceeded (>${HIGH_USAGE_THRESHOLD} requests)`,
-            components: {
-              Field: {
-                path: '@/components/admin/HighUsageAlert',
-                clientProps: {
-                  threshold: HIGH_USAGE_THRESHOLD,
-                },
-              },
-            },
+            description: 'Lifetime total requests (never resets)',
+          },
+        },
+        {
+          name: 'highUsageDays',
+          type: 'number',
+          defaultValue: 0,
+          admin: {
+            readOnly: true,
+            description: 'Count of days exceeding threshold',
+          },
+        },
+        {
+          name: 'lastHighUsageAt',
+          type: 'date',
+          admin: {
+            readOnly: true,
+            description: 'Last date threshold was exceeded',
+          },
+        },
+        {
+          name: 'firstRequestAt',
+          type: 'date',
+          admin: {
+            readOnly: true,
+            description: 'First API request (tracking start)',
           },
         },
       ],

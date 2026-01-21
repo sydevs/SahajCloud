@@ -227,7 +227,6 @@ export interface Config {
   jobs: {
     tasks: {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
-      trackUsage: TaskTrackUsage;
       resetUsage: TaskResetUsage;
       schedulePublish: TaskSchedulePublish;
       inline: {
@@ -1011,6 +1010,15 @@ export interface Client {
    * API usage statistics
    */
   usage?: {
+    abuseScore?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
     /**
      * Today's request count
      */
@@ -1024,9 +1032,21 @@ export interface Client {
      */
     lastRequestAt?: string | null;
     /**
-     * Indicates if daily limit exceeded (>1000 requests)
+     * Lifetime total requests (never resets)
      */
-    highUsageAlert?: boolean | null;
+    totalRequests?: number | null;
+    /**
+     * Count of days exceeding threshold
+     */
+    highUsageDays?: number | null;
+    /**
+     * Last date threshold was exceeded
+     */
+    lastHighUsageAt?: string | null;
+    /**
+     * First API request (tracking start)
+     */
+    firstRequestAt?: string | null;
   };
   updatedAt: string;
   createdAt: string;
@@ -1294,7 +1314,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'cleanupOrphanedMedia' | 'trackUsage' | 'resetUsage' | 'schedulePublish';
+        taskSlug: 'inline' | 'cleanupOrphanedMedia' | 'resetUsage' | 'schedulePublish';
         taskID: string;
         input?:
           | {
@@ -1327,7 +1347,7 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'cleanupOrphanedMedia' | 'trackUsage' | 'resetUsage' | 'schedulePublish') | null;
+  taskSlug?: ('inline' | 'cleanupOrphanedMedia' | 'resetUsage' | 'schedulePublish') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -1858,10 +1878,14 @@ export interface ClientsSelect<T extends boolean = true> {
   usage?:
     | T
     | {
+        abuseScore?: T;
         dailyRequests?: T;
         peakDailyRequests?: T;
         lastRequestAt?: T;
-        highUsageAlert?: T;
+        totalRequests?: T;
+        highUsageDays?: T;
+        lastHighUsageAt?: T;
+        firstRequestAt?: T;
       };
   updatedAt?: T;
   createdAt?: T;
@@ -2287,16 +2311,6 @@ export interface TaskCleanupOrphanedMedia {
     skippedImages: number;
     errors: number;
   };
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskTrackUsage".
- */
-export interface TaskTrackUsage {
-  input: {
-    apiConsumerId: string;
-  };
-  output?: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

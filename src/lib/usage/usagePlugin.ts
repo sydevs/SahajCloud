@@ -4,14 +4,14 @@
  * Automatically applies rate limiting and usage tracking to all collections.
  *
  * - beforeOperation: Rate limiting via Cloudflare Workers binding
- * - afterRead: Usage tracking via job queue
+ * - afterRead: Usage tracking via direct Payload update (dev) or D1 atomic SQL (prod)
  */
 
 import type { CollectionSlug, Config } from 'payload'
 
 import { SYSTEM_EXCLUSIONS } from './constants'
 import { rateLimitHook, usageTrackingHook } from './hooks'
-import { resetUsageTask, trackUsageTask } from './tasks'
+import { resetUsageTask } from './tasks'
 
 /**
  * Usage Plugin for PayloadCMS
@@ -59,7 +59,7 @@ export function usagePlugin(
 
     jobs: {
       ...config.jobs,
-      tasks: [...(config.jobs?.tasks || []), trackUsageTask, resetUsageTask],
+      tasks: [...(config.jobs?.tasks || []), resetUsageTask],
     },
   })
 }

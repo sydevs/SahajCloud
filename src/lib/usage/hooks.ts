@@ -4,8 +4,13 @@
  * Hooks for rate limiting and usage tracking.
  */
 
-import type { RateLimit } from '@cloudflare/workers-types'
-import type { CollectionAfterReadHook, CollectionBeforeOperationHook, PayloadRequest } from 'payload'
+import type { D1Database, RateLimit } from '@cloudflare/workers-types'
+import type { Database as BetterSqlite3Database } from 'better-sqlite3'
+import type {
+  CollectionAfterReadHook,
+  CollectionBeforeOperationHook,
+  PayloadRequest,
+} from 'payload'
 
 import { getCloudflareContext } from '@opennextjs/cloudflare'
 import * as Sentry from '@sentry/cloudflare'
@@ -136,20 +141,97 @@ export const rateLimitHook: CollectionBeforeOperationHook = async ({ req }) => {
 }
 
 // ============================================================================
-// USAGE TRACKING HOOK
+// USAGE TRACKING
 // ============================================================================
+
+/**
+ * Atomic SQL query for incrementing usage counters.
+ * Works identically on both D1 (production) and better-sqlite3 (development).
+ */
+const USAGE_INCREMENT_SQL = `
+  UPDATE clients
+  SET usage_daily_requests = COALESCE(usage_daily_requests, 0) + 1,
+      usage_total_requests = COALESCE(usage_total_requests, 0) + 1,
+      usage_last_request_at = ?,
+      usage_first_request_at = COALESCE(usage_first_request_at, ?)
+  WHERE id = ?
+`
+
+/**
+ * Increment usage counters via D1 (Cloudflare's SQLite).
+ * Used in production environment.
+ */
+async function incrementUsageD1(db: D1Database, clientId: string | number, now: string) {
+  await db.prepare(USAGE_INCREMENT_SQL).bind(now, now, clientId).run()
+}
+
+/**
+ * Increment usage counters via better-sqlite3.
+ * Used in development/test environments.
+ */
+function incrementUsageSqlite(db: BetterSqlite3Database, clientId: string | number, now: string) {
+  db.prepare(USAGE_INCREMENT_SQL).run(now, now, clientId)
+}
+
+/**
+ * Get the raw SQLite database from Payload's Drizzle adapter.
+ * Returns the better-sqlite3 Database instance used in development/test.
+ */
+function getLocalSqliteDb(req: PayloadRequest): BetterSqlite3Database | null {
+  try {
+    // Access raw better-sqlite3 connection via Drizzle's $client
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const drizzle = (req.payload.db as any).drizzle
+    return drizzle?.$client as BetterSqlite3Database | null
+  } catch {
+    return null
+  }
+}
 
 /**
  * afterRead hook for usage tracking.
  *
- * Queues a job to increment usage stats for the API consumer.
+ * Both environments use atomic SQLite increment queries:
+ * - Production: D1 (Cloudflare's distributed SQLite)
+ * - Development/Test: better-sqlite3 (local SQLite)
  */
 export const usageTrackingHook: CollectionAfterReadHook = async ({ doc, req }) => {
   // Only track for client requests
-  if (req.user?.collection === 'clients' && req.user?.id) {
-    await req.payload.jobs.queue({
-      task: 'trackUsage',
-      input: { apiConsumerId: String(req.user.id) },
+  if (req.user?.collection !== 'clients' || !req.user?.id) {
+    return doc
+  }
+
+  try {
+    const now = new Date().toISOString()
+    const clientId = req.user.id
+
+    if (process.env.NODE_ENV === 'production') {
+      // Production - use D1
+      const { env } = await getCloudflareContext({ async: true })
+      const db = (env as { D1?: D1Database }).D1
+
+      if (!db) {
+        req.payload.logger.error({ msg: 'D1 binding not available for usage tracking' })
+        return doc
+      }
+
+      await incrementUsageD1(db, clientId, now)
+    } else {
+      // Development/Test - use local SQLite via Drizzle
+      const db = getLocalSqliteDb(req)
+
+      if (!db) {
+        req.payload.logger.error({ msg: 'Local SQLite not available for usage tracking' })
+        return doc
+      }
+
+      incrementUsageSqlite(db, clientId, now)
+    }
+  } catch (error) {
+    // Fail open - don't block API requests if tracking fails
+    req.payload.logger.error({
+      msg: 'Usage tracking error - failing open',
+      error: error instanceof Error ? error.message : String(error),
     })
   }
 

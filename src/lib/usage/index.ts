@@ -31,4 +31,7 @@ export { rateLimitHook, usageTrackingHook } from './hooks'
 export { buildRateLimitKey } from './hooks'
 
 // Task configs (for testing)
-export { resetUsageTask, trackUsageTask } from './tasks'
+export { resetUsageTask } from './tasks'
+
+// Abuse detection utilities
+export { calculateAbuseScore, type AbuseLevel, type AbuseScore } from './abuse'
