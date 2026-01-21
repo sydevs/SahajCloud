@@ -60,19 +60,6 @@ export const WeMeditateWebSettings: GlobalConfig = {
           relationTo: 'pages',
           required: true,
         },
-        {
-          name: 'musicPageTags',
-          label: 'Music Page Tags',
-          type: 'relationship',
-          relationTo: 'music-tags',
-          hasMany: true,
-          minRows: 3,
-          maxRows: 5,
-          required: true,
-          admin: {
-            description: 'Select 3-5 music tags to display on the Music page',
-          },
-        },
       ],
     },
 

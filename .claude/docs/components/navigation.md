@@ -50,7 +50,7 @@ Collections use `admin.hidden` functions to control visibility based on `user.cu
 | **Content** |||||
 | Pages | ✓ | ✓ | ✗ | ✗ |
 | Meditations | ✓ | ✓ | ✓ | ✗ |
-| Music | ✓ | ✓ | ✓ | ✗ |
+| Songs | ✓ | ✓ | ✓ | ✗ |
 | Lessons | ✓ | ✗ | ✓ | ✗ |
 | **Resources** |||||
 | Media | ✓ | ✓ | ✓ | ✓ |
@@ -61,7 +61,7 @@ Collections use `admin.hidden` functions to control visibility based on `user.cu
 | Files | ✓ | ✓ | ✓ | ✓ |
 | **Tags** |||||
 | MeditationTags | ✓ | ✓ | ✓ | ✗ |
-| MusicTags | ✓ | ✓ | ✓ | ✗ |
+| SongTags | ✓ | ✓ | ✓ | ✗ |
 | **System/Access** |||||
 | All Others | ✓ | ✓ | ✓ | ✓ |
 
@@ -116,7 +116,7 @@ admin: {
 
 3. **WeMeditate App** → [MetricsDashboard](../../src/components/admin/dashboard/MetricsDashboard.tsx)
    - **Server component** with direct Payload API access
-   - Displays collection counts (meditations, lessons, music)
+   - Displays collection counts (meditations, lessons, songs)
    - Uses `payload.count()` for efficient counting
    - Parallel queries with `Promise.all()`
 

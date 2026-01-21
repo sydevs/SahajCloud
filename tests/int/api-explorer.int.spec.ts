@@ -156,7 +156,7 @@ describe('API Explorer', () => {
       // Verify some key collection paths exist
       expect(spec.paths['/api/pages']).toBeDefined()
       expect(spec.paths['/api/meditations']).toBeDefined()
-      expect(spec.paths['/api/music']).toBeDefined()
+      expect(spec.paths['/api/songs']).toBeDefined()
       expect(spec.paths['/api/managers']).toBeDefined()
     })
   })
@@ -291,9 +291,9 @@ describe('OpenAPI Spec Marker Utility', () => {
         get: { summary: 'List meditations' },
         post: { summary: 'Create meditation' },
       },
-      '/api/music': {
-        get: { summary: 'List music' },
-        post: { summary: 'Create music' },
+      '/api/songs': {
+        get: { summary: 'List songs' },
+        post: { summary: 'Create song' },
       },
       '/api/albums': {
         get: { summary: 'List albums' },
@@ -432,7 +432,7 @@ describe('OpenAPI Spec Marker Utility', () => {
       // Most collections should be hidden for sahaj-atlas (minimal permissions)
       expect(result.paths!['/api/pages']!.get!['x-internal']).toBe(true)
       expect(result.paths!['/api/meditations']!.get!['x-internal']).toBe(true)
-      expect(result.paths!['/api/music']!.get!['x-internal']).toBe(true)
+      expect(result.paths!['/api/songs']!.get!['x-internal']).toBe(true)
     })
 
     it('shows union of all project collections when no project specified', () => {
@@ -460,7 +460,7 @@ describe('Project Filtering Utilities', () => {
 
       expect(collections).toContain('pages')
       expect(collections).toContain('meditations')
-      expect(collections).toContain('music')
+      expect(collections).toContain('songs')
       expect(collections).toContain('albums')
       expect(collections).toContain('forms')
       expect(collections).toContain('authors')
@@ -476,7 +476,7 @@ describe('Project Filtering Utilities', () => {
       expect(collections).toContain('meditations')
       expect(collections).toContain('lessons')
       expect(collections).toContain('lectures')
-      expect(collections).toContain('music')
+      expect(collections).toContain('songs')
       expect(collections).toContain('albums')
 
       // Should NOT contain pages

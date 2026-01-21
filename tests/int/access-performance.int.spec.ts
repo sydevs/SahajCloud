@@ -286,10 +286,10 @@ describe('Access Control Performance', () => {
     it('handles realistic mixed workload efficiently', () => {
       const iterations = 10000
       const users = [adminUser, meditationsEditor, translator, apiClient]
-      const collections: Array<'meditations' | 'pages' | 'music' | 'lessons'> = [
+      const collections: Array<'meditations' | 'pages' | 'songs' | 'lessons'> = [
         'meditations',
         'pages',
-        'music',
+        'songs',
         'lessons',
       ]
       const operations: Array<'read' | 'create' | 'update' | 'delete'> = [

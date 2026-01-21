@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { Meditation, Narrator, Image, MusicTag, MeditationTag } from '@/payload-types'
+import type { Meditation, Narrator, Image, SongTag, MeditationTag } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -14,7 +14,7 @@ describe('Meditations Collection', () => {
   let testImageMedia: Image
   let testTag1: MeditationTag
   let testTag2: MeditationTag
-  let testMusicTag: MusicTag
+  let testSongTag: SongTag
   let testMeditation: Meditation
 
   beforeAll(async () => {
@@ -27,7 +27,7 @@ describe('Meditations Collection', () => {
     testImageMedia = await testData.createMediaImage(payload)
     testTag1 = await testData.createMeditationTag(payload)
     testTag2 = await testData.createMeditationTag(payload)
-    testMusicTag = await testData.createMusicTag(payload)
+    testSongTag = await testData.createSongTag(payload)
 
     // Create test meditation
     testMeditation = await testData.createMeditation(
@@ -39,7 +39,7 @@ describe('Meditations Collection', () => {
       {
         title: 'Morning Meditation',
         tags: [testTag1.id, testTag2.id],
-        musicTag: testMusicTag.id,
+        songTag: testSongTag.id,
       },
     )
   })
@@ -68,10 +68,10 @@ describe('Meditations Collection', () => {
     expect(tagIds).toContain(testTag1.id)
     expect(tagIds).toContain(testTag2.id)
     expect(
-      typeof testMeditation.musicTag === 'object' && testMeditation.musicTag
-        ? testMeditation.musicTag.id
-        : testMeditation.musicTag,
-    ).toBe(testMusicTag.id)
+      typeof testMeditation.songTag === 'object' && testMeditation.songTag
+        ? testMeditation.songTag.id
+        : testMeditation.songTag,
+    ).toBe(testSongTag.id)
   })
 
   it('creates meditation as draft by default', async () => {

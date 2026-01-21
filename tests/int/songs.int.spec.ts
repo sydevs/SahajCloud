@@ -2,37 +2,37 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { Album, Music, MusicTag } from '@/payload-types'
+import type { Album, Song, SongTag } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-describe('Music Collection', () => {
+describe('Songs Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let testTag1: MusicTag
-  let testTag2: MusicTag
-  let testTag3: MusicTag
+  let testTag1: SongTag
+  let testTag2: SongTag
+  let testTag3: SongTag
   let testAlbum: Album
-  let testMusic: Music
+  let testSong: Song
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
     payload = testEnv.payload
     cleanup = testEnv.cleanup
 
-    // Create test album first (required for music tracks)
+    // Create test album first (required for songs)
     testAlbum = await testData.createAlbum(payload, {
       title: 'Test Album',
       artist: 'Test Artist',
     })
 
     // Create test tags
-    testTag1 = await testData.createMusicTag(payload, { title: 'ambient' })
-    testTag2 = await testData.createMusicTag(payload, { title: 'meditation' })
-    testTag3 = await testData.createMusicTag(payload, { title: 'nature' })
+    testTag1 = await testData.createSongTag(payload, { title: 'ambient' })
+    testTag2 = await testData.createSongTag(payload, { title: 'meditation' })
+    testTag3 = await testData.createSongTag(payload, { title: 'nature' })
 
-    testMusic = await testData.createMusic(payload, {
+    testSong = await testData.createSong(payload, {
       title: 'Forest Sounds',
       album: testAlbum.id,
       tags: [testTag1.id, testTag2.id],
@@ -43,23 +43,23 @@ describe('Music Collection', () => {
     await cleanup()
   })
 
-  it('creates a music track with album relationship', async () => {
-    expect(testMusic).toBeDefined()
-    expect(testMusic.title).toBe('Forest Sounds')
-    expect(testMusic.tags).toHaveLength(2)
-    expect(testMusic.mimeType).toBe('audio/mpeg')
+  it('creates a song with album relationship', async () => {
+    expect(testSong).toBeDefined()
+    expect(testSong.title).toBe('Forest Sounds')
+    expect(testSong.tags).toHaveLength(2)
+    expect(testSong.mimeType).toBe('audio/mpeg')
     // In tests, Payload may add numeric suffix to avoid collisions (audio-42s-N.mp3)
     // In production with R2 adapter, filename would be sanitized with random suffix
-    expect(testMusic.filename).toMatch(/^audio-42s(-\d+)?\.mp3$/)
-    expect(testMusic.filesize).toBeGreaterThan(0)
+    expect(testSong.filename).toMatch(/^audio-42s(-\d+)?\.mp3$/)
+    expect(testSong.filesize).toBeGreaterThan(0)
 
     // Check album relationship
-    const albumId = typeof testMusic.album === 'object' ? testMusic.album.id : testMusic.album
+    const albumId = typeof testSong.album === 'object' ? testSong.album.id : testSong.album
     expect(albumId).toBe(testAlbum.id)
 
     // Check tags relationship
-    const tagIds = Array.isArray(testMusic.tags)
-      ? testMusic.tags.map((tag) => (typeof tag === 'object' && tag && 'id' in tag ? tag.id : tag))
+    const tagIds = Array.isArray(testSong.tags)
+      ? testSong.tags.map((tag) => (typeof tag === 'object' && tag && 'id' in tag ? tag.id : tag))
       : []
     expect(tagIds).toContain(testTag1.id)
     expect(tagIds).toContain(testTag2.id)
@@ -69,7 +69,7 @@ describe('Music Collection', () => {
     await expect(
       // @ts-expect-error - Intentionally omitting required field to test validation
       payload.create({
-        collection: 'music',
+        collection: 'songs',
         data: {
           title: 'Track Without Album',
         },
@@ -93,7 +93,7 @@ describe('Music Collection', () => {
 
     await expect(
       payload.create({
-        collection: 'music',
+        collection: 'songs',
         data: {
           title: 'Invalid Format',
           album: testAlbum.id,
@@ -109,30 +109,30 @@ describe('Music Collection', () => {
   })
 
   it('accepts valid audio file within size limit', async () => {
-    const music = await testData.createMusic(payload, {
+    const song = await testData.createSong(payload, {
       title: 'Valid Audio File',
       album: testAlbum.id,
     })
 
-    expect(music).toBeDefined()
-    expect(music.title).toBe('Valid Audio File')
-    expect(music.mimeType).toBe('audio/mpeg')
+    expect(song).toBeDefined()
+    expect(song.title).toBe('Valid Audio File')
+    expect(song.mimeType).toBe('audio/mpeg')
   })
 
-  it('updates a music track', async () => {
-    const music = await testData.createMusic(payload, {
+  it('updates a song', async () => {
+    const song = await testData.createSong(payload, {
       title: 'Original Title',
       album: testAlbum.id,
     })
 
     const updated = (await payload.update({
-      collection: 'music',
-      id: music.id,
+      collection: 'songs',
+      id: song.id,
       data: {
         title: 'Updated Title',
         tags: [testTag3.id],
       },
-    })) as Music
+    })) as Song
 
     expect(updated.title).toBe('Updated Title')
     expect(updated.tags).toHaveLength(1)
@@ -150,18 +150,18 @@ describe('Music Collection', () => {
       artist: 'Another Artist',
     })
 
-    const music = await testData.createMusic(payload, {
+    const song = await testData.createSong(payload, {
       title: 'Movable Track',
       album: testAlbum.id,
     })
 
     const updated = (await payload.update({
-      collection: 'music',
-      id: music.id,
+      collection: 'songs',
+      id: song.id,
       data: {
         album: secondAlbum.id,
       },
-    })) as Music
+    })) as Song
 
     const albumId = typeof updated.album === 'object' ? updated.album.id : updated.album
     expect(albumId).toBe(secondAlbum.id)
@@ -177,7 +177,7 @@ describe('Music Collection', () => {
 
     for (let i = 0; i < formats.length; i++) {
       const format = formats[i]
-      const music = await testData.createMusic(
+      const song = await testData.createSong(
         payload,
         {
           title: `Test ${format.mimetype.split('/')[1].toUpperCase()}`,
@@ -186,32 +186,32 @@ describe('Music Collection', () => {
         format.name,
       )
 
-      expect(music).toBeDefined()
-      expect(music.mimeType).toBe(format.mimetype)
+      expect(song).toBeDefined()
+      expect(song.mimeType).toBe(format.mimetype)
       // In tests, Payload may add numeric suffix to avoid collisions
       // Regex: basename(-N)?.extension where -N is optional
       const escapedName = format.name.replace('.', '(-\\d+)?\\.')
-      expect(music.filename).toMatch(new RegExp(`^${escapedName}$`))
+      expect(song.filename).toMatch(new RegExp(`^${escapedName}$`))
     }
   })
 
-  it('deletes a music track', async () => {
-    const music = await testData.createMusic(payload, {
+  it('deletes a song', async () => {
+    const song = await testData.createSong(payload, {
       title: 'Track to Delete',
       album: testAlbum.id,
     })
 
     await payload.delete({
-      collection: 'music',
-      id: music.id,
+      collection: 'songs',
+      id: song.id,
     })
 
     // Verify deletion (should be soft deleted due to trash: true)
     const result = await payload.find({
-      collection: 'music',
+      collection: 'songs',
       where: {
         id: {
-          equals: music.id,
+          equals: song.id,
         },
         deletedAt: {
           exists: false,
@@ -222,24 +222,24 @@ describe('Music Collection', () => {
     expect(result.docs).toHaveLength(0)
   })
 
-  it('finds music by album', async () => {
+  it('finds songs by album', async () => {
     const album = await testData.createAlbum(payload, {
       title: 'Searchable Album',
       artist: 'Search Artist',
     })
 
-    await testData.createMusic(payload, {
+    await testData.createSong(payload, {
       title: 'Track in Searchable Album 1',
       album: album.id,
     })
 
-    await testData.createMusic(payload, {
+    await testData.createSong(payload, {
       title: 'Track in Searchable Album 2',
       album: album.id,
     })
 
     const result = await payload.find({
-      collection: 'music',
+      collection: 'songs',
       where: {
         album: {
           equals: album.id,
@@ -260,23 +260,23 @@ describe('Music Collection', () => {
       artist: 'Population Artist',
     })
 
-    const music = await testData.createMusic(payload, {
+    const song = await testData.createSong(payload, {
       title: 'Track with Populated Album',
       album: album.id,
     })
 
     // Fetch with depth to populate album
-    const fetchedMusic = (await payload.findByID({
-      collection: 'music',
-      id: music.id,
+    const fetchedSong = (await payload.findByID({
+      collection: 'songs',
+      id: song.id,
       depth: 1,
-    })) as Music
+    })) as Song
 
     // Check that album is populated
-    expect(typeof fetchedMusic.album).toBe('object')
-    if (typeof fetchedMusic.album === 'object' && fetchedMusic.album !== null) {
-      expect(fetchedMusic.album.title).toBe('Album for Population Test')
-      expect(fetchedMusic.album.artist).toBe('Population Artist')
+    expect(typeof fetchedSong.album).toBe('object')
+    if (typeof fetchedSong.album === 'object' && fetchedSong.album !== null) {
+      expect(fetchedSong.album.title).toBe('Album for Population Test')
+      expect(fetchedSong.album.artist).toBe('Population Artist')
     }
   })
 })
