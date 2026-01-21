@@ -8,7 +8,7 @@
  * Features:
  * - Two-phase import (metadata first, content second)
  * - Idempotent: safely re-runnable (updates existing, creates new)
- * - Uses slug as natural key for pages, authors, and page-tags
+ * - Uses slug as natural key for pages and authors
  * - Uses videoUrl as natural key for external videos
  * - No PostgreSQL dependency - can run anywhere (migrations, CI/CD, Workers)
  *
@@ -40,7 +40,6 @@ import {
   MediaUploader,
   rateLimitDelay,
   readCache,
-  TagManager,
 } from '../lib'
 
 // ============================================================================
@@ -183,19 +182,16 @@ const STORAGE_BASE_URL = 'https://assets.wemeditate.com/uploads/'
  */
 const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/sydevs/SahajCloud/main'
 
-const ARTICLE_TYPE_TAGS: Record<number, string> = {
-  0: 'article',
-  1: 'artwork',
-  2: 'event',
-  3: 'report',
-}
-
-const CONTENT_TYPE_TAGS: Record<string, string> = {
-  static_pages: 'static-page',
-  articles: 'article',
-  promo_pages: 'promo',
-  subtle_system_nodes: 'subtle-system',
-  treatments: 'treatment',
+/**
+ * Map legacy article types to new page tag enum values.
+ * Page tags are now inline enum select values: 'wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique'
+ * Only 'event' (article_type: 2) has a direct mapping.
+ */
+const ARTICLE_TYPE_TO_PAGE_TAG: Record<number, string | undefined> = {
+  0: undefined, // 'article' - no direct mapping
+  1: undefined, // 'artwork' - no direct mapping
+  2: 'event', // 'event' → 'event'
+  3: undefined, // 'report' - no direct mapping
 }
 
 const LOCALES = [
@@ -228,19 +224,17 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   private data!: WeMeditateData
   private mediaDownloader!: MediaDownloader
   private mediaUploader!: MediaUploader
-  private tagManager!: TagManager
   private defaultThumbnailId: number | string | null = null
 
-  // Image tag IDs
-  private thumbnailTagId: number | null = null
-  private placeholderTagId: number | null = null
+  // Image tag names (now inline enum values, not collection IDs)
+  private thumbnailTag: string = 'thumbnail'
+  private placeholderTag: string = 'placeholder'
 
   // In-memory maps for Phase 2 content conversion (old ID → Payload ID)
   // These are populated during Phase 1 and used during Phase 2
   private idMaps = {
     authors: new Map<number, number | string>(),
     albums: new Map<number, number | string>(),
-    categories: new Map<number, number | string>(),
     staticPages: new Map<number, number | string>(),
     articles: new Map<number, number | string>(),
     promoPages: new Map<number, number | string>(),
@@ -255,7 +249,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   private meditationTitleMap = new Map<string, number | string>()
   private meditationRailsTitleMap = new Map<number, string>()
   private treatmentThumbnailMap = new Map<number, number | string>()
-  private contentTypeTagMap = new Map<string, number>()
 
   // Pre-cached music tags (slug → id) to avoid N+1 queries
   private musicTagCache = new Map<string, number>()
@@ -289,7 +282,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       this.mediaDownloader = new MediaDownloader(this.cacheDir, this.logger)
       await this.mediaDownloader.initialize()
       this.mediaUploader = new MediaUploader(this.payload, this.logger)
-      this.tagManager = new TagManager(this.payload, this.logger)
 
       // Pre-cache to avoid N+1 queries during import
       await this.preloadMusicTags()
@@ -298,32 +290,26 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
       // Preload collections for efficient skip/update mode
       // This dramatically reduces D1 queries by caching existence checks
+      // Note: page-tags removed - now inline enum strings on Pages collection
       await Promise.all([
         this.preloadCollection('authors', 'slug'),
         this.preloadCollection('albums', 'title'), // WeMeditate looks up albums by title
         this.preloadCollection('music', 'title'), // WeMeditate looks up music by title
         this.preloadCollection('pages', 'slug'),
-        this.preloadCollection('page-tags', 'slug'),
       ])
     }
   }
 
   /**
    * Setup image tags for content categorization.
-   * Creates tags if they don't exist and caches their IDs.
+   * Image tags are now inline enum select values on the Images collection,
+   * so we just log that they're ready (no collection setup needed).
    */
   private async setupImageTags(): Promise<void> {
     await this.logger.info('Setting up image tags...')
-
-    const [thumbnailId, placeholderId] = await Promise.all([
-      this.tagManager.ensureTag('image-tags', 'thumbnail'),
-      this.tagManager.ensureTag('image-tags', 'placeholder'),
-    ])
-
-    this.thumbnailTagId = thumbnailId
-    this.placeholderTagId = placeholderId
-
-    await this.logger.info('✓ Image tags ready')
+    // Image tags are now inline enum values: 'thumbnail', 'placeholder'
+    // No collection setup needed - just use the string values directly
+    await this.logger.info('✓ Image tags ready (inline enum values)')
   }
 
   /**
@@ -366,9 +352,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     // because we don't store the Rails IDs. However, we look up by slug during import anyway.
     const authors = await this.payload.find({ collection: 'authors', limit: 100, depth: 0 })
     await this.logger.info(`✓ Found ${authors.totalDocs} existing authors`)
-
-    const pageTags = await this.payload.find({ collection: 'page-tags', limit: 100, depth: 0 })
-    await this.logger.info(`✓ Found ${pageTags.totalDocs} existing page-tags`)
 
     // Rebuild albums map: legacy artist ID → Payload album ID
     // Albums are named after artists (album.title = artist.name), so we can match by title
@@ -443,10 +426,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         await this.importMusic()
       }
 
-      // Categories and content type tags are always needed for pages
+      // Import pages (page tags are now inline enum strings, no collection needed)
       if (!isPaginated) {
-        await this.importCategories()
-        await this.importContentTypeTags()
         await this.importPages('static_pages', 'static_page_translations')
         await this.importPages('articles', 'article_translations')
         await this.importPages('subtle_system_nodes', 'subtle_system_node_translations')
@@ -493,11 +474,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       // Categories, content type tags, forms, global media, and lectures are imported once
       // Subsequent batches skip these since they're already complete
 
-      // Ensure categories and content type tags exist
-      await this.importCategories()
-      await this.importContentTypeTags()
-
       // Import forms (only once)
+      // Note: page-tags removed - now inline enum strings on Pages collection
       await this.importForms()
 
       // Import global media (authors, thumbnails) ONCE
@@ -610,21 +588,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       authorId = this.idMaps.authors.get(pageAny.author_id)
     }
 
-    const tags: (number | string)[] = []
-    const contentTypeTag = CONTENT_TYPE_TAGS[tableName]
-    if (contentTypeTag) {
-      const tagId = this.contentTypeTagMap.get(`content-type-tag-${contentTypeTag}`)
-      if (tagId) tags.push(tagId)
-    }
-
-    if (pageAny.article_type !== undefined && ARTICLE_TYPE_TAGS[pageAny.article_type]) {
-      const articleTypeTag = ARTICLE_TYPE_TAGS[pageAny.article_type]
-      const tagId = this.contentTypeTagMap.get(`content-type-tag-${articleTypeTag}`)
-      if (tagId) tags.push(tagId)
-    }
-
-    if (pageAny.category_id && this.idMaps.categories.has(pageAny.category_id)) {
-      tags.push(this.idMaps.categories.get(pageAny.category_id)!)
+    // Page tags are now inline enum strings: 'wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique'
+    // Only article_type 'event' has a direct mapping
+    const tags: string[] = []
+    if (pageAny.article_type !== undefined) {
+      const pageTag = ARTICLE_TYPE_TO_PAGE_TAG[pageAny.article_type]
+      if (pageTag) tags.push(pageTag)
     }
 
     // Calculate published state
@@ -1334,120 +1303,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   }
 
   // ============================================================================
-  // CATEGORIES IMPORT (as Page Tags)
-  // ============================================================================
-
-  private async importCategories(): Promise<void> {
-    await this.logger.info('\n=== Importing Categories as Page Tags ===')
-
-    const categories = this.data.categories
-    const total = categories.length
-
-    await this.logger.info(`Found ${total} categories`)
-
-    for (let i = 0; i < total; i++) {
-      const category = categories[i]
-      try {
-        const enTranslation = category.translations.find((t: any) => t.locale === 'en' && t.name)
-        if (!enTranslation) {
-          await this.skip(`Category ${category.id}: no English translation`, {
-            collection: 'page-tags',
-            identifier: `category-${category.id}`,
-            current: i + 1,
-            total,
-          })
-          continue
-        }
-
-        // Generate slug from title (normalized for consistent matching)
-        const normalizedTitle = normalizeForSlug(enTranslation.name!)
-        const slug = enTranslation.slug
-          ? normalizeForSlug(enTranslation.slug)
-              .replace(/[^a-z0-9]+/g, '-')
-              .replace(/-+/g, '-')
-              .replace(/^-|-$/g, '')
-          : normalizedTitle
-              .replace(/[^a-z0-9]+/g, '-')
-              .replace(/-+/g, '-')
-              .replace(/^-|-$/g, '')
-
-        // Upsert page tag by slug
-        const tagResult = await this.upsert<{ id: number }>(
-          'page-tags',
-          { slug: { equals: slug } },
-          { title: normalizedTitle },
-          { locale: 'en' },
-        )
-
-        this.idMaps.categories.set(category.id, tagResult.doc.id)
-
-        // OPTIMIZATION: Skip locale updates if record was skipped (no DB work needed)
-        if (tagResult.action === 'skipped') {
-          continue
-        }
-
-        // Update other locales using helper
-        await this.updateLocales(
-          'page-tags',
-          tagResult.doc.id,
-          category.translations,
-          (t) => ({ title: t.name }),
-          { excludeLocale: 'en', requiredFields: ['name'] },
-        )
-      } catch (error) {
-        this.addError(`Importing category ${category.id}`, error as Error)
-      }
-    }
-  }
-
-  // ============================================================================
-  // CONTENT TYPE TAGS
-  // ============================================================================
-
-  private async importContentTypeTags(): Promise<void> {
-    await this.logger.info('\n=== Creating Content Type Tags ===')
-
-    for (const [_sourceType, tagName] of Object.entries(CONTENT_TYPE_TAGS)) {
-      try {
-        const slug = tagName
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/-+/g, '-')
-
-        const result = await this.upsert<{ id: number }>(
-          'page-tags',
-          { slug: { equals: slug } },
-          { title: tagName },
-        )
-
-        this.contentTypeTagMap.set(`content-type-tag-${tagName}`, result.doc.id)
-      } catch (error) {
-        this.addError(`Creating content type tag ${tagName}`, error as Error)
-      }
-    }
-
-    // Also create article type tags
-    for (const articleType of Object.values(ARTICLE_TYPE_TAGS)) {
-      try {
-        const slug = articleType
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/-+/g, '-')
-
-        const result = await this.upsert<{ id: number }>(
-          'page-tags',
-          { slug: { equals: slug } },
-          { title: articleType },
-        )
-
-        this.contentTypeTagMap.set(`content-type-tag-${articleType}`, result.doc.id)
-      } catch (_error) {
-        // Tag might already exist from content type tags
-      }
-    }
-  }
-
-  // ============================================================================
   // PAGES IMPORT
   // ============================================================================
 
@@ -1516,21 +1371,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           authorId = this.idMaps.authors.get(page.author_id)
         }
 
-        const tags: (number | string)[] = []
-        const contentTypeTag = CONTENT_TYPE_TAGS[tableName]
-        if (contentTypeTag) {
-          const tagId = this.contentTypeTagMap.get(`content-type-tag-${contentTypeTag}`)
-          if (tagId) tags.push(tagId)
-        }
-
-        if (page.article_type !== undefined && ARTICLE_TYPE_TAGS[page.article_type]) {
-          const articleTypeTag = ARTICLE_TYPE_TAGS[page.article_type]
-          const tagId = this.contentTypeTagMap.get(`content-type-tag-${articleTypeTag}`)
-          if (tagId) tags.push(tagId)
-        }
-
-        if (page.category_id && this.idMaps.categories.has(page.category_id)) {
-          tags.push(this.idMaps.categories.get(page.category_id)!)
+        // Page tags are now inline enum strings: 'wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique'
+        // Only article_type 'event' has a direct mapping
+        const tags: string[] = []
+        if (page.article_type !== undefined) {
+          const pageTag = ARTICLE_TYPE_TO_PAGE_TAG[page.article_type]
+          if (pageTag) tags.push(pageTag)
         }
 
         // Calculate published state - _status: 'published' if ANY locale has published_at
@@ -2368,10 +2214,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     const PREVIEW_URL =
       'https://raw.githubusercontent.com/sydevs/SahajCloud/main/seeds/wemeditate/preview.png'
 
-    // Tags for default placeholder thumbnail
-    const tags = [this.thumbnailTagId, this.placeholderTagId].filter(
-      (id): id is number => id !== null,
-    )
+    // Tags for default placeholder thumbnail (now inline enum strings)
+    const tags = [this.thumbnailTag, this.placeholderTag]
 
     // Try local file first (returns null in Workers mode)
     const previewPath = path.join(__dirname, 'preview.png')
@@ -2430,7 +2274,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
       if (thumbnailUrl) {
         const downloadResult = await this.mediaDownloader.downloadAndConvertImage(thumbnailUrl)
-        const thumbnailTags = this.thumbnailTagId ? [this.thumbnailTagId] : []
+        const thumbnailTags = [this.thumbnailTag]
         const uploadResult = await this.mediaUploader.uploadWithDeduplication(
           downloadResult.localPath,
           {
@@ -2469,29 +2313,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       }
     }
     return tagIds
-  }
-
-  /**
-   * Find a page tag by slug (case-insensitive normalized slug)
-   * Tags are stored with slugs derived from titles, so we search by slug
-   */
-  private async findPageTagBySlug(slug: string): Promise<number | null> {
-    try {
-      const normalizedSlug = slug
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '')
-
-      const result = await this.payload.find({
-        collection: 'page-tags',
-        where: { slug: { equals: normalizedSlug } },
-        limit: 1,
-      })
-      return result.docs.length > 0 ? result.docs[0].id : null
-    } catch {
-      return null
-    }
   }
 
   private async updateWeMeditateWebSettings(): Promise<void> {
@@ -2535,18 +2356,16 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       }
 
       const musicPageTags = this.findMusicTagsBySlug(['strings', 'flute', 'nature'])
-      const inspirationPageTags = await Promise.all([
-        this.findPageTagBySlug('creativity'),
-        this.findPageTagBySlug('wisdom'),
-        this.findPageTagBySlug('living'),
-        this.findPageTagBySlug('events'),
-        this.findPageTagBySlug('stories'),
-      ])
-      const techniquePageTag = await this.findPageTagBySlug('treatment')
+      // Page tags are now inline enum strings
+      const inspirationPageTags: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] = [
+        'creativity',
+        'wisdom',
+        'lifestyle',
+        'event',
+      ]
 
       const featuredPages = pageMapping.featuredPages.filter((id) => id !== null) as number[]
       const footerPages = pageMapping.footerPages.filter((id) => id !== null) as number[]
-      const inspirationTagsFiltered = inspirationPageTags.filter((id) => id !== null) as number[]
 
       // Validate required fields
       if (!pageMapping.homePage || featuredPages.length < 3 || !pageMapping.musicPage) {
@@ -2579,9 +2398,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           agnya: toUndefined(pageMapping.agnya),
           sahasrara: toUndefined(pageMapping.sahasrara),
           techniquesPage: toUndefined(pageMapping.techniquesPage),
-          techniquePageTag: toUndefined(techniquePageTag),
           inspirationPage: toUndefined(pageMapping.inspirationPage),
-          inspirationPageTags: inspirationTagsFiltered,
+          inspirationPageTags,
           classesPage: toUndefined(pageMapping.classesPage),
           liveMeditationsPage: toUndefined(pageMapping.liveMeditationsPage),
         },

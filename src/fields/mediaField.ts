@@ -1,4 +1,4 @@
-import type { UploadField, Where, PayloadRequest } from 'payload'
+import type { UploadField, Where } from 'payload'
 
 export type MediaFieldOptions = {
   /** Field name */
@@ -11,7 +11,7 @@ export type MediaFieldOptions = {
   localized?: boolean
   /** Constrain selection to specific image orientation */
   orientation?: 'landscape' | 'portrait' | 'square'
-  /** Filter by tag name (e.g., 'meditation-thumbnail') */
+  /** Filter by tag name (e.g., 'thumbnail', 'icon') */
   tagName?: string
   /** Admin configuration overrides */
   admin?: Partial<UploadField['admin']>
@@ -23,38 +23,13 @@ export type MediaFieldOptions = {
 export function mediaField(options: MediaFieldOptions): UploadField {
   const { name, label, required = false, localized = false, tagName, admin = {} } = options
 
-  // Build filter options based on tagName
+  // Build filter options based on tagName (now uses string enum values directly)
   const filterOptions = tagName
-    ? async ({ req }: { req: PayloadRequest }): Promise<Where> => {
-        // Look up the tag by name to get its ID
-        const tagResult = await req.payload.find({
-          collection: 'image-tags',
-          where: {
-            title: {
-              equals: tagName,
-            },
-          },
-          limit: 1,
-        })
-
-        if (tagResult.docs.length === 0) {
-          // No tag found with this name, return a filter that matches nothing
-          return {
-            id: {
-              equals: 'non-existent-id',
-            },
-          }
-        }
-
-        const tagId = tagResult.docs[0].id
-
-        // Return filter for media with this tag ID
-        return {
-          tags: {
-            contains: tagId,
-          },
-        }
-      }
+    ? async (): Promise<Where> => ({
+        tags: {
+          contains: tagName,
+        },
+      })
     : undefined
 
   return {

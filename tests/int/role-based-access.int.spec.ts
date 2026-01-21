@@ -361,6 +361,7 @@ describe('Role-Based Access Control', () => {
       })
 
       // Should have implicit read to collections in wemeditate-web project
+      // Note: video-tags removed - now inline enum strings on Videos collection
       const webProjectCollections = [
         'pages',
         'meditations',
@@ -370,7 +371,6 @@ describe('Role-Based Access Control', () => {
         'authors',
         'albums',
         'videos',
-        'video-tags',
         'forms',
         'form-submissions',
       ]
@@ -412,8 +412,9 @@ describe('Role-Based Access Control', () => {
       ).toBe(false)
     })
 
-    it('grants read access to Videos and VideoTags in both wemeditate projects', () => {
-      // wemeditate-web-client should have read access to videos and video-tags
+    it('grants read access to Videos in both wemeditate projects', () => {
+      // Note: video-tags collection removed - now inline enum strings on Videos collection
+      // wemeditate-web-client should have read access to videos
       const webClient = testData.dummyUser('clients', {
         id: 15,
         roles: ['wemeditate-web-client'],
@@ -425,14 +426,8 @@ describe('Role-Based Access Control', () => {
           bypassPermissions,
         ),
       ).toBe(true)
-      expect(
-        hasPermission(
-          { user: webClient, collection: 'video-tags', operation: 'read' },
-          bypassPermissions,
-        ),
-      ).toBe(true)
 
-      // wemeditate-app-client should also have read access to videos and video-tags
+      // wemeditate-app-client should also have read access to videos
       const appClient = testData.dummyUser('clients', {
         id: 16,
         roles: ['wemeditate-app-client'],
@@ -441,12 +436,6 @@ describe('Role-Based Access Control', () => {
       expect(
         hasPermission(
           { user: appClient, collection: 'videos', operation: 'read' },
-          bypassPermissions,
-        ),
-      ).toBe(true)
-      expect(
-        hasPermission(
-          { user: appClient, collection: 'video-tags', operation: 'read' },
           bypassPermissions,
         ),
       ).toBe(true)

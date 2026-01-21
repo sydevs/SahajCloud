@@ -12,11 +12,8 @@ import { Lectures } from './resources/Lectures'
 import { Narrators } from './resources/Narrators'
 import { Files } from './system/Files'
 import { Frames } from './system/Frames'
-import { ImageTags } from './tags/ImageTags'
 import { MeditationTags } from './tags/MeditationTags'
 import { MusicTags } from './tags/MusicTags'
-import { PageTags } from './tags/PageTags'
-import { VideoTags } from './tags/VideoTags'
 
 // Export all collections as an array
 export const collections = [
@@ -35,11 +32,8 @@ export const collections = [
   Images,
   Files,
   // Tags
-  ImageTags,
   MeditationTags,
   MusicTags,
-  PageTags,
-  VideoTags,
   // Access
   Managers,
   Clients,
@@ -61,11 +55,8 @@ export {
   Images,
   Files,
   // Tags
-  ImageTags,
   MeditationTags,
   MusicTags,
-  PageTags,
-  VideoTags,
   // Access
   Managers,
   Clients,

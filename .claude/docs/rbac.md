@@ -218,7 +218,7 @@ Both managers and API clients get the same implicit read access:
 - Shared collections (collections not in any project)
 
 **Examples**:
-- A "web-translator" (wemeditate-web project) can read pages, meditations, music, etc. (wemeditate-web project) AND shared collections like image-tags.
+- A "web-translator" (wemeditate-web project) can read pages, meditations, music, etc. (wemeditate-web project) AND shared collections.
 - `wemeditate-web-client` → Can read pages, meditations, music, etc. (wemeditate-web project) AND shared collections
 - `wemeditate-app-client` → Can read meditations, lessons, lectures, etc. (wemeditate-app project) AND shared collections
 - `sahaj-atlas-client` → Can read images, files (sahaj-atlas project) AND shared collections

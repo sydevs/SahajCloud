@@ -22,15 +22,10 @@ async function checkTags() {
     const config = await configPromise
     payload = await getPayload({ config })
 
-    console.log('\nAll Image Tags:')
-    console.log('===============')
-    const imageTags = await payload.find({
-      collection: 'image-tags',
-      limit: 100,
-    })
-    console.log(JSON.stringify(imageTags.docs, null, 2))
+    // Note: Image tags are now inline enum select values, not a separate collection
+    // Showing images with tags instead
 
-    console.log('\n\nImage documents with tags:')
+    console.log('\nImage documents with tags:')
     console.log('==========================')
     const imagesWithTags = await payload.find({
       collection: 'images',
@@ -65,7 +60,6 @@ async function checkTags() {
       limit: 3,
     })
     console.log(JSON.stringify(lessonsWithTags.docs, null, 2))
-
   } catch (error) {
     console.error('Error:', error)
   } finally {

@@ -69,7 +69,7 @@ import {
 
 **ALWAYS_HIDDEN_COLLECTIONS** (System collections always hidden):
 - `managers`, `clients` (access collections)
-- `images`, `files`, `image-tags` (system collections)
+- `images`, `files` (system collections)
 - `payload-kv`, `payload-jobs`, `payload-locked-documents`, `payload-preferences`, `payload-migrations`, `payload-job-stats` (Payload internal)
 
 **EXCLUDED_OPERATIONS** (HTTP methods always hidden):
