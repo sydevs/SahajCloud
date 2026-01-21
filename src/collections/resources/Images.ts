@@ -1,8 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
 import { detectOrientationHook } from '@/hooks/imageHooks'
-import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { createRateLimitHook } from '@/lib/rateLimiting'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const Images: CollectionConfig = {
@@ -75,10 +73,8 @@ export const Images: CollectionConfig = {
     }),
   ],
   hooks: {
-    beforeOperation: [createRateLimitHook()],
     // Removed: sanitizeFilename (not needed - Cloudflare provides unique IDs)
     // Removed: processFile and convertFile (Sharp processing no longer needed)
     beforeChange: [detectOrientationHook],
-    afterRead: [trackClientUsageHook],
   },
 }

@@ -3,8 +3,6 @@ import type { CollectionConfig } from 'payload'
 
 import { QuoteBlock } from '@/blocks/pages'
 import { mediaField } from '@/fields'
-import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { createRateLimitHook } from '@/lib/rateLimiting'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import subtitleSchema from '@/lib/subtitlesSchema.json' with { type: 'json' }
 
@@ -166,8 +164,4 @@ export const Lessons: CollectionConfig = {
       ],
     },
   ],
-  hooks: {
-    beforeOperation: [createRateLimitHook()],
-    afterRead: [trackClientUsageHook],
-  },
 }

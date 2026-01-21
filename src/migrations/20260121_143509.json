@@ -4579,32 +4579,54 @@
           "notNull": false,
           "autoincrement": false
         },
-        "usage_stats_total_requests": {
-          "name": "usage_stats_total_requests",
+        "usage_daily_requests": {
+          "name": "usage_daily_requests",
           "type": "numeric",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
           "default": 0
         },
-        "usage_stats_daily_requests": {
-          "name": "usage_stats_daily_requests",
+        "usage_peak_daily_requests": {
+          "name": "usage_peak_daily_requests",
           "type": "numeric",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
           "default": 0
         },
-        "usage_stats_max_daily_requests": {
-          "name": "usage_stats_max_daily_requests",
+        "usage_last_request_at": {
+          "name": "usage_last_request_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "usage_total_requests": {
+          "name": "usage_total_requests",
           "type": "numeric",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
           "default": 0
         },
-        "usage_stats_last_request_at": {
-          "name": "usage_stats_last_request_at",
+        "usage_high_usage_days": {
+          "name": "usage_high_usage_days",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "usage_last_high_usage_at": {
+          "name": "usage_last_high_usage_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "usage_first_request_at": {
+          "name": "usage_first_request_at",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -9090,6 +9112,6 @@
   "internal": {
     "indexes": {}
   },
-  "id": "864e8d5b-763d-4be3-aa98-e95ed47b878f",
+  "id": "659ea90f-6a26-4608-aaf1-431a33f3d6ec",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }
