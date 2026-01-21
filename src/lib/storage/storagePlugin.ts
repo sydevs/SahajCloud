@@ -141,7 +141,7 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
           disableLocalStorage: true,
           disablePayloadAccessControl: true,
         },
-        'music-tags': {
+        'song-tags': {
           adapter: r2Adapter,
           disableLocalStorage: true,
           disablePayloadAccessControl: true,
@@ -154,7 +154,7 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
           disableLocalStorage: true,
           disablePayloadAccessControl: true,
         },
-        music: {
+        songs: {
           adapter: r2Adapter,
           disableLocalStorage: true,
           disablePayloadAccessControl: true,

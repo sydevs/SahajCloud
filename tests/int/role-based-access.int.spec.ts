@@ -367,7 +367,7 @@ describe('Role-Based Access Control', () => {
         'meditations',
         'frames',
         'narrators',
-        'music',
+        'songs',
         'authors',
         'albums',
         'videos',
@@ -468,7 +468,7 @@ describe('Role-Based Access Control', () => {
         hasPermission(
           {
             user: managerUser,
-            collection: 'music',
+            collection: 'songs',
             operation: 'update',
             field: { localized: true },
           },
@@ -489,7 +489,7 @@ describe('Role-Based Access Control', () => {
       // All checks should succeed
       expect(results[0]).toBe(true) // meditations create
       expect(results[1]).toBe(true) // pages update (localized field)
-      expect(results[2]).toBe(true) // music update (localized field)
+      expect(results[2]).toBe(true) // songs update (localized field)
       expect(results[3]).toBe(true) // images create
       expect(results[4]).toBe(true) // narrators read (implicit)
     })

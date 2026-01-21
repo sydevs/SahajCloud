@@ -3,8 +3,8 @@ import type { CollectionConfig } from 'payload'
 import { slugField } from '@/fields'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
-export const MusicTags: CollectionConfig = {
-  slug: 'music-tags',
+export const SongTags: CollectionConfig = {
+  slug: 'song-tags',
   labels: {
     singular: 'Music Category',
     plural: 'Music Categories',
@@ -12,17 +12,17 @@ export const MusicTags: CollectionConfig = {
   admin: {
     group: 'Metadata',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'filename', 'music'],
+    defaultColumns: ['title', 'filename', 'songs'],
   },
   upload: {
-    staticDir: 'media/music-tags',
+    staticDir: 'media/song-tags',
     hideRemoveFile: true,
     mimeTypes: ['image/svg+xml'],
   },
   fields: [
     // Virtual URL field for CDN delivery (R2 for SVG support)
     virtualUrlField({
-      collection: 'music-tags',
+      collection: 'song-tags',
       adapter: 'r2',
     }),
     // Slug auto-generated from title
@@ -40,11 +40,11 @@ export const MusicTags: CollectionConfig = {
         description: 'Localized title shown to public users',
       },
     },
-    // Bidirectional join to music
+    // Bidirectional join to songs
     {
-      name: 'music',
+      name: 'songs',
       type: 'join',
-      collection: 'music',
+      collection: 'songs',
       on: 'tags',
       admin: {
         components: {

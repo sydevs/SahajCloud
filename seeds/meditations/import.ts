@@ -34,7 +34,7 @@ import type { CollectionSlug, Payload } from 'payload'
 
 import * as path from 'path'
 
-import type { MeditationTag, MusicTag } from '@/payload-types'
+import type { MeditationTag, SongTag } from '@/payload-types'
 
 import {
   BaseImporter,
@@ -325,16 +325,16 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   // In-memory maps for import (legacy ID → new Payload ID)
   private idMaps = {
     meditationTags: new Map<number, number | string>(),
-    musicTags: new Map<number, number | string>(),
+    songTags: new Map<number, number | string>(),
     frames: new Map<string, number | string>(), // key format: "{legacyId}_{gender}"
     meditations: new Map<number, number | string>(),
-    musics: new Map<number, number | string>(),
+    songs: new Map<number, number | string>(),
     narrators: new Map<number, number | string>(),
     albumsByArtist: new Map<string, number | string>(), // key: artist name (lowercase)
   }
 
-  // Preload cache for music lookup (composite key: "title|albumId")
-  private musicCache: Map<string, number | string> = new Map()
+  // Preload cache for songs lookup (composite key: "title|albumId")
+  private songCache: Map<string, number | string> = new Map()
 
   // ============================================================================
   // LIFECYCLE
@@ -352,9 +352,9 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         this.preloadCollection('meditations', 'label'),
         this.preloadCollection('narrators', 'name'),
         this.preloadCollection('meditation-tags', 'slug'),
-        this.preloadCollection('music-tags', 'slug'),
-        this.preloadCollection('music', 'slug'),
-        this.preloadMusicWithCompositeKey(),
+        this.preloadCollection('song-tags', 'slug'),
+        this.preloadCollection('songs', 'slug'),
+        this.preloadSongsWithCompositeKey(),
       ])
     }
   }
@@ -401,8 +401,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     const meditationTagsCount = await this.payload.count({ collection: 'meditation-tags' })
     await this.logger.info(`✓ Found ${meditationTagsCount.totalDocs} existing meditation tags`)
 
-    const musicTagsCount = await this.payload.count({ collection: 'music-tags' })
-    await this.logger.info(`✓ Found ${musicTagsCount.totalDocs} existing music tags`)
+    const songTagsCount = await this.payload.count({ collection: 'song-tags' })
+    await this.logger.info(`✓ Found ${songTagsCount.totalDocs} existing song tags`)
 
     // Load existing albums for music matching
     await this.loadExistingAlbums()
@@ -478,20 +478,20 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     const filteredTaggings = taggings.filter((t) => t.context === 'tags')
 
     const meditationTagIds = new Set<number>()
-    const musicTagIds = new Set<number>()
+    const songTagIds = new Set<number>()
 
     filteredTaggings.forEach((tagging) => {
       if (tagging.taggable_type === 'Meditation') {
         meditationTagIds.add(tagging.tag_id)
       } else if (tagging.taggable_type === 'Music') {
-        musicTagIds.add(tagging.tag_id)
+        songTagIds.add(tagging.tag_id)
       }
     })
 
     // Preload existing tags
-    const [meditationTagsCache, musicTagsCache] = await Promise.all([
+    const [meditationTagsCache, songTagsCache] = await Promise.all([
       this.preloadCollection('meditation-tags', 'slug'),
-      this.preloadCollection('music-tags', 'slug'),
+      this.preloadCollection('song-tags', 'slug'),
     ])
 
     let meditationMapped = 0
@@ -513,12 +513,12 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       }
 
       // Map music tags
-      if (musicTagIds.has(tag.id)) {
+      if (songTagIds.has(tag.id)) {
         const mappedSlug = LEGACY_TO_MUSIC_TAG_SLUG[legacyName]
         if (mappedSlug) {
-          const existingTag = musicTagsCache.get(mappedSlug)
+          const existingTag = songTagsCache.get(mappedSlug)
           if (existingTag) {
-            this.idMaps.musicTags.set(tag.id, existingTag.id as number)
+            this.idMaps.songTags.set(tag.id, existingTag.id as number)
             musicMapped++
           }
         }
@@ -611,7 +611,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
     // Music (no pagination - small collection)
     if (!isPaginated) {
-      await this.importMusic(data.musics, data.taggings, data.attachments, data.blobs)
+      await this.importSongs(data.musics, data.taggings, data.attachments, data.blobs)
     }
 
     // Meditations
@@ -735,8 +735,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     metadata: Record<string, any> = {},
   ): Promise<any | null> {
     try {
-      // Validate MIME type for music collection
-      if (collection === 'music') {
+      // Validate MIME type for songs collection
+      if (collection === 'songs') {
         const acceptedMimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg']
 
         if (fileData.name.toLowerCase().endsWith('.m4a')) {
@@ -763,7 +763,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         overrideAccess: true, // Bypass access control for seed script
       }
 
-      if (collection === 'music' || collection === 'meditations') {
+      if (collection === 'songs' || collection === 'meditations') {
         createOptions.locale = 'en'
       }
 
@@ -986,33 +986,33 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     const filteredTaggings = taggings.filter((t) => t.context === 'tags')
 
     const meditationTagIds = new Set<number>()
-    const musicTagIds = new Set<number>()
+    const songTagIds = new Set<number>()
 
     filteredTaggings.forEach((tagging) => {
       if (tagging.taggable_type === 'Meditation') {
         meditationTagIds.add(tagging.tag_id)
       } else if (tagging.taggable_type === 'Music') {
-        musicTagIds.add(tagging.tag_id)
+        songTagIds.add(tagging.tag_id)
       }
     })
 
     await this.logger.info(`    ℹ️  ${meditationTagIds.size} tags used by meditations`)
-    await this.logger.info(`    ℹ️  ${musicTagIds.size} tags used by music`)
+    await this.logger.info(`    ℹ️  ${songTagIds.size} tags used by songs`)
 
     // Load existing predefined tags
-    const [existingMeditationTags, existingMusicTags] = await Promise.all([
+    const [existingMeditationTags, existingSongTags] = await Promise.all([
       this.payload.find({ collection: 'meditation-tags', limit: 1000 }),
-      this.payload.find({ collection: 'music-tags', limit: 1000 }),
+      this.payload.find({ collection: 'song-tags', limit: 1000 }),
     ])
 
     const meditationTagsBySlug = new Map<string, MeditationTag>()
-    const musicTagsBySlug = new Map<string, MusicTag>()
+    const songTagsBySlug = new Map<string, SongTag>()
 
     existingMeditationTags.docs.forEach((tag) => {
       if (tag.slug) meditationTagsBySlug.set(tag.slug, tag)
     })
-    existingMusicTags.docs.forEach((tag) => {
-      if (tag.slug) musicTagsBySlug.set(tag.slug, tag)
+    existingSongTags.docs.forEach((tag) => {
+      if (tag.slug) songTagsBySlug.set(tag.slug, tag)
     })
 
     let meditationMapped = 0,
@@ -1038,20 +1038,20 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         }
       }
 
-      // Map music tags
-      if (musicTagIds.has(tag.id)) {
+      // Map song tags
+      if (songTagIds.has(tag.id)) {
         const mappedSlug = LEGACY_TO_MUSIC_TAG_SLUG[legacyName]
         if (mappedSlug) {
-          const existingTag = musicTagsBySlug.get(mappedSlug)
+          const existingTag = songTagsBySlug.get(mappedSlug)
           if (existingTag) {
-            this.idMaps.musicTags.set(tag.id, existingTag.id as number)
-            await this.logger.log(`    ✓ Mapped music "${tag.name}" → "${mappedSlug}"`)
+            this.idMaps.songTags.set(tag.id, existingTag.id as number)
+            await this.logger.log(`    ✓ Mapped song "${tag.name}" → "${mappedSlug}"`)
             musicMapped++
           } else {
-            this.addWarning(`Predefined music tag "${mappedSlug}" not found - run tags import first`)
+            this.addWarning(`Predefined song tag "${mappedSlug}" not found - run tags import first`)
           }
         } else {
-          this.addWarning(`No mapping for music tag "${tag.name}"`)
+          this.addWarning(`No mapping for song tag "${tag.name}"`)
         }
       }
     }
@@ -1301,18 +1301,18 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   }
 
   /**
-   * Pre-load music tracks with composite key (title|albumId) for O(1) lookups.
-   * This eliminates per-record queries in importMusics().
+   * Pre-load songs with composite key (title|albumId) for O(1) lookups.
+   * This eliminates per-record queries in importSongs().
    */
-  private async preloadMusicWithCompositeKey(): Promise<void> {
-    await this.logger.info('Pre-loading music with composite keys...')
+  private async preloadSongsWithCompositeKey(): Promise<void> {
+    await this.logger.info('Pre-loading songs with composite keys...')
     const BATCH_SIZE = 500
     let page = 1
     let hasMore = true
 
     while (hasMore) {
       const result = await this.payload.find({
-        collection: 'music',
+        collection: 'songs',
         limit: BATCH_SIZE,
         page,
         depth: 0,
@@ -1323,17 +1323,17 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         if (doc.title && doc.album) {
           // Composite key: "title|albumId"
           const key = `${doc.title}|${doc.album}`
-          this.musicCache.set(key, doc.id)
+          this.songCache.set(key, doc.id)
         }
       }
       hasMore = result.hasNextPage
       page++
     }
-    await this.logger.info(`✓ Pre-loaded ${this.musicCache.size} music tracks`)
+    await this.logger.info(`✓ Pre-loaded ${this.songCache.size} songs`)
   }
 
   /**
-   * Get or create an album for a music track based on the credit/artist.
+   * Get or create an album for a song based on the credit/artist.
    * First tries to find an existing album by artist name.
    * If not found, creates a new album with a placeholder image.
    */
@@ -1414,10 +1414,10 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   }
 
   // ============================================================================
-  // MUSIC IMPORT
+  // SONGS IMPORT
   // ============================================================================
 
-  private async importMusic(
+  private async importSongs(
     musics: ImportedData['musics'],
     taggings: ImportedData['taggings'],
     attachments: any[],
@@ -1429,21 +1429,21 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     const total = musics.length
     for (let i = 0; i < total; i++) {
       const music = musics[i]
-      const identifier = music.title || `music-${music.id}`
+      const identifier = music.title || `song-${music.id}`
 
-      // Get music tags
-      const musicTaggings = taggings.filter(
+      // Get song tags
+      const songTaggings = taggings.filter(
         (t) => t.taggable_type === 'Music' && t.taggable_id === music.id && t.context === 'tags',
       )
-      const musicTagIds = musicTaggings
-        .map((t) => this.idMaps.musicTags.get(t.tag_id))
+      const songTagIds = songTaggings
+        .map((t) => this.idMaps.songTags.get(t.tag_id))
         .filter((id): id is number => Boolean(id))
 
       // Get album based on credit field (artist name)
       // If no credit, skip this track
       if (!music.credit) {
-        await this.skip(`Music "${music.title}": no credit/artist specified`, {
-          collection: 'music',
+        await this.skip(`Song "${music.title}": no credit/artist specified`, {
+          collection: 'songs',
           identifier,
           current: i + 1,
           total,
@@ -1455,8 +1455,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       try {
         albumId = await this.getOrCreateAlbumForArtist(music.credit)
       } catch (error) {
-        this.addError(`Getting album for music "${music.title}"`, error as Error)
-        await this.reportDocument('music', identifier, 'error', {
+        this.addError(`Getting album for song "${music.title}"`, error as Error)
+        await this.reportDocument('songs', identifier, 'error', {
           error: (error as Error).message,
           current: i + 1,
           total,
@@ -1464,44 +1464,44 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         continue
       }
 
-      const musicData = {
-        title: music.title || 'Untitled Music',
+      const songData = {
+        title: music.title || 'Untitled Song',
         album: albumId as number,
-        tags: musicTagIds.length > 0 ? musicTagIds : undefined,
+        tags: songTagIds.length > 0 ? songTagIds : undefined,
       }
 
       try {
-        // Check preload cache for existing music by title AND album (composite key)
+        // Check preload cache for existing song by title AND album (composite key)
         const cacheKey = `${music.title}|${albumId}`
-        const existingId = this.musicCache.get(cacheKey)
+        const existingId = this.songCache.get(cacheKey)
 
         if (existingId) {
-          // SKIP MODE: Just reuse existing music, don't update
-          // UPDATE MODE: Update existing music with tags
-          if (this.options.updateMode && musicTagIds.length > 0) {
+          // SKIP MODE: Just reuse existing song, don't update
+          // UPDATE MODE: Update existing song with tags
+          if (this.options.updateMode && songTagIds.length > 0) {
             await this.payload.update({
-              collection: 'music',
+              collection: 'songs',
               id: existingId,
-              data: { tags: musicTagIds },
+              data: { tags: songTagIds },
             })
-            this.idMaps.musics.set(music.id, existingId)
+            this.idMaps.songs.set(music.id, existingId)
             this.report.incrementUpdated()
-            await this.reportDocument('music', identifier, 'updated', {
+            await this.reportDocument('songs', identifier, 'updated', {
               current: i + 1,
               total,
             })
           } else {
-            this.idMaps.musics.set(music.id, existingId)
+            this.idMaps.songs.set(music.id, existingId)
             this.report.incrementSkipped()
-            await this.reportDocument('music', identifier, 'skipped', {
+            await this.reportDocument('songs', identifier, 'skipped', {
               current: i + 1,
               total,
             })
           }
         } else {
           // Upload with audio file if available
-          const musicAttachments = this.getAttachmentsForRecord('Music', music.id, attachments, blobs)
-          const audioAttachment = musicAttachments.find((att) => att.name === 'audio')
+          const songAttachments = this.getAttachmentsForRecord('Music', music.id, attachments, blobs)
+          const audioAttachment = songAttachments.find((att) => att.name === 'audio')
 
           let result
           if (audioAttachment) {
@@ -1511,32 +1511,32 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
             )
             if (buffer) {
               const fileData = this.createFileData(buffer, audioAttachment.blob.filename)
-              result = await this.uploadToPayload(fileData, 'music', musicData)
+              result = await this.uploadToPayload(fileData, 'songs', songData)
             }
           }
 
           if (!result) {
             result = await this.payload.create({
-              collection: 'music',
-              data: musicData,
+              collection: 'songs',
+              data: songData,
               locale: 'en',
             })
           }
 
           if (result) {
-            this.idMaps.musics.set(music.id, result.id)
+            this.idMaps.songs.set(music.id, result.id)
             // Add to cache so subsequent imports in same session can find it
-            this.musicCache.set(cacheKey, result.id)
+            this.songCache.set(cacheKey, result.id)
             this.report.incrementCreated()
-            await this.reportDocument('music', identifier, 'created', {
+            await this.reportDocument('songs', identifier, 'created', {
               current: i + 1,
               total,
             })
           }
         }
       } catch (error) {
-        this.addError(`Importing music "${music.title}"`, error as Error)
-        await this.reportDocument('music', identifier, 'error', {
+        this.addError(`Importing song "${music.title}"`, error as Error)
+        await this.reportDocument('songs', identifier, 'error', {
           error: (error as Error).message,
           current: i + 1,
           total,

@@ -79,7 +79,6 @@ The import also updates the `we-meditate-web-settings` global:
 | Navigation | relationship[] | featuredPages, footerPages |
 | Chakras | relationship | mooladhara, kundalini, swadhistan, nabhi, void, anahat, vishuddhi, agnya, sahasrara |
 | Channels | relationship | left, right, center |
-| Tags | relationship[] | musicPageTags, inspirationPageTags, techniquePageTag |
 
 ## Content Conversion
 

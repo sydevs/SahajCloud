@@ -60,10 +60,10 @@ Payload adds numeric suffixes to prevent collisions. Use regex patterns:
 
 ```typescript
 // DON'T: Exact match
-expect(music.filename).toBe('audio-42s.mp3')
+expect(song.filename).toBe('audio-42s.mp3')
 
 // DO: Regex pattern allowing optional suffix
-expect(music.filename).toMatch(/^audio-42s(-\d+)?\.mp3$/)
+expect(song.filename).toMatch(/^audio-42s(-\d+)?\.mp3$/)
 ```
 
 ## Test File Organization

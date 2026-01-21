@@ -53,11 +53,11 @@ const ROLES = {
   },
   'web-translator': {
     label: 'Web Translator',
-    description: 'Can edit localized fields in pages, music, and albums',
+    description: 'Can edit localized fields in pages, songs, and albums',
     project: 'wemeditate-web' as const,
     permissions: {
       pages: ['translate'] as PermissionLevel[],
-      music: ['translate'] as PermissionLevel[],
+      songs: ['translate'] as PermissionLevel[],
       albums: ['translate'] as PermissionLevel[],
     },
   },

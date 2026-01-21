@@ -6,7 +6,7 @@ export const Albums: CollectionConfig = {
   slug: 'albums',
   labels: {
     singular: 'Album',
-    plural: 'Albums',
+    plural: 'Music Albums',
   },
   trash: true,
   disableDuplicate: true,
@@ -46,9 +46,9 @@ export const Albums: CollectionConfig = {
       },
     },
     {
-      name: 'music',
+      name: 'songs',
       type: 'join',
-      collection: 'music',
+      collection: 'songs',
       on: 'album',
       admin: {
         description: 'Music tracks in this album',
