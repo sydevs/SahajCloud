@@ -49,7 +49,7 @@ The bypass function handles:
 ### Available Manager Roles (3 roles)
 1. **meditations-editor**: Can create and edit meditations, upload related media and files
 2. **path-editor**: Can edit lessons and lectures, upload related media and files
-3. **web-translator**: Can edit localized fields in pages, music, and albums (read-only for non-localized fields)
+3. **web-translator**: Can edit localized fields in pages, songs, and albums (read-only for non-localized fields)
 
 ### Manager Role Characteristics
 - **Localized**: Roles can be assigned per-locale (e.g., web-translator for French, meditations-editor for English)
@@ -218,8 +218,8 @@ Both managers and API clients get the same implicit read access:
 - Shared collections (collections not in any project)
 
 **Examples**:
-- A "web-translator" (wemeditate-web project) can read pages, meditations, music, etc. (wemeditate-web project) AND shared collections.
-- `wemeditate-web-client` → Can read pages, meditations, music, etc. (wemeditate-web project) AND shared collections
+- A "web-translator" (wemeditate-web project) can read pages, meditations, songs, etc. (wemeditate-web project) AND shared collections.
+- `wemeditate-web-client` → Can read pages, meditations, songs, etc. (wemeditate-web project) AND shared collections
 - `wemeditate-app-client` → Can read meditations, lessons, lectures, etc. (wemeditate-app project) AND shared collections
 - `sahaj-atlas-client` → Can read images, files (sahaj-atlas project) AND shared collections
 

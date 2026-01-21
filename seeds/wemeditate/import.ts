@@ -250,8 +250,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   private meditationRailsTitleMap = new Map<number, string>()
   private treatmentThumbnailMap = new Map<number, number | string>()
 
-  // Pre-cached music tags (slug → id) to avoid N+1 queries
-  private musicTagCache = new Map<string, number>()
+  // Pre-cached song tags (slug → id) to avoid N+1 queries
+  private songTagCache = new Map<string, number>()
 
   // ============================================================================
   // STATIC FACTORY FOR MIGRATIONS
@@ -284,7 +284,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       this.mediaUploader = new MediaUploader(this.payload, this.logger)
 
       // Pre-cache to avoid N+1 queries during import
-      await this.preloadMusicTags()
+      await this.preloadSongTags()
       await this.mediaUploader.preloadExistingMedia()
       await this.setupImageTags()
 
@@ -294,7 +294,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       await Promise.all([
         this.preloadCollection('authors', 'slug'),
         this.preloadCollection('albums', 'title'), // WeMeditate looks up albums by title
-        this.preloadCollection('music', 'title'), // WeMeditate looks up music by title
+        this.preloadCollection('songs', 'title'), // WeMeditate looks up songs by title
         this.preloadCollection('pages', 'slug'),
       ])
     }
@@ -313,20 +313,20 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   }
 
   /**
-   * Pre-load all music tags into memory cache to avoid per-track queries
+   * Pre-load all song tags into memory cache to avoid per-track queries
    */
-  private async preloadMusicTags(): Promise<void> {
-    await this.logger.info('Pre-loading music tags...')
+  private async preloadSongTags(): Promise<void> {
+    await this.logger.info('Pre-loading song tags...')
     const tags = await this.payload.find({
-      collection: 'music-tags',
+      collection: 'song-tags',
       limit: 100,
     })
     for (const tag of tags.docs) {
       if (tag.slug) {
-        this.musicTagCache.set(tag.slug, tag.id)
+        this.songTagCache.set(tag.slug, tag.id)
       }
     }
-    await this.logger.info(`✓ Pre-loaded ${this.musicTagCache.size} music tags`)
+    await this.logger.info(`✓ Pre-loaded ${this.songTagCache.size} song tags`)
   }
 
   protected async cleanup(): Promise<void> {
@@ -339,12 +339,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
    * Called automatically by BaseImporter when pagination is active.
    *
    * This method rebuilds the legacy ID → Payload ID mappings needed for
-   * cross-collection references (e.g., music tracks referencing albums).
+   * cross-collection references (e.g., songs referencing albums).
    */
   protected async reconstructIdMaps(): Promise<void> {
     await this.logger.info('Reconstructing ID maps from database...')
 
-    // Load source data to get artist info (needed for music → album mapping)
+    // Load source data to get artist info (needed for songs → album mapping)
     // This is required because reconstructIdMaps() is called before import()
     await this.loadData()
 
@@ -422,8 +422,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       if (!isPaginated || this.isCollectionTargeted('albums')) {
         await this.importAlbums()
       }
-      if (!isPaginated || this.isCollectionTargeted('music')) {
-        await this.importMusic()
+      if (!isPaginated || this.isCollectionTargeted('songs')) {
+        await this.importSongs()
       }
 
       // Import pages (page tags are now inline enum strings, no collection needed)
@@ -1080,11 +1080,11 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   }
 
   // ============================================================================
-  // MUSIC IMPORT (from tracks table)
+  // SONGS IMPORT (from tracks table)
   // ============================================================================
 
   /**
-   * Instrument filter to music tag slug mapping
+   * Instrument filter to song tag slug mapping
    * Legacy: sitar.svg -> Strings, vocal.svg -> Vocal, flute.svg -> Wind
    * Maps to: strings, vocals, flute
    */
@@ -1094,7 +1094,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     3: 'flute', // flute.svg -> Wind
   }
 
-  private async importMusic(): Promise<void> {
+  private async importSongs(): Promise<void> {
     // Ensure vocals tag exists (it might not be in the tags import)
     await this.ensureVocalsTagExists()
 
@@ -1108,7 +1108,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       try {
         if (!track.title) {
           await this.skip(`Track ${track.id}: no English title`, {
-            collection: 'music',
+            collection: 'songs',
             identifier: `track-${track.id}`,
             current: i + 1,
             total,
@@ -1118,7 +1118,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
         if (!track.audio) {
           await this.skip(`Track ${track.id} "${track.title}": no audio file`, {
-            collection: 'music',
+            collection: 'songs',
             identifier: `track-${track.id}`,
             current: i + 1,
             total,
@@ -1144,7 +1144,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
         if (!albumId) {
           await this.skip(`Track ${track.id} "${track.title}": no album association`, {
-            collection: 'music',
+            collection: 'songs',
             identifier: `track-${track.id}`,
             current: i + 1,
             total,
@@ -1152,14 +1152,14 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           continue
         }
 
-        // Map instrument filters to music tags
+        // Map instrument filters to song tags
         const tagIds: number[] = []
         if (track.instrument_filter_ids && track.instrument_filter_ids.length > 0) {
           for (const filterId of track.instrument_filter_ids) {
             const tagSlug = this.INSTRUMENT_TAG_MAP[filterId]
             if (tagSlug) {
-              const musicTagIds = this.findMusicTagsBySlug([tagSlug])
-              tagIds.push(...musicTagIds)
+              const songTagIds = this.findSongTagsBySlug([tagSlug])
+              tagIds.push(...songTagIds)
             }
           }
         }
@@ -1167,22 +1167,22 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         // Convert album ID to number for Payload type compatibility
         const numericAlbumId = typeof albumId === 'string' ? parseInt(albumId, 10) : albumId
 
-        // Check preload cache first (fast, in-memory) - music is preloaded by title in setup()
-        const existingFromCache = this.getPreloaded('music', track.title)
+        // Check preload cache first (fast, in-memory) - songs is preloaded by title in setup()
+        const existingFromCache = this.getPreloaded('songs', track.title)
         if (existingFromCache) {
           if (!this.options.updateMode) {
-            // SKIP MODE: Don't update existing music
+            // SKIP MODE: Don't update existing songs
             this.report.incrementSkipped()
-            await this.reportDocument('music', track.title, 'skipped', {
+            await this.reportDocument('songs', track.title, 'skipped', {
               current: i + 1,
               total,
             })
             continue
           }
 
-          // UPDATE MODE: Update existing music with album and tags
+          // UPDATE MODE: Update existing song with album and tags
           await this.payload.update({
-            collection: 'music',
+            collection: 'songs',
             id: existingFromCache.id,
             data: {
               album: numericAlbumId,
@@ -1191,7 +1191,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             locale: 'en',
           })
           this.report.incrementUpdated()
-          await this.reportDocument('music', track.title, 'updated', {
+          await this.reportDocument('songs', track.title, 'updated', {
             current: i + 1,
             total,
           })
@@ -1210,7 +1210,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           fileBuffer = await fetchAsset(audioUrl, { cachePath })
         } catch (error) {
           this.addError(`Downloading audio for track ${track.id}: ${audioUrl}`, error as Error)
-          await this.reportDocument('music', track.title, 'error', {
+          await this.reportDocument('songs', track.title, 'error', {
             error: (error as Error).message,
             current: i + 1,
             total,
@@ -1219,7 +1219,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         }
 
         await this.payload.create({
-          collection: 'music',
+          collection: 'songs',
           data: {
             title: track.title,
             album: numericAlbumId,
@@ -1235,13 +1235,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         })
 
         this.report.incrementCreated()
-        await this.reportDocument('music', track.title, 'created', {
+        await this.reportDocument('songs', track.title, 'created', {
           current: i + 1,
           total,
         })
       } catch (error) {
         this.addError(`Importing track ${track.id}`, error as Error)
-        await this.reportDocument('music', track.title || `track-${track.id}`, 'error', {
+        await this.reportDocument('songs', track.title || `track-${track.id}`, 'error', {
           error: (error as Error).message,
           current: i + 1,
           total,
@@ -1251,13 +1251,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   }
 
   /**
-   * Ensure the vocals tag exists in the music-tags collection
+   * Ensure the vocals tag exists in the song-tags collection
    * This tag may not be present in the standard tags import
    */
   private async ensureVocalsTagExists(): Promise<void> {
     try {
       const existing = await this.payload.find({
-        collection: 'music-tags',
+        collection: 'song-tags',
         where: { slug: { equals: 'vocals' } },
         limit: 1,
       })
@@ -1282,7 +1282,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       }
 
       await this.payload.create({
-        collection: 'music-tags',
+        collection: 'song-tags',
         data: {
           title: 'Vocals',
           slug: 'vocals',
@@ -1296,7 +1296,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         locale: 'en',
       })
 
-      await this.logger.info('✓ Created vocals tag with music icon')
+      await this.logger.info('✓ Created vocals tag with song icon')
     } catch (error) {
       this.addError('Creating vocals tag', error as Error)
     }
@@ -2299,17 +2299,17 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   }
 
   /**
-   * Find music tag IDs by slug using pre-cached data (synchronous lookup)
-   * Call preloadMusicTags() before using this method
+   * Find song tag IDs by slug using pre-cached data (synchronous lookup)
+   * Call preloadSongTags() before using this method
    */
-  private findMusicTagsBySlug(tagSlugs: string[]): number[] {
+  private findSongTagsBySlug(tagSlugs: string[]): number[] {
     const tagIds: number[] = []
     for (const slug of tagSlugs) {
-      const tagId = this.musicTagCache.get(slug)
+      const tagId = this.songTagCache.get(slug)
       if (tagId !== undefined) {
         tagIds.push(tagId)
       } else {
-        this.addWarning(`Music tag "${slug}" not found in cache - run tags import first`)
+        this.addWarning(`Song tag "${slug}" not found in cache - run tags import first`)
       }
     }
     return tagIds
@@ -2355,7 +2355,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         liveMeditationsPage: await this.findPageBySlug('live-meditations'),
       }
 
-      const musicPageTags = this.findMusicTagsBySlug(['strings', 'flute', 'nature'])
       // Page tags are now inline enum strings
       const inspirationPageTags: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] = [
         'creativity',
@@ -2368,7 +2367,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       const footerPages = pageMapping.footerPages.filter((id) => id !== null) as number[]
 
       // Validate required fields
-      if (!pageMapping.homePage || featuredPages.length < 3 || !pageMapping.musicPage) {
+      if (!pageMapping.homePage || featuredPages.length < 3) {
         this.addWarning('Cannot update WeMeditate Web Settings: missing required pages')
         return
       }
@@ -2382,8 +2381,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           homePage: pageMapping.homePage,
           featuredPages,
           footerPages,
-          musicPage: pageMapping.musicPage,
-          musicPageTags,
+          musicPage: toUndefined(pageMapping.musicPage),
           subtleSystemPage: toUndefined(pageMapping.subtleSystemPage),
           left: toUndefined(pageMapping.left),
           right: toUndefined(pageMapping.right),

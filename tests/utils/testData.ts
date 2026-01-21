@@ -8,13 +8,13 @@ import type {
   Narrator,
   Image,
   Meditation,
-  Music,
+  Song,
   Album,
   Frame,
   Manager,
   Client,
   MeditationTag,
-  MusicTag,
+  SongTag,
   Page,
   Lesson,
   File,
@@ -199,14 +199,14 @@ export const testData = {
   },
 
   /**
-   * Create a music tag (upload collection with SVG icon)
+   * Create a song tag (upload collection with SVG icon)
    * Note: SVG files need Buffer (not Uint8Array) for detectSvgFromXml to work
    */
-  async createMusicTag(
+  async createSongTag(
     payload: Payload,
-    overrides: Partial<MusicTag> = {},
+    overrides: Partial<SongTag> = {},
     sampleFile = 'icon-test.svg',
-  ): Promise<MusicTag> {
+  ): Promise<SongTag> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
 
@@ -215,10 +215,10 @@ export const testData = {
 
     // Generate unique title suffix if no title override provided
     const uniqueId = Math.random().toString(36).substring(7)
-    const defaultTitle = overrides.title || `Test Music Tag ${uniqueId}`
+    const defaultTitle = overrides.title || `Test Song Tag ${uniqueId}`
 
     return (await payload.create({
-      collection: 'music-tags',
+      collection: 'song-tags',
       data: {
         title: defaultTitle,
         ...overrides,
@@ -230,7 +230,7 @@ export const testData = {
         name: uniqueFilename,
         size: fileBuffer.length,
       },
-    })) as MusicTag
+    })) as SongTag
   },
 
   // Note: createImageTag, createPageTag, createVideoTag removed
@@ -347,16 +347,16 @@ export const testData = {
   },
 
   /**
-   * Create music track using sample audio file
+   * Create song track using sample audio file
    * @param payload - Payload instance
    * @param overrides - Optional field overrides (including album)
    * @param sampleFile - Sample audio file to use
    */
-  async createMusic(
+  async createSong(
     payload: Payload,
-    overrides: Partial<Music> & { album?: number | Album } = {},
+    overrides: Partial<Song> & { album?: number | Album } = {},
     sampleFile = 'audio-42s.mp3',
-  ): Promise<Music> {
+  ): Promise<Song> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
     // Convert Buffer to Uint8Array for compatibility with file-type library
@@ -373,13 +373,13 @@ export const testData = {
 
     // Generate unique title to avoid collisions
     const uniqueId = Math.random().toString(36).substring(7)
-    const defaultTitle = overrides.title || `Test Music Track ${uniqueId}`
+    const defaultTitle = overrides.title || `Test Song ${uniqueId}`
 
     // Prepare data without album (will add it separately to ensure correct type)
     const { album: _album, ...restOverrides } = overrides
 
     return (await payload.create({
-      collection: 'music',
+      collection: 'songs',
       data: {
         title: defaultTitle,
         album: albumId,
@@ -394,7 +394,7 @@ export const testData = {
         name: sampleFile,
         size: fileData.length,
       },
-    })) as Music
+    })) as Song
   },
 
   /**

@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { Album, Music } from '@/payload-types'
+import type { Album, Song } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -195,36 +195,36 @@ describe('Albums Collection', () => {
     expect(result.docs.some((doc) => doc.id === album1.id)).toBe(true)
   })
 
-  it('has join relationship to music tracks', async () => {
+  it('has join relationship to song tracks', async () => {
     // Create album
     const album = await testData.createAlbum(payload, {
-      title: 'Test Album for Music',
+      title: 'Test Album for Songs',
       artist: 'Test Artist',
     })
 
-    // Create music tracks linked to this album
-    const track1 = (await testData.createMusic(payload, {
+    // Create song tracks linked to this album
+    const track1 = (await testData.createSong(payload, {
       title: 'Track 1',
       album: album.id,
-    })) as Music
+    })) as Song
 
-    const track2 = (await testData.createMusic(payload, {
+    const track2 = (await testData.createSong(payload, {
       title: 'Track 2',
       album: album.id,
-    })) as Music
+    })) as Song
 
-    // Fetch album with populated music join field
-    const albumWithMusic = (await payload.findByID({
+    // Fetch album with populated songs join field
+    const albumWithSongs = (await payload.findByID({
       collection: 'albums',
       id: album.id,
       depth: 1,
     })) as Album
 
-    // Check that music tracks are populated via join field
-    expect(albumWithMusic.music).toBeDefined()
-    if (albumWithMusic.music && 'docs' in albumWithMusic.music && albumWithMusic.music.docs) {
-      expect(albumWithMusic.music.docs).toHaveLength(2)
-      const trackIds = albumWithMusic.music.docs.map((track) =>
+    // Check that song tracks are populated via join field
+    expect(albumWithSongs.songs).toBeDefined()
+    if (albumWithSongs.songs && 'docs' in albumWithSongs.songs && albumWithSongs.songs.docs) {
+      expect(albumWithSongs.songs.docs).toHaveLength(2)
+      const trackIds = albumWithSongs.songs.docs.map((track) =>
         typeof track === 'object' ? track.id : track,
       )
       expect(trackIds).toContain(track1.id)

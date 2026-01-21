@@ -2,11 +2,11 @@ import type { CollectionConfig } from 'payload'
 
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
-export const Music: CollectionConfig = {
-  slug: 'music',
+export const Songs: CollectionConfig = {
+  slug: 'songs',
   trash: true,
   upload: {
-    staticDir: 'media/music',
+    staticDir: 'media/songs',
     hideRemoveFile: true,
     mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
   },
@@ -14,10 +14,11 @@ export const Music: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'album', 'duration', 'tags'],
+    hidden: () => true, // Always hidden - managed through Albums
   },
   fields: [
     virtualUrlField({
-      collection: 'music',
+      collection: 'songs',
       adapter: 'r2',
     }),
     {
@@ -38,7 +39,7 @@ export const Music: CollectionConfig = {
     {
       name: 'tags',
       type: 'relationship',
-      relationTo: 'music-tags',
+      relationTo: 'song-tags',
       hasMany: true,
       admin: {
         components: {

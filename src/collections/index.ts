@@ -3,8 +3,8 @@ import { Managers } from './access/Managers'
 import { Albums } from './content/Albums'
 import { Lessons } from './content/Lessons'
 import { Meditations } from './content/Meditations'
-import { Music } from './content/Music'
 import { Pages } from './content/Pages'
+import { Songs } from './content/Songs'
 import { Videos } from './content/Videos'
 import { Authors } from './resources/Authors'
 import { Images } from './resources/Images'
@@ -13,14 +13,14 @@ import { Narrators } from './resources/Narrators'
 import { Files } from './system/Files'
 import { Frames } from './system/Frames'
 import { MeditationTags } from './tags/MeditationTags'
-import { MusicTags } from './tags/MusicTags'
+import { SongTags } from './tags/SongTags'
 
 // Export all collections as an array
 export const collections = [
   // Content
   Pages,
   Meditations,
-  Music,
+  Songs,
   Albums,
   Videos,
   Lessons,
@@ -33,7 +33,7 @@ export const collections = [
   Files,
   // Tags
   MeditationTags,
-  MusicTags,
+  SongTags,
   // Access
   Managers,
   Clients,
@@ -43,7 +43,7 @@ export {
   // Content
   Pages,
   Meditations,
-  Music,
+  Songs,
   Albums,
   Videos,
   Lessons,
@@ -56,7 +56,7 @@ export {
   Files,
   // Tags
   MeditationTags,
-  MusicTags,
+  SongTags,
   // Access
   Managers,
   Clients,

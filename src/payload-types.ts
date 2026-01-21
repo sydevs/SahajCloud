@@ -86,7 +86,7 @@ export interface Config {
   collections: {
     pages: Page;
     meditations: Meditation;
-    music: Music;
+    songs: Song;
     albums: Album;
     videos: Video;
     lessons: Lesson;
@@ -97,7 +97,7 @@ export interface Config {
     images: Image;
     files: File;
     'meditation-tags': MeditationTag;
-    'music-tags': MusicTag;
+    'song-tags': SongTag;
     managers: Manager;
     clients: Client;
     forms: Form;
@@ -110,7 +110,7 @@ export interface Config {
   };
   collectionsJoins: {
     albums: {
-      music: 'music';
+      songs: 'songs';
     };
     authors: {
       articles: 'pages';
@@ -118,14 +118,14 @@ export interface Config {
     'meditation-tags': {
       meditations: 'meditations';
     };
-    'music-tags': {
-      music: 'music';
+    'song-tags': {
+      songs: 'songs';
     };
   };
   collectionsSelect: {
     pages: PagesSelect<false> | PagesSelect<true>;
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
-    music: MusicSelect<false> | MusicSelect<true>;
+    songs: SongsSelect<false> | SongsSelect<true>;
     albums: AlbumsSelect<false> | AlbumsSelect<true>;
     videos: VideosSelect<false> | VideosSelect<true>;
     lessons: LessonsSelect<false> | LessonsSelect<true>;
@@ -136,7 +136,7 @@ export interface Config {
     images: ImagesSelect<false> | ImagesSelect<true>;
     files: FilesSelect<false> | FilesSelect<true>;
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
-    'music-tags': MusicTagsSelect<false> | MusicTagsSelect<true>;
+    'song-tags': SongTagsSelect<false> | SongTagsSelect<true>;
     managers: ManagersSelect<false> | ManagersSelect<true>;
     clients: ClientsSelect<false> | ClientsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
@@ -428,7 +428,7 @@ export interface Meditation {
   /**
    * Music with this tag will be offered to the seeker
    */
-  musicTag?: (number | null) | MusicTag;
+  songTag?: (number | null) | SongTag;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -487,9 +487,9 @@ export interface Narrator {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "music-tags".
+ * via the `definition` "song-tags".
  */
-export interface MusicTag {
+export interface SongTag {
   id: number;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
@@ -503,8 +503,8 @@ export interface MusicTag {
    * Localized title shown to public users
    */
   title: string;
-  music?: {
-    docs?: (number | Music)[];
+  songs?: {
+    docs?: (number | Song)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -522,16 +522,16 @@ export interface MusicTag {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "music".
+ * via the `definition` "songs".
  */
-export interface Music {
+export interface Song {
   id: number;
   title: string;
   /**
    * The album this track belongs to
    */
   album: number | Album;
-  tags?: (number | MusicTag)[] | null;
+  tags?: (number | SongTag)[] | null;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -569,8 +569,8 @@ export interface Album {
   /**
    * Music tracks in this album
    */
-  music?: {
-    docs?: (number | Music)[];
+  songs?: {
+    docs?: (number | Song)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -1308,8 +1308,8 @@ export interface PayloadLockedDocument {
         value: number | Meditation;
       } | null)
     | ({
-        relationTo: 'music';
-        value: number | Music;
+        relationTo: 'songs';
+        value: number | Song;
       } | null)
     | ({
         relationTo: 'albums';
@@ -1352,8 +1352,8 @@ export interface PayloadLockedDocument {
         value: number | MeditationTag;
       } | null)
     | ({
-        relationTo: 'music-tags';
-        value: number | MusicTag;
+        relationTo: 'song-tags';
+        value: number | SongTag;
       } | null)
     | ({
         relationTo: 'managers';
@@ -1454,7 +1454,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   label?: T;
   locale?: T;
   narrator?: T;
-  musicTag?: T;
+  songTag?: T;
   fileMetadata?: T;
   durationMinutes?: T;
   title?: T;
@@ -1480,9 +1480,9 @@ export interface MeditationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "music_select".
+ * via the `definition` "songs_select".
  */
-export interface MusicSelect<T extends boolean = true> {
+export interface SongsSelect<T extends boolean = true> {
   title?: T;
   album?: T;
   tags?: T;
@@ -1508,7 +1508,7 @@ export interface AlbumsSelect<T extends boolean = true> {
   title?: T;
   artist?: T;
   artistUrl?: T;
-  music?: T;
+  songs?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -1697,13 +1697,13 @@ export interface MeditationTagsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "music-tags_select".
+ * via the `definition` "song-tags_select".
  */
-export interface MusicTagsSelect<T extends boolean = true> {
+export interface SongTagsSelect<T extends boolean = true> {
   generateSlug?: T;
   slug?: T;
   title?: T;
-  music?: T;
+  songs?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -2016,10 +2016,6 @@ export interface WeMeditateWebSetting {
    */
   footerPages: (number | Page)[];
   musicPage: number | Page;
-  /**
-   * Select 3-5 music tags to display on the Music page
-   */
-  musicPageTags: (number | MusicTag)[];
   subtleSystemPage: number | Page;
   left: number | Page;
   right: number | Page;
@@ -2113,7 +2109,6 @@ export interface WeMeditateWebSettingsSelect<T extends boolean = true> {
   featuredPages?: T;
   footerPages?: T;
   musicPage?: T;
-  musicPageTags?: T;
   subtleSystemPage?: T;
   left?: T;
   right?: T;

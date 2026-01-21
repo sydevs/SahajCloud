@@ -89,9 +89,9 @@ export const Meditations: CollectionConfig = {
               }) as Validate,
             },
             {
-              name: 'musicTag',
+              name: 'songTag',
               type: 'relationship',
-              relationTo: 'music-tags',
+              relationTo: 'song-tags',
               admin: {
                 condition: ({ id }) => !!id,
                 description: 'Music with this tag will be offered to the seeker',

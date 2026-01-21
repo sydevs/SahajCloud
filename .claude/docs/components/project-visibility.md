@@ -61,9 +61,9 @@ const PROJECTS = {
     label: 'WeMeditate Web',
     icon: '/images/wemeditate-web.svg',
     collections: [
-      'pages', 'meditations', 'music', 'albums',
+      'pages', 'meditations', 'songs', 'albums',
       'videos', 'forms', 'form-submissions', 'authors',
-      'meditation-tags', 'music-tags',
+      'meditation-tags', 'song-tags',
       'narrators', 'frames', 'images', 'files',
     ],
     globals: ['we-meditate-web-settings'],
@@ -72,9 +72,9 @@ const PROJECTS = {
     label: 'WeMeditate App',
     icon: '/images/wemeditate-app.svg',
     collections: [
-      'meditations', 'music', 'albums', 'videos', 'lessons',
+      'meditations', 'songs', 'albums', 'videos', 'lessons',
       'lectures', 'frames', 'narrators',
-      'meditation-tags', 'music-tags', 'images', 'files',
+      'meditation-tags', 'song-tags', 'images', 'files',
     ],
     globals: ['we-meditate-app-settings'],
   },
@@ -96,7 +96,7 @@ Collections are visible based on which projects include them AND whether the use
 | **Content** |
 | pages | ✅ | | | |
 | meditations | ✅ | ✅ | | |
-| music | ✅ | ✅ | | |
+| songs | ✅ | ✅ | | |
 | albums | ✅ | ✅ | | |
 | videos | ✅ | ✅ | | |
 | lessons | | ✅ | | |
@@ -109,7 +109,7 @@ Collections are visible based on which projects include them AND whether the use
 | frames | ✅ | ✅ | | |
 | **Tags** |
 | meditation-tags | ✅ | ✅ | | |
-| music-tags | ✅ | ✅ | | |
+| song-tags | ✅ | ✅ | | |
 | **Forms** |
 | forms | ✅ | | | |
 | form-submissions | ✅ | | | |

@@ -753,8 +753,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "music_tag_id": {
-          "name": "music_tag_id",
+        "song_tag_id": {
+          "name": "song_tag_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -914,10 +914,10 @@
           ],
           "isUnique": false
         },
-        "meditations_music_tag_idx": {
-          "name": "meditations_music_tag_idx",
+        "meditations_song_tag_idx": {
+          "name": "meditations_song_tag_idx",
           "columns": [
-            "music_tag_id"
+            "song_tag_id"
           ],
           "isUnique": false
         },
@@ -985,12 +985,12 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "meditations_music_tag_id_music_tags_id_fk": {
-          "name": "meditations_music_tag_id_music_tags_id_fk",
+        "meditations_song_tag_id_song_tags_id_fk": {
+          "name": "meditations_song_tag_id_song_tags_id_fk",
           "tableFrom": "meditations",
-          "tableTo": "music_tags",
+          "tableTo": "song_tags",
           "columnsFrom": [
-            "music_tag_id"
+            "song_tag_id"
           ],
           "columnsTo": [
             "id"
@@ -1156,8 +1156,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "version_music_tag_id": {
-          "name": "version_music_tag_id",
+        "version_song_tag_id": {
+          "name": "version_song_tag_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -1359,10 +1359,10 @@
           ],
           "isUnique": false
         },
-        "_meditations_v_version_version_music_tag_idx": {
-          "name": "_meditations_v_version_version_music_tag_idx",
+        "_meditations_v_version_version_song_tag_idx": {
+          "name": "_meditations_v_version_version_song_tag_idx",
           "columns": [
-            "version_music_tag_id"
+            "version_song_tag_id"
           ],
           "isUnique": false
         },
@@ -1478,12 +1478,12 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "_meditations_v_version_music_tag_id_music_tags_id_fk": {
-          "name": "_meditations_v_version_music_tag_id_music_tags_id_fk",
+        "_meditations_v_version_song_tag_id_song_tags_id_fk": {
+          "name": "_meditations_v_version_song_tag_id_song_tags_id_fk",
           "tableFrom": "_meditations_v",
-          "tableTo": "music_tags",
+          "tableTo": "song_tags",
           "columnsFrom": [
-            "version_music_tag_id"
+            "version_song_tag_id"
           ],
           "columnsTo": [
             "id"
@@ -1610,8 +1610,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "music": {
-      "name": "music",
+    "songs": {
+      "name": "songs",
       "columns": {
         "id": {
           "name": "id",
@@ -1715,36 +1715,36 @@
         }
       },
       "indexes": {
-        "music_album_idx": {
-          "name": "music_album_idx",
+        "songs_album_idx": {
+          "name": "songs_album_idx",
           "columns": [
             "album_id"
           ],
           "isUnique": false
         },
-        "music_updated_at_idx": {
-          "name": "music_updated_at_idx",
+        "songs_updated_at_idx": {
+          "name": "songs_updated_at_idx",
           "columns": [
             "updated_at"
           ],
           "isUnique": false
         },
-        "music_created_at_idx": {
-          "name": "music_created_at_idx",
+        "songs_created_at_idx": {
+          "name": "songs_created_at_idx",
           "columns": [
             "created_at"
           ],
           "isUnique": false
         },
-        "music_deleted_at_idx": {
-          "name": "music_deleted_at_idx",
+        "songs_deleted_at_idx": {
+          "name": "songs_deleted_at_idx",
           "columns": [
             "deleted_at"
           ],
           "isUnique": false
         },
-        "music_filename_idx": {
-          "name": "music_filename_idx",
+        "songs_filename_idx": {
+          "name": "songs_filename_idx",
           "columns": [
             "filename"
           ],
@@ -1752,9 +1752,9 @@
         }
       },
       "foreignKeys": {
-        "music_album_id_albums_id_fk": {
-          "name": "music_album_id_albums_id_fk",
-          "tableFrom": "music",
+        "songs_album_id_albums_id_fk": {
+          "name": "songs_album_id_albums_id_fk",
+          "tableFrom": "songs",
           "tableTo": "albums",
           "columnsFrom": [
             "album_id"
@@ -1770,8 +1770,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "music_locales": {
-      "name": "music_locales",
+    "songs_locales": {
+      "name": "songs_locales",
       "columns": {
         "title": {
           "name": "title",
@@ -1803,8 +1803,8 @@
         }
       },
       "indexes": {
-        "music_locales_locale_parent_id_unique": {
-          "name": "music_locales_locale_parent_id_unique",
+        "songs_locales_locale_parent_id_unique": {
+          "name": "songs_locales_locale_parent_id_unique",
           "columns": [
             "_locale",
             "_parent_id"
@@ -1813,10 +1813,10 @@
         }
       },
       "foreignKeys": {
-        "music_locales_parent_id_fk": {
-          "name": "music_locales_parent_id_fk",
-          "tableFrom": "music_locales",
-          "tableTo": "music",
+        "songs_locales_parent_id_fk": {
+          "name": "songs_locales_parent_id_fk",
+          "tableFrom": "songs_locales",
+          "tableTo": "songs",
           "columnsFrom": [
             "_parent_id"
           ],
@@ -1831,8 +1831,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "music_rels": {
-      "name": "music_rels",
+    "songs_rels": {
+      "name": "songs_rels",
       "columns": {
         "id": {
           "name": "id",
@@ -1862,8 +1862,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "music_tags_id": {
-          "name": "music_tags_id",
+        "song_tags_id": {
+          "name": "song_tags_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -1871,40 +1871,40 @@
         }
       },
       "indexes": {
-        "music_rels_order_idx": {
-          "name": "music_rels_order_idx",
+        "songs_rels_order_idx": {
+          "name": "songs_rels_order_idx",
           "columns": [
             "order"
           ],
           "isUnique": false
         },
-        "music_rels_parent_idx": {
-          "name": "music_rels_parent_idx",
+        "songs_rels_parent_idx": {
+          "name": "songs_rels_parent_idx",
           "columns": [
             "parent_id"
           ],
           "isUnique": false
         },
-        "music_rels_path_idx": {
-          "name": "music_rels_path_idx",
+        "songs_rels_path_idx": {
+          "name": "songs_rels_path_idx",
           "columns": [
             "path"
           ],
           "isUnique": false
         },
-        "music_rels_music_tags_id_idx": {
-          "name": "music_rels_music_tags_id_idx",
+        "songs_rels_song_tags_id_idx": {
+          "name": "songs_rels_song_tags_id_idx",
           "columns": [
-            "music_tags_id"
+            "song_tags_id"
           ],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "music_rels_parent_fk": {
-          "name": "music_rels_parent_fk",
-          "tableFrom": "music_rels",
-          "tableTo": "music",
+        "songs_rels_parent_fk": {
+          "name": "songs_rels_parent_fk",
+          "tableFrom": "songs_rels",
+          "tableTo": "songs",
           "columnsFrom": [
             "parent_id"
           ],
@@ -1914,12 +1914,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "music_rels_music_tags_fk": {
-          "name": "music_rels_music_tags_fk",
-          "tableFrom": "music_rels",
-          "tableTo": "music_tags",
+        "songs_rels_song_tags_fk": {
+          "name": "songs_rels_song_tags_fk",
+          "tableFrom": "songs_rels",
+          "tableTo": "song_tags",
           "columnsFrom": [
-            "music_tags_id"
+            "song_tags_id"
           ],
           "columnsTo": [
             "id"
@@ -3868,8 +3868,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "music_tags": {
-      "name": "music_tags",
+    "song_tags": {
+      "name": "song_tags",
       "columns": {
         "id": {
           "name": "id",
@@ -3967,29 +3967,29 @@
         }
       },
       "indexes": {
-        "music_tags_slug_idx": {
-          "name": "music_tags_slug_idx",
+        "song_tags_slug_idx": {
+          "name": "song_tags_slug_idx",
           "columns": [
             "slug"
           ],
           "isUnique": true
         },
-        "music_tags_updated_at_idx": {
-          "name": "music_tags_updated_at_idx",
+        "song_tags_updated_at_idx": {
+          "name": "song_tags_updated_at_idx",
           "columns": [
             "updated_at"
           ],
           "isUnique": false
         },
-        "music_tags_created_at_idx": {
-          "name": "music_tags_created_at_idx",
+        "song_tags_created_at_idx": {
+          "name": "song_tags_created_at_idx",
           "columns": [
             "created_at"
           ],
           "isUnique": false
         },
-        "music_tags_filename_idx": {
-          "name": "music_tags_filename_idx",
+        "song_tags_filename_idx": {
+          "name": "song_tags_filename_idx",
           "columns": [
             "filename"
           ],
@@ -4001,8 +4001,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "music_tags_locales": {
-      "name": "music_tags_locales",
+    "song_tags_locales": {
+      "name": "song_tags_locales",
       "columns": {
         "title": {
           "name": "title",
@@ -4034,8 +4034,8 @@
         }
       },
       "indexes": {
-        "music_tags_locales_locale_parent_id_unique": {
-          "name": "music_tags_locales_locale_parent_id_unique",
+        "song_tags_locales_locale_parent_id_unique": {
+          "name": "song_tags_locales_locale_parent_id_unique",
           "columns": [
             "_locale",
             "_parent_id"
@@ -4044,10 +4044,10 @@
         }
       },
       "foreignKeys": {
-        "music_tags_locales_parent_id_fk": {
-          "name": "music_tags_locales_parent_id_fk",
-          "tableFrom": "music_tags_locales",
-          "tableTo": "music_tags",
+        "song_tags_locales_parent_id_fk": {
+          "name": "song_tags_locales_parent_id_fk",
+          "tableFrom": "song_tags_locales",
+          "tableTo": "song_tags",
           "columnsFrom": [
             "_parent_id"
           ],
@@ -7321,8 +7321,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "music_id": {
-          "name": "music_id",
+        "songs_id": {
+          "name": "songs_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -7398,8 +7398,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "music_tags_id": {
-          "name": "music_tags_id",
+        "song_tags_id": {
+          "name": "song_tags_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -7470,10 +7470,10 @@
           ],
           "isUnique": false
         },
-        "payload_locked_documents_rels_music_id_idx": {
-          "name": "payload_locked_documents_rels_music_id_idx",
+        "payload_locked_documents_rels_songs_id_idx": {
+          "name": "payload_locked_documents_rels_songs_id_idx",
           "columns": [
-            "music_id"
+            "songs_id"
           ],
           "isUnique": false
         },
@@ -7547,10 +7547,10 @@
           ],
           "isUnique": false
         },
-        "payload_locked_documents_rels_music_tags_id_idx": {
-          "name": "payload_locked_documents_rels_music_tags_id_idx",
+        "payload_locked_documents_rels_song_tags_id_idx": {
+          "name": "payload_locked_documents_rels_song_tags_id_idx",
           "columns": [
-            "music_tags_id"
+            "song_tags_id"
           ],
           "isUnique": false
         },
@@ -7623,12 +7623,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payload_locked_documents_rels_music_fk": {
-          "name": "payload_locked_documents_rels_music_fk",
+        "payload_locked_documents_rels_songs_fk": {
+          "name": "payload_locked_documents_rels_songs_fk",
           "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "music",
+          "tableTo": "songs",
           "columnsFrom": [
-            "music_id"
+            "songs_id"
           ],
           "columnsTo": [
             "id"
@@ -7766,12 +7766,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payload_locked_documents_rels_music_tags_fk": {
-          "name": "payload_locked_documents_rels_music_tags_fk",
+        "payload_locked_documents_rels_song_tags_fk": {
+          "name": "payload_locked_documents_rels_song_tags_fk",
           "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "music_tags",
+          "tableTo": "song_tags",
           "columnsFrom": [
-            "music_tags_id"
+            "song_tags_id"
           ],
           "columnsTo": [
             "id"
@@ -8745,13 +8745,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "music_tags_id": {
-          "name": "music_tags_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -8782,13 +8775,6 @@
             "pages_id"
           ],
           "isUnique": false
-        },
-        "we_meditate_web_settings_rels_music_tags_id_idx": {
-          "name": "we_meditate_web_settings_rels_music_tags_id_idx",
-          "columns": [
-            "music_tags_id"
-          ],
-          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -8811,19 +8797,6 @@
           "tableTo": "pages",
           "columnsFrom": [
             "pages_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "we_meditate_web_settings_rels_music_tags_fk": {
-          "name": "we_meditate_web_settings_rels_music_tags_fk",
-          "tableFrom": "we_meditate_web_settings_rels",
-          "tableTo": "music_tags",
-          "columnsFrom": [
-            "music_tags_id"
           ],
           "columnsTo": [
             "id"
@@ -9112,6 +9085,6 @@
   "internal": {
     "indexes": {}
   },
-  "id": "659ea90f-6a26-4608-aaf1-431a33f3d6ec",
+  "id": "0bd0eeaa-d6d5-4d03-a652-c1f5f5d5c4e1",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

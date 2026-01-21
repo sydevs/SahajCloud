@@ -28,13 +28,12 @@ The application uses PayloadCMS Global Configs to manage centralized content con
 ### Tag Filters Tab
 
 - `inspirationPageTags` (select, hasMany, required) - Inline enum page tags displayed on Inspiration page. Options: wisdom, lifestyle, creativity, event, technique
-- `musicPageTags` (relationship to music-tags, hasMany, minRows: 3, maxRows: 5, required) - Music tags displayed on Music page
 
 ## Key Features
 
 - **Admin-Only Access**: Only users with `admin: true` can view and modify the settings
 - **Required Relationships**: All static page fields must be populated
-- **Validation Constraints**: Featured pages (3-7 items) and tag filters (3-5 items each) enforce min/max row counts
+- **Validation Constraints**: Featured pages (3-7 items) and tag filters enforce row count constraints
 - **Drag-to-Reorder**: Featured pages can be reordered in the admin interface
 - **Centralized Management**: Single source of truth for website content configuration
 

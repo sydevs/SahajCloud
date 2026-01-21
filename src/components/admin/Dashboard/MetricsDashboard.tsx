@@ -62,10 +62,10 @@ export default async function MetricsDashboard() {
   const payload = await getPayload({ config })
 
   // Fetch counts across all locales in parallel
-  const [meditationsResult, lessonsResult, musicResult] = await Promise.all([
+  const [meditationsResult, lessonsResult, songsResult] = await Promise.all([
     payload.count({ collection: 'meditations' }),
     payload.count({ collection: 'lessons' }),
-    payload.count({ collection: 'music' }),
+    payload.count({ collection: 'songs' }),
   ])
 
   return (
@@ -96,8 +96,8 @@ export default async function MetricsDashboard() {
 
         <CollectionCard
           title="Music"
-          count={musicResult.totalDocs}
-          href="/admin/collections/music"
+          count={songsResult.totalDocs}
+          href="/admin/collections/albums"
         />
       </div>
     </div>

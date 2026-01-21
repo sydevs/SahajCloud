@@ -48,9 +48,9 @@ But would NOT see German, French, etc. (no roles assigned)
 ## Field-Level Localization
 
 Collections with localized fields:
-- **MeditationTags** and **MusicTags**: `title` field is localized
+- **MeditationTags** and **SongTags**: `title` field is localized
 - **Media**: `alt` and `credit` fields are localized
-- **Music**: `title` and `credit` fields are localized
+- **Songs**: `title` and `credit` fields are localized
 
 ## Meditations Locale Handling
 
@@ -69,6 +69,6 @@ GET /api/meditation-tags?locale=en
 # Get Czech meditations
 GET /api/meditations?locale=cs
 
-# Get music with Czech titles
-GET /api/music?locale=cs
+# Get songs with Czech titles
+GET /api/songs?locale=cs
 ```

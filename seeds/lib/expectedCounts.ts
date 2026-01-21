@@ -22,7 +22,7 @@ export interface ExpectedCounts {
  * Minimum expected counts per script.
  *
  * Sources:
- * - tags: Hardcoded in TagsImporter (27 meditation + 7 music)
+ * - tags: Hardcoded in TagsImporter (27 meditation + 7 song)
  * - wemeditate: seeds/wemeditate/data.json counts
  * - meditations: seeds/meditations/data.json counts
  * - storyblok: Based on current Storyblok content
@@ -33,12 +33,12 @@ export interface ExpectedCounts {
 export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   tags: {
     'meditation-tags': 27,
-    'music-tags': 7,
+    'song-tags': 7,
   },
   wemeditate: {
     authors: 18,
     albums: 8,
-    music: 27,
+    songs: 27,
     pages: 60,
   },
   meditations: {
@@ -121,7 +121,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       hasFileUploads: true, // SVG icons
     },
     {
-      slug: 'music-tags',
+      slug: 'song-tags',
       totalItems: 7,
       requiresPagination: false,
       dependencies: [],
@@ -148,7 +148,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       hasFileUploads: true, // Album artwork
     },
     {
-      slug: 'music',
+      slug: 'songs',
       totalItems: 27,
       requiresPagination: false,
       dependencies: ['albums'],
@@ -185,7 +185,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       slug: 'meditations',
       totalItems: 73,
       requiresPagination: true, // Large collection with uploads
-      dependencies: ['narrators', 'frames', 'meditation-tags', 'music-tags'],
+      dependencies: ['narrators', 'frames', 'meditation-tags', 'song-tags'],
       naturalKey: 'slug',
       hasFileUploads: true, // Audio files
     },

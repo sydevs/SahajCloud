@@ -19,7 +19,7 @@ The application uses **Cloudflare-native storage services** for optimal performa
 - **Replaces**: FFmpeg thumbnail generation
 
 ### R2 Native Bindings (Audio & Generic Files)
-- **Collections**: `meditations`, `music`, `lessons`, `files`
+- **Collections**: `meditations`, `songs`, `lessons`, `files`
 - **Features**: Direct bucket access, high performance, automatic filename sanitization
 - **URL Format**: `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>`
 - **Configuration**: Via `wrangler.toml` bindings (no S3-compatible API)
@@ -120,9 +120,9 @@ The API docs include a role selector dropdown that filters visible endpoints bas
 
 | Role | Description | Key Collections |
 |------|-------------|-----------------|
-| All Endpoints | Union of all client role collections | pages, meditations, music, albums, lessons, etc. |
-| We Meditate Web | Web frontend application | pages, meditations, music, albums, forms, authors, tags |
-| We Meditate App | Mobile application | meditations, lessons, lectures, music, narrators, frames, tags |
+| All Endpoints | Union of all client role collections | pages, meditations, songs, albums, lessons, etc. |
+| We Meditate Web | Web frontend application | pages, meditations, songs, albums, forms, authors, tags |
+| We Meditate App | Mobile application | meditations, lessons, lectures, songs, narrators, frames, tags |
 | Sahaj Atlas | Atlas application | sahaj-atlas-settings, images, files |
 
 **Usage**: Select a role from the dropdown or use `?role=` query parameter on `/api/openapi.json`.
@@ -203,8 +203,8 @@ plugins: [
 ### Content Collections
 - **Pages** (`src/collections/content/Pages.ts`) - Rich text content with embedded blocks using Lexical editor, author relationships, tags, auto-generated slugs, drafts system with autosave (60s), version history, and scheduled publishing
 - **Meditations** (`src/collections/content/Meditations.ts`) - Guided meditation content with audio files, tags, metadata, frame relationships with timestamps, locale-specific content filtering, drafts system with scheduled publishing, and beforeChange validation requiring frames for publishing
-- **Albums** (`src/collections/content/Albums.ts`) - Music album groupings with Cloudflare Images artwork, localized title/artist fields, optional artistUrl, and join field for related music tracks
-- **Music** (`src/collections/content/Music.ts`) - Background music tracks with direct audio upload, required album relationship, tags, and localized title field
+- **Albums** (`src/collections/content/Albums.ts`) - Music album groupings with Cloudflare Images artwork, localized title/artist fields, optional artistUrl, and join field for related songs
+- **Songs** (`src/collections/content/Songs.ts`) - Background music tracks with direct audio upload, required album relationship, tags, and localized title field (hidden from admin sidebar, managed via Albums)
 - **Lessons** (`src/collections/content/Lessons.ts`) - Meditation lessons (also called "Path Steps" in admin UI) with audio upload, panels array for content sections, unit selection (Unit 1-4), step number, icon, optional meditation relationship, and rich text article field
 - **Videos** (`src/collections/content/Videos.ts`) - Video storage using Cloudflare Stream with automatic transcoding and HLS streaming, localized title, subtitles JSON field, virtual URL fields (`url` for MP4 download, `previewUrl` for thumbnails), tags relationship, and read-only fileMetadata
 
@@ -220,7 +220,7 @@ plugins: [
 
 ### Tag Collections
 - **MeditationTags** (`src/collections/tags/MeditationTags.ts`) - Upload collection for meditation tags with SVG icons, **color picker field**, auto-generated slug from localized title, and bidirectional relationships
-- **MusicTags** (`src/collections/tags/MusicTags.ts`) - Upload collection for music tags with SVG icons, auto-generated slug from localized title, and bidirectional relationships (**note: no color field**, unlike MeditationTags)
+- **SongTags** (`src/collections/tags/SongTags.ts`) - Upload collection for song/music tags with SVG icons, auto-generated slug from localized title, and bidirectional relationships (**note: no color field**, unlike MeditationTags). Admin labels use "Music Category" for user familiarity.
 
 **Note**: Page, Video, and Image tags are now inline enum select fields on their respective collections (not separate tag collections). This reduces admin sidebar clutter while maintaining tag functionality.
 
@@ -325,7 +325,7 @@ The application uses Lexical editor with two configuration presets:
   - Unordered and Ordered Lists
   - Blockquote
   - Headings (H1, H2)
-  - Relationship feature for linking to meditations, music, pages, and forms
+  - Relationship feature for linking to meditations, songs, pages, and forms
   - Blocks feature for embedding custom block components
 - **Usage**: Page content and other rich content areas
 
@@ -341,7 +341,7 @@ The system includes seed scripts for seeding content from external sources into 
 - **Storyblok** (`pnpm seed storyblok`) - Path Steps from Storyblok CMS to Lessons
 - **WeMeditate** (`pnpm seed wemeditate`) - Authors, categories, pages from Rails PostgreSQL
 - **Meditations** (`pnpm seed meditations`) - Meditation content from legacy database
-- **Tags** (`pnpm seed tags`) - MeditationTags and MusicTags from Cloudinary SVGs
+- **Tags** (`pnpm seed tags`) - MeditationTags and SongTags from Cloudinary SVGs
 
 All scripts extend `BaseImporter` for idempotent upserts, resilient error handling, and comprehensive reporting.
 

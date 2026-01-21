@@ -57,6 +57,7 @@ Integrations:
 
 Development:
 - @.claude/docs/patterns.md - Common code patterns (file upload, trash, custom endpoints)
+- @.claude/docs/refactoring.md - Refactoring patterns (collection renames)
 - @.claude/docs/testing.md - Testing strategy with in-memory SQLite
 - @.claude/docs/decisions/ffmpeg.md - Architectural decision: FFmpeg deprecation
 
@@ -275,10 +276,10 @@ src/
 │   └── (payload)/           # Payload CMS admin & API
 ├── collections/             # Payload CMS collections
 │   ├── access/             # Managers, Clients
-│   ├── content/            # Pages, Meditations, Music, Lessons
-│   ├── resources/          # Media, Authors, Narrators, Lectures
+│   ├── content/            # Pages, Meditations, Songs, Albums, Videos, Lessons
+│   ├── resources/          # Authors, Narrators, Lectures, Images
 │   ├── system/             # Frames, Files
-│   └── tags/               # MediaTags, MeditationTags, MusicTags, PageTags
+│   └── tags/               # MeditationTags, SongTags
 ├── components/             # React components
 ├── globals/                # Global configurations
 ├── types/                  # TypeScript type definitions

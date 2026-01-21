@@ -3,7 +3,7 @@
 /**
  * Tags Import Script
  *
- * Imports MeditationTags (27 items) and MusicTags (7 items).
+ * Imports MeditationTags (27 items) and SongTags (7 items).
  *
  * Features:
  * - Downloads SVG icons from remote URLs or loads from local files (local: prefix)
@@ -244,11 +244,11 @@ const MEDITATION_TAGS: TagData[] = [
   },
 ]
 
-const MUSIC_TAGS: TagData[] = [
+const SONG_TAGS: TagData[] = [
   {
     title: 'Nature',
     slug: 'nature',
-    color: '#1E6C71', // Note: MusicTags collection doesn't have a color field, kept for reference
+    color: '#1E6C71', // Note: SongTags collection doesn't have a color field, kept for reference
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763990177/meditation-icons/music-icons/Nature.svg',
   },
@@ -296,7 +296,7 @@ const MUSIC_TAGS: TagData[] = [
 // ============================================================================
 
 export class TagsImporter extends BaseImporter<BaseImportOptions> {
-  protected readonly importName = 'Meditation & Music Tags'
+  protected readonly importName = 'Meditation & Song Tags'
   protected readonly cacheDir = CACHE_DIR
 
   // ============================================================================
@@ -329,7 +329,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
     // Preload all tag collections for efficient skip/update mode
     await Promise.all([
       this.preloadCollection('meditation-tags', 'slug'),
-      this.preloadCollection('music-tags', 'slug'),
+      this.preloadCollection('song-tags', 'slug'),
     ])
   }
 
@@ -339,7 +339,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
 
   protected async import(): Promise<void> {
     await this.importMeditationTags()
-    await this.importMusicTags()
+    await this.importSongTags()
   }
 
   // ============================================================================
@@ -383,26 +383,26 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
   }
 
   // ============================================================================
-  // MUSIC TAGS
+  // SONG TAGS
   // ============================================================================
 
-  private async importMusicTags(): Promise<void> {
-    const total = MUSIC_TAGS.length
+  private async importSongTags(): Promise<void> {
+    const total = SONG_TAGS.length
 
     for (let i = 0; i < total; i++) {
-      const tag = MUSIC_TAGS[i]
+      const tag = SONG_TAGS[i]
 
       try {
         // Download and process SVG
-        const cacheFilename = `music-${tag.slug}.svg`
+        const cacheFilename = `song-${tag.slug}.svg`
         const originalSvg = await this.downloadSvg(tag.iconUrl, cacheFilename)
         const processedSvg = this.convertToCurrentColor(originalSvg)
         const svgFile = this.createSvgFileObject(processedSvg, `${tag.slug}.svg`)
 
         // Upsert: find by slug, update if exists, create if not
-        // Note: MusicTags collection does not have a color field
+        // Note: SongTags collection does not have a color field
         await this.upsert(
-          'music-tags',
+          'song-tags',
           { slug: { equals: tag.slug } },
           {
             slug: tag.slug,
@@ -417,7 +417,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
           },
         )
       } catch (error) {
-        this.addError(`Importing music tag "${tag.title}"`, error as Error)
+        this.addError(`Importing song tag "${tag.title}"`, error as Error)
       }
     }
   }
