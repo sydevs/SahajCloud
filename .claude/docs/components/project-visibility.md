@@ -63,7 +63,7 @@ const PROJECTS = {
     collections: [
       'pages', 'meditations', 'music', 'albums',
       'videos', 'forms', 'form-submissions', 'authors',
-      'page-tags', 'meditation-tags', 'music-tags', 'video-tags',
+      'meditation-tags', 'music-tags',
       'narrators', 'frames', 'images', 'files',
     ],
     globals: ['we-meditate-web-settings'],
@@ -74,7 +74,7 @@ const PROJECTS = {
     collections: [
       'meditations', 'music', 'albums', 'videos', 'lessons',
       'lectures', 'frames', 'narrators',
-      'meditation-tags', 'music-tags', 'video-tags', 'images', 'files',
+      'meditation-tags', 'music-tags', 'images', 'files',
     ],
     globals: ['we-meditate-app-settings'],
   },
@@ -108,11 +108,8 @@ Collections are visible based on which projects include them AND whether the use
 | narrators | ✅ | ✅ | | |
 | frames | ✅ | ✅ | | |
 | **Tags** |
-| page-tags | ✅ | | | |
 | meditation-tags | ✅ | ✅ | | |
 | music-tags | ✅ | ✅ | | |
-| video-tags | ✅ | ✅ | | |
-| image-tags | | | | ✅ |
 | **Forms** |
 | forms | ✅ | | | |
 | form-submissions | ✅ | | | |
@@ -121,7 +118,7 @@ Collections are visible based on which projects include them AND whether the use
 | we-meditate-app-settings | | ✅ | | |
 | sahaj-atlas-settings | | | ✅ | |
 
-**Note**: "Shared" collections (like `image-tags`) are not in any project and are visible to all users with write permission.
+**Note**: Page, Video, and Image tags are now inline enum select fields on their respective collections (not separate tag collections).
 
 ## Special Behaviors
 
@@ -131,9 +128,9 @@ Collections are visible based on which projects include them AND whether the use
 - Controlled via the manager's `currentProject` field in the Managers collection
 
 ### Shared Collections
-- Collections not listed in any project (like `image-tags`) are visible across all projects
+- Collections not listed in any project are visible across all projects
 - Useful for shared resources that all projects need access to
-- Note: `images` and `files` are now explicitly included in all three projects rather than being implicitly shared
+- Note: `images` and `files` are explicitly included in all three projects
 
 ### Project Switching UX
 - When managers switch projects via ProjectSelector component, they're automatically redirected to `/admin`

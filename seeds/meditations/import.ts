@@ -42,7 +42,6 @@ import {
   fetchAsset,
   MediaUploader,
   readCache,
-  TagManager,
   writeCache,
 } from '../lib'
 import { seedEnv } from 'seeds/env'
@@ -314,15 +313,14 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   // PRIVATE FIELDS
   // ============================================================================
 
-  private tagManager!: TagManager
   private mediaUploader!: MediaUploader
   private placeholderMediaId: number | string | null = null
   private pathPlaceholderMediaId: number | string | null = null
 
-  // Image tags for categorizing uploaded images
-  private thumbnailTagId: number | null = null
-  private meditationTagId: number | null = null
-  private placeholderTagId: number | null = null
+  // Image tag names for categorizing uploaded images (now inline enum values)
+  private thumbnailTag: string = 'thumbnail'
+  private meditationImageTag: string = 'meditation'
+  private placeholderTag: string = 'placeholder'
 
   // In-memory maps for import (legacy ID → new Payload ID)
   private idMaps = {
@@ -344,7 +342,6 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
   protected async setup(): Promise<void> {
     if (!this.options.dryRun) {
-      this.tagManager = new TagManager(this.payload, this.logger)
       this.mediaUploader = new MediaUploader(this.payload, this.logger)
 
       // Preload collections for efficient skip/update mode
@@ -808,23 +805,14 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
   /**
    * Setup image tags for categorizing meditation thumbnails.
-   * Uses the new tag pattern: thumbnail + meditation (+ placeholder for placeholders)
+   * Image tags are now inline enum select values on the Images collection,
+   * so we just log that they're ready (no collection setup needed).
    */
   private async setupImageTags(): Promise<void> {
     await this.logger.info('\nSetting up image tags...')
-
-    // Create tags in parallel for efficiency
-    const [thumbnailId, meditationId, placeholderId] = await Promise.all([
-      this.tagManager.ensureTag('image-tags', 'thumbnail'),
-      this.tagManager.ensureTag('image-tags', 'meditation'),
-      this.tagManager.ensureTag('image-tags', 'placeholder'),
-    ])
-
-    this.thumbnailTagId = thumbnailId
-    this.meditationTagId = meditationId
-    this.placeholderTagId = placeholderId
-
-    await this.logger.log(`    ✓ Tags ready: thumbnail(${thumbnailId}), meditation(${meditationId}), placeholder(${placeholderId})`)
+    // Image tags are now inline enum values: 'thumbnail', 'meditation', 'placeholder'
+    // No collection setup needed - just use the string values directly
+    await this.logger.log(`    ✓ Tags ready (inline enum values): ${this.thumbnailTag}, ${this.meditationImageTag}, ${this.placeholderTag}`)
   }
 
   /**
@@ -894,9 +882,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       const buffer = await this.getPlaceholderBuffer('placeholder.jpg')
       if (buffer) {
         // Placeholder images get: thumbnail + meditation + placeholder
-        const tags = [this.thumbnailTagId, this.meditationTagId, this.placeholderTagId].filter(
-          (id): id is number => id !== null,
-        )
+        const tags = [this.thumbnailTag, this.meditationImageTag, this.placeholderTag]
         const fileData = this.createFileData(buffer, 'placeholder.jpg')
         const result = await this.uploadToPayload(fileData, 'images', {
           alt: 'Meditation placeholder image',
@@ -918,9 +904,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       const buffer = await this.getPlaceholderBuffer('path.jpg')
       if (buffer) {
         // Path placeholder images get: thumbnail + meditation + placeholder
-        const tags = [this.thumbnailTagId, this.meditationTagId, this.placeholderTagId].filter(
-          (id): id is number => id !== null,
-        )
+        const tags = [this.thumbnailTag, this.meditationImageTag, this.placeholderTag]
         const fileData = this.createFileData(buffer, 'path.jpg')
         const result = await this.uploadToPayload(fileData, 'images', {
           alt: 'Path meditation placeholder image',
@@ -1921,9 +1905,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       return null
     }
 
-    const tags = [this.thumbnailTagId, this.meditationTagId].filter(
-      (id): id is number => id !== null,
-    )
+    const tags = [this.thumbnailTag, this.meditationImageTag]
     // Pass buffer in options for Workers mode, use filename as localPath for cache key
     const result = await this.mediaUploader.uploadWithDeduplication(artAttachment.blob.filename, {
       alt: `${meditation.title} thumbnail`,

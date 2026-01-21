@@ -297,11 +297,12 @@ describe('CleanupOrphanedMedia Job', () => {
     })
 
     it('preserves images with tags (even if unreferenced)', async () => {
-      // Create an image tag
-      const tag = await testData.createImageTag(payload, { title: 'Preserve Tag' })
+      // Image tags are now inline enum strings
+      // Use a non-orientation tag to test preservation
+      const preserveTag = 'thumbnail'
 
       // Create an image with that tag
-      const image = await testData.createMediaImage(payload, { tags: [tag.id] })
+      const image = await testData.createMediaImage(payload, { tags: [preserveTag] })
       await backdateCreatedAt(payload, 'images', image.id)
 
       // Run cleanup job
@@ -545,8 +546,9 @@ describe('CleanupOrphanedMedia Job', () => {
       await backdateCreatedAt(payload, 'images', orphanImage.id)
 
       // 5. Tagged image (will be skipped)
-      const tag = await testData.createImageTag(payload, { title: 'Skip Tag' })
-      const taggedImage = await testData.createMediaImage(payload, { tags: [tag.id] })
+      // Image tags are now inline enum strings
+      const skipTag = 'author' // Use a non-orientation tag
+      const taggedImage = await testData.createMediaImage(payload, { tags: [skipTag] })
       await backdateCreatedAt(payload, 'images', taggedImage.id)
 
       // Run cleanup job

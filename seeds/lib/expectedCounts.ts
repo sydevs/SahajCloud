@@ -22,16 +22,18 @@ export interface ExpectedCounts {
  * Minimum expected counts per script.
  *
  * Sources:
- * - tags: Hardcoded in TagsImporter (27 meditation + 7 music + 14 image)
+ * - tags: Hardcoded in TagsImporter (27 meditation + 7 music)
  * - wemeditate: seeds/wemeditate/data.json counts
  * - meditations: seeds/meditations/data.json counts
  * - storyblok: Based on current Storyblok content
+ *
+ * Note: Image tags are now inline enum select values on the Images collection,
+ * so they don't have expected counts anymore.
  */
 export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   tags: {
     'meditation-tags': 27,
     'music-tags': 7,
-    'image-tags': 14,
   },
   wemeditate: {
     authors: 18,
@@ -126,14 +128,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       naturalKey: 'slug',
       hasFileUploads: true, // SVG icons
     },
-    {
-      slug: 'image-tags',
-      totalItems: 14,
-      requiresPagination: false,
-      dependencies: [],
-      naturalKey: 'slug',
-      hasFileUploads: true, // SVG icons
-    },
+    // Note: image-tags removed - now inline enum select values on Images collection
   ],
   wemeditate: [
     {

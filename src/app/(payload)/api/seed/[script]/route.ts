@@ -388,12 +388,11 @@ async function getDatabaseCounts(
   try {
     switch (script) {
       case 'tags': {
+        // Note: image-tags removed - now inline enum strings on Images collection
         const meditationTags = await payload.count({ collection: 'meditation-tags' })
         const musicTags = await payload.count({ collection: 'music-tags' })
-        const imageTags = await payload.count({ collection: 'image-tags' })
         counts['meditation-tags'] = meditationTags.totalDocs
         counts['music-tags'] = musicTags.totalDocs
-        counts['image-tags'] = imageTags.totalDocs
         break
       }
       case 'wemeditate': {

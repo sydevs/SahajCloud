@@ -40,9 +40,21 @@ export const Images: CollectionConfig = {
     },
     {
       name: 'tags',
-      type: 'relationship',
-      relationTo: 'image-tags',
+      type: 'select',
       hasMany: true,
+      options: [
+        'landscape',
+        'portrait',
+        'square',
+        'thumbnail',
+        'author',
+        'icon',
+        'stock-photo',
+        'technique',
+        'meditation',
+        'placeholder',
+        'lesson',
+      ],
       admin: {
         description: 'Tags to categorize this image',
       },

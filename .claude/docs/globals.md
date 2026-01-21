@@ -27,7 +27,7 @@ The application uses PayloadCMS Global Configs to manage centralized content con
 
 ### Tag Filters Tab
 
-- `inspirationPageTags` (relationship to page-tags, hasMany, minRows: 3, maxRows: 5, required) - Page tags displayed on Inspiration page
+- `inspirationPageTags` (select, hasMany, required) - Inline enum page tags displayed on Inspiration page. Options: wisdom, lifestyle, creativity, event, technique
 - `musicPageTags` (relationship to music-tags, hasMany, minRows: 3, maxRows: 5, required) - Music tags displayed on Music page
 
 ## Key Features

@@ -42,12 +42,12 @@ describe('Pagination Utilities', () => {
       const metadata = getScriptMetadata('tags')
 
       expect(metadata).toBeDefined()
-      expect(metadata.collections).toHaveLength(3)
+      expect(metadata.collections).toHaveLength(2)
       expect(metadata.collections[0].slug).toBe('meditation-tags')
       expect(metadata.collections[1].slug).toBe('music-tags')
-      expect(metadata.collections[2].slug).toBe('image-tags')
+      // image-tags removed - now inline enum strings on Images collection
       expect(metadata.requiresPagination).toBe(false)
-      expect(metadata.totalItems).toBe(48) // 27 + 7 + 14
+      expect(metadata.totalItems).toBe(34) // 27 + 7 (no more image-tags)
     })
 
     it('returns metadata for wemeditate script', () => {
@@ -120,13 +120,12 @@ describe('Pagination Utilities', () => {
       const actualCounts = {
         'meditation-tags': 30,
         'music-tags': 10,
-        'image-tags': 15,
       }
 
       const { results, allPassed } = verifyCountsForScript('tags', actualCounts)
 
       expect(allPassed).toBe(true)
-      expect(results).toHaveLength(3)
+      expect(results).toHaveLength(2)
       expect(results.every((r) => r.passed)).toBe(true)
     })
 
@@ -134,7 +133,6 @@ describe('Pagination Utilities', () => {
       const actualCounts = {
         'meditation-tags': 10, // Expected is 27
         'music-tags': 7,
-        'image-tags': 14,
       }
 
       const { results, allPassed } = verifyCountsForScript('tags', actualCounts)
@@ -163,7 +161,6 @@ describe('Pagination Utilities', () => {
         const actualCounts = {
           'meditation-tags': 10,
           'music-tags': 7,
-          'image-tags': 14,
         }
         const pagination = { collection: 'meditation-tags', offset: 0, limit: 10 }
         const { results, allPassed } = verifyCountsForScript('tags', actualCounts, pagination)
@@ -179,7 +176,6 @@ describe('Pagination Utilities', () => {
         const actualCounts = {
           'meditation-tags': 10,
           'music-tags': 7,
-          'image-tags': 14,
         }
         const pagination = { collection: 'meditation-tags', offset: 0, limit: 10 }
         const { results } = verifyCountsForScript('tags', actualCounts, pagination)
@@ -193,7 +189,6 @@ describe('Pagination Utilities', () => {
         const actualCounts = {
           'meditation-tags': 27,
           'music-tags': 7,
-          'image-tags': 14,
         }
         const pagination = { collection: 'meditation-tags', offset: 20, limit: 100 }
         const { results } = verifyCountsForScript('tags', actualCounts, pagination)
@@ -207,7 +202,6 @@ describe('Pagination Utilities', () => {
         const actualCounts = {
           'meditation-tags': 10,
           'music-tags': 7,
-          'image-tags': 14,
         }
         const pagination = { collection: 'meditation-tags', offset: 0, limit: 0 }
         const { results, allPassed } = verifyCountsForScript('tags', actualCounts, pagination)

@@ -40,14 +40,21 @@ export const Videos: CollectionConfig = {
       admin: {
         description: 'Array of subtitle entries: [{startTime, endTime, text}]',
       },
+      jsonSchema: {
+        uri: 'a://subtitles.json',
+        fileMatch: ['a://subtitles.json'],
+        schema: subtitleSchema as JSONSchema4,
+      },
     },
     {
       name: 'tags',
-      type: 'relationship',
-      relationTo: 'video-tags',
-      hasMany: true,
+      type: 'select',
+      required: true,
+      options: ['testimonial', 'workshop', 'event', 'technique'],
       admin: {
-        description: 'Tags for organizing and filtering videos',
+        components: {
+          Field: '@/components/admin/ToggleGroupField',
+        },
       },
     },
     {
@@ -58,11 +65,6 @@ export const Videos: CollectionConfig = {
         position: 'sidebar',
         readOnly: true,
         description: 'Auto-populated video metadata (duration, format, etc.)',
-      },
-      jsonSchema: {
-        uri: 'a://subtitles.json',
-        fileMatch: ['a://subtitles.json'],
-        schema: subtitleSchema as JSONSchema4,
       },
     },
   ],

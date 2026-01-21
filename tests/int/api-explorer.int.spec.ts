@@ -287,10 +287,6 @@ describe('OpenAPI Spec Marker Utility', () => {
         get: { summary: 'List files' },
         post: { summary: 'Upload file' },
       },
-      '/api/image-tags': {
-        get: { summary: 'List image tags' },
-        post: { summary: 'Create image tag' },
-      },
       '/api/meditations': {
         get: { summary: 'List meditations' },
         post: { summary: 'Create meditation' },
@@ -327,8 +323,6 @@ describe('OpenAPI Spec Marker Utility', () => {
       expect(result.paths!['/api/images']!.post!['x-internal']).toBe(true)
       expect(result.paths!['/api/files']!.get!['x-internal']).toBe(true)
       expect(result.paths!['/api/files']!.post!['x-internal']).toBe(true)
-      expect(result.paths!['/api/image-tags']!.get!['x-internal']).toBe(true)
-      expect(result.paths!['/api/image-tags']!.post!['x-internal']).toBe(true)
 
       // Payload internal collections should be marked internal
       expect(result.paths!['/api/payload-jobs']!.get!['x-internal']).toBe(true)
@@ -342,7 +336,6 @@ describe('OpenAPI Spec Marker Utility', () => {
       expect(ALWAYS_HIDDEN_COLLECTIONS).toContain('clients')
       expect(ALWAYS_HIDDEN_COLLECTIONS).toContain('images')
       expect(ALWAYS_HIDDEN_COLLECTIONS).toContain('files')
-      expect(ALWAYS_HIDDEN_COLLECTIONS).toContain('image-tags')
       expect(ALWAYS_HIDDEN_COLLECTIONS).toContain('payload-jobs')
       expect(ALWAYS_HIDDEN_COLLECTIONS).toContain('payload-locked-documents')
       expect(ALWAYS_HIDDEN_COLLECTIONS).toContain('payload-preferences')

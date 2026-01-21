@@ -133,7 +133,7 @@ The filtering system uses a two-tier approach defined in `src/lib/openapi/`:
 
 **1. ALWAYS_HIDDEN_COLLECTIONS** (System collections always hidden):
 - `managers`, `clients` (access collections)
-- `images`, `files`, `image-tags` (system collections)
+- `images`, `files` (system collections)
 - `payload-kv`, `payload-jobs`, `payload-locked-documents`, `payload-preferences`, `payload-migrations`, `payload-job-stats` (Payload internal)
 
 **2. Role-Based Filtering** (Content collections filtered by CLIENT_ROLES):
@@ -219,11 +219,10 @@ plugins: [
 - **Files** (`src/collections/system/Files.ts`) - Mixed media storage with intelligent routing: images → Cloudflare Images (WebP/AVIF optimization), videos → Cloudflare Stream (transcoding, HLS), other files (PDFs, audio) → R2. Includes virtual `url` and `previewUrl` fields, trash support, and automatic orphan cleanup via the CleanupOrphanedMedia job
 
 ### Tag Collections
-- **ImageTags** (`src/collections/tags/ImageTags.ts`) - Tag system for image files with title field
 - **MeditationTags** (`src/collections/tags/MeditationTags.ts`) - Upload collection for meditation tags with SVG icons, **color picker field**, auto-generated slug from localized title, and bidirectional relationships
 - **MusicTags** (`src/collections/tags/MusicTags.ts`) - Upload collection for music tags with SVG icons, auto-generated slug from localized title, and bidirectional relationships (**note: no color field**, unlike MeditationTags)
-- **PageTags** (`src/collections/tags/PageTags.ts`) - Tag system for pages with auto-generated slug from localized title and bidirectional relationships
-- **VideoTags** (`src/collections/tags/VideoTags.ts`) - Tag system for videos with auto-generated slug from localized title and bidirectional join relationship to Videos collection
+
+**Note**: Page, Video, and Image tags are now inline enum select fields on their respective collections (not separate tag collections). This reduces admin sidebar clutter while maintaining tag functionality.
 
 #### Tag Collection Admin Components
 

@@ -211,17 +211,6 @@ export const WeMeditateWebSettings: GlobalConfig = {
           relationTo: 'pages',
           required: true,
         },
-        {
-          name: 'techniquePageTag',
-          label: 'Technique Page Tag',
-          type: 'relationship',
-          relationTo: 'page-tags',
-          hasMany: false,
-          required: true,
-          admin: {
-            description: 'Select the page tag that represents all technique pages',
-          },
-        },
       ],
     },
 
@@ -243,14 +232,12 @@ export const WeMeditateWebSettings: GlobalConfig = {
         {
           name: 'inspirationPageTags',
           label: 'Inspiration Page Tags',
-          type: 'relationship',
-          relationTo: 'page-tags',
+          type: 'select',
           hasMany: true,
-          minRows: 3,
-          maxRows: 5,
+          options: ['wisdom', 'lifestyle', 'creativity', 'event', 'technique'],
           required: true,
           admin: {
-            description: 'Select 3-5 page tags to display on the Inspiration page',
+            description: 'Select page tags to display on the Inspiration page',
           },
         },
       ],

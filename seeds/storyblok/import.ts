@@ -29,7 +29,6 @@ import {
   MediaUploader,
   rateLimitDelay,
   readCacheText,
-  TagManager,
   writeCache,
 } from '../lib'
 
@@ -68,12 +67,11 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
   private token: string
   private mediaUploader!: MediaUploader
-  private tagManager!: TagManager
 
-  // Image tag IDs
-  private lessonTagId: number | null = null
-  private iconTagId: number | null = null
-  private thumbnailTagId: number | null = null
+  // Image tag names (now inline enum values, not collection IDs)
+  private lessonTag: string = 'lesson'
+  private iconTag: string = 'icon'
+  private thumbnailTag: string = 'thumbnail'
 
   // Meditation lookup cache (lowercase title → id)
   private meditationTitleCache = new Map<string, number>()
@@ -118,7 +116,6 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   protected async setup(): Promise<void> {
     if (!this.options.dryRun) {
       this.mediaUploader = new MediaUploader(this.payload, this.logger)
-      this.tagManager = new TagManager(this.payload, this.logger)
 
       // Pre-load existing media to avoid D1 queries during import
       // This significantly reduces database load in Workers environment
@@ -223,21 +220,13 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
   /**
    * Setup image tags for content categorization.
-   * Creates tags if they don't exist and caches their IDs.
+   * Image tags are now inline enum select values on the Images collection,
+   * so we just log that they're ready (no collection setup needed).
    */
   private async setupImageTags(): Promise<void> {
     await this.logger.info('Setting up image tags...')
-
-    const [lessonId, iconId, thumbnailId] = await Promise.all([
-      this.tagManager.ensureTag('image-tags', 'lesson'),
-      this.tagManager.ensureTag('image-tags', 'icon'),
-      this.tagManager.ensureTag('image-tags', 'thumbnail'),
-    ])
-
-    this.lessonTagId = lessonId
-    this.iconTagId = iconId
-    this.thumbnailTagId = thumbnailId
-
+    // Image tags are now inline enum values: 'lesson', 'icon', 'thumbnail'
+    // No collection setup needed - just use the string values directly
     await this.logger.info('✓ Image tags ready')
   }
 
@@ -527,7 +516,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       throw new Error(`No icon URL found in source data`)
     }
 
-    const iconTags = [this.iconTagId, this.lessonTagId].filter((id): id is number => id !== null)
+    const iconTags = [this.iconTag, this.lessonTag]
     const iconId = await this.createMediaFromUrl(iconUrl, `Icon for ${story.name}`, iconTags)
     return typeof iconId === 'string' ? parseInt(iconId) : iconId
   }
@@ -588,7 +577,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   private async createMediaFromUrl(
     url: string,
     alt?: string,
-    tags?: number[],
+    tags?: string[],
   ): Promise<number | string> {
     if (!url) {
       throw new Error('URL is required for creating media')
@@ -801,7 +790,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
           if (block.Video_UUID) {
             const videoStory = await this.fetchStoryByUuid(block.Video_UUID as string)
             const content = videoStory.content as Record<string, any>
-            const thumbnailTags = this.thumbnailTagId ? [this.thumbnailTagId] : []
+            const thumbnailTags = [this.thumbnailTag]
             const thumbnailId = await this.createMediaFromUrl(
               content.Thumbnail?.filename || '',
               undefined,

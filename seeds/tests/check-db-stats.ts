@@ -23,14 +23,13 @@ async function checkDatabaseStats() {
     payload = await getPayload({ config })
 
     // Define collections to check
+    // Note: image-tags, page-tags, video-tags removed - now inline enum select values
     const collections = [
       'managers',
       'clients',
       'images',
-      'image-tags',
       'meditation-tags',
       'music-tags',
-      'page-tags',
       'narrators',
       'authors',
       'frames',
@@ -73,7 +72,8 @@ async function checkDatabaseStats() {
     console.log('\nImport Tags:')
     console.log('============')
 
-    const importTagCollections = ['image-tags', 'meditation-tags', 'music-tags', 'page-tags']
+    // Note: image-tags, page-tags, video-tags removed - now inline enum select values
+    const importTagCollections = ['meditation-tags', 'music-tags']
     let foundTags = false
 
     for (const tagCollection of importTagCollections) {

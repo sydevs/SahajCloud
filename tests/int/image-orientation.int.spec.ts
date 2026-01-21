@@ -2,8 +2,6 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { ImageTag } from '@/payload-types'
-
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -11,17 +9,14 @@ describe('Image Orientation Detection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
+  // Image tags are now inline enum strings
+  const customTag = 'thumbnail' // Use an existing enum value for custom tag tests
+
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
     payload = testEnv.payload
     cleanup = testEnv.cleanup
-
-    // Pre-create orientation tags (simulating what tags import does)
-    await Promise.all([
-      testData.createImageTag(payload, { title: 'landscape' }),
-      testData.createImageTag(payload, { title: 'portrait' }),
-      testData.createImageTag(payload, { title: 'square' }),
-    ])
+    // No need to pre-create orientation tags - they are now inline enum strings
   })
 
   afterAll(async () => {
@@ -35,47 +30,23 @@ describe('Image Orientation Detection', () => {
     expect(image.tags).toBeDefined()
     expect(image.tags!.length).toBeGreaterThan(0)
 
-    // Get tag details
-    const imageWithTags = await payload.findByID({
-      collection: 'images',
-      id: image.id,
-      depth: 1,
-    })
-
-    const tagTitles = imageWithTags.tags?.map((tag) =>
-      typeof tag === 'object' && tag !== null ? (tag as ImageTag).title : null,
-    ) || []
-
-    expect(tagTitles).toContain('landscape')
-    expect(tagTitles).not.toContain('portrait')
-    expect(tagTitles).not.toContain('square')
+    // Tags are now string arrays
+    expect(image.tags).toContain('landscape')
+    expect(image.tags).not.toContain('portrait')
+    expect(image.tags).not.toContain('square')
   })
 
   it('preserves existing tags when adding orientation tag', async () => {
-    // Create a custom tag
-    const customTag = await testData.createImageTag(payload, { title: 'custom-test-tag' })
-
-    // Upload image with custom tag
+    // Upload image with custom tag (now a string enum value)
     const image = await testData.createMediaImage(
       payload,
-      { tags: [customTag.id] },
+      { tags: [customTag] },
       'image-1050x700.jpg',
     )
 
-    // Get image with populated tags
-    const imageWithTags = await payload.findByID({
-      collection: 'images',
-      id: image.id,
-      depth: 1,
-    })
-
-    const tagTitles = imageWithTags.tags?.map((tag) =>
-      typeof tag === 'object' && tag !== null ? (tag as ImageTag).title : null,
-    ) || []
-
-    // Should have both custom tag and orientation tag
-    expect(tagTitles).toContain('custom-test-tag')
-    expect(tagTitles).toContain('landscape')
+    // Tags are now string arrays
+    expect(image.tags).toContain(customTag)
+    expect(image.tags).toContain('landscape')
   })
 
   it('does not duplicate tags if re-uploaded', async () => {
@@ -83,21 +54,12 @@ describe('Image Orientation Detection', () => {
     const image1 = await testData.createMediaImage(payload, {}, 'image-1050x700.jpg')
     const image2 = await testData.createMediaImage(payload, {}, 'image-1050x700.jpg')
 
-    // Each should have exactly one landscape tag
-    const tags1 =
-      image1.tags?.filter((tag) => {
-        const tagObj = typeof tag === 'object' && tag !== null ? (tag as ImageTag) : null
-        return tagObj?.title === 'landscape'
-      }) || []
+    // Each should have exactly one landscape tag (tags are now strings)
+    const landscapeCount1 = image1.tags?.filter((tag) => tag === 'landscape').length || 0
+    const landscapeCount2 = image2.tags?.filter((tag) => tag === 'landscape').length || 0
 
-    const tags2 =
-      image2.tags?.filter((tag) => {
-        const tagObj = typeof tag === 'object' && tag !== null ? (tag as ImageTag) : null
-        return tagObj?.title === 'landscape'
-      }) || []
-
-    expect(tags1.length).toBe(1)
-    expect(tags2.length).toBe(1)
+    expect(landscapeCount1).toBe(1)
+    expect(landscapeCount2).toBe(1)
   })
 
   it('only runs on create operations (not update)', async () => {

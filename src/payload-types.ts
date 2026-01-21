@@ -96,11 +96,8 @@ export interface Config {
     authors: Author;
     images: Image;
     files: File;
-    'image-tags': ImageTag;
     'meditation-tags': MeditationTag;
     'music-tags': MusicTag;
-    'page-tags': PageTag;
-    'video-tags': VideoTag;
     managers: Manager;
     clients: Client;
     forms: Form;
@@ -118,20 +115,11 @@ export interface Config {
     authors: {
       articles: 'pages';
     };
-    'image-tags': {
-      images: 'images';
-    };
     'meditation-tags': {
       meditations: 'meditations';
     };
     'music-tags': {
       music: 'music';
-    };
-    'page-tags': {
-      pages: 'pages';
-    };
-    'video-tags': {
-      videos: 'videos';
     };
   };
   collectionsSelect: {
@@ -147,11 +135,8 @@ export interface Config {
     authors: AuthorsSelect<false> | AuthorsSelect<true>;
     images: ImagesSelect<false> | ImagesSelect<true>;
     files: FilesSelect<false> | FilesSelect<true>;
-    'image-tags': ImageTagsSelect<false> | ImageTagsSelect<true>;
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
     'music-tags': MusicTagsSelect<false> | MusicTagsSelect<true>;
-    'page-tags': PageTagsSelect<false> | PageTagsSelect<true>;
-    'video-tags': VideoTagsSelect<false> | VideoTagsSelect<true>;
     managers: ManagersSelect<false> | ManagersSelect<true>;
     clients: ClientsSelect<false> | ClientsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
@@ -312,7 +297,7 @@ export interface Page {
    * Article author (for article pages)
    */
   author?: (number | null) | Author;
-  tags?: (number | PageTag)[] | null;
+  tags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -332,7 +317,21 @@ export interface Image {
   /**
    * Tags to categorize this image
    */
-  tags?: (number | ImageTag)[] | null;
+  tags?:
+    | (
+        | 'landscape'
+        | 'portrait'
+        | 'square'
+        | 'thumbnail'
+        | 'author'
+        | 'icon'
+        | 'stock-photo'
+        | 'technique'
+        | 'meditation'
+        | 'placeholder'
+        | 'lesson'
+      )[]
+    | null;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -354,21 +353,6 @@ export interface Image {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "image-tags".
- */
-export interface ImageTag {
-  id: number;
-  title: string;
-  images?: {
-    docs?: (number | Image)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  updatedAt: string;
-  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -406,32 +390,6 @@ export interface Author {
    */
   photo?: (number | null) | Image;
   articles?: {
-    docs?: (number | Page)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "page-tags".
- */
-export interface PageTag {
-  id: number;
-  /**
-   * When enabled, the slug will auto-generate from the title field on save and autosave.
-   */
-  generateSlug?: boolean | null;
-  /**
-   * URL-friendly identifier (auto-generated from title)
-   */
-  slug: string;
-  /**
-   * This localized title will be shown to public users
-   */
-  title: string;
-  pages?: {
     docs?: (number | Page)[];
     hasNextPage?: boolean;
     totalDocs?: number;
@@ -679,23 +637,7 @@ export interface Video {
    * Video title shown to users
    */
   title: string;
-  /**
-   * Array of subtitle entries: [{startTime, endTime, text}]
-   */
-  subtitles?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Tags for organizing and filtering videos
-   */
-  tags?: (number | VideoTag)[] | null;
-  fileMetadata?: {
+  subtitles?: {
     captions: {
       duration: number;
       content: string;
@@ -704,6 +646,19 @@ export interface Video {
     }[];
     [k: string]: unknown;
   };
+  tags: 'testimonial' | 'workshop' | 'event' | 'technique';
+  /**
+   * Auto-populated video metadata (duration, format, etc.)
+   */
+  fileMetadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -715,32 +670,6 @@ export interface Video {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "video-tags".
- */
-export interface VideoTag {
-  id: number;
-  /**
-   * When enabled, the slug will auto-generate from the title field on save and autosave.
-   */
-  generateSlug?: boolean | null;
-  /**
-   * URL-friendly identifier (auto-generated from title)
-   */
-  slug: string;
-  /**
-   * This localized title will be shown to public users
-   */
-  title: string;
-  videos?: {
-    docs?: (number | Video)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  updatedAt: string;
-  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1419,24 +1348,12 @@ export interface PayloadLockedDocument {
         value: number | File;
       } | null)
     | ({
-        relationTo: 'image-tags';
-        value: number | ImageTag;
-      } | null)
-    | ({
         relationTo: 'meditation-tags';
         value: number | MeditationTag;
       } | null)
     | ({
         relationTo: 'music-tags';
         value: number | MusicTag;
-      } | null)
-    | ({
-        relationTo: 'page-tags';
-        value: number | PageTag;
-      } | null)
-    | ({
-        relationTo: 'video-tags';
-        value: number | VideoTag;
       } | null)
     | ({
         relationTo: 'managers';
@@ -1758,16 +1675,6 @@ export interface FilesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "image-tags_select".
- */
-export interface ImageTagsSelect<T extends boolean = true> {
-  title?: T;
-  images?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "meditation-tags_select".
  */
 export interface MeditationTagsSelect<T extends boolean = true> {
@@ -1808,30 +1715,6 @@ export interface MusicTagsSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "page-tags_select".
- */
-export interface PageTagsSelect<T extends boolean = true> {
-  generateSlug?: T;
-  slug?: T;
-  title?: T;
-  pages?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "video-tags_select".
- */
-export interface VideoTagsSelect<T extends boolean = true> {
-  generateSlug?: T;
-  slug?: T;
-  title?: T;
-  videos?: T;
-  updatedAt?: T;
-  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2151,15 +2034,11 @@ export interface WeMeditateWebSetting {
   agnya: number | Page;
   sahasrara: number | Page;
   techniquesPage: number | Page;
-  /**
-   * Select the page tag that represents all technique pages
-   */
-  techniquePageTag: number | PageTag;
   inspirationPage: number | Page;
   /**
-   * Select 3-5 page tags to display on the Inspiration page
+   * Select page tags to display on the Inspiration page
    */
-  inspirationPageTags: (number | PageTag)[];
+  inspirationPageTags: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[];
   classesPage: number | Page;
   /**
    * Select the page for live meditation classes
@@ -2249,7 +2128,6 @@ export interface WeMeditateWebSettingsSelect<T extends boolean = true> {
   agnya?: T;
   sahasrara?: T;
   techniquesPage?: T;
-  techniquePageTag?: T;
   inspirationPage?: T;
   inspirationPageTags?: T;
   classesPage?: T;
