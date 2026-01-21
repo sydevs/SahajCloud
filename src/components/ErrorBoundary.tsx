@@ -3,7 +3,7 @@
 import * as Sentry from '@sentry/react'
 import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 
-import { clientEnv } from '@/lib/env'
+import { clientEnv } from '@/lib/env/client'
 
 interface ErrorBoundaryState {
   hasError: boolean

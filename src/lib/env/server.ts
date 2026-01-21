@@ -1,54 +1,23 @@
 /**
- * Environment Variable Validation with Zod
+ * Server Environment Variable Validation
  *
- * This module provides type-safe environment variable validation using Zod.
- * All environment variables are validated at module load time with clear error messages.
+ * This module provides type-safe server environment variable validation using Zod.
+ * Extends client environment with server-only variables (secrets, API keys).
  *
- * **Architecture**:
- * - Client-accessible variables (NEXT_PUBLIC_* prefix) in `clientEnv`
- * - Server-only variables (secrets, API keys) in `serverEnv` (includes all client vars)
- * - Optional variables for dev environment (Cloudflare, email, etc.)
- * - Fail-fast validation on module import
+ * **IMPORTANT**: This file should ONLY be imported from server-side code.
+ * For client-side code, use `@/lib/env/client` instead.
  *
  * **Usage**:
  * ```typescript
- * import { serverEnv, clientEnv, requireBinding } from '@/lib/env'
+ * import { serverEnv, requireBinding } from '@/lib/env'
  *
- * // Server-side
  * const secret = serverEnv.PAYLOAD_SECRET
- *
- * // Client-side
- * const logLevel = clientEnv.NEXT_PUBLIC_LOG_LEVEL
- *
- * // Cloudflare Workers bindings
  * const r2 = requireBinding<R2Bucket>(env.R2, 'R2')
  * ```
  */
 import { z } from 'zod'
 
-/**
- * Client-side environment variables schema
- *
- * These variables are intentionally exposed to the client via NEXT_PUBLIC_ prefix:
- * - Error tracking configuration
- * - Client-side logging levels
- */
-const ClientEnvSchema = z.object({
-  /**
-   * Sentry DSN for error tracking (both server and client)
-   * NEXT_PUBLIC_ prefix makes it accessible on both server and client
-   */
-  NEXT_PUBLIC_SENTRY_DSN: z.url().optional(),
-
-  /**
-   * Log level for both client and server-side logging
-   * Controls Payload's Pino logger and client-side console output
-   * NEXT_PUBLIC_ prefix makes it accessible on both server and client
-   *
-   * @default 'silent' (client), varies by NODE_ENV (server)
-   */
-  NEXT_PUBLIC_LOG_LEVEL: z.enum(['silent', 'error', 'warn', 'info', 'debug']).optional(),
-})
+import { ClientEnvSchema } from './client'
 
 /**
  * Server-side environment variables schema
@@ -167,7 +136,6 @@ const ServerEnvSchema = ClientEnvSchema.extend({
 
 // Type inference for TypeScript
 export type ServerEnv = z.infer<typeof ServerEnvSchema>
-export type ClientEnv = z.infer<typeof ClientEnvSchema>
 
 /**
  * Validated server-side environment variables
@@ -191,33 +159,6 @@ export const serverEnv = (() => {
       console.error('\nCheck your .env file and compare with .env.example for required variables.')
       throw new Error(
         'Invalid server environment variables. Check the error details above and verify your .env file matches .env.example requirements.',
-      )
-    }
-    throw error
-  }
-})()
-
-/**
- * Validated client-side environment variables
- *
- * Throws validation error on module import if environment is invalid.
- * Provides type-safe access to all client-accessible environment variables.
- */
-export const clientEnv = (() => {
-  try {
-    return ClientEnvSchema.parse(process.env)
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      // Note: Using console.error here is intentional for fail-fast behavior
-      // This code runs at module load time, before any logging system is available
-      // eslint-disable-next-line no-console
-      console.error('❌ Environment validation error (client):')
-      // eslint-disable-next-line no-console
-      console.error(error.issues)
-      // eslint-disable-next-line no-console
-      console.error('\nCheck your .env file and compare with .env.example for required variables.')
-      throw new Error(
-        'Invalid client environment variables. Check the error details above and verify your .env file matches .env.example requirements.',
       )
     }
     throw error
@@ -255,3 +196,7 @@ export function requireBinding<T>(binding: T | undefined | null, name: string): 
   }
   return binding
 }
+
+// Re-export client types and values for convenience in server code
+export type { ClientEnv } from './client'
+export { clientEnv } from './client'
