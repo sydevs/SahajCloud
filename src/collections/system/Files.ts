@@ -1,6 +1,5 @@
 import type { CollectionConfig } from 'payload'
 
-import { createRateLimitHook } from '@/lib/rateLimiting'
 import { mixedMediaUrlField, previewUrlField } from '@/lib/storage/urlFields'
 
 export const Files: CollectionConfig = {
@@ -11,9 +10,6 @@ export const Files: CollectionConfig = {
   },
   trash: true,
   disableDuplicate: true,
-  hooks: {
-    beforeOperation: [createRateLimitHook()],
-  },
   admin: {
     group: 'Resources',
     useAsTitle: 'filename',

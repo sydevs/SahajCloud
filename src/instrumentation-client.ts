@@ -8,7 +8,7 @@
  */
 import * as Sentry from '@sentry/react'
 
-import { clientEnv } from '@/lib/env'
+import { clientEnv } from '@/lib/env/client'
 
 // Initialize Sentry for client-side errors only
 // Server-side errors are handled by the Sentry plugin

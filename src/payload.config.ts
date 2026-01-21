@@ -19,6 +19,7 @@ import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { scalarPlugin } from '@/lib/openapi'
 import { sentryPlugin } from '@/lib/sentryPlugin'
 import { getServerUrl } from '@/lib/serverUrl'
+import { usagePlugin } from '@/lib/usage'
 
 import { collections, Managers } from './collections'
 import { globals } from './globals'
@@ -205,6 +206,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           admin: { group: 'System' },
         },
       }),
+      // Usage Plugin: Rate limiting and usage tracking (disabled in E2E tests)
+      // Note: 'clients' is auto-excluded as a consumer collection; 'managers' excluded to skip admin users
+      usagePlugin({ enabled: !isE2ETest, exclude: ['managers'] }),
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({
         enabled: true,

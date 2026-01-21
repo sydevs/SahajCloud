@@ -1,7 +1,5 @@
 import type { CollectionConfig } from 'payload'
 
-import { trackClientUsageHook } from '@/jobs/tasks/TrackUsage'
-import { createRateLimitHook } from '@/lib/rateLimiting'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const Albums: CollectionConfig = {
@@ -22,10 +20,6 @@ export const Albums: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     defaultColumns: ['title', 'artist', 'filename'],
-  },
-  hooks: {
-    beforeOperation: [createRateLimitHook()],
-    afterRead: [trackClientUsageHook],
   },
   fields: [
     virtualUrlField({
