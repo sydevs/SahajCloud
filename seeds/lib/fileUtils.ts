@@ -152,7 +152,7 @@ export class FileUtils {
       if (!response.ok) {
         throw new Error(`Failed to download ${url}: ${response.status}`)
       }
-      const buffer = Buffer.from(await response.arrayBuffer())
+      const buffer = safeBufferFrom(await response.arrayBuffer())
       await fs.writeFile(cachePath, buffer)
       return buffer
     }
@@ -162,7 +162,7 @@ export class FileUtils {
     if (!response.ok) {
       throw new Error(`Failed to download ${url}: ${response.status}`)
     }
-    return Buffer.from(await response.arrayBuffer())
+    return safeBufferFrom(await response.arrayBuffer())
   }
 
   /**
