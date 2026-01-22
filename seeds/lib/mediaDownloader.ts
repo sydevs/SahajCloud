@@ -14,7 +14,7 @@ import * as crypto from 'crypto'
 import { promises as fs } from 'fs'
 import * as path from 'path'
 
-import { isCloudflareWorker } from './runtime'
+import { isCloudflareWorker, safeBufferFrom } from './runtime'
 // import * as sharp from 'sharp' // DISABLED: Removed for Cloudflare Workers compatibility
 
 // ============================================================================
@@ -300,19 +300,7 @@ export class MediaDownloader {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
       const arrayBuffer = await response.arrayBuffer()
-
-      // In Cloudflare Workers, Buffer methods can cause "offset" type errors.
-      // Use manual indexed copy which is the only reliable method.
-      if (isCloudflareWorker()) {
-        const bytes = new Uint8Array(arrayBuffer)
-        const cleanBuffer = Buffer.alloc(bytes.length)
-        for (let i = 0; i < bytes.length; i++) {
-          cleanBuffer[i] = bytes[i]
-        }
-        return cleanBuffer
-      }
-
-      return Buffer.from(arrayBuffer)
+      return safeBufferFrom(arrayBuffer)
     } finally {
       clearTimeout(timeoutId)
     }

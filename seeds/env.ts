@@ -4,7 +4,14 @@
  * This module provides type-safe environment variable validation for seed scripts only.
  * Maintains strict separation from the main application environment configuration.
  */
+import dotenv from 'dotenv'
 import { z } from 'zod'
+
+// Load env files BEFORE parsing process.env
+// This must happen at module load time, before the IIFE below runs
+// Following Next.js convention: .env.local takes precedence over .env
+dotenv.config({ path: '.env' })
+dotenv.config({ path: '.env.local', override: true })
 
 /**
  * Seed scripts environment variables schema
