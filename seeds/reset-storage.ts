@@ -184,16 +184,29 @@ function resetLocalUploads(): void {
 // =============================================================================
 
 /**
+ * D1 query result structure (wrangler returns an array of results)
+ */
+interface D1QueryResult {
+  results?: Array<{ name: string }>
+  success?: boolean
+  meta?: Record<string, unknown>
+}
+
+/**
  * Get list of tables from D1 database
  */
 function getD1Tables(): string[] {
   logStep('Fetching table list from production database')
 
-  const result = wranglerJson<{ results?: Array<{ name: string }> }>(
+  // Wrangler D1 returns an array of query results, one per statement
+  const result = wranglerJson<D1QueryResult[]>(
     `d1 execute ${PROD_DB_NAME} --remote --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';"`,
   )
 
-  const tables = result?.results?.map((r) => r.name).filter((name) => name && name !== 'name') || []
+  // Get the first query result from the array
+  const queryResult = result?.[0]
+  const tables =
+    queryResult?.results?.map((r) => r.name).filter((name) => name && name !== 'name') || []
   log(`  Found ${tables.length} tables`, CYAN)
 
   return tables
