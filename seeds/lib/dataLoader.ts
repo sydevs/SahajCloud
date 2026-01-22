@@ -102,7 +102,7 @@ export async function fetchAsset(url: string, options?: AssetOptions): Promise<B
     if (!response.ok) {
       throw new Error(`Failed to fetch ${url}: ${response.status}`)
     }
-    const buffer = Buffer.from(await response.arrayBuffer())
+    const buffer = safeBufferFrom(await response.arrayBuffer())
     await writeCache(options.cachePath, buffer)
     return buffer
   }
@@ -112,7 +112,7 @@ export async function fetchAsset(url: string, options?: AssetOptions): Promise<B
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url}: ${response.status}`)
   }
-  return Buffer.from(await response.arrayBuffer())
+  return safeBufferFrom(await response.arrayBuffer())
 }
 
 // ============================================================================
