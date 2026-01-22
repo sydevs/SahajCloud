@@ -19,12 +19,6 @@
  *   CLOUDFLARE_R2_SECRET_ACCESS_KEY - R2 S3 API secret key
  */
 
-import dotenv from 'dotenv'
-
-// Load env files in order (later files override earlier)
-// Following Next.js convention: .env.local takes precedence over .env
-dotenv.config({ path: '.env' })
-dotenv.config({ path: '.env.local', override: true })
 import { execSync, spawnSync } from 'child_process'
 import { existsSync, rmSync } from 'fs'
 import { resolve } from 'path'

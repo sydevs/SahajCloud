@@ -42,6 +42,7 @@ import {
   fetchAsset,
   MediaUploader,
   readCache,
+  safeBufferFrom,
   writeCache,
 } from '../lib'
 import { seedEnv } from 'seeds/env'
@@ -845,7 +846,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         return null
       }
 
-      const buffer = Buffer.from(arrayBuffer)
+      const buffer = safeBufferFrom(arrayBuffer)
 
       // Cache for local mode (no-op in Workers)
       await writeCache(cachedPath, buffer)

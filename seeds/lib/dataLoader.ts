@@ -11,7 +11,7 @@
 import { promises as fs } from 'fs'
 import * as path from 'path'
 
-import { isCloudflareWorker } from './runtime'
+import { isCloudflareWorker, safeBufferFrom } from './runtime'
 
 /**
  * Data source configuration for loading bundled data files
@@ -86,7 +86,7 @@ export async function fetchAsset(url: string, options?: AssetOptions): Promise<B
     if (!response.ok) {
       throw new Error(`Failed to fetch ${url}: ${response.status}`)
     }
-    return Buffer.from(await response.arrayBuffer())
+    return safeBufferFrom(await response.arrayBuffer())
   }
 
   // Local dev: use cache if available

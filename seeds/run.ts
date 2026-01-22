@@ -39,13 +39,6 @@
  *   SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed
  */
 
-import dotenv from 'dotenv'
-
-// Load env files in order (later files override earlier)
-// Following Next.js convention: .env.local takes precedence over .env
-dotenv.config({ path: '.env' })
-dotenv.config({ path: '.env.local', override: true })
-
 import type { ScriptMetadata, PaginationResult } from './lib/pagination'
 
 import { seedEnv } from './env'

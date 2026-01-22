@@ -42,3 +42,26 @@ export function isCloudflareWorker(): boolean {
 export function isLocalDevelopment(): boolean {
   return !isCloudflareWorker()
 }
+
+/**
+ * Safely create a Buffer from an ArrayBuffer.
+ * Works around Cloudflare Workers Buffer polyfill issues where
+ * Buffer.from(arrayBuffer) can cause "offset argument must be of type number" errors.
+ *
+ * @param arrayBuffer - The ArrayBuffer to convert
+ * @returns A Buffer containing the same data
+ */
+export function safeBufferFrom(arrayBuffer: ArrayBuffer): Buffer {
+  if (isCloudflareWorker()) {
+    // In Cloudflare Workers, Buffer.from(arrayBuffer) can cause
+    // "offset argument must be of type number" errors.
+    // Use manual indexed copy which is the only reliable method.
+    const bytes = new Uint8Array(arrayBuffer)
+    const cleanBuffer = Buffer.alloc(bytes.length)
+    for (let i = 0; i < bytes.length; i++) {
+      cleanBuffer[i] = bytes[i]
+    }
+    return cleanBuffer
+  }
+  return Buffer.from(arrayBuffer)
+}

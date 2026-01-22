@@ -12,7 +12,7 @@ import type { Logger } from './logger'
 import { promises as fs } from 'fs'
 import * as path from 'path'
 
-import { isCloudflareWorker } from './runtime'
+import { isCloudflareWorker, safeBufferFrom } from './runtime'
 
 export interface DownloadOptions {
   maxRetries?: number
@@ -136,7 +136,7 @@ export class FileUtils {
       if (!response.ok) {
         throw new Error(`Failed to download ${url}: ${response.status}`)
       }
-      return Buffer.from(await response.arrayBuffer())
+      return safeBufferFrom(await response.arrayBuffer())
     }
 
     // In local dev: use disk cache if available

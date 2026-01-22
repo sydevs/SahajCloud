@@ -26,7 +26,6 @@
 
 import type { Payload, TypedLocale } from 'payload'
 
-import { readFile } from 'fs/promises'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -41,24 +40,6 @@ import {
   rateLimitDelay,
   readCache,
 } from '../lib'
-
-// ============================================================================
-// SLUG NORMALIZATION HELPER
-// ============================================================================
-
-/**
- * Normalize a string for consistent slug generation.
- * Handles:
- * 1. Trim whitespace (e.g., "Jahnavi Rawal " → "Jahnavi Rawal")
- * 2. Unicode diacritics (e.g., "Sabău" → "Sabau")
- * 3. Lowercase (e.g., "Hampstead-Meeting" → "hampstead-meeting")
- */
-function normalizeForSlug(str: string): string {
-  return str
-    .trim()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
-}
 
 // ============================================================================
 // WEMEDITATE DATA TYPES (matching extraction script output)
@@ -571,16 +552,14 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
 
     // Generate slug (normalized for consistent matching)
-    const normalizedName = normalizeForSlug(enTranslation.name!)
-    const slug = enTranslation.slug
-      ? normalizeForSlug(enTranslation.slug)
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/-+/g, '-')
-          .replace(/^-|-$/g, '')
-      : normalizedName
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/-+/g, '-')
-          .replace(/^-|-$/g, '')
+    const slug = (enTranslation.slug || enTranslation.name!)
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
 
     // Get author and tags
     let authorId: number | string | undefined
@@ -751,9 +730,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           continue
         }
 
-        // Generate slug from name (normalized for consistent matching)
-        const normalizedName = normalizeForSlug(enTranslation.name!)
-        const slug = normalizedName
+        // Generate name (trimmed) and slug (normalized for consistent matching)
+        const name = enTranslation.name!.trim()
+        const slug = name
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+          .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/-+/g, '-')
           .replace(/^-|-$/g, '')
@@ -763,7 +745,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           'authors',
           { slug: { equals: slug } },
           {
-            name: normalizedName,
+            name,
             title: enTranslation.title || '',
             description: enTranslation.description || '',
             countryCode: author.country_code || undefined,
@@ -867,6 +849,19 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   }
 
   // ============================================================================
+  // ID CONVERSION HELPER
+  // ============================================================================
+
+  /**
+   * Convert ID to numeric type for consistent Map key handling.
+   * JSON data has string IDs ("8") but Map lookups use numbers (8).
+   * JavaScript Maps treat string "8" and number 8 as different keys.
+   */
+  private toNumericId(id: unknown): number {
+    return typeof id === 'string' ? parseInt(id, 10) : Number(id)
+  }
+
+  // ============================================================================
   // ALBUMS IMPORT (from artists table)
   // ============================================================================
 
@@ -893,7 +888,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         const existingFromCache = this.getPreloaded('albums', artist.name)
         if (existingFromCache) {
           // Always record the ID mapping (needed for music import)
-          this.idMaps.albums.set(artist.id, existingFromCache.id)
+          this.idMaps.albums.set(this.toNumericId(artist.id), existingFromCache.id)
 
           if (!this.options.updateMode) {
             // SKIP MODE: Don't update, just record the mapping
@@ -1004,10 +999,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             this.addWarning(
               `Album art upload failed for ${artist.name} (Buffer issue), trying placeholder: ${errorMsg}`,
             )
-            // Try with local preview.png placeholder
+            // Try with GitHub-hosted preview.png placeholder (no filesystem in Workers)
             try {
-              const placeholderPath = path.join(__dirname, 'preview.png')
-              const placeholderBuffer = await readFile(placeholderPath)
+              const githubPlaceholderUrl = `${GITHUB_RAW_BASE}/seeds/wemeditate/preview.png`
+              const placeholderBuffer = await fetchAsset(githubPlaceholderUrl)
               albumDoc = await this.payload.create({
                 collection: 'albums',
                 data: {
@@ -1041,7 +1036,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           }
         }
 
-        this.idMaps.albums.set(artist.id, albumDoc.id)
+        this.idMaps.albums.set(this.toNumericId(artist.id), albumDoc.id)
         this.report.incrementCreated()
         await this.reportDocument('albums', artist.name, 'created', {
           current: i + 1,
@@ -1136,8 +1131,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
               : track.artist_ids[0]
           albumId = this.idMaps.albums.get(firstArtistId)
           if (!albumId) {
+            // Log which artist name we're looking for to help debug missing albums
+            const artistData = this.data.artists.find(
+              (a) => this.toNumericId(a.id) === firstArtistId,
+            )
             this.addWarning(
-              `Track ${track.id} "${track.title}": artist ${firstArtistId} not found in albums map`,
+              `Track ${track.id} "${track.title}": artist ${firstArtistId} (${artistData?.name || 'unknown'}) not found in albums map. ` +
+                `Albums map has ${this.idMaps.albums.size} entries. Check if album was created successfully.`,
             )
           }
         }
@@ -1354,16 +1354,14 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         }
 
         // Generate slug (normalized for consistent matching)
-        const normalizedName = normalizeForSlug(enTranslation.name!)
-        const slug = enTranslation.slug
-          ? normalizeForSlug(enTranslation.slug)
-              .replace(/[^a-z0-9]+/g, '-')
-              .replace(/-+/g, '-')
-              .replace(/^-|-$/g, '')
-          : normalizedName
-              .replace(/[^a-z0-9]+/g, '-')
-              .replace(/-+/g, '-')
-              .replace(/^-|-$/g, '')
+        const slug = (enTranslation.slug || enTranslation.name!)
+          .trim()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '')
 
         // Get author and tags
         let authorId: number | string | undefined
