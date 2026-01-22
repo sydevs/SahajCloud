@@ -39,6 +39,7 @@ import {
   MediaUploader,
   rateLimitDelay,
   readCache,
+  safeBufferCopy,
 } from '../lib'
 
 // ============================================================================
@@ -970,8 +971,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         const mimeType = this.fileUtils.getMimeType(filename)
 
         // In Workers, ensure we pass a clean Buffer without ArrayBuffer offset issues
-        // The Workers Buffer polyfill can have issues with byteOffset when creating Uint8Array views
-        const cleanBuffer = Buffer.from(new Uint8Array(fileBuffer))
+        // Uses safeBufferCopy() which does a manual indexed copy - the only reliable method.
+        const cleanBuffer = safeBufferCopy(fileBuffer)
 
         // Try to create album, with fallback to placeholder if Buffer polyfill fails
         let albumDoc: Awaited<ReturnType<typeof this.payload.create>>

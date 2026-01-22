@@ -19,8 +19,8 @@
  *   CLOUDFLARE_R2_SECRET_ACCESS_KEY - R2 S3 API secret key
  */
 
-import { execSync, spawnSync } from 'child_process'
-import { existsSync, rmSync } from 'fs'
+import { execSync } from 'child_process'
+import { existsSync, rmSync, unlinkSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import * as readline from 'readline'
 
@@ -114,33 +114,6 @@ function exec(command: string, silent = false): string {
   }
 }
 
-/**
- * Execute wrangler command and parse JSON output
- */
-function wranglerJson<T>(command: string): T | null {
-  try {
-    const result = spawnSync('npx', ['wrangler', ...command.split(' '), '--json'], {
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
-
-    if (result.stdout) {
-      // Parse the JSON output, handling wrangler's verbose output
-      const lines = result.stdout.split('\n')
-      for (const line of lines) {
-        try {
-          return JSON.parse(line) as T
-        } catch {
-          // Skip non-JSON lines
-        }
-      }
-    }
-    return null
-  } catch {
-    return null
-  }
-}
-
 // =============================================================================
 // LOCAL RESET
 // =============================================================================
@@ -184,36 +157,46 @@ function resetLocalUploads(): void {
 // =============================================================================
 
 /**
- * D1 query result structure (wrangler returns an array of results)
- */
-interface D1QueryResult {
-  results?: Array<{ name: string }>
-  success?: boolean
-  meta?: Record<string, unknown>
-}
-
-/**
  * Get list of tables from D1 database
+ *
+ * Matches the approach used in reset-migrations.sh:
+ * - No --json flag (raw output)
+ * - Parse with regex to extract table names
  */
 function getD1Tables(): string[] {
   logStep('Fetching table list from production database')
 
-  // Wrangler D1 returns an array of query results, one per statement
-  const result = wranglerJson<D1QueryResult[]>(
-    `d1 execute ${PROD_DB_NAME} --remote --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';"`,
-  )
+  try {
+    const output = execSync(
+      `npx wrangler d1 execute ${PROD_DB_NAME} --remote --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name;"`,
+      {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      },
+    )
 
-  // Get the first query result from the array
-  const queryResult = result?.[0]
-  const tables =
-    queryResult?.results?.map((r) => r.name).filter((name) => name && name !== 'name') || []
-  log(`  Found ${tables.length} tables`, CYAN)
+    // Extract table names using regex (matches bash: grep -o '"name": "[^"]*"')
+    const matches = output.match(/"name":\s*"([^"]+)"/g) || []
+    const tables = matches
+      .map((match) => {
+        const nameMatch = match.match(/"name":\s*"([^"]+)"/)
+        return nameMatch?.[1]
+      })
+      .filter((name): name is string => !!name && name !== 'name')
 
-  return tables
+    log(`  Found ${tables.length} tables`, CYAN)
+    return tables
+  } catch (error) {
+    log(`  Error fetching tables: ${error instanceof Error ? error.message : error}`, RED)
+    return []
+  }
 }
 
 /**
  * Drop all tables in production D1 database
+ *
+ * Uses --file flag to avoid shell quote escaping issues with table names.
+ * Matches the approach used in reset-migrations.sh.
  */
 function resetProductionDatabase(): void {
   logStep('Dropping all tables in production database')
@@ -225,22 +208,112 @@ function resetProductionDatabase(): void {
     return
   }
 
-  // Generate DROP statements
+  // Generate DROP statements and write to temp file (like bash script)
   const dropStatements = ['PRAGMA foreign_keys=OFF;']
   for (const table of tables) {
     dropStatements.push(`DROP TABLE IF EXISTS "${table}";`)
   }
   dropStatements.push('PRAGMA foreign_keys=ON;')
 
-  // Execute as a single command
-  const sql = dropStatements.join(' ')
+  const tempSqlFile = 'drop_all_tables.sql'
+  writeFileSync(tempSqlFile, dropStatements.join('\n'))
 
   try {
-    exec(`npx wrangler d1 execute ${PROD_DB_NAME} --remote --command "${sql}"`, true)
+    // Use --file flag to avoid quote escaping issues (matches bash script)
+    exec(`npx wrangler d1 execute ${PROD_DB_NAME} --remote --file="${tempSqlFile}"`)
     log(`  Dropped ${tables.length} tables`, GREEN)
   } catch (error) {
     log(`  Error dropping tables: ${error}`, RED)
     throw error
+  } finally {
+    // Cleanup temp file
+    try {
+      unlinkSync(tempSqlFile)
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
+
+  // Verify tables were actually dropped
+  verifyTablesDropped()
+}
+
+/**
+ * Verify that tables were successfully dropped
+ */
+function verifyTablesDropped(): void {
+  log('  Verifying tables were dropped...', CYAN)
+
+  try {
+    const output = execSync(
+      `npx wrangler d1 execute ${PROD_DB_NAME} --remote --command "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';"`,
+      {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      },
+    )
+
+    const countMatch = output.match(/"count":\s*(\d+)/)
+    const remainingTables = countMatch ? parseInt(countMatch[1], 10) : -1
+
+    if (remainingTables === 0) {
+      log('  Database is empty', GREEN)
+    } else if (remainingTables > 0) {
+      log(`  WARNING: ${remainingTables} tables still remain!`, RED)
+      throw new Error(`Failed to drop all tables. ${remainingTables} tables remaining.`)
+    } else {
+      log('  Could not verify table count', YELLOW)
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Failed to drop')) {
+      throw error
+    }
+    log(`  Error verifying: ${error instanceof Error ? error.message : error}`, YELLOW)
+  }
+}
+
+/**
+ * Deploy database migrations to production
+ */
+function deployProductionDatabase(): void {
+  logStep('Deploying migrations to production')
+
+  try {
+    exec('pnpm run deploy:database')
+    log('  Migrations deployed successfully', GREEN)
+  } catch (error) {
+    log(`  Error deploying migrations: ${error}`, RED)
+    throw error
+  }
+}
+
+/**
+ * Verify production database after migration
+ */
+function verifyProductionDatabase(): void {
+  logStep('Verifying production database')
+
+  try {
+    // Check payload_migrations table
+    log('  Checking payload_migrations table...', CYAN)
+    exec(
+      `npx wrangler d1 execute ${PROD_DB_NAME} --remote --command "SELECT * FROM payload_migrations;"`,
+    )
+
+    // Count tables
+    const output = execSync(
+      `npx wrangler d1 execute ${PROD_DB_NAME} --remote --command "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';"`,
+      {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      },
+    )
+
+    const countMatch = output.match(/"count":\s*(\d+)/)
+    const tableCount = countMatch ? countMatch[1] : 'unknown'
+    log(`  Tables created: ${tableCount}`, GREEN)
+  } catch (error) {
+    log(`  Error verifying database: ${error instanceof Error ? error.message : error}`, RED)
   }
 }
 
@@ -530,6 +603,12 @@ async function main(): Promise<void> {
       // Database
       resetProductionDatabase()
 
+      // Deploy migrations
+      deployProductionDatabase()
+
+      // Verify database
+      verifyProductionDatabase()
+
       // R2
       await resetProductionR2()
 
@@ -551,14 +630,13 @@ async function main(): Promise<void> {
     logSection('COMPLETE')
     log(`\nReset completed in ${elapsed}s`, GREEN)
 
-    // Reminder to run migrations
+    // Reminder for next steps
     console.log(`\n${YELLOW}Next steps:${RESET}`)
     if (env === 'local' || env === 'all') {
-      console.log('  1. Run migrations: pnpm payload migrate')
+      console.log('  - Run local migrations: pnpm payload migrate')
     }
     if (env === 'production' || env === 'all') {
-      console.log('  2. Deploy migrations: pnpm run deploy:database')
-      console.log('  3. Re-seed data: pnpm seed')
+      console.log('  - Re-seed production data: pnpm seed')
     }
     console.log('')
   } catch (error) {

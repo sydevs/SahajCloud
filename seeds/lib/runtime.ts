@@ -65,3 +65,25 @@ export function safeBufferFrom(arrayBuffer: ArrayBuffer): Buffer {
   }
   return Buffer.from(arrayBuffer)
 }
+
+/**
+ * Create a clean Buffer copy that works reliably in Cloudflare Workers.
+ * Use this when you already have a Buffer that might have offset issues.
+ *
+ * The Workers Buffer polyfill has issues with Buffer.from(Uint8Array) and
+ * similar patterns. This manual indexed copy is the only reliable method.
+ *
+ * @param buffer - The Buffer to copy
+ * @returns A clean Buffer with no offset issues
+ */
+export function safeBufferCopy(buffer: Buffer): Buffer {
+  if (!isCloudflareWorker()) {
+    return buffer
+  }
+  // Manual indexed copy - the only reliable method in Workers
+  const cleanBuffer = Buffer.alloc(buffer.length)
+  for (let i = 0; i < buffer.length; i++) {
+    cleanBuffer[i] = buffer[i]
+  }
+  return cleanBuffer
+}

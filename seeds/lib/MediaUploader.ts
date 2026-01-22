@@ -13,7 +13,7 @@ import type { ImageTag } from '@/types/tags'
 import { promises as fs } from 'fs'
 import * as path from 'path'
 
-import { isCloudflareWorker } from './runtime'
+import { isCloudflareWorker, safeBufferCopy } from './runtime'
 
 // ============================================================================
 // ERRORS
@@ -389,9 +389,9 @@ export class MediaUploader {
       let fileBuffer: Buffer = options.buffer || (await fs.readFile(localPath))
 
       // In Workers, ensure we pass a clean Buffer without ArrayBuffer offset issues.
-      // This matches the pattern used in album imports (import.ts:890).
+      // Uses safeBufferCopy() which does a manual indexed copy - the only reliable method.
       if (isCloudflareWorker() && options.buffer) {
-        fileBuffer = Buffer.from(new Uint8Array(fileBuffer))
+        fileBuffer = safeBufferCopy(fileBuffer)
       }
       const filename = path.basename(localPath)
       const ext = path.extname(filename).toLowerCase()
