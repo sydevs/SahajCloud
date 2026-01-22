@@ -265,7 +265,7 @@ const SONG_TAGS: TagData[] = [
   },
   {
     title: 'Vocals',
-    slug: 'piano',
+    slug: 'vocals',
     color: '#1E6C71',
     iconUrl: 'local:music-tag.svg',
   },
