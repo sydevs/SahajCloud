@@ -72,9 +72,10 @@ export const CloudflareStreamResponseSchema = CloudflareBaseResponseSchema.exten
       allowedOrigins: z.array(z.string()).optional(),
       requireSignedURLs: z.boolean().optional(),
       uploaded: z.string().optional(),
-      uploadExpiry: z.string().optional(),
-      maxSizeBytes: z.number().optional(),
-      maxDurationSeconds: z.number().optional(),
+      // These fields can be null in Cloudflare API responses (not just undefined)
+      uploadExpiry: z.string().nullish(),
+      maxSizeBytes: z.number().nullish(),
+      maxDurationSeconds: z.number().nullish(),
       duration: z.number().optional(),
       input: z
         .object({
@@ -88,11 +89,12 @@ export const CloudflareStreamResponseSchema = CloudflareBaseResponseSchema.exten
           dash: z.url().optional(),
         })
         .optional(),
+      // watermark can also be null in Cloudflare API responses
       watermark: z
         .object({
           uid: z.string().optional(),
         })
-        .optional(),
+        .nullish(),
     })
     .optional(),
 })
