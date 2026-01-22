@@ -750,7 +750,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // SUBTITLE PARSING
   // ============================================================================
 
-  private async parseSubtitles(url: string): Promise<Record<string, unknown>> {
+  private async parseSubtitles(url: string): Promise<Record<string, unknown> | undefined> {
     const filename = path.basename(url.split('?')[0])
     const cachePath = path.join(this.cacheDir, 'assets/subtitles', filename)
 
@@ -761,13 +761,23 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       captions?: Array<Record<string, unknown>>
     }
 
-    // Strip legacy startOfParagraph field from all captions (always null in Storyblok data)
-    if (parsed.captions && Array.isArray(parsed.captions)) {
-      parsed.captions = parsed.captions.map((caption) => {
-        const { startOfParagraph, ...rest } = caption
-        return rest
-      })
+    // Validate required structure - must have captions array
+    if (!parsed.captions || !Array.isArray(parsed.captions)) {
+      // Log the actual format for debugging
+      const keys = Object.keys(parsed)
+      const preview = JSON.stringify(parsed).slice(0, 200)
+      this.addWarning(
+        `Subtitle file missing captions array: ${filename}. ` +
+          `Keys found: [${keys.join(', ')}]. Preview: ${preview}...`,
+      )
+      return undefined
     }
+
+    // Strip legacy startOfParagraph field from all captions (always null in Storyblok data)
+    parsed.captions = parsed.captions.map((caption) => {
+      const { startOfParagraph, ...rest } = caption
+      return rest
+    })
 
     return parsed
   }
