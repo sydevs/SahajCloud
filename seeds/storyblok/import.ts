@@ -20,6 +20,7 @@
 import type { Payload } from 'payload'
 
 import * as path from 'path'
+import { z } from 'zod'
 
 import { seedEnv } from '../env'
 import {
@@ -56,6 +57,20 @@ interface StoryblokResponse {
   cv?: number
   rels?: StoryblokStory[]
 }
+
+/**
+ * Zod schema for subtitle validation (matches src/lib/subtitlesSchema.json)
+ * Used to validate Storyblok subtitle files before passing to Payload
+ */
+const SubtitleCaptionSchema = z.object({
+  duration: z.number(),
+  content: z.string(),
+  startTime: z.string(),
+})
+
+const SubtitlesSchema = z.object({
+  captions: z.array(SubtitleCaptionSchema),
+})
 
 // ============================================================================
 // STORYBLOK IMPORTER CLASS
@@ -750,36 +765,49 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // SUBTITLE PARSING
   // ============================================================================
 
-  private async parseSubtitles(url: string): Promise<Record<string, unknown> | undefined> {
+  private async parseSubtitles(url: string): Promise<z.infer<typeof SubtitlesSchema> | undefined> {
     const filename = path.basename(url.split('?')[0])
     const cachePath = path.join(this.cacheDir, 'assets/subtitles', filename)
 
     // Fetch asset with caching (fetchAsset handles Workers vs local mode)
     const buffer = await fetchAsset(url, { cachePath })
     const rawData = buffer.toString('utf-8')
-    const parsed = JSON.parse(rawData) as {
-      captions?: Array<Record<string, unknown>>
-    }
 
-    // Validate required structure - must have captions array
-    if (!parsed.captions || !Array.isArray(parsed.captions)) {
-      // Log the actual format for debugging
-      const keys = Object.keys(parsed)
-      const preview = JSON.stringify(parsed).slice(0, 200)
-      this.addWarning(
-        `Subtitle file missing captions array: ${filename}. ` +
-          `Keys found: [${keys.join(', ')}]. Preview: ${preview}...`,
-      )
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(rawData)
+    } catch {
+      this.addWarning(`Subtitle file is not valid JSON: ${filename}`)
       return undefined
     }
 
-    // Strip legacy startOfParagraph field from all captions (always null in Storyblok data)
-    parsed.captions = parsed.captions.map((caption) => {
-      const { startOfParagraph, ...rest } = caption
-      return rest
-    })
+    // Strip legacy startOfParagraph field from captions before validation
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'captions' in parsed &&
+      Array.isArray((parsed as Record<string, unknown>).captions)
+    ) {
+      ;(parsed as { captions: Record<string, unknown>[] }).captions = (
+        parsed as { captions: Record<string, unknown>[] }
+      ).captions.map((caption) => {
+        const { startOfParagraph, ...rest } = caption
+        return rest
+      })
+    }
 
-    return parsed
+    // Validate against schema
+    const result = SubtitlesSchema.safeParse(parsed)
+
+    if (!result.success) {
+      // Log validation errors with actual data for debugging
+      const preview = JSON.stringify(parsed).slice(0, 300)
+      const errors = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+      this.addWarning(`Subtitle file validation failed: ${filename}. Errors: ${errors}. Preview: ${preview}`)
+      return undefined
+    }
+
+    return result.data
   }
 
   // ============================================================================
