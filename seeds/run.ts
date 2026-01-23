@@ -530,7 +530,7 @@ async function runPaginatedImport(
 
         if (!result.success) {
           errors.push(...result.errors)
-          break // Stop processing this collection on error
+          // Continue processing - errors are collected and reported at the end
         }
 
         if (result.pagination) {
