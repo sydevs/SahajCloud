@@ -25,6 +25,7 @@ import type { Payload } from 'payload'
 import * as path from 'path'
 
 import { BaseImporter, BaseImportOptions, readCacheText, writeCache } from '../lib'
+import { safeBufferFromUint8Array } from '../lib/runtime'
 
 // ============================================================================
 // CONFIGURATION
@@ -487,7 +488,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
     // Use TextEncoder for Workers-compatible string to buffer conversion
     const encoder = new TextEncoder()
     const uint8Array = encoder.encode(svgContent)
-    const buffer = Buffer.from(uint8Array)
+    const buffer = safeBufferFromUint8Array(uint8Array)
     return {
       data: buffer,
       mimetype: 'image/svg+xml',

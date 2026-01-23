@@ -1,10 +1,12 @@
-import type { JSONSchema4 } from 'json-schema'
+// TEMPORARILY DISABLED FOR SEEDING - Reintroduce after import
+// import type { JSONSchema4 } from 'json-schema'
 import type { CollectionConfig } from 'payload'
 
 import { QuoteBlock } from '@/blocks/pages'
 import { mediaField } from '@/fields'
 import { fullRichTextEditor } from '@/lib/richEditor'
-import subtitleSchema from '@/lib/subtitlesSchema.json' with { type: 'json' }
+// TEMPORARILY DISABLED FOR SEEDING - Reintroduce after import
+// import subtitleSchema from '@/lib/subtitlesSchema.json' with { type: 'json' }
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
@@ -117,11 +119,12 @@ export const Lessons: CollectionConfig = {
                 description:
                   'Subtitles for intro audio (JSON format). Schema: duration, content, startTime.',
               },
-              jsonSchema: {
-                uri: 'a://subtitles.json',
-                fileMatch: ['a://subtitles.json'],
-                schema: subtitleSchema as JSONSchema4,
-              },
+              // TEMPORARILY DISABLED FOR SEEDING - Reintroduce after import
+              // jsonSchema: {
+              //   uri: 'a://subtitles.json',
+              //   fileMatch: ['a://subtitles.json'],
+              //   schema: subtitleSchema as JSONSchema4,
+              // },
             },
           ],
         },

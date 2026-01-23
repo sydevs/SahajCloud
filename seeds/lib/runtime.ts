@@ -67,6 +67,26 @@ export function safeBufferFrom(arrayBuffer: ArrayBuffer): Buffer {
 }
 
 /**
+ * Safely create a Buffer from a Uint8Array.
+ * Works around Cloudflare Workers Buffer polyfill issues where
+ * Buffer.from(uint8Array) can cause "offset argument must be of type number" errors.
+ *
+ * @param uint8Array - The Uint8Array to convert
+ * @returns A Buffer containing the same data
+ */
+export function safeBufferFromUint8Array(uint8Array: Uint8Array): Buffer {
+  if (!isCloudflareWorker()) {
+    return Buffer.from(uint8Array)
+  }
+  // Manual indexed copy - the only reliable method in Workers
+  const cleanBuffer = Buffer.alloc(uint8Array.length)
+  for (let i = 0; i < uint8Array.length; i++) {
+    cleanBuffer[i] = uint8Array[i]
+  }
+  return cleanBuffer
+}
+
+/**
  * Create a clean Buffer copy that works reliably in Cloudflare Workers.
  * Use this when you already have a Buffer that might have offset issues.
  *
