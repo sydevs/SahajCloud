@@ -1339,7 +1339,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
    * First tries to find an existing album by artist name.
    * If not found, creates a new album with a placeholder image.
    */
-  private async getOrCreateAlbumForArtist(artistName: string): Promise<number | string> {
+  private async getOrCreateAlbumForArtist(artistName: string): Promise<number | string | null> {
     const artistKey = artistName.toLowerCase().trim()
 
     // Check cache first
@@ -1364,20 +1364,28 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info(`    Creating album for artist: ${artistName}`)
     const buffer = await this.getAlbumPlaceholderBuffer()
     if (!buffer) {
-      throw new Error('No placeholder image available for album creation')
-    }
-    const fileData = this.createFileData(buffer, 'placeholder-album.png')
-    const result = await this.uploadToPayload(fileData, 'albums', {
-      title: artistName, // Use artist name as album title
-      artist: artistName,
-    })
-
-    if (result) {
-      this.idMaps.albumsByArtist.set(artistKey, result.id)
-      return result.id
+      this.addError(`Album for ${artistName}`, new Error('No placeholder image available'))
+      return null
     }
 
-    throw new Error(`Failed to create album for artist: ${artistName}`)
+    try {
+      const fileData = this.createFileData(buffer, 'placeholder-album.png')
+      const result = await this.uploadToPayload(fileData, 'albums', {
+        title: artistName, // Use artist name as album title
+        artist: artistName,
+      })
+
+      if (result) {
+        this.idMaps.albumsByArtist.set(artistKey, result.id)
+        return result.id
+      }
+
+      this.addError(`Album for ${artistName}`, new Error('Upload returned no result'))
+      return null
+    } catch (error) {
+      this.addError(`Album creation for ${artistName}`, error as Error)
+      return null
+    }
   }
 
   /**
@@ -1453,13 +1461,11 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         continue
       }
 
-      let albumId: number | string
-      try {
-        albumId = await this.getOrCreateAlbumForArtist(music.credit)
-      } catch (error) {
-        this.addError(`Getting album for song "${music.title}"`, error as Error)
+      const albumId = await this.getOrCreateAlbumForArtist(music.credit)
+      if (albumId === null) {
+        // Error already logged by getOrCreateAlbumForArtist
         await this.reportDocument('songs', identifier, 'error', {
-          error: (error as Error).message,
+          error: 'Failed to get or create album',
           current: i + 1,
           total,
         })

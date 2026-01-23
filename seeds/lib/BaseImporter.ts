@@ -86,7 +86,7 @@ export interface BaseImportOptions {
 
 export interface UpsertResult<T = any> {
   doc: T
-  action: 'created' | 'updated' | 'skipped'
+  action: 'created' | 'updated' | 'skipped' | 'error'
 }
 
 export interface FileData {
@@ -999,7 +999,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         current: options?.current,
         total: options?.total,
       })
-      throw error
+      // Return error result instead of throwing - allows import to continue
+      return { doc: data as T, action: 'error' as const }
     }
   }
 

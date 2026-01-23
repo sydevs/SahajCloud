@@ -710,15 +710,18 @@ export interface Lesson {
    * Audio introduction to this lesson.
    */
   introAudio?: (number | null) | File;
-  introSubtitles?: {
-    captions: {
-      duration: number;
-      content: string;
-      startTime: string;
-      [k: string]: unknown;
-    }[];
-    [k: string]: unknown;
-  };
+  /**
+   * Subtitles for intro audio (JSON format). Schema: duration, content, startTime.
+   */
+  introSubtitles?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   article?: {
     root: {
       type: string;
