@@ -82,7 +82,7 @@ export class FileUtils {
     }
 
     const buffer = await response.arrayBuffer()
-    await fs.writeFile(destPath, Buffer.from(buffer))
+    await fs.writeFile(destPath, safeBufferFrom(buffer))
   }
 
   /**

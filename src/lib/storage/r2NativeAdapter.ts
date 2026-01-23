@@ -101,7 +101,15 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
 
         const key = prefix ? `${prefix}/${finalFilename}` : finalFilename
 
-        await bucket.put(key, file.buffer, {
+        // Convert Buffer to clean Uint8Array for Cloudflare Workers compatibility
+        // IMPORTANT: The Workers Buffer polyfill has broken methods that cause
+        // "offset argument must be of type number" errors. Use manual indexed copy.
+        const uint8Array = new Uint8Array(file.buffer.length)
+        for (let i = 0; i < file.buffer.length; i++) {
+          uint8Array[i] = file.buffer[i]
+        }
+
+        await bucket.put(key, uint8Array, {
           httpMetadata: {
             contentType: file.mimeType,
           },

@@ -40,6 +40,7 @@ import {
   rateLimitDelay,
   readCache,
   safeBufferCopy,
+  safeBufferFromUint8Array,
 } from '../lib'
 
 // ============================================================================
@@ -718,6 +719,17 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     for (let i = 0; i < total; i++) {
       const author = authors[i]
 
+      // Skip if author was already imported (reduces log noise on re-runs)
+      if (this.idMaps.authors.has(author.id)) {
+        await this.skip(`Author ${author.id} already imported`, {
+          collection: 'authors',
+          identifier: `author-${author.id}`,
+          current: i + 1,
+          total,
+        })
+        continue
+      }
+
       try {
         // Find English translation
         const enTranslation = author.translations.find((t: any) => t.locale === 'en' && t.name)
@@ -1274,12 +1286,12 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
       if (!svgBuffer) {
         // Workers mode (or file missing): use minimal music note SVG
-        // Use TextEncoder for Workers compatibility (Buffer.from with encoding arg doesn't work in Workers)
+        // Use TextEncoder + safeBufferFromUint8Array for Workers compatibility
         const svgContent =
           '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>'
         const encoder = new TextEncoder()
         const uint8Array = encoder.encode(svgContent)
-        svgBuffer = Buffer.from(uint8Array)
+        svgBuffer = safeBufferFromUint8Array(uint8Array)
       }
 
       await this.payload.create({
