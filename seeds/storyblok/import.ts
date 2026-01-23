@@ -427,7 +427,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       }
     }
 
-    // Create icon from source data (required field - must be done before lesson creation)
+    // Create icon from source data (optional - continues without icon if unavailable)
     const iconId = await this.createLessonIcon(story, content)
 
     // Build lesson data
@@ -436,7 +436,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       unit: `Unit ${unitNumber}`,
       step: stepNumber,
       panels,
-      icon: iconId,
+      ...(iconId ? { icon: iconId } : {}),
     }
 
     if (meditationId) {
@@ -490,7 +490,12 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
           const videoUrl = panel.Video.url
           await this.logger.info(`Creating video attachment from: ${videoUrl}`)
           const mediaId = await this.createFileAttachment(videoUrl)
-          panels.push({ media: parseInt(mediaId) })
+          if (mediaId) {
+            panels.push({ media: parseInt(mediaId) })
+          } else {
+            // Error already logged - add panel without media
+            panels.push({ title: '', text: '' })
+          }
         } else if (panel.Image && panel.Image.url) {
           const imageUrl = panel.Image.url
           await this.logger.info(`Creating image attachment from: ${imageUrl}`)
@@ -498,7 +503,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
           panels.push({
             title: this.processTextField(panel.Title || ''),
             text: this.processTextareaField(panel.Text || ''),
-            media: parseInt(mediaId),
+            ...(mediaId ? { media: parseInt(mediaId) } : {}),
           })
         } else {
           this.addWarning(
@@ -520,20 +525,27 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
   /**
    * Creates and uploads the lesson icon from source data.
-   * @throws Error if no icon URL is found in source data
+   * Returns null if icon URL is not found or upload fails (logs warning/error).
    */
   private async createLessonIcon(
     story: StoryblokStory,
     content: Record<string, any>,
-  ): Promise<number> {
+  ): Promise<number | null> {
     const iconUrl = content.Step_info?.[0]?.Step_Image?.url
     if (!iconUrl) {
-      throw new Error(`No icon URL found in source data`)
+      this.addWarning(`No icon URL found for lesson ${story.name}`)
+      return null
     }
 
-    const iconTags = [this.iconTag, this.lessonTag]
-    const iconId = await this.createMediaFromUrl(iconUrl, `Icon for ${story.name}`, iconTags)
-    return typeof iconId === 'string' ? parseInt(iconId) : iconId
+    try {
+      const iconTags = [this.iconTag, this.lessonTag]
+      const iconId = await this.createMediaFromUrl(iconUrl, `Icon for ${story.name}`, iconTags)
+      if (iconId === null) return null
+      return typeof iconId === 'string' ? parseInt(iconId) : iconId
+    } catch (error) {
+      this.addError(`Creating icon for ${story.name}`, error as Error)
+      return null
+    }
   }
 
   private async attachLessonFiles(
@@ -547,12 +559,15 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     if (content.Audio_intro?.[0]?.Audio_track?.filename) {
       try {
         const audioId = await this.createFileAttachment(content.Audio_intro[0].Audio_track.filename)
-        await this.payload.update({
-          collection: 'lessons',
-          id: lessonId,
-          data: { introAudio: parseInt(audioId) },
-        })
-        await this.logger.info(`✓ Added intro audio to lesson`)
+        if (audioId) {
+          await this.payload.update({
+            collection: 'lessons',
+            id: lessonId,
+            data: { introAudio: parseInt(audioId) },
+          })
+          await this.logger.info(`✓ Added intro audio to lesson`)
+        }
+        // If audioId is null, error was already logged by createFileAttachment
       } catch (error) {
         this.addError(`Creating audio attachment for ${story.name}`, error as Error)
       }
@@ -593,9 +608,10 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     url: string,
     alt?: string,
     tags?: string[],
-  ): Promise<number | string> {
+  ): Promise<number | string | null> {
     if (!url) {
-      throw new Error('URL is required for creating media')
+      this.addWarning('URL is required for creating media - skipping')
+      return null
     }
 
     const filename = path.basename(url.split('?')[0])
@@ -617,7 +633,8 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
         })
 
         if (!result) {
-          throw new Error('MediaUploader returned null - check Payload logs for details')
+          this.addError(`Media upload ${filename}`, new Error('MediaUploader returned null'))
+          return null
         }
 
         // Add delay after successful upload to avoid rate limiting (auto-skips locally)
@@ -639,7 +656,9 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       }
     }
 
-    throw lastError || new Error('Failed to upload media after retries')
+    // All retries exhausted - log error and return null to continue import
+    this.addError(`Media upload from ${url}`, lastError || new Error('Failed after all retries'))
+    return null
   }
 
   // ============================================================================
@@ -649,10 +668,12 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   /**
    * Creates a file attachment for audio, video, and image files.
    * Uploads to the Files collection.
+   * Returns null if URL is missing, file type unsupported, or upload fails.
    */
-  private async createFileAttachment(url: string): Promise<string> {
+  private async createFileAttachment(url: string): Promise<string | null> {
     if (!url) {
-      throw new Error('URL is required for creating file attachment')
+      this.addWarning('URL is required for creating file attachment - skipping')
+      return null
     }
 
     const filename = path.basename(url.split('?')[0])
@@ -676,27 +697,33 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       mimeType = 'image/webp'
       cacheSubdir = 'images'
     } else {
-      throw new Error(`Unsupported file type: ${ext}`)
+      this.addWarning(`Unsupported file type: ${ext} - skipping`)
+      return null
     }
 
-    // Determine cache path based on file type
-    const cachePath = path.join(this.cacheDir, `assets/${cacheSubdir}`, filename)
+    try {
+      // Determine cache path based on file type
+      const cachePath = path.join(this.cacheDir, `assets/${cacheSubdir}`, filename)
 
-    // Fetch asset with caching (fetchAsset handles Workers vs local mode)
-    const fileBuffer = await fetchAsset(url, { cachePath })
+      // Fetch asset with caching (fetchAsset handles Workers vs local mode)
+      const fileBuffer = await fetchAsset(url, { cachePath })
 
-    const attachment = await this.payload.create({
-      collection: 'files',
-      data: {},
-      file: {
-        data: fileBuffer,
-        name: filename,
-        size: fileBuffer.length,
-        mimetype: mimeType,
-      },
-    })
+      const attachment = await this.payload.create({
+        collection: 'files',
+        data: {},
+        file: {
+          data: fileBuffer,
+          name: filename,
+          size: fileBuffer.length,
+          mimetype: mimeType,
+        },
+      })
 
-    return String(attachment.id)
+      return String(attachment.id)
+    } catch (error) {
+      this.addError(`File attachment from ${url}`, error as Error)
+      return null
+    }
   }
 
   // ============================================================================
@@ -834,6 +861,11 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
               undefined,
               thumbnailTags,
             )
+            // Skip lecture if thumbnail upload failed
+            if (thumbnailId === null) {
+              this.addWarning(`Skipping lecture - thumbnail upload failed for ${videoStory.name}`)
+              break
+            }
             const lectureId = await this.upsertLecture(videoStory, thumbnailId)
 
             children.push({

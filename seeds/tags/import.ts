@@ -361,6 +361,10 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
         // Download and process SVG
         const cacheFilename = `meditation-${tag.slug}.svg`
         const originalSvg = await this.downloadSvg(tag.iconUrl, cacheFilename)
+        if (!originalSvg) {
+          // Error already logged by downloadSvg - skip this tag
+          continue
+        }
         const processedSvg = this.convertToCurrentColor(originalSvg)
         const svgFile = this.createSvgFileObject(processedSvg, `${tag.slug}.svg`)
 
@@ -401,6 +405,10 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
         // Download and process SVG
         const cacheFilename = `song-${tag.slug}.svg`
         const originalSvg = await this.downloadSvg(tag.iconUrl, cacheFilename)
+        if (!originalSvg) {
+          // Error already logged by downloadSvg - skip this tag
+          continue
+        }
         const processedSvg = this.convertToCurrentColor(originalSvg)
         const svgFile = this.createSvgFileObject(processedSvg, `${tag.slug}.svg`)
 
@@ -435,37 +443,43 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
    * Download SVG from URL or load from local file (local: prefix)
    * Uses dataLoader utilities to abstract Workers vs local mode
    */
-  private async downloadSvg(url: string, cacheFilename: string): Promise<string> {
-    // Handle local files (local:filename.svg)
-    if (url.startsWith('local:')) {
-      const localFilename = url.slice(6) // Remove 'local:' prefix
-      const localPath = path.resolve(process.cwd(), 'seeds/tags', localFilename)
-      const workerUrl = `${GITHUB_RAW_BASE}/seeds/tags/${localFilename}`
+  private async downloadSvg(url: string, cacheFilename: string): Promise<string | null> {
+    try {
+      // Handle local files (local:filename.svg)
+      if (url.startsWith('local:')) {
+        const localFilename = url.slice(6) // Remove 'local:' prefix
+        const localPath = path.resolve(process.cwd(), 'seeds/tags', localFilename)
+        const workerUrl = `${GITHUB_RAW_BASE}/seeds/tags/${localFilename}`
 
-      return this.loadDataFile(localPath, workerUrl)
+        return this.loadDataFile(localPath, workerUrl)
+      }
+
+      // For remote URLs: check cache, download if needed, cache result
+      const cachePath = path.join(this.cacheDir, 'assets', cacheFilename)
+
+      // Check cache first (returns null in Workers mode)
+      const cached = await readCacheText(cachePath)
+      if (cached) {
+        return cached
+      }
+
+      // Download from URL
+      const response = await fetch(url)
+      if (!response.ok) {
+        this.addError(`SVG download from ${url}`, new Error(`HTTP ${response.status} ${response.statusText}`))
+        return null
+      }
+
+      const svgContent = await response.text()
+
+      // Cache for local dev (no-op in Workers mode)
+      await writeCache(cachePath, svgContent)
+
+      return svgContent
+    } catch (error) {
+      this.addError(`SVG download from ${url}`, error as Error)
+      return null
     }
-
-    // For remote URLs: check cache, download if needed, cache result
-    const cachePath = path.join(this.cacheDir, 'assets', cacheFilename)
-
-    // Check cache first (returns null in Workers mode)
-    const cached = await readCacheText(cachePath)
-    if (cached) {
-      return cached
-    }
-
-    // Download from URL
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`Failed to download SVG: ${response.status} ${response.statusText}`)
-    }
-
-    const svgContent = await response.text()
-
-    // Cache for local dev (no-op in Workers mode)
-    await writeCache(cachePath, svgContent)
-
-    return svgContent
   }
 
   /**

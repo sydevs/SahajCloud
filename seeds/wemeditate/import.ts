@@ -975,7 +975,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         } else {
           const cached = await readCache(downloadResult.localPath)
           if (!cached) {
-            throw new Error(`Failed to read cached file: ${downloadResult.localPath}`)
+            this.addError(`Album for ${artist.name}`, new Error('Failed to read cached file'))
+            continue
           }
           fileBuffer = cached
         }
@@ -1045,7 +1046,9 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
               continue
             }
           } else {
-            throw uploadError
+            // Non-buffer error - log and continue with next album
+            this.addError(`Album upload for ${artist.name}`, uploadError as Error)
+            continue
           }
         }
 
@@ -2005,7 +2008,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           {
             title: metadata.title || `Video ${videoId}`,
             videoUrl,
-            thumbnail: thumbnailId,
+            ...(thumbnailId ? { thumbnail: thumbnailId } : {}),
           },
         )
 
@@ -2219,7 +2222,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  private async getDefaultThumbnail(): Promise<number | string> {
+  private async getDefaultThumbnail(): Promise<number | string | null> {
     if (this.defaultThumbnailId) return this.defaultThumbnailId
 
     const PREVIEW_URL =
@@ -2228,33 +2231,41 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     // Tags for default placeholder thumbnail (now inline enum strings)
     const tags = [this.thumbnailTag, this.placeholderTag]
 
-    // Try local file first (returns null in Workers mode)
-    const previewPath = path.join(__dirname, 'preview.png')
-    let buffer: Buffer | undefined = (await readCache(previewPath)) ?? undefined
-    let localPath = previewPath
+    try {
+      // Try local file first (returns null in Workers mode)
+      const previewPath = path.join(__dirname, 'preview.png')
+      let buffer: Buffer | undefined = (await readCache(previewPath)) ?? undefined
+      let localPath = previewPath
 
-    if (!buffer) {
-      // Workers mode or local file missing: fetch from URL
-      const downloadResult = await this.mediaDownloader.downloadAndConvertImage(PREVIEW_URL)
-      buffer = downloadResult.buffer
-      localPath = downloadResult.localPath
+      if (!buffer) {
+        // Workers mode or local file missing: fetch from URL
+        const downloadResult = await this.mediaDownloader.downloadAndConvertImage(PREVIEW_URL)
+        buffer = downloadResult.buffer
+        localPath = downloadResult.localPath
+      }
+
+      const result = await this.mediaUploader.uploadWithDeduplication(localPath, {
+        alt: 'Video preview placeholder',
+        buffer,
+        tags,
+      })
+      if (!result) {
+        this.addError('Default thumbnail', new Error('Upload returned null'))
+        return null
+      }
+      this.defaultThumbnailId = result.id
+      return result.id
+    } catch (error) {
+      this.addError('Default thumbnail upload', error as Error)
+      return null
     }
-
-    const result = await this.mediaUploader.uploadWithDeduplication(localPath, {
-      alt: 'Video preview placeholder',
-      buffer,
-      tags,
-    })
-    if (!result) throw new Error('Failed to upload default thumbnail')
-    this.defaultThumbnailId = result.id
-    return result.id
   }
 
   private async fetchVideoThumbnail(
     videoId: string,
     vimeoId?: string,
     youtubeId?: string,
-  ): Promise<number | string> {
+  ): Promise<number | string | null> {
     try {
       let thumbnailUrl: string | null = null
 
