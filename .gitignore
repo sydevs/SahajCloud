@@ -68,3 +68,6 @@ tests/.e2e.sqlite-shm
 
 # Dev server skill state (PID, logs, etc.)
 .claude/skills/dev-server/state/
+
+# Seed logs
+seed*.log

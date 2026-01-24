@@ -62,6 +62,7 @@ export const Authors: CollectionConfig = {
       type: 'join',
       collection: 'pages',
       on: 'author',
+      defaultLimit: 100,
       admin: {
         components: {
           Cell: '@/components/admin/RelationshipCountCell',

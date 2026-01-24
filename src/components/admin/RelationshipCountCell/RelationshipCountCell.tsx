@@ -12,6 +12,13 @@ interface JoinFieldData {
 }
 
 /**
+ * Custom props passed via serverProps in field configuration
+ */
+interface RelationshipCountCellServerProps {
+  disableLink?: boolean
+}
+
+/**
  * Extract string label from PayloadCMS label type (string | function | object)
  */
 function extractLabel(label: unknown): string | null {
@@ -51,20 +58,25 @@ function getLabel(
  *
  * Displays the count of related documents for join fields in list views.
  * Shows a numeric count with pluralized collection name (e.g., "5 pages", "1 track")
- * and navigates to filtered collection list when clicked.
+ * and navigates to filtered collection list when clicked (unless disableLink is true).
+ *
+ * @param disableLink - Custom prop via serverProps to disable the navigation link
  */
-export const RelationshipCountCell: React.FC<DefaultServerCellComponentProps> = ({
+export const RelationshipCountCell: React.FC<
+  DefaultServerCellComponentProps & RelationshipCountCellServerProps
+> = ({
   cellData,
   rowData,
   field,
   payload,
+  disableLink = false,
 }) => {
   const joinField = field as JoinField
 
   // Extract count from join field data
-  // Use totalDocs for accurate count (docs.length may be limited by pagination)
+  // Use totalDocs for accurate count, fall back to docs.length (may be limited by defaultLimit)
   const joinData = cellData as JoinFieldData | null
-  const count = joinData?.totalDocs ?? 0
+  const count = joinData?.totalDocs ?? joinData?.docs?.length ?? 0
 
   // Get field configuration for navigation
   const targetCollectionSlug = Array.isArray(joinField?.collection)
@@ -91,8 +103,8 @@ export const RelationshipCountCell: React.FC<DefaultServerCellComponentProps> = 
     return <span style={{ color: 'var(--theme-elevation-400)' }}>0 {label}</span>
   }
 
-  // No valid URL - just show count
-  if (!href) {
+  // No valid URL or link disabled - just show count
+  if (!href || disableLink) {
     return (
       <span>
         {count} {label}

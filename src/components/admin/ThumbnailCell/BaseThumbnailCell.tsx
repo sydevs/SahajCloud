@@ -1,37 +1,42 @@
 'use client'
 
+import type { DefaultCellComponentProps } from 'payload'
+
 import { Link, Thumbnail } from '@payloadcms/ui'
 
-export interface BaseThumbnailCellProps {
+/**
+ * Props for BaseThumbnailCell extending Payload's DefaultCellComponentProps
+ * with custom thumbnail-specific props
+ */
+export type BaseThumbnailCellProps = Partial<DefaultCellComponentProps> & {
   thumbnailUrl?: string
   mimeType?: string
   filename?: string
-  collectionSlug?: string
-  /** URL to link to - wraps content in a Link */
-  linkURL?: string
-  /** Open link in new tab (only applies when linkURL is set) */
+  /** Open link in new tab (custom extension for external links) */
   openInNewTab?: boolean
-  /** Click handler - alternative to linkURL for drawer behavior */
-  onClick?: () => void
 }
 
 /**
  * Base thumbnail cell component using Payload's built-in Thumbnail
- * Follows Payload's FileCell pattern with file CSS class structure
+ * Follows Payload's DefaultCell wrapping pattern with file CSS class structure
  *
- * Interaction priority:
- * 1. onClick - for opening drawers or custom behavior
- * 2. linkURL - for navigation links
+ * Interaction priority (matching Payload's DefaultCell):
+ * 1. onClick - wraps in button, calls onClick with { cellData, collectionSlug, rowData }
+ * 2. link && linkURL - wraps in Link for navigation
  * 3. No interaction - plain display
  */
 export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
   thumbnailUrl,
   mimeType,
   filename,
+  cellData,
   collectionSlug,
+  rowData,
+  className,
+  link,
   linkURL,
-  openInNewTab,
   onClick,
+  openInNewTab,
 }) => {
   const content = (
     <div className="file">
@@ -45,37 +50,61 @@ export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
     </div>
   )
 
-  // onClick takes priority - for drawer behavior
-  if (onClick) {
-    const handleClick = (e: React.MouseEvent) => {
-      e.preventDefault()
-      onClick()
-    }
+  // onClick takes priority - following Payload's DefaultCell pattern
+  if (typeof onClick === 'function') {
     return (
-      <a href="#" onClick={handleClick} style={{ cursor: 'pointer' }}>
+      <button
+        type="button"
+        className={className}
+        onClick={() => {
+          onClick({
+            cellData,
+            collectionSlug: collectionSlug ?? '',
+            rowData: rowData ?? {},
+          })
+        }}
+        style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
+      >
         {content}
-      </a>
+      </button>
     )
   }
 
-  // linkURL for navigation
-  if (linkURL) {
+  // link + linkURL for navigation
+  if (link && linkURL) {
     // Use native anchor for new tab links, Payload Link for internal navigation
     if (openInNewTab) {
       return (
-        <a href={linkURL} target="_blank" rel="noopener noreferrer">
+        <a href={linkURL} target="_blank" rel="noopener noreferrer" className={className}>
           {content}
         </a>
       )
     }
     return (
-      <Link href={linkURL} prefetch={false}>
+      <Link href={linkURL} prefetch={false} className={className}>
         {content}
       </Link>
     )
   }
 
-  return content
+  // Fallback: still support linkURL without link prop for backwards compatibility
+  if (linkURL) {
+    if (openInNewTab) {
+      return (
+        <a href={linkURL} target="_blank" rel="noopener noreferrer" className={className}>
+          {content}
+        </a>
+      )
+    }
+    return (
+      <Link href={linkURL} prefetch={false} className={className}>
+        {content}
+      </Link>
+    )
+  }
+
+  // No interaction - plain display
+  return <span className={className}>{content}</span>
 }
 
 export default BaseThumbnailCell

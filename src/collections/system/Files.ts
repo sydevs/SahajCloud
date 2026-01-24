@@ -15,7 +15,7 @@ export const Files: CollectionConfig = {
     useAsTitle: 'filename',
     description:
       'Media files (images, audio, video) and PDFs used by other collections. Orphaned files are automatically moved to trash and permanently deleted during monthly cleanup.',
-    defaultColumns: ['previewUrl', 'filename', 'mimeType', 'createdAt'],
+    defaultColumns: ['previewUrl', 'mimeType', 'createdAt'],
   },
   upload: {
     hideRemoveFile: true,

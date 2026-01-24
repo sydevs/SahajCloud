@@ -46,9 +46,13 @@ export const SongTags: CollectionConfig = {
       type: 'join',
       collection: 'songs',
       on: 'tags',
+      defaultLimit: 100,
       admin: {
         components: {
-          Cell: '@/components/admin/RelationshipCountCell',
+          Cell: {
+            path: '@/components/admin/RelationshipCountCell',
+            serverProps: { disableLink: true },
+          },
         },
       },
     },

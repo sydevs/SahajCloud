@@ -50,6 +50,7 @@ export const Albums: CollectionConfig = {
       type: 'join',
       collection: 'songs',
       on: 'album',
+      defaultLimit: 100,
       admin: {
         description: 'Music tracks in this album',
         components: {
