@@ -9,33 +9,54 @@ import { BaseThumbnailCell } from './BaseThumbnailCell'
  * cellData contains the URL directly from the virtual field's afterRead hook
  *
  * Link behavior:
- * - Uses Payload's linkURL if provided (first column behavior)
- * - Falls back to linking to the original file URL for viewing/download
+ * - First column (link=true): Links to document edit page (Payload's default)
+ * - Non-first column: Links to original file URL for viewing/download (opens in new tab)
+ *
+ * Interaction priority (following Payload's DefaultCell pattern):
+ * 1. onClick - calls onClick with { cellData, collectionSlug, rowData }
+ * 2. link && linkURL - custom navigation link
+ * 3. link (no linkURL) - document edit page link
+ * 4. Fallback - external file link (opens in new tab)
  */
 export const PreviewUrlThumbnailCell: React.FC<DefaultCellComponentProps> = ({
   cellData,
   rowData,
   collectionSlug,
+  className,
+  link,
   linkURL,
+  onClick,
 }) => {
   const thumbnailUrl = typeof cellData === 'string' ? cellData : undefined
 
-  // Original file URL from rowData (fallback when Payload doesn't provide linkURL)
+  // Original file URL from rowData (for non-first-column fallback)
   const fallbackLinkURL = rowData?.url as string | undefined
 
-  // Use Payload's linkURL if provided, otherwise use our fallback
-  const resolvedLinkURL = linkURL ?? fallbackLinkURL
+  // Construct document URL when link=true (first column) but no custom linkURL
+  // This matches Payload's DefaultCell behavior
+  const documentUrl =
+    link && !linkURL && collectionSlug && rowData?.id
+      ? `/admin/collections/${collectionSlug}/${rowData.id}`
+      : undefined
 
-  // Open in new tab when using fallback URL (viewing/downloading the file)
-  const shouldOpenInNewTab = !linkURL && !!fallbackLinkURL
+  // Priority: linkURL (custom) > documentUrl (first column) > fallbackLinkURL (file link)
+  const resolvedLinkURL = linkURL ?? documentUrl ?? fallbackLinkURL
+
+  // Open in new tab only when using file URL fallback (not document or custom links)
+  const shouldOpenInNewTab = !linkURL && !documentUrl && !!fallbackLinkURL
 
   return (
     <BaseThumbnailCell
       thumbnailUrl={thumbnailUrl}
       mimeType={rowData?.mimeType as string | undefined}
       filename={rowData?.filename as string | undefined}
+      cellData={cellData}
       collectionSlug={collectionSlug}
+      rowData={rowData}
+      className={className}
+      link={link}
       linkURL={resolvedLinkURL}
+      onClick={onClick}
       openInNewTab={shouldOpenInNewTab}
     />
   )

@@ -55,6 +55,7 @@ export const MeditationTags: CollectionConfig = {
       type: 'join',
       collection: 'meditations',
       on: 'tags',
+      defaultLimit: 100,
       admin: {
         components: {
           Cell: '@/components/admin/RelationshipCountCell',

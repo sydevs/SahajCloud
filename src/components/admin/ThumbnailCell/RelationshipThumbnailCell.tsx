@@ -3,6 +3,7 @@
 import type { DefaultCellComponentProps, UploadFieldClient } from 'payload'
 
 import { useDocumentDrawer, usePayloadAPI } from '@payloadcms/ui'
+import { useCallback } from 'react'
 
 import { BaseThumbnailCell } from './BaseThumbnailCell'
 
@@ -15,6 +16,8 @@ import { BaseThumbnailCell } from './BaseThumbnailCell'
 export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
   cellData,
   collectionSlug,
+  rowData,
+  className,
   field,
 }) => {
   // Get the target collection from the field config
@@ -32,6 +35,14 @@ export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
     collectionSlug: relationTo,
     id: relatedId != null ? Number(relatedId) : undefined,
   })
+
+  // Wrap openDrawer to match Payload's onClick signature
+  const handleClick = useCallback(
+    (_args: { cellData: unknown; collectionSlug: string; rowData: Record<string, unknown> }) => {
+      openDrawer()
+    },
+    [openDrawer],
+  )
 
   const [{ data: relatedDoc }] = usePayloadAPI(relatedId ? `/api/${relationTo}` : '', {
     initialParams: relatedId
@@ -51,8 +62,11 @@ export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
         thumbnailUrl={doc?.url as string | undefined}
         mimeType={doc?.mimeType as string | undefined}
         filename={doc?.filename as string | undefined}
+        cellData={cellData}
         collectionSlug={collectionSlug}
-        onClick={relatedId ? openDrawer : undefined}
+        rowData={rowData}
+        className={className}
+        onClick={relatedId ? handleClick : undefined}
       />
       <DocumentDrawer />
     </>
