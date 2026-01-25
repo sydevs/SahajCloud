@@ -6,7 +6,6 @@
  *
  * Automatically sanitizes filenames to create URL-safe slugs with unique suffixes.
  */
-import type { R2Bucket } from '@cloudflare/workers-types'
 import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
 import slugify from 'slugify'

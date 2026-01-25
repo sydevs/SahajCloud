@@ -11,7 +11,6 @@
  * Automatically falls back to local file storage in development when
  * Cloudflare credentials are not configured.
  */
-import type { R2Bucket } from '@cloudflare/workers-types'
 import type { Plugin } from 'payload'
 
 import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'

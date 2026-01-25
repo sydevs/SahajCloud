@@ -3,8 +3,6 @@
  *
  * Hooks for rate limiting and usage tracking.
  */
-
-import type { D1Database, RateLimit } from '@cloudflare/workers-types'
 import type { Database as BetterSqlite3Database } from 'better-sqlite3'
 import type {
   CollectionAfterReadHook,
