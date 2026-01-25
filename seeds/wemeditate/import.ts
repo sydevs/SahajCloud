@@ -2377,14 +2377,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         liveMeditationsPage: await this.findPageBySlug('live-meditations'),
       }
 
-      // Page tags are now inline enum strings
-      const inspirationPageTags: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] = [
-        'creativity',
-        'wisdom',
-        'lifestyle',
-        'event',
-      ]
-
       const featuredPages = pageMapping.featuredPages.filter((id) => id !== null) as number[]
       const footerPages = pageMapping.footerPages.filter((id) => id !== null) as number[]
 
@@ -2419,7 +2411,6 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           sahasrara: toUndefined(pageMapping.sahasrara),
           techniquesPage: toUndefined(pageMapping.techniquesPage),
           inspirationPage: toUndefined(pageMapping.inspirationPage),
-          inspirationPageTags,
           classesPage: toUndefined(pageMapping.classesPage),
           liveMeditationsPage: toUndefined(pageMapping.liveMeditationsPage),
         },

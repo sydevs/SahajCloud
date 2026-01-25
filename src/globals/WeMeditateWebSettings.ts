@@ -216,17 +216,6 @@ export const WeMeditateWebSettings: GlobalConfig = {
           relationTo: 'pages',
           required: true,
         },
-        {
-          name: 'inspirationPageTags',
-          label: 'Inspiration Page Tags',
-          type: 'select',
-          hasMany: true,
-          options: ['wisdom', 'lifestyle', 'creativity', 'event', 'technique'],
-          required: true,
-          admin: {
-            description: 'Select page tags to display on the Inspiration page',
-          },
-        },
       ],
     },
 
