@@ -3,8 +3,6 @@
  *
  * Task configurations for daily usage reset.
  */
-
-import type { D1Database } from '@cloudflare/workers-types'
 import type { Payload, TaskConfig } from 'payload'
 
 import { getCloudflareContext } from '@opennextjs/cloudflare'
