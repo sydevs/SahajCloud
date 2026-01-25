@@ -12,7 +12,7 @@
  */
 
 import type { BypassPermissionFunction, ContentSlug } from './types'
-import type { ClientUser, CollectionSlug, Config } from 'payload'
+import type { CollectionSlug, Config } from 'payload'
 
 import { createAccessConfig } from './accessConfigs'
 import { getProjectSlugs, getRoleSlugs, isTranslatableCollection } from './config'
