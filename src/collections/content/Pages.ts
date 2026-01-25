@@ -1,19 +1,8 @@
 import type { CollectionConfig } from 'payload'
 
-import {
-  TextBoxBlock,
-  LayoutBlock,
-  GalleryBlock,
-  CatalogBlock,
-  ButtonBlock,
-  QuoteBlock,
-  MeditationIndexBlock,
-  PageIndexBlock,
-  MusicIndexBlock,
-  SubtleSystemBlock,
-  SplashBlock,
-} from '@/blocks/pages'
+import { pageBlocks } from '@/blocks/pages'
 import { slugField } from '@/fields'
+import { PAGE_TAGS } from '@/lib/constants'
 import { serverEnv } from '@/lib/env'
 import { fullRichTextEditor } from '@/lib/richEditor'
 
@@ -57,19 +46,7 @@ export const Pages: CollectionConfig = {
               name: 'content',
               type: 'richText',
               localized: true,
-              editor: fullRichTextEditor([
-                TextBoxBlock,
-                LayoutBlock,
-                GalleryBlock,
-                CatalogBlock,
-                ButtonBlock,
-                QuoteBlock,
-                MeditationIndexBlock,
-                PageIndexBlock,
-                MusicIndexBlock,
-                SubtleSystemBlock,
-                SplashBlock,
-              ]),
+              editor: fullRichTextEditor(pageBlocks),
             },
           ],
         },
@@ -89,7 +66,7 @@ export const Pages: CollectionConfig = {
       name: 'tags',
       type: 'select',
       hasMany: true,
-      options: ['wisdom', 'lifestyle', 'creativity', 'event', 'technique'],
+      options: PAGE_TAGS,
       admin: {
         position: 'sidebar',
       },
