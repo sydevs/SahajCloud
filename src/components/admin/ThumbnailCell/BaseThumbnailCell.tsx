@@ -1,6 +1,6 @@
 'use client'
 
-import type { DefaultCellComponentProps } from 'payload'
+import type { CollectionSlug, DefaultCellComponentProps } from 'payload'
 
 import { Link, Thumbnail } from '@payloadcms/ui'
 
@@ -59,7 +59,7 @@ export const BaseThumbnailCell: React.FC<BaseThumbnailCellProps> = ({
         onClick={() => {
           onClick({
             cellData,
-            collectionSlug: collectionSlug ?? '',
+            collectionSlug: collectionSlug as CollectionSlug,
             rowData: rowData ?? {},
           })
         }}
