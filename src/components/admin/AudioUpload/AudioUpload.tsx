@@ -3,6 +3,7 @@
 import {
   CopyToClipboard,
   fieldBaseClass,
+  Upload,
   useConfig,
   useDocumentInfo,
   useLivePreviewContext,
@@ -26,6 +27,7 @@ export default function AudioUpload() {
   const { isLivePreviewing } = useLivePreviewContext()
   const {
     config: { serverURL },
+    getEntityConfig,
   } = useConfig()
 
   // Hide when live preview is open to maximize space for frame editing
@@ -41,9 +43,16 @@ export default function AudioUpload() {
   const audioUrl =
     virtualUrl || (filename ? `${serverURL}/api/${collectionSlug}/file/${filename}` : null)
 
-  // No file uploaded yet - let Payload handle the dropzone
+  // No file uploaded yet - render default upload component
   if (!filename || !audioUrl) {
-    return null
+    if (!collectionSlug) return null
+
+    const collectionConfig = getEntityConfig({ collectionSlug })
+    const uploadConfig = collectionConfig?.upload
+
+    if (!uploadConfig) return null
+
+    return <Upload collectionSlug={collectionSlug} uploadConfig={uploadConfig} />
   }
 
   return (
