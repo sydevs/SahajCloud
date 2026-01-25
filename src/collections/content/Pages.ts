@@ -7,6 +7,11 @@ import {
   CatalogBlock,
   ButtonBlock,
   QuoteBlock,
+  MeditationIndexBlock,
+  PageIndexBlock,
+  MusicIndexBlock,
+  SubtleSystemBlock,
+  SplashBlock,
 } from '@/blocks/pages'
 import { slugField } from '@/fields'
 import { serverEnv } from '@/lib/env'
@@ -59,6 +64,11 @@ export const Pages: CollectionConfig = {
                 CatalogBlock,
                 ButtonBlock,
                 QuoteBlock,
+                MeditationIndexBlock,
+                PageIndexBlock,
+                MusicIndexBlock,
+                SubtleSystemBlock,
+                SplashBlock,
               ]),
             },
           ],
