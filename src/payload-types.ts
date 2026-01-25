@@ -2034,10 +2034,6 @@ export interface WeMeditateWebSetting {
   sahasrara: number | Page;
   techniquesPage: number | Page;
   inspirationPage: number | Page;
-  /**
-   * Select page tags to display on the Inspiration page
-   */
-  inspirationPageTags: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[];
   classesPage: number | Page;
   /**
    * Select the page for live meditation classes
@@ -2127,7 +2123,6 @@ export interface WeMeditateWebSettingsSelect<T extends boolean = true> {
   sahasrara?: T;
   techniquesPage?: T;
   inspirationPage?: T;
-  inspirationPageTags?: T;
   classesPage?: T;
   liveMeditationsPage?: T;
   updatedAt?: T;

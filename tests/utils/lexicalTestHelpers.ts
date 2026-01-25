@@ -78,8 +78,8 @@ export function createLexicalWithLayoutBlock(imageIds: number[]): Page['content'
 }
 
 /**
- * Create Lexical content with GalleryBlock containing images
- * Note: GalleryBlock requires minRows: 3 images in actual usage
+ * Create Lexical content with ImageGalleryBlock containing images
+ * Note: ImageGalleryBlock requires minRows: 3 images in actual usage
  * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts
  */
 export function createLexicalWithGalleryBlock(imageIds: number[]): Page['content'] {
@@ -93,7 +93,7 @@ export function createLexicalWithGalleryBlock(imageIds: number[]): Page['content
           fields: {
             id: uniqueId(),
             blockName: 'Image Gallery',
-            blockType: 'gallery',
+            blockType: 'image-gallery',
             items: imageIds,
           },
         },
