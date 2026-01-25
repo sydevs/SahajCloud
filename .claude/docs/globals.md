@@ -25,15 +25,11 @@ The application uses PayloadCMS Global Configs to manage centralized content con
 
 - `featuredPages` (relationship to pages, hasMany, minRows: 3, maxRows: 7, required) - Featured pages in website menu with drag-to-reorder capability
 
-### Tag Filters Tab
-
-- `inspirationPageTags` (select, hasMany, required) - Inline enum page tags displayed on Inspiration page. Options: wisdom, lifestyle, creativity, event, technique
-
 ## Key Features
 
 - **Admin-Only Access**: Only users with `admin: true` can view and modify the settings
 - **Required Relationships**: All static page fields must be populated
-- **Validation Constraints**: Featured pages (3-7 items) and tag filters enforce row count constraints
+- **Validation Constraints**: Featured pages (3-7 items) enforce row count constraints
 - **Drag-to-Reorder**: Featured pages can be reordered in the admin interface
 - **Centralized Management**: Single source of truth for website content configuration
 
@@ -42,4 +38,4 @@ The application uses PayloadCMS Global Configs to manage centralized content con
 - Defined in `src/globals/WeMeditateWebSettings.ts`
 - Exported via `src/globals/index.ts` along with other global configs
 - Registered in `src/payload.config.ts` via the `globals` array
-- Uses tabs for organized field grouping (Static Pages, Navigation, Tag Filters)
+- Uses collapsible sections for organized field grouping

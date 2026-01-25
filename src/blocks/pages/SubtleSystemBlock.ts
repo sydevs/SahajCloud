@@ -2,9 +2,9 @@ import { Block } from 'payload'
 
 export const SubtleSystemBlock: Block = {
   slug: 'subtle-system',
-  // Icon: Stylized chakra/spine symbol (20x20, gray stroked)
+  // Icon: Lotus flower with three petals (20x20, gray filled)
   imageURL:
-    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSJub25lIiBzdHJva2U9IiM2QjcyODAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGVsbGlwc2UgY3g9IjEwIiBjeT0iNCIgcng9IjMiIHJ5PSIyIi8+PGxpbmUgeDE9IjEwIiB5MT0iNiIgeDI9IjEwIiB5Mj0iMTgiLz48Y2lyY2xlIGN4PSIxMCIgY3k9IjgiIHI9IjEiLz48Y2lyY2xlIGN4PSIxMCIgY3k9IjExIiByPSIxIi8+PGNpcmNsZSBjeD0iMTAiIGN5PSIxNCIgcj0iMSIvPjxjaXJjbGUgY3g9IjEwIiBjeT0iMTciIHI9IjEiLz48L3N2Zz4K',
+    'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSIjNkI3MjgwIj48cGF0aCBkPSJNMTAgM2MtMSAzLTIgNi0yIDhoNGMwLTItMS01LTItOHoiLz48cGF0aCBkPSJNOCAxMWMtNC0xLTYgMS02IDFzMyAyIDYgMnYtM3oiLz48cGF0aCBkPSJNMTIgMTFjNC0xIDYgMSA2IDFzLTMgMi02IDJ2LTN6Ii8+PHBhdGggZD0iTTkgMTVoMnYzSDl6Ii8+PC9zdmc+Cg==',
   labels: {
     singular: 'Subtle System',
     plural: 'Subtle Systems',

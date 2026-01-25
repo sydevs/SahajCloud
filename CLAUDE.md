@@ -44,6 +44,7 @@ UI & Admin Components:
 - @.claude/docs/components/branding.md - Project-based branding and theming
 - @.claude/docs/components/project-visibility.md - Collection visibility filtering by project
 - @.claude/docs/components/frame-editor.md - Audio-synchronized frame editor component
+- @.claude/docs/components/blocks.md - Custom block icons for Lexical editor
 
 Collections & Features:
 - @.claude/docs/collections/pages.md - Pages collection with Lexical blocks
