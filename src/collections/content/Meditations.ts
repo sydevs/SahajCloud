@@ -30,6 +30,14 @@ export const Meditations: CollectionConfig = {
         const baseURL = serverEnv.WEMEDITATE_WEB_URL
         return `${baseURL}/${data.locale}/preview/embed?collection=meditations&id=${data.id}`
       },
+      breakpoints: [
+        {
+          label: 'Mobile',
+          name: 'mobile',
+          width: 375,
+          height: 667,
+        },
+      ],
     },
     components: {
       edit: {
