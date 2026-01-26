@@ -29,7 +29,6 @@ export type TagSelectorSize = 'default' | 'large'
 const SIZE_PRESETS = {
   default: {
     button: 'calc(var(--base) * 2.4)', // 48px
-    icon: 'calc(var(--base) * 1.8)', // 36px
     container: 'calc(var(--base) * 2.8)', // 56px
     title: 'calc(var(--base-body-size) * 0.77px)', // ~10px
     gap: 'calc(var(--base) * 0.2)', // 4px
@@ -38,7 +37,6 @@ const SIZE_PRESETS = {
   },
   large: {
     button: 'calc(var(--base) * 3.2)', // 64px
-    icon: 'calc(var(--base) * 2.4)', // 48px
     container: 'calc(var(--base) * 3.6)', // 72px
     title: 'calc(var(--base-body-size) * 0.85px)', // ~11px
     gap: 'calc(var(--base) * 0.25)', // 5px
@@ -261,8 +259,6 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
                 tag.url.toLowerCase().endsWith('.svg') ? (
                   <SVG
                     src={tag.url}
-                    width={sizes.icon}
-                    height={sizes.icon}
                     style={{
                       color: isSelected ? 'white' : 'var(--theme-elevation-800)',
                       transition: 'color 0.15s ease',
@@ -274,8 +270,6 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
                     src={tag.url}
                     alt=""
                     style={{
-                      width: sizes.icon,
-                      height: sizes.icon,
                       objectFit: 'contain',
                       filter: isSelected ? 'brightness(0) invert(1)' : 'none',
                       transition: 'filter 0.15s ease',
