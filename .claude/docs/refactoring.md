@@ -71,7 +71,7 @@ Run `pnpm generate:types` to regenerate TypeScript types
 #### 11. Documentation
 
 Update:
-- `CLAUDE.md` project structure
+- `AGENTS.md` project structure
 - `.claude/docs/architecture.md`
 - `.claude/docs/components/project-visibility.md`
 - Any other docs referencing the collection

@@ -1,67 +1,105 @@
-# Payload Blank Template
+# Sahaj Cloud CMS
 
-This template comes configured with the bare minimum to get started on anything you need.
+A headless content management system built with **Next.js 15** and **PayloadCMS 3.0**, deployed on Cloudflare Workers with D1 database and R2 storage.
 
-## Quick start
+## Prerequisites
 
-This template can be deployed directly from our Cloud hosting and it will setup MongoDB and cloud S3 object storage for media.
+- **Node.js**: `^18.20.2` or `>=20.9.0`
+- **pnpm**: `^9` or `^10`
 
-## Quick Start - local setup
+## Quick Start
 
-To spin up this template locally, follow these steps:
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd sy-devs-cms
+   ```
 
-### Clone
+2. **Install dependencies**
+   ```bash
+   pnpm install
+   ```
 
-After you click the `Deploy` button above, you'll want to have standalone copy of this repo on your machine. If you've already cloned this repo, skip to [Development](#development).
+3. **Set up environment**
+   ```bash
+   cp .env.example .env
+   ```
 
-### Development
+   Edit `.env` and set `PAYLOAD_SECRET` to a string of at least 32 characters:
+   ```
+   PAYLOAD_SECRET=your-secret-key-here-at-least-32-chars
+   ```
 
-1. First [clone the repo](#clone) if you have not done so already
-2. `cd my-project && cp .env.example .env` to copy the example environment variables. You'll need to add the `MONGODB_URI` from your Cloud project to your `.env` if you want to use S3 storage and the MongoDB database that was created for you.
+4. **Start development server**
+   ```bash
+   pnpm dev
+   ```
 
-3. `pnpm install && pnpm dev` to install dependencies and start the dev server
-4. open `http://localhost:3000` to open the app in your browser
+5. **Access the admin panel**
 
-That's it! Changes made in `./src` will be reflected in your app. Follow the on-screen instructions to login and create your first admin user. Then check out [Production](#production) once you're ready to build and serve your app, and [Deployment](#deployment) when you're ready to go live.
+   Open http://localhost:3000/admin and follow the on-screen instructions to create your first admin user.
 
-#### Docker (Optional)
+## Key Commands
 
-If you prefer to use Docker for local development instead of a local MongoDB instance, the provided docker-compose.yml file can be used.
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start development server |
+| `pnpm devsafe` | Clean start (removes `.next` cache first) |
+| `pnpm build` | Production build |
+| `pnpm start` | Start production server |
+| `pnpm lint` | Run ESLint |
+| `pnpm test` | Run all tests |
+| `pnpm test:int` | Run integration tests (Vitest) |
+| `pnpm test:e2e` | Run E2E tests (Playwright) |
+| `pnpm generate:types` | Generate TypeScript types from Payload schema |
+| `pnpm generate:importmap` | Generate import map for admin components |
+| `pnpm payload migrate` | Run database migrations |
+| `pnpm deploy:prod` | Deploy to production (migrations + app) |
 
-To do so, follow these steps:
+## Environment Configuration
 
-- Modify the `MONGODB_URI` in your `.env` file to `mongodb://127.0.0.1/<dbname>`
-- Modify the `docker-compose.yml` file's `MONGODB_URI` to match the above `<dbname>`
-- Run `docker-compose up` to start the database, optionally pass `-d` to run in the background.
+For local development, only `PAYLOAD_SECRET` is required. The application automatically uses:
+- Local SQLite database
+- Local file storage (no Cloudflare credentials needed)
+- Ethereal Email for testing (captures outbound emails)
 
-## How it works
+See `.env.example` for the full list of available environment variables and their validation requirements.
 
-The Payload config is tailored specifically to the needs of most websites. It is pre-configured in the following ways:
+## Project Structure
 
-### Collections
+```
+src/
+├── app/
+│   ├── (frontend)/     # Public Next.js pages
+│   └── (payload)/      # Payload admin & API routes
+├── collections/        # Payload CMS collections
+│   ├── access/         # Managers, Clients
+│   ├── content/        # Pages, Meditations, Songs, etc.
+│   ├── resources/      # Authors, Narrators, Images
+│   └── tags/           # MeditationTags, SongTags
+├── components/         # React components
+├── globals/            # Global configurations
+├── lib/                # Utilities and helpers
+└── migrations/         # Database migrations
 
-See the [Collections](https://payloadcms.com/docs/configuration/collections) docs for details on how to extend this functionality.
+tests/
+├── int/                # Integration tests
+├── e2e/                # E2E tests (Playwright)
+└── utils/              # Test helpers
+```
 
-- #### Users (Authentication)
+## Windows Setup for Symlinks
 
-  Users are auth-enabled collections that have access to the admin panel.
+This project uses symlinks (`CLAUDE.md` → `AGENTS.md`) for AI coding agent compatibility.
+Windows users need to enable symlink support:
 
-  For additional help, see the official [Auth Example](https://github.com/payloadcms/payload/tree/main/examples/auth) or the [Authentication](https://payloadcms.com/docs/authentication/overview#authentication-overview) docs.
+1. **Enable Developer Mode**: Settings → Privacy & Security → For developers
+2. **Configure Git**: `git config --global core.symlinks true`
+3. **Re-clone the repository** (existing clones won't have symlinks)
 
-- #### Media
+If symlinks don't work, AI agents will still function via the `@import` syntax.
 
-  This is the uploads enabled collection. It features pre-configured sizes, focal point and manual resizing to help you manage your pictures.
+## Further Documentation
 
-### Docker
-
-Alternatively, you can use [Docker](https://www.docker.com) to spin up this template locally. To do so, follow these steps:
-
-1. Follow [steps 1 and 2 from above](#development), the docker-compose file will automatically use the `.env` file in your project root
-1. Next run `docker-compose up`
-1. Follow [steps 4 and 5 from above](#development) to login and create your first admin user
-
-That's it! The Docker instance will help you get up and running quickly while also standardizing the development environment across your teams.
-
-## Questions
-
-If you have any issues or questions, reach out to us on [Discord](https://discord.com/invite/payload) or start a [GitHub discussion](https://github.com/payloadcms/payload/discussions).
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Cloudflare deployment configuration and troubleshooting
+- **[AGENTS.md](AGENTS.md)** - Detailed architecture, patterns, and development guidelines (also accessible via `CLAUDE.md` symlink)
