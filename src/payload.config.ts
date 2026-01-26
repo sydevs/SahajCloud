@@ -70,8 +70,18 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       defaultLocale: DEFAULT_LOCALE,
       filterAvailableLocales,
     },
-    cors: [serverUrl, serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
-    csrf: [serverUrl, serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
+    cors: [
+      'https://wemeditate-web.contact-c66.workers.dev',
+      serverUrl,
+      serverEnv.WEMEDITATE_WEB_URL,
+      serverEnv.SAHAJATLAS_URL,
+    ],
+    csrf: [
+      'https://wemeditate-web.contact-c66.workers.dev',
+      serverUrl,
+      serverEnv.WEMEDITATE_WEB_URL,
+      serverEnv.SAHAJATLAS_URL,
+    ],
     admin: {
       user: Managers.slug,
       importMap: {
