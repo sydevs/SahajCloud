@@ -135,8 +135,8 @@ declare global {
 
       // Frontend URLs
       SAHAJCLOUD_URL?: string
-      WEMEDITATE_WEB_URL?: string
-      SAHAJATLAS_URL?: string
+      WEMEDITATE_WEB_URL: string
+      SAHAJATLAS_URL: string
 
       // Monitoring
       SENTRY_DSN?: string

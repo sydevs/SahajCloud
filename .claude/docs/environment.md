@@ -73,8 +73,8 @@ simple = { limit = 500, period = 60 }
 3. Copy the base URL: `https://customer-<code>.cloudflarestream.com`
 
 ### Live Preview URLs
-- `WEMEDITATE_WEB_URL` - Preview URL for We Meditate Web frontend (default: http://localhost:5173)
-- `SAHAJATLAS_URL` - Preview URL for Sahaj Atlas frontend (default: http://localhost:5174)
+- `WEMEDITATE_WEB_URL` - Preview URL for We Meditate Web frontend (required)
+- `SAHAJATLAS_URL` - Preview URL for Sahaj Atlas frontend (required)
 
 ## Environment Variable Validation
 
