@@ -85,7 +85,8 @@ export const Meditations: CollectionConfig = {
               access: {
                 // Narrator can only be set during creation, not update
                 // This simplifies frame caching since narrator won't change during editing
-                update: () => false,
+                // TODO: Updated should be disabled again once legacy meditations have had their narrator updated
+                //update: () => false,
               },
               validate: ((value, options) => {
                 // Only required during update
