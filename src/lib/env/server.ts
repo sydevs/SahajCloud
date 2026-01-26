@@ -99,7 +99,7 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   RESEND_API_KEY: z.string().min(20).optional(),
 
   // ============================================
-  // OPTIONAL - Application URLs
+  // APPLICATION URLS
   // ============================================
 
   /**
@@ -110,15 +110,13 @@ const ServerEnvSchema = ClientEnvSchema.extend({
 
   /**
    * We Meditate Web frontend URL for live preview
-   * @default http://localhost:5173
    */
-  WEMEDITATE_WEB_URL: z.url().optional().default('http://localhost:5173'),
+  WEMEDITATE_WEB_URL: z.url(),
 
   /**
    * Sahaj Atlas frontend URL for live preview
-   * @default http://localhost:5174
    */
-  SAHAJATLAS_URL: z.url().optional().default('http://localhost:5174'),
+  SAHAJATLAS_URL: z.url(),
 
   /**
    * Server port number

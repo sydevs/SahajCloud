@@ -27,6 +27,8 @@ export default defineConfig({
     env: {
       NODE_ENV: 'test',
       PAYLOAD_SECRET: 'test-secret-key-with-32-chars-minimum',
+      WEMEDITATE_WEB_URL: 'http://localhost:5173',
+      SAHAJATLAS_URL: 'http://localhost:5174',
     },
     // Mock CSS imports to prevent errors in tests
     css: {
