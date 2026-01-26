@@ -70,20 +70,23 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       defaultLocale: DEFAULT_LOCALE,
       filterAvailableLocales,
     },
-    cors: [
-      serverUrl,
-      serverEnv.WEMEDITATE_WEB_URL,
-      serverEnv.SAHAJATLAS_URL,
-    ],
-    csrf: [
-      serverUrl,
-      serverEnv.WEMEDITATE_WEB_URL,
-      serverEnv.SAHAJATLAS_URL,
-    ],
+    cors: [serverUrl, serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
+    csrf: [serverUrl, serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
     admin: {
       user: Managers.slug,
       importMap: {
         baseDir: path.resolve(dirname),
+      },
+      meta: {
+        titleSuffix: '- Sahaj Cloud',
+        description: 'Content for We Meditate & Sahaj Atlas',
+        icons: [
+          {
+            rel: 'icon',
+            type: 'image/svg+xml',
+            url: '/images/sahaj-cloud.svg',
+          },
+        ],
       },
       components: {
         providers: [
