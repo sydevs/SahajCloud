@@ -4,7 +4,7 @@ import './styles.css'
 
 export const metadata = {
   description: 'A CMS for all We Meditate related services.',
-  title: 'We Meditate Admin',
+  title: 'Sahaj Cloud',
 }
 
 export default async function RootLayout(props: { children: React.ReactNode }) {
