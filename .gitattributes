@@ -1,0 +1,5 @@
+# Symlink handling for CLAUDE.md -> AGENTS.md compatibility
+# Windows users need core.symlinks=true in Git config (see README.md)
+CLAUDE.md symlink=true
+seeds/CLAUDE.md symlink=true
+seeds/*/CLAUDE.md symlink=true
