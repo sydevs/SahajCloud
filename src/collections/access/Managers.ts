@@ -46,6 +46,11 @@ export const Managers: CollectionConfig = {
       },
       generateEmailSubject: () => 'Verify Your Email - We Meditate Admin',
     },
+    cookies: {
+      // This enables live preview
+      secure: true, // Required for cross-origin
+      sameSite: 'None', // Allow cross-origin cookie sharing
+    },
     maxLoginAttempts: 5,
     lockTime: 600 * 1000, // 10 minutes
   },
