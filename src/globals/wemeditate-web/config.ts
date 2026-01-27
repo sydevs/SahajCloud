@@ -65,7 +65,7 @@ export const WeMeditateWebConfig: GlobalConfig = {
       maxRows: 5,
       admin: {
         description:
-          'Select up to 3 meta pages about the website. eg. Privacy Notice, Contact Form, etc.',
+          'Select up to 5 meta pages about the website. eg. Privacy Notice, Contact Form, etc.',
       },
     },
   ],

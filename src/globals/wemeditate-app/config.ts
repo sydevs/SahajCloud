@@ -6,5 +6,6 @@ export const WeMeditateAppConfig: GlobalConfig = {
     group: 'WeMeditate App',
   },
   label: 'Configuration',
+  // Fields to be added when app-specific configuration is needed
   fields: [],
 }

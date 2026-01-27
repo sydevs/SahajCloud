@@ -1,6 +1,5 @@
+import type { JSONSchema4 } from 'json-schema'
 import type { GlobalConfig } from 'payload'
-
-import { JSONSchema4 } from 'json-schema'
 
 import translationsSchema from './translationsSchema.json' with { type: 'json' }
 
