@@ -54,15 +54,12 @@ export function createAccessConfig(
 
       const hasAccess = hasPermission(args, bypassFn)
 
-      // For read operations by API clients on draft-enabled collections,
-      // return a query constraint to filter out drafts.
-      // This prevents API clients from accessing unpublished content.
-      const isReadOp = operation === 'read'
-      const hasAccessTrue = hasAccess === true
-      const isClient = req.user?.collection === 'clients'
-      const hasDrafts = collectionHasDrafts(req, collection)
-
-      if (isReadOp && hasAccessTrue && isClient && hasDrafts) {
+      if (
+        hasAccess &&
+        operation === 'read' &&
+        req.user?.collection === 'clients' &&
+        collectionHasDrafts(req, collection)
+      ) {
         return { _status: { equals: 'published' } }
       }
 
