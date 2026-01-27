@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { mixedMediaUrlField, previewUrlField } from '@/lib/storage/urlFields'
+import { downloadUrlField, mixedMediaUrlField, previewUrlField } from '@/lib/storage/urlFields'
 
 export const Files: CollectionConfig = {
   slug: 'files',
@@ -40,6 +40,7 @@ export const Files: CollectionConfig = {
       },
     },
     mixedMediaUrlField({ collection: 'files' }),
+    downloadUrlField({ collection: 'files' }),
     previewUrlField({ collection: 'files' }),
   ],
 }

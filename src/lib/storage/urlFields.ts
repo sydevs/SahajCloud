@@ -2,6 +2,7 @@ import type { CollectionSlug, Field, FieldHook } from 'payload'
 
 import { getCloudflareImagesUrl } from './cloudflareImagesAdapter'
 import {
+  getCloudflareStreamHlsUrl,
   getCloudflareStreamMp4Url,
   getCloudflareStreamThumbnailUrl,
 } from './cloudflareStreamAdapter'
@@ -69,6 +70,16 @@ interface MixedMediaUrlFieldOptions {
 }
 
 /**
+ * Options for creating a download URL field (videos, images, and other files)
+ */
+interface DownloadUrlFieldOptions {
+  /**
+   * The collection slug (used for development fallback URL)
+   */
+  collection: CollectionSlug
+}
+
+/**
  * Creates a virtual URL field for upload collections
  *
  * This utility generates a consistent virtual URL field that:
@@ -109,9 +120,7 @@ export const virtualUrlField = (options: VirtualUrlFieldOptions): Field => {
     }
 
     if (adapter === 'cloudflare-stream') {
-      return (
-        getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
-      )
+      return getCloudflareStreamHlsUrl(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
     }
 
     // R2 Storage - falls back to PayloadCMS-generated URL
@@ -195,7 +204,7 @@ export const previewUrlField = (options: PreviewUrlFieldOptions): Field => {
  *
  * Returns full resolution URLs based on content type:
  * - Images: Cloudflare Images URL (full resolution)
- * - Videos: Cloudflare Stream MP4 download URL
+ * - Videos: Cloudflare Stream HLS manifest URL
  * - Other (PDFs, audio, etc.): R2 Storage URL
  *
  * @param options - Configuration for URL generation
@@ -228,9 +237,7 @@ export const mixedMediaUrlField = (options: MixedMediaUrlFieldOptions): Field =>
     const category = getMimeCategory(data.mimeType)
 
     if (category === 'video') {
-      return (
-        getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
-      )
+      return getCloudflareStreamHlsUrl(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
     }
 
     if (category === 'image') {
@@ -243,6 +250,44 @@ export const mixedMediaUrlField = (options: MixedMediaUrlFieldOptions): Field =>
 
   return {
     name: 'url',
+    type: 'text',
+    virtual: true,
+    hooks: {
+      afterRead: [afterReadHook],
+    },
+    admin: { hidden: true },
+  }
+}
+
+/**
+ * Creates a virtual download URL field for mixed media collections
+ *
+ * Returns download URLs based on content type:
+ * - Videos: Cloudflare Stream MP4 download URL
+ * - Images: Cloudflare Images URL
+ * - Other (PDFs, audio, etc.): R2 Storage URL
+ */
+export const downloadUrlField = (options: DownloadUrlFieldOptions): Field => {
+  const { collection } = options
+
+  const afterReadHook: FieldHook = ({ data }) => {
+    if (!data?.filename) return undefined
+
+    const category = getMimeCategory(data.mimeType)
+
+    if (category === 'video') {
+      return getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
+    }
+
+    if (category === 'image') {
+      return getCloudflareImagesUrl(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
+    }
+
+    return getR2Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
+  }
+
+  return {
+    name: 'downloadUrl',
     type: 'text',
     virtual: true,
     hooks: {

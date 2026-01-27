@@ -26,6 +26,17 @@ export const getCloudflareStreamMp4Url = (filename: string): string | undefined 
 }
 
 /**
+ * Get Cloudflare Stream HLS manifest URL for a video
+ * @param filename - The Cloudflare Stream video ID
+ * @returns URL string or undefined if delivery URL not configured
+ */
+export const getCloudflareStreamHlsUrl = (filename: string): string | undefined => {
+  const deliveryUrl = serverEnv.CLOUDFLARE_STREAM_DELIVERY_URL
+  if (!deliveryUrl) return undefined
+  return `${deliveryUrl}/${filename}/manifest/video.m3u8`
+}
+
+/**
  * Get Cloudflare Stream thumbnail URL for a video
  * @param filename - The Cloudflare Stream video ID
  * @param height - Thumbnail height in pixels
@@ -156,10 +167,10 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
         // The original filename (e.g., "f47ac10b58cc4372.mp4") is used for matching
         // since the stored filename will be the Cloudflare Stream video ID
         if (data) {
+          const existingMetadata =
+            typeof data.fileMetadata === 'object' && data.fileMetadata !== null ? data.fileMetadata : {}
           data.fileMetadata = {
-            ...(typeof data.fileMetadata === 'object' && data.fileMetadata !== null
-              ? data.fileMetadata
-              : {}),
+            ...existingMetadata,
             originalFilename: file.filename,
           }
         }
