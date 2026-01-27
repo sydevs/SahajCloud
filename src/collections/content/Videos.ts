@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { JSONSchema4 } from 'json-schema'
 
-import { previewUrlField, virtualUrlField } from '@/lib/storage/urlFields'
+import { downloadUrlField, previewUrlField, virtualUrlField } from '@/lib/storage/urlFields'
 import subtitleSchema from '@/lib/subtitlesSchema.json' with { type: 'json' }
 
 export const Videos: CollectionConfig = {
@@ -24,6 +24,7 @@ export const Videos: CollectionConfig = {
   fields: [
     // Virtual URL fields for Cloudflare Stream
     virtualUrlField({ collection: 'videos', adapter: 'cloudflare-stream' }),
+    downloadUrlField({ collection: 'videos' }),
     previewUrlField({ collection: 'videos' }),
     {
       name: 'title',

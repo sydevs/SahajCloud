@@ -632,6 +632,7 @@ export interface MeditationTag {
  */
 export interface Video {
   id: number;
+  downloadUrl?: string | null;
   previewUrl?: string | null;
   /**
    * Video title shown to users
@@ -756,6 +757,7 @@ export interface Lesson {
 export interface File {
   id: number;
   createdAt: string;
+  downloadUrl?: string | null;
   previewUrl?: string | null;
   updatedAt: string;
   deletedAt?: string | null;
@@ -788,6 +790,7 @@ export interface Lecture {
  */
 export interface Frame {
   id: number;
+  downloadUrl?: string | null;
   previewUrl?: string | null;
   imageSet: 'male' | 'female';
   category:
@@ -1530,6 +1533,7 @@ export interface AlbumsSelect<T extends boolean = true> {
  * via the `definition` "videos_select".
  */
 export interface VideosSelect<T extends boolean = true> {
+  downloadUrl?: T;
   previewUrl?: T;
   title?: T;
   subtitles?: T;
@@ -1590,6 +1594,7 @@ export interface LecturesSelect<T extends boolean = true> {
  * via the `definition` "frames_select".
  */
 export interface FramesSelect<T extends boolean = true> {
+  downloadUrl?: T;
   previewUrl?: T;
   imageSet?: T;
   category?: T;
@@ -1663,6 +1668,7 @@ export interface ImagesSelect<T extends boolean = true> {
  */
 export interface FilesSelect<T extends boolean = true> {
   createdAt?: T;
+  downloadUrl?: T;
   previewUrl?: T;
   updatedAt?: T;
   deletedAt?: T;
