@@ -70,6 +70,7 @@ The bypass function handles:
 ### Client Role Characteristics
 - **Not Localized**: Client roles apply to all locales
 - **Read-Only by Default**: Clients primarily have read access to content
+- **Draft Filtering**: API clients only see published documents on draft-enabled collections (pages, meditations)
 - **Form Submissions**: wemeditate-web client can create form submissions
 
 ## Permission System Architecture

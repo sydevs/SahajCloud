@@ -30,6 +30,30 @@ const __dirname = path.dirname(__filename)
 const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 
 /**
+ * Creates minimal Lexical rich text content for testing
+ * @param text - The text content to include
+ * @returns Lexical root structure compatible with PayloadCMS richText fields
+ */
+export function createTestLexicalContent(text: string = 'Test content') {
+  return {
+    root: {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [{ type: 'text', text }],
+          version: 1,
+        },
+      ],
+      direction: 'ltr',
+      format: '',
+      indent: 0,
+      version: 1,
+    },
+  }
+}
+
+/**
  * Test data factory functions for creating test entities with payload.create()
  */
 export const testData = {
