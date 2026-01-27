@@ -174,15 +174,21 @@ export interface Config {
         | 'tr'
       )[];
   globals: {
-    'we-meditate-web-settings': WeMeditateWebSetting;
-    'we-meditate-app-settings': WeMeditateAppSetting;
-    'sahaj-atlas-settings': SahajAtlasSetting;
+    'wm-web-config': WmWebConfig;
+    'wm-web-translations': WmWebTranslation;
+    'wm-app-config': WmAppConfig;
+    'wm-app-translations': WmAppTranslation;
+    'sy-atlas-config': SyAtlasConfig;
+    'sy-atlas-translations': SyAtlasTranslation;
     'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
-    'we-meditate-web-settings': WeMeditateWebSettingsSelect<false> | WeMeditateWebSettingsSelect<true>;
-    'we-meditate-app-settings': WeMeditateAppSettingsSelect<false> | WeMeditateAppSettingsSelect<true>;
-    'sahaj-atlas-settings': SahajAtlasSettingsSelect<false> | SahajAtlasSettingsSelect<true>;
+    'wm-web-config': WmWebConfigSelect<false> | WmWebConfigSelect<true>;
+    'wm-web-translations': WmWebTranslationsSelect<false> | WmWebTranslationsSelect<true>;
+    'wm-app-config': WmAppConfigSelect<false> | WmAppConfigSelect<true>;
+    'wm-app-translations': WmAppTranslationsSelect<false> | WmAppTranslationsSelect<true>;
+    'sy-atlas-config': SyAtlasConfigSelect<false> | SyAtlasConfigSelect<true>;
+    'sy-atlas-translations': SyAtlasTranslationsSelect<false> | SyAtlasTranslationsSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale:
@@ -2008,82 +2014,77 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "we-meditate-web-settings".
+ * via the `definition` "wm-web-config".
  */
-export interface WeMeditateWebSetting {
+export interface WmWebConfig {
   id: number;
-  /**
-   * Select the page content for the home page
-   */
   homePage: number | Page;
   /**
-   * Select 3-7 pages to feature in the website menu. Drag to reorder.
+   * Select 2-3 pages to feature in the website header and footer.
    */
   featuredPages: (number | Page)[];
   /**
-   * Select 3-5 pages to display in the website footer
+   * Select up to 5 pages for seekers to start meditating. The first one will be featured in the header.
    */
-  footerPages: (number | Page)[];
-  musicPage: number | Page;
-  subtleSystemPage: number | Page;
-  left: number | Page;
-  right: number | Page;
-  center: number | Page;
-  mooladhara: number | Page;
-  kundalini: number | Page;
-  swadhistan: number | Page;
-  nabhi: number | Page;
-  void: number | Page;
-  anahat: number | Page;
-  vishuddhi: number | Page;
-  agnya: number | Page;
-  sahasrara: number | Page;
-  techniquesPage: number | Page;
-  inspirationPage: number | Page;
-  classesPage: number | Page;
+  classPages?: (number | Page)[] | null;
   /**
-   * Select the page for live meditation classes
+   * Select up to 5 pages for seeker to learn more.
    */
-  liveMeditationsPage: number | Page;
+  knowledgePages?: (number | Page)[] | null;
+  /**
+   * Select up to 3 meta pages about the website. eg. Privacy Notice, Contact Form, etc.
+   */
+  infoPages?: (number | Page)[] | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "we-meditate-app-settings".
+ * via the `definition` "wm-web-translations".
  */
-export interface WeMeditateAppSetting {
+export interface WmWebTranslation {
   id: number;
-  /**
-   * Current mobile app version
-   */
-  appVersion?: string | null;
-  /**
-   * Select up to 10 meditations to feature in the mobile app
-   */
-  featuredMeditations?: (number | Meditation)[] | null;
-  /**
-   * Select up to 10 lessons to feature in the mobile app
-   */
-  featuredLessons?: (number | Lesson)[] | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "sahaj-atlas-settings".
+ * via the `definition` "wm-app-config".
  */
-export interface SahajAtlasSetting {
+export interface WmAppConfig {
   id: number;
-  /**
-   * Current Sahaj Atlas version
-   */
-  atlasVersion?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "wm-app-translations".
+ */
+export interface WmAppTranslation {
+  id: number;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "sy-atlas-config".
+ */
+export interface SyAtlasConfig {
+  id: number;
   defaultMapCenter: {
     latitude: number;
     longitude: number;
   };
   defaultZoomLevel?: number | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "sy-atlas-translations".
+ */
+export interface SyAtlasTranslation {
+  id: number;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2107,52 +2108,50 @@ export interface PayloadJobsStat {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "we-meditate-web-settings_select".
+ * via the `definition` "wm-web-config_select".
  */
-export interface WeMeditateWebSettingsSelect<T extends boolean = true> {
+export interface WmWebConfigSelect<T extends boolean = true> {
   homePage?: T;
   featuredPages?: T;
-  footerPages?: T;
-  musicPage?: T;
-  subtleSystemPage?: T;
-  left?: T;
-  right?: T;
-  center?: T;
-  mooladhara?: T;
-  kundalini?: T;
-  swadhistan?: T;
-  nabhi?: T;
-  void?: T;
-  anahat?: T;
-  vishuddhi?: T;
-  agnya?: T;
-  sahasrara?: T;
-  techniquesPage?: T;
-  inspirationPage?: T;
-  classesPage?: T;
-  liveMeditationsPage?: T;
+  classPages?: T;
+  knowledgePages?: T;
+  infoPages?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "we-meditate-app-settings_select".
+ * via the `definition` "wm-web-translations_select".
  */
-export interface WeMeditateAppSettingsSelect<T extends boolean = true> {
-  appVersion?: T;
-  featuredMeditations?: T;
-  featuredLessons?: T;
+export interface WmWebTranslationsSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "sahaj-atlas-settings_select".
+ * via the `definition` "wm-app-config_select".
  */
-export interface SahajAtlasSettingsSelect<T extends boolean = true> {
-  atlasVersion?: T;
+export interface WmAppConfigSelect<T extends boolean = true> {
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "wm-app-translations_select".
+ */
+export interface WmAppTranslationsSelect<T extends boolean = true> {
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "sy-atlas-config_select".
+ */
+export interface SyAtlasConfigSelect<T extends boolean = true> {
   defaultMapCenter?:
     | T
     | {
@@ -2160,6 +2159,15 @@ export interface SahajAtlasSettingsSelect<T extends boolean = true> {
         longitude?: T;
       };
   defaultZoomLevel?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "sy-atlas-translations_select".
+ */
+export interface SyAtlasTranslationsSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
