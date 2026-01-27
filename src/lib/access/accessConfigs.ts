@@ -10,9 +10,22 @@
  */
 
 import type { BypassPermissionFunction, ContentSlug, FieldAccessConfig } from './types'
-import type { AccessArgs, CollectionConfig, PayloadRequest } from 'payload'
+import type { AccessArgs, CollectionConfig, CollectionSlug, PayloadRequest } from 'payload'
 
 import { hasPermission } from './permissions'
+
+/**
+ * Check if a collection has drafts enabled
+ * Uses req.payload to access collection config at runtime
+ *
+ * @param req - PayloadRequest with access to payload instance
+ * @param collectionSlug - Collection slug to check
+ * @returns true if collection has drafts enabled
+ */
+function collectionHasDrafts(req: PayloadRequest, collectionSlug: string): boolean {
+  const collection = req.payload.collections[collectionSlug as CollectionSlug]
+  return !!collection?.config?.versions?.drafts
+}
 
 /**
  * Create unified access config for collections and globals
@@ -38,7 +51,19 @@ export function createAccessConfig(
         locale: req.locale === 'all' ? undefined : req.locale,
         ...(id && { docId: id }),
       }
-      return hasPermission(args, bypassFn)
+
+      const hasAccess = hasPermission(args, bypassFn)
+
+      if (
+        hasAccess &&
+        operation === 'read' &&
+        req.user?.collection === 'clients' &&
+        collectionHasDrafts(req, collection)
+      ) {
+        return { _status: { equals: 'published' } }
+      }
+
+      return hasAccess
     }
   }
 

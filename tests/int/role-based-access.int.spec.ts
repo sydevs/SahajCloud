@@ -4,7 +4,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/lib/access'
 
-import { testData } from '../utils/testData'
+import { createTestLexicalContent, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Role-Based Access Control', () => {
@@ -603,6 +603,291 @@ describe('Role-Based Access Control', () => {
           bypassPermissions,
         ),
       ).toBe(true)
+    })
+  })
+
+  describe('Draft Filtering for API Clients', () => {
+    it('client cannot list draft documents', async () => {
+      // Create admin manager for creating content
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Draft Test',
+        type: 'admin' as const,
+      })
+
+      // Create a client with wemeditate-web-client role (has access to pages)
+      const client = await testData.createClient(payload, admin.id, {
+        name: 'Test API Client',
+        roles: ['wemeditate-web-client'],
+        active: true,
+      })
+
+      // Create a draft page (default status is draft)
+      const draftPage = await payload.create({
+        collection: 'pages',
+        data: {
+          title: 'Draft Page for Client Test',
+          content: createTestLexicalContent('Draft content'),
+        },
+        user: { ...admin, collection: 'managers' },
+      })
+
+      expect(draftPage._status).toBe('draft')
+
+      // Verify client object has collection property set correctly
+      expect(client.collection).toBe('clients')
+
+      // Query pages as client - draft should NOT appear
+      // Note: overrideAccess: false is required to test access control with Local API
+      const clientPages = await payload.find({
+        collection: 'pages',
+        user: client,
+        overrideAccess: false,
+      })
+
+      const draftIds = clientPages.docs.map((doc) => doc.id)
+      expect(draftIds).not.toContain(draftPage.id)
+    })
+
+    it('client cannot access draft document by ID', async () => {
+      // Create admin manager
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Draft ID Test',
+        type: 'admin' as const,
+      })
+
+      // Create a client
+      const client = await testData.createClient(payload, admin.id, {
+        name: 'Test API Client for ID Test',
+        roles: ['wemeditate-web-client'],
+        active: true,
+      })
+
+      // Create a draft page
+      const draftPage = await payload.create({
+        collection: 'pages',
+        data: {
+          title: 'Draft Page for ID Test',
+          content: createTestLexicalContent('Draft content'),
+        },
+        user: { ...admin, collection: 'managers' },
+      })
+
+      // Attempt to access by ID as client - should throw NotFound due to query constraint
+      // Note: overrideAccess: false is required to test access control with Local API
+      await expect(
+        payload.findByID({
+          collection: 'pages',
+          id: draftPage.id,
+          user: client,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow('Not Found')
+    })
+
+    it('client can access published documents', async () => {
+      // Create admin manager
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Published Test',
+        type: 'admin' as const,
+      })
+
+      // Create a client
+      const client = await testData.createClient(payload, admin.id, {
+        name: 'Test API Client for Published Test',
+        roles: ['wemeditate-web-client'],
+        active: true,
+      })
+
+      // Create and publish a page
+      const draftPage = await payload.create({
+        collection: 'pages',
+        data: {
+          title: 'Page to Publish',
+          content: createTestLexicalContent('Published content'),
+        },
+        user: { ...admin, collection: 'managers' },
+      })
+
+      // Publish the page
+      const publishedPage = await payload.update({
+        collection: 'pages',
+        id: draftPage.id,
+        data: {
+          _status: 'published',
+        },
+        user: { ...admin, collection: 'managers' },
+      })
+
+      expect(publishedPage._status).toBe('published')
+
+      // Query pages as client - published page SHOULD appear
+      // Note: overrideAccess: false is required to test access control with Local API
+      const clientPages = await payload.find({
+        collection: 'pages',
+        user: client,
+        overrideAccess: false,
+      })
+
+      const publishedIds = clientPages.docs.map((doc) => doc.id)
+      expect(publishedIds).toContain(publishedPage.id)
+
+      // Also test findByID
+      const foundPage = await payload.findByID({
+        collection: 'pages',
+        id: publishedPage.id,
+        user: client,
+        overrideAccess: false,
+      })
+
+      expect(foundPage).not.toBeNull()
+      expect(foundPage?.id).toBe(publishedPage.id)
+    })
+
+    it('manager can access draft documents', async () => {
+      // Create admin manager
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Manager Draft Test',
+        type: 'admin' as const,
+      })
+
+      // Create a manager with read access to pages (via web-translator role)
+      const manager = await testData.createManager(payload, {
+        name: 'Manager for Draft Test',
+        type: 'manager' as const,
+        roles: { en: ['web-translator'] },
+      })
+
+      // Create a draft page
+      const draftPage = await payload.create({
+        collection: 'pages',
+        data: {
+          title: 'Draft Page for Manager Test',
+          content: createTestLexicalContent('Draft content'),
+        },
+        user: { ...admin, collection: 'managers' },
+      })
+
+      // Query pages as manager - draft SHOULD appear
+      // Note: overrideAccess: false is required to test access control with Local API
+      const managerPages = await payload.find({
+        collection: 'pages',
+        user: { ...manager, collection: 'managers' },
+        overrideAccess: false,
+      })
+
+      const draftIds = managerPages.docs.map((doc) => doc.id)
+      expect(draftIds).toContain(draftPage.id)
+    })
+
+    it('admin can access draft documents', async () => {
+      // Create admin manager
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Admin Draft Test',
+        type: 'admin' as const,
+      })
+
+      // Create a draft page
+      const draftPage = await payload.create({
+        collection: 'pages',
+        data: {
+          title: 'Draft Page for Admin Test',
+          content: createTestLexicalContent('Draft content'),
+        },
+        user: { ...admin, collection: 'managers' },
+      })
+
+      // Query pages as admin - draft SHOULD appear
+      // Note: overrideAccess: false is required to test access control with Local API
+      const adminPages = await payload.find({
+        collection: 'pages',
+        user: { ...admin, collection: 'managers' },
+        overrideAccess: false,
+      })
+
+      const draftIds = adminPages.docs.map((doc) => doc.id)
+      expect(draftIds).toContain(draftPage.id)
+    })
+
+    it('applies to meditations collection (another draft-enabled collection)', async () => {
+      // Create admin manager
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Meditation Draft Test',
+        type: 'admin' as const,
+      })
+
+      // Create a client with wemeditate-web-client role (has access to meditations)
+      const client = await testData.createClient(payload, admin.id, {
+        name: 'Test API Client for Meditation Test',
+        roles: ['wemeditate-web-client'],
+        active: true,
+      })
+
+      // Create a draft meditation using testData helper (handles file upload)
+      const draftMeditation = await testData.createMeditation(payload, undefined, {
+        label: 'Draft Meditation for Client Test',
+        locale: 'en',
+      })
+
+      expect(draftMeditation._status).toBe('draft')
+
+      // Query meditations as client - draft should NOT appear
+      // Note: overrideAccess: false is required to test access control with Local API
+      const clientMeditations = await payload.find({
+        collection: 'meditations',
+        user: client,
+        overrideAccess: false,
+      })
+
+      const draftIds = clientMeditations.docs.map((doc) => doc.id)
+      expect(draftIds).not.toContain(draftMeditation.id)
+
+      // Manager should be able to see the draft
+      const manager = await testData.createManager(payload, {
+        name: 'Manager for Meditation Draft Test',
+        type: 'manager' as const,
+        roles: { en: ['meditations-editor'] },
+      })
+
+      // Note: overrideAccess: false is required to test access control with Local API
+      const managerMeditations = await payload.find({
+        collection: 'meditations',
+        user: { ...manager, collection: 'managers' },
+        overrideAccess: false,
+      })
+
+      const managerDraftIds = managerMeditations.docs.map((doc) => doc.id)
+      expect(managerDraftIds).toContain(draftMeditation.id)
+    })
+
+    it('does not affect non-draft collections', async () => {
+      // Create admin manager
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Non-Draft Test',
+        type: 'admin' as const,
+      })
+
+      // Create a client
+      const client = await testData.createClient(payload, admin.id, {
+        name: 'Test API Client for Non-Draft Test',
+        roles: ['wemeditate-web-client'],
+        active: true,
+      })
+
+      // Create a narrator (not a draft-enabled collection)
+      const narrator = await testData.createNarrator(payload, {
+        name: 'Test Narrator for Non-Draft Test',
+      })
+
+      // Client should be able to access narrators (no draft filtering)
+      // Note: overrideAccess: false is required to test access control with Local API
+      const clientNarrators = await payload.find({
+        collection: 'narrators',
+        user: client,
+        overrideAccess: false,
+      })
+
+      const narratorIds = clientNarrators.docs.map((doc) => doc.id)
+      expect(narratorIds).toContain(narrator.id)
     })
   })
 })
