@@ -3,7 +3,7 @@ import type { GlobalConfig } from 'payload'
 export const SahajAtlasConfig: GlobalConfig = {
   slug: 'sy-atlas-config',
   admin: {
-    group: 'System',
+    group: 'Sahaj Atlas',
   },
   label: 'Configuration',
   fields: [

@@ -5,7 +5,7 @@ import { serverEnv } from '@/lib/env'
 export const WeMeditateWebConfig: GlobalConfig = {
   slug: 'wm-web-config',
   admin: {
-    group: 'System',
+    group: 'WeMeditate Web',
     livePreview: {
       url: ({ data, locale }) => {
         const baseURL = serverEnv.WEMEDITATE_WEB_URL
@@ -14,7 +14,7 @@ export const WeMeditateWebConfig: GlobalConfig = {
       },
     },
   },
-  label: 'WeMeditate Web',
+  label: 'Configuration',
   fields: [
     {
       name: 'homePage',
@@ -43,7 +43,7 @@ export const WeMeditateWebConfig: GlobalConfig = {
       maxRows: 5,
       admin: {
         description:
-          'Select up to 5 pages for seekers to start meditating. The first one will be featured in the header.',
+          'Select up to 5 pages for seekers to start meditating. The first one will be featured in the header. (eg. Classes Near Me, Online Meditations, Recorded Meditations, WeMeditate App',
       },
     },
     {
@@ -53,7 +53,8 @@ export const WeMeditateWebConfig: GlobalConfig = {
       hasMany: true,
       maxRows: 5,
       admin: {
-        description: 'Select up to 5 pages for seeker to learn more.',
+        description:
+          'Select up to 5 pages for seeker to learn more about meditation. (eg. Shri Mataji, Kundalini, Subtle System, etc)',
       },
     },
     {

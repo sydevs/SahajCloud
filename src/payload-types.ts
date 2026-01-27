@@ -2024,11 +2024,11 @@ export interface WmWebConfig {
    */
   featuredPages: (number | Page)[];
   /**
-   * Select up to 5 pages for seekers to start meditating. The first one will be featured in the header.
+   * Select up to 5 pages for seekers to start meditating. The first one will be featured in the header. (eg. Classes Near Me, Online Meditations, Recorded Meditations, WeMeditate App
    */
   classPages?: (number | Page)[] | null;
   /**
-   * Select up to 5 pages for seeker to learn more.
+   * Select up to 5 pages for seeker to learn more about meditation. (eg. Shri Mataji, Kundalini, Subtle System, etc)
    */
   knowledgePages?: (number | Page)[] | null;
   /**
@@ -2045,12 +2045,33 @@ export interface WmWebConfig {
 export interface WmWebTranslation {
   id: number;
   strings?: {
+    /**
+     * Loading indicator text shown while content is being fetched
+     */
     'common.loading'?: string;
+    /**
+     * Generic error message shown when something goes wrong
+     */
     'common.error'?: string;
+    /**
+     * Button text to retry a failed action
+     */
     'common.retry'?: string;
+    /**
+     * Navigation link to the About Meditation section
+     */
     'nav.about_meditation'?: string;
+    /**
+     * Navigation link to educational content and resources
+     */
     'nav.learn_more'?: string;
+    /**
+     * Call-to-action navigation link inviting users to meditate
+     */
     'nav.come_meditate'?: string;
+    /**
+     * Language selector label in the navigation
+     */
     'nav.languages'?: string;
   };
   updatedAt?: string | null;
@@ -2072,14 +2093,41 @@ export interface WmAppConfig {
 export interface WmAppTranslation {
   id: number;
   strings?: {
+    /**
+     * Loading indicator text shown while content is being fetched
+     */
     'common.loading'?: string;
+    /**
+     * Generic error message shown when something goes wrong
+     */
     'common.error'?: string;
+    /**
+     * Button text to retry a failed action
+     */
     'common.retry'?: string;
+    /**
+     * Welcome message shown on the first onboarding screen
+     */
     'onboarding.welcome'?: string;
+    /**
+     * Button text to proceed to the next onboarding step
+     */
     'onboarding.next'?: string;
+    /**
+     * Button text to skip the onboarding flow
+     */
     'onboarding.skip'?: string;
+    /**
+     * Button text to begin a meditation session
+     */
     'meditation.start'?: string;
+    /**
+     * Button text to pause an active meditation
+     */
     'meditation.pause'?: string;
+    /**
+     * Message shown when a meditation session is finished
+     */
     'meditation.complete'?: string;
   };
   updatedAt?: string | null;
@@ -2106,12 +2154,33 @@ export interface SyAtlasConfig {
 export interface SyAtlasTranslation {
   id: number;
   strings?: {
+    /**
+     * Loading indicator text shown while content is being fetched
+     */
     'common.loading'?: string;
+    /**
+     * Generic error message shown when something goes wrong
+     */
     'common.error'?: string;
+    /**
+     * Tooltip for the zoom in map control button
+     */
     'map.zoomIn'?: string;
+    /**
+     * Tooltip for the zoom out map control button
+     */
     'map.zoomOut'?: string;
+    /**
+     * Button text to center the map on the user's current location
+     */
     'map.myLocation'?: string;
+    /**
+     * Link text to view full details of a location
+     */
     'location.details'?: string;
+    /**
+     * Button text to get directions to a location
+     */
     'location.directions'?: string;
   };
   updatedAt?: string | null;
