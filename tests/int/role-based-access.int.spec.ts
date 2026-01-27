@@ -4,7 +4,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/lib/access'
 
-import { testData } from '../utils/testData'
+import { createTestLexicalContent, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Role-Based Access Control', () => {
@@ -626,22 +626,7 @@ describe('Role-Based Access Control', () => {
         collection: 'pages',
         data: {
           title: 'Draft Page for Client Test',
-          content: {
-            root: {
-              type: 'root',
-              children: [
-                {
-                  type: 'paragraph',
-                  children: [{ type: 'text', text: 'Draft content' }],
-                  version: 1,
-                },
-              ],
-              direction: 'ltr',
-              format: '',
-              indent: 0,
-              version: 1,
-            },
-          },
+          content: createTestLexicalContent('Draft content'),
         },
         user: { ...admin, collection: 'managers' },
       })
@@ -682,22 +667,7 @@ describe('Role-Based Access Control', () => {
         collection: 'pages',
         data: {
           title: 'Draft Page for ID Test',
-          content: {
-            root: {
-              type: 'root',
-              children: [
-                {
-                  type: 'paragraph',
-                  children: [{ type: 'text', text: 'Draft content' }],
-                  version: 1,
-                },
-              ],
-              direction: 'ltr',
-              format: '',
-              indent: 0,
-              version: 1,
-            },
-          },
+          content: createTestLexicalContent('Draft content'),
         },
         user: { ...admin, collection: 'managers' },
       })
@@ -733,22 +703,7 @@ describe('Role-Based Access Control', () => {
         collection: 'pages',
         data: {
           title: 'Page to Publish',
-          content: {
-            root: {
-              type: 'root',
-              children: [
-                {
-                  type: 'paragraph',
-                  children: [{ type: 'text', text: 'Published content' }],
-                  version: 1,
-                },
-              ],
-              direction: 'ltr',
-              format: '',
-              indent: 0,
-              version: 1,
-            },
-          },
+          content: createTestLexicalContent('Published content'),
         },
         user: { ...admin, collection: 'managers' },
       })
@@ -807,22 +762,7 @@ describe('Role-Based Access Control', () => {
         collection: 'pages',
         data: {
           title: 'Draft Page for Manager Test',
-          content: {
-            root: {
-              type: 'root',
-              children: [
-                {
-                  type: 'paragraph',
-                  children: [{ type: 'text', text: 'Draft content' }],
-                  version: 1,
-                },
-              ],
-              direction: 'ltr',
-              format: '',
-              indent: 0,
-              version: 1,
-            },
-          },
+          content: createTestLexicalContent('Draft content'),
         },
         user: { ...admin, collection: 'managers' },
       })
@@ -851,22 +791,7 @@ describe('Role-Based Access Control', () => {
         collection: 'pages',
         data: {
           title: 'Draft Page for Admin Test',
-          content: {
-            root: {
-              type: 'root',
-              children: [
-                {
-                  type: 'paragraph',
-                  children: [{ type: 'text', text: 'Draft content' }],
-                  version: 1,
-                },
-              ],
-              direction: 'ltr',
-              format: '',
-              indent: 0,
-              version: 1,
-            },
-          },
+          content: createTestLexicalContent('Draft content'),
         },
         user: { ...admin, collection: 'managers' },
       })
