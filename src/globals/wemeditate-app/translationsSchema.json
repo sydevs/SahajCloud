@@ -1,0 +1,42 @@
+{
+  "type": "object",
+  "properties": {
+    "common.loading": {
+      "type": "string",
+      "description": "Loading indicator text shown while content is being fetched"
+    },
+    "common.error": {
+      "type": "string",
+      "description": "Generic error message shown when something goes wrong"
+    },
+    "common.retry": {
+      "type": "string",
+      "description": "Button text to retry a failed action"
+    },
+    "onboarding.welcome": {
+      "type": "string",
+      "description": "Welcome message shown on the first onboarding screen"
+    },
+    "onboarding.next": {
+      "type": "string",
+      "description": "Button text to proceed to the next onboarding step"
+    },
+    "onboarding.skip": {
+      "type": "string",
+      "description": "Button text to skip the onboarding flow"
+    },
+    "meditation.start": {
+      "type": "string",
+      "description": "Button text to begin a meditation session"
+    },
+    "meditation.pause": {
+      "type": "string",
+      "description": "Button text to pause an active meditation"
+    },
+    "meditation.complete": {
+      "type": "string",
+      "description": "Message shown when a meditation session is finished"
+    }
+  },
+  "additionalProperties": false
+}

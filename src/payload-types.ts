@@ -2044,6 +2044,15 @@ export interface WmWebConfig {
  */
 export interface WmWebTranslation {
   id: number;
+  strings?: {
+    'common.loading'?: string;
+    'common.error'?: string;
+    'common.retry'?: string;
+    'nav.about_meditation'?: string;
+    'nav.learn_more'?: string;
+    'nav.come_meditate'?: string;
+    'nav.languages'?: string;
+  };
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2062,6 +2071,17 @@ export interface WmAppConfig {
  */
 export interface WmAppTranslation {
   id: number;
+  strings?: {
+    'common.loading'?: string;
+    'common.error'?: string;
+    'common.retry'?: string;
+    'onboarding.welcome'?: string;
+    'onboarding.next'?: string;
+    'onboarding.skip'?: string;
+    'meditation.start'?: string;
+    'meditation.pause'?: string;
+    'meditation.complete'?: string;
+  };
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2085,6 +2105,15 @@ export interface SyAtlasConfig {
  */
 export interface SyAtlasTranslation {
   id: number;
+  strings?: {
+    'common.loading'?: string;
+    'common.error'?: string;
+    'map.zoomIn'?: string;
+    'map.zoomOut'?: string;
+    'map.myLocation'?: string;
+    'location.details'?: string;
+    'location.directions'?: string;
+  };
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2125,6 +2154,7 @@ export interface WmWebConfigSelect<T extends boolean = true> {
  * via the `definition` "wm-web-translations_select".
  */
 export interface WmWebTranslationsSelect<T extends boolean = true> {
+  strings?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -2143,6 +2173,7 @@ export interface WmAppConfigSelect<T extends boolean = true> {
  * via the `definition` "wm-app-translations_select".
  */
 export interface WmAppTranslationsSelect<T extends boolean = true> {
+  strings?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -2168,6 +2199,7 @@ export interface SyAtlasConfigSelect<T extends boolean = true> {
  * via the `definition` "sy-atlas-translations_select".
  */
 export interface SyAtlasTranslationsSelect<T extends boolean = true> {
+  strings?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
