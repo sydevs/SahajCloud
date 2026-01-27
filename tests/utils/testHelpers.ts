@@ -14,6 +14,7 @@ import { buildConfig } from 'payload'
 // Project imports
 import type { Manager, Client } from '@/payload-types'
 
+import { accessPlugin, bypassPermissions } from '@/lib/access'
 import { usagePlugin } from '@/lib/usage'
 
 import { EmailTestAdapter } from './emailTestAdapter'
@@ -92,7 +93,11 @@ function createBaseTestConfig(emailConfig?: any) {
       tasks,
       deleteJobOnComplete: true,
     },
-    plugins: [usagePlugin({ enabled: true })],
+    plugins: [
+      usagePlugin({ enabled: true }),
+      // Access Plugin must be LAST to process plugin-created collections
+      accessPlugin({ enabled: true, bypassPermissions }),
+    ],
     email:
       emailConfig ||
       nodemailerAdapter({
