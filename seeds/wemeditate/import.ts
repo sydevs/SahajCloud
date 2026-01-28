@@ -435,7 +435,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
       await this.importPagesWithContent('treatments', 'treatment_translations')
 
       // Update global settings
-      await this.updateWeMeditateWebSettings()
+      await this.updateWeMeditateWebConfig()
     } else if (this.isCollectionTargeted('pages')) {
       // Paginated pages import: combine all page types and paginate
       await this.logger.info('\n=== PAGINATED PAGES IMPORT ===')
@@ -512,7 +512,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
 
     // Update global settings only on the last batch
     if (!this.hasMoreItems()) {
-      await this.updateWeMeditateWebSettings()
+      await this.updateWeMeditateWebConfig()
     }
   }
 
@@ -2337,88 +2337,35 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     return tagIds
   }
 
-  private async updateWeMeditateWebSettings(): Promise<void> {
-    await this.logger.info('\n=== Updating We Meditate Web Settings ===')
+  private async updateWeMeditateWebConfig(): Promise<void> {
+    await this.logger.info('\n=== Updating We Meditate Web Config ===')
 
     try {
-      const pageMapping = {
-        homePage: await this.findPageBySlug('home-page'),
-        featuredPages: await Promise.all([
-          this.findPageBySlug('chakras-channels'),
-          this.findPageBySlug('kundalini'),
-          this.findPageBySlug('shri-mataji'),
-          this.findPageBySlug('sahaja-yoga'),
-          this.findPageBySlug('improving-meditation'),
-        ]),
-        footerPages: await Promise.all([
-          this.findPageBySlug('classes-near-me'),
-          this.findPageBySlug('meditate-now'),
-          this.findPageBySlug('live-meditations'),
-          this.findPageBySlug('privacy-notice'),
-          this.findPageBySlug('contact-us'),
-        ]),
-        musicPage: await this.findPageBySlug('music-for-meditation'),
-        subtleSystemPage: await this.findPageBySlug('chakras-channels'),
-        left: await this.findPageBySlug('left-channel'),
-        right: await this.findPageBySlug('right-channel'),
-        center: await this.findPageBySlug('central-channel'),
-        mooladhara: await this.findPageBySlug('mooladhara-chakra'),
-        kundalini: await this.findPageBySlug('kundalini'),
-        swadhistan: await this.findPageBySlug('swadhistan-chakra'),
-        nabhi: await this.findPageBySlug('nabhi-chakra'),
-        void: await this.findPageBySlug('void-chakra'),
-        anahat: await this.findPageBySlug('heart-chakra'),
-        vishuddhi: await this.findPageBySlug('vishuddhi-chakra'),
-        agnya: await this.findPageBySlug('agnya-chakra'),
-        sahasrara: await this.findPageBySlug('sahasrara-chakra'),
-        techniquesPage: await this.findPageBySlug('improving-meditation'),
-        inspirationPage: await this.findPageBySlug('inspiration'),
-        classesPage: await this.findPageBySlug('classes-near-me'),
-        liveMeditationsPage: await this.findPageBySlug('live-meditations'),
-      }
-
-      const featuredPages = pageMapping.featuredPages.filter((id) => id !== null) as number[]
-      const footerPages = pageMapping.footerPages.filter((id) => id !== null) as number[]
+      const homePage = await this.findPageBySlug('home-page')
+      const featuredPagesRaw = await Promise.all([
+        this.findPageBySlug('chakras-channels'),
+        this.findPageBySlug('kundalini'),
+        this.findPageBySlug('shri-mataji'),
+      ])
+      const featuredPages = featuredPagesRaw.filter((id) => id !== null) as number[]
 
       // Validate required fields
-      if (!pageMapping.homePage || featuredPages.length < 3) {
-        this.addWarning('Cannot update WeMeditate Web Settings: missing required pages')
+      if (!homePage || featuredPages.length < 2) {
+        this.addWarning('Cannot update WeMeditate Web Config: missing required pages')
         return
       }
 
-      // Helper to convert null to undefined (Payload expects undefined for unset relationships)
-      const toUndefined = (val: number | null): number | undefined => val ?? undefined
-
       await this.payload.updateGlobal({
-        slug: 'we-meditate-web-settings',
+        slug: 'wm-web-config',
         data: {
-          homePage: pageMapping.homePage,
+          homePage,
           featuredPages,
-          footerPages,
-          musicPage: toUndefined(pageMapping.musicPage),
-          subtleSystemPage: toUndefined(pageMapping.subtleSystemPage),
-          left: toUndefined(pageMapping.left),
-          right: toUndefined(pageMapping.right),
-          center: toUndefined(pageMapping.center),
-          mooladhara: toUndefined(pageMapping.mooladhara),
-          kundalini: toUndefined(pageMapping.kundalini),
-          swadhistan: toUndefined(pageMapping.swadhistan),
-          nabhi: toUndefined(pageMapping.nabhi),
-          void: toUndefined(pageMapping.void),
-          anahat: toUndefined(pageMapping.anahat),
-          vishuddhi: toUndefined(pageMapping.vishuddhi),
-          agnya: toUndefined(pageMapping.agnya),
-          sahasrara: toUndefined(pageMapping.sahasrara),
-          techniquesPage: toUndefined(pageMapping.techniquesPage),
-          inspirationPage: toUndefined(pageMapping.inspirationPage),
-          classesPage: toUndefined(pageMapping.classesPage),
-          liveMeditationsPage: toUndefined(pageMapping.liveMeditationsPage),
         },
       })
 
-      await this.logger.success('✓ We Meditate Web Settings updated')
+      await this.logger.success('✓ We Meditate Web Config updated')
     } catch (error) {
-      this.addError('Updating We Meditate Web Settings', error as Error)
+      this.addError('Updating We Meditate Web Config', error as Error)
     }
   }
 }

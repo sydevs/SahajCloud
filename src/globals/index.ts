@@ -1,6 +1,24 @@
-import { SahajAtlasSettings } from './SahajAtlasSettings'
-import { WeMeditateAppSettings } from './WeMeditateAppSettings'
-import { WeMeditateWebSettings } from './WeMeditateWebSettings'
+import { SahajAtlasConfig } from './sahaj-atlas/config'
+import { SahajAtlasTranslations } from './sahaj-atlas/translations'
+import { WeMeditateAppConfig } from './wemeditate-app/config'
+import { WeMeditateAppTranslations } from './wemeditate-app/translations'
+import { WeMeditateWebConfig } from './wemeditate-web/config'
+import { WeMeditateWebTranslations } from './wemeditate-web/translations'
 
-export const globals = [WeMeditateWebSettings, WeMeditateAppSettings, SahajAtlasSettings]
-export { SahajAtlasSettings, WeMeditateAppSettings, WeMeditateWebSettings }
+export const globals = [
+  WeMeditateWebConfig,
+  WeMeditateWebTranslations,
+  WeMeditateAppConfig,
+  WeMeditateAppTranslations,
+  SahajAtlasConfig,
+  SahajAtlasTranslations,
+]
+
+export {
+  SahajAtlasConfig,
+  SahajAtlasTranslations,
+  WeMeditateAppConfig,
+  WeMeditateAppTranslations,
+  WeMeditateWebConfig,
+  WeMeditateWebTranslations,
+}

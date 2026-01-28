@@ -171,6 +171,21 @@ This pattern accounts for filenames like:
 - `audio-42s.mp3` (no collision)
 - `audio-42s-10.mp3` (collision avoided)
 
+### Mock User Objects for Visibility Tests
+
+When testing `admin.hidden` functions, mock users must include `collection: 'managers'` for the bypass function to recognize admin users:
+
+```typescript
+// ✅ Correct - bypass function recognizes admin
+const mockAdmin = { collection: 'managers', type: 'admin', currentProject: 'wemeditate-web' }
+expect(hiddenFn({ user: mockAdmin as any })).toBe(false)
+
+// ❌ Wrong - bypass function won't grant admin access (missing collection)
+const mockAdmin = { type: 'admin', currentProject: 'wemeditate-web' }
+```
+
+This is because the bypass function checks `user.collection === 'managers'` before checking `user.type === 'admin'`.
+
 ## Test Configuration
 
 - Tests run sequentially (`maxConcurrency: 1`) to prevent resource conflicts
