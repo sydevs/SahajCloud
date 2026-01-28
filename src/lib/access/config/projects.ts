@@ -42,7 +42,7 @@ const PROJECTS = {
       'images',
       'files',
     ],
-    globals: ['we-meditate-web-settings'],
+    globals: ['wm-web-config', 'wm-web-translations'],
   },
   'wemeditate-app': {
     label: 'WeMeditate App',
@@ -61,13 +61,13 @@ const PROJECTS = {
       'images',
       'files',
     ],
-    globals: ['we-meditate-app-settings'],
+    globals: ['wm-app-config', 'wm-app-translations'],
   },
   'sahaj-atlas': {
     label: 'Sahaj Atlas',
     icon: '/images/sahaj-atlas.webp',
     collections: ['images', 'files'],
-    globals: ['sahaj-atlas-settings'],
+    globals: ['sy-atlas-config', 'sy-atlas-translations'],
   },
 } as const
 

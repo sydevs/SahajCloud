@@ -486,8 +486,9 @@ describe('Project Filtering Utilities', () => {
     it('returns correct collections for sahaj-atlas project', () => {
       const collections = getProjectCollections('sahaj-atlas')
 
-      // Sahaj Atlas has minimal permissions
-      expect(collections).toContain('sahaj-atlas-settings')
+      // Sahaj Atlas has minimal permissions (collections + globals)
+      expect(collections).toContain('sy-atlas-config')
+      expect(collections).toContain('sy-atlas-translations')
       expect(collections).toContain('images')
       expect(collections).toContain('files')
 

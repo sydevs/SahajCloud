@@ -1,41 +1,91 @@
 # Global Configuration Architecture
 
-The application uses PayloadCMS Global Configs to manage centralized content configuration for the We Meditate website.
+The application uses PayloadCMS Global Configs to manage centralized configuration for each project. Globals are organized into project-based folders.
 
-## We Meditate Web Settings Global
+## Directory Structure
 
-- **Location**: `src/globals/WeMeditateWebSettings.ts`
-- **Slug**: `we-meditate-web-settings`
-- **Admin Group**: Configuration
-- **Access Control**: Admin-only using `adminOnlyAccess()`
-- **Purpose**: Centrally manage static page assignments, featured navigation, and tag filters for the We Meditate website
+```
+src/globals/
+├── wemeditate-web/
+│   ├── config.ts         (slug: wm-web-config)
+│   └── translations.ts   (slug: wm-web-translations)
+├── wemeditate-app/
+│   ├── config.ts         (slug: wm-app-config)
+│   └── translations.ts   (slug: wm-app-translations)
+├── sahaj-atlas/
+│   ├── config.ts         (slug: sy-atlas-config)
+│   └── translations.ts   (slug: sy-atlas-translations)
+└── index.ts
+```
 
-## Tabs and Fields
+## WeMeditate Web Config
 
-### Static Pages Tab
+- **Location**: `src/globals/wemeditate-web/config.ts`
+- **Slug**: `wm-web-config`
+- **Export**: `WeMeditateWebConfig`
+- **Admin Group**: System
+
+### Fields
 
 - `homePage` (relationship to pages, required) - Home page content
-- `musicPage` (relationship to pages, required) - Music page content
-- `classesPage` (relationship to pages, required) - Classes page content
-- `subtleSystemPage` (relationship to pages, required) - Subtle System page content
-- `techniquesPage` (relationship to pages, required) - Techniques page content
-- `inspirationPage` (relationship to pages, required) - Inspiration page content
+- `featuredPages` (relationship to pages, hasMany, 2-3 items, required) - Featured pages in header/footer
+- `classPages` (relationship to pages, hasMany, max 5) - Pages for seekers to start meditating
+- `knowledgePages` (relationship to pages, hasMany, max 5) - Pages for seekers to learn more
+- `infoPages` (relationship to pages, hasMany, max 5) - Meta pages (Privacy, Contact, etc.)
 
-### Navigation Tab
+## WeMeditate Web Translations
 
-- `featuredPages` (relationship to pages, hasMany, minRows: 3, maxRows: 7, required) - Featured pages in website menu with drag-to-reorder capability
+- **Location**: `src/globals/wemeditate-web/translations.ts`
+- **Slug**: `wm-web-translations`
+- **Export**: `WeMeditateWebTranslations`
+- **Admin Group**: WeMeditate Web
+- **Versions**: Max 3
 
-## Key Features
+## WeMeditate App Config
 
-- **Admin-Only Access**: Only users with `admin: true` can view and modify the settings
-- **Required Relationships**: All static page fields must be populated
-- **Validation Constraints**: Featured pages (3-7 items) enforce row count constraints
-- **Drag-to-Reorder**: Featured pages can be reordered in the admin interface
-- **Centralized Management**: Single source of truth for website content configuration
+- **Location**: `src/globals/wemeditate-app/config.ts`
+- **Slug**: `wm-app-config`
+- **Export**: `WeMeditateAppConfig`
+- **Admin Group**: WeMeditate App
 
-## Implementation Details
+## WeMeditate App Translations
 
-- Defined in `src/globals/WeMeditateWebSettings.ts`
-- Exported via `src/globals/index.ts` along with other global configs
-- Registered in `src/payload.config.ts` via the `globals` array
-- Uses collapsible sections for organized field grouping
+- **Location**: `src/globals/wemeditate-app/translations.ts`
+- **Slug**: `wm-app-translations`
+- **Export**: `WeMeditateAppTranslations`
+- **Admin Group**: WeMeditate App
+- **Versions**: Max 3
+
+## Sahaj Atlas Config
+
+- **Location**: `src/globals/sahaj-atlas/config.ts`
+- **Slug**: `sy-atlas-config`
+- **Export**: `SahajAtlasConfig`
+- **Admin Group**: System
+
+### Fields
+
+- `defaultMapCenter` (group) - Default map center coordinates
+  - `latitude` (number, required, default: 0)
+  - `longitude` (number, required, default: 0)
+- `defaultZoomLevel` (number, 1-20, default: 10)
+
+## Sahaj Atlas Translations
+
+- **Location**: `src/globals/sahaj-atlas/translations.ts`
+- **Slug**: `sy-atlas-translations`
+- **Export**: `SahajAtlasTranslations`
+- **Admin Group**: Sahaj Atlas
+- **Versions**: Max 3
+
+## Naming Convention
+
+| Project | Config Export | Config Slug | Translations Export | Translations Slug |
+|---------|--------------|-------------|---------------------|-------------------|
+| WeMeditate Web | `WeMeditateWebConfig` | `wm-web-config` | `WeMeditateWebTranslations` | `wm-web-translations` |
+| WeMeditate App | `WeMeditateAppConfig` | `wm-app-config` | `WeMeditateAppTranslations` | `wm-app-translations` |
+| Sahaj Atlas | `SahajAtlasConfig` | `sy-atlas-config` | `SahajAtlasTranslations` | `sy-atlas-translations` |
+
+## Project Visibility
+
+Globals are assigned to projects in `src/lib/access/config/projects.ts` and automatically shown/hidden based on the manager's current project selection.

@@ -1,21 +1,12 @@
 import type { GlobalConfig } from 'payload'
 
-export const SahajAtlasSettings: GlobalConfig = {
-  slug: 'sahaj-atlas-settings',
+export const SahajAtlasConfig: GlobalConfig = {
+  slug: 'sy-atlas-config',
   admin: {
-    group: 'System',
+    group: 'Sahaj Atlas',
   },
-  label: 'Sahaj Atlas',
+  label: 'Configuration',
   fields: [
-    {
-      name: 'atlasVersion',
-      label: 'Atlas Version',
-      type: 'text',
-      admin: {
-        description: 'Current Sahaj Atlas version',
-        readOnly: true,
-      },
-    },
     {
       name: 'defaultMapCenter',
       label: 'Default Map Center',
