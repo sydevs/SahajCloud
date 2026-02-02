@@ -1,33 +1,47 @@
 {
   "type": "object",
   "properties": {
-    "common.loading": {
-      "type": "string",
-      "description": "Loading indicator text shown while content is being fetched"
+    "common": {
+      "type": "object",
+      "description": "Common UI strings used throughout the application",
+      "properties": {
+        "loading": {
+          "type": "string",
+          "description": "Loading indicator text shown while content is being fetched"
+        },
+        "error": {
+          "type": "string",
+          "description": "Generic error message shown when something goes wrong"
+        },
+        "retry": {
+          "type": "string",
+          "description": "Button text to retry a failed action"
+        }
+      },
+      "additionalProperties": false
     },
-    "common.error": {
-      "type": "string",
-      "description": "Generic error message shown when something goes wrong"
-    },
-    "common.retry": {
-      "type": "string",
-      "description": "Button text to retry a failed action"
-    },
-    "nav.about_meditation": {
-      "type": "string",
-      "description": "Navigation link to the About Meditation section"
-    },
-    "nav.learn_more": {
-      "type": "string",
-      "description": "Navigation link to educational content and resources"
-    },
-    "nav.come_meditate": {
-      "type": "string",
-      "description": "Call-to-action navigation link inviting users to meditate"
-    },
-    "nav.languages": {
-      "type": "string",
-      "description": "Language selector label in the navigation"
+    "navigation": {
+      "type": "object",
+      "description": "Navigation menu labels and links",
+      "properties": {
+        "about_meditation": {
+          "type": "string",
+          "description": "Navigation link to the About Meditation section"
+        },
+        "learn_more": {
+          "type": "string",
+          "description": "Navigation link to educational content and resources"
+        },
+        "come_meditate": {
+          "type": "string",
+          "description": "Call-to-action navigation link inviting users to meditate"
+        },
+        "languages": {
+          "type": "string",
+          "description": "Language selector label in the navigation"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

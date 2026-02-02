@@ -1,41 +1,140 @@
 {
   "type": "object",
   "properties": {
-    "common.loading": {
-      "type": "string",
-      "description": "Loading indicator text shown while content is being fetched"
+    "daily": {
+      "type": "object",
+      "description": "Daily meditation and inspiration content",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Daily meditation section title"
+        },
+        "subtitle": {
+          "type": "string",
+          "description": "Subtitle or description for daily content"
+        },
+        "complete": {
+          "type": "string",
+          "description": "Message when daily meditation is complete"
+        },
+        "streak": {
+          "type": "string",
+          "description": "Meditation streak counter label"
+        },
+        "skip": {
+          "type": "string",
+          "description": "Skip daily meditation button"
+        }
+      },
+      "additionalProperties": false
     },
-    "common.error": {
-      "type": "string",
-      "description": "Generic error message shown when something goes wrong"
+    "path": {
+      "type": "object",
+      "description": "Meditation path and lessons navigation",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Path section title"
+        },
+        "progress": {
+          "type": "string",
+          "description": "Progress indicator label"
+        },
+        "continue": {
+          "type": "string",
+          "description": "Continue lesson button"
+        },
+        "start_unit": {
+          "type": "string",
+          "description": "Start new unit button"
+        },
+        "lesson_complete": {
+          "type": "string",
+          "description": "Lesson completion message"
+        }
+      },
+      "additionalProperties": false
     },
-    "common.retry": {
-      "type": "string",
-      "description": "Button text to retry a failed action"
+    "explore": {
+      "type": "object",
+      "description": "Content exploration and discovery",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Explore section title"
+        },
+        "search": {
+          "type": "string",
+          "description": "Search placeholder text"
+        },
+        "filter": {
+          "type": "string",
+          "description": "Filter button label"
+        },
+        "categories": {
+          "type": "string",
+          "description": "Categories section header"
+        },
+        "view_all": {
+          "type": "string",
+          "description": "View all items link"
+        }
+      },
+      "additionalProperties": false
     },
-    "onboarding.welcome": {
-      "type": "string",
-      "description": "Welcome message shown on the first onboarding screen"
+    "profile": {
+      "type": "object",
+      "description": "User profile and settings",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Profile screen title"
+        },
+        "settings": {
+          "type": "string",
+          "description": "Settings button label"
+        },
+        "statistics": {
+          "type": "string",
+          "description": "Statistics section header"
+        },
+        "logout": {
+          "type": "string",
+          "description": "Logout button"
+        },
+        "edit": {
+          "type": "string",
+          "description": "Edit profile button"
+        }
+      },
+      "additionalProperties": false
     },
-    "onboarding.next": {
-      "type": "string",
-      "description": "Button text to proceed to the next onboarding step"
-    },
-    "onboarding.skip": {
-      "type": "string",
-      "description": "Button text to skip the onboarding flow"
-    },
-    "meditation.start": {
-      "type": "string",
-      "description": "Button text to begin a meditation session"
-    },
-    "meditation.pause": {
-      "type": "string",
-      "description": "Button text to pause an active meditation"
-    },
-    "meditation.complete": {
-      "type": "string",
-      "description": "Message shown when a meditation session is finished"
+    "meditation": {
+      "type": "object",
+      "description": "Meditation player and controls",
+      "properties": {
+        "play": {
+          "type": "string",
+          "description": "Play button label"
+        },
+        "pause": {
+          "type": "string",
+          "description": "Pause button label"
+        },
+        "complete": {
+          "type": "string",
+          "description": "Meditation complete message"
+        },
+        "timer": {
+          "type": "string",
+          "description": "Timer display label"
+        },
+        "background_sound": {
+          "type": "string",
+          "description": "Background sound selector"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false
