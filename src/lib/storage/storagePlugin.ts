@@ -114,8 +114,8 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
           disablePayloadAccessControl: true,
         },
 
-        // Cards collection - Cloudflare Images (promotional card images)
-        cards: {
+        // App Cards collection - Cloudflare Images (promotional card images)
+        'app-cards': {
           adapter: imagesAdapter,
           disableLocalStorage: true,
           disablePayloadAccessControl: true,

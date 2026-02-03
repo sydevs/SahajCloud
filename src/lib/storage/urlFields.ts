@@ -118,7 +118,7 @@ interface DownloadUrlFieldOptions {
  * ```typescript
  * fields: [
  *   virtualUrlField({
- *     collection: 'cards',
+ *     collection: 'app-cards',
  *     adapter: 'cloudflare-images',
  *     name: 'imageUrl',
  *   }),

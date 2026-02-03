@@ -54,7 +54,7 @@ const PROJECTS = {
       'videos',
       'lessons',
       'lectures',
-      'cards',
+      'app-cards',
       'frames',
       'narrators',
       'meditation-tags',

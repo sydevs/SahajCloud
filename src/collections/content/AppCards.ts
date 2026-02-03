@@ -4,14 +4,14 @@ import { urlField } from '@/fields'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 /**
- * Cards Collection
+ * App Cards Collection
  *
  * Promotional cards for the WeMeditate App that display images and can link to
  * app pages, external URLs, content items (meditations, albums, lectures), or
  * serve as reminders with recurrence schedules.
  */
-export const Cards: CollectionConfig = {
-  slug: 'cards',
+export const AppCards: CollectionConfig = {
+  slug: 'app-cards',
   labels: {
     singular: 'Card',
     plural: 'Cards',
@@ -21,12 +21,12 @@ export const Cards: CollectionConfig = {
   },
   disableDuplicate: true,
   upload: {
-    staticDir: 'media/cards',
+    staticDir: 'media/app-cards',
     bulkUpload: false,
     mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'],
   },
   admin: {
-    group: 'We Meditate App',
+    group: 'WeMeditate App',
     useAsTitle: 'title',
     defaultColumns: ['title', 'type', '_status'],
   },
@@ -34,7 +34,7 @@ export const Cards: CollectionConfig = {
     // Virtual URL field for the uploaded card image (Cloudflare Images)
     // Named 'imageUrl' to avoid conflict with the conditional 'linkUrl' field
     virtualUrlField({
-      collection: 'cards',
+      collection: 'app-cards',
       adapter: 'cloudflare-images',
       name: 'imageUrl',
     }),
