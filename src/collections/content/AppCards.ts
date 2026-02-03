@@ -13,8 +13,8 @@ import { virtualUrlField } from '@/lib/storage/urlFields'
 export const AppCards: CollectionConfig = {
   slug: 'app-cards',
   labels: {
-    singular: 'Card',
-    plural: 'Cards',
+    singular: 'App Card',
+    plural: 'App Cards',
   },
   versions: {
     drafts: true,

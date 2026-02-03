@@ -5,6 +5,7 @@ import * as migration_20260128_130731 from './20260128_130731';
 import * as migration_20260203_040030 from './20260203_040030';
 import * as migration_20260203_062524_add_cards_collection from './20260203_062524_add_cards_collection';
 import * as migration_20260203_090000_rename_cards_to_app_cards from './20260203_090000_rename_cards_to_app_cards';
+import * as migration_20260203_145757 from './20260203_145757';
 
 export const migrations = [
   {
@@ -35,11 +36,16 @@ export const migrations = [
   {
     up: migration_20260203_062524_add_cards_collection.up,
     down: migration_20260203_062524_add_cards_collection.down,
-    name: '20260203_062524_add_cards_collection'
+    name: '20260203_062524_add_cards_collection',
   },
   {
     up: migration_20260203_090000_rename_cards_to_app_cards.up,
     down: migration_20260203_090000_rename_cards_to_app_cards.down,
-    name: '20260203_090000_rename_cards_to_app_cards'
+    name: '20260203_090000_rename_cards_to_app_cards',
+  },
+  {
+    up: migration_20260203_145757.up,
+    down: migration_20260203_145757.down,
+    name: '20260203_145757'
   },
 ];

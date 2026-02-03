@@ -6,14 +6,10 @@
  * Handles UTC/timezone conversions.
  */
 
-// Use namespace import and access via .default for ESM/CJS interop
-import * as rruleModule from 'rrule'
+import type { Options } from 'rrule'
 
-// Handle both ESM and CJS module formats
-const rrule = (rruleModule as { default?: typeof rruleModule }).default || rruleModule
-const { RRule, rrulestr, Frequency, Weekday } = rrule
-type Options = rruleModule.Options
-type FrequencyType = (typeof rruleModule.Frequency)[keyof typeof rruleModule.Frequency]
+import { RRule, rrulestr, Frequency, Weekday } from 'rrule'
+type FrequencyType = (typeof Frequency)[keyof typeof Frequency]
 
 import type {
   ScheduleData,
