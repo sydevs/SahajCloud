@@ -674,4 +674,4 @@ rule.toText()  // Works!
 - Don't conditionally include properties that might be undefined
 - Use default values (e.g., `interval: 1`) instead of omitting/undefined
 - This applies to other rrule options that expect specific types
-- See `src/components/admin/RecurrenceField/utils.ts` for correct usage
+- See `src/components/admin/ScheduleField/utils.ts` for correct usage
