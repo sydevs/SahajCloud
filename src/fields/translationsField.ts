@@ -53,9 +53,7 @@ export interface TranslationsSchema {
  * "user-settings" -> "User Settings"
  */
 function toTitleCase(slug: string): string {
-  return slug
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase())
+  return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
 /**
@@ -99,6 +97,7 @@ function createGroupJsonField(
     name: groupSlug,
     type: 'json',
     localized: true,
+    label: false,
     admin: {
       components: {
         Field: '@/components/admin/TranslationsTable',
