@@ -5,9 +5,14 @@
  * Converts between stored JSON format and UI state.
  */
 
-import type { Options } from 'rrule'
+// Use namespace import and access via .default for ESM/CJS interop
+import * as rruleModule from 'rrule'
 
-import { RRule, rrulestr, Frequency, Weekday } from 'rrule'
+// Handle both ESM and CJS module formats
+const rrule = (rruleModule as { default?: typeof rruleModule }).default || rruleModule
+const { RRule, rrulestr, Frequency, Weekday } = rrule
+type Options = rruleModule.Options
+type FrequencyType = (typeof rruleModule.Frequency)[keyof typeof rruleModule.Frequency]
 
 import type {
   RecurrenceData,
@@ -25,7 +30,7 @@ import { getDefaultUIState } from '@/types/recurrence'
  * Note: `interval` can be undefined for uiStateToData (cleaner RRULE output),
  * but MUST be a number for getHumanReadableSummary (toText() crashes on undefined).
  */
-type RRuleOptionsSubset = { freq: Frequency } & Partial<
+type RRuleOptionsSubset = { freq: FrequencyType } & Partial<
   Pick<Options, 'interval' | 'byweekday' | 'bymonthday' | 'count' | 'until'>
 >
 
@@ -79,7 +84,7 @@ export function rruleWeekToLabelIndex(value: number): number {
 /**
  * Convert RecurrenceType to rrule Frequency
  */
-export function recurrenceTypeToFrequency(type: RecurrenceType): Frequency | null {
+export function recurrenceTypeToFrequency(type: RecurrenceType): FrequencyType | null {
   switch (type) {
     case 'daily':
       return Frequency.DAILY
@@ -96,7 +101,7 @@ export function recurrenceTypeToFrequency(type: RecurrenceType): Frequency | nul
 /**
  * Convert rrule Frequency to RecurrenceType
  */
-export function frequencyToRecurrenceType(freq: Frequency | undefined): RecurrenceType {
+export function frequencyToRecurrenceType(freq: FrequencyType | undefined): RecurrenceType {
   switch (freq) {
     case Frequency.DAILY:
       return 'daily'

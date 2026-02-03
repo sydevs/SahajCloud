@@ -9,9 +9,8 @@
 
 import type { JSONField } from 'payload'
 
-// Re-export rrule types for convenience
-export { Frequency, type Options, type ByWeekday } from 'rrule'
-export { Weekday, type WeekdayStr, ALL_WEEKDAYS } from 'rrule'
+// Note: rrule types should be imported directly from 'rrule' in consuming files
+// due to ESM/CJS interop issues with re-exports
 
 /**
  * Stored JSON structure in database.

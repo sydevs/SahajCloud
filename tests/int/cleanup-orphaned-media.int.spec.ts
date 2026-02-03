@@ -50,7 +50,9 @@ async function backdateCreatedAt(
 }
 
 /**
- * Run cleanup job by invoking handler directly
+ * Run cleanup job by invoking handler directly with a test-friendly date range.
+ * This date range includes files backdated to 48 hours ago but excludes files
+ * created "now" (respecting the 24h grace period).
  */
 async function runCleanupJob(payload: Payload): Promise<CleanupResult> {
   const { CleanupOrphanedMedia } = await import('@/jobs/tasks/CleanupOrphanedMedia')
@@ -59,8 +61,44 @@ async function runCleanupJob(payload: Payload): Promise<CleanupResult> {
     payload,
   } as PayloadRequest
 
+  // Test-friendly date range that:
+  // - Includes files backdated to 48 hours ago
+  // - Excludes files created "now" (respecting grace period)
+  const rangeStart = new Date()
+  rangeStart.setHours(rangeStart.getHours() - 72)
+  const rangeEnd = new Date()
+  rangeEnd.setHours(rangeEnd.getHours() - 25) // Outside 24h grace period
+
   // The handler type can be a string (for queued jobs) or function (inline)
   // Our job uses inline handler, so we can safely call it
+  const handler = CleanupOrphanedMedia.handler as (args: {
+    req: PayloadRequest
+    input: Record<string, unknown>
+  }) => Promise<{ output: CleanupResult }>
+  const result = await handler({
+    req: mockReq,
+    input: {
+      testDateRange: {
+        rangeStart: rangeStart.toISOString(),
+        rangeEnd: rangeEnd.toISOString(),
+      },
+    },
+  })
+  return result.output
+}
+
+/**
+ * Run cleanup job with default date range calculation (month-based rotation).
+ * Used for tests that verify the date range rotation logic works correctly.
+ */
+async function runCleanupJobWithDefaultRange(payload: Payload): Promise<CleanupResult> {
+  const { CleanupOrphanedMedia } = await import('@/jobs/tasks/CleanupOrphanedMedia')
+
+  const mockReq = {
+    payload,
+  } as PayloadRequest
+
+  // Don't pass testDateRange - uses default month-based calculation
   const handler = CleanupOrphanedMedia.handler as (args: {
     req: PayloadRequest
     input: Record<string, unknown>
@@ -601,8 +639,8 @@ describe('CleanupOrphanedMedia Job', () => {
         data: { createdAt: twoMonthsAgo.toISOString() },
       })
 
-      // Run cleanup job
-      await runCleanupJob(payload)
+      // Run cleanup job with default (month-based) date range
+      await runCleanupJobWithDefaultRange(payload)
 
       // Verify: Only 0-1 month old file processed
       expect(await fileInTrash(payload, file2weeksOld.id)).toBe(true)
@@ -639,8 +677,8 @@ describe('CleanupOrphanedMedia Job', () => {
         data: { createdAt: twoWeeksAgo.toISOString() },
       })
 
-      // Run cleanup job
-      await runCleanupJob(payload)
+      // Run cleanup job with default (month-based) date range
+      await runCleanupJobWithDefaultRange(payload)
 
       // Verify: Only 1-2 month old file processed
       expect(await fileInTrash(payload, file1p5moOld.id)).toBe(true)
@@ -677,8 +715,8 @@ describe('CleanupOrphanedMedia Job', () => {
         data: { createdAt: oneMonthAgo.toISOString() },
       })
 
-      // Run cleanup job
-      await runCleanupJob(payload)
+      // Run cleanup job with default (month-based) date range
+      await runCleanupJobWithDefaultRange(payload)
 
       // Verify: Only 2-3 month old file processed
       expect(await fileInTrash(payload, file2p5moOld.id)).toBe(true)
@@ -709,8 +747,8 @@ describe('CleanupOrphanedMedia Job', () => {
       // Verify file is in trash
       expect(await fileInTrash(payload, trashedFile.id)).toBe(true)
 
-      // Run cleanup job
-      const result = await runCleanupJob(payload)
+      // Run cleanup job with default (month-based) date range
+      const result = await runCleanupJobWithDefaultRange(payload)
 
       // Verify file was permanently deleted even though it's outside Phase B date range
       expect(result.permanentlyDeletedFiles).toBeGreaterThanOrEqual(1)
