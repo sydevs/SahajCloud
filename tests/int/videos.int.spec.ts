@@ -21,10 +21,10 @@ describe('Videos Collection', () => {
     payload = testEnv.payload
     cleanup = testEnv.cleanup
 
-    // Create test video with string tags
+    // Create test video with string tag (single select field)
     testVideo = await testData.createVideo(payload, {
       title: 'Test Video',
-      tags: [testimonialTag],
+      tags: testimonialTag,
     })
   })
 
@@ -91,16 +91,14 @@ describe('Videos Collection', () => {
     expect((fileMetadataField as { admin: { readOnly: boolean } }).admin.readOnly).toBe(true)
   })
 
-  it('supports tag selection (hasMany with string enum)', async () => {
-    const videoWithTags = await testData.createVideo(payload, {
-      title: 'Multi-tag Video',
-      tags: [testimonialTag, workshopTag],
+  it('supports tag selection (single select with string enum)', async () => {
+    const videoWithTag = await testData.createVideo(payload, {
+      title: 'Tagged Video',
+      tags: workshopTag,
     })
 
-    expect(videoWithTags.tags).toBeDefined()
-    expect(videoWithTags.tags!.length).toBe(2)
-    expect(videoWithTags.tags).toContain(testimonialTag)
-    expect(videoWithTags.tags).toContain(workshopTag)
+    expect(videoWithTag.tags).toBeDefined()
+    expect(videoWithTag.tags).toBe(workshopTag)
   })
 
   it('accepts only video MIME types', async () => {
@@ -121,9 +119,9 @@ describe('Videos Collection', () => {
     expect(config.admin?.useAsTitle).toBe('title')
   })
 
-  it('is in Content admin group', async () => {
+  it('is in Media admin group', async () => {
     const config = payload.collections['videos'].config
-    expect(config.admin?.group).toBe('Content')
+    expect(config.admin?.group).toBe('Media')
   })
 
   it('has correct default columns configuration', async () => {

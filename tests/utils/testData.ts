@@ -295,7 +295,7 @@ export const testData = {
       collection: 'videos',
       data: {
         title: defaultTitle,
-        tags: ['testimonial'], // Default tag for required field
+        tags: 'testimonial', // Default tag for required field (single select, not hasMany)
         ...overrides,
       },
       file: {

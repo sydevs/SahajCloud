@@ -43,11 +43,23 @@ type CleanupResult = {
  * or field knowledge required. Adding new collections with file/image references
  * requires no changes to this job.
  */
+/** Type for test-injected date range */
+type TestDateRangeInput = {
+  rangeStart: string
+  rangeEnd: string
+}
+
 export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
   retries: 2,
   label: 'Cleanup Orphaned Media',
   slug: 'cleanupOrphanedMedia',
-  inputSchema: [],
+  inputSchema: [
+    {
+      name: 'testDateRange',
+      type: 'json',
+      required: false,
+    },
+  ],
   outputSchema: [
     {
       name: 'permanentlyDeletedFiles',
@@ -86,28 +98,40 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
       queue: 'monthly',
     },
   ],
-  handler: async ({ req }) => {
+  handler: async ({ req, input }) => {
     const maxOperations = 500
     const gracePeriodHours = 24
 
-    // Determine date range based on current month (rotates through 3 ranges)
-    const currentMonth = new Date().getMonth() // 0-11
-    const rangeIndex = currentMonth % 3 // 0, 1, or 2
-    const rangeEndMonthsAgo = rangeIndex
-    const rangeStartMonthsAgo = rangeIndex + 1
+    let rangeStart: Date
+    let rangeEnd: Date
+    let rangeLabel: string
 
-    // Calculate range end (with grace period)
-    const rangeEnd = new Date()
-    rangeEnd.setMonth(rangeEnd.getMonth() - rangeEndMonthsAgo)
-    rangeEnd.setHours(rangeEnd.getHours() - gracePeriodHours)
+    // Check for test-injected date range
+    if (input?.testDateRange) {
+      const testRange = input.testDateRange as TestDateRangeInput
+      rangeStart = new Date(testRange.rangeStart)
+      rangeEnd = new Date(testRange.rangeEnd)
+      rangeLabel = 'test-range'
+    } else {
+      // Determine date range based on current month (rotates through 3 ranges)
+      const currentMonth = new Date().getMonth() // 0-11
+      const rangeIndex = currentMonth % 3 // 0, 1, or 2
+      const rangeEndMonthsAgo = rangeIndex
+      const rangeStartMonthsAgo = rangeIndex + 1
 
-    // Calculate range start
-    const rangeStart = new Date()
-    rangeStart.setMonth(rangeStart.getMonth() - rangeStartMonthsAgo)
+      // Calculate range end (with grace period)
+      rangeEnd = new Date()
+      rangeEnd.setMonth(rangeEnd.getMonth() - rangeEndMonthsAgo)
+      rangeEnd.setHours(rangeEnd.getHours() - gracePeriodHours)
 
-    // Human-readable labels for logging
-    const rangeLabels = ['0-1mo', '1-2mo', '2-3mo']
-    const rangeLabel = rangeLabels[rangeIndex]
+      // Calculate range start
+      rangeStart = new Date()
+      rangeStart.setMonth(rangeStart.getMonth() - rangeStartMonthsAgo)
+
+      // Human-readable labels for logging
+      const rangeLabels = ['0-1mo', '1-2mo', '2-3mo']
+      rangeLabel = rangeLabels[rangeIndex]
+    }
 
     req.payload.logger.info({
       msg: 'Starting orphaned media cleanup',

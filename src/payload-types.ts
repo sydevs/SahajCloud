@@ -1016,7 +1016,7 @@ export interface AppCard {
    */
   appPage?: ('map' | 'lectures' | 'path' | 'music') | null;
   /**
-   * Recurrence schedule configuration (JSON)
+   * Define when this event repeats
    */
   recurrence?:
     | {
@@ -2469,7 +2469,17 @@ export interface PayloadJobsStatsSelect<T extends boolean = true> {
  * via the `definition` "TaskCleanupOrphanedMedia".
  */
 export interface TaskCleanupOrphanedMedia {
-  input?: unknown;
+  input: {
+    testDateRange?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
   output: {
     permanentlyDeletedFiles: number;
     permanentlyDeletedImages: number;
