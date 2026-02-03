@@ -1015,18 +1015,28 @@ export interface AppCard {
    * Select the app page this card links to
    */
   appPage?: ('map' | 'lectures' | 'path' | 'music') | null;
-  /**
-   * Configure when this event occurs and repeats
-   */
-  schedule?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  schedule?: {
+    /**
+     * Start date-time in UTC with Z suffix (e.g., 2024-03-15T14:00:00Z)
+     */
+    dtstart: string;
+    /**
+     * End date-time in UTC or null for open-ended
+     */
+    dtend: string | null;
+    /**
+     * IANA timezone identifier (e.g., America/New_York)
+     */
+    tzid: string;
+    /**
+     * iCalendar RRULE string or null for one-off events
+     */
+    rrule: string | null;
+    /**
+     * Duration in minutes (computed from dtend - dtstart)
+     */
+    duration: number;
+  };
   /**
    * Select the content item this card links to
    */

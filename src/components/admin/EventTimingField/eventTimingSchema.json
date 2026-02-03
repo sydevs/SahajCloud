@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "dtstart": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "description": "Start date-time in UTC with Z suffix (e.g., 2024-03-15T14:00:00Z)"
+    },
+    "dtend": {
+      "type": ["string", "null"],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "description": "End date-time in UTC or null for open-ended"
+    },
+    "tzid": {
+      "type": "string",
+      "minLength": 1,
+      "description": "IANA timezone identifier (e.g., America/New_York)"
+    },
+    "rrule": {
+      "type": ["string", "null"],
+      "description": "iCalendar RRULE string or null for one-off events"
+    },
+    "duration": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Duration in minutes (computed from dtend - dtstart)"
+    }
+  },
+  "required": ["dtstart", "dtend", "tzid", "rrule", "duration"],
+  "additionalProperties": false
+}

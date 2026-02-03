@@ -1,5 +1,7 @@
+import type { JSONSchema4 } from 'json-schema'
 import type { Field } from 'payload'
 
+import eventTimingSchema from '@/components/admin/EventTimingField/eventTimingSchema.json' with { type: 'json' }
 import { dataToUIState, validateEventTiming } from '@/components/admin/EventTimingField/utils'
 import type { EventTimingData, EventTimingFieldOptions } from '@/types/eventTiming'
 import { getBrowserTimezone, normalizeUTCString } from '@/types/eventTiming'
@@ -103,6 +105,11 @@ export function eventTimingField(options: EventTimingFieldOptions = {}): Field {
       const error = validateEventTiming(uiState)
       // Return true if valid, or error message if invalid
       return error ?? true
+    },
+    jsonSchema: {
+      uri: 'a://eventTiming.json',
+      fileMatch: ['a://eventTiming.json'],
+      schema: eventTimingSchema as JSONSchema4,
     },
     admin: {
       description: admin.description || 'Configure when this event occurs and repeats',
