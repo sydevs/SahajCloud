@@ -2044,35 +2044,37 @@ export interface WmWebConfig {
  */
 export interface WmWebTranslation {
   id: number;
-  strings?: {
+  common?: {
     /**
      * Loading indicator text shown while content is being fetched
      */
-    'common.loading'?: string;
+    loading: string;
     /**
      * Generic error message shown when something goes wrong
      */
-    'common.error'?: string;
+    error: string;
     /**
      * Button text to retry a failed action
      */
-    'common.retry'?: string;
+    retry: string;
+  };
+  navigation?: {
     /**
      * Navigation link to the About Meditation section
      */
-    'nav.about_meditation'?: string;
+    about_meditation: string;
     /**
      * Navigation link to educational content and resources
      */
-    'nav.learn_more'?: string;
+    learn_more: string;
     /**
      * Call-to-action navigation link inviting users to meditate
      */
-    'nav.come_meditate'?: string;
+    come_meditate: string;
     /**
      * Language selector label in the navigation
      */
-    'nav.languages'?: string;
+    languages: string;
   };
   updatedAt?: string | null;
   createdAt?: string | null;
@@ -2092,43 +2094,115 @@ export interface WmAppConfig {
  */
 export interface WmAppTranslation {
   id: number;
-  strings?: {
+  daily?: {
     /**
-     * Loading indicator text shown while content is being fetched
+     * Daily meditation section title
      */
-    'common.loading'?: string;
+    title: string;
     /**
-     * Generic error message shown when something goes wrong
+     * Subtitle or description for daily content
      */
-    'common.error'?: string;
+    subtitle: string;
     /**
-     * Button text to retry a failed action
+     * Message when daily meditation is complete
      */
-    'common.retry'?: string;
+    complete: string;
     /**
-     * Welcome message shown on the first onboarding screen
+     * Meditation streak counter label
      */
-    'onboarding.welcome'?: string;
+    streak: string;
     /**
-     * Button text to proceed to the next onboarding step
+     * Skip daily meditation button
      */
-    'onboarding.next'?: string;
+    skip: string;
+  };
+  path?: {
     /**
-     * Button text to skip the onboarding flow
+     * Path section title
      */
-    'onboarding.skip'?: string;
+    title: string;
     /**
-     * Button text to begin a meditation session
+     * Progress indicator label
      */
-    'meditation.start'?: string;
+    progress: string;
     /**
-     * Button text to pause an active meditation
+     * Continue lesson button
      */
-    'meditation.pause'?: string;
+    continue: string;
     /**
-     * Message shown when a meditation session is finished
+     * Start new unit button
      */
-    'meditation.complete'?: string;
+    start_unit: string;
+    /**
+     * Lesson completion message
+     */
+    lesson_complete: string;
+  };
+  explore?: {
+    /**
+     * Explore section title
+     */
+    title: string;
+    /**
+     * Search placeholder text
+     */
+    search: string;
+    /**
+     * Filter button label
+     */
+    filter: string;
+    /**
+     * Categories section header
+     */
+    categories: string;
+    /**
+     * View all items link
+     */
+    view_all: string;
+  };
+  profile?: {
+    /**
+     * Profile screen title
+     */
+    title: string;
+    /**
+     * Settings button label
+     */
+    settings: string;
+    /**
+     * Statistics section header
+     */
+    statistics: string;
+    /**
+     * Logout button
+     */
+    logout: string;
+    /**
+     * Edit profile button
+     */
+    edit: string;
+  };
+  meditation?: {
+    /**
+     * Play button label
+     */
+    play: string;
+    /**
+     * Pause button label
+     */
+    pause: string;
+    /**
+     * Meditation complete message
+     */
+    complete: string;
+    /**
+     * Timer display label
+     */
+    timer: string;
+    /**
+     * Background sound selector
+     */
+    background_sound: string;
   };
   updatedAt?: string | null;
   createdAt?: string | null;
@@ -2153,35 +2227,39 @@ export interface SyAtlasConfig {
  */
 export interface SyAtlasTranslation {
   id: number;
-  strings?: {
+  common?: {
     /**
      * Loading indicator text shown while content is being fetched
      */
-    'common.loading'?: string;
+    loading: string;
     /**
      * Generic error message shown when something goes wrong
      */
-    'common.error'?: string;
+    error: string;
+  };
+  map?: {
     /**
      * Tooltip for the zoom in map control button
      */
-    'map.zoomIn'?: string;
+    zoom_in: string;
     /**
      * Tooltip for the zoom out map control button
      */
-    'map.zoomOut'?: string;
+    zoom_out: string;
     /**
      * Button text to center the map on the user's current location
      */
-    'map.myLocation'?: string;
+    my_location: string;
+  };
+  location?: {
     /**
      * Link text to view full details of a location
      */
-    'location.details'?: string;
+    details: string;
     /**
      * Button text to get directions to a location
      */
-    'location.directions'?: string;
+    directions: string;
   };
   updatedAt?: string | null;
   createdAt?: string | null;
@@ -2223,7 +2301,8 @@ export interface WmWebConfigSelect<T extends boolean = true> {
  * via the `definition` "wm-web-translations_select".
  */
 export interface WmWebTranslationsSelect<T extends boolean = true> {
-  strings?: T;
+  common?: T;
+  navigation?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -2242,7 +2321,11 @@ export interface WmAppConfigSelect<T extends boolean = true> {
  * via the `definition` "wm-app-translations_select".
  */
 export interface WmAppTranslationsSelect<T extends boolean = true> {
-  strings?: T;
+  daily?: T;
+  path?: T;
+  explore?: T;
+  profile?: T;
+  meditation?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -2268,7 +2351,9 @@ export interface SyAtlasConfigSelect<T extends boolean = true> {
  * via the `definition` "sy-atlas-translations_select".
  */
 export interface SyAtlasTranslationsSelect<T extends boolean = true> {
-  strings?: T;
+  common?: T;
+  map?: T;
+  location?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
