@@ -100,6 +100,7 @@ export interface Config {
     'song-tags': SongTag;
     managers: Manager;
     clients: Client;
+    'app-cards': AppCard;
     forms: Form;
     'form-submissions': FormSubmission;
     'payload-kv': PayloadKv;
@@ -139,6 +140,7 @@ export interface Config {
     'song-tags': SongTagsSelect<false> | SongTagsSelect<true>;
     managers: ManagersSelect<false> | ManagersSelect<true>;
     clients: ClientsSelect<false> | ClientsSelect<true>;
+    'app-cards': AppCardsSelect<false> | AppCardsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -997,6 +999,69 @@ export interface Client {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "app-cards".
+ */
+export interface AppCard {
+  id: number;
+  imageUrl?: string | null;
+  title: string;
+  subtitle?: string | null;
+  /**
+   * Button label text
+   */
+  button?: string | null;
+  type: 'app-page' | 'reminder' | 'content' | 'external';
+  /**
+   * Select the app page this card links to
+   */
+  appPage?: ('map' | 'lectures' | 'path' | 'music') | null;
+  /**
+   * Recurrence schedule configuration (JSON)
+   */
+  recurrence?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Select the content item this card links to
+   */
+  content?:
+    | ({
+        relationTo: 'lectures';
+        value: number | Lecture;
+      } | null)
+    | ({
+        relationTo: 'albums';
+        value: number | Album;
+      } | null)
+    | ({
+        relationTo: 'meditations';
+        value: number | Meditation;
+      } | null);
+  /**
+   * External URL this card links to
+   */
+  linkUrl?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "forms".
  */
 export interface Form {
@@ -1374,6 +1439,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'clients';
         value: number | Client;
+      } | null)
+    | ({
+        relationTo: 'app-cards';
+        value: number | AppCard;
       } | null)
     | ({
         relationTo: 'forms';
@@ -1790,6 +1859,33 @@ export interface ClientsSelect<T extends boolean = true> {
   enableAPIKey?: T;
   apiKey?: T;
   apiKeyIndex?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "app-cards_select".
+ */
+export interface AppCardsSelect<T extends boolean = true> {
+  imageUrl?: T;
+  title?: T;
+  subtitle?: T;
+  button?: T;
+  type?: T;
+  appPage?: T;
+  recurrence?: T;
+  content?: T;
+  linkUrl?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

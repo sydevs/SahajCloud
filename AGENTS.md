@@ -219,6 +219,7 @@ Configuration: `src/lib/richEditor.ts`
 
 ### Database Migrations
 - **Location**: `src/migrations/`
+- **Creating**: `pnpm db:migrations:create` (generates timestamped migration file)
 - **Running**: `pnpm payload migrate`
 - **Rolling Back**: `pnpm payload migrate:down`
 

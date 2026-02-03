@@ -1,6 +1,7 @@
 import { Clients } from './access/Clients'
 import { Managers } from './access/Managers'
 import { Albums } from './content/Albums'
+import { AppCards } from './content/AppCards'
 import { Lessons } from './content/Lessons'
 import { Meditations } from './content/Meditations'
 import { Pages } from './content/Pages'
@@ -37,6 +38,8 @@ export const collections = [
   // Access
   Managers,
   Clients,
+  // Project-specific
+  AppCards,
 ]
 
 export {
@@ -60,4 +63,6 @@ export {
   // Access
   Managers,
   Clients,
+  // Project-specific
+  AppCards,
 }

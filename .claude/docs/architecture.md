@@ -5,7 +5,7 @@
 The application uses **Cloudflare-native storage services** for optimal performance:
 
 ### Cloudflare Images (Image Storage)
-- **Collections**: `images`, `albums`
+- **Collections**: `images`, `albums`, `cards`
 - **Features**: Automatic format optimization (WebP, AVIF), dynamic transformations, global CDN
 - **URL Format**: `https://imagedelivery.net/<hash>/<imageId>/public`
 - **Replaces**: Sharp image processing
