@@ -580,8 +580,9 @@ export function validateSchedule(state: ScheduleUIState): string | null {
       if (!state.untilDate) {
         return 'End date is required'
       }
-      const untilDateObj = new Date(state.untilDate + 'T23:59:59')
-      if (untilDateObj < new Date()) {
+      // Use timezone-aware comparison: convert until date to UTC using selected timezone
+      const untilUTC = localToUTC(state.untilDate, '23:59', state.timezone)
+      if (new Date(untilUTC) < new Date()) {
         return 'End date must be in the future'
       }
     }

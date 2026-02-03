@@ -7,6 +7,19 @@
 import type { CSSProperties } from 'react'
 
 /**
+ * Base input style shared across all input elements
+ */
+const baseInputStyle = {
+  padding: 'calc(var(--base) * 0.4) calc(var(--base) * 0.6)',
+  fontSize: 'calc(var(--base-body-size) * 1px)',
+  fontFamily: 'var(--font-body)',
+  backgroundColor: 'var(--theme-input-bg)',
+  border: '1px solid var(--theme-elevation-150)',
+  borderRadius: 'var(--style-radius-s)',
+  color: 'var(--theme-elevation-800)',
+} as const
+
+/**
  * Style definitions for ScheduleEditor component
  */
 export const scheduleEditorStyles = {
@@ -41,56 +54,26 @@ export const scheduleEditorStyles = {
     minWidth: '80px',
   },
   select: {
-    padding: 'calc(var(--base) * 0.4) calc(var(--base) * 0.6)',
-    fontSize: 'calc(var(--base-body-size) * 1px)',
-    fontFamily: 'var(--font-body)',
-    backgroundColor: 'var(--theme-input-bg)',
-    border: '1px solid var(--theme-elevation-150)',
-    borderRadius: 'var(--style-radius-s)',
-    color: 'var(--theme-elevation-800)',
+    ...baseInputStyle,
     cursor: 'pointer',
     minWidth: '120px',
   },
   timezoneSelect: {
-    padding: 'calc(var(--base) * 0.4) calc(var(--base) * 0.6)',
-    fontSize: 'calc(var(--base-body-size) * 1px)',
-    fontFamily: 'var(--font-body)',
-    backgroundColor: 'var(--theme-input-bg)',
-    border: '1px solid var(--theme-elevation-150)',
-    borderRadius: 'var(--style-radius-s)',
-    color: 'var(--theme-elevation-800)',
+    ...baseInputStyle,
     cursor: 'pointer',
     minWidth: '200px',
     maxWidth: '280px',
   },
   input: {
-    padding: 'calc(var(--base) * 0.4) calc(var(--base) * 0.6)',
-    fontSize: 'calc(var(--base-body-size) * 1px)',
-    fontFamily: 'var(--font-body)',
-    backgroundColor: 'var(--theme-input-bg)',
-    border: '1px solid var(--theme-elevation-150)',
-    borderRadius: 'var(--style-radius-s)',
-    color: 'var(--theme-elevation-800)',
+    ...baseInputStyle,
     width: '80px',
   },
   dateInput: {
-    padding: 'calc(var(--base) * 0.4) calc(var(--base) * 0.6)',
-    fontSize: 'calc(var(--base-body-size) * 1px)',
-    fontFamily: 'var(--font-body)',
-    backgroundColor: 'var(--theme-input-bg)',
-    border: '1px solid var(--theme-elevation-150)',
-    borderRadius: 'var(--style-radius-s)',
-    color: 'var(--theme-elevation-800)',
+    ...baseInputStyle,
     minWidth: '140px',
   },
   timeInput: {
-    padding: 'calc(var(--base) * 0.4) calc(var(--base) * 0.6)',
-    fontSize: 'calc(var(--base-body-size) * 1px)',
-    fontFamily: 'var(--font-body)',
-    backgroundColor: 'var(--theme-input-bg)',
-    border: '1px solid var(--theme-elevation-150)',
-    borderRadius: 'var(--style-radius-s)',
-    color: 'var(--theme-elevation-800)',
+    ...baseInputStyle,
     minWidth: '100px',
   },
   weekdayContainer: {
