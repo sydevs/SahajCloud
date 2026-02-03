@@ -7,6 +7,8 @@
  * @see https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html
  */
 
+import type { JSONField } from 'payload'
+
 // Re-export rrule types for convenience
 export { Frequency, type Options, type ByWeekday } from 'rrule'
 export { Weekday, type WeekdayStr, ALL_WEEKDAYS } from 'rrule'
@@ -90,15 +92,8 @@ export interface RecurrenceFieldOptions {
   complexity?: RecurrenceComplexity
   /** Default duration in days (default: 1) */
   defaultDuration?: number
-  /** Admin configuration */
-  admin?: {
-    /** Help text description */
-    description?: string
-    /** Position in admin UI */
-    position?: 'sidebar'
-    /** Conditional display function */
-    condition?: (...args: unknown[]) => boolean
-  }
+  /** Admin configuration (uses PayloadCMS JSONField admin type) */
+  admin?: Partial<JSONField['admin']>
 }
 
 /**
