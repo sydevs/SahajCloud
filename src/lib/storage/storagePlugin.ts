@@ -114,6 +114,13 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
           disablePayloadAccessControl: true,
         },
 
+        // Cards collection - Cloudflare Images (promotional card images)
+        cards: {
+          adapter: imagesAdapter,
+          disableLocalStorage: true,
+          disablePayloadAccessControl: true,
+        },
+
         // Frames collection - Mixed media adapter (Images for images, Stream for videos, R2 for others)
         frames: {
           adapter: mixedMediaAdapter({

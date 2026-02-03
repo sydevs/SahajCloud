@@ -1,6 +1,7 @@
 import { Clients } from './access/Clients'
 import { Managers } from './access/Managers'
 import { Albums } from './content/Albums'
+import { Cards } from './content/Cards'
 import { Lessons } from './content/Lessons'
 import { Meditations } from './content/Meditations'
 import { Pages } from './content/Pages'
@@ -24,6 +25,7 @@ export const collections = [
   Albums,
   Videos,
   Lessons,
+  Cards,
   // Resources
   Lectures,
   Frames,
@@ -47,6 +49,7 @@ export {
   Albums,
   Videos,
   Lessons,
+  Cards,
   // Resources
   Lectures,
   Frames,

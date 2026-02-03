@@ -90,6 +90,7 @@ export interface Config {
     albums: Album;
     videos: Video;
     lessons: Lesson;
+    cards: Card;
     lectures: Lecture;
     frames: Frame;
     narrators: Narrator;
@@ -129,6 +130,7 @@ export interface Config {
     albums: AlbumsSelect<false> | AlbumsSelect<true>;
     videos: VideosSelect<false> | VideosSelect<true>;
     lessons: LessonsSelect<false> | LessonsSelect<true>;
+    cards: CardsSelect<false> | CardsSelect<true>;
     lectures: LecturesSelect<false> | LecturesSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
@@ -779,6 +781,69 @@ export interface File {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "cards".
+ */
+export interface Card {
+  id: number;
+  imageUrl?: string | null;
+  title: string;
+  subtitle?: string | null;
+  /**
+   * Button label text
+   */
+  button?: string | null;
+  type: 'app-page' | 'reminder' | 'content' | 'external';
+  /**
+   * Select the app page this card links to
+   */
+  appPage?: ('map' | 'lectures' | 'path' | 'music') | null;
+  /**
+   * Recurrence schedule configuration (JSON)
+   */
+  recurrence?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Select the content item this card links to
+   */
+  content?:
+    | ({
+        relationTo: 'lectures';
+        value: number | Lecture;
+      } | null)
+    | ({
+        relationTo: 'albums';
+        value: number | Album;
+      } | null)
+    | ({
+        relationTo: 'meditations';
+        value: number | Meditation;
+      } | null);
+  /**
+   * External URL this card links to
+   */
+  linkUrl?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lectures".
  */
 export interface Lecture {
@@ -1336,6 +1401,10 @@ export interface PayloadLockedDocument {
         value: number | Lesson;
       } | null)
     | ({
+        relationTo: 'cards';
+        value: number | Card;
+      } | null)
+    | ({
         relationTo: 'lectures';
         value: number | Lecture;
       } | null)
@@ -1582,6 +1651,33 @@ export interface LessonsSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "cards_select".
+ */
+export interface CardsSelect<T extends boolean = true> {
+  imageUrl?: T;
+  title?: T;
+  subtitle?: T;
+  button?: T;
+  type?: T;
+  appPage?: T;
+  recurrence?: T;
+  content?: T;
+  linkUrl?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

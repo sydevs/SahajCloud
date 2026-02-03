@@ -37,6 +37,7 @@ const UPLOAD_COLLECTIONS: readonly string[] = [
   'song-tags',
   'meditations',
   'songs',
+  'cards',
 ]
 
 /**
