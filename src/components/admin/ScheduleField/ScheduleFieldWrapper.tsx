@@ -5,16 +5,16 @@ import type { JSONFieldClientComponent, JSONFieldClient } from 'payload'
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import React, { useMemo, useCallback } from 'react'
 
-import type { EventTimingData, EventTimingUIState, EventTimingComplexity } from '@/types/eventTiming'
-import { getBrowserTimezone } from '@/types/eventTiming'
+import type { ScheduleData, ScheduleUIState, ScheduleComplexity } from '@/types/schedule'
+import { getBrowserTimezone } from '@/types/schedule'
 
-import { EventTimingEditor } from './EventTimingEditor'
+import { ScheduleEditor } from './ScheduleEditor'
 import { dataToUIState, uiStateToData } from './utils'
 
 /**
- * Event Timing Field Wrapper Component
+ * Schedule Field Wrapper Component
  *
- * A PayloadCMS field component wrapper for EventTimingEditor that provides:
+ * A PayloadCMS field component wrapper for ScheduleEditor that provides:
  * - Field state management via useField hook
  * - Label rendering with FieldLabel
  * - Error display with FieldError
@@ -22,17 +22,17 @@ import { dataToUIState, uiStateToData } from './utils'
  * - Conversion between stored JSON and UI state
  * - Proper field wrapper structure matching PayloadCMS JSON fields
  *
- * This component integrates the EventTimingEditor UI component into PayloadCMS's
+ * This component integrates the ScheduleEditor UI component into PayloadCMS's
  * field system, following the exact markup structure as JSON fields.
  *
  * @example Usage in collection config
  * ```typescript
- * import { eventTimingField } from '@/fields'
+ * import { scheduleField } from '@/fields'
  *
  * {
  *   // ... collection config
  *   fields: [
- *     eventTimingField({
+ *     scheduleField({
  *       name: 'schedule',
  *       complexity: 'standard',
  *     }),
@@ -40,7 +40,7 @@ import { dataToUIState, uiStateToData } from './utils'
  * }
  * ```
  */
-export const EventTimingFieldWrapper: JSONFieldClientComponent = ({ field, readOnly }) => {
+export const ScheduleFieldWrapper: JSONFieldClientComponent = ({ field, readOnly }) => {
   // Extract field properties with nested destructuring for admin
   const {
     name,
@@ -51,18 +51,18 @@ export const EventTimingFieldWrapper: JSONFieldClientComponent = ({ field, readO
   } = field as JSONFieldClient
 
   // Extract custom config with type safety
-  const complexity = (custom?.complexity as EventTimingComplexity) || 'standard'
+  const complexity = (custom?.complexity as ScheduleComplexity) || 'standard'
   const defaultTimezone = (custom?.defaultTimezone as string) || getBrowserTimezone()
 
   // Use Payload's field hook for state management
-  const { value, setValue, showError } = useField<EventTimingData>()
+  const { value, setValue, showError } = useField<ScheduleData>()
 
   // Convert stored JSON to UI state
   const uiState = useMemo(() => dataToUIState(value, defaultTimezone), [value, defaultTimezone])
 
   // Handle UI state changes - convert back to stored format
   const handleChange = useCallback(
-    (newState: EventTimingUIState) => {
+    (newState: ScheduleUIState) => {
       const data = uiStateToData(newState)
       setValue(data)
     },
@@ -92,7 +92,7 @@ export const EventTimingFieldWrapper: JSONFieldClientComponent = ({ field, readO
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
 
-        <EventTimingEditor
+        <ScheduleEditor
           value={uiState}
           onChange={handleChange}
           complexity={complexity}
@@ -106,4 +106,4 @@ export const EventTimingFieldWrapper: JSONFieldClientComponent = ({ field, readO
   )
 }
 
-export default EventTimingFieldWrapper
+export default ScheduleFieldWrapper

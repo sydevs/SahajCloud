@@ -105,7 +105,8 @@
       "Bash(timeout 300 pnpm generate:*)",
       "Bash(time pnpm build:*)",
       "mcp__payloadcms-docs__*",
-      "mcp__plugin_sydevs-web_cloudflare-docs__*"
+      "mcp__plugin_sydevs-web_cloudflare-docs__*",
+      "Bash(git mv:*)"
     ]
   },
   "hooks": {

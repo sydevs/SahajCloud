@@ -1,7 +1,7 @@
 /**
- * Event Timing Field Types
+ * Schedule Field Types
  *
- * Type definitions for the event timing field that generates iCalendar RRULE strings
+ * Type definitions for the schedule field that generates iCalendar RRULE strings
  * with start/end datetime and timezone support.
  * Uses rrule.js for RRULE generation and parsing.
  *
@@ -28,7 +28,7 @@ export const UTC_DATETIME_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/
  * - RRULE defines recurrence pattern (with embedded DTSTART)
  * - Duration is computed from dtend - dtstart in minutes
  */
-export interface EventTimingData {
+export interface ScheduleData {
   /** Start date-time in UTC with Z suffix (e.g., "2024-03-15T14:00:00Z") */
   dtstart: string
   /** End date-time in UTC or null for open-ended (e.g., "2024-03-15T16:30:00Z") */
@@ -49,7 +49,7 @@ export interface EventTimingData {
  * - 'standard': + optional end time, bi-weekly, monthly on date
  * - 'advanced': + monthly on weekday, custom intervals
  */
-export type EventTimingComplexity = 'simple' | 'standard' | 'advanced'
+export type ScheduleComplexity = 'simple' | 'standard' | 'advanced'
 
 /**
  * Helper type for ending condition UI
@@ -66,7 +66,7 @@ export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly'
  * UI state for editing event timing patterns.
  * Combines datetime/timezone fields with recurrence settings.
  */
-export interface EventTimingUIState {
+export interface ScheduleUIState {
   // === Date/Time Fields ===
   /** Start date in local timezone (YYYY-MM-DD) */
   startDate: string
@@ -103,15 +103,15 @@ export interface EventTimingUIState {
 /**
  * Field factory options
  */
-export interface EventTimingFieldOptions {
-  /** Field name (default: 'eventTiming') */
+export interface ScheduleFieldOptions {
+  /** Field name (default: 'schedule') */
   name?: string
-  /** Field label (default: 'Event Timing') */
+  /** Field label (default: 'Schedule') */
   label?: string
   /** Whether the field is required */
   required?: boolean
   /** Complexity level (default: 'standard') */
-  complexity?: EventTimingComplexity
+  complexity?: ScheduleComplexity
   /** Default timezone (falls back to browser timezone if not specified) */
   defaultTimezone?: string
   /** Admin configuration (uses PayloadCMS JSONField admin type) */
@@ -121,7 +121,7 @@ export interface EventTimingFieldOptions {
 /**
  * Helper to check if event is one-off (no recurrence)
  */
-export function isOneOff(data: EventTimingData | null | undefined): boolean {
+export function isOneOff(data: ScheduleData | null | undefined): boolean {
   return !data?.rrule
 }
 
@@ -171,7 +171,7 @@ export function getAvailableTimezones(): string[] {
 /**
  * Default UI state for new event timing fields
  */
-export function getDefaultUIState(defaultTimezone?: string): EventTimingUIState {
+export function getDefaultUIState(defaultTimezone?: string): ScheduleUIState {
   const now = new Date()
   const timezone = defaultTimezone || getBrowserTimezone()
 

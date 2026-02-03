@@ -21,6 +21,6 @@ export type { SlugFieldOptions } from './slugField'
 export { buildTranslationTabs } from './translationsField'
 export type { SchemaEntry, TranslationsSchema } from './translationsField'
 
-// Event Timing field - JSON field with datetime, timezone, and RRULE support
-export { eventTimingField } from './eventTimingField'
-export type { EventTimingFieldOptions } from './eventTimingField'
+// Schedule field - JSON field with datetime, timezone, and RRULE support
+export { scheduleField } from './scheduleField'
+export type { ScheduleFieldOptions } from './scheduleField'

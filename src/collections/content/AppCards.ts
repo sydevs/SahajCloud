@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { eventTimingField, urlField } from '@/fields'
+import { scheduleField, urlField } from '@/fields'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 /**
@@ -91,7 +91,7 @@ export const AppCards: CollectionConfig = {
       },
     },
     // Conditional: Reminder
-    eventTimingField({
+    scheduleField({
       name: 'schedule',
       label: 'Schedule',
       required: true,

@@ -1,19 +1,19 @@
 import type { JSONSchema4 } from 'json-schema'
 import type { Field } from 'payload'
 
-import eventTimingSchema from '@/components/admin/EventTimingField/eventTimingSchema.json' with { type: 'json' }
-import { dataToUIState, validateEventTiming } from '@/components/admin/EventTimingField/utils'
-import type { EventTimingData, EventTimingFieldOptions } from '@/types/eventTiming'
-import { getBrowserTimezone, normalizeUTCString } from '@/types/eventTiming'
+import scheduleSchema from '@/components/admin/ScheduleField/scheduleSchema.json' with { type: 'json' }
+import { dataToUIState, validateSchedule } from '@/components/admin/ScheduleField/utils'
+import type { ScheduleData, ScheduleFieldOptions } from '@/types/schedule'
+import { getBrowserTimezone, normalizeUTCString } from '@/types/schedule'
 
 // Re-export types for convenience
-export type { EventTimingFieldOptions } from '@/types/eventTiming'
+export type { ScheduleFieldOptions } from '@/types/schedule'
 
 /**
- * Creates an event timing field for event scheduling with datetime, timezone,
+ * Creates a schedule field for event scheduling with datetime, timezone,
  * and iCalendar RRULE support.
  *
- * Returns a JSON field with a custom EventTimingField component.
+ * Returns a JSON field with a custom ScheduleField component.
  *
  * The field stores a JSON object with:
  * - `dtstart`: Start date-time in UTC with Z suffix
@@ -25,14 +25,14 @@ export type { EventTimingFieldOptions } from '@/types/eventTiming'
  * @example Basic usage
  * ```typescript
  * fields: [
- *   eventTimingField({ name: 'schedule', required: true }),
+ *   scheduleField({ name: 'schedule', required: true }),
  * ]
  * ```
  *
  * @example With complexity level
  * ```typescript
  * fields: [
- *   eventTimingField({
+ *   scheduleField({
  *     name: 'schedule',
  *     complexity: 'simple', // No end time option
  *     defaultTimezone: 'America/New_York',
@@ -43,7 +43,7 @@ export type { EventTimingFieldOptions } from '@/types/eventTiming'
  * @example Advanced with all options
  * ```typescript
  * fields: [
- *   eventTimingField({
+ *   scheduleField({
  *     name: 'eventSchedule',
  *     label: 'Event Schedule',
  *     complexity: 'advanced',
@@ -56,10 +56,10 @@ export type { EventTimingFieldOptions } from '@/types/eventTiming'
  * ]
  * ```
  */
-export function eventTimingField(options: EventTimingFieldOptions = {}): Field {
+export function scheduleField(options: ScheduleFieldOptions = {}): Field {
   const {
-    name = 'eventTiming',
-    label = 'Event Timing',
+    name = 'schedule',
+    label = 'Schedule',
     required = false,
     complexity = 'standard',
     defaultTimezone,
@@ -73,7 +73,7 @@ export function eventTimingField(options: EventTimingFieldOptions = {}): Field {
   nextHour.setMinutes(0, 0, 0)
   nextHour.setHours(nextHour.getHours() + 1)
 
-  const defaultValue: EventTimingData = {
+  const defaultValue: ScheduleData = {
     dtstart: normalizeUTCString(nextHour.toISOString()),
     dtend: null,
     tzid: timezone,
@@ -89,34 +89,34 @@ export function eventTimingField(options: EventTimingFieldOptions = {}): Field {
     defaultValue,
     validate: (value) => {
       // JSON field receives string | null | undefined, but may also receive parsed object
-      let data: EventTimingData | null | undefined
+      let data: ScheduleData | null | undefined
       if (typeof value === 'string') {
         try {
-          data = JSON.parse(value) as EventTimingData
+          data = JSON.parse(value) as ScheduleData
         } catch {
-          return 'Invalid event timing data format'
+          return 'Invalid schedule data format'
         }
       } else {
-        data = value as EventTimingData | null | undefined
+        data = value as ScheduleData | null | undefined
       }
 
       // Convert stored data to UI state for validation
       const uiState = dataToUIState(data, defaultTimezone)
-      const error = validateEventTiming(uiState)
+      const error = validateSchedule(uiState)
       // Return true if valid, or error message if invalid
       return error ?? true
     },
     jsonSchema: {
-      uri: 'a://eventTiming.json',
-      fileMatch: ['a://eventTiming.json'],
-      schema: eventTimingSchema as JSONSchema4,
+      uri: 'a://schedule.json',
+      fileMatch: ['a://schedule.json'],
+      schema: scheduleSchema as JSONSchema4,
     },
     admin: {
       description: admin.description || 'Configure when this event occurs and repeats',
       position: admin.position,
       condition: admin.condition,
       components: {
-        Field: '@/components/admin/EventTimingField',
+        Field: '@/components/admin/ScheduleField',
       },
       custom: {
         complexity,

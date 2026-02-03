@@ -2,27 +2,27 @@
 
 import React, { useCallback, useMemo } from 'react'
 
-import type { EventTimingUIState, EventTimingComplexity, RecurrenceType } from '@/types/eventTiming'
+import type { ScheduleUIState, ScheduleComplexity, RecurrenceType } from '@/types/schedule'
 
-import { eventTimingEditorStyles as styles } from './styles'
+import { scheduleEditorStyles as styles } from './styles'
 import {
   WEEKDAY_LABELS,
   WEEKDAY_FULL_LABELS,
   WEEK_NUMBER_LABELS,
   getOrdinalSuffix,
-  getEventTimingSummary,
+  getScheduleSummary,
   weekLabelIndexToRRule,
   rruleWeekToLabelIndex,
   getAvailableTimezones,
 } from './utils'
 
 /**
- * Props for EventTimingEditor component
+ * Props for ScheduleEditor component
  */
-export interface EventTimingEditorProps {
-  value: EventTimingUIState
-  onChange: (value: EventTimingUIState) => void
-  complexity: EventTimingComplexity
+export interface ScheduleEditorProps {
+  value: ScheduleUIState
+  onChange: (value: ScheduleUIState) => void
+  complexity: ScheduleComplexity
   readOnly?: boolean
   'aria-label'?: string
 }
@@ -38,9 +38,9 @@ const RECURRENCE_TYPE_OPTIONS: { value: RecurrenceType; label: string }[] = [
 ]
 
 /**
- * EventTimingEditor Component
+ * ScheduleEditor Component
  *
- * A pure UI component for editing event timing patterns with:
+ * A pure UI component for editing schedule patterns with:
  * - Start date and time
  * - Timezone selector
  * - Optional end time (standard/advanced complexity)
@@ -50,7 +50,7 @@ const RECURRENCE_TYPE_OPTIONS: { value: RecurrenceType; label: string }[] = [
  *
  * All styling uses PayloadCMS CSS variables for theme consistency.
  */
-export const EventTimingEditor: React.FC<EventTimingEditorProps> = ({
+export const ScheduleEditor: React.FC<ScheduleEditorProps> = ({
   value,
   onChange,
   complexity,
@@ -62,7 +62,7 @@ export const EventTimingEditor: React.FC<EventTimingEditorProps> = ({
 
   // Helper to update a single field
   const updateField = useCallback(
-    <K extends keyof EventTimingUIState>(field: K, fieldValue: EventTimingUIState[K]) => {
+    <K extends keyof ScheduleUIState>(field: K, fieldValue: ScheduleUIState[K]) => {
       if (readOnly) return
       onChange({ ...value, [field]: fieldValue })
     },
@@ -456,10 +456,10 @@ export const EventTimingEditor: React.FC<EventTimingEditorProps> = ({
 
       {/* Human-Readable Summary */}
       <div style={styles.summary} aria-live="polite">
-        {getEventTimingSummary(value)}
+        {getScheduleSummary(value)}
       </div>
     </div>
   )
 }
 
-export default EventTimingEditor
+export default ScheduleEditor

@@ -1,5 +1,5 @@
 /**
- * Utility functions for event timing field RRULE generation and parsing
+ * Utility functions for schedule field RRULE generation and parsing
  *
  * Uses rrule.js for RRULE string generation and parsing.
  * Converts between stored JSON format and UI state.
@@ -16,17 +16,17 @@ type Options = rruleModule.Options
 type FrequencyType = (typeof rruleModule.Frequency)[keyof typeof rruleModule.Frequency]
 
 import type {
-  EventTimingData,
-  EventTimingUIState,
+  ScheduleData,
+  ScheduleUIState,
   RecurrenceType,
   EndingType,
-} from '@/types/eventTiming'
+} from '@/types/schedule'
 import {
   getDefaultUIState,
   normalizeUTCString,
   getBrowserTimezone,
   getAvailableTimezones,
-} from '@/types/eventTiming'
+} from '@/types/schedule'
 
 // Re-export for convenience
 export { getAvailableTimezones, getBrowserTimezone }
@@ -270,9 +270,9 @@ export function isSameDay(utc1: string, utc2: string, timezone: string): boolean
  * Convert stored JSON data to UI state for editing
  */
 export function dataToUIState(
-  data: EventTimingData | null | undefined,
+  data: ScheduleData | null | undefined,
   defaultTimezone?: string,
-): EventTimingUIState {
+): ScheduleUIState {
   const timezone = data?.tzid || defaultTimezone || getBrowserTimezone()
 
   // No data = use defaults
@@ -375,7 +375,7 @@ export function dataToUIState(
 /**
  * Convert UI state to stored JSON format
  */
-export function uiStateToData(state: EventTimingUIState): EventTimingData {
+export function uiStateToData(state: ScheduleUIState): ScheduleData {
   // Convert local times to UTC
   const dtstart = localToUTC(state.startDate, state.startTime, state.timezone)
   const dtend = state.endTime
@@ -439,7 +439,7 @@ export function uiStateToData(state: EventTimingUIState): EventTimingData {
 /**
  * Generate human-readable summary for display
  */
-export function getEventTimingSummary(state: EventTimingUIState): string {
+export function getScheduleSummary(state: ScheduleUIState): string {
   const { startDate, startTime, endTime, timezone, recurrenceType } = state
 
   // Format the time portion
@@ -512,14 +512,14 @@ export function getEventTimingSummary(state: EventTimingUIState): string {
       return `${recurrenceSummary} at ${timeStr}`
     }
   } catch {
-    return 'Invalid event timing'
+    return 'Invalid schedule'
   }
 }
 
 /**
- * Validate that an event timing configuration is valid
+ * Validate that a schedule configuration is valid
  */
-export function validateEventTiming(state: EventTimingUIState): string | null {
+export function validateSchedule(state: ScheduleUIState): string | null {
   // Start date is required
   if (!state.startDate) {
     return 'Start date is required'

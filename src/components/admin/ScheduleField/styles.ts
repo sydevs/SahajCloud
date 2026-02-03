@@ -1,5 +1,5 @@
 /**
- * Shared styles for EventTimingField components
+ * Shared styles for ScheduleField components
  *
  * Uses PayloadCMS CSS variables for theme consistency.
  */
@@ -7,9 +7,9 @@
 import type { CSSProperties } from 'react'
 
 /**
- * Style definitions for EventTimingEditor component
+ * Style definitions for ScheduleEditor component
  */
-export const eventTimingEditorStyles = {
+export const scheduleEditorStyles = {
   container: {
     display: 'flex',
     flexDirection: 'column' as const,

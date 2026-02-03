@@ -1,7 +1,7 @@
 /**
- * Integration tests for event timing field utilities
+ * Integration tests for schedule field utilities
  *
- * Tests the event timing field utility functions that handle:
+ * Tests the schedule field utility functions that handle:
  * - UTC string normalization and validation
  * - Local to UTC and UTC to local conversions
  * - UI state to stored data conversions
@@ -13,7 +13,7 @@
 import { describe, it, expect } from 'vitest'
 import { RRule, Frequency, rrulestr } from 'rrule'
 
-import type { EventTimingData, EventTimingUIState } from '@/types/eventTiming'
+import type { ScheduleData, ScheduleUIState } from '@/types/schedule'
 import {
   getDefaultUIState,
   isOneOff,
@@ -21,13 +21,13 @@ import {
   isValidUTCString,
   getBrowserTimezone,
   getAvailableTimezones,
-} from '@/types/eventTiming'
+} from '@/types/schedule'
 
 import {
   dataToUIState,
   uiStateToData,
-  getEventTimingSummary,
-  validateEventTiming,
+  getScheduleSummary,
+  validateSchedule,
   localToUTC,
   utcToLocal,
   formatTime12h,
@@ -38,9 +38,9 @@ import {
   weekLabelIndexToRRule,
   rruleWeekToLabelIndex,
   getOrdinalSuffix,
-} from '@/components/admin/EventTimingField/utils'
+} from '@/components/admin/ScheduleField/utils'
 
-describe('Event Timing Field', () => {
+describe('Schedule Field', () => {
   describe('UTC Normalization', () => {
     describe('normalizeUTCString', () => {
       it('strips milliseconds from ISO string', () => {
@@ -201,7 +201,7 @@ describe('Event Timing Field', () => {
       })
 
       it('returns true when rrule is null', () => {
-        const data: EventTimingData = {
+        const data: ScheduleData = {
           dtstart: '2024-03-15T14:00:00Z',
           dtend: null,
           tzid: 'UTC',
@@ -212,7 +212,7 @@ describe('Event Timing Field', () => {
       })
 
       it('returns false when rrule is a valid string', () => {
-        const data: EventTimingData = {
+        const data: ScheduleData = {
           dtstart: '2024-03-15T14:00:00Z',
           dtend: null,
           tzid: 'UTC',
@@ -329,7 +329,7 @@ describe('Event Timing Field', () => {
     })
 
     it('extracts start date and time from dtstart', () => {
-      const data: EventTimingData = {
+      const data: ScheduleData = {
         dtstart: '2024-03-15T14:00:00Z',
         dtend: null,
         tzid: 'UTC',
@@ -343,7 +343,7 @@ describe('Event Timing Field', () => {
     })
 
     it('extracts end time from dtend', () => {
-      const data: EventTimingData = {
+      const data: ScheduleData = {
         dtstart: '2024-03-15T14:00:00Z',
         dtend: '2024-03-15T16:30:00Z',
         tzid: 'UTC',
@@ -355,7 +355,7 @@ describe('Event Timing Field', () => {
     })
 
     it('parses simple daily RRULE', () => {
-      const data: EventTimingData = {
+      const data: ScheduleData = {
         dtstart: '2024-03-15T14:00:00Z',
         dtend: null,
         tzid: 'UTC',
@@ -368,7 +368,7 @@ describe('Event Timing Field', () => {
     })
 
     it('parses weekly RRULE with weekdays', () => {
-      const data: EventTimingData = {
+      const data: ScheduleData = {
         dtstart: '2024-03-15T14:00:00Z',
         dtend: null,
         tzid: 'UTC',
@@ -381,7 +381,7 @@ describe('Event Timing Field', () => {
     })
 
     it('handles invalid RRULE gracefully', () => {
-      const data: EventTimingData = {
+      const data: ScheduleData = {
         dtstart: '2024-03-15T14:00:00Z',
         dtend: null,
         tzid: 'UTC',
@@ -395,7 +395,7 @@ describe('Event Timing Field', () => {
 
   describe('uiStateToData', () => {
     it('returns null rrule for one-off events', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('UTC'),
         startDate: '2024-03-15',
         startTime: '14:00',
@@ -405,7 +405,7 @@ describe('Event Timing Field', () => {
     })
 
     it('generates valid dtstart UTC string', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('UTC'),
         startDate: '2024-03-15',
         startTime: '14:00',
@@ -415,7 +415,7 @@ describe('Event Timing Field', () => {
     })
 
     it('generates valid dtend UTC string when end time provided', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('UTC'),
         startDate: '2024-03-15',
         startTime: '14:00',
@@ -426,7 +426,7 @@ describe('Event Timing Field', () => {
     })
 
     it('calculates duration in minutes', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('UTC'),
         startDate: '2024-03-15',
         startTime: '14:00',
@@ -437,7 +437,7 @@ describe('Event Timing Field', () => {
     })
 
     it('returns duration 0 for open-ended events', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('UTC'),
         startDate: '2024-03-15',
         startTime: '14:00',
@@ -449,7 +449,7 @@ describe('Event Timing Field', () => {
     })
 
     it('generates daily RRULE with dtstart', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('UTC'),
         startDate: '2024-03-15',
         startTime: '14:00',
@@ -461,7 +461,7 @@ describe('Event Timing Field', () => {
     })
 
     it('generates weekly RRULE with weekdays', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('UTC'),
         startDate: '2024-03-15',
         startTime: '14:00',
@@ -473,7 +473,7 @@ describe('Event Timing Field', () => {
     })
 
     it('preserves timezone', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('America/New_York'),
         startDate: '2024-03-15',
         startTime: '14:00',
@@ -485,7 +485,7 @@ describe('Event Timing Field', () => {
 
   describe('Round-Trip Conversion', () => {
     it('preserves datetime through round-trip', () => {
-      const original: EventTimingUIState = {
+      const original: ScheduleUIState = {
         ...getDefaultUIState('America/New_York'),
         startDate: '2024-06-15',
         startTime: '14:30',
@@ -502,7 +502,7 @@ describe('Event Timing Field', () => {
     })
 
     it('preserves recurrence through round-trip', () => {
-      const original: EventTimingUIState = {
+      const original: ScheduleUIState = {
         ...getDefaultUIState('UTC'),
         startDate: '2024-03-15',
         startTime: '09:00',
@@ -519,16 +519,16 @@ describe('Event Timing Field', () => {
     })
   })
 
-  describe('getEventTimingSummary', () => {
+  describe('getScheduleSummary', () => {
     it('formats one-off event without end time', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('America/New_York'),
         startDate: '2024-03-15',
         startTime: '09:00',
         endTime: '',
         recurrenceType: 'none',
       }
-      const summary = getEventTimingSummary(state)
+      const summary = getScheduleSummary(state)
       expect(summary).toContain('Friday')
       expect(summary).toContain('March 15')
       expect(summary).toContain('9:00 AM')
@@ -536,21 +536,21 @@ describe('Event Timing Field', () => {
     })
 
     it('formats one-off event with end time', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('America/New_York'),
         startDate: '2024-03-15',
         startTime: '09:00',
         endTime: '11:30',
         recurrenceType: 'none',
       }
-      const summary = getEventTimingSummary(state)
+      const summary = getScheduleSummary(state)
       expect(summary).toContain('9:00 AM')
       expect(summary).toContain('11:30 AM')
       expect(summary).toContain('-') // Time range separator
     })
 
     it('formats recurring event', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('America/New_York'),
         startDate: '2024-03-15',
         startTime: '09:00',
@@ -558,116 +558,116 @@ describe('Event Timing Field', () => {
         recurrenceType: 'weekly',
         weekdays: [0, 2, 4],
       }
-      const summary = getEventTimingSummary(state)
+      const summary = getScheduleSummary(state)
       expect(summary.toLowerCase()).toContain('week')
     })
 
     it('includes timezone abbreviation', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('America/New_York'),
         startDate: '2024-03-15',
         startTime: '09:00',
         endTime: '',
         recurrenceType: 'none',
       }
-      const summary = getEventTimingSummary(state)
+      const summary = getScheduleSummary(state)
       // Should contain EST or EDT
       expect(summary).toMatch(/E[SD]T/)
     })
   })
 
-  describe('validateEventTiming', () => {
+  describe('validateSchedule', () => {
     it('returns null for valid one-off event', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('America/New_York'),
         startDate: '2024-03-15',
         startTime: '09:00',
       }
-      expect(validateEventTiming(state)).toBe(null)
+      expect(validateSchedule(state)).toBe(null)
     })
 
     it('returns error for missing start date', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('America/New_York'),
         startDate: '',
         startTime: '09:00',
       }
-      const error = validateEventTiming(state)
+      const error = validateSchedule(state)
       expect(error).not.toBe(null)
       expect(error).toContain('date')
     })
 
     it('returns error for missing start time', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('America/New_York'),
         startDate: '2024-03-15',
         startTime: '',
       }
-      const error = validateEventTiming(state)
+      const error = validateSchedule(state)
       expect(error).not.toBe(null)
       expect(error).toContain('time')
     })
 
     it('returns error for missing timezone', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState(''),
         startDate: '2024-03-15',
         startTime: '09:00',
         timezone: '',
       }
-      const error = validateEventTiming(state)
+      const error = validateSchedule(state)
       expect(error).not.toBe(null)
       expect(error?.toLowerCase()).toContain('timezone')
     })
 
     it('returns error when end time is before start time', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('America/New_York'),
         startDate: '2024-03-15',
         startTime: '14:00',
         endTime: '09:00', // Before start time
       }
-      const error = validateEventTiming(state)
+      const error = validateSchedule(state)
       expect(error).not.toBe(null)
       expect(error?.toLowerCase()).toContain('end time')
     })
 
     it('returns error when end time equals start time', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('America/New_York'),
         startDate: '2024-03-15',
         startTime: '14:00',
         endTime: '14:00', // Same as start time
       }
-      const error = validateEventTiming(state)
+      const error = validateSchedule(state)
       expect(error).not.toBe(null)
     })
 
     it('returns null when end time is after start time', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('America/New_York'),
         startDate: '2024-03-15',
         startTime: '09:00',
         endTime: '11:30',
       }
-      expect(validateEventTiming(state)).toBe(null)
+      expect(validateSchedule(state)).toBe(null)
     })
 
     it('returns error for weekly without weekdays', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('America/New_York'),
         startDate: '2024-03-15',
         startTime: '09:00',
         recurrenceType: 'weekly',
         weekdays: [],
       }
-      const error = validateEventTiming(state)
+      const error = validateSchedule(state)
       expect(error).not.toBe(null)
       expect(error).toContain('day')
     })
 
     it('returns error for invalid month day', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('America/New_York'),
         startDate: '2024-03-15',
         startTime: '09:00',
@@ -675,13 +675,13 @@ describe('Event Timing Field', () => {
         monthlyMode: 'date',
         monthDay: 32,
       }
-      const error = validateEventTiming(state)
+      const error = validateSchedule(state)
       expect(error).not.toBe(null)
       expect(error).toContain('day of the month')
     })
 
     it('returns error for count less than 1', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('America/New_York'),
         startDate: '2024-03-15',
         startTime: '09:00',
@@ -689,7 +689,7 @@ describe('Event Timing Field', () => {
         endingType: 'count',
         count: 0,
       }
-      const error = validateEventTiming(state)
+      const error = validateSchedule(state)
       expect(error).not.toBe(null)
       expect(error).toContain('occurrences')
     })
@@ -697,7 +697,7 @@ describe('Event Timing Field', () => {
 
   describe('RRULE Compliance', () => {
     it('generates RRULE strings that can be parsed by rrule library', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('UTC'),
         startDate: '2024-03-15',
         startTime: '09:00',
@@ -709,7 +709,7 @@ describe('Event Timing Field', () => {
     })
 
     it('generates RRULEs with embedded DTSTART', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('UTC'),
         startDate: '2024-03-15',
         startTime: '09:00',
@@ -722,7 +722,7 @@ describe('Event Timing Field', () => {
     })
 
     it('generates RRULEs that produce valid date occurrences', () => {
-      const state: EventTimingUIState = {
+      const state: ScheduleUIState = {
         ...getDefaultUIState('UTC'),
         startDate: '2024-03-15',
         startTime: '09:00',
