@@ -92,8 +92,6 @@ export const AppCards: CollectionConfig = {
     },
     // Conditional: Reminder
     scheduleField({
-      name: 'schedule',
-      label: 'Schedule',
       required: true,
       admin: {
         condition: (data) => data.type === 'reminder',
