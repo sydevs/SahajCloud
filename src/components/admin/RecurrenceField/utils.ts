@@ -5,6 +5,8 @@
  * Converts between stored JSON format and UI state.
  */
 
+import type { Options } from 'rrule'
+
 import { RRule, rrulestr, Frequency, Weekday } from 'rrule'
 
 import type {
@@ -14,6 +16,18 @@ import type {
   EndingType,
 } from '@/types/recurrence'
 import { getDefaultUIState } from '@/types/recurrence'
+
+/**
+ * Subset of RRule options used by this module.
+ * Uses Partial<Pick<...>> to derive from rrule's Options type for type safety,
+ * with freq required.
+ *
+ * Note: `interval` can be undefined for uiStateToData (cleaner RRULE output),
+ * but MUST be a number for getHumanReadableSummary (toText() crashes on undefined).
+ */
+type RRuleOptionsSubset = { freq: Frequency } & Partial<
+  Pick<Options, 'interval' | 'byweekday' | 'bymonthday' | 'count' | 'until'>
+>
 
 /**
  * Weekday labels for display
@@ -218,8 +232,9 @@ export function uiStateToData(
   }
 
   // Build rrule options
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rruleOptions: any = {
+  // Note: Omit interval when it's 1 for cleaner RRULE strings (1 is the default)
+  // This is safe here because we use toString(), not toText() (which crashes on undefined)
+  const rruleOptions: RRuleOptionsSubset = {
     freq,
     interval: state.interval > 1 ? state.interval : undefined,
   }
@@ -269,8 +284,7 @@ export function getHumanReadableSummary(state: RecurrenceUIState): string {
 
   // Build rrule options for toText()
   // IMPORTANT: Do NOT pass undefined values - rrule.toText() crashes on undefined interval
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rruleOptions: any = {
+  const rruleOptions: RRuleOptionsSubset = {
     freq,
     interval: state.interval > 1 ? state.interval : 1, // Always pass a number, never undefined
   }

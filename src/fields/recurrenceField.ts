@@ -1,5 +1,6 @@
 import type { Field } from 'payload'
 
+import { dataToUIState, validateRecurrence } from '@/components/admin/RecurrenceField/utils'
 import type { RecurrenceData, RecurrenceFieldOptions } from '@/types/recurrence'
 
 // Re-export types for convenience
@@ -68,6 +69,25 @@ export function recurrenceField(options: RecurrenceFieldOptions = {}): Field {
     type: 'json',
     required,
     defaultValue,
+    validate: (value) => {
+      // JSON field receives string | null | undefined, but may also receive parsed object
+      let data: RecurrenceData | null | undefined
+      if (typeof value === 'string') {
+        try {
+          data = JSON.parse(value) as RecurrenceData
+        } catch {
+          return 'Invalid recurrence data format'
+        }
+      } else {
+        data = value as RecurrenceData | null | undefined
+      }
+
+      // Convert stored data to UI state for validation
+      const uiState = dataToUIState(data, defaultDuration)
+      const error = validateRecurrence(uiState)
+      // Return true if valid, or error message if invalid
+      return error ?? true
+    },
     admin: {
       description: admin.description || 'Define when this event repeats',
       position: admin.position,
