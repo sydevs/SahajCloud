@@ -111,16 +111,21 @@ describe('Albums Collection', () => {
     })
 
     // Update with different locale
+    // Note: overrideAccess needed since test environment lacks proper user context for locale-based access
+    // Note: Both title and artist are localized and required, so we must provide both for the new locale
     const updated = (await payload.update({
       collection: 'albums',
       id: album.id,
       locale: 'de',
+      overrideAccess: true,
       data: {
+        title: 'Testalbum',
         artist: 'Deutscher Kunstlername',
       },
     })) as Album
 
     expect(updated.artist).toBe('Deutscher Kunstlername')
+    expect(updated.title).toBe('Testalbum')
   })
 
   it('updates an album', async () => {
