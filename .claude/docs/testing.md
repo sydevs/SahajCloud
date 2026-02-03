@@ -186,6 +186,47 @@ const mockAdmin = { type: 'admin', currentProject: 'wemeditate-web' }
 
 This is because the bypass function checks `user.collection === 'managers'` before checking `user.type === 'admin'`.
 
+### PayloadCMS Field Sanitization
+
+PayloadCMS sanitizes field configurations during initialization, removing certain properties from the runtime config. This affects how you test field configurations:
+
+**What Gets Sanitized**:
+- `localized` property is removed from fields when parent is already localized (or when localization is disabled)
+- Internal field properties may be modified for optimization
+
+**Testing Implications**:
+
+```typescript
+// ❌ DON'T: Check field.localized on sanitized config
+const field = payload.globals.config.find(g => g.slug === 'my-global')?.fields[0]
+expect(field.localized).toBe(true) // FAILS - property is removed
+
+// ✅ DO: Use functional testing to verify localization works
+await payload.updateGlobal({
+  slug: 'my-global',
+  locale: 'en',
+  data: { field: 'English value' },
+})
+await payload.updateGlobal({
+  slug: 'my-global',
+  locale: 'cs',
+  data: { field: 'Czech value' },
+})
+
+const enResult = await payload.findGlobal({
+  slug: 'my-global',
+  locale: 'en',
+  fallbackLocale: false,
+})
+expect(enResult.field).toBe('English value')  // Proves localization works
+```
+
+**Unit Tests vs Integration Tests**:
+- **Unit tests** (testing raw config output like `buildTranslationTabs()`) can check `localized: true` because they run before sanitization
+- **Integration tests** (accessing `payload.globals.config`) cannot check `localized` because it's been sanitized
+
+**Test Environment Requirement**: The test environment must have `localization` configured in `testHelpers.ts` for localized field tests to work properly.
+
 ## Test Configuration
 
 - Tests run sequentially (`maxConcurrency: 1`) to prevent resource conflicts

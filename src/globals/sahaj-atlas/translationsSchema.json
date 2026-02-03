@@ -1,33 +1,54 @@
 {
   "type": "object",
   "properties": {
-    "common.loading": {
-      "type": "string",
-      "description": "Loading indicator text shown while content is being fetched"
+    "common": {
+      "type": "object",
+      "description": "Common UI strings used throughout the application",
+      "properties": {
+        "loading": {
+          "type": "string",
+          "description": "Loading indicator text shown while content is being fetched"
+        },
+        "error": {
+          "type": "string",
+          "description": "Generic error message shown when something goes wrong"
+        }
+      },
+      "additionalProperties": false
     },
-    "common.error": {
-      "type": "string",
-      "description": "Generic error message shown when something goes wrong"
+    "map": {
+      "type": "object",
+      "description": "Map controls and interactions",
+      "properties": {
+        "zoom_in": {
+          "type": "string",
+          "description": "Tooltip for the zoom in map control button"
+        },
+        "zoom_out": {
+          "type": "string",
+          "description": "Tooltip for the zoom out map control button"
+        },
+        "my_location": {
+          "type": "string",
+          "description": "Button text to center the map on the user's current location"
+        }
+      },
+      "additionalProperties": false
     },
-    "map.zoomIn": {
-      "type": "string",
-      "description": "Tooltip for the zoom in map control button"
-    },
-    "map.zoomOut": {
-      "type": "string",
-      "description": "Tooltip for the zoom out map control button"
-    },
-    "map.myLocation": {
-      "type": "string",
-      "description": "Button text to center the map on the user's current location"
-    },
-    "location.details": {
-      "type": "string",
-      "description": "Link text to view full details of a location"
-    },
-    "location.directions": {
-      "type": "string",
-      "description": "Button text to get directions to a location"
+    "location": {
+      "type": "object",
+      "description": "Location details and directions",
+      "properties": {
+        "details": {
+          "type": "string",
+          "description": "Link text to view full details of a location"
+        },
+        "directions": {
+          "type": "string",
+          "description": "Button text to get directions to a location"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

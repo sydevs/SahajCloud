@@ -16,3 +16,7 @@ export type { ColorFieldOptions } from './colorField'
 // Slug field - wrapper around Payload's slugField with simplified description handling
 export { slugField } from './slugField'
 export type { SlugFieldOptions } from './slugField'
+
+// Translations field - builds tabs from nested JSON schema for translations
+export { buildTranslationTabs } from './translationsField'
+export type { SchemaEntry, TranslationsSchema } from './translationsField'

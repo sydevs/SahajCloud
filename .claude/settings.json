@@ -85,6 +85,7 @@
       "Bash(lsof:*)",
       "Bash(which:*)",
       "Bash(nohup:*)",
+      "Bash(sleep:*)",
       "Bash(.claude/skills/dev-server/dev-server.sh:*)",
       "Bash(timeout 30 pnpm build:*)",
       "Bash(timeout 60 pnpm build:*)",

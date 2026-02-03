@@ -29,18 +29,20 @@ export const TranslationsTableField: JSONFieldClientComponent = ({ field, readOn
   const globalSlug = custom?.globalSlug as string
   const isEnglish = locale?.code === 'en'
 
-  const [{ data: englishData, isLoading }] = usePayloadAPI(
+  const [{ data: englishData, isLoading, isError }] = usePayloadAPI(
     !isEnglish && globalSlug ? `/api/globals/${globalSlug}?locale=en&depth=0` : '',
   )
 
   // Merge English values into entries when available
   const entries = useMemo(() => {
-    if (isEnglish || !englishData?.strings) return schemaEntries
+    // Field name is the group slug (e.g., 'common', 'navigation')
+    const fieldData = englishData?.[name] as Record<string, string> | undefined
+    if (isEnglish || !fieldData) return schemaEntries
     return schemaEntries.map((entry) => ({
       ...entry,
-      englishValue: (englishData.strings as Record<string, string>)[entry.key] || entry.key,
+      englishValue: fieldData[entry.key] || entry.key,
     }))
-  }, [schemaEntries, isEnglish, englishData])
+  }, [schemaEntries, isEnglish, englishData, name])
 
   // Handle value changes
   const handleChange = (newValue: Record<string, string>) => {
@@ -88,13 +90,27 @@ export const TranslationsTableField: JSONFieldClientComponent = ({ field, readOn
             No translation keys defined in schema.
           </div>
         ) : (
-          <TranslationsTable
-            entries={entries}
-            value={value || {}}
-            onChange={handleChange}
-            readOnly={readOnly}
-            isEnglish={isEnglish}
-          />
+          <>
+            {isError && !isEnglish && (
+              <div
+                style={{
+                  padding: 'calc(var(--base) * 0.5)',
+                  marginBottom: 'calc(var(--base) * 0.5)',
+                  color: 'var(--theme-error-500)',
+                  fontSize: '0.875rem',
+                }}
+              >
+                Failed to load English translations. Reference values unavailable.
+              </div>
+            )}
+            <TranslationsTable
+              entries={entries}
+              value={value || {}}
+              onChange={handleChange}
+              readOnly={readOnly}
+              isEnglish={isEnglish}
+            />
+          </>
         )}
       </div>
 

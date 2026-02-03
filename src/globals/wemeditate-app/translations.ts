@@ -1,16 +1,8 @@
-import type { JSONSchema4 } from 'json-schema'
 import type { GlobalConfig } from 'payload'
 
-import translationsSchema from './translationsSchema.json' with { type: 'json' }
+import { buildTranslationTabs, type TranslationsSchema } from '@/fields/translationsField'
 
-// Extract entries from schema for the component
-const schemaEntries = Object.entries(
-  (translationsSchema as { properties?: Record<string, { description?: string }> }).properties ||
-    {},
-).map(([key, prop]) => ({
-  key,
-  description: prop.description || '',
-}))
+import translationsSchema from './translationsSchema.json' with { type: 'json' }
 
 export const WeMeditateAppTranslations: GlobalConfig = {
   slug: 'wm-app-translations',
@@ -23,23 +15,8 @@ export const WeMeditateAppTranslations: GlobalConfig = {
   label: 'Translations',
   fields: [
     {
-      name: 'strings',
-      type: 'json',
-      localized: true,
-      admin: {
-        components: {
-          Field: '@/components/admin/TranslationsTable',
-        },
-        custom: {
-          schemaEntries,
-          globalSlug: 'wm-app-translations',
-        },
-      },
-      jsonSchema: {
-        uri: 'a://wm-app-translations.json',
-        fileMatch: ['a://wm-app-translations.json'],
-        schema: translationsSchema as JSONSchema4,
-      },
+      type: 'tabs',
+      tabs: buildTranslationTabs(translationsSchema as TranslationsSchema, 'wm-app-translations'),
     },
   ],
 }
