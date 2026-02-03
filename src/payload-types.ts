@@ -1016,9 +1016,9 @@ export interface AppCard {
    */
   appPage?: ('map' | 'lectures' | 'path' | 'music') | null;
   /**
-   * Define when this event repeats
+   * Configure when this event occurs and repeats
    */
-  recurrence?:
+  schedule?:
     | {
         [k: string]: unknown;
       }
@@ -1871,7 +1871,7 @@ export interface AppCardsSelect<T extends boolean = true> {
   button?: T;
   type?: T;
   appPage?: T;
-  recurrence?: T;
+  schedule?: T;
   content?: T;
   linkUrl?: T;
   updatedAt?: T;

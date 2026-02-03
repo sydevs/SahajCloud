@@ -5,15 +5,16 @@ import type { JSONFieldClientComponent, JSONFieldClient } from 'payload'
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import React, { useMemo, useCallback } from 'react'
 
-import type { RecurrenceData, RecurrenceUIState, RecurrenceComplexity } from '@/types/recurrence'
+import type { EventTimingData, EventTimingUIState, EventTimingComplexity } from '@/types/eventTiming'
+import { getBrowserTimezone } from '@/types/eventTiming'
 
-import { RecurrenceEditor } from './RecurrenceEditor'
+import { EventTimingEditor } from './EventTimingEditor'
 import { dataToUIState, uiStateToData } from './utils'
 
 /**
- * Recurrence Field Wrapper Component
+ * Event Timing Field Wrapper Component
  *
- * A PayloadCMS field component wrapper for RecurrenceEditor that provides:
+ * A PayloadCMS field component wrapper for EventTimingEditor that provides:
  * - Field state management via useField hook
  * - Label rendering with FieldLabel
  * - Error display with FieldError
@@ -21,17 +22,17 @@ import { dataToUIState, uiStateToData } from './utils'
  * - Conversion between stored JSON and UI state
  * - Proper field wrapper structure matching PayloadCMS JSON fields
  *
- * This component integrates the RecurrenceEditor UI component into PayloadCMS's
+ * This component integrates the EventTimingEditor UI component into PayloadCMS's
  * field system, following the exact markup structure as JSON fields.
  *
  * @example Usage in collection config
  * ```typescript
- * import { recurrenceField } from '@/fields'
+ * import { eventTimingField } from '@/fields'
  *
  * {
  *   // ... collection config
  *   fields: [
- *     recurrenceField({
+ *     eventTimingField({
  *       name: 'schedule',
  *       complexity: 'standard',
  *     }),
@@ -39,7 +40,7 @@ import { dataToUIState, uiStateToData } from './utils'
  * }
  * ```
  */
-export const RecurrenceFieldWrapper: JSONFieldClientComponent = ({ field, readOnly }) => {
+export const EventTimingFieldWrapper: JSONFieldClientComponent = ({ field, readOnly }) => {
   // Extract field properties with nested destructuring for admin
   const {
     name,
@@ -50,22 +51,22 @@ export const RecurrenceFieldWrapper: JSONFieldClientComponent = ({ field, readOn
   } = field as JSONFieldClient
 
   // Extract custom config with type safety
-  const complexity = (custom?.complexity as RecurrenceComplexity) || 'standard'
-  const defaultDuration = (custom?.defaultDuration as number) || 1
+  const complexity = (custom?.complexity as EventTimingComplexity) || 'standard'
+  const defaultTimezone = (custom?.defaultTimezone as string) || getBrowserTimezone()
 
   // Use Payload's field hook for state management
-  const { value, setValue, showError } = useField<RecurrenceData>()
+  const { value, setValue, showError } = useField<EventTimingData>()
 
   // Convert stored JSON to UI state
-  const uiState = useMemo(() => dataToUIState(value, defaultDuration), [value, defaultDuration])
+  const uiState = useMemo(() => dataToUIState(value, defaultTimezone), [value, defaultTimezone])
 
   // Handle UI state changes - convert back to stored format
   const handleChange = useCallback(
-    (newState: RecurrenceUIState) => {
-      const data = uiStateToData(newState, defaultDuration)
+    (newState: EventTimingUIState) => {
+      const data = uiStateToData(newState)
       setValue(data)
     },
-    [setValue, defaultDuration],
+    [setValue],
   )
 
   // Build CSS classes following PayloadCMS conventions
@@ -91,7 +92,7 @@ export const RecurrenceFieldWrapper: JSONFieldClientComponent = ({ field, readOn
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
 
-        <RecurrenceEditor
+        <EventTimingEditor
           value={uiState}
           onChange={handleChange}
           complexity={complexity}
@@ -105,4 +106,4 @@ export const RecurrenceFieldWrapper: JSONFieldClientComponent = ({ field, readOn
   )
 }
 
-export default RecurrenceFieldWrapper
+export default EventTimingFieldWrapper

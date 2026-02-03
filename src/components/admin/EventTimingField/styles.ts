@@ -1,5 +1,5 @@
 /**
- * Shared styles for RecurrenceField components
+ * Shared styles for EventTimingField components
  *
  * Uses PayloadCMS CSS variables for theme consistency.
  */
@@ -7,9 +7,9 @@
 import type { CSSProperties } from 'react'
 
 /**
- * Style definitions for RecurrenceEditor component
+ * Style definitions for EventTimingEditor component
  */
-export const recurrenceEditorStyles = {
+export const eventTimingEditorStyles = {
   container: {
     display: 'flex',
     flexDirection: 'column' as const,
@@ -19,6 +19,14 @@ export const recurrenceEditorStyles = {
     display: 'flex',
     flexDirection: 'column' as const,
     gap: 'calc(var(--base) * 0.5)',
+  },
+  sectionDivider: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 'calc(var(--base) * 0.5)',
+    paddingTop: 'calc(var(--base) * 0.5)',
+    marginTop: 'calc(var(--base) * 0.25)',
+    borderTop: '1px solid var(--theme-elevation-100)',
   },
   row: {
     display: 'flex',
@@ -43,6 +51,18 @@ export const recurrenceEditorStyles = {
     cursor: 'pointer',
     minWidth: '120px',
   },
+  timezoneSelect: {
+    padding: 'calc(var(--base) * 0.4) calc(var(--base) * 0.6)',
+    fontSize: 'calc(var(--base-body-size) * 1px)',
+    fontFamily: 'var(--font-body)',
+    backgroundColor: 'var(--theme-input-bg)',
+    border: '1px solid var(--theme-elevation-150)',
+    borderRadius: 'var(--style-radius-s)',
+    color: 'var(--theme-elevation-800)',
+    cursor: 'pointer',
+    minWidth: '200px',
+    maxWidth: '280px',
+  },
   input: {
     padding: 'calc(var(--base) * 0.4) calc(var(--base) * 0.6)',
     fontSize: 'calc(var(--base-body-size) * 1px)',
@@ -61,6 +81,17 @@ export const recurrenceEditorStyles = {
     border: '1px solid var(--theme-elevation-150)',
     borderRadius: 'var(--style-radius-s)',
     color: 'var(--theme-elevation-800)',
+    minWidth: '140px',
+  },
+  timeInput: {
+    padding: 'calc(var(--base) * 0.4) calc(var(--base) * 0.6)',
+    fontSize: 'calc(var(--base-body-size) * 1px)',
+    fontFamily: 'var(--font-body)',
+    backgroundColor: 'var(--theme-input-bg)',
+    border: '1px solid var(--theme-elevation-150)',
+    borderRadius: 'var(--style-radius-s)',
+    color: 'var(--theme-elevation-800)',
+    minWidth: '100px',
   },
   weekdayContainer: {
     display: 'flex',
@@ -92,5 +123,10 @@ export const recurrenceEditorStyles = {
   text: {
     fontSize: 'calc(var(--base-body-size) * 1px)',
     color: 'var(--theme-elevation-600)',
+  },
+  optionalText: {
+    fontSize: 'calc(var(--base-body-size) * 0.9px)',
+    color: 'var(--theme-elevation-400)',
+    fontStyle: 'italic' as const,
   },
 } as const satisfies Record<string, CSSProperties>
