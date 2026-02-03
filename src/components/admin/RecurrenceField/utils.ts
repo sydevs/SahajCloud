@@ -256,61 +256,85 @@ export function uiStateToData(
 
 /**
  * Generate human-readable summary for display
+ *
+ * Note: We implement this manually instead of using RRule.toText() because
+ * the rrule library's toText() has compatibility issues in certain JS environments
+ * (like Vitest) where the language strings don't get properly initialized.
  */
 export function getHumanReadableSummary(state: RecurrenceUIState): string {
   if (state.recurrenceType === 'none') {
     return 'Does not repeat'
   }
 
-  const freq = recurrenceTypeToFrequency(state.recurrenceType)
-  if (freq === null) {
-    return 'Does not repeat'
-  }
-
-  // Build rrule options for toText()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rruleOptions: any = {
-    freq,
-    interval: state.interval > 1 ? state.interval : undefined,
-  }
-
-  // Weekly: add weekdays
-  if (state.recurrenceType === 'weekly' && state.weekdays.length > 0) {
-    rruleOptions.byweekday = state.weekdays
-  }
-
-  // Monthly patterns
-  if (state.recurrenceType === 'monthly') {
-    if (state.monthlyMode === 'date') {
-      rruleOptions.bymonthday = state.monthDay
-    } else {
-      rruleOptions.byweekday = new Weekday(state.weekdayOfMonth, state.weekNumber)
-    }
-  }
-
-  // Ending conditions
-  if (state.endingType === 'count' && state.count > 0) {
-    rruleOptions.count = state.count
-  } else if (state.endingType === 'until' && state.until) {
-    rruleOptions.until = state.until
-  }
-
   try {
-    const rule = new RRule(rruleOptions)
-    let summary = rule.toText()
+    const parts: string[] = []
 
-    // Capitalize first letter
-    summary = summary.charAt(0).toUpperCase() + summary.slice(1)
-
-    // Append duration info for multi-day events
-    if (state.duration && state.duration > 1) {
-      summary += ` (${state.duration}-day event)`
+    // Frequency with interval
+    const interval = state.interval > 1 ? state.interval : 1
+    switch (state.recurrenceType) {
+      case 'daily':
+        parts.push(interval === 1 ? 'Every day' : `Every ${interval} days`)
+        break
+      case 'weekly':
+        parts.push(interval === 1 ? 'Every week' : `Every ${interval} weeks`)
+        // Add weekdays
+        if (state.weekdays.length > 0 && state.weekdays.length < 7) {
+          const dayNames = state.weekdays
+            .sort((a, b) => a - b)
+            .map((d) => WEEKDAY_FULL_LABELS[d])
+            .filter(Boolean) // Filter out undefined values from invalid indices
+          if (dayNames.length > 0) {
+            parts.push(`on ${formatList(dayNames)}`)
+          }
+        }
+        break
+      case 'monthly':
+        parts.push(interval === 1 ? 'Every month' : `Every ${interval} months`)
+        if (state.monthlyMode === 'date') {
+          parts.push(`on the ${getOrdinalSuffix(state.monthDay)}`)
+        } else {
+          const weekLabelIndex = rruleWeekToLabelIndex(state.weekNumber)
+          const weekLabel = WEEK_NUMBER_LABELS[weekLabelIndex]
+          const dayLabel = WEEKDAY_FULL_LABELS[state.weekdayOfMonth]
+          // Only add if we have valid labels
+          if (weekLabel && dayLabel) {
+            parts.push(`on the ${weekLabel.toLowerCase()} ${dayLabel}`)
+          }
+        }
+        break
     }
 
-    return summary
+    // Ending condition
+    if (state.endingType === 'count' && state.count > 0) {
+      parts.push(state.count === 1 ? '(1 time)' : `(${state.count} times)`)
+    } else if (state.endingType === 'until' && state.until) {
+      const dateStr = state.until.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+      parts.push(`until ${dateStr}`)
+    }
+
+    // Duration for multi-day events
+    if (state.duration && state.duration > 1) {
+      parts.push(`(${state.duration}-day event)`)
+    }
+
+    return parts.join(' ')
   } catch {
     return 'Invalid recurrence pattern'
   }
+}
+
+/**
+ * Format a list with proper English grammar (a, b, and c)
+ */
+function formatList(items: string[]): string {
+  if (items.length === 0) return ''
+  if (items.length === 1) return items[0]
+  if (items.length === 2) return `${items[0]} and ${items[1]}`
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`
 }
 
 /**
