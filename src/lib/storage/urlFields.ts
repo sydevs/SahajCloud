@@ -39,6 +39,11 @@ interface VirtualUrlFieldOptions {
    * - r2: Uses CLOUDFLARE_R2_DELIVERY_URL
    */
   adapter: StorageAdapter
+  /**
+   * Custom field name (default: 'url')
+   * Use when the default 'url' conflicts with another field in the collection
+   */
+  name?: string
 }
 
 /**
@@ -108,9 +113,20 @@ interface DownloadUrlFieldOptions {
  *   }),
  * ]
  * ```
+ *
+ * @example Custom field name (when 'url' conflicts with another field)
+ * ```typescript
+ * fields: [
+ *   virtualUrlField({
+ *     collection: 'cards',
+ *     adapter: 'cloudflare-images',
+ *     name: 'imageUrl',
+ *   }),
+ * ]
+ * ```
  */
 export const virtualUrlField = (options: VirtualUrlFieldOptions): Field => {
-  const { collection, adapter } = options
+  const { collection, adapter, name = 'url' } = options
 
   const afterReadHook: FieldHook = ({ data }) => {
     if (!data?.filename) return undefined
@@ -128,7 +144,7 @@ export const virtualUrlField = (options: VirtualUrlFieldOptions): Field => {
   }
 
   return {
-    name: 'url',
+    name,
     type: 'text',
     virtual: true,
     hooks: {

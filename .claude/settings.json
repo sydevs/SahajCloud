@@ -47,6 +47,7 @@
       "Bash(pnpm generate:importmap)",
       "Bash(pnpm generate:importmap:*)",
       "Bash(pnpm payload migrate:status:*)",
+      "Bash(pnpm db:migrations:create:*)",
       "Bash(pnpm payload generate:types:*)",
       "Bash(NODE_ENV=development pnpm generate:types)",
       "Bash(NODE_ENV=development pnpm payload generate:types:*)",

@@ -1,7 +1,7 @@
-import type { CollectionConfig, FieldHook } from 'payload'
+import type { CollectionConfig } from 'payload'
 
 import { urlField } from '@/fields'
-import { getCloudflareImagesUrl } from '@/lib/storage/cloudflareImagesAdapter'
+import { virtualUrlField } from '@/lib/storage/urlFields'
 
 /**
  * Cards Collection
@@ -33,22 +33,11 @@ export const Cards: CollectionConfig = {
   fields: [
     // Virtual URL field for the uploaded card image (Cloudflare Images)
     // Named 'imageUrl' to avoid conflict with the conditional 'linkUrl' field
-    {
+    virtualUrlField({
+      collection: 'cards',
+      adapter: 'cloudflare-images',
       name: 'imageUrl',
-      type: 'text',
-      virtual: true,
-      hooks: {
-        afterRead: [
-          (({ data }) => {
-            if (!data?.filename) return undefined
-            return (
-              getCloudflareImagesUrl(data.filename) ?? `/api/cards/file/${data.filename}`
-            )
-          }) as FieldHook,
-        ],
-      },
-      admin: { hidden: true },
-    },
+    }),
     {
       name: 'title',
       type: 'text',
@@ -89,6 +78,7 @@ export const Cards: CollectionConfig = {
     {
       name: 'appPage',
       type: 'select',
+      required: true,
       options: [
         { label: 'Map', value: 'map' },
         { label: 'Lectures', value: 'lectures' },
@@ -104,6 +94,7 @@ export const Cards: CollectionConfig = {
     {
       name: 'recurrence',
       type: 'json',
+      required: true,
       admin: {
         condition: (data) => data.type === 'reminder',
         description: 'Recurrence schedule configuration (JSON)',
@@ -114,6 +105,7 @@ export const Cards: CollectionConfig = {
       name: 'content',
       type: 'relationship',
       relationTo: ['lectures', 'albums', 'meditations'],
+      required: true,
       admin: {
         condition: (data) => data.type === 'content',
         description: 'Select the content item this card links to',
@@ -124,6 +116,7 @@ export const Cards: CollectionConfig = {
       name: 'linkUrl',
       label: 'External URL',
       localized: true,
+      required: true,
       admin: {
         condition: (data) => data.type === 'external',
         description: 'External URL this card links to',
