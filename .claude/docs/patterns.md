@@ -643,3 +643,35 @@ See Cloudflare API integration:
 - Handle `z.ZodError` separately from API errors
 - Leverage type inference (`z.infer<>`) for TypeScript types
 - Validate at API boundaries, trust internal types
+
+## RRule Library Pitfall: Undefined Values
+
+When using the `rrule` library for recurrence rules, avoid passing `undefined` values in options objects. The library crashes when `toText()` is called on rules with `undefined` interval.
+
+### Problem
+
+```typescript
+// ❌ Crashes with "Cannot read properties of undefined (reading 'toString')"
+const rule = new RRule({
+  freq: Frequency.DAILY,
+  interval: state.interval > 1 ? state.interval : undefined,  // DON'T pass undefined
+})
+rule.toText()  // Crash!
+```
+
+### Solution
+
+```typescript
+// ✅ Always pass a number value
+const rule = new RRule({
+  freq: Frequency.DAILY,
+  interval: state.interval > 1 ? state.interval : 1,  // Always a number
+})
+rule.toText()  // Works!
+```
+
+### Key Points
+- Don't conditionally include properties that might be undefined
+- Use default values (e.g., `interval: 1`) instead of omitting/undefined
+- This applies to other rrule options that expect specific types
+- See `src/components/admin/RecurrenceField/utils.ts` for correct usage
