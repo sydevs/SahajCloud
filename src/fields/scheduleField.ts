@@ -13,46 +13,40 @@ export interface ScheduleFieldOptions {
   /** Whether sub-fields are required (default: true) */
   required?: boolean
   /** Show end time field (default: false) */
-  endTime?: boolean
+  hasEndTime?: boolean
   /** Show weekday picker for weekly recurrence (default: false) */
-  complexWeekly?: boolean
+  hasComplexWeekly?: boolean
   /** Show day/weekday picker for monthly recurrence (default: false) */
-  complexMonthly?: boolean
+  hasComplexMonthly?: boolean
   /** Show ending conditions — count or until date (default: false) */
-  ending?: boolean
+  hasEnding?: boolean
   /** Admin configuration (uses PayloadCMS JSONField admin type) */
   admin?: Partial<JSONField['admin']>
 }
 
 /** Internal configuration for sub-field builders */
-interface SubFieldConfig {
-  required: boolean
-  hasEndTime: boolean
-  hasComplexWeekly: boolean
-  hasComplexMonthly: boolean
-  hasEnding: boolean
-}
+type SubFieldConfig = Omit<ScheduleFieldOptions, 'name' | 'label' | 'admin'>
 
 /**
  * Weekday options for the multi-select field
  */
 const WEEKDAY_OPTIONS = [
-  { label: 'Mon', value: '0' },
-  { label: 'Tue', value: '1' },
-  { label: 'Wed', value: '2' },
-  { label: 'Thu', value: '3' },
-  { label: 'Fri', value: '4' },
-  { label: 'Sat', value: '5' },
-  { label: 'Sun', value: '6' },
+  { label: 'Mon', value: 'MO' },
+  { label: 'Tue', value: 'TU' },
+  { label: 'Wed', value: 'WE' },
+  { label: 'Thu', value: 'TH' },
+  { label: 'Fri', value: 'FR' },
+  { label: 'Sat', value: 'SA' },
+  { label: 'Sun', value: 'SU' },
 ]
 
 /**
  * Recurrence type options
  */
 const RECURRENCE_OPTIONS = [
-  { label: 'Daily', value: 'daily' },
-  { label: 'Weekly', value: 'weekly' },
-  { label: 'Monthly', value: 'monthly' },
+  { label: 'Daily', value: 'DAILY' },
+  { label: 'Weekly', value: 'WEEKLY' },
+  { label: 'Monthly', value: 'MONTHLY' },
 ]
 
 /**
@@ -107,10 +101,10 @@ export function scheduleField(options: ScheduleFieldOptions = {}): Field {
     name = 'schedule',
     label = 'Schedule',
     required = true,
-    endTime: hasEndTime = false,
-    complexWeekly: hasComplexWeekly = false,
-    complexMonthly: hasComplexMonthly = false,
-    ending: hasEnding = false,
+    hasEndTime = false,
+    hasComplexWeekly = false,
+    hasComplexMonthly = false,
+    hasEnding = false,
     admin = {},
   } = options
 
@@ -249,7 +243,7 @@ function buildComplexWeeklyFields({ required }: SubFieldConfig): Field[] {
       options: WEEKDAY_OPTIONS,
       required,
       admin: {
-        condition: (_data, siblingData) => siblingData?.recurrenceType === 'weekly',
+        condition: (_data, siblingData) => siblingData?.recurrenceType === 'WEEKLY',
       },
     },
   ]
@@ -271,7 +265,7 @@ function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
         { label: 'By weekday', value: 'weekday' },
       ],
       admin: {
-        condition: (_data, siblingData) => siblingData?.recurrenceType === 'monthly',
+        condition: (_data, siblingData) => siblingData?.recurrenceType === 'MONTHLY',
         isClearable: false,
       },
     },
@@ -286,7 +280,7 @@ function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
       admin: {
         step: 1,
         condition: (_data, siblingData) =>
-          siblingData?.recurrenceType === 'monthly' && siblingData?.monthlyMode === 'date',
+          siblingData?.recurrenceType === 'MONTHLY' && siblingData?.monthlyMode === 'date',
         description: 'Day of the month (1-31)',
       },
     },
@@ -305,7 +299,7 @@ function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
       required,
       admin: {
         condition: (_data, siblingData) =>
-          siblingData?.recurrenceType === 'monthly' && siblingData?.monthlyMode === 'weekday',
+          siblingData?.recurrenceType === 'MONTHLY' && siblingData?.monthlyMode === 'weekday',
         isClearable: false,
       },
     },
@@ -313,20 +307,20 @@ function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
       name: 'weekdayOfMonth',
       type: 'select',
       label: 'Day',
-      defaultValue: '0',
+      defaultValue: 'MO',
       options: [
-        { label: 'Monday', value: '0' },
-        { label: 'Tuesday', value: '1' },
-        { label: 'Wednesday', value: '2' },
-        { label: 'Thursday', value: '3' },
-        { label: 'Friday', value: '4' },
-        { label: 'Saturday', value: '5' },
-        { label: 'Sunday', value: '6' },
+        { label: 'Monday', value: 'MO' },
+        { label: 'Tuesday', value: 'TU' },
+        { label: 'Wednesday', value: 'WE' },
+        { label: 'Thursday', value: 'TH' },
+        { label: 'Friday', value: 'FR' },
+        { label: 'Saturday', value: 'SA' },
+        { label: 'Sunday', value: 'SU' },
       ],
       required,
       admin: {
         condition: (_data, siblingData) =>
-          siblingData?.recurrenceType === 'monthly' && siblingData?.monthlyMode === 'weekday',
+          siblingData?.recurrenceType === 'MONTHLY' && siblingData?.monthlyMode === 'weekday',
         isClearable: false,
       },
     },

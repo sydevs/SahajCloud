@@ -699,60 +699,43 @@ See Cloudflare API integration:
 - Leverage type inference (`z.infer<>`) for TypeScript types
 - Validate at API boundaries, trust internal types
 
-## RRule Library Pitfall: Undefined Values
-
-When using the `rrule` library for recurrence rules, avoid passing `undefined` values in options objects. The library crashes when `toText()` is called on rules with `undefined` interval.
-
-### Problem
-
-```typescript
-// ❌ Crashes with "Cannot read properties of undefined (reading 'toString')"
-const rule = new RRule({
-  freq: Frequency.DAILY,
-  interval: state.interval > 1 ? state.interval : undefined,  // DON'T pass undefined
-})
-rule.toText()  // Crash!
-```
-
-### Solution
-
-```typescript
-// ✅ Always pass a number value
-const rule = new RRule({
-  freq: Frequency.DAILY,
-  interval: state.interval > 1 ? state.interval : 1,  // Always a number
-})
-rule.toText()  // Works!
-```
-
-### Key Points
-- Don't conditionally include properties that might be undefined
-- Use default values (e.g., `interval: 1`) instead of omitting/undefined
-- This applies to other rrule options that expect specific types
-
-
 ## Schedule Field Architecture
 
 The schedule field uses a PayloadCMS Group field with native sub-fields stored in individual database columns. The `firstDate` field uses `timezone: true` which stores the datetime in UTC and auto-creates a companion `firstDate_tz` field for the IANA timezone.
 
-Two virtual fields are computed on read using the `rrule` library:
+Two virtual fields are computed on read using `rrule-temporal` (RFC 5545-compliant recurrence library built on the Temporal API):
 
-- **`rrule`** (text) — iCalendar RRULE string for both recurring and one-off events. One-off events produce a single-occurrence RRULE (`FREQ=DAILY;COUNT=1`). Returns `null` only when `firstDate` is missing.
-- **`upcomingDates`** (json) — Array of up to 10 ISO 8601 date strings representing the next occurrences from the current time, computed via `rrule.between()` with early termination
+- **`rrule`** (text) — iCalendar RRULE string (e.g., `DTSTART;TZID=America/New_York:20250315T093000\nRRULE:FREQ=WEEKLY;INTERVAL=2`) for both recurring and one-off events. One-off events produce a single-occurrence RRULE (`FREQ=DAILY;COUNT=1`). Returns `null` only when `firstDate` is missing.
+- **`upcomingDates`** (json) — Array of up to 10 ISO 8601 UTC date strings representing the next occurrences from the current time, computed via `rule.between()` with correct DST handling. Returns `[]` when `firstDate` is missing or all occurrences are in the past.
 
-Both hooks delegate to a shared `buildRRule()` helper that constructs the RRule instance from sub-fields.
+Both hooks delegate to a shared `buildRRuleTemporal()` helper that constructs an `RRuleTemporal` instance from sub-fields.
 
-### UTC ↔ Local Conversion
+### Why rrule-temporal (not rrule)
 
-PayloadCMS stores `firstDate` in UTC. The hooks convert UTC → local time using `Intl.DateTimeFormat` with `formatToParts()` before constructing rrule instances:
+The legacy `rrule` library (v2.8.1) has a [known double-timezone-conversion bug](https://github.com/jkbrzt/rrule/issues/355): its `dateInTimeZone()` treats `dtstart`'s UTC slot values as real UTC and applies the timezone offset again, producing environment-dependent results. `rrule-temporal` handles timezones natively via `Temporal.ZonedDateTime`, eliminating this class of bugs entirely.
 
-1. `firstDate` stores a UTC ISO datetime (e.g., `2026-06-15T13:00:00.000Z`)
-2. `firstDate_tz` stores the IANA timezone (e.g., `America/New_York`)
-3. `getLocalComponents()` converts UTC → local time components (year, month, day, hours, minutes)
-4. Local components are placed in UTC slots of `Date.UTC()` for rrule's `tzid` mode
+### UTC → ZonedDateTime Conversion
 
-The `getLocalTimeHHMM()` helper is also exported for use in `endTime` field validation.
+PayloadCMS stores `firstDate` in UTC. The hooks convert UTC → `Temporal.ZonedDateTime` in a single step using the Temporal API:
+
+```typescript
+const dtstart = Temporal.Instant.from(fields.firstDate).toZonedDateTimeISO(timezone)
+```
+
+This replaces the previous multi-step approach (`Intl.DateTimeFormat` → `formatToParts()` → manual component extraction → `ZonedDateTime.from()`). The `getLocalTimeHHMM()` helper uses the same pattern for `endTime` field validation.
+
+### Field Value Conventions
+
+Stored field values align with RFC 5545 / rrule-temporal conventions to minimize mapping logic in the hooks:
+
+| Field | Stored Values | RFC 5545 Alignment |
+|-------|--------------|-------------------|
+| `recurrenceType` | `'DAILY'`, `'WEEKLY'`, `'MONTHLY'` | Matches `freq` parameter directly |
+| `weekdays` | `'MO'`, `'TU'`, `'WE'`, `'TH'`, `'FR'`, `'SA'`, `'SU'` | Matches `byDay` values directly |
+| `weekdayOfMonth` | `'MO'`–`'SU'` | Matches RFC 5545 day codes |
+| `weekNumber` | `'1'`–`'4'`, `'-1'` | Combined with weekday for `byDay` (e.g., `1MO`, `-1FR`) |
 
 ### Key Files
 - `src/fields/scheduleField.ts` - Group field factory with sub-fields, virtual fields, and `ScheduleFieldOptions` type
-- `src/hooks/scheduleHooks.ts` - `buildRRule` shared helper, `computeRRule` and `computeUpcomingDates` afterRead hooks, `getLocalComponents` UTC-to-local converter, `ScheduleSubFields` type
+- `src/hooks/scheduleHooks.ts` - `buildRRuleTemporal` shared helper, `computeRRule` and `computeUpcomingDates` afterRead hooks, `getLocalTimeHHMM` utility, `ScheduleSubFields` type
+- `tests/int/schedule-hooks.int.spec.ts` - Unit tests including DST transition correctness tests

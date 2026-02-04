@@ -1021,7 +1021,7 @@ export interface AppCard {
   schedule?: {
     firstDate: string;
     firstDate_tz: SupportedTimezones;
-    recurrenceType?: ('daily' | 'weekly' | 'monthly') | null;
+    recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
     /**
      * Repeat every N days/weeks/months
      */

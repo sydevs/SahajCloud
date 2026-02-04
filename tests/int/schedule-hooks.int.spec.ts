@@ -34,7 +34,7 @@ describe('Schedule Field Hooks', () => {
     describe('returns null when firstDate is missing or invalid', () => {
       it('returns null when firstDate is missing', () => {
         const result = callHook(computeRRule, {
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
           firstDate_tz: 'UTC',
         })
         expect(result).toBeNull()
@@ -42,7 +42,7 @@ describe('Schedule Field Hooks', () => {
 
       it('returns null when firstDate is invalid', () => {
         const result = callHook(computeRRule, {
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
           firstDate: 'not-a-date',
           firstDate_tz: 'UTC',
         })
@@ -57,7 +57,7 @@ describe('Schedule Field Hooks', () => {
       it('returns null when firstDate is empty string', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
           firstDate: '',
         })
         expect(result).toBeNull()
@@ -93,11 +93,11 @@ describe('Schedule Field Hooks', () => {
       it('generates RRULE with FREQ=DAILY', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
         }) as string
 
-        // rrule uses DTSTART:...Z format for UTC (no TZID parameter)
-        expect(result).toContain('DTSTART:20250315T140000Z')
+        // rrule-temporal uses DTSTART;TZID=UTC format (always includes TZID)
+        expect(result).toContain('DTSTART;TZID=UTC:20250315T140000')
         expect(result).toContain('FREQ=DAILY')
       })
 
@@ -106,10 +106,10 @@ describe('Schedule Field Hooks', () => {
         const result = callHook(computeRRule, {
           firstDate: '2025-03-15T13:30:00.000Z',
           firstDate_tz: 'America/New_York',
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
         }) as string
 
-        expect(result).toContain('TZID=America/New_York:20250315T093000')
+        expect(result).toContain('DTSTART;TZID=America/New_York:20250315T093000')
         expect(result).toContain('FREQ=DAILY')
       })
     })
@@ -119,7 +119,7 @@ describe('Schedule Field Hooks', () => {
       it('generates RRULE with FREQ=WEEKLY without weekdays', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'weekly',
+          recurrenceType: 'WEEKLY',
         }) as string
 
         expect(result).toContain('FREQ=WEEKLY')
@@ -129,8 +129,8 @@ describe('Schedule Field Hooks', () => {
       it('generates weekly RRULE with single weekday', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'weekly',
-          weekdays: ['2'], // Wednesday
+          recurrenceType: 'WEEKLY',
+          weekdays: ['WE'], // Wednesday
         }) as string
 
         expect(result).toContain('FREQ=WEEKLY')
@@ -140,8 +140,8 @@ describe('Schedule Field Hooks', () => {
       it('generates weekly RRULE with multiple weekdays', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'weekly',
-          weekdays: ['0', '2', '4'], // Mon, Wed, Fri
+          recurrenceType: 'WEEKLY',
+          weekdays: ['MO', 'WE', 'FR'], // Mon, Wed, Fri
         }) as string
 
         expect(result).toContain('FREQ=WEEKLY')
@@ -151,8 +151,8 @@ describe('Schedule Field Hooks', () => {
       it('ignores weekdays for non-weekly recurrence', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'daily',
-          weekdays: ['0', '2'],
+          recurrenceType: 'DAILY',
+          weekdays: ['MO', 'WE'],
         }) as string
 
         expect(result).toContain('FREQ=DAILY')
@@ -162,7 +162,7 @@ describe('Schedule Field Hooks', () => {
       it('handles empty weekdays array for weekly', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'weekly',
+          recurrenceType: 'WEEKLY',
           weekdays: [],
         }) as string
 
@@ -176,7 +176,7 @@ describe('Schedule Field Hooks', () => {
       it('defaults to by-date mode using start date day', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'monthly',
+          recurrenceType: 'MONTHLY',
         }) as string
 
         expect(result).toContain('FREQ=MONTHLY')
@@ -186,7 +186,7 @@ describe('Schedule Field Hooks', () => {
       it('generates monthly by specific day of month', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'monthly',
+          recurrenceType: 'MONTHLY',
           monthlyMode: 'date',
           monthDay: 1,
         }) as string
@@ -197,7 +197,7 @@ describe('Schedule Field Hooks', () => {
       it('generates monthly by day 31', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'monthly',
+          recurrenceType: 'MONTHLY',
           monthlyMode: 'date',
           monthDay: 31,
         }) as string
@@ -209,7 +209,7 @@ describe('Schedule Field Hooks', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
           firstDate: '2025-03-20T14:00:00.000Z',
-          recurrenceType: 'monthly',
+          recurrenceType: 'MONTHLY',
           monthlyMode: 'date',
         }) as string
 
@@ -219,47 +219,47 @@ describe('Schedule Field Hooks', () => {
       it('generates monthly by 1st Monday', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'monthly',
+          recurrenceType: 'MONTHLY',
           monthlyMode: 'weekday',
           weekNumber: '1',
-          weekdayOfMonth: '0', // Monday
+          weekdayOfMonth: 'MO', // Monday
         }) as string
 
         expect(result).toContain('FREQ=MONTHLY')
-        expect(result).toContain('BYDAY=+1MO')
+        expect(result).toContain('BYDAY=1MO')
       })
 
       it('generates monthly by 2nd Wednesday', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'monthly',
+          recurrenceType: 'MONTHLY',
           monthlyMode: 'weekday',
           weekNumber: '2',
-          weekdayOfMonth: '2', // Wednesday
+          weekdayOfMonth: 'WE', // Wednesday
         }) as string
 
-        expect(result).toContain('BYDAY=+2WE')
+        expect(result).toContain('BYDAY=2WE')
       })
 
       it('generates monthly by 3rd Friday', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'monthly',
+          recurrenceType: 'MONTHLY',
           monthlyMode: 'weekday',
           weekNumber: '3',
-          weekdayOfMonth: '4', // Friday
+          weekdayOfMonth: 'FR', // Friday
         }) as string
 
-        expect(result).toContain('BYDAY=+3FR')
+        expect(result).toContain('BYDAY=3FR')
       })
 
       it('generates monthly by last Friday', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'monthly',
+          recurrenceType: 'MONTHLY',
           monthlyMode: 'weekday',
           weekNumber: '-1',
-          weekdayOfMonth: '4', // Friday
+          weekdayOfMonth: 'FR', // Friday
         }) as string
 
         expect(result).toContain('BYDAY=-1FR')
@@ -268,12 +268,12 @@ describe('Schedule Field Hooks', () => {
       it('defaults weekdayOfMonth to Monday when not specified', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'monthly',
+          recurrenceType: 'MONTHLY',
           monthlyMode: 'weekday',
           weekNumber: '1',
         }) as string
 
-        expect(result).toContain('BYDAY=+1MO')
+        expect(result).toContain('BYDAY=1MO')
       })
     })
 
@@ -282,7 +282,7 @@ describe('Schedule Field Hooks', () => {
       it('omits INTERVAL when interval is 1', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
           interval: 1,
         }) as string
 
@@ -292,7 +292,7 @@ describe('Schedule Field Hooks', () => {
       it('omits INTERVAL when interval is not specified', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
         }) as string
 
         expect(result).not.toContain('INTERVAL')
@@ -301,7 +301,7 @@ describe('Schedule Field Hooks', () => {
       it('includes INTERVAL when interval is greater than 1', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
           interval: 3,
         }) as string
 
@@ -314,7 +314,7 @@ describe('Schedule Field Hooks', () => {
       it('omits COUNT and UNTIL when endingType not specified', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
         }) as string
 
         expect(result).not.toContain('COUNT')
@@ -324,7 +324,7 @@ describe('Schedule Field Hooks', () => {
       it('includes COUNT when endingType is count', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
           endingType: 'count',
           count: 5,
         }) as string
@@ -335,7 +335,7 @@ describe('Schedule Field Hooks', () => {
       it('omits COUNT when count is 0', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
           endingType: 'count',
           count: 0,
         }) as string
@@ -346,7 +346,7 @@ describe('Schedule Field Hooks', () => {
       it('omits COUNT when count is not specified', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
           endingType: 'count',
         }) as string
 
@@ -356,23 +356,24 @@ describe('Schedule Field Hooks', () => {
       it('includes UNTIL when endingType is until', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
           endingType: 'until',
           untilDate: '2025-12-31',
         }) as string
 
-        expect(result).toContain('UNTIL=20251231T235900')
+        // rrule-temporal converts UNTIL to UTC with Z suffix
+        expect(result).toContain('UNTIL=20251231T235900Z')
       })
 
       it('handles ISO datetime untilDate format', () => {
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
           endingType: 'until',
           untilDate: '2025-12-31T00:00:00.000Z',
         }) as string
 
-        expect(result).toContain('UNTIL=20251231T235900')
+        expect(result).toContain('UNTIL=20251231T235900Z')
       })
     })
 
@@ -382,28 +383,28 @@ describe('Schedule Field Hooks', () => {
         // March 15 London is GMT (UTC+0), so 14:00 UTC = 14:00 local
         const result = callHook(computeRRule, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
           firstDate_tz: 'Europe/London',
         }) as string
 
-        expect(result).toContain('TZID=Europe/London')
+        expect(result).toContain('DTSTART;TZID=Europe/London')
       })
 
       it('defaults to UTC when firstDate_tz not specified', () => {
         const result = callHook(computeRRule, {
           firstDate: '2025-03-15T14:00:00.000Z',
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
         }) as string
 
-        // rrule uses DTSTART:...Z format for UTC (no TZID parameter)
-        expect(result).toContain('DTSTART:20250315T140000Z')
+        // rrule-temporal always uses DTSTART;TZID format, even for UTC
+        expect(result).toContain('DTSTART;TZID=UTC:20250315T140000')
       })
 
       it('uses time from firstDate datetime', () => {
         const result = callHook(computeRRule, {
           firstDate: '2025-03-15T16:45:00.000Z',
           firstDate_tz: 'UTC',
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
         }) as string
 
         expect(result).toContain(':20250315T164500')
@@ -413,7 +414,7 @@ describe('Schedule Field Hooks', () => {
         const result = callHook(computeRRule, {
           firstDate: '2025-01-02T09:30:00.000Z',
           firstDate_tz: 'UTC',
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
         }) as string
 
         expect(result).toContain(':20250102T093000')
@@ -436,20 +437,20 @@ describe('Schedule Field Hooks', () => {
     })
 
     // ── Null / missing data ──────────────────────────────────────────
-    describe('returns null for missing data', () => {
-      it('returns null when firstDate is missing (recurring)', () => {
+    describe('returns empty array for missing data', () => {
+      it('returns empty array when firstDate is missing (recurring)', () => {
         const result = callHook(computeUpcomingDates, {
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
           firstDate_tz: 'UTC',
         })
-        expect(result).toBeNull()
+        expect(result).toEqual([])
       })
 
-      it('returns null when firstDate is missing (no recurrence)', () => {
+      it('returns empty array when firstDate is missing (no recurrence)', () => {
         const result = callHook(computeUpcomingDates, {
           firstDate_tz: 'UTC',
         })
-        expect(result).toBeNull()
+        expect(result).toEqual([])
       })
     })
 
@@ -510,7 +511,7 @@ describe('Schedule Field Hooks', () => {
       it('returns array of ISO 8601 strings for daily recurrence', () => {
         const result = callHook(computeUpcomingDates, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
         }) as string[]
 
         expect(result).toBeInstanceOf(Array)
@@ -527,7 +528,7 @@ describe('Schedule Field Hooks', () => {
         const result = callHook(computeUpcomingDates, {
           firstDate: '2025-03-01T10:00:00.000Z',
           firstDate_tz: 'UTC',
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
         }) as string[]
 
         expect(result.length).toBeGreaterThan(0)
@@ -542,7 +543,7 @@ describe('Schedule Field Hooks', () => {
       it('returns occurrences for weekly recurrence', () => {
         const result = callHook(computeUpcomingDates, {
           ...baseFields,
-          recurrenceType: 'weekly',
+          recurrenceType: 'WEEKLY',
         }) as string[]
 
         expect(result).toBeInstanceOf(Array)
@@ -560,7 +561,7 @@ describe('Schedule Field Hooks', () => {
         const result = callHook(computeUpcomingDates, {
           firstDate: '2020-01-01T10:00:00.000Z',
           firstDate_tz: 'UTC',
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
           endingType: 'count',
           count: 3,
         }) as string[]
@@ -569,12 +570,132 @@ describe('Schedule Field Hooks', () => {
       })
     })
 
+    // ── Timezone correctness (DST bug regression) ────────────────────
+    describe('timezone correctness (DST regression)', () => {
+      it('returns correct UTC time for Europe/Berlin winter event (CET, UTC+1)', () => {
+        // 18:00 Berlin in winter (CET) = 17:00 UTC
+        // This is the original bug: rrule v2.8.1 returned 01:00 UTC due to double conversion
+        vi.setSystemTime(new Date('2025-02-01T00:00:00Z'))
+
+        const result = callHook(computeUpcomingDates, {
+          firstDate: '2025-02-15T17:00:00.000Z', // 18:00 Berlin (CET, UTC+1)
+          firstDate_tz: 'Europe/Berlin',
+          recurrenceType: 'DAILY',
+        }) as string[]
+
+        expect(result.length).toBeGreaterThan(0)
+        // All occurrences should be at 17:00 UTC (18:00 Berlin in winter)
+        for (const dateStr of result) {
+          expect(dateStr).toMatch(/T17:00:00\.000Z$/)
+        }
+      })
+
+      it('returns correct UTC time for Europe/Berlin summer event (CEST, UTC+2)', () => {
+        // 18:00 Berlin in summer (CEST) = 16:00 UTC
+        vi.setSystemTime(new Date('2025-06-01T00:00:00Z'))
+
+        const result = callHook(computeUpcomingDates, {
+          firstDate: '2025-06-15T16:00:00.000Z', // 18:00 Berlin (CEST, UTC+2)
+          firstDate_tz: 'Europe/Berlin',
+          recurrenceType: 'DAILY',
+        }) as string[]
+
+        expect(result.length).toBeGreaterThan(0)
+        // All occurrences should be at 16:00 UTC (18:00 Berlin in summer)
+        for (const dateStr of result) {
+          expect(dateStr).toMatch(/T16:00:00\.000Z$/)
+        }
+      })
+
+      it('handles recurring event spanning DST transition (CET → CEST)', () => {
+        // Weekly event starting in winter, spanning across DST transition
+        // Berlin DST spring-forward: last Sunday of March 2025 = March 30
+        vi.setSystemTime(new Date('2025-03-15T00:00:00Z'))
+
+        const result = callHook(computeUpcomingDates, {
+          firstDate: '2025-03-15T17:00:00.000Z', // 18:00 Berlin (CET, UTC+1)
+          firstDate_tz: 'Europe/Berlin',
+          recurrenceType: 'WEEKLY',
+        }) as string[]
+
+        expect(result.length).toBeGreaterThan(0)
+
+        // Before DST (March): 18:00 Berlin = 17:00 UTC
+        // After DST (April): 18:00 Berlin = 16:00 UTC
+        for (const dateStr of result) {
+          const date = new Date(dateStr)
+          const month = date.getUTCMonth() // 0-indexed: 2=March, 3=April
+          if (month <= 2) {
+            // March and before: CET (UTC+1) → 17:00 UTC
+            expect(dateStr).toMatch(/T17:00:00\.000Z$/)
+          } else {
+            // April and after: CEST (UTC+2) → 16:00 UTC
+            expect(dateStr).toMatch(/T16:00:00\.000Z$/)
+          }
+        }
+      })
+
+      it('handles half-hour timezone (Asia/Kolkata, UTC+5:30)', () => {
+        // 18:00 Kolkata (IST, UTC+5:30) = 12:30 UTC
+        vi.setSystemTime(new Date('2025-03-01T00:00:00Z'))
+
+        const result = callHook(computeUpcomingDates, {
+          firstDate: '2025-03-15T12:30:00.000Z', // 18:00 Kolkata (IST)
+          firstDate_tz: 'Asia/Kolkata',
+          recurrenceType: 'DAILY',
+        }) as string[]
+
+        expect(result.length).toBeGreaterThan(0)
+        // All occurrences should be at 12:30 UTC (18:00 Kolkata, no DST in India)
+        for (const dateStr of result) {
+          expect(dateStr).toMatch(/T12:30:00\.000Z$/)
+        }
+      })
+
+      it('returns correct UTC for one-off event with timezone', () => {
+        // One-off event at 18:00 Berlin (CET) = 17:00 UTC
+        vi.setSystemTime(new Date('2025-02-01T00:00:00Z'))
+
+        const result = callHook(computeUpcomingDates, {
+          firstDate: '2025-02-15T17:00:00.000Z', // 18:00 Berlin (CET)
+          firstDate_tz: 'Europe/Berlin',
+        }) as string[]
+
+        expect(result).toHaveLength(1)
+        expect(result[0]).toBe('2025-02-15T17:00:00.000Z')
+      })
+
+      it('handles America/New_York DST transition (EST → EDT)', () => {
+        // New York DST spring-forward: 2nd Sunday of March 2025 = March 9
+        vi.setSystemTime(new Date('2025-03-01T00:00:00Z'))
+
+        const result = callHook(computeUpcomingDates, {
+          firstDate: '2025-03-01T15:00:00.000Z', // 10:00 NYC (EST, UTC-5)
+          firstDate_tz: 'America/New_York',
+          recurrenceType: 'DAILY',
+        }) as string[]
+
+        expect(result.length).toBeGreaterThan(0)
+
+        for (const dateStr of result) {
+          const date = new Date(dateStr)
+          // Before March 9: EST (UTC-5) → 10:00 local = 15:00 UTC
+          // After March 9: EDT (UTC-4) → 10:00 local = 14:00 UTC
+          if (date.getUTCDate() < 9 && date.getUTCMonth() === 2) {
+            expect(dateStr).toMatch(/T15:00:00\.000Z$/)
+          } else if (date.getUTCDate() >= 10 && date.getUTCMonth() === 2) {
+            expect(dateStr).toMatch(/T14:00:00\.000Z$/)
+          }
+        }
+      })
+    })
+
     // ── Limiting behavior ────────────────────────────────────────────
     describe('limiting behavior', () => {
       it('returns at most 10 occurrences', () => {
         const result = callHook(computeUpcomingDates, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
         }) as string[]
 
         expect(result.length).toBeLessThanOrEqual(10)
@@ -583,7 +704,7 @@ describe('Schedule Field Hooks', () => {
       it('returns exactly 10 for unlimited daily rule with future start', () => {
         const result = callHook(computeUpcomingDates, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
         }) as string[]
 
         expect(result.length).toBe(10)
@@ -592,7 +713,7 @@ describe('Schedule Field Hooks', () => {
       it('returns fewer than 10 when count limits occurrences', () => {
         const result = callHook(computeUpcomingDates, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
           endingType: 'count',
           count: 3,
         }) as string[]
@@ -603,7 +724,7 @@ describe('Schedule Field Hooks', () => {
       it('returns fewer than 10 when until date limits occurrences', () => {
         const result = callHook(computeUpcomingDates, {
           ...baseFields,
-          recurrenceType: 'daily',
+          recurrenceType: 'DAILY',
           endingType: 'until',
           untilDate: '2025-03-20',
         }) as string[]
@@ -680,11 +801,11 @@ describe('Schedule Field Hooks', () => {
       const result = callHook(computeRRule, {
         firstDate: '2025-03-15T13:30:00.000Z',
         firstDate_tz: 'America/New_York',
-        recurrenceType: 'daily',
+        recurrenceType: 'DAILY',
       }) as string
 
       // DTSTART should show local time 09:30 in NYC timezone
-      expect(result).toContain('TZID=America/New_York:20250315T093000')
+      expect(result).toContain('DTSTART;TZID=America/New_York:20250315T093000')
     })
 
     it('adjusts DTSTART correctly across DST boundary', () => {
@@ -692,18 +813,18 @@ describe('Schedule Field Hooks', () => {
       const winterResult = callHook(computeRRule, {
         firstDate: '2025-01-15T14:00:00.000Z',
         firstDate_tz: 'America/New_York',
-        recurrenceType: 'daily',
+        recurrenceType: 'DAILY',
       }) as string
 
       // June 15 (EDT, UTC-4): 14:00 UTC = 10:00 local
       const summerResult = callHook(computeRRule, {
         firstDate: '2025-06-15T14:00:00.000Z',
         firstDate_tz: 'America/New_York',
-        recurrenceType: 'daily',
+        recurrenceType: 'DAILY',
       }) as string
 
-      expect(winterResult).toContain('TZID=America/New_York:20250115T090000')
-      expect(summerResult).toContain('TZID=America/New_York:20250615T100000')
+      expect(winterResult).toContain('DTSTART;TZID=America/New_York:20250115T090000')
+      expect(summerResult).toContain('DTSTART;TZID=America/New_York:20250615T100000')
     })
 
     it('handles half-hour offset timezone (Asia/Kolkata, UTC+5:30)', () => {
@@ -711,10 +832,10 @@ describe('Schedule Field Hooks', () => {
       const result = callHook(computeRRule, {
         firstDate: '2025-03-15T14:00:00.000Z',
         firstDate_tz: 'Asia/Kolkata',
-        recurrenceType: 'daily',
+        recurrenceType: 'DAILY',
       }) as string
 
-      expect(result).toContain('TZID=Asia/Kolkata:20250315T193000')
+      expect(result).toContain('DTSTART;TZID=Asia/Kolkata:20250315T193000')
     })
   })
 })
