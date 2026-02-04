@@ -3,6 +3,7 @@ import type { CollectionConfig, FieldHook, Validate, Where } from 'payload'
 import { mediaField, slugField } from '@/fields'
 import { serverEnv } from '@/lib/env'
 import { LOCALES } from '@/lib/locales'
+import { getR2Url } from '@/lib/storage/r2NativeAdapter'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 import { KeyframeData, KeyframeDefinition } from '@/types/frames'
 
@@ -33,13 +34,16 @@ const songUrlAfterRead: FieldHook = async ({ data, req }) => {
   const { docs } = await req.payload.find({
     collection: 'songs',
     where: songWhere,
-    select: { url: true },
+    select: { filename: true },
     limit: 1,
     page: randomPage,
     depth: 0,
   })
 
-  return docs[0]?.url ?? null
+  const song = docs[0]
+  if (!song?.filename) return null
+
+  return getR2Url(song.filename) ?? `/api/songs/file/${song.filename}`
 }
 
 export const Meditations: CollectionConfig = {
