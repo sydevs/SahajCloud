@@ -4820,6 +4820,73 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "app_cards_schedule_weekdays": {
+      "name": "app_cards_schedule_weekdays",
+      "columns": {
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "app_cards_schedule_weekdays_order_idx": {
+          "name": "app_cards_schedule_weekdays_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "app_cards_schedule_weekdays_parent_idx": {
+          "name": "app_cards_schedule_weekdays_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "app_cards_schedule_weekdays_parent_fk": {
+          "name": "app_cards_schedule_weekdays_parent_fk",
+          "tableFrom": "app_cards_schedule_weekdays",
+          "tableTo": "app_cards",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "app_cards": {
       "name": "app_cards",
       "columns": {
@@ -4845,13 +4912,103 @@
           "notNull": false,
           "autoincrement": false
         },
-        "schedule": {
-          "name": "schedule",
+        "schedule_start_date": {
+          "name": "schedule_start_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "schedule_start_time": {
+          "name": "schedule_start_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "schedule_end_time": {
+          "name": "schedule_end_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "schedule_timezone": {
+          "name": "schedule_timezone",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "default": "'{\"dtstart\":\"2026-02-03T15:00:00Z\",\"dtend\":null,\"tzid\":\"Asia/Kuala_Lumpur\",\"rrule\":null,\"duration\":0}'"
+          "default": "'Asia/Kuala_Lumpur'"
+        },
+        "schedule_recurrence_type": {
+          "name": "schedule_recurrence_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "schedule_interval": {
+          "name": "schedule_interval",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 1
+        },
+        "schedule_monthly_mode": {
+          "name": "schedule_monthly_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'date'"
+        },
+        "schedule_month_day": {
+          "name": "schedule_month_day",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 1
+        },
+        "schedule_week_number": {
+          "name": "schedule_week_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'1'"
+        },
+        "schedule_weekday_of_month": {
+          "name": "schedule_weekday_of_month",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'0'"
+        },
+        "schedule_ending_type": {
+          "name": "schedule_ending_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "schedule_count": {
+          "name": "schedule_count",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 10
+        },
+        "schedule_until_date": {
+          "name": "schedule_until_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "updated_at": {
           "name": "updated_at",
@@ -5213,6 +5370,73 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "_app_cards_v_version_schedule_weekdays": {
+      "name": "_app_cards_v_version_schedule_weekdays",
+      "columns": {
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "_app_cards_v_version_schedule_weekdays_order_idx": {
+          "name": "_app_cards_v_version_schedule_weekdays_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_version_schedule_weekdays_parent_idx": {
+          "name": "_app_cards_v_version_schedule_weekdays_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "_app_cards_v_version_schedule_weekdays_parent_fk": {
+          "name": "_app_cards_v_version_schedule_weekdays_parent_fk",
+          "tableFrom": "_app_cards_v_version_schedule_weekdays",
+          "tableTo": "_app_cards_v",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "_app_cards_v": {
       "name": "_app_cards_v",
       "columns": {
@@ -5245,13 +5469,103 @@
           "notNull": false,
           "autoincrement": false
         },
-        "version_schedule": {
-          "name": "version_schedule",
+        "version_schedule_start_date": {
+          "name": "version_schedule_start_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_schedule_start_time": {
+          "name": "version_schedule_start_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_schedule_end_time": {
+          "name": "version_schedule_end_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_schedule_timezone": {
+          "name": "version_schedule_timezone",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "default": "'{\"dtstart\":\"2026-02-03T15:00:00Z\",\"dtend\":null,\"tzid\":\"Asia/Kuala_Lumpur\",\"rrule\":null,\"duration\":0}'"
+          "default": "'Asia/Kuala_Lumpur'"
+        },
+        "version_schedule_recurrence_type": {
+          "name": "version_schedule_recurrence_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_schedule_interval": {
+          "name": "version_schedule_interval",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 1
+        },
+        "version_schedule_monthly_mode": {
+          "name": "version_schedule_monthly_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'date'"
+        },
+        "version_schedule_month_day": {
+          "name": "version_schedule_month_day",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 1
+        },
+        "version_schedule_week_number": {
+          "name": "version_schedule_week_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'1'"
+        },
+        "version_schedule_weekday_of_month": {
+          "name": "version_schedule_weekday_of_month",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'0'"
+        },
+        "version_schedule_ending_type": {
+          "name": "version_schedule_ending_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_schedule_count": {
+          "name": "version_schedule_count",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 10
+        },
+        "version_schedule_until_date": {
+          "name": "version_schedule_until_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "version_updated_at": {
           "name": "version_updated_at",
@@ -10044,6 +10358,6 @@
   "internal": {
     "indexes": {}
   },
-  "id": "6a407ae6-ca7b-4869-97d9-eaa16a10ef75",
+  "id": "f95a90f3-3c16-421b-ab43-9e40da1025f0",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

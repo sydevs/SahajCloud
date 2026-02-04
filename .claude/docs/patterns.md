@@ -674,4 +674,17 @@ rule.toText()  // Works!
 - Don't conditionally include properties that might be undefined
 - Use default values (e.g., `interval: 1`) instead of omitting/undefined
 - This applies to other rrule options that expect specific types
-- See `src/components/admin/ScheduleField/utils.ts` for correct usage
+
+
+## Schedule Field Architecture
+
+The schedule field uses a PayloadCMS Group field with native sub-fields stored in individual database columns. Two virtual fields are computed on read using the `rrule` library:
+
+- **`rrule`** (text) — iCalendar RRULE string (e.g., `DTSTART;TZID=America/New_York:...RRULE:FREQ=WEEKLY;INTERVAL=2`)
+- **`upcomingDates`** (json) — Array of up to 10 ISO 8601 date strings representing the next occurrences from the current time, computed via `rrule.between()` with early termination
+
+Both hooks delegate to a shared `buildRRule()` helper that constructs the RRule instance from sub-fields.
+
+### Key Files
+- `src/fields/scheduleField.ts` - Group field factory with sub-fields, virtual fields, and `ScheduleFieldOptions` type
+- `src/hooks/scheduleHooks.ts` - `buildRRule` shared helper, `computeRRule` and `computeUpcomingDates` afterRead hooks, `ScheduleSubFields` type
