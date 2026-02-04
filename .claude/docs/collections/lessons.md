@@ -49,3 +49,4 @@ The Lessons collection (labeled as "Path Steps" in the admin UI) provides medita
 - Subtitles field is conditionally shown when media is present
 - File attachments (via Files collection) for introAudio support cascade deletion via ownership system
 - Article field is a rich text field within the Lesson, not a relationship to the Pages collection
+- The `meditation` relationship field uses `filterOptions: { type: { equals: 'lesson' } }` to restrict selection to meditations with type `'lesson'`. When creating meditations for test lessons, set `type: 'lesson'`.
