@@ -739,3 +739,57 @@ Stored field values align with RFC 5545 / rrule-temporal conventions to minimize
 - `src/fields/scheduleField.ts` - Group field factory with sub-fields, virtual fields, and `ScheduleFieldOptions` type
 - `src/hooks/scheduleHooks.ts` - `buildRRuleTemporal` shared helper, `computeRRule` and `computeUpcomingDates` afterRead hooks, `getLocalTimeHHMM` utility, `ScheduleSubFields` type
 - `tests/int/schedule-hooks.int.spec.ts` - Unit tests including DST transition correctness tests
+
+## PayloadCMS defaultPopulate Behavior
+
+The `defaultPopulate` collection config controls which fields are included when a document is loaded via **relationship population** (i.e., when another document references it through a relationship field with `depth >= 1`). It does **not** affect direct queries.
+
+### Key Behavior
+
+- **Direct queries** (`findByID`, `find`): All fields including virtual fields are always computed, regardless of `defaultPopulate`
+- **Relationship population**: Fields listed in `defaultPopulate` with `false` are excluded when the document is loaded as part of a relationship
+
+### Use Case: Excluding Expensive Virtual Fields
+
+Virtual fields with `afterRead` hooks that perform database queries (e.g., `songUrl` on Meditations) can cause N+1 performance issues when documents are loaded through relationships. Use `defaultPopulate` to exclude them:
+
+```typescript
+export const Meditations: CollectionConfig = {
+  slug: 'meditations',
+  defaultPopulate: {
+    songUrl: false, // Exclude from relationship population
+  },
+  fields: [
+    {
+      name: 'songUrl',
+      type: 'text',
+      virtual: true,
+      hooks: {
+        afterRead: [songUrlAfterRead], // Expensive: 2 DB queries per meditation
+      },
+    },
+  ],
+}
+```
+
+### Testing defaultPopulate
+
+To verify `defaultPopulate` works correctly, test through a relationship, not a direct query:
+
+```typescript
+// ❌ WRONG: Direct query always includes all fields
+const result = await payload.findByID({
+  collection: 'meditations',
+  id: meditationId,
+})
+expect(result.songUrl).toBeFalsy() // FAILS - direct query always computes virtual fields
+
+// ✅ CORRECT: Test via relationship population
+const lesson = await payload.findByID({
+  collection: 'lessons',
+  id: lessonId,
+  depth: 1, // Populate relationships
+})
+const populated = lesson.meditation as Meditation
+expect(populated.songUrl).toBeFalsy() // Passes - excluded by defaultPopulate
+```

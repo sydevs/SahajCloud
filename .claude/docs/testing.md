@@ -112,6 +112,7 @@ CLEAN_E2E_DB=true pnpm test:e2e
 - **No Data Conflicts**: Tests can run in parallel without data interference
 - **Fast Execution**: In-memory database provides rapid test execution
 - **No external dependencies**: No database server required (using better-sqlite3)
+- **Single Environment Per File**: Only call `createTestEnvironment()` once per test file. Multiple calls in the same file cause Payload global state conflicts (e.g., `TypeError: Cannot read properties of undefined`). Use nested `describe` blocks to organize tests within a single environment.
 
 ## Test Environment Setup
 

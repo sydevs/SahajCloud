@@ -411,6 +411,7 @@ export interface Author {
  */
 export interface Meditation {
   id: number;
+  songUrl?: string | null;
   label: string;
   locale:
     | 'en'
@@ -1542,6 +1543,7 @@ export interface PagesSelect<T extends boolean = true> {
  * via the `definition` "meditations_select".
  */
 export interface MeditationsSelect<T extends boolean = true> {
+  songUrl?: T;
   label?: T;
   locale?: T;
   narrator?: T;

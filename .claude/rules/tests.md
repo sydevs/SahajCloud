@@ -27,7 +27,9 @@ Rules for writing tests in this codebase.
 
 ## Writing Isolated Tests
 
-Use `createTestEnvironment()` for complete test isolation:
+Use `createTestEnvironment()` for complete test isolation.
+
+**IMPORTANT**: Only call `createTestEnvironment()` once per test file. Multiple calls cause Payload global state conflicts. Use nested `describe` blocks to organize tests within a single environment.
 
 ```typescript
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
@@ -50,6 +52,13 @@ describe('My Collection', () => {
 
   it('performs operations with complete isolation', async () => {
     // Test operations here
+  })
+
+  describe('nested feature tests', () => {
+    // Share the same payload instance - do NOT create a new environment
+    it('tests a specific feature', async () => {
+      // Uses the same payload from outer describe
+    })
   })
 })
 ```
