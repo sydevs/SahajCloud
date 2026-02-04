@@ -20,6 +20,21 @@ Rules for TypeScript type definitions and organization.
 - Component-specific prop types
 - Types tightly coupled to a specific implementation
 
+## Co-location Principle
+
+**If a type has a single consumer, co-locate it in the consumer's file.** Don't maintain a separate file in `src/types/` for types used by only one module.
+
+```typescript
+// ScheduleSubFields is only used by scheduleHooks.ts → define it there
+// src/hooks/scheduleHooks.ts
+interface ScheduleSubFields {
+  firstDate?: string
+  // ...
+}
+```
+
+When a second consumer needs the type, extract it to `src/types/`.
+
 ## Type File Organization
 
 ```

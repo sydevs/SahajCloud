@@ -21,6 +21,6 @@ export type { SlugFieldOptions } from './slugField'
 export { buildTranslationTabs } from './translationsField'
 export type { SchemaEntry, TranslationsSchema } from './translationsField'
 
-// Recurrence field - JSON field with RRULE support for event scheduling
-export { recurrenceField } from './recurrenceField'
-export type { RecurrenceFieldOptions } from './recurrenceField'
+// Schedule field - JSON field with datetime, timezone, and RRULE support
+export { scheduleField } from './scheduleField'
+export type { ScheduleFieldOptions } from './scheduleField'
