@@ -90,8 +90,8 @@ const ENDING_OPTIONS = [
  * fields: [
  *   scheduleField({
  *     name: 'schedule',
- *     endTime: true,
- *     ending: true,
+ *     hasEndTime: true,
+ *     hasEnding: true,
  *   }),
  * ]
  * ```

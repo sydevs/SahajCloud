@@ -28,7 +28,7 @@ Rules for TypeScript type definitions and organization.
 // ScheduleSubFields is only used by scheduleHooks.ts → define it there
 // src/hooks/scheduleHooks.ts
 interface ScheduleSubFields {
-  startDate?: string
+  firstDate?: string
   // ...
 }
 ```

@@ -199,6 +199,7 @@ export const computeUpcomingDates: FieldHook = ({ siblingData }) => {
 
     const occurrences = rule.between(now, endDate, true)
 
+    // Number() cast: rrule-temporal returns epochMilliseconds as BigInt
     return occurrences
       .slice(0, UPCOMING_COUNT)
       .map((zdt) => new Date(Number(zdt.epochMilliseconds)).toISOString())
@@ -207,7 +208,7 @@ export const computeUpcomingDates: FieldHook = ({ siblingData }) => {
   // One-off event: return the event date if it's in the future
   const dates = rule.all()
   if (dates.length > 0) {
-    const utcMs = Number(dates[0].epochMilliseconds)
+    const utcMs = Number(dates[0].epochMilliseconds) // BigInt → number
     if (utcMs > now.getTime()) {
       return [new Date(utcMs).toISOString()]
     }
