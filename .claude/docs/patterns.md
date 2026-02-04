@@ -281,6 +281,61 @@ const [{ data: frames, isLoading, isError }] = usePayloadAPI(
 - Race conditions are hard to debug and reproduce
 - Custom endpoints eliminate the problem entirely
 
+## PayloadCMS Conditional Validation Pattern
+
+When a field has both `required: true` and a custom `validate` function, **do not** return `true` for null/empty values in the validate function. PayloadCMS handles the `required` + `admin.condition` lifecycle correctly — when a field's condition is false, validation is skipped entirely.
+
+### Problem
+
+```typescript
+// ❌ Custom validate overrides the `required` constraint
+{
+  name: 'startTime',
+  type: 'text',
+  required: true,
+  validate: (value: string | null | undefined) => {
+    if (!value) return true // "Required validation handles empty"
+    const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
+    if (!timeRegex.test(value)) {
+      return 'Enter time in HH:MM format'
+    }
+    return true
+  },
+}
+```
+
+The `if (!value) return true` line was added thinking it was needed to allow saves when the field is hidden via `admin.condition`. But this actually overrides `required: true`, allowing null values even when the field IS visible.
+
+### Solution
+
+```typescript
+// ✅ Let PayloadCMS handle the required + condition lifecycle
+{
+  name: 'startTime',
+  type: 'text',
+  required: true,
+  validate: (value: string | null | undefined) => {
+    const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
+    if (!value || !timeRegex.test(value)) {
+      return 'Enter time in HH:MM format (e.g., 09:00 or 14:30)'
+    }
+    return true
+  },
+}
+```
+
+### How PayloadCMS Handles This
+
+- When `admin.condition` evaluates to **false** → PayloadCMS skips validation for the field entirely (including custom `validate`)
+- When `admin.condition` evaluates to **true** → PayloadCMS runs `required` check and custom `validate` normally
+- The custom `validate` function does **not** need to account for the hidden state — PayloadCMS does this automatically
+
+### Key Points
+- Never return `true` for null/empty in a custom validate on a `required` field
+- Trust PayloadCMS to skip validation when `admin.condition` is false
+- Custom `validate` should only handle format/business logic, not nullability
+- This applies to fields inside conditionally-visible groups as well
+
 ## Schema Introspection Pattern
 
 When you need to discover which fields reference a particular collection (e.g., finding all fields that reference `files` or `images`), use the schema introspection utilities in `src/lib/schemaUtils.ts`.
@@ -644,34 +699,43 @@ See Cloudflare API integration:
 - Leverage type inference (`z.infer<>`) for TypeScript types
 - Validate at API boundaries, trust internal types
 
-## RRule Library Pitfall: Undefined Values
+## Schedule Field Architecture
 
-When using the `rrule` library for recurrence rules, avoid passing `undefined` values in options objects. The library crashes when `toText()` is called on rules with `undefined` interval.
+The schedule field uses a PayloadCMS Group field with native sub-fields stored in individual database columns. The `firstDate` field uses `timezone: true` which stores the datetime in UTC and auto-creates a companion `firstDate_tz` field for the IANA timezone.
 
-### Problem
+Two virtual fields are computed on read using `rrule-temporal` (RFC 5545-compliant recurrence library built on the Temporal API):
+
+- **`rrule`** (text) — iCalendar RRULE string (e.g., `DTSTART;TZID=America/New_York:20250315T093000\nRRULE:FREQ=WEEKLY;INTERVAL=2`) for both recurring and one-off events. One-off events produce a single-occurrence RRULE (`FREQ=DAILY;COUNT=1`). Returns `null` only when `firstDate` is missing.
+- **`upcomingDates`** (json) — Array of up to 10 ISO 8601 UTC date strings representing the next occurrences from the current time, computed via `rule.between()` with correct DST handling. Returns `[]` when `firstDate` is missing or all occurrences are in the past.
+
+Both hooks delegate to a shared `buildRRuleTemporal()` helper that constructs an `RRuleTemporal` instance from sub-fields.
+
+### Why rrule-temporal (not rrule)
+
+The legacy `rrule` library (v2.8.1) has a [known double-timezone-conversion bug](https://github.com/jkbrzt/rrule/issues/355): its `dateInTimeZone()` treats `dtstart`'s UTC slot values as real UTC and applies the timezone offset again, producing environment-dependent results. `rrule-temporal` handles timezones natively via `Temporal.ZonedDateTime`, eliminating this class of bugs entirely.
+
+### UTC → ZonedDateTime Conversion
+
+PayloadCMS stores `firstDate` in UTC. The hooks convert UTC → `Temporal.ZonedDateTime` in a single step using the Temporal API:
 
 ```typescript
-// ❌ Crashes with "Cannot read properties of undefined (reading 'toString')"
-const rule = new RRule({
-  freq: Frequency.DAILY,
-  interval: state.interval > 1 ? state.interval : undefined,  // DON'T pass undefined
-})
-rule.toText()  // Crash!
+const dtstart = Temporal.Instant.from(fields.firstDate).toZonedDateTimeISO(timezone)
 ```
 
-### Solution
+This replaces the previous multi-step approach (`Intl.DateTimeFormat` → `formatToParts()` → manual component extraction → `ZonedDateTime.from()`). The `getLocalTimeHHMM()` helper uses the same pattern for `endTime` field validation.
 
-```typescript
-// ✅ Always pass a number value
-const rule = new RRule({
-  freq: Frequency.DAILY,
-  interval: state.interval > 1 ? state.interval : 1,  // Always a number
-})
-rule.toText()  // Works!
-```
+### Field Value Conventions
 
-### Key Points
-- Don't conditionally include properties that might be undefined
-- Use default values (e.g., `interval: 1`) instead of omitting/undefined
-- This applies to other rrule options that expect specific types
-- See `src/components/admin/RecurrenceField/utils.ts` for correct usage
+Stored field values align with RFC 5545 / rrule-temporal conventions to minimize mapping logic in the hooks:
+
+| Field | Stored Values | RFC 5545 Alignment |
+|-------|--------------|-------------------|
+| `recurrenceType` | `'DAILY'`, `'WEEKLY'`, `'MONTHLY'` | Matches `freq` parameter directly |
+| `weekdays` | `'MO'`, `'TU'`, `'WE'`, `'TH'`, `'FR'`, `'SA'`, `'SU'` | Matches `byDay` values directly |
+| `weekdayOfMonth` | `'MO'`–`'SU'` | Matches RFC 5545 day codes |
+| `weekNumber` | `'1'`–`'4'`, `'-1'` | Combined with weekday for `byDay` (e.g., `1MO`, `-1FR`) |
+
+### Key Files
+- `src/fields/scheduleField.ts` - Group field factory with sub-fields, virtual fields, and `ScheduleFieldOptions` type
+- `src/hooks/scheduleHooks.ts` - `buildRRuleTemporal` shared helper, `computeRRule` and `computeUpcomingDates` afterRead hooks, `getLocalTimeHHMM` utility, `ScheduleSubFields` type
+- `tests/int/schedule-hooks.int.spec.ts` - Unit tests including DST transition correctness tests

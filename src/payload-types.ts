@@ -1016,17 +1016,27 @@ export interface AppCard {
    */
   appPage?: ('map' | 'lectures' | 'path' | 'music') | null;
   /**
-   * Define when this event repeats
+   * Configure when this event occurs and repeats
    */
-  recurrence?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  schedule?: {
+    firstDate: string;
+    firstDate_tz: SupportedTimezones;
+    recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
+    /**
+     * Repeat every N days/weeks/months
+     */
+    interval?: number | null;
+    rrule?: string | null;
+    upcomingDates?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
   /**
    * Select the content item this card links to
    */
@@ -1871,7 +1881,16 @@ export interface AppCardsSelect<T extends boolean = true> {
   button?: T;
   type?: T;
   appPage?: T;
-  recurrence?: T;
+  schedule?:
+    | T
+    | {
+        firstDate?: T;
+        firstDate_tz?: T;
+        recurrenceType?: T;
+        interval?: T;
+        rrule?: T;
+        upcomingDates?: T;
+      };
   content?: T;
   linkUrl?: T;
   updatedAt?: T;

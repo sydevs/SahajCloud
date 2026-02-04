@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { recurrenceField, urlField } from '@/fields'
+import { scheduleField, urlField } from '@/fields'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 /**
@@ -13,11 +13,12 @@ import { virtualUrlField } from '@/lib/storage/urlFields'
 export const AppCards: CollectionConfig = {
   slug: 'app-cards',
   labels: {
-    singular: 'Card',
-    plural: 'Cards',
+    singular: 'App Card',
+    plural: 'App Cards',
   },
   versions: {
     drafts: true,
+    maxPerDoc: 5,
   },
   disableDuplicate: true,
   upload: {
@@ -91,9 +92,7 @@ export const AppCards: CollectionConfig = {
       },
     },
     // Conditional: Reminder
-    recurrenceField({
-      name: 'recurrence',
-      required: true,
+    scheduleField({
       admin: {
         condition: (data) => data.type === 'reminder',
       },
