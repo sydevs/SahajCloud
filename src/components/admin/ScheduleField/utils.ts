@@ -24,8 +24,8 @@ import {
   getAvailableTimezones,
 } from '@/types/schedule'
 
-// Re-export for convenience
-export { getAvailableTimezones, getBrowserTimezone }
+// Re-export getBrowserTimezone for convenience (used by ScheduleFieldWrapper)
+export { getBrowserTimezone }
 
 /**
  * Subset of RRule options used by this module.

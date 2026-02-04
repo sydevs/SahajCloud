@@ -2,12 +2,13 @@
  * Shared styles for ScheduleField components
  *
  * Uses PayloadCMS CSS variables for theme consistency.
+ * Most form elements now use PayloadCMS UI components (ReactSelect, DatePicker, Pill).
  */
 
 import type { CSSProperties } from 'react'
 
 /**
- * Base input style shared across all input elements
+ * Base input style shared across native input elements (time, number)
  */
 const baseInputStyle = {
   padding: 'calc(var(--base) * 0.4) calc(var(--base) * 0.6)',
@@ -53,24 +54,9 @@ export const scheduleEditorStyles = {
     color: 'var(--theme-elevation-800)',
     minWidth: '80px',
   },
-  select: {
-    ...baseInputStyle,
-    cursor: 'pointer',
-    minWidth: '120px',
-  },
-  timezoneSelect: {
-    ...baseInputStyle,
-    cursor: 'pointer',
-    minWidth: '200px',
-    maxWidth: '280px',
-  },
   input: {
     ...baseInputStyle,
     width: '80px',
-  },
-  dateInput: {
-    ...baseInputStyle,
-    minWidth: '140px',
   },
   timeInput: {
     ...baseInputStyle,
@@ -80,20 +66,6 @@ export const scheduleEditorStyles = {
     display: 'flex',
     gap: 'calc(var(--base) * 0.25)',
     flexWrap: 'wrap' as const,
-  },
-  weekdayButton: {
-    display: 'flex',
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    width: 'calc(var(--base) * 2)',
-    height: 'calc(var(--base) * 2)',
-    padding: 0,
-    border: '1px solid var(--theme-elevation-150)',
-    borderRadius: 'var(--style-radius-s)',
-    fontSize: 'calc(var(--base-body-size) * 0.85px)',
-    fontWeight: 500 as const,
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
   },
   summary: {
     padding: 'calc(var(--base) * 0.5) calc(var(--base) * 0.75)',

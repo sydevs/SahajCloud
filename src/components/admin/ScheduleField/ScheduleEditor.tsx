@@ -1,8 +1,10 @@
 'use client'
 
+import { DatePicker, Pill, ReactSelect, type ReactSelectOption } from '@payloadcms/ui'
 import React, { useCallback, useMemo } from 'react'
 
 import type { ScheduleUIState, ScheduleComplexity, RecurrenceType } from '@/types/schedule'
+import { getAvailableTimezones } from '@/types/schedule'
 
 import { scheduleEditorStyles as styles } from './styles'
 import {
@@ -13,8 +15,33 @@ import {
   getScheduleSummary,
   weekLabelIndexToRRule,
   rruleWeekToLabelIndex,
-  getAvailableTimezones,
 } from './utils'
+
+/**
+ * Option type for ReactSelect with explicit label property
+ * Extends PayloadCMS ReactSelectOption for type safety
+ */
+type SelectOption = ReactSelectOption & { label: string }
+
+/**
+ * Helper to format date string to Date object for DatePicker
+ */
+function parseDateString(dateStr: string): Date | undefined {
+  if (!dateStr) return undefined
+  // Parse YYYY-MM-DD format, use noon to avoid timezone issues
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day, 12, 0, 0)
+}
+
+/**
+ * Helper to format Date object to YYYY-MM-DD string
+ */
+function formatDateString(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 /**
  * Props for ScheduleEditor component
@@ -57,8 +84,56 @@ export const ScheduleEditor: React.FC<ScheduleEditorProps> = ({
   readOnly = false,
   'aria-label': ariaLabel,
 }) => {
-  // Get available timezones
-  const timezones = useMemo(() => getAvailableTimezones(), [])
+  // Get timezone options for ReactSelect
+  const timezoneOptions: SelectOption[] = useMemo(
+    () =>
+      getAvailableTimezones().map((tz) => ({
+        value: tz,
+        label: tz.replace(/_/g, ' '),
+      })),
+    [],
+  )
+
+  // Month day options (1-31)
+  const monthDayOptions: SelectOption[] = useMemo(
+    () =>
+      Array.from({ length: 31 }, (_, i) => ({
+        value: i + 1,
+        label: getOrdinalSuffix(i + 1),
+      })),
+    [],
+  )
+
+  // Monthly mode options
+  const monthlyModeOptions: SelectOption[] = useMemo(
+    () => [
+      { value: 'date', label: 'By date' },
+      { value: 'weekday', label: 'By weekday' },
+    ],
+    [],
+  )
+
+  // Week number options (1st, 2nd, 3rd, 4th, Last)
+  const weekNumberOptions: SelectOption[] = useMemo(
+    () => WEEK_NUMBER_LABELS.map((label, index) => ({ value: index, label })),
+    [],
+  )
+
+  // Weekday options for monthly by weekday
+  const weekdayOptions: SelectOption[] = useMemo(
+    () => WEEKDAY_FULL_LABELS.map((label, index) => ({ value: index, label })),
+    [],
+  )
+
+  // Ending type options
+  const endingTypeOptions: SelectOption[] = useMemo(
+    () => [
+      { value: 'never', label: 'Never' },
+      { value: 'count', label: 'After' },
+      { value: 'until', label: 'On date' },
+    ],
+    [],
+  )
 
   // Helper to update a single field
   const updateField = useCallback(
@@ -138,16 +213,11 @@ export const ScheduleEditor: React.FC<ScheduleEditorProps> = ({
       {/* Start Date */}
       <div style={styles.row}>
         <span style={styles.label}>Start Date:</span>
-        <input
-          type="date"
-          value={value.startDate}
-          onChange={(e) => updateField('startDate', e.target.value)}
-          disabled={readOnly}
-          style={{
-            ...styles.dateInput,
-            opacity: readOnly ? 0.6 : 1,
-          }}
-          aria-label="Start date"
+        <DatePicker
+          value={parseDateString(value.startDate)}
+          onChange={(date) => updateField('startDate', date ? formatDateString(date) : '')}
+          readOnly={readOnly}
+          placeholder="Select start date"
         />
       </div>
 
@@ -189,23 +259,19 @@ export const ScheduleEditor: React.FC<ScheduleEditorProps> = ({
       {/* Timezone Selector (always visible) */}
       <div style={styles.row}>
         <span style={styles.label}>Timezone:</span>
-        <select
-          value={value.timezone}
-          onChange={(e) => updateField('timezone', e.target.value)}
-          disabled={readOnly}
-          style={{
-            ...styles.timezoneSelect,
-            opacity: readOnly ? 0.6 : 1,
-            cursor: readOnly ? 'not-allowed' : 'pointer',
-          }}
-          aria-label="Timezone"
-        >
-          {timezones.map((tz) => (
-            <option key={tz} value={tz}>
-              {tz.replace(/_/g, ' ')}
-            </option>
-          ))}
-        </select>
+        <div style={{ minWidth: '200px', maxWidth: '280px' }}>
+          <ReactSelect
+            options={timezoneOptions}
+            value={timezoneOptions.find((opt) => opt.value === value.timezone)}
+            onChange={(opt) => {
+              const selected = opt as SelectOption | null
+              if (selected) updateField('timezone', selected.value as string)
+            }}
+            disabled={readOnly}
+            isClearable={false}
+            isSearchable={true}
+          />
+        </div>
       </div>
 
       {/* Divider before recurrence section */}
@@ -213,23 +279,19 @@ export const ScheduleEditor: React.FC<ScheduleEditorProps> = ({
         {/* Recurrence Type Selector */}
         <div style={styles.row}>
           <span style={styles.label}>Repeats:</span>
-          <select
-            value={value.recurrenceType}
-            onChange={(e) => handleRecurrenceTypeChange(e.target.value as RecurrenceType)}
-            disabled={readOnly}
-            style={{
-              ...styles.select,
-              opacity: readOnly ? 0.6 : 1,
-              cursor: readOnly ? 'not-allowed' : 'pointer',
-            }}
-            aria-label="Recurrence type"
-          >
-            {availableTypes.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          <div style={{ minWidth: '160px' }}>
+            <ReactSelect
+              options={availableTypes}
+              value={availableTypes.find((opt) => opt.value === value.recurrenceType)}
+              onChange={(opt) => {
+                const selected = opt as SelectOption | null
+                if (selected) handleRecurrenceTypeChange(selected.value as RecurrenceType)
+              }}
+              disabled={readOnly}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
         </div>
 
         {/* Interval Input (for non-simple complexity and recurring events) */}
@@ -273,25 +335,16 @@ export const ScheduleEditor: React.FC<ScheduleEditorProps> = ({
               {WEEKDAY_LABELS.map((label, index) => {
                 const isSelected = value.weekdays.includes(index)
                 return (
-                  <button
+                  <Pill
                     key={index}
-                    type="button"
-                    onClick={() => handleWeekdayToggle(index)}
-                    disabled={readOnly}
-                    style={{
-                      ...styles.weekdayButton,
-                      backgroundColor: isSelected
-                        ? 'var(--theme-elevation-800)'
-                        : 'var(--theme-input-bg)',
-                      color: isSelected ? 'var(--theme-elevation-0)' : 'var(--theme-elevation-600)',
-                      opacity: readOnly ? 0.6 : 1,
-                      cursor: readOnly ? 'not-allowed' : 'pointer',
-                    }}
+                    pillStyle={isSelected ? 'dark' : 'light-gray'}
+                    onClick={readOnly ? undefined : () => handleWeekdayToggle(index)}
                     aria-label={WEEKDAY_FULL_LABELS[index]}
-                    aria-pressed={isSelected}
+                    aria-checked={isSelected}
+                    size="small"
                   >
                     {label}
-                  </button>
+                  </Pill>
                 )
               })}
             </div>
@@ -305,23 +358,19 @@ export const ScheduleEditor: React.FC<ScheduleEditorProps> = ({
             {(value.monthlyMode === 'date' || !showFeature('monthlyWeekday')) && (
               <div style={styles.row}>
                 <span style={styles.label}>On day:</span>
-                <select
-                  value={value.monthDay}
-                  onChange={(e) => updateField('monthDay', parseInt(e.target.value))}
-                  disabled={readOnly}
-                  style={{
-                    ...styles.select,
-                    opacity: readOnly ? 0.6 : 1,
-                    cursor: readOnly ? 'not-allowed' : 'pointer',
-                  }}
-                  aria-label="Day of month"
-                >
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                    <option key={day} value={day}>
-                      {getOrdinalSuffix(day)}
-                    </option>
-                  ))}
-                </select>
+                <div style={{ minWidth: '80px' }}>
+                  <ReactSelect
+                    options={monthDayOptions}
+                    value={monthDayOptions.find((opt) => opt.value === value.monthDay)}
+                    onChange={(opt) => {
+                      const selected = opt as SelectOption | null
+                      if (selected) updateField('monthDay', selected.value as number)
+                    }}
+                    disabled={readOnly}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
+                </div>
                 <span style={styles.text}>of each month</span>
               </div>
             )}
@@ -331,63 +380,54 @@ export const ScheduleEditor: React.FC<ScheduleEditorProps> = ({
               <>
                 <div style={styles.row}>
                   <span style={styles.label}>Mode:</span>
-                  <select
-                    value={value.monthlyMode}
-                    onChange={(e) => updateField('monthlyMode', e.target.value as 'date' | 'weekday')}
-                    disabled={readOnly}
-                    style={{
-                      ...styles.select,
-                      opacity: readOnly ? 0.6 : 1,
-                      cursor: readOnly ? 'not-allowed' : 'pointer',
-                    }}
-                    aria-label="Monthly mode"
-                  >
-                    <option value="date">By date</option>
-                    <option value="weekday">By weekday</option>
-                  </select>
+                  <div style={{ minWidth: '120px' }}>
+                    <ReactSelect
+                      options={monthlyModeOptions}
+                      value={monthlyModeOptions.find((opt) => opt.value === value.monthlyMode)}
+                      onChange={(opt) => {
+                        const selected = opt as SelectOption | null
+                        if (selected) updateField('monthlyMode', selected.value as 'date' | 'weekday')
+                      }}
+                      disabled={readOnly}
+                      isClearable={false}
+                      isSearchable={false}
+                    />
+                  </div>
                 </div>
 
                 {/* Monthly by weekday (e.g., 2nd Tuesday) */}
                 {value.monthlyMode === 'weekday' && (
                   <div style={styles.row}>
                     <span style={styles.label}>On the:</span>
-                    <select
-                      value={rruleWeekToLabelIndex(value.weekNumber)}
-                      onChange={(e) =>
-                        updateField('weekNumber', weekLabelIndexToRRule(parseInt(e.target.value)))
-                      }
-                      disabled={readOnly}
-                      style={{
-                        ...styles.select,
-                        minWidth: '80px',
-                        opacity: readOnly ? 0.6 : 1,
-                        cursor: readOnly ? 'not-allowed' : 'pointer',
-                      }}
-                      aria-label="Week of month"
-                    >
-                      {WEEK_NUMBER_LABELS.map((label, index) => (
-                        <option key={index} value={index}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={value.weekdayOfMonth}
-                      onChange={(e) => updateField('weekdayOfMonth', parseInt(e.target.value))}
-                      disabled={readOnly}
-                      style={{
-                        ...styles.select,
-                        opacity: readOnly ? 0.6 : 1,
-                        cursor: readOnly ? 'not-allowed' : 'pointer',
-                      }}
-                      aria-label="Weekday"
-                    >
-                      {WEEKDAY_FULL_LABELS.map((label, index) => (
-                        <option key={index} value={index}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
+                    <div style={{ minWidth: '80px' }}>
+                      <ReactSelect
+                        options={weekNumberOptions}
+                        value={weekNumberOptions.find(
+                          (opt) => opt.value === rruleWeekToLabelIndex(value.weekNumber),
+                        )}
+                        onChange={(opt) => {
+                          const selected = opt as SelectOption | null
+                          if (selected)
+                            updateField('weekNumber', weekLabelIndexToRRule(selected.value as number))
+                        }}
+                        disabled={readOnly}
+                        isClearable={false}
+                        isSearchable={false}
+                      />
+                    </div>
+                    <div style={{ minWidth: '120px' }}>
+                      <ReactSelect
+                        options={weekdayOptions}
+                        value={weekdayOptions.find((opt) => opt.value === value.weekdayOfMonth)}
+                        onChange={(opt) => {
+                          const selected = opt as SelectOption | null
+                          if (selected) updateField('weekdayOfMonth', selected.value as number)
+                        }}
+                        disabled={readOnly}
+                        isClearable={false}
+                        isSearchable={false}
+                      />
+                    </div>
                   </div>
                 )}
               </>
@@ -400,21 +440,20 @@ export const ScheduleEditor: React.FC<ScheduleEditorProps> = ({
           <div style={styles.section}>
             <div style={styles.row}>
               <span style={styles.label}>Ends:</span>
-              <select
-                value={value.endingType}
-                onChange={(e) => updateField('endingType', e.target.value as 'never' | 'count' | 'until')}
-                disabled={readOnly}
-                style={{
-                  ...styles.select,
-                  opacity: readOnly ? 0.6 : 1,
-                  cursor: readOnly ? 'not-allowed' : 'pointer',
-                }}
-                aria-label="Ending type"
-              >
-                <option value="never">Never</option>
-                <option value="count">After</option>
-                <option value="until">On date</option>
-              </select>
+              <div style={{ minWidth: '100px' }}>
+                <ReactSelect
+                  options={endingTypeOptions}
+                  value={endingTypeOptions.find((opt) => opt.value === value.endingType)}
+                  onChange={(opt) => {
+                    const selected = opt as SelectOption | null
+                    if (selected)
+                      updateField('endingType', selected.value as 'never' | 'count' | 'until')
+                  }}
+                  disabled={readOnly}
+                  isClearable={false}
+                  isSearchable={false}
+                />
+              </div>
 
               {value.endingType === 'count' && (
                 <>
@@ -437,16 +476,11 @@ export const ScheduleEditor: React.FC<ScheduleEditorProps> = ({
               )}
 
               {value.endingType === 'until' && (
-                <input
-                  type="date"
-                  value={value.untilDate}
-                  onChange={(e) => updateField('untilDate', e.target.value)}
-                  disabled={readOnly}
-                  style={{
-                    ...styles.dateInput,
-                    opacity: readOnly ? 0.6 : 1,
-                  }}
-                  aria-label="End date"
+                <DatePicker
+                  value={parseDateString(value.untilDate)}
+                  onChange={(date) => updateField('untilDate', date ? formatDateString(date) : '')}
+                  readOnly={readOnly}
+                  placeholder="Select end date"
                 />
               )}
             </div>
