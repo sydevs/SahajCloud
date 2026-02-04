@@ -1,9 +1,8 @@
-import type { CollectionConfig, FieldHook, Validate } from 'payload'
+import type { CollectionConfig, FieldHook, Validate, Where } from 'payload'
 
 import { mediaField, slugField } from '@/fields'
 import { serverEnv } from '@/lib/env'
 import { LOCALES } from '@/lib/locales'
-import { getR2Url } from '@/lib/storage/r2NativeAdapter'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 import { KeyframeData, KeyframeDefinition } from '@/types/frames'
 
@@ -17,12 +16,14 @@ const songUrlAfterRead: FieldHook = async ({ data, req }) => {
     typeof data?.songTag === 'object' && data?.songTag !== null ? data.songTag.id : data?.songTag
   if (!songTagId) return null
 
+  const songWhere: Where = {
+    tags: { in: [songTagId] },
+    deletedAt: { exists: false },
+  }
+
   const { totalDocs } = await req.payload.count({
     collection: 'songs',
-    where: {
-      tags: { in: [songTagId] },
-      deletedAt: { exists: false },
-    },
+    where: songWhere,
   })
 
   if (totalDocs === 0) return null
@@ -31,19 +32,14 @@ const songUrlAfterRead: FieldHook = async ({ data, req }) => {
 
   const { docs } = await req.payload.find({
     collection: 'songs',
-    where: {
-      tags: { in: [songTagId] },
-      deletedAt: { exists: false },
-    },
+    where: songWhere,
+    select: { url: true },
     limit: 1,
     page: randomPage,
     depth: 0,
   })
 
-  const song = docs[0]
-  if (!song?.filename) return null
-
-  return getR2Url(song.filename) ?? `/api/songs/file/${song.filename}`
+  return docs[0]?.url ?? null
 }
 
 export const Meditations: CollectionConfig = {

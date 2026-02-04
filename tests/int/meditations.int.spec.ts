@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { Meditation, Narrator, Image, Song, SongTag, MeditationTag, Album } from '@/payload-types'
+import type { Meditation, Narrator, Image, SongTag, MeditationTag, Album } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -113,12 +113,10 @@ describe('Meditations Collection', () => {
         tags: [testSongTag.id],
       })
 
-      // Fetch meditation with songUrl populated
       const result = await payload.findByID({
         collection: 'meditations',
         id: testMeditation.id,
         draft: true,
-        populate: { songUrl: true },
       })
 
       expect(result.songUrl).toBeDefined()
@@ -137,7 +135,6 @@ describe('Meditations Collection', () => {
         collection: 'meditations',
         id: meditation.id,
         draft: true,
-        populate: { songUrl: true },
       })
 
       expect(result.songUrl).toBeNull()
@@ -157,7 +154,6 @@ describe('Meditations Collection', () => {
         collection: 'meditations',
         id: meditation.id,
         draft: true,
-        populate: { songUrl: true },
       })
 
       expect(result.songUrl).toBeNull()
@@ -192,7 +188,6 @@ describe('Meditations Collection', () => {
         collection: 'meditations',
         id: meditation.id,
         draft: true,
-        populate: { songUrl: true },
       })
 
       expect(result.songUrl).toBeNull()
