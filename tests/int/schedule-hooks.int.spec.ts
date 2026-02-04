@@ -1,7 +1,7 @@
 /**
  * Tests for schedule field virtual field hooks.
  *
- * Tests the `computeRRule` and `computeUpcomingDates` afterRead hooks
+ * Tests the `computeIcalRule` and `computeUpcomingDates` afterRead hooks
  * from src/hooks/scheduleHooks.ts. These hooks are pure functions
  * that compute virtual fields from schedule sub-field data.
  *
@@ -11,7 +11,7 @@ import type { FieldHook } from 'payload'
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-import { computeRRule, computeUpcomingDates, getLocalTimeHHMM } from '@/hooks/scheduleHooks'
+import { computeIcalRule, computeUpcomingDates, getLocalTimeHHMM } from '@/hooks/scheduleHooks'
 
 // Helper to call a FieldHook with siblingData (avoids `as never` casts)
 const callHook = (hook: FieldHook, siblingData: Record<string, unknown>): unknown => {
@@ -26,14 +26,14 @@ const baseFields = {
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// computeRRule
+// computeIcalRule
 // ──────────────────────────────────────────────────────────────────────
 describe('Schedule Field Hooks', () => {
-  describe('computeRRule', () => {
+  describe('computeIcalRule', () => {
     // ── Null / missing data ──────────────────────────────────────────
     describe('returns null when firstDate is missing or invalid', () => {
       it('returns null when firstDate is missing', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           recurrenceType: 'DAILY',
           firstDate_tz: 'UTC',
         })
@@ -41,7 +41,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('returns null when firstDate is invalid', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           recurrenceType: 'DAILY',
           firstDate: 'not-a-date',
           firstDate_tz: 'UTC',
@@ -50,12 +50,12 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('returns null when siblingData is empty', () => {
-        const result = callHook(computeRRule, {})
+        const result = callHook(computeIcalRule, {})
         expect(result).toBeNull()
       })
 
       it('returns null when firstDate is empty string', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'DAILY',
           firstDate: '',
@@ -67,19 +67,19 @@ describe('Schedule Field Hooks', () => {
     // ── One-off events (single-occurrence RRULE) ──────────────────────
     describe('returns single-occurrence RRULE for non-recurring events', () => {
       it('returns COUNT=1 RRULE when recurrenceType is missing', () => {
-        const result = callHook(computeRRule, { ...baseFields }) as string
+        const result = callHook(computeIcalRule, { ...baseFields }) as string
         expect(result).toContain('FREQ=DAILY')
         expect(result).toContain('COUNT=1')
       })
 
       it('returns COUNT=1 RRULE when recurrenceType is "none"', () => {
-        const result = callHook(computeRRule, { ...baseFields, recurrenceType: 'none' }) as string
+        const result = callHook(computeIcalRule, { ...baseFields, recurrenceType: 'none' }) as string
         expect(result).toContain('FREQ=DAILY')
         expect(result).toContain('COUNT=1')
       })
 
       it('returns COUNT=1 RRULE for unrecognized recurrenceType', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'yearly',
         }) as string
@@ -91,7 +91,7 @@ describe('Schedule Field Hooks', () => {
     // ── Daily recurrence ─────────────────────────────────────────────
     describe('daily recurrence', () => {
       it('generates RRULE with FREQ=DAILY', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'DAILY',
         }) as string
@@ -103,7 +103,7 @@ describe('Schedule Field Hooks', () => {
 
       it('generates daily RRULE with specific timezone', () => {
         // 09:30 EDT (UTC-4) on March 15 = 13:30 UTC
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           firstDate: '2025-03-15T13:30:00.000Z',
           firstDate_tz: 'America/New_York',
           recurrenceType: 'DAILY',
@@ -117,7 +117,7 @@ describe('Schedule Field Hooks', () => {
     // ── Weekly recurrence ────────────────────────────────────────────
     describe('weekly recurrence', () => {
       it('generates RRULE with FREQ=WEEKLY without weekdays', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'WEEKLY',
         }) as string
@@ -127,7 +127,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('generates weekly RRULE with single weekday', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'WEEKLY',
           weekdays: ['WE'], // Wednesday
@@ -138,7 +138,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('generates weekly RRULE with multiple weekdays', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'WEEKLY',
           weekdays: ['MO', 'WE', 'FR'], // Mon, Wed, Fri
@@ -149,7 +149,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('ignores weekdays for non-weekly recurrence', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'DAILY',
           weekdays: ['MO', 'WE'],
@@ -160,7 +160,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('handles empty weekdays array for weekly', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'WEEKLY',
           weekdays: [],
@@ -174,7 +174,7 @@ describe('Schedule Field Hooks', () => {
     // ── Monthly recurrence ───────────────────────────────────────────
     describe('monthly recurrence', () => {
       it('defaults to by-date mode using start date day', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'MONTHLY',
         }) as string
@@ -184,7 +184,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('generates monthly by specific day of month', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'MONTHLY',
           monthlyMode: 'date',
@@ -195,7 +195,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('generates monthly by day 31', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'MONTHLY',
           monthlyMode: 'date',
@@ -206,7 +206,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('falls back to start date day when monthDay not specified', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           firstDate: '2025-03-20T14:00:00.000Z',
           recurrenceType: 'MONTHLY',
@@ -217,7 +217,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('generates monthly by 1st Monday', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'MONTHLY',
           monthlyMode: 'weekday',
@@ -230,7 +230,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('generates monthly by 2nd Wednesday', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'MONTHLY',
           monthlyMode: 'weekday',
@@ -242,7 +242,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('generates monthly by 3rd Friday', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'MONTHLY',
           monthlyMode: 'weekday',
@@ -254,7 +254,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('generates monthly by last Friday', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'MONTHLY',
           monthlyMode: 'weekday',
@@ -266,7 +266,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('defaults weekdayOfMonth to Monday when not specified', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'MONTHLY',
           monthlyMode: 'weekday',
@@ -280,7 +280,7 @@ describe('Schedule Field Hooks', () => {
     // ── Interval handling ────────────────────────────────────────────
     describe('interval handling', () => {
       it('omits INTERVAL when interval is 1', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'DAILY',
           interval: 1,
@@ -290,7 +290,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('omits INTERVAL when interval is not specified', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'DAILY',
         }) as string
@@ -299,7 +299,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('includes INTERVAL when interval is greater than 1', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'DAILY',
           interval: 3,
@@ -312,7 +312,7 @@ describe('Schedule Field Hooks', () => {
     // ── Ending conditions ────────────────────────────────────────────
     describe('ending conditions', () => {
       it('omits COUNT and UNTIL when endingType not specified', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'DAILY',
         }) as string
@@ -322,7 +322,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('includes COUNT when endingType is count', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'DAILY',
           endingType: 'count',
@@ -333,7 +333,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('omits COUNT when count is 0', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'DAILY',
           endingType: 'count',
@@ -344,7 +344,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('omits COUNT when count is not specified', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'DAILY',
           endingType: 'count',
@@ -354,7 +354,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('includes UNTIL when endingType is until', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'DAILY',
           endingType: 'until',
@@ -366,7 +366,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('handles ISO datetime untilDate format', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'DAILY',
           endingType: 'until',
@@ -381,7 +381,7 @@ describe('Schedule Field Hooks', () => {
     describe('timezone and date format', () => {
       it('uses provided timezone in DTSTART', () => {
         // March 15 London is GMT (UTC+0), so 14:00 UTC = 14:00 local
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           ...baseFields,
           recurrenceType: 'DAILY',
           firstDate_tz: 'Europe/London',
@@ -391,7 +391,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('defaults to UTC when firstDate_tz not specified', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           firstDate: '2025-03-15T14:00:00.000Z',
           recurrenceType: 'DAILY',
         }) as string
@@ -401,7 +401,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('uses time from firstDate datetime', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           firstDate: '2025-03-15T16:45:00.000Z',
           firstDate_tz: 'UTC',
           recurrenceType: 'DAILY',
@@ -411,7 +411,7 @@ describe('Schedule Field Hooks', () => {
       })
 
       it('constructs correct DTSTART from firstDate', () => {
-        const result = callHook(computeRRule, {
+        const result = callHook(computeIcalRule, {
           firstDate: '2025-01-02T09:30:00.000Z',
           firstDate_tz: 'UTC',
           recurrenceType: 'DAILY',
@@ -795,10 +795,10 @@ describe('Schedule Field Hooks', () => {
   // ──────────────────────────────────────────────────────────────────
   // RRULE DTSTART — verifies full conversion chain with timezones
   // ──────────────────────────────────────────────────────────────────
-  describe('computeRRule timezone conversion chain', () => {
+  describe('computeIcalRule timezone conversion chain', () => {
     it('converts UTC datetime to correct local DTSTART for non-UTC timezone', () => {
       // 13:30 UTC on March 15 = 09:30 EDT (America/New_York)
-      const result = callHook(computeRRule, {
+      const result = callHook(computeIcalRule, {
         firstDate: '2025-03-15T13:30:00.000Z',
         firstDate_tz: 'America/New_York',
         recurrenceType: 'DAILY',
@@ -810,14 +810,14 @@ describe('Schedule Field Hooks', () => {
 
     it('adjusts DTSTART correctly across DST boundary', () => {
       // January 15 (EST, UTC-5): 14:00 UTC = 09:00 local
-      const winterResult = callHook(computeRRule, {
+      const winterResult = callHook(computeIcalRule, {
         firstDate: '2025-01-15T14:00:00.000Z',
         firstDate_tz: 'America/New_York',
         recurrenceType: 'DAILY',
       }) as string
 
       // June 15 (EDT, UTC-4): 14:00 UTC = 10:00 local
-      const summerResult = callHook(computeRRule, {
+      const summerResult = callHook(computeIcalRule, {
         firstDate: '2025-06-15T14:00:00.000Z',
         firstDate_tz: 'America/New_York',
         recurrenceType: 'DAILY',
@@ -829,7 +829,7 @@ describe('Schedule Field Hooks', () => {
 
     it('handles half-hour offset timezone (Asia/Kolkata, UTC+5:30)', () => {
       // 14:00 UTC = 19:30 IST
-      const result = callHook(computeRRule, {
+      const result = callHook(computeIcalRule, {
         firstDate: '2025-03-15T14:00:00.000Z',
         firstDate_tz: 'Asia/Kolkata',
         recurrenceType: 'DAILY',

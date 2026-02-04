@@ -1027,7 +1027,7 @@ export interface AppCard {
      * Repeat every N days/weeks/months
      */
     interval?: number | null;
-    rrule?: string | null;
+    icalRule?: string | null;
     upcomingDates?:
       | {
           [k: string]: unknown;
@@ -1890,7 +1890,7 @@ export interface AppCardsSelect<T extends boolean = true> {
         firstDate_tz?: T;
         recurrenceType?: T;
         interval?: T;
-        rrule?: T;
+        icalRule?: T;
         upcomingDates?: T;
       };
   content?: T;

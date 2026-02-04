@@ -1,6 +1,6 @@
 import type { Field, GroupField, JSONField } from 'payload'
 
-import { computeRRule, computeUpcomingDates, getLocalTimeHHMM } from '@/hooks/scheduleHooks'
+import { computeIcalRule, computeUpcomingDates, getLocalTimeHHMM } from '@/hooks/scheduleHooks'
 
 /**
  * Field factory options
@@ -66,7 +66,7 @@ const ENDING_OPTIONS = [
  * and `upcomingDates` fields computed on read.
  *
  * Core fields (always present): firstDate (with timezone picker),
- * recurrenceType, interval, rrule (virtual), upcomingDates (virtual).
+ * recurrenceType, interval, icalRule (virtual), upcomingDates (virtual).
  *
  * The `firstDate` field uses PayloadCMS's `timezone: true` option which
  * stores the datetime in UTC and auto-creates a companion `firstDate_tz`
@@ -386,12 +386,12 @@ function buildEndingRow({ required, hasEnding }: SubFieldConfig): Field[] {
 function buildVirtualFields(): Field[] {
   return [
     {
-      name: 'rrule',
+      name: 'icalRule',
       type: 'text',
       virtual: true,
       admin: { hidden: true },
       hooks: {
-        afterRead: [computeRRule],
+        afterRead: [computeIcalRule],
       },
     },
     {

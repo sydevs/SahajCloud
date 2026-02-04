@@ -705,8 +705,8 @@ The schedule field uses a PayloadCMS Group field with native sub-fields stored i
 
 Two virtual fields are computed on read using `rrule-temporal` (RFC 5545-compliant recurrence library built on the Temporal API):
 
-- **`rrule`** (text) — iCalendar RRULE string (e.g., `DTSTART;TZID=America/New_York:20250315T093000\nRRULE:FREQ=WEEKLY;INTERVAL=2`) for both recurring and one-off events. One-off events produce a single-occurrence RRULE (`FREQ=DAILY;COUNT=1`). Returns `null` only when `firstDate` is missing.
-- **`upcomingDates`** (json) — Array of up to 10 ISO 8601 UTC date strings representing the next occurrences from the current time, computed via `rule.between()` with correct DST handling. Returns `[]` when `firstDate` is missing or all occurrences are in the past.
+- **`icalRule`** (text) — iCalendar string containing DTSTART, RRULE, and optional EXDATE lines (e.g., `DTSTART;TZID=America/New_York:20250315T093000\nRRULE:FREQ=WEEKLY;INTERVAL=2\nEXDATE:20250401T130000Z`) for both recurring and one-off events. One-off events produce a single-occurrence RRULE (`FREQ=DAILY;COUNT=1`). Returns `null` only when `firstDate` is missing.
+- **`upcomingDates`** (json) — Array of up to 10 ISO 8601 UTC date strings representing the next occurrences from the current time, computed via `rule.between()` with correct DST handling. Automatically excludes dates matching EXDATE entries. Returns `[]` when `firstDate` is missing or all occurrences are in the past.
 
 Both hooks delegate to a shared `buildRRuleTemporal()` helper that constructs an `RRuleTemporal` instance from sub-fields.
 
@@ -737,7 +737,7 @@ Stored field values align with RFC 5545 / rrule-temporal conventions to minimize
 
 ### Key Files
 - `src/fields/scheduleField.ts` - Group field factory with sub-fields, virtual fields, and `ScheduleFieldOptions` type
-- `src/hooks/scheduleHooks.ts` - `buildRRuleTemporal` shared helper, `computeRRule` and `computeUpcomingDates` afterRead hooks, `getLocalTimeHHMM` utility, `ScheduleSubFields` type
+- `src/hooks/scheduleHooks.ts` - `buildRRuleTemporal` shared helper, `computeIcalRule` and `computeUpcomingDates` afterRead hooks, `cleanupExpiredExclusions` beforeChange hook, `getLocalTimeHHMM` utility, `ScheduleSubFields` and `ExclusionRange` types
 - `tests/int/schedule-hooks.int.spec.ts` - Unit tests including DST transition correctness tests
 
 ## PayloadCMS defaultPopulate Behavior

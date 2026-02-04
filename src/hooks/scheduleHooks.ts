@@ -2,7 +2,7 @@
  * Schedule Field Hooks
  *
  * Computes virtual fields from the Group field sub-fields:
- * - `rrule`: iCalendar RRULE string (DTSTART;TZID=... + RRULE:FREQ=...)
+ * - `icalRule`: iCalendar string (DTSTART;TZID=... + RRULE:FREQ=... + optional EXDATE:...)
  * - `upcomingDates`: Next 10 occurrences from now as ISO 8601 UTC strings
  *
  * Uses `rrule-temporal` for timezone-correct recurrence expansion via the
@@ -161,15 +161,15 @@ function buildRRuleTemporal(fields: Partial<ScheduleSubFields>): RRuleTemporal |
 }
 
 /**
- * afterRead hook: Compute RRULE string from schedule sub-fields.
+ * afterRead hook: Compute iCalendar rule string from schedule sub-fields.
  *
- * Returns the full RRULE string (including DTSTART;TZID) for both recurring
- * and one-off events. Uses rrule-temporal's toString() which produces
- * standards-compliant RFC 5545 output.
+ * Returns the full iCalendar string (DTSTART;TZID + RRULE + optional EXDATE)
+ * for both recurring and one-off events. Uses rrule-temporal's toString()
+ * which produces standards-compliant RFC 5545 output.
  *
  * Returns null only when firstDate is missing.
  */
-export const computeRRule: FieldHook = ({ siblingData }) => {
+export const computeIcalRule: FieldHook = ({ siblingData }) => {
   const fields = siblingData as Partial<ScheduleSubFields>
   const rule = buildRRuleTemporal(fields)
   return rule ? rule.toString() : null
