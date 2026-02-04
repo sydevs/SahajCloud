@@ -11,7 +11,12 @@ import type { FieldHook } from 'payload'
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-import { computeIcalRule, computeUpcomingDates, getLocalTimeHHMM } from '@/hooks/scheduleHooks'
+import {
+  cleanupExpiredExclusions,
+  computeIcalRule,
+  computeUpcomingDates,
+  getLocalTimeHHMM,
+} from '@/hooks/scheduleHooks'
 
 // Helper to call a FieldHook with siblingData (avoids `as never` casts)
 const callHook = (hook: FieldHook, siblingData: Record<string, unknown>): unknown => {
@@ -836,6 +841,362 @@ describe('Schedule Field Hooks', () => {
       }) as string
 
       expect(result).toContain('DTSTART;TZID=Asia/Kolkata:20250315T193000')
+    })
+  })
+
+  // ──────────────────────────────────────────────────────────────────
+  // computeIcalRule with exclusion date ranges
+  // ──────────────────────────────────────────────────────────────────
+  describe('computeIcalRule with exclusions', () => {
+    it('generates EXDATE for single-day exclusion (no endDate)', () => {
+      const result = callHook(computeIcalRule, {
+        ...baseFields,
+        recurrenceType: 'DAILY',
+        exclusions: [{ startDate: '2025-03-17' }],
+      }) as string
+
+      expect(result).toContain('EXDATE')
+      // March 17 at 14:00 UTC should be excluded
+      expect(result).toContain('20250317T140000Z')
+    })
+
+    it('generates EXDATE for exclusion where startDate === endDate', () => {
+      const result = callHook(computeIcalRule, {
+        ...baseFields,
+        recurrenceType: 'DAILY',
+        exclusions: [{ startDate: '2025-03-18', endDate: '2025-03-18' }],
+      }) as string
+
+      expect(result).toContain('EXDATE')
+      expect(result).toContain('20250318T140000Z')
+    })
+
+    it('generates multiple EXDATEs for multi-day range', () => {
+      const result = callHook(computeIcalRule, {
+        ...baseFields,
+        recurrenceType: 'DAILY',
+        exclusions: [{ startDate: '2025-03-20', endDate: '2025-03-22' }],
+      }) as string
+
+      expect(result).toContain('EXDATE')
+      // All three days should be excluded
+      expect(result).toContain('20250320T140000Z')
+      expect(result).toContain('20250321T140000Z')
+      expect(result).toContain('20250322T140000Z')
+    })
+
+    it('generates EXDATEs from multiple exclusion ranges', () => {
+      const result = callHook(computeIcalRule, {
+        ...baseFields,
+        recurrenceType: 'DAILY',
+        exclusions: [
+          { startDate: '2025-03-17' },
+          { startDate: '2025-03-20', endDate: '2025-03-21' },
+        ],
+      }) as string
+
+      expect(result).toContain('20250317T140000Z')
+      expect(result).toContain('20250320T140000Z')
+      expect(result).toContain('20250321T140000Z')
+    })
+
+    it('does not add EXDATE for non-recurring events', () => {
+      const result = callHook(computeIcalRule, {
+        ...baseFields,
+        exclusions: [{ startDate: '2025-03-15' }],
+      }) as string
+
+      // Non-recurring: single-occurrence rule, exclusions ignored
+      expect(result).toContain('COUNT=1')
+      expect(result).not.toContain('EXDATE')
+    })
+
+    it('does not add EXDATE when exclusion range is outside rule period', () => {
+      const result = callHook(computeIcalRule, {
+        ...baseFields,
+        recurrenceType: 'DAILY',
+        endingType: 'count',
+        count: 3, // Only March 15, 16, 17
+        exclusions: [{ startDate: '2025-04-01', endDate: '2025-04-05' }],
+      }) as string
+
+      // April exclusions don't overlap with March 15-17 occurrences
+      expect(result).not.toContain('EXDATE')
+    })
+
+    it('generates EXDATE for weekly rule with partial-week exclusion', () => {
+      // Weekly on Saturdays starting March 15 (Saturday)
+      // Next occurrences: Mar 15, Mar 22, Mar 29, Apr 5...
+      const result = callHook(computeIcalRule, {
+        ...baseFields,
+        recurrenceType: 'WEEKLY',
+        exclusions: [{ startDate: '2025-03-21', endDate: '2025-03-23' }],
+      }) as string
+
+      // Only March 22 (Saturday) falls in the Mar 21-23 range
+      expect(result).toContain('EXDATE')
+      expect(result).toContain('20250322T140000Z')
+      // Mar 29 should NOT be excluded
+      expect(result).not.toContain('20250329')
+    })
+
+    it('does not add EXDATE when exclusions array is empty', () => {
+      const result = callHook(computeIcalRule, {
+        ...baseFields,
+        recurrenceType: 'DAILY',
+        exclusions: [],
+      }) as string
+
+      expect(result).not.toContain('EXDATE')
+    })
+
+    it('note field does not affect EXDATE output', () => {
+      const result = callHook(computeIcalRule, {
+        ...baseFields,
+        recurrenceType: 'DAILY',
+        exclusions: [{ startDate: '2025-03-17', note: 'Holiday break' }],
+      }) as string
+
+      expect(result).toContain('EXDATE')
+      expect(result).toContain('20250317T140000Z')
+      expect(result).not.toContain('Holiday')
+    })
+
+    it('generates timezone-correct EXDATE for Europe/Berlin', () => {
+      // 18:00 Berlin in winter (CET, UTC+1) = 17:00 UTC
+      // Daily recurrence starting March 15
+      const result = callHook(computeIcalRule, {
+        firstDate: '2025-03-15T17:00:00.000Z',
+        firstDate_tz: 'Europe/Berlin',
+        recurrenceType: 'DAILY',
+        exclusions: [{ startDate: '2025-03-18' }],
+      }) as string
+
+      expect(result).toContain('EXDATE')
+      // EXDATE should be at 17:00 UTC (18:00 Berlin CET)
+      expect(result).toContain('20250318T170000Z')
+    })
+
+    it('handles ISO datetime format in exclusion startDate', () => {
+      // PayloadCMS dayOnly fields may store full ISO datetime
+      const result = callHook(computeIcalRule, {
+        ...baseFields,
+        recurrenceType: 'DAILY',
+        exclusions: [{ startDate: '2025-03-17T00:00:00.000Z' }],
+      }) as string
+
+      expect(result).toContain('EXDATE')
+      expect(result).toContain('20250317T140000Z')
+    })
+  })
+
+  // ──────────────────────────────────────────────────────────────────
+  // computeUpcomingDates with exclusion date ranges
+  // ──────────────────────────────────────────────────────────────────
+  describe('computeUpcomingDates with exclusions', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2025-03-01T00:00:00Z'))
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('omits excluded dates from results', () => {
+      const result = callHook(computeUpcomingDates, {
+        ...baseFields,
+        recurrenceType: 'DAILY',
+        endingType: 'count',
+        count: 5, // Mar 15, 16, 17, 18, 19
+        exclusions: [{ startDate: '2025-03-17' }],
+      }) as string[]
+
+      // Should have 4 dates (5 minus 1 excluded)
+      expect(result).toHaveLength(4)
+      // Mar 17 should not be in the results
+      const dates = result.map((d) => new Date(d).getUTCDate())
+      expect(dates).not.toContain(17)
+      expect(dates).toContain(15)
+      expect(dates).toContain(16)
+      expect(dates).toContain(18)
+      expect(dates).toContain(19)
+    })
+
+    it('correct count when exclusions reduce available dates', () => {
+      const result = callHook(computeUpcomingDates, {
+        ...baseFields,
+        recurrenceType: 'DAILY',
+        endingType: 'count',
+        count: 5,
+        exclusions: [{ startDate: '2025-03-16', endDate: '2025-03-18' }],
+      }) as string[]
+
+      // 5 occurrences minus 3 excluded = 2 remaining
+      expect(result).toHaveLength(2)
+      const dates = result.map((d) => new Date(d).getUTCDate())
+      expect(dates).toContain(15)
+      expect(dates).toContain(19)
+    })
+
+    it('handles multi-day range exclusion for unlimited rule', () => {
+      const result = callHook(computeUpcomingDates, {
+        ...baseFields,
+        recurrenceType: 'DAILY',
+        exclusions: [{ startDate: '2025-03-17', endDate: '2025-03-19' }],
+      }) as string[]
+
+      // Should return 10 dates, but none on Mar 17-19
+      expect(result).toHaveLength(10)
+      const dates = result.map((d) => new Date(d).getUTCDate())
+      expect(dates).not.toContain(17)
+      expect(dates).not.toContain(18)
+      expect(dates).not.toContain(19)
+    })
+
+    it('timezone-correct exclusions (Europe/Berlin)', () => {
+      // 18:00 Berlin CET = 17:00 UTC, daily recurrence
+      const result = callHook(computeUpcomingDates, {
+        firstDate: '2025-03-15T17:00:00.000Z',
+        firstDate_tz: 'Europe/Berlin',
+        recurrenceType: 'DAILY',
+        endingType: 'count',
+        count: 5,
+        exclusions: [{ startDate: '2025-03-17' }],
+      }) as string[]
+
+      expect(result).toHaveLength(4)
+      // All should be at 17:00 UTC
+      for (const dateStr of result) {
+        expect(dateStr).toMatch(/T17:00:00\.000Z$/)
+      }
+      // Mar 17 should be excluded
+      const days = result.map((d) => new Date(d).getUTCDate())
+      expect(days).not.toContain(17)
+    })
+
+    it('non-recurring events ignore exclusions', () => {
+      const result = callHook(computeUpcomingDates, {
+        ...baseFields,
+        exclusions: [{ startDate: '2025-03-15' }],
+      }) as string[]
+
+      // One-off event should still return the date
+      expect(result).toHaveLength(1)
+    })
+  })
+
+  // ──────────────────────────────────────────────────────────────────
+  // cleanupExpiredExclusions — beforeChange hook
+  // ──────────────────────────────────────────────────────────────────
+  describe('cleanupExpiredExclusions', () => {
+    // Helper to call beforeChange hook (uses `value` not `siblingData`)
+    const callBeforeChangeHook = (hook: FieldHook, value: unknown): unknown => {
+      return hook({ value, siblingData: {} } as Parameters<FieldHook>[0])
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers()
+      // Pin time to 2025-03-15T12:00:00Z
+      vi.setSystemTime(new Date('2025-03-15T12:00:00Z'))
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('keeps future exclusions', () => {
+      const exclusions = [
+        { startDate: '2025-04-01', endDate: '2025-04-03', note: 'Spring break' },
+        { startDate: '2025-05-01' },
+      ]
+
+      const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions)
+      expect(result).toHaveLength(2)
+    })
+
+    it('keeps items within 1-day grace period', () => {
+      // March 14 end-of-day + 1 day grace = March 15 23:59:59.999
+      // Current time is March 15 12:00 — within grace period
+      const exclusions = [
+        { startDate: '2025-03-13', endDate: '2025-03-14' },
+      ]
+
+      const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions)
+      expect(result).toHaveLength(1)
+    })
+
+    it('removes items past grace period (with endDate)', () => {
+      // March 10 + 1 day grace = March 11 23:59:59.999
+      // Current time is March 15 — well past grace
+      const exclusions = [
+        { startDate: '2025-03-08', endDate: '2025-03-10', note: 'Old break' },
+      ]
+
+      const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions) as unknown[]
+      expect(result).toHaveLength(0)
+    })
+
+    it('removes single-date items past grace (no endDate)', () => {
+      // March 10 + 1 day grace = expired before March 15
+      const exclusions = [
+        { startDate: '2025-03-10' },
+      ]
+
+      const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions) as unknown[]
+      expect(result).toHaveLength(0)
+    })
+
+    it('filters mixed expired and future items', () => {
+      const exclusions = [
+        { startDate: '2025-02-01', endDate: '2025-02-05', note: 'Past break' }, // expired
+        { startDate: '2025-03-14' }, // within grace
+        { startDate: '2025-04-01', endDate: '2025-04-02' }, // future
+        { startDate: '2025-01-01' }, // expired
+      ]
+
+      const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions) as Array<{ startDate: string }>
+      expect(result).toHaveLength(2)
+      expect(result[0].startDate).toBe('2025-03-14')
+      expect(result[1].startDate).toBe('2025-04-01')
+    })
+
+    it('returns empty array when all items expired', () => {
+      const exclusions = [
+        { startDate: '2024-01-01' },
+        { startDate: '2024-06-15', endDate: '2024-06-20' },
+      ]
+
+      const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions) as unknown[]
+      expect(result).toHaveLength(0)
+    })
+
+    it('returns unchanged when no items expired', () => {
+      const exclusions = [
+        { startDate: '2025-04-01' },
+        { startDate: '2025-06-15', endDate: '2025-06-20' },
+      ]
+
+      const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions) as unknown[]
+      expect(result).toHaveLength(2)
+    })
+
+    it('handles ISO datetime format from dayOnly fields', () => {
+      // PayloadCMS dayOnly picker stores full ISO datetime
+      const exclusions = [
+        { startDate: '2025-03-10T00:00:00.000Z' }, // expired
+        { startDate: '2025-04-01T00:00:00.000Z' }, // future
+      ]
+
+      const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions) as Array<{ startDate: string }>
+      expect(result).toHaveLength(1)
+      expect(result[0].startDate).toBe('2025-04-01T00:00:00.000Z')
+    })
+
+    it('returns null/empty input unchanged', () => {
+      expect(callBeforeChangeHook(cleanupExpiredExclusions, null)).toBeNull()
+      expect(callBeforeChangeHook(cleanupExpiredExclusions, undefined)).toBeUndefined()
+      expect(callBeforeChangeHook(cleanupExpiredExclusions, [])).toEqual([])
     })
   })
 })
