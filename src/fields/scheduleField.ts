@@ -1,6 +1,6 @@
 import type { Field, GroupField, JSONField } from 'payload'
 
-import { computeRRule, computeUpcomingDates } from '@/hooks/scheduleHooks'
+import { computeRRule, computeUpcomingDates, getLocalTimeHHMM } from '@/hooks/scheduleHooks'
 
 /**
  * Field factory options
@@ -20,10 +20,17 @@ export interface ScheduleFieldOptions {
   complexMonthly?: boolean
   /** Show ending conditions — count or until date (default: false) */
   ending?: boolean
-  /** Default timezone (falls back to browser timezone if not specified) */
-  defaultTimezone?: string
   /** Admin configuration (uses PayloadCMS JSONField admin type) */
   admin?: Partial<JSONField['admin']>
+}
+
+/** Internal configuration for sub-field builders */
+interface SubFieldConfig {
+  required: boolean
+  hasEndTime: boolean
+  hasComplexWeekly: boolean
+  hasComplexMonthly: boolean
+  hasEnding: boolean
 }
 
 /**
@@ -37,7 +44,7 @@ const WEEKDAY_OPTIONS = [
   { label: 'Fri', value: '4' },
   { label: 'Sat', value: '5' },
   { label: 'Sun', value: '6' },
-] as const
+]
 
 /**
  * Recurrence type options
@@ -46,7 +53,7 @@ const RECURRENCE_OPTIONS = [
   { label: 'Daily', value: 'daily' },
   { label: 'Weekly', value: 'weekly' },
   { label: 'Monthly', value: 'monthly' },
-] as const
+]
 
 /**
  * Ending type options
@@ -54,18 +61,22 @@ const RECURRENCE_OPTIONS = [
 const ENDING_OPTIONS = [
   { label: 'After', value: 'count' },
   { label: 'On Date', value: 'until' },
-] as const
+]
 
 /**
  * Creates a schedule field for event scheduling with datetime, timezone,
  * and iCalendar RRULE support.
  *
  * Returns a Group field with native PayloadCMS sub-fields that store
- * directly in individual database columns. Includes a virtual `rrule`
- * field that computes the iCalendar RRULE string on read.
+ * directly in individual database columns. Includes virtual `rrule`
+ * and `upcomingDates` fields computed on read.
  *
- * Core fields (always present): startDate, startTime, timezone,
- * recurrenceType, interval, rrule (virtual).
+ * Core fields (always present): firstDate (with timezone picker),
+ * recurrenceType, interval, rrule (virtual), upcomingDates (virtual).
+ *
+ * The `firstDate` field uses PayloadCMS's `timezone: true` option which
+ * stores the datetime in UTC and auto-creates a companion `firstDate_tz`
+ * field for the timezone.
  *
  * Feature flags enable additional field groups:
  * - `endTime` — end time field
@@ -87,7 +98,6 @@ const ENDING_OPTIONS = [
  *     name: 'schedule',
  *     endTime: true,
  *     ending: true,
- *     defaultTimezone: 'America/New_York',
  *   }),
  * ]
  * ```
@@ -101,24 +111,17 @@ export function scheduleField(options: ScheduleFieldOptions = {}): Field {
     complexWeekly: hasComplexWeekly = false,
     complexMonthly: hasComplexMonthly = false,
     ending: hasEnding = false,
-    defaultTimezone,
     admin = {},
   } = options
 
-  // Use the default timezone, and fall back to the browser time zone if needed
-  const timezone = defaultTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone
-
-  // Build sub-fields based on feature flags
   const subFields = buildScheduleSubFields({
     required,
     hasEndTime,
     hasComplexWeekly,
     hasComplexMonthly,
     hasEnding,
-    defaultTimezone: timezone,
   })
 
-  // Create the group field
   const groupField: GroupField = {
     name,
     type: 'group',
@@ -133,302 +136,261 @@ export function scheduleField(options: ScheduleFieldOptions = {}): Field {
   return groupField
 }
 
-/**
- * Build the sub-fields for the schedule group based on feature flags
- */
-function buildScheduleSubFields(config: {
-  required: boolean
-  hasEndTime: boolean
-  hasComplexWeekly: boolean
-  hasComplexMonthly: boolean
-  hasEnding: boolean
-  defaultTimezone: string
-}): Field[] {
-  const { required, hasEndTime, hasComplexWeekly, hasComplexMonthly, hasEnding, defaultTimezone } =
-    config
+// ─── Row Builders ─────────────────────────────────────────────────────
 
-  const fields: Field[] = [
-    // === Row 1: Date/Time ===
+/**
+ * Row 1: firstDate (with timezone picker) + optional endTime
+ */
+function buildDateTimeRow({ required, hasEndTime }: SubFieldConfig): Field {
+  return {
+    type: 'row',
+    fields: [
+      {
+        name: 'firstDate',
+        type: 'date',
+        label: 'First Date & Time',
+        required,
+        timezone: true,
+        admin: {
+          date: {
+            pickerAppearance: 'dayAndTime',
+            displayFormat: 'MMM d, yyyy HH:mm',
+          },
+        },
+      },
+      ...(hasEndTime ? [buildEndTimeField()] : []),
+    ],
+  }
+}
+
+/**
+ * End time text field with HH:MM validation and start-time comparison.
+ */
+function buildEndTimeField(): Field {
+  return {
+    name: 'endTime',
+    type: 'text',
+    label: 'End Time',
+    admin: {
+      placeholder: 'HH:MM',
+      description: 'Optional, same day (24-hour format)',
+    },
+    validate: (
+      value: string | null | undefined,
+      { siblingData }: { siblingData: Record<string, unknown> },
+    ) => {
+      if (!value) return true // Optional field
+      const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
+      if (!timeRegex.test(value)) {
+        return 'Enter time in HH:MM format (e.g., 17:00)'
+      }
+      // End time must be after start time (extracted from firstDate UTC + timezone)
+      const firstDate = siblingData?.firstDate as string | undefined
+      const firstDateTz = siblingData?.firstDate_tz as string | undefined
+      if (firstDate && firstDateTz) {
+        const startTimeStr = getLocalTimeHHMM(firstDate, firstDateTz)
+        // Pad to 2-digit hours (regex allows "9:30") for reliable comparison
+        // HH:MM in 24-hour format is lexicographically ordered
+        if (startTimeStr && value.padStart(5, '0') <= startTimeStr) {
+          return 'End time must be after start time'
+        }
+      }
+      return true
+    },
+  }
+}
+
+/**
+ * Row 2: recurrenceType + interval + optional complex weekly/monthly fields
+ */
+function buildRecurrenceRow(config: SubFieldConfig): Field {
+  return {
+    type: 'row',
+    fields: [
+      {
+        name: 'recurrenceType',
+        type: 'select',
+        label: 'Repeats',
+        options: RECURRENCE_OPTIONS,
+        admin: {
+          placeholder: 'Does not repeat',
+        },
+      },
+      {
+        name: 'interval',
+        type: 'number',
+        label: 'Every',
+        defaultValue: 1,
+        min: 1,
+        max: 99,
+        required: config.required,
+        admin: {
+          step: 1,
+          condition: (_data, siblingData) => !!siblingData?.recurrenceType,
+          description: 'Repeat every N days/weeks/months',
+        },
+      },
+      ...(config.hasComplexWeekly ? buildComplexWeeklyFields(config) : []),
+      ...(config.hasComplexMonthly ? buildComplexMonthlyFields(config) : []),
+    ],
+  }
+}
+
+/**
+ * Weekday multi-select for weekly recurrence (complexWeekly flag).
+ */
+function buildComplexWeeklyFields({ required }: SubFieldConfig): Field[] {
+  return [
+    {
+      name: 'weekdays',
+      type: 'select',
+      hasMany: true,
+      label: 'On Days',
+      options: WEEKDAY_OPTIONS,
+      required,
+      admin: {
+        condition: (_data, siblingData) => siblingData?.recurrenceType === 'weekly',
+      },
+    },
+  ]
+}
+
+/**
+ * Monthly mode fields: by date (monthDay) or by weekday (weekNumber + weekdayOfMonth).
+ */
+function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
+  return [
+    {
+      name: 'monthlyMode',
+      type: 'select',
+      label: 'Monthly Mode',
+      defaultValue: 'date',
+      required,
+      options: [
+        { label: 'By date', value: 'date' },
+        { label: 'By weekday', value: 'weekday' },
+      ],
+      admin: {
+        condition: (_data, siblingData) => siblingData?.recurrenceType === 'monthly',
+        isClearable: false,
+      },
+    },
+    {
+      name: 'monthDay',
+      type: 'number',
+      label: 'On Day',
+      defaultValue: 1,
+      min: 1,
+      max: 31,
+      required,
+      admin: {
+        step: 1,
+        condition: (_data, siblingData) =>
+          siblingData?.recurrenceType === 'monthly' && siblingData?.monthlyMode === 'date',
+        description: 'Day of the month (1-31)',
+      },
+    },
+    {
+      name: 'weekNumber',
+      type: 'select',
+      label: 'Week',
+      defaultValue: '1',
+      options: [
+        { label: '1st', value: '1' },
+        { label: '2nd', value: '2' },
+        { label: '3rd', value: '3' },
+        { label: '4th', value: '4' },
+        { label: 'Last', value: '-1' },
+      ],
+      required,
+      admin: {
+        condition: (_data, siblingData) =>
+          siblingData?.recurrenceType === 'monthly' && siblingData?.monthlyMode === 'weekday',
+        isClearable: false,
+      },
+    },
+    {
+      name: 'weekdayOfMonth',
+      type: 'select',
+      label: 'Day',
+      defaultValue: '0',
+      options: [
+        { label: 'Monday', value: '0' },
+        { label: 'Tuesday', value: '1' },
+        { label: 'Wednesday', value: '2' },
+        { label: 'Thursday', value: '3' },
+        { label: 'Friday', value: '4' },
+        { label: 'Saturday', value: '5' },
+        { label: 'Sunday', value: '6' },
+      ],
+      required,
+      admin: {
+        condition: (_data, siblingData) =>
+          siblingData?.recurrenceType === 'monthly' && siblingData?.monthlyMode === 'weekday',
+        isClearable: false,
+      },
+    },
+  ]
+}
+
+/**
+ * Optional Row 3: ending conditions (count or until date).
+ */
+function buildEndingRow({ required, hasEnding }: SubFieldConfig): Field[] {
+  if (!hasEnding) return []
+
+  return [
     {
       type: 'row',
       fields: [
         {
-          name: 'startDate',
-          type: 'date',
-          label: 'Start Date',
+          name: 'endingType',
+          type: 'select',
+          label: 'Ends',
+          options: ENDING_OPTIONS,
+          admin: {
+            condition: (_data, siblingData) => !!siblingData?.recurrenceType,
+            placeholder: 'Never',
+          },
+        },
+        {
+          name: 'count',
+          type: 'number',
+          label: 'Occurrences',
+          defaultValue: 10,
+          min: 1,
+          max: 999,
           required,
           admin: {
+            step: 1,
+            condition: (_data, siblingData) =>
+              !!siblingData?.recurrenceType && siblingData?.endingType === 'count',
+          },
+        },
+        {
+          name: 'untilDate',
+          type: 'date',
+          label: 'End Date',
+          required,
+          admin: {
+            condition: (_data, siblingData) =>
+              !!siblingData?.recurrenceType && siblingData?.endingType === 'until',
             date: {
               pickerAppearance: 'dayOnly',
               displayFormat: 'MMM d, yyyy',
             },
           },
         },
-        {
-          name: 'startTime',
-          type: 'text',
-          label: 'Start Time',
-          required,
-          admin: {
-            placeholder: 'HH:MM',
-            description: '24-hour format',
-          },
-          validate: (value: string | null | undefined) => {
-            if (!value) return true // Required validation handles empty
-            const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
-            if (!timeRegex.test(value)) {
-              return 'Enter time in HH:MM format (e.g., 09:00 or 14:30)'
-            }
-            return true
-          },
-        },
-        ...(hasEndTime
-          ? [
-              {
-                name: 'endTime',
-                type: 'text',
-                label: 'End Time',
-                admin: {
-                  placeholder: 'HH:MM',
-                  description: 'Optional, same day (24-hour format)',
-                },
-                validate: (
-                  value: string | null | undefined,
-                  { siblingData }: { siblingData: Record<string, unknown> },
-                ) => {
-                  if (!value) return true // Optional field
-                  const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
-                  if (!timeRegex.test(value)) {
-                    return 'Enter time in HH:MM format (e.g., 17:00)'
-                  }
-                  // End time must be after start time
-                  const startTime = siblingData?.startTime as string | undefined
-                  if (startTime && timeRegex.test(startTime)) {
-                    const [startH, startM] = startTime.split(':').map(Number)
-                    const [endH, endM] = value.split(':').map(Number)
-                    if (endH * 60 + endM <= startH * 60 + startM) {
-                      return 'End time must be after start time'
-                    }
-                  }
-                  return true
-                },
-              } satisfies Field,
-            ]
-          : []),
-        {
-          name: 'timezone',
-          type: 'select',
-          label: 'Timezone',
-          required,
-          defaultValue: defaultTimezone,
-          options: Intl.supportedValuesOf('timeZone').map((tz) => ({
-            label: tz.replace(/\//g, ' / ').replace(/_/g, ' '),
-            value: tz,
-          })),
-          admin: {
-            isClearable: false,
-          },
-        },
       ],
     },
+  ]
+}
 
-    // === Row 2: Recurrence ===
-    {
-      type: 'row',
-      fields: [
-        {
-          name: 'recurrenceType',
-          type: 'select',
-          label: 'Repeats',
-          options: [...RECURRENCE_OPTIONS],
-          admin: {
-            placeholder: 'Does not repeat',
-          },
-        },
-        {
-          name: 'interval',
-          type: 'number',
-          label: 'Every',
-          defaultValue: 1,
-          min: 1,
-          max: 99,
-          required,
-          admin: {
-            step: 1,
-            condition: (_data: Record<string, unknown>, siblingData: Record<string, unknown>) =>
-              !!siblingData?.recurrenceType,
-            description: 'Repeat every N days/weeks/months',
-          },
-        },
-        ...(hasComplexWeekly
-          ? [
-              {
-                name: 'weekdays',
-                type: 'select',
-                hasMany: true,
-                label: 'On Days',
-                options: [...WEEKDAY_OPTIONS],
-                required,
-                admin: {
-                  condition: (
-                    _data: Record<string, unknown>,
-                    siblingData: Record<string, unknown>,
-                  ) => siblingData?.recurrenceType === 'weekly',
-                },
-              } satisfies Field,
-            ]
-          : []),
-        ...(hasComplexMonthly
-          ? [
-              {
-                name: 'monthlyMode',
-                type: 'select',
-                label: 'Monthly Mode',
-                defaultValue: 'date',
-                required,
-                options: [
-                  { label: 'By date', value: 'date' },
-                  { label: 'By weekday', value: 'weekday' },
-                ],
-                admin: {
-                  condition: (
-                    _data: Record<string, unknown>,
-                    siblingData: Record<string, unknown>,
-                  ) => siblingData?.recurrenceType === 'monthly',
-                  isClearable: false,
-                },
-              } satisfies Field,
-              {
-                name: 'monthDay',
-                type: 'number',
-                label: 'On Day',
-                defaultValue: 1,
-                min: 1,
-                max: 31,
-                required,
-                admin: {
-                  step: 1,
-                  condition: (
-                    _data: Record<string, unknown>,
-                    siblingData: Record<string, unknown>,
-                  ) =>
-                    siblingData?.recurrenceType === 'monthly' &&
-                    siblingData?.monthlyMode === 'date',
-                  description: 'Day of the month (1-31)',
-                },
-              } satisfies Field,
-              {
-                name: 'weekNumber',
-                type: 'select',
-                label: 'Week',
-                defaultValue: '1',
-                options: [
-                  { label: '1st', value: '1' },
-                  { label: '2nd', value: '2' },
-                  { label: '3rd', value: '3' },
-                  { label: '4th', value: '4' },
-                  { label: 'Last', value: '-1' },
-                ],
-                required,
-                admin: {
-                  condition: (
-                    _data: Record<string, unknown>,
-                    siblingData: Record<string, unknown>,
-                  ) =>
-                    siblingData?.recurrenceType === 'monthly' &&
-                    siblingData?.monthlyMode === 'weekday',
-                  isClearable: false,
-                },
-              } satisfies Field,
-              {
-                name: 'weekdayOfMonth',
-                type: 'select',
-                label: 'Day',
-                defaultValue: '0',
-                options: [
-                  { label: 'Monday', value: '0' },
-                  { label: 'Tuesday', value: '1' },
-                  { label: 'Wednesday', value: '2' },
-                  { label: 'Thursday', value: '3' },
-                  { label: 'Friday', value: '4' },
-                  { label: 'Saturday', value: '5' },
-                  { label: 'Sunday', value: '6' },
-                ],
-                required,
-                admin: {
-                  condition: (
-                    _data: Record<string, unknown>,
-                    siblingData: Record<string, unknown>,
-                  ) =>
-                    siblingData?.recurrenceType === 'monthly' &&
-                    siblingData?.monthlyMode === 'weekday',
-                  isClearable: false,
-                },
-              } satisfies Field,
-            ]
-          : []),
-      ],
-    },
-
-    // === Row 3: Ending Conditions ===
-    ...(hasEnding
-      ? [
-          {
-            type: 'row',
-            fields: [
-              {
-                name: 'endingType',
-                type: 'select',
-                label: 'Ends',
-                options: [...ENDING_OPTIONS],
-                admin: {
-                  condition: (
-                    _data: Record<string, unknown>,
-                    siblingData: Record<string, unknown>,
-                  ) => !!siblingData?.recurrenceType,
-                  placeholder: 'Never',
-                },
-              } satisfies Field,
-              {
-                name: 'count',
-                type: 'number',
-                label: 'Occurrences',
-                defaultValue: 10,
-                min: 1,
-                max: 999,
-                required,
-                admin: {
-                  step: 1,
-                  condition: (
-                    _data: Record<string, unknown>,
-                    siblingData: Record<string, unknown>,
-                  ) =>
-                    !!siblingData?.recurrenceType && siblingData?.endingType === 'count',
-                },
-              } satisfies Field,
-              {
-                name: 'untilDate',
-                type: 'date',
-                label: 'End Date',
-                required,
-                admin: {
-                  condition: (
-                    _data: Record<string, unknown>,
-                    siblingData: Record<string, unknown>,
-                  ) =>
-                    !!siblingData?.recurrenceType && siblingData?.endingType === 'until',
-                  date: {
-                    pickerAppearance: 'dayOnly',
-                    displayFormat: 'MMM d, yyyy',
-                  },
-                },
-              } satisfies Field,
-            ],
-          } satisfies Field,
-        ]
-      : []),
-
-    // === Virtual RRULE (computed on read, not stored) ===
+/**
+ * Virtual fields computed on read (not stored in database).
+ */
+function buildVirtualFields(): Field[] {
+  return [
     {
       name: 'rrule',
       type: 'text',
@@ -438,8 +400,6 @@ function buildScheduleSubFields(config: {
         afterRead: [computeRRule],
       },
     },
-
-    // === Virtual upcoming dates (computed on read, not stored) ===
     {
       name: 'upcomingDates',
       type: 'json',
@@ -450,6 +410,18 @@ function buildScheduleSubFields(config: {
       },
     },
   ]
+}
 
-  return fields
+// ─── Composer ─────────────────────────────────────────────────────────
+
+/**
+ * Build the sub-fields for the schedule group based on feature flags.
+ */
+function buildScheduleSubFields(config: SubFieldConfig): Field[] {
+  return [
+    buildDateTimeRow(config),
+    buildRecurrenceRow(config),
+    ...buildEndingRow(config),
+    ...buildVirtualFields(),
+  ]
 }

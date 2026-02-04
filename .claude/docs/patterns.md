@@ -281,6 +281,61 @@ const [{ data: frames, isLoading, isError }] = usePayloadAPI(
 - Race conditions are hard to debug and reproduce
 - Custom endpoints eliminate the problem entirely
 
+## PayloadCMS Conditional Validation Pattern
+
+When a field has both `required: true` and a custom `validate` function, **do not** return `true` for null/empty values in the validate function. PayloadCMS handles the `required` + `admin.condition` lifecycle correctly — when a field's condition is false, validation is skipped entirely.
+
+### Problem
+
+```typescript
+// ❌ Custom validate overrides the `required` constraint
+{
+  name: 'startTime',
+  type: 'text',
+  required: true,
+  validate: (value: string | null | undefined) => {
+    if (!value) return true // "Required validation handles empty"
+    const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
+    if (!timeRegex.test(value)) {
+      return 'Enter time in HH:MM format'
+    }
+    return true
+  },
+}
+```
+
+The `if (!value) return true` line was added thinking it was needed to allow saves when the field is hidden via `admin.condition`. But this actually overrides `required: true`, allowing null values even when the field IS visible.
+
+### Solution
+
+```typescript
+// ✅ Let PayloadCMS handle the required + condition lifecycle
+{
+  name: 'startTime',
+  type: 'text',
+  required: true,
+  validate: (value: string | null | undefined) => {
+    const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
+    if (!value || !timeRegex.test(value)) {
+      return 'Enter time in HH:MM format (e.g., 09:00 or 14:30)'
+    }
+    return true
+  },
+}
+```
+
+### How PayloadCMS Handles This
+
+- When `admin.condition` evaluates to **false** → PayloadCMS skips validation for the field entirely (including custom `validate`)
+- When `admin.condition` evaluates to **true** → PayloadCMS runs `required` check and custom `validate` normally
+- The custom `validate` function does **not** need to account for the hidden state — PayloadCMS does this automatically
+
+### Key Points
+- Never return `true` for null/empty in a custom validate on a `required` field
+- Trust PayloadCMS to skip validation when `admin.condition` is false
+- Custom `validate` should only handle format/business logic, not nullability
+- This applies to fields inside conditionally-visible groups as well
+
 ## Schema Introspection Pattern
 
 When you need to discover which fields reference a particular collection (e.g., finding all fields that reference `files` or `images`), use the schema introspection utilities in `src/lib/schemaUtils.ts`.
@@ -678,13 +733,26 @@ rule.toText()  // Works!
 
 ## Schedule Field Architecture
 
-The schedule field uses a PayloadCMS Group field with native sub-fields stored in individual database columns. Two virtual fields are computed on read using the `rrule` library:
+The schedule field uses a PayloadCMS Group field with native sub-fields stored in individual database columns. The `firstDate` field uses `timezone: true` which stores the datetime in UTC and auto-creates a companion `firstDate_tz` field for the IANA timezone.
 
-- **`rrule`** (text) — iCalendar RRULE string (e.g., `DTSTART;TZID=America/New_York:...RRULE:FREQ=WEEKLY;INTERVAL=2`)
+Two virtual fields are computed on read using the `rrule` library:
+
+- **`rrule`** (text) — iCalendar RRULE string for both recurring and one-off events. One-off events produce a single-occurrence RRULE (`FREQ=DAILY;COUNT=1`). Returns `null` only when `firstDate` is missing.
 - **`upcomingDates`** (json) — Array of up to 10 ISO 8601 date strings representing the next occurrences from the current time, computed via `rrule.between()` with early termination
 
 Both hooks delegate to a shared `buildRRule()` helper that constructs the RRule instance from sub-fields.
 
+### UTC ↔ Local Conversion
+
+PayloadCMS stores `firstDate` in UTC. The hooks convert UTC → local time using `Intl.DateTimeFormat` with `formatToParts()` before constructing rrule instances:
+
+1. `firstDate` stores a UTC ISO datetime (e.g., `2026-06-15T13:00:00.000Z`)
+2. `firstDate_tz` stores the IANA timezone (e.g., `America/New_York`)
+3. `getLocalComponents()` converts UTC → local time components (year, month, day, hours, minutes)
+4. Local components are placed in UTC slots of `Date.UTC()` for rrule's `tzid` mode
+
+The `getLocalTimeHHMM()` helper is also exported for use in `endTime` field validation.
+
 ### Key Files
 - `src/fields/scheduleField.ts` - Group field factory with sub-fields, virtual fields, and `ScheduleFieldOptions` type
-- `src/hooks/scheduleHooks.ts` - `buildRRule` shared helper, `computeRRule` and `computeUpcomingDates` afterRead hooks, `ScheduleSubFields` type
+- `src/hooks/scheduleHooks.ts` - `buildRRule` shared helper, `computeRRule` and `computeUpcomingDates` afterRead hooks, `getLocalComponents` UTC-to-local converter, `ScheduleSubFields` type

@@ -18,6 +18,7 @@ export const AppCards: CollectionConfig = {
   },
   versions: {
     drafts: true,
+    maxPerDoc: 5,
   },
   disableDuplicate: true,
   upload: {
