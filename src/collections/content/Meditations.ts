@@ -126,8 +126,14 @@ export const Meditations: CollectionConfig = {
                 label: locale.label,
                 value: locale.code,
               })),
-              defaultValue: 'en',
+              defaultValue: ({ locale }: { locale?: string }) => locale || 'en',
               required: true,
+              admin: {
+                hidden: true,
+              },
+              access: {
+                update: () => false,
+              },
             },
             {
               name: 'narrator',
