@@ -735,9 +735,19 @@ Stored field values align with RFC 5545 / rrule-temporal conventions to minimize
 | `weekdayOfMonth` | `'MO'`–`'SU'` | Matches RFC 5545 day codes |
 | `weekNumber` | `'1'`–`'4'`, `'-1'` | Combined with weekday for `byDay` (e.g., `1MO`, `-1FR`) |
 
+### Schedule Summary (AfterInput Component)
+
+A `ScheduleSummary` client component is registered as `afterInput` on the schedule group field, providing a human-readable description of the configured recurrence rule that updates in real-time:
+
+- **Recurring events**: Builds an iCalendar string (DTSTART + RRULE) from form values and passes it to `toText()` from `rrule-temporal/totext` (e.g., "every 2 weeks on Monday, Wednesday, Friday")
+- **One-off events**: Formats with `Intl.DateTimeFormat` (e.g., "Once on Mar 15, 2025 at 9:30 AM (America/New_York)")
+- **Empty state**: Renders nothing when `firstDate` is not set
+- Uses `useAllFormFields()` for reactive access to schedule sub-fields via group name prefix
+
 ### Key Files
 - `src/fields/scheduleField.ts` - Group field factory with sub-fields, virtual fields, and `ScheduleFieldOptions` type
 - `src/hooks/scheduleHooks.ts` - `buildRRuleTemporal` shared helper, `computeIcalRule` and `computeUpcomingDates` afterRead hooks, `cleanupExpiredExclusions` beforeChange hook, `getLocalTimeHHMM` utility, `ScheduleSubFields` and `ExclusionRange` types
+- `src/components/admin/ScheduleSummary.tsx` - AfterInput client component for human-readable schedule description
 - `src/components/admin/FlatArrayField/FlatArrayField.tsx` - Custom array field component for exclusions (flat rows without per-row Collapsible)
 - `tests/int/schedule-hooks.int.spec.ts` - Unit tests including DST transition correctness tests
 
