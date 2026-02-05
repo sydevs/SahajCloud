@@ -30,7 +30,7 @@ describe('Project Visibility System', () => {
     // and test the project visibility logic specifically
 
     it('should correctly filter Pages collection visibility', async () => {
-      // Pages visible in: wemeditate-web only
+      // Pages visible in: wemeditate-web, wemeditate-app
       const pagesCollection = payload.collections.pages
       const hiddenFn = pagesCollection.config.admin?.hidden
 
@@ -40,7 +40,7 @@ describe('Project Visibility System', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'wemeditate-web' } as any })).toBe(false)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'wemeditate-app' } as any })).toBe(true)
+        expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'wemeditate-app' } as any })).toBe(false)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect(hiddenFn({ user: { collection: 'managers', type: 'admin', currentProject: 'sahaj-atlas' } as any })).toBe(true)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
