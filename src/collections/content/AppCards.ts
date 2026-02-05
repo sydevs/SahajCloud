@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { scheduleField, urlField } from '@/fields'
+import { rulesField, scheduleField, urlField } from '@/fields'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 /**
@@ -120,5 +120,28 @@ export const AppCards: CollectionConfig = {
         description: 'External URL this card links to',
       },
     }),
+    // Targeting rules (JSON blob evaluated client-side)
+    rulesField({
+      rules: [
+        { name: 'hasRealization', type: 'boolean' },
+        { name: 'pathProgress', type: 'range' },
+        { name: 'meditationsPerWeek', type: 'range' },
+        { name: 'totalMeditationsViewed', type: 'range' },
+        { name: 'totalLecturesViewed', type: 'range' },
+      ],
+    }),
+    // Selection weight for client-side card prioritization
+    {
+      name: 'weight',
+      type: 'number',
+      min: 1,
+      max: 5,
+      defaultValue: 3,
+      admin: {
+        position: 'sidebar',
+        description:
+          'Selection priority. Higher weight = more likely to be chosen. 1 = rare, 5 = very frequent.',
+      },
+    },
   ],
 }
