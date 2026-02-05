@@ -5,6 +5,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 import type {
+  AppCard,
   Narrator,
   Image,
   Meditation,
@@ -57,6 +58,38 @@ export function createTestLexicalContent(text: string = 'Test content') {
  * Test data factory functions for creating test entities with payload.create()
  */
 export const testData = {
+  /**
+   * Create an app card (upload collection with image)
+   */
+  async createAppCard(
+    payload: Payload,
+    overrides: Partial<AppCard> = {},
+    sampleFile = 'image-1050x700.jpg',
+  ): Promise<AppCard> {
+    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
+    const fileBuffer = fs.readFileSync(filePath)
+    const fileData = new Uint8Array(fileBuffer)
+
+    const uniqueId = Math.random().toString(36).substring(7)
+    const defaultTitle = overrides.title || `Test Card ${uniqueId}`
+
+    return (await payload.create({
+      collection: 'app-cards',
+      data: {
+        title: defaultTitle,
+        type: 'app-page',
+        appPage: 'map',
+        ...overrides,
+      },
+      file: {
+        data: fileData as unknown as Buffer,
+        mimetype: `image/${path.extname(sampleFile).slice(1)}`,
+        name: sampleFile,
+        size: fileData.length,
+      },
+    })) as AppCard
+  },
+
   /**
    * Create a narrator
    */
