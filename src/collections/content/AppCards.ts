@@ -93,6 +93,7 @@ export const AppCards: CollectionConfig = {
     },
     // Conditional: Reminder
     scheduleField({
+      hasExclusions: true,
       admin: {
         condition: (data) => data.type === 'reminder',
       },

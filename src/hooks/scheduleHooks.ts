@@ -2,7 +2,7 @@
  * Schedule Field Hooks
  *
  * Computes virtual fields from the Group field sub-fields:
- * - `rrule`: iCalendar RRULE string (DTSTART;TZID=... + RRULE:FREQ=...)
+ * - `icalRule`: iCalendar string (DTSTART;TZID=... + RRULE:FREQ=... + optional EXDATE:...)
  * - `upcomingDates`: Next 10 occurrences from now as ISO 8601 UTC strings
  *
  * Uses `rrule-temporal` for timezone-correct recurrence expansion via the
@@ -23,6 +23,17 @@ import { Temporal } from '@js-temporal/polyfill'
 import { type RRuleOptions, RRuleTemporal } from 'rrule-temporal'
 
 /**
+ * A single exclusion date range within the exclusions array.
+ * When endDate is omitted, only startDate is excluded (single-date exclusion).
+ */
+export interface ExclusionRange {
+  startDate: string // YYYY-MM-DD or ISO datetime
+  endDate?: string // YYYY-MM-DD or ISO datetime, optional
+  reason?: string
+  id?: string // PayloadCMS array item ID
+}
+
+/**
  * Sub-field structure matching the PayloadCMS Group field sub-fields.
  * Values use RFC 5545 conventions: uppercase frequencies, two-letter day codes.
  */
@@ -40,6 +51,7 @@ interface ScheduleSubFields {
   endingType?: 'count' | 'until'
   count?: number
   untilDate?: string
+  exclusions?: ExclusionRange[]
 }
 
 /** Number of upcoming occurrences to compute */
@@ -65,6 +77,21 @@ export function getLocalTimeHHMM(utcDateStr: string, timezone: string): string |
 }
 
 /**
+ * Parse a date string to Temporal.PlainDate.
+ * Handles both YYYY-MM-DD and ISO datetime formats (PayloadCMS dayOnly
+ * fields may store full ISO datetime strings like "2025-03-17T00:00:00.000Z").
+ * Returns null for invalid input.
+ */
+function parseDateOnly(dateStr: string): Temporal.PlainDate | null {
+  try {
+    const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr
+    return Temporal.PlainDate.from(datePart)
+  } catch {
+    return null
+  }
+}
+
+/**
  * Check whether the schedule sub-fields describe a recurring event.
  */
 function isRecurring(fields: Partial<ScheduleSubFields>): boolean {
@@ -72,13 +99,67 @@ function isRecurring(fields: Partial<ScheduleSubFields>): boolean {
 }
 
 /**
+ * Expand exclusion date ranges into individual exDate entries for rrule-temporal.
+ *
+ * For each exclusion range, finds all occurrences of the base rule that fall
+ * within the range by comparing the occurrence's local calendar day (in the
+ * event's timezone) against the exclusion range's calendar days. This ensures
+ * correct behavior across DST transitions.
+ *
+ * When endDate is omitted, treats the range as [startDate, startDate].
+ */
+function expandExclusionRanges(
+  baseRule: RRuleTemporal,
+  exclusions: ExclusionRange[],
+  timezone: string,
+): Temporal.ZonedDateTime[] {
+  const exDates: Temporal.ZonedDateTime[] = []
+
+  for (const exclusion of exclusions) {
+    const startPlain = parseDateOnly(exclusion.startDate)
+    if (!startPlain) continue
+
+    const endPlain = exclusion.endDate ? parseDateOnly(exclusion.endDate) : startPlain
+    if (!endPlain) continue
+
+    // Create search window in the event's timezone: start-of-day to end-of-day
+    const windowStart = startPlain.toZonedDateTime({
+      timeZone: timezone,
+      plainTime: new Temporal.PlainTime(0, 0, 0),
+    })
+    const windowEnd = endPlain.toZonedDateTime({
+      timeZone: timezone,
+      plainTime: new Temporal.PlainTime(23, 59, 59),
+    })
+
+    // Find occurrences within this window
+    const startDate = new Date(Number(windowStart.epochMilliseconds))
+    const endDate = new Date(Number(windowEnd.epochMilliseconds))
+    const occurrences = baseRule.between(startDate, endDate, true)
+
+    // Filter by comparing occurrence's local calendar day against the range
+    for (const occ of occurrences) {
+      const occDate = occ.toPlainDate()
+      if (
+        Temporal.PlainDate.compare(occDate, startPlain) >= 0 &&
+        Temporal.PlainDate.compare(occDate, endPlain) <= 0
+      ) {
+        exDates.push(occ)
+      }
+    }
+  }
+
+  return exDates
+}
+
+/**
  * Build an RRuleTemporal instance from schedule sub-fields.
  *
  * For recurring events, returns a full rule with interval, weekdays,
- * monthly mode, and ending conditions.
+ * monthly mode, ending conditions, and optional exclusion dates.
  *
  * For one-off events, returns a single-occurrence rule (FREQ=DAILY;COUNT=1)
- * for timezone-correct date handling.
+ * for timezone-correct date handling. Exclusions are ignored for one-off events.
  *
  * Returns null only when firstDate is missing or invalid.
  */
@@ -157,19 +238,29 @@ function buildRRuleTemporal(fields: Partial<ScheduleSubFields>): RRuleTemporal |
     ...(until && { until }),
   }
 
-  return new RRuleTemporal(options)
+  const baseRule = new RRuleTemporal(options)
+
+  // Apply exclusion date ranges for recurring events
+  if (fields.exclusions && fields.exclusions.length > 0) {
+    const exDateEntries = expandExclusionRanges(baseRule, fields.exclusions, timezone)
+    if (exDateEntries.length > 0) {
+      return baseRule.with({ exDate: exDateEntries })
+    }
+  }
+
+  return baseRule
 }
 
 /**
- * afterRead hook: Compute RRULE string from schedule sub-fields.
+ * afterRead hook: Compute iCalendar rule string from schedule sub-fields.
  *
- * Returns the full RRULE string (including DTSTART;TZID) for both recurring
- * and one-off events. Uses rrule-temporal's toString() which produces
- * standards-compliant RFC 5545 output.
+ * Returns the full iCalendar string (DTSTART;TZID + RRULE + optional EXDATE)
+ * for both recurring and one-off events. Uses rrule-temporal's toString()
+ * which produces standards-compliant RFC 5545 output.
  *
  * Returns null only when firstDate is missing.
  */
-export const computeRRule: FieldHook = ({ siblingData }) => {
+export const computeIcalRule: FieldHook = ({ siblingData }) => {
   const fields = siblingData as Partial<ScheduleSubFields>
   const rule = buildRRuleTemporal(fields)
   return rule ? rule.toString() : null
@@ -185,6 +276,9 @@ export const computeRRule: FieldHook = ({ siblingData }) => {
  * - One-off: returns a single-element array if the event is in the future
  * - Returns `[]` when firstDate is missing or invalid (no event data)
  * - Returns `[]` when the event (or all occurrences) are in the past
+ *
+ * Exclusion dates are automatically excluded by rrule-temporal's between()
+ * and all() methods — no additional filtering is needed.
  */
 export const computeUpcomingDates: FieldHook = ({ siblingData }) => {
   const fields = siblingData as Partial<ScheduleSubFields>
@@ -215,4 +309,32 @@ export const computeUpcomingDates: FieldHook = ({ siblingData }) => {
   }
 
   return []
+}
+
+/**
+ * beforeChange field hook for the exclusions array.
+ * Removes exclusion items whose effective end date (endDate or startDate for
+ * single-date exclusions) is more than 1 day in the past (UTC).
+ *
+ * The 1-day grace period prevents premature cleanup near midnight.
+ */
+export const cleanupExpiredExclusions: FieldHook = ({ value }) => {
+  if (!Array.isArray(value) || value.length === 0) return value
+
+  const now = new Date()
+  const gracePeriodMs = 24 * 60 * 60 * 1000 // 1 day
+
+  return value.filter((item: ExclusionRange) => {
+    const dateStr = item.endDate || item.startDate
+    if (!dateStr) return true // Keep items without dates
+
+    const parsed = parseDateOnly(dateStr)
+    if (!parsed) return true // Keep unparseable items
+
+    // Construct end-of-day UTC for the effective end date
+    const endOfDayUtc = Date.UTC(parsed.year, parsed.month - 1, parsed.day, 23, 59, 59, 999)
+
+    // Keep if within grace period: endOfDay + grace >= now
+    return now.getTime() - endOfDayUtc <= gracePeriodMs
+  })
 }

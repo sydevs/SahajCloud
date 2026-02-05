@@ -1,6 +1,11 @@
 import type { Field, GroupField, JSONField } from 'payload'
 
-import { computeRRule, computeUpcomingDates, getLocalTimeHHMM } from '@/hooks/scheduleHooks'
+import {
+  cleanupExpiredExclusions,
+  computeIcalRule,
+  computeUpcomingDates,
+  getLocalTimeHHMM,
+} from '@/hooks/scheduleHooks'
 
 /**
  * Field factory options
@@ -20,6 +25,8 @@ export interface ScheduleFieldOptions {
   hasComplexMonthly?: boolean
   /** Show ending conditions — count or until date (default: false) */
   hasEnding?: boolean
+  /** Show exclusion date ranges for recurring events (default: false) */
+  hasExclusions?: boolean
   /** Admin configuration (uses PayloadCMS JSONField admin type) */
   admin?: Partial<JSONField['admin']>
 }
@@ -62,11 +69,11 @@ const ENDING_OPTIONS = [
  * and iCalendar RRULE support.
  *
  * Returns a Group field with native PayloadCMS sub-fields that store
- * directly in individual database columns. Includes virtual `rrule`
+ * directly in individual database columns. Includes virtual `icalRule`
  * and `upcomingDates` fields computed on read.
  *
  * Core fields (always present): firstDate (with timezone picker),
- * recurrenceType, interval, rrule (virtual), upcomingDates (virtual).
+ * recurrenceType, interval, icalRule (virtual), upcomingDates (virtual).
  *
  * The `firstDate` field uses PayloadCMS's `timezone: true` option which
  * stores the datetime in UTC and auto-creates a companion `firstDate_tz`
@@ -77,6 +84,7 @@ const ENDING_OPTIONS = [
  * - `complexWeekly` — weekday picker for weekly recurrence
  * - `complexMonthly` — day/weekday picker for monthly recurrence
  * - `ending` — ending conditions (count or until date)
+ * - `exclusions` — exclusion date ranges for recurring events
  *
  * @example Basic usage (core fields only)
  * ```typescript
@@ -105,6 +113,7 @@ export function scheduleField(options: ScheduleFieldOptions = {}): Field {
     hasComplexWeekly = false,
     hasComplexMonthly = false,
     hasEnding = false,
+    hasExclusions = false,
     admin = {},
   } = options
 
@@ -114,6 +123,7 @@ export function scheduleField(options: ScheduleFieldOptions = {}): Field {
     hasComplexWeekly,
     hasComplexMonthly,
     hasEnding,
+    hasExclusions,
   })
 
   const groupField: GroupField = {
@@ -381,17 +391,97 @@ function buildEndingRow({ required, hasEnding }: SubFieldConfig): Field[] {
 }
 
 /**
+ * Optional exclusion date ranges array field.
+ * Shown only when recurrenceType is set (exclusions only apply to recurring events).
+ */
+function buildExclusionsField({ hasExclusions }: SubFieldConfig): Field[] {
+  if (!hasExclusions) return []
+
+  return [
+    {
+      name: 'exclusions',
+      type: 'array',
+      label: 'Scheduled Breaks',
+      labels: { singular: 'Break', plural: 'Breaks' },
+      admin: {
+        description:
+          'Dates when this recurring event will not occur, such as holidays or seasonal breaks.',
+        condition: (_data, siblingData) => !!siblingData?.recurrenceType,
+        components: {
+          Field: '@/components/admin/FlatArrayField',
+        },
+      },
+      hooks: {
+        beforeChange: [cleanupExpiredExclusions],
+      },
+      fields: [
+        {
+          type: 'row',
+          fields: [
+            {
+              name: 'startDate',
+              type: 'date',
+              required: true,
+              admin: {
+                width: '25%',
+                date: {
+                  pickerAppearance: 'dayOnly',
+                },
+              },
+            },
+            {
+              name: 'endDate',
+              type: 'date',
+              admin: {
+                width: '25%',
+                date: {
+                  pickerAppearance: 'dayOnly',
+                },
+              },
+              validate: (
+                value: Date | null | undefined,
+                { siblingData }: { siblingData: Record<string, unknown> },
+              ) => {
+                if (!value) return true // Optional field
+                const startDate = siblingData?.startDate as Date | string | undefined
+                if (!startDate) return true
+                // Compare dates: both may be Date objects or ISO strings
+                const endTime = value instanceof Date ? value.getTime() : new Date(value).getTime()
+                const startTime =
+                  startDate instanceof Date ? startDate.getTime() : new Date(startDate).getTime()
+                if (endTime < startTime) {
+                  return 'End date must be on or after start date'
+                }
+                return true
+              },
+            },
+            {
+              name: 'reason',
+              type: 'text',
+              admin: {
+                width: '50%',
+                placeholder: 'e.g., Summer break, Public holiday',
+              },
+            },
+          ],
+        },
+      ],
+    },
+  ]
+}
+
+/**
  * Virtual fields computed on read (not stored in database).
  */
 function buildVirtualFields(): Field[] {
   return [
     {
-      name: 'rrule',
+      name: 'icalRule',
       type: 'text',
       virtual: true,
       admin: { hidden: true },
       hooks: {
-        afterRead: [computeRRule],
+        afterRead: [computeIcalRule],
       },
     },
     {
@@ -416,6 +506,7 @@ function buildScheduleSubFields(config: SubFieldConfig): Field[] {
     buildDateTimeRow(config),
     buildRecurrenceRow(config),
     ...buildEndingRow(config),
+    ...buildExclusionsField(config),
     ...buildVirtualFields(),
   ]
 }
