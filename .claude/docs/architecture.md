@@ -219,7 +219,7 @@ plugins: [
 - **Files** (`src/collections/system/Files.ts`) - Mixed media storage with intelligent routing: images → Cloudflare Images (WebP/AVIF optimization), videos → Cloudflare Stream (transcoding, HLS), other files (PDFs, audio) → R2. Includes virtual `url` and `previewUrl` fields, trash support, and automatic orphan cleanup via the CleanupOrphanedMedia job
 
 ### Tag Collections
-- **MeditationTags** (`src/collections/tags/MeditationTags.ts`) - Upload collection for meditation tags with SVG icons, **color picker field**, auto-generated slug from localized title, and bidirectional relationships
+- **MeditationTags** (`src/collections/tags/MeditationTags.ts`) - Upload collection for meditation tags with SVG icons, **color picker field**, auto-generated slug from localized title, **timings multi-select** (morning/afternoon/evening/night), **meditationType select** (general/specific), **single-level parent-child nesting** (parent categories excluded from meditation tag selection), and bidirectional relationships
 - **SongTags** (`src/collections/tags/SongTags.ts`) - Upload collection for song/music tags with SVG icons, auto-generated slug from localized title, and bidirectional relationships (**note: no color field**, unlike MeditationTags). Admin labels use "Music Category" for user familiarity.
 
 **Note**: Page, Video, and Image tags are now inline enum select fields on their respective collections (not separate tag collections). This reduces admin sidebar clutter while maintaining tag functionality.
