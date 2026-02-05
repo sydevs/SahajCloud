@@ -101,7 +101,7 @@ describe('Meditations Collection', () => {
     expect(meditation.filename).toBeDefined()
   })
 
-  describe('songUrl virtual field', () => {
+  describe('randomSongUrl virtual field', () => {
     it('returns a URL when matching songs exist', async () => {
       // Create songs tagged with the songTag
       await testData.createSong(payload, {
@@ -119,9 +119,9 @@ describe('Meditations Collection', () => {
         draft: true,
       })
 
-      expect(result.songUrl).toBeDefined()
-      expect(typeof result.songUrl).toBe('string')
-      expect(result.songUrl).toMatch(/audio-42s/)
+      expect(result.randomSongUrl).toBeDefined()
+      expect(typeof result.randomSongUrl).toBe('string')
+      expect(result.randomSongUrl).toMatch(/audio-42s/)
     })
 
     it('returns null when no songTag is set', async () => {
@@ -137,7 +137,7 @@ describe('Meditations Collection', () => {
         draft: true,
       })
 
-      expect(result.songUrl).toBeNull()
+      expect(result.randomSongUrl).toBeNull()
     })
 
     it('returns null when no matching songs exist', async () => {
@@ -156,7 +156,7 @@ describe('Meditations Collection', () => {
         draft: true,
       })
 
-      expect(result.songUrl).toBeNull()
+      expect(result.randomSongUrl).toBeNull()
     })
 
     it('excludes soft-deleted songs', async () => {
@@ -190,16 +190,16 @@ describe('Meditations Collection', () => {
         draft: true,
       })
 
-      expect(result.songUrl).toBeNull()
+      expect(result.randomSongUrl).toBeNull()
     })
 
     it('is excluded from relationship population via defaultPopulate', async () => {
-      // defaultPopulate: { songUrl: false } prevents songUrl from being
+      // defaultPopulate: { randomSongUrl: false } prevents randomSongUrl from being
       // computed when meditations are populated through relationship fields.
       // This is the primary performance optimization - avoiding N+1 song
       // queries when loading lists of meditations via relationships.
 
-      // Create a song so songUrl would have a value if populated
+      // Create a song so randomSongUrl would have a value if populated
       const tag = await testData.createSongTag(payload, { title: 'Default Test Tag' })
       await testData.createSong(payload, {
         album: testAlbum.id,
@@ -218,7 +218,7 @@ describe('Meditations Collection', () => {
         meditation: meditation.id,
       })
 
-      // Fetch the lesson with meditation populated - songUrl should be excluded
+      // Fetch the lesson with meditation populated - randomSongUrl should be excluded
       const lessonResult = await payload.findByID({
         collection: 'lessons',
         id: lesson.id,
@@ -228,18 +228,18 @@ describe('Meditations Collection', () => {
       const populatedMeditation = lessonResult.meditation as Meditation
       expect(populatedMeditation).toBeDefined()
       expect(populatedMeditation.id).toBe(meditation.id)
-      // songUrl should be excluded from relationship population due to defaultPopulate
-      expect(populatedMeditation.songUrl).toBeFalsy()
+      // randomSongUrl should be excluded from relationship population due to defaultPopulate
+      expect(populatedMeditation.randomSongUrl).toBeFalsy()
 
-      // Direct query should include songUrl (virtual fields always run on direct queries)
+      // Direct query should include randomSongUrl (virtual fields always run on direct queries)
       const directResult = await payload.findByID({
         collection: 'meditations',
         id: meditation.id,
         draft: true,
       })
 
-      expect(directResult.songUrl).toBeDefined()
-      expect(typeof directResult.songUrl).toBe('string')
+      expect(directResult.randomSongUrl).toBeDefined()
+      expect(typeof directResult.randomSongUrl).toBe('string')
     })
   })
 
@@ -349,9 +349,7 @@ describe('Meditations Collection', () => {
 
       expect(csCount.totalDocs).toBe(1)
       expect(enCount.totalDocs).toBeGreaterThan(csCount.totalDocs)
-      expect(allCount.totalDocs).toBeGreaterThanOrEqual(
-        enCount.totalDocs + csCount.totalDocs,
-      )
+      expect(allCount.totalDocs).toBeGreaterThanOrEqual(enCount.totalDocs + csCount.totalDocs)
     })
 
     it('preserves existing where clauses alongside locale filter', async () => {
