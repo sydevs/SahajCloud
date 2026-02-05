@@ -242,4 +242,145 @@ describe('Meditations Collection', () => {
       expect(typeof directResult.songUrl).toBe('string')
     })
   })
+
+  describe('Locale filtering', () => {
+    let enMeditation1: Meditation
+    let enMeditation2: Meditation
+    let csMeditation: Meditation
+    let deMeditation: Meditation
+
+    beforeAll(async () => {
+      // Create meditations in different locales
+      enMeditation1 = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        { title: 'English Meditation 1', locale: 'en' },
+      )
+      enMeditation2 = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        { title: 'English Meditation 2', locale: 'en' },
+      )
+      csMeditation = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        { title: 'Czech Meditation', locale: 'cs' },
+      )
+      deMeditation = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        { title: 'German Meditation', locale: 'de' },
+      )
+    })
+
+    it('filters meditations by English locale', async () => {
+      const result = await payload.find({
+        collection: 'meditations',
+        locale: 'en',
+        draft: true,
+        depth: 0,
+      })
+
+      const ids = result.docs.map((doc) => doc.id)
+      expect(ids).toContain(enMeditation1.id)
+      expect(ids).toContain(enMeditation2.id)
+      expect(ids).not.toContain(csMeditation.id)
+      expect(ids).not.toContain(deMeditation.id)
+      // All returned docs should have locale 'en'
+      expect(result.docs.every((doc) => doc.locale === 'en')).toBe(true)
+    })
+
+    it('filters meditations by Czech locale', async () => {
+      const result = await payload.find({
+        collection: 'meditations',
+        locale: 'cs',
+        draft: true,
+        depth: 0,
+      })
+
+      const ids = result.docs.map((doc) => doc.id)
+      expect(ids).toContain(csMeditation.id)
+      expect(ids).not.toContain(enMeditation1.id)
+      expect(ids).not.toContain(deMeditation.id)
+      expect(result.docs.every((doc) => doc.locale === 'cs')).toBe(true)
+    })
+
+    it('returns all meditations when locale is all', async () => {
+      const result = await payload.find({
+        collection: 'meditations',
+        locale: 'all',
+        draft: true,
+        depth: 0,
+      })
+
+      const ids = result.docs.map((doc) => doc.id)
+      expect(ids).toContain(enMeditation1.id)
+      expect(ids).toContain(csMeditation.id)
+      expect(ids).toContain(deMeditation.id)
+    })
+
+    it('returns specific meditation by ID regardless of locale mismatch', async () => {
+      // Query a German meditation with locale set to English
+      const result = await payload.findByID({
+        collection: 'meditations',
+        id: deMeditation.id,
+        locale: 'en',
+        draft: true,
+      })
+
+      expect(result).toBeDefined()
+      expect(result.id).toBe(deMeditation.id)
+      expect(result.locale).toBe('de')
+    })
+
+    it('count respects locale filtering', async () => {
+      const enCount = await payload.count({
+        collection: 'meditations',
+        locale: 'en',
+      })
+      const csCount = await payload.count({
+        collection: 'meditations',
+        locale: 'cs',
+      })
+      const allCount = await payload.count({
+        collection: 'meditations',
+        locale: 'all',
+      })
+
+      expect(csCount.totalDocs).toBe(1)
+      expect(enCount.totalDocs).toBeGreaterThan(csCount.totalDocs)
+      expect(allCount.totalDocs).toBeGreaterThanOrEqual(
+        enCount.totalDocs + csCount.totalDocs,
+      )
+    })
+
+    it('preserves existing where clauses alongside locale filter', async () => {
+      const result = await payload.find({
+        collection: 'meditations',
+        locale: 'en',
+        draft: true,
+        depth: 0,
+        where: {
+          title: { equals: 'English Meditation 1' },
+        },
+      })
+
+      expect(result.docs).toHaveLength(1)
+      expect(result.docs[0].id).toBe(enMeditation1.id)
+    })
+
+    it('defaults to English locale when no locale specified', async () => {
+      // PayloadCMS defaults req.locale to 'en' when not specified
+      const result = await payload.find({
+        collection: 'meditations',
+        draft: true,
+        depth: 0,
+      })
+
+      // Should only contain English meditations
+      expect(result.docs.every((doc) => doc.locale === 'en')).toBe(true)
+      expect(result.docs.map((doc) => doc.id)).not.toContain(csMeditation.id)
+      expect(result.docs.map((doc) => doc.id)).not.toContain(deMeditation.id)
+    })
+  })
 })
