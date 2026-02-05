@@ -12,7 +12,7 @@ export const MeditationTags: CollectionConfig = {
   admin: {
     group: 'Metadata',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'filename', 'color', 'meditations'],
+    defaultColumns: ['title', 'filename', 'color', 'meditationType', 'parent', 'meditations'],
   },
   upload: {
     staticDir: 'media/meditation-tags',
@@ -49,6 +49,61 @@ export const MeditationTags: CollectionConfig = {
         description: 'Tag color for UI theming (hex format)',
       },
     }),
+    // Time-of-day suitability for this category
+    {
+      name: 'timings',
+      type: 'select',
+      hasMany: true,
+      options: [
+        { label: 'Morning', value: 'morning' },
+        { label: 'Afternoon', value: 'afternoon' },
+        { label: 'Evening', value: 'evening' },
+        { label: 'Night', value: 'night' },
+      ],
+      admin: {
+        description: 'When this meditation category is most suitable',
+      },
+    },
+    // General or Specific classification
+    {
+      name: 'meditationType',
+      type: 'select',
+      options: [
+        { label: 'General', value: 'general' },
+        { label: 'Specific', value: 'specific' },
+      ],
+      admin: {
+        description: 'Whether this is a general or technique-specific category',
+      },
+    },
+    // Parent category for single-level nesting
+    {
+      name: 'parent',
+      type: 'relationship',
+      relationTo: 'meditation-tags',
+      admin: {
+        description:
+          'Parent category for grouping. Parent categories are not selectable on meditations.',
+      },
+      filterOptions: ({ id }) => {
+        if (id) {
+          return { id: { not_equals: id } }
+        }
+        return true
+      },
+    },
+    // Child categories (computed from parent relationship)
+    {
+      name: 'children',
+      type: 'join',
+      collection: 'meditation-tags',
+      on: 'parent',
+      admin: {
+        components: {
+          Cell: '@/components/admin/RelationshipCountCell',
+        },
+      },
+    },
     // Bidirectional join to meditations
     {
       name: 'meditations',

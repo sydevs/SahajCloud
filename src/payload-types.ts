@@ -117,6 +117,7 @@ export interface Config {
       articles: 'pages';
     };
     'meditation-tags': {
+      children: 'meditation-tags';
       meditations: 'meditations';
     };
     'song-tags': {
@@ -618,6 +619,23 @@ export interface MeditationTag {
    * Tag color for UI theming (hex format)
    */
   color: string;
+  /**
+   * When this meditation category is most suitable
+   */
+  timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
+  /**
+   * Whether this is a general or technique-specific category
+   */
+  meditationType?: ('general' | 'specific') | null;
+  /**
+   * Parent category for grouping. Parent categories are not selectable on meditations.
+   */
+  parent?: (number | null) | MeditationTag;
+  children?: {
+    docs?: (number | MeditationTag)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   meditations?: {
     docs?: (number | Meditation)[];
     hasNextPage?: boolean;
@@ -1789,6 +1807,10 @@ export interface MeditationTagsSelect<T extends boolean = true> {
   slug?: T;
   title?: T;
   color?: T;
+  timings?: T;
+  meditationType?: T;
+  parent?: T;
+  children?: T;
   meditations?: T;
   updatedAt?: T;
   createdAt?: T;
