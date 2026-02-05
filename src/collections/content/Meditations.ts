@@ -1,6 +1,7 @@
 import type { CollectionConfig, FieldHook, Validate, Where } from 'payload'
 
 import { mediaField, slugField } from '@/fields'
+import { filterMeditationsByLocale } from '@/hooks/meditationHooks'
 import { serverEnv } from '@/lib/env'
 import { LOCALES } from '@/lib/locales'
 import { getR2Url } from '@/lib/storage/r2NativeAdapter'
@@ -49,6 +50,9 @@ const songUrlAfterRead: FieldHook = async ({ data, req }) => {
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
   trash: true,
+  hooks: {
+    beforeOperation: [filterMeditationsByLocale],
+  },
   defaultPopulate: {
     songUrl: false,
   },
