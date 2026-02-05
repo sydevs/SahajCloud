@@ -7,6 +7,7 @@ import * as migration_20260203_062524_add_cards_collection from './20260203_0625
 import * as migration_20260203_090000_rename_cards_to_app_cards from './20260203_090000_rename_cards_to_app_cards';
 import * as migration_20260204_081140 from './20260204_081140';
 import * as migration_20260204_095643 from './20260204_095643';
+import * as migration_20260205_034342 from './20260205_034342';
 
 export const migrations = [
   {
@@ -52,6 +53,11 @@ export const migrations = [
   {
     up: migration_20260204_095643.up,
     down: migration_20260204_095643.down,
-    name: '20260204_095643'
+    name: '20260204_095643',
+  },
+  {
+    up: migration_20260205_034342.up,
+    down: migration_20260205_034342.down,
+    name: '20260205_034342'
   },
 ];
