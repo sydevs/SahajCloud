@@ -1,6 +1,6 @@
 'use client'
 
-import type { FieldClientComponent, FormState, GroupFieldClient } from 'payload'
+import type { FieldClientComponent, FormState, NamedGroupFieldClient } from 'payload'
 
 import { Temporal } from '@js-temporal/polyfill'
 import { useAllFormFields } from '@payloadcms/ui'
@@ -178,7 +178,7 @@ const bannerStyle: React.CSSProperties = {
  * Registered as afterInput on the schedule group field.
  */
 export const ScheduleSummary: FieldClientComponent = ({ field }) => {
-  const groupName = (field as GroupFieldClient).name
+  const groupName = (field as NamedGroupFieldClient).name
   const [formState] = useAllFormFields()
 
   const summaryText = useMemo(() => {
