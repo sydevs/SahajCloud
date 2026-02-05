@@ -156,4 +156,13 @@ describe('AppCards rules and weight fields', () => {
     expect(cardLow.weight).toBe(1)
     expect(cardHigh.weight).toBe(5)
   })
+
+  it('rejects rules with unknown properties (additionalProperties: false)', async () => {
+    await expect(
+      testData.createAppCard(payload, {
+        title: 'Invalid Rules Card',
+        rules: { logic: 'AND', unknownKey: true } as any,
+      }),
+    ).rejects.toThrow()
+  })
 })

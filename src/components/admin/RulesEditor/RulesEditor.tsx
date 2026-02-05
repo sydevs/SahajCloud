@@ -83,14 +83,6 @@ const styles = {
     minWidth: '160px',
     flexShrink: 0,
   },
-  booleanGroup: {
-    display: 'flex',
-    gap: 0,
-    border: '1px solid var(--theme-elevation-200)',
-    borderRadius: 'var(--style-radius-s)',
-    overflow: 'hidden',
-    backgroundColor: 'var(--theme-elevation-0)',
-  },
   rangeGroup: {
     display: 'flex',
     alignItems: 'center',
@@ -119,6 +111,12 @@ const styles = {
 
 // ── Boolean Control ────────────────────────────────────────────────────────────
 
+const BOOLEAN_OPTIONS = [
+  { label: 'Yes', value: 'true' },
+  { label: 'No', value: 'false' },
+  { label: '—', value: 'unset' },
+]
+
 function BooleanControl({
   value,
   onChange,
@@ -128,52 +126,22 @@ function BooleanControl({
   onChange: (value: boolean | undefined) => void
   readOnly?: boolean
 }) {
-  const options: Array<{ label: string; value: string }> = [
-    { label: 'Yes', value: 'true' },
-    { label: 'No', value: 'false' },
-    { label: '—', value: 'unset' },
-  ]
-
   const currentValue = value === true ? 'true' : value === false ? 'false' : 'unset'
 
   const handleChange = (selected: string) => {
-    if (readOnly) return
     if (selected === 'true') onChange(true)
     else if (selected === 'false') onChange(false)
     else onChange(undefined)
   }
 
   return (
-    <div style={styles.booleanGroup}>
-      {options.map((opt, index) => {
-        const isSelected = currentValue === opt.value
-
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            disabled={readOnly}
-            onClick={() => handleChange(opt.value)}
-            style={{
-              padding: 'calc(var(--base) * 0.2) calc(var(--base) * 0.6)',
-              background: isSelected ? 'var(--theme-success-500)' : 'transparent',
-              color: isSelected ? 'var(--theme-elevation-0)' : 'var(--theme-elevation-800)',
-              fontSize: 'calc(var(--base-body-size) * 1px)',
-              fontWeight: isSelected ? 600 : 400,
-              cursor: readOnly ? 'not-allowed' : 'pointer',
-              transition: 'background 0.15s ease, color 0.15s ease',
-              border: 'none',
-              borderRight: index < options.length - 1 ? '1px solid var(--theme-elevation-200)' : 'none',
-              outline: 'none',
-              opacity: readOnly ? 0.5 : 1,
-              minWidth: '48px',
-            }}
-          >
-            {opt.label}
-          </button>
-        )
-      })}
-    </div>
+    <ToggleGroup
+      options={BOOLEAN_OPTIONS}
+      value={currentValue}
+      onChange={handleChange}
+      readOnly={readOnly}
+      aria-label="Boolean rule value"
+    />
   )
 }
 

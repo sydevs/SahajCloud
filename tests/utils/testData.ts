@@ -68,7 +68,6 @@ export const testData = {
   ): Promise<AppCard> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
-    const fileData = new Uint8Array(fileBuffer)
 
     const uniqueId = Math.random().toString(36).substring(7)
     const defaultTitle = overrides.title || `Test Card ${uniqueId}`
@@ -82,10 +81,10 @@ export const testData = {
         ...overrides,
       },
       file: {
-        data: fileData as unknown as Buffer,
+        data: fileBuffer,
         mimetype: `image/${path.extname(sampleFile).slice(1)}`,
         name: sampleFile,
-        size: fileData.length,
+        size: fileBuffer.length,
       },
     })) as AppCard
   },
