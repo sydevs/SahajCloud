@@ -85,6 +85,17 @@ expect(song.filename).toMatch(/^audio-42s(-\d+)?\.mp3$/)
 | `role-based-access.int.spec.ts` | hasPermission(), customResourceAccess |
 | `[collection].int.spec.ts` | Collection-specific business logic |
 
+## PayloadCMS Field Behavior Gotchas
+
+| Scenario | Wrong Assumption | Correct Behavior |
+|----------|-----------------|------------------|
+| `hasMany` select, no values | `null` / `undefined` | `[]` (empty array) |
+| Join field at `depth: 0` | `{ id: number }[]` | `number[]` (raw IDs) |
+| `payload.create()` + relationship | Returns raw ID | Returns populated object |
+| `filterOptions` fallback | Return `{}` | Return `true` |
+
+Full details: @.claude/docs/testing.md
+
 ## E2E Test Commands
 
 ```bash
