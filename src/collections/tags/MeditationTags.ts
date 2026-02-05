@@ -116,6 +116,7 @@ export const MeditationTags: CollectionConfig = {
       type: 'checkbox',
       required: true,
       defaultValue: false,
+      index: true,
       admin: {
         hidden: true,
         description: 'Automatically set when this tag has child categories',

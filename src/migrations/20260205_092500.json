@@ -3764,19 +3764,28 @@
           "autoincrement": false,
           "default": "'#000000'"
         },
-        "meditation_type": {
-          "name": "meditation_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "parent_id": {
           "name": "parent_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "is_featured": {
+          "name": "is_featured",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "is_parent": {
+          "name": "is_parent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         },
         "updated_at": {
           "name": "updated_at",
@@ -3863,6 +3872,13 @@
           "name": "meditation_tags_parent_idx",
           "columns": [
             "parent_id"
+          ],
+          "isUnique": false
+        },
+        "meditation_tags_is_parent_idx": {
+          "name": "meditation_tags_is_parent_idx",
+          "columns": [
+            "is_parent"
           ],
           "isUnique": false
         },
@@ -10355,6 +10371,6 @@
   "internal": {
     "indexes": {}
   },
-  "id": "8291c74b-91b2-45d7-bbf4-79ed5d022361",
+  "id": "bf1fc336-157d-46b7-9347-925dfab34cd0",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

@@ -112,9 +112,11 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.run(sql`CREATE INDEX \`_meditations_v_snapshot_idx\` ON \`_meditations_v\` (\`snapshot\`);`)
   await db.run(sql`CREATE INDEX \`_meditations_v_published_locale_idx\` ON \`_meditations_v\` (\`published_locale\`);`)
   await db.run(sql`CREATE INDEX \`_meditations_v_latest_idx\` ON \`_meditations_v\` (\`latest\`);`)
-  await db.run(sql`ALTER TABLE \`meditation_tags\` ADD \`meditation_type\` text;`)
   await db.run(sql`ALTER TABLE \`meditation_tags\` ADD \`parent_id\` integer REFERENCES meditation_tags(id);`)
+  await db.run(sql`ALTER TABLE \`meditation_tags\` ADD \`is_featured\` integer DEFAULT false NOT NULL;`)
+  await db.run(sql`ALTER TABLE \`meditation_tags\` ADD \`is_parent\` integer DEFAULT false NOT NULL;`)
   await db.run(sql`CREATE INDEX \`meditation_tags_parent_idx\` ON \`meditation_tags\` (\`parent_id\`);`)
+  await db.run(sql`CREATE INDEX \`meditation_tags_is_parent_idx\` ON \`meditation_tags\` (\`is_parent\`);`)
 }
 
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
