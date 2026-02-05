@@ -950,11 +950,11 @@ describe('Schedule Field Hooks', () => {
       expect(result).not.toContain('EXDATE')
     })
 
-    it('note field does not affect EXDATE output', () => {
+    it('reason field does not affect EXDATE output', () => {
       const result = callHook(computeIcalRule, {
         ...baseFields,
         recurrenceType: 'DAILY',
-        exclusions: [{ startDate: '2025-03-17', note: 'Holiday break' }],
+        exclusions: [{ startDate: '2025-03-17', reason: 'Holiday break' }],
       }) as string
 
       expect(result).toContain('EXDATE')
@@ -1107,7 +1107,7 @@ describe('Schedule Field Hooks', () => {
 
     it('keeps future exclusions', () => {
       const exclusions = [
-        { startDate: '2025-04-01', endDate: '2025-04-03', note: 'Spring break' },
+        { startDate: '2025-04-01', endDate: '2025-04-03', reason: 'Spring break' },
         { startDate: '2025-05-01' },
       ]
 
@@ -1130,7 +1130,7 @@ describe('Schedule Field Hooks', () => {
       // March 10 + 1 day grace = March 11 23:59:59.999
       // Current time is March 15 — well past grace
       const exclusions = [
-        { startDate: '2025-03-08', endDate: '2025-03-10', note: 'Old break' },
+        { startDate: '2025-03-08', endDate: '2025-03-10', reason: 'Old break' },
       ]
 
       const result = callBeforeChangeHook(cleanupExpiredExclusions, exclusions) as unknown[]
@@ -1149,7 +1149,7 @@ describe('Schedule Field Hooks', () => {
 
     it('filters mixed expired and future items', () => {
       const exclusions = [
-        { startDate: '2025-02-01', endDate: '2025-02-05', note: 'Past break' }, // expired
+        { startDate: '2025-02-01', endDate: '2025-02-05', reason: 'Past break' }, // expired
         { startDate: '2025-03-14' }, // within grace
         { startDate: '2025-04-01', endDate: '2025-04-02' }, // future
         { startDate: '2025-01-01' }, // expired

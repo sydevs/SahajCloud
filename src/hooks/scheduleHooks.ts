@@ -29,7 +29,7 @@ import { type RRuleOptions, RRuleTemporal } from 'rrule-temporal'
 export interface ExclusionRange {
   startDate: string // YYYY-MM-DD or ISO datetime
   endDate?: string // YYYY-MM-DD or ISO datetime, optional
-  note?: string
+  reason?: string
   id?: string // PayloadCMS array item ID
 }
 

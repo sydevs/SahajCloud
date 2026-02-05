@@ -738,6 +738,7 @@ Stored field values align with RFC 5545 / rrule-temporal conventions to minimize
 ### Key Files
 - `src/fields/scheduleField.ts` - Group field factory with sub-fields, virtual fields, and `ScheduleFieldOptions` type
 - `src/hooks/scheduleHooks.ts` - `buildRRuleTemporal` shared helper, `computeIcalRule` and `computeUpcomingDates` afterRead hooks, `cleanupExpiredExclusions` beforeChange hook, `getLocalTimeHHMM` utility, `ScheduleSubFields` and `ExclusionRange` types
+- `src/components/admin/FlatArrayField/FlatArrayField.tsx` - Custom array field component for exclusions (flat rows without per-row Collapsible)
 - `tests/int/schedule-hooks.int.spec.ts` - Unit tests including DST transition correctness tests
 
 ## PayloadCMS defaultPopulate Behavior
