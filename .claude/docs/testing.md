@@ -228,6 +228,47 @@ expect(enResult.field).toBe('English value')  // Proves localization works
 
 **Test Environment Requirement**: The test environment must have `localization` configured in `testHelpers.ts` for localized field tests to work properly.
 
+### PayloadCMS Field Behavior in Tests
+
+Several PayloadCMS behaviors differ from common assumptions. These cause subtle test failures:
+
+**`hasMany` Select Fields Return `[]` When Empty**:
+```typescript
+// ❌ WRONG: hasMany select returns empty array, not null
+expect(tag.timings).toBeFalsy()           // Fails: [] is not falsy
+expect(tag.timings).toBeNull()            // Fails
+
+// ✅ CORRECT
+expect(tag.timings).toEqual([])           // hasMany select with no values = []
+```
+
+**Join Fields at `depth: 0` Return Raw IDs**:
+```typescript
+// ❌ WRONG: At depth: 0, join docs are numbers, not objects
+const childIds = children.docs.map((c) => c.id)  // undefined!
+
+// ✅ CORRECT: Handle both formats
+const childIds = children.docs.map((c) =>
+  typeof c === 'number' ? c : c.id
+)
+```
+
+**`payload.create()` Auto-Populates Relationships**:
+```typescript
+// ❌ WRONG: create() returns populated relationship, not raw ID
+const child = await payload.create({
+  collection: 'tags',
+  data: { parent: parentTag.id },
+})
+expect(child.parent).toBe(parentTag.id)  // Fails: child.parent is { id, title, ... }
+
+// ✅ CORRECT: Extract ID from potentially populated value
+const parentId = typeof child.parent === 'object' && child.parent !== null
+  ? child.parent.id
+  : child.parent
+expect(parentId).toBe(parentTag.id)
+```
+
 ## Test Configuration
 
 - Tests run sequentially (`maxConcurrency: 1`) to prevent resource conflicts
