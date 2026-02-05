@@ -1,6 +1,13 @@
-import type { CollectionConfig, Validate } from 'payload'
+import type { CollectionConfig } from 'payload'
+
+import { createBreadcrumbsField, createParentField } from '@payloadcms/plugin-nested-docs'
 
 import { colorField, slugField } from '@/fields'
+import {
+  clearIsParentOnDelete,
+  maintainIsParent,
+  validateNesting,
+} from '@/hooks/meditationTagHooks'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const MeditationTags: CollectionConfig = {
@@ -12,7 +19,12 @@ export const MeditationTags: CollectionConfig = {
   admin: {
     group: 'Metadata',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'filename', 'color', 'meditationType', 'parent', 'meditations'],
+    defaultColumns: ['title', 'filename', 'color', 'isFeatured', 'parent', 'meditations'],
+  },
+  hooks: {
+    beforeValidate: [validateNesting],
+    afterChange: [maintainIsParent],
+    afterDelete: [clearIsParentOnDelete],
   },
   upload: {
     staticDir: 'media/meditation-tags',
@@ -54,6 +66,7 @@ export const MeditationTags: CollectionConfig = {
       name: 'timings',
       type: 'select',
       hasMany: true,
+      required: true,
       options: [
         { label: 'Morning', value: 'morning' },
         { label: 'Afternoon', value: 'afternoon' },
@@ -62,67 +75,54 @@ export const MeditationTags: CollectionConfig = {
       ],
       admin: {
         description: 'When this meditation category is most suitable',
+        components: {
+          Field: '@/components/admin/ToggleGroupField',
+        },
       },
     },
-    // General or Specific classification
-    {
-      name: 'meditationType',
-      type: 'select',
-      options: [
-        { label: 'General', value: 'general' },
-        { label: 'Specific', value: 'specific' },
-      ],
+    // Parent category for single-level nesting (managed by nested-docs plugin)
+    createParentField('meditation-tags', {
       admin: {
-        description: 'Whether this is a general or technique-specific category',
-      },
-    },
-    // Parent category for single-level nesting
-    {
-      name: 'parent',
-      type: 'relationship',
-      relationTo: 'meditation-tags',
-      admin: {
+        position: 'sidebar',
         description:
           'Parent category for grouping. Parent categories are not selectable on meditations.',
       },
-      filterOptions: ({ id }) => {
-        if (id) {
-          return { id: { not_equals: id } }
-        }
-        return true
+      // Client-side: only root-level tags (no parent) can be selected as parents
+      filterOptions: ({ id }) => ({
+        id: { not_equals: id },
+        parent: { exists: false },
+      }),
+      // Server-side nesting validation is in the beforeValidate hook (validateNesting).
+      // This override prevents Payload's default validateFilterOptions from running,
+      // which fails on create when id is undefined (causes { id: { not_equals: undefined } }).
+      validate: () => true,
+    }),
+    // Breadcrumbs (required by nested-docs plugin, hidden in admin)
+    createBreadcrumbsField('meditation-tags', {
+      admin: { hidden: true },
+    }),
+    // Featured classification
+    {
+      name: 'isFeatured',
+      type: 'checkbox',
+      required: true,
+      defaultValue: false,
+      admin: {
+        position: 'sidebar',
+        description:
+          'Featured categories are shown prominently; non-featured categories appear in a dropdown',
       },
-      validate: (async (value, options) => {
-        if (!value) return true
-
-        const { req, id } = options
-
-        // Selected parent must not already have a parent (prevents A→B→C chains)
-        const parentTag = await req.payload.findByID({
-          collection: 'meditation-tags',
-          id: value as number,
-          depth: 0,
-        })
-
-        if (parentTag?.parent) {
-          return 'Cannot select a tag that already has a parent. Only single-level nesting is allowed.'
-        }
-
-        // Current tag must not have children (a parent cannot become a child)
-        if (id) {
-          const children = await req.payload.find({
-            collection: 'meditation-tags',
-            where: { parent: { equals: id } },
-            limit: 1,
-            depth: 0,
-          })
-
-          if (children.totalDocs > 0) {
-            return 'Cannot set a parent on a tag that already has children. Only single-level nesting is allowed.'
-          }
-        }
-
-        return true
-      }) as Validate,
+    },
+    // Whether this tag has children (auto-maintained by hooks)
+    {
+      name: 'isParent',
+      type: 'checkbox',
+      required: true,
+      defaultValue: false,
+      admin: {
+        hidden: true,
+        description: 'Automatically set when this tag has child categories',
+      },
     },
     // Child categories (computed from parent relationship)
     {
@@ -131,12 +131,13 @@ export const MeditationTags: CollectionConfig = {
       collection: 'meditation-tags',
       on: 'parent',
       admin: {
+        condition: (data) => data.isParent,
         components: {
           Cell: '@/components/admin/RelationshipCountCell',
         },
       },
     },
-    // Bidirectional join to meditations
+    // Bidirectional join to meditations (hidden on parent tags)
     {
       name: 'meditations',
       type: 'join',
@@ -144,6 +145,7 @@ export const MeditationTags: CollectionConfig = {
       on: 'tags',
       defaultLimit: 100,
       admin: {
+        condition: (data) => !data.isParent,
         components: {
           Cell: '@/components/admin/RelationshipCountCell',
         },

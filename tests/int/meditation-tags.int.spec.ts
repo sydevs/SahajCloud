@@ -43,31 +43,26 @@ describe('MeditationTags Collection - Metadata Fields', () => {
       expect(tag.timings).toEqual(['morning', 'afternoon', 'evening', 'night'])
     })
 
-    it('creates a tag with no timings', async () => {
-      const tag = await testData.createMeditationTag(payload)
-      // hasMany select returns empty array when no values set
-      expect(tag.timings).toEqual([])
+    it('rejects a tag with no timings', async () => {
+      await expect(
+        testData.createMeditationTag(payload, {
+          timings: [] as unknown as MeditationTag['timings'],
+        }),
+      ).rejects.toThrow()
     })
   })
 
-  describe('meditationType field', () => {
-    it('creates a tag with general type', async () => {
-      const tag = await testData.createMeditationTag(payload, {
-        meditationType: 'general',
-      })
-      expect(tag.meditationType).toBe('general')
-    })
-
-    it('creates a tag with specific type', async () => {
-      const tag = await testData.createMeditationTag(payload, {
-        meditationType: 'specific',
-      })
-      expect(tag.meditationType).toBe('specific')
-    })
-
-    it('creates a tag with no meditationType (no default)', async () => {
+  describe('isFeatured field', () => {
+    it('defaults to false', async () => {
       const tag = await testData.createMeditationTag(payload)
-      expect(tag.meditationType).toBeFalsy()
+      expect(tag.isFeatured).toBe(false)
+    })
+
+    it('can be set to true', async () => {
+      const tag = await testData.createMeditationTag(payload, {
+        isFeatured: true,
+      })
+      expect(tag.isFeatured).toBe(true)
     })
   })
 
@@ -165,25 +160,171 @@ describe('MeditationTags Collection - Metadata Fields', () => {
     })
   })
 
+  describe('isParent maintenance', () => {
+    it('sets isParent to true when child is created', async () => {
+      const parent = await testData.createMeditationTag(payload, {
+        title: 'IsParent Test Parent',
+      })
+      expect(parent.isParent).toBe(false)
+
+      await testData.createMeditationTag(payload, {
+        title: 'IsParent Test Child',
+        parent: parent.id,
+      })
+
+      const updated = await payload.findByID({
+        collection: 'meditation-tags',
+        id: parent.id,
+        depth: 0,
+      })
+      expect(updated.isParent).toBe(true)
+    })
+
+    it('clears isParent when last child is deleted', async () => {
+      const parent = await testData.createMeditationTag(payload, {
+        title: 'Delete Test Parent',
+      })
+
+      const child = await testData.createMeditationTag(payload, {
+        title: 'Delete Test Child',
+        parent: parent.id,
+      })
+
+      // Verify parent has isParent set
+      const beforeDelete = await payload.findByID({
+        collection: 'meditation-tags',
+        id: parent.id,
+        depth: 0,
+      })
+      expect(beforeDelete.isParent).toBe(true)
+
+      // Delete the child
+      await payload.delete({
+        collection: 'meditation-tags',
+        id: child.id,
+      })
+
+      // Verify isParent is cleared
+      const afterDelete = await payload.findByID({
+        collection: 'meditation-tags',
+        id: parent.id,
+        depth: 0,
+      })
+      expect(afterDelete.isParent).toBe(false)
+    })
+
+    it('preserves isParent when other children remain', async () => {
+      const parent = await testData.createMeditationTag(payload, {
+        title: 'Preserve Test Parent',
+      })
+
+      const child1 = await testData.createMeditationTag(payload, {
+        title: 'Preserve Test Child 1',
+        parent: parent.id,
+      })
+
+      await testData.createMeditationTag(payload, {
+        title: 'Preserve Test Child 2',
+        parent: parent.id,
+      })
+
+      // Delete one child
+      await payload.delete({
+        collection: 'meditation-tags',
+        id: child1.id,
+      })
+
+      // Verify isParent is still true (other child remains)
+      const afterDelete = await payload.findByID({
+        collection: 'meditation-tags',
+        id: parent.id,
+        depth: 0,
+      })
+      expect(afterDelete.isParent).toBe(true)
+    })
+
+    it('clears isParent when child parent is removed', async () => {
+      const parent = await testData.createMeditationTag(payload, {
+        title: 'Remove Parent Test',
+      })
+
+      const child = await testData.createMeditationTag(payload, {
+        title: 'Remove Parent Child',
+        parent: parent.id,
+      })
+
+      // Verify parent has isParent set
+      const beforeUpdate = await payload.findByID({
+        collection: 'meditation-tags',
+        id: parent.id,
+        depth: 0,
+      })
+      expect(beforeUpdate.isParent).toBe(true)
+
+      // Remove parent from child
+      await payload.update({
+        collection: 'meditation-tags',
+        id: child.id,
+        data: { parent: null },
+      })
+
+      // Verify isParent is cleared
+      const afterUpdate = await payload.findByID({
+        collection: 'meditation-tags',
+        id: parent.id,
+        depth: 0,
+      })
+      expect(afterUpdate.isParent).toBe(false)
+    })
+  })
+
+  describe('API filtering', () => {
+    it('filters out parent tags with where[isParent][not_equals]=true', async () => {
+      const parent = await testData.createMeditationTag(payload, {
+        title: 'API Filter Parent',
+      })
+
+      const child = await testData.createMeditationTag(payload, {
+        title: 'API Filter Child',
+        parent: parent.id,
+      })
+
+      const standalone = await testData.createMeditationTag(payload, {
+        title: 'API Filter Standalone',
+      })
+
+      const result = await payload.find({
+        collection: 'meditation-tags',
+        where: { isParent: { not_equals: true } },
+        depth: 0,
+      })
+
+      const ids = result.docs.map((doc) => doc.id)
+      expect(ids).toContain(child.id)
+      expect(ids).toContain(standalone.id)
+      expect(ids).not.toContain(parent.id)
+    })
+  })
+
   describe('combined metadata', () => {
     it('creates a tag with all metadata fields', async () => {
       const parentTag = await testData.createMeditationTag(payload, {
         title: 'Parent With Metadata',
-        meditationType: 'general',
+        isFeatured: true,
         timings: ['morning', 'afternoon'],
       })
 
       const childTag = await testData.createMeditationTag(payload, {
         title: 'Child With Metadata',
-        meditationType: 'specific',
+        isFeatured: false,
         timings: ['evening'],
         parent: parentTag.id,
       })
 
-      expect(parentTag.meditationType).toBe('general')
+      expect(parentTag.isFeatured).toBe(true)
       expect(parentTag.timings).toEqual(['morning', 'afternoon'])
 
-      expect(childTag.meditationType).toBe('specific')
+      expect(childTag.isFeatured).toBe(false)
       expect(childTag.timings).toEqual(['evening'])
       // parent is auto-populated on create, extract ID for comparison
       const childParentId =

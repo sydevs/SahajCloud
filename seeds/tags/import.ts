@@ -47,6 +47,7 @@ interface TagData {
   slug: string
   color: string
   iconUrl: string
+  timings?: ('morning' | 'afternoon' | 'evening' | 'night')[]
 }
 
 // ============================================================================
@@ -60,6 +61,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#FFD591',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989226/meditation-icons/user-states/Excited_for_the_day_2ae1a99e.svg',
+    timings: ['morning'],
   },
   {
     title: "Stressed and tense (Can't let go of the day)",
@@ -67,6 +69,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#DF8D7A',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989231/meditation-icons/user-states/Stressed_and_tense_Can_t_let_go_of_the_day_2ae1a99e.svg',
+    timings: ['evening', 'night'],
   },
   {
     title: 'Sad, emotionally down',
@@ -74,6 +77,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#DF8E7A',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989234/meditation-icons/user-states/Sad_emotionally_down_2ae1a99e.svg',
+    timings: ['morning', 'afternoon', 'evening', 'night'],
   },
   {
     title: "Can't wake up, lethargic",
@@ -81,6 +85,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#A4D9D1',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989238/meditation-icons/user-states/Can_t_wake_up_lethargic_2ae1a99e.svg',
+    timings: ['morning'],
   },
   {
     title: 'Too many thoughts, hard to focus',
@@ -88,6 +93,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#DF8D7A',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989244/meditation-icons/user-states/Too_many_thoughts_hard_to_focus_2ae1a99e.svg',
+    timings: ['morning', 'afternoon', 'evening', 'night'],
   },
   {
     title: 'Feel guilty and regretful',
@@ -95,6 +101,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#DF8E7A',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989247/meditation-icons/user-states/Feel_guilty_and_regretful_2ae1a99e.svg',
+    timings: ['morning', 'afternoon', 'evening', 'night'],
   },
   {
     title: 'Demotivated, uninspired',
@@ -102,6 +109,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#A4C7D9',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989251/meditation-icons/user-states/Demotivated_uninspired_2ae1a99e.svg',
+    timings: ['morning', 'afternoon'],
   },
   {
     title: 'Feel fine, just want to unwind',
@@ -109,6 +117,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#A1C3D7',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989256/meditation-icons/user-states/Feel_fine_just_want_to_unwind_2ae1a99e.svg',
+    timings: ['evening', 'night'],
   },
   {
     title: 'Feel lonely',
@@ -116,6 +125,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#A6D6D1',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989259/meditation-icons/user-states/Feel_lonely_2ae1a99e.svg',
+    timings: ['morning', 'afternoon', 'evening', 'night'],
   },
   {
     title: 'Restless, too many thoughts',
@@ -123,6 +133,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#DF8D7A',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989272/meditation-icons/user-states/Restless_too_many_thoughts_2ae1a99e.svg',
+    timings: ['evening', 'night'],
   },
   {
     title: "Mind is racing, can't relax",
@@ -130,6 +141,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#DF8D7A',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989275/meditation-icons/user-states/Mind_is_racing_can_t_relax_2ae1a99e.svg',
+    timings: ['evening', 'night'],
   },
   {
     title: 'Fine, just want to reconnect',
@@ -137,6 +149,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#A1C3D7',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989280/meditation-icons/user-states/Fine_just_want_to_reconnect_2ae1a99e.svg',
+    timings: ['morning', 'afternoon', 'evening', 'night'],
   },
   {
     title: 'Wired and agitated',
@@ -144,6 +157,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#A6D6D0',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989283/meditation-icons/user-states/Wired_and_agitated_2ae1a99e.svg',
+    timings: ['afternoon', 'evening', 'night'],
   },
   {
     title: 'Feel Insecure, lacking self esteem',
@@ -151,6 +165,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#A6D6D0',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989286/meditation-icons/user-states/Feel_Insecure_lacking_self_esteem_2ae1a99e.svg',
+    timings: ['morning', 'afternoon', 'evening', 'night'],
   },
   {
     title: 'Tired and overwhelmed',
@@ -158,6 +173,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#A4C7D9',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989289/meditation-icons/user-states/Tired_and_overwhelmed_2ae1a99e.svg',
+    timings: ['afternoon', 'evening'],
   },
   {
     title: 'Had a great day, feeling good!',
@@ -165,6 +181,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#DF8E79',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989292/meditation-icons/user-states/Had_a_great_day_feeling_good_2ae1a99e.svg',
+    timings: ['evening'],
   },
   {
     title: 'Feel Anxious and Overwhelmed',
@@ -172,6 +189,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#FED593',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989295/meditation-icons/user-states/Feel_Anxious_and_Overwhelmed_2ae1a99e.svg',
+    timings: ['morning', 'afternoon', 'evening', 'night'],
   },
   {
     title: 'Feel stressed',
@@ -179,6 +197,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#DF8D7A',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989298/meditation-icons/user-states/Feel_stressed_2ae1a99e.svg',
+    timings: ['morning', 'afternoon', 'evening', 'night'],
   },
   {
     title: 'Feel Exhausted',
@@ -186,6 +205,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#A4C7D9',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989301/meditation-icons/user-states/Feel_Exhausted_2ae1a99e.svg',
+    timings: ['afternoon', 'evening', 'night'],
   },
   {
     title: 'Feel Angry',
@@ -193,6 +213,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#FED593',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989304/meditation-icons/user-states/Feel_Angry_2ae1a99e.svg',
+    timings: ['morning', 'afternoon', 'evening', 'night'],
   },
   {
     title: 'Feeling Fine',
@@ -200,6 +221,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#A1C3D7',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989307/meditation-icons/user-states/Feeling_Fine_2ae1a99e.svg',
+    timings: ['morning', 'afternoon', 'evening', 'night'],
   },
   {
     title: 'Low on energy, need a boost',
@@ -207,6 +229,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#A4C7D9',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989310/meditation-icons/user-states/Low_on_energy_need_a_boost_2ae1a99e.svg',
+    timings: ['morning', 'afternoon'],
   },
   {
     title: 'Overwhelmed, need to pause',
@@ -214,6 +237,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#A4C7D9',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989313/meditation-icons/user-states/Overwhelmed_need_to_pause_2ae1a99e.svg',
+    timings: ['morning', 'afternoon', 'evening'],
   },
   {
     title: 'Seeking deeper spiritual experience',
@@ -221,6 +245,7 @@ const MEDITATION_TAGS: TagData[] = [
     color: '#A4D9D1',
     iconUrl:
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989317/meditation-icons/user-states/Seeking_deeper_spiritual_experience_2ae1a99e.svg',
+    timings: ['morning', 'evening'],
   },
   // Time-based tags (reusing music tag icons)
   {
@@ -228,18 +253,21 @@ const MEDITATION_TAGS: TagData[] = [
     slug: 'morning',
     color: '#FFD591',
     iconUrl: 'local:morning.svg',
+    timings: ['morning'],
   },
   {
     title: 'Afternoon',
     slug: 'afternoon',
     color: '#FED593',
     iconUrl: 'https://www.svgrepo.com/show/529971/sun-2.svg',
+    timings: ['afternoon'],
   },
   {
     title: 'Evening',
     slug: 'evening',
     color: '#A4C7D9',
     iconUrl: 'local:evening.svg',
+    timings: ['evening'],
   },
 ]
 
@@ -376,6 +404,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
             slug: tag.slug,
             title: tag.title,
             color: tag.color,
+            timings: tag.timings,
           },
           {
             locale: 'en',
@@ -466,7 +495,10 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
       // Download from URL
       const response = await fetch(url)
       if (!response.ok) {
-        this.addError(`SVG download from ${url}`, new Error(`HTTP ${response.status} ${response.statusText}`))
+        this.addError(
+          `SVG download from ${url}`,
+          new Error(`HTTP ${response.status} ${response.statusText}`),
+        )
         return null
       }
 

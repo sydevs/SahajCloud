@@ -82,23 +82,22 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
   // Use Payload's field hook for state management
   const { value, setValue, showError } = useField<(string | number)[] | string | number | null>()
 
+  // Extract filter query from custom config (e.g., { 'where[isParent][not_equals]': 'true' })
+  const filterQuery = custom?.filterQuery as Record<string, string> | undefined
+
   // Fetch tags from API with PayloadCMS API hook
   const collection = Array.isArray(relationTo) ? relationTo[0] : relationTo
   const [{ data, isLoading, isError }] = usePayloadAPI(`/api/${collection}`, {
     initialParams: {
       limit: 100,
       depth: 0,
+      ...filterQuery,
     },
   })
 
-  // Filter out parent tags (tags that have children) — only leaf tags are selectable
-  // This is harmless for collections without a children join field (e.g., song-tags)
+  // Map API docs to TagOption format
   const tags: TagOption[] = useMemo(() => {
-    const docs = data?.docs || []
-    return docs.filter((doc: Record<string, unknown>) => {
-      const children = doc.children as { docs?: unknown[] } | undefined
-      return !children?.docs?.length
-    })
+    return (data?.docs || []) as TagOption[]
   }, [data?.docs])
 
   // Normalize value to array for consistent handling

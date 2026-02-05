@@ -21,6 +21,17 @@ The system integrates several official Payload plugins:
 - **Admin Groups**: Forms in "Resources", submissions in "System"
 - **Access Control**: Uses standard permission-based access
 
+## Nested Docs Plugin (`@payloadcms/plugin-nested-docs`)
+
+- **Applied to**: MeditationTags collection
+- **Features**:
+  - Manages `parent` relationship field for hierarchical nesting
+  - Auto-generates `breadcrumbs` array field (hidden in admin UI)
+  - Uses `createParentField()` and `createBreadcrumbsField()` factory functions with overrides
+- **Configuration**: In `src/payload.config.ts`
+- **Restrictions**: Single-level nesting enforced via `filterOptions` (client-side) and `beforeValidate` hook (server-side)
+- **Companion Hooks**: `src/hooks/meditationTagHooks.ts` provides `validateNesting` (beforeValidate — uses `originalDoc.isParent` to avoid extra queries) and maintains a denormalized `isParent` checkbox via `afterChange`/`afterDelete` hooks, since the plugin doesn't provide a "has children" indicator and join fields are virtual (can't be used in `where` queries)
+
 ## Built-in Slug Generation
 
 Payload provides a built-in `slugField` factory for automatic slug generation:
