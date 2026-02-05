@@ -156,9 +156,8 @@ function formatOneOffDate(firstDate: string, timezone: string): string | null {
 
 const bannerStyle: React.CSSProperties = {
   padding: 'calc(var(--base) * 0.5) calc(var(--base) * 0.75)',
-  marginTop: 'calc(var(--base) * 0.25)',
+  marginBottom: 'calc(var(--base))',
   backgroundColor: 'var(--theme-elevation-50)',
-  border: '1px solid var(--theme-elevation-150)',
   borderRadius: 'var(--style-radius-s)',
   fontSize: 'calc(var(--base-body-size) * 1px)',
   color: 'var(--theme-elevation-650)',
@@ -197,7 +196,7 @@ export const ScheduleSummary: FieldClientComponent = ({ field }) => {
     if (!ical) return null
 
     try {
-      return toText(ical)
+      return toText(ical).replace(/^./, (char) => char.toUpperCase())
     } catch {
       return null
     }

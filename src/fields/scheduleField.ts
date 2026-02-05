@@ -138,7 +138,7 @@ export function scheduleField(options: ScheduleFieldOptions = {}): Field {
       description: admin.description || 'Configure when this event occurs and repeats',
       condition: admin.condition,
       components: {
-        afterInput: ['@/components/admin/ScheduleSummary'],
+        beforeInput: ['@/components/admin/ScheduleSummary'],
       },
     },
     fields: subFields,
