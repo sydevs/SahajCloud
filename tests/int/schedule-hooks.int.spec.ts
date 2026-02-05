@@ -7,10 +7,11 @@
  *
  * No Payload initialization is needed — both hooks only use `siblingData`.
  */
-import type { FieldHook } from 'payload'
+import type { FieldHook, NamedGroupField } from 'payload'
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
+import { scheduleField } from '@/fields/scheduleField'
 import {
   cleanupExpiredExclusions,
   computeIcalRule,
@@ -1197,6 +1198,27 @@ describe('Schedule Field Hooks', () => {
       expect(callBeforeChangeHook(cleanupExpiredExclusions, null)).toBeNull()
       expect(callBeforeChangeHook(cleanupExpiredExclusions, undefined)).toBeUndefined()
       expect(callBeforeChangeHook(cleanupExpiredExclusions, [])).toEqual([])
+    })
+  })
+
+  // ──────────────────────────────────────────────────────────────────────
+  // scheduleField factory — structural assertions
+  // ──────────────────────────────────────────────────────────────────────
+  describe('scheduleField factory', () => {
+    it('registers ScheduleSummary beforeInput component on the group field', () => {
+      const field = scheduleField() as NamedGroupField
+      expect(field.type).toBe('group')
+      expect(field.admin?.components?.beforeInput).toEqual([
+        '@/components/admin/ScheduleSummary',
+      ])
+    })
+
+    it('registers beforeInput with custom group name', () => {
+      const field = scheduleField({ name: 'eventSchedule' }) as NamedGroupField
+      expect(field.name).toBe('eventSchedule')
+      expect(field.admin?.components?.beforeInput).toEqual([
+        '@/components/admin/ScheduleSummary',
+      ])
     })
   })
 })

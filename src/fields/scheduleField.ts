@@ -79,6 +79,10 @@ const ENDING_OPTIONS = [
  * stores the datetime in UTC and auto-creates a companion `firstDate_tz`
  * field for the timezone.
  *
+ * A `ScheduleSummary` beforeInput component displays a human-readable
+ * description of the configured recurrence below the group fields,
+ * updating in real-time as the user edits sub-fields.
+ *
  * Feature flags enable additional field groups:
  * - `endTime` — end time field
  * - `complexWeekly` — weekday picker for weekly recurrence
@@ -133,6 +137,9 @@ export function scheduleField(options: ScheduleFieldOptions = {}): Field {
     admin: {
       description: admin.description || 'Configure when this event occurs and repeats',
       condition: admin.condition,
+      components: {
+        beforeInput: ['@/components/admin/ScheduleSummary'],
+      },
     },
     fields: subFields,
   }
