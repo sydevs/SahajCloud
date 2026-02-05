@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, Validate } from 'payload'
 
 import { colorField, slugField } from '@/fields'
 import { virtualUrlField } from '@/lib/storage/urlFields'
@@ -91,6 +91,38 @@ export const MeditationTags: CollectionConfig = {
         }
         return true
       },
+      validate: (async (value, options) => {
+        if (!value) return true
+
+        const { req, id } = options
+
+        // Selected parent must not already have a parent (prevents A→B→C chains)
+        const parentTag = await req.payload.findByID({
+          collection: 'meditation-tags',
+          id: value as number,
+          depth: 0,
+        })
+
+        if (parentTag?.parent) {
+          return 'Cannot select a tag that already has a parent. Only single-level nesting is allowed.'
+        }
+
+        // Current tag must not have children (a parent cannot become a child)
+        if (id) {
+          const children = await req.payload.find({
+            collection: 'meditation-tags',
+            where: { parent: { equals: id } },
+            limit: 1,
+            depth: 0,
+          })
+
+          if (children.totalDocs > 0) {
+            return 'Cannot set a parent on a tag that already has children. Only single-level nesting is allowed.'
+          }
+        }
+
+        return true
+      }) as Validate,
     },
     // Child categories (computed from parent relationship)
     {

@@ -67,6 +67,24 @@ createVirtualUrlField()
 VirtualUrlField()
 ```
 
+## filterOptions Return Types
+
+The `filterOptions` callback must return `Where | true`:
+
+```typescript
+// ✅ Correct: Return Where object or `true`
+filterOptions: ({ id }) => {
+  if (id) {
+    return { id: { not_equals: id } }
+  }
+  return true  // Allow all options
+},
+
+// ❌ Wrong: Empty object is not assignable to Where
+filterOptions: ({ id }) => (id ? { id: { not_equals: id } } : {})
+// TypeScript error: Type '{ id?: undefined; }' is not assignable to type 'Where'
+```
+
 ## Adding New Roles
 
 ### 1. Define Role in roles.ts

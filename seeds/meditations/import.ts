@@ -1318,7 +1318,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         limit: BATCH_SIZE,
         page,
         depth: 0,
-        select: { id: true, title: true, album: true },
+        select: { title: true, album: true },
       })
 
       for (const doc of result.docs) {

@@ -140,6 +140,29 @@ describe('MeditationTags Collection - Metadata Fields', () => {
       const children = fetched.children as { docs: { id: number }[] }
       expect(children.docs).toHaveLength(0)
     })
+
+    it('rejects multi-level nesting: child cannot be a parent', async () => {
+      await expect(
+        testData.createMeditationTag(payload, {
+          title: 'Grandchild',
+          parent: childTag1.id,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('rejects setting parent on a tag that already has children', async () => {
+      const anotherTag = await testData.createMeditationTag(payload, {
+        title: 'Another Tag',
+      })
+
+      await expect(
+        payload.update({
+          collection: 'meditation-tags',
+          id: parentTag.id,
+          data: { parent: anotherTag.id },
+        }),
+      ).rejects.toThrow()
+    })
   })
 
   describe('combined metadata', () => {
