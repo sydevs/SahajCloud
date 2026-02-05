@@ -64,8 +64,9 @@ function formatLocalDateTime(zdt: Temporal.ZonedDateTime): string {
  * Build an iCalendar string (DTSTART + RRULE) from form values for passing to toText().
  * Only handles recurring events. Returns null if firstDate is missing or invalid.
  *
- * Mirrors the RRULE building logic from scheduleHooks.ts but produces a string
- * directly instead of constructing an RRuleTemporal instance.
+ * SYNC NOTE: This mirrors the RRULE building logic from buildRRuleTemporal() in
+ * scheduleHooks.ts. Changes to recurrence options (new frequencies, ending types,
+ * monthly modes, etc.) must be reflected in both locations.
  */
 function buildIcalString(values: ScheduleFormValues): string | null {
   if (!values.firstDate || !values.recurrenceType) return null
@@ -174,7 +175,7 @@ const bannerStyle: React.CSSProperties = {
  * For recurring events, uses rrule-temporal's toText() function.
  * For one-off events, formats the date/time with Intl.DateTimeFormat.
  *
- * Registered as afterInput on the schedule group field.
+ * Registered as beforeInput on the schedule group field.
  */
 export const ScheduleSummary: FieldClientComponent = ({ field }) => {
   const groupName = (field as NamedGroupFieldClient).name

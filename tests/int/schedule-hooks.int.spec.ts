@@ -1205,18 +1205,18 @@ describe('Schedule Field Hooks', () => {
   // scheduleField factory — structural assertions
   // ──────────────────────────────────────────────────────────────────────
   describe('scheduleField factory', () => {
-    it('registers ScheduleSummary afterInput component on the group field', () => {
+    it('registers ScheduleSummary beforeInput component on the group field', () => {
       const field = scheduleField() as NamedGroupField
       expect(field.type).toBe('group')
-      expect(field.admin?.components?.afterInput).toEqual([
+      expect(field.admin?.components?.beforeInput).toEqual([
         '@/components/admin/ScheduleSummary',
       ])
     })
 
-    it('registers afterInput with custom group name', () => {
+    it('registers beforeInput with custom group name', () => {
       const field = scheduleField({ name: 'eventSchedule' }) as NamedGroupField
       expect(field.name).toBe('eventSchedule')
-      expect(field.admin?.components?.afterInput).toEqual([
+      expect(field.admin?.components?.beforeInput).toEqual([
         '@/components/admin/ScheduleSummary',
       ])
     })

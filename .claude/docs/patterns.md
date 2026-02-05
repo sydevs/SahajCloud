@@ -737,7 +737,7 @@ Stored field values align with RFC 5545 / rrule-temporal conventions to minimize
 
 ### Schedule Summary (AfterInput Component)
 
-A `ScheduleSummary` client component is registered as `afterInput` on the schedule group field, providing a human-readable description of the configured recurrence rule that updates in real-time:
+A `ScheduleSummary` client component is registered as `beforeInput` on the schedule group field, providing a human-readable description of the configured recurrence rule that updates in real-time:
 
 - **Recurring events**: Builds an iCalendar string (DTSTART + RRULE) from form values and passes it to `toText()` from `rrule-temporal/totext` (e.g., "every 2 weeks on Monday, Wednesday, Friday")
 - **One-off events**: Formats with `Intl.DateTimeFormat` (e.g., "Once on Mar 15, 2025 at 9:30 AM (America/New_York)")
