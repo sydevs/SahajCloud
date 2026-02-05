@@ -10,6 +10,7 @@ import { virtualUrlField } from '@/lib/storage/urlFields'
 
 export const MeditationTags: CollectionConfig = {
   slug: 'meditation-tags',
+  defaultSort: 'order',
   labels: {
     singular: 'Meditation Category',
     plural: 'Meditation Categories',
@@ -17,7 +18,7 @@ export const MeditationTags: CollectionConfig = {
   admin: {
     group: 'Metadata',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'filename', 'color', 'isFeatured', 'parent', 'meditations'],
+    defaultColumns: ['title', 'filename', 'color', 'order', 'isFeatured', 'parent', 'meditations'],
   },
   hooks: {
     beforeValidate: [validateNesting],
@@ -108,6 +109,16 @@ export const MeditationTags: CollectionConfig = {
         position: 'sidebar',
         description:
           'Featured categories are shown prominently; non-featured categories appear in a dropdown',
+      },
+    },
+    // Display order (lower numbers appear first)
+    {
+      name: 'order',
+      type: 'number',
+      defaultValue: 0,
+      admin: {
+        position: 'sidebar',
+        description: 'Display order (lower numbers appear first)',
       },
     },
     // Whether this tag has children (auto-maintained by hooks)

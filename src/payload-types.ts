@@ -632,6 +632,10 @@ export interface MeditationTag {
    */
   isFeatured: boolean;
   /**
+   * Display order (lower numbers appear first)
+   */
+  order?: number | null;
+  /**
    * Automatically set when this tag has child categories
    */
   isParent: boolean;
@@ -1814,6 +1818,7 @@ export interface MeditationTagsSelect<T extends boolean = true> {
   timings?: T;
   parent?: T;
   isFeatured?: T;
+  order?: T;
   isParent?: T;
   children?: T;
   meditations?: T;
