@@ -34,6 +34,7 @@ import { default as default_49cc57155f60c2bacf9eaa38c760d251 } from '@/component
 import { default as default_acdce971efa051c30eee554c2f9f8336 } from '@/components/admin/AbuseScore/AbuseScoreCell'
 import { default as default_d600b4f81bb40d92e487891c4971de20 } from '@/components/admin/AbuseScore/AbuseScoreField'
 import { default as default_6d9b854e6fdb8fea981b4ce63c2d6380 } from '@/components/admin/FlatArrayField'
+import { default as default_694d4100fd066d11aca6d41604a80bc0 } from '@/components/admin/ScheduleSummary'
 import { HorizontalRuleFeatureClient as HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { ChecklistFeatureClient as ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { IndentFeatureClient as IndentFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -88,6 +89,7 @@ export const importMap = {
   "@/components/admin/AbuseScore/AbuseScoreCell#default": default_acdce971efa051c30eee554c2f9f8336,
   "@/components/admin/AbuseScore/AbuseScoreField#default": default_d600b4f81bb40d92e487891c4971de20,
   "@/components/admin/FlatArrayField#default": default_6d9b854e6fdb8fea981b4ce63c2d6380,
+  "@/components/admin/ScheduleSummary#default": default_694d4100fd066d11aca6d41604a80bc0,
   "@payloadcms/richtext-lexical/client#HorizontalRuleFeatureClient": HorizontalRuleFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#ChecklistFeatureClient": ChecklistFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#IndentFeatureClient": IndentFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
