@@ -9,11 +9,11 @@ import { virtualUrlField } from '@/lib/storage/urlFields'
 import { KeyframeData, KeyframeDefinition } from '@/types/frames'
 
 /**
- * afterRead hook for the songUrl virtual field.
+ * afterRead hook for the randomSongUrl virtual field.
  * Returns the URL of a random song tagged with the meditation's songTag.
  * Uses efficient count + random offset approach (2 queries).
  */
-const songUrlAfterRead: FieldHook = async ({ data, req }) => {
+const randomSongUrlAfterRead: FieldHook = async ({ data, req }) => {
   const songTagId =
     typeof data?.songTag === 'object' && data?.songTag !== null ? data.songTag.id : data?.songTag
   if (!songTagId) return null
@@ -54,7 +54,7 @@ export const Meditations: CollectionConfig = {
     beforeOperation: [filterMeditationsByLocale],
   },
   defaultPopulate: {
-    songUrl: false,
+    randomSongUrl: false,
   },
   versions: {
     maxPerDoc: 3,
@@ -99,12 +99,12 @@ export const Meditations: CollectionConfig = {
     // See src/lib/storage/urlFields.ts for implementation details
     virtualUrlField({ collection: 'meditations', adapter: 'r2' }),
     {
-      name: 'songUrl',
+      name: 'randomSongUrl',
       type: 'text',
       virtual: true,
       admin: { hidden: true },
       hooks: {
-        afterRead: [songUrlAfterRead],
+        afterRead: [randomSongUrlAfterRead],
       },
     },
     {
