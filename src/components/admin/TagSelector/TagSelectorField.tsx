@@ -82,16 +82,24 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
   // Use Payload's field hook for state management
   const { value, setValue, showError } = useField<(string | number)[] | string | number | null>()
 
+  // Extract filter query from custom config (e.g., { 'where[isParent][not_equals]': 'true' })
+  const filterQuery = custom?.filterQuery as Record<string, string> | undefined
+
   // Fetch tags from API with PayloadCMS API hook
   const collection = Array.isArray(relationTo) ? relationTo[0] : relationTo
   const [{ data, isLoading, isError }] = usePayloadAPI(`/api/${collection}`, {
     initialParams: {
       limit: 100,
       depth: 0,
-      select: { id: true, title: true, url: true, color: true, filename: true },
+      select: { title: true, url: true, color: true, filename: true },
+      ...filterQuery,
     },
   })
-  const tags: TagOption[] = data?.docs || []
+
+  // Map API docs to TagOption format
+  const tags: TagOption[] = useMemo(() => {
+    return (data?.docs || []) as TagOption[]
+  }, [data?.docs])
 
   // Normalize value to array for consistent handling
   const selectedIds = useMemo(() => {

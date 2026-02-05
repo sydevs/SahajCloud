@@ -15,14 +15,13 @@ import { ToggleGroup, type ToggleGroupOption } from './ToggleGroup'
  * - Label rendering with FieldLabel
  * - Error display with FieldError
  * - Description display with FieldDescription
- * - Automatic value initialization (uses defaultValue or first option)
+ * - Automatic value initialization for single-select (uses defaultValue or first option)
+ * - Multi-select support via `hasMany` field property
  * - Proper field wrapper structure matching PayloadCMS SelectInput
  *
- * This component integrates the ToggleGroup UI component into PayloadCMS's
- * field system, following the exact markup structure as SelectInput.
- *
  * Features:
- * - Automatic value initialization from field defaultValue or first option
+ * - Single-select mode (default): auto-initializes value, radio behavior
+ * - Multi-select mode (`hasMany: true`): no auto-init (empty array is valid), toggle behavior
  * - Full integration with PayloadCMS validation and error handling
  * - Read-only mode support
  * - Accessible field structure with proper labels and descriptions
@@ -30,21 +29,21 @@ import { ToggleGroup, type ToggleGroupOption } from './ToggleGroup'
  *
  * Usage in collection config:
  * ```typescript
+ * // Single-select
  * {
  *   name: 'status',
  *   type: 'select',
- *   required: true,
- *   defaultValue: 'draft',
- *   options: [
- *     { label: 'Draft', value: 'draft' },
- *     { label: 'Published', value: 'published' },
- *   ],
- *   admin: {
- *     description: 'Set the publication status',
- *     components: {
- *       Field: '@/components/admin/ToggleGroupField',
- *     },
- *   },
+ *   options: [{ label: 'Draft', value: 'draft' }, { label: 'Published', value: 'published' }],
+ *   admin: { components: { Field: '@/components/admin/ToggleGroupField' } },
+ * }
+ *
+ * // Multi-select
+ * {
+ *   name: 'timings',
+ *   type: 'select',
+ *   hasMany: true,
+ *   options: [{ label: 'Morning', value: 'morning' }, { label: 'Evening', value: 'evening' }],
+ *   admin: { components: { Field: '@/components/admin/ToggleGroupField' } },
  * }
  * ```
  */
@@ -55,13 +54,14 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
     label,
     localized,
     required,
+    hasMany = false,
     options: fieldOptions,
     admin: { description, className, style } = {},
   } = field as SelectFieldClient
 
   // Use Payload's field hook for state management
   // Path is inferred from context - no need to pass it explicitly
-  const { value, setValue, showError } = useField<string>()
+  const { value, setValue, showError } = useField<string | string[]>()
 
   // Convert field options to ToggleButtonOption format
   // Handle both string and OptionObject formats
@@ -79,12 +79,13 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
     [fieldOptions],
   )
 
-  // Ensure we always have a value (use first option if empty)
+  // For single-select: ensure we always have a value (use first option if empty)
+  // For multi-select: skip auto-initialization (empty array is valid)
   useEffect(() => {
-    if (!value && options.length > 0) {
+    if (!hasMany && !value && options.length > 0) {
       setValue(options[0].value)
     }
-  }, [value, options, setValue])
+  }, [hasMany, value, options, setValue])
 
   // Build CSS classes following PayloadCMS conventions
   // Note: PayloadCMS uses 'field-type' as the base class, not 'field'
@@ -109,6 +110,11 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
         ? label['en'] || Object.values(label)[0] || name
         : name
 
+  // Normalize value for the ToggleGroup component
+  const normalizedValue = hasMany
+    ? (Array.isArray(value) ? value : []) as string[]
+    : ((value as string) || '')
+
   return (
     <div className={fieldClasses} id={fieldId} style={style}>
       <FieldLabel label={label} localized={localized} path={name} required={required} />
@@ -116,13 +122,24 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
 
-        <ToggleGroup
-          value={value || ''}
-          onChange={setValue}
-          options={options}
-          readOnly={readOnly}
-          aria-label={ariaLabel}
-        />
+        {hasMany ? (
+          <ToggleGroup
+            hasMany
+            value={normalizedValue as string[]}
+            onChange={setValue as (value: string[]) => void}
+            options={options}
+            readOnly={readOnly}
+            aria-label={ariaLabel}
+          />
+        ) : (
+          <ToggleGroup
+            value={normalizedValue as string}
+            onChange={setValue as (value: string) => void}
+            options={options}
+            readOnly={readOnly}
+            aria-label={ariaLabel}
+          />
+        )}
       </div>
 
       <FieldDescription description={description} path={name} />

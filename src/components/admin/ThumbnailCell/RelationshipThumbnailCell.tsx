@@ -49,7 +49,7 @@ export const RelationshipThumbnailCell: React.FC<DefaultCellComponentProps> = ({
       ? {
           where: { id: { equals: relatedId } },
           limit: 1,
-          select: { id: true, url: true, mimeType: true, filename: true },
+          select: { url: true, mimeType: true, filename: true },
         }
       : undefined,
   })

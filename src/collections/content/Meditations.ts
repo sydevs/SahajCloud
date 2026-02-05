@@ -257,6 +257,7 @@ export const Meditations: CollectionConfig = {
               type: 'relationship',
               relationTo: 'meditation-tags',
               hasMany: true,
+              filterOptions: { isParent: { not_equals: true } },
               admin: {
                 condition: (data) => data.type === 'daily',
                 description: 'Categorize this meditation for seekers to find it',
@@ -264,6 +265,7 @@ export const Meditations: CollectionConfig = {
                   Field: '@/components/admin/TagSelector',
                 },
                 custom: {
+                  filterQuery: { 'where[isParent][not_equals]': 'true' },
                   size: 'large',
                 },
               },

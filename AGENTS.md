@@ -219,7 +219,7 @@ Configuration: `src/lib/richEditor.ts`
 
 ### Database Migrations
 - **Location**: `src/migrations/`
-- **Creating**: `pnpm db:migrations:create` (generates timestamped migration file)
+- **Creating**: `pnpm db:migrations:create` (generates a timestamped `.ts` migration file AND a `.json` Drizzle schema snapshot — both must be committed)
 - **Running**: `pnpm payload migrate`
 - **Rolling Back**: `pnpm payload migrate:down`
 

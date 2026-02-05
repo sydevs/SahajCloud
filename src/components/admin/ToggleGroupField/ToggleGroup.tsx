@@ -7,9 +7,19 @@ export interface ToggleGroupOption {
   value: string
 }
 
-export interface ToggleGroupProps {
+interface SingleSelectProps {
+  hasMany?: false
   value: string
   onChange: (value: string) => void
+}
+
+interface MultiSelectProps {
+  hasMany: true
+  value: string[]
+  onChange: (value: string[]) => void
+}
+
+export type ToggleGroupProps = (SingleSelectProps | MultiSelectProps) & {
   options: ToggleGroupOption[]
   readOnly?: boolean
   'aria-label'?: string
@@ -18,11 +28,13 @@ export interface ToggleGroupProps {
 /**
  * Toggle Button Group Component
  *
- * A pure UI component that renders a segmented control (iOS-style) with connected buttons.
- * Works with 1-5 options, displays them as connected buttons in a horizontal row.
- * Selected state is highlighted with primary color and shadow effect.
+ * A pure UI component with two visually distinct modes:
+ * - Single-select: connected segmented control (iOS-style) — buttons joined in a row
+ * - Multi-select: separated pill-shaped buttons with gaps — each button looks independent
  *
  * Features:
+ * - Single-select mode (default): radio behavior, connected buttons, one selected at a time
+ * - Multi-select mode (`hasMany: true`): checkbox behavior, separated pill buttons, toggle on/off
  * - Keyboard navigation (arrow keys)
  * - Read-only support
  * - Accessible with ARIA labels and roles
@@ -30,7 +42,7 @@ export interface ToggleGroupProps {
  *
  * This is a controlled component - parent must manage value state.
  *
- * @example
+ * @example Single-select
  * ```tsx
  * <ToggleGroup
  *   value={selectedValue}
@@ -41,20 +53,50 @@ export interface ToggleGroupProps {
  *   ]}
  * />
  * ```
+ *
+ * @example Multi-select
+ * ```tsx
+ * <ToggleGroup
+ *   hasMany
+ *   value={selectedValues}
+ *   onChange={setSelectedValues}
+ *   options={[
+ *     { label: 'Morning', value: 'morning' },
+ *     { label: 'Evening', value: 'evening' },
+ *   ]}
+ * />
+ * ```
  */
-export const ToggleGroup: React.FC<ToggleGroupProps> = ({
-  value,
-  onChange,
-  options,
-  readOnly = false,
-  'aria-label': ariaLabel,
-}) => {
+export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
+  const { options, readOnly = false, 'aria-label': ariaLabel } = props
+  const isMulti = props.hasMany === true
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Check if an option is selected
+  const isOptionSelected = (optionValue: string): boolean => {
+    if (isMulti) {
+      return (props.value as string[]).includes(optionValue)
+    }
+    return (props.value as string) === optionValue
+  }
 
   // Handle button click
   const handleSelect = (optionValue: string) => {
-    if (!readOnly && optionValue !== value) {
-      onChange(optionValue)
+    if (readOnly) return
+
+    if (isMulti) {
+      const currentValues = props.value as string[]
+      const onChange = props.onChange as (value: string[]) => void
+      if (currentValues.includes(optionValue)) {
+        onChange(currentValues.filter((v) => v !== optionValue))
+      } else {
+        onChange([...currentValues, optionValue])
+      }
+    } else {
+      const onChange = props.onChange as (value: string) => void
+      if (optionValue !== (props.value as string)) {
+        onChange(optionValue)
+      }
     }
   }
 
@@ -79,37 +121,40 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = ({
   return (
     <div
       ref={containerRef}
-      role="radiogroup"
+      role={isMulti ? 'group' : 'radiogroup'}
       aria-label={ariaLabel}
       style={{
         display: 'flex',
         width: 'fit-content',
-        border: '1px solid var(--theme-elevation-200)',
-        borderRadius: 'var(--style-radius-s)',
-        overflow: 'hidden',
-        backgroundColor: 'var(--theme-elevation-0)',
+        ...(isMulti
+          ? {
+              gap: 'calc(var(--base) * 0.3)',
+            }
+          : {
+              border: '1px solid var(--theme-elevation-200)',
+              borderRadius: 'var(--style-radius-s)',
+              overflow: 'hidden',
+              backgroundColor: 'var(--theme-elevation-0)',
+            }),
       }}
     >
       {options.map((option, index) => {
-        const isSelected = value === option.value
+        const isSelected = isOptionSelected(option.value)
         const isDisabled = readOnly
 
         return (
           <button
             key={option.value}
             type="button"
-            role="radio"
+            role={isMulti ? 'checkbox' : 'radio'}
             aria-checked={isSelected}
             aria-label={option.label}
             disabled={isDisabled}
-            tabIndex={isSelected ? 0 : -1}
+            tabIndex={isMulti || isSelected ? 0 : -1}
             onClick={() => handleSelect(option.value)}
             onKeyDown={(e) => handleKeyDown(e, option.value, index)}
             style={{
               padding: 'calc(var(--base) * 0.25) calc(var(--base) * 0.8)',
-              border: 'none',
-              borderRight:
-                index < options.length - 1 ? '1px solid var(--theme-elevation-200)' : 'none',
               background: isSelected ? 'var(--theme-success-500)' : 'transparent',
               color: isSelected ? 'var(--theme-elevation-0)' : 'var(--theme-elevation-800)',
               fontSize: 'calc(var(--base-body-size) * 1px)',
@@ -118,8 +163,20 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = ({
               transition: 'background 0.15s ease, color 0.15s ease',
               outline: 'none',
               whiteSpace: 'nowrap',
-              minWidth: '120px',
               opacity: isDisabled ? 0.5 : 1,
+              ...(isMulti
+                ? {
+                    border: '1px solid var(--theme-elevation-200)',
+                    borderRadius: 'var(--style-radius-s)',
+                  }
+                : {
+                    border: 'none',
+                    borderRight:
+                      index < options.length - 1
+                        ? '1px solid var(--theme-elevation-200)'
+                        : 'none',
+                    minWidth: '120px',
+                  }),
             }}
             onMouseEnter={(e) => {
               if (!isDisabled && !isSelected) {

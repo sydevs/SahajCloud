@@ -218,7 +218,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
         limit: BATCH_SIZE,
         page,
         depth: 0,
-        select: { id: true, title: true },
+        select: { title: true },
       })
 
       for (const doc of result.docs) {
