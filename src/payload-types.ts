@@ -59,12 +59,12 @@ export type SupportedTimezones =
   | 'Pacific/Guam'
   | 'Pacific/Noumea'
   | 'Pacific/Auckland'
-  | 'Pacific/Fiji'
+  | 'Pacific/Fiji';
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "ProjectSlug".
  */
-export type ProjectSlug = 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas'
+export type ProjectSlug = 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas';
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "RoleSlug".
@@ -75,89 +75,88 @@ export type RoleSlug =
   | 'web-translator'
   | 'wemeditate-web-client'
   | 'wemeditate-app-client'
-  | 'sahaj-atlas-client'
+  | 'sahaj-atlas-client';
 
 export interface Config {
   auth: {
-    managers: ManagerAuthOperations
-    clients: ClientAuthOperations
-  }
-  blocks: {}
+    managers: ManagerAuthOperations;
+    clients: ClientAuthOperations;
+  };
+  blocks: {};
   collections: {
-    pages: Page
-    meditations: Meditation
-    songs: Song
-    albums: Album
-    videos: Video
-    lessons: Lesson
-    lectures: Lecture
-    frames: Frame
-    narrators: Narrator
-    authors: Author
-    images: Image
-    files: File
-    'meditation-tags': MeditationTag
-    'song-tags': SongTag
-    managers: Manager
-    clients: Client
-    'app-cards': AppCard
-    forms: Form
-    'form-submissions': FormSubmission
-    'payload-kv': PayloadKv
-    'payload-jobs': PayloadJob
-    'payload-locked-documents': PayloadLockedDocument
-    'payload-preferences': PayloadPreference
-    'payload-migrations': PayloadMigration
-  }
+    pages: Page;
+    meditations: Meditation;
+    songs: Song;
+    albums: Album;
+    videos: Video;
+    lessons: Lesson;
+    lectures: Lecture;
+    frames: Frame;
+    narrators: Narrator;
+    authors: Author;
+    images: Image;
+    files: File;
+    'meditation-tags': MeditationTag;
+    'song-tags': SongTag;
+    managers: Manager;
+    clients: Client;
+    'app-cards': AppCard;
+    forms: Form;
+    'form-submissions': FormSubmission;
+    'payload-kv': PayloadKv;
+    'payload-jobs': PayloadJob;
+    'payload-locked-documents': PayloadLockedDocument;
+    'payload-preferences': PayloadPreference;
+    'payload-migrations': PayloadMigration;
+  };
   collectionsJoins: {
     albums: {
-      songs: 'songs'
-    }
+      songs: 'songs';
+    };
     authors: {
-      articles: 'pages'
-    }
+      articles: 'pages';
+    };
     'meditation-tags': {
-      meditations: 'meditations'
-    }
+      meditations: 'meditations';
+    };
     'song-tags': {
-      songs: 'songs'
-    }
-  }
+      songs: 'songs';
+    };
+  };
   collectionsSelect: {
-    pages: PagesSelect<false> | PagesSelect<true>
-    meditations: MeditationsSelect<false> | MeditationsSelect<true>
-    songs: SongsSelect<false> | SongsSelect<true>
-    albums: AlbumsSelect<false> | AlbumsSelect<true>
-    videos: VideosSelect<false> | VideosSelect<true>
-    lessons: LessonsSelect<false> | LessonsSelect<true>
-    lectures: LecturesSelect<false> | LecturesSelect<true>
-    frames: FramesSelect<false> | FramesSelect<true>
-    narrators: NarratorsSelect<false> | NarratorsSelect<true>
-    authors: AuthorsSelect<false> | AuthorsSelect<true>
-    images: ImagesSelect<false> | ImagesSelect<true>
-    files: FilesSelect<false> | FilesSelect<true>
-    'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>
-    'song-tags': SongTagsSelect<false> | SongTagsSelect<true>
-    managers: ManagersSelect<false> | ManagersSelect<true>
-    clients: ClientsSelect<false> | ClientsSelect<true>
-    'app-cards': AppCardsSelect<false> | AppCardsSelect<true>
-    forms: FormsSelect<false> | FormsSelect<true>
-    'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>
-    'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>
-    'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>
-    'payload-locked-documents':
-      | PayloadLockedDocumentsSelect<false>
-      | PayloadLockedDocumentsSelect<true>
-    'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>
-    'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>
-  }
+    pages: PagesSelect<false> | PagesSelect<true>;
+    meditations: MeditationsSelect<false> | MeditationsSelect<true>;
+    songs: SongsSelect<false> | SongsSelect<true>;
+    albums: AlbumsSelect<false> | AlbumsSelect<true>;
+    videos: VideosSelect<false> | VideosSelect<true>;
+    lessons: LessonsSelect<false> | LessonsSelect<true>;
+    lectures: LecturesSelect<false> | LecturesSelect<true>;
+    frames: FramesSelect<false> | FramesSelect<true>;
+    narrators: NarratorsSelect<false> | NarratorsSelect<true>;
+    authors: AuthorsSelect<false> | AuthorsSelect<true>;
+    images: ImagesSelect<false> | ImagesSelect<true>;
+    files: FilesSelect<false> | FilesSelect<true>;
+    'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
+    'song-tags': SongTagsSelect<false> | SongTagsSelect<true>;
+    managers: ManagersSelect<false> | ManagersSelect<true>;
+    clients: ClientsSelect<false> | ClientsSelect<true>;
+    'app-cards': AppCardsSelect<false> | AppCardsSelect<true>;
+    forms: FormsSelect<false> | FormsSelect<true>;
+    'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
+    'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
+    'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
+    'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
+    'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
+    'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
+  };
   db: {
-    defaultIDType: number
-  }
+    defaultIDType: number;
+  };
   fallbackLocale:
     | ('false' | 'none' | 'null')
     | false
     | null
+    | ('en' | 'es' | 'de' | 'it' | 'fr' | 'ru' | 'ro' | 'cs' | 'uk' | 'el' | 'hy' | 'pl' | 'pt-br' | 'fa' | 'bg' | 'tr')
     | (
         | 'en'
         | 'es'
@@ -175,43 +174,25 @@ export interface Config {
         | 'fa'
         | 'bg'
         | 'tr'
-      )
-    | (
-        | 'en'
-        | 'es'
-        | 'de'
-        | 'it'
-        | 'fr'
-        | 'ru'
-        | 'ro'
-        | 'cs'
-        | 'uk'
-        | 'el'
-        | 'hy'
-        | 'pl'
-        | 'pt-br'
-        | 'fa'
-        | 'bg'
-        | 'tr'
-      )[]
+      )[];
   globals: {
-    'wm-web-config': WmWebConfig
-    'wm-web-translations': WmWebTranslation
-    'wm-app-config': WmAppConfig
-    'wm-app-translations': WmAppTranslation
-    'sy-atlas-config': SyAtlasConfig
-    'sy-atlas-translations': SyAtlasTranslation
-    'payload-jobs-stats': PayloadJobsStat
-  }
+    'wm-web-config': WmWebConfig;
+    'wm-web-translations': WmWebTranslation;
+    'wm-app-config': WmAppConfig;
+    'wm-app-translations': WmAppTranslation;
+    'sy-atlas-config': SyAtlasConfig;
+    'sy-atlas-translations': SyAtlasTranslation;
+    'payload-jobs-stats': PayloadJobsStat;
+  };
   globalsSelect: {
-    'wm-web-config': WmWebConfigSelect<false> | WmWebConfigSelect<true>
-    'wm-web-translations': WmWebTranslationsSelect<false> | WmWebTranslationsSelect<true>
-    'wm-app-config': WmAppConfigSelect<false> | WmAppConfigSelect<true>
-    'wm-app-translations': WmAppTranslationsSelect<false> | WmAppTranslationsSelect<true>
-    'sy-atlas-config': SyAtlasConfigSelect<false> | SyAtlasConfigSelect<true>
-    'sy-atlas-translations': SyAtlasTranslationsSelect<false> | SyAtlasTranslationsSelect<true>
-    'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>
-  }
+    'wm-web-config': WmWebConfigSelect<false> | WmWebConfigSelect<true>;
+    'wm-web-translations': WmWebTranslationsSelect<false> | WmWebTranslationsSelect<true>;
+    'wm-app-config': WmAppConfigSelect<false> | WmAppConfigSelect<true>;
+    'wm-app-translations': WmAppTranslationsSelect<false> | WmAppTranslationsSelect<true>;
+    'sy-atlas-config': SyAtlasConfigSelect<false> | SyAtlasConfigSelect<true>;
+    'sy-atlas-translations': SyAtlasTranslationsSelect<false> | SyAtlasTranslationsSelect<true>;
+    'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
+  };
   locale:
     | 'en'
     | 'es'
@@ -228,119 +209,119 @@ export interface Config {
     | 'pt-br'
     | 'fa'
     | 'bg'
-    | 'tr'
+    | 'tr';
   user:
     | (Manager & {
-        collection: 'managers'
+        collection: 'managers';
       })
     | (Client & {
-        collection: 'clients'
-      })
+        collection: 'clients';
+      });
   jobs: {
     tasks: {
-      cleanupOrphanedMedia: TaskCleanupOrphanedMedia
-      resetUsage: TaskResetUsage
-      schedulePublish: TaskSchedulePublish
+      cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
+      resetUsage: TaskResetUsage;
+      schedulePublish: TaskSchedulePublish;
       inline: {
-        input: unknown
-        output: unknown
-      }
-    }
-    workflows: unknown
-  }
+        input: unknown;
+        output: unknown;
+      };
+    };
+    workflows: unknown;
+  };
 }
 export interface ManagerAuthOperations {
   forgotPassword: {
-    email: string
-    password: string
-  }
+    email: string;
+    password: string;
+  };
   login: {
-    email: string
-    password: string
-  }
+    email: string;
+    password: string;
+  };
   registerFirstUser: {
-    email: string
-    password: string
-  }
+    email: string;
+    password: string;
+  };
   unlock: {
-    email: string
-    password: string
-  }
+    email: string;
+    password: string;
+  };
 }
 export interface ClientAuthOperations {
   forgotPassword: {
-    email: string
-    password: string
-  }
+    email: string;
+    password: string;
+  };
   login: {
-    email: string
-    password: string
-  }
+    email: string;
+    password: string;
+  };
   registerFirstUser: {
-    email: string
-    password: string
-  }
+    email: string;
+    password: string;
+  };
   unlock: {
-    email: string
-    password: string
-  }
+    email: string;
+    password: string;
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "pages".
  */
 export interface Page {
-  id: number
-  title: string
+  id: number;
+  title: string;
   content?: {
     root: {
-      type: string
+      type: string;
       children: {
-        type: any
-        version: number
-        [k: string]: unknown
-      }[]
-      direction: ('ltr' | 'rtl') | null
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | ''
-      indent: number
-      version: number
-    }
-    [k: string]: unknown
-  } | null
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   meta?: {
-    title?: string | null
-    description?: string | null
+    title?: string | null;
+    description?: string | null;
     /**
      * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
      */
-    image?: (number | null) | Image
-  }
+    image?: (number | null) | Image;
+  };
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
-  generateSlug?: boolean | null
-  slug: string
+  generateSlug?: boolean | null;
+  slug: string;
   /**
    * Article author (for article pages)
    */
-  author?: (number | null) | Author
-  tags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] | null
-  updatedAt: string
-  createdAt: string
-  deletedAt?: string | null
-  _status?: ('draft' | 'published') | null
+  author?: (number | null) | Author;
+  tags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] | null;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "images".
  */
 export interface Image {
-  id: number
-  alt: string
+  id: number;
+  alt: string;
   /**
    * Attribution or copyright information
    */
-  credit?: string | null
+  credit?: string | null;
   /**
    * Tags to categorize this image
    */
@@ -358,80 +339,80 @@ export interface Image {
         | 'placeholder'
         | 'lesson'
       )[]
-    | null
+    | null;
   fileMetadata?:
     | {
-        [k: string]: unknown
+        [k: string]: unknown;
       }
     | unknown[]
     | string
     | number
     | boolean
-    | null
-  updatedAt: string
-  createdAt: string
-  deletedAt?: string | null
-  url?: string | null
-  thumbnailURL?: string | null
-  filename?: string | null
-  mimeType?: string | null
-  filesize?: number | null
-  width?: number | null
-  height?: number | null
-  focalX?: number | null
-  focalY?: number | null
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "authors".
  */
 export interface Author {
-  id: number
+  id: number;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
-  generateSlug?: boolean | null
+  generateSlug?: boolean | null;
   /**
    * URL-friendly identifier (auto-generated from name)
    */
-  slug: string
-  name: string
+  slug: string;
+  name: string;
   /**
    * Professional title (e.g., "Artist, writer and stylist")
    */
-  title?: string | null
+  title?: string | null;
   /**
    * Biography or description of the author
    */
-  description?: string | null
+  description?: string | null;
   /**
    * ISO 2-letter country code
    */
-  countryCode?: string | null
+  countryCode?: string | null;
   /**
    * Years of meditation experience
    */
-  yearsMeditating?: number | null
+  yearsMeditating?: number | null;
   /**
    * Author profile photo
    */
-  photo?: (number | null) | Image
+  photo?: (number | null) | Image;
   articles?: {
-    docs?: (number | Page)[]
-    hasNextPage?: boolean
-    totalDocs?: number
-  }
-  updatedAt: string
-  createdAt: string
+    docs?: (number | Page)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "meditations".
  */
 export interface Meditation {
-  id: number
-  songUrl?: string | null
-  randomSongUrlstring
+  id: number;
+  randomSongUrl?: string | null;
+  label: string;
   locale:
     | 'en'
     | 'es'
@@ -448,333 +429,333 @@ export interface Meditation {
     | 'pt-br'
     | 'fa'
     | 'bg'
-    | 'tr'
+    | 'tr';
   /**
    * This should be the name of the yogi who did the recording. We need this for dynamic followup audio clips. Cannot be changed after creation.
    */
-  narrator: number | Narrator
+  narrator: number | Narrator;
   /**
    * Music with this tag will be offered to the seeker
    */
-  songTag?: (number | null) | SongTag
+  songTag?: (number | null) | SongTag;
   fileMetadata?:
     | {
-        [k: string]: unknown
+        [k: string]: unknown;
       }
     | unknown[]
     | string
     | number
     | boolean
-    | null
-  durationMinutes?: number | null
-  title?: string | null
+    | null;
+  durationMinutes?: number | null;
+  title?: string | null;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
-  generateSlug?: boolean | null
-  slug: string
-  thumbnail?: (number | null) | Image
-  type: 'daily' | 'lesson' | 'realization'
+  generateSlug?: boolean | null;
+  slug: string;
+  thumbnail?: (number | null) | Image;
+  type: 'daily' | 'lesson' | 'realization';
   /**
    * Categorize this meditation for seekers to find it
    */
-  tags?: (number | MeditationTag)[] | null
+  tags?: (number | MeditationTag)[] | null;
   frames?:
     | {
-        [k: string]: unknown
+        [k: string]: unknown;
       }
     | unknown[]
     | string
     | number
     | boolean
-    | null
-  updatedAt: string
-  createdAt: string
-  deletedAt?: string | null
-  _status?: ('draft' | 'published') | null
-  url?: string | null
-  thumbnailURL?: string | null
-  filename?: string | null
-  mimeType?: string | null
-  filesize?: number | null
-  width?: number | null
-  height?: number | null
-  focalX?: number | null
-  focalY?: number | null
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
+  _status?: ('draft' | 'published') | null;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "narrators".
  */
 export interface Narrator {
-  id: number
-  name: string
-  gender: 'male' | 'female'
-  updatedAt: string
-  createdAt: string
+  id: number;
+  name: string;
+  gender: 'male' | 'female';
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "song-tags".
  */
 export interface SongTag {
-  id: number
+  id: number;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
-  generateSlug?: boolean | null
+  generateSlug?: boolean | null;
   /**
    * URL-friendly identifier (auto-generated from title)
    */
-  slug: string
+  slug: string;
   /**
    * Localized title shown to public users
    */
-  title: string
+  title: string;
   songs?: {
-    docs?: (number | Song)[]
-    hasNextPage?: boolean
-    totalDocs?: number
-  }
-  updatedAt: string
-  createdAt: string
-  url?: string | null
-  thumbnailURL?: string | null
-  filename?: string | null
-  mimeType?: string | null
-  filesize?: number | null
-  width?: number | null
-  height?: number | null
-  focalX?: number | null
-  focalY?: number | null
+    docs?: (number | Song)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "songs".
  */
 export interface Song {
-  id: number
-  title: string
+  id: number;
+  title: string;
   /**
    * The album this track belongs to
    */
-  album: number | Album
-  tags?: (number | SongTag)[] | null
+  album: number | Album;
+  tags?: (number | SongTag)[] | null;
   fileMetadata?:
     | {
-        [k: string]: unknown
+        [k: string]: unknown;
       }
     | unknown[]
     | string
     | number
     | boolean
-    | null
-  updatedAt: string
-  createdAt: string
-  deletedAt?: string | null
-  url?: string | null
-  thumbnailURL?: string | null
-  filename?: string | null
-  mimeType?: string | null
-  filesize?: number | null
-  width?: number | null
-  height?: number | null
-  focalX?: number | null
-  focalY?: number | null
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "albums".
  */
 export interface Album {
-  id: number
-  title: string
-  artist: string
+  id: number;
+  title: string;
+  artist: string;
   /**
    * Artist website or profile URL
    */
-  artistUrl?: string | null
+  artistUrl?: string | null;
   /**
    * Music tracks in this album
    */
   songs?: {
-    docs?: (number | Song)[]
-    hasNextPage?: boolean
-    totalDocs?: number
-  }
-  updatedAt: string
-  createdAt: string
-  deletedAt?: string | null
-  url?: string | null
-  thumbnailURL?: string | null
-  filename?: string | null
-  mimeType?: string | null
-  filesize?: number | null
-  width?: number | null
-  height?: number | null
-  focalX?: number | null
-  focalY?: number | null
+    docs?: (number | Song)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "meditation-tags".
  */
 export interface MeditationTag {
-  id: number
+  id: number;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
-  generateSlug?: boolean | null
+  generateSlug?: boolean | null;
   /**
    * URL-friendly identifier (auto-generated from title)
    */
-  slug: string
+  slug: string;
   /**
    * Localized title shown to public users
    */
-  title: string
+  title: string;
   /**
    * Tag color for UI theming (hex format)
    */
-  color: string
+  color: string;
   meditations?: {
-    docs?: (number | Meditation)[]
-    hasNextPage?: boolean
-    totalDocs?: number
-  }
-  updatedAt: string
-  createdAt: string
-  url?: string | null
-  thumbnailURL?: string | null
-  filename?: string | null
-  mimeType?: string | null
-  filesize?: number | null
-  width?: number | null
-  height?: number | null
-  focalX?: number | null
-  focalY?: number | null
+    docs?: (number | Meditation)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "videos".
  */
 export interface Video {
-  id: number
-  downloadUrl?: string | null
-  previewUrl?: string | null
+  id: number;
+  downloadUrl?: string | null;
+  previewUrl?: string | null;
   /**
    * Video title shown to users
    */
-  title: string
+  title: string;
   subtitles?: {
     captions: {
-      duration: number
-      content: string
-      startTime: string
-      [k: string]: unknown
-    }[]
-    [k: string]: unknown
-  }
-  tags: 'testimonial' | 'workshop' | 'event' | 'technique'
+      duration: number;
+      content: string;
+      startTime: string;
+      [k: string]: unknown;
+    }[];
+    [k: string]: unknown;
+  };
+  tags: 'testimonial' | 'workshop' | 'event' | 'technique';
   /**
    * Auto-populated video metadata (duration, format, etc.)
    */
   fileMetadata?:
     | {
-        [k: string]: unknown
+        [k: string]: unknown;
       }
     | unknown[]
     | string
     | number
     | boolean
-    | null
-  updatedAt: string
-  createdAt: string
-  url?: string | null
-  thumbnailURL?: string | null
-  filename?: string | null
-  mimeType?: string | null
-  filesize?: number | null
-  width?: number | null
-  height?: number | null
-  focalX?: number | null
-  focalY?: number | null
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lessons".
  */
 export interface Lesson {
-  id: number
-  title: string
+  id: number;
+  title: string;
   /**
    * Story panels to introduce this lesson.
    */
   panels: {
-    title?: string | null
-    text?: string | null
+    title?: string | null;
+    text?: string | null;
     /**
      * Image or video for this panel.
      */
-    media?: (number | null) | File
+    media?: (number | null) | File;
     /**
      * Subtitles for video media (JSON format).
      */
     subtitles?:
       | {
-          [k: string]: unknown
+          [k: string]: unknown;
         }
       | unknown[]
       | string
       | number
       | boolean
-      | null
-    id?: string | null
-  }[]
+      | null;
+    id?: string | null;
+  }[];
   /**
    * Link to a related guided meditation that complements this lesson content.
    */
-  meditation?: (number | null) | Meditation
+  meditation?: (number | null) | Meditation;
   /**
    * Audio introduction to this lesson.
    */
-  introAudio?: (number | null) | File
+  introAudio?: (number | null) | File;
   /**
    * Subtitles for intro audio (JSON format). Schema: duration, content, startTime.
    */
   introSubtitles?:
     | {
-        [k: string]: unknown
+        [k: string]: unknown;
       }
     | unknown[]
     | string
     | number
     | boolean
-    | null
+    | null;
   article?: {
     root: {
-      type: string
+      type: string;
       children: {
-        type: any
-        version: number
-        [k: string]: unknown
-      }[]
-      direction: ('ltr' | 'rtl') | null
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | ''
-      indent: number
-      version: number
-    }
-    [k: string]: unknown
-  } | null
-  unit: 'Unit 1' | 'Unit 2' | 'Unit 3' | 'Unit 4'
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  unit: 'Unit 1' | 'Unit 2' | 'Unit 3' | 'Unit 4';
   /**
    * This will determine the order of the path steps
    */
-  step: number
-  icon: number | Image
-  updatedAt: string
-  createdAt: string
-  deletedAt?: string | null
+  step: number;
+  icon: number | Image;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
 }
 /**
  * Media files (images, audio, video) and PDFs used by other collections. Orphaned files are automatically moved to trash and permanently deleted during monthly cleanup.
@@ -783,44 +764,44 @@ export interface Lesson {
  * via the `definition` "files".
  */
 export interface File {
-  id: number
-  createdAt: string
-  downloadUrl?: string | null
-  previewUrl?: string | null
-  updatedAt: string
-  deletedAt?: string | null
-  url?: string | null
-  thumbnailURL?: string | null
-  filename?: string | null
-  mimeType?: string | null
-  filesize?: number | null
-  width?: number | null
-  height?: number | null
-  focalX?: number | null
-  focalY?: number | null
+  id: number;
+  createdAt: string;
+  downloadUrl?: string | null;
+  previewUrl?: string | null;
+  updatedAt: string;
+  deletedAt?: string | null;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lectures".
  */
 export interface Lecture {
-  id: number
-  title: string
-  thumbnail: number | Image
-  videoUrl: string
-  subtitlesUrl?: string | null
-  updatedAt: string
-  createdAt: string
+  id: number;
+  title: string;
+  thumbnail: number | Image;
+  videoUrl: string;
+  subtitlesUrl?: string | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "frames".
  */
 export interface Frame {
-  id: number
-  downloadUrl?: string | null
-  previewUrl?: string | null
-  imageSet: 'male' | 'female'
+  id: number;
+  downloadUrl?: string | null;
+  previewUrl?: string | null;
+  imageSet: 'male' | 'female';
   category:
     | 'mooladhara'
     | 'swadhistan'
@@ -834,7 +815,7 @@ export interface Frame {
     | 'kundalini'
     | 'meditate'
     | 'ready'
-    | 'namaste'
+    | 'namaste';
   tags?:
     | (
         | 'anahat'
@@ -863,1627 +844,1627 @@ export interface Frame {
         | 'superego'
         | 'tapping'
       )[]
-    | null
-  duration?: number | null
+    | null;
+  duration?: number | null;
   fileMetadata?:
     | {
-        [k: string]: unknown
+        [k: string]: unknown;
       }
     | unknown[]
     | string
     | number
     | boolean
-    | null
-  updatedAt: string
-  createdAt: string
-  url?: string | null
-  thumbnailURL?: string | null
-  filename?: string | null
-  mimeType?: string | null
-  filesize?: number | null
-  width?: number | null
-  height?: number | null
-  focalX?: number | null
-  focalY?: number | null
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "managers".
  */
 export interface Manager {
-  id: number
-  name: string
-  currentProject?: ('' | 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas') | null
+  id: number;
+  name: string;
+  currentProject?: ('' | 'wemeditate-web' | 'wemeditate-app' | 'sahaj-atlas') | null;
   /**
    * Set the manager's access level. Admin grants full access, Manager uses role-based permissions, Inactive blocks all access.
    */
-  type: 'inactive' | 'manager' | 'admin'
+  type: 'inactive' | 'manager' | 'admin';
   /**
    * Assign roles for each locale. Different roles can be assigned for different languages.
    */
-  roles?: ('meditations-editor' | 'path-editor' | 'web-translator')[] | null
+  roles?: ('meditations-editor' | 'path-editor' | 'web-translator')[] | null;
   /**
    * Grant update access to specific documents. Useful for giving access to individual pages without broader permissions.
    */
   customResourceAccess?:
     | {
-        relationTo: 'pages'
-        value: number | Page
+        relationTo: 'pages';
+        value: number | Page;
       }[]
-    | null
-  updatedAt: string
-  createdAt: string
-  email: string
-  resetPasswordToken?: string | null
-  resetPasswordExpiration?: string | null
-  salt?: string | null
-  hash?: string | null
-  _verified?: boolean | null
-  _verificationToken?: string | null
-  loginAttempts?: number | null
-  lockUntil?: string | null
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  email: string;
+  resetPasswordToken?: string | null;
+  resetPasswordExpiration?: string | null;
+  salt?: string | null;
+  hash?: string | null;
+  _verified?: boolean | null;
+  _verificationToken?: string | null;
+  loginAttempts?: number | null;
+  lockUntil?: string | null;
   sessions?:
     | {
-        id: string
-        createdAt?: string | null
-        expiresAt: string
+        id: string;
+        createdAt?: string | null;
+        expiresAt: string;
       }[]
-    | null
-  password?: string | null
+    | null;
+  password?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "clients".
  */
 export interface Client {
-  id: number
+  id: number;
   /**
    * Client organization or application name
    */
-  name: string
+  name: string;
   /**
    * Purpose and usage notes for this client
    */
-  notes?: string | null
+  notes?: string | null;
   /**
    * Assign API client roles. Roles apply to all locales.
    */
-  roles?: ('wemeditate-web-client' | 'wemeditate-app-client' | 'sahaj-atlas-client')[] | null
+  roles?: ('wemeditate-web-client' | 'wemeditate-app-client' | 'sahaj-atlas-client')[] | null;
   /**
    * Users who can manage this client
    */
-  managers: (number | Manager)[]
+  managers: (number | Manager)[];
   /**
    * Primary user contact for this client
    */
-  primaryContact: number | Manager
+  primaryContact: number | Manager;
   /**
    * What domains are associated with this client. Put each domain on a new line.
    */
-  domains?: string | null
+  domains?: string | null;
   /**
    * Enable or disable API access for this client
    */
-  active?: boolean | null
+  active?: boolean | null;
   /**
    * Timestamp of last API key generation
    */
-  keyGeneratedAt?: string | null
+  keyGeneratedAt?: string | null;
   /**
    * API usage statistics
    */
   usage?: {
     abuseScore?:
       | {
-          [k: string]: unknown
+          [k: string]: unknown;
         }
       | unknown[]
       | string
       | number
       | boolean
-      | null
+      | null;
     /**
      * Today's request count
      */
-    dailyRequests?: number | null
+    dailyRequests?: number | null;
     /**
      * Maximum historical request count
      */
-    peakDailyRequests?: number | null
+    peakDailyRequests?: number | null;
     /**
      * Last API call timestamp
      */
-    lastRequestAt?: string | null
+    lastRequestAt?: string | null;
     /**
      * Lifetime total requests (never resets)
      */
-    totalRequests?: number | null
+    totalRequests?: number | null;
     /**
      * Count of days exceeding threshold
      */
-    highUsageDays?: number | null
+    highUsageDays?: number | null;
     /**
      * Last date threshold was exceeded
      */
-    lastHighUsageAt?: string | null
+    lastHighUsageAt?: string | null;
     /**
      * First API request (tracking start)
      */
-    firstRequestAt?: string | null
-  }
-  updatedAt: string
-  createdAt: string
-  enableAPIKey?: boolean | null
-  apiKey?: string | null
-  apiKeyIndex?: string | null
+    firstRequestAt?: string | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+  enableAPIKey?: boolean | null;
+  apiKey?: string | null;
+  apiKeyIndex?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "app-cards".
  */
 export interface AppCard {
-  id: number
-  imageUrl?: string | null
-  title: string
-  subtitle?: string | null
+  id: number;
+  imageUrl?: string | null;
+  title: string;
+  subtitle?: string | null;
   /**
    * Button label text
    */
-  button?: string | null
-  type: 'app-page' | 'reminder' | 'content' | 'external'
+  button?: string | null;
+  type: 'app-page' | 'reminder' | 'content' | 'external';
   /**
    * Select the app page this card links to
    */
-  appPage?: ('map' | 'lectures' | 'path' | 'music') | null
+  appPage?: ('map' | 'lectures' | 'path' | 'music') | null;
   /**
    * Configure when this event occurs and repeats
    */
   schedule?: {
-    firstDate: string
-    firstDate_tz: SupportedTimezones
-    recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null
+    firstDate: string;
+    firstDate_tz: SupportedTimezones;
+    recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
     /**
      * Repeat every N days/weeks/months
      */
-    interval?: number | null
+    interval?: number | null;
     /**
      * Dates when this recurring event will not occur, such as holidays or seasonal breaks.
      */
     exclusions?:
       | {
-          startDate: string
-          endDate?: string | null
-          reason?: string | null
-          id?: string | null
+          startDate: string;
+          endDate?: string | null;
+          reason?: string | null;
+          id?: string | null;
         }[]
-      | null
-    icalRule?: string | null
+      | null;
+    icalRule?: string | null;
     upcomingDates?:
       | {
-          [k: string]: unknown
+          [k: string]: unknown;
         }
       | unknown[]
       | string
       | number
       | boolean
-      | null
-  }
+      | null;
+  };
   /**
    * Select the content item this card links to
    */
   content?:
     | ({
-        relationTo: 'lectures'
-        value: number | Lecture
+        relationTo: 'lectures';
+        value: number | Lecture;
       } | null)
     | ({
-        relationTo: 'albums'
-        value: number | Album
+        relationTo: 'albums';
+        value: number | Album;
       } | null)
     | ({
-        relationTo: 'meditations'
-        value: number | Meditation
-      } | null)
+        relationTo: 'meditations';
+        value: number | Meditation;
+      } | null);
   /**
    * External URL this card links to
    */
-  linkUrl?: string | null
-  updatedAt: string
-  createdAt: string
-  _status?: ('draft' | 'published') | null
-  url?: string | null
-  thumbnailURL?: string | null
-  filename?: string | null
-  mimeType?: string | null
-  filesize?: number | null
-  width?: number | null
-  height?: number | null
-  focalX?: number | null
-  focalY?: number | null
+  linkUrl?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "forms".
  */
 export interface Form {
-  id: number
-  title: string
+  id: number;
+  title: string;
   fields?:
     | (
         | {
-            name: string
-            label?: string | null
-            width?: number | null
-            required?: boolean | null
-            defaultValue?: boolean | null
-            id?: string | null
-            blockName?: string | null
-            blockType: 'checkbox'
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            required?: boolean | null;
+            defaultValue?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'checkbox';
           }
         | {
-            name: string
-            label?: string | null
-            width?: number | null
-            required?: boolean | null
-            id?: string | null
-            blockName?: string | null
-            blockType: 'country'
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'country';
           }
         | {
-            name: string
-            label?: string | null
-            width?: number | null
-            required?: boolean | null
-            id?: string | null
-            blockName?: string | null
-            blockType: 'email'
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'email';
           }
         | {
             message?: {
               root: {
-                type: string
+                type: string;
                 children: {
-                  type: any
-                  version: number
-                  [k: string]: unknown
-                }[]
-                direction: ('ltr' | 'rtl') | null
-                format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | ''
-                indent: number
-                version: number
-              }
-              [k: string]: unknown
-            } | null
-            id?: string | null
-            blockName?: string | null
-            blockType: 'message'
+                  type: any;
+                  version: number;
+                  [k: string]: unknown;
+                }[];
+                direction: ('ltr' | 'rtl') | null;
+                format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+                indent: number;
+                version: number;
+              };
+              [k: string]: unknown;
+            } | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'message';
           }
         | {
-            name: string
-            label?: string | null
-            width?: number | null
-            defaultValue?: number | null
-            required?: boolean | null
-            id?: string | null
-            blockName?: string | null
-            blockType: 'number'
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            defaultValue?: number | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'number';
           }
         | {
-            name: string
-            label?: string | null
-            width?: number | null
-            defaultValue?: string | null
-            placeholder?: string | null
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            defaultValue?: string | null;
+            placeholder?: string | null;
             options?:
               | {
-                  label: string
-                  value: string
-                  id?: string | null
+                  label: string;
+                  value: string;
+                  id?: string | null;
                 }[]
-              | null
-            required?: boolean | null
-            id?: string | null
-            blockName?: string | null
-            blockType: 'select'
+              | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'select';
           }
         | {
-            name: string
-            label?: string | null
-            width?: number | null
-            required?: boolean | null
-            id?: string | null
-            blockName?: string | null
-            blockType: 'state'
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'state';
           }
         | {
-            name: string
-            label?: string | null
-            width?: number | null
-            defaultValue?: string | null
-            required?: boolean | null
-            id?: string | null
-            blockName?: string | null
-            blockType: 'text'
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            defaultValue?: string | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'text';
           }
         | {
-            name: string
-            label?: string | null
-            width?: number | null
-            defaultValue?: string | null
-            required?: boolean | null
-            id?: string | null
-            blockName?: string | null
-            blockType: 'textarea'
+            name: string;
+            label?: string | null;
+            width?: number | null;
+            defaultValue?: string | null;
+            required?: boolean | null;
+            id?: string | null;
+            blockName?: string | null;
+            blockType: 'textarea';
           }
       )[]
-    | null
-  submitButtonLabel?: string | null
+    | null;
+  submitButtonLabel?: string | null;
   /**
    * Choose whether to display an on-page message or redirect to a different page after they submit the form.
    */
-  confirmationType?: ('message' | 'redirect') | null
+  confirmationType?: ('message' | 'redirect') | null;
   confirmationMessage?: {
     root: {
-      type: string
+      type: string;
       children: {
-        type: any
-        version: number
-        [k: string]: unknown
-      }[]
-      direction: ('ltr' | 'rtl') | null
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | ''
-      indent: number
-      version: number
-    }
-    [k: string]: unknown
-  } | null
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   redirect?: {
-    url: string
-  }
+    url: string;
+  };
   /**
    * Send custom emails when the form submits. Use comma separated lists to send the same email to multiple recipients. To reference a value from this form, wrap that field's name with double curly brackets, i.e. {{firstName}}. You can use a wildcard {{*}} to output all data and {{*:table}} to format it as an HTML table in the email.
    */
   emails?:
     | {
-        emailTo?: string | null
-        cc?: string | null
-        bcc?: string | null
-        replyTo?: string | null
-        emailFrom?: string | null
-        subject: string
+        emailTo?: string | null;
+        cc?: string | null;
+        bcc?: string | null;
+        replyTo?: string | null;
+        emailFrom?: string | null;
+        subject: string;
         /**
          * Enter the message that should be sent in this email.
          */
         message?: {
           root: {
-            type: string
+            type: string;
             children: {
-              type: any
-              version: number
-              [k: string]: unknown
-            }[]
-            direction: ('ltr' | 'rtl') | null
-            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | ''
-            indent: number
-            version: number
-          }
-          [k: string]: unknown
-        } | null
-        id?: string | null
+              type: any;
+              version: number;
+              [k: string]: unknown;
+            }[];
+            direction: ('ltr' | 'rtl') | null;
+            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+            indent: number;
+            version: number;
+          };
+          [k: string]: unknown;
+        } | null;
+        id?: string | null;
       }[]
-    | null
-  updatedAt: string
-  createdAt: string
+    | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
 export interface FormSubmission {
-  id: number
-  form: number | Form
+  id: number;
+  form: number | Form;
   submissionData?:
     | {
-        field: string
-        value: string
-        id?: string | null
+        field: string;
+        value: string;
+        id?: string | null;
       }[]
-    | null
-  updatedAt: string
-  createdAt: string
+    | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
-  id: number
-  key: string
+  id: number;
+  key: string;
   data:
     | {
-        [k: string]: unknown
+        [k: string]: unknown;
       }
     | unknown[]
     | string
     | number
     | boolean
-    | null
+    | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs".
  */
 export interface PayloadJob {
-  id: number
+  id: number;
   /**
    * Input data provided to the job
    */
   input?:
     | {
-        [k: string]: unknown
+        [k: string]: unknown;
       }
     | unknown[]
     | string
     | number
     | boolean
-    | null
+    | null;
   taskStatus?:
     | {
-        [k: string]: unknown
+        [k: string]: unknown;
       }
     | unknown[]
     | string
     | number
     | boolean
-    | null
-  completedAt?: string | null
-  totalTried?: number | null
+    | null;
+  completedAt?: string | null;
+  totalTried?: number | null;
   /**
    * If hasError is true this job will not be retried
    */
-  hasError?: boolean | null
+  hasError?: boolean | null;
   /**
    * If hasError is true, this is the error that caused it
    */
   error?:
     | {
-        [k: string]: unknown
+        [k: string]: unknown;
       }
     | unknown[]
     | string
     | number
     | boolean
-    | null
+    | null;
   /**
    * Task execution log
    */
   log?:
     | {
-        executedAt: string
-        completedAt: string
-        taskSlug: 'inline' | 'cleanupOrphanedMedia' | 'resetUsage' | 'schedulePublish'
-        taskID: string
+        executedAt: string;
+        completedAt: string;
+        taskSlug: 'inline' | 'cleanupOrphanedMedia' | 'resetUsage' | 'schedulePublish';
+        taskID: string;
         input?:
           | {
-              [k: string]: unknown
+              [k: string]: unknown;
             }
           | unknown[]
           | string
           | number
           | boolean
-          | null
+          | null;
         output?:
           | {
-              [k: string]: unknown
+              [k: string]: unknown;
             }
           | unknown[]
           | string
           | number
           | boolean
-          | null
-        state: 'failed' | 'succeeded'
+          | null;
+        state: 'failed' | 'succeeded';
         error?:
           | {
-              [k: string]: unknown
+              [k: string]: unknown;
             }
           | unknown[]
           | string
           | number
           | boolean
-          | null
-        id?: string | null
+          | null;
+        id?: string | null;
       }[]
-    | null
-  taskSlug?: ('inline' | 'cleanupOrphanedMedia' | 'resetUsage' | 'schedulePublish') | null
-  queue?: string | null
-  waitUntil?: string | null
-  processing?: boolean | null
+    | null;
+  taskSlug?: ('inline' | 'cleanupOrphanedMedia' | 'resetUsage' | 'schedulePublish') | null;
+  queue?: string | null;
+  waitUntil?: string | null;
+  processing?: boolean | null;
   meta?:
     | {
-        [k: string]: unknown
+        [k: string]: unknown;
       }
     | unknown[]
     | string
     | number
     | boolean
-    | null
-  updatedAt: string
-  createdAt: string
+    | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
-  id: number
+  id: number;
   document?:
     | ({
-        relationTo: 'pages'
-        value: number | Page
+        relationTo: 'pages';
+        value: number | Page;
       } | null)
     | ({
-        relationTo: 'meditations'
-        value: number | Meditation
+        relationTo: 'meditations';
+        value: number | Meditation;
       } | null)
     | ({
-        relationTo: 'songs'
-        value: number | Song
+        relationTo: 'songs';
+        value: number | Song;
       } | null)
     | ({
-        relationTo: 'albums'
-        value: number | Album
+        relationTo: 'albums';
+        value: number | Album;
       } | null)
     | ({
-        relationTo: 'videos'
-        value: number | Video
+        relationTo: 'videos';
+        value: number | Video;
       } | null)
     | ({
-        relationTo: 'lessons'
-        value: number | Lesson
+        relationTo: 'lessons';
+        value: number | Lesson;
       } | null)
     | ({
-        relationTo: 'lectures'
-        value: number | Lecture
+        relationTo: 'lectures';
+        value: number | Lecture;
       } | null)
     | ({
-        relationTo: 'frames'
-        value: number | Frame
+        relationTo: 'frames';
+        value: number | Frame;
       } | null)
     | ({
-        relationTo: 'narrators'
-        value: number | Narrator
+        relationTo: 'narrators';
+        value: number | Narrator;
       } | null)
     | ({
-        relationTo: 'authors'
-        value: number | Author
+        relationTo: 'authors';
+        value: number | Author;
       } | null)
     | ({
-        relationTo: 'images'
-        value: number | Image
+        relationTo: 'images';
+        value: number | Image;
       } | null)
     | ({
-        relationTo: 'files'
-        value: number | File
+        relationTo: 'files';
+        value: number | File;
       } | null)
     | ({
-        relationTo: 'meditation-tags'
-        value: number | MeditationTag
+        relationTo: 'meditation-tags';
+        value: number | MeditationTag;
       } | null)
     | ({
-        relationTo: 'song-tags'
-        value: number | SongTag
+        relationTo: 'song-tags';
+        value: number | SongTag;
       } | null)
     | ({
-        relationTo: 'managers'
-        value: number | Manager
+        relationTo: 'managers';
+        value: number | Manager;
       } | null)
     | ({
-        relationTo: 'clients'
-        value: number | Client
+        relationTo: 'clients';
+        value: number | Client;
       } | null)
     | ({
-        relationTo: 'app-cards'
-        value: number | AppCard
+        relationTo: 'app-cards';
+        value: number | AppCard;
       } | null)
     | ({
-        relationTo: 'forms'
-        value: number | Form
+        relationTo: 'forms';
+        value: number | Form;
       } | null)
     | ({
-        relationTo: 'form-submissions'
-        value: number | FormSubmission
-      } | null)
-  globalSlug?: string | null
+        relationTo: 'form-submissions';
+        value: number | FormSubmission;
+      } | null);
+  globalSlug?: string | null;
   user:
     | {
-        relationTo: 'managers'
-        value: number | Manager
+        relationTo: 'managers';
+        value: number | Manager;
       }
     | {
-        relationTo: 'clients'
-        value: number | Client
-      }
-  updatedAt: string
-  createdAt: string
+        relationTo: 'clients';
+        value: number | Client;
+      };
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-preferences".
  */
 export interface PayloadPreference {
-  id: number
+  id: number;
   user:
     | {
-        relationTo: 'managers'
-        value: number | Manager
+        relationTo: 'managers';
+        value: number | Manager;
       }
     | {
-        relationTo: 'clients'
-        value: number | Client
-      }
-  key?: string | null
+        relationTo: 'clients';
+        value: number | Client;
+      };
+  key?: string | null;
   value?:
     | {
-        [k: string]: unknown
+        [k: string]: unknown;
       }
     | unknown[]
     | string
     | number
     | boolean
-    | null
-  updatedAt: string
-  createdAt: string
+    | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-migrations".
  */
 export interface PayloadMigration {
-  id: number
-  name?: string | null
-  batch?: number | null
-  updatedAt: string
-  createdAt: string
+  id: number;
+  name?: string | null;
+  batch?: number | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "pages_select".
  */
 export interface PagesSelect<T extends boolean = true> {
-  title?: T
-  content?: T
+  title?: T;
+  content?: T;
   meta?:
     | T
     | {
-        title?: T
-        description?: T
-        image?: T
-      }
-  generateSlug?: T
-  slug?: T
-  author?: T
-  tags?: T
-  updatedAt?: T
-  createdAt?: T
-  deletedAt?: T
-  _status?: T
+        title?: T;
+        description?: T;
+        image?: T;
+      };
+  generateSlug?: T;
+  slug?: T;
+  author?: T;
+  tags?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "meditations_select".
  */
 export interface MeditationsSelect<T extends boolean = true> {
-  songUrl?: T
-  label?: T
-  locale?: T
-  narrator?: T
-  songTag?: T
-  fileMetadata?: T
-  durationMinutes?: T
-  title?: T
-  generateSlug?: T
-  slug?: T
-  thumbnail?: T
-  type?: T
-  tags?: T
-  frames?: T
-  updatedAt?: T
-  createdAt?: T
-  deletedAt?: T
-  _status?: T
-  randomSongUrl
-  thumbnailURL?: T
-  filename?: T
-  mimeType?: T
-  filesize?: T
-  width?: T
-  height?: T
-  focalX?: T
-  focalY?: T
+  randomSongUrl?: T;
+  label?: T;
+  locale?: T;
+  narrator?: T;
+  songTag?: T;
+  fileMetadata?: T;
+  durationMinutes?: T;
+  title?: T;
+  generateSlug?: T;
+  slug?: T;
+  thumbnail?: T;
+  type?: T;
+  tags?: T;
+  frames?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
+  _status?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "songs_select".
  */
 export interface SongsSelect<T extends boolean = true> {
-  title?: T
-  album?: T
-  tags?: T
-  fileMetadata?: T
-  updatedAt?: T
-  createdAt?: T
-  deletedAt?: T
-  url?: T
-  thumbnailURL?: T
-  filename?: T
-  mimeType?: T
-  filesize?: T
-  width?: T
-  height?: T
-  focalX?: T
-  focalY?: T
+  title?: T;
+  album?: T;
+  tags?: T;
+  fileMetadata?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "albums_select".
  */
 export interface AlbumsSelect<T extends boolean = true> {
-  title?: T
-  artist?: T
-  artistUrl?: T
-  songs?: T
-  updatedAt?: T
-  createdAt?: T
-  deletedAt?: T
-  url?: T
-  thumbnailURL?: T
-  filename?: T
-  mimeType?: T
-  filesize?: T
-  width?: T
-  height?: T
-  focalX?: T
-  focalY?: T
+  title?: T;
+  artist?: T;
+  artistUrl?: T;
+  songs?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "videos_select".
  */
 export interface VideosSelect<T extends boolean = true> {
-  downloadUrl?: T
-  previewUrl?: T
-  title?: T
-  subtitles?: T
-  tags?: T
-  fileMetadata?: T
-  updatedAt?: T
-  createdAt?: T
-  url?: T
-  thumbnailURL?: T
-  filename?: T
-  mimeType?: T
-  filesize?: T
-  width?: T
-  height?: T
-  focalX?: T
-  focalY?: T
+  downloadUrl?: T;
+  previewUrl?: T;
+  title?: T;
+  subtitles?: T;
+  tags?: T;
+  fileMetadata?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lessons_select".
  */
 export interface LessonsSelect<T extends boolean = true> {
-  title?: T
+  title?: T;
   panels?:
     | T
     | {
-        title?: T
-        text?: T
-        media?: T
-        subtitles?: T
-        id?: T
-      }
-  meditation?: T
-  introAudio?: T
-  introSubtitles?: T
-  article?: T
-  unit?: T
-  step?: T
-  icon?: T
-  updatedAt?: T
-  createdAt?: T
-  deletedAt?: T
+        title?: T;
+        text?: T;
+        media?: T;
+        subtitles?: T;
+        id?: T;
+      };
+  meditation?: T;
+  introAudio?: T;
+  introSubtitles?: T;
+  article?: T;
+  unit?: T;
+  step?: T;
+  icon?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "lectures_select".
  */
 export interface LecturesSelect<T extends boolean = true> {
-  title?: T
-  thumbnail?: T
-  videoUrl?: T
-  subtitlesUrl?: T
-  updatedAt?: T
-  createdAt?: T
+  title?: T;
+  thumbnail?: T;
+  videoUrl?: T;
+  subtitlesUrl?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "frames_select".
  */
 export interface FramesSelect<T extends boolean = true> {
-  downloadUrl?: T
-  previewUrl?: T
-  imageSet?: T
-  category?: T
-  tags?: T
-  duration?: T
-  fileMetadata?: T
-  updatedAt?: T
-  createdAt?: T
-  url?: T
-  thumbnailURL?: T
-  filename?: T
-  mimeType?: T
-  filesize?: T
-  width?: T
-  height?: T
-  focalX?: T
-  focalY?: T
+  downloadUrl?: T;
+  previewUrl?: T;
+  imageSet?: T;
+  category?: T;
+  tags?: T;
+  duration?: T;
+  fileMetadata?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "narrators_select".
  */
 export interface NarratorsSelect<T extends boolean = true> {
-  name?: T
-  gender?: T
-  updatedAt?: T
-  createdAt?: T
+  name?: T;
+  gender?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "authors_select".
  */
 export interface AuthorsSelect<T extends boolean = true> {
-  generateSlug?: T
-  slug?: T
-  name?: T
-  title?: T
-  description?: T
-  countryCode?: T
-  yearsMeditating?: T
-  photo?: T
-  articles?: T
-  updatedAt?: T
-  createdAt?: T
+  generateSlug?: T;
+  slug?: T;
+  name?: T;
+  title?: T;
+  description?: T;
+  countryCode?: T;
+  yearsMeditating?: T;
+  photo?: T;
+  articles?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "images_select".
  */
 export interface ImagesSelect<T extends boolean = true> {
-  alt?: T
-  credit?: T
-  tags?: T
-  fileMetadata?: T
-  updatedAt?: T
-  createdAt?: T
-  deletedAt?: T
-  url?: T
-  thumbnailURL?: T
-  filename?: T
-  mimeType?: T
-  filesize?: T
-  width?: T
-  height?: T
-  focalX?: T
-  focalY?: T
+  alt?: T;
+  credit?: T;
+  tags?: T;
+  fileMetadata?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "files_select".
  */
 export interface FilesSelect<T extends boolean = true> {
-  createdAt?: T
-  downloadUrl?: T
-  previewUrl?: T
-  updatedAt?: T
-  deletedAt?: T
-  url?: T
-  thumbnailURL?: T
-  filename?: T
-  mimeType?: T
-  filesize?: T
-  width?: T
-  height?: T
-  focalX?: T
-  focalY?: T
+  createdAt?: T;
+  downloadUrl?: T;
+  previewUrl?: T;
+  updatedAt?: T;
+  deletedAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "meditation-tags_select".
  */
 export interface MeditationTagsSelect<T extends boolean = true> {
-  generateSlug?: T
-  slug?: T
-  title?: T
-  color?: T
-  meditations?: T
-  updatedAt?: T
-  createdAt?: T
-  url?: T
-  thumbnailURL?: T
-  filename?: T
-  mimeType?: T
-  filesize?: T
-  width?: T
-  height?: T
-  focalX?: T
-  focalY?: T
+  generateSlug?: T;
+  slug?: T;
+  title?: T;
+  color?: T;
+  meditations?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "song-tags_select".
  */
 export interface SongTagsSelect<T extends boolean = true> {
-  generateSlug?: T
-  slug?: T
-  title?: T
-  songs?: T
-  updatedAt?: T
-  createdAt?: T
-  url?: T
-  thumbnailURL?: T
-  filename?: T
-  mimeType?: T
-  filesize?: T
-  width?: T
-  height?: T
-  focalX?: T
-  focalY?: T
+  generateSlug?: T;
+  slug?: T;
+  title?: T;
+  songs?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "managers_select".
  */
 export interface ManagersSelect<T extends boolean = true> {
-  name?: T
-  currentProject?: T
-  type?: T
-  roles?: T
-  customResourceAccess?: T
-  updatedAt?: T
-  createdAt?: T
-  email?: T
-  resetPasswordToken?: T
-  resetPasswordExpiration?: T
-  salt?: T
-  hash?: T
-  _verified?: T
-  _verificationToken?: T
-  loginAttempts?: T
-  lockUntil?: T
+  name?: T;
+  currentProject?: T;
+  type?: T;
+  roles?: T;
+  customResourceAccess?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  email?: T;
+  resetPasswordToken?: T;
+  resetPasswordExpiration?: T;
+  salt?: T;
+  hash?: T;
+  _verified?: T;
+  _verificationToken?: T;
+  loginAttempts?: T;
+  lockUntil?: T;
   sessions?:
     | T
     | {
-        id?: T
-        createdAt?: T
-        expiresAt?: T
-      }
+        id?: T;
+        createdAt?: T;
+        expiresAt?: T;
+      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "clients_select".
  */
 export interface ClientsSelect<T extends boolean = true> {
-  name?: T
-  notes?: T
-  roles?: T
-  managers?: T
-  primaryContact?: T
-  domains?: T
-  active?: T
-  keyGeneratedAt?: T
+  name?: T;
+  notes?: T;
+  roles?: T;
+  managers?: T;
+  primaryContact?: T;
+  domains?: T;
+  active?: T;
+  keyGeneratedAt?: T;
   usage?:
     | T
     | {
-        abuseScore?: T
-        dailyRequests?: T
-        peakDailyRequests?: T
-        lastRequestAt?: T
-        totalRequests?: T
-        highUsageDays?: T
-        lastHighUsageAt?: T
-        firstRequestAt?: T
-      }
-  updatedAt?: T
-  createdAt?: T
-  enableAPIKey?: T
-  apiKey?: T
-  apiKeyIndex?: T
+        abuseScore?: T;
+        dailyRequests?: T;
+        peakDailyRequests?: T;
+        lastRequestAt?: T;
+        totalRequests?: T;
+        highUsageDays?: T;
+        lastHighUsageAt?: T;
+        firstRequestAt?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  enableAPIKey?: T;
+  apiKey?: T;
+  apiKeyIndex?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "app-cards_select".
  */
 export interface AppCardsSelect<T extends boolean = true> {
-  imageUrl?: T
-  title?: T
-  subtitle?: T
-  button?: T
-  type?: T
-  appPage?: T
+  imageUrl?: T;
+  title?: T;
+  subtitle?: T;
+  button?: T;
+  type?: T;
+  appPage?: T;
   schedule?:
     | T
     | {
-        firstDate?: T
-        firstDate_tz?: T
-        recurrenceType?: T
-        interval?: T
+        firstDate?: T;
+        firstDate_tz?: T;
+        recurrenceType?: T;
+        interval?: T;
         exclusions?:
           | T
           | {
-              startDate?: T
-              endDate?: T
-              reason?: T
-              id?: T
-            }
-        icalRule?: T
-        upcomingDates?: T
-      }
-  content?: T
-  linkUrl?: T
-  updatedAt?: T
-  createdAt?: T
-  _status?: T
-  url?: T
-  thumbnailURL?: T
-  filename?: T
-  mimeType?: T
-  filesize?: T
-  width?: T
-  height?: T
-  focalX?: T
-  focalY?: T
+              startDate?: T;
+              endDate?: T;
+              reason?: T;
+              id?: T;
+            };
+        icalRule?: T;
+        upcomingDates?: T;
+      };
+  content?: T;
+  linkUrl?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "forms_select".
  */
 export interface FormsSelect<T extends boolean = true> {
-  title?: T
+  title?: T;
   fields?:
     | T
     | {
         checkbox?:
           | T
           | {
-              name?: T
-              label?: T
-              width?: T
-              required?: T
-              defaultValue?: T
-              id?: T
-              blockName?: T
-            }
+              name?: T;
+              label?: T;
+              width?: T;
+              required?: T;
+              defaultValue?: T;
+              id?: T;
+              blockName?: T;
+            };
         country?:
           | T
           | {
-              name?: T
-              label?: T
-              width?: T
-              required?: T
-              id?: T
-              blockName?: T
-            }
+              name?: T;
+              label?: T;
+              width?: T;
+              required?: T;
+              id?: T;
+              blockName?: T;
+            };
         email?:
           | T
           | {
-              name?: T
-              label?: T
-              width?: T
-              required?: T
-              id?: T
-              blockName?: T
-            }
+              name?: T;
+              label?: T;
+              width?: T;
+              required?: T;
+              id?: T;
+              blockName?: T;
+            };
         message?:
           | T
           | {
-              message?: T
-              id?: T
-              blockName?: T
-            }
+              message?: T;
+              id?: T;
+              blockName?: T;
+            };
         number?:
           | T
           | {
-              name?: T
-              label?: T
-              width?: T
-              defaultValue?: T
-              required?: T
-              id?: T
-              blockName?: T
-            }
+              name?: T;
+              label?: T;
+              width?: T;
+              defaultValue?: T;
+              required?: T;
+              id?: T;
+              blockName?: T;
+            };
         select?:
           | T
           | {
-              name?: T
-              label?: T
-              width?: T
-              defaultValue?: T
-              placeholder?: T
+              name?: T;
+              label?: T;
+              width?: T;
+              defaultValue?: T;
+              placeholder?: T;
               options?:
                 | T
                 | {
-                    label?: T
-                    value?: T
-                    id?: T
-                  }
-              required?: T
-              id?: T
-              blockName?: T
-            }
+                    label?: T;
+                    value?: T;
+                    id?: T;
+                  };
+              required?: T;
+              id?: T;
+              blockName?: T;
+            };
         state?:
           | T
           | {
-              name?: T
-              label?: T
-              width?: T
-              required?: T
-              id?: T
-              blockName?: T
-            }
+              name?: T;
+              label?: T;
+              width?: T;
+              required?: T;
+              id?: T;
+              blockName?: T;
+            };
         text?:
           | T
           | {
-              name?: T
-              label?: T
-              width?: T
-              defaultValue?: T
-              required?: T
-              id?: T
-              blockName?: T
-            }
+              name?: T;
+              label?: T;
+              width?: T;
+              defaultValue?: T;
+              required?: T;
+              id?: T;
+              blockName?: T;
+            };
         textarea?:
           | T
           | {
-              name?: T
-              label?: T
-              width?: T
-              defaultValue?: T
-              required?: T
-              id?: T
-              blockName?: T
-            }
-      }
-  submitButtonLabel?: T
-  confirmationType?: T
-  confirmationMessage?: T
+              name?: T;
+              label?: T;
+              width?: T;
+              defaultValue?: T;
+              required?: T;
+              id?: T;
+              blockName?: T;
+            };
+      };
+  submitButtonLabel?: T;
+  confirmationType?: T;
+  confirmationMessage?: T;
   redirect?:
     | T
     | {
-        url?: T
-      }
+        url?: T;
+      };
   emails?:
     | T
     | {
-        emailTo?: T
-        cc?: T
-        bcc?: T
-        replyTo?: T
-        emailFrom?: T
-        subject?: T
-        message?: T
-        id?: T
-      }
-  updatedAt?: T
-  createdAt?: T
+        emailTo?: T;
+        cc?: T;
+        bcc?: T;
+        replyTo?: T;
+        emailFrom?: T;
+        subject?: T;
+        message?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions_select".
  */
 export interface FormSubmissionsSelect<T extends boolean = true> {
-  form?: T
+  form?: T;
   submissionData?:
     | T
     | {
-        field?: T
-        value?: T
-        id?: T
-      }
-  updatedAt?: T
-  createdAt?: T
+        field?: T;
+        value?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv_select".
  */
 export interface PayloadKvSelect<T extends boolean = true> {
-  key?: T
-  data?: T
+  key?: T;
+  data?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs_select".
  */
 export interface PayloadJobsSelect<T extends boolean = true> {
-  input?: T
-  taskStatus?: T
-  completedAt?: T
-  totalTried?: T
-  hasError?: T
-  error?: T
+  input?: T;
+  taskStatus?: T;
+  completedAt?: T;
+  totalTried?: T;
+  hasError?: T;
+  error?: T;
   log?:
     | T
     | {
-        executedAt?: T
-        completedAt?: T
-        taskSlug?: T
-        taskID?: T
-        input?: T
-        output?: T
-        state?: T
-        error?: T
-        id?: T
-      }
-  taskSlug?: T
-  queue?: T
-  waitUntil?: T
-  processing?: T
-  meta?: T
-  updatedAt?: T
-  createdAt?: T
+        executedAt?: T;
+        completedAt?: T;
+        taskSlug?: T;
+        taskID?: T;
+        input?: T;
+        output?: T;
+        state?: T;
+        error?: T;
+        id?: T;
+      };
+  taskSlug?: T;
+  queue?: T;
+  waitUntil?: T;
+  processing?: T;
+  meta?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents_select".
  */
 export interface PayloadLockedDocumentsSelect<T extends boolean = true> {
-  document?: T
-  globalSlug?: T
-  user?: T
-  updatedAt?: T
-  createdAt?: T
+  document?: T;
+  globalSlug?: T;
+  user?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-preferences_select".
  */
 export interface PayloadPreferencesSelect<T extends boolean = true> {
-  user?: T
-  key?: T
-  value?: T
-  updatedAt?: T
-  createdAt?: T
+  user?: T;
+  key?: T;
+  value?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-migrations_select".
  */
 export interface PayloadMigrationsSelect<T extends boolean = true> {
-  name?: T
-  batch?: T
-  updatedAt?: T
-  createdAt?: T
+  name?: T;
+  batch?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "wm-web-config".
  */
 export interface WmWebConfig {
-  id: number
-  homePage: number | Page
+  id: number;
+  homePage: number | Page;
   /**
    * Select 2-3 pages to feature in the website header and footer.
    */
-  featuredPages: (number | Page)[]
+  featuredPages: (number | Page)[];
   /**
    * Select up to 5 pages for seekers to start meditating. The first one will be featured in the header. (eg. Classes Near Me, Online Meditations, Recorded Meditations, WeMeditate App
    */
-  classPages?: (number | Page)[] | null
+  classPages?: (number | Page)[] | null;
   /**
    * Select up to 5 pages for seeker to learn more about meditation. (eg. Shri Mataji, Kundalini, Subtle System, etc)
    */
-  knowledgePages?: (number | Page)[] | null
+  knowledgePages?: (number | Page)[] | null;
   /**
    * Select up to 5 meta pages about the website. eg. Privacy Notice, Contact Form, etc.
    */
-  infoPages?: (number | Page)[] | null
-  updatedAt?: string | null
-  createdAt?: string | null
+  infoPages?: (number | Page)[] | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "wm-web-translations".
  */
 export interface WmWebTranslation {
-  id: number
+  id: number;
   common?: {
     /**
      * Loading indicator text shown while content is being fetched
      */
-    loading: string
+    loading: string;
     /**
      * Generic error message shown when something goes wrong
      */
-    error: string
+    error: string;
     /**
      * Button text to retry a failed action
      */
-    retry: string
-  }
+    retry: string;
+  };
   navigation?: {
     /**
      * Navigation link to the About Meditation section
      */
-    about_meditation: string
+    about_meditation: string;
     /**
      * Navigation link to educational content and resources
      */
-    learn_more: string
+    learn_more: string;
     /**
      * Call-to-action navigation link inviting users to meditate
      */
-    come_meditate: string
+    come_meditate: string;
     /**
      * Language selector label in the navigation
      */
-    languages: string
-  }
-  updatedAt?: string | null
-  createdAt?: string | null
+    languages: string;
+  };
+  updatedAt?: string | null;
+  createdAt?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "wm-app-config".
  */
 export interface WmAppConfig {
-  id: number
-  updatedAt?: string | null
-  createdAt?: string | null
+  id: number;
+  updatedAt?: string | null;
+  createdAt?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "wm-app-translations".
  */
 export interface WmAppTranslation {
-  id: number
+  id: number;
   daily?: {
     /**
      * Daily meditation section title
      */
-    title: string
+    title: string;
     /**
      * Subtitle or description for daily content
      */
-    subtitle: string
+    subtitle: string;
     /**
      * Message when daily meditation is complete
      */
-    complete: string
+    complete: string;
     /**
      * Meditation streak counter label
      */
-    streak: string
+    streak: string;
     /**
      * Skip daily meditation button
      */
-    skip: string
-  }
+    skip: string;
+  };
   path?: {
     /**
      * Path section title
      */
-    title: string
+    title: string;
     /**
      * Progress indicator label
      */
-    progress: string
+    progress: string;
     /**
      * Continue lesson button
      */
-    continue: string
+    continue: string;
     /**
      * Start new unit button
      */
-    start_unit: string
+    start_unit: string;
     /**
      * Lesson completion message
      */
-    lesson_complete: string
-  }
+    lesson_complete: string;
+  };
   explore?: {
     /**
      * Explore section title
      */
-    title: string
+    title: string;
     /**
      * Search placeholder text
      */
-    search: string
+    search: string;
     /**
      * Filter button label
      */
-    filter: string
+    filter: string;
     /**
      * Categories section header
      */
-    categories: string
+    categories: string;
     /**
      * View all items link
      */
-    view_all: string
-  }
+    view_all: string;
+  };
   profile?: {
     /**
      * Profile screen title
      */
-    title: string
+    title: string;
     /**
      * Settings button label
      */
-    settings: string
+    settings: string;
     /**
      * Statistics section header
      */
-    statistics: string
+    statistics: string;
     /**
      * Logout button
      */
-    logout: string
+    logout: string;
     /**
      * Edit profile button
      */
-    edit: string
-  }
+    edit: string;
+  };
   meditation?: {
     /**
      * Play button label
      */
-    play: string
+    play: string;
     /**
      * Pause button label
      */
-    pause: string
+    pause: string;
     /**
      * Meditation complete message
      */
-    complete: string
+    complete: string;
     /**
      * Timer display label
      */
-    timer: string
+    timer: string;
     /**
      * Background sound selector
      */
-    background_sound: string
-  }
-  updatedAt?: string | null
-  createdAt?: string | null
+    background_sound: string;
+  };
+  updatedAt?: string | null;
+  createdAt?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "sy-atlas-config".
  */
 export interface SyAtlasConfig {
-  id: number
+  id: number;
   defaultMapCenter: {
-    latitude: number
-    longitude: number
-  }
-  defaultZoomLevel?: number | null
-  updatedAt?: string | null
-  createdAt?: string | null
+    latitude: number;
+    longitude: number;
+  };
+  defaultZoomLevel?: number | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "sy-atlas-translations".
  */
 export interface SyAtlasTranslation {
-  id: number
+  id: number;
   common?: {
     /**
      * Loading indicator text shown while content is being fetched
      */
-    loading: string
+    loading: string;
     /**
      * Generic error message shown when something goes wrong
      */
-    error: string
-  }
+    error: string;
+  };
   map?: {
     /**
      * Tooltip for the zoom in map control button
      */
-    zoom_in: string
+    zoom_in: string;
     /**
      * Tooltip for the zoom out map control button
      */
-    zoom_out: string
+    zoom_out: string;
     /**
      * Button text to center the map on the user's current location
      */
-    my_location: string
-  }
+    my_location: string;
+  };
   location?: {
     /**
      * Link text to view full details of a location
      */
-    details: string
+    details: string;
     /**
      * Button text to get directions to a location
      */
-    directions: string
-  }
-  updatedAt?: string | null
-  createdAt?: string | null
+    directions: string;
+  };
+  updatedAt?: string | null;
+  createdAt?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats".
  */
 export interface PayloadJobsStat {
-  id: number
+  id: number;
   stats?:
     | {
-        [k: string]: unknown
+        [k: string]: unknown;
       }
     | unknown[]
     | string
     | number
     | boolean
-    | null
-  updatedAt?: string | null
-  createdAt?: string | null
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "wm-web-config_select".
  */
 export interface WmWebConfigSelect<T extends boolean = true> {
-  homePage?: T
-  featuredPages?: T
-  classPages?: T
-  knowledgePages?: T
-  infoPages?: T
-  updatedAt?: T
-  createdAt?: T
-  globalType?: T
+  homePage?: T;
+  featuredPages?: T;
+  classPages?: T;
+  knowledgePages?: T;
+  infoPages?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "wm-web-translations_select".
  */
 export interface WmWebTranslationsSelect<T extends boolean = true> {
-  common?: T
-  navigation?: T
-  updatedAt?: T
-  createdAt?: T
-  globalType?: T
+  common?: T;
+  navigation?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "wm-app-config_select".
  */
 export interface WmAppConfigSelect<T extends boolean = true> {
-  updatedAt?: T
-  createdAt?: T
-  globalType?: T
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "wm-app-translations_select".
  */
 export interface WmAppTranslationsSelect<T extends boolean = true> {
-  daily?: T
-  path?: T
-  explore?: T
-  profile?: T
-  meditation?: T
-  updatedAt?: T
-  createdAt?: T
-  globalType?: T
+  daily?: T;
+  path?: T;
+  explore?: T;
+  profile?: T;
+  meditation?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2493,35 +2474,35 @@ export interface SyAtlasConfigSelect<T extends boolean = true> {
   defaultMapCenter?:
     | T
     | {
-        latitude?: T
-        longitude?: T
-      }
-  defaultZoomLevel?: T
-  updatedAt?: T
-  createdAt?: T
-  globalType?: T
+        latitude?: T;
+        longitude?: T;
+      };
+  defaultZoomLevel?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "sy-atlas-translations_select".
  */
 export interface SyAtlasTranslationsSelect<T extends boolean = true> {
-  common?: T
-  map?: T
-  location?: T
-  updatedAt?: T
-  createdAt?: T
-  globalType?: T
+  common?: T;
+  map?: T;
+  location?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats_select".
  */
 export interface PayloadJobsStatsSelect<T extends boolean = true> {
-  stats?: T
-  updatedAt?: T
-  createdAt?: T
-  globalType?: T
+  stats?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2531,30 +2512,30 @@ export interface TaskCleanupOrphanedMedia {
   input: {
     testDateRange?:
       | {
-          [k: string]: unknown
+          [k: string]: unknown;
         }
       | unknown[]
       | string
       | number
       | boolean
-      | null
-  }
+      | null;
+  };
   output: {
-    permanentlyDeletedFiles: number
-    permanentlyDeletedImages: number
-    trashedFiles: number
-    trashedImages: number
-    skippedImages: number
-    errors: number
-  }
+    permanentlyDeletedFiles: number;
+    permanentlyDeletedImages: number;
+    trashedFiles: number;
+    trashedImages: number;
+    skippedImages: number;
+    errors: number;
+  };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TaskResetUsage".
  */
 export interface TaskResetUsage {
-  input?: unknown
-  output?: unknown
+  input?: unknown;
+  output?: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2562,29 +2543,30 @@ export interface TaskResetUsage {
  */
 export interface TaskSchedulePublish {
   input: {
-    type?: ('publish' | 'unpublish') | null
-    locale?: string | null
+    type?: ('publish' | 'unpublish') | null;
+    locale?: string | null;
     doc?:
       | ({
-          relationTo: 'pages'
-          value: number | Page
+          relationTo: 'pages';
+          value: number | Page;
         } | null)
       | ({
-          relationTo: 'meditations'
-          value: number | Meditation
-        } | null)
-    global?: string | null
-    user?: (number | null) | Manager
-  }
-  output?: unknown
+          relationTo: 'meditations';
+          value: number | Meditation;
+        } | null);
+    global?: string | null;
+    user?: (number | null) | Manager;
+  };
+  output?: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "auth".
  */
 export interface Auth {
-  [k: string]: unknown
+  [k: string]: unknown;
 }
+
 
 declare module 'payload' {
   export interface GeneratedTypes extends Config {}
