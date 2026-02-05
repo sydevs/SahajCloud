@@ -55,9 +55,12 @@ Collections with localized fields:
 ## Meditations Locale Handling
 
 The Meditations collection uses a different approach - each meditation belongs to a single locale:
-- `locale` field: Select field with options for 'en' (English) and 'cs' (Czech)
+- `locale` field: Select field with all 16 locale options
 - Default value: 'en'
-- Locale-based filtering implemented via `beforeFind` and `beforeCount` hooks
+- Locale-based filtering implemented via a `beforeOperation` hook (`filterMeditationsByLocale` in `src/hooks/meditationHooks.ts`)
+- The hook adds a `where` clause to `find` and `count` operations to filter by the meditation's `locale` field
+- `findByID` always returns the specific document regardless of locale
+- `locale=all` bypasses filtering and returns all meditations
 - API queries respect `?locale=en` or `?locale=cs` parameters
 
 ## API Usage Examples
