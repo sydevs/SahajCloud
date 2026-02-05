@@ -85,7 +85,7 @@ export function getLocalTimeHHMM(utcDateStr: string, timezone: string): string |
 function parseDateOnly(dateStr: string): Temporal.PlainDate | null {
   try {
     const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr
-    return Temporal.PlainDate.from(datePart!)
+    return Temporal.PlainDate.from(datePart)
   } catch {
     return null
   }

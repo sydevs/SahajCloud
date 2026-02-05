@@ -401,14 +401,15 @@ function buildExclusionsField({ hasExclusions }: SubFieldConfig): Field[] {
     {
       name: 'exclusions',
       type: 'array',
-      label: 'Exclusion Dates',
-      labels: {
-        singular: 'Exclusion',
-        plural: 'Exclusions',
-      },
+      label: 'Scheduled Breaks',
+      labels: { singular: 'Break', plural: 'Breaks' },
       admin: {
-        description: 'Date ranges when the recurring event does not occur',
+        description:
+          'Dates when this recurring event will not occur, such as holidays or seasonal breaks.',
         condition: (_data, siblingData) => !!siblingData?.recurrenceType,
+        components: {
+          Field: '@/components/admin/FlatArrayField',
+        },
       },
       hooks: {
         beforeChange: [cleanupExpiredExclusions],
@@ -420,26 +421,21 @@ function buildExclusionsField({ hasExclusions }: SubFieldConfig): Field[] {
             {
               name: 'startDate',
               type: 'date',
-              label: 'Start Date',
               required: true,
               admin: {
                 width: '25%',
                 date: {
                   pickerAppearance: 'dayOnly',
-                  displayFormat: 'MMM d, yyyy',
                 },
               },
             },
             {
               name: 'endDate',
               type: 'date',
-              label: 'End Date',
               admin: {
                 width: '25%',
-                description: 'Optional — omit for single-date exclusion',
                 date: {
                   pickerAppearance: 'dayOnly',
-                  displayFormat: 'MMM d, yyyy',
                 },
               },
               validate: (
@@ -452,9 +448,7 @@ function buildExclusionsField({ hasExclusions }: SubFieldConfig): Field[] {
                 // Compare dates: both may be Date objects or ISO strings
                 const endTime = value instanceof Date ? value.getTime() : new Date(value).getTime()
                 const startTime =
-                  startDate instanceof Date
-                    ? startDate.getTime()
-                    : new Date(startDate).getTime()
+                  startDate instanceof Date ? startDate.getTime() : new Date(startDate).getTime()
                 if (endTime < startTime) {
                   return 'End date must be on or after start date'
                 }
@@ -462,9 +456,8 @@ function buildExclusionsField({ hasExclusions }: SubFieldConfig): Field[] {
               },
             },
             {
-              name: 'note',
+              name: 'reason',
               type: 'text',
-              label: 'Note',
               admin: {
                 width: '50%',
                 placeholder: 'e.g., Summer break, Public holiday',
