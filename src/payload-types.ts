@@ -627,14 +627,6 @@ export interface MeditationTag {
    * Parent category for grouping. Parent categories are not selectable on meditations.
    */
   parent?: (number | null) | MeditationTag;
-  breadcrumbs?:
-    | {
-        doc?: (number | null) | MeditationTag;
-        url?: string | null;
-        label?: string | null;
-        id?: string | null;
-      }[]
-    | null;
   /**
    * Featured categories are shown prominently; non-featured categories appear in a dropdown
    */
@@ -1821,14 +1813,6 @@ export interface MeditationTagsSelect<T extends boolean = true> {
   color?: T;
   timings?: T;
   parent?: T;
-  breadcrumbs?:
-    | T
-    | {
-        doc?: T;
-        url?: T;
-        label?: T;
-        id?: T;
-      };
   isFeatured?: T;
   isParent?: T;
   children?: T;

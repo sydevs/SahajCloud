@@ -1,7 +1,5 @@
 import type { CollectionConfig } from 'payload'
 
-import { createBreadcrumbsField, createParentField } from '@payloadcms/plugin-nested-docs'
-
 import { colorField, slugField } from '@/fields'
 import {
   clearIsParentOnDelete,
@@ -80,27 +78,26 @@ export const MeditationTags: CollectionConfig = {
         },
       },
     },
-    // Parent category for single-level nesting (managed by nested-docs plugin)
-    createParentField('meditation-tags', {
+    // Parent category for single-level nesting
+    {
+      name: 'parent',
+      type: 'relationship',
+      relationTo: 'meditation-tags',
+      maxDepth: 1,
       admin: {
+        condition: (data) => !data.isParent,
         position: 'sidebar',
         description:
           'Parent category for grouping. Parent categories are not selectable on meditations.',
       },
-      // Client-side: only root-level tags (no parent) can be selected as parents
+      // Only root-level tags (no parent) can be selected as parents.
+      // Conditionally excludes self to avoid { not_equals: undefined } on create.
+      // Payload's built-in validateFilterOptions enforces this server-side.
       filterOptions: ({ id }) => ({
-        id: { not_equals: id },
+        ...(id ? { id: { not_equals: id } } : {}),
         parent: { exists: false },
       }),
-      // Server-side nesting validation is in the beforeValidate hook (validateNesting).
-      // This override prevents Payload's default validateFilterOptions from running,
-      // which fails on create when id is undefined (causes { id: { not_equals: undefined } }).
-      validate: () => true,
-    }),
-    // Breadcrumbs (required by nested-docs plugin, hidden in admin)
-    createBreadcrumbsField('meditation-tags', {
-      admin: { hidden: true },
-    }),
+    },
     // Featured classification
     {
       name: 'isFeatured',

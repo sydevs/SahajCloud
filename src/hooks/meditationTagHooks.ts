@@ -11,15 +11,14 @@ import { extractID } from 'payload/shared'
 /**
  * beforeValidate hook: Enforce single-level nesting constraints.
  *
- * Uses `originalDoc.isParent` to avoid a children count query (maintained by afterChange/afterDelete hooks).
- * Only needs 1 database query (findByID on the selected parent) instead of the 2 queries the
- * previous field-level validate required.
+ * Uses `originalDoc.isParent` to prevent a parent tag from becoming a child.
+ * The reverse check (child can't be selected as parent) is handled by
+ * Payload's built-in validateFilterOptions, which enforces filterOptions server-side.
  */
 export const validateNesting: CollectionBeforeValidateHook = async ({
   data,
   originalDoc,
   operation,
-  req,
 }) => {
   const parentValue = data?.parent
   if (!parentValue) return data
@@ -31,25 +30,6 @@ export const validateNesting: CollectionBeforeValidateHook = async ({
         {
           message:
             'Cannot set a parent on a tag that already has children. Only single-level nesting is allowed.',
-          path: 'parent',
-        },
-      ],
-    })
-  }
-
-  // The selected parent must not itself be a child (prevents A→B→C chains)
-  const parentTag = await req.payload.findByID({
-    collection: 'meditation-tags',
-    id: extractID(parentValue) as number,
-    depth: 0,
-  })
-
-  if (parentTag?.parent) {
-    throw new ValidationError({
-      errors: [
-        {
-          message:
-            'Cannot select a tag that already has a parent. Only single-level nesting is allowed.',
           path: 'parent',
         },
       ],

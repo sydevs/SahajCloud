@@ -6,7 +6,6 @@ import { sqliteD1Adapter } from '@payloadcms/db-d1-sqlite'
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
-import { nestedDocsPlugin } from '@payloadcms/plugin-nested-docs'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
@@ -213,12 +212,6 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // Usage Plugin: Rate limiting and usage tracking (disabled in E2E tests)
       // Note: 'clients' is auto-excluded as a consumer collection; 'managers' excluded to skip admin users
       usagePlugin({ enabled: !isE2ETest, exclude: ['managers'] }),
-      // Nested Docs Plugin: Parent/child hierarchy for meditation categories
-      nestedDocsPlugin({
-        collections: ['meditation-tags'],
-        parentFieldSlug: 'parent',
-        breadcrumbsFieldSlug: 'breadcrumbs',
-      }),
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({
         enabled: true,
