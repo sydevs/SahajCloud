@@ -48,6 +48,7 @@ const PROJECTS = {
     label: 'WeMeditate App',
     icon: '/images/wemeditate-app.svg',
     collections: [
+      'pages',
       'meditations',
       'songs',
       'albums',

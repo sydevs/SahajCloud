@@ -94,7 +94,7 @@ Collections are visible based on which projects include them AND whether the use
 | Collection/Global | wemeditate-web | wemeditate-app | sahaj-atlas | Shared |
 |------------------|----------------|----------------|-------------|--------|
 | **Content** |
-| pages | ✅ | | | |
+| pages | ✅ | ✅ | | |
 | meditations | ✅ | ✅ | | |
 | songs | ✅ | ✅ | | |
 | albums | ✅ | ✅ | | |

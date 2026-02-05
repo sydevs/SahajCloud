@@ -48,7 +48,7 @@ Collections use `admin.hidden` functions to control visibility based on `user.cu
 | Collection | All Content | WeMeditate Web | WeMeditate App | Sahaj Atlas |
 |------------|-------------|----------------|----------------|-------------|
 | **Content** |||||
-| Pages | ✓ | ✓ | ✗ | ✗ |
+| Pages | ✓ | ✓ | ✓ | ✗ |
 | Meditations | ✓ | ✓ | ✓ | ✗ |
 | Songs | ✓ | ✓ | ✓ | ✗ |
 | Lessons | ✓ | ✗ | ✓ | ✗ |

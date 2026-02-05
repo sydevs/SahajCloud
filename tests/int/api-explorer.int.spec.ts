@@ -419,8 +419,8 @@ describe('OpenAPI Spec Marker Utility', () => {
       // Lessons should be visible (wemeditate-app has lessons permission)
       expect(result.paths!['/api/lessons']!.get!['x-internal']).toBeUndefined()
 
-      // Pages should be hidden (wemeditate-app does NOT have pages permission)
-      expect(result.paths!['/api/pages']!.get!['x-internal']).toBe(true)
+      // Pages should be visible (wemeditate-app has pages)
+      expect(result.paths!['/api/pages']!.get!['x-internal']).toBeUndefined()
 
       // Albums should be visible (wemeditate-app HAS albums permission)
       expect(result.paths!['/api/albums']!.get!['x-internal']).toBeUndefined()
@@ -479,8 +479,8 @@ describe('Project Filtering Utilities', () => {
       expect(collections).toContain('songs')
       expect(collections).toContain('albums')
 
-      // Should NOT contain pages
-      expect(collections).not.toContain('pages')
+      // Should contain pages
+      expect(collections).toContain('pages')
     })
 
     it('returns correct collections for sahaj-atlas project', () => {
