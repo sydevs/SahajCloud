@@ -752,21 +752,21 @@ The `defaultPopulate` collection config controls which fields are included when 
 
 ### Use Case: Excluding Expensive Virtual Fields
 
-Virtual fields with `afterRead` hooks that perform database queries (e.g., `songUrl` on Meditations) can cause N+1 performance issues when documents are loaded through relationships. Use `defaultPopulate` to exclude them:
+Virtual fields with `afterRead` hooks that perform database queries (e.g., `randomSongUrl` on Meditations) can cause N+1 performance issues when documents are loaded through relationships. Use `defaultPopulate` to exclude them:
 
 ```typescript
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
   defaultPopulate: {
-    songUrl: false, // Exclude from relationship population
+    randomSongUrl: false, // Exclude from relationship population
   },
   fields: [
     {
-      name: 'songUrl',
+      name: 'randomSongUrl',
       type: 'text',
       virtual: true,
       hooks: {
-        afterRead: [songUrlAfterRead], // Expensive: 2 DB queries per meditation
+        afterRead: [randomSongUrlAfterRead], // Expensive: 2 DB queries per meditation
       },
     },
   ],
@@ -783,7 +783,7 @@ const result = await payload.findByID({
   collection: 'meditations',
   id: meditationId,
 })
-expect(result.songUrl).toBeFalsy() // FAILS - direct query always computes virtual fields
+expect(result.randomSongUrl).toBeFalsy() // FAILS - direct query always computes virtual fields
 
 // ✅ CORRECT: Test via relationship population
 const lesson = await payload.findByID({
@@ -792,5 +792,5 @@ const lesson = await payload.findByID({
   depth: 1, // Populate relationships
 })
 const populated = lesson.meditation as Meditation
-expect(populated.songUrl).toBeFalsy() // Passes - excluded by defaultPopulate
+expect(populated.randomSongUrl).toBeFalsy() // Passes - excluded by defaultPopulate
 ```
