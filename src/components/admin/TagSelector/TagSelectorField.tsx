@@ -88,10 +88,18 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
     initialParams: {
       limit: 100,
       depth: 0,
-      select: { id: true, title: true, url: true, color: true, filename: true },
     },
   })
-  const tags: TagOption[] = data?.docs || []
+
+  // Filter out parent tags (tags that have children) — only leaf tags are selectable
+  // This is harmless for collections without a children join field (e.g., song-tags)
+  const tags: TagOption[] = useMemo(() => {
+    const docs = data?.docs || []
+    return docs.filter((doc: Record<string, unknown>) => {
+      const children = doc.children as { docs?: unknown[] } | undefined
+      return !children?.docs?.length
+    })
+  }, [data?.docs])
 
   // Normalize value to array for consistent handling
   const selectedIds = useMemo(() => {
