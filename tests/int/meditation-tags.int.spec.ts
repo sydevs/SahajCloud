@@ -45,7 +45,8 @@ describe('MeditationTags Collection - Metadata Fields', () => {
 
     it('creates a tag with no timings', async () => {
       const tag = await testData.createMeditationTag(payload)
-      expect(tag.timings).toBeFalsy()
+      // hasMany select returns empty array when no values set
+      expect(tag.timings).toEqual([])
     })
   })
 
@@ -106,9 +107,10 @@ describe('MeditationTags Collection - Metadata Fields', () => {
         id: parentTag.id,
         depth: 0,
       })
-      const children = parent.children as { docs: { id: number }[] }
+      const children = parent.children as { docs: (number | { id: number })[] }
       expect(children.docs).toHaveLength(2)
-      const childIds = children.docs.map((c) => c.id)
+      // At depth: 0, join field returns IDs directly (numbers)
+      const childIds = children.docs.map((c) => (typeof c === 'number' ? c : c.id))
       expect(childIds).toContain(childTag1.id)
       expect(childIds).toContain(childTag2.id)
     })
@@ -160,7 +162,12 @@ describe('MeditationTags Collection - Metadata Fields', () => {
 
       expect(childTag.meditationType).toBe('specific')
       expect(childTag.timings).toEqual(['evening'])
-      expect(childTag.parent).toBe(parentTag.id)
+      // parent is auto-populated on create, extract ID for comparison
+      const childParentId =
+        typeof childTag.parent === 'object' && childTag.parent !== null
+          ? childTag.parent.id
+          : childTag.parent
+      expect(childParentId).toBe(parentTag.id)
     })
   })
 
