@@ -1027,7 +1027,18 @@ export interface AppCard {
      * Repeat every N days/weeks/months
      */
     interval?: number | null;
-    rrule?: string | null;
+    /**
+     * Dates when this recurring event will not occur, such as holidays or seasonal breaks.
+     */
+    exclusions?:
+      | {
+          startDate: string;
+          endDate?: string | null;
+          reason?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    icalRule?: string | null;
     upcomingDates?:
       | {
           [k: string]: unknown;
@@ -1890,7 +1901,15 @@ export interface AppCardsSelect<T extends boolean = true> {
         firstDate_tz?: T;
         recurrenceType?: T;
         interval?: T;
-        rrule?: T;
+        exclusions?:
+          | T
+          | {
+              startDate?: T;
+              endDate?: T;
+              reason?: T;
+              id?: T;
+            };
+        icalRule?: T;
         upcomingDates?: T;
       };
   content?: T;

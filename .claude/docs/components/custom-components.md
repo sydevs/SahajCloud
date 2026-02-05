@@ -397,15 +397,26 @@ export const CustomField: FieldClientComponent = ({ field, readOnly }) => {
 
 ### useField Hook Usage
 
-The `useField` hook infers path from context - no need to pass it explicitly:
+For simple field components, the `useField` hook infers path from context — no need to pass it explicitly:
 
 ```typescript
-// ✅ Correct - path inferred from context
+// ✅ Correct for simple fields - path inferred from context
 const { value, setValue, showError } = useField<string>()
 
-// ❌ Incorrect - unnecessary path parameter
+// ❌ Unnecessary for simple fields
 const { value, setValue, showError } = useField<string>({ path: name })
 ```
+
+**Exception — Custom array field components**: When building a custom `ArrayFieldClientComponent`, you **must** pass the `path` prop from the component to `useField`. This ensures the hook uses the up-to-date path from `FieldPathContext` rather than a potentially stale prop during row reordering:
+
+```typescript
+// ✅ Required for array field components
+const MyArrayField: ArrayFieldClientComponent = ({ path: pathFromProps, ... }) => {
+  const { rows, path, showError } = useField<number>({ hasRows: true, path: pathFromProps })
+}
+```
+
+See "Custom Array Field Component Pattern" section below for the full pattern.
 
 ### Option Type Handling
 
@@ -639,3 +650,112 @@ const { hasMany = false } = field as RelationshipFieldClient
 - Components that fetch additional data from API
 - UI that might be reused outside PayloadCMS context
 - Components with significant rendering logic
+
+## Custom Array Field Component Pattern
+
+When the built-in `ArrayField` doesn't suit your needs (e.g., you want flat rows without per-row collapsibles, or no drag-drop reordering), create a custom array field component using `ArrayFieldClientComponent`.
+
+### Component Type and Props
+
+```typescript
+import type { ArrayFieldClientComponent } from 'payload'
+
+const MyArrayField: ArrayFieldClientComponent = ({
+  field,              // Array field config (fields, label, maxRows, etc.)
+  path: pathFromProps, // Path prop (may be stale during row reorder — see note)
+  parentSchemaPath,   // Schema path of the parent field
+  permissions,        // Field permissions (boolean or object with .fields)
+  readOnly,           // Whether the field is read-only
+}) => { ... }
+```
+
+### Key Hooks
+
+**`useField({ hasRows: true })`** — returns array-specific state:
+```typescript
+const {
+  rows = [],        // Array of row objects with .id
+  path,             // Current field path (up-to-date, unlike pathFromProps)
+  showError,        // Whether to display validation errors
+  value: rowCount,  // Number of rows (number)
+} = useField<number>({ hasRows: true, path: pathFromProps })
+```
+
+**Important**: `useField` does NOT return `schemaPath`. You must derive it from typed props (see below).
+
+**`useForm()`** — returns row manipulation functions:
+```typescript
+const { addFieldRow, removeFieldRow } = useForm()
+
+// Add a row
+addFieldRow({ path, rowIndex, schemaPath })
+
+// Remove a row
+removeFieldRow({ path, rowIndex })
+```
+
+### Deriving schemaPath (Critical)
+
+The built-in `ArrayField` accesses `schemaPath` from undeclared runtime props. In custom components, derive it from typed props:
+
+```typescript
+// ✅ Correct - derive from typed props
+const schemaPath = parentSchemaPath ? `${parentSchemaPath}.${name}` : name
+
+// ❌ Wrong - schemaPath is not on useField's return type
+const { schemaPath } = useField<number>({ hasRows: true })  // TypeScript error
+```
+
+### Threading Permissions (Critical)
+
+`RenderFields` requires a `permissions` prop. The component receives `permissions` which may be `true` (full access) or an object with a `.fields` property:
+
+```typescript
+<RenderFields
+  fields={fields}
+  parentIndexPath=""
+  parentPath={`${path}.${i}`}
+  parentSchemaPath={schemaPath}
+  permissions={permissions === true ? permissions : (permissions?.fields ?? true)}
+  readOnly={readOnly}
+/>
+```
+
+### Complete Example
+
+See [FlatArrayField.tsx](../../../src/components/admin/FlatArrayField/FlatArrayField.tsx) for a working implementation that:
+- Wraps all rows in a single `Collapsible` with a dynamic count header
+- Renders each row's fields inline with a remove button (no per-row collapse)
+- Omits drag-drop reordering for simpler UX
+- Uses PayloadCMS `Button` with `icon="x"` for remove and `icon="plus"` for add
+
+### Registration
+
+Register via `admin.components.Field` on the array field config:
+
+```typescript
+{
+  name: 'myArray',
+  type: 'array',
+  admin: {
+    components: {
+      Field: '@/components/admin/FlatArrayField',
+    },
+  },
+  fields: [ ... ],
+}
+```
+
+### PayloadCMS Button Prop Limitations
+
+The `Button` component does NOT accept a `style` prop. To apply custom styles, wrap in a `<div>`:
+
+```typescript
+// ❌ Won't work
+<Button style={{ marginTop: '8px' }} icon="x" />
+
+// ✅ Use wrapper div
+<div style={{ marginTop: '8px' }}>
+  <Button icon="x" round />
+</div>
+```
