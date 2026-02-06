@@ -804,3 +804,40 @@ const lesson = await payload.findByID({
 const populated = lesson.meditation as Meditation
 expect(populated.randomSongUrl).toBeFalsy() // Passes - excluded by defaultPopulate
 ```
+
+## Label Generation with toWords
+
+PayloadCMS exports a `toWords` utility from `payload/shared` that converts camelCase or PascalCase strings into human-readable labels with proper word spacing and capitalization. Use this instead of writing custom label derivation logic.
+
+### Usage
+
+```typescript
+import { toWords } from 'payload/shared'
+
+toWords('hasRealization')         // → "Has Realization"
+toWords('pathProgress')           // → "Path Progress"
+toWords('meditationsPerWeek')     // → "Meditations Per Week"
+toWords('totalLecturesViewed')    // → "Total Lectures Viewed"
+```
+
+### When to Use
+- Auto-deriving labels from field names in custom admin components
+- Generating human-readable names from programmatic identifiers
+- Anywhere you need to display a camelCase field name to users
+
+### Real-World Example
+
+The `RulesEditor` component uses `toWords` to auto-derive rule labels from `RuleDefinition.name`:
+
+```typescript
+const labels = useMemo(
+  () =>
+    ruleDefinitions.reduce<Record<string, string>>((acc, rule) => {
+      acc[rule.name] = toWords(rule.name)
+      return acc
+    }, {}),
+  [ruleDefinitions],
+)
+```
+
+This avoids requiring a separate `label` property on each rule definition — field names serve as both keys and display labels.

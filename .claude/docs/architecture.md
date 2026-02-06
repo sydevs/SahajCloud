@@ -207,6 +207,7 @@ plugins: [
 - **Songs** (`src/collections/content/Songs.ts`) - Background music tracks with direct audio upload, required album relationship, tags, and localized title field (hidden from admin sidebar, managed via Albums)
 - **Lessons** (`src/collections/content/Lessons.ts`) - Meditation lessons (also called "Path Steps" in admin UI) with audio upload, panels array for content sections, unit selection (Unit 1-4), step number, icon, optional meditation relationship, and rich text article field
 - **Videos** (`src/collections/content/Videos.ts`) - Video storage using Cloudflare Stream with automatic transcoding and HLS streaming, localized title, subtitles JSON field, virtual URL fields (`url` for MP4 download, `previewUrl` for thumbnails), tags relationship, and read-only fileMetadata
+- **AppCards** (`src/collections/content/AppCards.ts`) - Mobile app cards with image upload, conditional type-based fields (meditation/article/url), schedule field for recurrence, JSON-based **targeting rules** (`rulesField`) for client-side card selection (boolean and range conditions with AND/OR logic), **weight** field (1-5, default 3) for selection priority, and custom `RulesEditor` admin component
 
 ### Resource Collections
 - **Images** (`src/collections/resources/Images.ts`) - Image storage using Cloudflare Images with automatic format optimization (WebP, AVIF), dynamic transformations, tags, credit info, and virtual `url` field for Cloudflare CDN delivery
