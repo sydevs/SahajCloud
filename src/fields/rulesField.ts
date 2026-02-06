@@ -64,6 +64,33 @@ export function generateRulesJsonSchema(rules: RuleDefinition[]): JSONSchema4 {
   }
 }
 
+// ── Validation ────────────────────────────────────────────────────────────────
+
+/**
+ * Validate that range rules have max > min when both are defined.
+ * Returns error message if invalid, true if valid.
+ */
+function validateRangeRules(
+  value: RulesValue | null | undefined,
+  rules: RuleDefinition[],
+): string | true {
+  if (!value) return true
+
+  for (const rule of rules) {
+    if (rule.type !== 'range') continue
+
+    const ruleValue = value[rule.name]
+    if (typeof ruleValue !== 'object' || ruleValue === null) continue
+
+    const { min, max } = ruleValue as { min?: number; max?: number }
+    if (min !== undefined && max !== undefined && max <= min) {
+      return `${rule.name}: max must be greater than min`
+    }
+  }
+
+  return true
+}
+
 // ── Field Factory ──────────────────────────────────────────────────────────────
 
 /**
@@ -93,6 +120,7 @@ export function rulesField(options: RulesFieldOptions): JSONField {
       fileMatch: [`a://${name}.json`],
       schema: generateRulesJsonSchema(rules),
     },
+    validate: (value) => validateRangeRules(value as RulesValue | null | undefined, rules),
     admin: {
       components: {
         Field: '@/components/admin/RulesEditor',

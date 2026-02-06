@@ -2,7 +2,7 @@
 
 import { Collapsible } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
-import React, { useCallback } from 'react'
+import React, { useCallback, useMemo } from 'react'
 
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
 import type { RuleDefinition, RulesValue } from '@/fields/rulesField'
@@ -45,8 +45,11 @@ function cleanRules(rules: RulesValue): RulesValue | null {
 }
 
 /** Build a human-readable summary of the current rules for the Collapsible header */
-function summarizeRules(value: RulesValue | null, ruleDefinitions: RuleDefinition[]): string {
-  if (!value) return 'No rules (show to all users)'
+function summarizeRules(
+  value: RulesValue | null,
+  ruleDefinitions: RuleDefinition[],
+): React.ReactNode {
+  if (!value) return 'Show to all users (no rules)'
 
   const parts: string[] = []
 
@@ -70,8 +73,12 @@ function summarizeRules(value: RulesValue | null, ruleDefinitions: RuleDefinitio
 
   if (parts.length === 0) return 'No rules (show to all)'
 
-  const conjunction = ` ${value.logic || 'AND'} `
-  return parts.join(conjunction)
+  const logic = value.logic || 'AND'
+  return parts.reduce<React.ReactNode[]>((acc, part, i) => {
+    if (i > 0) acc.push(<strong key={`conj-${i}`}> {logic} </strong>)
+    acc.push(<span key={`part-${i}`}>{part}</span>)
+    return acc
+  }, [])
 }
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
@@ -126,6 +133,8 @@ function RangeControl({
     const num = raw === '' ? undefined : Number(raw)
     const next = { ...value, [field]: num }
     if (num === undefined) delete next[field]
+
+    // Allow all changes - server-side validation in rulesField.ts handles max > min
     onChange(next.min === undefined && next.max === undefined ? undefined : next)
   }
 
@@ -189,7 +198,9 @@ export const RulesEditor: React.FC<RulesEditorProps> = ({
 
   const handleRuleChange = useCallback(
     (ruleName: string, ruleValue: boolean | { min?: number; max?: number } | undefined) => {
-      const updated: RulesValue = { ...value, logic: currentLogic }
+      // Derive logic inside callback to avoid stale closure and ESLint warning
+      const logic = value?.logic || 'AND'
+      const updated: RulesValue = { ...value, logic }
       if (ruleValue === undefined) {
         delete updated[ruleName]
       } else {
@@ -197,14 +208,17 @@ export const RulesEditor: React.FC<RulesEditorProps> = ({
       }
       onChange(cleanRules(updated))
     },
-    [value, currentLogic, onChange],
+    [value, onChange],
+  )
+
+  const summary = useMemo(
+    () => summarizeRules(value, ruleDefinitions),
+    [value, ruleDefinitions],
   )
 
   if (ruleDefinitions.length === 0) {
     return <div style={styles.emptyState}>No rule definitions configured.</div>
   }
-
-  const summary = summarizeRules(value, ruleDefinitions)
 
   return (
     <Collapsible header={summary} initCollapsed={false}>
