@@ -120,6 +120,10 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
     }
   }
 
+  // Determine if clear button should be shown
+  const hasValue = isMulti ? (props.value as string[]).length > 0 : Boolean(props.value)
+  const showClearButton = clearable && !readOnly && hasValue
+
   return (
     <div
       ref={containerRef}
@@ -201,7 +205,7 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
           </button>
         )
       })}
-      {clearable && !readOnly && (isMulti ? (props.value as string[]).length > 0 : Boolean(props.value)) && (
+      {showClearButton && (
         <Button
           buttonStyle="icon-label"
           icon="x"

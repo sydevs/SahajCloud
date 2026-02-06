@@ -13,6 +13,7 @@ export const RulesEditorField: JSONFieldClientComponent = ({ field, readOnly }) 
   const {
     name,
     label,
+    localized,
     required,
     admin: { description, custom } = {},
   } = field
@@ -28,7 +29,7 @@ export const RulesEditorField: JSONFieldClientComponent = ({ field, readOnly }) 
 
   return (
     <div className={fieldClasses} id={fieldId}>
-      <FieldLabel label={label} path={name} required={required} />
+      <FieldLabel label={label} localized={localized} path={name} required={required} />
 
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />

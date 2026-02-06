@@ -36,7 +36,7 @@ export const SelectDescription: FieldDescriptionClientComponent<SelectFieldClien
   const { value } = useField<string>({ path })
 
   const descriptions = field.admin?.custom?.descriptions as Record<string, string> | undefined
-  const description = descriptions?.[value as string]
+  const description = descriptions?.[value]
 
   return <FieldDescription description={description} path={path} />
 }
