@@ -9,6 +9,10 @@ import React from 'react'
  * Dynamic description component for select fields.
  * Shows different descriptions based on the selected value.
  *
+ * Falls back to static `admin.description` when:
+ * - No `admin.custom.descriptions` is configured
+ * - Current value has no matching description
+ *
  * Configure via admin.custom.descriptions:
  * ```typescript
  * {
@@ -16,6 +20,7 @@ import React from 'react'
  *   type: 'select',
  *   options: [...],
  *   admin: {
+ *     description: 'Default description shown when no match',
  *     custom: {
  *       descriptions: {
  *         optionValue1: 'Description for option 1',
@@ -36,7 +41,7 @@ export const SelectDescription: FieldDescriptionClientComponent<SelectFieldClien
   const { value } = useField<string>({ path })
 
   const descriptions = field.admin?.custom?.descriptions as Record<string, string> | undefined
-  const description = descriptions?.[value]
+  const description = descriptions?.[value] ?? field.admin?.description
 
   return <FieldDescription description={description} path={path} />
 }

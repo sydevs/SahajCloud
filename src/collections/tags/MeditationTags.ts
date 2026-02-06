@@ -35,6 +35,7 @@ export const MeditationTags: CollectionConfig = {
     virtualUrlField({
       collection: 'meditation-tags',
       adapter: 'r2',
+      name: 'imageUrl',
     }),
     // Slug auto-generated from title
     slugField({

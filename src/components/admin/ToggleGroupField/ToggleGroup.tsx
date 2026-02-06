@@ -131,6 +131,7 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
       aria-label={ariaLabel}
       style={{
         display: 'flex',
+        alignItems: 'center',
         width: 'fit-content',
         ...(isMulti
           ? {
@@ -178,9 +179,7 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
                 : {
                     border: 'none',
                     borderRight:
-                      index < options.length - 1
-                        ? '1px solid var(--theme-elevation-200)'
-                        : 'none',
+                      index < options.length - 1 ? '1px solid var(--theme-elevation-200)' : 'none',
                     minWidth: '120px',
                   }),
             }}
@@ -206,16 +205,27 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
         )
       })}
       {showClearButton && (
-        <Button
-          buttonStyle="icon-label"
-          icon="x"
-          onClick={() => isMulti
-            ? (props.onChange as (value: string[]) => void)([])
-            : (props.onChange as (value: string) => void)('')
-          }
-          round
-          aria-label="Clear"
-        />
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            marginLeft: 'calc(var(--base) * 0.3)',
+            marginBlock: 'calc(var(--base) * -1)',
+          }}
+        >
+          <Button
+            buttonStyle="icon-label"
+            icon="x"
+            onClick={() =>
+              isMulti
+                ? (props.onChange as (value: string[]) => void)([])
+                : (props.onChange as (value: string) => void)('')
+            }
+            round
+            size="small"
+            aria-label="Clear selection"
+          />
+        </div>
       )}
     </div>
   )

@@ -164,17 +164,17 @@ describe('Videos Collection', () => {
     expect(movVideo.mimeType).toMatch(/video\/(quicktime|mpeg)/)
   })
 
-  it('generates virtual url field', async () => {
-    // In test environment (local storage), url should be the PayloadCMS static URL
+  it('generates virtual fileUrl field', async () => {
+    // In test environment (local storage), fileUrl should be the PayloadCMS static URL
     // When Cloudflare Stream is configured, it would be the Stream MP4 URL
     const video = await testData.createVideo(payload, {
       title: 'URL Test Video',
     })
 
-    // URL should be defined (local fallback or Cloudflare Stream)
-    expect(video.url).toBeDefined()
+    // fileUrl should be defined (local fallback or Cloudflare Stream MP4)
+    expect(video.fileUrl).toBeDefined()
     // In local storage, URL contains the collection path
-    expect(video.url).toContain('/api/videos/file/')
+    expect(video.fileUrl).toContain('/api/videos/file/')
   })
 
   it('has previewUrl virtual field configured', async () => {
