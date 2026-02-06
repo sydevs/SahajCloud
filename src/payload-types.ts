@@ -456,9 +456,6 @@ export interface Meditation {
   generateSlug?: boolean | null;
   slug: string;
   thumbnail?: (number | null) | Image;
-  /**
-   * Quick: time-based, no personalization • Daily: personalized with interactive features • Path: complements lessons
-   */
   type: 'quick' | 'daily' | 'lesson';
   /**
    * When this meditation is available

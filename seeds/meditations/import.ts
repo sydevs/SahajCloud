@@ -234,7 +234,8 @@ const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
   'deeper experience': 'spiritual-experience',
   'seeking deeper spiritual experience': 'spiritual-experience',
 
-  // Time-based tags
+  // Time-based tags - NOTE: These now map to the timings field, not MeditationTags
+  // See TIMING_SLUGS constant and extractTimingsFromTags() for handling
   'morning': 'morning',
   'afternoon': 'afternoon',
   'evening': 'evening',
@@ -269,6 +270,12 @@ const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
   'confidence': 'low-self-esteem',
   'esteem': 'low-self-esteem',
 }
+
+/**
+ * Timing slugs that should be handled as timings field values, not MeditationTags.
+ * These correspond to the timings select field options: morning, afternoon, evening, night
+ */
+const TIMING_SLUGS = new Set(['morning', 'afternoon', 'evening'])
 
 const LEGACY_TO_MUSIC_TAG_SLUG: Record<string, string> = {
   // Instrument mappings
@@ -1730,7 +1737,13 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     const meditationTaggings = taggings.filter(
       (t) => t.taggable_type === 'Meditation' && t.taggable_id === meditation.id && t.context === 'tags',
     )
+
+    // Extract timings from timing-related tags (morning, afternoon, evening)
+    const { timings, timingTagIds } = this.extractTimingsFromTags(meditationTaggings, allTags)
+
+    // Get regular tag IDs, excluding timing-related tags
     const meditationTagIds = meditationTaggings
+      .filter((t) => !timingTagIds.has(t.tag_id))
       .map((t) => this.idMaps.meditationTags.get(t.tag_id))
       .filter((id): id is number => Boolean(id))
 
@@ -1751,7 +1764,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       duration: meditation.duration,
       narrator: narratorId,
       tags: meditationTagIds,
-      type: this.getMeditationType(meditation.title, hasPathTag),
+      type: this.getMeditationType(meditation.title, hasPathTag, timings.length > 0),
+      timings: timings.length > 0 ? timings : undefined,
       _status: meditation.published ? 'published' : 'draft',
     }
 
@@ -1847,7 +1861,13 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     const meditationTaggings = taggings.filter(
       (t) => t.taggable_type === 'Meditation' && t.taggable_id === meditation.id && t.context === 'tags',
     )
+
+    // Extract timings from timing-related tags (morning, afternoon, evening)
+    const { timings, timingTagIds } = this.extractTimingsFromTags(meditationTaggings, allTags)
+
+    // Get regular tag IDs, excluding timing-related tags
     const meditationTagIds = meditationTaggings
+      .filter((t) => !timingTagIds.has(t.tag_id))
       .map((t) => this.idMaps.meditationTags.get(t.tag_id))
       .filter((id): id is number => Boolean(id))
 
@@ -1867,7 +1887,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       duration: meditation.duration,
       narrator: narratorId,
       tags: meditationTagIds,
-      type: this.getMeditationType(meditation.title, hasPathTag),
+      type: this.getMeditationType(meditation.title, hasPathTag, timings.length > 0),
+      timings: timings.length > 0 ? timings : undefined,
       _status: meditation.published ? 'published' : 'draft',
     }
 
@@ -1945,16 +1966,50 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     return false
   }
 
-  private getMeditationType(title: string, hasPathTag: boolean): 'daily' | 'lesson' | 'realization' {
+  /**
+   * Extract timing values from meditation taggings.
+   * Returns array of timing values (morning, afternoon, evening) for the timings field.
+   * Also returns the tag IDs that should NOT be assigned as regular tags.
+   */
+  private extractTimingsFromTags(
+    meditationTaggings: any[],
+    allTags: ImportedData['tags'],
+  ): { timings: string[]; timingTagIds: Set<number> } {
+    const timings: string[] = []
+    const timingTagIds = new Set<number>()
+
+    for (const tagging of meditationTaggings) {
+      const tag = allTags.find((t) => t.id === tagging.tag_id)
+      if (!tag) continue
+
+      const legacyName = tag.name.toLowerCase().trim()
+      const mappedSlug = LEGACY_TO_MEDITATION_TAG_SLUG[legacyName]
+
+      // Check if this maps to a timing slug
+      if (mappedSlug && TIMING_SLUGS.has(mappedSlug)) {
+        timings.push(mappedSlug)
+        timingTagIds.add(tag.id)
+      }
+    }
+
+    return { timings: [...new Set(timings)], timingTagIds }
+  }
+
+  private getMeditationType(
+    title: string,
+    hasPathTag: boolean,
+    hasTimings: boolean,
+  ): 'quick' | 'daily' | 'lesson' {
     // 'path' tag takes priority - sets type to 'lesson' (displays as "Path" in UI)
     if (hasPathTag) {
       return 'lesson'
     }
-    if (title === 'First meditation') {
-      return 'realization'
-    }
     if (title.startsWith('Step')) {
       return 'lesson'
+    }
+    // Timing tags indicate 'quick' type
+    if (hasTimings) {
+      return 'quick'
     }
     return 'daily'
   }

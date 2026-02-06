@@ -201,13 +201,16 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
           </button>
         )
       })}
-      {isMulti && clearable && !readOnly && (props.value as string[]).length > 0 && (
+      {clearable && !readOnly && (isMulti ? (props.value as string[]).length > 0 : Boolean(props.value)) && (
         <Button
           buttonStyle="icon-label"
           icon="x"
-          onClick={() => (props.onChange as (value: string[]) => void)([])}
+          onClick={() => isMulti
+            ? (props.onChange as (value: string[]) => void)([])
+            : (props.onChange as (value: string) => void)('')
+          }
           round
-          aria-label="Clear all"
+          aria-label="Clear"
         />
       )}
     </div>

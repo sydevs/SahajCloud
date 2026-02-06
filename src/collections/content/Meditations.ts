@@ -247,10 +247,19 @@ export const Meditations: CollectionConfig = {
                 { label: 'Path', value: 'lesson' },
               ],
               admin: {
-                description:
-                  'Quick: time-based, no personalization • Daily: personalized with interactive features • Path: complements lessons',
+                custom: {
+                  descriptions: {
+                    quick:
+                      'Time-based meditations without personalization. Offered based on time of day.',
+                    daily:
+                      'Personalized meditations with interactive features. Offered based on seeker mood/state.',
+                    lesson:
+                      'Meditations that complement Path lessons. Not shown in daily recommendations.',
+                  },
+                },
                 components: {
                   Field: '@/components/admin/ToggleGroupField',
+                  Description: '@/components/admin/SelectDescription',
                 },
               },
             },
