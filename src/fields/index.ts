@@ -24,3 +24,7 @@ export type { SchemaEntry, TranslationsSchema } from './translationsField'
 // Schedule field - JSON field with datetime, timezone, and RRULE support
 export { scheduleField } from './scheduleField'
 export type { ScheduleFieldOptions } from './scheduleField'
+
+// Rules field - JSON field with visual targeting rules editor
+export { rulesField, generateRulesJsonSchema } from './rulesField'
+export type { RuleDefinition, RuleType, RulesValue, RulesFieldOptions } from './rulesField'

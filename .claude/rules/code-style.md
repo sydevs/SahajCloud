@@ -17,10 +17,29 @@ Global code style guidelines for this codebase.
 
 ## Import Order
 
-1. External package types (`from 'payload'`, `from 'react'`)
-2. Internal type imports from `@/types/`
-3. Internal type imports from other `@/` paths
-4. Relative type imports
+The ESLint config enforces a specific import order. Follow these groups (separated by blank lines):
+
+1. **External type imports** (`import type { ... } from 'payload'`)
+2. **External value imports** (`import { ... } from 'payload'`, `from 'react'`)
+   - Subpath imports sort alphabetically with their parent (e.g., `payload/shared` sorts after `payload`)
+3. **Internal type imports** (`import type { ... } from '@/...'`)
+4. **Internal value imports** (`import { ... } from '@/...'`)
+5. **Relative type imports** (`import type { ... } from './...'`)
+6. **Relative value imports** (`import { ... } from './...'`)
+
+Within each group, sort alphabetically by module path. Type-only imports (`import type`) come before value imports from the same scope.
+
+```typescript
+// Example: correct import order
+import type { JSONField } from 'payload'
+
+import { toWords } from 'payload/shared'
+import React, { useCallback, useMemo } from 'react'
+
+import type { RuleDefinition, RulesValue } from '@/fields/rulesField'
+
+import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
+```
 
 ## After Code Changes
 

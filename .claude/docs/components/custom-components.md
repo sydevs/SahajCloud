@@ -645,6 +645,10 @@ const { hasMany = false } = field as RelationshipFieldClient
 - **Maintainable**: Clear separation between data fetching and rendering logic
 - **Type-Safe**: Each component has focused, well-defined prop types
 
+### Other Components Using This Pattern
+
+- **RulesEditor** ([RulesEditor.tsx](../../../src/components/admin/RulesEditor/RulesEditor.tsx)) - Visual targeting rules editor for JSON fields. Pure UI component renders AND/OR toggle (reusing `ToggleGroup`), boolean three-state controls (Yes/No/—), and range min/max inputs. Field wrapper ([RulesEditorField.tsx](../../../src/components/admin/RulesEditor/RulesEditorField.tsx)) uses `JSONFieldClientComponent` type and extracts `ruleDefinitions` from `field.admin?.custom?.ruleDefinitions`. Uses `toWords` from `payload/shared` for auto-deriving labels from camelCase field names. Created by the `rulesField()` factory in `src/fields/rulesField.ts`.
+
 ### When to Use This Pattern
 - Complex interactive UI (multi-select, drag-drop, visual pickers)
 - Components that fetch additional data from API

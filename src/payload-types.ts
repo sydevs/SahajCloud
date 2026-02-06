@@ -1095,6 +1095,30 @@ export interface AppCard {
    * External URL this card links to
    */
   linkUrl?: string | null;
+  rules?: {
+    logic?: 'AND' | 'OR';
+    hasRealization?: boolean;
+    pathProgress?: {
+      min?: number;
+      max?: number;
+    };
+    meditationsPerWeek?: {
+      min?: number;
+      max?: number;
+    };
+    totalMeditationsViewed?: {
+      min?: number;
+      max?: number;
+    };
+    totalLecturesViewed?: {
+      min?: number;
+      max?: number;
+    };
+  };
+  /**
+   * Controls how likely this card is to be chosen when displayed to a user.
+   */
+  weight?: number | null;
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;
@@ -1946,6 +1970,8 @@ export interface AppCardsSelect<T extends boolean = true> {
       };
   content?: T;
   linkUrl?: T;
+  rules?: T;
+  weight?: T;
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
