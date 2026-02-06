@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@payloadcms/ui'
 import React, { useRef } from 'react'
 
 export interface ToggleGroupOption {
@@ -22,6 +23,7 @@ interface MultiSelectProps {
 export type ToggleGroupProps = (SingleSelectProps | MultiSelectProps) & {
   options: ToggleGroupOption[]
   readOnly?: boolean
+  clearable?: boolean
   'aria-label'?: string
 }
 
@@ -68,7 +70,7 @@ export type ToggleGroupProps = (SingleSelectProps | MultiSelectProps) & {
  * ```
  */
 export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
-  const { options, readOnly = false, 'aria-label': ariaLabel } = props
+  const { options, readOnly = false, clearable = false, 'aria-label': ariaLabel } = props
   const isMulti = props.hasMany === true
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -199,6 +201,15 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
           </button>
         )
       })}
+      {isMulti && clearable && !readOnly && (props.value as string[]).length > 0 && (
+        <Button
+          buttonStyle="icon-label"
+          icon="x"
+          onClick={() => (props.onChange as (value: string[]) => void)([])}
+          round
+          aria-label="Clear all"
+        />
+      )}
     </div>
   )
 }

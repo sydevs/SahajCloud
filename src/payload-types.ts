@@ -456,7 +456,14 @@ export interface Meditation {
   generateSlug?: boolean | null;
   slug: string;
   thumbnail?: (number | null) | Image;
-  type: 'daily' | 'lesson' | 'realization';
+  /**
+   * Quick: time-based, no personalization • Daily: personalized with interactive features • Path: complements lessons
+   */
+  type: 'quick' | 'daily' | 'lesson';
+  /**
+   * When this meditation is available
+   */
+  timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
   /**
    * Categorize this meditation for seekers to find it
    */
@@ -1616,6 +1623,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   slug?: T;
   thumbnail?: T;
   type?: T;
+  timings?: T;
   tags?: T;
   frames?: T;
   updatedAt?: T;
@@ -2279,6 +2287,10 @@ export interface WmWebTranslation {
  */
 export interface WmAppConfig {
   id: number;
+  /**
+   * Self-realization meditation for new users
+   */
+  selfRealizationMeditation?: (number | null) | Meditation;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2506,6 +2518,7 @@ export interface WmWebTranslationsSelect<T extends boolean = true> {
  * via the `definition` "wm-app-config_select".
  */
 export interface WmAppConfigSelect<T extends boolean = true> {
+  selfRealizationMeditation?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

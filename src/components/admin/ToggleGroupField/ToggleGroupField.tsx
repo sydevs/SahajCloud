@@ -129,6 +129,7 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
             onChange={setValue as (value: string[]) => void}
             options={options}
             readOnly={readOnly}
+            clearable={!required}
             aria-label={ariaLabel}
           />
         ) : (
