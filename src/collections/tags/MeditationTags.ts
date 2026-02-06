@@ -115,7 +115,8 @@ export const MeditationTags: CollectionConfig = {
     {
       name: 'order',
       type: 'number',
-      defaultValue: 0,
+      defaultValue: 1,
+      min: 1,
       admin: {
         position: 'sidebar',
         description: 'Display order (lower numbers appear first)',

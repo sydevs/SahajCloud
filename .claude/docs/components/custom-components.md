@@ -649,11 +649,80 @@ const { hasMany = false } = field as RelationshipFieldClient
 
 - **RulesEditor** ([RulesEditor.tsx](../../../src/components/admin/RulesEditor/RulesEditor.tsx)) - Visual targeting rules editor for JSON fields. Pure UI component renders AND/OR toggle (reusing `ToggleGroup`), boolean three-state controls (Yes/No/—), and range min/max inputs. Field wrapper ([RulesEditorField.tsx](../../../src/components/admin/RulesEditor/RulesEditorField.tsx)) uses `JSONFieldClientComponent` type and extracts `ruleDefinitions` from `field.admin?.custom?.ruleDefinitions`. Uses `toWords` from `payload/shared` for auto-deriving labels from camelCase field names. Created by the `rulesField()` factory in `src/fields/rulesField.ts`.
 
+- **ToggleGroup** ([ToggleGroup.tsx](../../../src/components/admin/ToggleGroupField/ToggleGroup.tsx)) - Segmented button group for single or multi-select. Props include `hasMany` (toggle vs radio behavior), `clearable` (shows clear button when value selected), and `readOnly`. The `clearable` prop works for both single-select and multi-select modes — single-select fields that are not required can also be cleared. Field wrapper ([ToggleGroupField.tsx](../../../src/components/admin/ToggleGroupField/ToggleGroupField.tsx)) passes `clearable={!required}` to enable clearing for optional fields.
+
+- **SelectDescription** ([SelectDescription.tsx](../../../src/components/admin/SelectDescription.tsx)) - Dynamic description component for select fields. Reads descriptions from `field.admin?.custom?.descriptions` and displays the description matching the current value. Use with `admin.components.Description` on select fields.
+
 ### When to Use This Pattern
 - Complex interactive UI (multi-select, drag-drop, visual pickers)
 - Components that fetch additional data from API
 - UI that might be reused outside PayloadCMS context
 - Components with significant rendering logic
+
+## Custom Configuration via admin.custom
+
+PayloadCMS allows passing custom configuration to field components via `field.admin.custom`. This enables creating reusable components that can be configured per-field without modifying the component code.
+
+### Pattern: Configurable Field Components
+
+**Field configuration** (in collection):
+```typescript
+{
+  name: 'type',
+  type: 'select',
+  options: [
+    { label: 'Quick', value: 'quick' },
+    { label: 'Daily', value: 'daily' },
+  ],
+  admin: {
+    custom: {
+      descriptions: {
+        quick: 'Time-based meditations offered based on time of day.',
+        daily: 'Personalized meditations with interactive features.',
+      },
+    },
+    components: {
+      Description: '@/components/admin/SelectDescription',
+    },
+  },
+}
+```
+
+**Component implementation** (SelectDescription.tsx):
+```typescript
+'use client'
+
+import type { FieldDescriptionClientComponent, SelectFieldClient } from 'payload'
+import { FieldDescription, useField } from '@payloadcms/ui'
+
+export const SelectDescription: FieldDescriptionClientComponent<SelectFieldClient> = ({
+  field,
+  path,
+}) => {
+  const { value } = useField<string>({ path })
+
+  // Read configuration from admin.custom
+  const descriptions = field.admin?.custom?.descriptions as Record<string, string> | undefined
+  const description = descriptions?.[value as string]
+
+  return <FieldDescription description={description} path={path} />
+}
+```
+
+### Common admin.custom Use Cases
+
+| Use Case | Configuration Key | Example |
+|----------|------------------|---------|
+| Dynamic descriptions | `descriptions: Record<string, string>` | Different help text per option |
+| Rule definitions | `ruleDefinitions: RuleDefinition[]` | RulesEditor field config |
+| Filter queries | `filterQuery: Record<string, string>` | TagSelector API filtering |
+| Size variants | `size: 'small' \| 'large'` | Component size overrides |
+
+### Key Points
+- `admin.custom` accepts any JSON-serializable data
+- Access via `field.admin?.custom?.yourKey` in components
+- Use TypeScript casting for type safety: `as Record<string, string>`
+- Prefer reusable components with configuration over one-off implementations
 
 ## Custom Array Field Component Pattern
 
