@@ -1,7 +1,8 @@
 'use client'
 
+import { Collapsible } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback } from 'react'
 
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
 import type { RuleDefinition, RulesValue } from '@/fields/rulesField'
@@ -16,11 +17,6 @@ export interface RulesEditorProps {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-const LOGIC_OPTIONS = [
-  { label: 'AND', value: 'AND' },
-  { label: 'OR', value: 'OR' },
-]
 
 /** Remove empty/unset rules and return null if no meaningful rules remain */
 function cleanRules(rules: RulesValue): RulesValue | null {
@@ -48,6 +44,36 @@ function cleanRules(rules: RulesValue): RulesValue | null {
   return hasRules ? cleaned : null
 }
 
+/** Build a human-readable summary of the current rules for the Collapsible header */
+function summarizeRules(value: RulesValue | null, ruleDefinitions: RuleDefinition[]): string {
+  if (!value) return 'No rules (show to all users)'
+
+  const parts: string[] = []
+
+  for (const rule of ruleDefinitions) {
+    const ruleValue = value[rule.name]
+    if (ruleValue === undefined) continue
+
+    if (rule.type === 'boolean' && typeof ruleValue === 'boolean') {
+      parts.push(`${rule.name} = ${ruleValue ? 'Yes' : 'No'}`)
+    } else if (rule.type === 'range' && typeof ruleValue === 'object' && ruleValue !== null) {
+      const { min, max } = ruleValue as { min?: number; max?: number }
+      if (min !== undefined && max !== undefined) {
+        parts.push(`${min} ≤ ${rule.name} ≤ ${max}`)
+      } else if (min !== undefined) {
+        parts.push(`${rule.name} ≥ ${min}`)
+      } else if (max !== undefined) {
+        parts.push(`${rule.name} ≤ ${max}`)
+      }
+    }
+  }
+
+  if (parts.length === 0) return 'No rules (show to all)'
+
+  const conjunction = ` ${value.logic || 'AND'} `
+  return parts.join(conjunction)
+}
+
 // ── Styles ─────────────────────────────────────────────────────────────────────
 
 const styles = {
@@ -56,25 +82,11 @@ const styles = {
     flexDirection: 'column' as const,
     gap: 'calc(var(--base) * 0.6)',
   },
-  logicRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 'calc(var(--base) * 0.5)',
-    paddingBottom: 'calc(var(--base) * 0.4)',
-    borderBottom: '1px solid var(--theme-elevation-100)',
-    marginBottom: 'calc(var(--base) * 0.2)',
-  },
-  logicLabel: {
-    fontSize: 'calc(var(--base-body-size) * 1px)',
-    color: 'var(--theme-elevation-600)',
-    fontWeight: 500 as const,
-    minWidth: '50px',
-  },
   ruleRow: {
     display: 'flex',
     alignItems: 'center',
     gap: 'calc(var(--base) * 0.5)',
-    padding: 'calc(var(--base) * 0.3) 0',
+    '--base': '12px',
   },
   ruleLabel: {
     fontSize: 'calc(var(--base-body-size) * 1px)',
@@ -88,18 +100,8 @@ const styles = {
     alignItems: 'center',
     gap: 'calc(var(--base) * 0.4)',
   },
-  rangeLabel: {
-    fontSize: 'calc(var(--base-body-size) * 0.9px)',
-    color: 'var(--theme-elevation-500)',
-  },
-  rangeInput: {
-    width: '80px',
-    padding: 'calc(var(--base) * 0.2) calc(var(--base) * 0.4)',
-    border: '1px solid var(--theme-elevation-200)',
-    borderRadius: 'var(--style-radius-s)',
-    backgroundColor: 'var(--theme-input-bg)',
-    color: 'var(--theme-elevation-800)',
-    fontSize: 'calc(var(--base-body-size) * 1px)',
+  numberInput: {
+    width: '100px',
   },
   emptyState: {
     padding: 'calc(var(--base) * 0.5)',
@@ -107,42 +109,6 @@ const styles = {
     fontSize: 'calc(var(--base-body-size) * 1px)',
     fontStyle: 'italic' as const,
   },
-}
-
-// ── Boolean Control ────────────────────────────────────────────────────────────
-
-const BOOLEAN_OPTIONS = [
-  { label: 'Yes', value: 'true' },
-  { label: 'No', value: 'false' },
-  { label: '—', value: 'unset' },
-]
-
-function BooleanControl({
-  value,
-  onChange,
-  readOnly,
-}: {
-  value: boolean | undefined
-  onChange: (value: boolean | undefined) => void
-  readOnly?: boolean
-}) {
-  const currentValue = value === true ? 'true' : value === false ? 'false' : 'unset'
-
-  const handleChange = (selected: string) => {
-    if (selected === 'true') onChange(true)
-    else if (selected === 'false') onChange(false)
-    else onChange(undefined)
-  }
-
-  return (
-    <ToggleGroup
-      options={BOOLEAN_OPTIONS}
-      value={currentValue}
-      onChange={handleChange}
-      readOnly={readOnly}
-      aria-label="Boolean rule value"
-    />
-  )
 }
 
 // ── Range Control ──────────────────────────────────────────────────────────────
@@ -156,54 +122,41 @@ function RangeControl({
   onChange: (value: { min?: number; max?: number } | undefined) => void
   readOnly?: boolean
 }) {
-  const handleMin = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value
-    const min = raw === '' ? undefined : Number(raw)
-    const next = { ...value, min }
-    if (next.min === undefined) delete next.min
-    if (next.min === undefined && next.max === undefined) {
-      onChange(undefined)
-    } else {
-      onChange(next)
-    }
-  }
-
-  const handleMax = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value
-    const max = raw === '' ? undefined : Number(raw)
-    const next = { ...value, max }
-    if (next.max === undefined) delete next.max
-    if (next.min === undefined && next.max === undefined) {
-      onChange(undefined)
-    } else {
-      onChange(next)
-    }
+  const handleField = (field: 'min' | 'max', raw: string) => {
+    const num = raw === '' ? undefined : Number(raw)
+    const next = { ...value, [field]: num }
+    if (num === undefined) delete next[field]
+    onChange(next.min === undefined && next.max === undefined ? undefined : next)
   }
 
   return (
     <div style={styles.rangeGroup}>
-      <span style={styles.rangeLabel}>Min</span>
-      <input
-        type="number"
-        min={0}
-        step={1}
-        value={value?.min ?? ''}
-        onChange={handleMin}
-        disabled={readOnly}
-        style={styles.rangeInput}
-        aria-label="Minimum value"
-      />
-      <span style={styles.rangeLabel}>Max</span>
-      <input
-        type="number"
-        min={0}
-        step={1}
-        value={value?.max ?? ''}
-        onChange={handleMax}
-        disabled={readOnly}
-        style={styles.rangeInput}
-        aria-label="Maximum value"
-      />
+      <div className="field-type number" style={styles.numberInput}>
+        <input
+          type="number"
+          min={0}
+          step={1}
+          placeholder="Min"
+          value={value?.min ?? ''}
+          onChange={(e) => handleField('min', e.target.value)}
+          disabled={readOnly}
+          onWheel={(e) => (e.target as HTMLInputElement).blur()}
+          aria-label="Minimum value"
+        />
+      </div>
+      <div className="field-type number" style={styles.numberInput}>
+        <input
+          type="number"
+          min={0}
+          step={1}
+          placeholder="Max"
+          value={value?.max ?? ''}
+          onChange={(e) => handleField('max', e.target.value)}
+          disabled={readOnly}
+          onWheel={(e) => (e.target as HTMLInputElement).blur()}
+          aria-label="Maximum value"
+        />
+      </div>
     </div>
   )
 }
@@ -213,7 +166,8 @@ function RangeControl({
 /**
  * Pure UI component for visual targeting rules editing.
  *
- * Renders an AND/OR toggle and per-rule controls (boolean or range).
+ * Renders an AND/OR toggle and per-rule controls (boolean or range)
+ * inside a Collapsible with a human-readable summary header.
  * Rules with unset/empty values are excluded from the output.
  * When all rules are cleared, value becomes null (no targeting = show to all).
  */
@@ -225,20 +179,10 @@ export const RulesEditor: React.FC<RulesEditorProps> = ({
 }) => {
   const currentLogic = value?.logic || 'AND'
 
-  // Derive labels from field names
-  const labels = useMemo(
-    () =>
-      ruleDefinitions.reduce<Record<string, string>>((acc, rule) => {
-        acc[rule.name] = toWords(rule.name)
-        return acc
-      }, {}),
-    [ruleDefinitions],
-  )
-
   const handleLogicChange = useCallback(
     (newLogic: string) => {
-      const updated: RulesValue = { ...value, logic: newLogic as 'AND' | 'OR' }
-      onChange(cleanRules(updated))
+      if (!value) return
+      onChange({ ...value, logic: newLogic as 'AND' | 'OR' })
     },
     [value, onChange],
   )
@@ -260,47 +204,63 @@ export const RulesEditor: React.FC<RulesEditorProps> = ({
     return <div style={styles.emptyState}>No rule definitions configured.</div>
   }
 
+  const summary = summarizeRules(value, ruleDefinitions)
+
   return (
-    <div style={styles.container}>
-      <div style={styles.logicRow}>
-        <span style={styles.logicLabel}>Logic</span>
-        <ToggleGroup
-          options={LOGIC_OPTIONS}
-          value={currentLogic}
-          onChange={handleLogicChange}
-          readOnly={readOnly}
-          aria-label="Rule combination logic"
-        />
+    <Collapsible header={summary} initCollapsed={false}>
+      <div style={styles.container}>
+        <div style={styles.ruleRow}>
+          <span style={styles.ruleLabel}>Logic</span>
+          <ToggleGroup
+            options={[
+              { label: 'AND', value: 'AND' },
+              { label: 'OR', value: 'OR' },
+            ]}
+            value={currentLogic}
+            onChange={handleLogicChange}
+            readOnly={readOnly}
+            aria-label="Rule combination logic"
+          />
+        </div>
+
+        {ruleDefinitions.map((rule) => {
+          const ruleValue = value?.[rule.name]
+
+          return (
+            <div key={rule.name} style={styles.ruleRow}>
+              <span style={styles.ruleLabel}>{toWords(rule.name)}</span>
+
+              {rule.type === 'boolean' ? (
+                <ToggleGroup
+                  options={[
+                    { label: 'Yes', value: 'true' },
+                    { label: 'No', value: 'false' },
+                    { label: '—', value: 'unset' },
+                  ]}
+                  value={ruleValue === true ? 'true' : ruleValue === false ? 'false' : 'unset'}
+                  onChange={(v) => {
+                    const mapped = v === 'true' ? true : v === 'false' ? false : undefined
+                    handleRuleChange(rule.name, mapped)
+                  }}
+                  readOnly={readOnly}
+                  aria-label={`${toWords(rule.name)} rule value`}
+                />
+              ) : (
+                <RangeControl
+                  value={
+                    typeof ruleValue === 'object' && ruleValue !== null
+                      ? (ruleValue as { min?: number; max?: number })
+                      : undefined
+                  }
+                  onChange={(v) => handleRuleChange(rule.name, v)}
+                  readOnly={readOnly}
+                />
+              )}
+            </div>
+          )
+        })}
       </div>
-
-      {ruleDefinitions.map((rule) => {
-        const ruleValue = value?.[rule.name]
-
-        return (
-          <div key={rule.name} style={styles.ruleRow}>
-            <span style={styles.ruleLabel}>{labels[rule.name]}</span>
-
-            {rule.type === 'boolean' ? (
-              <BooleanControl
-                value={typeof ruleValue === 'boolean' ? ruleValue : undefined}
-                onChange={(v) => handleRuleChange(rule.name, v)}
-                readOnly={readOnly}
-              />
-            ) : (
-              <RangeControl
-                value={
-                  typeof ruleValue === 'object' && ruleValue !== null
-                    ? (ruleValue as { min?: number; max?: number })
-                    : undefined
-                }
-                onChange={(v) => handleRuleChange(rule.name, v)}
-                readOnly={readOnly}
-              />
-            )}
-          </div>
-        )
-      })}
-    </div>
+    </Collapsible>
   )
 }
 

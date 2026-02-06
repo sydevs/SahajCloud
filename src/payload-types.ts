@@ -1116,7 +1116,7 @@ export interface AppCard {
     };
   };
   /**
-   * Selection priority. Higher weight = more likely to be chosen. 1 = rare, 5 = very frequent.
+   * Controls how likely this card is to be chosen when displayed to a user.
    */
   weight?: number | null;
   updatedAt: string;

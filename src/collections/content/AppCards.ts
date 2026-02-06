@@ -134,13 +134,23 @@ export const AppCards: CollectionConfig = {
     {
       name: 'weight',
       type: 'number',
+      label: 'Display Frequency',
       min: 1,
       max: 5,
       defaultValue: 3,
       admin: {
-        position: 'sidebar',
-        description:
-          'Selection priority. Higher weight = more likely to be chosen. 1 = rare, 5 = very frequent.',
+        width: '60%',
+        description: 'Controls how likely this card is to be chosen when displayed to a user.',
+        components: {
+          Field: '@/components/admin/RangeSlider',
+        },
+        custom: {
+          labels: {
+            1: 'Less frequent',
+            3: 'Regular frequency',
+            5: 'More frequent',
+          },
+        },
       },
     },
   ],
