@@ -20,6 +20,7 @@ export const Songs: CollectionConfig = {
     virtualUrlField({
       collection: 'songs',
       adapter: 'r2',
+      name: 'audioUrl',
     }),
     {
       name: 'title',

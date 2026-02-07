@@ -25,6 +25,7 @@ export const Albums: CollectionConfig = {
     virtualUrlField({
       collection: 'albums',
       adapter: 'cloudflare-images',
+      name: 'imageUrl',
     }),
     {
       name: 'title',

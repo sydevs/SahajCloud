@@ -208,6 +208,43 @@ STORAGE_BASE_URL=https://storage.googleapis.com/your-bucket
 3. **Comprehensive Reporting**: Summary with counts, warnings, errors
 4. **Dual-Mode**: Works identically in local development and Cloudflare Workers
 
+## Maintenance: Updating Seed Scripts
+
+**When collection fields change, update corresponding seed scripts:**
+
+If you add a new field to a collection (e.g., adding `timings` to Meditations), the seed script must be updated to populate that field. Otherwise, seeded documents will have the field empty/default.
+
+**Checklist for field additions:**
+1. Identify which seed script populates the collection
+2. Update the importer to extract/compute the new field value from source data
+3. Add the field to the `upsert()` data object
+4. Test with `--dry-run` to verify the mapping
+5. Run full seed with `--update` flag to update existing documents
+
+**Example** (adding `timings` field to meditations):
+```typescript
+// Extract timing values from legacy tags
+const TIMING_SLUGS = new Set(['morning', 'afternoon', 'evening'])
+
+private extractTimingsFromTags(taggings, allTags) {
+  const timings = []
+  for (const tagging of taggings) {
+    const tag = allTags.find(t => t.id === tagging.tag_id)
+    const slug = this.mapLegacyTagSlug(tag?.name)
+    if (TIMING_SLUGS.has(slug)) {
+      timings.push(slug)
+    }
+  }
+  return [...new Set(timings)]
+}
+
+// Include in upsert
+await this.upsert('meditations', where, {
+  ...otherFields,
+  timings: this.extractTimingsFromTags(taggings, allTags),
+})
+```
+
 ## Dual-Mode Architecture
 
 Import scripts run in two environments with different capabilities:

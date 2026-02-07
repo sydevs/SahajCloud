@@ -381,4 +381,94 @@ describe('Meditations Collection', () => {
       expect(result.docs.map((doc) => doc.id)).not.toContain(deMeditation.id)
     })
   })
+
+  describe('Type and Timings fields', () => {
+    it('creates meditation with quick type by default', async () => {
+      const meditation = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        { title: 'Quick Default Test' },
+      )
+
+      expect(meditation.type).toBe('quick')
+    })
+
+    it('creates meditation with quick type and timings', async () => {
+      const meditation = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        {
+          title: 'Morning Quick Meditation',
+          type: 'quick',
+          timings: ['morning', 'afternoon'],
+        },
+      )
+
+      expect(meditation.type).toBe('quick')
+      expect(meditation.timings).toEqual(['morning', 'afternoon'])
+    })
+
+    it('creates meditation with daily type and timings', async () => {
+      const meditation = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        {
+          title: 'Evening Daily Meditation',
+          type: 'daily',
+          timings: ['evening', 'night'],
+        },
+      )
+
+      expect(meditation.type).toBe('daily')
+      expect(meditation.timings).toEqual(['evening', 'night'])
+    })
+
+    it('creates meditation with lesson type (no timings)', async () => {
+      const meditation = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        {
+          title: 'Lesson Meditation',
+          type: 'lesson',
+        },
+      )
+
+      expect(meditation.type).toBe('lesson')
+      // Timings should be empty or undefined for lesson type
+      expect(meditation.timings || []).toEqual([])
+    })
+
+    it('allows empty timings for quick type', async () => {
+      const meditation = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        {
+          title: 'Quick No Timings',
+          type: 'quick',
+          timings: [],
+        },
+      )
+
+      expect(meditation.type).toBe('quick')
+      expect(meditation.timings).toEqual([])
+    })
+
+    it('allows all four timing options', async () => {
+      const meditation = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        {
+          title: 'All Day Meditation',
+          type: 'quick',
+          timings: ['morning', 'afternoon', 'evening', 'night'],
+        },
+      )
+
+      expect(meditation.timings).toHaveLength(4)
+      expect(meditation.timings).toContain('morning')
+      expect(meditation.timings).toContain('afternoon')
+      expect(meditation.timings).toContain('evening')
+      expect(meditation.timings).toContain('night')
+    })
+  })
 })

@@ -24,6 +24,7 @@ export const SongTags: CollectionConfig = {
     virtualUrlField({
       collection: 'song-tags',
       adapter: 'r2',
+      name: 'imageUrl',
     }),
     // Slug auto-generated from title
     slugField({

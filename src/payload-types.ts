@@ -350,6 +350,7 @@ export interface Image {
     | number
     | boolean
     | null;
+  imageUrl?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -412,6 +413,7 @@ export interface Author {
  */
 export interface Meditation {
   id: number;
+  audioUrl?: string | null;
   randomSongUrl?: string | null;
   label: string;
   locale:
@@ -456,7 +458,11 @@ export interface Meditation {
   generateSlug?: boolean | null;
   slug: string;
   thumbnail?: (number | null) | Image;
-  type: 'daily' | 'lesson' | 'realization';
+  type: 'quick' | 'daily' | 'lesson';
+  /**
+   * When this meditation is available
+   */
+  timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
   /**
    * Categorize this meditation for seekers to find it
    */
@@ -501,6 +507,7 @@ export interface Narrator {
  */
 export interface SongTag {
   id: number;
+  imageUrl?: string | null;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
@@ -536,6 +543,7 @@ export interface SongTag {
  */
 export interface Song {
   id: number;
+  audioUrl?: string | null;
   title: string;
   /**
    * The album this track belongs to
@@ -570,6 +578,7 @@ export interface Song {
  */
 export interface Album {
   id: number;
+  imageUrl?: string | null;
   title: string;
   artist: string;
   /**
@@ -603,6 +612,7 @@ export interface Album {
  */
 export interface MeditationTag {
   id: number;
+  imageUrl?: string | null;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
@@ -667,7 +677,8 @@ export interface MeditationTag {
  */
 export interface Video {
   id: number;
-  downloadUrl?: string | null;
+  fileUrl?: string | null;
+  streamUrl?: string | null;
   previewUrl?: string | null;
   /**
    * Video title shown to users
@@ -792,7 +803,8 @@ export interface Lesson {
 export interface File {
   id: number;
   createdAt: string;
-  downloadUrl?: string | null;
+  fileUrl?: string | null;
+  streamUrl?: string | null;
   previewUrl?: string | null;
   updatedAt: string;
   deletedAt?: string | null;
@@ -825,7 +837,8 @@ export interface Lecture {
  */
 export interface Frame {
   id: number;
-  downloadUrl?: string | null;
+  fileUrl?: string | null;
+  streamUrl?: string | null;
   previewUrl?: string | null;
   imageSet: 'male' | 'female';
   category:
@@ -1604,6 +1617,7 @@ export interface PagesSelect<T extends boolean = true> {
  * via the `definition` "meditations_select".
  */
 export interface MeditationsSelect<T extends boolean = true> {
+  audioUrl?: T;
   randomSongUrl?: T;
   label?: T;
   locale?: T;
@@ -1616,6 +1630,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   slug?: T;
   thumbnail?: T;
   type?: T;
+  timings?: T;
   tags?: T;
   frames?: T;
   updatedAt?: T;
@@ -1637,6 +1652,7 @@ export interface MeditationsSelect<T extends boolean = true> {
  * via the `definition` "songs_select".
  */
 export interface SongsSelect<T extends boolean = true> {
+  audioUrl?: T;
   title?: T;
   album?: T;
   tags?: T;
@@ -1659,6 +1675,7 @@ export interface SongsSelect<T extends boolean = true> {
  * via the `definition` "albums_select".
  */
 export interface AlbumsSelect<T extends boolean = true> {
+  imageUrl?: T;
   title?: T;
   artist?: T;
   artistUrl?: T;
@@ -1681,7 +1698,8 @@ export interface AlbumsSelect<T extends boolean = true> {
  * via the `definition` "videos_select".
  */
 export interface VideosSelect<T extends boolean = true> {
-  downloadUrl?: T;
+  fileUrl?: T;
+  streamUrl?: T;
   previewUrl?: T;
   title?: T;
   subtitles?: T;
@@ -1742,7 +1760,8 @@ export interface LecturesSelect<T extends boolean = true> {
  * via the `definition` "frames_select".
  */
 export interface FramesSelect<T extends boolean = true> {
-  downloadUrl?: T;
+  fileUrl?: T;
+  streamUrl?: T;
   previewUrl?: T;
   imageSet?: T;
   category?: T;
@@ -1797,6 +1816,7 @@ export interface ImagesSelect<T extends boolean = true> {
   credit?: T;
   tags?: T;
   fileMetadata?: T;
+  imageUrl?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -1816,7 +1836,8 @@ export interface ImagesSelect<T extends boolean = true> {
  */
 export interface FilesSelect<T extends boolean = true> {
   createdAt?: T;
-  downloadUrl?: T;
+  fileUrl?: T;
+  streamUrl?: T;
   previewUrl?: T;
   updatedAt?: T;
   deletedAt?: T;
@@ -1835,6 +1856,7 @@ export interface FilesSelect<T extends boolean = true> {
  * via the `definition` "meditation-tags_select".
  */
 export interface MeditationTagsSelect<T extends boolean = true> {
+  imageUrl?: T;
   generateSlug?: T;
   slug?: T;
   title?: T;
@@ -1863,6 +1885,7 @@ export interface MeditationTagsSelect<T extends boolean = true> {
  * via the `definition` "song-tags_select".
  */
 export interface SongTagsSelect<T extends boolean = true> {
+  imageUrl?: T;
   generateSlug?: T;
   slug?: T;
   title?: T;
@@ -2279,6 +2302,10 @@ export interface WmWebTranslation {
  */
 export interface WmAppConfig {
   id: number;
+  /**
+   * Self-realization meditation for new users
+   */
+  selfRealizationMeditation?: (number | null) | Meditation;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2506,6 +2533,7 @@ export interface WmWebTranslationsSelect<T extends boolean = true> {
  * via the `definition` "wm-app-config_select".
  */
 export interface WmAppConfigSelect<T extends boolean = true> {
+  selfRealizationMeditation?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

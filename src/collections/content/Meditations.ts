@@ -240,13 +240,42 @@ export const Meditations: CollectionConfig = {
               name: 'type',
               type: 'select',
               required: true,
-              defaultValue: 'daily',
+              defaultValue: 'quick',
               options: [
+                { label: 'Quick', value: 'quick' },
                 { label: 'Daily', value: 'daily' },
                 { label: 'Path', value: 'lesson' },
-                { label: 'Self-Realization', value: 'realization' },
               ],
               admin: {
+                custom: {
+                  descriptions: {
+                    quick:
+                      'Time-based meditations without personalization. Offered based on time of day.',
+                    daily:
+                      'Personalized meditations with interactive features. Offered based on seeker mood/state.',
+                    lesson:
+                      'Meditations that complement Path lessons. Not shown in daily recommendations.',
+                  },
+                },
+                components: {
+                  Field: '@/components/admin/ToggleGroupField',
+                  Description: '@/components/admin/SelectDescription',
+                },
+              },
+            },
+            {
+              name: 'timings',
+              type: 'select',
+              hasMany: true,
+              options: [
+                { label: 'Morning', value: 'morning' },
+                { label: 'Afternoon', value: 'afternoon' },
+                { label: 'Evening', value: 'evening' },
+                { label: 'Night', value: 'night' },
+              ],
+              admin: {
+                condition: (data) => data.type === 'quick' || data.type === 'daily',
+                description: 'When this meditation is available',
                 components: {
                   Field: '@/components/admin/ToggleGroupField',
                 },

@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { downloadUrlField, mixedMediaUrlField, previewUrlField } from '@/lib/storage/urlFields'
+import { mixedMediaUrlField, previewUrlField, streamUrlField } from '@/lib/storage/urlFields'
 
 export const Files: CollectionConfig = {
   slug: 'files',
@@ -39,8 +39,9 @@ export const Files: CollectionConfig = {
         readOnly: true,
       },
     },
+    // fileUrl: direct file URL, streamUrl: HLS streaming (videos only), previewUrl: thumbnail
     mixedMediaUrlField({ collection: 'files' }),
-    downloadUrlField({ collection: 'files' }),
+    streamUrlField({ collection: 'files' }),
     previewUrlField({ collection: 'files' }),
   ],
 }

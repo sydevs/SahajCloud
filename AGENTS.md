@@ -223,6 +223,12 @@ Configuration: `src/lib/richEditor.ts`
 - **Running**: `pnpm payload migrate`
 - **Rolling Back**: `pnpm payload migrate:down`
 
+**Important**: Both `.ts` and `.json` files are required for each migration:
+- The `.ts` file contains the migration logic (SQL statements or Payload operations)
+- The `.json` file is the Drizzle schema snapshot used for rollback
+
+**Data-only migrations** (no schema changes): If a migration only modifies data (e.g., deleting records, updating values) without changing the schema, copy the previous migration's `.json` file and rename it to match your new migration timestamp. This ensures the schema snapshot chain remains intact.
+
 ### Git Commands
 - **Prefer working directory commands** - Use `git status`, `git add`, etc. from the project root
 - **Avoid `git -C <path>`** - Only use the `-C` flag when absolutely necessary (e.g., operating on a different repository)

@@ -206,8 +206,8 @@ describe('Frame Filtering for FrameInserter', () => {
         expect(frame.category).toBeDefined()
         expect(frame.imageSet).toBeDefined()
         // thumbnailUrl is virtual, may or may not be populated depending on storage
-        // url should be defined
-        expect(frame.url || frame.filename).toBeDefined()
+        // fileUrl should be defined
+        expect(frame.fileUrl || frame.filename).toBeDefined()
       })
     })
 

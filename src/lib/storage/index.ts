@@ -24,4 +24,5 @@ export {
   virtualUrlField,
   previewUrlField,
   mixedMediaUrlField,
+  streamUrlField,
 } from './urlFields'
