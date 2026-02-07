@@ -273,7 +273,11 @@ const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
 
 /**
  * Timing slugs that should be handled as timings field values, not MeditationTags.
- * These correspond to the timings select field options: morning, afternoon, evening, night
+ * Maps to the timings select field options: morning, afternoon, evening, night.
+ *
+ * Note: 'night' is intentionally excluded because legacy timing tags only included
+ * morning, afternoon, and evening. The 'night' option was added as a new option
+ * for future content and is not derived from legacy data.
  */
 const TIMING_SLUGS = new Set(['morning', 'afternoon', 'evening'])
 
