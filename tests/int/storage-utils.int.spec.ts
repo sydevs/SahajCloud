@@ -92,7 +92,8 @@ describe('URL Field Factories', () => {
 
       const hook = getAfterReadHook(field)
       const url = callHook(hook!, { filename: 'video-id' })
-      expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/manifest/video.m3u8')
+      // virtualUrlField with cloudflare-stream returns MP4 download URL
+      expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/downloads/default.mp4')
     })
 
     it('falls back to local URL when CLOUDFLARE_STREAM_DELIVERY_URL is not set', async () => {
@@ -314,7 +315,7 @@ describe('URL Field Factories', () => {
       expect(url).toBe('https://imagedelivery.net/abc123/image-id/public')
     })
 
-    it('generates Cloudflare Stream HLS URL for videos', async () => {
+    it('generates Cloudflare Stream MP4 URL for videos', async () => {
       process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
@@ -324,7 +325,8 @@ describe('URL Field Factories', () => {
 
       const hook = getAfterReadHook(field)
       const url = callHook(hook!, { filename: 'video-id', mimeType: 'video/mp4' })
-      expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/manifest/video.m3u8')
+      // mixedMediaUrlField returns MP4 download URL for videos (use streamUrlField for HLS)
+      expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/downloads/default.mp4')
     })
 
     it('generates R2 URL for other file types', async () => {

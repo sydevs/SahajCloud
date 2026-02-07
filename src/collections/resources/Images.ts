@@ -70,6 +70,7 @@ export const Images: CollectionConfig = {
     virtualUrlField({
       collection: 'images',
       adapter: 'cloudflare-images',
+      name: 'imageUrl',
     }),
   ],
   hooks: {

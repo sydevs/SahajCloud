@@ -2,8 +2,10 @@
 
 import type { FieldClientComponent, SelectFieldClient } from 'payload'
 
-import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
+import { FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import React, { useEffect, useMemo } from 'react'
+
+import { SelectDescription } from '@/components/admin/SelectDescription'
 
 import { ToggleGroup, type ToggleGroupOption } from './ToggleGroup'
 
@@ -14,7 +16,7 @@ import { ToggleGroup, type ToggleGroupOption } from './ToggleGroup'
  * - Field state management via useField hook
  * - Label rendering with FieldLabel
  * - Error display with FieldError
- * - Description display with FieldDescription
+ * - Description display with SelectDescription (supports dynamic descriptions via admin.custom.descriptions)
  * - Automatic value initialization for single-select (uses defaultValue or first option)
  * - Multi-select support via `hasMany` field property
  * - Proper field wrapper structure matching PayloadCMS SelectInput
@@ -56,7 +58,7 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
     required,
     hasMany = false,
     options: fieldOptions,
-    admin: { description, className, style } = {},
+    admin: { className, style } = {},
   } = field as SelectFieldClient
 
   // Use Payload's field hook for state management
@@ -129,6 +131,7 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
             onChange={setValue as (value: string[]) => void}
             options={options}
             readOnly={readOnly}
+            clearable={!required}
             aria-label={ariaLabel}
           />
         ) : (
@@ -137,12 +140,13 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
             onChange={setValue as (value: string) => void}
             options={options}
             readOnly={readOnly}
+            clearable={!required}
             aria-label={ariaLabel}
           />
         )}
       </div>
 
-      <FieldDescription description={description} path={name} />
+      <SelectDescription field={field as SelectFieldClient} path={name} />
     </div>
   )
 }

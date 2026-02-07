@@ -20,6 +20,7 @@ import { MetaImageComponent as MetaImageComponent_a8a977ebc872c5d5ea7ee689724c08
 import { PreviewComponent as PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
 import { SlugField as SlugField_3817bf644402e67bfe6577f60ef982de } from '@payloadcms/ui'
 import { default as default_c3b32cae85b800f9348e9cdb8fc7a176 } from '@/components/admin/TagSelector'
+import { default as default_11a2281e0aa4f5a6fb73db1ce1538d0c } from '@/components/admin/SelectDescription'
 import { default as default_153ca68fe8ddf15a21abb9e4fd2a6300 } from '@/components/admin/ToggleGroupField'
 import { default as default_75e666f79b1160c03532515ca11818f3 } from '@/components/admin/FrameEditor/FrameListManager'
 import { default as default_e201aca8b8f7be4559f38e80e7a23040 } from '@/components/admin/FrameEditor/FrameInserter'
@@ -77,6 +78,7 @@ export const importMap = {
   "@payloadcms/plugin-seo/client#PreviewComponent": PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860,
   "@payloadcms/ui#SlugField": SlugField_3817bf644402e67bfe6577f60ef982de,
   "@/components/admin/TagSelector#default": default_c3b32cae85b800f9348e9cdb8fc7a176,
+  "@/components/admin/SelectDescription#default": default_11a2281e0aa4f5a6fb73db1ce1538d0c,
   "@/components/admin/ToggleGroupField#default": default_153ca68fe8ddf15a21abb9e4fd2a6300,
   "@/components/admin/FrameEditor/FrameListManager#default": default_75e666f79b1160c03532515ca11818f3,
   "@/components/admin/FrameEditor/FrameInserter#default": default_e201aca8b8f7be4559f38e80e7a23040,

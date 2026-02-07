@@ -5,6 +5,19 @@ import type { DefaultCellComponentProps } from 'payload'
 import { BaseThumbnailCell } from './BaseThumbnailCell'
 
 /**
+ * Props for PreviewUrlThumbnailCell, extending DefaultCellComponentProps with
+ * custom serverProps from previewUrlField configuration.
+ */
+interface PreviewUrlThumbnailCellProps extends DefaultCellComponentProps {
+  /**
+   * Field name containing the full file URL for fallback link.
+   * Passed via serverProps from previewUrlField configuration.
+   * Default: 'fileUrl'
+   */
+  fileUrlField?: string
+}
+
+/**
  * Thumbnail cell for virtual URL fields (e.g., previewUrl)
  * cellData contains the URL directly from the virtual field's afterRead hook
  *
@@ -18,7 +31,7 @@ import { BaseThumbnailCell } from './BaseThumbnailCell'
  * 3. link (no linkURL) - document edit page link
  * 4. Fallback - external file link (opens in new tab)
  */
-export const PreviewUrlThumbnailCell: React.FC<DefaultCellComponentProps> = ({
+export const PreviewUrlThumbnailCell: React.FC<PreviewUrlThumbnailCellProps> = ({
   cellData,
   rowData,
   collectionSlug,
@@ -26,11 +39,12 @@ export const PreviewUrlThumbnailCell: React.FC<DefaultCellComponentProps> = ({
   link,
   linkURL,
   onClick,
+  fileUrlField = 'fileUrl',
 }) => {
   const thumbnailUrl = typeof cellData === 'string' ? cellData : undefined
 
   // Original file URL from rowData (for non-first-column fallback)
-  const fallbackLinkURL = rowData?.url as string | undefined
+  const fallbackLinkURL = rowData?.[fileUrlField] as string | undefined
 
   // Construct document URL when link=true (first column) but no custom linkURL
   // This matches Payload's DefaultCell behavior

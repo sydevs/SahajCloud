@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@payloadcms/ui'
 import React, { useRef } from 'react'
 
 export interface ToggleGroupOption {
@@ -22,6 +23,7 @@ interface MultiSelectProps {
 export type ToggleGroupProps = (SingleSelectProps | MultiSelectProps) & {
   options: ToggleGroupOption[]
   readOnly?: boolean
+  clearable?: boolean
   'aria-label'?: string
 }
 
@@ -68,7 +70,7 @@ export type ToggleGroupProps = (SingleSelectProps | MultiSelectProps) & {
  * ```
  */
 export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
-  const { options, readOnly = false, 'aria-label': ariaLabel } = props
+  const { options, readOnly = false, clearable = false, 'aria-label': ariaLabel } = props
   const isMulti = props.hasMany === true
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -118,6 +120,10 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
     }
   }
 
+  // Determine if clear button should be shown
+  const hasValue = isMulti ? (props.value as string[]).length > 0 : Boolean(props.value)
+  const showClearButton = clearable && !readOnly && hasValue
+
   return (
     <div
       ref={containerRef}
@@ -125,6 +131,7 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
       aria-label={ariaLabel}
       style={{
         display: 'flex',
+        alignItems: 'center',
         width: 'fit-content',
         ...(isMulti
           ? {
@@ -172,9 +179,7 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
                 : {
                     border: 'none',
                     borderRight:
-                      index < options.length - 1
-                        ? '1px solid var(--theme-elevation-200)'
-                        : 'none',
+                      index < options.length - 1 ? '1px solid var(--theme-elevation-200)' : 'none',
                     minWidth: '120px',
                   }),
             }}
@@ -199,6 +204,29 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
           </button>
         )
       })}
+      {showClearButton && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            marginLeft: 'calc(var(--base) * 0.3)',
+            marginBlock: 'calc(var(--base) * -1)',
+          }}
+        >
+          <Button
+            buttonStyle="icon-label"
+            icon="x"
+            onClick={() =>
+              isMulti
+                ? (props.onChange as (value: string[]) => void)([])
+                : (props.onChange as (value: string) => void)('')
+            }
+            round
+            size="small"
+            aria-label="Clear selection"
+          />
+        </div>
+      )}
     </div>
   )
 }

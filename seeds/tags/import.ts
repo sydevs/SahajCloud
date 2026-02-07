@@ -247,28 +247,8 @@ const MEDITATION_TAGS: TagData[] = [
       'https://res.cloudinary.com/do9izm8xv/image/upload/v1763989317/meditation-icons/user-states/Seeking_deeper_spiritual_experience_2ae1a99e.svg',
     timings: ['morning', 'evening'],
   },
-  // Time-based tags (reusing music tag icons)
-  {
-    title: 'Morning',
-    slug: 'morning',
-    color: '#FFD591',
-    iconUrl: 'local:morning.svg',
-    timings: ['morning'],
-  },
-  {
-    title: 'Afternoon',
-    slug: 'afternoon',
-    color: '#FED593',
-    iconUrl: 'https://www.svgrepo.com/show/529971/sun-2.svg',
-    timings: ['afternoon'],
-  },
-  {
-    title: 'Evening',
-    slug: 'evening',
-    color: '#A4C7D9',
-    iconUrl: 'local:evening.svg',
-    timings: ['evening'],
-  },
+  // Note: Time-based tags (Morning, Afternoon, Evening) have been removed.
+  // Meditations now use the 'timings' field directly instead of tag relationships.
 ]
 
 const SONG_TAGS: TagData[] = [

@@ -39,7 +39,7 @@ export default function AudioUpload() {
   const filename = data?.filename as string | undefined
   const filesize = data?.filesize as number | undefined
   const mimeType = (data?.mimeType as string | undefined) || 'audio/*'
-  const virtualUrl = data?.url as string | undefined
+  const virtualUrl = data?.audioUrl as string | undefined
   const audioUrl =
     virtualUrl || (filename ? `${serverURL}/api/${collectionSlug}/file/${filename}` : null)
 
