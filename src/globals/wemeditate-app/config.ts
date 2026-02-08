@@ -11,6 +11,7 @@ export const WeMeditateAppConfig: GlobalConfig = {
       name: 'selfRealizationMeditation',
       type: 'relationship',
       relationTo: 'meditations',
+      localized: true,
       admin: {
         description: 'Self-realization meditation for new users',
       },
