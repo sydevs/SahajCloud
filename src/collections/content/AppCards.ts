@@ -25,6 +25,7 @@ export const AppCards: CollectionConfig = {
     staticDir: 'media/app-cards',
     bulkUpload: false,
     mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'],
+    focalPoint: true,
   },
   admin: {
     group: 'WeMeditate App',
