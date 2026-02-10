@@ -16,6 +16,7 @@ import * as migration_20260206_041909_delete_timing_tags from './20260206_041909
 import * as migration_20260206_070436 from './20260206_070436';
 import * as migration_20260207_090000_fix_meditations_version_parent from './20260207_090000_fix_meditations_version_parent';
 import * as migration_20260208_083206 from './20260208_083206';
+import * as migration_20260210_120000_remove_meditation_tags_timings from './20260210_120000_remove_meditation_tags_timings';
 
 export const migrations = [
   {
@@ -106,6 +107,11 @@ export const migrations = [
   {
     up: migration_20260208_083206.up,
     down: migration_20260208_083206.down,
-    name: '20260208_083206'
+    name: '20260208_083206',
+  },
+  {
+    up: migration_20260210_120000_remove_meditation_tags_timings.up,
+    down: migration_20260210_120000_remove_meditation_tags_timings.down,
+    name: '20260210_120000_remove_meditation_tags_timings',
   },
 ];
