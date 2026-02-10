@@ -402,6 +402,7 @@ describe('MeditationTags by-timing endpoint logic', () => {
     it('returns Czech locale meditations when locale=cs', async () => {
       const meditations = await payload.find({
         collection: 'meditations',
+        locale: 'cs', // Sets req.locale so filterMeditationsByLocale hook works correctly
         where: {
           and: [
             { locale: { equals: 'cs' } },
@@ -510,6 +511,7 @@ describe('MeditationTags by-timing endpoint logic', () => {
     it('returns no results for timing with no matching meditations in unused locale', async () => {
       const meditations = await payload.find({
         collection: 'meditations',
+        locale: 'fa', // Sets req.locale so filterMeditationsByLocale hook works correctly
         where: {
           and: [
             { locale: { equals: 'fa' } }, // Farsi - unlikely to have test data

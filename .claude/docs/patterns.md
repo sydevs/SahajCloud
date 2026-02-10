@@ -182,46 +182,64 @@ trash?: boolean;
 
 ## PayloadCMS Custom Endpoints Pattern
 
-When you need to combine data from multiple collections or perform complex server-side logic, use custom endpoints:
+When you need to combine data from multiple collections or perform complex server-side logic, use custom endpoints. Endpoint handlers live in `src/endpoints/` and are registered on collections.
 
-### Collection Configuration
+### Endpoint File Structure
+
+```
+src/endpoints/
+├── index.ts                      # Barrel export
+├── framesByNarrator.ts           # Frames collection endpoint
+└── meditationTagsByTiming.ts     # MeditationTags collection endpoint
+```
+
+### Endpoint Handler
+
+Each file exports an `Endpoint` object from `payload`:
 
 ```typescript
+import type { Endpoint } from 'payload'
+
+export const framesByNarrator: Endpoint = {
+  path: '/by-narrator/:narratorId',
+  method: 'get',
+  handler: async (req) => {
+    const narratorId = req.routeParams?.narratorId as string
+
+    if (!narratorId) {
+      return Response.json({ error: 'Narrator ID required' }, { status: 400 })
+    }
+
+    const narrator = await req.payload.findByID({
+      collection: 'narrators',
+      id: narratorId,
+      depth: 0,
+    })
+
+    if (!narrator) {
+      return Response.json({ error: 'Narrator not found' }, { status: 404 })
+    }
+
+    const frames = await req.payload.find({
+      collection: 'frames',
+      where: { imageSet: { equals: narrator.gender } },
+      limit: 100,
+      depth: 0,
+    })
+
+    return Response.json(frames)
+  },
+}
+```
+
+### Collection Registration
+
+```typescript
+import { framesByNarrator } from '@/endpoints'
+
 export const Frames: CollectionConfig = {
   slug: 'frames',
-  endpoints: [
-    {
-      path: '/by-narrator/:narratorId',
-      method: 'get',
-      handler: async (req) => {
-        const narratorId = req.routeParams?.narratorId as string
-
-        if (!narratorId) {
-          return Response.json({ error: 'Narrator ID required' }, { status: 400 })
-        }
-
-        // Server-side data joining - single request handles multiple operations
-        const narrator = await req.payload.findByID({
-          collection: 'narrators',
-          id: narratorId,
-          depth: 0,
-        })
-
-        if (!narrator) {
-          return Response.json({ error: 'Narrator not found' }, { status: 404 })
-        }
-
-        const frames = await req.payload.find({
-          collection: 'frames',
-          where: { imageSet: { equals: narrator.gender } },
-          limit: 100,
-          depth: 0,
-        })
-
-        return Response.json(frames)
-      },
-    },
-  ],
+  endpoints: [framesByNarrator],
   // ... fields
 }
 ```
@@ -242,6 +260,8 @@ const [{ data, isLoading, isError }] = usePayloadAPI(
 - Eliminating client-side race conditions
 
 ### Key Points
+- Place endpoint handlers in `src/endpoints/` and export from the barrel `index.ts`
+- Each handler exports an `Endpoint` type from `payload` with `path`, `method`, `handler`
 - Endpoints receive full `req` object with `req.payload` for database operations
 - Use `req.routeParams` to access URL parameters
 - Return `Response.json()` for JSON responses
