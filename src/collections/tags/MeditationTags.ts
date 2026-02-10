@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
+import { meditationTagsByTiming } from '@/endpoints'
 import { colorField, slugField } from '@/fields'
 import {
   clearIsParentOnDelete,
@@ -15,6 +16,7 @@ export const MeditationTags: CollectionConfig = {
     singular: 'Meditation Category',
     plural: 'Meditation Categories',
   },
+  endpoints: [meditationTagsByTiming],
   admin: {
     group: 'Metadata',
     useAsTitle: 'title',
@@ -61,25 +63,6 @@ export const MeditationTags: CollectionConfig = {
         description: 'Tag color for UI theming (hex format)',
       },
     }),
-    // Time-of-day suitability for this category
-    {
-      name: 'timings',
-      type: 'select',
-      hasMany: true,
-      required: true,
-      options: [
-        { label: 'Morning', value: 'morning' },
-        { label: 'Afternoon', value: 'afternoon' },
-        { label: 'Evening', value: 'evening' },
-        { label: 'Night', value: 'night' },
-      ],
-      admin: {
-        description: 'When this meditation category is most suitable',
-        components: {
-          Field: '@/components/admin/ToggleGroupField',
-        },
-      },
-    },
     // Parent category for single-level nesting
     {
       name: 'parent',
