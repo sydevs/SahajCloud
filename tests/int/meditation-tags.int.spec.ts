@@ -2,8 +2,6 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { MeditationTag } from '@/payload-types'
-
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -19,37 +17,6 @@ describe('MeditationTags Collection - Metadata Fields', () => {
 
   afterAll(async () => {
     await cleanup()
-  })
-
-  describe('timings field', () => {
-    it('creates a tag with multiple timings', async () => {
-      const tag = await testData.createMeditationTag(payload, {
-        timings: ['morning', 'evening'],
-      })
-      expect(tag.timings).toEqual(['morning', 'evening'])
-    })
-
-    it('creates a tag with a single timing', async () => {
-      const tag = await testData.createMeditationTag(payload, {
-        timings: ['night'],
-      })
-      expect(tag.timings).toEqual(['night'])
-    })
-
-    it('creates a tag with all timings', async () => {
-      const tag = await testData.createMeditationTag(payload, {
-        timings: ['morning', 'afternoon', 'evening', 'night'],
-      })
-      expect(tag.timings).toEqual(['morning', 'afternoon', 'evening', 'night'])
-    })
-
-    it('rejects a tag with no timings', async () => {
-      await expect(
-        testData.createMeditationTag(payload, {
-          timings: [] as unknown as MeditationTag['timings'],
-        }),
-      ).rejects.toThrow()
-    })
   })
 
   describe('isFeatured field', () => {
@@ -311,21 +278,17 @@ describe('MeditationTags Collection - Metadata Fields', () => {
       const parentTag = await testData.createMeditationTag(payload, {
         title: 'Parent With Metadata',
         isFeatured: true,
-        timings: ['morning', 'afternoon'],
       })
 
       const childTag = await testData.createMeditationTag(payload, {
         title: 'Child With Metadata',
         isFeatured: false,
-        timings: ['evening'],
         parent: parentTag.id,
       })
 
       expect(parentTag.isFeatured).toBe(true)
-      expect(parentTag.timings).toEqual(['morning', 'afternoon'])
 
       expect(childTag.isFeatured).toBe(false)
-      expect(childTag.timings).toEqual(['evening'])
       // parent is auto-populated on create, extract ID for comparison
       const childParentId =
         typeof childTag.parent === 'object' && childTag.parent !== null
