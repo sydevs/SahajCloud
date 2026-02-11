@@ -21,11 +21,7 @@ export const SongTags: CollectionConfig = {
   },
   fields: [
     // Virtual URL field for CDN delivery (R2 for SVG support)
-    virtualUrlField({
-      collection: 'song-tags',
-      adapter: 'r2',
-      name: 'imageUrl',
-    }),
+    virtualUrlField({ collection: 'song-tags', adapter: 'r2' }),
     // Slug auto-generated from title
     slugField({
       useAsSlug: 'title',

@@ -39,10 +39,6 @@ interface VirtualUrlFieldOptions {
    * - r2: Uses CLOUDFLARE_R2_DELIVERY_URL
    */
   adapter: StorageAdapter
-  /**
-   * Custom field name (default: 'fileUrl')
-   */
-  name?: string
 }
 
 /**
@@ -62,7 +58,7 @@ interface PreviewUrlFieldOptions {
    */
   height?: number
   /**
-   * Field name containing the full file URL for fallback link (default: 'fileUrl')
+   * Field name containing the full file URL for fallback link (default: 'url')
    */
   fileUrlField?: string
 }
@@ -117,19 +113,9 @@ interface StreamUrlFieldOptions {
  * ]
  * ```
  *
- * @example Custom field name (when 'url' conflicts with another field)
- * ```typescript
- * fields: [
- *   virtualUrlField({
- *     collection: 'app-cards',
- *     adapter: 'cloudflare-images',
- *     name: 'imageUrl',
- *   }),
- * ]
- * ```
  */
 export const virtualUrlField = (options: VirtualUrlFieldOptions): Field => {
-  const { collection, adapter, name = 'fileUrl' } = options
+  const { collection, adapter } = options
 
   const afterReadHook: FieldHook = ({ data }) => {
     if (!data?.filename) return undefined
@@ -150,7 +136,7 @@ export const virtualUrlField = (options: VirtualUrlFieldOptions): Field => {
   }
 
   return {
-    name,
+    name: 'url',
     type: 'text',
     virtual: true,
     hooks: {
@@ -182,7 +168,7 @@ export const virtualUrlField = (options: VirtualUrlFieldOptions): Field => {
  * ```
  */
 export const previewUrlField = (options: PreviewUrlFieldOptions): Field => {
-  const { collection, width = 320, height = 320, fileUrlField = 'fileUrl' } = options
+  const { collection, width = 320, height = 320, fileUrlField = 'url' } = options
 
   const afterReadHook: FieldHook = ({ data }) => {
     if (!data?.filename) return undefined
@@ -277,7 +263,7 @@ export const mixedMediaUrlField = (options: MixedMediaUrlFieldOptions): Field =>
   }
 
   return {
-    name: 'fileUrl',
+    name: 'url',
     type: 'text',
     virtual: true,
     hooks: {
