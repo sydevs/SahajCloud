@@ -163,9 +163,9 @@ describe('MeditationTags by-timing endpoint logic', () => {
     it('returns published meditations matching morning timing', async () => {
       const meditations = await payload.find({
         collection: 'meditations',
+        locale: 'en',
         where: {
           and: [
-            { locale: { equals: 'en' } },
             { _status: { equals: 'published' } },
             { type: { not_equals: 'lesson' } },
             {
@@ -191,9 +191,9 @@ describe('MeditationTags by-timing endpoint logic', () => {
     it('returns published meditations matching evening timing', async () => {
       const meditations = await payload.find({
         collection: 'meditations',
+        locale: 'en',
         where: {
           and: [
-            { locale: { equals: 'en' } },
             { _status: { equals: 'published' } },
             { type: { not_equals: 'lesson' } },
             {
@@ -218,9 +218,9 @@ describe('MeditationTags by-timing endpoint logic', () => {
       // Query for afternoon timing - only universal meditation should match
       const meditations = await payload.find({
         collection: 'meditations',
+        locale: 'en',
         where: {
           and: [
-            { locale: { equals: 'en' } },
             { _status: { equals: 'published' } },
             { type: { not_equals: 'lesson' } },
             {
@@ -247,9 +247,9 @@ describe('MeditationTags by-timing endpoint logic', () => {
       // Simulate the endpoint's grouping logic
       const meditations = await payload.find({
         collection: 'meditations',
+        locale: 'en',
         where: {
           and: [
-            { locale: { equals: 'en' } },
             { _status: { equals: 'published' } },
             { type: { not_equals: 'lesson' } },
             {
@@ -297,9 +297,9 @@ describe('MeditationTags by-timing endpoint logic', () => {
     it('returns tags sorted by order field', async () => {
       const meditations = await payload.find({
         collection: 'meditations',
+        locale: 'en',
         where: {
           and: [
-            { locale: { equals: 'en' } },
             { _status: { equals: 'published' } },
             { type: { not_equals: 'lesson' } },
             {
@@ -343,9 +343,9 @@ describe('MeditationTags by-timing endpoint logic', () => {
       // Query for morning timing
       const meditations = await payload.find({
         collection: 'meditations',
+        locale: 'en',
         where: {
           and: [
-            { locale: { equals: 'en' } },
             { _status: { equals: 'published' } },
             { type: { not_equals: 'lesson' } },
             {
@@ -379,9 +379,9 @@ describe('MeditationTags by-timing endpoint logic', () => {
     it('filters by English locale by default', async () => {
       const meditations = await payload.find({
         collection: 'meditations',
+        locale: 'en',
         where: {
           and: [
-            { locale: { equals: 'en' } },
             { _status: { equals: 'published' } },
             { type: { not_equals: 'lesson' } },
             {
@@ -402,10 +402,9 @@ describe('MeditationTags by-timing endpoint logic', () => {
     it('returns Czech locale meditations when locale=cs', async () => {
       const meditations = await payload.find({
         collection: 'meditations',
-        locale: 'cs', // Sets req.locale so filterMeditationsByLocale hook works correctly
+        locale: 'cs',
         where: {
           and: [
-            { locale: { equals: 'cs' } },
             { _status: { equals: 'published' } },
             { type: { not_equals: 'lesson' } },
             {
@@ -429,9 +428,9 @@ describe('MeditationTags by-timing endpoint logic', () => {
     it('excludes draft meditations', async () => {
       const meditations = await payload.find({
         collection: 'meditations',
+        locale: 'en',
         where: {
           and: [
-            { locale: { equals: 'en' } },
             { _status: { equals: 'published' } },
             { type: { not_equals: 'lesson' } },
             { timings: { contains: 'morning' } },
@@ -447,9 +446,9 @@ describe('MeditationTags by-timing endpoint logic', () => {
     it('excludes lesson-type meditations', async () => {
       const meditations = await payload.find({
         collection: 'meditations',
+        locale: 'en',
         where: {
           and: [
-            { locale: { equals: 'en' } },
             { _status: { equals: 'published' } },
             { type: { not_equals: 'lesson' } },
             { timings: { contains: 'morning' } },
@@ -467,9 +466,9 @@ describe('MeditationTags by-timing endpoint logic', () => {
     it('meditations include required preview fields', async () => {
       const meditations = await payload.find({
         collection: 'meditations',
+        locale: 'en',
         where: {
           and: [
-            { locale: { equals: 'en' } },
             { _status: { equals: 'published' } },
             { type: { not_equals: 'lesson' } },
             { timings: { contains: 'morning' } },
@@ -511,10 +510,9 @@ describe('MeditationTags by-timing endpoint logic', () => {
     it('returns no results for timing with no matching meditations in unused locale', async () => {
       const meditations = await payload.find({
         collection: 'meditations',
-        locale: 'fa', // Sets req.locale so filterMeditationsByLocale hook works correctly
+        locale: 'fa',
         where: {
           and: [
-            { locale: { equals: 'fa' } }, // Farsi - unlikely to have test data
             { _status: { equals: 'published' } },
             { type: { not_equals: 'lesson' } },
             {

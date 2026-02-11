@@ -1,9 +1,18 @@
 import type { Endpoint } from 'payload'
 
+import { z } from 'zod'
+
+import { LOCALES } from '@/lib/locales'
 import type { Image, Meditation, MeditationTag } from '@/payload-types'
 
 type TimingValue = NonNullable<Meditation['timings']>[number]
-const VALID_TIMINGS: TimingValue[] = ['morning', 'afternoon', 'evening', 'night']
+const VALID_TIMINGS = ['morning', 'afternoon', 'evening', 'night'] as const
+const [firstLocale, ...restLocales] = LOCALES.map((l) => l.code)
+
+const paramsSchema = z.object({
+  timing: z.enum(VALID_TIMINGS),
+  locale: z.enum([firstLocale, ...restLocales]).default('en'),
+})
 
 interface MeditationPreview {
   id: number
@@ -29,24 +38,29 @@ export const meditationTagsByTiming: Endpoint = {
   path: '/by-timing/:timing',
   method: 'get',
   handler: async (req) => {
-    const timing = req.routeParams?.timing as string
-    const locale = (req.query?.locale as string) || 'en'
+    const parsed = paramsSchema.safeParse({
+      timing: req.routeParams?.timing,
+      locale: req.query?.locale,
+    })
 
-    // Validate timing parameter
-    if (!timing || !VALID_TIMINGS.includes(timing as TimingValue)) {
+    if (!parsed.success) {
       return Response.json(
-        { error: `Invalid timing. Must be one of: ${VALID_TIMINGS.join(', ')}` },
+        { errors: parsed.error.issues },
         { status: 400 },
       )
     }
 
+    const { timing, locale } = parsed.data
+
     // Find published meditations matching timing criteria
     // Includes meditations with empty timings (universal availability)
+    // Note: locale is passed to find() so that filterMeditationsByLocale hook
+    // applies the correct locale filter — no explicit locale where clause needed
     const meditations = await req.payload.find({
       collection: 'meditations',
+      locale: locale,
       where: {
         and: [
-          { locale: { equals: locale } },
           { _status: { equals: 'published' } },
           { type: { not_equals: 'lesson' } },
           {

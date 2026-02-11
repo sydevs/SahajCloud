@@ -440,6 +440,34 @@ describe('Role-Based Access Control', () => {
         ),
       ).toBe(true)
     })
+
+    it('grants read access to app-cards for wemeditate-app-client', () => {
+      const appClient = testData.dummyUser('clients', {
+        id: 17,
+        roles: ['wemeditate-app-client'],
+      })
+
+      expect(
+        hasPermission(
+          { user: appClient, collection: 'app-cards', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(true)
+    })
+
+    it('denies read access to app-cards for wemeditate-web-client', () => {
+      const webClient = testData.dummyUser('clients', {
+        id: 18,
+        roles: ['wemeditate-web-client'],
+      })
+
+      expect(
+        hasPermission(
+          { user: webClient, collection: 'app-cards', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(false)
+    })
   })
 
   describe('Concurrent Permission Checks', () => {
@@ -741,6 +769,89 @@ describe('Role-Based Access Control', () => {
 
       expect(foundPage).not.toBeNull()
       expect(foundPage?.id).toBe(publishedPage.id)
+    })
+
+    it('wemeditate-app-client can read published app-cards', async () => {
+      // Create admin manager
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for App Cards Test',
+        type: 'admin' as const,
+      })
+
+      // Create a client with wemeditate-app-client role
+      const client = await testData.createClient(payload, admin.id, {
+        name: 'App Client for Cards Test',
+        roles: ['wemeditate-app-client'],
+        active: true,
+      })
+
+      // Create an app card (draft by default)
+      const draftCard = await testData.createAppCard(payload, {
+        title: 'Draft Card for Client Test',
+      })
+
+      expect(draftCard._status).toBe('draft')
+
+      // Publish the card
+      const publishedCard = await payload.update({
+        collection: 'app-cards',
+        id: draftCard.id,
+        data: { _status: 'published' },
+        user: { ...admin, collection: 'managers' },
+      })
+
+      expect(publishedCard._status).toBe('published')
+
+      // Query app-cards as client - published card SHOULD appear
+      const clientCards = await payload.find({
+        collection: 'app-cards',
+        user: client,
+        overrideAccess: false,
+      })
+
+      const publishedIds = clientCards.docs.map((doc) => doc.id)
+      expect(publishedIds).toContain(publishedCard.id)
+
+      // Draft card should NOT appear
+      const allIds = clientCards.docs.map((doc) => doc.id)
+      // draftCard was updated to published, so create another draft to verify filtering
+      const anotherDraft = await testData.createAppCard(payload, {
+        title: 'Another Draft Card',
+      })
+      expect(anotherDraft._status).toBe('draft')
+
+      const clientCardsAfter = await payload.find({
+        collection: 'app-cards',
+        user: client,
+        overrideAccess: false,
+      })
+
+      const afterIds = clientCardsAfter.docs.map((doc) => doc.id)
+      expect(afterIds).not.toContain(anotherDraft.id)
+    })
+
+    it('wemeditate-web-client cannot read app-cards', async () => {
+      // Create admin manager
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Web Client Cards Test',
+        type: 'admin' as const,
+      })
+
+      // Create a client with wemeditate-web-client role (no app-cards access)
+      const client = await testData.createClient(payload, admin.id, {
+        name: 'Web Client for Cards Test',
+        roles: ['wemeditate-web-client'],
+        active: true,
+      })
+
+      // Attempt to list app-cards as web client - should throw Forbidden
+      await expect(
+        payload.find({
+          collection: 'app-cards',
+          user: client,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
     })
 
     it('manager can access draft documents', async () => {

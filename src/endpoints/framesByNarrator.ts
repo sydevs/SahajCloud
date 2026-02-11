@@ -1,5 +1,11 @@
 import type { Endpoint } from 'payload'
 
+import { z } from 'zod'
+
+const paramsSchema = z.object({
+  narratorId: z.string().min(1),
+})
+
 /**
  * GET /api/frames/by-narrator/:narratorId
  *
@@ -10,20 +16,25 @@ export const framesByNarrator: Endpoint = {
   path: '/by-narrator/:narratorId',
   method: 'get',
   handler: async (req) => {
-    const narratorId = req.routeParams?.narratorId as string
-
-    if (!narratorId) {
-      return Response.json({ error: 'Narrator ID required' }, { status: 400 })
-    }
-
-    // Look up narrator to get gender
-    const narrator = await req.payload.findByID({
-      collection: 'narrators',
-      id: narratorId,
-      depth: 0,
+    const parsed = paramsSchema.safeParse({
+      narratorId: req.routeParams?.narratorId,
     })
 
-    if (!narrator) {
+    if (!parsed.success) {
+      return Response.json({ errors: parsed.error.issues }, { status: 400 })
+    }
+
+    const { narratorId } = parsed.data
+
+    // Look up narrator to get gender (findByID throws NotFound on invalid ID)
+    let narrator
+    try {
+      narrator = await req.payload.findByID({
+        collection: 'narrators',
+        id: narratorId,
+        depth: 0,
+      })
+    } catch {
       return Response.json({ error: 'Narrator not found' }, { status: 404 })
     }
 
