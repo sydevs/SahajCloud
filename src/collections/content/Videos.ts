@@ -23,7 +23,7 @@ export const Videos: CollectionConfig = {
   },
   fields: [
     // Virtual URL fields for Cloudflare Stream
-    // fileUrl: MP4 download URL, streamUrl: HLS streaming URL, previewUrl: thumbnail
+    // url: MP4 download URL, streamUrl: HLS streaming URL, previewUrl: thumbnail
     virtualUrlField({ collection: 'videos', adapter: 'cloudflare-stream' }),
     streamUrlField({ collection: 'videos' }),
     previewUrlField({ collection: 'videos' }),

@@ -9,7 +9,7 @@ import SVG from 'react-inlinesvg'
 export interface TagOption {
   id: string | number
   title: string
-  imageUrl?: string
+  url?: string
   color?: string
 }
 
@@ -254,11 +254,11 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
                 e.currentTarget.style.boxShadow = 'none'
               }}
             >
-              {tag.imageUrl ? (
+              {tag.url ? (
                 // Use react-inlinesvg for SVG files, img for others
-                tag.imageUrl.toLowerCase().endsWith('.svg') ? (
+                tag.url.toLowerCase().endsWith('.svg') ? (
                   <SVG
-                    src={tag.imageUrl}
+                    src={tag.url}
                     style={{
                       color: isSelected ? 'white' : 'var(--theme-elevation-800)',
                       transition: 'color 0.15s ease',
@@ -267,7 +267,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
                 ) : (
                   // Fallback to img for non-SVG images
                   <img
-                    src={tag.imageUrl}
+                    src={tag.url}
                     alt=""
                     style={{
                       objectFit: 'contain',

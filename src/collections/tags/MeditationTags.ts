@@ -34,11 +34,7 @@ export const MeditationTags: CollectionConfig = {
   },
   fields: [
     // Virtual URL field for CDN delivery (R2 for SVG support)
-    virtualUrlField({
-      collection: 'meditation-tags',
-      adapter: 'r2',
-      name: 'imageUrl',
-    }),
+    virtualUrlField({ collection: 'meditation-tags', adapter: 'r2' }),
     // Slug auto-generated from title
     slugField({
       useAsSlug: 'title',

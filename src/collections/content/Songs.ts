@@ -17,11 +17,7 @@ export const Songs: CollectionConfig = {
     hidden: true, // Always hidden - managed through Albums
   },
   fields: [
-    virtualUrlField({
-      collection: 'songs',
-      adapter: 'r2',
-      name: 'audioUrl',
-    }),
+    virtualUrlField({ collection: 'songs', adapter: 'r2' }),
     {
       name: 'title',
       type: 'text',
