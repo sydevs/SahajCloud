@@ -166,7 +166,7 @@ The filtering system uses a two-tier approach defined in `src/lib/openapi/`:
 
 The following features are not supported by the current plugin version:
 
-- **Custom Endpoints Not Documented**: `/api/frames/by-narrator/:narratorId` and `/api/health` are not included in the spec
+- **Custom Endpoints Not Documented**: `/api/frames/by-narrator/:narratorId`, `/api/meditation-tags/by-timing/:timing`, and `/api/health` are not included in the spec
 - **API Key Header Format**: Plugin uses OAuth2 password flow instead of `Authorization: clients API-Key <key>` format
 
 **Plugin Review Schedule**: Check for updates quarterly or when new features needed. See [GitHub](https://github.com/janbuchar/payload-oapi) for roadmap.
