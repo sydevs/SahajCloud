@@ -22,11 +22,7 @@ export const Albums: CollectionConfig = {
     defaultColumns: ['title', 'artist', 'filename'],
   },
   fields: [
-    virtualUrlField({
-      collection: 'albums',
-      adapter: 'cloudflare-images',
-      name: 'imageUrl',
-    }),
+    virtualUrlField({ collection: 'albums', adapter: 'cloudflare-images' }),
     {
       name: 'title',
       type: 'text',

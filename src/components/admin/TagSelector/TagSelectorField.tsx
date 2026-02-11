@@ -91,7 +91,7 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
     initialParams: {
       limit: 100,
       depth: 0,
-      select: { title: true, imageUrl: true, color: true, filename: true },
+      select: { title: true, url: true, color: true, filename: true },
       ...filterQuery,
     },
   })

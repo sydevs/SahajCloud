@@ -12,7 +12,7 @@ interface PreviewUrlThumbnailCellProps extends DefaultCellComponentProps {
   /**
    * Field name containing the full file URL for fallback link.
    * Passed via serverProps from previewUrlField configuration.
-   * Default: 'fileUrl'
+   * Default: 'url'
    */
   fileUrlField?: string
 }
@@ -39,7 +39,7 @@ export const PreviewUrlThumbnailCell: React.FC<PreviewUrlThumbnailCellProps> = (
   link,
   linkURL,
   onClick,
-  fileUrlField = 'fileUrl',
+  fileUrlField = 'url',
 }) => {
   const thumbnailUrl = typeof cellData === 'string' ? cellData : undefined
 

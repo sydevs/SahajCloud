@@ -39,7 +39,7 @@ export const Files: CollectionConfig = {
         readOnly: true,
       },
     },
-    // fileUrl: direct file URL, streamUrl: HLS streaming (videos only), previewUrl: thumbnail
+    // url: direct file URL, streamUrl: HLS streaming (videos only), previewUrl: thumbnail
     mixedMediaUrlField({ collection: 'files' }),
     streamUrlField({ collection: 'files' }),
     previewUrlField({ collection: 'files' }),

@@ -67,11 +67,7 @@ export const Images: CollectionConfig = {
         readOnly: true,
       },
     },
-    virtualUrlField({
-      collection: 'images',
-      adapter: 'cloudflare-images',
-      name: 'imageUrl',
-    }),
+    virtualUrlField({ collection: 'images', adapter: 'cloudflare-images' }),
   ],
   hooks: {
     // Removed: sanitizeFilename (not needed - Cloudflare provides unique IDs)

@@ -34,12 +34,7 @@ export const AppCards: CollectionConfig = {
   },
   fields: [
     // Virtual URL field for the uploaded card image (Cloudflare Images)
-    // Named 'imageUrl' to avoid conflict with the conditional 'linkUrl' field
-    virtualUrlField({
-      collection: 'app-cards',
-      adapter: 'cloudflare-images',
-      name: 'imageUrl',
-    }),
+    virtualUrlField({ collection: 'app-cards', adapter: 'cloudflare-images' }),
     {
       name: 'title',
       type: 'text',
