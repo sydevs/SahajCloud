@@ -32,6 +32,11 @@ function cleanRules(rules: RulesValue): RulesValue | null {
     if (typeof val === 'boolean') {
       cleaned[key] = val
       hasRules = true
+    } else if (Array.isArray(val)) {
+      if (val.length > 0) {
+        cleaned[key] = val
+        hasRules = true
+      }
     } else if (typeof val === 'object' && val !== null) {
       const range = val as { min?: number; max?: number }
       if (range.min !== undefined || range.max !== undefined) {
@@ -59,6 +64,12 @@ function summarizeRules(
 
     if (rule.type === 'boolean' && typeof ruleValue === 'boolean') {
       parts.push(`${rule.name} = ${ruleValue ? 'Yes' : 'No'}`)
+    } else if (rule.type === 'select' && Array.isArray(ruleValue) && ruleValue.length > 0) {
+      const labels = ruleValue.map((v) => {
+        const opt = rule.options?.find((o) => o.value === v)
+        return opt?.label ?? v
+      })
+      parts.push(`${rule.name} = ${labels.join(', ')}`)
     } else if (rule.type === 'range' && typeof ruleValue === 'object' && ruleValue !== null) {
       const { min, max } = ruleValue as { min?: number; max?: number }
       if (min !== undefined && max !== undefined) {
@@ -197,7 +208,7 @@ export const RulesEditor: React.FC<RulesEditorProps> = ({
   )
 
   const handleRuleChange = useCallback(
-    (ruleName: string, ruleValue: boolean | { min?: number; max?: number } | undefined) => {
+    (ruleName: string, ruleValue: boolean | { min?: number; max?: number } | string[] | undefined) => {
       // Derive logic inside callback to avoid stale closure and ESLint warning
       const logic = value?.logic || 'AND'
       const updated: RulesValue = { ...value, logic }
@@ -249,13 +260,25 @@ export const RulesEditor: React.FC<RulesEditorProps> = ({
                   options={[
                     { label: 'Yes', value: 'true' },
                     { label: 'No', value: 'false' },
-                    { label: '—', value: 'unset' },
                   ]}
-                  value={ruleValue === true ? 'true' : ruleValue === false ? 'false' : 'unset'}
+                  value={ruleValue === true ? 'true' : ruleValue === false ? 'false' : ''}
                   onChange={(v) => {
-                    const mapped = v === 'true' ? true : v === 'false' ? false : undefined
+                    const mapped = v === '' ? undefined : v === 'true' ? true : false
                     handleRuleChange(rule.name, mapped)
                   }}
+                  clearable
+                  readOnly={readOnly}
+                  aria-label={`${toWords(rule.name)} rule value`}
+                />
+              ) : rule.type === 'select' && rule.options ? (
+                <ToggleGroup
+                  hasMany
+                  options={rule.options}
+                  value={Array.isArray(ruleValue) ? (ruleValue as string[]) : []}
+                  onChange={(v) => {
+                    handleRuleChange(rule.name, v.length > 0 ? v : undefined)
+                  }}
+                  clearable
                   readOnly={readOnly}
                   aria-label={`${toWords(rule.name)} rule value`}
                 />

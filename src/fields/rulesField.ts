@@ -3,19 +3,21 @@ import type { JSONField } from 'payload'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-export type RuleType = 'boolean' | 'range'
+export type RuleType = 'boolean' | 'range' | 'select'
 
 export interface RuleDefinition {
   /** Key in the JSON object (e.g., 'pathProgress') */
   name: string
-  /** 'boolean' = true/false/unset, 'range' = min/max numbers */
+  /** 'boolean' = true/false/unset, 'range' = min/max numbers, 'select' = multi-choice */
   type: RuleType
+  /** Options for 'select' type rules (label/value pairs) */
+  options?: Array<{ label: string; value: string }>
 }
 
 /** Stored JSON shape for targeting rules */
 export type RulesValue = {
   logic?: 'AND' | 'OR'
-  [key: string]: boolean | { min?: number; max?: number } | 'AND' | 'OR' | undefined
+  [key: string]: boolean | { min?: number; max?: number } | string[] | 'AND' | 'OR' | undefined
 }
 
 export interface RulesFieldOptions {
@@ -53,6 +55,12 @@ export function generateRulesJsonSchema(rules: RuleDefinition[]): JSONSchema4 {
           max: { type: 'number', minimum: 0 },
         },
         additionalProperties: false,
+      }
+    } else if (rule.type === 'select' && rule.options) {
+      properties[rule.name] = {
+        type: 'array',
+        items: { type: 'string', enum: rule.options.map((o) => o.value) },
+        uniqueItems: true,
       }
     }
   }
