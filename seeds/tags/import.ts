@@ -1,7 +1,7 @@
 /**
  * Tags Import Script
  *
- * Imports MeditationTags (27 items) and SongTags (7 items).
+ * Imports MeditationTags (24 items) and SongTags (7 items).
  *
  * Features:
  * - Downloads SVG icons from remote URLs or loads from local files (local: prefix)
@@ -279,12 +279,6 @@ const SONG_TAGS: TagData[] = [
     iconUrl: 'local:music-tag.svg',
   },
   {
-    title: 'Piano',
-    slug: 'piano',
-    color: '#1E6C71',
-    iconUrl: 'local:music-tag.svg',
-  },
-  {
     title: 'Morning',
     slug: 'morning',
     color: '#1E6C71',
@@ -389,6 +383,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
           {
             locale: 'en',
             file: svgFile,
+            forceFileUpload: true,
             identifier: tag.slug,
             current: i + 1,
             total,
@@ -433,6 +428,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
           {
             locale: 'en',
             file: svgFile,
+            forceFileUpload: true,
             identifier: tag.slug,
             current: i + 1,
             total,
