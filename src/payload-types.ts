@@ -630,10 +630,6 @@ export interface MeditationTag {
    */
   color: string;
   /**
-   * When this meditation category is most suitable
-   */
-  timings: ('morning' | 'afternoon' | 'evening' | 'night')[];
-  /**
    * Parent category for grouping. Parent categories are not selectable on meditations.
    */
   parent?: (number | null) | MeditationTag;
@@ -1861,7 +1857,6 @@ export interface MeditationTagsSelect<T extends boolean = true> {
   slug?: T;
   title?: T;
   color?: T;
-  timings?: T;
   parent?: T;
   isFeatured?: T;
   order?: T;

@@ -242,7 +242,6 @@ export const testData = {
       data: {
         title: defaultTitle,
         color: '#FF5733',
-        timings: ['morning'],
         ...overrides,
       },
       file: {

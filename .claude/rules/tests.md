@@ -94,6 +94,28 @@ expect(song.filename).toMatch(/^audio-42s(-\d+)?\.mp3$/)
 | `payload.create()` + relationship | Returns raw ID | Returns populated object |
 | `filterOptions` fallback | Return `{}` | Return `true` |
 
+## Meditations Locale Filtering in Tests
+
+The Meditations collection has a `filterMeditationsByLocale` beforeOperation hook that reads `req.locale` and adds a `{ locale: { equals: req.locale } }` where clause. In local API calls, `req.locale` defaults to `'en'`.
+
+When testing non-English meditation queries, you **must** pass `locale` to `payload.find()` — otherwise the hook's implicit `locale: 'en'` filter conflicts with your explicit where clause:
+
+```typescript
+// ❌ WRONG: req.locale defaults to 'en', hook adds locale='en', conflicts with where locale='cs'
+const result = await payload.find({
+  collection: 'meditations',
+  where: { locale: { equals: 'cs' } },
+})
+// Returns empty — no doc has locale='en' AND locale='cs'
+
+// ✅ CORRECT: pass locale so req.locale='cs' matches the where clause
+const result = await payload.find({
+  collection: 'meditations',
+  locale: 'cs',
+  where: { locale: { equals: 'cs' } },
+})
+```
+
 Full details: @.claude/docs/testing.md
 
 ## E2E Test Commands

@@ -88,6 +88,17 @@ r2NativeAdapter({
 - `src/app/(payload)/` - Payload CMS admin interface and API routes
 - `src/app/(payload)/api/` - Auto-generated API endpoints including GraphQL
 
+## Custom Endpoints
+
+Custom endpoint handlers are organized in `src/endpoints/` and registered on their respective collections via the `endpoints` config property.
+
+| File | Collection | Path | Description |
+|------|-----------|------|-------------|
+| `src/endpoints/framesByNarrator.ts` | Frames | `/by-narrator/:narratorId` | Returns frames filtered by narrator gender |
+| `src/endpoints/meditationTagsByTiming.ts` | MeditationTags | `/by-timing/:timing` | Returns tags with meditation previews for a time of day |
+
+Each endpoint exports an `Endpoint` object (from `payload`) with `path`, `method`, and `handler` properties. The barrel export at `src/endpoints/index.ts` re-exports all handlers.
+
 ## API Explorer (OpenAPI / Scalar)
 
 The application provides interactive REST API documentation using the [payload-oapi](https://github.com/janbuchar/payload-oapi) plugin for spec generation and a custom Scalar plugin with We Meditate branding.
@@ -155,7 +166,7 @@ The filtering system uses a two-tier approach defined in `src/lib/openapi/`:
 
 The following features are not supported by the current plugin version:
 
-- **Custom Endpoints Not Documented**: `/api/frames/by-narrator/:narratorId` and `/api/health` are not included in the spec
+- **Custom Endpoints Not Documented**: `/api/frames/by-narrator/:narratorId`, `/api/meditation-tags/by-timing/:timing`, and `/api/health` are not included in the spec
 - **API Key Header Format**: Plugin uses OAuth2 password flow instead of `Authorization: clients API-Key <key>` format
 
 **Plugin Review Schedule**: Check for updates quarterly or when new features needed. See [GitHub](https://github.com/janbuchar/payload-oapi) for roadmap.
@@ -220,7 +231,7 @@ plugins: [
 - **Files** (`src/collections/system/Files.ts`) - Mixed media storage with intelligent routing: images → Cloudflare Images (WebP/AVIF optimization), videos → Cloudflare Stream (transcoding, HLS), other files (PDFs, audio) → R2. Includes virtual `url` and `previewUrl` fields, trash support, and automatic orphan cleanup via the CleanupOrphanedMedia job
 
 ### Tag Collections
-- **MeditationTags** (`src/collections/tags/MeditationTags.ts`) - Upload collection for meditation tags with SVG icons, **color picker field**, auto-generated slug from localized title, **timings multi-select** (morning/afternoon/evening/night) with ToggleGroupField, **isFeatured checkbox** (featured categories shown prominently), **order number field** (display order, `defaultSort: 'order'`), **isParent checkbox** (hidden, auto-maintained by hooks), **single-level parent-child nesting** via self-referential `parent` relationship with `filterOptions` (client-side) and Payload's built-in `validateFilterOptions` (server-side), parent categories excluded from meditation tag selection, and bidirectional relationships. The `isParent` flag is maintained by `afterChange`/`afterDelete` hooks in `src/hooks/meditationTagHooks.ts`, and `validateNesting` (beforeValidate) prevents tags with children from becoming children themselves.
+- **MeditationTags** (`src/collections/tags/MeditationTags.ts`) - Upload collection for meditation tags with SVG icons, **color picker field**, auto-generated slug from localized title, **isFeatured checkbox** (featured categories shown prominently), **order number field** (display order, `defaultSort: 'order'`), **isParent checkbox** (hidden, auto-maintained by hooks), **single-level parent-child nesting** via self-referential `parent` relationship with `filterOptions` (client-side) and Payload's built-in `validateFilterOptions` (server-side), parent categories excluded from meditation tag selection, bidirectional relationships, and a **custom `/by-timing/:timing` endpoint** for querying tags with their meditations filtered by time of day. The `isParent` flag is maintained by `afterChange`/`afterDelete` hooks in `src/hooks/meditationTagHooks.ts`, and `validateNesting` (beforeValidate) prevents tags with children from becoming children themselves.
 - **SongTags** (`src/collections/tags/SongTags.ts`) - Upload collection for song/music tags with SVG icons, auto-generated slug from localized title, and bidirectional relationships (**note: no color field**, unlike MeditationTags). Admin labels use "Music Category" for user familiarity.
 
 **Note**: Page, Video, and Image tags are now inline enum select fields on their respective collections (not separate tag collections). This reduces admin sidebar clutter while maintaining tag functionality.
