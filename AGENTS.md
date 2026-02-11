@@ -26,6 +26,7 @@ Rules are automatically loaded based on which files you're editing:
 | `types.md` | `src/types/**/*.ts`, `**/*.ts` |
 | `collections.md` | `src/collections/**/*.ts`, `src/fields/**/*.ts` |
 | `tests.md` | `tests/**/*.spec.ts` |
+| `endpoints.md` | `src/endpoints/**/*.ts` |
 | `code-style.md` | All files (global) |
 | `pr-requirements.md` | All files (global) |
 | `testing-reqs.md` | All files (global) |
