@@ -8,16 +8,19 @@ export type RuleType = 'boolean' | 'range' | 'select'
 export interface RuleDefinition {
   /** Key in the JSON object (e.g., 'pathProgress') */
   name: string
-  /** 'boolean' = true/false/unset, 'range' = min/max numbers, 'select' = multi-choice */
+  /** 'boolean' = true/false (clearable), 'range' = min/max numbers, 'select' = multi-choice */
   type: RuleType
   /** Options for 'select' type rules (label/value pairs) */
   options?: Array<{ label: string; value: string }>
 }
 
+/** Individual rule value types */
+export type RuleValue = boolean | { min?: number; max?: number } | string[]
+
 /** Stored JSON shape for targeting rules */
 export type RulesValue = {
   logic?: 'AND' | 'OR'
-  [key: string]: boolean | { min?: number; max?: number } | string[] | 'AND' | 'OR' | undefined
+  [key: string]: RuleValue | 'AND' | 'OR' | undefined
 }
 
 export interface RulesFieldOptions {
