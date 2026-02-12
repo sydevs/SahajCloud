@@ -93,21 +93,23 @@ describe('generateRulesJsonSchema', () => {
   })
 })
 
-// ── Integration Tests: AppCards with Rules ─────────────────────────────────────
+// ── Integration Tests: AppCards with Rules and Countdown ──────────────────────
+
+// Shared test environment for all AppCards tests
+let payload: Payload
+let cleanup: () => Promise<void>
+
+beforeAll(async () => {
+  const testEnv = await createTestEnvironment()
+  payload = testEnv.payload
+  cleanup = testEnv.cleanup
+})
+
+afterAll(async () => {
+  await cleanup()
+})
 
 describe('AppCards rules and weight fields', () => {
-  let payload: Payload
-  let cleanup: () => Promise<void>
-
-  beforeAll(async () => {
-    const testEnv = await createTestEnvironment()
-    payload = testEnv.payload
-    cleanup = testEnv.cleanup
-  })
-
-  afterAll(async () => {
-    await cleanup()
-  })
 
   it('creates card with complex AND rules (boolean + range) and verifies round-trip', async () => {
     const rules = {
@@ -273,5 +275,123 @@ describe('AppCards rules and weight fields', () => {
         rules: { pathProgress: { min: 10, max: 5 } },
       }),
     ).rejects.toThrow()
+  })
+})
+
+// ── Integration Tests: AppCards Countdown & Schedule ───────────────────────────
+
+describe('AppCards countdown and schedule fields', () => {
+  it('creates card with countdown: false (default) without schedule', async () => {
+    const card = await testData.createAppCard(payload, {
+      title: 'Regular Card',
+      type: 'app-page',
+      appPage: 'map',
+    })
+
+    expect(card.countdown).toBeFalsy()
+    // Schedule field exists but should have no firstDate when countdown is false
+    expect(card.schedule?.firstDate).toBeNull()
+  })
+
+  it('creates card with countdown: true and valid schedule data', async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+    const dateString = futureDate.toISOString()
+
+    const card = await testData.createAppCard(payload, {
+      title: 'Countdown Card',
+      type: 'app-page',
+      appPage: 'path',
+      countdown: true,
+      schedule: {
+        firstDate: dateString,
+        firstDate_tz: 'America/New_York',
+        recurrenceType: 'WEEKLY',
+        interval: 1,
+      },
+    })
+
+    expect(card.countdown).toBe(true)
+    expect(card.schedule).toBeDefined()
+    expect(card.schedule!.firstDate).toBe(dateString)
+    expect(card.schedule!.firstDate_tz).toBe('America/New_York')
+    expect(card.schedule!.recurrenceType).toBe('WEEKLY')
+    expect(card.schedule!.interval).toBe(1)
+  })
+
+  it('computes icalRule and upcomingDates virtual fields for countdown cards', async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+    const dateString = futureDate.toISOString()
+
+    const card = await testData.createAppCard(payload, {
+      title: 'Recurring Countdown',
+      countdown: true,
+      schedule: {
+        firstDate: dateString,
+        firstDate_tz: 'UTC',
+        recurrenceType: 'DAILY',
+        interval: 2,
+      },
+    })
+
+    // Virtual fields should be computed by afterRead hook
+    expect(card.schedule!.icalRule).toBeDefined()
+    expect(card.schedule!.icalRule).toContain('DTSTART')
+    expect(card.schedule!.icalRule).toContain('RRULE:FREQ=DAILY;INTERVAL=2')
+
+    expect(card.schedule!.upcomingDates).toBeDefined()
+    expect(Array.isArray(card.schedule!.upcomingDates)).toBe(true)
+    expect(card.schedule!.upcomingDates!.length).toBeGreaterThan(0)
+  })
+
+  it('allows countdown cards with content type', async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 1)
+    const dateString = futureDate.toISOString()
+
+    // Create a meditation first for the content relationship
+    const meditation = await testData.createMeditation(payload, { title: 'Test Meditation' })
+
+    const card = await testData.createAppCard(payload, {
+      title: 'Content Countdown',
+      type: 'content',
+      // Polymorphic relationship requires explicit collection specification
+      content: { relationTo: 'meditations', value: meditation.id },
+      countdown: true,
+      schedule: {
+        firstDate: dateString,
+        firstDate_tz: 'UTC',
+        recurrenceType: 'DAILY',
+        interval: 1,
+      },
+    })
+
+    expect(card.countdown).toBe(true)
+    expect(card.type).toBe('content')
+    expect(card.schedule).toBeDefined()
+  })
+
+  it('allows countdown cards with external type', async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 1)
+    const dateString = futureDate.toISOString()
+
+    const card = await testData.createAppCard(payload, {
+      title: 'External Countdown',
+      type: 'external',
+      linkUrl: 'https://example.com',
+      countdown: true,
+      schedule: {
+        firstDate: dateString,
+        firstDate_tz: 'UTC',
+        recurrenceType: 'WEEKLY',
+        interval: 1,
+      },
+    })
+
+    expect(card.countdown).toBe(true)
+    expect(card.type).toBe('external')
+    expect(card.schedule).toBeDefined()
   })
 })
