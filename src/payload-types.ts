@@ -1096,6 +1096,7 @@ export interface AppCard {
   linkUrl?: string | null;
   rules?: {
     logic?: 'AND' | 'OR';
+    targetSection?: ('hero' | 'highlight')[];
     hasRealization?: boolean;
     pathProgress?: {
       min?: number;
