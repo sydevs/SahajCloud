@@ -209,53 +209,44 @@ describe('AppCards rules and weight fields', () => {
     ).rejects.toThrow()
   })
 
-  it('creates card with select rule (targetSection) and verifies round-trip', async () => {
-    const rules = {
-      logic: 'AND' as const,
-      targetSection: ['hero'],
-    }
-
+  it('creates card with targetSections field (single value)', async () => {
     const card = await testData.createAppCard(payload, {
       title: 'Hero Card',
-      rules,
+      targetSections: ['hero'],
     })
 
-    expect(card.rules).toEqual(rules)
+    expect(card.targetSections).toEqual(['hero'])
 
     const fetched = await payload.findByID({
       collection: 'app-cards',
       id: card.id,
     })
-    expect(fetched.rules).toEqual(rules)
+    expect(fetched.targetSections).toEqual(['hero'])
   })
 
-  it('creates card with multiple select values', async () => {
-    const rules = {
-      logic: 'AND' as const,
-      targetSection: ['hero', 'highlight'],
-    }
-
+  it('creates card with targetSections field (multiple values)', async () => {
     const card = await testData.createAppCard(payload, {
       title: 'Multi-Section Card',
-      rules,
+      targetSections: ['hero', 'highlights'],
     })
 
-    expect(card.rules).toEqual(rules)
+    expect(card.targetSections).toEqual(['hero', 'highlights'])
   })
 
-  it('creates card with mixed rule types (select + boolean + range)', async () => {
+  it('creates card with targetSections and rules together', async () => {
     const rules = {
       logic: 'AND' as const,
-      targetSection: ['highlight'],
       hasRealization: true,
       pathProgress: { min: 3 },
     }
 
     const card = await testData.createAppCard(payload, {
-      title: 'Mixed Rules Card',
+      title: 'Mixed Fields Card',
+      targetSections: ['highlights'],
       rules,
     })
 
+    expect(card.targetSections).toEqual(['highlights'])
     expect(card.rules).toEqual(rules)
   })
 

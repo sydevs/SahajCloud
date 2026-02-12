@@ -141,17 +141,22 @@ export const AppCards: CollectionConfig = {
         {
           label: 'Rules',
           fields: [
+            // Target sections (Hero/Highlight)
+            {
+              name: 'targetSections',
+              type: 'select',
+              hasMany: true,
+              options: [
+                { label: 'Hero Card', value: 'hero' },
+                { label: 'Highlights Section', value: 'highlights' },
+              ],
+              admin: {
+                description: 'Target sections where this card should appear on the app homepage.',
+              },
+            },
             // Targeting rules (JSON blob evaluated client-side)
             rulesField({
               rules: [
-                {
-                  name: 'targetSection',
-                  type: 'select',
-                  options: [
-                    { label: 'Hero', value: 'hero' },
-                    { label: 'Highlight', value: 'highlight' },
-                  ],
-                },
                 { name: 'hasRealization', type: 'boolean' },
                 { name: 'pathProgress', type: 'range' },
                 { name: 'meditationsPerWeek', type: 'range' },
