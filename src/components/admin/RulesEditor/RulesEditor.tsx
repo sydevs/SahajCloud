@@ -251,6 +251,29 @@ export const RulesEditor: React.FC<RulesEditorProps> = ({
     [value, ruleDefinitions],
   )
 
+  // Count how many rules are currently specified
+  const activeRuleCount = useMemo(() => {
+    if (!value) return 0
+
+    let count = 0
+    for (const [key, val] of Object.entries(value)) {
+      if (key === 'logic') continue
+
+      if (typeof val === 'boolean') {
+        count++
+      } else if (Array.isArray(val) && val.length > 0) {
+        count++
+      } else if (typeof val === 'object' && val !== null) {
+        const range = val as { min?: number; max?: number }
+        if (range.min !== undefined || range.max !== undefined) {
+          count++
+        }
+      }
+    }
+
+    return count
+  }, [value])
+
   if (ruleDefinitions.length === 0) {
     return <div style={styles.emptyState}>No rule definitions configured.</div>
   }
@@ -258,19 +281,22 @@ export const RulesEditor: React.FC<RulesEditorProps> = ({
   return (
     <Collapsible header={summary} initCollapsed={false}>
       <div style={styles.container}>
-        <div style={styles.ruleRow}>
-          <span style={styles.ruleLabel}>Logic</span>
-          <ToggleGroup
-            options={[
-              { label: 'AND', value: 'AND' },
-              { label: 'OR', value: 'OR' },
-            ]}
-            value={currentLogic}
-            onChange={handleLogicChange}
-            readOnly={readOnly}
-            aria-label="Rule combination logic"
-          />
-        </div>
+        {/* Only show logic toggle when multiple rules are specified */}
+        {activeRuleCount >= 2 && (
+          <div style={styles.ruleRow}>
+            <span style={styles.ruleLabel}>Logic</span>
+            <ToggleGroup
+              options={[
+                { label: 'AND', value: 'AND' },
+                { label: 'OR', value: 'OR' },
+              ]}
+              value={currentLogic}
+              onChange={handleLogicChange}
+              readOnly={readOnly}
+              aria-label="Rule combination logic"
+            />
+          </div>
+        )}
 
         {ruleDefinitions.map((rule) => {
           const ruleValue = value?.[rule.name]

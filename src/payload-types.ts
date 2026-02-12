@@ -1098,9 +1098,12 @@ export interface AppCard {
       | boolean
       | null;
   };
+  /**
+   * Target sections where this card should appear on the app homepage.
+   */
+  targetSections?: ('hero' | 'highlights')[] | null;
   rules?: {
     logic?: 'AND' | 'OR';
-    targetSection?: ('hero' | 'highlight')[];
     hasRealization?: boolean;
     pathProgress?: {
       min?: number;
@@ -1974,6 +1977,7 @@ export interface AppCardsSelect<T extends boolean = true> {
         icalRule?: T;
         upcomingDates?: T;
       };
+  targetSections?: T;
   rules?: T;
   weight?: T;
   updatedAt?: T;
