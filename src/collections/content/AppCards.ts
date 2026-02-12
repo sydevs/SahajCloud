@@ -119,6 +119,14 @@ export const AppCards: CollectionConfig = {
     // Targeting rules (JSON blob evaluated client-side)
     rulesField({
       rules: [
+        {
+          name: 'targetSection',
+          type: 'select',
+          options: [
+            { label: 'Hero', value: 'hero' },
+            { label: 'Highlight', value: 'highlight' },
+          ],
+        },
         { name: 'hasRealization', type: 'boolean' },
         { name: 'pathProgress', type: 'range' },
         { name: 'meditationsPerWeek', type: 'range' },

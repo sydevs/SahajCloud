@@ -5,7 +5,7 @@ import { toWords } from 'payload/shared'
 import React, { useCallback, useMemo } from 'react'
 
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
-import type { RuleDefinition, RulesValue } from '@/fields/rulesField'
+import type { RuleDefinition, RulesValue, RuleValue } from '@/fields/rulesField'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -17,6 +17,25 @@ export interface RulesEditorProps {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+
+/**
+ * Parse boolean toggle value ('true'|'false'|'') to boolean|undefined.
+ * Empty string represents cleared/unset state.
+ */
+function parseBooleanToggle(value: string): boolean | undefined {
+  if (value === '') return undefined
+  return value === 'true'
+}
+
+/**
+ * Convert boolean value to toggle string ('true'|'false'|'').
+ * undefined/null becomes empty string for clearable toggle.
+ */
+function booleanToToggle(value: boolean | undefined | null): string {
+  if (value === true) return 'true'
+  if (value === false) return 'false'
+  return ''
+}
 
 /** Remove empty/unset rules and return null if no meaningful rules remain */
 function cleanRules(rules: RulesValue): RulesValue | null {
@@ -32,6 +51,11 @@ function cleanRules(rules: RulesValue): RulesValue | null {
     if (typeof val === 'boolean') {
       cleaned[key] = val
       hasRules = true
+    } else if (Array.isArray(val)) {
+      if (val.length > 0) {
+        cleaned[key] = val
+        hasRules = true
+      }
     } else if (typeof val === 'object' && val !== null) {
       const range = val as { min?: number; max?: number }
       if (range.min !== undefined || range.max !== undefined) {
@@ -59,6 +83,17 @@ function summarizeRules(
 
     if (rule.type === 'boolean' && typeof ruleValue === 'boolean') {
       parts.push(`${rule.name} = ${ruleValue ? 'Yes' : 'No'}`)
+    } else if (
+      rule.type === 'select' &&
+      rule.options &&
+      Array.isArray(ruleValue) &&
+      ruleValue.length > 0
+    ) {
+      const labels = ruleValue.map((v) => {
+        const opt = rule.options!.find((o) => o.value === v)
+        return opt?.label ?? v
+      })
+      parts.push(`${rule.name} = ${labels.join(', ')}`)
     } else if (rule.type === 'range' && typeof ruleValue === 'object' && ruleValue !== null) {
       const { min, max } = ruleValue as { min?: number; max?: number }
       if (min !== undefined && max !== undefined) {
@@ -197,7 +232,7 @@ export const RulesEditor: React.FC<RulesEditorProps> = ({
   )
 
   const handleRuleChange = useCallback(
-    (ruleName: string, ruleValue: boolean | { min?: number; max?: number } | undefined) => {
+    (ruleName: string, ruleValue: RuleValue | undefined) => {
       // Derive logic inside callback to avoid stale closure and ESLint warning
       const logic = value?.logic || 'AND'
       const updated: RulesValue = { ...value, logic }
@@ -249,13 +284,22 @@ export const RulesEditor: React.FC<RulesEditorProps> = ({
                   options={[
                     { label: 'Yes', value: 'true' },
                     { label: 'No', value: 'false' },
-                    { label: '—', value: 'unset' },
                   ]}
-                  value={ruleValue === true ? 'true' : ruleValue === false ? 'false' : 'unset'}
+                  value={booleanToToggle(ruleValue as boolean | undefined)}
+                  onChange={(v) => handleRuleChange(rule.name, parseBooleanToggle(v))}
+                  clearable
+                  readOnly={readOnly}
+                  aria-label={`${toWords(rule.name)} rule value`}
+                />
+              ) : rule.type === 'select' && rule.options ? (
+                <ToggleGroup
+                  hasMany
+                  options={rule.options}
+                  value={Array.isArray(ruleValue) ? (ruleValue as string[]) : []}
                   onChange={(v) => {
-                    const mapped = v === 'true' ? true : v === 'false' ? false : undefined
-                    handleRuleChange(rule.name, mapped)
+                    handleRuleChange(rule.name, v.length > 0 ? v : undefined)
                   }}
+                  clearable
                   readOnly={readOnly}
                   aria-label={`${toWords(rule.name)} rule value`}
                 />

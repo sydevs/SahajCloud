@@ -45,6 +45,46 @@ describe('generateRulesJsonSchema', () => {
     expect(schema.properties!.meditationsPerWeek!.type).toBe('object')
   })
 
+  it('generates correct schema for select rule definitions', () => {
+    const schema = generateRulesJsonSchema([
+      {
+        name: 'targetSection',
+        type: 'select',
+        options: [
+          { label: 'Hero', value: 'hero' },
+          { label: 'Highlight', value: 'highlight' },
+        ],
+      },
+    ])
+
+    expect(schema.properties!.targetSection).toEqual({
+      type: 'array',
+      items: { type: 'string', enum: ['hero', 'highlight'] },
+      uniqueItems: true,
+    })
+  })
+
+  it('generates correct schema with all rule types (boolean + range + select)', () => {
+    const schema = generateRulesJsonSchema([
+      {
+        name: 'targetSection',
+        type: 'select',
+        options: [
+          { label: 'Hero', value: 'hero' },
+          { label: 'Highlight', value: 'highlight' },
+        ],
+      },
+      { name: 'hasRealization', type: 'boolean' },
+      { name: 'pathProgress', type: 'range' },
+    ])
+
+    // logic + 3 rules = 4 properties
+    expect(Object.keys(schema.properties!)).toHaveLength(4)
+    expect(schema.properties!.targetSection!.type).toBe('array')
+    expect(schema.properties!.hasRealization).toEqual({ type: 'boolean' })
+    expect(schema.properties!.pathProgress!.type).toBe('object')
+  })
+
   it('always includes logic enum with AND/OR', () => {
     const schema = generateRulesJsonSchema([])
 
@@ -165,6 +205,56 @@ describe('AppCards rules and weight fields', () => {
         rules: { logic: 'AND', unknownKey: true } as any,
       }),
     ).rejects.toThrow()
+  })
+
+  it('creates card with select rule (targetSection) and verifies round-trip', async () => {
+    const rules = {
+      logic: 'AND' as const,
+      targetSection: ['hero'],
+    }
+
+    const card = await testData.createAppCard(payload, {
+      title: 'Hero Card',
+      rules,
+    })
+
+    expect(card.rules).toEqual(rules)
+
+    const fetched = await payload.findByID({
+      collection: 'app-cards',
+      id: card.id,
+    })
+    expect(fetched.rules).toEqual(rules)
+  })
+
+  it('creates card with multiple select values', async () => {
+    const rules = {
+      logic: 'AND' as const,
+      targetSection: ['hero', 'highlight'],
+    }
+
+    const card = await testData.createAppCard(payload, {
+      title: 'Multi-Section Card',
+      rules,
+    })
+
+    expect(card.rules).toEqual(rules)
+  })
+
+  it('creates card with mixed rule types (select + boolean + range)', async () => {
+    const rules = {
+      logic: 'AND' as const,
+      targetSection: ['highlight'],
+      hasRealization: true,
+      pathProgress: { min: 3 },
+    }
+
+    const card = await testData.createAppCard(payload, {
+      title: 'Mixed Rules Card',
+      rules,
+    })
+
+    expect(card.rules).toEqual(rules)
   })
 
   it('rejects range rules where max is not greater than min', async () => {
