@@ -1036,13 +1036,37 @@ export interface AppCard {
    * Button label text
    */
   button?: string | null;
-  type: 'app-page' | 'reminder' | 'content' | 'external';
+  type: 'app-page' | 'content' | 'external';
   /**
    * Select the app page this card links to
    */
   appPage?: ('map' | 'lectures' | 'path' | 'music') | null;
   /**
-   * Configure when this event occurs and repeats
+   * Select the content item this card links to
+   */
+  content?:
+    | ({
+        relationTo: 'lectures';
+        value: number | Lecture;
+      } | null)
+    | ({
+        relationTo: 'albums';
+        value: number | Album;
+      } | null)
+    | ({
+        relationTo: 'meditations';
+        value: number | Meditation;
+      } | null);
+  /**
+   * External URL this card links to
+   */
+  linkUrl?: string | null;
+  /**
+   * Enable recurring schedule for this card (countdown/reminder functionality)
+   */
+  countdown?: boolean | null;
+  /**
+   * Configure the recurring schedule for this reminder card
    */
   schedule?: {
     firstDate: string;
@@ -1074,26 +1098,6 @@ export interface AppCard {
       | boolean
       | null;
   };
-  /**
-   * Select the content item this card links to
-   */
-  content?:
-    | ({
-        relationTo: 'lectures';
-        value: number | Lecture;
-      } | null)
-    | ({
-        relationTo: 'albums';
-        value: number | Album;
-      } | null)
-    | ({
-        relationTo: 'meditations';
-        value: number | Meditation;
-      } | null);
-  /**
-   * External URL this card links to
-   */
-  linkUrl?: string | null;
   rules?: {
     logic?: 'AND' | 'OR';
     targetSection?: ('hero' | 'highlight')[];
@@ -1949,6 +1953,9 @@ export interface AppCardsSelect<T extends boolean = true> {
   button?: T;
   type?: T;
   appPage?: T;
+  content?: T;
+  linkUrl?: T;
+  countdown?: T;
   schedule?:
     | T
     | {
@@ -1967,8 +1974,6 @@ export interface AppCardsSelect<T extends boolean = true> {
         icalRule?: T;
         upcomingDates?: T;
       };
-  content?: T;
-  linkUrl?: T;
   rules?: T;
   weight?: T;
   updatedAt?: T;
