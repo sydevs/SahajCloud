@@ -86,6 +86,7 @@ export const AppCards: CollectionConfig = {
                 { label: 'Lectures', value: 'lectures' },
                 { label: 'Path', value: 'path' },
                 { label: 'Music', value: 'music' },
+                { label: 'Live Meditations', value: 'live-meditations' },
               ],
               admin: {
                 condition: (data) => data.type === 'app-page',
