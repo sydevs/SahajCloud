@@ -1040,7 +1040,7 @@ export interface AppCard {
   /**
    * Select the app page this card links to
    */
-  appPage?: ('map' | 'lectures' | 'path' | 'music') | null;
+  appPage?: ('map' | 'lectures' | 'path' | 'music' | 'live-meditations') | null;
   /**
    * Select the content item this card links to
    */
@@ -1076,6 +1076,7 @@ export interface AppCard {
      * Repeat every N days/weeks/months
      */
     interval?: number | null;
+    weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
     /**
      * Dates when this recurring event will not occur, such as holidays or seasonal breaks.
      */
@@ -1966,6 +1967,7 @@ export interface AppCardsSelect<T extends boolean = true> {
         firstDate_tz?: T;
         recurrenceType?: T;
         interval?: T;
+        weekdays?: T;
         exclusions?:
           | T
           | {
