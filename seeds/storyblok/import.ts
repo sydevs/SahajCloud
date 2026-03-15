@@ -32,6 +32,7 @@ import {
   readCacheText,
   writeCache,
 } from '../lib'
+import { createBlockNode } from '../lib/lexicalConverter'
 
 // ============================================================================
 // CONFIGURATION
@@ -935,42 +936,16 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
           break
 
         case 'DD_Quote': {
-          children.push({
-            type: 'quote',
-            version: 1,
-            children: [
-              {
-                type: 'paragraph',
-                version: 1,
-                children: [
-                  {
-                    type: 'text',
-                    version: 1,
-                    text: this.processTextareaField((block.Text as string) || ''),
-                    format: 0,
-                    detail: 0,
-                    mode: 'normal',
-                    style: '',
-                  },
-                ],
-              },
-              {
-                type: 'paragraph',
-                version: 1,
-                children: [
-                  {
-                    type: 'text',
-                    version: 1,
-                    text: `— ${this.processTextField((block.Author_name as string) || '')}, ${this.processTextField((block.Author_who_is as string) || '')}`,
-                    format: 2, // italic
-                    detail: 0,
-                    mode: 'normal',
-                    style: '',
-                  },
-                ],
-              },
-            ],
-          })
+          const quoteText = this.processTextareaField((block.Text as string) || '')
+          if (quoteText) {
+            children.push(
+              createBlockNode('quote', 'Quote Box', {
+                text: quoteText,
+                credit: this.processTextField((block.Author_name as string) || ''),
+                caption: this.processTextField((block.Author_who_is as string) || ''),
+              }),
+            )
+          }
           break
         }
 
