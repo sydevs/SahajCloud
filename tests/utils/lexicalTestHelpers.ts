@@ -78,6 +78,42 @@ export function createLexicalWithLayoutBlock(imageIds: number[]): Page['content'
 }
 
 /**
+ * Create Lexical content with QuoteBlock containing text, credit, and caption
+ * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts
+ */
+export function createLexicalWithQuoteBlock(options: {
+  text: string
+  title?: string
+  credit?: string
+  caption?: string
+}): Page['content'] {
+  return {
+    root: {
+      type: 'root',
+      children: [
+        {
+          type: 'block',
+          version: 2,
+          fields: {
+            id: uniqueId(),
+            blockName: 'Quote Box',
+            blockType: 'quote',
+            text: options.text,
+            ...(options.title ? { title: options.title } : {}),
+            ...(options.credit ? { credit: options.credit } : {}),
+            ...(options.caption ? { caption: options.caption } : {}),
+          },
+        },
+      ],
+      direction: null,
+      format: '',
+      indent: 0,
+      version: 1,
+    },
+  } as unknown as Page['content']
+}
+
+/**
  * Create Lexical content with ImageGalleryBlock containing images
  * Note: ImageGalleryBlock requires minRows: 3 images in actual usage
  * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts
