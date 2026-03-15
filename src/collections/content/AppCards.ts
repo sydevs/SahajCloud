@@ -115,11 +115,6 @@ export const AppCards: CollectionConfig = {
                 description: 'External URL this card links to',
               },
             }),
-          ],
-        },
-        {
-          label: 'Countdown',
-          fields: [
             {
               name: 'countdown',
               type: 'checkbox',
@@ -132,6 +127,7 @@ export const AppCards: CollectionConfig = {
             // Conditional: Schedule (shown when countdown is enabled)
             scheduleField({
               hasExclusions: true,
+              hasComplexWeekly: true,
               admin: {
                 condition: (data) => data.countdown === true,
                 description: 'Configure the recurring schedule for this reminder card',
