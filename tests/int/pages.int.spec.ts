@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
+import { createLexicalWithQuoteBlock } from '../utils/lexicalTestHelpers'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -87,6 +88,64 @@ describe('Pages Collection', () => {
         data: { _status: 'published' },
       })
       expect(published._status).toBe('published')
+    })
+  })
+
+  describe('QuoteBlock Structure', () => {
+    it('returns structured QuoteBlock with separate text, credit, and caption fields', async () => {
+      const content = createLexicalWithQuoteBlock({
+        text: 'The truth is to be experienced.',
+        credit: 'Shri Mataji',
+        caption: 'Founder of Sahaja Yoga meditation',
+      })
+
+      const page = await testData.createPage(payload, {
+        title: 'Page with Quote',
+        content,
+      })
+
+      // Fetch the page and verify the block structure
+      const fetched = await payload.findByID({
+        collection: 'pages',
+        id: page.id,
+        depth: 0,
+      })
+
+      const root = fetched.content?.root as { children: Array<Record<string, unknown>> }
+      expect(root.children).toHaveLength(1)
+
+      const blockNode = root.children[0]
+      expect(blockNode.type).toBe('block')
+
+      const fields = blockNode.fields as Record<string, unknown>
+      expect(fields.blockType).toBe('quote')
+      expect(fields.text).toBe('The truth is to be experienced.')
+      expect(fields.credit).toBe('Shri Mataji')
+      expect(fields.caption).toBe('Founder of Sahaja Yoga meditation')
+    })
+
+    it('returns QuoteBlock with only text when credit and caption are omitted', async () => {
+      const content = createLexicalWithQuoteBlock({
+        text: 'A simple quote without attribution.',
+      })
+
+      const page = await testData.createPage(payload, {
+        title: 'Page with Simple Quote',
+        content,
+      })
+
+      const fetched = await payload.findByID({
+        collection: 'pages',
+        id: page.id,
+        depth: 0,
+      })
+
+      const root = fetched.content?.root as { children: Array<Record<string, unknown>> }
+      const fields = root.children[0].fields as Record<string, unknown>
+      expect(fields.blockType).toBe('quote')
+      expect(fields.text).toBe('A simple quote without attribution.')
+      expect(fields.credit).toBeUndefined()
+      expect(fields.caption).toBeUndefined()
     })
   })
 })
