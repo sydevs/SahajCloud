@@ -55,9 +55,10 @@ Content gallery component:
 ### 5. QuoteBlock (`QuoteBlock.ts`)
 
 Quote component:
-- `text` (text, required) - Quote text
-- `author` (text, optional) - Quote author
-- `subtitle` (text, optional) - Additional context or subtitle
+- `title` (text, optional) - Quote title
+- `text` (textarea, required) - Quote text
+- `credit` (text, optional) - Author or source attribution
+- `caption` (text, optional, shown when credit exists) - Additional context below the credit
 
 ### 6. CatalogBlock (`CatalogBlock.ts`)
 

@@ -51,7 +51,7 @@ Storyblok `Intro_stories` array → Payload `panels` array:
 | `h1` | heading (level 1) |
 | `DD_H2` | heading (level 2) |
 | `DD_Paragraph` | paragraph |
-| `DD_Quote` | quote |
+| `DD_Quote` | QuoteBlock (text, credit, caption) |
 | `DD_Image` | upload (images collection) |
 | `DD_Main_video` | relationship (lectures) |
 
