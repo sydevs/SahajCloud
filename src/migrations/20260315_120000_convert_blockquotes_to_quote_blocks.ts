@@ -201,13 +201,13 @@ function revertBlockquotes(node: LexicalNode): boolean {
 
 export async function up({ db }: MigrateUpArgs): Promise<void> {
   // Process lessons_locales.article
-  const rows = await db.run(
+  const rows = await db.all<{ id: number; article: string }>(
     sql`SELECT \`id\`, \`article\` FROM \`lessons_locales\` WHERE \`article\` IS NOT NULL`,
   )
 
-  for (const row of rows.rows) {
+  for (const row of rows) {
     const id = row.id
-    const articleStr = row.article as string
+    const articleStr = row.article
     if (!articleStr) continue
 
     try {
@@ -225,13 +225,13 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
 
 export async function down({ db }: MigrateDownArgs): Promise<void> {
   // Revert lessons_locales.article
-  const rows = await db.run(
+  const rows = await db.all<{ id: number; article: string }>(
     sql`SELECT \`id\`, \`article\` FROM \`lessons_locales\` WHERE \`article\` IS NOT NULL`,
   )
 
-  for (const row of rows.rows) {
+  for (const row of rows) {
     const id = row.id
-    const articleStr = row.article as string
+    const articleStr = row.article
     if (!articleStr) continue
 
     try {
