@@ -1,7 +1,7 @@
 import type { CollectionConfig, FieldHook, Validate, Where } from 'payload'
 
 import { mediaField, slugField } from '@/fields'
-import { filterMeditationsByLocale } from '@/hooks/meditationHooks'
+import { extractAudioDuration, filterMeditationsByLocale } from '@/hooks/meditationHooks'
 import { serverEnv } from '@/lib/env'
 import { LOCALES } from '@/lib/locales'
 import { getR2Url } from '@/lib/storage/r2NativeAdapter'
@@ -52,6 +52,7 @@ export const Meditations: CollectionConfig = {
   trash: true,
   hooks: {
     beforeOperation: [filterMeditationsByLocale],
+    beforeChange: [extractAudioDuration],
   },
   defaultPopulate: {
     randomSongUrl: false,
@@ -172,27 +173,28 @@ export const Meditations: CollectionConfig = {
               },
             },
             {
-              name: 'fileMetadata',
-              type: 'json',
+              name: 'duration',
+              type: 'number',
+              label: 'Duration (seconds)',
               admin: {
-                condition: ({ id }) => !!id,
                 readOnly: true,
+                hidden: true,
               },
             },
             {
               name: 'durationMinutes',
               type: 'number',
               label: 'Duration (minutes)',
+              virtual: true,
               admin: {
                 readOnly: true,
                 hidden: true,
               },
               hooks: {
                 afterRead: [
-                  async ({ data }) => {
-                    const metadata = data?.fileMetadata as { duration?: number } | null | undefined
-                    if (metadata?.duration) {
-                      return Math.round(metadata.duration / 60)
+                  ({ data }) => {
+                    if (data?.duration && typeof data.duration === 'number') {
+                      return Math.round(data.duration / 60)
                     }
                     return null
                   },
