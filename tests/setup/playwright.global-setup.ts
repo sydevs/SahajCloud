@@ -166,7 +166,6 @@ async function seedTestMeditation(
     data: {
       label: 'E2E Test Meditation',
       title: 'E2E Test Meditation',
-      durationMinutes: 1,
       thumbnail: thumbnailId,
       narrator: narratorId,
       locale: 'en',
