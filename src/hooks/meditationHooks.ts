@@ -65,8 +65,19 @@ export const extractAudioDuration: CollectionBeforeChangeHook = async ({ data, r
   }
 
   const buffer = Buffer.isBuffer(req.file.data) ? req.file.data : Buffer.from(req.file.data)
-  const metadata = await parseBuffer(buffer, { mimeType: req.file.mimetype })
-  const duration = metadata.format.duration
+
+  let duration: number | undefined
+  try {
+    const metadata = await parseBuffer(buffer, { mimeType: req.file.mimetype })
+    duration = metadata.format.duration
+  } catch (error) {
+    req.payload.logger.warn({
+      msg: 'Failed to extract audio duration',
+      filename: req.file.name,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return data
+  }
 
   if (duration == null) {
     return data

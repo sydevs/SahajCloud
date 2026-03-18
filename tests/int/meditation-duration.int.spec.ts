@@ -1,6 +1,8 @@
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Payload } from 'payload'
 
+import { extractAudioDuration } from '@/hooks/meditationHooks'
+
 import { createTestEnvironment } from '../utils/testHelpers'
 import { testData } from '../utils/testData'
 
@@ -56,7 +58,7 @@ describe('Meditation Duration Extraction', () => {
         { narrator: narratorId, thumbnail: thumbnailId },
       )
 
-      // 42 seconds → Math.round(42/60) = 1 minute
+      // 42 seconds → Math.ceil(42/60) = 1 minute
       expect(meditation.durationMinutes).toBe(1)
     })
 
@@ -92,6 +94,40 @@ describe('Meditation Duration Extraction', () => {
       })
 
       expect(found.duration).toBe(originalDuration)
+    })
+  })
+
+  describe('extractAudioDuration hook (unit)', () => {
+    it('returns data without duration for non-audio content', async () => {
+      const mockReq = {
+        file: {
+          data: Buffer.from('not-a-real-audio-file'),
+          mimetype: 'audio/mpeg',
+          name: 'corrupted.mp3',
+        },
+        payload: { logger: { warn: () => {} } },
+      }
+
+      const result = await extractAudioDuration({
+        data: { label: 'test' },
+        req: mockReq,
+      } as never)
+
+      // Should return data without duration rather than throwing
+      expect(result).toBeDefined()
+      expect((result as Record<string, unknown>).duration).toBeUndefined()
+    })
+
+    it('skips extraction when no file is uploaded', async () => {
+      const mockReq = { payload: { logger: { warn: () => {} } } }
+
+      const result = await extractAudioDuration({
+        data: { label: 'test', duration: 100 },
+        req: mockReq,
+      } as never)
+
+      // Should preserve existing data unchanged
+      expect(result).toEqual({ label: 'test', duration: 100 })
     })
   })
 })

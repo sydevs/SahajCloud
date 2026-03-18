@@ -194,7 +194,7 @@ export const Meditations: CollectionConfig = {
                 afterRead: [
                   ({ data }) => {
                     if (data?.duration && typeof data.duration === 'number') {
-                      return Math.round(data.duration / 60)
+                      return Math.ceil(data.duration / 60)
                     }
                     return null
                   },

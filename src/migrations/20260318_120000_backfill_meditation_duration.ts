@@ -16,11 +16,11 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   const r2DeliveryUrl = process.env.CLOUDFLARE_R2_DELIVERY_URL
 
   const result = await db.all(sql`
-    SELECT id, filename FROM meditations
+    SELECT id, filename, mime_type FROM meditations
     WHERE filename IS NOT NULL AND duration IS NULL
   `)
 
-  const rows = result.rows as Array<{ id: number; filename: string }>
+  const rows = result.rows as Array<{ id: number; filename: string; mime_type: string | null }>
   if (rows.length === 0) {
     // eslint-disable-next-line no-console
     console.log('[backfill-duration] No meditations need backfilling')
@@ -56,7 +56,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
         buffer = fs.readFileSync(localPath)
       }
 
-      const metadata = await parseBuffer(buffer, { mimeType: 'audio/mpeg' })
+      const metadata = await parseBuffer(buffer, { mimeType: row.mime_type || 'audio/mpeg' })
       const duration = metadata.format.duration
 
       if (duration != null && duration > 0) {
