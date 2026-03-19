@@ -11,7 +11,6 @@ The system automatically generates thumbnails for video frames to optimize admin
 
 ## Implementation Details
 
-- **File Processing** (`src/lib/fieldUtils.ts`) - Extended `convertFile` hook handles video thumbnail generation
 - **Storage Integration** - Thumbnails added to `req.payloadUploadSizes.small` for automatic Payload storage handling
 - **Automatic Storage** - Payload's storage adapter handles uploading thumbnail files (local, S3, etc.)
 - **Component Integration** - `ThumbnailCell` and `FrameItem` components display thumbnails from `sizes.small.url`

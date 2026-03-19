@@ -383,7 +383,6 @@ export const testData = {
       data: {
         label: overrides.label || overrides.title || defaultTitle,
         title: overrides.title || defaultTitle,
-        durationMinutes: overrides.durationMinutes || 15,
         thumbnail: thumbnail,
         narrator: narrator,
         tags: overrides.tags || [],

@@ -9,7 +9,6 @@ This project uses a comprehensive testing approach with complete test isolation:
 ### DO Test (Our Custom Code)
 
 - **Custom hooks** (`src/hooks/`) - Business logic like `validateClientData`, `checkHighUsageAlert`
-- **Custom utilities** (`src/lib/fieldUtils.ts`) - `processFile`
 - **Storage utilities** (`src/lib/storage/`) - URL field factories, adapter filename sanitization
 - **Access control functions** (`src/lib/accessControl.ts`) - `hasPermission()`, `roleBasedAccess()`
 - **Custom field logic** - Virtual fields, computed values, custom validation
@@ -33,7 +32,7 @@ This project uses a comprehensive testing approach with complete test isolation:
 | File | Purpose |
 |------|---------|
 | `client-hooks.int.spec.ts` | Tests for client beforeChange/afterChange hooks |
-| `field-utils.int.spec.ts` | Tests for processFile utility |
+| `meditation-duration.int.spec.ts` | Tests for audio duration extraction and durationMinutes virtual field |
 | `storage-utils.int.spec.ts` | Tests for URL field factories and R2 adapter filename sanitization |
 | `role-based-access.int.spec.ts` | Tests for hasPermission(), customResourceAccess, locale permissions |
 | `usage-tracking.int.spec.ts` | Tests for API usage tracking job handlers |
