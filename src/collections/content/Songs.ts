@@ -13,7 +13,7 @@ export const Songs: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'album', 'duration', 'tags'],
+    defaultColumns: ['title', 'album', 'tags'],
     hidden: true, // Always hidden - managed through Albums
   },
   fields: [

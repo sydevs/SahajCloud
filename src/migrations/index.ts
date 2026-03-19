@@ -20,6 +20,8 @@ import * as migration_20260210_120000_remove_meditation_tags_timings from './202
 import * as migration_20260212_104141 from './20260212_104141';
 import * as migration_20260315_120000_convert_blockquotes_to_quote_blocks from './20260315_120000_convert_blockquotes_to_quote_blocks';
 import * as migration_20260318_083330 from './20260318_083330';
+import * as migration_20260318_111603 from './20260318_111603';
+import * as migration_20260318_120000_backfill_meditation_duration from './20260318_120000_backfill_meditation_duration';
 
 export const migrations = [
   {
@@ -130,6 +132,16 @@ export const migrations = [
   {
     up: migration_20260318_083330.up,
     down: migration_20260318_083330.down,
-    name: '20260318_083330'
+    name: '20260318_083330',
+  },
+  {
+    up: migration_20260318_111603.up,
+    down: migration_20260318_111603.down,
+    name: '20260318_111603'
+  },
+  {
+    up: migration_20260318_120000_backfill_meditation_duration.up,
+    down: migration_20260318_120000_backfill_meditation_duration.down,
+    name: '20260318_120000_backfill_meditation_duration',
   },
 ];

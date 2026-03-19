@@ -439,15 +439,7 @@ export interface Meditation {
    * Music with this tag will be offered to the seeker
    */
   songTag?: (number | null) | SongTag;
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  duration?: number | null;
   durationMinutes?: number | null;
   title?: string | null;
   /**
@@ -1617,7 +1609,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   locale?: T;
   narrator?: T;
   songTag?: T;
-  fileMetadata?: T;
+  duration?: T;
   durationMinutes?: T;
   title?: T;
   generateSlug?: T;
