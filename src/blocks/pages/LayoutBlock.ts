@@ -28,6 +28,10 @@ export const LayoutBlock: Block = {
           label: 'Accordion',
           value: 'accordion',
         },
+        {
+          label: 'List',
+          value: 'list',
+        },
       ],
     },
     {
