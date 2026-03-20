@@ -227,7 +227,7 @@ export const Meditations: CollectionConfig = {
               ...mediaField({
                 name: 'thumbnail',
                 required: false, // Conditionally required via validation
-                tagName: 'meditation-thumbnail',
+                tagName: 'meditation',
               }),
               validate: ((value, options) => {
                 // Only required during update
