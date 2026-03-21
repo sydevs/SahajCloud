@@ -114,6 +114,12 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   WEMEDITATE_WEB_URL: z.url(),
 
   /**
+   * Shared secret that allows trusted server-side preview requests to read drafts.
+   * This should match the web frontend's SAHAJCLOUD_PREVIEW_SECRET value.
+   */
+  SAHAJCLOUD_PREVIEW_SECRET: z.string().min(16),
+
+  /**
    * Sahaj Atlas frontend URL for live preview
    */
   SAHAJATLAS_URL: z.url(),

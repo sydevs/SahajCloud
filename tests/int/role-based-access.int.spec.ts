@@ -1,4 +1,4 @@
-import type { Payload } from 'payload'
+import type { Payload, PayloadRequest } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
@@ -6,6 +6,21 @@ import { bypassPermissions, hasAnyPermission, hasPermission } from '@/lib/access
 
 import { createTestLexicalContent, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
+
+function createTrustedPreviewRequest(
+  payload: Payload,
+  user: PayloadRequest['user'],
+): PayloadRequest {
+  const headers = new Headers()
+  headers.set('x-sahajcloud-preview-secret', process.env.SAHAJCLOUD_PREVIEW_SECRET || '')
+
+  return {
+    payload,
+    user,
+    locale: 'en',
+    headers: headers as PayloadRequest['headers'],
+  } as PayloadRequest
+}
 
 describe('Role-Based Access Control', () => {
   let payload: Payload
@@ -771,6 +786,45 @@ describe('Role-Based Access Control', () => {
       expect(foundPage?.id).toBe(publishedPage.id)
     })
 
+    it('client can access draft page by ID for trusted preview requests', async () => {
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Preview Draft Page Test',
+        type: 'admin' as const,
+      })
+
+      const client = await testData.createClient(payload, admin.id, {
+        name: 'Preview Client for Draft Page Test',
+        roles: ['wemeditate-web-client'],
+        active: true,
+      })
+
+      const draftPage = await payload.create({
+        collection: 'pages',
+        data: {
+          title: 'Draft Page for Trusted Preview',
+          content: createTestLexicalContent('Draft preview content'),
+        },
+        user: { ...admin, collection: 'managers' },
+      })
+
+      const previewReq = createTrustedPreviewRequest(
+        payload,
+        client as unknown as PayloadRequest['user'],
+      )
+
+      const foundPage = await payload.findByID({
+        collection: 'pages',
+        id: draftPage.id,
+        draft: true,
+        user: client,
+        req: previewReq,
+        overrideAccess: false,
+      })
+
+      expect(foundPage.id).toBe(draftPage.id)
+      expect(foundPage._status).toBe('draft')
+    })
+
     it('wemeditate-app-client can read published app-cards', async () => {
       // Create admin manager
       const admin = await testData.createManager(payload, {
@@ -968,6 +1022,41 @@ describe('Role-Based Access Control', () => {
 
       const managerDraftIds = managerMeditations.docs.map((doc) => doc.id)
       expect(managerDraftIds).toContain(draftMeditation.id)
+    })
+
+    it('client can access draft meditation by ID for trusted preview requests', async () => {
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Preview Draft Meditation Test',
+        type: 'admin' as const,
+      })
+
+      const client = await testData.createClient(payload, admin.id, {
+        name: 'Preview Client for Draft Meditation Test',
+        roles: ['wemeditate-web-client'],
+        active: true,
+      })
+
+      const draftMeditation = await testData.createMeditation(payload, undefined, {
+        label: 'Draft Meditation for Trusted Preview',
+        locale: 'en',
+      })
+
+      const previewReq = createTrustedPreviewRequest(
+        payload,
+        client as unknown as PayloadRequest['user'],
+      )
+
+      const foundMeditation = await payload.findByID({
+        collection: 'meditations',
+        id: draftMeditation.id,
+        draft: true,
+        user: client,
+        req: previewReq,
+        overrideAccess: false,
+      })
+
+      expect(foundMeditation.id).toBe(draftMeditation.id)
+      expect(foundMeditation._status).toBe('draft')
     })
 
     it('does not affect non-draft collections', async () => {

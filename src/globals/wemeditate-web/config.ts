@@ -10,7 +10,7 @@ export const WeMeditateWebConfig: GlobalConfig = {
       url: ({ data, locale }) => {
         const baseURL = serverEnv.WEMEDITATE_WEB_URL
         const homePageId = typeof data.homePage === 'object' ? data.homePage?.id : data.homePage
-        return `${baseURL}/${locale.code}/preview?collection=pages&id=${homePageId}`
+        return `${baseURL}/${locale.code}/preview?collection=pages&id=${homePageId}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}`
       },
     },
   },

@@ -27,6 +27,7 @@ export default defineConfig({
     env: {
       NODE_ENV: 'test',
       PAYLOAD_SECRET: 'test-secret-key-with-32-chars-minimum',
+      SAHAJCLOUD_PREVIEW_SECRET: 'test-preview-secret-32-chars',
       WEMEDITATE_WEB_URL: 'http://localhost:5173',
       SAHAJATLAS_URL: 'http://localhost:5174',
     },

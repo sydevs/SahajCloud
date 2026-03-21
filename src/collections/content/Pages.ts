@@ -16,7 +16,7 @@ export const Pages: CollectionConfig = {
     livePreview: {
       url: ({ data, locale }) => {
         const baseURL = serverEnv.WEMEDITATE_WEB_URL
-        return `${baseURL}/${locale.code}/preview?collection=pages&id=${data.id}`
+        return `${baseURL}/${locale.code}/preview?collection=pages&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}`
       },
     },
   },
