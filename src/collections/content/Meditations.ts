@@ -76,7 +76,7 @@ export const Meditations: CollectionConfig = {
     livePreview: {
       url: ({ data }) => {
         const baseURL = serverEnv.WEMEDITATE_WEB_URL
-        return `${baseURL}/${data.locale}/preview/embed?collection=meditations&id=${data.id}`
+        return `${baseURL}/${data.locale}/preview/embed?collection=meditations&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}`
       },
       breakpoints: [
         {
