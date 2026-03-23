@@ -3,7 +3,6 @@ import type { CollectionConfig } from 'payload'
 import { pageBlocks } from '@/blocks/pages'
 import { slugField } from '@/fields'
 import { PAGE_TAGS } from '@/lib/constants'
-import { serverEnv } from '@/lib/env'
 import { fullRichTextEditor } from '@/lib/richEditor'
 
 export const Pages: CollectionConfig = {
@@ -15,8 +14,8 @@ export const Pages: CollectionConfig = {
     defaultColumns: ['title', '_status'],
     livePreview: {
       url: ({ data, locale }) => {
-        const baseURL = serverEnv.WEMEDITATE_WEB_URL
-        return `${baseURL}/${locale.code}/preview?collection=pages&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}`
+        const baseURL = process.env.WEMEDITATE_WEB_URL
+        return `${baseURL}/${locale.code}/preview?collection=pages&id=${data.id}&secret=${process.env.SAHAJCLOUD_PREVIEW_SECRET}`
       },
     },
   },

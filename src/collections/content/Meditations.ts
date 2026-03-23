@@ -2,7 +2,6 @@ import type { CollectionConfig, FieldHook, Validate, Where } from 'payload'
 
 import { mediaField, slugField } from '@/fields'
 import { extractAudioDuration, filterMeditationsByLocale } from '@/hooks/meditationHooks'
-import { serverEnv } from '@/lib/env'
 import { LOCALES } from '@/lib/locales'
 import { getR2Url } from '@/lib/storage/r2NativeAdapter'
 import { virtualUrlField } from '@/lib/storage/urlFields'
@@ -75,8 +74,8 @@ export const Meditations: CollectionConfig = {
     defaultColumns: ['label', 'thumbnail', '_status', 'tags', 'durationMinutes'],
     livePreview: {
       url: ({ data }) => {
-        const baseURL = serverEnv.WEMEDITATE_WEB_URL
-        return `${baseURL}/${data.locale}/preview/embed?collection=meditations&id=${data.id}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}`
+        const baseURL = process.env.WEMEDITATE_WEB_URL
+        return `${baseURL}/${data.locale}/preview/embed?collection=meditations&id=${data.id}&secret=${process.env.SAHAJCLOUD_PREVIEW_SECRET}`
       },
       breakpoints: [
         {

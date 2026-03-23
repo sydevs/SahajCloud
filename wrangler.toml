@@ -119,6 +119,7 @@ NEXT_PUBLIC_LOG_LEVEL = "debug"  # Set to 'debug', 'info', 'warn', 'error', or '
 SAHAJCLOUD_URL = ""  # Empty in dev - automatically derived from PORT env var (see src/lib/serverUrl.ts)
 WEMEDITATE_WEB_URL = "https://wemeditate-web.contact-c66.workers.dev"
 SAHAJATLAS_URL = "http://localhost:5174"
+SAHAJCLOUD_PREVIEW_SECRET = "dev-preview-secret-key-o450836791e38a8836791e38ad460da956738048"
 
 # Cloudflare Services (optional in development - falls back to local storage if not set)
 CLOUDFLARE_ACCOUNT_ID = ""
