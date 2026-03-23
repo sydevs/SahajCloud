@@ -12,8 +12,6 @@
 import type { BypassPermissionFunction, ContentSlug, FieldAccessConfig } from './types'
 import type { AccessArgs, CollectionConfig, CollectionSlug, PayloadRequest } from 'payload'
 
-import { serverEnv } from '@/lib/env'
-
 import { hasPermission } from './permissions'
 
 const PREVIEW_SECRET_HEADER = 'x-sahajcloud-preview-secret'
@@ -63,7 +61,7 @@ export function createAccessConfig(
         operation === 'read' &&
         req.user?.collection === 'clients' &&
         collectionHasDrafts(req, collection) &&
-        req.headers?.get?.(PREVIEW_SECRET_HEADER) !== serverEnv.SAHAJCLOUD_PREVIEW_SECRET // External connections must use preview secret
+        req.headers?.get?.(PREVIEW_SECRET_HEADER) !== process.env.SAHAJCLOUD_PREVIEW_SECRET // External connections must use preview secret
       ) {
         // Restrict to published only unless all requirements are met.
         return { _status: { equals: 'published' } }

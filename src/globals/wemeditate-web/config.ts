@@ -1,16 +1,14 @@
 import type { GlobalConfig } from 'payload'
 
-import { serverEnv } from '@/lib/env'
-
 export const WeMeditateWebConfig: GlobalConfig = {
   slug: 'wm-web-config',
   admin: {
     group: 'WeMeditate Web',
     livePreview: {
       url: ({ data, locale }) => {
-        const baseURL = serverEnv.WEMEDITATE_WEB_URL
+        const baseURL = process.env.WEMEDITATE_WEB_URL
         const homePageId = typeof data.homePage === 'object' ? data.homePage?.id : data.homePage
-        return `${baseURL}/${locale.code}/preview?collection=pages&id=${homePageId}&secret=${serverEnv.SAHAJCLOUD_PREVIEW_SECRET}`
+        return `${baseURL}/${locale.code}/preview?collection=pages&id=${homePageId}&secret=${process.env.SAHAJCLOUD_PREVIEW_SECRET}`
       },
     },
   },
