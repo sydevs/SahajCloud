@@ -19,13 +19,12 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
 
   const [detectedHeadings, setDetectedHeadings] = useState<DetectedHeading[]>([])
 
-  // Keep a ref mirror of storedValue to avoid stale closures in registerUpdateListener
-  const storedValueRef = useRef<DetectedHeading[] | null>(storedValue ?? null)
+  // Keep a ref mirror of storedValue to avoid stale closures in registerUpdateListener.
+  // Updated synchronously during render (not via useEffect) so it is never stale when
+  // Lexical fires an update listener between a setValue call and the next effect flush.
+  const storedValueRef = useRef<DetectedHeading[] | null>(null)
+  storedValueRef.current = storedValue ?? null
   const prevDetectedKeyRef = useRef<string>('')
-
-  useEffect(() => {
-    storedValueRef.current = storedValue ?? null
-  }, [storedValue])
 
   const [editor] = useLexicalComposerContext()
 
