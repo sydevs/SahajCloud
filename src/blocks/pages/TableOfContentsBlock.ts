@@ -24,7 +24,7 @@ export const TableOfContentsBlock: Block = {
       name: 'headings',
       type: 'json',
       admin: {
-        description: 'Enabled headings to include in the table of contents',
+        description: 'Select headings above to include in the table of contents',
         components: {
           Field: '@/components/admin/TableOfContentsField',
         },
