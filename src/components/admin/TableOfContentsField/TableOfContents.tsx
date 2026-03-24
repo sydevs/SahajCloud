@@ -106,6 +106,8 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
 
             <span
               style={{
+                flex: 1,
+                minWidth: 0,
                 fontSize: 'calc(var(--base-body-size) * 1px)',
                 color: 'var(--theme-elevation-800)',
                 textDecoration: isEnabled ? 'none' : 'line-through',

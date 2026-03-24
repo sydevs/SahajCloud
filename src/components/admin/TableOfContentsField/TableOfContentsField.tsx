@@ -121,7 +121,7 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
           readOnly={readOnly}
         />
       </div>
-      {description && <FieldDescription description={description} path={name} />}
+      <FieldDescription description={description} path={name} />
     </div>
   )
 }
