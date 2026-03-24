@@ -6,11 +6,19 @@ import type { JSONFieldClientComponent } from 'payload'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $isHeadingNode } from '@lexical/rich-text'
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
-import { $getRoot } from 'lexical'
+import { $getRoot, type EditorState } from 'lexical'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import slugify from 'slugify'
 
 import { TableOfContents } from './TableOfContents'
+
+/** Returns the index of the nearest preceding heading with a lower level, or -1 if none. */
+function findParentIndex(headings: DetectedHeading[], i: number): number {
+  for (let j = i - 1; j >= 0; j--) {
+    if (headings[j].level < headings[i].level) return j
+  }
+  return -1
+}
 
 export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly }) => {
   const { name, label, admin: { description } = {} } = field
@@ -29,7 +37,7 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
   const [editor] = useLexicalComposerContext()
 
   useEffect(() => {
-    const scanHeadings = (editorState: ReturnType<typeof editor.getEditorState>): DetectedHeading[] => {
+    const scanHeadings = (editorState: EditorState): DetectedHeading[] => {
       const detected: DetectedHeading[] = []
       editorState.read(() => {
         $getRoot()
@@ -73,13 +81,8 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
           const d = detected[i]
           if (!currentSlugs.has(d.slug)) continue
 
-          let parentOk = true
-          for (let j = i - 1; j >= 0; j--) {
-            if (detected[j].level < d.level) {
-              parentOk = newEnabledSet.has(detected[j].slug)
-              break
-            }
-          }
+          const pi = findParentIndex(detected, i)
+          const parentOk = pi === -1 || newEnabledSet.has(detected[pi].slug)
 
           if (parentOk) {
             newEnabled.push(d)
@@ -110,15 +113,10 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
     const enabledSet = new Set(enabledHeadings.map((h) => h.slug))
     const blocked = new Set<string>()
     for (let i = 0; i < detectedHeadings.length; i++) {
-      const h = detectedHeadings[i]
-      if (!enabledSet.has(h.slug)) {
-        for (let j = i - 1; j >= 0; j--) {
-          if (detectedHeadings[j].level < h.level) {
-            if (!enabledSet.has(detectedHeadings[j].slug)) {
-              blocked.add(h.slug)
-            }
-            break
-          }
+      if (!enabledSet.has(detectedHeadings[i].slug)) {
+        const pi = findParentIndex(detectedHeadings, i)
+        if (pi !== -1 && !enabledSet.has(detectedHeadings[pi].slug)) {
+          blocked.add(detectedHeadings[i].slug)
         }
       }
     }
@@ -144,16 +142,8 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
       } else {
         if (blockedSlugs.has(slug)) return
         const enabledSet = new Set(enabledHeadings.map((h) => h.slug))
-        const toAdd = detectedHeadings.filter(
-          (h) => affected.has(h.slug) && !enabledSet.has(h.slug),
-        )
-        const combined = [...enabledHeadings, ...toAdd]
-        combined.sort(
-          (a, b) =>
-            detectedHeadings.findIndex((h) => h.slug === a.slug) -
-            detectedHeadings.findIndex((h) => h.slug === b.slug),
-        )
-        setValue(combined)
+        affected.forEach((s) => enabledSet.add(s))
+        setValue(detectedHeadings.filter((h) => enabledSet.has(h.slug)))
       }
     },
     [blockedSlugs, detectedHeadings, enabledHeadings, setValue],
