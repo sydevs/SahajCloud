@@ -299,6 +299,7 @@ describe('AppCards countdown and schedule fields', () => {
         firstDate_tz: 'America/New_York',
         recurrenceType: 'WEEKLY',
         interval: 1,
+        weekdays: ['MO'],
       },
     })
 
@@ -378,6 +379,7 @@ describe('AppCards countdown and schedule fields', () => {
         firstDate_tz: 'UTC',
         recurrenceType: 'WEEKLY',
         interval: 1,
+        weekdays: ['MO'],
       },
     })
 
