@@ -62,12 +62,31 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
         // First real initialization: enable all headings
         setValue(detected)
       } else if (current !== null) {
-        // Subsequent edits: keep enabled headings that still exist, update their text
-        const activeSet = new Set(detected.map((h) => h.slug))
-        const detectedMap = new Map(detected.map((h) => [h.slug, h]))
-        setValue(
-          current.filter((h) => activeSet.has(h.slug)).map((h) => detectedMap.get(h.slug) ?? h),
-        )
+        // Rebuild enabled set in document order so that if a heading's slug changes
+        // (disabling it), its children are dropped too rather than left orphaned.
+        const currentSlugs = new Set(current.map((h) => h.slug))
+        const newEnabled: DetectedHeading[] = []
+        const newEnabledSet = new Set<string>()
+
+        for (let i = 0; i < detected.length; i++) {
+          const d = detected[i]
+          if (!currentSlugs.has(d.slug)) continue
+
+          let parentOk = true
+          for (let j = i - 1; j >= 0; j--) {
+            if (detected[j].level < d.level) {
+              parentOk = newEnabledSet.has(detected[j].slug)
+              break
+            }
+          }
+
+          if (parentOk) {
+            newEnabled.push(d)
+            newEnabledSet.add(d.slug)
+          }
+        }
+
+        setValue(newEnabled)
       }
     })
 
