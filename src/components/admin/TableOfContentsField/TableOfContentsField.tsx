@@ -76,6 +76,26 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
 
   const enabledHeadings: DetectedHeading[] = useMemo(() => storedValue ?? [], [storedValue])
 
+  // Headings that cannot be enabled because their nearest parent heading is disabled
+  const blockedSlugs = useMemo(() => {
+    const enabledSet = new Set(enabledHeadings.map((h) => h.slug))
+    const blocked = new Set<string>()
+    for (let i = 0; i < detectedHeadings.length; i++) {
+      const h = detectedHeadings[i]
+      if (!enabledSet.has(h.slug)) {
+        for (let j = i - 1; j >= 0; j--) {
+          if (detectedHeadings[j].level < h.level) {
+            if (!enabledSet.has(detectedHeadings[j].slug)) {
+              blocked.add(h.slug)
+            }
+            break
+          }
+        }
+      }
+    }
+    return blocked
+  }, [detectedHeadings, enabledHeadings])
+
   const handleToggle = useCallback(
     (slug: string) => {
       const index = detectedHeadings.findIndex((h) => h.slug === slug)
@@ -93,6 +113,7 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
       if (isEnabled) {
         setValue(enabledHeadings.filter((h) => !affected.has(h.slug)))
       } else {
+        if (blockedSlugs.has(slug)) return
         const enabledSet = new Set(enabledHeadings.map((h) => h.slug))
         const toAdd = detectedHeadings.filter(
           (h) => affected.has(h.slug) && !enabledSet.has(h.slug),
@@ -106,7 +127,7 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
         setValue(combined)
       }
     },
-    [detectedHeadings, enabledHeadings, setValue],
+    [blockedSlugs, detectedHeadings, enabledHeadings, setValue],
   )
 
   return (
@@ -119,6 +140,7 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
           enabled={enabledHeadings}
           onToggle={handleToggle}
           readOnly={readOnly}
+          blockedSlugs={blockedSlugs}
         />
       </div>
       <FieldDescription description={description} path={name} />

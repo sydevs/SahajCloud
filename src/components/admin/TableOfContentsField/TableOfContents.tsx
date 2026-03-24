@@ -13,6 +13,7 @@ interface TableOfContentsProps {
   enabled: DetectedHeading[]
   onToggle: (slug: string) => void
   readOnly?: boolean
+  blockedSlugs?: ReadonlySet<string>
 }
 
 export const TableOfContents: React.FC<TableOfContentsProps> = ({
@@ -20,6 +21,7 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
   enabled,
   onToggle,
   readOnly = false,
+  blockedSlugs,
 }) => {
   const enabledSlugs = new Set(enabled.map((h) => h.slug))
 
@@ -50,7 +52,9 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
     >
       {detected.map((heading) => {
         const isEnabled = enabledSlugs.has(heading.slug)
+        const isBlocked = !isEnabled && !!blockedSlugs?.has(heading.slug)
         const indentLevel = heading.level - 1
+        const buttonCursor = readOnly ? 'default' : isBlocked ? 'not-allowed' : 'pointer'
 
         return (
           <div
@@ -67,7 +71,7 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
           >
             <button
               type="button"
-              disabled={readOnly}
+              disabled={readOnly || isBlocked}
               onClick={() => onToggle(heading.slug)}
               aria-label={`${isEnabled ? 'Disable' : 'Enable'} heading: ${heading.text}`}
               aria-pressed={isEnabled}
@@ -80,7 +84,7 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
                   : '2px solid var(--theme-elevation-300)',
                 borderRadius: '3px',
                 background: isEnabled ? 'var(--theme-elevation-500)' : 'transparent',
-                cursor: readOnly ? 'default' : 'pointer',
+                cursor: buttonCursor,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -105,6 +109,7 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
             </button>
 
             <span
+              onClick={readOnly || isBlocked ? undefined : () => onToggle(heading.slug)}
               style={{
                 flex: 1,
                 minWidth: 0,
@@ -114,6 +119,8 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
+                cursor: buttonCursor,
+                userSelect: 'none',
               }}
               title={heading.text}
             >
