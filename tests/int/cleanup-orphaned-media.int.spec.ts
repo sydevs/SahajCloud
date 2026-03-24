@@ -11,6 +11,26 @@ import {
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
+// Mock the Nirmala Vidya API client — testData.createLecture() triggers the
+// beforeChange hook which calls fetchNirmalaVidyaVideo
+vi.mock('@/lib/nirmalaVidyaApi', () => ({
+  extractVimeoId: vi.fn((url: string) => {
+    const match = url.match(/\/(\d+)(?:[/?#]|$)/)
+    return match?.[1] ?? null
+  }),
+  fetchNirmalaVidyaVideo: vi.fn().mockResolvedValue({
+    title: 'Test Lecture',
+    thumbnailUrl: 'https://example.com/thumbnail.jpg',
+    hlsUrl: 'https://example.com/video.m3u8',
+  }),
+  downloadToBuffer: vi.fn().mockResolvedValue({
+    data: Buffer.from('fake-image-data'),
+    mimetype: 'image/jpeg',
+    name: 'lecture-thumbnail.jpg',
+    size: 15,
+  }),
+}))
+
 // ============================================================================
 // TYPES
 // ============================================================================
