@@ -8,6 +8,7 @@ import { ShowcaseBlock } from './ShowcaseBlock'
 import { SongsIndexBlock } from './SongsIndexBlock'
 import { SplashBlock } from './SplashBlock'
 import { SubtleSystemBlock } from './SubtleSystemBlock'
+import { TableOfContentsBlock } from './TableOfContentsBlock'
 import { TextBoxBlock } from './TextBoxBlock'
 
 export {
@@ -21,6 +22,7 @@ export {
   SongsIndexBlock,
   SplashBlock,
   SubtleSystemBlock,
+  TableOfContentsBlock,
   TextBoxBlock,
 }
 
@@ -31,6 +33,7 @@ export const pageBlocks = [
   ShowcaseBlock,
   ButtonBlock,
   QuoteBlock,
+  TableOfContentsBlock,
   MeditationsIndexBlock,
   PagesIndexBlock,
   SongsIndexBlock,

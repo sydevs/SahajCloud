@@ -3,6 +3,7 @@
  * Used by schema-utils and cleanup-orphaned-media integration tests.
  */
 
+import type { DetectedHeading } from '@/components/admin/TableOfContentsField'
 import type { Page } from '@/payload-types'
 
 /**
@@ -131,6 +132,38 @@ export function createLexicalWithGalleryBlock(imageIds: number[]): Page['content
             blockName: 'Image Gallery',
             blockType: 'image-gallery',
             items: imageIds,
+          },
+        },
+      ],
+      direction: null,
+      format: '',
+      indent: 0,
+      version: 1,
+    },
+  } as unknown as Page['content']
+}
+
+/**
+ * Create Lexical content with TableOfContentsBlock
+ * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts
+ */
+export function createLexicalWithTableOfContentsBlock(options: {
+  title?: string
+  headings?: DetectedHeading[] | null
+}): Page['content'] {
+  return {
+    root: {
+      type: 'root',
+      children: [
+        {
+          type: 'block',
+          version: 2,
+          fields: {
+            id: uniqueId(),
+            blockName: 'Table of Contents',
+            blockType: 'table-of-contents',
+            ...(options.title !== undefined ? { title: options.title } : {}),
+            headings: options.headings !== undefined ? options.headings : null,
           },
         },
       ],

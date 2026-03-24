@@ -109,7 +109,11 @@
       "mcp__plugin_sydevs-web_cloudflare-docs__*",
       "Bash(git mv:*)",
       "WebFetch(domain:mapi.nirmalavidya.org)",
-      "mcp__plugin_sydevs-web_puppeteer__puppeteer_navigate"
+      "mcp__plugin_sydevs-web_puppeteer__puppeteer_navigate",
+      "mcp__plugin_sydevs-web_puppeteer__puppeteer_fill",
+      "mcp__plugin_sydevs-web_puppeteer__puppeteer_screenshot",
+      "mcp__plugin_sydevs-web_puppeteer__puppeteer_click",
+      "mcp__plugin_sydevs-web_puppeteer__puppeteer_evaluate"
     ]
   },
   "hooks": {
