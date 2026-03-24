@@ -40,6 +40,12 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    */
   PAYLOAD_SECRET: z.string().min(32, 'PAYLOAD_SECRET must be at least 32 characters'),
 
+  /**
+   * Nirmala Vidya API key for fetching lecture metadata from Vimeo
+   * Required in all environments for lecture creation
+   */
+  NIRMALA_VIDYA_API_KEY: z.string().min(20, 'NIRMALA_VIDYA_API_KEY must be at least 20 characters'),
+
   // ============================================
   // OPTIONAL - Cloudflare Services (Production)
   // ============================================

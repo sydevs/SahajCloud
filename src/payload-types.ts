@@ -804,10 +804,30 @@ export interface File {
  */
 export interface Lecture {
   id: number;
-  title: string;
-  thumbnail: number | Image;
-  videoUrl: string;
+  /**
+   * Paste the Vimeo URL from nirmalavidya.com (e.g. https://vimeo.com/123456789). Other fields will be populated automatically on save.
+   */
+  nirmalVidyaVimeoUrl: string;
+  /**
+   * Auto-populated from Nirmala Vidya. Can be edited after creation.
+   */
+  title?: string | null;
+  /**
+   * Auto-downloaded from Nirmala Vidya. Can be replaced after creation.
+   */
+  thumbnail?: (number | null) | Image;
+  /**
+   * HLS stream URL — set automatically from Nirmala Vidya on creation.
+   */
+  videoUrl?: string | null;
+  /**
+   * Optional subtitles URL. Not auto-populated — will be supported in a future iteration.
+   */
   subtitlesUrl?: string | null;
+  /**
+   * Timestamp of last successful API sync.
+   */
+  lastRefreshed?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1731,10 +1751,12 @@ export interface LessonsSelect<T extends boolean = true> {
  * via the `definition` "lectures_select".
  */
 export interface LecturesSelect<T extends boolean = true> {
+  nirmalVidyaVimeoUrl?: T;
   title?: T;
   thumbnail?: T;
   videoUrl?: T;
   subtitlesUrl?: T;
+  lastRefreshed?: T;
   updatedAt?: T;
   createdAt?: T;
 }

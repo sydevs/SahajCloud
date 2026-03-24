@@ -22,6 +22,7 @@ import * as migration_20260315_120000_convert_blockquotes_to_quote_blocks from '
 import * as migration_20260318_083330 from './20260318_083330';
 import * as migration_20260318_111603 from './20260318_111603';
 import * as migration_20260318_120000_backfill_meditation_duration from './20260318_120000_backfill_meditation_duration';
+import * as migration_20260324_120000_add_nirmala_vidya_fields from './20260324_120000_add_nirmala_vidya_fields';
 
 export const migrations = [
   {
@@ -143,5 +144,10 @@ export const migrations = [
     up: migration_20260318_120000_backfill_meditation_duration.up,
     down: migration_20260318_120000_backfill_meditation_duration.down,
     name: '20260318_120000_backfill_meditation_duration',
+  },
+  {
+    up: migration_20260324_120000_add_nirmala_vidya_fields.up,
+    down: migration_20260324_120000_add_nirmala_vidya_fields.down,
+    name: '20260324_120000_add_nirmala_vidya_fields',
   },
 ];
