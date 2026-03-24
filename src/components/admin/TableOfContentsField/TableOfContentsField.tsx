@@ -29,9 +29,8 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
   const [editor] = useLexicalComposerContext()
 
   useEffect(() => {
-    const unregister = editor.registerUpdateListener(({ editorState }) => {
+    const scanHeadings = (editorState: ReturnType<typeof editor.getEditorState>): DetectedHeading[] => {
       const detected: DetectedHeading[] = []
-
       editorState.read(() => {
         $getRoot()
           .getChildren()
@@ -48,7 +47,10 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
             }
           })
       })
+      return detected
+    }
 
+    const applyUpdate = (detected: DetectedHeading[]) => {
       // Skip update if the heading list hasn't changed (cursor/format changes)
       const key = detected.map((h) => h.slug).join('|')
       if (key === prevDetectedKeyRef.current) return
@@ -87,6 +89,15 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
 
         setValue(newEnabled)
       }
+    }
+
+    // Populate heading list immediately on mount — registerUpdateListener only fires
+    // on changes, not on the current state, so without this the field shows
+    // "No headings found" until the editor receives its first update event.
+    applyUpdate(scanHeadings(editor.getEditorState()))
+
+    const unregister = editor.registerUpdateListener(({ editorState }) => {
+      applyUpdate(scanHeadings(editorState))
     })
 
     return unregister
