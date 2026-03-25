@@ -818,10 +818,6 @@ export interface Lecture {
    */
   videoUrl?: string | null;
   subtitlesUrl?: string | null;
-  /**
-   * Timestamp of last successful API sync.
-   */
-  lastRefreshed?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1750,7 +1746,6 @@ export interface LecturesSelect<T extends boolean = true> {
   thumbnail?: T;
   videoUrl?: T;
   subtitlesUrl?: T;
-  lastRefreshed?: T;
   updatedAt?: T;
   createdAt?: T;
 }

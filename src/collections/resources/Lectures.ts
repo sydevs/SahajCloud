@@ -1,6 +1,5 @@
 import type { CollectionConfig } from 'payload'
 
-import { refreshLecture } from '@/endpoints'
 import { mediaField, urlField } from '@/fields'
 import { populateFromNirmalaVidya } from '@/hooks/lectureHooks'
 
@@ -15,7 +14,6 @@ export const Lectures: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'thumbnail'],
   },
-  endpoints: [refreshLecture],
   hooks: {
     beforeChange: [populateFromNirmalaVidya],
   },
@@ -61,22 +59,5 @@ export const Lectures: CollectionConfig = {
         condition: (data) => !!data?.id,
       },
     }),
-
-    // === METADATA ===
-    {
-      name: 'lastRefreshed',
-      type: 'date',
-      admin: {
-        readOnly: true,
-        condition: (data) => !!data?.id,
-        description: 'Timestamp of last successful API sync.',
-        date: {
-          displayFormat: 'yyyy-MM-dd HH:mm',
-        },
-        components: {
-          afterInput: ['@/components/admin/RefreshLectureButton'],
-        },
-      },
-    },
   ],
 }

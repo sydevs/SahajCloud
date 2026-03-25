@@ -62,7 +62,6 @@ export const populateFromNirmalaVidya: CollectionBeforeChangeHook = async ({
   }
 
   data.videoUrl = videoData.hlsUrl
-  data.lastRefreshed = new Date().toISOString()
 
   // Download and upload thumbnail as an Images document
   try {
