@@ -73,6 +73,11 @@ export function extractVimeoId(url: string): string | null {
  */
 export async function fetchNirmalaVidyaVideo(vimeoId: string): Promise<NirmalaVidyaVideoData> {
   const apiKey = serverEnv.NIRMALA_VIDYA_API_KEY
+  if (!apiKey) {
+    throw new Error(
+      'NIRMALA_VIDYA_API_KEY is not configured. Set it in your .env file to enable lecture creation.',
+    )
+  }
 
   const url = `https://nirmalavidya.com/api/v2/videos/vimeo/${vimeoId}/hls`
 

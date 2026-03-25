@@ -25,7 +25,7 @@ const RefreshLectureButton: React.FC = () => {
     setSuccess(false)
 
     try {
-      const response = await fetch(`/api/lectures/${id}/refresh`)
+      const response = await fetch(`/api/lectures/${id}/refresh`, { method: 'POST' })
       const data = (await response.json()) as {
         error?: string
         title?: string

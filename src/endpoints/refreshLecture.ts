@@ -9,16 +9,22 @@ const paramsSchema = z.object({
 })
 
 /**
- * GET /api/lectures/:id/refresh
+ * POST /api/lectures/:id/refresh
  *
  * Re-fetches lecture metadata from the Nirmala Vidya API.
  * Returns the fresh field values as JSON — does NOT auto-save.
  * The admin UI presents the refreshed data for the user to review and save manually.
+ *
+ * Uses POST because the handler creates a new Images document (thumbnail).
  */
 export const refreshLecture: Endpoint = {
   path: '/:id/refresh',
-  method: 'get',
+  method: 'post',
   handler: async (req) => {
+    if (!req.user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const parsed = paramsSchema.safeParse({
       id: req.routeParams?.id,
     })
@@ -93,7 +99,7 @@ export const refreshLecture: Endpoint = {
     return Response.json({
       title: videoData.title,
       videoUrl: videoData.hlsUrl,
-      thumbnail: thumbnailId,
+      thumbnail: thumbnailId ?? null,
       lastRefreshed: new Date().toISOString(),
     })
   },
