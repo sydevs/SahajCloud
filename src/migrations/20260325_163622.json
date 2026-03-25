@@ -2795,18 +2795,25 @@
           "notNull": true,
           "autoincrement": false
         },
+        "nirmal_vidya_vimeo_url": {
+          "name": "nirmal_vidya_vimeo_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "thumbnail_id": {
           "name": "thumbnail_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "video_url": {
           "name": "video_url",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "subtitles_url": {
@@ -2882,7 +2889,7 @@
           "name": "title",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "id": {
@@ -10814,6 +10821,6 @@
   "internal": {
     "indexes": {}
   },
-  "id": "9a456147-f469-4d8f-b38f-f945963ca142",
+  "id": "7e9e00a9-b77b-44c9-b0ca-d8e2de17ad34",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

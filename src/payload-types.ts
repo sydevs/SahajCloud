@@ -812,12 +812,9 @@ export interface Lecture {
    * Auto-populated from Nirmala Vidya. Can be edited after creation.
    */
   title?: string | null;
-  /**
-   * Auto-downloaded from Nirmala Vidya. Can be replaced after creation.
-   */
   thumbnail?: (number | null) | Image;
   /**
-   * HLS stream URL — set automatically from Nirmala Vidya on creation.
+   * HLS stream URL
    */
   videoUrl?: string | null;
   subtitlesUrl?: string | null;

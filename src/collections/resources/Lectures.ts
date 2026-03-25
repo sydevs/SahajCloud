@@ -4,24 +4,6 @@ import { refreshLecture } from '@/endpoints'
 import { mediaField, urlField } from '@/fields'
 import { populateFromNirmalaVidya } from '@/hooks/lectureHooks'
 
-const vimeoUrlField = urlField({
-  name: 'nirmalVidyaVimeoUrl',
-  label: 'Nirmala Vidya Vimeo URL',
-  required: true,
-  admin: {
-    description:
-      'Paste the Vimeo URL from nirmalavidya.com (e.g. https://vimeo.com/123456789). Other fields will be populated automatically on save.',
-  },
-})
-
-const videoUrlField = urlField({
-  name: 'videoUrl',
-  label: 'Video URL',
-  admin: {
-    description: 'HLS stream URL — set automatically from Nirmala Vidya on creation.',
-  },
-})
-
 export const Lectures: CollectionConfig = {
   slug: 'lectures',
   labels: {
@@ -38,30 +20,13 @@ export const Lectures: CollectionConfig = {
     beforeChange: [populateFromNirmalaVidya],
   },
   fields: [
-    // === CREATION FIELD ===
-    // The Vimeo URL is required on create (the hook populates other fields).
-    // After creation, this field becomes read-only at both the UI and API levels.
-    {
-      ...vimeoUrlField,
-      // Immutable after creation at the API level
-      access: {
-        update: () => false,
-      },
+    urlField({
+      name: 'nirmalVidyaVimeoUrl',
+      required: true,
       admin: {
-        ...vimeoUrlField.admin,
-        // Display as read-only in the UI after creation
-        readOnly: true,
-        // Always shown (both create and edit), but required only on create.
-        // The `required: true` on the urlField factory handles create validation.
-        // On edit, the field shows as read-only.
-        description: vimeoUrlField.admin?.description,
+        description: 'Paste the Vimeo URL from amruta.org (e.g. https://vimeo.com/123456789).',
       },
-    },
-
-    // === AUTO-POPULATED FIELDS ===
-    // These are hidden during create (populated by the beforeChange hook).
-    // After creation, they become visible and are user-editable (except videoUrl).
-
+    }),
     {
       name: 'title',
       type: 'text',
@@ -73,33 +38,27 @@ export const Lectures: CollectionConfig = {
         description: 'Auto-populated from Nirmala Vidya. Can be edited after creation.',
       },
     },
-
-    {
-      ...mediaField({ name: 'thumbnail', required: false }),
+    mediaField({
+      name: 'thumbnail',
+      required: true,
       admin: {
         // Hidden during create — the hook auto-downloads and sets this field
         condition: (data) => !!data?.id,
-        description: 'Auto-downloaded from Nirmala Vidya. Can be replaced after creation.',
       },
-    },
-
-    {
-      ...videoUrlField,
-      required: false, // Hook satisfies this on create
+    }),
+    urlField({
+      name: 'videoUrl',
+      required: true,
       admin: {
-        ...videoUrlField.admin,
         readOnly: true,
-        // Hidden during create — the hook sets this from the API
         condition: (data) => !!data?.id,
+        description: 'HLS stream URL',
       },
-    },
-
+    }),
     urlField({
       name: 'subtitlesUrl',
-      label: 'Subtitles URL',
       admin: {
-        description:
-          'Optional subtitles URL. Not auto-populated — will be supported in a future iteration.',
+        condition: (data) => !!data?.id,
       },
     }),
 
