@@ -805,7 +805,7 @@ export interface File {
 export interface Lecture {
   id: number;
   /**
-   * Paste the Vimeo URL from nirmalavidya.com (e.g. https://vimeo.com/123456789). Other fields will be populated automatically on save.
+   * Paste the Vimeo URL from amruta.org (e.g. https://vimeo.com/123456789).
    */
   nirmalVidyaVimeoUrl: string;
   /**
@@ -820,9 +820,6 @@ export interface Lecture {
    * HLS stream URL — set automatically from Nirmala Vidya on creation.
    */
   videoUrl?: string | null;
-  /**
-   * Optional subtitles URL. Not auto-populated — will be supported in a future iteration.
-   */
   subtitlesUrl?: string | null;
   /**
    * Timestamp of last successful API sync.
