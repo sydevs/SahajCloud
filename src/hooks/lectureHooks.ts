@@ -3,9 +3,8 @@ import type { CollectionAfterChangeHook, CollectionBeforeChangeHook } from 'payl
 import { ValidationError } from 'payload'
 
 import type { LocaleCode } from '@/lib/locales'
-
-import { downloadToBuffer, extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/nirmalaVidyaApi'
 import { isValidLocale } from '@/lib/locales'
+import { downloadToBuffer, extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/nirmalaVidyaApi'
 
 // =============================================================================
 // Language Code Mapping
@@ -85,8 +84,8 @@ export const populateFromNirmalaVidya: CollectionBeforeChangeHook = async ({
 
   data.videoUrl = videoData.hlsUrl
 
-  // Download and upload thumbnail as an Images document
-  if (videoData.thumbnailUrl) {
+  // Download and upload thumbnail as an Images document (skip if user already provided one)
+  if (videoData.thumbnailUrl && !data.thumbnail) {
     try {
       const thumbnailBuffer = await downloadToBuffer(
         videoData.thumbnailUrl,
@@ -165,7 +164,6 @@ export const populateSubtitleLocales: CollectionAfterChangeHook = async ({
           id: doc.id,
           locale: locale as LocaleCode,
           data: { subtitlesUrl: url },
-          req,
         })
         .catch((error) => {
           req.payload.logger.warn({

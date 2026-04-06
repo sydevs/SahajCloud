@@ -1,4 +1,4 @@
-import type { TextField, TextFieldSingleValidation, TextFieldValidation } from 'payload'
+import type { TextField, TextFieldSingleValidation } from 'payload'
 
 export type UrlFieldOptions = {
   /** Allowed URL protocols (default: ['http:', 'https:']) */

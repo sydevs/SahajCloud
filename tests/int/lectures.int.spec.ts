@@ -1,5 +1,8 @@
 import type { Payload } from 'payload'
 
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
 import type { Image } from '@/payload-types'
@@ -10,6 +13,10 @@ import { createTestEnvironment } from '../utils/testHelpers'
 // Mock the Nirmala Vidya API client — prevents real network calls in tests
 // This mock is automatically hoisted to the top of the file by Vitest
 vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
+  const { readFileSync } = await import('fs')
+  const { dirname, join } = await import('path')
+  const { fileURLToPath: toPath } = await import('url')
+  const imgBuffer = readFileSync(join(dirname(toPath(import.meta.url)), '../files/image-1050x700.jpg'))
   const original = await importOriginal<typeof import('@/lib/nirmalaVidyaApi')>()
   return {
     // Keep the real extractVimeoId for unit tests
@@ -21,10 +28,10 @@ vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
       subtitles: [],
     }),
     downloadToBuffer: vi.fn().mockResolvedValue({
-      data: Buffer.from('fake-image-data'),
+      data: new Uint8Array(imgBuffer),
       mimetype: 'image/jpeg',
-      name: 'lecture-thumbnail-123456789.jpg',
-      size: 15,
+      name: 'lecture-thumbnail.jpg',
+      size: imgBuffer.length,
     }),
   }
 })
@@ -97,11 +104,12 @@ describe('Lectures Collection', () => {
         hlsUrl: 'https://example.com/stream.m3u8',
         subtitles: [],
       })
+      const imgBuf = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../files/image-1050x700.jpg'))
       vi.mocked(downloadToBuffer).mockResolvedValueOnce({
-        data: Buffer.from('fake-image-data'),
+        data: new Uint8Array(imgBuf) as unknown as Buffer,
         mimetype: 'image/jpeg',
         name: 'lecture-thumbnail-999.jpg',
-        size: 15,
+        size: imgBuf.length,
       })
 
       const lecture = await payload.create({
@@ -273,6 +281,7 @@ describe('Lectures Collection', () => {
         collection: 'lectures',
         id: lecture.id,
         locale: 'ru',
+        fallbackLocale: false,
       })
       expect(ruLecture.subtitlesUrl).toBe('https://example.com/subs/ru.vtt')
 
