@@ -30,6 +30,7 @@ export default defineConfig({
       SAHAJCLOUD_PREVIEW_SECRET: 'test-preview-secret-32-chars',
       WEMEDITATE_WEB_URL: 'http://localhost:5173',
       SAHAJATLAS_URL: 'http://localhost:5174',
+      NIRMALA_VIDYA_API_KEY: 'test-nirmala-vidya-api-key-placeholder',
     },
     // Mock CSS imports to prevent errors in tests
     css: {
