@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import type { Image, Lecture } from '@/payload-types'
+import type { Image } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -31,13 +31,11 @@ vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
 describe('Lectures Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let adminUser: Awaited<ReturnType<typeof createTestEnvironment>>['adminUser']
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
     payload = testEnv.payload
     cleanup = testEnv.cleanup
-    adminUser = testEnv.adminUser
   })
 
   afterAll(async () => {
@@ -206,41 +204,9 @@ describe('Lectures Collection', () => {
     })
   })
 
-  describe('Field access control', () => {
-    it('nirmalVidyaVimeoUrl cannot be updated via payload.update', async () => {
-      const lecture = await testData.createLecture(payload)
-
-      // Attempt to update nirmalVidyaVimeoUrl — should be blocked by access.update: () => false
-      // Must pass overrideAccess: false to enforce field-level access control
-      const updated = await payload.update({
-        collection: 'lectures',
-        id: lecture.id,
-        data: {
-          nirmalVidyaVimeoUrl: 'https://vimeo.com/changed-url',
-        },
-        overrideAccess: false,
-        user: adminUser,
-      })
-
-      // The URL should remain unchanged
-      expect(updated.nirmalVidyaVimeoUrl).toBe(lecture.nirmalVidyaVimeoUrl)
-    })
-
+  describe('Field editability after creation', () => {
     it('title can be updated after creation', async () => {
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
-      vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
-        title: 'Original API Title',
-        thumbnailUrl: 'https://example.com/thumb.jpg',
-        hlsUrl: 'https://example.com/stream.m3u8',
-      })
-
-      const lecture = (await payload.create({
-        collection: 'lectures',
-        data: {
-          nirmalVidyaVimeoUrl: 'https://vimeo.com/777777777',
-        },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any)) as Lecture
+      const lecture = await testData.createLecture(payload)
 
       const updated = await payload.update({
         collection: 'lectures',

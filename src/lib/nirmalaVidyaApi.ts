@@ -4,7 +4,7 @@
  * Provides utilities for fetching lecture metadata from the Nirmala Vidya
  * platform using a Vimeo URL as the entry point.
  *
- * API endpoint: https://nirmalavidya.com/api/v2/videos/vimeo/{vimeoId}/hls
+ * API endpoint: https://mapi.nirmalavidya.org/api/v2/videos/vimeo/{vimeoId}/hls
  */
 import { z } from 'zod'
 
@@ -25,9 +25,15 @@ export interface NirmalaVidyaVideoData {
 // =============================================================================
 
 const NirmalaVidyaResponseSchema = z.object({
-  title: z.string(),
-  thumbnail_url: z.string().url(),
-  hls_url: z.string().url(),
+  name: z.string(),
+  files: z.array(
+    z.object({
+      link: z.string().url(),
+      quality: z.string(),
+    }),
+  ),
+  link: z.string().url().optional(),
+  duration: z.number().optional(),
 })
 
 // =============================================================================
@@ -61,15 +67,9 @@ export function extractVimeoId(url: string): string | null {
 /**
  * Fetches video metadata from the Nirmala Vidya API for a given Vimeo video ID.
  *
- * Throws a user-visible error on:
- *   - 401 Unauthorized (invalid API key)
- *   - 404 Not Found (video not found on Nirmala Vidya)
- *   - 422 Unprocessable (invalid video ID format)
- *   - 502/503 (API unavailable)
- *   - Network errors
- *
  * @param vimeoId - The numeric Vimeo video ID
  * @returns Validated video metadata
+ * @throws Error on network failure, non-OK status, or unexpected response format
  */
 export async function fetchNirmalaVidyaVideo(vimeoId: string): Promise<NirmalaVidyaVideoData> {
   const apiKey = serverEnv.NIRMALA_VIDYA_API_KEY
@@ -79,64 +79,27 @@ export async function fetchNirmalaVidyaVideo(vimeoId: string): Promise<NirmalaVi
     )
   }
 
-  const url = `https://nirmalavidya.com/api/v2/videos/vimeo/${vimeoId}/hls`
+  const url = `https://mapi.nirmalavidya.org/api/v2/videos/vimeo/${vimeoId}/hls`
 
-  let response: Response
-  try {
-    response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    })
-  } catch (error) {
-    throw new Error(
-      `Nirmala Vidya API is unreachable. Please try again later. (${error instanceof Error ? error.message : 'Network error'})`,
-    )
-  }
-
-  if (response.status === 401) {
-    throw new Error('Nirmala Vidya API key is invalid or expired. Contact your administrator.')
-  }
-
-  if (response.status === 404) {
-    throw new Error(
-      `Video not found on Nirmala Vidya (Vimeo ID: ${vimeoId}). Check that the URL is correct.`,
-    )
-  }
-
-  if (response.status === 422) {
-    throw new Error(`Invalid Vimeo video ID format: ${vimeoId}`)
-  }
-
-  if (response.status === 502 || response.status === 503) {
-    throw new Error('Nirmala Vidya API is temporarily unavailable. Please try again later.')
-  }
+  const response = await fetch(url, {
+    headers: { 'X-API-Key': apiKey },
+  })
 
   if (!response.ok) {
-    throw new Error(
-      `Nirmala Vidya API returned an unexpected error (HTTP ${response.status}). Please try again later.`,
-    )
+    throw new Error(`Nirmala Vidya API error: ${response.status} ${response.statusText}`)
   }
 
-  let json: unknown
-  try {
-    json = await response.json()
-  } catch {
-    throw new Error('Nirmala Vidya API returned an invalid response. Please try again later.')
-  }
+  const parsed = NirmalaVidyaResponseSchema.parse(await response.json())
 
-  const parsed = NirmalaVidyaResponseSchema.safeParse(json)
-  if (!parsed.success) {
-    throw new Error(
-      `Nirmala Vidya API response has an unexpected format: ${parsed.error.message}`,
-    )
+  const hlsFile = parsed.files.find((f) => f.quality === 'hls')
+  if (!hlsFile) {
+    throw new Error('No HLS stream found in Nirmala Vidya response')
   }
 
   return {
-    title: parsed.data.title,
-    thumbnailUrl: parsed.data.thumbnail_url,
-    hlsUrl: parsed.data.hls_url,
+    title: parsed.name,
+    thumbnailUrl: `https://vumbnail.com/${vimeoId}.jpg`,
+    hlsUrl: hlsFile.link,
   }
 }
 
@@ -152,14 +115,7 @@ export async function downloadToBuffer(
   url: string,
   filename?: string,
 ): Promise<{ data: Buffer; mimetype: string; name: string; size: number }> {
-  let response: Response
-  try {
-    response = await fetch(url)
-  } catch (error) {
-    throw new Error(
-      `Failed to download file from ${url}: ${error instanceof Error ? error.message : 'Network error'}`,
-    )
-  }
+  const response = await fetch(url)
 
   if (!response.ok) {
     throw new Error(`Failed to download file from ${url}: HTTP ${response.status}`)
