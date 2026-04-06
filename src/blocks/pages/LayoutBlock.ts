@@ -35,6 +35,14 @@ export const LayoutBlock: Block = {
       ],
     },
     {
+      name: 'title',
+      type: 'text',
+      admin: {
+        description:
+          'If you use this title instead of a regular heading block, this title will be used as a sticky header that remains visible as you scroll through the blocks.',
+      },
+    },
+    {
       name: 'items',
       type: 'array',
       labels: {
