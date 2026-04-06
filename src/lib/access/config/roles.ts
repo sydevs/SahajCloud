@@ -46,7 +46,7 @@ const ROLES = {
     project: 'wemeditate-app' as const,
     permissions: {
       lessons: ['update'] as PermissionLevel[],
-      lectures: ['update'] as PermissionLevel[],
+      lectures: ['update', 'create'] as PermissionLevel[],
       images: ['create'] as PermissionLevel[],
       files: ['create'] as PermissionLevel[],
     },

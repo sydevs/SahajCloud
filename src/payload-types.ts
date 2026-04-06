@@ -804,9 +804,22 @@ export interface File {
  */
 export interface Lecture {
   id: number;
-  title: string;
-  thumbnail: number | Image;
-  videoUrl: string;
+  /**
+   * Paste the Vimeo URL from amruta.org (e.g. https://vimeo.com/123456789).
+   */
+  nirmalVidyaVimeoUrl: string;
+  /**
+   * Auto-populated from Nirmala Vidya. Can be edited after creation.
+   */
+  title?: string | null;
+  thumbnail?: (number | null) | Image;
+  /**
+   * HLS stream URL
+   */
+  videoUrl?: string | null;
+  /**
+   * VTT subtitle URL — auto-populated from Nirmala Vidya API per locale.
+   */
   subtitlesUrl?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -1731,6 +1744,7 @@ export interface LessonsSelect<T extends boolean = true> {
  * via the `definition` "lectures_select".
  */
 export interface LecturesSelect<T extends boolean = true> {
+  nirmalVidyaVimeoUrl?: T;
   title?: T;
   thumbnail?: T;
   videoUrl?: T;

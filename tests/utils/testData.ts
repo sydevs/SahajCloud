@@ -689,7 +689,15 @@ export const testData = {
   },
 
   /**
-   * Create a lecture (requires thumbnail)
+   * Create a lecture (bypasses the populateFromNirmalaVidya hook by providing all
+   * fields directly). The `nirmalVidyaVimeoUrl` is required on the collection,
+   * so it is always included — but in test environments the API client is mocked
+   * via vi.mock('@/lib/nirmalaVidyaApi') in lectures.int.spec.ts.
+   *
+   * For tests in other spec files that call this factory without a mock, the hook
+   * will still try to call `fetchNirmalaVidyaVideo`. Those tests should add
+   * vi.mock('@/lib/nirmalaVidyaApi', ...) at the top of the file to prevent
+   * real network calls.
    */
   async createLecture(
     payload: Payload,
@@ -707,6 +715,7 @@ export const testData = {
         title: 'Test Lecture',
         thumbnail,
         videoUrl: 'https://example.com/video.mp4',
+        nirmalVidyaVimeoUrl: 'https://vimeo.com/123456789',
         ...overrides,
       },
     })) as Lecture

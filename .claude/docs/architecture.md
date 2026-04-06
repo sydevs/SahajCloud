@@ -96,6 +96,7 @@ Custom endpoint handlers are organized in `src/endpoints/` and registered on the
 |------|-----------|------|-------------|
 | `src/endpoints/framesByNarrator.ts` | Frames | `/by-narrator/:narratorId` | Returns frames filtered by narrator gender |
 | `src/endpoints/meditationTagsByTiming.ts` | MeditationTags | `/by-timing/:timing` | Returns tags with meditation previews for a time of day |
+| `src/endpoints/refreshLecture.ts` | Lectures | `/:id/refresh` | Re-fetches lecture metadata from Nirmala Vidya API |
 
 Each endpoint exports an `Endpoint` object (from `payload`) with `path`, `method`, and `handler` properties. The barrel export at `src/endpoints/index.ts` re-exports all handlers.
 
@@ -224,7 +225,7 @@ plugins: [
 - **Images** (`src/collections/resources/Images.ts`) - Image storage using Cloudflare Images with automatic format optimization (WebP, AVIF), dynamic transformations, tags, credit info, and virtual `url` field for Cloudflare CDN delivery
 - **Narrators** (`src/collections/resources/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
 - **Authors** (`src/collections/resources/Authors.ts`) - Article author profiles with localized name, title, description, countryCode, yearsMeditating, and profile image
-- **Lectures** (`src/collections/resources/Lectures.ts`) - Lecture video content with thumbnails, URLs, subtitles, and categorization
+- **Lectures** (`src/collections/resources/Lectures.ts`) - Lecture video content integrated with Nirmala Vidya API. Creation requires a Vimeo URL (`nirmalVidyaVimeoUrl`) which triggers server-side API fetch to auto-populate title, videoUrl (HLS), and thumbnail. Includes `lastRefreshed` timestamp and a custom `POST /:id/refresh` endpoint with `RefreshLectureButton` admin component for re-fetching metadata. `subtitlesUrl` is manually editable (API subtitle support pending).
 
 ### System Collections
 - **Frames** (`src/collections/system/Frames.ts`) - Mixed media upload (images/videos) with Cloudflare Images for images and Cloudflare Stream for videos, virtual fields (`url` for full resolution, `previewUrl` for thumbnails), tags filtering, and imageSet selection
