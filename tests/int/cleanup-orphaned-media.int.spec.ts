@@ -22,6 +22,7 @@ vi.mock('@/lib/nirmalaVidyaApi', () => ({
     title: 'Test Lecture',
     thumbnailUrl: 'https://example.com/thumbnail.jpg',
     hlsUrl: 'https://example.com/video.m3u8',
+    subtitles: [],
   }),
   downloadToBuffer: vi.fn().mockResolvedValue({
     data: Buffer.from('fake-image-data'),

@@ -3,7 +3,7 @@ import type { TextField, TextFieldSingleValidation, TextFieldValidation } from '
 export type UrlFieldOptions = {
   /** Allowed URL protocols (default: ['http:', 'https:']) */
   protocols?: string[]
-} & Omit<TextField, 'type' | 'hasMany'>
+} & Omit<TextField, 'type' | 'hasMany' | 'maxRows' | 'minRows'>
 
 /**
  * Creates a standardized URL field with built-in validation

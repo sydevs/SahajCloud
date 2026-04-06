@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { mediaField, urlField } from '@/fields'
-import { populateFromNirmalaVidya } from '@/hooks/lectureHooks'
+import { populateFromNirmalaVidya, populateSubtitleLocales } from '@/hooks/lectureHooks'
 
 export const Lectures: CollectionConfig = {
   slug: 'lectures',
@@ -16,6 +16,7 @@ export const Lectures: CollectionConfig = {
   },
   hooks: {
     beforeChange: [populateFromNirmalaVidya],
+    afterChange: [populateSubtitleLocales],
   },
   fields: [
     urlField({
@@ -57,11 +58,15 @@ export const Lectures: CollectionConfig = {
         description: 'HLS stream URL',
       },
     }),
-    urlField({
+    {
       name: 'subtitlesUrl',
+      type: 'text',
+      localized: true,
       admin: {
+        readOnly: true,
         condition: (data) => !!data?.id,
+        description: 'VTT subtitle URL — auto-populated from Nirmala Vidya API per locale.',
       },
-    }),
+    },
   ],
 }

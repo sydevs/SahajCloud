@@ -817,6 +817,9 @@ export interface Lecture {
    * HLS stream URL
    */
   videoUrl?: string | null;
+  /**
+   * VTT subtitle URL — auto-populated from Nirmala Vidya API per locale.
+   */
   subtitlesUrl?: string | null;
   updatedAt: string;
   createdAt: string;

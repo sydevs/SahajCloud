@@ -18,6 +18,7 @@ vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
       title: 'Test Lecture from Nirmala Vidya',
       thumbnailUrl: 'https://example.com/thumbnail.jpg',
       hlsUrl: 'https://example.com/video.m3u8',
+      subtitles: [],
     }),
     downloadToBuffer: vi.fn().mockResolvedValue({
       data: Buffer.from('fake-image-data'),
@@ -49,6 +50,7 @@ describe('Lectures Collection', () => {
         title: 'Auto-populated Title',
         thumbnailUrl: 'https://example.com/thumb.jpg',
         hlsUrl: 'https://example.com/stream.m3u8',
+        subtitles: [],
       })
 
       const lecture = await payload.create({
@@ -70,6 +72,7 @@ describe('Lectures Collection', () => {
         title: 'API Title',
         thumbnailUrl: 'https://example.com/thumb.jpg',
         hlsUrl: 'https://example.com/stream.m3u8',
+        subtitles: [],
       })
 
       const lecture = await payload.create({
@@ -92,6 +95,7 @@ describe('Lectures Collection', () => {
         title: 'Lecture with Thumbnail',
         thumbnailUrl: 'https://example.com/specific-thumb.jpg',
         hlsUrl: 'https://example.com/stream.m3u8',
+        subtitles: [],
       })
       vi.mocked(downloadToBuffer).mockResolvedValueOnce({
         data: Buffer.from('fake-image-data'),
@@ -121,6 +125,7 @@ describe('Lectures Collection', () => {
         title: 'No Thumbnail Lecture',
         thumbnailUrl: 'https://example.com/broken-thumb.jpg',
         hlsUrl: 'https://example.com/stream.m3u8',
+        subtitles: [],
       })
       vi.mocked(downloadToBuffer).mockRejectedValueOnce(new Error('Download failed'))
 
@@ -235,6 +240,94 @@ describe('Lectures Collection', () => {
           : updated.thumbnail
 
       expect(thumbnailId).toBe(newThumbnail.id)
+    })
+  })
+
+  describe('Localized subtitle population', () => {
+    it('populates subtitlesUrl per locale from API subtitle data', async () => {
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
+        title: 'Lecture with Subtitles',
+        thumbnailUrl: 'https://example.com/thumb.jpg',
+        hlsUrl: 'https://example.com/stream.m3u8',
+        subtitles: [
+          { languageCode: 'en', url: 'https://example.com/subs/en.vtt' },
+          { languageCode: 'ru', url: 'https://example.com/subs/ru.vtt' },
+          { languageCode: 'zh-hans', url: 'https://example.com/subs/zh-hans.vtt' },
+        ],
+      })
+
+      const lecture = await payload.create({
+        collection: 'lectures',
+        data: {
+          nirmalVidyaVimeoUrl: 'https://vimeo.com/555555555',
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any)
+
+      // English subtitle set via beforeChange (current locale)
+      expect(lecture.subtitlesUrl).toBe('https://example.com/subs/en.vtt')
+
+      // Russian subtitle set via afterChange
+      const ruLecture = await payload.findByID({
+        collection: 'lectures',
+        id: lecture.id,
+        locale: 'ru',
+      })
+      expect(ruLecture.subtitlesUrl).toBe('https://example.com/subs/ru.vtt')
+
+      // German (not in API response) should be null/empty
+      const deLecture = await payload.findByID({
+        collection: 'lectures',
+        id: lecture.id,
+        locale: 'de',
+        fallbackLocale: false,
+      })
+      expect(deLecture.subtitlesUrl).toBeFalsy()
+    })
+
+    it('handles lectures with no subtitles gracefully', async () => {
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
+        title: 'Lecture without Subtitles',
+        thumbnailUrl: 'https://example.com/thumb.jpg',
+        hlsUrl: 'https://example.com/stream.m3u8',
+        subtitles: [],
+      })
+
+      const lecture = await payload.create({
+        collection: 'lectures',
+        data: {
+          nirmalVidyaVimeoUrl: 'https://vimeo.com/666666666',
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any)
+
+      expect(lecture.subtitlesUrl).toBeFalsy()
+    })
+
+    it('skips unrecognized language codes silently', async () => {
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
+        title: 'Lecture with Unknown Langs',
+        thumbnailUrl: 'https://example.com/thumb.jpg',
+        hlsUrl: 'https://example.com/stream.m3u8',
+        subtitles: [
+          { languageCode: 'zh-hans', url: 'https://example.com/subs/zh-hans.vtt' },
+          { languageCode: 'ja', url: 'https://example.com/subs/ja.vtt' },
+        ],
+      })
+
+      // Should not throw — unmatched codes are silently skipped
+      const lecture = await payload.create({
+        collection: 'lectures',
+        data: {
+          nirmalVidyaVimeoUrl: 'https://vimeo.com/777777777',
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any)
+
+      expect(lecture.subtitlesUrl).toBeFalsy()
     })
   })
 

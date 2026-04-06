@@ -16,8 +16,9 @@ import { serverEnv } from '@/lib/env'
 
 export interface NirmalaVidyaVideoData {
   title: string
-  thumbnailUrl: string
+  thumbnailUrl: string | null
   hlsUrl: string
+  subtitles: Array<{ languageCode: string; url: string }>
 }
 
 // =============================================================================
@@ -32,6 +33,16 @@ const NirmalaVidyaResponseSchema = z.object({
       quality: z.string(),
     }),
   ),
+  thumbnail_url: z.string().url().nullable().optional(),
+  subtitles: z
+    .array(
+      z.object({
+        language_code: z.string(),
+        url: z.string().url(),
+      }),
+    )
+    .optional()
+    .default([]),
   link: z.string().url().optional(),
   duration: z.number().optional(),
 })
@@ -98,8 +109,12 @@ export async function fetchNirmalaVidyaVideo(vimeoId: string): Promise<NirmalaVi
 
   return {
     title: parsed.name,
-    thumbnailUrl: `https://vumbnail.com/${vimeoId}.jpg`,
+    thumbnailUrl: parsed.thumbnail_url ?? `https://vumbnail.com/${vimeoId}.jpg`,
     hlsUrl: hlsFile.link,
+    subtitles: parsed.subtitles.map((s) => ({
+      languageCode: s.language_code,
+      url: s.url,
+    })),
   }
 }
 
