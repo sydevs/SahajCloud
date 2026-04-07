@@ -71,7 +71,7 @@ export const Meditations: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'label',
-    defaultColumns: ['label', 'thumbnail', '_status', 'tags', 'durationMinutes'],
+    defaultColumns: ['label', 'thumbnail', '_status', 'type', 'durationMinutes'],
     livePreview: {
       url: ({ data }) => {
         const baseURL = process.env.WEMEDITATE_WEB_URL
@@ -282,21 +282,52 @@ export const Meditations: CollectionConfig = {
                 },
               },
             },
+            // Reverse join fields showing which MeditationTags reference this meditation
             {
-              name: 'tags',
-              type: 'relationship',
-              relationTo: 'meditation-tags',
-              hasMany: true,
-              filterOptions: { isParent: { not_equals: true } },
+              name: 'asMorningMeditation',
+              type: 'join',
+              collection: 'meditation-tags',
+              on: 'morningMeditation',
               admin: {
-                condition: (data) => data.type === 'daily',
-                description: 'Categorize this meditation for seekers to find it',
+                condition: ({ id }) => !!id,
                 components: {
-                  Field: '@/components/admin/TagSelector',
+                  Cell: '@/components/admin/RelationshipCountCell',
                 },
-                custom: {
-                  filterQuery: { 'where[isParent][not_equals]': 'true' },
-                  size: 'large',
+              },
+            },
+            {
+              name: 'asAfternoonMeditation',
+              type: 'join',
+              collection: 'meditation-tags',
+              on: 'afternoonMeditation',
+              admin: {
+                condition: ({ id }) => !!id,
+                components: {
+                  Cell: '@/components/admin/RelationshipCountCell',
+                },
+              },
+            },
+            {
+              name: 'asEveningMeditation',
+              type: 'join',
+              collection: 'meditation-tags',
+              on: 'eveningMeditation',
+              admin: {
+                condition: ({ id }) => !!id,
+                components: {
+                  Cell: '@/components/admin/RelationshipCountCell',
+                },
+              },
+            },
+            {
+              name: 'asNightMeditation',
+              type: 'join',
+              collection: 'meditation-tags',
+              on: 'nightMeditation',
+              admin: {
+                condition: ({ id }) => !!id,
+                components: {
+                  Cell: '@/components/admin/RelationshipCountCell',
                 },
               },
             },

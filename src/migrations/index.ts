@@ -24,6 +24,7 @@ import * as migration_20260318_111603 from './20260318_111603';
 import * as migration_20260318_120000_backfill_meditation_duration from './20260318_120000_backfill_meditation_duration';
 import * as migration_20260325_163622 from './20260325_163622';
 import * as migration_20260406_120149 from './20260406_120149';
+import * as migration_20260407_111737 from './20260407_111737';
 
 export const migrations = [
   {
@@ -154,6 +155,11 @@ export const migrations = [
   {
     up: migration_20260406_120149.up,
     down: migration_20260406_120149.down,
-    name: '20260406_120149'
+    name: '20260406_120149',
+  },
+  {
+    up: migration_20260407_111737.up,
+    down: migration_20260407_111737.down,
+    name: '20260407_111737'
   },
 ];

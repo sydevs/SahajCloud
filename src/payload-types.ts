@@ -110,6 +110,12 @@ export interface Config {
     'payload-migrations': PayloadMigration;
   };
   collectionsJoins: {
+    meditations: {
+      asMorningMeditation: 'meditation-tags';
+      asAfternoonMeditation: 'meditation-tags';
+      asEveningMeditation: 'meditation-tags';
+      asNightMeditation: 'meditation-tags';
+    };
     albums: {
       songs: 'songs';
     };
@@ -118,7 +124,6 @@ export interface Config {
     };
     'meditation-tags': {
       children: 'meditation-tags';
-      meditations: 'meditations';
     };
     'song-tags': {
       songs: 'songs';
@@ -453,10 +458,26 @@ export interface Meditation {
    * When this meditation is available
    */
   timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
-  /**
-   * Categorize this meditation for seekers to find it
-   */
-  tags?: (number | MeditationTag)[] | null;
+  asMorningMeditation?: {
+    docs?: (number | MeditationTag)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  asAfternoonMeditation?: {
+    docs?: (number | MeditationTag)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  asEveningMeditation?: {
+    docs?: (number | MeditationTag)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  asNightMeditation?: {
+    docs?: (number | MeditationTag)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   frames?:
     | {
         [k: string]: unknown;
@@ -628,16 +649,31 @@ export interface MeditationTag {
    */
   order?: number | null;
   /**
+   * Which times of day this category offers meditations
+   */
+  timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
+  /**
+   * The meditation offered for this category in the morning
+   */
+  morningMeditation?: (number | null) | Meditation;
+  /**
+   * The meditation offered for this category in the afternoon
+   */
+  afternoonMeditation?: (number | null) | Meditation;
+  /**
+   * The meditation offered for this category in the evening
+   */
+  eveningMeditation?: (number | null) | Meditation;
+  /**
+   * The meditation offered for this category at night
+   */
+  nightMeditation?: (number | null) | Meditation;
+  /**
    * Automatically set when this tag has child categories
    */
   isParent: boolean;
   children?: {
     docs?: (number | MeditationTag)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  meditations?: {
-    docs?: (number | Meditation)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -1630,7 +1666,10 @@ export interface MeditationsSelect<T extends boolean = true> {
   thumbnail?: T;
   type?: T;
   timings?: T;
-  tags?: T;
+  asMorningMeditation?: T;
+  asAfternoonMeditation?: T;
+  asEveningMeditation?: T;
+  asNightMeditation?: T;
   frames?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1857,9 +1896,13 @@ export interface MeditationTagsSelect<T extends boolean = true> {
   parent?: T;
   isFeatured?: T;
   order?: T;
+  timings?: T;
+  morningMeditation?: T;
+  afternoonMeditation?: T;
+  eveningMeditation?: T;
+  nightMeditation?: T;
   isParent?: T;
   children?: T;
-  meditations?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
