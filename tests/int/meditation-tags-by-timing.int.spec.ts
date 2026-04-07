@@ -8,12 +8,13 @@ import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
- * Tests for the meditationTagsByTiming endpoint logic.
+ * Tests for the per-timing meditation assignment model on MeditationTags.
  *
- * Tests simulate the endpoint's query logic directly via Payload's local API,
- * following the same pattern as frameFiltering.int.spec.ts.
+ * Each tag has a `timings` select field and 4 localized relationship fields
+ * (morningMeditation, afternoonMeditation, eveningMeditation, nightMeditation).
+ * The standard API replaces the old custom endpoint.
  */
-describe('MeditationTags by-timing endpoint logic', () => {
+describe('MeditationTags per-timing assignments', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
@@ -21,7 +22,10 @@ describe('MeditationTags by-timing endpoint logic', () => {
   let morningTag: MeditationTag
   let eveningTag: MeditationTag
   let parentTag: MeditationTag
-  let unusedTag: MeditationTag
+  // Test meditations
+  let quickMorning: Meditation
+  let quickEvening: Meditation
+  let czechMorning: Meditation
 
   // Shared test dependencies
   let sharedNarrator: number
@@ -38,16 +42,77 @@ describe('MeditationTags by-timing endpoint logic', () => {
     const thumbnail = await testData.createMediaImage(payload)
     sharedThumbnail = thumbnail.id
 
-    // Create tags
+    // Create published quick meditations
+    quickMorning = await testData.createMeditation(
+      payload,
+      { narrator: sharedNarrator, thumbnail: sharedThumbnail },
+      {
+        title: 'Morning Quick Meditation',
+        type: 'quick',
+        _status: 'published',
+      },
+    )
+
+    quickEvening = await testData.createMeditation(
+      payload,
+      { narrator: sharedNarrator, thumbnail: sharedThumbnail },
+      {
+        title: 'Evening Quick Meditation',
+        type: 'quick',
+        _status: 'published',
+      },
+    )
+
+    // Czech locale meditation
+    czechMorning = await testData.createMeditation(
+      payload,
+      { narrator: sharedNarrator, thumbnail: sharedThumbnail },
+      {
+        title: 'Czech Morning Meditation',
+        type: 'quick',
+        _status: 'published',
+        locale: 'cs',
+      },
+    )
+
+    // Create tags with timings and assignments
     morningTag = await testData.createMeditationTag(payload, {
       title: 'Morning Focus',
       order: 1,
+      timings: ['morning', 'afternoon'],
     })
+
+    // Assign morning meditation (EN)
+    morningTag = await payload.update({
+      collection: 'meditation-tags',
+      id: morningTag.id,
+      locale: 'en',
+      data: { morningMeditation: quickMorning.id },
+    })
+
+    // Assign Czech morning meditation
+    await payload.update({
+      collection: 'meditation-tags',
+      id: morningTag.id,
+      locale: 'cs',
+      data: { morningMeditation: czechMorning.id },
+    })
+
     eveningTag = await testData.createMeditationTag(payload, {
       title: 'Evening Calm',
       order: 2,
+      timings: ['evening', 'night'],
     })
-    unusedTag = await testData.createMeditationTag(payload, {
+
+    // Assign evening meditation (EN)
+    eveningTag = await payload.update({
+      collection: 'meditation-tags',
+      id: eveningTag.id,
+      locale: 'en',
+      data: { eveningMeditation: quickEvening.id },
+    })
+
+    await testData.createMeditationTag(payload, {
       title: 'Unused Tag',
       order: 3,
     })
@@ -56,497 +121,203 @@ describe('MeditationTags by-timing endpoint logic', () => {
     parentTag = await testData.createMeditationTag(payload, {
       title: 'Parent Category',
     })
-    // Make it a parent by creating a child
     await testData.createMeditationTag(payload, {
       title: 'Child of Parent',
       parent: parentTag.id,
     })
-
-    // Create published morning meditation tagged with morningTag
-    await testData.createMeditation(
-      payload,
-      { narrator: sharedNarrator, thumbnail: sharedThumbnail },
-      {
-        title: 'Morning Meditation',
-        timings: ['morning'],
-        tags: [morningTag.id],
-        _status: 'published',
-        type: 'quick',
-      },
-    )
-
-    // Create published evening meditation tagged with eveningTag
-    await testData.createMeditation(
-      payload,
-      { narrator: sharedNarrator, thumbnail: sharedThumbnail },
-      {
-        title: 'Evening Meditation',
-        timings: ['evening', 'night'],
-        tags: [eveningTag.id],
-        _status: 'published',
-        type: 'daily',
-      },
-    )
-
-    // Create universal meditation (empty timings = available any time)
-    // Tagged with both morningTag and eveningTag
-    await testData.createMeditation(
-      payload,
-      { narrator: sharedNarrator, thumbnail: sharedThumbnail },
-      {
-        title: 'Universal Meditation',
-        timings: [],
-        tags: [morningTag.id, eveningTag.id],
-        _status: 'published',
-        type: 'quick',
-      },
-    )
-
-    // Create draft meditation (should NOT appear in results)
-    await testData.createMeditation(
-      payload,
-      { narrator: sharedNarrator, thumbnail: sharedThumbnail },
-      {
-        title: 'Draft Morning Meditation',
-        timings: ['morning'],
-        tags: [morningTag.id],
-        _status: 'draft',
-        type: 'quick',
-      },
-    )
-
-    // Create lesson meditation (should NOT appear in results)
-    await testData.createMeditation(
-      payload,
-      { narrator: sharedNarrator, thumbnail: sharedThumbnail },
-      {
-        title: 'Lesson Meditation',
-        timings: ['morning'],
-        tags: [morningTag.id],
-        type: 'lesson',
-      },
-    )
-
-    // Create Czech locale meditation
-    await testData.createMeditation(
-      payload,
-      { narrator: sharedNarrator, thumbnail: sharedThumbnail },
-      {
-        title: 'Czech Morning Meditation',
-        timings: ['morning'],
-        tags: [morningTag.id],
-        _status: 'published',
-        type: 'quick',
-        locale: 'cs',
-      },
-    )
-
-    // Create meditation tagged with parent tag (parent tag should still be excluded)
-    await testData.createMeditation(
-      payload,
-      { narrator: sharedNarrator, thumbnail: sharedThumbnail },
-      {
-        title: 'Parent-Tagged Meditation',
-        timings: ['morning'],
-        tags: [parentTag.id],
-        _status: 'published',
-        type: 'quick',
-      },
-    )
   })
 
   afterAll(async () => {
     await cleanup()
   })
 
-  describe('timing filtering', () => {
-    it('returns published meditations matching morning timing', async () => {
-      const meditations = await payload.find({
-        collection: 'meditations',
-        locale: 'en',
-        where: {
-          and: [
-            { _status: { equals: 'published' } },
-            { type: { not_equals: 'lesson' } },
-            {
-              or: [
-                { timings: { contains: 'morning' } },
-                { timings: { exists: false } },
-              ],
-            },
-          ],
-        },
-        depth: 1,
-        limit: 500,
-      })
-
-      const titles = meditations.docs.map((m) => m.title)
-      expect(titles).toContain('Morning Meditation')
-      expect(titles).toContain('Universal Meditation')
-      expect(titles).not.toContain('Evening Meditation')
-      expect(titles).not.toContain('Draft Morning Meditation')
-      expect(titles).not.toContain('Lesson Meditation')
-    })
-
-    it('returns published meditations matching evening timing', async () => {
-      const meditations = await payload.find({
-        collection: 'meditations',
-        locale: 'en',
-        where: {
-          and: [
-            { _status: { equals: 'published' } },
-            { type: { not_equals: 'lesson' } },
-            {
-              or: [
-                { timings: { contains: 'evening' } },
-                { timings: { exists: false } },
-              ],
-            },
-          ],
-        },
-        depth: 1,
-        limit: 500,
-      })
-
-      const titles = meditations.docs.map((m) => m.title)
-      expect(titles).toContain('Evening Meditation')
-      expect(titles).toContain('Universal Meditation')
-      expect(titles).not.toContain('Morning Meditation')
-    })
-
-    it('includes universal meditations (empty timings) for any timing', async () => {
-      // Query for afternoon timing - only universal meditation should match
-      const meditations = await payload.find({
-        collection: 'meditations',
-        locale: 'en',
-        where: {
-          and: [
-            { _status: { equals: 'published' } },
-            { type: { not_equals: 'lesson' } },
-            {
-              or: [
-                { timings: { contains: 'afternoon' } },
-                { timings: { exists: false } },
-              ],
-            },
-          ],
-        },
-        depth: 1,
-        limit: 500,
-      })
-
-      const titles = meditations.docs.map((m) => m.title)
-      expect(titles).toContain('Universal Meditation')
-      expect(titles).not.toContain('Morning Meditation')
-      expect(titles).not.toContain('Evening Meditation')
-    })
-  })
-
-  describe('tag grouping and filtering', () => {
-    it('groups meditations by tag and excludes parent tags', async () => {
-      // Simulate the endpoint's grouping logic
-      const meditations = await payload.find({
-        collection: 'meditations',
-        locale: 'en',
-        where: {
-          and: [
-            { _status: { equals: 'published' } },
-            { type: { not_equals: 'lesson' } },
-            {
-              or: [
-                { timings: { contains: 'morning' } },
-                { timings: { exists: false } },
-              ],
-            },
-          ],
-        },
-        depth: 1,
-        limit: 500,
-      })
-
-      // Collect tag IDs from meditations
-      const tagIds = new Set<number>()
-      for (const meditation of meditations.docs) {
-        const tags = meditation.tags as Array<number | MeditationTag> | null
-        if (!tags) continue
-        for (const tag of tags) {
-          const tagId = typeof tag === 'number' ? tag : tag.id
-          tagIds.add(tagId)
-        }
-      }
-
-      expect(tagIds.size).toBeGreaterThan(0)
-      expect(tagIds.has(morningTag.id)).toBe(true)
-
-      // Fetch tags excluding parents
-      const tags = await payload.find({
+  describe('standard API filtering by timing', () => {
+    it('returns tags with morning meditation assignments', async () => {
+      const result = await payload.find({
         collection: 'meditation-tags',
+        locale: 'en',
         where: {
-          id: { in: Array.from(tagIds) },
+          morningMeditation: { exists: true },
           isParent: { not_equals: true },
         },
         sort: 'order',
-        limit: 100,
+        depth: 1,
       })
 
-      const resultTagIds = tags.docs.map((t) => t.id)
-      expect(resultTagIds).toContain(morningTag.id)
-      expect(resultTagIds).not.toContain(parentTag.id)
+      expect(result.docs.length).toBeGreaterThan(0)
+      const tagTitles = result.docs.map((t) => t.title)
+      expect(tagTitles).toContain('Morning Focus')
+      expect(tagTitles).not.toContain('Evening Calm')
+      expect(tagTitles).not.toContain('Unused Tag')
     })
 
-    it('returns tags sorted by order field', async () => {
-      const meditations = await payload.find({
-        collection: 'meditations',
+    it('returns tags with evening meditation assignments', async () => {
+      const result = await payload.find({
+        collection: 'meditation-tags',
         locale: 'en',
         where: {
-          and: [
-            { _status: { equals: 'published' } },
-            { type: { not_equals: 'lesson' } },
-            {
-              or: [
-                { timings: { contains: 'morning' } },
-                { timings: { exists: false } },
-              ],
-            },
-          ],
-        },
-        depth: 1,
-        limit: 500,
-      })
-
-      const tagIds = new Set<number>()
-      for (const meditation of meditations.docs) {
-        const tags = meditation.tags as Array<number | MeditationTag> | null
-        if (!tags) continue
-        for (const tag of tags) {
-          tagIds.add(typeof tag === 'number' ? tag : tag.id)
-        }
-      }
-
-      const tags = await payload.find({
-        collection: 'meditation-tags',
-        where: {
-          id: { in: Array.from(tagIds) },
+          eveningMeditation: { exists: true },
           isParent: { not_equals: true },
         },
         sort: 'order',
-        limit: 100,
+        depth: 1,
       })
 
-      // Verify ascending order
-      for (let i = 1; i < tags.docs.length; i++) {
-        expect(tags.docs[i].order ?? 0).toBeGreaterThanOrEqual(tags.docs[i - 1].order ?? 0)
-      }
+      const tagTitles = result.docs.map((t) => t.title)
+      expect(tagTitles).toContain('Evening Calm')
+      expect(tagTitles).not.toContain('Morning Focus')
     })
 
-    it('does not include tags that have no matching meditations', async () => {
-      // Query for morning timing
-      const meditations = await payload.find({
-        collection: 'meditations',
-        locale: 'en',
+    it('returns tags sorted by order', async () => {
+      const result = await payload.find({
+        collection: 'meditation-tags',
         where: {
-          and: [
-            { _status: { equals: 'published' } },
-            { type: { not_equals: 'lesson' } },
-            {
-              or: [
-                { timings: { contains: 'morning' } },
-                { timings: { exists: false } },
-              ],
-            },
-          ],
+          morningMeditation: { exists: true },
+          isParent: { not_equals: true },
         },
-        depth: 1,
-        limit: 500,
+        sort: 'order',
       })
 
-      // Collect tag IDs that have meditations
-      const tagIds = new Set<number>()
-      for (const meditation of meditations.docs) {
-        const tags = meditation.tags as Array<number | MeditationTag> | null
-        if (!tags) continue
-        for (const tag of tags) {
-          tagIds.add(typeof tag === 'number' ? tag : tag.id)
-        }
+      for (let i = 1; i < result.docs.length; i++) {
+        expect(result.docs[i].order ?? 0).toBeGreaterThanOrEqual(result.docs[i - 1].order ?? 0)
       }
-
-      // Unused tag should not be in the results
-      expect(tagIds.has(unusedTag.id)).toBe(false)
     })
   })
 
-  describe('locale filtering', () => {
-    it('filters by English locale by default', async () => {
-      const meditations = await payload.find({
-        collection: 'meditations',
+  describe('locale-specific assignments', () => {
+    it('returns English meditation for English locale', async () => {
+      const result = await payload.findByID({
+        collection: 'meditation-tags',
+        id: morningTag.id,
         locale: 'en',
-        where: {
-          and: [
-            { _status: { equals: 'published' } },
-            { type: { not_equals: 'lesson' } },
-            {
-              or: [
-                { timings: { contains: 'morning' } },
-                { timings: { exists: false } },
-              ],
-            },
-          ],
-        },
-        limit: 500,
+        depth: 1,
       })
 
-      const titles = meditations.docs.map((m) => m.title)
-      expect(titles).not.toContain('Czech Morning Meditation')
+      const meditation = result.morningMeditation as Meditation | null
+      expect(meditation).toBeDefined()
+      expect(meditation!.id).toBe(quickMorning.id)
+      expect(meditation!.title).toBe('Morning Quick Meditation')
     })
 
-    it('returns Czech locale meditations when locale=cs', async () => {
-      const meditations = await payload.find({
-        collection: 'meditations',
+    it('returns Czech meditation for Czech locale', async () => {
+      const result = await payload.findByID({
+        collection: 'meditation-tags',
+        id: morningTag.id,
+        locale: 'cs',
+        depth: 1,
+      })
+
+      const meditation = result.morningMeditation as Meditation | null
+      expect(meditation).toBeDefined()
+      expect(meditation!.id).toBe(czechMorning.id)
+    })
+
+    it('filters by locale when querying with exists', async () => {
+      // Czech locale should have morningMeditation on morningTag
+      const csResult = await payload.find({
+        collection: 'meditation-tags',
         locale: 'cs',
         where: {
-          and: [
-            { _status: { equals: 'published' } },
-            { type: { not_equals: 'lesson' } },
-            {
-              or: [
-                { timings: { contains: 'morning' } },
-                { timings: { exists: false } },
-              ],
-            },
-          ],
+          morningMeditation: { exists: true },
+          isParent: { not_equals: true },
         },
-        limit: 500,
       })
 
-      const titles = meditations.docs.map((m) => m.title)
-      expect(titles).toContain('Czech Morning Meditation')
-      expect(titles).not.toContain('Morning Meditation')
+      const csTitles = csResult.docs.map((t) => t.title)
+      expect(csTitles).toContain('Morning Focus')
     })
   })
 
-  describe('draft and lesson exclusion', () => {
-    it('excludes draft meditations', async () => {
-      const meditations = await payload.find({
-        collection: 'meditations',
-        locale: 'en',
+  describe('parent tag exclusion', () => {
+    it('excludes parent tags from filtered results', async () => {
+      const result = await payload.find({
+        collection: 'meditation-tags',
         where: {
-          and: [
-            { _status: { equals: 'published' } },
-            { type: { not_equals: 'lesson' } },
-            { timings: { contains: 'morning' } },
-          ],
+          isParent: { not_equals: true },
         },
-        limit: 500,
       })
 
-      const titles = meditations.docs.map((m) => m.title)
-      expect(titles).not.toContain('Draft Morning Meditation')
-    })
-
-    it('excludes lesson-type meditations', async () => {
-      const meditations = await payload.find({
-        collection: 'meditations',
-        locale: 'en',
-        where: {
-          and: [
-            { _status: { equals: 'published' } },
-            { type: { not_equals: 'lesson' } },
-            { timings: { contains: 'morning' } },
-          ],
-        },
-        limit: 500,
-      })
-
-      const titles = meditations.docs.map((m) => m.title)
-      expect(titles).not.toContain('Lesson Meditation')
+      const ids = result.docs.map((t) => t.id)
+      expect(ids).not.toContain(parentTag.id)
     })
   })
 
-  describe('meditation preview fields', () => {
-    it('meditations include required preview fields', async () => {
-      const meditations = await payload.find({
-        collection: 'meditations',
+  describe('populated meditation at depth=1', () => {
+    it('populates the meditation document', async () => {
+      const result = await payload.find({
+        collection: 'meditation-tags',
         locale: 'en',
         where: {
-          and: [
-            { _status: { equals: 'published' } },
-            { type: { not_equals: 'lesson' } },
-            { timings: { contains: 'morning' } },
-          ],
+          morningMeditation: { exists: true },
+          isParent: { not_equals: true },
         },
         depth: 1,
         limit: 10,
       })
 
-      expect(meditations.docs.length).toBeGreaterThan(0)
+      expect(result.docs.length).toBeGreaterThan(0)
 
-      for (const meditation of meditations.docs) {
-        // Check all preview fields exist
-        expect(meditation.id).toBeDefined()
-        expect(meditation).toHaveProperty('title')
-        expect(meditation).toHaveProperty('timings')
-        expect(meditation).toHaveProperty('thumbnail')
-        expect(meditation).toHaveProperty('durationMinutes')
+      for (const tag of result.docs) {
+        if (tag.morningMeditation) {
+          const meditation = tag.morningMeditation as Meditation
+          expect(meditation.id).toBeDefined()
+          expect(meditation).toHaveProperty('title')
+          expect(meditation).toHaveProperty('durationMinutes')
+        }
       }
     })
   })
 
-  describe('input validation', () => {
-    it('validates timing parameter values', () => {
-      const validTimings = ['morning', 'afternoon', 'evening', 'night']
-      const invalidTimings = ['midnight', 'dawn', '', 'MORNING', 'lunch']
+  describe('timings field access control', () => {
+    it('admin managers can update timings', async () => {
+      const tag = await testData.createMeditationTag(payload, {
+        title: 'Admin Timings Test',
+      })
 
-      for (const timing of validTimings) {
-        expect(validTimings).toContain(timing)
-      }
+      const updated = await payload.update({
+        collection: 'meditation-tags',
+        id: tag.id,
+        data: { timings: ['morning', 'night'] },
+      })
 
-      for (const timing of invalidTimings) {
-        expect(validTimings).not.toContain(timing)
-      }
+      expect(updated.timings).toEqual(expect.arrayContaining(['morning', 'night']))
+    })
+  })
+
+  describe('reverse join fields on Meditations', () => {
+    it('shows tag assignment via join field', async () => {
+      const meditation = await payload.findByID({
+        collection: 'meditations',
+        id: quickMorning.id,
+        locale: 'en',
+        depth: 0,
+      })
+
+      // The join field asMorningMeditation should contain the morningTag
+      const asMorning = meditation.asMorningMeditation as {
+        docs: (number | { id: number })[]
+      } | null
+      expect(asMorning).toBeDefined()
+      expect(asMorning!.docs.length).toBeGreaterThan(0)
+
+      const tagIds = asMorning!.docs.map((t) => (typeof t === 'number' ? t : t.id))
+      expect(tagIds).toContain(morningTag.id)
     })
   })
 
   describe('empty results', () => {
-    it('returns no results for timing with no matching meditations in unused locale', async () => {
-      const meditations = await payload.find({
-        collection: 'meditations',
-        locale: 'fa',
+    it('returns no tags for timing with no assignments', async () => {
+      // No tags have nightMeditation assigned
+      const result = await payload.find({
+        collection: 'meditation-tags',
+        locale: 'en',
         where: {
-          and: [
-            { _status: { equals: 'published' } },
-            { type: { not_equals: 'lesson' } },
-            {
-              or: [
-                { timings: { contains: 'night' } },
-                { timings: { exists: false } },
-              ],
-            },
-          ],
+          nightMeditation: { exists: true },
+          isParent: { not_equals: true },
         },
-        limit: 500,
       })
 
-      expect(meditations.docs).toHaveLength(0)
-    })
-  })
-
-  describe('endpoint handler structure', () => {
-    it('exports a valid Endpoint object', async () => {
-      const { meditationTagsByTiming } = await import('@/endpoints')
-
-      expect(meditationTagsByTiming).toBeDefined()
-      expect(meditationTagsByTiming.path).toBe('/by-timing/:timing')
-      expect(meditationTagsByTiming.method).toBe('get')
-      expect(typeof meditationTagsByTiming.handler).toBe('function')
-    })
-
-    it('framesByNarrator export is preserved after extraction', async () => {
-      const { framesByNarrator } = await import('@/endpoints')
-
-      expect(framesByNarrator).toBeDefined()
-      expect(framesByNarrator.path).toBe('/by-narrator/:narratorId')
-      expect(framesByNarrator.method).toBe('get')
-      expect(typeof framesByNarrator.handler).toBe('function')
+      expect(result.docs).toHaveLength(0)
     })
   })
 })

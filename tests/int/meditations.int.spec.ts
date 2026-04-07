@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { Meditation, Narrator, Image, SongTag, MeditationTag, Album } from '@/payload-types'
+import type { Meditation, Narrator, Image, SongTag, Album } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -12,8 +12,6 @@ describe('Meditations Collection', () => {
   let cleanup: () => Promise<void>
   let testNarrator: Narrator
   let testImageMedia: Image
-  let testTag1: MeditationTag
-  let testTag2: MeditationTag
   let testSongTag: SongTag
   let testMeditation: Meditation
   let testAlbum: Album
@@ -26,8 +24,6 @@ describe('Meditations Collection', () => {
     // Create test dependencies
     testNarrator = await testData.createNarrator(payload)
     testImageMedia = await testData.createMediaImage(payload)
-    testTag1 = await testData.createMeditationTag(payload)
-    testTag2 = await testData.createMeditationTag(payload)
     testSongTag = await testData.createSongTag(payload)
     testAlbum = await testData.createAlbum(payload)
 
@@ -40,7 +36,6 @@ describe('Meditations Collection', () => {
       },
       {
         title: 'Morning Meditation',
-        tags: [testTag1.id, testTag2.id],
         songTag: testSongTag.id,
       },
     )
@@ -60,15 +55,6 @@ describe('Meditations Collection', () => {
         ? testMeditation.narrator.id
         : testMeditation.narrator,
     ).toBe(testNarrator.id)
-    expect(testMeditation.tags).toHaveLength(2)
-    // Tags may be populated objects or IDs
-    const tagIds = Array.isArray(testMeditation.tags)
-      ? testMeditation.tags.map((tag) =>
-          typeof tag === 'object' && tag && 'id' in tag ? tag.id : tag,
-        )
-      : []
-    expect(tagIds).toContain(testTag1.id)
-    expect(tagIds).toContain(testTag2.id)
     expect(
       typeof testMeditation.songTag === 'object' && testMeditation.songTag
         ? testMeditation.songTag.id

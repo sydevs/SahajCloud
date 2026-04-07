@@ -385,7 +385,6 @@ export const testData = {
         title: overrides.title || defaultTitle,
         thumbnail: thumbnail,
         narrator: narrator,
-        tags: overrides.tags || [],
         locale: overrides.locale || 'en',
         type: overrides.type || 'quick', // Default to 'quick' type
         ...overrides,
