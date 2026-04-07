@@ -282,55 +282,12 @@ export const Meditations: CollectionConfig = {
                 },
               },
             },
-            // Reverse join fields showing which MeditationTags reference this meditation
-            {
-              name: 'asMorningMeditation',
-              type: 'join',
-              collection: 'meditation-tags',
-              on: 'morningMeditation',
-              admin: {
-                condition: ({ id }) => !!id,
-                components: {
-                  Cell: '@/components/admin/RelationshipCountCell',
-                },
-              },
-            },
-            {
-              name: 'asAfternoonMeditation',
-              type: 'join',
-              collection: 'meditation-tags',
-              on: 'afternoonMeditation',
-              admin: {
-                condition: ({ id }) => !!id,
-                components: {
-                  Cell: '@/components/admin/RelationshipCountCell',
-                },
-              },
-            },
-            {
-              name: 'asEveningMeditation',
-              type: 'join',
-              collection: 'meditation-tags',
-              on: 'eveningMeditation',
-              admin: {
-                condition: ({ id }) => !!id,
-                components: {
-                  Cell: '@/components/admin/RelationshipCountCell',
-                },
-              },
-            },
-            {
-              name: 'asNightMeditation',
-              type: 'join',
-              collection: 'meditation-tags',
-              on: 'nightMeditation',
-              admin: {
-                condition: ({ id }) => !!id,
-                components: {
-                  Cell: '@/components/admin/RelationshipCountCell',
-                },
-              },
-            },
+            // NOTE: Reverse join fields for per-timing tag assignments are intentionally omitted.
+            // PayloadCMS's docWithFilenameExists (used during upload) calls db.findOne()
+            // without passing locale, causing "undefined cannot be passed as argument"
+            // errors when join fields target localized relationships on other collections.
+            // See: https://github.com/payloadcms/payload/issues/XXXX
+            // Admins can view tag assignments from the MeditationTags collection instead.
           ],
         },
         {

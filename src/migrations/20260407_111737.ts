@@ -1,22 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-d1-sqlite'
 
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
-  await db.run(sql`CREATE TABLE \`meditations_locales\` (
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`_locale\` text NOT NULL,
-  	\`_parent_id\` integer NOT NULL,
-  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`meditations\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE UNIQUE INDEX \`meditations_locales_locale_parent_id_unique\` ON \`meditations_locales\` (\`_locale\`,\`_parent_id\`);`)
-  await db.run(sql`CREATE TABLE \`_meditations_v_locales\` (
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`_locale\` text NOT NULL,
-  	\`_parent_id\` integer NOT NULL,
-  	FOREIGN KEY (\`_parent_id\`) REFERENCES \`_meditations_v\`(\`id\`) ON UPDATE no action ON DELETE cascade
-  );
-  `)
-  await db.run(sql`CREATE UNIQUE INDEX \`_meditations_v_locales_locale_parent_id_unique\` ON \`_meditations_v_locales\` (\`_locale\`,\`_parent_id\`);`)
   await db.run(sql`CREATE TABLE \`meditation_tags_timings\` (
   	\`order\` integer NOT NULL,
   	\`parent_id\` integer NOT NULL,
@@ -68,8 +52,6 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   await db.run(sql`CREATE INDEX \`_meditations_v_rels_parent_idx\` ON \`_meditations_v_rels\` (\`parent_id\`);`)
   await db.run(sql`CREATE INDEX \`_meditations_v_rels_path_idx\` ON \`_meditations_v_rels\` (\`path\`);`)
   await db.run(sql`CREATE INDEX \`_meditations_v_rels_meditation_tags_id_idx\` ON \`_meditations_v_rels\` (\`meditation_tags_id\`);`)
-  await db.run(sql`DROP TABLE \`meditations_locales\`;`)
-  await db.run(sql`DROP TABLE \`_meditations_v_locales\`;`)
   await db.run(sql`DROP TABLE \`meditation_tags_timings\`;`)
   await db.run(sql`PRAGMA foreign_keys=OFF;`)
   await db.run(sql`CREATE TABLE \`__new_meditation_tags_locales\` (

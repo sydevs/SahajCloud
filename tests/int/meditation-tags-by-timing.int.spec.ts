@@ -90,12 +90,12 @@ describe('MeditationTags per-timing assignments', () => {
       data: { morningMeditation: quickMorning.id },
     })
 
-    // Assign Czech morning meditation
+    // Assign Czech morning meditation (title required for localized update)
     await payload.update({
       collection: 'meditation-tags',
       id: morningTag.id,
       locale: 'cs',
-      data: { morningMeditation: czechMorning.id },
+      data: { title: 'Ranní Soustředění', morningMeditation: czechMorning.id },
     })
 
     eveningTag = await testData.createMeditationTag(payload, {
@@ -224,7 +224,7 @@ describe('MeditationTags per-timing assignments', () => {
       })
 
       const csTitles = csResult.docs.map((t) => t.title)
-      expect(csTitles).toContain('Morning Focus')
+      expect(csTitles).toContain('Ranní Soustředění')
     })
   })
 
@@ -281,27 +281,6 @@ describe('MeditationTags per-timing assignments', () => {
       })
 
       expect(updated.timings).toEqual(expect.arrayContaining(['morning', 'night']))
-    })
-  })
-
-  describe('reverse join fields on Meditations', () => {
-    it('shows tag assignment via join field', async () => {
-      const meditation = await payload.findByID({
-        collection: 'meditations',
-        id: quickMorning.id,
-        locale: 'en',
-        depth: 0,
-      })
-
-      // The join field asMorningMeditation should contain the morningTag
-      const asMorning = meditation.asMorningMeditation as {
-        docs: (number | { id: number })[]
-      } | null
-      expect(asMorning).toBeDefined()
-      expect(asMorning!.docs.length).toBeGreaterThan(0)
-
-      const tagIds = asMorning!.docs.map((t) => (typeof t === 'number' ? t : t.id))
-      expect(tagIds).toContain(morningTag.id)
     })
   })
 

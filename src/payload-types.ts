@@ -110,12 +110,6 @@ export interface Config {
     'payload-migrations': PayloadMigration;
   };
   collectionsJoins: {
-    meditations: {
-      asMorningMeditation: 'meditation-tags';
-      asAfternoonMeditation: 'meditation-tags';
-      asEveningMeditation: 'meditation-tags';
-      asNightMeditation: 'meditation-tags';
-    };
     albums: {
       songs: 'songs';
     };
@@ -458,26 +452,6 @@ export interface Meditation {
    * When this meditation is available
    */
   timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
-  asMorningMeditation?: {
-    docs?: (number | MeditationTag)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  asAfternoonMeditation?: {
-    docs?: (number | MeditationTag)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  asEveningMeditation?: {
-    docs?: (number | MeditationTag)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  asNightMeditation?: {
-    docs?: (number | MeditationTag)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
   frames?:
     | {
         [k: string]: unknown;
@@ -604,81 +578,6 @@ export interface Album {
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditation-tags".
- */
-export interface MeditationTag {
-  id: number;
-  /**
-   * When enabled, the slug will auto-generate from the title field on save and autosave.
-   */
-  generateSlug?: boolean | null;
-  /**
-   * URL-friendly identifier (auto-generated from title)
-   */
-  slug: string;
-  /**
-   * Localized title shown to public users
-   */
-  title: string;
-  /**
-   * Tag color for UI theming (hex format)
-   */
-  color: string;
-  /**
-   * Parent category for grouping. Parent categories are not selectable on meditations.
-   */
-  parent?: (number | null) | MeditationTag;
-  /**
-   * Featured categories are shown prominently; non-featured categories appear in a dropdown
-   */
-  isFeatured: boolean;
-  /**
-   * Display order (lower numbers appear first)
-   */
-  order?: number | null;
-  /**
-   * Which times of day this category offers meditations
-   */
-  timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
-  /**
-   * The meditation offered for this category in the morning
-   */
-  morningMeditation?: (number | null) | Meditation;
-  /**
-   * The meditation offered for this category in the afternoon
-   */
-  afternoonMeditation?: (number | null) | Meditation;
-  /**
-   * The meditation offered for this category in the evening
-   */
-  eveningMeditation?: (number | null) | Meditation;
-  /**
-   * The meditation offered for this category at night
-   */
-  nightMeditation?: (number | null) | Meditation;
-  /**
-   * Automatically set when this tag has child categories
-   */
-  isParent: boolean;
-  children?: {
-    docs?: (number | MeditationTag)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  updatedAt: string;
-  createdAt: string;
   url?: string | null;
   thumbnailURL?: string | null;
   filename?: string | null;
@@ -922,6 +821,81 @@ export interface Frame {
     | number
     | boolean
     | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meditation-tags".
+ */
+export interface MeditationTag {
+  id: number;
+  /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  /**
+   * URL-friendly identifier (auto-generated from title)
+   */
+  slug: string;
+  /**
+   * Localized title shown to public users
+   */
+  title: string;
+  /**
+   * Tag color for UI theming (hex format)
+   */
+  color: string;
+  /**
+   * Parent category for grouping. Parent categories are not selectable on meditations.
+   */
+  parent?: (number | null) | MeditationTag;
+  /**
+   * Featured categories are shown prominently; non-featured categories appear in a dropdown
+   */
+  isFeatured: boolean;
+  /**
+   * Display order (lower numbers appear first)
+   */
+  order?: number | null;
+  /**
+   * Which times of day this category offers meditations
+   */
+  timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
+  /**
+   * The meditation offered for this category in the morning
+   */
+  morningMeditation?: (number | null) | Meditation;
+  /**
+   * The meditation offered for this category in the afternoon
+   */
+  afternoonMeditation?: (number | null) | Meditation;
+  /**
+   * The meditation offered for this category in the evening
+   */
+  eveningMeditation?: (number | null) | Meditation;
+  /**
+   * The meditation offered for this category at night
+   */
+  nightMeditation?: (number | null) | Meditation;
+  /**
+   * Automatically set when this tag has child categories
+   */
+  isParent: boolean;
+  children?: {
+    docs?: (number | MeditationTag)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1666,10 +1640,6 @@ export interface MeditationsSelect<T extends boolean = true> {
   thumbnail?: T;
   type?: T;
   timings?: T;
-  asMorningMeditation?: T;
-  asAfternoonMeditation?: T;
-  asEveningMeditation?: T;
-  asNightMeditation?: T;
   frames?: T;
   updatedAt?: T;
   createdAt?: T;

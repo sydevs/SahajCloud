@@ -356,7 +356,7 @@ describe('MeditationTags Collection - Metadata Fields', () => {
         collection: 'meditation-tags',
         id: tag.id,
         locale: 'cs',
-        data: { morningMeditation: czechMeditation.id },
+        data: { title: 'Testovací Tag', morningMeditation: czechMeditation.id },
       })
 
       // Verify English assignment is preserved
