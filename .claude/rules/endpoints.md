@@ -11,8 +11,7 @@ Rules for writing custom PayloadCMS collection endpoint handlers.
 ```
 src/endpoints/
 ├── index.ts                      # Barrel export (re-export all handlers)
-├── framesByNarrator.ts           # Frames collection endpoint
-└── meditationTagsByTiming.ts     # MeditationTags collection endpoint
+└── framesByNarrator.ts           # Frames collection endpoint
 ```
 
 ## Handler Pattern
