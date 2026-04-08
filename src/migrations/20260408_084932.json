@@ -721,73 +721,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "meditations_timings": {
-      "name": "meditations_timings",
-      "columns": {
-        "order": {
-          "name": "order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "value": {
-          "name": "value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "meditations_timings_order_idx": {
-          "name": "meditations_timings_order_idx",
-          "columns": [
-            "order"
-          ],
-          "isUnique": false
-        },
-        "meditations_timings_parent_idx": {
-          "name": "meditations_timings_parent_idx",
-          "columns": [
-            "parent_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "meditations_timings_parent_fk": {
-          "name": "meditations_timings_parent_fk",
-          "tableFrom": "meditations_timings",
-          "tableTo": "meditations",
-          "columnsFrom": [
-            "parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "meditations": {
       "name": "meditations",
       "columns": {
@@ -1068,127 +1001,6 @@
             "id"
           ],
           "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "meditations_locales": {
-      "name": "meditations_locales",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_locale": {
-          "name": "_locale",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_parent_id": {
-          "name": "_parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "meditations_locales_locale_parent_id_unique": {
-          "name": "meditations_locales_locale_parent_id_unique",
-          "columns": [
-            "_locale",
-            "_parent_id"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "meditations_locales_parent_id_fk": {
-          "name": "meditations_locales_parent_id_fk",
-          "tableFrom": "meditations_locales",
-          "tableTo": "meditations",
-          "columnsFrom": [
-            "_parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "_meditations_v_version_timings": {
-      "name": "_meditations_v_version_timings",
-      "columns": {
-        "order": {
-          "name": "order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "value": {
-          "name": "value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "_meditations_v_version_timings_order_idx": {
-          "name": "_meditations_v_version_timings_order_idx",
-          "columns": [
-            "order"
-          ],
-          "isUnique": false
-        },
-        "_meditations_v_version_timings_parent_idx": {
-          "name": "_meditations_v_version_timings_parent_idx",
-          "columns": [
-            "parent_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "_meditations_v_version_timings_parent_fk": {
-          "name": "_meditations_v_version_timings_parent_fk",
-          "tableFrom": "_meditations_v_version_timings",
-          "tableTo": "_meditations_v",
-          "columnsFrom": [
-            "parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -1573,60 +1385,6 @@
             "id"
           ],
           "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "_meditations_v_locales": {
-      "name": "_meditations_v_locales",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_locale": {
-          "name": "_locale",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_parent_id": {
-          "name": "_parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "_meditations_v_locales_locale_parent_id_unique": {
-          "name": "_meditations_v_locales_locale_parent_id_unique",
-          "columns": [
-            "_locale",
-            "_parent_id"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "_meditations_v_locales_parent_id_fk": {
-          "name": "_meditations_v_locales_parent_id_fk",
-          "tableFrom": "_meditations_v_locales",
-          "tableTo": "_meditations_v",
-          "columnsFrom": [
-            "_parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -10906,6 +10664,6 @@
   "internal": {
     "indexes": {}
   },
-  "id": "25d1791e-7563-4cff-95e6-13d5d972d0a4",
+  "id": "c7321891-7c41-4ca4-8a60-b40e9a12b20c",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

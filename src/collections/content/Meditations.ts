@@ -46,6 +46,31 @@ const randomSongUrlAfterRead: FieldHook = async ({ data, req }) => {
   return getR2Url(song.filename) ?? `/api/songs/file/${song.filename}`
 }
 
+/**
+ * Factory for afterRead hooks that find MeditationTags referencing this meditation
+ * for a specific timing field. Returns an array of { id, title } objects.
+ */
+const tagAssignmentAfterRead = (
+  timingField: 'morningMeditation' | 'afternoonMeditation' | 'eveningMeditation' | 'nightMeditation',
+): FieldHook => {
+  return async ({ data, req }) => {
+    if (!data?.id) return []
+    try {
+      const result = await req.payload.find({
+        collection: 'meditation-tags',
+        where: { [timingField]: { equals: data.id }, isParent: { not_equals: true } },
+        select: { title: true },
+        locale: req.locale || 'en',
+        depth: 0,
+        limit: 50,
+      })
+      return result.docs.map((tag) => ({ id: tag.id, title: tag.title }))
+    } catch {
+      return []
+    }
+  }
+}
+
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
   trash: true,
@@ -55,6 +80,10 @@ export const Meditations: CollectionConfig = {
   },
   defaultPopulate: {
     randomSongUrl: false,
+    asMorningMeditation: false,
+    asAfternoonMeditation: false,
+    asEveningMeditation: false,
+    asNightMeditation: false,
   },
   versions: {
     maxPerDoc: 3,
@@ -264,30 +293,54 @@ export const Meditations: CollectionConfig = {
                 },
               },
             },
+            // Virtual fields showing which MeditationTags reference this meditation per timing.
+            // Uses afterRead hooks instead of join fields to avoid a PayloadCMS bug where
+            // docWithFilenameExists calls db.findOne() without locale, breaking join subqueries
+            // that target localized relationships.
             {
-              name: 'timings',
-              type: 'select',
-              hasMany: true,
-              options: [
-                { label: 'Morning', value: 'morning' },
-                { label: 'Afternoon', value: 'afternoon' },
-                { label: 'Evening', value: 'evening' },
-                { label: 'Night', value: 'night' },
-              ],
+              name: 'asMorningMeditation',
+              type: 'json',
+              virtual: true,
               admin: {
-                condition: (data) => data.type === 'quick' || data.type === 'daily',
-                description: 'When this meditation is available',
-                components: {
-                  Field: '@/components/admin/ToggleGroupField',
-                },
+                readOnly: true,
+                condition: ({ id }) => !!id,
+                description: 'Categories using this meditation for morning',
               },
+              hooks: { afterRead: [tagAssignmentAfterRead('morningMeditation')] },
             },
-            // NOTE: Reverse join fields for per-timing tag assignments are intentionally omitted.
-            // PayloadCMS's docWithFilenameExists (used during upload) calls db.findOne()
-            // without passing locale, causing "undefined cannot be passed as argument"
-            // errors when join fields target localized relationships on other collections.
-            // See: https://github.com/payloadcms/payload/issues/XXXX
-            // Admins can view tag assignments from the MeditationTags collection instead.
+            {
+              name: 'asAfternoonMeditation',
+              type: 'json',
+              virtual: true,
+              admin: {
+                readOnly: true,
+                condition: ({ id }) => !!id,
+                description: 'Categories using this meditation for afternoon',
+              },
+              hooks: { afterRead: [tagAssignmentAfterRead('afternoonMeditation')] },
+            },
+            {
+              name: 'asEveningMeditation',
+              type: 'json',
+              virtual: true,
+              admin: {
+                readOnly: true,
+                condition: ({ id }) => !!id,
+                description: 'Categories using this meditation for evening',
+              },
+              hooks: { afterRead: [tagAssignmentAfterRead('eveningMeditation')] },
+            },
+            {
+              name: 'asNightMeditation',
+              type: 'json',
+              virtual: true,
+              admin: {
+                readOnly: true,
+                condition: ({ id }) => !!id,
+                description: 'Categories using this meditation at night',
+              },
+              hooks: { afterRead: [tagAssignmentAfterRead('nightMeditation')] },
+            },
           ],
         },
         {

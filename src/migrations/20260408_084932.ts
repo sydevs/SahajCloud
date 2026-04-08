@@ -11,7 +11,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   `)
   await db.run(sql`CREATE INDEX \`meditation_tags_timings_order_idx\` ON \`meditation_tags_timings\` (\`order\`);`)
   await db.run(sql`CREATE INDEX \`meditation_tags_timings_parent_idx\` ON \`meditation_tags_timings\` (\`parent_id\`);`)
+  await db.run(sql`DROP TABLE \`meditations_timings\`;`)
   await db.run(sql`DROP TABLE \`meditations_rels\`;`)
+  await db.run(sql`DROP TABLE \`_meditations_v_version_timings\`;`)
   await db.run(sql`DROP TABLE \`_meditations_v_rels\`;`)
   await db.run(sql`ALTER TABLE \`meditation_tags_locales\` ADD \`morning_meditation_id\` integer REFERENCES meditations(id);`)
   await db.run(sql`ALTER TABLE \`meditation_tags_locales\` ADD \`afternoon_meditation_id\` integer REFERENCES meditations(id);`)
@@ -24,6 +26,16 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
 }
 
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+  await db.run(sql`CREATE TABLE \`meditations_timings\` (
+  	\`order\` integer NOT NULL,
+  	\`parent_id\` integer NOT NULL,
+  	\`value\` text,
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	FOREIGN KEY (\`parent_id\`) REFERENCES \`meditations\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`meditations_timings_order_idx\` ON \`meditations_timings\` (\`order\`);`)
+  await db.run(sql`CREATE INDEX \`meditations_timings_parent_idx\` ON \`meditations_timings\` (\`parent_id\`);`)
   await db.run(sql`CREATE TABLE \`meditations_rels\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`order\` integer,
@@ -38,6 +50,16 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   await db.run(sql`CREATE INDEX \`meditations_rels_parent_idx\` ON \`meditations_rels\` (\`parent_id\`);`)
   await db.run(sql`CREATE INDEX \`meditations_rels_path_idx\` ON \`meditations_rels\` (\`path\`);`)
   await db.run(sql`CREATE INDEX \`meditations_rels_meditation_tags_id_idx\` ON \`meditations_rels\` (\`meditation_tags_id\`);`)
+  await db.run(sql`CREATE TABLE \`_meditations_v_version_timings\` (
+  	\`order\` integer NOT NULL,
+  	\`parent_id\` integer NOT NULL,
+  	\`value\` text,
+  	\`id\` integer PRIMARY KEY NOT NULL,
+  	FOREIGN KEY (\`parent_id\`) REFERENCES \`_meditations_v\`(\`id\`) ON UPDATE no action ON DELETE cascade
+  );
+  `)
+  await db.run(sql`CREATE INDEX \`_meditations_v_version_timings_order_idx\` ON \`_meditations_v_version_timings\` (\`order\`);`)
+  await db.run(sql`CREATE INDEX \`_meditations_v_version_timings_parent_idx\` ON \`_meditations_v_version_timings\` (\`parent_id\`);`)
   await db.run(sql`CREATE TABLE \`_meditations_v_rels\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`order\` integer,

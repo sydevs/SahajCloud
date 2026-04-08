@@ -449,9 +449,53 @@ export interface Meditation {
   thumbnail?: (number | null) | Image;
   type: 'quick' | 'daily' | 'lesson';
   /**
-   * When this meditation is available
+   * Categories using this meditation for morning
    */
-  timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
+  asMorningMeditation?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Categories using this meditation for afternoon
+   */
+  asAfternoonMeditation?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Categories using this meditation for evening
+   */
+  asEveningMeditation?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Categories using this meditation at night
+   */
+  asNightMeditation?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   frames?:
     | {
         [k: string]: unknown;
@@ -1639,7 +1683,10 @@ export interface MeditationsSelect<T extends boolean = true> {
   slug?: T;
   thumbnail?: T;
   type?: T;
-  timings?: T;
+  asMorningMeditation?: T;
+  asAfternoonMeditation?: T;
+  asEveningMeditation?: T;
+  asNightMeditation?: T;
   frames?: T;
   updatedAt?: T;
   createdAt?: T;
