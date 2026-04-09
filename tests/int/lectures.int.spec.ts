@@ -397,6 +397,24 @@ describe('Lectures Collection', () => {
       expect(lecture.endTime).toBe(10)
     })
 
+    it('rejects negative startTime', async () => {
+      await expect(
+        testData.createLecture(payload, undefined, {
+          startTime: -10,
+          endTime: 60,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('rejects negative endTime', async () => {
+      await expect(
+        testData.createLecture(payload, undefined, {
+          startTime: 0,
+          endTime: -5,
+        }),
+      ).rejects.toThrow()
+    })
+
     it('persists updated time range', async () => {
       const lecture = await testData.createLecture(payload)
 

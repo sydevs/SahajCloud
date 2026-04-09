@@ -37,6 +37,8 @@ export const Lectures: CollectionConfig = {
           name: 'startTime',
           type: 'number',
           required: true,
+          defaultValue: 0,
+          min: 0,
           admin: {
             description: 'Start of the excerpt (HH:MM:SS)',
             components: {
@@ -48,6 +50,7 @@ export const Lectures: CollectionConfig = {
           name: 'endTime',
           type: 'number',
           required: true,
+          min: 0,
           admin: {
             description: 'End of the excerpt (HH:MM:SS)',
             components: {
@@ -55,7 +58,6 @@ export const Lectures: CollectionConfig = {
             },
           },
           validate: (value: number | null | undefined, { siblingData }: { siblingData: Record<string, unknown> }) => {
-            if (value == null) return 'End time is required'
             if (typeof value === 'number' && typeof siblingData?.startTime === 'number') {
               if (value <= siblingData.startTime) {
                 return 'End time must be after start time'

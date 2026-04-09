@@ -3,7 +3,7 @@
 import type { NumberFieldClientComponent } from 'payload'
 
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 
 function secondsToHHMMSS(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600)
@@ -33,6 +33,11 @@ export const TimestampInput: NumberFieldClientComponent = ({ field, readOnly }) 
   const [displayValue, setDisplayValue] = useState<string>(
     typeof value === 'number' ? secondsToHHMMSS(value) : '',
   )
+
+  // Sync displayValue when value changes externally (form reset, programmatic update)
+  useEffect(() => {
+    setDisplayValue(typeof value === 'number' ? secondsToHHMMSS(value) : '')
+  }, [value])
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
