@@ -50,6 +50,7 @@ export const Lectures: CollectionConfig = {
           name: 'endTime',
           type: 'number',
           required: true,
+          defaultValue: 10 * 60,
           min: 0,
           admin: {
             description: 'End of the excerpt (HH:MM:SS)',
@@ -57,7 +58,10 @@ export const Lectures: CollectionConfig = {
               Field: '@/components/admin/TimestampInput',
             },
           },
-          validate: (value: number | null | undefined, { siblingData }: { siblingData: Record<string, unknown> }) => {
+          validate: (
+            value: number | null | undefined,
+            { siblingData }: { siblingData: Record<string, unknown> },
+          ) => {
             if (typeof value === 'number' && typeof siblingData?.startTime === 'number') {
               if (value <= siblingData.startTime) {
                 return 'End time must be after start time'
