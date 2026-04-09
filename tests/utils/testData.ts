@@ -718,6 +718,8 @@ export const testData = {
         thumbnail,
         videoUrl: 'https://example.com/video.mp4',
         nirmalVidyaVimeoUrl: 'https://vimeo.com/123456789',
+        startTime: 0,
+        endTime: 60,
         ...overrides,
       },
     })) as Lecture

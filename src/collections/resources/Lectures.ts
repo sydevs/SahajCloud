@@ -31,6 +31,48 @@ export const Lectures: CollectionConfig = {
       },
     }),
     {
+      type: 'row',
+      fields: [
+        {
+          name: 'startTime',
+          type: 'number',
+          required: true,
+          defaultValue: 0,
+          min: 0,
+          admin: {
+            description: 'Start of the excerpt (HH:MM:SS)',
+            components: {
+              Field: '@/components/admin/TimestampInput',
+            },
+          },
+        },
+        {
+          name: 'endTime',
+          type: 'number',
+          required: true,
+          defaultValue: 10 * 60,
+          min: 0,
+          admin: {
+            description: 'End of the excerpt (HH:MM:SS)',
+            components: {
+              Field: '@/components/admin/TimestampInput',
+            },
+          },
+          validate: (
+            value: number | null | undefined,
+            { siblingData }: { siblingData: Record<string, unknown> },
+          ) => {
+            if (typeof value === 'number' && typeof siblingData?.startTime === 'number') {
+              if (value <= siblingData.startTime) {
+                return 'End time must be after start time'
+              }
+            }
+            return true
+          },
+        },
+      ],
+    },
+    {
       name: 'title',
       type: 'text',
       required: false, // Hook satisfies this on create; validated on update via condition

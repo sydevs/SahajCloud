@@ -64,6 +64,8 @@ describe('Lectures Collection', () => {
         collection: 'lectures',
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/123456789',
+          startTime: 0,
+          endTime: 60,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -87,6 +89,8 @@ describe('Lectures Collection', () => {
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/111111111',
           title: 'User Provided Title',
+          startTime: 0,
+          endTime: 60,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -116,6 +120,8 @@ describe('Lectures Collection', () => {
         collection: 'lectures',
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/999999999',
+          startTime: 0,
+          endTime: 60,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -142,6 +148,8 @@ describe('Lectures Collection', () => {
         collection: 'lectures',
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/888888888',
+          startTime: 0,
+          endTime: 60,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -157,6 +165,8 @@ describe('Lectures Collection', () => {
           collection: 'lectures',
           data: {
             nirmalVidyaVimeoUrl: 'https://youtube.com/watch?v=abc123',
+            startTime: 0,
+            endTime: 60,
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
@@ -174,6 +184,8 @@ describe('Lectures Collection', () => {
           collection: 'lectures',
           data: {
             nirmalVidyaVimeoUrl: 'https://vimeo.com/404',
+            startTime: 0,
+            endTime: 60,
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
@@ -269,6 +281,8 @@ describe('Lectures Collection', () => {
         collection: 'lectures',
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/555555555',
+          startTime: 0,
+          endTime: 60,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -308,6 +322,8 @@ describe('Lectures Collection', () => {
         collection: 'lectures',
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/666666666',
+          startTime: 0,
+          endTime: 60,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -332,11 +348,87 @@ describe('Lectures Collection', () => {
         collection: 'lectures',
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/777777777',
+          startTime: 0,
+          endTime: 60,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
 
       expect(lecture.subtitlesUrl).toBeFalsy()
+    })
+  })
+
+  describe('startTime and endTime fields', () => {
+    it('stores valid startTime and endTime as seconds', async () => {
+      const lecture = await testData.createLecture(payload, undefined, {
+        startTime: 930,
+        endTime: 3765,
+      })
+
+      expect(lecture.startTime).toBe(930)
+      expect(lecture.endTime).toBe(3765)
+    })
+
+    it('rejects endTime <= startTime', async () => {
+      await expect(
+        testData.createLecture(payload, undefined, {
+          startTime: 100,
+          endTime: 50,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('rejects equal startTime and endTime', async () => {
+      await expect(
+        testData.createLecture(payload, undefined, {
+          startTime: 100,
+          endTime: 100,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('accepts startTime of 0', async () => {
+      const lecture = await testData.createLecture(payload, undefined, {
+        startTime: 0,
+        endTime: 10,
+      })
+
+      expect(lecture.startTime).toBe(0)
+      expect(lecture.endTime).toBe(10)
+    })
+
+    it('rejects negative startTime', async () => {
+      await expect(
+        testData.createLecture(payload, undefined, {
+          startTime: -10,
+          endTime: 60,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('rejects negative endTime', async () => {
+      await expect(
+        testData.createLecture(payload, undefined, {
+          startTime: 0,
+          endTime: -5,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('persists updated time range', async () => {
+      const lecture = await testData.createLecture(payload)
+
+      const updated = await payload.update({
+        collection: 'lectures',
+        id: lecture.id,
+        data: {
+          startTime: 300,
+          endTime: 900,
+        },
+      })
+
+      expect(updated.startTime).toBe(300)
+      expect(updated.endTime).toBe(900)
     })
   })
 
