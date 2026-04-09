@@ -54,7 +54,7 @@ export const Lectures: CollectionConfig = {
               Field: '@/components/admin/TimestampInput',
             },
           },
-          validate: (value, { siblingData }) => {
+          validate: (value: number | null | undefined, { siblingData }: { siblingData: Record<string, unknown> }) => {
             if (value == null) return 'End time is required'
             if (typeof value === 'number' && typeof siblingData?.startTime === 'number') {
               if (value <= siblingData.startTime) {
