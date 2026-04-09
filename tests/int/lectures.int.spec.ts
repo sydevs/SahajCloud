@@ -358,6 +358,62 @@ describe('Lectures Collection', () => {
     })
   })
 
+  describe('startTime and endTime fields', () => {
+    it('stores valid startTime and endTime as seconds', async () => {
+      const lecture = await testData.createLecture(payload, undefined, {
+        startTime: 930,
+        endTime: 3765,
+      })
+
+      expect(lecture.startTime).toBe(930)
+      expect(lecture.endTime).toBe(3765)
+    })
+
+    it('rejects endTime <= startTime', async () => {
+      await expect(
+        testData.createLecture(payload, undefined, {
+          startTime: 100,
+          endTime: 50,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('rejects equal startTime and endTime', async () => {
+      await expect(
+        testData.createLecture(payload, undefined, {
+          startTime: 100,
+          endTime: 100,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('accepts startTime of 0', async () => {
+      const lecture = await testData.createLecture(payload, undefined, {
+        startTime: 0,
+        endTime: 10,
+      })
+
+      expect(lecture.startTime).toBe(0)
+      expect(lecture.endTime).toBe(10)
+    })
+
+    it('persists updated time range', async () => {
+      const lecture = await testData.createLecture(payload)
+
+      const updated = await payload.update({
+        collection: 'lectures',
+        id: lecture.id,
+        data: {
+          startTime: 300,
+          endTime: 900,
+        },
+      })
+
+      expect(updated.startTime).toBe(300)
+      expect(updated.endTime).toBe(900)
+    })
+  })
+
   describe('extractVimeoId', () => {
     // The mock delegates to the real implementation via importOriginal
     it('parses https://vimeo.com/123456789', async () => {
