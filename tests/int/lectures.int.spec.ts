@@ -64,6 +64,8 @@ describe('Lectures Collection', () => {
         collection: 'lectures',
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/123456789',
+          startTime: 0,
+          endTime: 60,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -87,6 +89,8 @@ describe('Lectures Collection', () => {
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/111111111',
           title: 'User Provided Title',
+          startTime: 0,
+          endTime: 60,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -116,6 +120,8 @@ describe('Lectures Collection', () => {
         collection: 'lectures',
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/999999999',
+          startTime: 0,
+          endTime: 60,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -142,6 +148,8 @@ describe('Lectures Collection', () => {
         collection: 'lectures',
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/888888888',
+          startTime: 0,
+          endTime: 60,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -157,6 +165,8 @@ describe('Lectures Collection', () => {
           collection: 'lectures',
           data: {
             nirmalVidyaVimeoUrl: 'https://youtube.com/watch?v=abc123',
+            startTime: 0,
+            endTime: 60,
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
@@ -174,6 +184,8 @@ describe('Lectures Collection', () => {
           collection: 'lectures',
           data: {
             nirmalVidyaVimeoUrl: 'https://vimeo.com/404',
+            startTime: 0,
+            endTime: 60,
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
@@ -269,6 +281,8 @@ describe('Lectures Collection', () => {
         collection: 'lectures',
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/555555555',
+          startTime: 0,
+          endTime: 60,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -308,6 +322,8 @@ describe('Lectures Collection', () => {
         collection: 'lectures',
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/666666666',
+          startTime: 0,
+          endTime: 60,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
@@ -332,6 +348,8 @@ describe('Lectures Collection', () => {
         collection: 'lectures',
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/777777777',
+          startTime: 0,
+          endTime: 60,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
