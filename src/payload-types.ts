@@ -449,53 +449,46 @@ export interface Meditation {
   thumbnail?: (number | null) | Image;
   type: 'quick' | 'daily' | 'lesson';
   /**
-   * Categories using this meditation for morning
+   * Shows which categories use this meditation for each time of day. Managed from the Categories collection.
    */
-  asMorningMeditation?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Categories using this meditation for afternoon
-   */
-  asAfternoonMeditation?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Categories using this meditation for evening
-   */
-  asEveningMeditation?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
-   * Categories using this meditation at night
-   */
-  asNightMeditation?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  tagAssignments?: {
+    asMorningMeditation?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    asAfternoonMeditation?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    asEveningMeditation?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    asNightMeditation?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
   frames?:
     | {
         [k: string]: unknown;
@@ -1683,10 +1676,14 @@ export interface MeditationsSelect<T extends boolean = true> {
   slug?: T;
   thumbnail?: T;
   type?: T;
-  asMorningMeditation?: T;
-  asAfternoonMeditation?: T;
-  asEveningMeditation?: T;
-  asNightMeditation?: T;
+  tagAssignments?:
+    | T
+    | {
+        asMorningMeditation?: T;
+        asAfternoonMeditation?: T;
+        asEveningMeditation?: T;
+        asNightMeditation?: T;
+      };
   frames?: T;
   updatedAt?: T;
   createdAt?: T;

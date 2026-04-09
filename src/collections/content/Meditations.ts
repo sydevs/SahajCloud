@@ -1,4 +1,4 @@
-import type { CollectionConfig, FieldHook, Validate, Where } from 'payload'
+import type { CollectionConfig, FieldHook, JSONField, Validate, Where } from 'payload'
 
 import { mediaField, slugField } from '@/fields'
 import { extractAudioDuration, filterMeditationsByLocale } from '@/hooks/meditationHooks'
@@ -50,26 +50,53 @@ const randomSongUrlAfterRead: FieldHook = async ({ data, req }) => {
  * Factory for afterRead hooks that find MeditationTags referencing this meditation
  * for a specific timing field. Returns an array of { id, title } objects.
  */
-const tagAssignmentAfterRead = (
-  timingField: 'morningMeditation' | 'afternoonMeditation' | 'eveningMeditation' | 'nightMeditation',
-): FieldHook => {
-  return async ({ data, req }) => {
-    if (!data?.id) return []
-    try {
-      const result = await req.payload.find({
-        collection: 'meditation-tags',
-        where: { [timingField]: { equals: data.id }, isParent: { not_equals: true } },
-        select: { title: true },
-        locale: req.locale || 'en',
-        depth: 0,
-        limit: 50,
-      })
-      return result.docs.map((tag) => ({ id: tag.id, title: tag.title }))
-    } catch {
-      return []
-    }
-  }
-}
+/**
+ * @deprecated Workaround for a PayloadCMS bug — replace with native join fields
+ * when fixed. See https://github.com/sydevs/SahajCloud/issues/249
+ *
+ * PayloadCMS's `docWithFilenameExists` calls `db.findOne()` without passing
+ * `locale`, which breaks join subqueries that target localized relationships
+ * on upload collections. This factory emulates join fields using virtual JSON
+ * fields with afterRead hooks.
+ *
+ * Each call maps 1:1 to this native join field config:
+ *   { type: 'join', collection: 'meditation-tags', on: '<onField>' }
+ */
+const virtualJoinField = ({
+  name,
+  on,
+}: {
+  name: string
+  on: string
+}): JSONField => ({
+  name,
+  type: 'json',
+  virtual: true,
+  admin: {
+    readOnly: true,
+    components: { Field: '@/components/admin/TagAssignmentField' },
+  },
+  hooks: {
+    afterRead: [
+      async ({ data, req }) => {
+        if (!data?.id) return []
+        try {
+          const result = await req.payload.find({
+            collection: 'meditation-tags',
+            where: { [on]: { equals: data.id }, isParent: { not_equals: true } },
+            select: { title: true },
+            locale: req.locale || 'en',
+            depth: 0,
+            limit: 50,
+          })
+          return result.docs.map((tag) => ({ id: tag.id, title: tag.title }))
+        } catch {
+          return []
+        }
+      },
+    ],
+  },
+})
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
@@ -80,10 +107,7 @@ export const Meditations: CollectionConfig = {
   },
   defaultPopulate: {
     randomSongUrl: false,
-    asMorningMeditation: false,
-    asAfternoonMeditation: false,
-    asEveningMeditation: false,
-    asNightMeditation: false,
+    tagAssignments: false,
   },
   versions: {
     maxPerDoc: 3,
@@ -293,53 +317,21 @@ export const Meditations: CollectionConfig = {
                 },
               },
             },
-            // Virtual fields showing which MeditationTags reference this meditation per timing.
-            // Uses afterRead hooks instead of join fields to avoid a PayloadCMS bug where
-            // docWithFilenameExists calls db.findOne() without locale, breaking join subqueries
-            // that target localized relationships.
             {
-              name: 'asMorningMeditation',
-              type: 'json',
-              virtual: true,
+              name: 'tagAssignments',
+              type: 'group',
+              label: 'Category Assignments',
               admin: {
-                readOnly: true,
                 condition: ({ id }) => !!id,
-                description: 'Categories using this meditation for morning',
+                description:
+                  'Shows which categories use this meditation for each time of day. Managed from the Categories collection.',
               },
-              hooks: { afterRead: [tagAssignmentAfterRead('morningMeditation')] },
-            },
-            {
-              name: 'asAfternoonMeditation',
-              type: 'json',
-              virtual: true,
-              admin: {
-                readOnly: true,
-                condition: ({ id }) => !!id,
-                description: 'Categories using this meditation for afternoon',
-              },
-              hooks: { afterRead: [tagAssignmentAfterRead('afternoonMeditation')] },
-            },
-            {
-              name: 'asEveningMeditation',
-              type: 'json',
-              virtual: true,
-              admin: {
-                readOnly: true,
-                condition: ({ id }) => !!id,
-                description: 'Categories using this meditation for evening',
-              },
-              hooks: { afterRead: [tagAssignmentAfterRead('eveningMeditation')] },
-            },
-            {
-              name: 'asNightMeditation',
-              type: 'json',
-              virtual: true,
-              admin: {
-                readOnly: true,
-                condition: ({ id }) => !!id,
-                description: 'Categories using this meditation at night',
-              },
-              hooks: { afterRead: [tagAssignmentAfterRead('nightMeditation')] },
+              fields: [
+                virtualJoinField({ name: 'asMorningMeditation', on: 'morningMeditation' }),
+                virtualJoinField({ name: 'asAfternoonMeditation', on: 'afternoonMeditation' }),
+                virtualJoinField({ name: 'asEveningMeditation', on: 'eveningMeditation' }),
+                virtualJoinField({ name: 'asNightMeditation', on: 'nightMeditation' }),
+              ],
             },
           ],
         },
