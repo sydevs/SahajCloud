@@ -49,8 +49,7 @@ const randomSongUrlAfterRead: FieldHook = async ({ data, req }) => {
 /**
  * Factory for afterRead hooks that find MeditationTags referencing this meditation
  * for a specific timing field. Returns an array of { id, title } objects.
- */
-/**
+ *
  * @deprecated Workaround for a PayloadCMS bug — replace with native join fields
  * when fixed. See https://github.com/sydevs/SahajCloud/issues/249
  *
@@ -62,13 +61,7 @@ const randomSongUrlAfterRead: FieldHook = async ({ data, req }) => {
  * Each call maps 1:1 to this native join field config:
  *   { type: 'join', collection: 'meditation-tags', on: '<onField>' }
  */
-const virtualJoinField = ({
-  name,
-  on,
-}: {
-  name: string
-  on: string
-}): JSONField => ({
+const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField => ({
   name,
   type: 'json',
   virtual: true,
@@ -90,7 +83,12 @@ const virtualJoinField = ({
             limit: 50,
           })
           return result.docs.map((tag) => ({ id: tag.id, title: tag.title }))
-        } catch {
+        } catch (error) {
+          req.payload.logger.warn({
+            msg: `Failed to fetch tag assignments for meditation ${data.id}`,
+            field: on,
+            error: error instanceof Error ? error.message : String(error),
+          })
           return []
         }
       },
