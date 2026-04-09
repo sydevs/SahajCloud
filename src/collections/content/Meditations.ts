@@ -1,4 +1,4 @@
-import type { CollectionConfig, FieldHook, Validate, Where } from 'payload'
+import type { CollectionConfig, FieldHook, JSONField, Validate, Where } from 'payload'
 
 import { mediaField, slugField } from '@/fields'
 import { extractAudioDuration, filterMeditationsByLocale } from '@/hooks/meditationHooks'
@@ -46,6 +46,58 @@ const randomSongUrlAfterRead: FieldHook = async ({ data, req }) => {
   return getR2Url(song.filename) ?? `/api/songs/file/${song.filename}`
 }
 
+/**
+ * Factory for afterRead hooks that find MeditationTags referencing this meditation
+ * for a specific timing field. Returns an array of { id, title } objects.
+ */
+/**
+ * @deprecated Workaround for a PayloadCMS bug — replace with native join fields
+ * when fixed. See https://github.com/sydevs/SahajCloud/issues/249
+ *
+ * PayloadCMS's `docWithFilenameExists` calls `db.findOne()` without passing
+ * `locale`, which breaks join subqueries that target localized relationships
+ * on upload collections. This factory emulates join fields using virtual JSON
+ * fields with afterRead hooks.
+ *
+ * Each call maps 1:1 to this native join field config:
+ *   { type: 'join', collection: 'meditation-tags', on: '<onField>' }
+ */
+const virtualJoinField = ({
+  name,
+  on,
+}: {
+  name: string
+  on: string
+}): JSONField => ({
+  name,
+  type: 'json',
+  virtual: true,
+  admin: {
+    readOnly: true,
+    components: { Field: '@/components/admin/TagAssignmentField' },
+  },
+  hooks: {
+    afterRead: [
+      async ({ data, req }) => {
+        if (!data?.id) return []
+        try {
+          const result = await req.payload.find({
+            collection: 'meditation-tags',
+            where: { [on]: { equals: data.id }, isParent: { not_equals: true } },
+            select: { title: true },
+            locale: req.locale || 'en',
+            depth: 0,
+            limit: 50,
+          })
+          return result.docs.map((tag) => ({ id: tag.id, title: tag.title }))
+        } catch {
+          return []
+        }
+      },
+    ],
+  },
+})
+
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
   trash: true,
@@ -55,6 +107,7 @@ export const Meditations: CollectionConfig = {
   },
   defaultPopulate: {
     randomSongUrl: false,
+    tagAssignments: false,
   },
   versions: {
     maxPerDoc: 3,
@@ -71,7 +124,7 @@ export const Meditations: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'label',
-    defaultColumns: ['label', 'thumbnail', '_status', 'tags', 'durationMinutes'],
+    defaultColumns: ['label', 'thumbnail', '_status', 'type', 'durationMinutes'],
     livePreview: {
       url: ({ data }) => {
         const baseURL = process.env.WEMEDITATE_WEB_URL
@@ -265,40 +318,20 @@ export const Meditations: CollectionConfig = {
               },
             },
             {
-              name: 'timings',
-              type: 'select',
-              hasMany: true,
-              options: [
-                { label: 'Morning', value: 'morning' },
-                { label: 'Afternoon', value: 'afternoon' },
-                { label: 'Evening', value: 'evening' },
-                { label: 'Night', value: 'night' },
+              name: 'tagAssignments',
+              type: 'group',
+              label: 'Category Assignments',
+              admin: {
+                condition: ({ id }) => !!id,
+                description:
+                  'Shows which categories use this meditation for each time of day. Managed from the Categories collection.',
+              },
+              fields: [
+                virtualJoinField({ name: 'asMorningMeditation', on: 'morningMeditation' }),
+                virtualJoinField({ name: 'asAfternoonMeditation', on: 'afternoonMeditation' }),
+                virtualJoinField({ name: 'asEveningMeditation', on: 'eveningMeditation' }),
+                virtualJoinField({ name: 'asNightMeditation', on: 'nightMeditation' }),
               ],
-              admin: {
-                condition: (data) => data.type === 'quick' || data.type === 'daily',
-                description: 'When this meditation is available',
-                components: {
-                  Field: '@/components/admin/ToggleGroupField',
-                },
-              },
-            },
-            {
-              name: 'tags',
-              type: 'relationship',
-              relationTo: 'meditation-tags',
-              hasMany: true,
-              filterOptions: { isParent: { not_equals: true } },
-              admin: {
-                condition: (data) => data.type === 'daily',
-                description: 'Categorize this meditation for seekers to find it',
-                components: {
-                  Field: '@/components/admin/TagSelector',
-                },
-                custom: {
-                  filterQuery: { 'where[isParent][not_equals]': 'true' },
-                  size: 'large',
-                },
-              },
             },
           ],
         },

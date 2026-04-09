@@ -380,12 +380,14 @@ export const testData = {
 
     return (await payload.create({
       collection: 'meditations',
+      // locale option provides request-level locale context for join subqueries
+      // that reference localized fields on other collections (e.g., meditation-tags)
+      locale: overrides.locale || 'en',
       data: {
         label: overrides.label || overrides.title || defaultTitle,
         title: overrides.title || defaultTitle,
         thumbnail: thumbnail,
         narrator: narrator,
-        tags: overrides.tags || [],
         locale: overrides.locale || 'en',
         type: overrides.type || 'quick', // Default to 'quick' type
         ...overrides,
