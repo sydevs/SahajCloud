@@ -1,6 +1,5 @@
 import type { CollectionConfig } from 'payload'
 
-import { meditationTagsByTiming } from '@/endpoints'
 import { colorField, slugField } from '@/fields'
 import {
   clearIsParentOnDelete,
@@ -16,11 +15,10 @@ export const MeditationTags: CollectionConfig = {
     singular: 'Meditation Category',
     plural: 'Meditation Categories',
   },
-  endpoints: [meditationTagsByTiming],
   admin: {
     group: 'Metadata',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'filename', 'color', 'order', 'isFeatured', 'parent', 'meditations'],
+    defaultColumns: ['title', 'filename', 'color', 'order', 'isFeatured', 'parent', 'timings'],
   },
   hooks: {
     beforeValidate: [validateNesting],
@@ -102,6 +100,77 @@ export const MeditationTags: CollectionConfig = {
         description: 'Display order (lower numbers appear first)',
       },
     },
+    // Timings this tag is active for (controls which meditation fields are visible)
+    {
+      name: 'timings',
+      type: 'select',
+      hasMany: true,
+      options: [
+        { label: 'Morning', value: 'morning' },
+        { label: 'Afternoon', value: 'afternoon' },
+        { label: 'Evening', value: 'evening' },
+        { label: 'Night', value: 'night' },
+      ],
+      access: {
+        update: ({ req }) => req.user?.collection === 'managers' && req.user?.type === 'admin',
+      },
+      admin: {
+        condition: (data) => !data.isParent,
+        description: 'Which times of day this category offers meditations',
+        components: {
+          Field: '@/components/admin/ToggleGroupField',
+        },
+      },
+    },
+    // Per-timing localized meditation assignments
+    {
+      name: 'morningMeditation',
+      type: 'relationship',
+      relationTo: 'meditations',
+      localized: true,
+      filterOptions: { type: { equals: 'quick' } },
+      admin: {
+        condition: (data) =>
+          !data.isParent && Array.isArray(data.timings) && data.timings.includes('morning'),
+        description: 'The meditation offered for this category in the morning',
+      },
+    },
+    {
+      name: 'afternoonMeditation',
+      type: 'relationship',
+      relationTo: 'meditations',
+      localized: true,
+      filterOptions: { type: { equals: 'quick' } },
+      admin: {
+        condition: (data) =>
+          !data.isParent && Array.isArray(data.timings) && data.timings.includes('afternoon'),
+        description: 'The meditation offered for this category in the afternoon',
+      },
+    },
+    {
+      name: 'eveningMeditation',
+      type: 'relationship',
+      relationTo: 'meditations',
+      localized: true,
+      filterOptions: { type: { equals: 'quick' } },
+      admin: {
+        condition: (data) =>
+          !data.isParent && Array.isArray(data.timings) && data.timings.includes('evening'),
+        description: 'The meditation offered for this category in the evening',
+      },
+    },
+    {
+      name: 'nightMeditation',
+      type: 'relationship',
+      relationTo: 'meditations',
+      localized: true,
+      filterOptions: { type: { equals: 'quick' } },
+      admin: {
+        condition: (data) =>
+          !data.isParent && Array.isArray(data.timings) && data.timings.includes('night'),
+        description: 'The meditation offered for this category at night',
+      },
+    },
     // Whether this tag has children (auto-maintained by hooks)
     {
       name: 'isParent',
@@ -122,20 +191,6 @@ export const MeditationTags: CollectionConfig = {
       on: 'parent',
       admin: {
         condition: (data) => data.isParent,
-        components: {
-          Cell: '@/components/admin/RelationshipCountCell',
-        },
-      },
-    },
-    // Bidirectional join to meditations (hidden on parent tags)
-    {
-      name: 'meditations',
-      type: 'join',
-      collection: 'meditations',
-      on: 'tags',
-      defaultLimit: 100,
-      admin: {
-        condition: (data) => !data.isParent,
         components: {
           Cell: '@/components/admin/RelationshipCountCell',
         },

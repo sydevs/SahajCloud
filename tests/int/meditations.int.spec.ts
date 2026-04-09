@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { Meditation, Narrator, Image, SongTag, MeditationTag, Album } from '@/payload-types'
+import type { Meditation, Narrator, Image, SongTag, Album } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -12,8 +12,6 @@ describe('Meditations Collection', () => {
   let cleanup: () => Promise<void>
   let testNarrator: Narrator
   let testImageMedia: Image
-  let testTag1: MeditationTag
-  let testTag2: MeditationTag
   let testSongTag: SongTag
   let testMeditation: Meditation
   let testAlbum: Album
@@ -26,8 +24,6 @@ describe('Meditations Collection', () => {
     // Create test dependencies
     testNarrator = await testData.createNarrator(payload)
     testImageMedia = await testData.createMediaImage(payload)
-    testTag1 = await testData.createMeditationTag(payload)
-    testTag2 = await testData.createMeditationTag(payload)
     testSongTag = await testData.createSongTag(payload)
     testAlbum = await testData.createAlbum(payload)
 
@@ -40,7 +36,6 @@ describe('Meditations Collection', () => {
       },
       {
         title: 'Morning Meditation',
-        tags: [testTag1.id, testTag2.id],
         songTag: testSongTag.id,
       },
     )
@@ -60,15 +55,6 @@ describe('Meditations Collection', () => {
         ? testMeditation.narrator.id
         : testMeditation.narrator,
     ).toBe(testNarrator.id)
-    expect(testMeditation.tags).toHaveLength(2)
-    // Tags may be populated objects or IDs
-    const tagIds = Array.isArray(testMeditation.tags)
-      ? testMeditation.tags.map((tag) =>
-          typeof tag === 'object' && tag && 'id' in tag ? tag.id : tag,
-        )
-      : []
-    expect(tagIds).toContain(testTag1.id)
-    expect(tagIds).toContain(testTag2.id)
     expect(
       typeof testMeditation.songTag === 'object' && testMeditation.songTag
         ? testMeditation.songTag.id
@@ -382,7 +368,7 @@ describe('Meditations Collection', () => {
     })
   })
 
-  describe('Type and Timings fields', () => {
+  describe('Type field', () => {
     it('creates meditation with quick type by default', async () => {
       const meditation = await testData.createMeditation(
         payload,
@@ -393,37 +379,7 @@ describe('Meditations Collection', () => {
       expect(meditation.type).toBe('quick')
     })
 
-    it('creates meditation with quick type and timings', async () => {
-      const meditation = await testData.createMeditation(
-        payload,
-        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
-        {
-          title: 'Morning Quick Meditation',
-          type: 'quick',
-          timings: ['morning', 'afternoon'],
-        },
-      )
-
-      expect(meditation.type).toBe('quick')
-      expect(meditation.timings).toEqual(['morning', 'afternoon'])
-    })
-
-    it('creates meditation with daily type and timings', async () => {
-      const meditation = await testData.createMeditation(
-        payload,
-        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
-        {
-          title: 'Evening Daily Meditation',
-          type: 'daily',
-          timings: ['evening', 'night'],
-        },
-      )
-
-      expect(meditation.type).toBe('daily')
-      expect(meditation.timings).toEqual(['evening', 'night'])
-    })
-
-    it('creates meditation with lesson type (no timings)', async () => {
+    it('creates meditation with lesson type', async () => {
       const meditation = await testData.createMeditation(
         payload,
         { narrator: testNarrator.id, thumbnail: testImageMedia.id },
@@ -434,41 +390,6 @@ describe('Meditations Collection', () => {
       )
 
       expect(meditation.type).toBe('lesson')
-      // Timings should be empty or undefined for lesson type
-      expect(meditation.timings || []).toEqual([])
-    })
-
-    it('allows empty timings for quick type', async () => {
-      const meditation = await testData.createMeditation(
-        payload,
-        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
-        {
-          title: 'Quick No Timings',
-          type: 'quick',
-          timings: [],
-        },
-      )
-
-      expect(meditation.type).toBe('quick')
-      expect(meditation.timings).toEqual([])
-    })
-
-    it('allows all four timing options', async () => {
-      const meditation = await testData.createMeditation(
-        payload,
-        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
-        {
-          title: 'All Day Meditation',
-          type: 'quick',
-          timings: ['morning', 'afternoon', 'evening', 'night'],
-        },
-      )
-
-      expect(meditation.timings).toHaveLength(4)
-      expect(meditation.timings).toContain('morning')
-      expect(meditation.timings).toContain('afternoon')
-      expect(meditation.timings).toContain('evening')
-      expect(meditation.timings).toContain('night')
     })
   })
 })

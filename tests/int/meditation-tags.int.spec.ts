@@ -2,6 +2,8 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
+import type { MeditationTag } from '@/payload-types'
+
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -298,32 +300,96 @@ describe('MeditationTags Collection - Metadata Fields', () => {
     })
   })
 
-  describe('meditation tagging with parent filtering', () => {
-    it('meditations can be tagged with child and standalone tags', async () => {
-      const parentTag = await testData.createMeditationTag(payload, {
-        title: 'Filter Parent',
+  describe('timings field', () => {
+    it('defaults to empty array', async () => {
+      const tag = await testData.createMeditationTag(payload)
+      expect(tag.timings).toEqual([])
+    })
+
+    it('can be set with multiple timings', async () => {
+      const tag = await testData.createMeditationTag(payload, {
+        timings: ['morning', 'evening'],
       })
-      const childTag = await testData.createMeditationTag(payload, {
-        title: 'Filter Child',
-        parent: parentTag.id,
+      expect(tag.timings).toEqual(expect.arrayContaining(['morning', 'evening']))
+      expect(tag.timings).toHaveLength(2)
+    })
+  })
+
+  describe('per-timing meditation assignments', () => {
+    let tag: MeditationTag
+    let quickMeditation: { id: number }
+
+    beforeAll(async () => {
+      quickMeditation = await testData.createMeditation(payload, undefined, {
+        type: 'quick',
+        title: 'Quick Timing Test',
       })
-      const standaloneTag = await testData.createMeditationTag(payload, {
-        title: 'Filter Standalone',
+      tag = await testData.createMeditationTag(payload, {
+        title: 'Timing Assignment Tag',
+        timings: ['morning', 'afternoon'],
+      })
+    })
+
+    it('assigns a meditation to morningMeditation (localized)', async () => {
+      const updated = await payload.update({
+        collection: 'meditation-tags',
+        id: tag.id,
+        locale: 'en',
+        data: { morningMeditation: quickMeditation.id },
       })
 
-      const meditation = await testData.createMeditation(payload, undefined, {
-        tags: [childTag.id, standaloneTag.id],
+      const morningId =
+        typeof updated.morningMeditation === 'object' && updated.morningMeditation !== null
+          ? updated.morningMeditation.id
+          : updated.morningMeditation
+      expect(morningId).toBe(quickMeditation.id)
+    })
+
+    it('supports different meditations per locale', async () => {
+      const czechMeditation = await testData.createMeditation(payload, undefined, {
+        type: 'quick',
+        title: 'Czech Quick',
+        locale: 'cs',
       })
 
-      const tagIds = Array.isArray(meditation.tags)
-        ? meditation.tags.map((tag) =>
-            typeof tag === 'object' && tag !== null && 'id' in tag
-              ? (tag as { id: number }).id
-              : tag,
-          )
-        : []
-      expect(tagIds).toContain(childTag.id)
-      expect(tagIds).toContain(standaloneTag.id)
+      await payload.update({
+        collection: 'meditation-tags',
+        id: tag.id,
+        locale: 'cs',
+        data: { title: 'Testovací Tag', morningMeditation: czechMeditation.id },
+      })
+
+      // Verify English assignment is preserved
+      const enResult = await payload.findByID({
+        collection: 'meditation-tags',
+        id: tag.id,
+        locale: 'en',
+        depth: 0,
+      })
+      expect(enResult.morningMeditation).toBe(quickMeditation.id)
+
+      // Verify Czech assignment
+      const csResult = await payload.findByID({
+        collection: 'meditation-tags',
+        id: tag.id,
+        locale: 'cs',
+        depth: 0,
+      })
+      expect(csResult.morningMeditation).toBe(czechMeditation.id)
+    })
+
+    it('populates meditation at depth=1', async () => {
+      const result = await payload.findByID({
+        collection: 'meditation-tags',
+        id: tag.id,
+        locale: 'en',
+        depth: 1,
+      })
+
+      expect(result.morningMeditation).toBeDefined()
+      const meditation = result.morningMeditation as { id: number; title: string | null }
+      expect(meditation.id).toBe(quickMeditation.id)
+      expect(meditation.title).toBe('Quick Timing Test')
     })
   })
 })
