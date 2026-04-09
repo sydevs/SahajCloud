@@ -781,6 +781,14 @@ export interface Lecture {
    */
   nirmalVidyaVimeoUrl: string;
   /**
+   * Start of the excerpt (HH:MM:SS)
+   */
+  startTime: number;
+  /**
+   * End of the excerpt (HH:MM:SS)
+   */
+  endTime: number;
+  /**
    * Auto-populated from Nirmala Vidya. Can be edited after creation.
    */
   title?: string | null;
@@ -1798,6 +1806,8 @@ export interface LessonsSelect<T extends boolean = true> {
  */
 export interface LecturesSelect<T extends boolean = true> {
   nirmalVidyaVimeoUrl?: T;
+  startTime?: T;
+  endTime?: T;
   title?: T;
   thumbnail?: T;
   videoUrl?: T;
