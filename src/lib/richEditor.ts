@@ -38,12 +38,12 @@ export const fullRichTextEditor = (blocks?: Block[]) =>
       InlineToolbarFeature(),
       HeadingFeature({ enabledHeadingSizes: ['h2', 'h3'] }),
       RelationshipFeature({
-        enabledCollections: ['meditations', 'pages', 'forms', 'lectures', 'app-cards'],
+        enabledCollections: ['pages', 'forms', 'lectures', 'albums'],
         maxDepth: 1,
       }),
       UploadFeature({
         collections: {
-          media: {
+          images: {
             fields: [
               {
                 name: 'caption',
@@ -74,7 +74,9 @@ export const fullRichTextEditor = (blocks?: Block[]) =>
               },
             ],
           },
-          music: { fields: [] },
+          songs: { fields: [] },
+          meditations: { fields: [] },
+          'app-cards': { fields: [] },
         },
       }),
       ...(blocks ? [BlocksFeature({ blocks })] : []),
