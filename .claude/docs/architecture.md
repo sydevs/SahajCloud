@@ -270,7 +270,22 @@ Custom admin components for tag management:
 
 ## Logging & Error Tracking
 
-The application uses **PayloadCMS's built-in Pino logger** for server-side logging and **Sentry** for error tracking, with a custom implementation optimized for Cloudflare Workers.
+The application uses a **custom console-backed Payload logger** for server-side logging and **Sentry** for error tracking.
+
+### Server Logger Architecture
+
+- **Logger implementation**: `src/lib/workerSafeLogger.ts`
+- **Logger wiring**: `src/payload.config.ts`
+- **Why not Payload's default logger?** Payload's default logger uses Pino transports that eventually write through Node-style fs destinations. In Cloudflare Workers, those write paths can fail under Node compatibility shims, so the project uses `console` directly instead.
+
+The logger is intentionally small:
+
+- It implements the subset of the Pino interface that Payload uses in this project.
+- It respects `NEXT_PUBLIC_LOG_LEVEL`.
+- It supports `child()` bindings, so contextual fields are preserved.
+- It normalizes `Error` objects into plain serializable objects before logging.
+
+Using the same logger in local development, CLI usage, and Workers keeps behavior consistent across environments.
 
 ### Log Level Configuration
 
