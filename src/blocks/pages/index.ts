@@ -1,11 +1,9 @@
 import { ButtonBlock } from './ButtonBlock'
+import { ContentIndexBlock } from './ContentIndexBlock'
 import { ImageGalleryBlock } from './ImageGalleryBlock'
 import { LayoutBlock } from './LayoutBlock'
-import { MeditationsIndexBlock } from './MeditationsIndexBlock'
-import { PagesIndexBlock } from './PagesIndexBlock'
 import { QuoteBlock } from './QuoteBlock'
 import { ShowcaseBlock } from './ShowcaseBlock'
-import { SongsIndexBlock } from './SongsIndexBlock'
 import { SplashBlock } from './SplashBlock'
 import { SubtleSystemBlock } from './SubtleSystemBlock'
 import { TableOfContentsBlock } from './TableOfContentsBlock'
@@ -13,13 +11,11 @@ import { TextBoxBlock } from './TextBoxBlock'
 
 export {
   ButtonBlock,
+  ContentIndexBlock,
   ImageGalleryBlock,
   LayoutBlock,
-  MeditationsIndexBlock,
-  PagesIndexBlock,
   QuoteBlock,
   ShowcaseBlock,
-  SongsIndexBlock,
   SplashBlock,
   SubtleSystemBlock,
   TableOfContentsBlock,
@@ -34,9 +30,7 @@ export const pageBlocks = [
   ButtonBlock,
   QuoteBlock,
   TableOfContentsBlock,
-  MeditationsIndexBlock,
-  PagesIndexBlock,
-  SongsIndexBlock,
+  ContentIndexBlock,
   SubtleSystemBlock,
   SplashBlock,
 ]
