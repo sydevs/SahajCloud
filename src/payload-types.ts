@@ -210,13 +210,10 @@ export interface Config {
     | 'fa'
     | 'bg'
     | 'tr';
-  user:
-    | (Manager & {
-        collection: 'managers';
-      })
-    | (Client & {
-        collection: 'clients';
-      });
+  widgets: {
+    collections: CollectionsWidget;
+  };
+  user: Manager | Client;
   jobs: {
     tasks: {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
@@ -997,6 +994,7 @@ export interface Manager {
       }[]
     | null;
   password?: string | null;
+  collection: 'managers';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1083,6 +1081,7 @@ export interface Client {
   enableAPIKey?: boolean | null;
   apiKey?: string | null;
   apiKeyIndex?: string | null;
+  collection: 'clients';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2649,6 +2648,16 @@ export interface PayloadJobsStatsSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "collections_widget".
+ */
+export interface CollectionsWidget {
+  data?: {
+    [k: string]: unknown;
+  };
+  width: 'full';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
