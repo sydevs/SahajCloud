@@ -19,7 +19,7 @@ export const ShowcaseBlock: Block = {
       hasMany: true,
       minRows: 3,
       maxRows: 6,
-      relationTo: ['meditations', 'pages'],
+      relationTo: ['meditations', 'pages', 'lectures', 'app-cards'],
     },
   ],
 }
