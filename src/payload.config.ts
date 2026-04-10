@@ -198,7 +198,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       formBuilderPlugin({
         defaultToEmail: 'contact@sydevelopers.com',
         formOverrides: {
-          admin: { group: 'Content' },
+          admin: { group: 'Content', enableRichTextRelationship: true },
         },
         formSubmissionOverrides: {
           admin: { group: 'System' },

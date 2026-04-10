@@ -35,6 +35,7 @@ const PROJECTS = {
       'forms',
       'form-submissions',
       'authors',
+      'lectures',
       'meditation-tags',
       'song-tags',
       'narrators',
