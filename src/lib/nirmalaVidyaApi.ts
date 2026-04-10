@@ -25,11 +25,11 @@ export interface NirmalaVidyaVideoData {
 // Response Validation Schema (Zod)
 // =============================================================================
 
-const NirmalaVidyaResponseSchema = z.object({
+export const NirmalaVidyaResponseSchema = z.object({
   name: z.string(),
   files: z.array(
     z.object({
-      link: z.string().url(),
+      link: z.url(),
       quality: z.string(),
     }),
   ),
@@ -38,12 +38,12 @@ const NirmalaVidyaResponseSchema = z.object({
     .array(
       z.object({
         language_code: z.string(),
-        url: z.string().url(),
+        url: z.url(),
       }),
     )
-    .optional()
-    .default([]),
-  link: z.string().url().optional(),
+    .nullish()
+    .transform((val) => val ?? []),
+  link: z.url().optional(),
   duration: z.number().optional(),
 })
 

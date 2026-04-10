@@ -432,6 +432,37 @@ describe('Lectures Collection', () => {
     })
   })
 
+  describe('NirmalaVidyaResponseSchema', () => {
+    it('coerces subtitles: null to an empty array', async () => {
+      // Bypass the mock to access the real schema
+      const { NirmalaVidyaResponseSchema } = await vi.importActual<
+        typeof import('@/lib/nirmalaVidyaApi')
+      >('@/lib/nirmalaVidyaApi')
+
+      const parsed = NirmalaVidyaResponseSchema.parse({
+        name: 'Older Lecture',
+        files: [{ link: 'https://example.com/stream.m3u8', quality: 'hls' }],
+        thumbnail_url: 'https://example.com/thumb.jpg',
+        subtitles: null,
+      })
+
+      expect(parsed.subtitles).toEqual([])
+    })
+
+    it('still accepts an omitted subtitles field', async () => {
+      const { NirmalaVidyaResponseSchema } = await vi.importActual<
+        typeof import('@/lib/nirmalaVidyaApi')
+      >('@/lib/nirmalaVidyaApi')
+
+      const parsed = NirmalaVidyaResponseSchema.parse({
+        name: 'Lecture',
+        files: [{ link: 'https://example.com/stream.m3u8', quality: 'hls' }],
+      })
+
+      expect(parsed.subtitles).toEqual([])
+    })
+  })
+
   describe('extractVimeoId', () => {
     // The mock delegates to the real implementation via importOriginal
     it('parses https://vimeo.com/123456789', async () => {
