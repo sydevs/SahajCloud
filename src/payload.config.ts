@@ -20,6 +20,7 @@ import { scalarPlugin } from '@/lib/openapi'
 import { sentryPlugin } from '@/lib/sentryPlugin'
 import { getServerUrl } from '@/lib/serverUrl'
 import { usagePlugin } from '@/lib/usage'
+import { createWorkerSafeLogger } from '@/lib/workerSafeLogger'
 
 import { collections, Managers } from './collections'
 import { globals } from './globals'
@@ -51,19 +52,13 @@ const E2E_DATABASE_PATH = path.resolve(dirname, '../tests/.e2e.sqlite')
 
 const payloadConfig = (overrides?: Partial<Config>) => {
   const serverUrl = getServerUrl()
+  const logger = createWorkerSafeLogger(serverEnv.NEXT_PUBLIC_LOG_LEVEL ?? 'info')
 
   return buildConfig({
     serverURL: serverUrl,
     debug: true, // Enable verbose error logging for troubleshooting R2 uploads
-    // Logger configuration - uses Pino under the hood
-    // Controlled by NEXT_PUBLIC_LOG_LEVEL: 'silent' | 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
-    ...(serverEnv.NEXT_PUBLIC_LOG_LEVEL && {
-      logger: {
-        options: {
-          level: serverEnv.NEXT_PUBLIC_LOG_LEVEL,
-        },
-      },
-    }),
+    // Use one logger implementation everywhere so local, CLI, and Worker behavior stay aligned.
+    logger,
     localization: {
       defaultLocalePublishOption: 'active',
       locales: buildPayloadLocales(),
