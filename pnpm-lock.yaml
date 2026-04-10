@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@opennextjs/cloudflare@1.14.6':
+    hash: 41b27f3a184831f1e21240910692250289bca78b1d4f617afebd6fe8a90ce866
+    path: patches/@opennextjs__cloudflare@1.14.6.patch
+
 importers:
 
   .:
@@ -25,7 +30,7 @@ importers:
         version: 0.41.0
       '@opennextjs/cloudflare':
         specifier: ^1.13.1
-        version: 1.14.6(aws-crt@1.28.1)(next@15.4.11(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(@playwright/test@1.57.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(sass@1.77.4))(wrangler@4.54.0(@cloudflare/workers-types@4.20251213.0))
+        version: 1.14.6(patch_hash=41b27f3a184831f1e21240910692250289bca78b1d4f617afebd6fe8a90ce866)(aws-crt@1.28.1)(next@15.4.11(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(@playwright/test@1.57.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(sass@1.77.4))(wrangler@4.54.0(@cloudflare/workers-types@4.20251213.0))
       '@payloadcms/db-d1-sqlite':
         specifier: ^3.82.1
         version: 3.82.1(@cloudflare/workers-types@4.20251213.0)(@libsql/client@0.14.0)(@opentelemetry/api@1.9.0)(@types/better-sqlite3@7.6.13)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(payload@3.82.1(graphql@16.12.0)(typescript@5.7.3))(pg@8.16.3)
@@ -9286,7 +9291,7 @@ snapshots:
       - aws-crt
       - supports-color
 
-  '@opennextjs/cloudflare@1.14.6(aws-crt@1.28.1)(next@15.4.11(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(@playwright/test@1.57.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(sass@1.77.4))(wrangler@4.54.0(@cloudflare/workers-types@4.20251213.0))':
+  '@opennextjs/cloudflare@1.14.6(patch_hash=41b27f3a184831f1e21240910692250289bca78b1d4f617afebd6fe8a90ce866)(aws-crt@1.28.1)(next@15.4.11(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(@playwright/test@1.57.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(sass@1.77.4))(wrangler@4.54.0(@cloudflare/workers-types@4.20251213.0))':
     dependencies:
       '@ast-grep/napi': 0.40.0
       '@dotenvx/dotenvx': 1.31.0
