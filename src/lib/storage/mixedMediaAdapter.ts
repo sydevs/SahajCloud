@@ -75,18 +75,18 @@ export const mixedMediaAdapter = (config: MixedMediaAdapterConfig): Adapter => {
     return {
       name: 'mixed-media-adapter',
 
-      handleUpload: async (args) => {
+      handleUpload: (args) => {
         const adapter = selectAdapter(args.file.mimeType)
         return adapter.handleUpload(args)
       },
 
-      handleDelete: async (args) => {
+      handleDelete: (args) => {
         const mimeType = (args.doc as { mimeType?: string }).mimeType
         const adapter = selectAdapter(mimeType)
         return adapter.handleDelete(args)
       },
 
-      staticHandler: async (req, args) => {
+      staticHandler: (req, args) => {
         const mimeType = (args.doc as { mimeType?: string } | undefined)?.mimeType
         const adapter = selectAdapter(mimeType)
         return adapter.staticHandler(req, args)
