@@ -116,27 +116,52 @@ export function revertFromContentIndex(node: LexicalNode): boolean {
   return changed
 }
 
-async function migrateTable(
+/**
+ * Apply a Lexical content transform to every row in a table that has a content
+ * column. Uses parameterized queries (no manual escaping) and reads the row via
+ * the actual column name so both `pages_locales.content` and
+ * `_pages_v_locales.version_content` are migrated correctly.
+ */
+async function transformPagesLocales(
   db: MigrateUpArgs['db'],
-  table: string,
-  column: string,
   transform: (node: LexicalNode) => boolean,
 ): Promise<void> {
   const rows = await db.all<{ id: number; content: string }>(
-    sql.raw(`SELECT "id", "${column}" FROM "${table}" WHERE "${column}" IS NOT NULL`),
+    sql`SELECT \`id\`, \`content\` FROM \`pages_locales\` WHERE \`content\` IS NOT NULL`,
   )
 
   for (const row of rows) {
-    const id = row.id
-    const contentStr = row.content
-    if (!contentStr) continue
-
+    if (!row.content) continue
     try {
-      const content = JSON.parse(contentStr) as LexicalNode
+      const content = JSON.parse(row.content) as LexicalNode
       if (transform(content)) {
         const updated = JSON.stringify(content)
         await db.run(
-          sql.raw(`UPDATE "${table}" SET "${column}" = '${updated.replace(/'/g, "''")}' WHERE "id" = ${id}`),
+          sql`UPDATE \`pages_locales\` SET \`content\` = ${updated} WHERE \`id\` = ${row.id}`,
+        )
+      }
+    } catch {
+      continue
+    }
+  }
+}
+
+async function transformPagesVersionLocales(
+  db: MigrateUpArgs['db'],
+  transform: (node: LexicalNode) => boolean,
+): Promise<void> {
+  const rows = await db.all<{ id: number; version_content: string }>(
+    sql`SELECT \`id\`, \`version_content\` FROM \`_pages_v_locales\` WHERE \`version_content\` IS NOT NULL`,
+  )
+
+  for (const row of rows) {
+    if (!row.version_content) continue
+    try {
+      const content = JSON.parse(row.version_content) as LexicalNode
+      if (transform(content)) {
+        const updated = JSON.stringify(content)
+        await db.run(
+          sql`UPDATE \`_pages_v_locales\` SET \`version_content\` = ${updated} WHERE \`id\` = ${row.id}`,
         )
       }
     } catch {
@@ -146,11 +171,11 @@ async function migrateTable(
 }
 
 export async function up({ db }: MigrateUpArgs): Promise<void> {
-  await migrateTable(db, 'pages_locales', 'content', convertToContentIndex)
-  await migrateTable(db, '_pages_v_locales', 'version_content', convertToContentIndex)
+  await transformPagesLocales(db, convertToContentIndex)
+  await transformPagesVersionLocales(db, convertToContentIndex)
 }
 
 export async function down({ db }: MigrateDownArgs): Promise<void> {
-  await migrateTable(db, 'pages_locales', 'content', revertFromContentIndex)
-  await migrateTable(db, '_pages_v_locales', 'version_content', revertFromContentIndex)
+  await transformPagesLocales(db, revertFromContentIndex)
+  await transformPagesVersionLocales(db, revertFromContentIndex)
 }

@@ -47,6 +47,7 @@ export const ContentIndexBlock: Block = {
       name: 'pageFilters',
       type: 'select',
       hasMany: true,
+      required: true,
       options: PAGE_TAGS,
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'pages',
