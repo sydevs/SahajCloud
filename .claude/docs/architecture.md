@@ -17,6 +17,7 @@ The application uses **Cloudflare-native storage services** for optimal performa
   - Thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`
   - MP4: `https://customer-<code>.cloudflarestream.com/<videoId>/downloads/default.mp4`
 - **Replaces**: FFmpeg thumbnail generation
+- **MP4 downloads**: enabled asynchronously via a Cloudflare Stream webhook. After a video finishes transcoding, Cloudflare POSTs to `/api/webhooks/cloudflare-stream`, which verifies the HMAC-SHA256 signature and calls the downloads API. See [cloudflare-stream-webhook.md](./cloudflare-stream-webhook.md) for setup.
 
 ### R2 Native Bindings (Audio & Generic Files)
 - **Collections**: `meditations`, `songs`, `lessons`, `files`

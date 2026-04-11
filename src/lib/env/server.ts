@@ -83,6 +83,15 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   CLOUDFLARE_R2_DELIVERY_URL: z.url().optional(),
 
   /**
+   * Cloudflare Stream webhook signing secret
+   * Returned by `PUT /accounts/{id}/stream/webhook` and used to verify HMAC-SHA256
+   * signatures on inbound webhooks. Production only — dev deployments do not
+   * subscribe to the account-scoped Stream webhook.
+   * Set via: `wrangler secret put CLOUDFLARE_STREAM_WEBHOOK_SECRET`
+   */
+  CLOUDFLARE_STREAM_WEBHOOK_SECRET: z.string().min(32).optional(),
+
+  /**
    * Wrangler environment selection
    * - 'dev': Uses [env.dev] configuration from wrangler.toml
    * - 'production': Uses [env.production] configuration from wrangler.toml
