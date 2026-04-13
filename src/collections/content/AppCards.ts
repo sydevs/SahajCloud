@@ -1,7 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { rulesField, scheduleField, urlField } from '@/fields'
-import { virtualUrlField } from '@/lib/storage/urlFields'
+import { mediaField, rulesField, scheduleField, urlField } from '@/fields'
 
 /**
  * App Cards Collection
@@ -21,26 +20,19 @@ export const AppCards: CollectionConfig = {
     maxPerDoc: 5,
   },
   disableDuplicate: true,
-  upload: {
-    staticDir: 'media/app-cards',
-    bulkUpload: false,
-    mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'],
-    focalPoint: true,
-  },
   admin: {
     group: 'WeMeditate App',
     useAsTitle: 'title',
     defaultColumns: ['title', 'type', '_status'],
   },
   fields: [
-    // Virtual URL field for the uploaded card image (Cloudflare Images)
-    virtualUrlField({ collection: 'app-cards', adapter: 'cloudflare-images' }),
     {
       type: 'tabs',
       tabs: [
         {
           label: 'Appearance',
           fields: [
+            mediaField({ name: 'image', label: 'Card Image', required: true }),
             {
               name: 'title',
               type: 'text',

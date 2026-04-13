@@ -967,8 +967,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           downloadResult = await this.getOrCreatePlaceholderImage()
         }
 
-        // Create album with file (Albums is an upload collection)
-        // Use buffer directly in Workers mode, otherwise read from cache
+        // Upload artwork image to Images collection, then create album with relationship
         let fileBuffer: Buffer
         if (downloadResult.buffer) {
           fileBuffer = downloadResult.buffer
@@ -984,18 +983,15 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         const mimeType = this.fileUtils.getMimeType(filename)
 
         // In Workers, ensure we pass a clean Buffer without ArrayBuffer offset issues
-        // Uses safeBufferCopy() which does a manual indexed copy - the only reliable method.
         const cleanBuffer = safeBufferCopy(fileBuffer)
 
-        // Try to create album, with fallback to placeholder if Buffer polyfill fails
-        let albumDoc: Awaited<ReturnType<typeof this.payload.create>>
+        // Upload artwork to Images collection first
+        let artworkId: number
         try {
-          albumDoc = await this.payload.create({
-            collection: 'albums',
+          const artworkDoc = await this.payload.create({
+            collection: 'images',
             data: {
-              title: artist.name,
-              artist: artist.name,
-              artistUrl: artist.url || undefined,
+              alt: `${artist.name} album artwork`,
             },
             file: {
               data: cleanBuffer,
@@ -1003,26 +999,22 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
               name: filename,
               size: cleanBuffer.length,
             },
-            locale: 'en',
             overrideAccess: true,
           })
+          artworkId = artworkDoc.id as number
         } catch (uploadError) {
-          // Buffer polyfill error in Workers - fallback to placeholder
           const errorMsg = uploadError instanceof Error ? uploadError.message : String(uploadError)
           if (errorMsg.includes('offset') || errorMsg.includes('Buffer')) {
             this.addWarning(
               `Album art upload failed for ${artist.name} (Buffer issue), trying placeholder: ${errorMsg}`,
             )
-            // Try with GitHub-hosted preview.png placeholder (no filesystem in Workers)
             try {
               const githubPlaceholderUrl = `${GITHUB_RAW_BASE}/seeds/wemeditate/preview.png`
               const placeholderBuffer = await fetchAsset(githubPlaceholderUrl)
-              albumDoc = await this.payload.create({
-                collection: 'albums',
+              const placeholderDoc = await this.payload.create({
+                collection: 'images',
                 data: {
-                  title: artist.name,
-                  artist: artist.name,
-                  artistUrl: artist.url || undefined,
+                  alt: `${artist.name} album artwork (placeholder)`,
                 },
                 file: {
                   data: placeholderBuffer,
@@ -1030,11 +1022,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
                   name: 'preview.png',
                   size: placeholderBuffer.length,
                 },
-                locale: 'en',
                 overrideAccess: true,
               })
+              artworkId = placeholderDoc.id as number
             } catch (placeholderError) {
-              // Both attempts failed - skip this album but continue with others
               const placeholderMsg =
                 placeholderError instanceof Error
                   ? placeholderError.message
@@ -1046,10 +1037,28 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
               continue
             }
           } else {
-            // Non-buffer error - log and continue with next album
-            this.addError(`Album upload for ${artist.name}`, uploadError as Error)
+            this.addError(`Album artwork upload for ${artist.name}`, uploadError as Error)
             continue
           }
+        }
+
+        // Create album with artwork relationship
+        let albumDoc: Awaited<ReturnType<typeof this.payload.create>>
+        try {
+          albumDoc = await this.payload.create({
+            collection: 'albums',
+            data: {
+              title: artist.name,
+              artist: artist.name,
+              artistUrl: artist.url || undefined,
+              artwork: artworkId,
+            },
+            locale: 'en',
+            overrideAccess: true,
+          })
+        } catch (albumError) {
+          this.addError(`Album creation for ${artist.name}`, albumError as Error)
+          continue
         }
 
         this.idMaps.albums.set(this.toNumericId(artist.id), albumDoc.id)
