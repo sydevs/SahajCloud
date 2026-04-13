@@ -23,6 +23,7 @@ export const Files: CollectionConfig = {
     mimeTypes: [
       'application/pdf',
       'audio/mpeg',
+      'text/vtt',
       'video/mpeg',
       'video/mp4',
       'image/jpeg',
