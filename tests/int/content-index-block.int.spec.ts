@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { computeApiEndpoint } from '@/hooks/contentIndexBlockHooks'
+import { computeApiEndpoint } from '@/blocks/pages/ContentIndexBlock'
 
 import { uniqueId } from '../utils/lexicalTestHelpers'
 import { testData } from '../utils/testData'
@@ -253,5 +253,23 @@ describe('ContentIndexBlock apiEndpoint (integration)', () => {
     const page = await createPageWithBlock({ type: 'songs' })
     const fetched = await payload.findByID({ collection: 'pages', id: page.id, depth: 0 })
     expect(getBlockFields(fetched).apiEndpoint).toBeNull()
+  })
+
+  it('clears stale filter values when type does not match', async () => {
+    const songTag = await testData.createSongTag(payload)
+    // Create a page with songs type and songFilters
+    const page = await createPageWithBlock({
+      type: 'songs',
+      songFilters: [songTag.id],
+      // Simulate stale data: pageFilters left over from a previous type selection
+      pageFilters: ['wisdom'],
+    })
+    const fetched = await payload.findByID({ collection: 'pages', id: page.id, depth: 0 })
+    const fields = getBlockFields(fetched)
+
+    // Active filter should be present
+    expect(fields.apiEndpoint).toBe(`/api/songs?where[tags][in]=${songTag.id}`)
+    // Stale filter should be removed entirely by afterRead hook
+    expect(fields).not.toHaveProperty('pageFilters')
   })
 })

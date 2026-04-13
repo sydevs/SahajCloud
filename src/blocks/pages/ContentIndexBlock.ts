@@ -1,7 +1,79 @@
-import type { Block } from 'payload'
+import type { Block, FieldHook } from 'payload'
 
-import { computeApiEndpoint } from '@/hooks/contentIndexBlockHooks'
+import { extractID } from 'payload/shared'
+
 import { PAGE_TAGS } from '@/lib/constants'
+
+/**
+ * Configuration for each content type's API endpoint generation.
+ */
+const CONTENT_TYPE_CONFIG: Record<
+  string,
+  { basePath: string; filterField: string; queryParam: string; extraParams?: string }
+> = {
+  meditations: {
+    basePath: '/api/meditation-tags',
+    filterField: 'meditationFilters',
+    queryParam: 'where[id][in]',
+    extraParams: '&depth=1',
+  },
+  pages: {
+    basePath: '/api/pages',
+    filterField: 'pageFilters',
+    queryParam: 'where[tags][in]',
+  },
+  songs: {
+    basePath: '/api/songs',
+    filterField: 'songFilters',
+    queryParam: 'where[tags][in]',
+  },
+  lectures: {
+    basePath: '/api/lectures',
+    filterField: 'lectureFilters',
+    queryParam: 'where[tags][in]',
+  },
+}
+
+/**
+ * afterRead hook for the virtual `apiEndpoint` field.
+ * Computes a ready-to-use API endpoint URL from the block's type and selected filters.
+ */
+export const computeApiEndpoint: FieldHook = ({ siblingData }) => {
+  const type = siblingData?.type as string | undefined
+  if (!type) return null
+
+  const config = CONTENT_TYPE_CONFIG[type]
+  if (!config) return null
+
+  const filters = siblingData?.[config.filterField]
+  if (!filters || (Array.isArray(filters) && filters.length === 0)) return null
+
+  const filterValues = (Array.isArray(filters) ? filters : [filters]).filter(Boolean)
+  const ids = filterValues.map(extractID)
+
+  if (ids.length === 0) return null
+
+  const queryValue = ids.map((id) => encodeURIComponent(id)).join(',')
+  const endpoint = `${config.basePath}?${config.queryParam}=${queryValue}`
+
+  return config.extraParams ? `${endpoint}${config.extraParams}` : endpoint
+}
+
+/**
+ * Creates hooks that clear a filter field's value when the block's type doesn't match.
+ * Prevents stale filter data from being stored or returned in the API.
+ */
+function clearWhenTypeNot(activeType: string): {
+  beforeChange: FieldHook[]
+  afterRead: FieldHook[]
+} {
+  const hook: FieldHook = ({ value, siblingData, field }) => {
+    if (siblingData?.type === activeType) return value
+    if (siblingData && field?.name) delete siblingData[field.name]
+    return undefined
+  }
+  return { beforeChange: [hook], afterRead: [hook] }
+}
 
 export const ContentIndexBlock: Block = {
   slug: 'content-index',
@@ -34,25 +106,28 @@ export const ContentIndexBlock: Block = {
       },
     },
     {
-      name: 'meditationFilters',
-      type: 'relationship',
-      relationTo: 'meditation-tags',
-      hasMany: true,
-      minRows: 1,
-      admin: {
-        condition: (_, siblingData) => siblingData?.type === 'meditations',
-        description: 'Select meditation tags to use as filters for this index grid',
-      },
-    },
-    {
       name: 'pageFilters',
       type: 'select',
       hasMany: true,
       required: true,
       options: PAGE_TAGS,
+      hooks: clearWhenTypeNot('pages'),
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'pages',
         description: 'Select page tags to use as filters for this index grid',
+      },
+    },
+    {
+      name: 'meditationFilters',
+      type: 'relationship',
+      relationTo: 'meditation-tags',
+      hasMany: true,
+      minRows: 1,
+      maxDepth: 0,
+      hooks: clearWhenTypeNot('meditations'),
+      admin: {
+        condition: (_, siblingData) => siblingData?.type === 'meditations',
+        description: 'Select meditation tags to use as filters for this index grid',
       },
     },
     {
@@ -61,6 +136,8 @@ export const ContentIndexBlock: Block = {
       relationTo: 'song-tags',
       hasMany: true,
       minRows: 1,
+      maxDepth: 0,
+      hooks: clearWhenTypeNot('songs'),
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'songs',
         description: 'Select music tags to use as filters for this index grid',
@@ -72,6 +149,8 @@ export const ContentIndexBlock: Block = {
       relationTo: 'lecture-tags',
       hasMany: true,
       minRows: 1,
+      maxDepth: 0,
+      hooks: clearWhenTypeNot('lectures'),
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'lectures',
         description: 'Select lecture tags to use as filters for this index grid',

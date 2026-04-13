@@ -77,7 +77,7 @@ Content index grid component with type-based filtering:
 - `lectureFilters` (relationship to lecture-tags, hasMany, minRows: 1) - Visible when type is lectures
 - `apiEndpoint` (text, virtual, hidden) - Computed API endpoint URL for frontend consumption
 
-The virtual `apiEndpoint` field uses an `afterRead` hook (`computeApiEndpoint` in `src/hooks/contentIndexBlockHooks.ts`) to generate a ready-to-use API URL from the block's type and selected filters. Meditations query `/api/meditation-tags` (reverse relationship), while pages/songs/lectures query their own collection endpoints.
+The virtual `apiEndpoint` field uses an `afterRead` hook (`computeApiEndpoint` in `src/blocks/pages/ContentIndexBlock.ts`) to generate a ready-to-use API URL from the block's type and selected filters. Meditations query `/api/meditation-tags` (reverse relationship), while pages/songs/lectures query their own collection endpoints. Each filter field has `beforeChange` and `afterRead` hooks that clear stale values when the block's type doesn't match, ensuring only the active filter appears in the API response.
 
 ## Key Features
 
