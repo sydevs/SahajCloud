@@ -1,14 +1,14 @@
 import type { GlobalConfig } from 'payload'
 
 const VIBE_CHECK_IDENTIFIERS = [
-  { label: 'WHAT-YOU-FEEL-START', value: 'WHAT-YOU-FEEL-START' },
-  { label: 'WHAT-YOU-FEEL-LEFT', value: 'WHAT-YOU-FEEL-LEFT' },
-  { label: 'WHAT-YOU-FEEL-RIGHT', value: 'WHAT-YOU-FEEL-RIGHT' },
-  { label: 'INTRO-INTERPRET', value: 'INTRO-INTERPRET' },
-  { label: 'BH-COOL', value: 'BH-COOL' },
-  { label: 'SOMETHING-NO-COOL', value: 'SOMETHING-NO-COOL' },
-  { label: 'SOMETHING-COOL', value: 'SOMETHING-COOL' },
-  { label: 'BH-NOTHING', value: 'BH-NOTHING' },
+  { label: 'What You Feel - Start', value: 'WHAT-YOU-FEEL-START' },
+  { label: 'What You Feel - Left', value: 'WHAT-YOU-FEEL-LEFT' },
+  { label: 'What You Feel - Right', value: 'WHAT-YOU-FEEL-RIGHT' },
+  { label: 'Intro Interpret', value: 'INTRO-INTERPRET' },
+  { label: 'BH Cool', value: 'BH-COOL' },
+  { label: 'Something No Cool', value: 'SOMETHING-NO-COOL' },
+  { label: 'Something Cool', value: 'SOMETHING-COOL' },
+  { label: 'BH Nothing', value: 'BH-NOTHING' },
 ]
 
 export const WeMeditateAppConfig: GlobalConfig = {
