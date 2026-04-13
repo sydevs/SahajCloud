@@ -26,7 +26,7 @@ export const Lectures: CollectionConfig = {
         description: 'Paste the Vimeo URL from amruta.org (e.g. https://vimeo.com/123456789).',
       },
       access: {
-        // Only admins can update roles
+        // Vimeo URL is immutable after creation
         update: () => false,
       },
     }),
