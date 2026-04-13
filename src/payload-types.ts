@@ -2414,9 +2414,41 @@ export interface WmWebTranslation {
 export interface WmAppConfig {
   id: number;
   /**
-   * Self-realization meditation for new users
+   * Self-realization meditation for new users.
    */
   selfRealizationMeditation?: (number | null) | Meditation;
+  /**
+   * Lecture shown after the first meditation.
+   */
+  postRealizationLecture?: (number | null) | Lecture;
+  /**
+   * Audio prompts and subtitles for the vibe check step of the first meditation.
+   */
+  vibeCheckTracks?:
+    | {
+        /**
+         * Predefined code identifying this track in the app.
+         */
+        identifier:
+          | 'WHAT-YOU-FEEL-START'
+          | 'WHAT-YOU-FEEL-LEFT'
+          | 'WHAT-YOU-FEEL-RIGHT'
+          | 'INTRO-INTERPRET'
+          | 'BH-COOL'
+          | 'SOMETHING-NO-COOL'
+          | 'SOMETHING-COOL'
+          | 'BH-NOTHING';
+        /**
+         * MP3 audio file for this vibe check prompt.
+         */
+        audio: number | File;
+        /**
+         * WebVTT (.vtt) subtitle file for this audio.
+         */
+        subtitles: number | File;
+        id?: string | null;
+      }[]
+    | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2645,6 +2677,15 @@ export interface WmWebTranslationsSelect<T extends boolean = true> {
  */
 export interface WmAppConfigSelect<T extends boolean = true> {
   selfRealizationMeditation?: T;
+  postRealizationLecture?: T;
+  vibeCheckTracks?:
+    | T
+    | {
+        identifier?: T;
+        audio?: T;
+        subtitles?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
