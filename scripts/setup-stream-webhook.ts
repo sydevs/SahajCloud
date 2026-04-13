@@ -144,14 +144,22 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  if (!args.url.startsWith('https://')) {
+  let parsedUrl: URL
+  try {
+    parsedUrl = new URL(args.url)
+  } catch {
+    console.error('--url is not a valid URL')
+    process.exit(1)
+  }
+
+  if (parsedUrl.protocol !== 'https:') {
     console.error('--url must be an HTTPS URL')
     process.exit(1)
   }
 
-  if (!args.url.includes(EXPECTED_HOST)) {
+  if (parsedUrl.hostname !== EXPECTED_HOST) {
     console.error(
-      `\n  \x1b[33m⚠ WARNING\x1b[0m: URL does not contain "${EXPECTED_HOST}". Cloudflare Stream webhooks are account-scoped — you will overwrite the production registration. Proceed only if this is intentional.\n`,
+      `\n  \x1b[33m⚠ WARNING\x1b[0m: URL hostname is "${parsedUrl.hostname}", expected "${EXPECTED_HOST}". Cloudflare Stream webhooks are account-scoped — you will overwrite the production registration. Proceed only if this is intentional.\n`,
     )
   }
 

@@ -91,13 +91,34 @@ r2NativeAdapter({
 
 ## Custom Endpoints
 
-Custom endpoint handlers are organized in `src/endpoints/` and registered on their respective collections via the `endpoints` config property.
+The project has **two** places to add HTTP endpoints. Choose based on the scope of the endpoint:
+
+### Payload collection endpoints (`src/endpoints/*.ts`)
+
+Use for operations tied to a specific collection. Registered on the collection via its `endpoints` config property. The handler receives `req.payload` for free.
+
+**Use when**: the URL logically belongs under a collection (e.g., `/api/frames/by-narrator/:narratorId`), the operation reads or writes a single collection's documents, and you want automatic auth/access integration with Payload.
 
 | File | Collection | Path | Description |
 |------|-----------|------|-------------|
 | `src/endpoints/framesByNarrator.ts` | Frames | `/by-narrator/:narratorId` | Returns frames filtered by narrator gender |
 
 Each endpoint exports an `Endpoint` object (from `payload`) with `path`, `method`, and `handler` properties. The barrel export at `src/endpoints/index.ts` re-exports all handlers.
+
+### Next.js App Router routes (`src/app/(payload)/api/**/route.ts`)
+
+Use for anything not scoped to a single collection — webhooks, health checks, OpenAPI spec generation, seed triggers, or operations that span multiple collections.
+
+**Use when**: the endpoint is not "about" one collection (webhooks from third parties, `/api/health`, `/api/docs`, `/api/seed/:script`), you need direct access to the raw request body (e.g., HMAC signature verification), or you need Next.js-specific features (streaming, `NextResponse.redirect`).
+
+| File | Path | Purpose |
+|------|------|---------|
+| `src/app/(payload)/api/health/route.ts` | `/api/health` | Liveness check |
+| `src/app/(payload)/api/openapi.json/route.ts` | `/api/openapi.json` | Filtered OpenAPI spec |
+| `src/app/(payload)/api/seed/[script]/route.ts` | `/api/seed/:script` | Seed trigger with SSE |
+| `src/app/(payload)/api/webhooks/cloudflare-stream/route.ts` | `/api/webhooks/cloudflare-stream` | Cloudflare Stream webhook handler |
+
+**Critical constraint**: Next.js route files may only export HTTP method handlers (`GET`, `POST`, etc.) and a small set of config constants. Helper functions must live in `src/lib/`, not in the route file. Lint and tests pass with extra exports, but `pnpm build` fails with a cryptic "not a valid Route export field" error. See `.claude/rules/routes.md` for the thin-wrapper + pure-helpers pattern.
 
 ## API Explorer (OpenAPI / Scalar)
 
