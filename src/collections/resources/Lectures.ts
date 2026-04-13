@@ -110,5 +110,11 @@ export const Lectures: CollectionConfig = {
         description: 'VTT subtitle URL — auto-populated from Nirmala Vidya API per locale.',
       },
     },
+    {
+      name: 'tags',
+      type: 'relationship',
+      relationTo: 'lecture-tags',
+      hasMany: true,
+    },
   ],
 }
