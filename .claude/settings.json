@@ -114,7 +114,9 @@
       "mcp__plugin_sydevs-web_puppeteer__puppeteer_screenshot",
       "mcp__plugin_sydevs-web_puppeteer__puppeteer_click",
       "mcp__plugin_sydevs-web_puppeteer__puppeteer_evaluate",
-      "Bash(npm view:*)"
+      "Bash(npm view:*)",
+      "Edit(.claude/docs/**)",
+      "Write(.claude/docs/**)"
     ]
   },
   "hooks": {
