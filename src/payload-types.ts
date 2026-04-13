@@ -96,6 +96,7 @@ export interface Config {
     authors: Author;
     images: Image;
     files: File;
+    'lecture-tags': LectureTag;
     'meditation-tags': MeditationTag;
     'song-tags': SongTag;
     managers: Manager;
@@ -115,6 +116,9 @@ export interface Config {
     };
     authors: {
       articles: 'pages';
+    };
+    'lecture-tags': {
+      lectures: 'lectures';
     };
     'meditation-tags': {
       children: 'meditation-tags';
@@ -136,6 +140,7 @@ export interface Config {
     authors: AuthorsSelect<false> | AuthorsSelect<true>;
     images: ImagesSelect<false> | ImagesSelect<true>;
     files: FilesSelect<false> | FilesSelect<true>;
+    'lecture-tags': LectureTagsSelect<false> | LectureTagsSelect<true>;
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
     'song-tags': SongTagsSelect<false> | SongTagsSelect<true>;
     managers: ManagersSelect<false> | ManagersSelect<true>;
@@ -798,6 +803,37 @@ export interface Lecture {
    * VTT subtitle URL — auto-populated from Nirmala Vidya API per locale.
    */
   subtitlesUrl?: string | null;
+  tags?: (number | LectureTag)[] | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lecture-tags".
+ */
+export interface LectureTag {
+  id: number;
+  label: string;
+  rules?: {
+    logic?: 'AND' | 'OR';
+    pathProgress?: {
+      min?: number;
+      max?: number;
+    };
+    totalMeditationsViewed?: {
+      min?: number;
+      max?: number;
+    };
+    totalLecturesViewed?: {
+      min?: number;
+      max?: number;
+    };
+  };
+  lectures?: {
+    docs?: (number | Lecture)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -1564,6 +1600,10 @@ export interface PayloadLockedDocument {
         value: number | File;
       } | null)
     | ({
+        relationTo: 'lecture-tags';
+        value: number | LectureTag;
+      } | null)
+    | ({
         relationTo: 'meditation-tags';
         value: number | MeditationTag;
       } | null)
@@ -1811,6 +1851,7 @@ export interface LecturesSelect<T extends boolean = true> {
   thumbnail?: T;
   videoUrl?: T;
   subtitlesUrl?: T;
+  tags?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1906,6 +1947,17 @@ export interface FilesSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lecture-tags_select".
+ */
+export interface LectureTagsSelect<T extends boolean = true> {
+  label?: T;
+  rules?: T;
+  lectures?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

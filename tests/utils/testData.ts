@@ -16,6 +16,7 @@ import type {
   Client,
   MeditationTag,
   SongTag,
+  LectureTag,
   Page,
   Lesson,
   File,
@@ -287,6 +288,25 @@ export const testData = {
         size: fileBuffer.length,
       },
     })) as SongTag
+  },
+
+  /**
+   * Create a lecture tag (NOT an upload collection — no file needed)
+   */
+  async createLectureTag(
+    payload: Payload,
+    overrides: Partial<LectureTag> = {},
+  ): Promise<LectureTag> {
+    const uniqueId = Math.random().toString(36).substring(7)
+    const defaultLabel = overrides.label || `Test Lecture Tag ${uniqueId}`
+
+    return (await payload.create({
+      collection: 'lecture-tags',
+      data: {
+        label: defaultLabel,
+        ...overrides,
+      },
+    })) as LectureTag
   },
 
   // Note: createImageTag, createPageTag, createVideoTag removed

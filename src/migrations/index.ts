@@ -27,6 +27,7 @@ import * as migration_20260406_120149 from './20260406_120149';
 import * as migration_20260408_084932 from './20260408_084932';
 import * as migration_20260409_135253 from './20260409_135253';
 import * as migration_20260409_180000_unify_index_blocks from './20260409_180000_unify_index_blocks';
+import * as migration_20260413_044949 from './20260413_044949';
 
 export const migrations = [
   {
@@ -173,5 +174,10 @@ export const migrations = [
     up: migration_20260409_180000_unify_index_blocks.up,
     down: migration_20260409_180000_unify_index_blocks.down,
     name: '20260409_180000_unify_index_blocks',
+  },
+  {
+    up: migration_20260413_044949.up,
+    down: migration_20260413_044949.down,
+    name: '20260413_044949'
   },
 ];

@@ -13,6 +13,7 @@ import { Lectures } from './resources/Lectures'
 import { Narrators } from './resources/Narrators'
 import { Files } from './system/Files'
 import { Frames } from './system/Frames'
+import { LectureTags } from './tags/LectureTags'
 import { MeditationTags } from './tags/MeditationTags'
 import { SongTags } from './tags/SongTags'
 
@@ -33,6 +34,7 @@ export const collections = [
   Images,
   Files,
   // Tags
+  LectureTags,
   MeditationTags,
   SongTags,
   // Access
@@ -58,6 +60,7 @@ export {
   Images,
   Files,
   // Tags
+  LectureTags,
   MeditationTags,
   SongTags,
   // Access
