@@ -25,9 +25,42 @@ Rules for writing tests in this codebase.
 - File upload mechanics
 - minRows/maxRows validation
 
-## Writing Isolated Tests
+## Pure Functions vs Payload-backed Tests
 
-Use `createTestEnvironment()` for complete test isolation.
+**Rule of thumb**: if the code under test doesn't touch Payload (no `req.payload`, no collection queries, no access control), skip `createTestEnvironment()` and import the module directly. A pure-function test suite runs in ~200ms; a `createTestEnvironment()` suite runs in ~8s minimum. Over a full suite the difference is huge.
+
+### When to use pure-function tests
+- Utilities in `src/lib/` with no Payload dependency (e.g., `cloudflareStreamWebhook.ts`, `mimeUtils.ts`, `schemaUtils.ts`)
+- Signature verification, parsing, validation logic
+- Pure helpers extracted from route handlers (the thin-wrapper pattern — see `.claude/rules/routes.md`)
+
+### Pattern
+
+Use `vi.resetModules()` + dynamic `await import(...)` in `beforeEach` to swap env vars between cases. Inject dependencies (e.g., `fetchFn`, `logger`) as function arguments rather than stubbing globals, so tests don't leak state.
+
+```typescript
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+let myHelper: typeof import('@/lib/domain/myHelper').myHelper
+
+beforeEach(async () => {
+  vi.resetModules()
+  process.env = { ...originalEnv, SOME_VAR: 'test-value' }
+  const mod = await import('@/lib/domain/myHelper')
+  myHelper = mod.myHelper
+})
+
+afterEach(() => {
+  process.env = originalEnv
+  vi.restoreAllMocks()
+})
+```
+
+Examples in the codebase: `tests/int/storage-utils.int.spec.ts`, `tests/int/cloudflare-stream-webhook.int.spec.ts`.
+
+## Writing Payload-backed Tests
+
+Use `createTestEnvironment()` for tests that need a real Payload instance (collection operations, hooks, access control integration, relationships).
 
 **IMPORTANT**: Only call `createTestEnvironment()` once per test file. Multiple calls cause Payload global state conflicts. Use nested `describe` blocks to organize tests within a single environment.
 
