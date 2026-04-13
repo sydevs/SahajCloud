@@ -48,6 +48,16 @@ src/globals/
 - **Slug**: `wm-app-config`
 - **Export**: `WeMeditateAppConfig`
 - **Admin Group**: WeMeditate App
+- **Tabs**: First Meditation
+
+### Fields (First Meditation tab)
+
+- `selfRealizationMeditation` (relationship to meditations, localized) - Self-realization meditation for new users
+- `postRealizationLecture` (relationship to lectures, localized) - Lecture shown after the first meditation
+- `vibeCheckTracks` (array, localized) - Audio prompts for the vibe check step, each containing:
+  - `identifier` (select, required) - Predefined code: `WHAT-YOU-FEEL-START`, `WHAT-YOU-FEEL-LEFT`, `WHAT-YOU-FEEL-RIGHT`, `INTRO-INTERPRET`, `BH-COOL`, `SOMETHING-NO-COOL`, `SOMETHING-COOL`, `BH-NOTHING`
+  - `audio` (upload to files, required) - MP3 audio file
+  - `subtitles` (upload to files, required) - WebVTT (.vtt) subtitle file
 
 ## WeMeditate App Translations
 

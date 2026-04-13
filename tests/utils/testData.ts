@@ -201,6 +201,8 @@ export const testData = {
       mimetype = 'image/png'
     } else if (extension === 'webp') {
       mimetype = 'image/webp'
+    } else if (extension === 'vtt') {
+      mimetype = 'text/vtt'
     } else {
       mimetype = `audio/${extension}` // Default to audio
     }
