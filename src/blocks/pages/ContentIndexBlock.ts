@@ -1,5 +1,6 @@
-import { Block } from 'payload'
+import type { Block } from 'payload'
 
+import { computeApiEndpoint } from '@/hooks/contentIndexBlockHooks'
 import { PAGE_TAGS } from '@/lib/constants'
 
 export const ContentIndexBlock: Block = {
@@ -63,6 +64,26 @@ export const ContentIndexBlock: Block = {
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'songs',
         description: 'Select music tags to use as filters for this index grid',
+      },
+    },
+    {
+      name: 'lectureFilters',
+      type: 'relationship',
+      relationTo: 'lecture-tags',
+      hasMany: true,
+      minRows: 1,
+      admin: {
+        condition: (_, siblingData) => siblingData?.type === 'lectures',
+        description: 'Select lecture tags to use as filters for this index grid',
+      },
+    },
+    {
+      name: 'apiEndpoint',
+      type: 'text',
+      virtual: true,
+      admin: { hidden: true },
+      hooks: {
+        afterRead: [computeApiEndpoint],
       },
     },
   ],
