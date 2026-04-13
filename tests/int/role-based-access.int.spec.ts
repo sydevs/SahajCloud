@@ -397,6 +397,8 @@ describe('Role-Based Access Control', () => {
       })
 
       // Should NOT have implicit read to collections only in other projects
+      // lessons and app-cards are only in wemeditate-app; lectures is shared
+      // across wemeditate-web and wemeditate-app, so it IS readable here.
       expect(
         hasPermission(
           { user: managerUser, collection: 'lessons', operation: 'read' },
@@ -405,7 +407,7 @@ describe('Role-Based Access Control', () => {
       ).toBe(false)
       expect(
         hasPermission(
-          { user: managerUser, collection: 'lectures', operation: 'read' },
+          { user: managerUser, collection: 'app-cards', operation: 'read' },
           bypassPermissions,
         ),
       ).toBe(false)

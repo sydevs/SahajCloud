@@ -22,6 +22,21 @@ If you discover failing tests on `main`:
 - Create separate commit if fix is unrelated to feature
 - Document in PR description
 
+### Fast verification recipe
+
+To confirm a failure exists on `main` without losing your working changes:
+
+```bash
+git stash
+git checkout main -- tests/int/<failing-file>.int.spec.ts
+pnpm exec vitest run tests/int/<failing-file>.int.spec.ts
+# observe the same failure → it's pre-existing
+git checkout <your-branch> -- tests/int/<failing-file>.int.spec.ts
+git stash pop
+```
+
+This swaps just the single test file to its `main` version, re-runs it, then restores everything. Takes ~10 seconds and avoids a full branch checkout dance.
+
 ## PR Description Format
 
 Include test results summary:

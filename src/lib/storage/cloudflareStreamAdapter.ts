@@ -11,7 +11,7 @@ import { z } from 'zod'
 
 import { serverEnv } from '@/lib/env'
 
-import { CloudflareStreamDownloadsResponseSchema, CloudflareStreamResponseSchema } from './cloudflareSchemas'
+import { CloudflareStreamResponseSchema } from './cloudflareSchemas'
 import { validateFileUpload } from './uploadValidation'
 
 /**
@@ -130,38 +130,9 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
 
         req.payload.logger.info({ msg: 'Video uploaded successfully', videoId })
 
-        // Enable MP4 downloads for HTML5 video compatibility
-        try {
-          const downloadsResponse = await fetch(
-            `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${videoId}/downloads`,
-            {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${config.apiKey}`,
-                'Content-Type': 'application/json',
-              },
-            },
-          )
-
-          const downloadsResult = CloudflareStreamDownloadsResponseSchema.parse(
-            await downloadsResponse.json(),
-          )
-
-          if (!downloadsResult.success) {
-            const errors = downloadsResult.errors.map((e) => e.message).join(', ')
-            req.payload.logger.warn({ msg: 'Failed to enable MP4 downloads', videoId, errors })
-          } else {
-            const downloadStatus = downloadsResult.result?.default?.status || 'unknown'
-            req.payload.logger.info({ msg: 'MP4 downloads enabled', videoId, status: downloadStatus })
-          }
-        } catch (error) {
-          // Non-fatal error - video upload succeeded
-          req.payload.logger.warn({
-            msg: 'Error enabling MP4 downloads',
-            videoId,
-            error: error instanceof Error ? error.message : String(error),
-          })
-        }
+        // Note: MP4 downloads are enabled asynchronously via a Cloudflare Stream webhook
+        // once the video finishes transcoding. See src/app/(payload)/api/webhooks/cloudflare-stream/
+        // and .claude/docs/cloudflare-stream-webhook.md.
 
         // Preserve original filename in fileMetadata for seed script deduplication
         // The original filename (e.g., "f47ac10b58cc4372.mp4") is used for matching

@@ -210,6 +210,15 @@ Configuration: `src/lib/richEditor.ts`
 
 **Note**: Database schema migrations are in `src/migrations/` - these seed scripts are for data migration only.
 
+### Operator Scripts (`scripts/`)
+
+One-off operator scripts (NOT seeds — seeds live in `seeds/`). Use for tasks an operator runs manually from their machine: external API registration, one-time backfills, deployment helpers, etc.
+
+- **Location**: `scripts/<name>.ts` (TypeScript, run via `pnpm tsx scripts/<name>.ts`)
+- **Env access**: Read `process.env` directly, NOT the validated `serverEnv` module — the script runs from a local shell and shouldn't require unrelated env vars to be set
+- **Safety**: For destructive or state-changing scripts, add a `--force` flag guard and print a warning before making mutations
+- **Example**: [scripts/setup-stream-webhook.ts](scripts/setup-stream-webhook.ts) — registers the Cloudflare Stream webhook and prints the signing secret
+
 ## Development Workflow
 
 1. **Schema Changes**: Run `pnpm generate:types` after modifying collections
