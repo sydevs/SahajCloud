@@ -5,7 +5,8 @@
 The application uses **Cloudflare-native storage services** for optimal performance:
 
 ### Cloudflare Images (Image Storage)
-- **Collections**: `images`, `albums`, `cards`
+- **Collections**: `images`
+- **Referenced by**: `albums` (artwork), `app-cards` (image), `meditations` (thumbnail), `lectures` (thumbnail), `authors` (photo), `lessons` (icon), page blocks
 - **Features**: Automatic format optimization (WebP, AVIF), dynamic transformations, global CDN
 - **URL Format**: `https://imagedelivery.net/<hash>/<imageId>/public`
 - **Replaces**: Sharp image processing
@@ -235,11 +236,11 @@ plugins: [
 ### Content Collections
 - **Pages** (`src/collections/content/Pages.ts`) - Rich text content with embedded blocks using Lexical editor, author relationships, tags, auto-generated slugs, drafts system with autosave (60s), version history, and scheduled publishing
 - **Meditations** (`src/collections/content/Meditations.ts`) - Guided meditation content with audio files, **type select** (quick/daily/lesson with `quick` as default), **timings multi-select** (morning/afternoon/evening/night) for time-based scheduling on quick/daily types, **duration** (stored in seconds, auto-extracted from audio via `music-metadata` in `beforeChange` hook), **durationMinutes** (virtual, computed from duration), frame relationships with timestamps, locale-specific content filtering via `beforeOperation` hook (`filterMeditationsByLocale`), drafts system with scheduled publishing, and beforeChange validation requiring frames for publishing
-- **Albums** (`src/collections/content/Albums.ts`) - Music album groupings with Cloudflare Images artwork, localized title/artist fields, optional artistUrl, and join field for related songs
+- **Albums** (`src/collections/content/Albums.ts`) - Music album groupings with **artwork** relationship to Images collection, localized title/artist fields, optional artistUrl, and join field for related songs
 - **Songs** (`src/collections/content/Songs.ts`) - Background music tracks with direct audio upload, required album relationship, tags, and localized title field (hidden from admin sidebar, managed via Albums)
 - **Lessons** (`src/collections/content/Lessons.ts`) - Meditation lessons (also called "Path Steps" in admin UI) with audio upload, panels array for content sections, unit selection (Unit 1-4), step number, icon, optional meditation relationship, and rich text article field
 - **Videos** (`src/collections/content/Videos.ts`) - Video storage using Cloudflare Stream with automatic transcoding and HLS streaming, localized title, subtitles JSON field, virtual URL fields (`url` for MP4 download, `previewUrl` for thumbnails), tags relationship, and read-only fileMetadata
-- **AppCards** (`src/collections/content/AppCards.ts`) - Mobile app cards with image upload, **type select** (app-page/content/external), **countdown checkbox** for optional recurring schedules, conditional type-based fields (appPage for app-page, content relationship for content, linkUrl for external), **targetSections** field (multi-select) for Hero/Highlight section targeting, JSON-based **targeting rules** (`rulesField`) for client-side card selection (boolean and range conditions with AND/OR logic), **weight** field (1-5, default 3) for selection priority, and custom `RulesEditor` admin component
+- **AppCards** (`src/collections/content/AppCards.ts`) - Mobile app cards with **image** relationship to Images collection, **type select** (app-page/content/external), **countdown checkbox** for optional recurring schedules, conditional type-based fields (appPage for app-page, content relationship for content, linkUrl for external), **targetSections** field (multi-select) for Hero/Highlight section targeting, JSON-based **targeting rules** (`rulesField`) for client-side card selection (boolean and range conditions with AND/OR logic), **weight** field (1-5, default 3) for selection priority, and custom `RulesEditor` admin component
 
 ### Resource Collections
 - **Images** (`src/collections/resources/Images.ts`) - Image storage using Cloudflare Images with automatic format optimization (WebP, AVIF), dynamic transformations, tags, credit info, and virtual `url` field for Cloudflare CDN delivery
