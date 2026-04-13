@@ -67,6 +67,18 @@ Content catalog component:
 - Supports meditations and pages collections
 - Displays curated list of related content
 
+### 7. ContentIndexBlock (`ContentIndexBlock.ts`)
+
+Content index grid component with type-based filtering:
+- `type` (select, required, default: 'meditations') - Content type: meditations, pages, songs, lectures
+- `meditationFilters` (relationship to meditation-tags, hasMany, minRows: 1) - Visible when type is meditations
+- `pageFilters` (select, hasMany, required) - Uses PAGE_TAGS values, visible when type is pages
+- `songFilters` (relationship to song-tags, hasMany, minRows: 1) - Visible when type is songs
+- `lectureFilters` (relationship to lecture-tags, hasMany, minRows: 1) - Visible when type is lectures
+- `apiEndpoint` (text, virtual, hidden) - Computed API endpoint URL for frontend consumption
+
+The virtual `apiEndpoint` field uses an `afterRead` hook (`computeApiEndpoint` in `src/hooks/contentIndexBlockHooks.ts`) to generate a ready-to-use API URL from the block's type and selected filters. Meditations query `/api/meditation-tags` (reverse relationship), while pages/songs/lectures query their own collection endpoints.
+
 ## Key Features
 
 - **Lexical Editor Integration**: Full-featured editor with formatting options and embedded blocks
@@ -81,5 +93,6 @@ Content catalog component:
 ## Testing Coverage
 
 - **Integration Tests**: `tests/int/pages.int.spec.ts` with comprehensive test cases
+- **ContentIndexBlock Tests**: `tests/int/content-index-block.int.spec.ts` with pure function tests for the `computeApiEndpoint` hook and integration tests verifying the virtual field through Payload
 - **Test Data Factories**: Enhanced `testData.ts` with `createPage()` helper function
 - **Block Validation**: Tests for character limits, item counts, and block structure validation
