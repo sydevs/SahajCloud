@@ -34,11 +34,7 @@ describe('Albums Collection', () => {
     expect(testAlbum.title).toBe('Nature Sounds Collection')
     expect(testAlbum.artist).toBe('Various Artists')
     expect(testAlbum.artistUrl).toBe('https://example.com/artists/various')
-    // Accept both image/jpeg and image/jpg (detected based on file content)
-    expect(['image/jpeg', 'image/jpg']).toContain(testAlbum.mimeType)
-    // In tests, Payload may add numeric suffix to avoid collisions
-    expect(testAlbum.filename).toMatch(/^image-1050x700(-\d+)?\.jpg$/)
-    expect(testAlbum.filesize).toBeGreaterThan(0)
+    expect(testAlbum.artwork).toBeDefined()
   })
 
   it('creates an album with minimal fields', async () => {
@@ -55,11 +51,7 @@ describe('Albums Collection', () => {
   })
 
   it('validates required title field', async () => {
-    // Use payload.create directly to test validation without helper defaults
-    const fs = await import('fs')
-    const path = await import('path')
-    const filePath = path.join(process.cwd(), 'tests/files/image-1050x700.jpg')
-    const fileBuffer = fs.readFileSync(filePath)
+    const img = await testData.createMediaImage(payload, { alt: 'Test artwork' })
 
     await expect(
       // @ts-expect-error - Intentionally omitting required field to test validation
@@ -67,24 +59,15 @@ describe('Albums Collection', () => {
         collection: 'albums',
         data: {
           artist: 'Artist Without Title',
+          artwork: img.id,
           // title intentionally omitted
-        },
-        file: {
-          data: fileBuffer,
-          mimetype: 'image/jpeg',
-          name: 'test.jpg',
-          size: fileBuffer.length,
         },
       }),
     ).rejects.toThrow()
   })
 
   it('validates required artist field', async () => {
-    // Use payload.create directly to test validation without helper defaults
-    const fs = await import('fs')
-    const path = await import('path')
-    const filePath = path.join(process.cwd(), 'tests/files/image-1050x700.jpg')
-    const fileBuffer = fs.readFileSync(filePath)
+    const img = await testData.createMediaImage(payload, { alt: 'Test artwork' })
 
     await expect(
       // @ts-expect-error - Intentionally omitting required field to test validation
@@ -92,13 +75,8 @@ describe('Albums Collection', () => {
         collection: 'albums',
         data: {
           title: 'Album Without Artist',
+          artwork: img.id,
           // artist intentionally omitted
-        },
-        file: {
-          data: fileBuffer,
-          mimetype: 'image/jpeg',
-          name: 'test.jpg',
-          size: fileBuffer.length,
         },
       }),
     ).rejects.toThrow()
@@ -237,55 +215,22 @@ describe('Albums Collection', () => {
     }
   })
 
-  it('supports different image formats', async () => {
-    const formats = [
-      { mimetypes: ['image/jpeg', 'image/jpg'], name: 'image-1050x700.jpg' },
-      { mimetypes: ['image/png'], name: 'image-1050x700.png' },
-      { mimetypes: ['image/webp'], name: 'image-1050x700.webp' },
-    ]
+  it('populates artwork relationship at depth 1', async () => {
+    const album = await testData.createAlbum(payload, {
+      title: 'Album with Artwork',
+      artist: 'Artwork Artist',
+    })
 
-    for (let i = 0; i < formats.length; i++) {
-      const format = formats[i]
-      const album = await testData.createAlbum(
-        payload,
-        {
-          title: `Album with ${format.name.split('.')[1].toUpperCase()}`,
-          artist: 'Format Test Artist',
-        },
-        format.name,
-      )
+    const fetched = (await payload.findByID({
+      collection: 'albums',
+      id: album.id,
+      depth: 1,
+    })) as Album
 
-      expect(album).toBeDefined()
-      // Accept any of the valid mimetypes for this format
-      expect(format.mimetypes).toContain(album.mimeType)
-      // In tests, Payload may add numeric suffix to avoid collisions
-      // Regex: basename(-N)?.extension where -N is optional
-      const escapedName = format.name.replace('.', '(-\\d+)?\\.')
-      expect(album.filename).toMatch(new RegExp(`^${escapedName}$`))
-    }
-  })
-
-  it('rejects invalid image formats', async () => {
-    // Use payload.create directly with audio mimetype to test validation
-    const fs = await import('fs')
-    const path = await import('path')
-    const filePath = path.join(process.cwd(), 'tests/files/audio-42s.mp3')
-    const fileBuffer = fs.readFileSync(filePath)
-
-    await expect(
-      payload.create({
-        collection: 'albums',
-        data: {
-          title: 'Album with Invalid Image',
-          artist: 'Error Test',
-        },
-        file: {
-          data: fileBuffer,
-          mimetype: 'audio/mpeg', // Explicitly pass audio mimetype
-          name: 'audio-42s.mp3',
-          size: fileBuffer.length,
-        },
-      }),
-    ).rejects.toThrow() // Should reject audio mimeType
+    expect(fetched.artwork).toBeDefined()
+    expect(typeof fetched.artwork).toBe('object')
+    const artwork = fetched.artwork as { id: number; alt: string }
+    expect(artwork.id).toBeDefined()
+    expect(artwork.alt).toBe('Album artwork')
   })
 })

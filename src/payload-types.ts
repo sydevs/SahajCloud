@@ -600,6 +600,7 @@ export interface Song {
  */
 export interface Album {
   id: number;
+  artwork: number | Image;
   title: string;
   artist: string;
   /**
@@ -617,15 +618,6 @@ export interface Album {
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1125,6 +1117,7 @@ export interface Client {
  */
 export interface AppCard {
   id: number;
+  image: number | Image;
   title: string;
   subtitle?: string | null;
   /**
@@ -1225,15 +1218,6 @@ export interface AppCard {
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1773,6 +1757,7 @@ export interface SongsSelect<T extends boolean = true> {
  * via the `definition` "albums_select".
  */
 export interface AlbumsSelect<T extends boolean = true> {
+  artwork?: T;
   title?: T;
   artist?: T;
   artistUrl?: T;
@@ -1780,15 +1765,6 @@ export interface AlbumsSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
-  url?: T;
-  thumbnailURL?: T;
-  filename?: T;
-  mimeType?: T;
-  filesize?: T;
-  width?: T;
-  height?: T;
-  focalX?: T;
-  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2076,6 +2052,7 @@ export interface ClientsSelect<T extends boolean = true> {
  * via the `definition` "app-cards_select".
  */
 export interface AppCardsSelect<T extends boolean = true> {
+  image?: T;
   title?: T;
   subtitle?: T;
   button?: T;
@@ -2109,15 +2086,6 @@ export interface AppCardsSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
-  url?: T;
-  thumbnailURL?: T;
-  filename?: T;
-  mimeType?: T;
-  filesize?: T;
-  width?: T;
-  height?: T;
-  focalX?: T;
-  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

@@ -76,6 +76,49 @@ Update:
 - `.claude/docs/components/project-visibility.md`
 - Any other docs referencing the collection
 
+## Upload-to-Relationship Conversion Pattern
+
+When converting a collection from an upload collection to a standard collection with a `mediaField()` relationship (e.g., Albums artwork, AppCards image), follow this checklist:
+
+### Files to Update (in order)
+
+#### 1. Collection File
+
+- Remove `upload` config block (`staticDir`, `mimeTypes`, `focalPoint`, etc.)
+- Remove `virtualUrlField` import and usage
+- Add `mediaField()` from `@/fields` with appropriate name and options
+
+#### 2. Storage Plugin
+
+- Remove the collection's entry from `src/lib/storage/storagePlugin.ts`
+
+#### 3. Seed Scripts
+
+- Search `seeds/` for any code that creates documents in this collection with a `file:` property
+- Update to: upload the image to `images` collection first, then create the document with the relationship ID
+- This is easy to miss — `pnpm generate:types` + `wrangler types` will catch it as a build error
+
+#### 4. Test Helpers
+
+- Update `tests/utils/testData.ts` factory functions to use `createMediaImage()` + relationship ID instead of `file:` uploads
+- Remove the collection from `UPLOAD_COLLECTIONS` in `tests/utils/testHelpers.ts` (if listed)
+
+#### 5. Test Files
+
+- Remove upload-specific tests (MIME type validation, format support, file rejection)
+- Update assertions that reference upload fields (`filename`, `mimeType`, `filesize`)
+- Add relationship population test (`depth: 1` returns nested image object)
+
+#### 6. Database Migration
+
+- Run `pnpm payload migrate:create` after collection changes
+- Migration should add `<field>_id` column and drop upload columns (`filename`, `mime_type`, `filesize`, `width`, `height`, `focal_x`, `focal_y`, `thumbnail_u_r_l`)
+- Version tables (`_<collection>_v`) also need the same changes
+
+#### 7. Documentation
+
+- Update `.claude/docs/architecture.md` storage adapter mapping and collection descriptions
+
 ### Verification
 
 After completing all updates:

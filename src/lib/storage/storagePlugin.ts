@@ -107,20 +107,6 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
           disablePayloadAccessControl: true,
         },
 
-        // Albums collection - Cloudflare Images (album artwork)
-        albums: {
-          adapter: imagesAdapter,
-          disableLocalStorage: true,
-          disablePayloadAccessControl: true,
-        },
-
-        // App Cards collection - Cloudflare Images (promotional card images)
-        'app-cards': {
-          adapter: imagesAdapter,
-          disableLocalStorage: true,
-          disablePayloadAccessControl: true,
-        },
-
         // Frames collection - Mixed media adapter (Images for images, Stream for videos, R2 for others)
         frames: {
           adapter: mixedMediaAdapter({

@@ -60,18 +60,18 @@ export function createTestLexicalContent(text: string = 'Test content') {
  */
 export const testData = {
   /**
-   * Create an app card (upload collection with image)
+   * Create an app card with image relationship
    */
-  async createAppCard(
-    payload: Payload,
-    overrides: Partial<AppCard> = {},
-    sampleFile = 'image-1050x700.jpg',
-  ): Promise<AppCard> {
-    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    const fileBuffer = fs.readFileSync(filePath)
-
+  async createAppCard(payload: Payload, overrides: Partial<AppCard> = {}): Promise<AppCard> {
     const uniqueId = Math.random().toString(36).substring(7)
     const defaultTitle = overrides.title || `Test Card ${uniqueId}`
+
+    // Create image for the card unless already provided
+    let imageId = overrides.image
+    if (!imageId || typeof imageId === 'object') {
+      const img = await testData.createMediaImage(payload, { alt: 'App card image' })
+      imageId = img.id
+    }
 
     return (await payload.create({
       collection: 'app-cards',
@@ -79,13 +79,8 @@ export const testData = {
         title: defaultTitle,
         type: 'app-page',
         appPage: 'map',
+        image: imageId,
         ...overrides,
-      },
-      file: {
-        data: fileBuffer,
-        mimetype: `image/${path.extname(sampleFile).slice(1)}`,
-        name: sampleFile,
-        size: fileBuffer.length,
       },
     })) as AppCard
   },
@@ -133,35 +128,28 @@ export const testData = {
   },
 
   /**
-   * Create an album using sample image file
+   * Create an album with artwork image relationship
    */
-  async createAlbum(
-    payload: Payload,
-    overrides: Partial<Album> = {},
-    sampleFile = 'image-1050x700.jpg',
-  ): Promise<Album> {
-    const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
-    const fileBuffer = fs.readFileSync(filePath)
-    // Convert Buffer to Uint8Array for compatibility with file-type library
-    const fileData = new Uint8Array(fileBuffer)
-
+  async createAlbum(payload: Payload, overrides: Partial<Album> = {}): Promise<Album> {
     // Generate unique title to avoid collisions
     const uniqueId = Math.random().toString(36).substring(7)
     const defaultTitle = overrides.title || `Test Album ${uniqueId}`
     const defaultArtist = overrides.artist || 'Test Artist'
+
+    // Create image for artwork unless already provided
+    let artworkId = overrides.artwork
+    if (!artworkId || typeof artworkId === 'object') {
+      const img = await testData.createMediaImage(payload, { alt: 'Album artwork' })
+      artworkId = img.id
+    }
 
     return (await payload.create({
       collection: 'albums',
       data: {
         title: defaultTitle,
         artist: defaultArtist,
+        artwork: artworkId,
         ...overrides,
-      },
-      file: {
-        data: fileData as unknown as Buffer,
-        mimetype: `image/${path.extname(sampleFile).slice(1)}`,
-        name: sampleFile,
-        size: fileData.length,
       },
     })) as Album
   },

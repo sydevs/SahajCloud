@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { virtualUrlField } from '@/lib/storage/urlFields'
+import { mediaField } from '@/fields'
 
 export const Albums: CollectionConfig = {
   slug: 'albums',
@@ -10,19 +10,13 @@ export const Albums: CollectionConfig = {
   },
   trash: true,
   disableDuplicate: true,
-  upload: {
-    staticDir: 'media/albums',
-    hideRemoveFile: true,
-    focalPoint: true,
-    mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
-  },
   admin: {
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'artist', 'filename'],
+    defaultColumns: ['title', 'artist', 'artwork'],
   },
   fields: [
-    virtualUrlField({ collection: 'albums', adapter: 'cloudflare-images' }),
+    mediaField({ name: 'artwork', label: 'Album Artwork', required: true }),
     {
       name: 'title',
       type: 'text',
