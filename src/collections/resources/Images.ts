@@ -54,6 +54,7 @@ export const Images: CollectionConfig = {
         'meditation',
         'placeholder',
         'lesson',
+        'app-card',
       ],
       admin: {
         description: 'Tags to categorize this image',
