@@ -340,6 +340,7 @@ export interface Image {
         | 'meditation'
         | 'placeholder'
         | 'lesson'
+        | 'app-card'
       )[]
     | null;
   fileMetadata?:
@@ -1124,6 +1125,10 @@ export interface AppCard {
    * Button label text
    */
   button?: string | null;
+  /**
+   * A custom header that will appear above the card if it is selected as a hero card.
+   */
+  header: string;
   type: 'app-page' | 'content' | 'external';
   /**
    * Select the app page this card links to
@@ -2056,6 +2061,7 @@ export interface AppCardsSelect<T extends boolean = true> {
   title?: T;
   subtitle?: T;
   button?: T;
+  header?: T;
   type?: T;
   appPage?: T;
   content?: T;
