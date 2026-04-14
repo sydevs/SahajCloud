@@ -35,7 +35,7 @@ export const framesByNarrator: Endpoint = {
         depth: 0,
       })
     } catch {
-      return Response.json({ error: 'Narrator not found' }, { status: 404 })
+      return Response.json({ errors: [{ message: 'Narrator not found' }] }, { status: 404 })
     }
 
     // Get frames filtered by narrator's gender (imageSet)
