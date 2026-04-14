@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
+import { lecturesForViewer } from '@/endpoints'
 import { mediaField, urlField } from '@/fields'
 import { populateFromNirmalaVidya, populateSubtitleLocales } from '@/hooks/lectureHooks'
 
@@ -9,10 +10,15 @@ export const Lectures: CollectionConfig = {
     singular: 'Lecture',
     plural: 'Lectures',
   },
+  versions: {
+    drafts: true,
+    maxPerDoc: 5,
+  },
+  endpoints: [lecturesForViewer],
   admin: {
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'thumbnail'],
+    defaultColumns: ['title', 'thumbnail', '_status'],
   },
   hooks: {
     beforeChange: [populateFromNirmalaVidya],

@@ -229,7 +229,7 @@ One-off operator scripts (NOT seeds — seeds live in `seeds/`). Use for tasks a
 
 ### Database Migrations
 - **Location**: `src/migrations/`
-- **Creating**: `pnpm db:migrations:create` (generates a timestamped `.ts` migration file AND a `.json` Drizzle schema snapshot — both must be committed)
+- **Creating**: `pnpm db:migrations:create` (generates a timestamped `.ts` migration file AND a `.json` Drizzle schema snapshot — both must be committed). Run synchronously in the foreground — backgrounded execution drops output and the file is not created.
 - **Running**: `pnpm payload migrate`
 - **Rolling Back**: `pnpm payload migrate:down`
 
