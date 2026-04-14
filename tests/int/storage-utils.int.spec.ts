@@ -11,8 +11,8 @@ import type { Field, FieldHook } from 'payload'
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
+import { generateCloudflareImageId, generateR2Key } from '@/lib/storage/filenameUtils'
 import { getMimeCategory } from '@/lib/storage/mimeUtils'
-import { sanitizeFilename } from '@/lib/storage/r2NativeAdapter'
 
 // Helper to extract the afterRead hook from a field
 const getAfterReadHook = (field: Field): FieldHook | undefined => {
@@ -453,48 +453,346 @@ describe('MIME Utilities', () => {
   })
 })
 
-describe('R2 Native Adapter', () => {
-  describe('sanitizeFilename', () => {
-    it('converts filename to URL-safe slug', () => {
-      const result = sanitizeFilename('My Audio File.mp3')
-      expect(result).toMatch(/^my-audio-file-[a-z0-9]{8,11}\.mp3$/)
+describe('Filename Utilities', () => {
+  describe('generateR2Key', () => {
+    it('converts filename to URL-safe slug with extension', () => {
+      const result = generateR2Key('My Audio File.mp3')
+      expect(result).toMatch(/^my-audio-file-[a-z0-9]{6}\.mp3$/)
     })
 
     it('removes special characters', () => {
-      const result = sanitizeFilename('File (1) [test].mp3')
-      expect(result).toMatch(/^file-1-test-[a-z0-9]{8,11}\.mp3$/)
+      const result = generateR2Key('File (1) [test].mp3')
+      expect(result).toMatch(/^file-1-test-[a-z0-9]{6}\.mp3$/)
     })
 
-    it('preserves file extension', () => {
-      const result = sanitizeFilename('test.tar.gz')
-      // Multi-dot filename: dots are removed (not converted to hyphens)
-      expect(result).toMatch(/^testtar-[a-z0-9]{8,11}\.gz$/)
+    it('preserves only the final file extension', () => {
+      const result = generateR2Key('test.tar.gz')
+      // Multi-dot filename: dots in base are removed (not converted to hyphens)
+      expect(result).toMatch(/^testtar-[a-z0-9]{6}\.gz$/)
     })
 
     it('handles files without extension', () => {
-      const result = sanitizeFilename('README')
-      expect(result).toMatch(/^readme-[a-z0-9]{8,11}$/)
+      const result = generateR2Key('README')
+      expect(result).toMatch(/^readme-[a-z0-9]{6}$/)
     })
 
-    it('adds unique random suffix', () => {
-      const result1 = sanitizeFilename('test.mp3')
-      const result2 = sanitizeFilename('test.mp3')
-
+    it('adds a unique random suffix each call', () => {
+      const result1 = generateR2Key('test.mp3')
+      const result2 = generateR2Key('test.mp3')
       expect(result1).not.toBe(result2)
-      expect(result1).toMatch(/^test-[a-z0-9]{8,11}\.mp3$/)
-      expect(result2).toMatch(/^test-[a-z0-9]{8,11}\.mp3$/)
+      expect(result1).toMatch(/^test-[a-z0-9]{6}\.mp3$/)
+      expect(result2).toMatch(/^test-[a-z0-9]{6}\.mp3$/)
     })
 
     it('handles Unicode characters', () => {
-      const result = sanitizeFilename('文件名.mp3')
-      // Slugify converts non-ASCII to empty, then adds suffix
+      const result = generateR2Key('文件名.mp3')
       expect(result).toMatch(/^[a-z0-9-]+\.mp3$/)
     })
 
     it('handles multiple dots in filename', () => {
-      const result = sanitizeFilename('my.file.name.mp3')
-      // Multi-dot filename: dots are removed (not converted to hyphens)
-      expect(result).toMatch(/^myfilename-[a-z0-9]{8,11}\.mp3$/)
+      const result = generateR2Key('my.file.name.mp3')
+      expect(result).toMatch(/^myfilename-[a-z0-9]{6}\.mp3$/)
+    })
+  })
+
+  describe('generateCloudflareImageId', () => {
+    it('produces a slug with no extension', () => {
+      const result = generateCloudflareImageId('My Photo.jpg')
+      expect(result).toMatch(/^my-photo-[a-z0-9]{6}$/)
+      expect(result).not.toContain('.')
+    })
+
+    it('handles filenames without extensions', () => {
+      const result = generateCloudflareImageId('README')
+      expect(result).toMatch(/^readme-[a-z0-9]{6}$/)
+    })
+
+    it('handles filenames with multiple dots', () => {
+      const result = generateCloudflareImageId('my.lecture.thumbnail.jpg')
+      // Final ".jpg" is dropped; dots in base are stripped by slugify
+      expect(result).toMatch(/^mylecturethumbnail-[a-z0-9]{6}$/)
+    })
+
+    it('adds a unique random suffix each call', () => {
+      const a = generateCloudflareImageId('photo.jpg')
+      const b = generateCloudflareImageId('photo.jpg')
+      expect(a).not.toBe(b)
+    })
+
+    it('strips characters CF Image IDs cannot contain', () => {
+      const result = generateCloudflareImageId('weird/name:with spaces?.png')
+      expect(result).toMatch(/^[a-z0-9-]+$/)
+    })
+
+    it('does not start with a hyphen for all-Unicode filenames', () => {
+      // slugify(strict) drops all non-ASCII; the helper falls back to "file"
+      // so the resulting ID never begins with a hyphen (CF Images rejects those).
+      const result = generateCloudflareImageId('文件名.jpg')
+      expect(result).toMatch(/^file-[a-z0-9]{6}$/)
+      expect(result.startsWith('-')).toBe(false)
+    })
+  })
+})
+
+describe('Storage Adapter handleUpload', () => {
+  const originalEnv = process.env
+  const originalFetch = globalThis.fetch
+
+  beforeEach(() => {
+    vi.resetModules()
+    process.env = {
+      ...originalEnv,
+      PAYLOAD_SECRET: 'test-secret-key-with-32-chars-minimum',
+      CLOUDFLARE_IMAGES_DELIVERY_URL: 'https://imagedelivery.net/test-hash',
+      CLOUDFLARE_STREAM_DELIVERY_URL: 'https://customer-test.cloudflarestream.com',
+      CLOUDFLARE_R2_DELIVERY_URL: 'https://assets.test',
+    }
+  })
+
+  afterEach(() => {
+    process.env = originalEnv
+    globalThis.fetch = originalFetch
+    vi.restoreAllMocks()
+  })
+
+  // Build a minimal req object with logger stubs
+  const makeReq = () => ({
+    payload: {
+      logger: {
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+      },
+    },
+    file: { name: 'original-input.jpg' },
+  })
+
+  const makeImageFile = (filename = 'lecture-thumbnail-167289004.jpg') => ({
+    filename,
+    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+    mimeType: 'image/jpeg',
+    filesize: 4,
+  })
+
+  const makeVideoFile = (filename = 'my-video.mp4') => ({
+    filename,
+    buffer: Buffer.from([0x00, 0x00, 0x00, 0x20]),
+    mimeType: 'video/mp4',
+    filesize: 4,
+  })
+
+  describe('cloudflareImagesAdapter.handleUpload', () => {
+    it('sends a custom id and returns filename + fileMetadata from the response', async () => {
+      const { cloudflareImagesAdapter } = await import('@/lib/storage/cloudflareImagesAdapter')
+      let sentFormData: FormData | undefined
+
+      const fetchMock = vi.fn(async (_url, init) => {
+        sentFormData = init?.body as FormData
+        const sentId = sentFormData.get('id') as string
+        return new Response(
+          JSON.stringify({
+            success: true,
+            errors: [],
+            result: { id: sentId, filename: 'lecture-thumbnail-167289004.jpg' },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
+      const adapter = cloudflareImagesAdapter({
+        accountId: 'test-account',
+        apiKey: 'test-key',
+        deliveryUrl: 'https://imagedelivery.net/test-hash',
+      })({ collection: { slug: 'images' } as never, prefix: undefined })
+
+      const data: Record<string, unknown> = {}
+      const file = makeImageFile()
+      const req = makeReq()
+
+      const result = await adapter.handleUpload({
+        data,
+        file: file as never,
+        req: req as never,
+        clientUploadContext: undefined,
+        collection: { slug: 'images' } as never,
+      })
+
+      expect(fetchMock).toHaveBeenCalledOnce()
+      expect(sentFormData).toBeDefined()
+      const sentId = sentFormData!.get('id')
+      expect(sentId).toMatch(/^lecture-thumbnail-167289004-[a-z0-9]{6}$/)
+
+      expect(result).toEqual({
+        filename: sentId,
+        fileMetadata: { originalFilename: 'lecture-thumbnail-167289004.jpg' },
+      })
+
+      // In-memory mirror — downstream afterChange hooks see the new filename
+      expect(data.filename).toBe(sentId)
+      expect(data.fileMetadata).toEqual({ originalFilename: 'lecture-thumbnail-167289004.jpg' })
+      expect(file.filename).toBe(sentId)
+    })
+
+    it('throws when Cloudflare returns success:false', async () => {
+      const { cloudflareImagesAdapter } = await import('@/lib/storage/cloudflareImagesAdapter')
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          async () =>
+            new Response(
+              JSON.stringify({
+                success: false,
+                errors: [{ code: 5400, message: 'Duplicate ID' }],
+              }),
+              { status: 409, headers: { 'Content-Type': 'application/json' } },
+            ),
+        ),
+      )
+
+      const adapter = cloudflareImagesAdapter({
+        accountId: 'test-account',
+        apiKey: 'test-key',
+        deliveryUrl: 'https://imagedelivery.net/test-hash',
+      })({ collection: { slug: 'images' } as never, prefix: undefined })
+
+      await expect(
+        adapter.handleUpload({
+          data: {},
+          file: makeImageFile() as never,
+          req: makeReq() as never,
+          clientUploadContext: undefined,
+          collection: { slug: 'images' } as never,
+        }),
+      ).rejects.toThrow(/Duplicate ID/)
+    })
+  })
+
+  describe('cloudflareStreamAdapter.handleUpload', () => {
+    it('returns the CF-generated videoId as filename and does not send a custom id', async () => {
+      const { cloudflareStreamAdapter } = await import('@/lib/storage/cloudflareStreamAdapter')
+      let sentFormData: FormData | undefined
+
+      const fetchMock = vi.fn(async (_url, init) => {
+        sentFormData = init?.body as FormData
+        return new Response(
+          JSON.stringify({
+            success: true,
+            errors: [],
+            result: { uid: 'cf-video-uid-abc123' },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
+      const adapter = cloudflareStreamAdapter({
+        accountId: 'test-account',
+        apiKey: 'test-key',
+        deliveryUrl: 'https://customer-test.cloudflarestream.com',
+      })({ collection: { slug: 'frames' } as never, prefix: undefined })
+
+      const data: Record<string, unknown> = {}
+      const file = makeVideoFile()
+
+      const result = await adapter.handleUpload({
+        data,
+        file: file as never,
+        req: makeReq() as never,
+        clientUploadContext: undefined,
+        collection: { slug: 'frames' } as never,
+      })
+
+      // Stream API doesn't accept custom IDs — make sure we didn't send one
+      expect(sentFormData!.has('id')).toBe(false)
+
+      expect(result).toEqual({
+        filename: 'cf-video-uid-abc123',
+        fileMetadata: { originalFilename: 'my-video.mp4' },
+      })
+      expect(data.filename).toBe('cf-video-uid-abc123')
+      expect(file.filename).toBe('cf-video-uid-abc123')
+    })
+  })
+
+  describe('r2NativeAdapter.handleUpload', () => {
+    it('writes a sanitized R2 key and returns it as the filename', async () => {
+      const { r2NativeAdapter } = await import('@/lib/storage/r2NativeAdapter')
+
+      const put = vi.fn().mockResolvedValue(null)
+      const bucket = { put } as unknown as R2Bucket
+
+      const adapter = r2NativeAdapter({
+        bucket,
+        publicUrl: 'https://assets.test',
+      })({ collection: { slug: 'meditations' } as never, prefix: 'meditations' })
+
+      const data: Record<string, unknown> = {}
+      const file = {
+        filename: 'My Audio (1).mp3',
+        buffer: Buffer.from([0x00, 0x01]),
+        mimeType: 'audio/mpeg',
+        filesize: 2,
+      }
+
+      const result = await adapter.handleUpload({
+        data,
+        file: file as never,
+        req: makeReq() as never,
+        clientUploadContext: undefined,
+        collection: { slug: 'meditations' } as never,
+      })
+
+      expect(result).toMatchObject({ filename: expect.stringMatching(/^my-audio-1-[a-z0-9]{6}\.mp3$/) })
+      expect(put).toHaveBeenCalledOnce()
+      const [key] = put.mock.calls[0]
+      expect(key).toBe(`meditations/${(result as { filename: string }).filename}`)
+      expect(data.filename).toBe((result as { filename: string }).filename)
+    })
+  })
+
+  describe('mixedMediaAdapter.handleUpload', () => {
+    it('forwards the inner adapter return value (filename + fileMetadata)', async () => {
+      const { mixedMediaAdapter } = await import('@/lib/storage/mixedMediaAdapter')
+
+      // Inner adapter mock that returns a known payload — proves the mixed
+      // adapter doesn't accidentally swallow the return.
+      const innerReturn = {
+        filename: 'inner-image-id-abc123',
+        fileMetadata: { originalFilename: 'photo.jpg' },
+      }
+      const innerHandleUpload = vi.fn().mockResolvedValue(innerReturn)
+      const innerAdapter = vi.fn().mockReturnValue({
+        name: 'inner-images',
+        handleUpload: innerHandleUpload,
+        handleDelete: vi.fn(),
+        staticHandler: vi.fn(),
+      })
+
+      const r2Adapter = vi.fn().mockReturnValue({
+        name: 'r2',
+        handleUpload: vi.fn(),
+        handleDelete: vi.fn(),
+        staticHandler: vi.fn(),
+      })
+
+      const adapter = mixedMediaAdapter({
+        routes: { 'image/': innerAdapter as never },
+        r2Adapter: r2Adapter as never,
+      })({ collection: { slug: 'files' } as never, prefix: undefined })
+
+      const args = {
+        data: {},
+        file: makeImageFile() as never,
+        req: makeReq() as never,
+        clientUploadContext: undefined,
+        collection: { slug: 'files' } as never,
+      }
+
+      const result = await adapter.handleUpload(args)
+
+      expect(innerHandleUpload).toHaveBeenCalledOnce()
+      expect(result).toEqual(innerReturn)
     })
   })
 })

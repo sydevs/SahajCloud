@@ -8,9 +8,9 @@
  */
 import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
-import slugify from 'slugify'
-
 import { serverEnv } from '@/lib/env'
+
+import { applyFilename, generateR2Key } from './filenameUtils'
 
 /**
  * Get R2 storage URL for a filename
@@ -30,30 +30,6 @@ export interface R2NativeConfig {
   bucket: R2Bucket
   /** Public URL for accessing R2 assets (e.g., "https://assets.sydevelopers.com") */
   publicUrl: string
-}
-
-/**
- * Sanitize filename for safe storage
- *
- * Converts filename to URL-safe slug and adds random suffix to prevent collisions.
- * Exported for testing purposes.
- *
- * @param filename - Original filename
- * @returns Sanitized filename
- *
- * @example
- * Input: "My Photo (1).mp3"
- * Output: "my-photo-1-xk2j9s.mp3"
- */
-export const sanitizeFilename = (filename: string): string => {
-  const parts = filename.split('.')
-  const ext = parts.length > 1 ? parts.pop() : ''
-  const baseName = parts.join('.')
-
-  const slugified = slugify(baseName, { strict: true, lower: true })
-  const randomSuffix = (Math.random() + 1).toString(36).substring(2)
-
-  return ext ? `${slugified}-${randomSuffix}.${ext}` : `${slugified}-${randomSuffix}`
 }
 
 /**
@@ -83,20 +59,9 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
 
     handleUpload: async ({ data, file, req }) => {
       try {
-        // Sanitize the filename to URL-safe slug with random suffix
-        const finalFilename = sanitizeFilename(file.filename)
+        const finalFilename = generateR2Key(file.filename)
 
-        // Update filename in all locations
-        // - data.filename: The object that will be saved to the database (passed by reference)
-        // - file.filename: The file object used by the storage plugin
-        // - req.file.name: The original request file (for consistency)
-        file.filename = finalFilename
-        if (data) {
-          data.filename = finalFilename
-        }
-        if (req?.file) {
-          req.file.name = finalFilename
-        }
+        applyFilename(file, data, req, finalFilename)
 
         const key = prefix ? `${prefix}/${finalFilename}` : finalFilename
 
@@ -113,6 +78,8 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
             contentType: file.mimeType,
           },
         })
+
+        return { filename: finalFilename }
       } catch (error) {
         const key = prefix ? `${prefix}/${file.filename}` : file.filename
         // eslint-disable-next-line no-console
