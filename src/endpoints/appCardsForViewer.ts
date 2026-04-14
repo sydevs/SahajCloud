@@ -22,7 +22,7 @@ const querySchema = z.object({
 })
 
 /**
- * GET /api/app-cards/for-user
+ * GET /api/app-cards/for-viewer
  *
  * Returns a randomized, filtered list of published AppCards for the app
  * homepage (Hero or Highlights section). Rule evaluation is delegated to the
@@ -35,8 +35,8 @@ const querySchema = z.object({
  * `countdown: true` are returned regardless of whether the schedule is
  * currently active. Tracked as follow-up work.
  */
-export const appCardsForUser: Endpoint = {
-  path: '/for-user',
+export const appCardsForViewer: Endpoint = {
+  path: '/for-viewer',
   method: 'get',
   handler: async (req) => {
     const parsed = querySchema.safeParse(req.query)

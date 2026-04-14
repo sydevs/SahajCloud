@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { appCardsForUser } from '@/endpoints'
+import { appCardsForViewer } from '@/endpoints'
 import { mediaField, rulesField, scheduleField, urlField } from '@/fields'
 
 /**
@@ -21,7 +21,7 @@ export const AppCards: CollectionConfig = {
     maxPerDoc: 5,
   },
   disableDuplicate: true,
-  endpoints: [appCardsForUser],
+  endpoints: [appCardsForViewer],
   admin: {
     group: 'WeMeditate App',
     useAsTitle: 'title',
