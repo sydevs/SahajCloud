@@ -198,6 +198,18 @@ describe('lecturesForViewer endpoint', () => {
     expect(ids).not.toContain(lectureBeginnerAndViewers10.id)
   })
 
+  it('returns empty docs when no tag rules pass (eligibleSet short-circuit)', async () => {
+    // pathProgress=99 fails Beginner (0-5) and Intermediate (5-10);
+    // totalLecturesViewed=0 fails Viewers10 (min 10). No tags eligible.
+    const { status, body } = await callEndpoint(payload, {
+      limit: 100,
+      pathProgress: 99,
+      totalLecturesViewed: 0,
+    })
+    expect(status).toBe(200)
+    expect((body as { docs: Lecture[] }).docs).toEqual([])
+  })
+
   it('respects the limit parameter', async () => {
     const { body } = await callEndpoint(payload, {
       limit: 1,

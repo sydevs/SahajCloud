@@ -17,8 +17,9 @@ const querySchema = z.object({
  *
  * Returns a uniform-random, rule-filtered list of published lectures for the
  * supplied viewer data. Unlike AppCards, lectures carry no rules themselves —
- * rules live on `lecture-tags`. A lecture is eligible iff **all** of its tags
- * pass `rulesField` evaluation for the viewer.
+ * rules live on `lecture-tags`. A lecture is eligible if it has at least one
+ * tag and **all** of its tags pass `rulesField` evaluation for the viewer.
+ * Untagged lectures are always excluded.
  *
  * Pipeline:
  *   1. Evaluate `lecture-tags` with `viewerData` in `req.context` and build
@@ -78,10 +79,7 @@ export const lecturesForViewer: Endpoint = {
     const { docs: lectureDocs } = await req.payload.find({
       collection: 'lectures',
       where: {
-        and: [
-          { _status: { equals: 'published' } },
-          { tags: { in: [...eligibleSet] } },
-        ],
+        and: [{ _status: { equals: 'published' } }, { tags: { in: [...eligibleSet] } }],
       },
       limit: 200,
       depth: 1,
