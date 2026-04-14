@@ -53,6 +53,16 @@ export const AppCards: CollectionConfig = {
               },
             },
             {
+              name: 'header',
+              type: 'text',
+              required: true,
+              localized: true,
+              admin: {
+                description:
+                  'A custom header that will appear above the card if it is selected as a hero card.',
+              },
+            },
+            {
               name: 'type',
               type: 'select',
               required: true,
