@@ -14,8 +14,29 @@ type UploadRow = {
 
 type InsertedId = { id: number }
 
+type ColumnInfo = { name: string }
+
+async function columnExists(
+  db: MigrateUpArgs['db'],
+  table: string,
+  column: string,
+): Promise<boolean> {
+  // PRAGMA table_info can't use bound params, so inject the validated identifier.
+  const rows = await db.all<ColumnInfo>(sql.raw(`PRAGMA table_info(\`${table}\`)`))
+  return rows.some((r) => r.name === column)
+}
+
 export async function up({ db }: MigrateUpArgs): Promise<void> {
-  // Drop old filename indexes. IF EXISTS handles production, where:
+  // Clean up any leftover recreation table from a prior failed run of this migration.
+  // The previous `up()` attempted to recreate `albums` with NOT NULL `artwork_id` but
+  // failed at `DROP TABLE albums` because `songs.album_id` is NOT NULL with
+  // `ON DELETE SET NULL` — which fires on DROP even with `PRAGMA foreign_keys=OFF`
+  // (D1 wraps each statement in an implicit transaction, making the PRAGMA a no-op).
+  // We now accept `artwork_id` as nullable at the DB level; API-level `required: true`
+  // on the Albums.artwork field still enforces it.
+  await db.run(sql`DROP TABLE IF EXISTS \`__new_albums\`;`)
+
+  // Drop old filename indexes. IF EXISTS handles both fresh envs and production, where:
   //   - `albums_filename_idx` was never created
   //   - `app_cards_filename_idx` is still named `cards_filename_idx` (the 20260203_090000
   //     rename migration renamed tables but not indexes)
@@ -25,76 +46,45 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.run(sql`DROP INDEX IF EXISTS \`_app_cards_v_version_version_filename_idx\`;`)
   await db.run(sql`DROP INDEX IF EXISTS \`_cards_v_version_version_filename_idx\`;`)
 
-  // Add new FK columns as nullable. They cannot be added as NOT NULL when the
-  // tables already contain rows (SQLite requires a DEFAULT). Albums is tightened
-  // to NOT NULL after backfill via table recreation (see below).
-  await db.run(sql`ALTER TABLE \`albums\` ADD \`artwork_id\` integer REFERENCES images(id) ON DELETE SET NULL;`)
-  await db.run(sql`ALTER TABLE \`app_cards\` ADD \`image_id\` integer REFERENCES images(id) ON DELETE SET NULL;`)
-  await db.run(sql`ALTER TABLE \`_app_cards_v\` ADD \`version_image_id\` integer REFERENCES images(id) ON DELETE SET NULL;`)
+  // Add new FK columns as nullable (idempotent — skip if a prior failed run added them).
+  // Cannot be NOT NULL because SQLite rejects `ALTER TABLE ADD NOT NULL` on non-empty
+  // tables without a DEFAULT, and we can't recreate the albums table in D1 (see above).
+  if (!(await columnExists(db, 'albums', 'artwork_id'))) {
+    await db.run(sql`ALTER TABLE \`albums\` ADD \`artwork_id\` integer REFERENCES images(id) ON DELETE SET NULL;`)
+  }
+  if (!(await columnExists(db, 'app_cards', 'image_id'))) {
+    await db.run(sql`ALTER TABLE \`app_cards\` ADD \`image_id\` integer REFERENCES images(id) ON DELETE SET NULL;`)
+  }
+  if (!(await columnExists(db, '_app_cards_v', 'version_image_id'))) {
+    await db.run(sql`ALTER TABLE \`_app_cards_v\` ADD \`version_image_id\` integer REFERENCES images(id) ON DELETE SET NULL;`)
+  }
 
-  // Backfill: create an `images` record for each album/app_card that has upload
-  // data, then link the new FK to it. Preserves the existing Cloudflare Images
-  // ID stored in `filename` so assets keep rendering.
-  await backfillUploadToImage(db, 'albums', 'artwork_id')
-  await backfillUploadToImage(db, 'app_cards', 'image_id')
+  // Backfill: create an `images` record for each album/app_card that has upload data,
+  // then link the new FK to it. Preserves the existing Cloudflare Images ID stored in
+  // `filename` so assets keep rendering. Idempotent via the WHERE clause.
+  await backfillUploadToImage(db, 'albums')
+  await backfillUploadToImage(db, 'app_cards')
 
-  // Create new indexes on the app_cards FK columns. `albums_artwork_idx` is
-  // created after table recreation below (DROP TABLE would drop it anyway).
-  await db.run(sql`CREATE INDEX \`app_cards_image_idx\` ON \`app_cards\` (\`image_id\`);`)
-  await db.run(sql`CREATE INDEX \`_app_cards_v_version_version_image_idx\` ON \`_app_cards_v\` (\`version_image_id\`);`)
+  // Create new indexes on the FK columns. IF NOT EXISTS for idempotency.
+  await db.run(sql`CREATE INDEX IF NOT EXISTS \`albums_artwork_idx\` ON \`albums\` (\`artwork_id\`);`)
+  await db.run(sql`CREATE INDEX IF NOT EXISTS \`app_cards_image_idx\` ON \`app_cards\` (\`image_id\`);`)
+  await db.run(sql`CREATE INDEX IF NOT EXISTS \`_app_cards_v_version_version_image_idx\` ON \`_app_cards_v\` (\`version_image_id\`);`)
 
-  // Recreate albums to:
-  //   1. Enforce NOT NULL on artwork_id (matches the .json snapshot + field `required: true`)
-  //   2. Drop all upload columns in one shot
-  await db.run(sql`PRAGMA foreign_keys=OFF;`)
-  await db.run(sql`CREATE TABLE \`__new_albums\` (
-  	\`id\` integer PRIMARY KEY NOT NULL,
-  	\`artwork_id\` integer NOT NULL REFERENCES images(id) ON DELETE SET NULL,
-  	\`artist_url\` text,
-  	\`updated_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	\`created_at\` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
-  	\`deleted_at\` text
-  );
-  `)
-  // Any album without upload data (shouldn't exist in prod, but guard anyway)
-  // is dropped by the INNER WHERE clause to satisfy NOT NULL.
-  await db.run(sql`INSERT INTO \`__new_albums\`(\`id\`, \`artwork_id\`, \`artist_url\`, \`updated_at\`, \`created_at\`, \`deleted_at\`) SELECT \`id\`, \`artwork_id\`, \`artist_url\`, \`updated_at\`, \`created_at\`, \`deleted_at\` FROM \`albums\` WHERE \`artwork_id\` IS NOT NULL;`)
-  await db.run(sql`DROP TABLE \`albums\`;`)
-  await db.run(sql`ALTER TABLE \`__new_albums\` RENAME TO \`albums\`;`)
-  await db.run(sql`PRAGMA foreign_keys=ON;`)
-
-  // Recreate albums indexes (table recreation drops them)
-  await db.run(sql`CREATE INDEX \`albums_artwork_idx\` ON \`albums\` (\`artwork_id\`);`)
-  await db.run(sql`CREATE INDEX \`albums_updated_at_idx\` ON \`albums\` (\`updated_at\`);`)
-  await db.run(sql`CREATE INDEX \`albums_created_at_idx\` ON \`albums\` (\`created_at\`);`)
-  await db.run(sql`CREATE INDEX \`albums_deleted_at_idx\` ON \`albums\` (\`deleted_at\`);`)
-
-  // For app_cards / _app_cards_v the image FK stays nullable (matches snapshot),
-  // so we can use ALTER TABLE DROP COLUMN directly without full recreation.
-  await db.run(sql`ALTER TABLE \`app_cards\` DROP COLUMN \`thumbnail_u_r_l\`;`)
-  await db.run(sql`ALTER TABLE \`app_cards\` DROP COLUMN \`filename\`;`)
-  await db.run(sql`ALTER TABLE \`app_cards\` DROP COLUMN \`mime_type\`;`)
-  await db.run(sql`ALTER TABLE \`app_cards\` DROP COLUMN \`filesize\`;`)
-  await db.run(sql`ALTER TABLE \`app_cards\` DROP COLUMN \`width\`;`)
-  await db.run(sql`ALTER TABLE \`app_cards\` DROP COLUMN \`height\`;`)
-  await db.run(sql`ALTER TABLE \`app_cards\` DROP COLUMN \`focal_x\`;`)
-  await db.run(sql`ALTER TABLE \`app_cards\` DROP COLUMN \`focal_y\`;`)
-
-  await db.run(sql`ALTER TABLE \`_app_cards_v\` DROP COLUMN \`version_thumbnail_u_r_l\`;`)
-  await db.run(sql`ALTER TABLE \`_app_cards_v\` DROP COLUMN \`version_filename\`;`)
-  await db.run(sql`ALTER TABLE \`_app_cards_v\` DROP COLUMN \`version_mime_type\`;`)
-  await db.run(sql`ALTER TABLE \`_app_cards_v\` DROP COLUMN \`version_filesize\`;`)
-  await db.run(sql`ALTER TABLE \`_app_cards_v\` DROP COLUMN \`version_width\`;`)
-  await db.run(sql`ALTER TABLE \`_app_cards_v\` DROP COLUMN \`version_height\`;`)
-  await db.run(sql`ALTER TABLE \`_app_cards_v\` DROP COLUMN \`version_focal_x\`;`)
-  await db.run(sql`ALTER TABLE \`_app_cards_v\` DROP COLUMN \`version_focal_y\`;`)
+  // Drop upload columns from all three tables. Guarded by columnExists for idempotency.
+  await dropUploadColumns(db, 'albums', '')
+  await dropUploadColumns(db, 'app_cards', '')
+  await dropUploadColumns(db, '_app_cards_v', 'version_')
 }
 
 async function backfillUploadToImage(
   db: MigrateUpArgs['db'],
   table: 'albums' | 'app_cards',
-  fkColumn: 'artwork_id' | 'image_id',
 ): Promise<void> {
+  // If the upload columns were already dropped on a prior partial run, there's nothing to backfill.
+  if (!(await columnExists(db, table, 'filename'))) {
+    return
+  }
+
   const rows =
     table === 'albums'
       ? await db.all<UploadRow>(sql`
@@ -110,7 +100,7 @@ async function backfillUploadToImage(
 
   for (const row of rows) {
     // Reuse an existing image row if one already points at the same CF Images ID,
-    // otherwise create a new one. This keeps the migration idempotent.
+    // otherwise create a new one. Keeps the migration idempotent across retries.
     const existing = await db.all<InsertedId>(sql`
       SELECT id FROM images WHERE filename = ${row.filename} LIMIT 1
     `)
@@ -144,6 +134,33 @@ async function backfillUploadToImage(
   }
 }
 
+async function dropUploadColumns(
+  db: MigrateUpArgs['db'],
+  table: string,
+  prefix: '' | 'version_',
+): Promise<void> {
+  const columns = [
+    'thumbnail_u_r_l',
+    'filename',
+    'mime_type',
+    'filesize',
+    'width',
+    'height',
+    'focal_x',
+    'focal_y',
+  ]
+
+  for (const base of columns) {
+    const column = `${prefix}${base}`
+    if (await columnExists(db, table, column)) {
+      await db.run(sql.raw(`ALTER TABLE \`${table}\` DROP COLUMN \`${column}\`;`))
+    }
+  }
+}
+
+// Down migration assumes the full up() ran. It restores the original upload-based
+// schema and loses the artwork_id / image_id linkages. Rarely used in D1 production
+// (rollbacks are not a standard part of the deploy flow) but kept for completeness.
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
   await db.run(sql`PRAGMA foreign_keys=OFF;`)
   await db.run(sql`CREATE TABLE \`__new_albums\` (
