@@ -21,7 +21,7 @@ export const LectureTags: CollectionConfig = {
       required: true,
     },
     // Targeting rules for user progress-based filtering
-    rulesField({
+    ...rulesField({
       rules: [
         { name: 'pathProgress', type: 'range' },
         { name: 'totalMeditationsViewed', type: 'range' },

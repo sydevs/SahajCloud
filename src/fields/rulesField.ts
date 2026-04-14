@@ -1,5 +1,5 @@
 import type { JSONSchema4 } from 'json-schema'
-import type { JSONField } from 'payload'
+import type { CheckboxField, Field, FieldHook, JSONField } from 'payload'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -23,6 +23,9 @@ export type RulesValue = {
   [key: string]: RuleValue | 'AND' | 'OR' | undefined
 }
 
+/** Caller-supplied values keyed by rule name (e.g., `{ hasRealization: true, pathProgress: 3 }`). */
+export type ViewerData = Record<string, unknown>
+
 export interface RulesFieldOptions {
   /** Field name (default: 'rules') */
   name?: string
@@ -34,6 +37,79 @@ export interface RulesFieldOptions {
     condition?: (...args: unknown[]) => boolean
     description?: string
   }
+}
+
+// ── Request-context key ────────────────────────────────────────────────────────
+
+/**
+ * Top-level `req.context` key that endpoints set before calling `payload.find`
+ * so the rule-matcher virtual field can evaluate against caller inputs.
+ *
+ * If two rule fields ever coexist on the same document with conflicting input
+ * needs, switch to a scoped shape like `{ [fieldName]: ViewerData }`.
+ */
+export const VIEWER_DATA_CONTEXT_KEY = 'viewerData' as const
+
+// ── Evaluation ─────────────────────────────────────────────────────────────────
+
+function evaluateBoolean(stored: boolean, supplied: unknown): boolean {
+  return typeof supplied === 'boolean' && supplied === stored
+}
+
+function evaluateRange(stored: { min?: number; max?: number }, supplied: unknown): boolean {
+  if (typeof supplied !== 'number' || !Number.isFinite(supplied)) return false
+  const min = stored.min ?? Number.NEGATIVE_INFINITY
+  const max = stored.max ?? Number.POSITIVE_INFINITY
+  return supplied >= min && supplied <= max
+}
+
+function evaluateSelect(stored: string[], supplied: unknown): boolean {
+  if (!Array.isArray(stored) || stored.length === 0) return true
+  if (typeof supplied === 'string') return stored.includes(supplied)
+  if (Array.isArray(supplied)) return supplied.some((v) => stored.includes(v as string))
+  return false
+}
+
+/**
+ * Evaluate whether a card's stored targeting rules match the caller's inputs.
+ *
+ * Contract:
+ *   - Empty / missing rules → always match
+ *   - `logic` defaults to `'AND'`; `'OR'` needs only one configured rule to match
+ *   - Missing caller param → the rule for that key fails (does not match)
+ *   - Boolean rule matches when `supplied === stored`
+ *   - Range `{min?, max?}` matches when `min <= supplied <= max` (undefined bounds
+ *     treated as ±Infinity)
+ *   - Select matches when any supplied value is in the stored list
+ *   - Unknown / unsupported rule types are ignored (neither pass nor fail)
+ */
+export function evaluateRules(
+  rules: RulesValue | null | undefined,
+  inputs: ViewerData,
+  definitions: RuleDefinition[],
+): boolean {
+  if (!rules) return true
+
+  const logic = rules.logic === 'OR' ? 'OR' : 'AND'
+  const results: boolean[] = []
+
+  for (const def of definitions) {
+    const stored = rules[def.name]
+    if (stored === undefined) continue
+
+    const supplied = inputs[def.name]
+
+    if (def.type === 'boolean' && typeof stored === 'boolean') {
+      results.push(evaluateBoolean(stored, supplied))
+    } else if (def.type === 'range' && typeof stored === 'object' && stored !== null) {
+      results.push(evaluateRange(stored as { min?: number; max?: number }, supplied))
+    } else if (def.type === 'select' && Array.isArray(stored)) {
+      results.push(evaluateSelect(stored as string[], supplied))
+    }
+  }
+
+  if (results.length === 0) return true
+  return logic === 'AND' ? results.every(Boolean) : results.some(Boolean)
 }
 
 // ── JSON Schema Generation ─────────────────────────────────────────────────────
@@ -104,22 +180,7 @@ function validateRangeRules(
 
 // ── Field Factory ──────────────────────────────────────────────────────────────
 
-/**
- * Creates a JSON field with a custom visual editor for targeting rules.
- *
- * Rules are stored as a JSON blob, making the system extensible without schema changes.
- * The RulesEditor component provides a visual editing experience with AND/OR logic,
- * boolean toggles, and range inputs.
- *
- * @example
- * rulesField({
- *   rules: [
- *     { name: 'hasRealization', type: 'boolean' },
- *     { name: 'pathProgress', type: 'range' },
- *   ],
- * })
- */
-export function rulesField(options: RulesFieldOptions): JSONField {
+function buildJsonField(options: RulesFieldOptions): JSONField {
   const { name = 'rules', label = 'Targeting Rules', rules, admin = {} } = options
 
   return {
@@ -140,8 +201,63 @@ export function rulesField(options: RulesFieldOptions): JSONField {
         ruleDefinitions: rules,
       },
       description:
-        admin.description || 'Configure which users see this card. Leave empty to show to all users.',
+        admin.description ||
+        'Configure which users see this card. Leave empty to show to all users.',
       condition: admin.condition,
     },
   }
+}
+
+/**
+ * Virtual checkbox field that evaluates the sibling rules JSON against caller
+ * inputs stashed on `req.context[VIEWER_DATA_CONTEXT_KEY]`.
+ *
+ * Returns `null` when no inputs are present (no evaluation requested), so
+ * near-zero overhead for admin UI reads and unrelated fetches.
+ */
+function buildEligibilityField(options: RulesFieldOptions): CheckboxField {
+  const { name = 'rules', rules } = options
+
+  const afterRead: FieldHook = ({ req, siblingData }) => {
+    const inputs = req?.context?.[VIEWER_DATA_CONTEXT_KEY] as ViewerData | undefined
+    if (!inputs) return null
+    const stored = (siblingData as Record<string, unknown> | undefined)?.[name] as
+      | RulesValue
+      | null
+      | undefined
+    return evaluateRules(stored, inputs, rules)
+  }
+
+  return {
+    name: 'isEligibleForViewer',
+    type: 'checkbox',
+    virtual: true,
+    admin: { hidden: true },
+    hooks: { afterRead: [afterRead] },
+  }
+}
+
+/**
+ * Creates a JSON field with a custom visual editor for targeting rules, plus
+ * a virtual `isEligibleForViewer` sibling whose `afterRead` hook evaluates
+ * the document's stored rules against `req.context.viewerData`. Endpoints
+ * set the context once and filter results by the virtual field instead of
+ * importing rule-evaluation logic.
+ *
+ * Rules are stored as a JSON blob, making the system extensible without
+ * schema changes. The RulesEditor component provides a visual editing
+ * experience with AND/OR logic, boolean toggles, and range inputs.
+ *
+ * Returns a `Field[]` — consumers should spread the result into their field list.
+ *
+ * @example
+ * ...rulesField({
+ *   rules: [
+ *     { name: 'hasRealization', type: 'boolean' },
+ *     { name: 'pathProgress', type: 'range' },
+ *   ],
+ * }),
+ */
+export function rulesField(options: RulesFieldOptions): Field[] {
+  return [buildJsonField(options), buildEligibilityField(options)]
 }

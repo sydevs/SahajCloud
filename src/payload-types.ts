@@ -822,6 +822,7 @@ export interface LectureTag {
       max?: number;
     };
   };
+  isEligibleForViewer?: boolean | null;
   lectures?: {
     docs?: (number | Lecture)[];
     hasNextPage?: boolean;
@@ -1216,6 +1217,7 @@ export interface AppCard {
       max?: number;
     };
   };
+  isEligibleForViewer?: boolean | null;
   /**
    * Controls how likely this card is to be chosen when displayed to a user.
    */
@@ -1936,6 +1938,7 @@ export interface FilesSelect<T extends boolean = true> {
 export interface LectureTagsSelect<T extends boolean = true> {
   label?: T;
   rules?: T;
+  isEligibleForViewer?: T;
   lectures?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -2088,6 +2091,7 @@ export interface AppCardsSelect<T extends boolean = true> {
       };
   targetSections?: T;
   rules?: T;
+  isEligibleForViewer?: T;
   weight?: T;
   updatedAt?: T;
   createdAt?: T;
