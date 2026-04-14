@@ -77,6 +77,7 @@ export const testData = {
       collection: 'app-cards',
       data: {
         title: defaultTitle,
+        header: 'Test Header',
         type: 'app-page',
         appPage: 'map',
         image: imageId,
