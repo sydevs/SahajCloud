@@ -493,6 +493,57 @@ export const mixedMediaAdapter = (config: MixedMediaAdapterConfig): Adapter => {
 - Update barrel exports in `index.ts` when renaming
 - Update storagePlugin.ts collection configurations
 
+### handleUpload return-value contract
+
+**Critical**: `@payloadcms/plugin-cloud-storage` v3 calls `adapter.handleUpload` in an **afterChange** hook — *after* the document has already been written to the DB. The plugin persists filename/metadata changes only via the adapter's **return value**, which it merges and passes to `payload.update()`:
+
+```js
+// node_modules/@payloadcms/plugin-cloud-storage/dist/hooks/afterChange.js
+const uploadResults = await Promise.all(files.map(f => adapter.handleUpload({ data: doc, file: f, req })))
+const uploadMetadata = uploadResults.filter(r => r != null).reduce(...) // ← merges returns
+if (Object.keys(uploadMetadata).length > 0) {
+  await req.payload.update({ id: doc.id, collection: slug, data: uploadMetadata, ... })
+}
+```
+
+Implications for new or modified adapters:
+
+- **Return `{ filename, fileMetadata }`** (or whatever changed) from `handleUpload`. Without a return value, nothing persists.
+- **Mutating `data.filename` / `file.filename` is insufficient** for persistence. `data` here is the already-saved `doc`; mutation only affects the in-memory copy seen by downstream afterChange hooks in the same request.
+- **Do keep the mutations anyway** — they keep the in-memory doc consistent with what the follow-up `payload.update()` will write, so subsequent hooks in the chain don't see a stale filename.
+- **Do not write comments that claim mutation "persists to DB via pass-by-reference."** It doesn't. Previous versions of these adapters carried that false comment and a working afterChange hook was removed on the strength of it (see #276 / commit `c6d1b37`).
+
+Example:
+
+```typescript
+handleUpload: async ({ data, file, req }) => {
+  const imageId = await uploadToCloudflare(file)
+
+  // Mirror in-memory so downstream hooks see the new filename
+  file.filename = imageId
+  if (data) data.filename = imageId
+
+  // THIS is what persists to the DB
+  return { filename: imageId, fileMetadata: { originalFilename: file.filename } }
+},
+```
+
+Verify whenever you add a new adapter: grep the plugin source (`node_modules/@payloadcms/plugin-cloud-storage/dist/hooks/afterChange.js`) to confirm the contract hasn't changed in a version bump.
+
+## Debugging library-integration bugs
+
+When a bug's symptoms suggest a third-party plugin/hook/SDK isn't doing what you assumed, **read the compiled library source in `node_modules/`** before theorizing. The actual runtime behavior often differs from README/docs, especially for PayloadCMS plugins, Next.js internals, and Cloudflare SDKs.
+
+Practical approach:
+
+- `ls node_modules/<pkg>/dist/` to find the entry points.
+- Open the relevant hook/handler file directly with `Read`.
+- Grep for method names you're calling (`handleUpload`, `beforeChange`, etc.) to see how the library invokes them and what it does with the return value.
+
+This is often faster than fetching external docs and catches behavior that docs don't describe (e.g., "the plugin only persists via return values, not mutation" — undocumented but unambiguous from three lines of source).
+
+When to prefer external docs instead: researching *new* features or API you haven't used yet, where you need the canonical contract before writing code. For *debugging*, local source wins.
+
 ## Common JavaScript Pitfalls
 
 ### parseInt Parses Partial Strings
