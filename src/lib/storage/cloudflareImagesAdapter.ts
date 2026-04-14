@@ -11,6 +11,7 @@ import { z } from 'zod'
 import { serverEnv } from '@/lib/env'
 
 import { CloudflareImagesResponseSchema } from './cloudflareSchemas'
+import { applyFilename, generateCloudflareImageId } from './filenameUtils'
 import { validateFileUpload } from './uploadValidation'
 
 /**
@@ -67,6 +68,12 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
         // Validate file before upload
         validateFileUpload(file, { category: 'image' })
 
+        // Use a human-readable slug as the Cloudflare Image ID so the delivery
+        // URL (.../<id>/public) is debuggable. CF rejects duplicate IDs; the
+        // random suffix baked into the slug makes collisions negligible.
+        const customId = generateCloudflareImageId(file.filename)
+        const originalFilename = file.filename
+
         const formData = new FormData()
         // Convert Buffer to Uint8Array for Cloudflare Workers compatibility
         // IMPORTANT: The Workers Buffer polyfill has multiple broken methods.
@@ -77,11 +84,13 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
           uint8Array[i] = file.buffer[i]
         }
         const blob = new Blob([uint8Array], { type: file.mimeType })
-        formData.append('file', blob, file.filename)
+        formData.append('file', blob, originalFilename)
+        formData.append('id', customId)
 
         req.payload.logger.info({
           msg: 'Uploading image to Cloudflare Images',
-          filename: file.filename,
+          filename: originalFilename,
+          customId,
         })
 
         const response = await fetch(
@@ -102,6 +111,8 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
           throw new Error(`Cloudflare Images upload failed: ${errors}`)
         }
 
+        // CF echoes back the ID we sent — trust the response rather than our
+        // local customId so any server-side normalization is reflected.
         const imageId = result.result?.id
         if (!imageId) {
           throw new Error('Cloudflare Images response missing image ID')
@@ -109,30 +120,18 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
 
         req.payload.logger.info({ msg: 'Image uploaded successfully', imageId })
 
-        // Preserve original filename in fileMetadata for seed script deduplication
-        // The original filename (e.g., "f47ac10b58cc4372.jpg") is used for matching
-        // since the stored filename will be the Cloudflare Image ID
-        if (data) {
-          data.fileMetadata = {
-            ...(typeof data.fileMetadata === 'object' && data.fileMetadata !== null
-              ? data.fileMetadata
-              : {}),
-            originalFilename: file.filename,
-          }
+        const existingMetadata =
+          typeof data?.fileMetadata === 'object' && data.fileMetadata !== null
+            ? (data.fileMetadata as Record<string, unknown>)
+            : {}
+        const fileMetadata = {
+          ...existingMetadata,
+          originalFilename,
         }
 
-        // Update filename in all locations to ensure PayloadCMS stores the Cloudflare Image ID
-        // - data.filename: The object that will be saved to the database (passed by reference)
-        // - file.filename: The file object used by the storage plugin
-        // - req.file.name: The original request file (for consistency)
-        // This eliminates the need for afterChange hooks to sync the filename
-        file.filename = imageId
-        if (data) {
-          data.filename = imageId
-        }
-        if (req?.file) {
-          req.file.name = imageId
-        }
+        applyFilename(file, data, req, imageId, fileMetadata)
+
+        return { filename: imageId, fileMetadata }
       } catch (error) {
         // Handle Zod validation errors with detailed messages
         if (error instanceof z.ZodError) {
