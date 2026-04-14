@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
+import { appCardsForUser } from '@/endpoints'
 import { mediaField, rulesField, scheduleField, urlField } from '@/fields'
 
 /**
@@ -20,6 +21,7 @@ export const AppCards: CollectionConfig = {
     maxPerDoc: 5,
   },
   disableDuplicate: true,
+  endpoints: [appCardsForUser],
   admin: {
     group: 'WeMeditate App',
     useAsTitle: 'title',
@@ -153,8 +155,9 @@ export const AppCards: CollectionConfig = {
                 description: 'Target sections where this card should appear on the app homepage.',
               },
             },
-            // Targeting rules (JSON blob evaluated client-side)
-            rulesField({
+            // Targeting rules (JSON blob) + virtual `isEligibleForViewer` sibling
+            // that evaluates them against `req.context.viewerData` on read.
+            ...rulesField({
               rules: [
                 { name: 'hasRealization', type: 'boolean' },
                 { name: 'pathProgress', type: 'range' },
