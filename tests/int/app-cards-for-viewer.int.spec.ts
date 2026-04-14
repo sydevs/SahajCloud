@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { Album, AppCard, Client, Image } from '@/payload-types'
 
-import { appCardsForUser } from '@/endpoints'
+import { appCardsForViewer } from '@/endpoints'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -22,12 +22,12 @@ async function callEndpoint(
     user,
   } as unknown as PayloadRequest
 
-  const response = (await appCardsForUser.handler(req)) as Response
+  const response = (await appCardsForViewer.handler(req)) as Response
   const body = await response.json()
   return { status: response.status, body }
 }
 
-describe('appCardsForUser endpoint', () => {
+describe('appCardsForViewer endpoint', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let adminUserId: number
