@@ -134,30 +134,31 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
         // once the video finishes transcoding. See src/app/(payload)/api/webhooks/cloudflare-stream/
         // and .claude/docs/cloudflare-stream-webhook.md.
 
-        // Preserve original filename in fileMetadata for seed script deduplication
-        // The original filename (e.g., "f47ac10b58cc4372.mp4") is used for matching
-        // since the stored filename will be the Cloudflare Stream video ID
-        if (data) {
-          const existingMetadata =
-            typeof data.fileMetadata === 'object' && data.fileMetadata !== null ? data.fileMetadata : {}
-          data.fileMetadata = {
-            ...existingMetadata,
-            originalFilename: file.filename,
-          }
+        const originalFilename = file.filename
+        const existingMetadata =
+          typeof data?.fileMetadata === 'object' && data.fileMetadata !== null
+            ? (data.fileMetadata as Record<string, unknown>)
+            : {}
+        const fileMetadata = {
+          ...existingMetadata,
+          originalFilename,
         }
 
-        // Update filename in all locations to ensure PayloadCMS stores the Cloudflare Stream video ID
-        // - data.filename: The object that will be saved to the database (passed by reference)
-        // - file.filename: The file object used by the storage plugin
-        // - req.file.name: The original request file (for consistency)
-        // This eliminates the need for afterChange hooks to sync the filename
+        // Mirror the new filename and metadata to in-memory locations so
+        // downstream afterChange hooks see them. The values are persisted
+        // to the DB via this function's return value (see
+        // @payloadcms/plugin-cloud-storage afterChange hook, which merges
+        // the return into a payload.update call).
         file.filename = videoId
         if (data) {
           data.filename = videoId
+          data.fileMetadata = fileMetadata
         }
         if (req?.file) {
           req.file.name = videoId
         }
+
+        return { filename: videoId, fileMetadata }
       } catch (error) {
         // Handle Zod validation errors with detailed messages
         if (error instanceof z.ZodError) {

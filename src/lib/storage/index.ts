@@ -12,8 +12,11 @@ export { storagePlugin as default } from './storagePlugin'
 // Storage adapters
 export { cloudflareImagesAdapter, getCloudflareImagesUrl } from './cloudflareImagesAdapter'
 export { cloudflareStreamAdapter, getCloudflareStreamMp4Url, getCloudflareStreamThumbnailUrl } from './cloudflareStreamAdapter'
-export { r2NativeAdapter, getR2Url, sanitizeFilename } from './r2NativeAdapter'
+export { r2NativeAdapter, getR2Url } from './r2NativeAdapter'
 export { mixedMediaAdapter } from './mixedMediaAdapter'
+
+// Filename utilities
+export { generateR2Key, generateCloudflareImageId } from './filenameUtils'
 
 // MIME type utilities
 export { getMimeCategory } from './mimeUtils'
