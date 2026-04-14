@@ -12,6 +12,7 @@ import { z } from 'zod'
 import { serverEnv } from '@/lib/env'
 
 import { CloudflareStreamResponseSchema } from './cloudflareSchemas'
+import { applyFilename } from './filenameUtils'
 import { validateFileUpload } from './uploadValidation'
 
 /**
@@ -144,19 +145,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
           originalFilename,
         }
 
-        // Mirror the new filename and metadata to in-memory locations so
-        // downstream afterChange hooks see them. The values are persisted
-        // to the DB via this function's return value (see
-        // @payloadcms/plugin-cloud-storage afterChange hook, which merges
-        // the return into a payload.update call).
-        file.filename = videoId
-        if (data) {
-          data.filename = videoId
-          data.fileMetadata = fileMetadata
-        }
-        if (req?.file) {
-          req.file.name = videoId
-        }
+        applyFilename(file, data, req, videoId, fileMetadata)
 
         return { filename: videoId, fileMetadata }
       } catch (error) {

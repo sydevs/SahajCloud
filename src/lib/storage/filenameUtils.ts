@@ -9,8 +9,15 @@ import slugify from 'slugify'
 const RANDOM_SUFFIX_LENGTH = 6
 
 const buildSlug = (baseName: string): string => {
-  const slugified = slugify(baseName, { strict: true, lower: true })
-  const randomSuffix = Math.random()
+  // Fall back to "file" when slugify strips the entire base name (e.g.
+  // all-Unicode input like "文件名"). Without this, the slug would start
+  // with a hyphen, which Cloudflare Images may reject as a custom ID.
+  const slugified = slugify(baseName, { strict: true, lower: true }) || 'file'
+  // (Math.random() + 1) forces the integer part to 1, guaranteeing
+  // toString(36) yields a long enough base36 expansion for the slice
+  // below. Plain Math.random() can return values like 0.5 whose base36
+  // form ("0.i") yields fewer than RANDOM_SUFFIX_LENGTH chars.
+  const randomSuffix = (Math.random() + 1)
     .toString(36)
     .substring(2, 2 + RANDOM_SUFFIX_LENGTH)
   return `${slugified}-${randomSuffix}`
@@ -45,4 +52,32 @@ export const generateR2Key = (filename: string): string => {
 export const generateCloudflareImageId = (filename: string): string => {
   const { baseName } = splitExtension(filename)
   return buildSlug(baseName)
+}
+
+/**
+ * Mirror a newly-assigned filename (and optional fileMetadata) onto the
+ * in-memory `file`, `data`, and `req.file` objects.
+ *
+ * The persisted DB write happens via the storage adapter's return value
+ * (see @payloadcms/plugin-cloud-storage afterChange hook). This helper
+ * keeps the in-memory state consistent for downstream hooks that fire in
+ * the same operation (beforeChange / afterRead / afterChange).
+ */
+export const applyFilename = (
+  file: { filename: string },
+  data: Record<string, unknown> | null | undefined,
+  req: { file?: { name?: string } | null } | undefined,
+  filename: string,
+  fileMetadata?: Record<string, unknown>,
+): void => {
+  file.filename = filename
+  if (data) {
+    data.filename = filename
+    if (fileMetadata !== undefined) {
+      data.fileMetadata = fileMetadata
+    }
+  }
+  if (req?.file) {
+    req.file.name = filename
+  }
 }

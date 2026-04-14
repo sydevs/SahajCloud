@@ -523,6 +523,14 @@ describe('Filename Utilities', () => {
       const result = generateCloudflareImageId('weird/name:with spaces?.png')
       expect(result).toMatch(/^[a-z0-9-]+$/)
     })
+
+    it('does not start with a hyphen for all-Unicode filenames', () => {
+      // slugify(strict) drops all non-ASCII; the helper falls back to "file"
+      // so the resulting ID never begins with a hyphen (CF Images rejects those).
+      const result = generateCloudflareImageId('文件名.jpg')
+      expect(result).toMatch(/^file-[a-z0-9]{6}$/)
+      expect(result.startsWith('-')).toBe(false)
+    })
   })
 })
 
@@ -740,6 +748,51 @@ describe('Storage Adapter handleUpload', () => {
       const [key] = put.mock.calls[0]
       expect(key).toBe(`meditations/${(result as { filename: string }).filename}`)
       expect(data.filename).toBe((result as { filename: string }).filename)
+    })
+  })
+
+  describe('mixedMediaAdapter.handleUpload', () => {
+    it('forwards the inner adapter return value (filename + fileMetadata)', async () => {
+      const { mixedMediaAdapter } = await import('@/lib/storage/mixedMediaAdapter')
+
+      // Inner adapter mock that returns a known payload — proves the mixed
+      // adapter doesn't accidentally swallow the return.
+      const innerReturn = {
+        filename: 'inner-image-id-abc123',
+        fileMetadata: { originalFilename: 'photo.jpg' },
+      }
+      const innerHandleUpload = vi.fn().mockResolvedValue(innerReturn)
+      const innerAdapter = vi.fn().mockReturnValue({
+        name: 'inner-images',
+        handleUpload: innerHandleUpload,
+        handleDelete: vi.fn(),
+        staticHandler: vi.fn(),
+      })
+
+      const r2Adapter = vi.fn().mockReturnValue({
+        name: 'r2',
+        handleUpload: vi.fn(),
+        handleDelete: vi.fn(),
+        staticHandler: vi.fn(),
+      })
+
+      const adapter = mixedMediaAdapter({
+        routes: { 'image/': innerAdapter as never },
+        r2Adapter: r2Adapter as never,
+      })({ collection: { slug: 'files' } as never, prefix: undefined })
+
+      const args = {
+        data: {},
+        file: makeImageFile() as never,
+        req: makeReq() as never,
+        clientUploadContext: undefined,
+        collection: { slug: 'files' } as never,
+      }
+
+      const result = await adapter.handleUpload(args)
+
+      expect(innerHandleUpload).toHaveBeenCalledOnce()
+      expect(result).toEqual(innerReturn)
     })
   })
 })

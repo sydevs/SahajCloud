@@ -11,7 +11,7 @@ import { z } from 'zod'
 import { serverEnv } from '@/lib/env'
 
 import { CloudflareImagesResponseSchema } from './cloudflareSchemas'
-import { generateCloudflareImageId } from './filenameUtils'
+import { applyFilename, generateCloudflareImageId } from './filenameUtils'
 import { validateFileUpload } from './uploadValidation'
 
 /**
@@ -129,19 +129,7 @@ export const cloudflareImagesAdapter = (config: CloudflareImagesConfig): Adapter
           originalFilename,
         }
 
-        // Mirror the new filename and metadata to in-memory locations so
-        // downstream afterChange hooks see them. The values are persisted
-        // to the DB via this function's return value (see
-        // @payloadcms/plugin-cloud-storage afterChange hook, which merges
-        // the return into a payload.update call).
-        file.filename = imageId
-        if (data) {
-          data.filename = imageId
-          data.fileMetadata = fileMetadata
-        }
-        if (req?.file) {
-          req.file.name = imageId
-        }
+        applyFilename(file, data, req, imageId, fileMetadata)
 
         return { filename: imageId, fileMetadata }
       } catch (error) {

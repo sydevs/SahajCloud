@@ -10,7 +10,7 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 
 import { serverEnv } from '@/lib/env'
 
-import { generateR2Key } from './filenameUtils'
+import { applyFilename, generateR2Key } from './filenameUtils'
 
 /**
  * Get R2 storage URL for a filename
@@ -61,17 +61,7 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
       try {
         const finalFilename = generateR2Key(file.filename)
 
-        // Mirror the new filename to in-memory locations so downstream
-        // afterChange hooks see it. The value is persisted to the DB via this
-        // function's return value (see @payloadcms/plugin-cloud-storage
-        // afterChange hook, which merges the return into a payload.update call).
-        file.filename = finalFilename
-        if (data) {
-          data.filename = finalFilename
-        }
-        if (req?.file) {
-          req.file.name = finalFilename
-        }
+        applyFilename(file, data, req, finalFilename)
 
         const key = prefix ? `${prefix}/${finalFilename}` : finalFilename
 
