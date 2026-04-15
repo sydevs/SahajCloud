@@ -25,6 +25,23 @@ Rules for writing tests in this codebase.
 - File upload mechanics
 - minRows/maxRows validation
 
+## Verifying "coverage gap" claims before writing tests
+
+When an issue or PR description asserts that some behavior is under-tested, **verify the claim before writing the test**. Grep the existing suite for the behavior under test — a surprising share of claimed gaps turn out to be already covered, and writing redundant tests is the #1 form of scope creep on test-audit work.
+
+Practical approach:
+
+```bash
+# 1. Find files that already touch the claimed area
+rg -l "RRuleTemporal|DST|timezone" tests/
+rg -l "filterMeditationsByLocale|locale.*filter" tests/
+
+# 2. List their existing cases
+grep -E "^\s*(it|describe)\(" tests/int/schedule-hooks.int.spec.ts
+```
+
+If the cases are already covered, **document that finding in the PR description** and move on. Add a test only when you can point to a specific behavior the existing suite does not assert. Examples from #281: claimed schedule-DST gaps were already covered by `schedule-hooks.spec.ts`; real gap was OpenAPI DELETE/PATCH filtering across every content collection (not just `/api/pages`).
+
 ## Pure Functions vs Payload-backed Tests
 
 **Rule of thumb**: if the code under test doesn't touch Payload (no `req.payload`, no collection queries, no access control), skip `createTestEnvironment()` and import the module directly. A pure-function test suite runs in ~200ms; a `createTestEnvironment()` suite runs in ~8s minimum. Over a full suite the difference is huge.
