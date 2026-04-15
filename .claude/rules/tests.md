@@ -44,12 +44,19 @@ If the cases are already covered, **document that finding in the PR description*
 
 ## Pure Functions vs Payload-backed Tests
 
-**Rule of thumb**: if the code under test doesn't touch Payload (no `req.payload`, no collection queries, no access control), skip `createTestEnvironment()` and import the module directly. A pure-function test suite runs in ~200ms; a `createTestEnvironment()` suite runs in ~8s minimum. Over a full suite the difference is huge.
+**Rule of thumb**: if the code under test doesn't touch Payload (no `req.payload`, no collection queries, no access control), place the test in **`tests/unit/`** as `.spec.ts` — not `tests/int/` as `.int.spec.ts`. The unit project has no `globalSetup`/`setupFiles`, so the whole lane runs in ~1–2 seconds even across ~200 cases. The int project pays ~8s of Payload bootstrap per file.
 
-### When to use pure-function tests
-- Utilities in `src/lib/` with no Payload dependency (e.g., `cloudflareStreamWebhook.ts`, `mimeUtils.ts`, `schemaUtils.ts`)
+### When to put a test in `tests/unit/`
+- Utilities in `src/lib/` with no Payload dependency (e.g., `cloudflareStreamWebhook.ts`, `mimeUtils.ts`, `weightedSample.ts`)
 - Signature verification, parsing, validation logic
 - Pure helpers extracted from route handlers (the thin-wrapper pattern — see `.claude/rules/routes.md`)
+- Factory-style field builders whose tests only assert config shape
+- Migration transform functions (pure data-in, data-out)
+
+### When to put a test in `tests/int/`
+- The test calls `createTestEnvironment()`
+- The code under test takes a `Payload` instance as a parameter
+- You need hooks, access control, or actual collection state
 
 ### Pattern
 
@@ -129,11 +136,12 @@ expect(song.filename).toMatch(/^audio-42s(-\d+)?\.mp3$/)
 
 | File | Purpose |
 |------|---------|
+| `collections-smoke.int.spec.ts` | **One reachability canary per content-bearing collection.** Before creating a dedicated `[collection].int.spec.ts`, check whether the smoke file already covers your case — only add a new file if you're testing collection-specific custom behavior. |
 | `client-hooks.int.spec.ts` | Client beforeChange/afterChange hooks |
 | `field-utils.int.spec.ts` | processFile utility |
 | `storage-utils.int.spec.ts` | URL field factories, R2 adapter |
 | `role-based-access.int.spec.ts` | hasPermission(), customResourceAccess |
-| `[collection].int.spec.ts` | Collection-specific business logic |
+| `[collection].int.spec.ts` | **Collection-specific custom behavior only** — do not duplicate smoke coverage |
 
 ## PayloadCMS Field Behavior Gotchas
 

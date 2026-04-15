@@ -355,6 +355,28 @@ describe('OpenAPI Spec Marker Utility', () => {
       expect(result.paths!['/api/pages/{id}']!.patch!['x-internal']).toBe(true)
     })
 
+    it('marks delete and patch internal across every content collection in the spec', () => {
+      // Regression guard: it would be easy to add a new collection and
+      // forget that DELETE/PATCH must be marked internal for it too.
+      const result = filterSpec(mockSpec)
+
+      for (const [routePath, ops] of Object.entries(result.paths!)) {
+        if (!routePath.startsWith('/api/')) continue
+        if (ops.delete) {
+          expect(
+            ops.delete['x-internal'],
+            `${routePath} DELETE should be marked internal`,
+          ).toBe(true)
+        }
+        if (ops.patch) {
+          expect(
+            ops.patch['x-internal'],
+            `${routePath} PATCH should be marked internal`,
+          ).toBe(true)
+        }
+      }
+    })
+
     it('marks POST operations as internal except for allowed collections', () => {
       const result = filterSpec(mockSpec)
 

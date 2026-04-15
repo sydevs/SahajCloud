@@ -199,16 +199,6 @@ describe('AppCards rules and weight fields', () => {
     expect(cardHigh.weight).toBe(5)
   })
 
-  it.skip('rejects rules with unknown properties (additionalProperties: false)', async () => {
-    // Note: JSON Schema additionalProperties validation may not throw in all PayloadCMS versions
-    await expect(
-      testData.createAppCard(payload, {
-        title: 'Invalid Rules Card',
-        rules: { logic: 'AND', unknownKey: true } as any,
-      }),
-    ).rejects.toThrow()
-  })
-
   it('creates card with targetSections field (single value)', async () => {
     const card = await testData.createAppCard(payload, {
       title: 'Hero Card',

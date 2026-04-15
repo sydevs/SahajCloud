@@ -31,29 +31,41 @@ This project uses a comprehensive testing approach with complete test isolation:
 
 | File | Purpose |
 |------|---------|
+| `collections-smoke.int.spec.ts` | One reachability canary per content-bearing collection (create + read + relationship populate). Use this for any "does collection X work?" check rather than spinning up a dedicated file. |
 | `client-hooks.int.spec.ts` | Tests for client beforeChange/afterChange hooks |
 | `meditation-duration.int.spec.ts` | Tests for audio duration extraction and durationMinutes virtual field |
 | `storage-utils.int.spec.ts` | Tests for URL field factories and R2 adapter filename sanitization |
 | `role-based-access.int.spec.ts` | Tests for hasPermission(), customResourceAccess, locale permissions |
 | `usage-tracking.int.spec.ts` | Tests for API usage tracking job handlers |
-| `[collection].int.spec.ts` | Collection-specific business logic (relationships, custom fields) |
+| `[collection].int.spec.ts` | **Collection-specific project behavior only** (custom hooks, filterOptions, virtual fields). Basic CRUD for the collection lives in the smoke file — don't duplicate it. |
 
 ## Test Types
 
-### Integration Tests
+The suite is split into three lanes, wired through Vitest's `test.projects` config:
 
-Located in `tests/int/` directory using Vitest:
-- Custom hook logic tests
-- Access control function tests
-- Business-critical workflow tests
-- Collection relationship tests
+### Unit Tests (`tests/unit/**/*.spec.ts`)
 
-### E2E Tests
+Fast, Payload-free tests for pure functions. **No `globalSetup`, no `setupFiles`, no Payload bootstrap** — the unit project runs in ~1–2 seconds even across ~200 cases.
 
-Playwright tests for full application workflows:
-- Admin panel user interface testing
-- File upload workflows
-- Role-based UI visibility
+Use this lane when the code under test:
+- Has no `createTestEnvironment()` call
+- Doesn't touch `payload.*` or collection operations
+- Is a utility, helper, factory, or schema validator
+
+Examples in the codebase: rule evaluation, color utilities, weighted sampling, locale builder, duration extraction, schedule RRULE/DST computations, Lexical block migration helpers, filterAvailableLocales, buildRateLimitKey, seed pagination helpers, unify-index-blocks migration transforms.
+
+### Integration Tests (`tests/int/**/*.int.spec.ts`)
+
+Payload-backed tests that call `createTestEnvironment()` to spin up an isolated in-memory SQLite Payload instance. ~8s bootstrap cost per file, so keep each file focused and share a single environment across describe blocks.
+
+Use this lane when the code under test:
+- Reads/writes Payload collections
+- Exercises hooks, access control, virtual fields
+- Integrates multiple components (endpoints, jobs, adapters)
+
+### E2E Tests (`tests/e2e/**/*.e2e.spec.ts`)
+
+Playwright tests that run against a dedicated E2E dev server with a file-based SQLite database. Used for full UI flows. Directory is currently empty; `pnpm test:e2e` no-ops until a spec is added. Candidate flows are listed in issue #281 follow-ups.
 
 ## E2E Test Database Isolation
 
