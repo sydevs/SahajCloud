@@ -148,4 +148,65 @@ describe('Pages Collection', () => {
       expect(fields.caption).toBeUndefined()
     })
   })
+
+  describe('Lexical Relationship Population Depth', () => {
+    it('populates nested relationships on app-card referenced via lexical relationship node', async () => {
+      // Create an image and app-card (with image reference) to embed via relationship
+      const image = await testData.createMediaImage(payload, { alt: 'App card cover' })
+      const appCard = await testData.createAppCard(payload, {
+        title: 'Embedded App Card',
+        image: image.id,
+      })
+
+      // Build a page with a Lexical relationship node pointing at the app-card
+      const content = {
+        root: {
+          type: 'root',
+          children: [
+            {
+              type: 'relationship',
+              version: 2,
+              format: '',
+              relationTo: 'app-cards',
+              value: appCard.id,
+            },
+          ],
+          direction: null,
+          format: '',
+          indent: 0,
+          version: 1,
+        },
+      } as unknown as Parameters<typeof testData.createPage>[1]['content']
+
+      const page = await testData.createPage(payload, {
+        title: 'Page with App Card Relationship',
+        content,
+      })
+
+      // Query with depth high enough to populate the app-card AND its image field
+      const fetched = await payload.findByID({
+        collection: 'pages',
+        id: page.id,
+        depth: 2,
+      })
+
+      const root = fetched.content?.root as { children: Array<Record<string, unknown>> }
+      const relationshipNode = root.children[0]
+      expect(relationshipNode.type).toBe('relationship')
+      expect(relationshipNode.relationTo).toBe('app-cards')
+
+      // The app-card document itself should be populated
+      const populatedCard = relationshipNode.value as Record<string, unknown>
+      expect(typeof populatedCard).toBe('object')
+      expect(populatedCard.id).toBe(appCard.id)
+      expect(populatedCard.title).toBe('Embedded App Card')
+
+      // The app-card's own `image` relationship should ALSO be populated (not just an ID).
+      // This verifies RelationshipFeature is not capping depth below the caller's request.
+      const populatedImage = populatedCard.image as Record<string, unknown> | number
+      expect(typeof populatedImage).toBe('object')
+      expect((populatedImage as Record<string, unknown>).id).toBe(image.id)
+      expect((populatedImage as Record<string, unknown>).alt).toBe('App card cover')
+    })
+  })
 })
