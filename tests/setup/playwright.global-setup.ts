@@ -24,6 +24,7 @@ import {
   createSeedStatus,
   type SeedStatus,
 } from '../utils/e2e-helpers'
+import { removeSqliteFiles } from './sqliteCleanup'
 
 /**
  * Seed the default manager user for authentication
@@ -234,6 +235,13 @@ async function seedTestFrames(payload: Awaited<ReturnType<typeof getPayload>>) {
 async function globalSetup(_config: FullConfig) {
   console.log('\n🧪 E2E Test Setup: Initializing database...')
 
+  // Remove any stale E2E SQLite file before initializing Payload. A stale
+  // schema on disk causes drizzle-kit push to emit warnings and open an
+  // interactive prompt that hangs indefinitely in Playwright's subprocess
+  // (no TTY). Starting fresh guarantees no warnings.
+  console.log('🧹 Resetting E2E database to prevent drizzle push prompts...')
+  removeSqliteFiles(E2E_DATABASE_PATH)
+
   // Initialize Payload with E2E config
   console.log('   Database path:', E2E_DATABASE_PATH)
   const payload = await getPayload({ config: e2ePayloadConfig })
@@ -278,7 +286,6 @@ async function globalSetup(_config: FullConfig) {
     } else {
       console.log(`\n⚠️ E2E setup partially complete (${seededCount}/${totalItems} items seeded)`)
       console.log('   Status:', JSON.stringify(status, null, 2))
-      console.log('   Run with CLEAN_E2E_DB=true to reset and retry\n')
       hasErrors = true
     }
   } catch (error) {
