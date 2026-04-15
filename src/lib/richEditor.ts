@@ -39,7 +39,6 @@ export const fullRichTextEditor = (blocks?: Block[]) =>
       HeadingFeature({ enabledHeadingSizes: ['h2', 'h3'] }),
       RelationshipFeature({
         enabledCollections: ['pages', 'forms', 'lectures', 'albums', 'app-cards'],
-        maxDepth: 1,
       }),
       UploadFeature({
         collections: {
