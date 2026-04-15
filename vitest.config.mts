@@ -29,6 +29,14 @@ export default defineConfig({
           environment: 'node',
           include: ['tests/unit/**/*.spec.ts'],
           testTimeout: 5000,
+          env: {
+            NODE_ENV: 'test',
+            PAYLOAD_SECRET: 'test-secret-key-with-32-chars-minimum',
+            SAHAJCLOUD_PREVIEW_SECRET: 'test-preview-secret-32-chars',
+            WEMEDITATE_WEB_URL: 'http://localhost:5173',
+            SAHAJATLAS_URL: 'http://localhost:5174',
+            NIRMALA_VIDYA_API_KEY: 'test-nirmala-vidya-api-key-placeholder',
+          },
         },
       },
       {
