@@ -309,6 +309,54 @@ describe('Schema Introspection Utilities', () => {
       const ids2 = extractIdsFromLexicalContent({})
       expect(ids2.size).toBe(0)
     })
+
+    it('handles a block whose array field is empty', () => {
+      // Regression: generic traversal must not crash on empty arrays.
+      const content = {
+        root: {
+          type: 'root',
+          children: [
+            {
+              type: 'block',
+              version: 2,
+              fields: {
+                blockType: 'gallery',
+                items: [], // no referenced images
+              },
+            },
+          ],
+        },
+      }
+      const ids = extractIdsFromLexicalContent(content)
+      expect(ids.size).toBe(0)
+    })
+
+    it('collects IDs from sibling blocks inside the same root', () => {
+      // Ensures the `children` recursion visits every block in the root
+      // (not only the first one). This mirrors real-world pages that embed
+      // a TextBoxBlock followed by a GalleryBlock.
+      const content = {
+        root: {
+          type: 'root',
+          children: [
+            {
+              type: 'block',
+              version: 2,
+              fields: { blockType: 'textbox', image: 11 },
+            },
+            {
+              type: 'block',
+              version: 2,
+              fields: { blockType: 'gallery', items: [22, 33] },
+            },
+          ],
+        },
+      }
+      const ids = extractIdsFromLexicalContent(content)
+      expect(ids.has(11)).toBe(true)
+      expect(ids.has(22)).toBe(true)
+      expect(ids.has(33)).toBe(true)
+    })
   })
 
   // ==========================================================================
