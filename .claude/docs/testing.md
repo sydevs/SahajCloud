@@ -87,21 +87,21 @@ pnpm exec playwright test tests/e2e/clients.e2e.spec.ts
 # Run with UI mode for debugging
 pnpm exec playwright test --ui
 
-# Clean E2E database before run
+# Also remove E2E database after the run completes
 CLEAN_E2E_DB=true pnpm test:e2e
 ```
 
 ### Environment Variables
 
 - `E2E_TEST=true` - Enables E2E test mode (uses file-based SQLite instead of D1)
-- `CLEAN_E2E_DB=true` - Removes E2E database in global teardown
+- `CLEAN_E2E_DB=true` - Additionally removes the E2E database after teardown. Setup always resets at the start of each run.
 - `PAYLOAD_SECRET` - Set to `e2e-test-secret-key` for E2E tests
 
 ### Key Implementation Details
 
 - E2E tests run on port 4567 (separate from dev server)
 - Manager must have `_verified: true` for login to work (bypasses email verification)
-- Database is preserved between runs for faster iteration (use `CLEAN_E2E_DB=true` to reset)
+- Database is reset at the start of every run to prevent `drizzle-kit push` from prompting on stale schemas (which would hang Playwright's subprocess). Post-run cleanup via `CLEAN_E2E_DB=true` is optional.
 - Test files directory: `tests/files/` contains sample audio/image files for seeding
 
 ## Integration Test Isolation (In-Memory SQLite)
