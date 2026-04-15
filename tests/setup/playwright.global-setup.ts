@@ -12,7 +12,6 @@
 /* eslint-disable no-console */
 import type { FullConfig } from '@playwright/test'
 
-import fs from 'fs'
 import path from 'path'
 
 import { getPayload } from 'payload'
@@ -25,6 +24,7 @@ import {
   createSeedStatus,
   type SeedStatus,
 } from '../utils/e2e-helpers'
+import { removeSqliteFiles } from './sqliteCleanup'
 
 /**
  * Seed the default manager user for authentication
@@ -235,14 +235,12 @@ async function seedTestFrames(payload: Awaited<ReturnType<typeof getPayload>>) {
 async function globalSetup(_config: FullConfig) {
   console.log('\n🧪 E2E Test Setup: Initializing database...')
 
-  // Remove any stale E2E SQLite file (and sidecar journal/WAL/SHM files) before
-  // initializing Payload. A stale schema on disk causes drizzle-kit push to
-  // emit warnings and open an interactive prompt that hangs indefinitely in
-  // Playwright's subprocess (no TTY). Starting fresh guarantees no warnings.
+  // Remove any stale E2E SQLite file before initializing Payload. A stale
+  // schema on disk causes drizzle-kit push to emit warnings and open an
+  // interactive prompt that hangs indefinitely in Playwright's subprocess
+  // (no TTY). Starting fresh guarantees no warnings.
   console.log('🧹 Resetting E2E database to prevent drizzle push prompts...')
-  for (const suffix of ['', '-journal', '-shm', '-wal']) {
-    fs.rmSync(`${E2E_DATABASE_PATH}${suffix}`, { force: true })
-  }
+  removeSqliteFiles(E2E_DATABASE_PATH)
 
   // Initialize Payload with E2E config
   console.log('   Database path:', E2E_DATABASE_PATH)
