@@ -69,5 +69,8 @@ tests/.e2e.sqlite-shm
 # Dev server skill state (PID, logs, etc.)
 .claude/skills/dev-server/state/
 
+# Scheduled-tasks runtime lock (written by the loop/schedule skills)
+.claude/scheduled_tasks.lock
+
 # Seed logs
 seed*.log
