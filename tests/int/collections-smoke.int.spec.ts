@@ -191,10 +191,15 @@ describe('Collections smoke', () => {
 
   // ---- Access collections ------------------------------------------------
 
-  it('managers: created via createTestEnvironment (admin user exists)', async () => {
-    expect(adminUserId).toBeDefined()
-    const found = await payload.findByID({ collection: 'managers', id: adminUserId })
-    expect(found.id).toBe(adminUserId)
+  it('managers: create + read', async () => {
+    const manager = await testData.createManager(payload, {
+      name: 'Smoke Manager',
+      email: 'smoke-manager@example.com',
+      password: 'password123',
+    })
+    expect(manager.id).toBeDefined()
+    const found = await payload.findByID({ collection: 'managers', id: manager.id })
+    expect(found.email).toBe('smoke-manager@example.com')
   })
 
   it('clients: create + read + populate manager relationship', async () => {
