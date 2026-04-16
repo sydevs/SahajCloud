@@ -259,6 +259,27 @@ describe('AppCards rules and weight fields', () => {
   })
 })
 
+// ── Integration Tests: AppCards Overlay Field ─────────────────────────────────
+
+describe('AppCards overlay field', () => {
+  it('defaults overlay to false and persists overlay: true', async () => {
+    const defaultCard = await testData.createAppCard(payload, { title: 'No Overlay' })
+    expect(defaultCard.overlay).toBe(false)
+
+    const overlayCard = await testData.createAppCard(payload, {
+      title: 'With Overlay',
+      overlay: true,
+    })
+    expect(overlayCard.overlay).toBe(true)
+
+    const fetched = await payload.findByID({
+      collection: 'app-cards',
+      id: overlayCard.id,
+    })
+    expect(fetched.overlay).toBe(true)
+  })
+})
+
 // ── Integration Tests: AppCards Countdown & Schedule ───────────────────────────
 
 describe('AppCards countdown and schedule fields', () => {
