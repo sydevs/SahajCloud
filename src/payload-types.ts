@@ -1161,6 +1161,10 @@ export interface AppCard {
    */
   countdown?: boolean | null;
   /**
+   * Render the card with a dark overlay and white text instead of the default style.
+   */
+  overlay?: boolean | null;
+  /**
    * Configure the recurring schedule for this reminder card
    */
   schedule?: {
@@ -2072,6 +2076,7 @@ export interface AppCardsSelect<T extends boolean = true> {
   content?: T;
   linkUrl?: T;
   countdown?: T;
+  overlay?: T;
   schedule?:
     | T
     | {

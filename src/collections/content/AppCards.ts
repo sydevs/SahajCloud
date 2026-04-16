@@ -128,6 +128,15 @@ export const AppCards: CollectionConfig = {
                   'Enable recurring schedule for this card (countdown/reminder functionality)',
               },
             },
+            {
+              name: 'overlay',
+              type: 'checkbox',
+              defaultValue: false,
+              admin: {
+                description:
+                  'Render the card with a dark overlay and white text instead of the default style.',
+              },
+            },
             // Conditional: Schedule (shown when countdown is enabled)
             scheduleField({
               hasExclusions: true,
