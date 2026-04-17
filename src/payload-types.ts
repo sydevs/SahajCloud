@@ -573,6 +573,10 @@ export interface Song {
    */
   album: number | Album;
   tags?: (number | SongTag)[] | null;
+  /**
+   * Exclude this song from random selection in meditations. Auto-set for songs tagged with vocals.
+   */
+  excludeFromMeditations?: boolean | null;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -1750,6 +1754,7 @@ export interface SongsSelect<T extends boolean = true> {
   title?: T;
   album?: T;
   tags?: T;
+  excludeFromMeditations?: T;
   fileMetadata?: T;
   updatedAt?: T;
   createdAt?: T;
