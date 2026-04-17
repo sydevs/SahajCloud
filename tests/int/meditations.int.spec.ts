@@ -179,6 +179,129 @@ describe('Meditations Collection', () => {
       expect(result.randomSongUrl).toBeNull()
     })
 
+    it('excludes songs with excludeFromMeditations flag', async () => {
+      // Create a unique tag for isolation
+      const tag = await testData.createSongTag(payload, { title: 'Exclude Test Tag' })
+
+      // Create two songs: one normal, one excluded
+      await testData.createSong(payload, {
+        album: testAlbum.id,
+        tags: [tag.id],
+      })
+      const excludedSong = await testData.createSong(payload, {
+        album: testAlbum.id,
+        tags: [tag.id],
+      })
+
+      // Manually set excludeFromMeditations
+      await payload.update({
+        collection: 'songs',
+        id: excludedSong.id,
+        data: { excludeFromMeditations: true },
+      })
+
+      // Create meditation with this tag
+      const meditation = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        { songTag: tag.id },
+      )
+
+      // Run multiple times - the excluded song should never appear
+      for (let i = 0; i < 5; i++) {
+        const result = await payload.findByID({
+          collection: 'meditations',
+          id: meditation.id,
+          draft: true,
+        })
+        expect(result.randomSongUrl).toBeDefined()
+        expect(result.randomSongUrl).not.toContain(excludedSong.filename)
+      }
+    })
+
+    it('returns null when all matching songs are excluded', async () => {
+      const tag = await testData.createSongTag(payload, { title: 'All Excluded Tag' })
+
+      const song = await testData.createSong(payload, {
+        album: testAlbum.id,
+        tags: [tag.id],
+      })
+
+      await payload.update({
+        collection: 'songs',
+        id: song.id,
+        data: { excludeFromMeditations: true },
+      })
+
+      const meditation = await testData.createMeditation(
+        payload,
+        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
+        { songTag: tag.id },
+      )
+
+      const result = await payload.findByID({
+        collection: 'meditations',
+        id: meditation.id,
+        draft: true,
+      })
+
+      expect(result.randomSongUrl).toBeNull()
+    })
+
+    it('auto-sets excludeFromMeditations when song has vocals tag', async () => {
+      // Create a song tag with the 'vocals' slug
+      const vocalsTag = await testData.createSongTag(payload, {
+        title: 'Vocals',
+        slug: 'vocals',
+      })
+
+      const song = await testData.createSong(payload, {
+        album: testAlbum.id,
+        tags: [vocalsTag.id],
+      })
+
+      // The beforeChange hook should have auto-set excludeFromMeditations
+      const fetched = await payload.findByID({
+        collection: 'songs',
+        id: song.id,
+      })
+      expect(fetched.excludeFromMeditations).toBe(true)
+    })
+
+    it('clears excludeFromMeditations when vocals tag is removed', async () => {
+      const vocalsTag = await payload.find({
+        collection: 'song-tags',
+        where: { slug: { equals: 'vocals' } },
+        limit: 1,
+      })
+
+      // The vocals tag should exist from the previous test
+      const vocalsId = vocalsTag.docs[0]?.id
+      expect(vocalsId).toBeDefined()
+
+      const otherTag = await testData.createSongTag(payload, { title: 'Other Tag' })
+
+      const song = await testData.createSong(payload, {
+        album: testAlbum.id,
+        tags: [vocalsId!, otherTag.id],
+      })
+
+      // Should be excluded because it has the vocals tag
+      let fetched = await payload.findByID({ collection: 'songs', id: song.id })
+      expect(fetched.excludeFromMeditations).toBe(true)
+
+      // Remove the vocals tag
+      await payload.update({
+        collection: 'songs',
+        id: song.id,
+        data: { tags: [otherTag.id] },
+      })
+
+      // Should no longer be excluded
+      fetched = await payload.findByID({ collection: 'songs', id: song.id })
+      expect(fetched.excludeFromMeditations).toBe(false)
+    })
+
     it('is excluded from relationship population via defaultPopulate', async () => {
       // defaultPopulate: { randomSongUrl: false } prevents randomSongUrl from being
       // computed when meditations are populated through relationship fields.
