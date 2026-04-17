@@ -18,7 +18,7 @@
  * Idempotent: finds existing page by slug and updates, or creates if missing.
  */
 
-import type { Page } from '../src/payload-types'
+import type { Manager, Page } from '../src/payload-types'
 import type { Payload } from 'payload'
 
 // ============================================================================
@@ -163,6 +163,7 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
         collection: 'pages',
         limit: 50,
         depth: 0,
+        draft: true, // Include drafts — seeded pages may not be published
         where: { slug: { not_equals: SLUG } },
       }),
       payload.find({ collection: 'meditations', limit: 10, depth: 0 }),
@@ -184,11 +185,11 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
     lectureIds: lectures.docs.map((d) => d.id as number),
   }
 
-  console.log(`  Images: ${data.imageIds.length} found`)
-  console.log(`  Pages: ${data.pageIds.length} found (excluding sample page)`)
+  console.log(`  Images: ${data.imageIds.length} found (IDs: ${data.imageIds.slice(0, 5).join(', ')}${data.imageIds.length > 5 ? '...' : ''})`)
+  console.log(`  Pages: ${data.pageIds.length} found (IDs: ${data.pageIds.slice(0, 5).join(', ')}${data.pageIds.length > 5 ? '...' : ''})`)
   console.log(`  Meditations: ${data.meditationIds.length} found`)
-  console.log(`  Meditation Tags: ${data.meditationTagIds.length} found`)
-  console.log(`  Song Tags: ${data.songTagIds.length} found`)
+  console.log(`  Meditation Tags: ${data.meditationTagIds.length} found (IDs: ${data.meditationTagIds.join(', ')})`)
+  console.log(`  Song Tags: ${data.songTagIds.length} found (IDs: ${data.songTagIds.join(', ')})`)
   console.log(
     `  Lecture Tags: ${data.lectureTagIds.length} found${data.lectureTagIds.length === 0 ? ' (skipping ContentIndex lectures variant)' : ''}`,
   )
@@ -748,7 +749,11 @@ function buildLexicalContent(data: SeedData) {
 // Page Upsert
 // ============================================================================
 
-async function upsertSamplePage(payload: Payload, content: Page['content']): Promise<number> {
+async function upsertSamplePage(
+  payload: Payload,
+  content: Page['content'],
+  user: Manager,
+): Promise<number> {
   console.log('\nUpserting page...')
 
   const existing = await payload.find({
@@ -765,23 +770,41 @@ async function upsertSamplePage(payload: Payload, content: Page['content']): Pro
     _status: 'published' as const,
   }
 
-  if (existing.docs.length > 0) {
-    const id = existing.docs[0].id as number
-    await payload.update({
-      collection: 'pages',
-      id,
-      data: pageData,
-    })
-    console.log(`  Updated existing page (ID: ${id})`)
-    return id
-  } else {
-    const created = await payload.create({
-      collection: 'pages',
-      data: pageData,
-    })
-    const id = created.id as number
-    console.log(`  Created new page (ID: ${id})`)
-    return id
+  try {
+    if (existing.docs.length > 0) {
+      const id = existing.docs[0].id as number
+      await payload.update({
+        collection: 'pages',
+        id,
+        data: pageData,
+        overrideAccess: true,
+        user,
+      })
+      console.log(`  Updated existing page (ID: ${id})`)
+      return id
+    } else {
+      const created = await payload.create({
+        collection: 'pages',
+        data: pageData,
+        overrideAccess: true,
+        user,
+      })
+      const id = created.id as number
+      console.log(`  Created new page (ID: ${id})`)
+      return id
+    }
+  } catch (error: unknown) {
+    // Log detailed validation errors for debugging
+    if (error && typeof error === 'object' && 'data' in error) {
+      const errData = (error as { data?: { errors?: { path?: string; message?: string }[] } }).data
+      if (errData?.errors) {
+        console.error('\nValidation error details:')
+        for (const e of errData.errors) {
+          console.error(`  ${e.path}: ${e.message}`)
+        }
+      }
+    }
+    throw error
   }
 }
 
@@ -804,6 +827,23 @@ async function main(): Promise<void> {
     const config = await configPromise
     payload = await getPayload({ config })
 
+    // Authenticate as admin to satisfy relationship validation in Lexical blocks.
+    // Lexical's applyBaseFilterToFields wraps all relationship fields inside blocks
+    // with a filterOptions function that checks admin.hidden({ user }). Without an
+    // authenticated user, collections appear "hidden" and all relationship IDs are
+    // rejected as invalid selections.
+    const admin = await payload.find({
+      collection: 'managers',
+      where: { type: { equals: 'admin' } },
+      limit: 1,
+      depth: 0,
+    })
+    if (admin.docs.length === 0) {
+      console.error('\nNo admin manager found. Create one first via the admin panel.')
+      process.exit(1)
+    }
+    const user = admin.docs[0]
+
     // Fetch and validate seed data
     const data = await fetchSeedData(payload)
     validateSeedData(data)
@@ -812,7 +852,7 @@ async function main(): Promise<void> {
     const content = buildLexicalContent(data)
 
     // Upsert the page
-    const pageId = await upsertSamplePage(payload, content)
+    const pageId = await upsertSamplePage(payload, content, user)
 
     const port = process.env.PORT || '3000'
     console.log('\nDone! Verify at:')
