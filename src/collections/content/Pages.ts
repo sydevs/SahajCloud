@@ -62,6 +62,15 @@ export const Pages: CollectionConfig = {
       },
     },
     {
+      name: 'featuredVideo',
+      type: 'relationship',
+      relationTo: 'videos',
+      admin: {
+        position: 'sidebar',
+        description: 'Featured video displayed on this page',
+      },
+    },
+    {
       name: 'tags',
       type: 'select',
       hasMany: true,

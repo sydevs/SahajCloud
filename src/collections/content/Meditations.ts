@@ -20,7 +20,7 @@ const randomSongUrlAfterRead: FieldHook = async ({ data, req }) => {
   const songWhere: Where = {
     tags: { in: [songTagId] },
     deletedAt: { exists: false },
-    excludeFromMeditations: { not_equals: true },
+    includeForMeditations: { not_equals: false },
   }
 
   const { totalDocs } = await req.payload.count({
