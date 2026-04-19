@@ -179,7 +179,7 @@ describe('Meditations Collection', () => {
       expect(result.randomSongUrl).toBeNull()
     })
 
-    it('excludes songs with excludeFromMeditations flag', async () => {
+    it('excludes songs with includeForMeditations false', async () => {
       // Create a unique tag for isolation
       const tag = await testData.createSongTag(payload, { title: 'Exclude Test Tag' })
 
@@ -193,11 +193,11 @@ describe('Meditations Collection', () => {
         tags: [tag.id],
       })
 
-      // Manually set excludeFromMeditations
+      // Manually opt the song out of meditations
       await payload.update({
         collection: 'songs',
         id: excludedSong.id,
-        data: { excludeFromMeditations: true },
+        data: { includeForMeditations: false },
       })
 
       // Create meditation with this tag
@@ -230,7 +230,7 @@ describe('Meditations Collection', () => {
       await payload.update({
         collection: 'songs',
         id: song.id,
-        data: { excludeFromMeditations: true },
+        data: { includeForMeditations: false },
       })
 
       const meditation = await testData.createMeditation(
@@ -248,7 +248,7 @@ describe('Meditations Collection', () => {
       expect(result.randomSongUrl).toBeNull()
     })
 
-    it('auto-sets excludeFromMeditations when song has vocals tag', async () => {
+    it('auto-sets includeForMeditations to false on creation when song has vocals tag', async () => {
       // Create a song tag with the 'vocals' slug
       const vocalsTag = await testData.createSongTag(payload, {
         title: 'Vocals',
@@ -260,15 +260,14 @@ describe('Meditations Collection', () => {
         tags: [vocalsTag.id],
       })
 
-      // The beforeChange hook should have auto-set excludeFromMeditations
       const fetched = await payload.findByID({
         collection: 'songs',
         id: song.id,
       })
-      expect(fetched.excludeFromMeditations).toBe(true)
+      expect(fetched.includeForMeditations).toBe(false)
     })
 
-    it('clears excludeFromMeditations when vocals tag is removed', async () => {
+    it('does not change includeForMeditations after creation when tags change', async () => {
       const vocalsTag = await payload.find({
         collection: 'song-tags',
         where: { slug: { equals: 'vocals' } },
@@ -281,25 +280,39 @@ describe('Meditations Collection', () => {
 
       const otherTag = await testData.createSongTag(payload, { title: 'Other Tag' })
 
-      const song = await testData.createSong(payload, {
+      // Song created with vocals → auto-set to false
+      const vocalSong = await testData.createSong(payload, {
         album: testAlbum.id,
         tags: [vocalsId!, otherTag.id],
       })
+      let fetched = await payload.findByID({ collection: 'songs', id: vocalSong.id })
+      expect(fetched.includeForMeditations).toBe(false)
 
-      // Should be excluded because it has the vocals tag
-      let fetched = await payload.findByID({ collection: 'songs', id: song.id })
-      expect(fetched.excludeFromMeditations).toBe(true)
-
-      // Remove the vocals tag
+      // Removing the vocals tag must NOT flip it back to true (manual control only)
       await payload.update({
         collection: 'songs',
-        id: song.id,
+        id: vocalSong.id,
         data: { tags: [otherTag.id] },
       })
+      fetched = await payload.findByID({ collection: 'songs', id: vocalSong.id })
+      expect(fetched.includeForMeditations).toBe(false)
 
-      // Should no longer be excluded
-      fetched = await payload.findByID({ collection: 'songs', id: song.id })
-      expect(fetched.excludeFromMeditations).toBe(false)
+      // Song created without vocals → default to true
+      const instrumentalSong = await testData.createSong(payload, {
+        album: testAlbum.id,
+        tags: [otherTag.id],
+      })
+      fetched = await payload.findByID({ collection: 'songs', id: instrumentalSong.id })
+      expect(fetched.includeForMeditations).toBe(true)
+
+      // Adding the vocals tag later must NOT flip it to false (manual control only)
+      await payload.update({
+        collection: 'songs',
+        id: instrumentalSong.id,
+        data: { tags: [vocalsId!, otherTag.id] },
+      })
+      fetched = await payload.findByID({ collection: 'songs', id: instrumentalSong.id })
+      expect(fetched.includeForMeditations).toBe(true)
     })
 
     it('is excluded from relationship population via defaultPopulate', async () => {

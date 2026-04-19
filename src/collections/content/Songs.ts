@@ -6,11 +6,17 @@ import { virtualUrlField } from '@/lib/storage/urlFields'
 let vocalsTagId: number | undefined
 
 /**
- * Auto-sets `excludeFromMeditations` when the song's tags include the
- * `vocals` song-tag. The vocals tag ID is resolved by slug on first
- * successful lookup and cached for the lifetime of the process.
+ * On create only: sets `includeForMeditations` to `false` when the new song's
+ * tags include the `vocals` song-tag. After creation, the field is fully
+ * manual — adding or removing the vocals tag later does not change it.
  */
-const autoSetExcludeFromMeditations: CollectionBeforeChangeHook = async ({ data, req }) => {
+const autoSetIncludeForMeditationsOnCreate: CollectionBeforeChangeHook = async ({
+  data,
+  operation,
+  req,
+}) => {
+  if (operation !== 'create') return data
+
   if (vocalsTagId === undefined) {
     const result = await req.payload.find({
       collection: 'song-tags',
@@ -30,15 +36,16 @@ const autoSetExcludeFromMeditations: CollectionBeforeChangeHook = async ({ data,
       )
     : []
 
-  const hasVocals = tagIds.includes(vocalsTagId)
-  return { ...data, excludeFromMeditations: hasVocals }
+  if (!tagIds.includes(vocalsTagId)) return data
+
+  return { ...data, includeForMeditations: false }
 }
 
 export const Songs: CollectionConfig = {
   slug: 'songs',
   trash: true,
   hooks: {
-    beforeChange: [autoSetExcludeFromMeditations],
+    beforeChange: [autoSetIncludeForMeditationsOnCreate],
   },
   upload: {
     staticDir: 'media/songs',
@@ -80,14 +87,13 @@ export const Songs: CollectionConfig = {
       },
     },
     {
-      name: 'excludeFromMeditations',
+      name: 'includeForMeditations',
       type: 'checkbox',
-      defaultValue: false,
+      defaultValue: true,
       admin: {
         description:
-          'Exclude this song from random selection in meditations. Auto-set for songs tagged with vocals.',
+          'Include this song in random selection in meditations. Auto-set to false on creation when the song has the vocals tag, then manually editable.',
         position: 'sidebar',
-        readOnly: true,
       },
     },
     {

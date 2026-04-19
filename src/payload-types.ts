@@ -307,6 +307,10 @@ export interface Page {
    * Article author (for article pages)
    */
   author?: (number | null) | Author;
+  /**
+   * Featured video displayed on this page
+   */
+  featuredVideo?: (number | null) | Video;
   tags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] | null;
   updatedAt: string;
   createdAt: string;
@@ -407,6 +411,52 @@ export interface Author {
   };
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "videos".
+ */
+export interface Video {
+  id: number;
+  streamUrl?: string | null;
+  previewUrl?: string | null;
+  /**
+   * Video title shown to users
+   */
+  title: string;
+  subtitles?: {
+    captions: {
+      duration: number;
+      content: string;
+      startTime: string;
+      [k: string]: unknown;
+    }[];
+    [k: string]: unknown;
+  };
+  tags: 'testimonial' | 'workshop' | 'event' | 'technique';
+  /**
+   * Auto-populated video metadata (duration, format, etc.)
+   */
+  fileMetadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -574,9 +624,9 @@ export interface Song {
   album: number | Album;
   tags?: (number | SongTag)[] | null;
   /**
-   * Exclude this song from random selection in meditations. Auto-set for songs tagged with vocals.
+   * Include this song in random selection in meditations. Auto-set to false on creation when the song has the vocals tag, then manually editable.
    */
-  excludeFromMeditations?: boolean | null;
+  includeForMeditations?: boolean | null;
   fileMetadata?:
     | {
         [k: string]: unknown;
@@ -623,52 +673,6 @@ export interface Album {
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "videos".
- */
-export interface Video {
-  id: number;
-  streamUrl?: string | null;
-  previewUrl?: string | null;
-  /**
-   * Video title shown to users
-   */
-  title: string;
-  subtitles?: {
-    captions: {
-      duration: number;
-      content: string;
-      startTime: string;
-      [k: string]: unknown;
-    }[];
-    [k: string]: unknown;
-  };
-  tags: 'testimonial' | 'workshop' | 'event' | 'technique';
-  /**
-   * Auto-populated video metadata (duration, format, etc.)
-   */
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1700,6 +1704,7 @@ export interface PagesSelect<T extends boolean = true> {
   generateSlug?: T;
   slug?: T;
   author?: T;
+  featuredVideo?: T;
   tags?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1754,7 +1759,7 @@ export interface SongsSelect<T extends boolean = true> {
   title?: T;
   album?: T;
   tags?: T;
-  excludeFromMeditations?: T;
+  includeForMeditations?: T;
   fileMetadata?: T;
   updatedAt?: T;
   createdAt?: T;

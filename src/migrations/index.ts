@@ -34,6 +34,8 @@ import * as migration_20260414_023907 from './20260414_023907';
 import * as migration_20260414_122411_add_lecture_drafts from './20260414_122411_add_lecture_drafts';
 import * as migration_20260415_161746 from './20260415_161746';
 import * as migration_20260417_132940 from './20260417_132940';
+import * as migration_20260417_134418 from './20260417_134418';
+import * as migration_20260419_075710_excludeToInclude from './20260419_075710_excludeToInclude';
 
 export const migrations = [
   {
@@ -214,6 +216,16 @@ export const migrations = [
   {
     up: migration_20260417_132940.up,
     down: migration_20260417_132940.down,
-    name: '20260417_132940'
+    name: '20260417_132940',
+  },
+  {
+    up: migration_20260417_134418.up,
+    down: migration_20260417_134418.down,
+    name: '20260417_134418',
+  },
+  {
+    up: migration_20260419_075710_excludeToInclude.up,
+    down: migration_20260419_075710_excludeToInclude.down,
+    name: '20260419_075710_excludeToInclude'
   },
 ];
