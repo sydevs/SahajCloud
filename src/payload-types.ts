@@ -97,7 +97,7 @@ export interface Config {
     authors: Author;
     images: Image;
     files: File;
-    'lecture-tags': LectureTag;
+    'viewer-rules': ViewerRule;
     'meditation-tags': MeditationTag;
     'song-tags': SongTag;
     managers: Manager;
@@ -121,9 +121,10 @@ export interface Config {
     authors: {
       articles: 'pages';
     };
-    'lecture-tags': {
+    'viewer-rules': {
       lectures: 'lectures';
       lectureClips: 'lecture-clips';
+      appCards: 'app-cards';
     };
     'meditation-tags': {
       children: 'meditation-tags';
@@ -146,7 +147,7 @@ export interface Config {
     authors: AuthorsSelect<false> | AuthorsSelect<true>;
     images: ImagesSelect<false> | ImagesSelect<true>;
     files: FilesSelect<false> | FilesSelect<true>;
-    'lecture-tags': LectureTagsSelect<false> | LectureTagsSelect<true>;
+    'viewer-rules': ViewerRulesSelect<false> | ViewerRulesSelect<true>;
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
     'song-tags': SongTagsSelect<false> | SongTagsSelect<true>;
     managers: ManagersSelect<false> | ManagersSelect<true>;
@@ -803,9 +804,9 @@ export interface Lecture {
    */
   subtitlesUrl?: string | null;
   /**
-   * Tags control visibility in listings and indexes. A lecture with no tags will never appear in any listing — it will only be shown when directly referenced from a meditation or path step.
+   * Controls which viewers see this lecture. If empty, it is hidden from /api/lectures/for-viewer and only surfaced when directly referenced (e.g. from a meditation or path step).
    */
-  tags?: (number | LectureTag)[] | null;
+  audience?: (number | null) | ViewerRule;
   clips?: {
     docs?: (number | LectureClip)[];
     hasNextPage?: boolean;
@@ -816,14 +817,18 @@ export interface Lecture {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "lecture-tags".
+ * via the `definition` "viewer-rules".
  */
-export interface LectureTag {
+export interface ViewerRule {
   id: number;
   label: string;
   rules?: {
     logic?: 'AND' | 'OR';
     pathProgress?: {
+      min?: number;
+      max?: number;
+    };
+    meditationsPerWeek?: {
       min?: number;
       max?: number;
     };
@@ -844,6 +849,11 @@ export interface LectureTag {
   };
   lectureClips?: {
     docs?: (number | LectureClip)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  appCards?: {
+    docs?: (number | AppCard)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -875,11 +885,111 @@ export interface LectureClip {
    */
   subtitlesUrl?: string | null;
   /**
-   * Tags control visibility in listings and indexes. A clip with no tags will never appear in any listing — it will only be shown when directly referenced from a meditation or path step.
+   * Controls which viewers see this clip. If empty, it is hidden from /api/lectures/for-viewer and only surfaced when directly referenced (e.g. from a meditation or path step).
    */
-  tags?: (number | LectureTag)[] | null;
+  audience?: (number | null) | ViewerRule;
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "app-cards".
+ */
+export interface AppCard {
+  id: number;
+  image: number | Image;
+  title: string;
+  subtitle?: string | null;
+  /**
+   * Button label text
+   */
+  button?: string | null;
+  /**
+   * A custom header that will appear above the card if it is selected as a hero card.
+   */
+  header: string;
+  type: 'app-page' | 'content' | 'external';
+  /**
+   * Select the app page this card links to
+   */
+  appPage?: ('map' | 'lectures' | 'path' | 'music' | 'live-meditations') | null;
+  /**
+   * Select the content item this card links to
+   */
+  content?:
+    | ({
+        relationTo: 'lecture-clips';
+        value: number | LectureClip;
+      } | null)
+    | ({
+        relationTo: 'albums';
+        value: number | Album;
+      } | null)
+    | ({
+        relationTo: 'meditations';
+        value: number | Meditation;
+      } | null);
+  /**
+   * External URL this card links to
+   */
+  linkUrl?: string | null;
+  /**
+   * Enable recurring schedule for this card (countdown/reminder functionality)
+   */
+  countdown?: boolean | null;
+  /**
+   * Render the card with a dark overlay and white text instead of the default style.
+   */
+  overlay?: boolean | null;
+  /**
+   * Configure the recurring schedule for this reminder card
+   */
+  schedule?: {
+    firstDate: string;
+    firstDate_tz: SupportedTimezones;
+    recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
+    /**
+     * Repeat every N days/weeks/months
+     */
+    interval?: number | null;
+    weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
+    /**
+     * Dates when this recurring event will not occur, such as holidays or seasonal breaks.
+     */
+    exclusions?:
+      | {
+          startDate: string;
+          endDate?: string | null;
+          reason?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    icalRule?: string | null;
+    upcomingDates?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  /**
+   * Target sections where this card should appear on the app homepage.
+   */
+  targetSections?: ('hero' | 'highlights')[] | null;
+  /**
+   * Controls which viewers see this card. If empty, the card is hidden from /api/app-cards/for-viewer and never appears on the app homepage.
+   */
+  audience?: (number | null) | ViewerRule;
+  /**
+   * Controls how likely this card is to be chosen when displayed to a user.
+   */
+  weight?: number | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1162,123 +1272,6 @@ export interface Client {
   apiKey?: string | null;
   apiKeyIndex?: string | null;
   collection: 'clients';
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "app-cards".
- */
-export interface AppCard {
-  id: number;
-  image: number | Image;
-  title: string;
-  subtitle?: string | null;
-  /**
-   * Button label text
-   */
-  button?: string | null;
-  /**
-   * A custom header that will appear above the card if it is selected as a hero card.
-   */
-  header: string;
-  type: 'app-page' | 'content' | 'external';
-  /**
-   * Select the app page this card links to
-   */
-  appPage?: ('map' | 'lectures' | 'path' | 'music' | 'live-meditations') | null;
-  /**
-   * Select the content item this card links to
-   */
-  content?:
-    | ({
-        relationTo: 'lecture-clips';
-        value: number | LectureClip;
-      } | null)
-    | ({
-        relationTo: 'albums';
-        value: number | Album;
-      } | null)
-    | ({
-        relationTo: 'meditations';
-        value: number | Meditation;
-      } | null);
-  /**
-   * External URL this card links to
-   */
-  linkUrl?: string | null;
-  /**
-   * Enable recurring schedule for this card (countdown/reminder functionality)
-   */
-  countdown?: boolean | null;
-  /**
-   * Render the card with a dark overlay and white text instead of the default style.
-   */
-  overlay?: boolean | null;
-  /**
-   * Configure the recurring schedule for this reminder card
-   */
-  schedule?: {
-    firstDate: string;
-    firstDate_tz: SupportedTimezones;
-    recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
-    /**
-     * Repeat every N days/weeks/months
-     */
-    interval?: number | null;
-    weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
-    /**
-     * Dates when this recurring event will not occur, such as holidays or seasonal breaks.
-     */
-    exclusions?:
-      | {
-          startDate: string;
-          endDate?: string | null;
-          reason?: string | null;
-          id?: string | null;
-        }[]
-      | null;
-    icalRule?: string | null;
-    upcomingDates?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-  };
-  /**
-   * Target sections where this card should appear on the app homepage.
-   */
-  targetSections?: ('hero' | 'highlights')[] | null;
-  rules?: {
-    logic?: 'AND' | 'OR';
-    hasRealization?: boolean;
-    pathProgress?: {
-      min?: number;
-      max?: number;
-    };
-    meditationsPerWeek?: {
-      min?: number;
-      max?: number;
-    };
-    totalMeditationsViewed?: {
-      min?: number;
-      max?: number;
-    };
-    totalLecturesViewed?: {
-      min?: number;
-      max?: number;
-    };
-  };
-  isEligibleForViewer?: boolean | null;
-  /**
-   * Controls how likely this card is to be chosen when displayed to a user.
-   */
-  weight?: number | null;
-  updatedAt: string;
-  createdAt: string;
-  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1649,8 +1642,8 @@ export interface PayloadLockedDocument {
         value: number | File;
       } | null)
     | ({
-        relationTo: 'lecture-tags';
-        value: number | LectureTag;
+        relationTo: 'viewer-rules';
+        value: number | ViewerRule;
       } | null)
     | ({
         relationTo: 'meditation-tags';
@@ -1892,7 +1885,7 @@ export interface LecturesSelect<T extends boolean = true> {
   thumbnail?: T;
   videoUrl?: T;
   subtitlesUrl?: T;
-  tags?: T;
+  audience?: T;
   clips?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1908,7 +1901,7 @@ export interface LectureClipsSelect<T extends boolean = true> {
   title?: T;
   thumbnail?: T;
   subtitlesUrl?: T;
-  tags?: T;
+  audience?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2007,14 +2000,15 @@ export interface FilesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "lecture-tags_select".
+ * via the `definition` "viewer-rules_select".
  */
-export interface LectureTagsSelect<T extends boolean = true> {
+export interface ViewerRulesSelect<T extends boolean = true> {
   label?: T;
   rules?: T;
   isEligibleForViewer?: T;
   lectures?: T;
   lectureClips?: T;
+  appCards?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2166,8 +2160,7 @@ export interface AppCardsSelect<T extends boolean = true> {
         upcomingDates?: T;
       };
   targetSections?: T;
-  rules?: T;
-  isEligibleForViewer?: T;
+  audience?: T;
   weight?: T;
   updatedAt?: T;
   createdAt?: T;

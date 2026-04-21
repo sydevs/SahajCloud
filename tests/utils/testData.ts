@@ -16,7 +16,7 @@ import type {
   Client,
   MeditationTag,
   SongTag,
-  LectureTag,
+  ViewerRule,
   Page,
   Lesson,
   File,
@@ -283,22 +283,22 @@ export const testData = {
   },
 
   /**
-   * Create a lecture tag (NOT an upload collection — no file needed)
+   * Create a viewer rule (NOT an upload collection — no file needed)
    */
-  async createLectureTag(
+  async createViewerRule(
     payload: Payload,
-    overrides: Partial<LectureTag> = {},
-  ): Promise<LectureTag> {
+    overrides: Partial<ViewerRule> = {},
+  ): Promise<ViewerRule> {
     const uniqueId = Math.random().toString(36).substring(7)
-    const defaultLabel = overrides.label || `Test Lecture Tag ${uniqueId}`
+    const defaultLabel = overrides.label || `Test Viewer Rule ${uniqueId}`
 
     return (await payload.create({
-      collection: 'lecture-tags',
+      collection: 'viewer-rules',
       data: {
         label: defaultLabel,
         ...overrides,
       },
-    })) as LectureTag
+    })) as ViewerRule
   },
 
   // Note: createImageTag, createPageTag, createVideoTag removed

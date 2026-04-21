@@ -2,7 +2,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { Client, Image, Lecture, LectureClip, LectureTag } from '@/payload-types'
+import type { Client, Image, Lecture, LectureClip, ViewerRule } from '@/payload-types'
 
 import { lecturesForViewer } from '@/endpoints'
 
@@ -63,12 +63,12 @@ describe('lecturesForViewer endpoint', () => {
   let cleanup: () => Promise<void>
   let adminUserId: number
 
-  let tagBeginner: LectureTag
-  let tagIntermediate: LectureTag
+  let audienceBeginner: ViewerRule
+  let audienceIntermediate: ViewerRule
 
   let lectureBeginnerOnly: Lecture
   let lectureIntermediateOnly: Lecture
-  let lectureUntagged: Lecture
+  let lectureNoAudience: Lecture
 
   let clipWithEligibleParent: LectureClip
   let clipWithIneligibleParent: LectureClip
@@ -82,11 +82,11 @@ describe('lecturesForViewer endpoint', () => {
     cleanup = env.cleanup
     adminUserId = env.adminUser.id
 
-    tagBeginner = await testData.createLectureTag(payload, {
+    audienceBeginner = await testData.createViewerRule(payload, {
       label: 'Beginner',
       rules: { logic: 'AND', pathProgress: { min: 0, max: 5 } },
     })
-    tagIntermediate = await testData.createLectureTag(payload, {
+    audienceIntermediate = await testData.createViewerRule(payload, {
       label: 'Intermediate',
       rules: { logic: 'AND', pathProgress: { min: 5, max: 10 } },
     })
@@ -101,19 +101,19 @@ describe('lecturesForViewer endpoint', () => {
       { thumbnail: thumb.id },
       {
         title: 'Beginner Lecture',
-        tags: [tagBeginner.id],
+        audience: audienceBeginner.id,
         subtitlesUrl: 'https://example.com/parent-en.vtt',
       },
     )
     lectureIntermediateOnly = await testData.createLecture(
       payload,
       { thumbnail: thumb.id },
-      { title: 'Intermediate Lecture', tags: [tagIntermediate.id] },
+      { title: 'Intermediate Lecture', audience: audienceIntermediate.id },
     )
-    lectureUntagged = await testData.createLecture(
+    lectureNoAudience = await testData.createLecture(
       payload,
       { thumbnail: thumb.id },
-      { title: 'Untagged', tags: [] },
+      { title: 'No Audience Lecture', audience: null },
     )
 
     // Clip with eligible parent — own thumbnail/subs supplied.
@@ -125,7 +125,7 @@ describe('lecturesForViewer endpoint', () => {
       { parent: lectureBeginnerOnly.id },
       {
         title: 'Clip of Beginner Lecture',
-        tags: [tagBeginner.id],
+        audience: audienceBeginner.id,
         thumbnail: clipOwnThumb.id,
         subtitlesUrl: 'https://example.com/clip-en.vtt',
       },
@@ -137,7 +137,7 @@ describe('lecturesForViewer endpoint', () => {
       { parent: lectureIntermediateOnly.id },
       {
         title: 'Clip of Intermediate Lecture',
-        tags: [tagBeginner.id], // clip is eligible even though parent isn't
+        audience: audienceBeginner.id, // clip is eligible even though parent isn't
         thumbnail: clipOwnThumb.id,
         subtitlesUrl: 'https://example.com/clip-intermediate-parent.vtt',
       },
@@ -149,16 +149,16 @@ describe('lecturesForViewer endpoint', () => {
       { parent: lectureBeginnerOnly.id },
       {
         title: 'Clip relying on parent fallbacks',
-        tags: [tagBeginner.id],
+        audience: audienceBeginner.id,
         // no thumbnail, no subtitlesUrl
       },
     )
 
-    // Untagged clip — should never appear.
+    // Clip with no audience — should never appear.
     await testData.createLectureClip(
       payload,
       { parent: lectureBeginnerOnly.id },
-      { title: 'Untagged clip', tags: [] },
+      { title: 'No audience clip', audience: null },
     )
   })
 
@@ -209,7 +209,7 @@ describe('lecturesForViewer endpoint', () => {
   })
 
   describe('Eligibility', () => {
-    it('returns lectures whose tags all pass', async () => {
+    it('returns lectures whose audience passes', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
       const ids = (body as { docs: ViewerDoc[] }).docs
         .filter((d) => d.type === 'lecture')
@@ -217,14 +217,13 @@ describe('lecturesForViewer endpoint', () => {
       expect(ids).toContain(lectureBeginnerOnly.id)
     })
 
-    it('excludes untagged lectures and clips', async () => {
+    it('excludes lectures and clips with null audience', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
       const docs = (body as { docs: ViewerDoc[] }).docs
       const lectureIds = docs.filter((d) => d.type === 'lecture').map((d) => d.id)
-      expect(lectureIds).not.toContain(lectureUntagged.id)
-      // Assert no clip named 'Untagged clip' snuck through.
+      expect(lectureIds).not.toContain(lectureNoAudience.id)
       const clipTitles = docs.filter((d) => d.type === 'clip').map((d) => d.title)
-      expect(clipTitles).not.toContain('Untagged clip')
+      expect(clipTitles).not.toContain('No audience clip')
     })
 
     it('returns clips independently of parent eligibility', async () => {
@@ -236,7 +235,7 @@ describe('lecturesForViewer endpoint', () => {
       expect(clipIds).toContain(clipWithIneligibleParent.id)
     })
 
-    it('returns empty docs when no tag rules pass', async () => {
+    it('returns empty docs when no viewer rules pass', async () => {
       const { status, body } = await callEndpoint(payload, {
         limit: 100,
         pathProgress: 99,
@@ -250,13 +249,40 @@ describe('lecturesForViewer endpoint', () => {
       const fresh = await testData.createLecture(
         payload,
         { thumbnail: parentThumbnailId },
-        { title: 'Just created', tags: [tagBeginner.id] },
+        { title: 'Just created', audience: audienceBeginner.id },
       )
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
       const lectureIds = (body as { docs: ViewerDoc[] }).docs
         .filter((d) => d.type === 'lecture')
         .map((d) => d.id)
       expect(lectureIds).toContain(fresh.id)
+    })
+
+    it('uses pathProgress >= 1 as the replacement for the old hasRealization rule', async () => {
+      // A ViewerRule with pathProgress { min: 1 } should behave like the old hasRealization boolean.
+      const pathStartedRule = await testData.createViewerRule(payload, {
+        label: 'Path Started (hasRealization replacement)',
+        rules: { pathProgress: { min: 1 } },
+      })
+      const lecture = await testData.createLecture(
+        payload,
+        { thumbnail: parentThumbnailId },
+        { title: 'Requires pathProgress >= 1', audience: pathStartedRule.id },
+      )
+
+      // pathProgress=0 → excluded
+      const out1 = await callEndpoint(payload, { limit: 100, pathProgress: 0 })
+      const ids1 = (out1.body as { docs: ViewerDoc[] }).docs
+        .filter((d) => d.type === 'lecture')
+        .map((d) => d.id)
+      expect(ids1).not.toContain(lecture.id)
+
+      // pathProgress=1 → included
+      const out2 = await callEndpoint(payload, { limit: 100, pathProgress: 1 })
+      const ids2 = (out2.body as { docs: ViewerDoc[] }).docs
+        .filter((d) => d.type === 'lecture')
+        .map((d) => d.id)
+      expect(ids2).toContain(lecture.id)
     })
   })
 
@@ -316,6 +342,11 @@ describe('lecturesForViewer endpoint', () => {
 
   describe('req forwarding', () => {
     it('threads req through all payload.find calls for usage-tracking / rate-limit hooks', async () => {
+      // Silence audienceIntermediate as unused in this block. `lectureIntermediateOnly`
+      // exists to exercise the "parent ineligible, clip eligible" case above.
+      void audienceIntermediate
+      void lectureIntermediateOnly
+
       const client = (await testData.createClient(payload, adminUserId, {
         name: 'Lectures Forwarding Test',
       })) as Client
@@ -334,7 +365,7 @@ describe('lecturesForViewer endpoint', () => {
             .map(([args]) => (args as { collection?: string }).collection)
             .filter(Boolean) as string[],
         )
-        expect(collectionsHit.has('lecture-tags')).toBe(true)
+        expect(collectionsHit.has('viewer-rules')).toBe(true)
         expect(collectionsHit.has('lectures')).toBe(true)
         expect(collectionsHit.has('lecture-clips')).toBe(true)
 
@@ -348,18 +379,33 @@ describe('lecturesForViewer endpoint', () => {
       }
     })
 
-    it('passes viewerData on the lecture-tags call only', async () => {
+    it('passes viewerData on the viewer-rules call only (includes every ViewerRules dimension)', async () => {
       const findSpy = vi.spyOn(payload, 'find')
       try {
-        await callEndpoint(payload, { limit: 5, pathProgress: 3 })
+        // Pass all four ViewerRules dimensions (including meditationsPerWeek,
+        // which was missing from the querySchema before the shared
+        // `buildViewerDataSchema` refactor). This guards against silently
+        // dropping any dimension on future edits.
+        await callEndpoint(payload, {
+          limit: 5,
+          pathProgress: 3,
+          meditationsPerWeek: 2,
+          totalMeditationsViewed: 20,
+          totalLecturesViewed: 4,
+        })
 
-        const tagCall = findSpy.mock.calls.find(
-          ([args]) => (args as { collection?: string }).collection === 'lecture-tags',
+        const ruleCall = findSpy.mock.calls.find(
+          ([args]) => (args as { collection?: string }).collection === 'viewer-rules',
         )
-        const tagReq = (
-          tagCall![0] as { req?: { context?: Record<string, unknown> } }
+        const ruleReq = (
+          ruleCall![0] as { req?: { context?: Record<string, unknown> } }
         ).req
-        expect(tagReq?.context?.viewerData).toEqual({ pathProgress: 3 })
+        expect(ruleReq?.context?.viewerData).toEqual({
+          pathProgress: 3,
+          meditationsPerWeek: 2,
+          totalMeditationsViewed: 20,
+          totalLecturesViewed: 4,
+        })
       } finally {
         findSpy.mockRestore()
       }

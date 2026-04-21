@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { appCardsForViewer } from '@/endpoints'
-import { mediaField, rulesField, scheduleField, urlField } from '@/fields'
+import { mediaField, scheduleField, urlField } from '@/fields'
 
 /**
  * App Cards Collection
@@ -164,17 +164,20 @@ export const AppCards: CollectionConfig = {
                 description: 'Target sections where this card should appear on the app homepage.',
               },
             },
-            // Targeting rules (JSON blob) + virtual `isEligibleForViewer` sibling
-            // that evaluates them against `req.context.viewerData` on read.
-            ...rulesField({
-              rules: [
-                { name: 'hasRealization', type: 'boolean' },
-                { name: 'pathProgress', type: 'range' },
-                { name: 'meditationsPerWeek', type: 'range' },
-                { name: 'totalMeditationsViewed', type: 'range' },
-                { name: 'totalLecturesViewed', type: 'range' },
-              ],
-            }),
+            // Audience (single viewer-rule). Null ⇒ card is hidden from the
+            // viewer endpoint. Eligibility is evaluated on the populated
+            // `audience.isEligibleForViewer` virtual field.
+            {
+              name: 'audience',
+              type: 'relationship',
+              relationTo: 'viewer-rules',
+              hasMany: false,
+              filterOptions: () => true,
+              admin: {
+                description:
+                  'Controls which viewers see this card. If empty, the card is hidden from /api/app-cards/for-viewer and never appears on the app homepage.',
+              },
+            },
             // Selection weight for client-side card prioritization
             {
               name: 'weight',
