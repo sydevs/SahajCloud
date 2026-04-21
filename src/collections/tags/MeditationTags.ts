@@ -128,7 +128,7 @@ export const MeditationTags: CollectionConfig = {
       type: 'relationship',
       relationTo: 'meditations',
       localized: true,
-      filterOptions: { type: { equals: 'quick' } },
+      filterOptions: { type: { in: ['quick', 'daily'] } },
       admin: {
         condition: (data) =>
           !data.isParent && Array.isArray(data.timings) && data.timings.includes('morning'),
@@ -140,7 +140,7 @@ export const MeditationTags: CollectionConfig = {
       type: 'relationship',
       relationTo: 'meditations',
       localized: true,
-      filterOptions: { type: { equals: 'quick' } },
+      filterOptions: { type: { in: ['quick', 'daily'] } },
       admin: {
         condition: (data) =>
           !data.isParent && Array.isArray(data.timings) && data.timings.includes('afternoon'),
@@ -152,7 +152,7 @@ export const MeditationTags: CollectionConfig = {
       type: 'relationship',
       relationTo: 'meditations',
       localized: true,
-      filterOptions: { type: { equals: 'quick' } },
+      filterOptions: { type: { in: ['quick', 'daily'] } },
       admin: {
         condition: (data) =>
           !data.isParent && Array.isArray(data.timings) && data.timings.includes('evening'),
@@ -164,7 +164,7 @@ export const MeditationTags: CollectionConfig = {
       type: 'relationship',
       relationTo: 'meditations',
       localized: true,
-      filterOptions: { type: { equals: 'quick' } },
+      filterOptions: { type: { in: ['quick', 'daily'] } },
       admin: {
         condition: (data) =>
           !data.isParent && Array.isArray(data.timings) && data.timings.includes('night'),
