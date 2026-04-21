@@ -32,6 +32,9 @@ export const ALWAYS_HIDDEN_COLLECTIONS: ContentSlug[] = [
   'images',
   'files',
 
+  // Child collections - surfaced only via parent join field and for-viewer
+  'lecture-clips',
+
   // Payload internal collections
   'payload-kv',
   'payload-jobs',
