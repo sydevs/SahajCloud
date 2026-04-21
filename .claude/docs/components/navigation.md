@@ -60,8 +60,8 @@ Collections use `admin.hidden` functions to control visibility based on `user.cu
 | Narrators | ✓ | ✓ | ✓ | ✗ |
 | Authors | ✓ | ✓ | ✗ | ✗ |
 | Files | ✓ | ✓ | ✓ | ✓ |
-| **Tags** |||||
-| LectureTags | ✓ | ✗ | ✓ | ✗ |
+| **Tags / Audiences** |||||
+| ViewerRules | ✓ | ✗ | ✓ | ✗ |
 | MeditationTags | ✓ | ✓ | ✓ | ✗ |
 | SongTags | ✓ | ✓ | ✓ | ✗ |
 | **System/Access** |||||

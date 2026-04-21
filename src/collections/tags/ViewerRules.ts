@@ -2,16 +2,16 @@ import type { CollectionConfig } from 'payload'
 
 import { rulesField } from '@/fields'
 
-export const LectureTags: CollectionConfig = {
-  slug: 'lecture-tags',
+export const ViewerRules: CollectionConfig = {
+  slug: 'viewer-rules',
   labels: {
-    singular: 'Lecture Tag',
-    plural: 'Lecture Tags',
+    singular: 'Viewer Rule',
+    plural: 'Viewer Rules',
   },
   admin: {
     group: 'Metadata',
     useAsTitle: 'label',
-    defaultColumns: ['label', 'lectures', 'lectureClips'],
+    defaultColumns: ['label', 'lectures', 'lectureClips', 'appCards'],
   },
   fields: [
     // Internal CMS label (not localized, not public-facing)
@@ -24,6 +24,7 @@ export const LectureTags: CollectionConfig = {
     ...rulesField({
       rules: [
         { name: 'pathProgress', type: 'range' },
+        { name: 'meditationsPerWeek', type: 'range' },
         { name: 'totalMeditationsViewed', type: 'range' },
         { name: 'totalLecturesViewed', type: 'range' },
       ],
@@ -33,7 +34,7 @@ export const LectureTags: CollectionConfig = {
       name: 'lectures',
       type: 'join',
       collection: 'lectures',
-      on: 'tags',
+      on: 'audience',
       defaultLimit: 100,
       admin: {
         components: {
@@ -49,7 +50,23 @@ export const LectureTags: CollectionConfig = {
       name: 'lectureClips',
       type: 'join',
       collection: 'lecture-clips',
-      on: 'tags',
+      on: 'audience',
+      defaultLimit: 100,
+      admin: {
+        components: {
+          Cell: {
+            path: '@/components/admin/RelationshipCountCell',
+            serverProps: { disableLink: true },
+          },
+        },
+      },
+    },
+    // Bidirectional join to app cards
+    {
+      name: 'appCards',
+      type: 'join',
+      collection: 'app-cards',
+      on: 'audience',
       defaultLimit: 100,
       admin: {
         components: {

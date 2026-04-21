@@ -885,9 +885,9 @@ PayloadCMS exports a `toWords` utility from `payload/shared` that converts camel
 ```typescript
 import { toWords } from 'payload/shared'
 
-toWords('hasRealization')         // → "Has Realization"
 toWords('pathProgress')           // → "Path Progress"
 toWords('meditationsPerWeek')     // → "Meditations Per Week"
+toWords('totalMeditationsViewed') // → "Total Meditations Viewed"
 toWords('totalLecturesViewed')    // → "Total Lectures Viewed"
 ```
 

@@ -148,7 +148,7 @@ interface SeedData {
   meditationIds: number[]
   meditationTagIds: number[]
   songTagIds: number[]
-  lectureTagIds: number[]
+  viewerRuleIds: number[]
   appCardIds: number[]
   // Lectures/clips disabled pending issue #291 follow-up.
   // The sample page script will be migrated to `lecture-clips` separately.
@@ -158,7 +158,7 @@ interface SeedData {
 async function fetchSeedData(payload: Payload): Promise<SeedData> {
   console.log('\nFetching seed data...')
 
-  const [images, pages, meditations, meditationTags, songTags, lectureTags, appCards] =
+  const [images, pages, meditations, meditationTags, songTags, viewerRules, appCards] =
     await Promise.all([
       payload.find({ collection: 'images', limit: 20, depth: 0 }),
       payload.find({
@@ -171,7 +171,7 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
       payload.find({ collection: 'meditations', limit: 10, depth: 0 }),
       payload.find({ collection: 'meditation-tags', limit: 10, depth: 0 }),
       payload.find({ collection: 'song-tags', limit: 10, depth: 0 }),
-      payload.find({ collection: 'lecture-tags', limit: 10, depth: 0 }),
+      payload.find({ collection: 'viewer-rules', limit: 10, depth: 0 }),
       payload.find({ collection: 'app-cards', limit: 10, depth: 0 }).catch(() => ({ docs: [] })),
     ])
 
@@ -181,7 +181,7 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
     meditationIds: meditations.docs.map((d) => d.id as number),
     meditationTagIds: meditationTags.docs.map((d) => d.id as number),
     songTagIds: songTags.docs.map((d) => d.id as number),
-    lectureTagIds: lectureTags.docs.map((d) => d.id as number),
+    viewerRuleIds: viewerRules.docs.map((d) => d.id as number),
     appCardIds: appCards.docs.map((d) => d.id as number),
     // Lectures/clips disabled pending issue #291 follow-up migration.
     lectureIds: [],
@@ -193,7 +193,7 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
   console.log(`  Meditation Tags: ${data.meditationTagIds.length} found (IDs: ${data.meditationTagIds.join(', ')})`)
   console.log(`  Song Tags: ${data.songTagIds.length} found (IDs: ${data.songTagIds.join(', ')})`)
   console.log(
-    `  Lecture Tags: ${data.lectureTagIds.length} found${data.lectureTagIds.length === 0 ? ' (skipping ContentIndex lectures variant)' : ''}`,
+    `  Viewer Rules: ${data.viewerRuleIds.length} found${data.viewerRuleIds.length === 0 ? ' (skipping ContentIndex lectures variant)' : ''}`,
   )
   console.log(
     `  App Cards: ${data.appCardIds.length} found${data.appCardIds.length === 0 ? ' (will not include in Showcase)' : ''}`,
@@ -505,16 +505,16 @@ function buildContentIndexBlocks(data: SeedData): unknown[] {
     console.log('  Skipping ContentIndex songs variant (no song-tags)')
   }
 
-  // Lectures (if lecture-tags exist)
-  if (data.lectureTagIds.length > 0) {
+  // Lectures (if viewer-rules exist)
+  if (data.viewerRuleIds.length > 0) {
     blocks.push(
       blockNode('content-index', {
         type: 'lectures',
-        lectureFilters: data.lectureTagIds.slice(0, 2),
+        lectureFilters: data.viewerRuleIds.slice(0, 2),
       }),
     )
   } else {
-    console.log('  Skipping ContentIndex lectures variant (no lecture-tags)')
+    console.log('  Skipping ContentIndex lectures variant (no viewer-rules)')
   }
 
   return blocks
