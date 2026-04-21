@@ -379,10 +379,20 @@ describe('lecturesForViewer endpoint', () => {
       }
     })
 
-    it('passes viewerData on the viewer-rules call only', async () => {
+    it('passes viewerData on the viewer-rules call only (includes every ViewerRules dimension)', async () => {
       const findSpy = vi.spyOn(payload, 'find')
       try {
-        await callEndpoint(payload, { limit: 5, pathProgress: 3 })
+        // Pass all four ViewerRules dimensions (including meditationsPerWeek,
+        // which was missing from the querySchema before the shared
+        // `buildViewerDataSchema` refactor). This guards against silently
+        // dropping any dimension on future edits.
+        await callEndpoint(payload, {
+          limit: 5,
+          pathProgress: 3,
+          meditationsPerWeek: 2,
+          totalMeditationsViewed: 20,
+          totalLecturesViewed: 4,
+        })
 
         const ruleCall = findSpy.mock.calls.find(
           ([args]) => (args as { collection?: string }).collection === 'viewer-rules',
@@ -390,7 +400,12 @@ describe('lecturesForViewer endpoint', () => {
         const ruleReq = (
           ruleCall![0] as { req?: { context?: Record<string, unknown> } }
         ).req
-        expect(ruleReq?.context?.viewerData).toEqual({ pathProgress: 3 })
+        expect(ruleReq?.context?.viewerData).toEqual({
+          pathProgress: 3,
+          meditationsPerWeek: 2,
+          totalMeditationsViewed: 20,
+          totalLecturesViewed: 4,
+        })
       } finally {
         findSpy.mockRestore()
       }

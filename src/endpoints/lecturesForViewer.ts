@@ -1,19 +1,16 @@
 import type { Endpoint } from 'payload'
 
+import { extractID } from 'payload/shared'
 import { z } from 'zod'
 
-import { VIEWER_DATA_CONTEXT_KEY } from '@/fields/rulesField'
+import { VIEWER_RULE_DEFINITIONS } from '@/collections/tags/ViewerRules'
+import { buildViewerDataShape, withViewerContext } from '@/fields'
 import type { Lecture, LectureClip, ViewerRule } from '@/payload-types'
 
 const querySchema = z.object({
+  ...buildViewerDataShape(VIEWER_RULE_DEFINITIONS),
   limit: z.coerce.number().int().min(1).max(100),
-  pathProgress: z.coerce.number().optional(),
-  totalMeditationsViewed: z.coerce.number().optional(),
-  totalLecturesViewed: z.coerce.number().optional(),
 })
-
-type LectureRef = number | Lecture
-type AudienceRef = number | ViewerRule
 
 /** Discriminated union returned from /for-viewer. */
 type ViewerLecture = Lecture & { type: 'lecture' }
@@ -21,15 +18,6 @@ type ViewerClip = Omit<LectureClip, 'parent'> & {
   type: 'clip'
   /** Populated only when parent itself is audience-eligible; otherwise null. */
   parent: Lecture | null
-}
-
-function idOf(ref: unknown): number | null {
-  if (typeof ref === 'number') return ref
-  if (typeof ref === 'object' && ref !== null && 'id' in ref) {
-    const id = (ref as { id: unknown }).id
-    return typeof id === 'number' ? id : null
-  }
-  return null
 }
 
 /**
@@ -85,10 +73,7 @@ export const lecturesForViewer: Endpoint = {
       // Thread user/transaction context so rate-limit and usage-tracking hooks
       // fire against the authenticated client, plus pass viewer data for the
       // virtual `isEligibleForViewer` field to evaluate against.
-      req: {
-        ...req,
-        context: { ...req.context, [VIEWER_DATA_CONTEXT_KEY]: viewerData },
-      },
+      req: withViewerContext(req, viewerData),
     })
 
     const eligibleRuleIds = new Set<number>(
@@ -101,9 +86,11 @@ export const lecturesForViewer: Endpoint = {
       return Response.json({ docs: [] })
     }
 
-    // Step 2 — candidate lectures whose audience is eligible.
-    // Per-sub-query limit keeps the shuffled pool ≤ 2× `limit` before slicing.
+    // Step 2 — candidate lectures whose audience is eligible. The DB filter
+    // alone is sufficient now that `audience` is a single relationship — no
+    // JS post-filter needed (unlike the pre-#293 `tags` hasMany model).
     // No _status filter — drafts removed from the Lectures collection in #291.
+    // Per-sub-query limit keeps the shuffled pool ≤ 2× `limit` before slicing.
     const { docs: lectureDocs } = await req.payload.find({
       collection: 'lectures',
       where: { audience: { in: [...eligibleRuleIds] } },
@@ -123,18 +110,8 @@ export const lecturesForViewer: Endpoint = {
       req,
     })
 
-    const isAudienceEligible = (audience: AudienceRef | null | undefined): boolean => {
-      const id = idOf(audience)
-      return id !== null && eligibleRuleIds.has(id)
-    }
-
-    const eligibleLectures = (lectureDocs as Lecture[]).filter((l) =>
-      isAudienceEligible(l.audience as AudienceRef | null | undefined),
-    )
-
-    const eligibleClips = (clipDocs as LectureClip[]).filter((c) =>
-      isAudienceEligible(c.audience as AudienceRef | null | undefined),
-    )
+    const eligibleLectures = lectureDocs as Lecture[]
+    const eligibleClips = clipDocs as LectureClip[]
 
     // Step 4 — bulk-fetch parents for clips. Need parents for:
     //   (a) `parent` population when the parent is itself viewer-eligible
@@ -151,8 +128,8 @@ export const lecturesForViewer: Endpoint = {
 
     const parentIdsToFetch = new Set<number>()
     for (const clip of eligibleClips) {
-      const parentId = idOf(clip.parent as LectureRef | null | undefined)
-      if (parentId !== null && !parentById.has(parentId)) {
+      const parentId = extractID(clip.parent)
+      if (typeof parentId === 'number' && !parentById.has(parentId)) {
         parentIdsToFetch.add(parentId)
       }
     }
@@ -178,10 +155,10 @@ export const lecturesForViewer: Endpoint = {
     }))
 
     const shapedClips: ViewerClip[] = eligibleClips.map((clip) => {
-      const parentId = idOf(clip.parent as LectureRef | null | undefined)
-      const parentDoc = parentId !== null ? parentById.get(parentId) ?? null : null
+      const parentId = extractID(clip.parent)
+      const parentDoc = typeof parentId === 'number' ? parentById.get(parentId) ?? null : null
       const parentVisible =
-        parentId !== null && eligibleLectureIds.has(parentId) && parentDoc !== null
+        typeof parentId === 'number' && eligibleLectureIds.has(parentId) && parentDoc !== null
 
       // Fallback: merge parent's thumbnail / subtitlesUrl into the clip when
       // the clip's own value is empty. Runs regardless of whether `parent`

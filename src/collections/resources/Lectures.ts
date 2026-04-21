@@ -77,9 +77,10 @@ export const Lectures: CollectionConfig = {
       type: 'relationship',
       relationTo: 'viewer-rules',
       hasMany: false,
+      filterOptions: () => true,
       admin: {
         description:
-          'Controls which viewers see this lecture in listings and indexes. A lecture with no audience will never appear in any listing — it will only be shown when directly referenced from a meditation or path step.',
+          'Controls which viewers see this lecture. If empty, it is hidden from /api/lectures/for-viewer and only surfaced when directly referenced (e.g. from a meditation or path step).',
       },
     },
     {
