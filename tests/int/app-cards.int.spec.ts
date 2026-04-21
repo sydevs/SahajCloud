@@ -10,11 +10,11 @@ import { testData } from '../utils/testData'
 
 describe('generateRulesJsonSchema', () => {
   it('generates correct schema for boolean rule definitions', () => {
-    const schema = generateRulesJsonSchema([{ name: 'hasRealization', type: 'boolean' }])
+    const schema = generateRulesJsonSchema([{ name: 'isMember', type: 'boolean' }])
 
     expect(schema.type).toBe('object')
     expect(schema.properties!.logic).toEqual({ type: 'string', enum: ['AND', 'OR'] })
-    expect(schema.properties!.hasRealization).toEqual({ type: 'boolean' })
+    expect(schema.properties!.isMember).toEqual({ type: 'boolean' })
     expect(schema.additionalProperties).toBe(false)
   })
 
@@ -33,14 +33,14 @@ describe('generateRulesJsonSchema', () => {
 
   it('generates correct schema with mixed rule types', () => {
     const schema = generateRulesJsonSchema([
-      { name: 'hasRealization', type: 'boolean' },
+      { name: 'isMember', type: 'boolean' },
       { name: 'pathProgress', type: 'range' },
       { name: 'meditationsPerWeek', type: 'range' },
     ])
 
     // logic + 3 rules = 4 properties
     expect(Object.keys(schema.properties!)).toHaveLength(4)
-    expect(schema.properties!.hasRealization).toEqual({ type: 'boolean' })
+    expect(schema.properties!.isMember).toEqual({ type: 'boolean' })
     expect(schema.properties!.pathProgress!.type).toBe('object')
     expect(schema.properties!.meditationsPerWeek!.type).toBe('object')
   })
@@ -74,14 +74,14 @@ describe('generateRulesJsonSchema', () => {
           { label: 'Highlight', value: 'highlight' },
         ],
       },
-      { name: 'hasRealization', type: 'boolean' },
+      { name: 'isMember', type: 'boolean' },
       { name: 'pathProgress', type: 'range' },
     ])
 
     // logic + 3 rules = 4 properties
     expect(Object.keys(schema.properties!)).toHaveLength(4)
     expect(schema.properties!.targetSection!.type).toBe('array')
-    expect(schema.properties!.hasRealization).toEqual({ type: 'boolean' })
+    expect(schema.properties!.isMember).toEqual({ type: 'boolean' })
     expect(schema.properties!.pathProgress!.type).toBe('object')
   })
 
@@ -93,7 +93,7 @@ describe('generateRulesJsonSchema', () => {
   })
 })
 
-// ── Integration Tests: AppCards with Rules and Countdown ──────────────────────
+// ── Integration Tests: AppCards audience, weight, targetSections ───────────────
 
 // Shared test environment for all AppCards tests
 let payload: Payload
@@ -109,72 +109,32 @@ afterAll(async () => {
   await cleanup()
 })
 
-describe('AppCards rules and weight fields', () => {
-
-  it('creates card with complex AND rules (boolean + range) and verifies round-trip', async () => {
-    const rules = {
-      logic: 'AND' as const,
-      hasRealization: false,
-      pathProgress: { min: 1 },
-    }
+describe('AppCards audience, weight, targetSections', () => {
+  it('creates card with audience relationship to a viewer rule', async () => {
+    const rule = await testData.createViewerRule(payload, {
+      label: 'Path Started',
+      rules: { pathProgress: { min: 1 } },
+    })
 
     const card = await testData.createAppCard(payload, {
       title: 'Continue Path',
-      rules,
+      audience: rule.id,
       weight: 4,
     })
 
-    expect(card.rules).toEqual(rules)
+    const audienceId =
+      typeof card.audience === 'object' && card.audience !== null ? card.audience.id : card.audience
+    expect(audienceId).toBe(rule.id)
     expect(card.weight).toBe(4)
-
-    // Verify round-trip via findByID
-    const fetched = await payload.findByID({
-      collection: 'app-cards',
-      id: card.id,
-    })
-    expect(fetched.rules).toEqual(rules)
-    expect(fetched.weight).toBe(4)
   })
 
-  it('creates card with null rules (show to all users)', async () => {
+  it('creates card with null audience (hidden from viewer endpoint)', async () => {
     const card = await testData.createAppCard(payload, {
-      title: 'Music Card',
-      rules: null,
+      title: 'Hidden Card',
+      audience: null,
     })
 
-    expect(card.rules).toBeNull()
-  })
-
-  it('creates card with OR logic and multiple range conditions', async () => {
-    const rules = {
-      logic: 'OR' as const,
-      pathProgress: { min: 5 },
-      meditationsPerWeek: { min: 5 },
-    }
-
-    const card = await testData.createAppCard(payload, {
-      title: 'Online Classes',
-      type: 'external',
-      linkUrl: 'https://example.com/classes',
-      rules,
-    })
-
-    expect(card.rules).toEqual(rules)
-  })
-
-  it('creates card with range conditions using both min and max', async () => {
-    const rules = {
-      logic: 'AND' as const,
-      hasRealization: true,
-      pathProgress: { min: 0, max: 5 },
-    }
-
-    const card = await testData.createAppCard(payload, {
-      title: 'Start Path',
-      rules,
-    })
-
-    expect(card.rules).toEqual(rules)
+    expect(card.audience).toBeNull()
   })
 
   it('creates card with default weight of 3', async () => {
@@ -223,39 +183,22 @@ describe('AppCards rules and weight fields', () => {
     expect(card.targetSections).toEqual(['hero', 'highlights'])
   })
 
-  it('creates card with targetSections and rules together', async () => {
-    const rules = {
-      logic: 'AND' as const,
-      hasRealization: true,
-      pathProgress: { min: 3 },
-    }
+  it('creates card with targetSections and audience together', async () => {
+    const rule = await testData.createViewerRule(payload, {
+      label: 'Active Meditators',
+      rules: { pathProgress: { min: 3 } },
+    })
 
     const card = await testData.createAppCard(payload, {
       title: 'Mixed Fields Card',
       targetSections: ['highlights'],
-      rules,
+      audience: rule.id,
     })
 
     expect(card.targetSections).toEqual(['highlights'])
-    expect(card.rules).toEqual(rules)
-  })
-
-  it('rejects range rules where max is not greater than min', async () => {
-    // max === min should fail
-    await expect(
-      testData.createAppCard(payload, {
-        title: 'Invalid Range Equal',
-        rules: { pathProgress: { min: 5, max: 5 } },
-      }),
-    ).rejects.toThrow()
-
-    // max < min should fail
-    await expect(
-      testData.createAppCard(payload, {
-        title: 'Invalid Range Less',
-        rules: { pathProgress: { min: 10, max: 5 } },
-      }),
-    ).rejects.toThrow()
+    const audienceId =
+      typeof card.audience === 'object' && card.audience !== null ? card.audience.id : card.audience
+    expect(audienceId).toBe(rule.id)
   })
 })
 

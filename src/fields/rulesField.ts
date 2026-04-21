@@ -23,7 +23,7 @@ export type RulesValue = {
   [key: string]: RuleValue | 'AND' | 'OR' | undefined
 }
 
-/** Caller-supplied values keyed by rule name (e.g., `{ hasRealization: true, pathProgress: 3 }`). */
+/** Caller-supplied values keyed by rule name (e.g., `{ pathProgress: 3, totalMeditationsViewed: 12 }`). */
 export type ViewerData = Record<string, unknown>
 
 export interface RulesFieldOptions {
@@ -253,8 +253,8 @@ function buildEligibilityField(options: RulesFieldOptions): CheckboxField {
  * @example
  * ...rulesField({
  *   rules: [
- *     { name: 'hasRealization', type: 'boolean' },
  *     { name: 'pathProgress', type: 'range' },
+ *     { name: 'totalMeditationsViewed', type: 'range' },
  *   ],
  * }),
  */

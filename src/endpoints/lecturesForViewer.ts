@@ -3,7 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { VIEWER_DATA_CONTEXT_KEY } from '@/fields/rulesField'
-import type { Lecture, LectureClip, LectureTag } from '@/payload-types'
+import type { Lecture, LectureClip, ViewerRule } from '@/payload-types'
 
 const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100),
@@ -13,13 +13,13 @@ const querySchema = z.object({
 })
 
 type LectureRef = number | Lecture
-type TagRef = number | LectureTag
+type AudienceRef = number | ViewerRule
 
 /** Discriminated union returned from /for-viewer. */
 type ViewerLecture = Lecture & { type: 'lecture' }
 type ViewerClip = Omit<LectureClip, 'parent'> & {
   type: 'clip'
-  /** Populated only when parent itself is tag-eligible; otherwise null. */
+  /** Populated only when parent itself is audience-eligible; otherwise null. */
   parent: Lecture | null
 }
 
@@ -32,27 +32,16 @@ function idOf(ref: unknown): number | null {
   return null
 }
 
-function allTagsEligible(
-  tags: TagRef[] | null | undefined,
-  eligibleSet: Set<number>,
-): boolean {
-  if (!tags || tags.length === 0) return false
-  return tags.every((t) => {
-    const id = idOf(t)
-    return id !== null && eligibleSet.has(id)
-  })
-}
-
 /**
  * GET /api/lectures/for-viewer
  *
  * Returns a uniform-random, rule-filtered feed mixing full lectures and clips
- * for the supplied viewer data. Unlike AppCards, lectures/clips carry no rules
- * themselves — rules live on `lecture-tags`. A lecture or clip is eligible if
- * it has at least one tag and **all** of its tags pass `rulesField` evaluation
- * for the viewer. Untagged items are always excluded.
+ * for the supplied viewer data. Each lecture/clip carries a single `audience`
+ * relationship to a `viewer-rules` doc. Items are eligible when their
+ * `audience` is non-null and passes `rulesField` evaluation. Items with
+ * `audience: null` are always excluded.
  *
- * Response shape (breaking change from pre-#291):
+ * Response shape:
  *   { docs: Array<{ type: 'lecture' | 'clip', ... }> }
  * Clips include a populated `parent` object only when the parent is itself
  * viewer-eligible; otherwise `parent: null`. Clips also get server-merged
@@ -60,17 +49,17 @@ function allTagsEligible(
  * regardless of whether the parent is returned.
  *
  * Pipeline:
- *   1. Evaluate `lecture-tags` with `viewerData` in `req.context` and build
- *      the eligible-tag set from the virtual `isEligibleForViewer` flag.
- *   2. Find lectures with at least one eligible tag; JS-filter all-tags-pass.
- *   3. Find clips with at least one eligible tag; JS-filter all-tags-pass.
+ *   1. Evaluate `viewer-rules` with `viewerData` in `req.context` and build
+ *      the eligible-rule set from the virtual `isEligibleForViewer` flag.
+ *   2. Find lectures whose `audience` is in the eligible set.
+ *   3. Find clips whose `audience` is in the eligible set.
  *   4. Bulk-fetch parent lectures needed for (a) `parent` population when
  *      eligible and (b) `thumbnail` / `subtitlesUrl` fallback. Single `find`
  *      with `id: { in: [...] }` — no N+1.
  *   5. Shape, concatenate, Fisher-Yates shuffle, slice to `limit`.
  *
  * Caveat: a no-arg call (`viewerData = {}`) fails every `range` rule, so only
- * items whose tags all have empty/no configured rules will be returned.
+ * items whose audience has empty/no configured rules will be returned.
  * Empty rules always match — see `rulesField.ts`.
  */
 export const lecturesForViewer: Endpoint = {
@@ -85,12 +74,11 @@ export const lecturesForViewer: Endpoint = {
 
     const { limit, ...viewerData } = parsed.data
 
-    // Step 1 — evaluate tags against viewer data.
-    // Safety cap; see pre-#291 rationale. If tag count ever approaches 200,
-    // introduce server-side filtering or pagination — a larger set biases the
-    // sample when truncated.
-    const { docs: tagDocs } = await req.payload.find({
-      collection: 'lecture-tags',
+    // Step 1 — evaluate viewer rules against viewer data.
+    // Safety cap; if rule count ever approaches 200, introduce server-side
+    // filtering or pagination — a larger set biases the sample when truncated.
+    const { docs: ruleDocs } = await req.payload.find({
+      collection: 'viewer-rules',
       limit: 200,
       depth: 0,
       pagination: false,
@@ -103,49 +91,49 @@ export const lecturesForViewer: Endpoint = {
       },
     })
 
-    const eligibleTagSet = new Set<number>(
-      (tagDocs as LectureTag[])
-        .filter((tag) => tag.isEligibleForViewer === true)
-        .map((tag) => tag.id),
+    const eligibleRuleIds = new Set<number>(
+      (ruleDocs as ViewerRule[])
+        .filter((rule) => rule.isEligibleForViewer === true)
+        .map((rule) => rule.id),
     )
 
-    if (eligibleTagSet.size === 0) {
+    if (eligibleRuleIds.size === 0) {
       return Response.json({ docs: [] })
     }
 
-    const eligibleTagIds = [...eligibleTagSet]
-
-    // Step 2 — candidate lectures with at least one eligible tag.
+    // Step 2 — candidate lectures whose audience is eligible.
     // Per-sub-query limit keeps the shuffled pool ≤ 2× `limit` before slicing.
     // No _status filter — drafts removed from the Lectures collection in #291.
     const { docs: lectureDocs } = await req.payload.find({
       collection: 'lectures',
-      where: { tags: { in: eligibleTagIds } },
+      where: { audience: { in: [...eligibleRuleIds] } },
       limit,
       depth: 1,
       pagination: false,
       req,
     })
 
-    // Step 3 — candidate clips with at least one eligible tag.
+    // Step 3 — candidate clips whose audience is eligible.
     const { docs: clipDocs } = await req.payload.find({
       collection: 'lecture-clips',
-      where: { tags: { in: eligibleTagIds } },
+      where: { audience: { in: [...eligibleRuleIds] } },
       limit,
       depth: 1,
       pagination: false,
       req,
     })
 
-    // Step 2/3 — enforce all-tags-pass. Payload's `in` matches any-tag on
-    // hasMany, and depth:1 may return populated tag objects, so accept both
-    // shapes.
+    const isAudienceEligible = (audience: AudienceRef | null | undefined): boolean => {
+      const id = idOf(audience)
+      return id !== null && eligibleRuleIds.has(id)
+    }
+
     const eligibleLectures = (lectureDocs as Lecture[]).filter((l) =>
-      allTagsEligible(l.tags as TagRef[] | null | undefined, eligibleTagSet),
+      isAudienceEligible(l.audience as AudienceRef | null | undefined),
     )
 
     const eligibleClips = (clipDocs as LectureClip[]).filter((c) =>
-      allTagsEligible(c.tags as TagRef[] | null | undefined, eligibleTagSet),
+      isAudienceEligible(c.audience as AudienceRef | null | undefined),
     )
 
     // Step 4 — bulk-fetch parents for clips. Need parents for:
