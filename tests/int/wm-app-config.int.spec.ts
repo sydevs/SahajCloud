@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import type { File, Lecture, Meditation, WmAppConfig } from '@/payload-types'
+import type { File, LectureClip, Meditation, WmAppConfig } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -37,7 +37,7 @@ describe('WeMeditateAppConfig Global', () => {
 
   // Shared test entities
   let meditation: Meditation
-  let lecture: Lecture
+  let lectureClip: LectureClip
   let audioFile: File
   let vttFile: File
 
@@ -48,7 +48,8 @@ describe('WeMeditateAppConfig Global', () => {
 
     // Create shared test entities
     meditation = await testData.createMeditation(payload)
-    lecture = await testData.createLecture(payload)
+    // postRealizationLecture now references `lecture-clips` (issue #291).
+    lectureClip = await testData.createLectureClip(payload)
     audioFile = await testData.createFile(payload, {}, 'audio-42s.mp3')
     vttFile = await testData.createFile(payload, {}, 'subtitles.vtt')
   })
@@ -98,15 +99,15 @@ describe('WeMeditateAppConfig Global', () => {
     it('can be set and resolves correctly', async () => {
       await payload.updateGlobal({
         slug: 'wm-app-config',
-        data: { postRealizationLecture: lecture.id },
+        data: { postRealizationLecture: lectureClip.id },
       })
 
       const config = (await payload.findGlobal({
         slug: 'wm-app-config',
         depth: 1,
       })) as WmAppConfig
-      const populated = config.postRealizationLecture as Lecture
-      expect(populated.id).toBe(lecture.id)
+      const populated = config.postRealizationLecture as LectureClip
+      expect(populated.id).toBe(lectureClip.id)
       expect(populated.title).toBeDefined()
     })
   })
@@ -146,14 +147,14 @@ describe('WeMeditateAppConfig Global', () => {
   describe('localization', () => {
     let enMeditation: Meditation
     let csMeditation: Meditation
-    let enLecture: Lecture
-    let csLecture: Lecture
+    let enClip: LectureClip
+    let csClip: LectureClip
 
     beforeAll(async () => {
       enMeditation = await testData.createMeditation(payload, undefined, { locale: 'en' })
       csMeditation = await testData.createMeditation(payload, undefined, { locale: 'cs' })
-      enLecture = await testData.createLecture(payload, undefined, { title: 'English Lecture' })
-      csLecture = await testData.createLecture(payload, undefined, { title: 'Czech Lecture' })
+      enClip = await testData.createLectureClip(payload, undefined, { title: 'English Clip' })
+      csClip = await testData.createLectureClip(payload, undefined, { title: 'Czech Clip' })
     })
 
     it('stores different values per locale for all fields', async () => {
@@ -163,7 +164,7 @@ describe('WeMeditateAppConfig Global', () => {
         locale: 'en',
         data: {
           selfRealizationMeditation: enMeditation.id,
-          postRealizationLecture: enLecture.id,
+          postRealizationLecture: enClip.id,
           vibeCheckTracks: [
             { identifier: 'WHAT-YOU-FEEL-START', audio: audioFile.id, subtitles: vttFile.id },
           ],
@@ -176,7 +177,7 @@ describe('WeMeditateAppConfig Global', () => {
         locale: 'cs',
         data: {
           selfRealizationMeditation: csMeditation.id,
-          postRealizationLecture: csLecture.id,
+          postRealizationLecture: csClip.id,
           vibeCheckTracks: [
             { identifier: 'BH-NOTHING', audio: audioFile.id, subtitles: vttFile.id },
           ],
@@ -190,7 +191,7 @@ describe('WeMeditateAppConfig Global', () => {
         depth: 0,
       })) as WmAppConfig
       expect(enConfig.selfRealizationMeditation).toBe(enMeditation.id)
-      expect(enConfig.postRealizationLecture).toBe(enLecture.id)
+      expect(enConfig.postRealizationLecture).toBe(enClip.id)
       expect(enConfig.vibeCheckTracks).toHaveLength(1)
       expect(enConfig.vibeCheckTracks![0].identifier).toBe('WHAT-YOU-FEEL-START')
 
@@ -202,7 +203,7 @@ describe('WeMeditateAppConfig Global', () => {
         fallbackLocale: false,
       })) as WmAppConfig
       expect(csConfig.selfRealizationMeditation).toBe(csMeditation.id)
-      expect(csConfig.postRealizationLecture).toBe(csLecture.id)
+      expect(csConfig.postRealizationLecture).toBe(csClip.id)
       expect(csConfig.vibeCheckTracks).toHaveLength(1)
       expect(csConfig.vibeCheckTracks![0].identifier).toBe('BH-NOTHING')
     })

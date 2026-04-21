@@ -40,7 +40,6 @@ async function setupTestDatabase() {
       'music',
       'lessons',
       'files',
-      'lectures',
       'pages',
       'authors',
       'clients',

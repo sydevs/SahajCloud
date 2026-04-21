@@ -23,6 +23,7 @@ import type {
   Video,
   Author,
   Lecture,
+  LectureClip,
   ManagerRole,
   ClientRole,
 } from '@/payload-types'
@@ -729,11 +730,38 @@ export const testData = {
         thumbnail,
         videoUrl: 'https://example.com/video.mp4',
         nirmalVidyaVimeoUrl: 'https://vimeo.com/123456789',
+        ...overrides,
+      },
+    })) as Lecture
+  },
+
+  /**
+   * Create a Lecture Clip tied to a parent Lecture.
+   *
+   * Pass `deps.parent` to reuse an existing lecture. If omitted, a new parent
+   * is created via `createLecture` — requires the Nirmala Vidya API mock
+   * (`vi.mock('@/lib/nirmalaVidyaApi', ...)`) to be in place.
+   */
+  async createLectureClip(
+    payload: Payload,
+    deps?: { parent?: number },
+    overrides: Partial<LectureClip> = {},
+  ): Promise<LectureClip> {
+    let parent = deps?.parent
+    if (!parent) {
+      const parentLecture = await testData.createLecture(payload)
+      parent = parentLecture.id
+    }
+    return (await payload.create({
+      collection: 'lecture-clips',
+      data: {
+        parent,
+        title: 'Test Lecture Clip',
         startTime: 0,
         endTime: 60,
         ...overrides,
       },
-    })) as Lecture
+    })) as LectureClip
   },
 
   // Alias for createManager to maintain backward compatibility with tests

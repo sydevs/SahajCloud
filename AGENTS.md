@@ -222,15 +222,17 @@ One-off operator scripts (NOT seeds — seeds live in `seeds/`). Use for tasks a
 ## Development Workflow
 
 1. **Schema Changes**: Run `pnpm generate:types` after modifying collections
-2. **Database**: SQLite (Cloudflare D1) with auto-generated schema
+2. **Database**: SQLite (Cloudflare D1) managed by migration files in `src/migrations/` (push mode is disabled; see below)
 3. **Admin Access**: Available at `/admin` route
 4. **API Access**: REST API at `/api/*` (GraphQL disabled)
 5. **Migrations**: `pnpm payload migrate` to run database migrations
 
 ### Database Migrations
 - **Location**: `src/migrations/`
-- **Creating**: `pnpm db:migrations:create` (generates a timestamped `.ts` migration file AND a `.json` Drizzle schema snapshot — both must be committed). Run synchronously in the foreground — backgrounded execution drops output and the file is not created.
-- **Running**: `pnpm payload migrate`
+- **Local dev uses migrations, not push-sync.** The D1 adapter is configured with `push: false` in `src/payload.config.ts`, so the local dev DB is shaped by the same migration files that run in production. Drizzle's push mode silently skips some SQLite ALTER TABLE rebuilds (notably polymorphic-FK renames — see below), which caused an invisible dev/prod drift that bit us in PR #292. Never flip this back to push mode without replacing this guidance.
+- **First-time dev setup (or after `pnpm reset --local`)**: run `pnpm payload migrate` before the dev server can boot. The server doesn't auto-apply migrations on start.
+- **Creating**: **Ask the user to run `pnpm db:migrations:create` for you — do not run it yourself.** The command prompts interactively for a migration name and hangs silently when backgrounded or piped (the shell's stdout buffering hides the prompt). Agents that attempt it end up with a frozen shell and waste real time before being interrupted. Pause, describe the schema changes you made, and ask the user to run the command and confirm the new `.ts` + `.json` pair exists. Then augment the `.ts` if needed (see below) and commit both files.
+- **Running**: `pnpm payload migrate`. Never pipe through `| tail` or background — the output is buffered and you lose visibility into progress + any interactive prompts.
 - **Rolling Back**: `pnpm payload migrate:down`
 
 **Important**: Both `.ts` and `.json` files are required for each migration:
@@ -239,9 +241,14 @@ One-off operator scripts (NOT seeds — seeds live in `seeds/`). Use for tasks a
 
 **Data-only migrations** (no schema changes): If a migration only modifies data (e.g., deleting records, updating values) without changing the schema, copy the previous migration's `.json` file and rename it to match your new migration timestamp. This ensures the schema snapshot chain remains intact.
 
+**Known Drizzle bug — polymorphic relationship rename**: When a polymorphic relationship's `relationTo` changes (e.g. `'lectures'` → `'lecture-clips'`), Drizzle emits a table rebuild like `INSERT INTO __new_foo_rels(..., "lecture_clips_id", ...) SELECT ..., "lecture_clips_id", ... FROM foo_rels` — but the old `foo_rels` only has `lectures_id`, so SQLite throws `no such column: lecture_clips_id` at migration time. Fix by dropping the new column from both sides of the INSERT/SELECT (the typical "don't rewrite polymorphic FKs" decision). Scan the generated `_rels` rebuilds for this whenever you rename a polymorphic relationTo.
+
+**Augmenting generated migrations**: Change only what fails or what the spec explicitly requires (e.g. a `DELETE FROM x;` truncate when the issue says existing rows are dropped). Don't add defensive NULL-ing or redundant cleanups for cases FK cascade already handles — it inflates the diff and obscures the actual fix.
+
 ### Git Commands
 - **Prefer working directory commands** - Use `git status`, `git add`, etc. from the project root
 - **Avoid `git -C <path>`** - Only use the `-C` flag when absolutely necessary (e.g., operating on a different repository)
+- **Commit message style** - This project uses [Conventional Commits](https://www.conventionalcommits.org/): `<type>(<scope>): <subject>`, e.g. `feat(lectures): split into Lectures + LectureClips`, `fix(e2e): reset SQLite DB at setup`, `refactor(tests): split unit/int lanes`. Common types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`. Match the style of recent `git log` output when in doubt.
 
 ## PR Completion Requirements
 

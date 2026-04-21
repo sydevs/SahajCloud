@@ -122,7 +122,15 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           },
           push: true, // Auto-sync schema
         })
-      : sqliteD1Adapter({ binding: cloudflare.env.D1 }),
+      : sqliteD1Adapter({
+          binding: cloudflare.env.D1,
+          // Disable Drizzle push in all D1 environments. Push silently skips
+          // SQLite ALTER TABLE rebuilds needed for polymorphic-FK renames
+          // (see issue #291 / #292 fallout), which caused production/dev
+          // drift. Local dev now goes through the same migration files as
+          // production: `pnpm payload migrate` before first dev start.
+          push: false,
+        }),
     jobs: {
       tasks,
       deleteJobOnComplete: true,

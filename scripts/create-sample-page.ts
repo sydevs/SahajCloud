@@ -150,13 +150,15 @@ interface SeedData {
   songTagIds: number[]
   lectureTagIds: number[]
   appCardIds: number[]
+  // Lectures/clips disabled pending issue #291 follow-up.
+  // The sample page script will be migrated to `lecture-clips` separately.
   lectureIds: number[]
 }
 
 async function fetchSeedData(payload: Payload): Promise<SeedData> {
   console.log('\nFetching seed data...')
 
-  const [images, pages, meditations, meditationTags, songTags, lectureTags, appCards, lectures] =
+  const [images, pages, meditations, meditationTags, songTags, lectureTags, appCards] =
     await Promise.all([
       payload.find({ collection: 'images', limit: 20, depth: 0 }),
       payload.find({
@@ -171,7 +173,6 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
       payload.find({ collection: 'song-tags', limit: 10, depth: 0 }),
       payload.find({ collection: 'lecture-tags', limit: 10, depth: 0 }),
       payload.find({ collection: 'app-cards', limit: 10, depth: 0 }).catch(() => ({ docs: [] })),
-      payload.find({ collection: 'lectures', limit: 10, depth: 0 }).catch(() => ({ docs: [] })),
     ])
 
   const data: SeedData = {
@@ -182,7 +183,8 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
     songTagIds: songTags.docs.map((d) => d.id as number),
     lectureTagIds: lectureTags.docs.map((d) => d.id as number),
     appCardIds: appCards.docs.map((d) => d.id as number),
-    lectureIds: lectures.docs.map((d) => d.id as number),
+    // Lectures/clips disabled pending issue #291 follow-up migration.
+    lectureIds: [],
   }
 
   console.log(`  Images: ${data.imageIds.length} found (IDs: ${data.imageIds.slice(0, 5).join(', ')}${data.imageIds.length > 5 ? '...' : ''})`)
@@ -197,7 +199,7 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
     `  App Cards: ${data.appCardIds.length} found${data.appCardIds.length === 0 ? ' (will not include in Showcase)' : ''}`,
   )
   console.log(
-    `  Lectures: ${data.lectureIds.length} found${data.lectureIds.length === 0 ? ' (will not include in Showcase)' : ''}`,
+    '  Lecture Clips: 0 (lecture-clips sample-page support deferred to issue #291 follow-up)',
   )
 
   return data
@@ -429,10 +431,8 @@ function buildShowcaseBlock(data: SeedData): unknown {
   for (const id of data.pageIds.slice(0, 2)) {
     items.push({ relationTo: 'pages', value: id })
   }
-  // Add lectures if available
-  if (data.lectureIds.length > 0) {
-    items.push({ relationTo: 'lectures', value: data.lectureIds[0] })
-  }
+  // Lecture clips disabled pending issue #291 follow-up migration.
+  // (data.lectureIds is always empty in this branch.)
   // Add app-cards if available
   if (data.appCardIds.length > 0) {
     items.push({ relationTo: 'app-cards', value: data.appCardIds[0] })
