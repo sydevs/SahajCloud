@@ -11,7 +11,7 @@ export const LectureTags: CollectionConfig = {
   admin: {
     group: 'Metadata',
     useAsTitle: 'label',
-    defaultColumns: ['label', 'lectures'],
+    defaultColumns: ['label', 'lectures', 'lectureClips'],
   },
   fields: [
     // Internal CMS label (not localized, not public-facing)
@@ -33,6 +33,22 @@ export const LectureTags: CollectionConfig = {
       name: 'lectures',
       type: 'join',
       collection: 'lectures',
+      on: 'tags',
+      defaultLimit: 100,
+      admin: {
+        components: {
+          Cell: {
+            path: '@/components/admin/RelationshipCountCell',
+            serverProps: { disableLink: true },
+          },
+        },
+      },
+    },
+    // Bidirectional join to lecture clips
+    {
+      name: 'lectureClips',
+      type: 'join',
+      collection: 'lecture-clips',
       on: 'tags',
       defaultLimit: 100,
       admin: {

@@ -48,7 +48,6 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   },
   storyblok: {
     lessons: 17,
-    lectures: 0,
   },
 }
 

@@ -36,10 +36,10 @@ export const WeMeditateAppConfig: GlobalConfig = {
             {
               name: 'postRealizationLecture',
               type: 'relationship',
-              relationTo: 'lectures',
+              relationTo: 'lecture-clips',
               localized: true,
               admin: {
-                description: 'Lecture shown after the first meditation.',
+                description: 'Lecture clip shown after the first meditation.',
               },
             },
             {

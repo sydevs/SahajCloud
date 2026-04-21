@@ -32,6 +32,11 @@ const CONTENT_TYPE_CONFIG: Record<
     filterField: 'lectureFilters',
     queryParam: 'where[tags][in]',
   },
+  'lecture-clips': {
+    basePath: '/api/lecture-clips',
+    filterField: 'lectureClipFilters',
+    queryParam: 'where[tags][in]',
+  },
 }
 
 /**
@@ -98,6 +103,7 @@ export const ContentIndexBlock: Block = {
         { label: 'Pages', value: 'pages' },
         { label: 'Songs', value: 'songs' },
         { label: 'Lectures', value: 'lectures' },
+        { label: 'Lecture Clips', value: 'lecture-clips' },
       ],
       admin: {
         components: {
@@ -154,6 +160,19 @@ export const ContentIndexBlock: Block = {
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'lectures',
         description: 'Select lecture tags to use as filters for this index grid',
+      },
+    },
+    {
+      name: 'lectureClipFilters',
+      type: 'relationship',
+      relationTo: 'lecture-tags',
+      hasMany: true,
+      minRows: 1,
+      maxDepth: 0,
+      hooks: clearWhenTypeNot('lecture-clips'),
+      admin: {
+        condition: (_, siblingData) => siblingData?.type === 'lecture-clips',
+        description: 'Select lecture tags to use as filters for this clip index grid',
       },
     },
     {

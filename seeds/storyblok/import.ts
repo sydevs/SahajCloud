@@ -141,7 +141,8 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
       // Preload collections for efficient skip/update mode
       // Note: Lessons use compound key (unit+step), so we preload with a custom cache key
-      await this.preloadCollection('lectures', 'videoUrl')
+      // Lectures preload disabled pending clip-aware rewrite (issue #291 follow-up)
+      // await this.preloadCollection('lectures', 'videoUrl')
       // Preload lessons by building composite key from unit + step
       await this.preloadLessonsWithCompositeKey()
       // Preload meditations for lesson relationship lookups
@@ -580,25 +581,17 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async upsertLecture(
-    videoStory: StoryblokStory,
-    thumbnailId: number | string,
+    _videoStory: StoryblokStory,
+    _thumbnailId: number | string,
   ): Promise<number | string> {
-    const content = videoStory.content as Record<string, any>
-    const videoUrl = content.Video_URL || ''
-
-    const result = await this.upsert<{ id: number | string }>(
-      'lectures',
-      { videoUrl: { equals: videoUrl } },
-      {
-        title: videoStory.name,
-        thumbnail: thumbnailId,
-        videoUrl,
-        subtitlesUrl: content.Subtitles?.filename || '',
-        category: ['shri-mataji'],
-      },
+    // Guard: see issue #291. Legacy `lectures` writes are disabled pending the
+    // clip-aware rewrite. The follow-up PR will retarget this importer to
+    // `lecture-clips` (or split into parent + child upserts as appropriate).
+    // Original implementation preserved in git history.
+    throw new Error(
+      'Seed writes to `lectures` are disabled pending clip-aware migration (issue #291 follow-up). ' +
+        'Legacy video imports should target `lecture-clips` instead.',
     )
-
-    return result.doc.id
   }
 
   // ============================================================================

@@ -91,6 +91,7 @@ export interface Config {
     videos: Video;
     lessons: Lesson;
     lectures: Lecture;
+    'lecture-clips': LectureClip;
     frames: Frame;
     narrators: Narrator;
     authors: Author;
@@ -114,11 +115,15 @@ export interface Config {
     albums: {
       songs: 'songs';
     };
+    lectures: {
+      clips: 'lecture-clips';
+    };
     authors: {
       articles: 'pages';
     };
     'lecture-tags': {
       lectures: 'lectures';
+      lectureClips: 'lecture-clips';
     };
     'meditation-tags': {
       children: 'meditation-tags';
@@ -135,6 +140,7 @@ export interface Config {
     videos: VideosSelect<false> | VideosSelect<true>;
     lessons: LessonsSelect<false> | LessonsSelect<true>;
     lectures: LecturesSelect<false> | LecturesSelect<true>;
+    'lecture-clips': LectureClipsSelect<false> | LectureClipsSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
     authors: AuthorsSelect<false> | AuthorsSelect<true>;
@@ -784,14 +790,6 @@ export interface Lecture {
    */
   nirmalVidyaVimeoUrl: string;
   /**
-   * Start of the excerpt (HH:MM:SS)
-   */
-  startTime: number;
-  /**
-   * End of the excerpt (HH:MM:SS)
-   */
-  endTime: number;
-  /**
    * Auto-populated from Nirmala Vidya. Can be edited after creation.
    */
   title?: string | null;
@@ -804,10 +802,17 @@ export interface Lecture {
    * VTT subtitle URL — auto-populated from Nirmala Vidya API per locale.
    */
   subtitlesUrl?: string | null;
+  /**
+   * Tags control visibility in listings and indexes. A lecture with no tags will never appear in any listing — it will only be shown when directly referenced from a meditation or path step.
+   */
   tags?: (number | LectureTag)[] | null;
+  clips?: {
+    docs?: (number | LectureClip)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   updatedAt: string;
   createdAt: string;
-  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -837,6 +842,42 @@ export interface LectureTag {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  lectureClips?: {
+    docs?: (number | LectureClip)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lecture-clips".
+ */
+export interface LectureClip {
+  id: number;
+  parent: number | Lecture;
+  /**
+   * Start of the excerpt (HH:MM:SS)
+   */
+  startTime: number;
+  /**
+   * End of the excerpt (HH:MM:SS)
+   */
+  endTime: number;
+  title: string;
+  /**
+   * Optional. The for-viewer endpoint merges the parent lecture thumbnail when empty.
+   */
+  thumbnail?: (number | null) | Image;
+  /**
+   * Optional per-locale VTT override. The for-viewer endpoint merges the parent lecture subtitle URL when empty.
+   */
+  subtitlesUrl?: string | null;
+  /**
+   * Tags control visibility in listings and indexes. A clip with no tags will never appear in any listing — it will only be shown when directly referenced from a meditation or path step.
+   */
+  tags?: (number | LectureTag)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1149,8 +1190,8 @@ export interface AppCard {
    */
   content?:
     | ({
-        relationTo: 'lectures';
-        value: number | Lecture;
+        relationTo: 'lecture-clips';
+        value: number | LectureClip;
       } | null)
     | ({
         relationTo: 'albums';
@@ -1584,6 +1625,10 @@ export interface PayloadLockedDocument {
         value: number | Lecture;
       } | null)
     | ({
+        relationTo: 'lecture-clips';
+        value: number | LectureClip;
+      } | null)
+    | ({
         relationTo: 'frames';
         value: number | Frame;
       } | null)
@@ -1843,16 +1888,29 @@ export interface LessonsSelect<T extends boolean = true> {
  */
 export interface LecturesSelect<T extends boolean = true> {
   nirmalVidyaVimeoUrl?: T;
-  startTime?: T;
-  endTime?: T;
   title?: T;
   thumbnail?: T;
   videoUrl?: T;
   subtitlesUrl?: T;
   tags?: T;
+  clips?: T;
   updatedAt?: T;
   createdAt?: T;
-  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "lecture-clips_select".
+ */
+export interface LectureClipsSelect<T extends boolean = true> {
+  parent?: T;
+  startTime?: T;
+  endTime?: T;
+  title?: T;
+  thumbnail?: T;
+  subtitlesUrl?: T;
+  tags?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1956,6 +2014,7 @@ export interface LectureTagsSelect<T extends boolean = true> {
   rules?: T;
   isEligibleForViewer?: T;
   lectures?: T;
+  lectureClips?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2413,9 +2472,9 @@ export interface WmAppConfig {
    */
   selfRealizationMeditation?: (number | null) | Meditation;
   /**
-   * Lecture shown after the first meditation.
+   * Lecture clip shown after the first meditation.
    */
-  postRealizationLecture?: (number | null) | Lecture;
+  postRealizationLecture?: (number | null) | LectureClip;
   /**
    * Audio prompts and subtitles for the vibe check step of the first meditation.
    */

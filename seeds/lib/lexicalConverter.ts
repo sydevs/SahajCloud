@@ -719,7 +719,13 @@ export function convertAction(
 }
 
 /**
- * Convert EditorJS vimeo block to Lecture relationship
+ * Convert EditorJS vimeo block to Lecture Clip relationship
+ *
+ * Guard: see issue #291. Legacy `lectures` relationships are disabled pending
+ * the clip-aware rewrite. The follow-up PR will retarget this to
+ * `lecture-clips` (and likely update the `ConversionContext.lectureMap` shape
+ * to a `lectureClipMap`). For now, fail loudly so converted content doesn't
+ * silently point at the wrong collection.
  */
 export function convertVimeo(block: EditorJSBlock, context: ConversionContext): LexicalNode | null {
   const { data } = block
@@ -728,15 +734,10 @@ export function convertVimeo(block: EditorJSBlock, context: ConversionContext): 
     return null
   }
 
-  const videoId = data.vimeo_id || data.youtube_id
-  const lectureId = context.lectureMap.get(videoId)
-
-  if (!lectureId) {
-    context.logger.warn(`Lecture not found for ${videoId}`)
-    return null
-  }
-
-  return createRelationshipNode('lectures', lectureId)
+  throw new Error(
+    'Seed writes to `lectures` are disabled pending clip-aware migration (issue #291 follow-up). ' +
+      'Vimeo/YouTube relationship emission must target `lecture-clips` instead.',
+  )
 }
 
 /**

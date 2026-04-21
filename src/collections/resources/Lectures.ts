@@ -10,15 +10,11 @@ export const Lectures: CollectionConfig = {
     singular: 'Lecture',
     plural: 'Lectures',
   },
-  versions: {
-    drafts: true,
-    maxPerDoc: 5,
-  },
   endpoints: [lecturesForViewer],
   admin: {
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'thumbnail', '_status'],
+    defaultColumns: ['title', 'thumbnail'],
   },
   hooks: {
     beforeChange: [populateFromNirmalaVidya],
@@ -36,48 +32,6 @@ export const Lectures: CollectionConfig = {
         update: () => false,
       },
     }),
-    {
-      type: 'row',
-      fields: [
-        {
-          name: 'startTime',
-          type: 'number',
-          required: true,
-          defaultValue: 0,
-          min: 0,
-          admin: {
-            description: 'Start of the excerpt (HH:MM:SS)',
-            components: {
-              Field: '@/components/admin/TimestampInput',
-            },
-          },
-        },
-        {
-          name: 'endTime',
-          type: 'number',
-          required: true,
-          defaultValue: 10 * 60,
-          min: 0,
-          admin: {
-            description: 'End of the excerpt (HH:MM:SS)',
-            components: {
-              Field: '@/components/admin/TimestampInput',
-            },
-          },
-          validate: (
-            value: number | null | undefined,
-            { siblingData }: { siblingData: Record<string, unknown> },
-          ) => {
-            if (typeof value === 'number' && typeof siblingData?.startTime === 'number') {
-              if (value <= siblingData.startTime) {
-                return 'End time must be after start time'
-              }
-            }
-            return true
-          },
-        },
-      ],
-    },
     {
       name: 'title',
       type: 'text',
@@ -121,6 +75,20 @@ export const Lectures: CollectionConfig = {
       type: 'relationship',
       relationTo: 'lecture-tags',
       hasMany: true,
+      admin: {
+        description:
+          'Tags control visibility in listings and indexes. A lecture with no tags will never appear in any listing — it will only be shown when directly referenced from a meditation or path step.',
+      },
+    },
+    {
+      name: 'clips',
+      type: 'join',
+      collection: 'lecture-clips',
+      on: 'parent',
+      admin: {
+        allowCreate: true,
+        defaultColumns: ['title', 'startTime', 'endTime', 'tags'],
+      },
     },
   ],
 }

@@ -3,7 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { VIEWER_DATA_CONTEXT_KEY } from '@/fields/rulesField'
-import type { Lecture, LectureTag } from '@/payload-types'
+import type { Lecture, LectureClip, LectureTag } from '@/payload-types'
 
 const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100),
@@ -12,26 +12,66 @@ const querySchema = z.object({
   totalLecturesViewed: z.coerce.number().optional(),
 })
 
+type LectureRef = number | Lecture
+type TagRef = number | LectureTag
+
+/** Discriminated union returned from /for-viewer. */
+type ViewerLecture = Lecture & { type: 'lecture' }
+type ViewerClip = Omit<LectureClip, 'parent'> & {
+  type: 'clip'
+  /** Populated only when parent itself is tag-eligible; otherwise null. */
+  parent: Lecture | null
+}
+
+function idOf(ref: unknown): number | null {
+  if (typeof ref === 'number') return ref
+  if (typeof ref === 'object' && ref !== null && 'id' in ref) {
+    const id = (ref as { id: unknown }).id
+    return typeof id === 'number' ? id : null
+  }
+  return null
+}
+
+function allTagsEligible(
+  tags: TagRef[] | null | undefined,
+  eligibleSet: Set<number>,
+): boolean {
+  if (!tags || tags.length === 0) return false
+  return tags.every((t) => {
+    const id = idOf(t)
+    return id !== null && eligibleSet.has(id)
+  })
+}
+
 /**
  * GET /api/lectures/for-viewer
  *
- * Returns a uniform-random, rule-filtered list of published lectures for the
- * supplied viewer data. Unlike AppCards, lectures carry no rules themselves —
- * rules live on `lecture-tags`. A lecture is eligible if it has at least one
- * tag and **all** of its tags pass `rulesField` evaluation for the viewer.
- * Untagged lectures are always excluded.
+ * Returns a uniform-random, rule-filtered feed mixing full lectures and clips
+ * for the supplied viewer data. Unlike AppCards, lectures/clips carry no rules
+ * themselves — rules live on `lecture-tags`. A lecture or clip is eligible if
+ * it has at least one tag and **all** of its tags pass `rulesField` evaluation
+ * for the viewer. Untagged items are always excluded.
+ *
+ * Response shape (breaking change from pre-#291):
+ *   { docs: Array<{ type: 'lecture' | 'clip', ... }> }
+ * Clips include a populated `parent` object only when the parent is itself
+ * viewer-eligible; otherwise `parent: null`. Clips also get server-merged
+ * `thumbnail` / `subtitlesUrl` fallbacks from their parent when empty,
+ * regardless of whether the parent is returned.
  *
  * Pipeline:
  *   1. Evaluate `lecture-tags` with `viewerData` in `req.context` and build
  *      the eligible-tag set from the virtual `isEligibleForViewer` flag.
- *   2. Find published lectures with at least one tag in that set.
- *   3. JS-filter to lectures whose tags are *all* eligible (Payload's `in`
- *      matches any-tag, so the all-pass enforcement must happen here).
- *   4. Fisher-Yates shuffle and slice to `limit`.
+ *   2. Find lectures with at least one eligible tag; JS-filter all-tags-pass.
+ *   3. Find clips with at least one eligible tag; JS-filter all-tags-pass.
+ *   4. Bulk-fetch parent lectures needed for (a) `parent` population when
+ *      eligible and (b) `thumbnail` / `subtitlesUrl` fallback. Single `find`
+ *      with `id: { in: [...] }` — no N+1.
+ *   5. Shape, concatenate, Fisher-Yates shuffle, slice to `limit`.
  *
  * Caveat: a no-arg call (`viewerData = {}`) fails every `range` rule, so only
- * lectures whose tags all have empty/no configured rules will be returned.
- * Empty rules always match — see `rulesField.ts:91`.
+ * items whose tags all have empty/no configured rules will be returned.
+ * Empty rules always match — see `rulesField.ts`.
  */
 export const lecturesForViewer: Endpoint = {
   path: '/for-viewer',
@@ -46,9 +86,9 @@ export const lecturesForViewer: Endpoint = {
     const { limit, ...viewerData } = parsed.data
 
     // Step 1 — evaluate tags against viewer data.
-    // Safety cap. Assumes lecture-tags stays well below this; if it ever
-    // approaches 200, introduce server-side filtering or pagination instead
-    // of bumping the limit (a larger set biases the sample when truncated).
+    // Safety cap; see pre-#291 rationale. If tag count ever approaches 200,
+    // introduce server-side filtering or pagination — a larger set biases the
+    // sample when truncated.
     const { docs: tagDocs } = await req.payload.find({
       collection: 'lecture-tags',
       limit: 200,
@@ -63,47 +103,112 @@ export const lecturesForViewer: Endpoint = {
       },
     })
 
-    const eligibleSet = new Set<number>(
+    const eligibleTagSet = new Set<number>(
       (tagDocs as LectureTag[])
         .filter((tag) => tag.isEligibleForViewer === true)
         .map((tag) => tag.id),
     )
 
-    if (eligibleSet.size === 0) {
+    if (eligibleTagSet.size === 0) {
       return Response.json({ docs: [] })
     }
 
+    const eligibleTagIds = [...eligibleTagSet]
+
     // Step 2 — candidate lectures with at least one eligible tag.
-    // No viewerData context here; lectures carry no rules of their own.
-    // Same 200-row safety cap as above.
+    // Per-sub-query limit keeps the shuffled pool ≤ 2× `limit` before slicing.
+    // No _status filter — drafts removed from the Lectures collection in #291.
     const { docs: lectureDocs } = await req.payload.find({
       collection: 'lectures',
-      where: {
-        and: [{ _status: { equals: 'published' } }, { tags: { in: [...eligibleSet] } }],
-      },
-      limit: 200,
+      where: { tags: { in: eligibleTagIds } },
+      limit,
       depth: 1,
       pagination: false,
       req,
     })
 
-    // Step 3 — enforce all-tags-pass. Payload's `in` matches any-tag on hasMany,
-    // and depth:1 may return populated tag objects, so accept both shapes.
-    const eligible = (lectureDocs as Lecture[]).filter((lecture) => {
-      const tags = lecture.tags ?? []
-      if (tags.length === 0) return false
-      return tags.every((t) => {
-        const id = typeof t === 'object' && t !== null ? t.id : (t as number)
-        return eligibleSet.has(id)
-      })
+    // Step 3 — candidate clips with at least one eligible tag.
+    const { docs: clipDocs } = await req.payload.find({
+      collection: 'lecture-clips',
+      where: { tags: { in: eligibleTagIds } },
+      limit,
+      depth: 1,
+      pagination: false,
+      req,
     })
 
-    // Step 4 — uniform Fisher-Yates shuffle, then slice.
-    for (let i = eligible.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[eligible[i], eligible[j]] = [eligible[j], eligible[i]]
+    // Step 2/3 — enforce all-tags-pass. Payload's `in` matches any-tag on
+    // hasMany, and depth:1 may return populated tag objects, so accept both
+    // shapes.
+    const eligibleLectures = (lectureDocs as Lecture[]).filter((l) =>
+      allTagsEligible(l.tags as TagRef[] | null | undefined, eligibleTagSet),
+    )
+
+    const eligibleClips = (clipDocs as LectureClip[]).filter((c) =>
+      allTagsEligible(c.tags as TagRef[] | null | undefined, eligibleTagSet),
+    )
+
+    // Step 4 — bulk-fetch parents for clips. Need parents for:
+    //   (a) `parent` population when the parent is itself viewer-eligible
+    //   (b) `thumbnail` / `subtitlesUrl` fallback (regardless of eligibility)
+    // Single find with `id: { in: [...] }` — no N+1.
+    const eligibleLectureIds = new Set<number>(eligibleLectures.map((l) => l.id))
+
+    const parentIdsNeeded = new Set<number>()
+    for (const clip of eligibleClips) {
+      const parentId = idOf(clip.parent as LectureRef | null | undefined)
+      if (parentId !== null) parentIdsNeeded.add(parentId)
     }
 
-    return Response.json({ docs: eligible.slice(0, limit) })
+    const parentById = new Map<number, Lecture>()
+    if (parentIdsNeeded.size > 0) {
+      const { docs: parentDocs } = await req.payload.find({
+        collection: 'lectures',
+        where: { id: { in: [...parentIdsNeeded] } },
+        limit: parentIdsNeeded.size,
+        depth: 1,
+        pagination: false,
+        req,
+      })
+      for (const parent of parentDocs as Lecture[]) {
+        parentById.set(parent.id, parent)
+      }
+    }
+
+    // Step 5 — shape into discriminated union.
+    const shapedLectures: ViewerLecture[] = eligibleLectures.map((l) => ({
+      ...l,
+      type: 'lecture',
+    }))
+
+    const shapedClips: ViewerClip[] = eligibleClips.map((clip) => {
+      const parentId = idOf(clip.parent as LectureRef | null | undefined)
+      const parentDoc = parentId !== null ? parentById.get(parentId) ?? null : null
+      const parentVisible =
+        parentId !== null && eligibleLectureIds.has(parentId) && parentDoc !== null
+
+      // Fallback: merge parent's thumbnail / subtitlesUrl into the clip when
+      // the clip's own value is empty. Runs regardless of whether `parent`
+      // is returned — clients don't implement fallback logic.
+      const thumbnail = clip.thumbnail ?? parentDoc?.thumbnail ?? null
+      const subtitlesUrl = clip.subtitlesUrl ?? parentDoc?.subtitlesUrl ?? null
+
+      return {
+        ...clip,
+        type: 'clip',
+        thumbnail,
+        subtitlesUrl,
+        parent: parentVisible ? parentDoc : null,
+      }
+    })
+
+    // Step 6 — concatenate, uniform Fisher-Yates shuffle, then slice.
+    const combined: Array<ViewerLecture | ViewerClip> = [...shapedLectures, ...shapedClips]
+    for (let i = combined.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[combined[i], combined[j]] = [combined[j], combined[i]]
+    }
+
+    return Response.json({ docs: combined.slice(0, limit) })
   },
 }
