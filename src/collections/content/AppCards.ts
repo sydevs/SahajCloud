@@ -159,6 +159,7 @@ export const AppCards: CollectionConfig = {
               options: [
                 { label: 'Hero Card', value: 'hero' },
                 { label: 'Highlights Section', value: 'highlights' },
+                { label: 'Lectures Page', value: 'lectures' },
               ],
               admin: {
                 description: 'Target sections where this card should appear on the app homepage.',
