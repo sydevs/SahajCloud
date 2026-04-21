@@ -90,6 +90,7 @@ export const Lectures: CollectionConfig = {
       admin: {
         allowCreate: true,
         defaultColumns: ['title', 'startTime', 'endTime', 'tags'],
+        condition: (data) => !!data?.id,
       },
     },
   ],
