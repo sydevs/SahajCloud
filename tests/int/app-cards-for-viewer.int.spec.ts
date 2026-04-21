@@ -2,7 +2,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { Album, AppCard, Client, Image } from '@/payload-types'
+import type { Album, AppCard, Client, Image, ViewerRule } from '@/payload-types'
 
 import { appCardsForViewer } from '@/endpoints'
 
@@ -32,11 +32,14 @@ describe('appCardsForViewer endpoint', () => {
   let cleanup: () => Promise<void>
   let adminUserId: number
 
-  let heroCardAll: AppCard
-  let heroCardRealized: AppCard
+  let openRule: ViewerRule
+  let pathStartedRule: ViewerRule
+  let heroCardOpen: AppCard
+  let heroCardPathStarted: AppCard
   let highlightsCard: AppCard
   let draftHeroCard: AppCard
   let bothSectionsCard: AppCard
+  let nullAudienceCard: AppCard
   let contentAlbum: Album
   let contentCard: AppCard
 
@@ -49,25 +52,37 @@ describe('appCardsForViewer endpoint', () => {
     const img = await testData.createMediaImage(payload, { alt: 'Shared card image' })
     const imageId = img.id
 
-    // Hero card with no rules — matches any caller
-    heroCardAll = await testData.createAppCard(payload, {
-      title: 'Hero All',
+    // Always-match audience — no configured rules
+    openRule = await testData.createViewerRule(payload, {
+      label: 'Open Audience',
+      rules: {},
+    })
+
+    // Audience requiring pathProgress >= 1 (replaces the old hasRealization boolean)
+    pathStartedRule = await testData.createViewerRule(payload, {
+      label: 'Path Started',
+      rules: {
+        logic: 'AND',
+        pathProgress: { min: 1, max: 5 },
+      },
+    })
+
+    // Hero card with open audience — matches any caller with pathProgress in any range
+    heroCardOpen = await testData.createAppCard(payload, {
+      title: 'Hero Open',
       image: imageId,
       targetSections: ['hero'],
+      audience: openRule.id,
       weight: 3,
       _status: 'published',
     })
 
-    // Hero card requiring hasRealization=true AND pathProgress between 1 and 5
-    heroCardRealized = await testData.createAppCard(payload, {
-      title: 'Hero Realized',
+    // Hero card requiring pathProgress in [1, 5]
+    heroCardPathStarted = await testData.createAppCard(payload, {
+      title: 'Hero Path Started',
       image: imageId,
       targetSections: ['hero'],
-      rules: {
-        logic: 'AND',
-        hasRealization: true,
-        pathProgress: { min: 1, max: 5 },
-      },
+      audience: pathStartedRule.id,
       weight: 3,
       _status: 'published',
     })
@@ -77,6 +92,7 @@ describe('appCardsForViewer endpoint', () => {
       title: 'Highlights Only',
       image: imageId,
       targetSections: ['highlights'],
+      audience: openRule.id,
       weight: 3,
       _status: 'published',
     })
@@ -86,6 +102,7 @@ describe('appCardsForViewer endpoint', () => {
       title: 'Draft Hero',
       image: imageId,
       targetSections: ['hero'],
+      audience: openRule.id,
       weight: 3,
       _status: 'draft',
     })
@@ -95,6 +112,17 @@ describe('appCardsForViewer endpoint', () => {
       title: 'Hero and Highlights',
       image: imageId,
       targetSections: ['hero', 'highlights'],
+      audience: openRule.id,
+      weight: 3,
+      _status: 'published',
+    })
+
+    // Card with no audience — must be hidden (behavior change: previously visible)
+    nullAudienceCard = await testData.createAppCard(payload, {
+      title: 'No Audience',
+      image: imageId,
+      targetSections: ['hero'],
+      audience: null,
       weight: 3,
       _status: 'published',
     })
@@ -108,6 +136,7 @@ describe('appCardsForViewer endpoint', () => {
       content: { relationTo: 'albums', value: contentAlbum.id },
       appPage: null,
       targetSections: ['hero'],
+      audience: openRule.id,
       weight: 3,
       _status: 'published',
     })
@@ -143,6 +172,7 @@ describe('appCardsForViewer endpoint', () => {
     const { status, body } = await callEndpoint(payload, {
       targetSection: 'hero',
       limit: 20,
+      pathProgress: 3,
     })
     expect(status).toBe(200)
     const docs = (body as { docs: AppCard[] }).docs
@@ -154,11 +184,12 @@ describe('appCardsForViewer endpoint', () => {
     const { status, body } = await callEndpoint(payload, {
       targetSection: 'hero',
       limit: 20,
+      pathProgress: 3,
     })
     expect(status).toBe(200)
     const docs = (body as { docs: AppCard[] }).docs
     const ids = docs.map((c) => c.id)
-    expect(ids).toContain(heroCardAll.id)
+    expect(ids).toContain(heroCardOpen.id)
     expect(ids).toContain(bothSectionsCard.id)
     expect(ids).not.toContain(highlightsCard.id)
   })
@@ -167,40 +198,52 @@ describe('appCardsForViewer endpoint', () => {
     const { status, body } = await callEndpoint(payload, {
       targetSection: 'highlights',
       limit: 20,
+      pathProgress: 3,
     })
     expect(status).toBe(200)
     const docs = (body as { docs: AppCard[] }).docs
     const ids = docs.map((c) => c.id)
     expect(ids).toContain(highlightsCard.id)
     expect(ids).toContain(bothSectionsCard.id)
-    expect(ids).not.toContain(heroCardAll.id)
+    expect(ids).not.toContain(heroCardOpen.id)
   })
 
-  it('excludes cards whose rules do not match caller inputs', async () => {
-    // Caller without hasRealization → heroCardRealized fails
+  it('excludes cards with null audience (behavior change)', async () => {
     const { body } = await callEndpoint(payload, {
       targetSection: 'hero',
       limit: 20,
-    })
-    const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
-    expect(ids).not.toContain(heroCardRealized.id)
-  })
-
-  it('includes cards whose rules match caller inputs', async () => {
-    const { body } = await callEndpoint(payload, {
-      targetSection: 'hero',
-      limit: 20,
-      hasRealization: 'true',
       pathProgress: 3,
     })
     const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
-    expect(ids).toContain(heroCardRealized.id)
+    expect(ids).not.toContain(nullAudienceCard.id)
+  })
+
+  it('excludes cards whose audience rules do not match caller inputs', async () => {
+    // Caller with pathProgress=0 → pathStartedRule requires min:1, so fails
+    const { body } = await callEndpoint(payload, {
+      targetSection: 'hero',
+      limit: 20,
+      pathProgress: 0,
+    })
+    const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
+    expect(ids).not.toContain(heroCardPathStarted.id)
+  })
+
+  it('includes cards whose audience rules match caller inputs', async () => {
+    const { body } = await callEndpoint(payload, {
+      targetSection: 'hero',
+      limit: 20,
+      pathProgress: 3,
+    })
+    const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
+    expect(ids).toContain(heroCardPathStarted.id)
   })
 
   it('respects the limit parameter', async () => {
     const { body } = await callEndpoint(payload, {
       targetSection: 'hero',
       limit: 1,
+      pathProgress: 3,
     })
     const docs = (body as { docs: AppCard[] }).docs
     expect(docs).toHaveLength(1)
@@ -218,7 +261,7 @@ describe('appCardsForViewer endpoint', () => {
     try {
       const { status } = await callEndpoint(
         payload,
-        { targetSection: 'hero', limit: 5 },
+        { targetSection: 'hero', limit: 5, pathProgress: 3 },
         { id: client.id, collection: 'clients' },
       )
       expect(status).toBe(200)
@@ -239,6 +282,7 @@ describe('appCardsForViewer endpoint', () => {
     const { body } = await callEndpoint(payload, {
       targetSection: 'hero',
       limit: 20,
+      pathProgress: 3,
     })
     const docs = (body as { docs: AppCard[] }).docs
     const card = docs.find((c) => c.id === contentCard.id)

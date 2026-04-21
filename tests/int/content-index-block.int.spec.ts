@@ -91,7 +91,7 @@ describe('computeApiEndpoint hook (pure)', () => {
         type: 'lectures',
         lectureFilters: [10, 11],
       })
-      expect(result).toBe('/api/lectures?where[tags][in]=10,11')
+      expect(result).toBe('/api/lectures?where[audience][in]=10,11')
     })
 
     it('generates lectures endpoint with populated objects', () => {
@@ -99,7 +99,7 @@ describe('computeApiEndpoint hook (pure)', () => {
         type: 'lectures',
         lectureFilters: [{ id: 100, label: 'Beginner' }],
       })
-      expect(result).toBe('/api/lectures?where[tags][in]=100')
+      expect(result).toBe('/api/lectures?where[audience][in]=100')
     })
   })
 
@@ -131,7 +131,7 @@ describe('computeApiEndpoint hook (pure)', () => {
         type: 'lectures',
         lectureFilters: [1, { id: 2, label: 'Tag' }, 3],
       })
-      expect(result).toBe('/api/lectures?where[tags][in]=1,2,3')
+      expect(result).toBe('/api/lectures?where[audience][in]=1,2,3')
     })
 
     it('skips null values in mixed filters', () => {
@@ -237,15 +237,15 @@ describe('ContentIndexBlock apiEndpoint (integration)', () => {
     )
   })
 
-  it('computes apiEndpoint for lectures with lecture-tags filters', async () => {
-    const lectureTag = await testData.createLectureTag(payload)
+  it('computes apiEndpoint for lectures with viewer-rules filters', async () => {
+    const viewerRule = await testData.createViewerRule(payload)
     const page = await createPageWithBlock({
       type: 'lectures',
-      lectureFilters: [lectureTag.id],
+      lectureFilters: [viewerRule.id],
     })
     const fetched = await payload.findByID({ collection: 'pages', id: page.id, depth: 0 })
     expect(getBlockFields(fetched).apiEndpoint).toBe(
-      `/api/lectures?where[tags][in]=${lectureTag.id}`,
+      `/api/lectures?where[audience][in]=${viewerRule.id}`,
     )
   })
 

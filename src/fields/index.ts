@@ -26,5 +26,17 @@ export { scheduleField } from './scheduleField'
 export type { ScheduleFieldOptions } from './scheduleField'
 
 // Rules field - JSON field with visual targeting rules editor
-export { rulesField, generateRulesJsonSchema } from './rulesField'
-export type { RuleDefinition, RuleType, RulesValue, RulesFieldOptions } from './rulesField'
+export {
+  rulesField,
+  generateRulesJsonSchema,
+  buildViewerDataShape,
+  withViewerContext,
+  VIEWER_DATA_CONTEXT_KEY,
+} from './rulesField'
+export type {
+  RuleDefinition,
+  RuleType,
+  RulesValue,
+  RulesFieldOptions,
+  ViewerData,
+} from './rulesField'

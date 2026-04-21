@@ -16,7 +16,7 @@ export const LectureClips: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     hidden: true,
-    defaultColumns: ['title', 'parent', 'startTime', 'endTime', 'tags'],
+    defaultColumns: ['title', 'parent', 'startTime', 'endTime', 'audience'],
   },
   fields: [
     {
@@ -91,13 +91,14 @@ export const LectureClips: CollectionConfig = {
       },
     },
     {
-      name: 'tags',
+      name: 'audience',
       type: 'relationship',
-      relationTo: 'lecture-tags',
-      hasMany: true,
+      relationTo: 'viewer-rules',
+      hasMany: false,
+      filterOptions: () => true,
       admin: {
         description:
-          'Tags control visibility in listings and indexes. A clip with no tags will never appear in any listing — it will only be shown when directly referenced from a meditation or path step.',
+          'Controls which viewers see this clip. If empty, it is hidden from /api/lectures/for-viewer and only surfaced when directly referenced (e.g. from a meditation or path step).',
       },
     },
   ],

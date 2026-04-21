@@ -1,5 +1,7 @@
 import type { JSONSchema4 } from 'json-schema'
-import type { CheckboxField, Field, FieldHook, JSONField } from 'payload'
+import type { CheckboxField, Field, FieldHook, JSONField, PayloadRequest } from 'payload'
+
+import { z } from 'zod'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -23,7 +25,7 @@ export type RulesValue = {
   [key: string]: RuleValue | 'AND' | 'OR' | undefined
 }
 
-/** Caller-supplied values keyed by rule name (e.g., `{ hasRealization: true, pathProgress: 3 }`). */
+/** Caller-supplied values keyed by rule name (e.g., `{ pathProgress: 3, totalMeditationsViewed: 12 }`). */
 export type ViewerData = Record<string, unknown>
 
 export interface RulesFieldOptions {
@@ -49,6 +51,55 @@ export interface RulesFieldOptions {
  * needs, switch to a scoped shape like `{ [fieldName]: ViewerData }`.
  */
 export const VIEWER_DATA_CONTEXT_KEY = 'viewerData' as const
+
+/**
+ * Returns a shallow-cloned req with `viewerData` stashed on `req.context` so
+ * the virtual `isEligibleForViewer` field can evaluate against it during
+ * `payload.find` calls. Used by the for-viewer endpoints.
+ */
+export function withViewerContext(req: PayloadRequest, viewerData: ViewerData): PayloadRequest {
+  return {
+    ...req,
+    context: { ...req.context, [VIEWER_DATA_CONTEXT_KEY]: viewerData },
+  } as PayloadRequest
+}
+
+/**
+ * Build the Zod shape dict for query-param viewer data from rule definitions.
+ * Each rule dimension becomes an optional coerced value matching its type:
+ *
+ *   - `range`   → `z.coerce.number().optional()` (caller sends a single number)
+ *   - `boolean` → `z.enum(['true', 'false']).optional().transform(...)`
+ *   - `select`  → `z.string().optional()`
+ *
+ * Returns the raw shape (not a `z.object(...)`) so consumers can spread it
+ * into their own schema alongside endpoint-specific fields:
+ *
+ *   const querySchema = z.object({
+ *     ...buildViewerDataShape(VIEWER_RULE_DEFINITIONS),
+ *     limit: z.coerce.number().int().min(1).max(20),
+ *   })
+ *
+ * This preserves TS inference for the endpoint-specific fields, which
+ * wrapping as `z.object(...).extend(...)` does not when the inner shape
+ * is runtime-derived.
+ */
+export function buildViewerDataShape(rules: RuleDefinition[]): Record<string, z.ZodTypeAny> {
+  const shape: Record<string, z.ZodTypeAny> = {}
+  for (const rule of rules) {
+    if (rule.type === 'range') {
+      shape[rule.name] = z.coerce.number().optional()
+    } else if (rule.type === 'boolean') {
+      shape[rule.name] = z
+        .enum(['true', 'false'])
+        .optional()
+        .transform((v) => (v === undefined ? undefined : v === 'true'))
+    } else if (rule.type === 'select') {
+      shape[rule.name] = z.string().optional()
+    }
+  }
+  return shape
+}
 
 // ── Evaluation ─────────────────────────────────────────────────────────────────
 
@@ -253,8 +304,8 @@ function buildEligibilityField(options: RulesFieldOptions): CheckboxField {
  * @example
  * ...rulesField({
  *   rules: [
- *     { name: 'hasRealization', type: 'boolean' },
  *     { name: 'pathProgress', type: 'range' },
+ *     { name: 'totalMeditationsViewed', type: 'range' },
  *   ],
  * }),
  */

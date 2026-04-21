@@ -5,7 +5,7 @@ import type { RuleDefinition } from '@/fields/rulesField'
 import { evaluateRules } from '@/fields/rulesField'
 
 const DEFS: RuleDefinition[] = [
-  { name: 'hasRealization', type: 'boolean' },
+  { name: 'isMember', type: 'boolean' },
   { name: 'pathProgress', type: 'range' },
 ]
 
@@ -15,21 +15,21 @@ describe('evaluateRules', () => {
     expect(evaluateRules(undefined, {}, DEFS)).toBe(true)
     expect(evaluateRules({}, {}, DEFS)).toBe(true)
     expect(evaluateRules({ logic: 'AND' }, {}, DEFS)).toBe(true)
-    expect(evaluateRules({ logic: 'OR' }, { hasRealization: true }, DEFS)).toBe(true)
+    expect(evaluateRules({ logic: 'OR' }, { isMember: true }, DEFS)).toBe(true)
   })
 
   it('matches a boolean rule when caller value equals stored value', () => {
-    expect(evaluateRules({ hasRealization: true }, { hasRealization: true }, DEFS)).toBe(true)
-    expect(evaluateRules({ hasRealization: false }, { hasRealization: false }, DEFS)).toBe(true)
+    expect(evaluateRules({ isMember: true }, { isMember: true }, DEFS)).toBe(true)
+    expect(evaluateRules({ isMember: false }, { isMember: false }, DEFS)).toBe(true)
   })
 
   it('fails a boolean rule when caller value differs', () => {
-    expect(evaluateRules({ hasRealization: true }, { hasRealization: false }, DEFS)).toBe(false)
-    expect(evaluateRules({ hasRealization: false }, { hasRealization: true }, DEFS)).toBe(false)
+    expect(evaluateRules({ isMember: true }, { isMember: false }, DEFS)).toBe(false)
+    expect(evaluateRules({ isMember: false }, { isMember: true }, DEFS)).toBe(false)
   })
 
   it('fails a boolean rule when caller omits the param', () => {
-    expect(evaluateRules({ hasRealization: true }, {}, DEFS)).toBe(false)
+    expect(evaluateRules({ isMember: true }, {}, DEFS)).toBe(false)
   })
 
   it('matches a range rule at inclusive bounds', () => {
@@ -60,29 +60,29 @@ describe('evaluateRules', () => {
 
   it('applies AND logic by default (all rules must pass)', () => {
     const rules = {
-      hasRealization: true,
+      isMember: true,
       pathProgress: { min: 1, max: 5 },
     }
-    expect(evaluateRules(rules, { hasRealization: true, pathProgress: 3 }, DEFS)).toBe(true)
-    expect(evaluateRules(rules, { hasRealization: true, pathProgress: 6 }, DEFS)).toBe(false)
-    expect(evaluateRules(rules, { hasRealization: false, pathProgress: 3 }, DEFS)).toBe(false)
+    expect(evaluateRules(rules, { isMember: true, pathProgress: 3 }, DEFS)).toBe(true)
+    expect(evaluateRules(rules, { isMember: true, pathProgress: 6 }, DEFS)).toBe(false)
+    expect(evaluateRules(rules, { isMember: false, pathProgress: 3 }, DEFS)).toBe(false)
   })
 
   it('applies OR logic (any rule may pass)', () => {
     const rules = {
       logic: 'OR' as const,
-      hasRealization: true,
+      isMember: true,
       pathProgress: { min: 10, max: 20 },
     }
-    expect(evaluateRules(rules, { hasRealization: true, pathProgress: 1 }, DEFS)).toBe(true)
-    expect(evaluateRules(rules, { hasRealization: false, pathProgress: 15 }, DEFS)).toBe(true)
-    expect(evaluateRules(rules, { hasRealization: false, pathProgress: 1 }, DEFS)).toBe(false)
+    expect(evaluateRules(rules, { isMember: true, pathProgress: 1 }, DEFS)).toBe(true)
+    expect(evaluateRules(rules, { isMember: false, pathProgress: 15 }, DEFS)).toBe(true)
+    expect(evaluateRules(rules, { isMember: false, pathProgress: 1 }, DEFS)).toBe(false)
   })
 
   it('treats missing caller param as failure for OR logic too', () => {
     const rules = {
       logic: 'OR' as const,
-      hasRealization: true,
+      isMember: true,
       pathProgress: { min: 1, max: 5 },
     }
     // Neither param supplied → both rules fail → OR is false
