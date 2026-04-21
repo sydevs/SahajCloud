@@ -804,7 +804,7 @@ export interface Lecture {
    */
   subtitlesUrl?: string | null;
   /**
-   * Controls which viewers see this lecture in listings and indexes. A lecture with no audience will never appear in any listing — it will only be shown when directly referenced from a meditation or path step.
+   * Controls which viewers see this lecture. If empty, it is hidden from /api/lectures/for-viewer and only surfaced when directly referenced (e.g. from a meditation or path step).
    */
   audience?: (number | null) | ViewerRule;
   clips?: {
@@ -885,7 +885,7 @@ export interface LectureClip {
    */
   subtitlesUrl?: string | null;
   /**
-   * Controls which viewers see this clip in listings and indexes. A clip with no audience will never appear in any listing — it will only be shown when directly referenced from a meditation or path step.
+   * Controls which viewers see this clip. If empty, it is hidden from /api/lectures/for-viewer and only surfaced when directly referenced (e.g. from a meditation or path step).
    */
   audience?: (number | null) | ViewerRule;
   updatedAt: string;
@@ -980,7 +980,7 @@ export interface AppCard {
    */
   targetSections?: ('hero' | 'highlights')[] | null;
   /**
-   * Controls which viewers see this card. If empty, the card is hidden from the app.
+   * Controls which viewers see this card. If empty, the card is hidden from /api/app-cards/for-viewer and never appears on the app homepage.
    */
   audience?: (number | null) | ViewerRule;
   /**

@@ -1,6 +1,19 @@
 import type { CollectionConfig } from 'payload'
 
+import type { RuleDefinition } from '@/fields'
 import { rulesField } from '@/fields'
+
+/**
+ * Single source of truth for the rule dimensions a ViewerRule can target.
+ * Consumed by ViewerRules itself and by the for-viewer endpoints to derive
+ * their query schemas — add a rule here and both sides pick it up.
+ */
+export const VIEWER_RULE_DEFINITIONS: RuleDefinition[] = [
+  { name: 'pathProgress', type: 'range' },
+  { name: 'meditationsPerWeek', type: 'range' },
+  { name: 'totalMeditationsViewed', type: 'range' },
+  { name: 'totalLecturesViewed', type: 'range' },
+]
 
 export const ViewerRules: CollectionConfig = {
   slug: 'viewer-rules',
@@ -21,14 +34,7 @@ export const ViewerRules: CollectionConfig = {
       required: true,
     },
     // Targeting rules for user progress-based filtering
-    ...rulesField({
-      rules: [
-        { name: 'pathProgress', type: 'range' },
-        { name: 'meditationsPerWeek', type: 'range' },
-        { name: 'totalMeditationsViewed', type: 'range' },
-        { name: 'totalLecturesViewed', type: 'range' },
-      ],
-    }),
+    ...rulesField({ rules: VIEWER_RULE_DEFINITIONS }),
     // Bidirectional join to lectures
     {
       name: 'lectures',

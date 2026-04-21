@@ -95,9 +95,10 @@ export const LectureClips: CollectionConfig = {
       type: 'relationship',
       relationTo: 'viewer-rules',
       hasMany: false,
+      filterOptions: () => true,
       admin: {
         description:
-          'Controls which viewers see this clip in listings and indexes. A clip with no audience will never appear in any listing — it will only be shown when directly referenced from a meditation or path step.',
+          'Controls which viewers see this clip. If empty, it is hidden from /api/lectures/for-viewer and only surfaced when directly referenced (e.g. from a meditation or path step).',
       },
     },
   ],

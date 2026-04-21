@@ -180,10 +180,9 @@ describe('ViewerRules Collection', () => {
         depth: 1,
       })
 
-      const lectures = fetchedRule.lectures as { docs: Array<number | { id: number }> }
+      const lectures = fetchedRule.lectures as { docs: Array<{ id: number }> }
       expect(lectures.docs).toHaveLength(1)
-      const lectureId = typeof lectures.docs[0] === 'number' ? lectures.docs[0] : lectures.docs[0].id
-      expect(lectureId).toBe(lecture.id)
+      expect(lectures.docs[0].id).toBe(lecture.id)
     })
 
     it('returns empty arrays for a rule with no referencing items', async () => {
@@ -247,10 +246,9 @@ describe('ViewerRules Collection', () => {
         depth: 1,
       })
 
-      const appCards = fetchedRule.appCards as { docs: Array<number | { id: number }> }
+      const appCards = fetchedRule.appCards as { docs: Array<{ id: number }> }
       expect(appCards.docs).toHaveLength(1)
-      const cardId = typeof appCards.docs[0] === 'number' ? appCards.docs[0] : appCards.docs[0].id
-      expect(cardId).toBe(card.id)
+      expect(appCards.docs[0].id).toBe(card.id)
     })
   })
 })

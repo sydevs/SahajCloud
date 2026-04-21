@@ -172,9 +172,10 @@ export const AppCards: CollectionConfig = {
               type: 'relationship',
               relationTo: 'viewer-rules',
               hasMany: false,
+              filterOptions: () => true,
               admin: {
                 description:
-                  'Controls which viewers see this card. If empty, the card is hidden from the app.',
+                  'Controls which viewers see this card. If empty, the card is hidden from /api/app-cards/for-viewer and never appears on the app homepage.',
               },
             },
             // Selection weight for client-side card prioritization

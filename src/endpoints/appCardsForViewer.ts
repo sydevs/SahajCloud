@@ -2,17 +2,15 @@ import type { Endpoint } from 'payload'
 
 import { z } from 'zod'
 
-import { VIEWER_DATA_CONTEXT_KEY } from '@/fields/rulesField'
+import { VIEWER_RULE_DEFINITIONS } from '@/collections/tags/ViewerRules'
+import { buildViewerDataShape, withViewerContext } from '@/fields'
 import { weightedSample } from '@/lib/weightedSample'
 import type { AppCard, ViewerRule } from '@/payload-types'
 
 const querySchema = z.object({
+  ...buildViewerDataShape(VIEWER_RULE_DEFINITIONS),
   targetSection: z.enum(['hero', 'highlights']),
   limit: z.coerce.number().int().min(1).max(20),
-  pathProgress: z.coerce.number().optional(),
-  meditationsPerWeek: z.coerce.number().optional(),
-  totalMeditationsViewed: z.coerce.number().optional(),
-  totalLecturesViewed: z.coerce.number().optional(),
 })
 
 /**
@@ -56,10 +54,7 @@ export const appCardsForViewer: Endpoint = {
       // fire against the authenticated client, plus pass the viewer data so
       // the populated `audience.isEligibleForViewer` virtual field evaluates
       // against it.
-      req: {
-        ...req,
-        context: { ...req.context, [VIEWER_DATA_CONTEXT_KEY]: viewerData },
-      },
+      req: withViewerContext(req, viewerData),
     })
 
     const eligible = (docs as AppCard[]).filter((card) => {
