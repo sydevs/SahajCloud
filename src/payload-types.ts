@@ -867,11 +867,11 @@ export interface LectureClip {
   endTime: number;
   title: string;
   /**
-   * Optional. The for-viewer endpoint merges the parent lecture thumbnail when empty.
+   * Optional. Falls back to the parent lecture's thumbnail when empty — fallback is applied by /api/lectures/for-viewer, not by this collection's CRUD endpoints.
    */
   thumbnail?: (number | null) | Image;
   /**
-   * Optional per-locale VTT override. The for-viewer endpoint merges the parent lecture subtitle URL when empty.
+   * Optional per-locale VTT override. Falls back to the parent lecture's subtitle URL when empty — fallback is applied by /api/lectures/for-viewer, not by this collection's CRUD endpoints.
    */
   subtitlesUrl?: string | null;
   /**

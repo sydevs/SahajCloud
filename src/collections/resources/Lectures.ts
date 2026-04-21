@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { lecturesForViewer } from '@/endpoints'
 import { mediaField, urlField } from '@/fields'
+import { deleteChildren } from '@/hooks/cascadeDeletion'
 import { populateFromNirmalaVidya, populateSubtitleLocales } from '@/hooks/lectureHooks'
 
 export const Lectures: CollectionConfig = {
@@ -19,6 +20,7 @@ export const Lectures: CollectionConfig = {
   hooks: {
     beforeChange: [populateFromNirmalaVidya],
     afterChange: [populateSubtitleLocales],
+    beforeDelete: [deleteChildren({ collection: 'lecture-clips', field: 'parent' })],
   },
   fields: [
     urlField({

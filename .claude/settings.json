@@ -129,7 +129,7 @@
           },
           {
             "type": "command",
-            "command": "say Claude is waiting for input"
+            "command": "say Claude has completed its task"
           }
         ]
       }
@@ -143,7 +143,21 @@
           },
           {
             "type": "command",
-            "command": "say Claude is waiting for input"
+            "command": "say Claude has a notification"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Ping.aiff -v 5"
+          },
+          {
+            "type": "command",
+            "command": "say Claude has a question"
           }
         ]
       }

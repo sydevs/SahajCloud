@@ -2,6 +2,10 @@ import type { CollectionConfig } from 'payload'
 
 import { mediaField } from '@/fields'
 
+// Default clip length when an editor first opens the row — editors can override,
+// but a sensible pre-filled span beats empty inputs.
+const DEFAULT_CLIP_LENGTH_SECONDS = 10 * 60
+
 export const LectureClips: CollectionConfig = {
   slug: 'lecture-clips',
   labels: {
@@ -41,7 +45,7 @@ export const LectureClips: CollectionConfig = {
           name: 'endTime',
           type: 'number',
           required: true,
-          defaultValue: 10 * 60,
+          defaultValue: DEFAULT_CLIP_LENGTH_SECONDS,
           min: 0,
           admin: {
             description: 'End of the excerpt (HH:MM:SS)',
@@ -74,7 +78,7 @@ export const LectureClips: CollectionConfig = {
       required: false,
       admin: {
         description:
-          'Optional. The for-viewer endpoint merges the parent lecture thumbnail when empty.',
+          "Optional. Falls back to the parent lecture's thumbnail when empty — fallback is applied by /api/lectures/for-viewer, not by this collection's CRUD endpoints.",
       },
     }),
     {
@@ -83,7 +87,7 @@ export const LectureClips: CollectionConfig = {
       localized: true,
       admin: {
         description:
-          'Optional per-locale VTT override. The for-viewer endpoint merges the parent lecture subtitle URL when empty.',
+          "Optional per-locale VTT override. Falls back to the parent lecture's subtitle URL when empty — fallback is applied by /api/lectures/for-viewer, not by this collection's CRUD endpoints.",
       },
     },
     {
