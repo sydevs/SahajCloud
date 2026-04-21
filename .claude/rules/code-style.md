@@ -49,6 +49,10 @@ pnpm lint
 pnpm generate:types  # After schema changes
 ```
 
+## Editing generated output (migrations, payload-types.ts, importmap, etc.)
+
+When you need to patch a generated file, change only what actually breaks or what the spec explicitly requires. Don't add defensive NULL-ing, redundant cleanups, or cascading safety edits "just in case" — they inflate the diff, obscure the real fix, and are the first thing a reviewer will push back on. If you catch yourself adding a second or third edit, stop and ask: *would this change fail a specific, named scenario?* If not, revert it.
+
 ## Code Quality Commands
 
 ```bash

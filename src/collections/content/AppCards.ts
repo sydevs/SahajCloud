@@ -101,7 +101,7 @@ export const AppCards: CollectionConfig = {
             {
               name: 'content',
               type: 'relationship',
-              relationTo: ['lectures', 'albums', 'meditations'],
+              relationTo: ['lecture-clips', 'albums', 'meditations'],
               required: true,
               admin: {
                 condition: (data) => data.type === 'content',

@@ -1947,85 +1947,16 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   private async importLectures(): Promise<void> {
-    await this.logger.info('\n=== Importing Lectures ===')
-
-    const videoIds = new Set<string>()
-    const videoMetadata = new Map<
-      string,
-      { title: string; thumbnail: string; vimeoId?: string; youtubeId?: string }
-    >()
-
-    // Scan content for video IDs from pre-extracted data
-    const allPageTypes = [
-      this.data.staticPages,
-      this.data.articles,
-      this.data.subtleSystemNodes,
-      this.data.treatments,
-    ]
-
-    for (const pages of allPageTypes) {
-      for (const page of pages) {
-        for (const translation of page.translations) {
-          if (!translation.content) continue
-          let content
-          try {
-            content =
-              typeof translation.content === 'string'
-                ? JSON.parse(translation.content)
-                : translation.content
-          } catch {
-            continue
-          }
-
-          if (!content?.blocks) continue
-          for (const block of content.blocks) {
-            if (block.type === 'vimeo' && block.data) {
-              const videoId = block.data.vimeo_id || block.data.youtube_id
-              if (videoId) {
-                videoIds.add(videoId)
-                videoMetadata.set(videoId, {
-                  title: block.data.title || '',
-                  thumbnail: block.data.thumbnail || '',
-                  vimeoId: block.data.vimeo_id,
-                  youtubeId: block.data.youtube_id,
-                })
-              }
-            }
-          }
-        }
-      }
-    }
-
-    await this.logger.info(`Found ${videoIds.size} unique lectures`)
-
-    for (const videoId of Array.from(videoIds)) {
-      try {
-        const metadata = videoMetadata.get(videoId)!
-        const videoUrl = metadata.vimeoId
-          ? `https://vimeo.com/${metadata.vimeoId}`
-          : `https://youtube.com/watch?v=${metadata.youtubeId}`
-
-        const thumbnailId = await this.fetchVideoThumbnail(
-          videoId,
-          metadata.vimeoId,
-          metadata.youtubeId,
-        )
-
-        const result = await this.upsert<{ id: number }>(
-          'lectures',
-          { videoUrl: { equals: videoUrl } },
-          {
-            title: metadata.title || `Video ${videoId}`,
-            videoUrl,
-            ...(thumbnailId ? { thumbnail: thumbnailId } : {}),
-          },
-        )
-
-        this.idMaps.lectures.set(videoId, result.doc.id)
-      } catch (error) {
-        this.addError(`Creating lecture ${videoId}`, error as Error)
-      }
-    }
+    // Guard: see issue #291. Legacy `lectures` writes are disabled pending the
+    // clip-aware rewrite; `lectures` now models a full talk and video excerpts
+    // belong in the new `lecture-clips` collection. The follow-up PR will
+    // retarget this importer. Until then, fail loudly so partial seeds don't
+    // silently create the wrong shape. Original implementation preserved in
+    // git history.
+    throw new Error(
+      'Seed writes to `lectures` are disabled pending clip-aware migration (issue #291 follow-up). ' +
+        'Legacy video imports should target `lecture-clips` instead.',
+    )
   }
 
   // ============================================================================

@@ -54,7 +54,8 @@ Collections use `admin.hidden` functions to control visibility based on `user.cu
 | Lessons | ✓ | ✗ | ✓ | ✗ |
 | **Resources** |||||
 | Media | ✓ | ✓ | ✓ | ✓ |
-| Lectures | ✓ | ✓ | ✓ | ✓ |
+| Lectures | ✓ | ✗ | ✓ | ✗ |
+| LectureClips | ✗ (hidden) | ✗ | ✗ (managed via parent Lecture) | ✗ |
 | Frames | ✓ | ✗ | ✓ | ✗ |
 | Narrators | ✓ | ✓ | ✓ | ✗ |
 | Authors | ✓ | ✓ | ✗ | ✗ |
