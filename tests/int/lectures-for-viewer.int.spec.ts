@@ -65,7 +65,6 @@ describe('lecturesForViewer endpoint', () => {
 
   let tagBeginner: LectureTag
   let tagIntermediate: LectureTag
-  let tagViewers10: LectureTag
 
   let lectureBeginnerOnly: Lecture
   let lectureIntermediateOnly: Lecture
@@ -90,10 +89,6 @@ describe('lecturesForViewer endpoint', () => {
     tagIntermediate = await testData.createLectureTag(payload, {
       label: 'Intermediate',
       rules: { logic: 'AND', pathProgress: { min: 5, max: 10 } },
-    })
-    tagViewers10 = await testData.createLectureTag(payload, {
-      label: 'Viewers10',
-      rules: { logic: 'AND', totalLecturesViewed: { min: 10 } },
     })
 
     const thumb = (await testData.createMediaImage(payload, {
@@ -374,5 +369,4 @@ describe('lecturesForViewer endpoint', () => {
   // Intentionally omitting a shuffle-order test: verifying randomness with
   // a small fixture pool produces flaky tests. Fisher-Yates correctness is
   // covered by inspection of `lecturesForViewer.ts`.
-  void tagViewers10 // keep fixture referenced (defined for future coverage)
 })

@@ -192,4 +192,43 @@ describe('Lecture Clips Collection', () => {
       expect(clip.tags ?? []).toEqual([])
     })
   })
+
+  describe('Parent deletion cascade', () => {
+    it('deletes child clips when the parent lecture is deleted', async () => {
+      const parent = await testData.createLecture(payload)
+      const clipA = await testData.createLectureClip(payload, { parent: parent.id })
+      const clipB = await testData.createLectureClip(payload, { parent: parent.id })
+
+      await payload.delete({ collection: 'lectures', id: parent.id })
+
+      const remaining = await payload.find({
+        collection: 'lecture-clips',
+        where: { id: { in: [clipA.id, clipB.id] } },
+        depth: 0,
+      })
+      expect(remaining.docs).toHaveLength(0)
+    })
+
+    it('does not touch clips belonging to other parents', async () => {
+      // Serialized: createLecture auto-creates a thumbnail Image, and parallel
+      // creates collide on the images.filename unique index.
+      const parentA = await testData.createLecture(payload)
+      const parentB = await testData.createLecture(payload)
+      const clipA = await testData.createLectureClip(payload, { parent: parentA.id })
+      const clipB = await testData.createLectureClip(payload, { parent: parentB.id })
+
+      await payload.delete({ collection: 'lectures', id: parentA.id })
+
+      const survivor = await payload.findByID({
+        collection: 'lecture-clips',
+        id: clipB.id,
+        depth: 0,
+      })
+      expect(survivor.id).toBe(clipB.id)
+
+      await expect(
+        payload.findByID({ collection: 'lecture-clips', id: clipA.id, depth: 0 }),
+      ).rejects.toThrow()
+    })
+  })
 })

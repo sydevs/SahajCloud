@@ -151,21 +151,29 @@ export const lecturesForViewer: Endpoint = {
     // Step 4 — bulk-fetch parents for clips. Need parents for:
     //   (a) `parent` population when the parent is itself viewer-eligible
     //   (b) `thumbnail` / `subtitlesUrl` fallback (regardless of eligibility)
-    // Single find with `id: { in: [...] }` — no N+1.
+    // Seed the cache from `eligibleLectures` first (they were already fetched at
+    // depth:1 in step 2) and only query for parents we don't yet have. Saves a
+    // round-trip when a clip's parent is itself viewer-eligible.
     const eligibleLectureIds = new Set<number>(eligibleLectures.map((l) => l.id))
 
-    const parentIdsNeeded = new Set<number>()
-    for (const clip of eligibleClips) {
-      const parentId = idOf(clip.parent as LectureRef | null | undefined)
-      if (parentId !== null) parentIdsNeeded.add(parentId)
+    const parentById = new Map<number, Lecture>()
+    for (const lecture of eligibleLectures) {
+      parentById.set(lecture.id, lecture)
     }
 
-    const parentById = new Map<number, Lecture>()
-    if (parentIdsNeeded.size > 0) {
+    const parentIdsToFetch = new Set<number>()
+    for (const clip of eligibleClips) {
+      const parentId = idOf(clip.parent as LectureRef | null | undefined)
+      if (parentId !== null && !parentById.has(parentId)) {
+        parentIdsToFetch.add(parentId)
+      }
+    }
+
+    if (parentIdsToFetch.size > 0) {
       const { docs: parentDocs } = await req.payload.find({
         collection: 'lectures',
-        where: { id: { in: [...parentIdsNeeded] } },
-        limit: parentIdsNeeded.size,
+        where: { id: { in: [...parentIdsToFetch] } },
+        limit: parentIdsToFetch.size,
         depth: 1,
         pagination: false,
         req,

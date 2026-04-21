@@ -151,6 +151,7 @@ expect(song.filename).toMatch(/^audio-42s(-\d+)?\.mp3$/)
 | Join field at `depth: 0` | `{ id: number }[]` | `number[]` (raw IDs) |
 | `payload.create()` + relationship | Returns raw ID | Returns populated object |
 | `filterOptions` fallback | Return `{}` | Return `true` |
+| Mixed-collection response assertions | `.docs.map(d => d.id)` uniquely identifies a row | Each collection has its own auto-increment, so `lectures.id=3` and `lecture-clips.id=3` both exist. Filter by discriminator first (`d.type === 'lecture'`) or match on `title`/slug. Asserting raw numeric id against a mixed pool silently false-positives. |
 
 ## Meditations Locale Filtering in Tests
 
