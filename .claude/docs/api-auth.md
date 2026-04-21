@@ -43,6 +43,34 @@ Client-specific validation:
 - **Encrypted Keys**: API keys encrypted with PAYLOAD_SECRET
 - **GraphQL Disabled**: All API access through REST endpoints only
 
+## Query Parameter Requirements
+
+All API client read requests must declare their data needs explicitly. This prevents clients from pulling entire documents or auto-populating every relationship at high `depth`.
+
+| Rule | HTTP Status |
+|------|-------------|
+| `select` is required on every read request | 400 if missing |
+| `populate` is required when `depth > 1` | 400 if missing |
+
+The enforcement hook is `validateClientQueryParamsHook` in [src/lib/usage/hooks.ts](../../src/lib/usage/hooks.ts). It runs on `beforeOperation` before rate limiting, so a malformed request does not consume a rate-limit slot. Managers, admin UI requests, and write operations (POST/PATCH/DELETE) are unaffected.
+
+### Examples
+
+Valid:
+```bash
+GET /api/meditations?select=title,duration
+GET /api/meditations?select=title,narrator&depth=1
+GET /api/meditations?select=title,narrator&depth=2&populate=narrator.name
+```
+
+Invalid (400):
+```bash
+GET /api/meditations                              # missing select
+GET /api/meditations?select=title&depth=2         # depth>1 without populate
+```
+
+See [PayloadCMS select docs](https://payloadcms.com/docs/queries/select) and [depth docs](https://payloadcms.com/docs/queries/depth) for valid query shapes.
+
 ## Usage Monitoring
 
 - **Async Tracking**: Request counts updated via job queue for performance

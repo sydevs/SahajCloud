@@ -105,6 +105,47 @@ async function checkRateLimit(req: PayloadRequest): Promise<void> {
   }
 }
 
+// ============================================================================
+// QUERY PARAMETER VALIDATION HOOK
+// ============================================================================
+
+/**
+ * beforeOperation hook that forces API clients to declare their data needs explicitly.
+ *
+ * - `select` is required on every client read, so they can't pull whole documents.
+ * - `populate` is required when `depth > 1`, so they can't auto-populate every relationship.
+ *
+ * Only applies to API client reads; managers and write operations are untouched.
+ */
+export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
+  operation,
+  req,
+}) => {
+  if (operation !== 'read' || req.user?.collection !== 'clients') {
+    return
+  }
+
+  const url = new URL(req.url || '', 'http://localhost')
+  const hasSelect = url.searchParams.has('select')
+  const hasPopulate = url.searchParams.has('populate')
+  const depthParam = url.searchParams.get('depth')
+  const depth = depthParam ? parseInt(depthParam, 10) : null
+
+  if (!hasSelect) {
+    throw new APIError(
+      'The "select" query parameter is required for API clients. Specify which fields you need in the response.',
+      400,
+    )
+  }
+
+  if (depth !== null && depth > 1 && !hasPopulate) {
+    throw new APIError(
+      `The "populate" query parameter is required when depth > 1. Specify which relationships to populate at depth ${depth}.`,
+      400,
+    )
+  }
+}
+
 /**
  * beforeOperation hook for rate limiting API client requests.
  *

@@ -303,10 +303,12 @@ export async function createTestClientWithManager(
  * Creates an authenticated request for a client (API key auth)
  * @param clientId The client ID
  * @param apiKey The API key for the client
+ * @param url Optional request URL — hooks that parse query params from req.url (e.g., validateClientQueryParamsHook) need this set
  */
 export function createClientAuthenticatedRequest(
   clientId: string,
   apiKey: string,
+  url?: string,
 ): Partial<PayloadRequest> {
   // Create a minimal request object for testing
   // The headers type in PayloadRequest is complex, so we use a type assertion
@@ -314,6 +316,7 @@ export function createClientAuthenticatedRequest(
   headers.set('authorization', `clients API-Key ${apiKey}`)
 
   return {
+    url,
     headers: headers as PayloadRequest['headers'],
     user: {
       id: clientId,
