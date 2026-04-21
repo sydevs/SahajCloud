@@ -3,6 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { VIEWER_DATA_CONTEXT_KEY } from '@/fields/rulesField'
+import { SKIP_CLIENT_QUERY_VALIDATION_KEY } from '@/lib/usage/constants'
 import { weightedSample } from '@/lib/weightedSample'
 import type { AppCard } from '@/payload-types'
 
@@ -58,10 +59,15 @@ export const appCardsForViewer: Endpoint = {
       pagination: false,
       // Thread user/transaction context so rate-limit and usage-tracking hooks
       // fire against the authenticated client, plus pass the viewer data for
-      // the virtual `isEligibleForViewer` field to evaluate against.
+      // the virtual `isEligibleForViewer` field to evaluate against. Mark as a
+      // trusted internal call so the client query-param validation hook skips.
       req: {
         ...req,
-        context: { ...req.context, [VIEWER_DATA_CONTEXT_KEY]: viewerData },
+        context: {
+          ...req.context,
+          [VIEWER_DATA_CONTEXT_KEY]: viewerData,
+          [SKIP_CLIENT_QUERY_VALIDATION_KEY]: true,
+        },
       },
     })
 

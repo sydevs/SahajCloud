@@ -17,7 +17,11 @@ import { z } from 'zod'
 
 import { serverEnv } from '@/lib/env'
 
-import { RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_SECONDS } from './constants'
+import {
+  RATE_LIMIT_MAX_REQUESTS,
+  RATE_LIMIT_PERIOD_SECONDS,
+  SKIP_CLIENT_QUERY_VALIDATION_KEY,
+} from './constants'
 
 // ============================================================================
 // RATE LIMITING UTILITIES
@@ -115,9 +119,14 @@ async function checkRateLimit(req: PayloadRequest): Promise<void> {
  * - `select` is required on every client read, so they can't pull whole documents.
  * - `populate` is required when `depth > 1`, so they can't auto-populate every relationship.
  *
- * Only applies to API client reads; managers and write operations are untouched.
+ * Validation is argument-based, not URL-based: Payload's REST handler parses URL
+ * query params (e.g., `?select=title`) into `args.select` before the hook fires,
+ * and internal endpoints that forward `req` to `payload.find(...)` with an explicit
+ * `select` also pass the check. Only applies to API client reads; managers and
+ * write operations are untouched.
  */
 export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
+  args,
   operation,
   req,
 }) => {
@@ -125,11 +134,28 @@ export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
     return
   }
 
-  const url = new URL(req.url || '', 'http://localhost')
-  const hasSelect = url.searchParams.has('select')
-  const hasPopulate = url.searchParams.has('populate')
-  const depthParam = url.searchParams.get('depth')
-  const depth = depthParam ? parseInt(depthParam, 10) : null
+  // Trusted internal endpoints that forward client req to payload.find(...) can
+  // opt out by setting this context flag — they shape their own response and
+  // shouldn't have to enumerate every field via `select` on every internal call.
+  if (req.context?.[SKIP_CLIENT_QUERY_VALIDATION_KEY] === true) {
+    return
+  }
+
+  const findArgs = args as {
+    select?: unknown
+    populate?: unknown
+    depth?: unknown
+  }
+
+  const hasSelect =
+    findArgs.select != null &&
+    typeof findArgs.select === 'object' &&
+    Object.keys(findArgs.select as Record<string, unknown>).length > 0
+  const hasPopulate =
+    findArgs.populate != null &&
+    typeof findArgs.populate === 'object' &&
+    Object.keys(findArgs.populate as Record<string, unknown>).length > 0
+  const depth = typeof findArgs.depth === 'number' ? findArgs.depth : null
 
   if (!hasSelect) {
     throw new APIError(

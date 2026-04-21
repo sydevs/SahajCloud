@@ -4,6 +4,8 @@ import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 
 import type { Client, Narrator } from '@/payload-types'
 
+import { SKIP_CLIENT_QUERY_VALIDATION_KEY } from '@/lib/usage/constants'
+
 import { testData } from 'tests/utils/testData'
 
 import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
@@ -29,31 +31,31 @@ describe('Client query parameter validation', () => {
     await cleanup()
   })
 
-  const clientReq = (url: string): PayloadRequest =>
+  const clientReq = (): PayloadRequest =>
     createClientAuthenticatedRequest(
       String(testClient.id),
       testClient.apiKey || 'test-key',
-      url,
     ) as PayloadRequest
 
   // Access control is unrelated to this hook; use overrideAccess so tests focus
   // purely on validation behavior, not on whether the test client has narrator
   // read permissions.
   describe('select parameter', () => {
-    it('rejects client read without select', async () => {
+    it('rejects client find without select', async () => {
       await expect(
         payload.find({
           collection: 'narrators',
-          req: clientReq('http://localhost/api/narrators'),
+          req: clientReq(),
           overrideAccess: true,
         }),
       ).rejects.toThrow(/select/)
     })
 
-    it('allows client read with select', async () => {
+    it('allows client find with select', async () => {
       const result = await payload.find({
         collection: 'narrators',
-        req: clientReq('http://localhost/api/narrators?select=name'),
+        select: { name: true },
+        req: clientReq(),
         overrideAccess: true,
       })
       expect(result.docs).toHaveLength(1)
@@ -64,7 +66,7 @@ describe('Client query parameter validation', () => {
         payload.findByID({
           collection: 'narrators',
           id: narrator.id,
-          req: clientReq(`http://localhost/api/narrators/${narrator.id}`),
+          req: clientReq(),
           overrideAccess: true,
         }),
       ).rejects.toThrow(/select/)
@@ -74,7 +76,8 @@ describe('Client query parameter validation', () => {
       const result = await payload.findByID({
         collection: 'narrators',
         id: narrator.id,
-        req: clientReq(`http://localhost/api/narrators/${narrator.id}?select=name`),
+        select: { name: true },
+        req: clientReq(),
         overrideAccess: true,
       })
       expect(result.id).toBe(narrator.id)
@@ -82,31 +85,36 @@ describe('Client query parameter validation', () => {
   })
 
   describe('populate parameter', () => {
-    it('rejects client read with depth > 1 but no populate', async () => {
+    it('rejects client find with depth > 1 but no populate', async () => {
       await expect(
         payload.find({
           collection: 'narrators',
-          req: clientReq('http://localhost/api/narrators?select=name&depth=2'),
+          select: { name: true },
+          depth: 2,
+          req: clientReq(),
           overrideAccess: true,
         }),
       ).rejects.toThrow(/populate/)
     })
 
-    it('allows client read with depth > 1 and populate', async () => {
+    it('allows client find with depth > 1 and populate', async () => {
       const result = await payload.find({
         collection: 'narrators',
-        req: clientReq(
-          'http://localhost/api/narrators?select=name&depth=2&populate=narrator.name',
-        ),
+        select: { name: true },
+        depth: 2,
+        populate: { narrators: { name: true } },
+        req: clientReq(),
         overrideAccess: true,
       })
       expect(result.docs).toHaveLength(1)
     })
 
-    it('allows client read with depth=1 without populate', async () => {
+    it('allows client find with depth=1 without populate', async () => {
       const result = await payload.find({
         collection: 'narrators',
-        req: clientReq('http://localhost/api/narrators?select=name&depth=1'),
+        select: { name: true },
+        depth: 1,
+        req: clientReq(),
         overrideAccess: true,
       })
       expect(result.docs).toHaveLength(1)
@@ -122,12 +130,27 @@ describe('Client query parameter validation', () => {
       const managerReq = {
         user: manager,
         headers: new Headers(),
-        // no url set — the hook should not fire for non-client users anyway
       } as unknown as PayloadRequest
 
       const result = await payload.find({
         collection: 'narrators',
         req: managerReq,
+      })
+      expect(result.docs).toHaveLength(1)
+    })
+
+    it('skips validation when SKIP_CLIENT_QUERY_VALIDATION_KEY context flag is set', async () => {
+      // Trusted internal endpoints set this flag when forwarding client req to
+      // payload.find(...) so they don't have to enumerate every field via select.
+      const trustedReq = {
+        ...clientReq(),
+        context: { [SKIP_CLIENT_QUERY_VALIDATION_KEY]: true },
+      } as unknown as PayloadRequest
+
+      const result = await payload.find({
+        collection: 'narrators',
+        req: trustedReq,
+        overrideAccess: true,
       })
       expect(result.docs).toHaveLength(1)
     })
@@ -138,7 +161,7 @@ describe('Client query parameter validation', () => {
       const result = await payload.create({
         collection: 'narrators',
         data: { name: 'Created By Client', gender: 'female' },
-        req: clientReq('http://localhost/api/narrators'),
+        req: clientReq(),
         overrideAccess: true,
       })
       expect(result.name).toBe('Created By Client')

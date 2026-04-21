@@ -3,6 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { VIEWER_DATA_CONTEXT_KEY } from '@/fields/rulesField'
+import { SKIP_CLIENT_QUERY_VALIDATION_KEY } from '@/lib/usage/constants'
 import type { Lecture, LectureClip, LectureTag } from '@/payload-types'
 
 const querySchema = z.object({
@@ -85,6 +86,14 @@ export const lecturesForViewer: Endpoint = {
 
     const { limit, ...viewerData } = parsed.data
 
+    // Trusted internal req — keeps client identity for rate-limit/usage tracking
+    // but opts out of the client query-param validation hook so internal calls
+    // don't need to enumerate `select` for every field.
+    const trustedReq = {
+      ...req,
+      context: { ...req.context, [SKIP_CLIENT_QUERY_VALIDATION_KEY]: true },
+    }
+
     // Step 1 — evaluate tags against viewer data.
     // Safety cap; see pre-#291 rationale. If tag count ever approaches 200,
     // introduce server-side filtering or pagination — a larger set biases the
@@ -98,8 +107,8 @@ export const lecturesForViewer: Endpoint = {
       // fire against the authenticated client, plus pass viewer data for the
       // virtual `isEligibleForViewer` field to evaluate against.
       req: {
-        ...req,
-        context: { ...req.context, [VIEWER_DATA_CONTEXT_KEY]: viewerData },
+        ...trustedReq,
+        context: { ...trustedReq.context, [VIEWER_DATA_CONTEXT_KEY]: viewerData },
       },
     })
 
@@ -124,7 +133,7 @@ export const lecturesForViewer: Endpoint = {
       limit,
       depth: 1,
       pagination: false,
-      req,
+      req: trustedReq,
     })
 
     // Step 3 — candidate clips with at least one eligible tag.
@@ -134,7 +143,7 @@ export const lecturesForViewer: Endpoint = {
       limit,
       depth: 1,
       pagination: false,
-      req,
+      req: trustedReq,
     })
 
     // Step 2/3 — enforce all-tags-pass. Payload's `in` matches any-tag on
@@ -176,7 +185,7 @@ export const lecturesForViewer: Endpoint = {
         limit: parentIdsToFetch.size,
         depth: 1,
         pagination: false,
-        req,
+        req: trustedReq,
       })
       for (const parent of parentDocs as Lecture[]) {
         parentById.set(parent.id, parent)

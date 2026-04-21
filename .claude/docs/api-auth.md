@@ -54,6 +54,8 @@ All API client read requests must declare their data needs explicitly. This prev
 
 The enforcement hook is `validateClientQueryParamsHook` in [src/lib/usage/hooks.ts](../../src/lib/usage/hooks.ts). It runs on `beforeOperation` before rate limiting, so a malformed request does not consume a rate-limit slot. Managers, admin UI requests, and write operations (POST/PATCH/DELETE) are unaffected.
 
+Trusted internal endpoint handlers that forward the client `req` to `payload.find(...)` (e.g., [appCardsForViewer](../../src/endpoints/appCardsForViewer.ts), [lecturesForViewer](../../src/endpoints/lecturesForViewer.ts)) opt out by setting `req.context[SKIP_CLIENT_QUERY_VALIDATION_KEY] = true`. Rate limiting and usage tracking still fire — only the query-param validation is skipped, because these handlers shape their own response and shouldn't have to enumerate every field via `select` on every internal call.
+
 ### Examples
 
 Valid:
