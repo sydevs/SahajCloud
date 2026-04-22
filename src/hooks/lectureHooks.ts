@@ -72,7 +72,8 @@ export function buildLectureMetadata(videoData: NirmalaVidyaVideoData): LectureM
  * other locales fall back to it via Payload's locale-fallback mechanism.
  *
  * No thumbnail auto-upload — the editor `thumbnail` field is an optional
- * override now; the viewer endpoint falls back to `metadata.thumbnailUrl`.
+ * override now; the /api/lectures/for-audience endpoint falls back to
+ * `metadata.thumbnailUrl`.
  */
 export const populateFromNirmalaVidya: CollectionBeforeChangeHook = async ({
   data,
