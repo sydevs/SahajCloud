@@ -14,9 +14,9 @@ import { Lectures } from './resources/Lectures'
 import { Narrators } from './resources/Narrators'
 import { Files } from './system/Files'
 import { Frames } from './system/Frames'
+import { Audiences } from './tags/Audiences'
 import { MeditationTags } from './tags/MeditationTags'
 import { SongTags } from './tags/SongTags'
-import { ViewerRules } from './tags/ViewerRules'
 
 // Export all collections as an array
 export const collections = [
@@ -36,7 +36,7 @@ export const collections = [
   Images,
   Files,
   // Tags
-  ViewerRules,
+  Audiences,
   MeditationTags,
   SongTags,
   // Access
@@ -63,7 +63,7 @@ export {
   Images,
   Files,
   // Tags
-  ViewerRules,
+  Audiences,
   MeditationTags,
   SongTags,
   // Access

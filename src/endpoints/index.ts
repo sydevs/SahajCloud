@@ -1,3 +1,3 @@
-export { appCardsForViewer } from './appCardsForViewer'
+export { appCardsForAudience } from './appCardsForAudience'
 export { framesByNarrator } from './framesByNarrator'
-export { lecturesForViewer } from './lecturesForViewer'
+export { lecturesForAudience } from './lecturesForAudience'

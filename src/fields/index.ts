@@ -29,14 +29,14 @@ export type { ScheduleFieldOptions } from './scheduleField'
 export {
   rulesField,
   generateRulesJsonSchema,
-  buildViewerDataShape,
-  withViewerContext,
-  VIEWER_DATA_CONTEXT_KEY,
+  buildAudienceDataShape,
+  withAudienceContext,
+  AUDIENCE_DATA_CONTEXT_KEY,
 } from './rulesField'
 export type {
   RuleDefinition,
   RuleType,
   RulesValue,
   RulesFieldOptions,
-  ViewerData,
+  AudienceData,
 } from './rulesField'

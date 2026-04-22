@@ -2,9 +2,9 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { Album, AppCard, Client, Image, ViewerRule } from '@/payload-types'
+import type { Album, AppCard, Audience, Client, Image } from '@/payload-types'
 
-import { appCardsForViewer } from '@/endpoints'
+import { appCardsForAudience } from '@/endpoints'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -22,24 +22,26 @@ async function callEndpoint(
     user,
   } as unknown as PayloadRequest
 
-  const response = (await appCardsForViewer.handler(req)) as Response
+  const response = (await appCardsForAudience.handler(req)) as Response
   const body = await response.json()
   return { status: response.status, body }
 }
 
-describe('appCardsForViewer endpoint', () => {
+describe('appCardsForAudience endpoint', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let adminUserId: number
 
-  let openRule: ViewerRule
-  let pathStartedRule: ViewerRule
+  let openAudience: Audience
+  let pathStartedAudience: Audience
   let heroCardOpen: AppCard
   let heroCardPathStarted: AppCard
   let highlightsCard: AppCard
   let draftHeroCard: AppCard
   let bothSectionsCard: AppCard
-  let nullAudienceCard: AppCard
+  let emptyAudiencesCard: AppCard
+  let multiAudienceCard: AppCard
+  let allFailingAudiencesCard: AppCard
   let contentAlbum: Album
   let contentCard: AppCard
 
@@ -53,13 +55,13 @@ describe('appCardsForViewer endpoint', () => {
     const imageId = img.id
 
     // Always-match audience — no configured rules
-    openRule = await testData.createViewerRule(payload, {
+    openAudience = await testData.createAudience(payload, {
       label: 'Open Audience',
       rules: {},
     })
 
     // Audience requiring pathProgress >= 1 (replaces the old hasRealization boolean)
-    pathStartedRule = await testData.createViewerRule(payload, {
+    pathStartedAudience = await testData.createAudience(payload, {
       label: 'Path Started',
       rules: {
         logic: 'AND',
@@ -72,7 +74,7 @@ describe('appCardsForViewer endpoint', () => {
       title: 'Hero Open',
       image: imageId,
       targetSections: ['hero'],
-      audience: openRule.id,
+      audiences: [openAudience.id],
       weight: 3,
       _status: 'published',
     })
@@ -82,7 +84,7 @@ describe('appCardsForViewer endpoint', () => {
       title: 'Hero Path Started',
       image: imageId,
       targetSections: ['hero'],
-      audience: pathStartedRule.id,
+      audiences: [pathStartedAudience.id],
       weight: 3,
       _status: 'published',
     })
@@ -92,7 +94,7 @@ describe('appCardsForViewer endpoint', () => {
       title: 'Highlights Only',
       image: imageId,
       targetSections: ['highlights'],
-      audience: openRule.id,
+      audiences: [openAudience.id],
       weight: 3,
       _status: 'published',
     })
@@ -102,7 +104,7 @@ describe('appCardsForViewer endpoint', () => {
       title: 'Draft Hero',
       image: imageId,
       targetSections: ['hero'],
-      audience: openRule.id,
+      audiences: [openAudience.id],
       weight: 3,
       _status: 'draft',
     })
@@ -112,17 +114,40 @@ describe('appCardsForViewer endpoint', () => {
       title: 'Hero and Highlights',
       image: imageId,
       targetSections: ['hero', 'highlights'],
-      audience: openRule.id,
+      audiences: [openAudience.id],
       weight: 3,
       _status: 'published',
     })
 
-    // Card with no audience — must be hidden (behavior change: previously visible)
-    nullAudienceCard = await testData.createAppCard(payload, {
-      title: 'No Audience',
+    // Card with no audiences — must be hidden
+    emptyAudiencesCard = await testData.createAppCard(payload, {
+      title: 'No Audiences',
       image: imageId,
       targetSections: ['hero'],
-      audience: null,
+      audiences: [],
+      weight: 3,
+      _status: 'published',
+    })
+
+    // OR-match coverage: card with one passing + one failing audience.
+    // For pathProgress=0 → openAudience passes (rules:{}, always matches),
+    // pathStartedAudience fails. Card should be included.
+    multiAudienceCard = await testData.createAppCard(payload, {
+      title: 'Multi Audience Card',
+      image: imageId,
+      targetSections: ['hero'],
+      audiences: [openAudience.id, pathStartedAudience.id],
+      weight: 3,
+      _status: 'published',
+    })
+
+    // OR-match coverage: card with only failing audience.
+    // For pathProgress=0 → pathStartedAudience fails (min:1). Card should be excluded.
+    allFailingAudiencesCard = await testData.createAppCard(payload, {
+      title: 'All Failing Audiences Card',
+      image: imageId,
+      targetSections: ['hero'],
+      audiences: [pathStartedAudience.id],
       weight: 3,
       _status: 'published',
     })
@@ -136,7 +161,7 @@ describe('appCardsForViewer endpoint', () => {
       content: { relationTo: 'albums', value: contentAlbum.id },
       appPage: null,
       targetSections: ['hero'],
-      audience: openRule.id,
+      audiences: [openAudience.id],
       weight: 3,
       _status: 'published',
     })
@@ -208,18 +233,18 @@ describe('appCardsForViewer endpoint', () => {
     expect(ids).not.toContain(heroCardOpen.id)
   })
 
-  it('excludes cards with null audience (behavior change)', async () => {
+  it('excludes cards with empty audiences', async () => {
     const { body } = await callEndpoint(payload, {
       targetSection: 'hero',
       limit: 20,
       pathProgress: 3,
     })
     const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
-    expect(ids).not.toContain(nullAudienceCard.id)
+    expect(ids).not.toContain(emptyAudiencesCard.id)
   })
 
-  it('excludes cards whose audience rules do not match caller inputs', async () => {
-    // Caller with pathProgress=0 → pathStartedRule requires min:1, so fails
+  it('excludes cards whose audiences do not match caller inputs', async () => {
+    // Caller with pathProgress=0 → pathStartedAudience requires min:1, so fails
     const { body } = await callEndpoint(payload, {
       targetSection: 'hero',
       limit: 20,
@@ -229,7 +254,7 @@ describe('appCardsForViewer endpoint', () => {
     expect(ids).not.toContain(heroCardPathStarted.id)
   })
 
-  it('includes cards whose audience rules match caller inputs', async () => {
+  it('includes cards whose audiences match caller inputs', async () => {
     const { body } = await callEndpoint(payload, {
       targetSection: 'hero',
       limit: 20,
@@ -237,6 +262,31 @@ describe('appCardsForViewer endpoint', () => {
     })
     const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
     expect(ids).toContain(heroCardPathStarted.id)
+  })
+
+  describe('OR-match audiences', () => {
+    it('includes a card when ANY of its audiences passes', async () => {
+      // pathProgress=0 → openAudience (rules:{}) passes, pathStartedAudience (min:1) fails.
+      // Card has both → should be included.
+      const { body } = await callEndpoint(payload, {
+        targetSection: 'hero',
+        limit: 20,
+        pathProgress: 0,
+      })
+      const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
+      expect(ids).toContain(multiAudienceCard.id)
+    })
+
+    it('excludes a card when ALL of its audiences fail', async () => {
+      // pathProgress=0 → pathStartedAudience (min:1) fails. Card has only that one.
+      const { body } = await callEndpoint(payload, {
+        targetSection: 'hero',
+        limit: 20,
+        pathProgress: 0,
+      })
+      const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
+      expect(ids).not.toContain(allFailingAudiencesCard.id)
+    })
   })
 
   it('respects the limit parameter', async () => {

@@ -2,7 +2,6 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import type { ViewerRule } from '@/payload-types'
 import { generateRulesJsonSchema } from '@/fields/rulesField'
 
 import { testData } from '../utils/testData'
@@ -32,7 +31,7 @@ vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
   }
 })
 
-describe('ViewerRules Collection', () => {
+describe('Audiences Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
@@ -46,18 +45,18 @@ describe('ViewerRules Collection', () => {
     await cleanup()
   })
 
-  describe('createViewerRule factory', () => {
-    it('creates a viewer rule with default test data', async () => {
-      const rule = await testData.createViewerRule(payload)
-      expect(rule.id).toBeDefined()
-      expect(rule.label).toMatch(/^Test Viewer Rule /)
+  describe('createAudience factory', () => {
+    it('creates an audience with default test data', async () => {
+      const audience = await testData.createAudience(payload)
+      expect(audience.id).toBeDefined()
+      expect(audience.label).toMatch(/^Test Audience /)
     })
 
-    it('creates a viewer rule with custom overrides', async () => {
-      const rule = await testData.createViewerRule(payload, {
-        label: 'Custom Rule Label',
+    it('creates an audience with custom overrides', async () => {
+      const audience = await testData.createAudience(payload, {
+        label: 'Custom Audience Label',
       })
-      expect(rule.label).toBe('Custom Rule Label')
+      expect(audience.label).toBe('Custom Audience Label')
     })
   })
 
@@ -65,36 +64,36 @@ describe('ViewerRules Collection', () => {
     it('requires a label', async () => {
       await expect(
         payload.create({
-          collection: 'viewer-rules',
+          collection: 'audiences',
           data: {} as Record<string, unknown>,
         }),
       ).rejects.toThrow()
     })
 
     it('persists and retrieves label', async () => {
-      const rule = await testData.createViewerRule(payload, { label: 'Beginner Audience' })
+      const audience = await testData.createAudience(payload, { label: 'Beginner Audience' })
       const fetched = await payload.findByID({
-        collection: 'viewer-rules',
-        id: rule.id,
+        collection: 'audiences',
+        id: audience.id,
       })
       expect(fetched.label).toBe('Beginner Audience')
     })
 
     it('updates the label', async () => {
-      const rule = await testData.createViewerRule(payload, { label: 'Original' })
+      const audience = await testData.createAudience(payload, { label: 'Original' })
       const updated = await payload.update({
-        collection: 'viewer-rules',
-        id: rule.id,
+        collection: 'audiences',
+        id: audience.id,
         data: { label: 'Updated' },
       })
       expect(updated.label).toBe('Updated')
     })
 
-    it('deletes a viewer rule', async () => {
-      const rule = await testData.createViewerRule(payload)
-      await payload.delete({ collection: 'viewer-rules', id: rule.id })
+    it('deletes an audience', async () => {
+      const audience = await testData.createAudience(payload)
+      await payload.delete({ collection: 'audiences', id: audience.id })
       await expect(
-        payload.findByID({ collection: 'viewer-rules', id: rule.id }),
+        payload.findByID({ collection: 'audiences', id: audience.id }),
       ).rejects.toThrow()
     })
   })
@@ -106,27 +105,27 @@ describe('ViewerRules Collection', () => {
         pathProgress: { min: 1, max: 10 },
         totalMeditationsViewed: { min: 5 },
       }
-      const rule = await testData.createViewerRule(payload, { rules })
-      const fetched = await payload.findByID({ collection: 'viewer-rules', id: rule.id })
+      const audience = await testData.createAudience(payload, { rules })
+      const fetched = await payload.findByID({ collection: 'audiences', id: audience.id })
       expect(fetched.rules).toEqual(rules)
     })
 
     it('accepts null rules (always-match audience)', async () => {
-      const rule = await testData.createViewerRule(payload, { rules: null })
-      const fetched = await payload.findByID({ collection: 'viewer-rules', id: rule.id })
+      const audience = await testData.createAudience(payload, { rules: null })
+      const fetched = await payload.findByID({ collection: 'audiences', id: audience.id })
       expect(fetched.rules).toBeNull()
     })
 
     it('accepts empty object rules', async () => {
-      const rule = await testData.createViewerRule(payload, { rules: {} })
-      const fetched = await payload.findByID({ collection: 'viewer-rules', id: rule.id })
+      const audience = await testData.createAudience(payload, { rules: {} })
+      const fetched = await payload.findByID({ collection: 'audiences', id: audience.id })
       expect(fetched.rules).toEqual({})
     })
 
     it('accepts a single range rule', async () => {
       const rules = { pathProgress: { min: 3, max: 7 } }
-      const rule = await testData.createViewerRule(payload, { rules })
-      expect(rule.rules).toEqual(rules)
+      const audience = await testData.createAudience(payload, { rules })
+      expect(audience.rules).toEqual(rules)
     })
 
     it('accepts all four range rules', async () => {
@@ -137,8 +136,8 @@ describe('ViewerRules Collection', () => {
         totalMeditationsViewed: { min: 10, max: 50 },
         totalLecturesViewed: { min: 1, max: 20 },
       }
-      const rule = await testData.createViewerRule(payload, { rules })
-      expect(rule.rules).toEqual(rules)
+      const audience = await testData.createAudience(payload, { rules })
+      expect(audience.rules).toEqual(rules)
     })
 
     it('rejects range rules where max <= min', async () => {
@@ -146,7 +145,7 @@ describe('ViewerRules Collection', () => {
         pathProgress: { min: 10, max: 5 },
       }
       await expect(
-        testData.createViewerRule(payload, { rules }),
+        testData.createAudience(payload, { rules }),
       ).rejects.toThrow()
     })
 
@@ -167,88 +166,114 @@ describe('ViewerRules Collection', () => {
   })
 
   describe('bidirectional joins', () => {
-    it('shows lectures on rule when lectures reference it via audience', async () => {
-      const rule = await testData.createViewerRule(payload, { label: 'Lecture Join Test' })
+    it('shows lectures on audience when lectures reference it via audiences', async () => {
+      const audience = await testData.createAudience(payload, { label: 'Lecture Join Test' })
 
       const lecture = await testData.createLecture(payload, undefined, {
-        audience: rule.id,
+        audiences: [audience.id],
       })
 
-      const fetchedRule = await payload.findByID({
-        collection: 'viewer-rules',
-        id: rule.id,
+      const fetchedAudience = await payload.findByID({
+        collection: 'audiences',
+        id: audience.id,
         depth: 1,
       })
 
-      const lectures = fetchedRule.lectures as { docs: Array<{ id: number }> }
+      const lectures = fetchedAudience.lectures as { docs: Array<{ id: number }> }
       expect(lectures.docs).toHaveLength(1)
       expect(lectures.docs[0].id).toBe(lecture.id)
     })
 
-    it('returns empty arrays for a rule with no referencing items', async () => {
-      const rule = await testData.createViewerRule(payload, { label: 'Empty Rule' })
+    it('returns empty arrays for an audience with no referencing items', async () => {
+      const audience = await testData.createAudience(payload, { label: 'Empty Audience' })
 
-      const fetchedRule = await payload.findByID({
-        collection: 'viewer-rules',
-        id: rule.id,
+      const fetchedAudience = await payload.findByID({
+        collection: 'audiences',
+        id: audience.id,
         depth: 1,
       })
 
-      const lectures = fetchedRule.lectures as { docs: unknown[] }
-      const lectureClips = fetchedRule.lectureClips as { docs: unknown[] }
-      const appCards = fetchedRule.appCards as { docs: unknown[] }
+      const lectures = fetchedAudience.lectures as { docs: unknown[] }
+      const lectureClips = fetchedAudience.lectureClips as { docs: unknown[] }
+      const appCards = fetchedAudience.appCards as { docs: unknown[] }
       expect(lectures.docs).toHaveLength(0)
       expect(lectureClips.docs).toHaveLength(0)
       expect(appCards.docs).toHaveLength(0)
     })
 
-    it('reflects changes when lecture audience is reassigned', async () => {
-      const rule1 = await testData.createViewerRule(payload, { label: 'Rule A' })
-      const rule2 = await testData.createViewerRule(payload, { label: 'Rule B' })
+    it('reflects changes when lecture audiences are reassigned', async () => {
+      const audienceA = await testData.createAudience(payload, { label: 'Audience A' })
+      const audienceB = await testData.createAudience(payload, { label: 'Audience B' })
 
       const lecture = await testData.createLecture(payload, undefined, {
-        audience: rule1.id,
+        audiences: [audienceA.id],
       })
 
       await payload.update({
         collection: 'lectures',
         id: lecture.id,
-        data: { audience: rule2.id },
+        data: { audiences: [audienceB.id] },
       })
 
-      const fetched1 = await payload.findByID({
-        collection: 'viewer-rules',
-        id: rule1.id,
+      const fetchedA = await payload.findByID({
+        collection: 'audiences',
+        id: audienceA.id,
         depth: 1,
       })
-      const docs1 = (fetched1.lectures as { docs: unknown[] }).docs
-      expect(docs1).toHaveLength(0)
+      const docsA = (fetchedA.lectures as { docs: unknown[] }).docs
+      expect(docsA).toHaveLength(0)
 
-      const fetched2 = await payload.findByID({
-        collection: 'viewer-rules',
-        id: rule2.id,
+      const fetchedB = await payload.findByID({
+        collection: 'audiences',
+        id: audienceB.id,
         depth: 1,
       })
-      const docs2 = (fetched2.lectures as { docs: unknown[] }).docs
-      expect(docs2).toHaveLength(1)
+      const docsB = (fetchedB.lectures as { docs: unknown[] }).docs
+      expect(docsB).toHaveLength(1)
+    })
+
+    it('shows the same lecture under multiple audiences when assigned to several', async () => {
+      const audienceA = await testData.createAudience(payload, { label: 'Multi A' })
+      const audienceB = await testData.createAudience(payload, { label: 'Multi B' })
+
+      const lecture = await testData.createLecture(payload, undefined, {
+        audiences: [audienceA.id, audienceB.id],
+      })
+
+      const fetchedA = await payload.findByID({
+        collection: 'audiences',
+        id: audienceA.id,
+        depth: 1,
+      })
+      const fetchedB = await payload.findByID({
+        collection: 'audiences',
+        id: audienceB.id,
+        depth: 1,
+      })
+
+      const docsA = (fetchedA.lectures as { docs: Array<{ id: number }> }).docs
+      const docsB = (fetchedB.lectures as { docs: Array<{ id: number }> }).docs
+      expect(docsA.map((d) => d.id)).toContain(lecture.id)
+      expect(docsB.map((d) => d.id)).toContain(lecture.id)
     })
 
     it('includes app cards in the appCards join', async () => {
-      const rule = await testData.createViewerRule(payload, { label: 'AppCard Join Test' })
+      const audience = await testData.createAudience(payload, { label: 'AppCard Join Test' })
       const card = await testData.createAppCard(payload, {
         title: 'Card With Audience',
-        audience: rule.id,
+        audiences: [audience.id],
       })
 
-      const fetchedRule = await payload.findByID({
-        collection: 'viewer-rules',
-        id: rule.id,
+      const fetchedAudience = await payload.findByID({
+        collection: 'audiences',
+        id: audience.id,
         depth: 1,
       })
 
-      const appCards = fetchedRule.appCards as { docs: Array<{ id: number }> }
+      const appCards = fetchedAudience.appCards as { docs: Array<{ id: number }> }
       expect(appCards.docs).toHaveLength(1)
       expect(appCards.docs[0].id).toBe(card.id)
     })
   })
 })
+
