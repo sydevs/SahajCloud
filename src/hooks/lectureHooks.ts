@@ -31,7 +31,7 @@ export function apiLanguageToLocale(apiCode: string): LocaleCode | null {
 
 /**
  * Shape stored in Lectures.metadata. All NV-sourced data is bundled here so
- * the /api/lectures/for-viewer response can expose the full subtitle map and
+ * the /api/lectures/for-audience response can expose the full subtitle map and
  * the monthly sync task can refresh everything in one write.
  */
 export type LectureMetadata = {

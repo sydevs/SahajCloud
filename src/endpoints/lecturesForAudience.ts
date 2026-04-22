@@ -3,13 +3,13 @@ import type { Endpoint } from 'payload'
 import { extractID } from 'payload/shared'
 import { z } from 'zod'
 
-import { VIEWER_RULE_DEFINITIONS } from '@/collections/tags/ViewerRules'
-import { buildViewerDataShape, withViewerContext } from '@/fields'
+import { AUDIENCE_DEFINITIONS } from '@/collections/tags/Audiences'
+import { buildAudienceDataShape, withAudienceContext } from '@/fields'
 import type { LectureMetadata } from '@/hooks/lectureHooks'
-import type { Image, Lecture, LectureClip, ViewerRule } from '@/payload-types'
+import type { Audience, Image, Lecture, LectureClip } from '@/payload-types'
 
 const querySchema = z.object({
-  ...buildViewerDataShape(VIEWER_RULE_DEFINITIONS),
+  ...buildAudienceDataShape(AUDIENCE_DEFINITIONS),
   limit: z.coerce.number().int().min(1).max(100),
 })
 
@@ -21,7 +21,7 @@ type ViewerItemBase = {
   subtitles: Record<string, string>
 }
 
-/** Flat, uniform shape returned from /for-viewer (discriminated by `type`). */
+/** Flat, uniform shape returned from /for-audience (discriminated by `type`). */
 export type ViewerItem =
   | (ViewerItemBase & {
       type: 'lecture'
@@ -94,12 +94,13 @@ export function resolveThumbnailUrl(args: {
 // =============================================================================
 
 /**
- * GET /api/lectures/for-viewer
+ * GET /api/lectures/for-audience
  *
- * Returns a uniform-random, rule-filtered feed mixing full lectures and clips.
- * Each item carries a single `audience` relationship to a `viewer-rules` doc.
- * Items are eligible when `audience` is non-null and the rule passes
- * evaluation against `viewerData`. `audience: null` items are always excluded.
+ * Returns a uniform-random, audience-filtered feed mixing full lectures and
+ * clips. Each item carries a `audiences` hasMany relationship to `audiences`
+ * docs. Items are eligible when ANY of their attached audiences passes
+ * evaluation against `audienceData` (OR semantics). Items with empty
+ * `audiences` are always excluded.
  *
  * Response shape (flat, no nested parent doc):
  *   { docs: ViewerItem[] }
@@ -109,15 +110,15 @@ export function resolveThumbnailUrl(args: {
  * the clip. The player picks the track it wants at playback time.
  *
  * Pipeline:
- *   1. Evaluate `viewer-rules` with `viewerData` to build the eligible-rule set.
- *   2. Find lectures whose `audience` is eligible.
- *   3. Find clips whose `audience` is eligible.
+ *   1. Evaluate `audiences` with `audienceData` to build the eligible-audience set.
+ *   2. Find lectures whose `audiences` overlap the eligible set (OR-match).
+ *   3. Find clips whose `audiences` overlap the eligible set (OR-match).
  *   4. Bulk-fetch parent lectures for clips so we can merge subtitles and
  *      resolve thumbnail fallbacks without an N+1. Seed from step-2 lectures.
  *   5. Shape into flat ViewerItems, concatenate, Fisher-Yates shuffle, slice.
  */
-export const lecturesForViewer: Endpoint = {
-  path: '/for-viewer',
+export const lecturesForAudience: Endpoint = {
+  path: '/for-audience',
   method: 'get',
   handler: async (req) => {
     const parsed = querySchema.safeParse(req.query)
@@ -126,29 +127,29 @@ export const lecturesForViewer: Endpoint = {
       return Response.json({ errors: parsed.error.issues }, { status: 400 })
     }
 
-    const { limit, ...viewerData } = parsed.data
+    const { limit, ...audienceData } = parsed.data
 
-    const { docs: ruleDocs } = await req.payload.find({
-      collection: 'viewer-rules',
+    const { docs: audienceDocs } = await req.payload.find({
+      collection: 'audiences',
       limit: 200,
       depth: 0,
       pagination: false,
-      req: withViewerContext(req, viewerData),
+      req: withAudienceContext(req, audienceData),
     })
 
-    const eligibleRuleIds = new Set<number>(
-      (ruleDocs as ViewerRule[])
-        .filter((rule) => rule.isEligibleForViewer === true)
-        .map((rule) => rule.id),
+    const eligibleAudienceIds = new Set<number>(
+      (audienceDocs as Audience[])
+        .filter((audience) => audience.isEligibleForAudience === true)
+        .map((audience) => audience.id),
     )
 
-    if (eligibleRuleIds.size === 0) {
+    if (eligibleAudienceIds.size === 0) {
       return Response.json({ docs: [] })
     }
 
     const { docs: lectureDocs } = await req.payload.find({
       collection: 'lectures',
-      where: { audience: { in: [...eligibleRuleIds] } },
+      where: { audiences: { in: [...eligibleAudienceIds] } },
       limit,
       depth: 1,
       pagination: false,
@@ -157,7 +158,7 @@ export const lecturesForViewer: Endpoint = {
 
     const { docs: clipDocs } = await req.payload.find({
       collection: 'lecture-clips',
-      where: { audience: { in: [...eligibleRuleIds] } },
+      where: { audiences: { in: [...eligibleAudienceIds] } },
       limit,
       depth: 1,
       pagination: false,
@@ -170,7 +171,7 @@ export const lecturesForViewer: Endpoint = {
     // Bulk-fetch parent lectures for clips (always — needed for videoUrl,
     // subtitle merge, and thumbnail fallback). Seed from already-fetched
     // eligible lectures to avoid a round-trip when the parent is itself
-    // viewer-eligible.
+    // audience-eligible.
     const parentById = new Map<number, Lecture>()
     for (const lecture of eligibleLectures) {
       parentById.set(lecture.id, lecture)
@@ -204,7 +205,7 @@ export const lecturesForViewer: Endpoint = {
         const metadata = lecture.metadata as LectureMetadata | null | undefined
         if (!metadata?.hlsUrl) {
           req.payload.logger.warn({
-            msg: 'Lecture missing metadata.hlsUrl — skipping in /for-viewer',
+            msg: 'Lecture missing metadata.hlsUrl — skipping in /for-audience',
             lectureId: lecture.id,
           })
           return null
@@ -233,7 +234,7 @@ export const lecturesForViewer: Endpoint = {
         const parent = typeof parentId === 'number' ? parentById.get(parentId) ?? null : null
         if (!parent) {
           req.payload.logger.warn({
-            msg: 'Clip parent lecture not found — skipping in /for-viewer',
+            msg: 'Clip parent lecture not found — skipping in /for-audience',
             clipId: clip.id,
             parentId,
           })
@@ -242,7 +243,7 @@ export const lecturesForViewer: Endpoint = {
         const metadata = parent.metadata as LectureMetadata | null | undefined
         if (!metadata?.hlsUrl) {
           req.payload.logger.warn({
-            msg: 'Clip parent missing metadata.hlsUrl — skipping in /for-viewer',
+            msg: 'Clip parent missing metadata.hlsUrl — skipping in /for-audience',
             clipId: clip.id,
             parentId: parent.id,
           })

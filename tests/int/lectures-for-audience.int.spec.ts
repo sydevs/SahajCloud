@@ -2,9 +2,9 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { Client, Image, Lecture, LectureClip, ViewerRule } from '@/payload-types'
+import type { Audience, Client, Image, Lecture, LectureClip } from '@/payload-types'
 
-import { lecturesForViewer, type ViewerItem } from '@/endpoints/lecturesForViewer'
+import { lecturesForAudience, type ViewerItem } from '@/endpoints/lecturesForAudience'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -40,26 +40,30 @@ async function callEndpoint(
     user,
   } as unknown as PayloadRequest
 
-  const response = (await lecturesForViewer.handler(req)) as Response
+  const response = (await lecturesForAudience.handler(req)) as Response
   const body = await response.json()
   return { status: response.status, body }
 }
 
-describe('lecturesForViewer endpoint', () => {
+describe('lecturesForAudience endpoint', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let adminUserId: number
 
-  let audienceBeginner: ViewerRule
-  let audienceIntermediate: ViewerRule
+  let audienceBeginner: Audience
+  let audienceIntermediate: Audience
 
   let lectureBeginnerOnly: Lecture
   let lectureIntermediateOnly: Lecture
   let lectureNoAudience: Lecture
+  let lectureMultiAudience: Lecture
+  let lectureAllFailingAudiences: Lecture
 
   let clipWithEligibleParent: LectureClip
   let clipWithIneligibleParent: LectureClip
   let clipMissingOverrides: LectureClip
+  let clipMultiAudience: LectureClip
+  let clipAllFailingAudiences: LectureClip
 
   let parentThumbnailImage: Image
   let clipThumbnailImage: Image
@@ -70,11 +74,11 @@ describe('lecturesForViewer endpoint', () => {
     cleanup = env.cleanup
     adminUserId = env.adminUser.id
 
-    audienceBeginner = await testData.createViewerRule(payload, {
+    audienceBeginner = await testData.createAudience(payload, {
       label: 'Beginner',
       rules: { logic: 'AND', pathProgress: { min: 0, max: 5 } },
     })
-    audienceIntermediate = await testData.createViewerRule(payload, {
+    audienceIntermediate = await testData.createAudience(payload, {
       label: 'Intermediate',
       rules: { logic: 'AND', pathProgress: { min: 5, max: 10 } },
     })
@@ -91,19 +95,41 @@ describe('lecturesForViewer endpoint', () => {
     lectureBeginnerOnly = await testData.createLecture(
       payload,
       { thumbnail: parentThumbnailImage.id },
-      { title: 'Beginner Lecture', audience: audienceBeginner.id },
+      { title: 'Beginner Lecture', audiences: [audienceBeginner.id] },
     )
     // lectureIntermediateOnly has no editor override; fallback lands on
     // metadata.thumbnailUrl.
     lectureIntermediateOnly = await testData.createLecture(
       payload,
       {},
-      { title: 'Intermediate Lecture', audience: audienceIntermediate.id },
+      { title: 'Intermediate Lecture', audiences: [audienceIntermediate.id] },
     )
     lectureNoAudience = await testData.createLecture(
       payload,
       {},
-      { title: 'No Audience Lecture', audience: null },
+      { title: 'No Audience Lecture', audiences: [] },
+    )
+
+    // OR-match coverage: lecture has one passing audience + one failing
+    // audience. Should be returned for pathProgress=3 (Beginner passes).
+    lectureMultiAudience = await testData.createLecture(
+      payload,
+      {},
+      {
+        title: 'Multi Audience Lecture',
+        audiences: [audienceBeginner.id, audienceIntermediate.id],
+      },
+    )
+
+    // OR-match coverage: lecture has only failing audiences for the test
+    // viewer. Should be excluded for pathProgress=3 (Intermediate fails).
+    lectureAllFailingAudiences = await testData.createLecture(
+      payload,
+      {},
+      {
+        title: 'All Failing Audiences Lecture',
+        audiences: [audienceIntermediate.id],
+      },
     )
 
     // Clip with its own thumbnail override + one subtitle override — exercises
@@ -113,7 +139,7 @@ describe('lecturesForViewer endpoint', () => {
       { parent: lectureBeginnerOnly.id },
       {
         title: 'Clip of Beginner Lecture',
-        audience: audienceBeginner.id,
+        audiences: [audienceBeginner.id],
         thumbnail: clipThumbnailImage.id,
         subtitles: [{ locale: 'es', url: 'https://example.com/clip-es.vtt' }],
       },
@@ -126,7 +152,7 @@ describe('lecturesForViewer endpoint', () => {
       { parent: lectureIntermediateOnly.id },
       {
         title: 'Clip of Intermediate Lecture',
-        audience: audienceBeginner.id,
+        audiences: [audienceBeginner.id],
         thumbnail: clipThumbnailImage.id,
       },
     )
@@ -138,7 +164,27 @@ describe('lecturesForViewer endpoint', () => {
       { parent: lectureBeginnerOnly.id },
       {
         title: 'Clip relying on parent fallbacks',
-        audience: audienceBeginner.id,
+        audiences: [audienceBeginner.id],
+      },
+    )
+
+    // OR-match coverage: clip with one passing + one failing audience.
+    clipMultiAudience = await testData.createLectureClip(
+      payload,
+      { parent: lectureBeginnerOnly.id },
+      {
+        title: 'Multi Audience Clip',
+        audiences: [audienceBeginner.id, audienceIntermediate.id],
+      },
+    )
+
+    // OR-match coverage: clip with only failing audience.
+    clipAllFailingAudiences = await testData.createLectureClip(
+      payload,
+      { parent: lectureBeginnerOnly.id },
+      {
+        title: 'All Failing Audiences Clip',
+        audiences: [audienceIntermediate.id],
       },
     )
 
@@ -146,7 +192,7 @@ describe('lecturesForViewer endpoint', () => {
     await testData.createLectureClip(
       payload,
       { parent: lectureBeginnerOnly.id },
-      { title: 'No audience clip', audience: null },
+      { title: 'No audience clip', audiences: [] },
     )
   })
 
@@ -229,7 +275,7 @@ describe('lecturesForViewer endpoint', () => {
   })
 
   describe('Eligibility', () => {
-    it('returns lectures whose audience passes', async () => {
+    it('returns lectures whose audiences pass', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
       const ids = (body as { docs: ViewerItem[] }).docs
         .filter((d) => d.type === 'lecture')
@@ -237,7 +283,7 @@ describe('lecturesForViewer endpoint', () => {
       expect(ids).toContain(lectureBeginnerOnly.id)
     })
 
-    it('excludes lectures and clips with null audience', async () => {
+    it('excludes lectures and clips with no audiences', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
       const docs = (body as { docs: ViewerItem[] }).docs
       const lectureIds = docs.filter((d) => d.type === 'lecture').map((d) => d.id)
@@ -264,7 +310,7 @@ describe('lecturesForViewer endpoint', () => {
       expect(ineligibleClip!.parentId).toBe(lectureIntermediateOnly.id)
     })
 
-    it('returns empty docs when no viewer rules pass', async () => {
+    it('returns empty docs when no audiences pass', async () => {
       const { status, body } = await callEndpoint(payload, {
         limit: 100,
         pathProgress: 99,
@@ -272,6 +318,42 @@ describe('lecturesForViewer endpoint', () => {
       })
       expect(status).toBe(200)
       expect((body as { docs: ViewerItem[] }).docs).toEqual([])
+    })
+  })
+
+  describe('OR-match audiences', () => {
+    it('includes a lecture when ANY of its multiple audiences passes', async () => {
+      // pathProgress=3 → Beginner passes, Intermediate fails. Lecture has both.
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const ids = (body as { docs: ViewerItem[] }).docs
+        .filter((d) => d.type === 'lecture')
+        .map((d) => d.id)
+      expect(ids).toContain(lectureMultiAudience.id)
+    })
+
+    it('excludes a lecture when ALL of its audiences fail', async () => {
+      // pathProgress=3 → Intermediate fails. Lecture has only Intermediate.
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const ids = (body as { docs: ViewerItem[] }).docs
+        .filter((d) => d.type === 'lecture')
+        .map((d) => d.id)
+      expect(ids).not.toContain(lectureAllFailingAudiences.id)
+    })
+
+    it('includes a clip when ANY of its multiple audiences passes', async () => {
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const ids = (body as { docs: ViewerItem[] }).docs
+        .filter((d) => d.type === 'clip')
+        .map((d) => d.id)
+      expect(ids).toContain(clipMultiAudience.id)
+    })
+
+    it('excludes a clip when ALL of its audiences fail', async () => {
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const ids = (body as { docs: ViewerItem[] }).docs
+        .filter((d) => d.type === 'clip')
+        .map((d) => d.id)
+      expect(ids).not.toContain(clipAllFailingAudiences.id)
     })
   })
 
@@ -343,12 +425,12 @@ describe('lecturesForViewer endpoint', () => {
       const parentNoOverride = await testData.createLecture(
         payload,
         {},
-        { title: 'Parent without editor thumb', audience: audienceBeginner.id },
+        { title: 'Parent without editor thumb', audiences: [audienceBeginner.id] },
       )
       const clipNoOverride = await testData.createLectureClip(
         payload,
         { parent: parentNoOverride.id },
-        { title: 'Clip relying on metadata url', audience: audienceBeginner.id },
+        { title: 'Clip relying on metadata url', audiences: [audienceBeginner.id] },
       )
 
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
@@ -401,7 +483,7 @@ describe('lecturesForViewer endpoint', () => {
             .map(([args]) => (args as { collection?: string }).collection)
             .filter(Boolean) as string[],
         )
-        expect(collectionsHit.has('viewer-rules')).toBe(true)
+        expect(collectionsHit.has('audiences')).toBe(true)
         expect(collectionsHit.has('lectures')).toBe(true)
         expect(collectionsHit.has('lecture-clips')).toBe(true)
 
