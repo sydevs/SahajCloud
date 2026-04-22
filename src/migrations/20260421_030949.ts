@@ -150,8 +150,12 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	FOREIGN KEY (\`_parent_id\`) REFERENCES \`wm_app_config\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
+  // Issue #291: the FK for `post_realization_lecture_id` moved from the old
+  // `lectures` collection to the new (empty) `lecture_clips`. Existing values
+  // are stale lecture ids, not valid lecture_clips ids, so drop them to NULL
+  // during the copy — otherwise the FK check fails on prod data.
   await db.run(
-    sql`INSERT INTO \`__new_wm_app_config_locales\`("self_realization_meditation_id", "post_realization_lecture_id", "id", "_locale", "_parent_id") SELECT "self_realization_meditation_id", "post_realization_lecture_id", "id", "_locale", "_parent_id" FROM \`wm_app_config_locales\`;`,
+    sql`INSERT INTO \`__new_wm_app_config_locales\`("self_realization_meditation_id", "post_realization_lecture_id", "id", "_locale", "_parent_id") SELECT "self_realization_meditation_id", NULL, "id", "_locale", "_parent_id" FROM \`wm_app_config_locales\`;`,
   )
   await db.run(sql`DROP TABLE \`wm_app_config_locales\`;`)
   await db.run(
