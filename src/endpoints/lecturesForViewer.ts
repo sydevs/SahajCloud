@@ -5,50 +5,99 @@ import { z } from 'zod'
 
 import { VIEWER_RULE_DEFINITIONS } from '@/collections/tags/ViewerRules'
 import { buildViewerDataShape, withViewerContext } from '@/fields'
-import type { Lecture, LectureClip, ViewerRule } from '@/payload-types'
+import type { LectureMetadata } from '@/hooks/lectureHooks'
+import type { Image, Lecture, LectureClip, ViewerRule } from '@/payload-types'
 
 const querySchema = z.object({
   ...buildViewerDataShape(VIEWER_RULE_DEFINITIONS),
   limit: z.coerce.number().int().min(1).max(100),
 })
 
-/** Discriminated union returned from /for-viewer. */
-type ViewerLecture = Lecture & { type: 'lecture' }
-type ViewerClip = Omit<LectureClip, 'parent'> & {
-  type: 'clip'
-  /** Populated only when parent itself is audience-eligible; otherwise null. */
-  parent: Lecture | null
+/** Flat, uniform shape returned from /for-viewer. */
+export type ViewerItem = {
+  id: number
+  type: 'lecture' | 'clip'
+  parentId: number | null
+  title: string | null | undefined
+  videoUrl: string
+  startTime: number
+  endTime: number | null
+  thumbnailUrl: string | null
+  subtitles: Record<string, string>
 }
+
+// =============================================================================
+// Pure helpers (exported for unit tests)
+// =============================================================================
+
+/**
+ * Merge a clip's subtitle overrides on top of its parent's NV-sourced subtitles.
+ * Parent map is the baseline; each non-empty clip row overrides one locale.
+ */
+export function mergeSubtitles(
+  parentMap: Record<string, string> | null | undefined,
+  clipOverrides: LectureClip['subtitles'] | null | undefined,
+): Record<string, string> {
+  const merged: Record<string, string> = { ...(parentMap ?? {}) }
+  if (!Array.isArray(clipOverrides)) return merged
+  for (const row of clipOverrides) {
+    if (row?.locale && row?.url) {
+      merged[row.locale] = row.url
+    }
+  }
+  return merged
+}
+
+type ThumbnailRef = number | Image | null | undefined
+
+/** Extracts a usable CDN URL from a thumbnail relationship (populated or null). */
+function thumbnailUrl(ref: ThumbnailRef): string | null {
+  if (ref && typeof ref === 'object' && typeof ref.url === 'string') return ref.url
+  return null
+}
+
+/**
+ * Resolve a viewer-item thumbnail URL using the fallback chain:
+ *   editor override > parent editor override > parent metadata URL > null.
+ */
+export function resolveThumbnailUrl(args: {
+  clipOverride?: ThumbnailRef
+  parentOverride?: ThumbnailRef
+  parentMetadataUrl?: string | null
+}): string | null {
+  return (
+    thumbnailUrl(args.clipOverride) ??
+    thumbnailUrl(args.parentOverride) ??
+    (args.parentMetadataUrl ?? null)
+  )
+}
+
+// =============================================================================
+// Endpoint
+// =============================================================================
 
 /**
  * GET /api/lectures/for-viewer
  *
- * Returns a uniform-random, rule-filtered feed mixing full lectures and clips
- * for the supplied viewer data. Each lecture/clip carries a single `audience`
- * relationship to a `viewer-rules` doc. Items are eligible when their
- * `audience` is non-null and passes `rulesField` evaluation. Items with
- * `audience: null` are always excluded.
+ * Returns a uniform-random, rule-filtered feed mixing full lectures and clips.
+ * Each item carries a single `audience` relationship to a `viewer-rules` doc.
+ * Items are eligible when `audience` is non-null and the rule passes
+ * evaluation against `viewerData`. `audience: null` items are always excluded.
  *
- * Response shape:
- *   { docs: Array<{ type: 'lecture' | 'clip', ... }> }
- * Clips include a populated `parent` object only when the parent is itself
- * viewer-eligible; otherwise `parent: null`. Clips also get server-merged
- * `thumbnail` / `subtitlesUrl` fallbacks from their parent when empty,
- * regardless of whether the parent is returned.
+ * Response shape (flat, no nested parent doc):
+ *   { docs: ViewerItem[] }
+ *
+ * Subtitles are always returned as the full `{ [locale]: url }` map, merged
+ * from the lecture's metadata plus (for clips) any per-locale overrides on
+ * the clip. The player picks the track it wants at playback time.
  *
  * Pipeline:
- *   1. Evaluate `viewer-rules` with `viewerData` in `req.context` and build
- *      the eligible-rule set from the virtual `isEligibleForViewer` flag.
- *   2. Find lectures whose `audience` is in the eligible set.
- *   3. Find clips whose `audience` is in the eligible set.
- *   4. Bulk-fetch parent lectures needed for (a) `parent` population when
- *      eligible and (b) `thumbnail` / `subtitlesUrl` fallback. Single `find`
- *      with `id: { in: [...] }` — no N+1.
- *   5. Shape, concatenate, Fisher-Yates shuffle, slice to `limit`.
- *
- * Caveat: a no-arg call (`viewerData = {}`) fails every `range` rule, so only
- * items whose audience has empty/no configured rules will be returned.
- * Empty rules always match — see `rulesField.ts`.
+ *   1. Evaluate `viewer-rules` with `viewerData` to build the eligible-rule set.
+ *   2. Find lectures whose `audience` is eligible.
+ *   3. Find clips whose `audience` is eligible.
+ *   4. Bulk-fetch parent lectures for clips so we can merge subtitles and
+ *      resolve thumbnail fallbacks without an N+1. Seed from step-2 lectures.
+ *   5. Shape into flat ViewerItems, concatenate, Fisher-Yates shuffle, slice.
  */
 export const lecturesForViewer: Endpoint = {
   path: '/for-viewer',
@@ -62,17 +111,11 @@ export const lecturesForViewer: Endpoint = {
 
     const { limit, ...viewerData } = parsed.data
 
-    // Step 1 — evaluate viewer rules against viewer data.
-    // Safety cap; if rule count ever approaches 200, introduce server-side
-    // filtering or pagination — a larger set biases the sample when truncated.
     const { docs: ruleDocs } = await req.payload.find({
       collection: 'viewer-rules',
       limit: 200,
       depth: 0,
       pagination: false,
-      // Thread user/transaction context so rate-limit and usage-tracking hooks
-      // fire against the authenticated client, plus pass viewer data for the
-      // virtual `isEligibleForViewer` field to evaluate against.
       req: withViewerContext(req, viewerData),
     })
 
@@ -86,11 +129,6 @@ export const lecturesForViewer: Endpoint = {
       return Response.json({ docs: [] })
     }
 
-    // Step 2 — candidate lectures whose audience is eligible. The DB filter
-    // alone is sufficient now that `audience` is a single relationship — no
-    // JS post-filter needed (unlike the pre-#293 `tags` hasMany model).
-    // No _status filter — drafts removed from the Lectures collection in #291.
-    // Per-sub-query limit keeps the shuffled pool ≤ 2× `limit` before slicing.
     const { docs: lectureDocs } = await req.payload.find({
       collection: 'lectures',
       where: { audience: { in: [...eligibleRuleIds] } },
@@ -100,7 +138,6 @@ export const lecturesForViewer: Endpoint = {
       req,
     })
 
-    // Step 3 — candidate clips whose audience is eligible.
     const { docs: clipDocs } = await req.payload.find({
       collection: 'lecture-clips',
       where: { audience: { in: [...eligibleRuleIds] } },
@@ -113,14 +150,10 @@ export const lecturesForViewer: Endpoint = {
     const eligibleLectures = lectureDocs as Lecture[]
     const eligibleClips = clipDocs as LectureClip[]
 
-    // Step 4 — bulk-fetch parents for clips. Need parents for:
-    //   (a) `parent` population when the parent is itself viewer-eligible
-    //   (b) `thumbnail` / `subtitlesUrl` fallback (regardless of eligibility)
-    // Seed the cache from `eligibleLectures` first (they were already fetched at
-    // depth:1 in step 2) and only query for parents we don't yet have. Saves a
-    // round-trip when a clip's parent is itself viewer-eligible.
-    const eligibleLectureIds = new Set<number>(eligibleLectures.map((l) => l.id))
-
+    // Bulk-fetch parent lectures for clips (always — needed for videoUrl,
+    // subtitle merge, and thumbnail fallback). Seed from already-fetched
+    // eligible lectures to avoid a round-trip when the parent is itself
+    // viewer-eligible.
     const parentById = new Map<number, Lecture>()
     for (const lecture of eligibleLectures) {
       parentById.set(lecture.id, lecture)
@@ -148,35 +181,68 @@ export const lecturesForViewer: Endpoint = {
       }
     }
 
-    // Step 5 — shape into discriminated union.
-    const shapedLectures: ViewerLecture[] = eligibleLectures.map((l) => ({
-      ...l,
-      type: 'lecture',
-    }))
+    // Shape lectures
+    const shapedLectures: ViewerItem[] = eligibleLectures
+      .map((lecture): ViewerItem | null => {
+        const metadata = lecture.metadata as LectureMetadata | null | undefined
+        if (!metadata?.hlsUrl) {
+          req.payload.logger.warn({
+            msg: 'Lecture missing metadata.hlsUrl — skipping in /for-viewer',
+            lectureId: lecture.id,
+          })
+          return null
+        }
+        return {
+          id: lecture.id,
+          type: 'lecture',
+          parentId: null,
+          title: lecture.title,
+          videoUrl: metadata.hlsUrl,
+          startTime: 0,
+          endTime: null,
+          thumbnailUrl: resolveThumbnailUrl({
+            clipOverride: lecture.thumbnail,
+            parentMetadataUrl: metadata.thumbnailUrl,
+          }),
+          subtitles: { ...(metadata.subtitles ?? {}) } as Record<string, string>,
+        }
+      })
+      .filter((item): item is ViewerItem => item !== null)
 
-    const shapedClips: ViewerClip[] = eligibleClips.map((clip) => {
-      const parentId = extractID(clip.parent)
-      const parentDoc = typeof parentId === 'number' ? parentById.get(parentId) ?? null : null
-      const parentVisible =
-        typeof parentId === 'number' && eligibleLectureIds.has(parentId) && parentDoc !== null
+    // Shape clips
+    const shapedClips: ViewerItem[] = eligibleClips
+      .map((clip): ViewerItem | null => {
+        const parentId = extractID(clip.parent)
+        const parent = typeof parentId === 'number' ? parentById.get(parentId) ?? null : null
+        const metadata = parent?.metadata as LectureMetadata | null | undefined
+        if (!parent || !metadata?.hlsUrl) {
+          req.payload.logger.warn({
+            msg: 'Clip parent missing metadata.hlsUrl — skipping in /for-viewer',
+            clipId: clip.id,
+            parentId,
+          })
+          return null
+        }
+        return {
+          id: clip.id,
+          type: 'clip',
+          parentId: parent.id,
+          title: clip.title,
+          videoUrl: metadata.hlsUrl,
+          startTime: clip.startTime,
+          endTime: clip.endTime,
+          thumbnailUrl: resolveThumbnailUrl({
+            clipOverride: clip.thumbnail,
+            parentOverride: parent.thumbnail,
+            parentMetadataUrl: metadata.thumbnailUrl,
+          }),
+          subtitles: mergeSubtitles(metadata.subtitles, clip.subtitles),
+        }
+      })
+      .filter((item): item is ViewerItem => item !== null)
 
-      // Fallback: merge parent's thumbnail / subtitlesUrl into the clip when
-      // the clip's own value is empty. Runs regardless of whether `parent`
-      // is returned — clients don't implement fallback logic.
-      const thumbnail = clip.thumbnail ?? parentDoc?.thumbnail ?? null
-      const subtitlesUrl = clip.subtitlesUrl ?? parentDoc?.subtitlesUrl ?? null
-
-      return {
-        ...clip,
-        type: 'clip',
-        thumbnail,
-        subtitlesUrl,
-        parent: parentVisible ? parentDoc : null,
-      }
-    })
-
-    // Step 6 — concatenate, uniform Fisher-Yates shuffle, then slice.
-    const combined: Array<ViewerLecture | ViewerClip> = [...shapedLectures, ...shapedClips]
+    // Concatenate + Fisher-Yates shuffle + slice
+    const combined: ViewerItem[] = [...shapedLectures, ...shapedClips]
     for (let i = combined.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
       ;[combined[i], combined[j]] = [combined[j], combined[i]]
