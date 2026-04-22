@@ -1,7 +1,41 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-d1-sqlite'
 
+type ColumnInfo = { name: string }
+type ForeignKeyInfo = { table: string; from: string }
+
+async function columnExists(
+  db: MigrateUpArgs['db'],
+  table: string,
+  column: string,
+): Promise<boolean> {
+  // PRAGMA table_info can't use bound params, so inject the validated identifier.
+  const rows = await db.all<ColumnInfo>(sql.raw(`PRAGMA table_info(\`${table}\`)`))
+  return rows.some((r) => r.name === column)
+}
+
+async function foreignKeyTargets(
+  db: MigrateUpArgs['db'],
+  table: string,
+  column: string,
+): Promise<string[]> {
+  const rows = await db.all<ForeignKeyInfo>(sql.raw(`PRAGMA foreign_key_list(\`${table}\`)`))
+  return rows.filter((r) => r.from === column).map((r) => r.table)
+}
+
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
-  await db.run(sql`CREATE TABLE \`lecture_clips\` (
+  // This migration has a history of partial-failure redeploys (see #291/#292 + the
+  // "Fix migration" / "Attempt fix migration" commits that followed). D1 has no
+  // transactional DDL, so a partial run leaves objects created but no row written
+  // to `payload-migrations`. Every statement below is therefore idempotent — safe
+  // to run against a fresh DB or any partially-applied prod state.
+
+  // Clean up any leftover rebuild tables from prior failed runs of this migration.
+  await db.run(sql`DROP TABLE IF EXISTS \`__new_app_cards_rels\`;`)
+  await db.run(sql`DROP TABLE IF EXISTS \`__new__app_cards_v_rels\`;`)
+  await db.run(sql`DROP TABLE IF EXISTS \`__new_wm_app_config_locales\`;`)
+  await db.run(sql`DROP TABLE IF EXISTS \`__new_lectures\`;`)
+
+  await db.run(sql`CREATE TABLE IF NOT EXISTS \`lecture_clips\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`parent_id\` integer NOT NULL,
   	\`start_time\` numeric DEFAULT 0 NOT NULL,
@@ -13,17 +47,19 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	FOREIGN KEY (\`thumbnail_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
   `)
-  await db.run(sql`CREATE INDEX \`lecture_clips_parent_idx\` ON \`lecture_clips\` (\`parent_id\`);`)
   await db.run(
-    sql`CREATE INDEX \`lecture_clips_thumbnail_idx\` ON \`lecture_clips\` (\`thumbnail_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`lecture_clips_parent_idx\` ON \`lecture_clips\` (\`parent_id\`);`,
   )
   await db.run(
-    sql`CREATE INDEX \`lecture_clips_updated_at_idx\` ON \`lecture_clips\` (\`updated_at\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`lecture_clips_thumbnail_idx\` ON \`lecture_clips\` (\`thumbnail_id\`);`,
   )
   await db.run(
-    sql`CREATE INDEX \`lecture_clips_created_at_idx\` ON \`lecture_clips\` (\`created_at\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`lecture_clips_updated_at_idx\` ON \`lecture_clips\` (\`updated_at\`);`,
   )
-  await db.run(sql`CREATE TABLE \`lecture_clips_locales\` (
+  await db.run(
+    sql`CREATE INDEX IF NOT EXISTS \`lecture_clips_created_at_idx\` ON \`lecture_clips\` (\`created_at\`);`,
+  )
+  await db.run(sql`CREATE TABLE IF NOT EXISTS \`lecture_clips_locales\` (
   	\`title\` text NOT NULL,
   	\`subtitles_url\` text,
   	\`id\` integer PRIMARY KEY NOT NULL,
@@ -33,9 +69,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   );
   `)
   await db.run(
-    sql`CREATE UNIQUE INDEX \`lecture_clips_locales_locale_parent_id_unique\` ON \`lecture_clips_locales\` (\`_locale\`,\`_parent_id\`);`,
+    sql`CREATE UNIQUE INDEX IF NOT EXISTS \`lecture_clips_locales_locale_parent_id_unique\` ON \`lecture_clips_locales\` (\`_locale\`,\`_parent_id\`);`,
   )
-  await db.run(sql`CREATE TABLE \`lecture_clips_rels\` (
+  await db.run(sql`CREATE TABLE IF NOT EXISTS \`lecture_clips_rels\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`order\` integer,
   	\`parent_id\` integer NOT NULL,
@@ -46,22 +82,27 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   );
   `)
   await db.run(
-    sql`CREATE INDEX \`lecture_clips_rels_order_idx\` ON \`lecture_clips_rels\` (\`order\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`lecture_clips_rels_order_idx\` ON \`lecture_clips_rels\` (\`order\`);`,
   )
   await db.run(
-    sql`CREATE INDEX \`lecture_clips_rels_parent_idx\` ON \`lecture_clips_rels\` (\`parent_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`lecture_clips_rels_parent_idx\` ON \`lecture_clips_rels\` (\`parent_id\`);`,
   )
   await db.run(
-    sql`CREATE INDEX \`lecture_clips_rels_path_idx\` ON \`lecture_clips_rels\` (\`path\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`lecture_clips_rels_path_idx\` ON \`lecture_clips_rels\` (\`path\`);`,
   )
   await db.run(
-    sql`CREATE INDEX \`lecture_clips_rels_lecture_tags_id_idx\` ON \`lecture_clips_rels\` (\`lecture_tags_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`lecture_clips_rels_lecture_tags_id_idx\` ON \`lecture_clips_rels\` (\`lecture_tags_id\`);`,
   )
-  await db.run(sql`DROP TABLE \`_lectures_v\`;`)
-  await db.run(sql`DROP TABLE \`_lectures_v_locales\`;`)
-  await db.run(sql`DROP TABLE \`_lectures_v_rels\`;`)
-  await db.run(sql`PRAGMA foreign_keys=OFF;`)
-  await db.run(sql`CREATE TABLE \`__new_app_cards_rels\` (
+  await db.run(sql`DROP TABLE IF EXISTS \`_lectures_v\`;`)
+  await db.run(sql`DROP TABLE IF EXISTS \`_lectures_v_locales\`;`)
+  await db.run(sql`DROP TABLE IF EXISTS \`_lectures_v_rels\`;`)
+
+  // Rebuild `app_cards_rels` to swap the polymorphic FK from `lectures_id` →
+  // `lecture_clips_id`. Old rows' lecture FKs are dropped (see comment below).
+  // Guard: skip if the old column is already gone.
+  if (await columnExists(db, 'app_cards_rels', 'lectures_id')) {
+    await db.run(sql`PRAGMA foreign_keys=OFF;`)
+    await db.run(sql`CREATE TABLE \`__new_app_cards_rels\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`order\` integer,
   	\`parent_id\` integer NOT NULL,
@@ -75,32 +116,40 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	FOREIGN KEY (\`meditations_id\`) REFERENCES \`meditations\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
-  // Drizzle's auto-generated SELECT references `lecture_clips_id` from the OLD
-  // `app_cards_rels` table where only `lectures_id` exists. Per issue #291,
-  // polymorphic FKs pointing at the old lectures collection are NOT rewritten
-  // to lecture-clips (no row migration) — drop the column from both sides of
-  // the copy so `lecture_clips_id` stays NULL for any pre-existing rows.
+    // Drizzle's auto-generated SELECT references `lecture_clips_id` from the OLD
+    // `app_cards_rels` table where only `lectures_id` exists. Per issue #291,
+    // polymorphic FKs pointing at the old lectures collection are NOT rewritten
+    // to lecture-clips (no row migration) — drop the column from both sides of
+    // the copy so `lecture_clips_id` stays NULL for any pre-existing rows.
+    await db.run(
+      sql`INSERT INTO \`__new_app_cards_rels\`("id", "order", "parent_id", "path", "albums_id", "meditations_id") SELECT "id", "order", "parent_id", "path", "albums_id", "meditations_id" FROM \`app_cards_rels\`;`,
+    )
+    await db.run(sql`DROP TABLE \`app_cards_rels\`;`)
+    await db.run(sql`ALTER TABLE \`__new_app_cards_rels\` RENAME TO \`app_cards_rels\`;`)
+    await db.run(sql`PRAGMA foreign_keys=ON;`)
+  }
   await db.run(
-    sql`INSERT INTO \`__new_app_cards_rels\`("id", "order", "parent_id", "path", "albums_id", "meditations_id") SELECT "id", "order", "parent_id", "path", "albums_id", "meditations_id" FROM \`app_cards_rels\`;`,
-  )
-  await db.run(sql`DROP TABLE \`app_cards_rels\`;`)
-  await db.run(sql`ALTER TABLE \`__new_app_cards_rels\` RENAME TO \`app_cards_rels\`;`)
-  await db.run(sql`PRAGMA foreign_keys=ON;`)
-  await db.run(sql`CREATE INDEX \`app_cards_rels_order_idx\` ON \`app_cards_rels\` (\`order\`);`)
-  await db.run(
-    sql`CREATE INDEX \`app_cards_rels_parent_idx\` ON \`app_cards_rels\` (\`parent_id\`);`,
-  )
-  await db.run(sql`CREATE INDEX \`app_cards_rels_path_idx\` ON \`app_cards_rels\` (\`path\`);`)
-  await db.run(
-    sql`CREATE INDEX \`app_cards_rels_lecture_clips_id_idx\` ON \`app_cards_rels\` (\`lecture_clips_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`app_cards_rels_order_idx\` ON \`app_cards_rels\` (\`order\`);`,
   )
   await db.run(
-    sql`CREATE INDEX \`app_cards_rels_albums_id_idx\` ON \`app_cards_rels\` (\`albums_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`app_cards_rels_parent_idx\` ON \`app_cards_rels\` (\`parent_id\`);`,
   )
   await db.run(
-    sql`CREATE INDEX \`app_cards_rels_meditations_id_idx\` ON \`app_cards_rels\` (\`meditations_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`app_cards_rels_path_idx\` ON \`app_cards_rels\` (\`path\`);`,
   )
-  await db.run(sql`CREATE TABLE \`__new__app_cards_v_rels\` (
+  await db.run(
+    sql`CREATE INDEX IF NOT EXISTS \`app_cards_rels_lecture_clips_id_idx\` ON \`app_cards_rels\` (\`lecture_clips_id\`);`,
+  )
+  await db.run(
+    sql`CREATE INDEX IF NOT EXISTS \`app_cards_rels_albums_id_idx\` ON \`app_cards_rels\` (\`albums_id\`);`,
+  )
+  await db.run(
+    sql`CREATE INDEX IF NOT EXISTS \`app_cards_rels_meditations_id_idx\` ON \`app_cards_rels\` (\`meditations_id\`);`,
+  )
+
+  // Same rebuild for the versions table.
+  if (await columnExists(db, '_app_cards_v_rels', 'lectures_id')) {
+    await db.run(sql`CREATE TABLE \`__new__app_cards_v_rels\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`order\` integer,
   	\`parent_id\` integer NOT NULL,
@@ -114,32 +163,43 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	FOREIGN KEY (\`meditations_id\`) REFERENCES \`meditations\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
-  // Same adjustment as __new_app_cards_rels above — `lecture_clips_id` is a
-  // new column with no corresponding old data.
+    // Same adjustment as __new_app_cards_rels above — `lecture_clips_id` is a
+    // new column with no corresponding old data.
+    await db.run(
+      sql`INSERT INTO \`__new__app_cards_v_rels\`("id", "order", "parent_id", "path", "albums_id", "meditations_id") SELECT "id", "order", "parent_id", "path", "albums_id", "meditations_id" FROM \`_app_cards_v_rels\`;`,
+    )
+    await db.run(sql`DROP TABLE \`_app_cards_v_rels\`;`)
+    await db.run(sql`ALTER TABLE \`__new__app_cards_v_rels\` RENAME TO \`_app_cards_v_rels\`;`)
+  }
   await db.run(
-    sql`INSERT INTO \`__new__app_cards_v_rels\`("id", "order", "parent_id", "path", "albums_id", "meditations_id") SELECT "id", "order", "parent_id", "path", "albums_id", "meditations_id" FROM \`_app_cards_v_rels\`;`,
-  )
-  await db.run(sql`DROP TABLE \`_app_cards_v_rels\`;`)
-  await db.run(sql`ALTER TABLE \`__new__app_cards_v_rels\` RENAME TO \`_app_cards_v_rels\`;`)
-  await db.run(
-    sql`CREATE INDEX \`_app_cards_v_rels_order_idx\` ON \`_app_cards_v_rels\` (\`order\`);`,
-  )
-  await db.run(
-    sql`CREATE INDEX \`_app_cards_v_rels_parent_idx\` ON \`_app_cards_v_rels\` (\`parent_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`_app_cards_v_rels_order_idx\` ON \`_app_cards_v_rels\` (\`order\`);`,
   )
   await db.run(
-    sql`CREATE INDEX \`_app_cards_v_rels_path_idx\` ON \`_app_cards_v_rels\` (\`path\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`_app_cards_v_rels_parent_idx\` ON \`_app_cards_v_rels\` (\`parent_id\`);`,
   )
   await db.run(
-    sql`CREATE INDEX \`_app_cards_v_rels_lecture_clips_id_idx\` ON \`_app_cards_v_rels\` (\`lecture_clips_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`_app_cards_v_rels_path_idx\` ON \`_app_cards_v_rels\` (\`path\`);`,
   )
   await db.run(
-    sql`CREATE INDEX \`_app_cards_v_rels_albums_id_idx\` ON \`_app_cards_v_rels\` (\`albums_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`_app_cards_v_rels_lecture_clips_id_idx\` ON \`_app_cards_v_rels\` (\`lecture_clips_id\`);`,
   )
   await db.run(
-    sql`CREATE INDEX \`_app_cards_v_rels_meditations_id_idx\` ON \`_app_cards_v_rels\` (\`meditations_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`_app_cards_v_rels_albums_id_idx\` ON \`_app_cards_v_rels\` (\`albums_id\`);`,
   )
-  await db.run(sql`CREATE TABLE \`__new_wm_app_config_locales\` (
+  await db.run(
+    sql`CREATE INDEX IF NOT EXISTS \`_app_cards_v_rels_meditations_id_idx\` ON \`_app_cards_v_rels\` (\`meditations_id\`);`,
+  )
+
+  // Rebuild `wm_app_config_locales` to repoint `post_realization_lecture_id`'s
+  // FK from `lectures` → `lecture_clips`. Column name is unchanged, so detect
+  // whether the rebuild already ran by inspecting the FK target.
+  const postRealizationFkTargets = await foreignKeyTargets(
+    db,
+    'wm_app_config_locales',
+    'post_realization_lecture_id',
+  )
+  if (!postRealizationFkTargets.includes('lecture_clips')) {
+    await db.run(sql`CREATE TABLE \`__new_wm_app_config_locales\` (
   	\`self_realization_meditation_id\` integer,
   	\`post_realization_lecture_id\` integer,
   	\`id\` integer PRIMARY KEY NOT NULL,
@@ -150,27 +210,32 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	FOREIGN KEY (\`_parent_id\`) REFERENCES \`wm_app_config\`(\`id\`) ON UPDATE no action ON DELETE cascade
   );
   `)
-  // Issue #291: the FK for `post_realization_lecture_id` moved from the old
-  // `lectures` collection to the new (empty) `lecture_clips`. Existing values
-  // are stale lecture ids, not valid lecture_clips ids, so drop them to NULL
-  // during the copy — otherwise the FK check fails on prod data.
+    // Issue #291: the FK for `post_realization_lecture_id` moved from the old
+    // `lectures` collection to the new (empty) `lecture_clips`. Existing values
+    // are stale lecture ids, not valid lecture_clips ids, so drop them to NULL
+    // during the copy — otherwise the FK check fails on prod data.
+    await db.run(
+      sql`INSERT INTO \`__new_wm_app_config_locales\`("self_realization_meditation_id", "post_realization_lecture_id", "id", "_locale", "_parent_id") SELECT "self_realization_meditation_id", NULL, "id", "_locale", "_parent_id" FROM \`wm_app_config_locales\`;`,
+    )
+    await db.run(sql`DROP TABLE \`wm_app_config_locales\`;`)
+    await db.run(
+      sql`ALTER TABLE \`__new_wm_app_config_locales\` RENAME TO \`wm_app_config_locales\`;`,
+    )
+  }
   await db.run(
-    sql`INSERT INTO \`__new_wm_app_config_locales\`("self_realization_meditation_id", "post_realization_lecture_id", "id", "_locale", "_parent_id") SELECT "self_realization_meditation_id", NULL, "id", "_locale", "_parent_id" FROM \`wm_app_config_locales\`;`,
-  )
-  await db.run(sql`DROP TABLE \`wm_app_config_locales\`;`)
-  await db.run(
-    sql`ALTER TABLE \`__new_wm_app_config_locales\` RENAME TO \`wm_app_config_locales\`;`,
-  )
-  await db.run(
-    sql`CREATE INDEX \`wm_app_config_self_realization_meditation_idx\` ON \`wm_app_config_locales\` (\`self_realization_meditation_id\`,\`_locale\`);`,
-  )
-  await db.run(
-    sql`CREATE INDEX \`wm_app_config_post_realization_lecture_idx\` ON \`wm_app_config_locales\` (\`post_realization_lecture_id\`,\`_locale\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`wm_app_config_self_realization_meditation_idx\` ON \`wm_app_config_locales\` (\`self_realization_meditation_id\`,\`_locale\`);`,
   )
   await db.run(
-    sql`CREATE UNIQUE INDEX \`wm_app_config_locales_locale_parent_id_unique\` ON \`wm_app_config_locales\` (\`_locale\`,\`_parent_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`wm_app_config_post_realization_lecture_idx\` ON \`wm_app_config_locales\` (\`post_realization_lecture_id\`,\`_locale\`);`,
   )
-  await db.run(sql`CREATE TABLE \`__new_lectures\` (
+  await db.run(
+    sql`CREATE UNIQUE INDEX IF NOT EXISTS \`wm_app_config_locales_locale_parent_id_unique\` ON \`wm_app_config_locales\` (\`_locale\`,\`_parent_id\`);`,
+  )
+
+  // Rebuild `lectures` to drop the old per-clip columns. Detect by looking for
+  // one of the removed columns — if it's gone, the rebuild already ran.
+  if (await columnExists(db, 'lectures', 'start_time')) {
+    await db.run(sql`CREATE TABLE \`__new_lectures\` (
   	\`id\` integer PRIMARY KEY NOT NULL,
   	\`nirmal_vidya_vimeo_url\` text NOT NULL,
   	\`thumbnail_id\` integer,
@@ -180,19 +245,29 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	FOREIGN KEY (\`thumbnail_id\`) REFERENCES \`images\`(\`id\`) ON UPDATE no action ON DELETE set null
   );
   `)
+    await db.run(
+      sql`INSERT INTO \`__new_lectures\`("id", "nirmal_vidya_vimeo_url", "thumbnail_id", "video_url", "updated_at", "created_at") SELECT "id", "nirmal_vidya_vimeo_url", "thumbnail_id", "video_url", "updated_at", "created_at" FROM \`lectures\`;`,
+    )
+    await db.run(sql`DROP TABLE \`lectures\`;`)
+    await db.run(sql`ALTER TABLE \`__new_lectures\` RENAME TO \`lectures\`;`)
+  }
   await db.run(
-    sql`INSERT INTO \`__new_lectures\`("id", "nirmal_vidya_vimeo_url", "thumbnail_id", "video_url", "updated_at", "created_at") SELECT "id", "nirmal_vidya_vimeo_url", "thumbnail_id", "video_url", "updated_at", "created_at" FROM \`lectures\`;`,
-  )
-  await db.run(sql`DROP TABLE \`lectures\`;`)
-  await db.run(sql`ALTER TABLE \`__new_lectures\` RENAME TO \`lectures\`;`)
-  await db.run(sql`CREATE INDEX \`lectures_thumbnail_idx\` ON \`lectures\` (\`thumbnail_id\`);`)
-  await db.run(sql`CREATE INDEX \`lectures_updated_at_idx\` ON \`lectures\` (\`updated_at\`);`)
-  await db.run(sql`CREATE INDEX \`lectures_created_at_idx\` ON \`lectures\` (\`created_at\`);`)
-  await db.run(
-    sql`ALTER TABLE \`payload_locked_documents_rels\` ADD \`lecture_clips_id\` integer REFERENCES lecture_clips(id);`,
+    sql`CREATE INDEX IF NOT EXISTS \`lectures_thumbnail_idx\` ON \`lectures\` (\`thumbnail_id\`);`,
   )
   await db.run(
-    sql`CREATE INDEX \`payload_locked_documents_rels_lecture_clips_id_idx\` ON \`payload_locked_documents_rels\` (\`lecture_clips_id\`);`,
+    sql`CREATE INDEX IF NOT EXISTS \`lectures_updated_at_idx\` ON \`lectures\` (\`updated_at\`);`,
+  )
+  await db.run(
+    sql`CREATE INDEX IF NOT EXISTS \`lectures_created_at_idx\` ON \`lectures\` (\`created_at\`);`,
+  )
+
+  if (!(await columnExists(db, 'payload_locked_documents_rels', 'lecture_clips_id'))) {
+    await db.run(
+      sql`ALTER TABLE \`payload_locked_documents_rels\` ADD \`lecture_clips_id\` integer REFERENCES lecture_clips(id);`,
+    )
+  }
+  await db.run(
+    sql`CREATE INDEX IF NOT EXISTS \`payload_locked_documents_rels_lecture_clips_id_idx\` ON \`payload_locked_documents_rels\` (\`lecture_clips_id\`);`,
   )
 }
 
