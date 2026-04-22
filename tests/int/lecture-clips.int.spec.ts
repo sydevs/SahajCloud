@@ -146,17 +146,14 @@ describe('Lecture Clips Collection', () => {
       expect(cs.title).toBe('Czech title')
     })
 
-    it('round-trips localized subtitlesUrl per locale', async () => {
+    it('persists the subtitles array non-localized (same value across locales)', async () => {
+      // Subtitles are per-locale ROWS in a non-localized array — overriding
+      // parent metadata on a per-locale basis, not per-request-locale.
       const clip = await testData.createLectureClip(payload, undefined, {
-        subtitlesUrl: 'https://example.com/en.vtt',
-      })
-
-      // `title` is localized + required, so a cs-locale update must include it.
-      await payload.update({
-        collection: 'lecture-clips',
-        id: clip.id,
-        locale: 'cs',
-        data: { title: 'Czech title', subtitlesUrl: 'https://example.com/cs.vtt' },
+        subtitles: [
+          { locale: 'en', url: 'https://example.com/clip-en.vtt' },
+          { locale: 'cs', url: 'https://example.com/clip-cs.vtt' },
+        ],
       })
 
       const en = await payload.findByID({
@@ -171,8 +168,14 @@ describe('Lecture Clips Collection', () => {
         locale: 'cs',
         fallbackLocale: false,
       })
-      expect(en.subtitlesUrl).toBe('https://example.com/en.vtt')
-      expect(cs.subtitlesUrl).toBe('https://example.com/cs.vtt')
+      expect(en.subtitles?.map((r) => ({ locale: r.locale, url: r.url }))).toEqual([
+        { locale: 'en', url: 'https://example.com/clip-en.vtt' },
+        { locale: 'cs', url: 'https://example.com/clip-cs.vtt' },
+      ])
+      expect(cs.subtitles?.map((r) => ({ locale: r.locale, url: r.url }))).toEqual([
+        { locale: 'en', url: 'https://example.com/clip-en.vtt' },
+        { locale: 'cs', url: 'https://example.com/clip-cs.vtt' },
+      ])
     })
   })
 

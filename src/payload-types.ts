@@ -229,6 +229,7 @@ export interface Config {
   jobs: {
     tasks: {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
+      syncLectureMetadata: TaskSyncLectureMetadata;
       resetUsage: TaskResetUsage;
       schedulePublish: TaskSchedulePublish;
       inline: {
@@ -794,15 +795,22 @@ export interface Lecture {
    * Auto-populated from Nirmala Vidya. Can be edited after creation.
    */
   title?: string | null;
+  /**
+   * Optional override for the Nirmala Vidya thumbnail. If blank, the API thumbnail is used.
+   */
   thumbnail?: (number | null) | Image;
   /**
-   * HLS stream URL
+   * Auto-populated from Nirmala Vidya API on create and by the monthly sync job. Contains title, HLS URL, thumbnail URL, and per-locale subtitle URLs.
    */
-  videoUrl?: string | null;
-  /**
-   * VTT subtitle URL — auto-populated from Nirmala Vidya API per locale.
-   */
-  subtitlesUrl?: string | null;
+  metadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   /**
    * Controls which viewers see this lecture. If empty, it is hidden from /api/lectures/for-viewer and only surfaced when directly referenced (e.g. from a meditation or path step).
    */
@@ -881,9 +889,31 @@ export interface LectureClip {
    */
   thumbnail?: (number | null) | Image;
   /**
-   * Optional per-locale VTT override. Falls back to the parent lecture's subtitle URL when empty — fallback is applied by /api/lectures/for-viewer, not by this collection's CRUD endpoints.
+   * Per-locale subtitle overrides. Any locale not listed here falls back to the parent lecture's Nirmala Vidya subtitles.
    */
-  subtitlesUrl?: string | null;
+  subtitles?:
+    | {
+        locale:
+          | 'en'
+          | 'es'
+          | 'de'
+          | 'it'
+          | 'fr'
+          | 'ru'
+          | 'ro'
+          | 'cs'
+          | 'uk'
+          | 'el'
+          | 'hy'
+          | 'pl'
+          | 'pt-br'
+          | 'fa'
+          | 'bg'
+          | 'tr';
+        url: string;
+        id?: string | null;
+      }[]
+    | null;
   /**
    * Controls which viewers see this clip. If empty, it is hidden from /api/lectures/for-viewer and only surfaced when directly referenced (e.g. from a meditation or path step).
    */
@@ -978,7 +1008,7 @@ export interface AppCard {
   /**
    * Target sections where this card should appear on the app homepage.
    */
-  targetSections?: ('hero' | 'highlights')[] | null;
+  targetSections?: ('hero' | 'highlights' | 'lectures')[] | null;
   /**
    * Controls which viewers see this card. If empty, the card is hidden from /api/app-cards/for-viewer and never appears on the app homepage.
    */
@@ -1533,7 +1563,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'cleanupOrphanedMedia' | 'resetUsage' | 'schedulePublish';
+        taskSlug: 'inline' | 'cleanupOrphanedMedia' | 'syncLectureMetadata' | 'resetUsage' | 'schedulePublish';
         taskID: string;
         input?:
           | {
@@ -1566,7 +1596,7 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'cleanupOrphanedMedia' | 'resetUsage' | 'schedulePublish') | null;
+  taskSlug?: ('inline' | 'cleanupOrphanedMedia' | 'syncLectureMetadata' | 'resetUsage' | 'schedulePublish') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -1883,8 +1913,7 @@ export interface LecturesSelect<T extends boolean = true> {
   nirmalVidyaVimeoUrl?: T;
   title?: T;
   thumbnail?: T;
-  videoUrl?: T;
-  subtitlesUrl?: T;
+  metadata?: T;
   audience?: T;
   clips?: T;
   updatedAt?: T;
@@ -1900,7 +1929,13 @@ export interface LectureClipsSelect<T extends boolean = true> {
   endTime?: T;
   title?: T;
   thumbnail?: T;
-  subtitlesUrl?: T;
+  subtitles?:
+    | T
+    | {
+        locale?: T;
+        url?: T;
+        id?: T;
+      };
   audience?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -2822,6 +2857,29 @@ export interface TaskCleanupOrphanedMedia {
     trashedImages: number;
     skippedImages: number;
     errors: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskSyncLectureMetadata".
+ */
+export interface TaskSyncLectureMetadata {
+  input: {
+    lectureIds?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  output: {
+    totalProcessed: number;
+    synced: number;
+    failed: number;
+    skippedNoVimeoId: number;
   };
 }
 /**

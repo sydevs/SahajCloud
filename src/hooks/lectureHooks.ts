@@ -1,10 +1,11 @@
-import type { CollectionAfterChangeHook, CollectionBeforeChangeHook } from 'payload'
+import type { CollectionBeforeChangeHook } from 'payload'
 
 import { ValidationError } from 'payload'
 
 import type { LocaleCode } from '@/lib/locales'
 import { isValidLocale } from '@/lib/locales'
-import { downloadToBuffer, extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/nirmalaVidyaApi'
+import type { NirmalaVidyaVideoData } from '@/lib/nirmalaVidyaApi'
+import { extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/nirmalaVidyaApi'
 
 // =============================================================================
 // Language Code Mapping
@@ -14,7 +15,7 @@ import { downloadToBuffer, extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/
  * Maps a Nirmala Vidya API language code to a CMS locale code.
  * Returns null for unrecognized codes (silently skipped).
  */
-function apiLanguageToLocale(apiCode: string): LocaleCode | null {
+export function apiLanguageToLocale(apiCode: string): LocaleCode | null {
   if (isValidLocale(apiCode)) return apiCode
   // Normalize: lowercase and replace underscores with hyphens
   const normalized = apiCode.toLowerCase().replace('_', '-')
@@ -25,25 +26,57 @@ function apiLanguageToLocale(apiCode: string): LocaleCode | null {
 }
 
 // =============================================================================
+// Metadata Shape
+// =============================================================================
+
+/**
+ * Shape stored in Lectures.metadata. All NV-sourced data is bundled here so
+ * the /api/lectures/for-viewer response can expose the full subtitle map and
+ * the monthly sync task can refresh everything in one write.
+ */
+export type LectureMetadata = {
+  title: string
+  thumbnailUrl: string | null
+  hlsUrl: string
+  subtitles: Partial<Record<LocaleCode, string>>
+  lastSyncedAt: string
+}
+
+/**
+ * Build a LectureMetadata object from an NV API response. Used by both the
+ * create-time beforeChange hook and the monthly SyncLectureMetadata task.
+ */
+export function buildLectureMetadata(videoData: NirmalaVidyaVideoData): LectureMetadata {
+  const subtitles: Partial<Record<LocaleCode, string>> = {}
+  for (const subtitle of videoData.subtitles) {
+    const locale = apiLanguageToLocale(subtitle.languageCode)
+    if (locale) subtitles[locale] = subtitle.url
+  }
+  return {
+    title: videoData.title,
+    thumbnailUrl: videoData.thumbnailUrl,
+    hlsUrl: videoData.hlsUrl,
+    subtitles,
+    lastSyncedAt: new Date().toISOString(),
+  }
+}
+
+// =============================================================================
 // beforeChange Hook
 // =============================================================================
 
 /**
- * beforeChange hook that auto-populates lecture fields from the Nirmala Vidya API.
+ * beforeChange hook — create-only. Fetches the NV API once and packs the
+ * response into a single `metadata` JSON field. The editor-visible `title` is
+ * auto-filled for the current request locale if the editor didn't supply one;
+ * other locales fall back to it via Payload's locale-fallback mechanism.
  *
- * Only runs on 'create' operations. On 'update', the hook is a no-op.
- *
- * On create:
- * 1. Extracts the Vimeo ID from `data.nirmalVidyaVimeoUrl`
- * 2. Fetches video metadata from the Nirmala Vidya API
- * 3. Downloads the thumbnail and creates an Images document
- * 4. Populates title, videoUrl, thumbnail, and current-locale subtitlesUrl
- * 5. Stashes subtitle map in req.context for the afterChange hook
+ * No thumbnail auto-upload — the editor `thumbnail` field is an optional
+ * override now; the viewer endpoint falls back to `metadata.thumbnailUrl`.
  */
 export const populateFromNirmalaVidya: CollectionBeforeChangeHook = async ({
   data,
   operation,
-  req,
 }) => {
   if (operation !== 'create') return data
 
@@ -63,7 +96,7 @@ export const populateFromNirmalaVidya: CollectionBeforeChangeHook = async ({
     })
   }
 
-  let videoData
+  let videoData: NirmalaVidyaVideoData
   try {
     videoData = await fetchNirmalaVidyaVideo(vimeoId)
   } catch (error) {
@@ -77,105 +110,13 @@ export const populateFromNirmalaVidya: CollectionBeforeChangeHook = async ({
     })
   }
 
-  // Use user-provided title if available, otherwise use the API value
+  const metadata = buildLectureMetadata(videoData)
+  data.metadata = metadata
+
+  // Auto-fill the editor-visible title for the current locale when blank.
   if (!data.title) {
-    data.title = videoData.title
+    data.title = metadata.title
   }
-
-  data.videoUrl = videoData.hlsUrl
-
-  // Download and upload thumbnail as an Images document (skip if user already provided one)
-  if (videoData.thumbnailUrl && !data.thumbnail) {
-    try {
-      const thumbnailBuffer = await downloadToBuffer(
-        videoData.thumbnailUrl,
-        `lecture-thumbnail-${vimeoId}.jpg`,
-      )
-      const thumbnailImage = await req.payload.create({
-        collection: 'images',
-        data: { alt: data.title || videoData.title },
-        file: thumbnailBuffer,
-        req,
-      })
-      data.thumbnail = thumbnailImage.id
-    } catch (thumbError) {
-      req.payload.logger.warn({
-        msg: 'Failed to auto-download lecture thumbnail — continuing without thumbnail',
-        vimeoId,
-        error: thumbError instanceof Error ? thumbError.message : String(thumbError),
-      })
-    }
-  }
-
-  // Map subtitles to CMS locales
-  const subtitlesByLocale: Partial<Record<LocaleCode, string>> = {}
-  for (const subtitle of videoData.subtitles) {
-    const locale = apiLanguageToLocale(subtitle.languageCode)
-    if (locale) {
-      subtitlesByLocale[locale] = subtitle.url
-    }
-  }
-
-  // Set subtitle URL for the current request locale (beforeChange can only set one locale)
-  const currentLocale = (req.locale || 'en') as LocaleCode
-  if (subtitlesByLocale[currentLocale]) {
-    data.subtitlesUrl = subtitlesByLocale[currentLocale]
-  }
-
-  // Stash the full map for the afterChange hook to populate other locales
-  req.context.subtitlesByLocale = subtitlesByLocale
 
   return data
-}
-
-// =============================================================================
-// afterChange Hook
-// =============================================================================
-
-/**
- * afterChange hook that populates subtitlesUrl for non-current locales.
- *
- * Reads the subtitle map stashed by `populateFromNirmalaVidya` in req.context
- * and calls `payload.update()` for each locale that has a subtitle URL.
- * Each update is non-fatal — failures are logged as warnings.
- */
-export const populateSubtitleLocales: CollectionAfterChangeHook = async ({
-  doc,
-  operation,
-  req,
-}) => {
-  if (operation !== 'create') return doc
-
-  const subtitlesByLocale = req.context.subtitlesByLocale as
-    | Partial<Record<LocaleCode, string>>
-    | undefined
-
-  if (!subtitlesByLocale || Object.keys(subtitlesByLocale).length === 0) return doc
-
-  const currentLocale = (req.locale || 'en') as LocaleCode
-
-  // Update each non-current locale that has a subtitle URL
-  const updates = Object.entries(subtitlesByLocale)
-    .filter(([locale]) => locale !== currentLocale)
-    .map(([locale, url]) =>
-      req.payload
-        .update({
-          collection: 'lectures',
-          id: doc.id,
-          locale: locale as LocaleCode,
-          data: { subtitlesUrl: url },
-        })
-        .catch((error) => {
-          req.payload.logger.warn({
-            msg: `Failed to set subtitle URL for locale ${locale}`,
-            lectureId: doc.id,
-            locale,
-            error: error instanceof Error ? error.message : String(error),
-          })
-        }),
-    )
-
-  await Promise.all(updates)
-
-  return doc
 }

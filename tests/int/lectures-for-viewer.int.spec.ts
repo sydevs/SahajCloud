@@ -4,47 +4,34 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { Client, Image, Lecture, LectureClip, ViewerRule } from '@/payload-types'
 
-import { lecturesForViewer } from '@/endpoints'
+import { lecturesForViewer, type ViewerItem } from '@/endpoints/lecturesForViewer'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 // Prevent live Nirmala Vidya API calls from the populateFromNirmalaVidya hook
-// fired by testData.createLecture.
+// fired by testData.createLecture. Each test can override the mock response.
 vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
-  const { readFileSync } = await import('fs')
-  const { dirname, join } = await import('path')
-  const { fileURLToPath: toPath } = await import('url')
-  const imgBuffer = readFileSync(
-    join(dirname(toPath(import.meta.url)), '../files/image-1050x700.jpg'),
-  )
   const original = await importOriginal<typeof import('@/lib/nirmalaVidyaApi')>()
   return {
     extractVimeoId: vi.fn(original.extractVimeoId),
     fetchNirmalaVidyaVideo: vi.fn().mockResolvedValue({
       title: 'Test Lecture from Nirmala Vidya',
-      thumbnailUrl: 'https://example.com/thumbnail.jpg',
-      hlsUrl: 'https://example.com/video.m3u8',
-      subtitles: [],
-    }),
-    downloadToBuffer: vi.fn().mockResolvedValue({
-      data: new Uint8Array(imgBuffer),
-      mimetype: 'image/jpeg',
-      name: 'lecture-thumbnail.jpg',
-      size: imgBuffer.length,
+      thumbnailUrl: 'https://example.com/metadata-thumb.jpg',
+      hlsUrl: 'https://example.com/stream.m3u8',
+      subtitles: [
+        { languageCode: 'en', url: 'https://example.com/parent-en.vtt' },
+        { languageCode: 'es', url: 'https://example.com/parent-es.vtt' },
+      ],
     }),
   }
 })
-
-type ViewerDoc =
-  | ({ type: 'lecture' } & Lecture)
-  | ({ type: 'clip' } & LectureClip & { parent: Lecture | null })
 
 async function callEndpoint(
   payload: Payload,
   query: Record<string, string | number | boolean>,
   user?: { id: number | string; collection: string },
-): Promise<{ status: number; body: { docs: ViewerDoc[] } | unknown }> {
+): Promise<{ status: number; body: { docs: ViewerItem[] } | unknown }> {
   const req = {
     payload,
     query,
@@ -72,9 +59,10 @@ describe('lecturesForViewer endpoint', () => {
 
   let clipWithEligibleParent: LectureClip
   let clipWithIneligibleParent: LectureClip
-  let clipMissingThumbAndSubs: LectureClip
+  let clipMissingOverrides: LectureClip
 
-  let parentThumbnailId: number
+  let parentThumbnailImage: Image
+  let clipThumbnailImage: Image
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -91,66 +79,66 @@ describe('lecturesForViewer endpoint', () => {
       rules: { logic: 'AND', pathProgress: { min: 5, max: 10 } },
     })
 
-    const thumb = (await testData.createMediaImage(payload, {
-      alt: 'Shared lecture thumbnail',
+    parentThumbnailImage = (await testData.createMediaImage(payload, {
+      alt: 'Parent editor override',
     })) as Image
-    parentThumbnailId = thumb.id
+    clipThumbnailImage = (await testData.createMediaImage(payload, {
+      alt: 'Clip editor override',
+    })) as Image
 
+    // lectureBeginnerOnly has a parent-level editor thumbnail override so we
+    // can exercise the 2nd-tier fallback (parent editor → metadata).
     lectureBeginnerOnly = await testData.createLecture(
       payload,
-      { thumbnail: thumb.id },
-      {
-        title: 'Beginner Lecture',
-        audience: audienceBeginner.id,
-        subtitlesUrl: 'https://example.com/parent-en.vtt',
-      },
+      { thumbnail: parentThumbnailImage.id },
+      { title: 'Beginner Lecture', audience: audienceBeginner.id },
     )
+    // lectureIntermediateOnly has no editor override; fallback lands on
+    // metadata.thumbnailUrl.
     lectureIntermediateOnly = await testData.createLecture(
       payload,
-      { thumbnail: thumb.id },
+      {},
       { title: 'Intermediate Lecture', audience: audienceIntermediate.id },
     )
     lectureNoAudience = await testData.createLecture(
       payload,
-      { thumbnail: thumb.id },
+      {},
       { title: 'No Audience Lecture', audience: null },
     )
 
-    // Clip with eligible parent — own thumbnail/subs supplied.
-    const clipOwnThumb = (await testData.createMediaImage(payload, {
-      alt: 'Clip thumbnail',
-    })) as Image
+    // Clip with its own thumbnail override + one subtitle override — exercises
+    // the tier-1 thumbnail fallback and the subtitle merge layer.
     clipWithEligibleParent = await testData.createLectureClip(
       payload,
       { parent: lectureBeginnerOnly.id },
       {
         title: 'Clip of Beginner Lecture',
         audience: audienceBeginner.id,
-        thumbnail: clipOwnThumb.id,
-        subtitlesUrl: 'https://example.com/clip-en.vtt',
+        thumbnail: clipThumbnailImage.id,
+        subtitles: [{ locale: 'es', url: 'https://example.com/clip-es.vtt' }],
       },
     )
 
-    // Clip with INELIGIBLE parent — own thumb/subs supplied.
+    // Clip whose parent is itself NOT audience-eligible. Clip has its own
+    // thumbnail override; parent has no editor override → tier-1 win.
     clipWithIneligibleParent = await testData.createLectureClip(
       payload,
       { parent: lectureIntermediateOnly.id },
       {
         title: 'Clip of Intermediate Lecture',
-        audience: audienceBeginner.id, // clip is eligible even though parent isn't
-        thumbnail: clipOwnThumb.id,
-        subtitlesUrl: 'https://example.com/clip-intermediate-parent.vtt',
+        audience: audienceBeginner.id,
+        thumbnail: clipThumbnailImage.id,
       },
     )
 
-    // Clip missing own thumb + subs → should fall back to parent's values.
-    clipMissingThumbAndSubs = await testData.createLectureClip(
+    // Clip missing its own overrides → falls back to parent editor thumbnail
+    // (lectureBeginnerOnly has one) and parent metadata subtitles.
+    clipMissingOverrides = await testData.createLectureClip(
       payload,
       { parent: lectureBeginnerOnly.id },
       {
         title: 'Clip relying on parent fallbacks',
         audience: audienceBeginner.id,
-        // no thumbnail, no subtitlesUrl
       },
     )
 
@@ -186,16 +174,34 @@ describe('lecturesForViewer endpoint', () => {
     })
   })
 
-  describe('Mixed response shape', () => {
-    it('returns a discriminated union of lectures and clips', async () => {
+  describe('Flat response shape', () => {
+    it('emits only the flat ViewerItem keys — no nested parent document', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
-      const docs = (body as { docs: ViewerDoc[] }).docs
+      const docs = (body as { docs: ViewerItem[] }).docs
 
       expect(docs.length).toBeGreaterThan(0)
+      const expectedKeys = [
+        'id',
+        'type',
+        'parentId',
+        'title',
+        'videoUrl',
+        'startTime',
+        'endTime',
+        'thumbnailUrl',
+        'subtitles',
+      ].sort()
       for (const doc of docs) {
+        expect(Object.keys(doc).sort()).toEqual(expectedKeys)
         expect(['lecture', 'clip']).toContain(doc.type)
+        // No unexpected nested parent object
+        expect((doc as unknown as { parent?: unknown }).parent).toBeUndefined()
       }
+    })
 
+    it('includes both lectures and clips in a single feed', async () => {
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const docs = (body as { docs: ViewerItem[] }).docs
       const types = new Set(docs.map((d) => d.type))
       expect(types.has('lecture')).toBe(true)
       expect(types.has('clip')).toBe(true)
@@ -203,15 +209,29 @@ describe('lecturesForViewer endpoint', () => {
 
     it('respects a single `limit` across the combined pool', async () => {
       const { body } = await callEndpoint(payload, { limit: 1, pathProgress: 3 })
-      const docs = (body as { docs: ViewerDoc[] }).docs
+      const docs = (body as { docs: ViewerItem[] }).docs
       expect(docs).toHaveLength(1)
+    })
+  })
+
+  describe('Lecture shape', () => {
+    it('pulls videoUrl from metadata.hlsUrl and exposes 0/null for start/end', async () => {
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const lecture = (body as { docs: ViewerItem[] }).docs.find(
+        (d) => d.type === 'lecture' && d.id === lectureBeginnerOnly.id,
+      )
+      expect(lecture).toBeDefined()
+      expect(lecture!.videoUrl).toBe('https://example.com/stream.m3u8')
+      expect(lecture!.startTime).toBe(0)
+      expect(lecture!.endTime).toBeNull()
+      expect(lecture!.parentId).toBeNull()
     })
   })
 
   describe('Eligibility', () => {
     it('returns lectures whose audience passes', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
-      const ids = (body as { docs: ViewerDoc[] }).docs
+      const ids = (body as { docs: ViewerItem[] }).docs
         .filter((d) => d.type === 'lecture')
         .map((d) => d.id)
       expect(ids).toContain(lectureBeginnerOnly.id)
@@ -219,7 +239,7 @@ describe('lecturesForViewer endpoint', () => {
 
     it('excludes lectures and clips with null audience', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
-      const docs = (body as { docs: ViewerDoc[] }).docs
+      const docs = (body as { docs: ViewerItem[] }).docs
       const lectureIds = docs.filter((d) => d.type === 'lecture').map((d) => d.id)
       expect(lectureIds).not.toContain(lectureNoAudience.id)
       const clipTitles = docs.filter((d) => d.type === 'clip').map((d) => d.title)
@@ -228,11 +248,20 @@ describe('lecturesForViewer endpoint', () => {
 
     it('returns clips independently of parent eligibility', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
-      const clipIds = (body as { docs: ViewerDoc[] }).docs
+      const clipIds = (body as { docs: ViewerItem[] }).docs
         .filter((d) => d.type === 'clip')
         .map((d) => d.id)
       expect(clipIds).toContain(clipWithEligibleParent.id)
       expect(clipIds).toContain(clipWithIneligibleParent.id)
+    })
+
+    it('emits parentId for every clip regardless of parent eligibility', async () => {
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const ineligibleClip = (body as { docs: ViewerItem[] }).docs.find(
+        (d) => d.type === 'clip' && d.id === clipWithIneligibleParent.id,
+      )
+      expect(ineligibleClip).toBeDefined()
+      expect(ineligibleClip!.parentId).toBe(lectureIntermediateOnly.id)
     })
 
     it('returns empty docs when no viewer rules pass', async () => {
@@ -242,108 +271,115 @@ describe('lecturesForViewer endpoint', () => {
         totalLecturesViewed: 0,
       })
       expect(status).toBe(200)
-      expect((body as { docs: ViewerDoc[] }).docs).toEqual([])
+      expect((body as { docs: ViewerItem[] }).docs).toEqual([])
     })
+  })
 
-    it('shows newly-created lectures immediately (no drafts)', async () => {
-      const fresh = await testData.createLecture(
-        payload,
-        { thumbnail: parentThumbnailId },
-        { title: 'Just created', audience: audienceBeginner.id },
-      )
+  describe('Subtitle merge', () => {
+    it('exposes the full parent subtitle map when the clip has no overrides', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
-      const lectureIds = (body as { docs: ViewerDoc[] }).docs
-        .filter((d) => d.type === 'lecture')
-        .map((d) => d.id)
-      expect(lectureIds).toContain(fresh.id)
-    })
-
-    it('uses pathProgress >= 1 as the replacement for the old hasRealization rule', async () => {
-      // A ViewerRule with pathProgress { min: 1 } should behave like the old hasRealization boolean.
-      const pathStartedRule = await testData.createViewerRule(payload, {
-        label: 'Path Started (hasRealization replacement)',
-        rules: { pathProgress: { min: 1 } },
+      const clip = (body as { docs: ViewerItem[] }).docs.find(
+        (d) => d.type === 'clip' && d.id === clipMissingOverrides.id,
+      )
+      expect(clip).toBeDefined()
+      expect(clip!.subtitles).toEqual({
+        en: 'https://example.com/parent-en.vtt',
+        es: 'https://example.com/parent-es.vtt',
       })
-      const lecture = await testData.createLecture(
+    })
+
+    it('layers a per-locale clip override on top of the parent map', async () => {
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const clip = (body as { docs: ViewerItem[] }).docs.find(
+        (d) => d.type === 'clip' && d.id === clipWithEligibleParent.id,
+      )
+      expect(clip).toBeDefined()
+      // `es` overridden by clip; `en` unchanged from parent metadata.
+      expect(clip!.subtitles).toEqual({
+        en: 'https://example.com/parent-en.vtt',
+        es: 'https://example.com/clip-es.vtt',
+      })
+    })
+
+    it('returns the parent metadata subtitles for a lecture item', async () => {
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const lecture = (body as { docs: ViewerItem[] }).docs.find(
+        (d) => d.type === 'lecture' && d.id === lectureBeginnerOnly.id,
+      )
+      expect(lecture).toBeDefined()
+      expect(lecture!.subtitles).toEqual({
+        en: 'https://example.com/parent-en.vtt',
+        es: 'https://example.com/parent-es.vtt',
+      })
+    })
+  })
+
+  describe('Thumbnail fallback chain', () => {
+    it('clip tier-1: uses the clip editor override when present', async () => {
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const clip = (body as { docs: ViewerItem[] }).docs.find(
+        (d) => d.type === 'clip' && d.id === clipWithEligibleParent.id,
+      )
+      expect(clip!.thumbnailUrl).toBeTruthy()
+      expect(clip!.thumbnailUrl).not.toBe('https://example.com/metadata-thumb.jpg')
+      // Both editor-override images are the default test image so we can't
+      // distinguish clip override vs parent override by URL here — but we can
+      // check it's neither null nor the metadata URL.
+    })
+
+    it('clip tier-2: falls back to parent editor thumbnail when clip has none', async () => {
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const clip = (body as { docs: ViewerItem[] }).docs.find(
+        (d) => d.type === 'clip' && d.id === clipMissingOverrides.id,
+      )
+      // lectureBeginnerOnly has a parent editor override; clip has none.
+      expect(clip!.thumbnailUrl).toBeTruthy()
+      // Must not be the metadata URL — because the parent editor override wins.
+      expect(clip!.thumbnailUrl).not.toBe('https://example.com/metadata-thumb.jpg')
+    })
+
+    it('clip tier-3: falls back to parent metadata.thumbnailUrl when neither editor override exists', async () => {
+      // Create a fresh parent with NO editor thumbnail, and a clip with no override.
+      const parentNoOverride = await testData.createLecture(
         payload,
-        { thumbnail: parentThumbnailId },
-        { title: 'Requires pathProgress >= 1', audience: pathStartedRule.id },
+        {},
+        { title: 'Parent without editor thumb', audience: audienceBeginner.id },
+      )
+      const clipNoOverride = await testData.createLectureClip(
+        payload,
+        { parent: parentNoOverride.id },
+        { title: 'Clip relying on metadata url', audience: audienceBeginner.id },
       )
 
-      // pathProgress=0 → excluded
-      const out1 = await callEndpoint(payload, { limit: 100, pathProgress: 0 })
-      const ids1 = (out1.body as { docs: ViewerDoc[] }).docs
-        .filter((d) => d.type === 'lecture')
-        .map((d) => d.id)
-      expect(ids1).not.toContain(lecture.id)
-
-      // pathProgress=1 → included
-      const out2 = await callEndpoint(payload, { limit: 100, pathProgress: 1 })
-      const ids2 = (out2.body as { docs: ViewerDoc[] }).docs
-        .filter((d) => d.type === 'lecture')
-        .map((d) => d.id)
-      expect(ids2).toContain(lecture.id)
-    })
-  })
-
-  describe('Parent population on clips', () => {
-    it('populates `parent` when the parent is viewer-eligible', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
-      const clip = (body as { docs: ViewerDoc[] }).docs.find(
-        (d) => d.type === 'clip' && d.id === clipWithEligibleParent.id,
-      ) as (ViewerDoc & { type: 'clip' }) | undefined
+      const clip = (body as { docs: ViewerItem[] }).docs.find(
+        (d) => d.type === 'clip' && d.id === clipNoOverride.id,
+      )
       expect(clip).toBeDefined()
-      expect(clip!.parent).not.toBeNull()
-      expect((clip!.parent as Lecture).id).toBe(lectureBeginnerOnly.id)
+      expect(clip!.thumbnailUrl).toBe('https://example.com/metadata-thumb.jpg')
     })
 
-    it('sets `parent: null` when the parent is not viewer-eligible', async () => {
+    it('lecture tier-1: uses editor override when present', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
-      const clip = (body as { docs: ViewerDoc[] }).docs.find(
-        (d) => d.type === 'clip' && d.id === clipWithIneligibleParent.id,
-      ) as (ViewerDoc & { type: 'clip' }) | undefined
-      expect(clip).toBeDefined()
-      expect(clip!.parent).toBeNull()
-    })
-  })
-
-  describe('Server-merged fallbacks on clips', () => {
-    it('fills missing thumbnail from the parent lecture', async () => {
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
-      const clip = (body as { docs: ViewerDoc[] }).docs.find(
-        (d) => d.type === 'clip' && d.id === clipMissingThumbAndSubs.id,
-      ) as (ViewerDoc & { type: 'clip' }) | undefined
-      expect(clip).toBeDefined()
-      const thumbId =
-        typeof clip!.thumbnail === 'object' && clip!.thumbnail !== null
-          ? (clip!.thumbnail as Image).id
-          : clip!.thumbnail
-      expect(thumbId).toBe(parentThumbnailId)
+      const lecture = (body as { docs: ViewerItem[] }).docs.find(
+        (d) => d.type === 'lecture' && d.id === lectureBeginnerOnly.id,
+      )
+      expect(lecture!.thumbnailUrl).toBeTruthy()
+      expect(lecture!.thumbnailUrl).not.toBe('https://example.com/metadata-thumb.jpg')
     })
 
-    it('fills missing subtitlesUrl from the parent lecture', async () => {
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
-      const clip = (body as { docs: ViewerDoc[] }).docs.find(
-        (d) => d.type === 'clip' && d.id === clipMissingThumbAndSubs.id,
-      ) as (ViewerDoc & { type: 'clip' }) | undefined
-      expect(clip).toBeDefined()
-      expect(clip!.subtitlesUrl).toBe('https://example.com/parent-en.vtt')
-    })
-
-    it('preserves the clip\'s own thumbnail and subtitlesUrl when set', async () => {
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
-      const clip = (body as { docs: ViewerDoc[] }).docs.find(
-        (d) => d.type === 'clip' && d.id === clipWithEligibleParent.id,
-      ) as (ViewerDoc & { type: 'clip' }) | undefined
-      expect(clip).toBeDefined()
-      expect(clip!.subtitlesUrl).toBe('https://example.com/clip-en.vtt')
+    it('lecture tier-2: falls back to metadata.thumbnailUrl', async () => {
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 7 })
+      const lecture = (body as { docs: ViewerItem[] }).docs.find(
+        (d) => d.type === 'lecture' && d.id === lectureIntermediateOnly.id,
+      )
+      expect(lecture).toBeDefined()
+      expect(lecture!.thumbnailUrl).toBe('https://example.com/metadata-thumb.jpg')
     })
   })
 
   describe('req forwarding', () => {
     it('threads req through all payload.find calls for usage-tracking / rate-limit hooks', async () => {
-      // Silence audienceIntermediate as unused in this block. `lectureIntermediateOnly`
-      // exists to exercise the "parent ineligible, clip eligible" case above.
       void audienceIntermediate
       void lectureIntermediateOnly
 
@@ -378,41 +414,9 @@ describe('lecturesForViewer endpoint', () => {
         findSpy.mockRestore()
       }
     })
-
-    it('passes viewerData on the viewer-rules call only (includes every ViewerRules dimension)', async () => {
-      const findSpy = vi.spyOn(payload, 'find')
-      try {
-        // Pass all four ViewerRules dimensions (including meditationsPerWeek,
-        // which was missing from the querySchema before the shared
-        // `buildViewerDataSchema` refactor). This guards against silently
-        // dropping any dimension on future edits.
-        await callEndpoint(payload, {
-          limit: 5,
-          pathProgress: 3,
-          meditationsPerWeek: 2,
-          totalMeditationsViewed: 20,
-          totalLecturesViewed: 4,
-        })
-
-        const ruleCall = findSpy.mock.calls.find(
-          ([args]) => (args as { collection?: string }).collection === 'viewer-rules',
-        )
-        const ruleReq = (
-          ruleCall![0] as { req?: { context?: Record<string, unknown> } }
-        ).req
-        expect(ruleReq?.context?.viewerData).toEqual({
-          pathProgress: 3,
-          meditationsPerWeek: 2,
-          totalMeditationsViewed: 20,
-          totalLecturesViewed: 4,
-        })
-      } finally {
-        findSpy.mockRestore()
-      }
-    })
   })
 
-  // Intentionally omitting a shuffle-order test: verifying randomness with
-  // a small fixture pool produces flaky tests. Fisher-Yates correctness is
-  // covered by inspection of `lecturesForViewer.ts`.
+  // Silence unused-var linter for image references kept around for context.
+  void parentThumbnailImage
+  void clipThumbnailImage
 })

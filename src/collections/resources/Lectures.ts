@@ -3,7 +3,7 @@ import type { CollectionConfig } from 'payload'
 import { lecturesForViewer } from '@/endpoints'
 import { mediaField, urlField } from '@/fields'
 import { deleteChildren } from '@/hooks/cascadeDeletion'
-import { populateFromNirmalaVidya, populateSubtitleLocales } from '@/hooks/lectureHooks'
+import { populateFromNirmalaVidya } from '@/hooks/lectureHooks'
 
 export const Lectures: CollectionConfig = {
   slug: 'lectures',
@@ -19,7 +19,6 @@ export const Lectures: CollectionConfig = {
   },
   hooks: {
     beforeChange: [populateFromNirmalaVidya],
-    afterChange: [populateSubtitleLocales],
     beforeDelete: [deleteChildren({ collection: 'lecture-clips', field: 'parent' })],
   },
   fields: [
@@ -37,7 +36,7 @@ export const Lectures: CollectionConfig = {
     {
       name: 'title',
       type: 'text',
-      required: false, // Hook satisfies this on create; validated on update via condition
+      required: false, // Hook satisfies this on create
       localized: true,
       admin: {
         // Hidden during create — the hook auto-populates this field
@@ -47,29 +46,21 @@ export const Lectures: CollectionConfig = {
     },
     mediaField({
       name: 'thumbnail',
-      required: true,
+      required: false,
       admin: {
-        // Hidden during create — the hook auto-downloads and sets this field
+        description:
+          'Optional override for the Nirmala Vidya thumbnail. If blank, the API thumbnail is used.',
         condition: (data) => !!data?.id,
-      },
-    }),
-    urlField({
-      name: 'videoUrl',
-      required: true,
-      admin: {
-        readOnly: true,
-        condition: (data) => !!data?.id,
-        description: 'HLS stream URL',
       },
     }),
     {
-      name: 'subtitlesUrl',
-      type: 'text',
-      localized: true,
+      name: 'metadata',
+      type: 'json',
       admin: {
         readOnly: true,
         condition: (data) => !!data?.id,
-        description: 'VTT subtitle URL — auto-populated from Nirmala Vidya API per locale.',
+        description:
+          'Auto-populated from Nirmala Vidya API on create and by the monthly sync job. Contains title, HLS URL, thumbnail URL, and per-locale subtitle URLs.',
       },
     },
     {

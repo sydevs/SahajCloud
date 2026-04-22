@@ -53,6 +53,13 @@ pnpm generate:types  # After schema changes
 
 When you need to patch a generated file, change only what actually breaks or what the spec explicitly requires. Don't add defensive NULL-ing, redundant cleanups, or cascading safety edits "just in case" — they inflate the diff, obscure the real fix, and are the first thing a reviewer will push back on. If you catch yourself adding a second or third edit, stop and ask: *would this change fail a specific, named scenario?* If not, revert it.
 
+## Design preferences (soft)
+
+These aren't hard rules — they're light defaults worth considering when a situation arises. Call them out and pick intentionally rather than defaulting to the first shape that comes to mind.
+
+- **Abstract parameter names in extracted helpers.** When you pull a helper out of its first caller, name its parameters for the *role* they play, not the domain of that caller. `resolveThumbnailUrl({ primaryOverride, secondaryOverride, fallback })` beats `{ clipOverride, parentOverride, parentMetadataUrl }` — lectures can reuse the former with no arg rewiring, and the shape stays meaningful at call sites with a short comment.
+- **Discriminated unions over `| null` shared fields.** When a response/object type spans multiple variants with known per-variant shapes, prefer a proper discriminated union keyed on the variant (`type`) over a flat struct with nullable fields that only one variant ever populates. Callers get exhaustive narrowing; readers see the variant contract explicitly. Example: `ViewerItem` in `src/endpoints/lecturesForViewer.ts` — the `lecture` variant has `parentId: null, endTime: null` pinned as literal types; the `clip` variant has `parentId: number, endTime: number` required.
+
 ## Code Quality Commands
 
 ```bash
