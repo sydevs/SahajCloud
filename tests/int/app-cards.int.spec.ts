@@ -93,7 +93,7 @@ describe('generateRulesJsonSchema', () => {
   })
 })
 
-// ── Integration Tests: AppCards audience, weight, targetSections ───────────────
+// ── Integration Tests: AppCards audiences, weight, targetSections ──────────────
 
 // Shared test environment for all AppCards tests
 let payload: Payload
@@ -109,32 +109,40 @@ afterAll(async () => {
   await cleanup()
 })
 
-describe('AppCards audience, weight, targetSections', () => {
-  it('creates card with audience relationship to a viewer rule', async () => {
-    const rule = await testData.createViewerRule(payload, {
+function extractFirstAudienceId(audiences: unknown): number | null {
+  if (!Array.isArray(audiences) || audiences.length === 0) return null
+  const first = audiences[0]
+  if (typeof first === 'number') return first
+  if (typeof first === 'object' && first !== null && 'id' in first) {
+    return (first as { id: number }).id
+  }
+  return null
+}
+
+describe('AppCards audiences, weight, targetSections', () => {
+  it('creates card with audiences relationship to an audience', async () => {
+    const audience = await testData.createAudience(payload, {
       label: 'Path Started',
       rules: { pathProgress: { min: 1 } },
     })
 
     const card = await testData.createAppCard(payload, {
       title: 'Continue Path',
-      audience: rule.id,
+      audiences: [audience.id],
       weight: 4,
     })
 
-    const audienceId =
-      typeof card.audience === 'object' && card.audience !== null ? card.audience.id : card.audience
-    expect(audienceId).toBe(rule.id)
+    expect(extractFirstAudienceId(card.audiences)).toBe(audience.id)
     expect(card.weight).toBe(4)
   })
 
-  it('creates card with null audience (hidden from viewer endpoint)', async () => {
+  it('creates card with empty audiences (hidden from for-audience endpoint)', async () => {
     const card = await testData.createAppCard(payload, {
       title: 'Hidden Card',
-      audience: null,
+      audiences: [],
     })
 
-    expect(card.audience).toBeNull()
+    expect(Array.isArray(card.audiences) ? card.audiences : []).toEqual([])
   })
 
   it('creates card with default weight of 3', async () => {
@@ -183,8 +191,8 @@ describe('AppCards audience, weight, targetSections', () => {
     expect(card.targetSections).toEqual(['hero', 'highlights'])
   })
 
-  it('creates card with targetSections and audience together', async () => {
-    const rule = await testData.createViewerRule(payload, {
+  it('creates card with targetSections and audiences together', async () => {
+    const audience = await testData.createAudience(payload, {
       label: 'Active Meditators',
       rules: { pathProgress: { min: 3 } },
     })
@@ -192,13 +200,11 @@ describe('AppCards audience, weight, targetSections', () => {
     const card = await testData.createAppCard(payload, {
       title: 'Mixed Fields Card',
       targetSections: ['highlights'],
-      audience: rule.id,
+      audiences: [audience.id],
     })
 
     expect(card.targetSections).toEqual(['highlights'])
-    const audienceId =
-      typeof card.audience === 'object' && card.audience !== null ? card.audience.id : card.audience
-    expect(audienceId).toBe(rule.id)
+    expect(extractFirstAudienceId(card.audiences)).toBe(audience.id)
   })
 })
 

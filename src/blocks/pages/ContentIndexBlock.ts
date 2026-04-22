@@ -30,12 +30,12 @@ const CONTENT_TYPE_CONFIG: Record<
   lectures: {
     basePath: '/api/lectures',
     filterField: 'lectureFilters',
-    queryParam: 'where[audience][in]',
+    queryParam: 'where[audiences][in]',
   },
   'lecture-clips': {
     basePath: '/api/lecture-clips',
     filterField: 'lectureClipFilters',
-    queryParam: 'where[audience][in]',
+    queryParam: 'where[audiences][in]',
   },
 }
 
@@ -152,27 +152,27 @@ export const ContentIndexBlock: Block = {
     {
       name: 'lectureFilters',
       type: 'relationship',
-      relationTo: 'viewer-rules',
+      relationTo: 'audiences',
       hasMany: true,
       minRows: 1,
       maxDepth: 0,
       hooks: clearWhenTypeNot('lectures'),
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'lectures',
-        description: 'Select viewer rules to use as audience filters for this index grid',
+        description: 'Select audiences to use as filters for this index grid',
       },
     },
     {
       name: 'lectureClipFilters',
       type: 'relationship',
-      relationTo: 'viewer-rules',
+      relationTo: 'audiences',
       hasMany: true,
       minRows: 1,
       maxDepth: 0,
       hooks: clearWhenTypeNot('lecture-clips'),
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'lecture-clips',
-        description: 'Select viewer rules to use as audience filters for this clip index grid',
+        description: 'Select audiences to use as filters for this clip index grid',
       },
     },
     {

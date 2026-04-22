@@ -74,8 +74,8 @@ Content index grid component with type-based filtering:
 - `meditationFilters` (relationship to meditation-tags, hasMany, minRows: 1) - Visible when type is meditations
 - `pageFilters` (select, hasMany, required) - Uses PAGE_TAGS values, visible when type is pages
 - `songFilters` (relationship to song-tags, hasMany, minRows: 1) - Visible when type is songs
-- `lectureFilters` (relationship to viewer-rules, hasMany, minRows: 1) - Visible when type is lectures. Query string uses `where[audience][in]`.
-- `lectureClipFilters` (relationship to viewer-rules, hasMany, minRows: 1) - Visible when type is lecture-clips. Query string uses `where[audience][in]`.
+- `lectureFilters` (relationship to audiences, hasMany, minRows: 1) - Visible when type is lectures. Query string uses `where[audiences][in]`.
+- `lectureClipFilters` (relationship to audiences, hasMany, minRows: 1) - Visible when type is lecture-clips. Query string uses `where[audiences][in]`.
 - `apiEndpoint` (text, virtual, hidden) - Computed API endpoint URL for frontend consumption
 
 The virtual `apiEndpoint` field uses an `afterRead` hook (`computeApiEndpoint` in `src/blocks/pages/ContentIndexBlock.ts`) to generate a ready-to-use API URL from the block's type and selected filters. Meditations query `/api/meditation-tags` (reverse relationship), while pages/songs/lectures/lecture-clips query their own collection endpoints. Each filter field has `beforeChange` and `afterRead` hooks (`clearWhenTypeNot`) that clear stale values when the block's type doesn't match, ensuring only the active filter appears in the API response.

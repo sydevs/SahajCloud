@@ -26,7 +26,7 @@ export type RulesValue = {
 }
 
 /** Caller-supplied values keyed by rule name (e.g., `{ pathProgress: 3, totalMeditationsViewed: 12 }`). */
-export type ViewerData = Record<string, unknown>
+export type AudienceData = Record<string, unknown>
 
 export interface RulesFieldOptions {
   /** Field name (default: 'rules') */
@@ -48,24 +48,27 @@ export interface RulesFieldOptions {
  * so the rule-matcher virtual field can evaluate against caller inputs.
  *
  * If two rule fields ever coexist on the same document with conflicting input
- * needs, switch to a scoped shape like `{ [fieldName]: ViewerData }`.
+ * needs, switch to a scoped shape like `{ [fieldName]: AudienceData }`.
  */
-export const VIEWER_DATA_CONTEXT_KEY = 'viewerData' as const
+export const AUDIENCE_DATA_CONTEXT_KEY = 'audienceData' as const
 
 /**
- * Returns a shallow-cloned req with `viewerData` stashed on `req.context` so
- * the virtual `isEligibleForViewer` field can evaluate against it during
- * `payload.find` calls. Used by the for-viewer endpoints.
+ * Returns a shallow-cloned req with `audienceData` stashed on `req.context` so
+ * the virtual `isEligibleForAudience` field can evaluate against it during
+ * `payload.find` calls. Used by the for-audience endpoints.
  */
-export function withViewerContext(req: PayloadRequest, viewerData: ViewerData): PayloadRequest {
+export function withAudienceContext(
+  req: PayloadRequest,
+  audienceData: AudienceData,
+): PayloadRequest {
   return {
     ...req,
-    context: { ...req.context, [VIEWER_DATA_CONTEXT_KEY]: viewerData },
+    context: { ...req.context, [AUDIENCE_DATA_CONTEXT_KEY]: audienceData },
   } as PayloadRequest
 }
 
 /**
- * Build the Zod shape dict for query-param viewer data from rule definitions.
+ * Build the Zod shape dict for query-param audience data from rule definitions.
  * Each rule dimension becomes an optional coerced value matching its type:
  *
  *   - `range`   → `z.coerce.number().optional()` (caller sends a single number)
@@ -76,7 +79,7 @@ export function withViewerContext(req: PayloadRequest, viewerData: ViewerData): 
  * into their own schema alongside endpoint-specific fields:
  *
  *   const querySchema = z.object({
- *     ...buildViewerDataShape(VIEWER_RULE_DEFINITIONS),
+ *     ...buildAudienceDataShape(AUDIENCE_DEFINITIONS),
  *     limit: z.coerce.number().int().min(1).max(20),
  *   })
  *
@@ -84,7 +87,7 @@ export function withViewerContext(req: PayloadRequest, viewerData: ViewerData): 
  * wrapping as `z.object(...).extend(...)` does not when the inner shape
  * is runtime-derived.
  */
-export function buildViewerDataShape(rules: RuleDefinition[]): Record<string, z.ZodTypeAny> {
+export function buildAudienceDataShape(rules: RuleDefinition[]): Record<string, z.ZodTypeAny> {
   const shape: Record<string, z.ZodTypeAny> = {}
   for (const rule of rules) {
     if (rule.type === 'range') {
@@ -136,7 +139,7 @@ function evaluateSelect(stored: string[], supplied: unknown): boolean {
  */
 export function evaluateRules(
   rules: RulesValue | null | undefined,
-  inputs: ViewerData,
+  inputs: AudienceData,
   definitions: RuleDefinition[],
 ): boolean {
   if (!rules) return true
@@ -261,7 +264,7 @@ function buildJsonField(options: RulesFieldOptions): JSONField {
 
 /**
  * Virtual checkbox field that evaluates the sibling rules JSON against caller
- * inputs stashed on `req.context[VIEWER_DATA_CONTEXT_KEY]`.
+ * inputs stashed on `req.context[AUDIENCE_DATA_CONTEXT_KEY]`.
  *
  * Returns `null` when no inputs are present (no evaluation requested), so
  * near-zero overhead for admin UI reads and unrelated fetches.
@@ -270,7 +273,7 @@ function buildEligibilityField(options: RulesFieldOptions): CheckboxField {
   const { name = 'rules', rules } = options
 
   const afterRead: FieldHook = ({ req, siblingData }) => {
-    const inputs = req?.context?.[VIEWER_DATA_CONTEXT_KEY] as ViewerData | undefined
+    const inputs = req?.context?.[AUDIENCE_DATA_CONTEXT_KEY] as AudienceData | undefined
     if (!inputs) return null
     const stored = (siblingData as Record<string, unknown> | undefined)?.[name] as
       | RulesValue
@@ -280,7 +283,7 @@ function buildEligibilityField(options: RulesFieldOptions): CheckboxField {
   }
 
   return {
-    name: 'isEligibleForViewer',
+    name: 'isEligibleForAudience',
     type: 'checkbox',
     virtual: true,
     admin: { hidden: true },
@@ -290,8 +293,8 @@ function buildEligibilityField(options: RulesFieldOptions): CheckboxField {
 
 /**
  * Creates a JSON field with a custom visual editor for targeting rules, plus
- * a virtual `isEligibleForViewer` sibling whose `afterRead` hook evaluates
- * the document's stored rules against `req.context.viewerData`. Endpoints
+ * a virtual `isEligibleForAudience` sibling whose `afterRead` hook evaluates
+ * the document's stored rules against `req.context.audienceData`. Endpoints
  * set the context once and filter results by the virtual field instead of
  * importing rule-evaluation logic.
  *

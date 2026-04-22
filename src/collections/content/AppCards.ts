@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { appCardsForViewer } from '@/endpoints'
+import { appCardsForAudience } from '@/endpoints'
 import { mediaField, scheduleField, urlField } from '@/fields'
 
 /**
@@ -21,7 +21,7 @@ export const AppCards: CollectionConfig = {
     maxPerDoc: 5,
   },
   disableDuplicate: true,
-  endpoints: [appCardsForViewer],
+  endpoints: [appCardsForAudience],
   admin: {
     group: 'WeMeditate App',
     useAsTitle: 'title',
@@ -165,18 +165,19 @@ export const AppCards: CollectionConfig = {
                 description: 'Target sections where this card should appear on the app homepage.',
               },
             },
-            // Audience (single viewer-rule). Null ⇒ card is hidden from the
-            // viewer endpoint. Eligibility is evaluated on the populated
-            // `audience.isEligibleForViewer` virtual field.
+            // Audiences (hasMany). Empty ⇒ card is hidden from the for-audience
+            // endpoint. The card is shown when ANY of the selected audiences
+            // passes — eligibility is evaluated on the populated
+            // `audiences[].isEligibleForAudience` virtual field.
             {
-              name: 'audience',
+              name: 'audiences',
               type: 'relationship',
-              relationTo: 'viewer-rules',
-              hasMany: false,
+              relationTo: 'audiences',
+              hasMany: true,
               filterOptions: () => true,
               admin: {
                 description:
-                  'Controls which viewers see this card. If empty, the card is hidden from /api/app-cards/for-viewer and never appears on the app homepage.',
+                  'Audiences that control visibility. The card is shown to a viewer if ANY of the selected audiences passes. If empty, the card is hidden from /api/app-cards/for-audience and never appears on the app homepage.',
               },
             },
             // Selection weight for client-side card prioritization

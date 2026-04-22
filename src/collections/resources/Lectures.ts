@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { lecturesForViewer } from '@/endpoints'
+import { lecturesForAudience } from '@/endpoints'
 import { mediaField, urlField } from '@/fields'
 import { deleteChildren } from '@/hooks/cascadeDeletion'
 import { populateFromNirmalaVidya } from '@/hooks/lectureHooks'
@@ -11,7 +11,7 @@ export const Lectures: CollectionConfig = {
     singular: 'Lecture',
     plural: 'Lectures',
   },
-  endpoints: [lecturesForViewer],
+  endpoints: [lecturesForAudience],
   admin: {
     group: 'Content',
     useAsTitle: 'title',
@@ -64,14 +64,14 @@ export const Lectures: CollectionConfig = {
       },
     },
     {
-      name: 'audience',
+      name: 'audiences',
       type: 'relationship',
-      relationTo: 'viewer-rules',
-      hasMany: false,
+      relationTo: 'audiences',
+      hasMany: true,
       filterOptions: () => true,
       admin: {
         description:
-          'Controls which viewers see this lecture. If empty, it is hidden from /api/lectures/for-viewer and only surfaced when directly referenced (e.g. from a meditation or path step).',
+          'Audiences that control visibility. The lecture is shown to a viewer if ANY of the selected audiences passes. If empty, it is hidden from /api/lectures/for-audience and only surfaced when directly referenced (e.g. from a meditation or path step).',
       },
     },
     {
@@ -81,7 +81,7 @@ export const Lectures: CollectionConfig = {
       on: 'parent',
       admin: {
         allowCreate: true,
-        defaultColumns: ['title', 'startTime', 'endTime', 'audience'],
+        defaultColumns: ['title', 'startTime', 'endTime', 'audiences'],
         condition: (data) => !!data?.id,
       },
     },

@@ -61,7 +61,7 @@ Collections use `admin.hidden` functions to control visibility based on `user.cu
 | Authors | ✓ | ✓ | ✗ | ✗ |
 | Files | ✓ | ✓ | ✓ | ✓ |
 | **Tags / Audiences** |||||
-| ViewerRules | ✓ | ✗ | ✓ | ✗ |
+| Audiences | ✓ | ✗ | ✓ | ✗ |
 | MeditationTags | ✓ | ✓ | ✓ | ✗ |
 | SongTags | ✓ | ✓ | ✓ | ✗ |
 | **System/Access** |||||

@@ -97,7 +97,7 @@ export interface Config {
     authors: Author;
     images: Image;
     files: File;
-    'viewer-rules': ViewerRule;
+    audiences: Audience;
     'meditation-tags': MeditationTag;
     'song-tags': SongTag;
     managers: Manager;
@@ -121,7 +121,7 @@ export interface Config {
     authors: {
       articles: 'pages';
     };
-    'viewer-rules': {
+    audiences: {
       lectures: 'lectures';
       lectureClips: 'lecture-clips';
       appCards: 'app-cards';
@@ -147,7 +147,7 @@ export interface Config {
     authors: AuthorsSelect<false> | AuthorsSelect<true>;
     images: ImagesSelect<false> | ImagesSelect<true>;
     files: FilesSelect<false> | FilesSelect<true>;
-    'viewer-rules': ViewerRulesSelect<false> | ViewerRulesSelect<true>;
+    audiences: AudiencesSelect<false> | AudiencesSelect<true>;
     'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
     'song-tags': SongTagsSelect<false> | SongTagsSelect<true>;
     managers: ManagersSelect<false> | ManagersSelect<true>;
@@ -812,9 +812,9 @@ export interface Lecture {
     | boolean
     | null;
   /**
-   * Controls which viewers see this lecture. If empty, it is hidden from /api/lectures/for-viewer and only surfaced when directly referenced (e.g. from a meditation or path step).
+   * Audiences that control visibility. The lecture is shown to a viewer if ANY of the selected audiences passes. If empty, it is hidden from /api/lectures/for-audience and only surfaced when directly referenced (e.g. from a meditation or path step).
    */
-  audience?: (number | null) | ViewerRule;
+  audiences?: (number | Audience)[] | null;
   clips?: {
     docs?: (number | LectureClip)[];
     hasNextPage?: boolean;
@@ -825,9 +825,9 @@ export interface Lecture {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "viewer-rules".
+ * via the `definition` "audiences".
  */
-export interface ViewerRule {
+export interface Audience {
   id: number;
   label: string;
   rules?: {
@@ -849,7 +849,7 @@ export interface ViewerRule {
       max?: number;
     };
   };
-  isEligibleForViewer?: boolean | null;
+  isEligibleForAudience?: boolean | null;
   lectures?: {
     docs?: (number | Lecture)[];
     hasNextPage?: boolean;
@@ -885,7 +885,7 @@ export interface LectureClip {
   endTime: number;
   title: string;
   /**
-   * Optional. Falls back to the parent lecture's thumbnail when empty — fallback is applied by /api/lectures/for-viewer, not by this collection's CRUD endpoints.
+   * Optional. Falls back to the parent lecture's thumbnail when empty — fallback is applied by /api/lectures/for-audience, not by this collection's CRUD endpoints.
    */
   thumbnail?: (number | null) | Image;
   /**
@@ -915,9 +915,9 @@ export interface LectureClip {
       }[]
     | null;
   /**
-   * Controls which viewers see this clip. If empty, it is hidden from /api/lectures/for-viewer and only surfaced when directly referenced (e.g. from a meditation or path step).
+   * Audiences that control visibility. The clip is shown to a viewer if ANY of the selected audiences passes. If empty, it is hidden from /api/lectures/for-audience and only surfaced when directly referenced (e.g. from a meditation or path step).
    */
-  audience?: (number | null) | ViewerRule;
+  audiences?: (number | Audience)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1010,9 +1010,9 @@ export interface AppCard {
    */
   targetSections?: ('hero' | 'highlights' | 'lectures')[] | null;
   /**
-   * Controls which viewers see this card. If empty, the card is hidden from /api/app-cards/for-viewer and never appears on the app homepage.
+   * Audiences that control visibility. The card is shown to a viewer if ANY of the selected audiences passes. If empty, the card is hidden from /api/app-cards/for-audience and never appears on the app homepage.
    */
-  audience?: (number | null) | ViewerRule;
+  audiences?: (number | Audience)[] | null;
   /**
    * Controls how likely this card is to be chosen when displayed to a user.
    */
@@ -1672,8 +1672,8 @@ export interface PayloadLockedDocument {
         value: number | File;
       } | null)
     | ({
-        relationTo: 'viewer-rules';
-        value: number | ViewerRule;
+        relationTo: 'audiences';
+        value: number | Audience;
       } | null)
     | ({
         relationTo: 'meditation-tags';
@@ -1914,7 +1914,7 @@ export interface LecturesSelect<T extends boolean = true> {
   title?: T;
   thumbnail?: T;
   metadata?: T;
-  audience?: T;
+  audiences?: T;
   clips?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1936,7 +1936,7 @@ export interface LectureClipsSelect<T extends boolean = true> {
         url?: T;
         id?: T;
       };
-  audience?: T;
+  audiences?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2035,12 +2035,12 @@ export interface FilesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "viewer-rules_select".
+ * via the `definition` "audiences_select".
  */
-export interface ViewerRulesSelect<T extends boolean = true> {
+export interface AudiencesSelect<T extends boolean = true> {
   label?: T;
   rules?: T;
-  isEligibleForViewer?: T;
+  isEligibleForAudience?: T;
   lectures?: T;
   lectureClips?: T;
   appCards?: T;
@@ -2195,7 +2195,7 @@ export interface AppCardsSelect<T extends boolean = true> {
         upcomingDates?: T;
       };
   targetSections?: T;
-  audience?: T;
+  audiences?: T;
   weight?: T;
   updatedAt?: T;
   createdAt?: T;

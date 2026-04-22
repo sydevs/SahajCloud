@@ -106,11 +106,11 @@ describe('Collections smoke', () => {
     expect(found.title).toBe('Smoke STag')
   })
 
-  it('viewer-rules: create + read', async () => {
-    const rule = await testData.createViewerRule(payload, { label: 'Smoke Rule' })
-    expect(rule.id).toBeDefined()
-    const found = await payload.findByID({ collection: 'viewer-rules', id: rule.id })
-    expect(found.label).toBe('Smoke Rule')
+  it('audiences: create + read', async () => {
+    const audience = await testData.createAudience(payload, { label: 'Smoke Audience' })
+    expect(audience.id).toBeDefined()
+    const found = await payload.findByID({ collection: 'audiences', id: audience.id })
+    expect(found.label).toBe('Smoke Audience')
   })
 
   // ---- Content collections ----------------------------------------------
