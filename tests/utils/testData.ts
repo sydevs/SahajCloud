@@ -718,17 +718,13 @@ export const testData = {
     deps?: { thumbnail?: number },
     overrides: Partial<Lecture> = {},
   ): Promise<Lecture> {
-    let thumbnail = deps?.thumbnail
-    if (!thumbnail) {
-      const thumbMedia = await testData.createMediaImage(payload)
-      thumbnail = thumbMedia.id
-    }
+    // Thumbnail is an optional editor override — only set it when the caller asks.
+    const thumbnail = deps?.thumbnail
     return (await payload.create({
       collection: 'lectures',
       data: {
         title: 'Test Lecture',
-        thumbnail,
-        videoUrl: 'https://example.com/video.mp4',
+        ...(thumbnail !== undefined ? { thumbnail } : {}),
         nirmalVidyaVimeoUrl: 'https://vimeo.com/123456789',
         ...overrides,
       },

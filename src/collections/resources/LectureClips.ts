@@ -1,6 +1,9 @@
 import type { CollectionConfig } from 'payload'
 
 import { mediaField } from '@/fields'
+import { LOCALES, getLocaleLabel } from '@/lib/locales'
+
+const LOCALE_OPTIONS = LOCALES.map(({ code }) => ({ label: getLocaleLabel(code), value: code }))
 
 // Default clip length when an editor first opens the row — editors can override,
 // but a sensible pre-filled span beats empty inputs.
@@ -82,13 +85,26 @@ export const LectureClips: CollectionConfig = {
       },
     }),
     {
-      name: 'subtitlesUrl',
-      type: 'text',
-      localized: true,
+      name: 'subtitles',
+      type: 'array',
+      localized: false,
       admin: {
         description:
-          "Optional per-locale VTT override. Falls back to the parent lecture's subtitle URL when empty — fallback is applied by /api/lectures/for-viewer, not by this collection's CRUD endpoints.",
+          "Per-locale subtitle overrides. Any locale not listed here falls back to the parent lecture's Nirmala Vidya subtitles.",
       },
+      fields: [
+        {
+          name: 'locale',
+          type: 'select',
+          required: true,
+          options: LOCALE_OPTIONS,
+        },
+        {
+          name: 'url',
+          type: 'text',
+          required: true,
+        },
+      ],
     },
     {
       name: 'audience',
