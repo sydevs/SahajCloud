@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { mergeSubtitles, resolveThumbnailUrl } from '@/endpoints/lecturesForViewer'
+import { mergeSubtitles, resolveThumbnailUrl } from '@/endpoints/lecturesForAudience'
 
 describe('mergeSubtitles', () => {
   it('returns the parent map unchanged when there are no clip overrides', () => {
@@ -93,7 +93,7 @@ describe('resolveThumbnailUrl', () => {
   })
 
   it('ignores number-only refs (depth:0 IDs have no url to extract)', () => {
-    // At depth:1 the viewer endpoint always receives populated Image objects;
+    // At depth:1 the /api/lectures/for-audience endpoint always receives populated Image objects;
     // if it ever sees a raw number it cannot resolve a URL, so it must fall
     // through to the next tier.
     expect(
