@@ -19,7 +19,7 @@ export const LectureClips: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     hidden: true,
-    defaultColumns: ['title', 'parent', 'startTime', 'endTime', 'audience'],
+    defaultColumns: ['title', 'parent', 'startTime', 'endTime', 'audiences'],
   },
   fields: [
     {
@@ -81,7 +81,7 @@ export const LectureClips: CollectionConfig = {
       required: false,
       admin: {
         description:
-          "Optional. Falls back to the parent lecture's thumbnail when empty — fallback is applied by /api/lectures/for-viewer, not by this collection's CRUD endpoints.",
+          "Optional. Falls back to the parent lecture's thumbnail when empty — fallback is applied by /api/lectures/for-audience, not by this collection's CRUD endpoints.",
       },
     }),
     {
@@ -107,14 +107,14 @@ export const LectureClips: CollectionConfig = {
       ],
     },
     {
-      name: 'audience',
+      name: 'audiences',
       type: 'relationship',
-      relationTo: 'viewer-rules',
-      hasMany: false,
+      relationTo: 'audiences',
+      hasMany: true,
       filterOptions: () => true,
       admin: {
         description:
-          'Controls which viewers see this clip. If empty, it is hidden from /api/lectures/for-viewer and only surfaced when directly referenced (e.g. from a meditation or path step).',
+          'Audiences that control visibility. The clip is shown to a viewer if ANY of the selected audiences passes. If empty, it is hidden from /api/lectures/for-audience and only surfaced when directly referenced (e.g. from a meditation or path step).',
       },
     },
   ],

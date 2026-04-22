@@ -4,22 +4,22 @@ import type { RuleDefinition } from '@/fields'
 import { rulesField } from '@/fields'
 
 /**
- * Single source of truth for the rule dimensions a ViewerRule can target.
- * Consumed by ViewerRules itself and by the for-viewer endpoints to derive
+ * Single source of truth for the rule dimensions an Audience can target.
+ * Consumed by Audiences itself and by the for-audience endpoints to derive
  * their query schemas — add a rule here and both sides pick it up.
  */
-export const VIEWER_RULE_DEFINITIONS: RuleDefinition[] = [
+export const AUDIENCE_DEFINITIONS: RuleDefinition[] = [
   { name: 'pathProgress', type: 'range' },
   { name: 'meditationsPerWeek', type: 'range' },
   { name: 'totalMeditationsViewed', type: 'range' },
   { name: 'totalLecturesViewed', type: 'range' },
 ]
 
-export const ViewerRules: CollectionConfig = {
-  slug: 'viewer-rules',
+export const Audiences: CollectionConfig = {
+  slug: 'audiences',
   labels: {
-    singular: 'Viewer Rule',
-    plural: 'Viewer Rules',
+    singular: 'Audience',
+    plural: 'Audiences',
   },
   admin: {
     group: 'Metadata',
@@ -34,13 +34,13 @@ export const ViewerRules: CollectionConfig = {
       required: true,
     },
     // Targeting rules for user progress-based filtering
-    ...rulesField({ rules: VIEWER_RULE_DEFINITIONS }),
+    ...rulesField({ rules: AUDIENCE_DEFINITIONS }),
     // Bidirectional join to lectures
     {
       name: 'lectures',
       type: 'join',
       collection: 'lectures',
-      on: 'audience',
+      on: 'audiences',
       defaultLimit: 100,
       admin: {
         components: {
@@ -56,7 +56,7 @@ export const ViewerRules: CollectionConfig = {
       name: 'lectureClips',
       type: 'join',
       collection: 'lecture-clips',
-      on: 'audience',
+      on: 'audiences',
       defaultLimit: 100,
       admin: {
         components: {
@@ -72,7 +72,7 @@ export const ViewerRules: CollectionConfig = {
       name: 'appCards',
       type: 'join',
       collection: 'app-cards',
-      on: 'audience',
+      on: 'audiences',
       defaultLimit: 100,
       admin: {
         components: {

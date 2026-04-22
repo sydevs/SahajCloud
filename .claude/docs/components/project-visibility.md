@@ -73,7 +73,7 @@ const PROJECTS = {
     icon: '/images/wemeditate-app.svg',
     collections: [
       'meditations', 'songs', 'albums', 'videos', 'lessons',
-      'lectures', 'lecture-clips', 'viewer-rules', 'app-cards', 'frames', 'narrators',
+      'lectures', 'lecture-clips', 'audiences', 'app-cards', 'frames', 'narrators',
       'meditation-tags', 'song-tags', 'images', 'files',
     ],
     globals: ['we-meditate-app-settings'],
@@ -109,7 +109,7 @@ Collections are visible based on which projects include them AND whether the use
 | narrators | ✅ | ✅ | | |
 | frames | ✅ | ✅ | | |
 | **Tags / Audiences** |
-| viewer-rules | | ✅ | | |
+| audiences | | ✅ | | |
 | meditation-tags | ✅ | ✅ | | |
 | song-tags | ✅ | ✅ | | |
 | **Forms** |
