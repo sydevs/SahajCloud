@@ -13,18 +13,30 @@ const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100),
 })
 
-/** Flat, uniform shape returned from /for-viewer. */
-export type ViewerItem = {
+/** Shared fields across lecture and clip items. */
+type ViewerItemBase = {
   id: number
-  type: 'lecture' | 'clip'
-  parentId: number | null
-  title: string | null | undefined
   videoUrl: string
-  startTime: number
-  endTime: number | null
   thumbnailUrl: string | null
   subtitles: Record<string, string>
 }
+
+/** Flat, uniform shape returned from /for-viewer (discriminated by `type`). */
+export type ViewerItem =
+  | (ViewerItemBase & {
+      type: 'lecture'
+      parentId: null
+      title: string | null | undefined
+      startTime: 0
+      endTime: null
+    })
+  | (ViewerItemBase & {
+      type: 'clip'
+      parentId: number
+      title: string
+      startTime: number
+      endTime: number
+    })
 
 // =============================================================================
 // Pure helpers (exported for unit tests)
@@ -57,18 +69,23 @@ function thumbnailUrl(ref: ThumbnailRef): string | null {
 }
 
 /**
- * Resolve a viewer-item thumbnail URL using the fallback chain:
- *   editor override > parent editor override > parent metadata URL > null.
+ * Resolve a viewer-item thumbnail URL using a tier-based fallback chain:
+ *   primaryOverride > secondaryOverride > fallback > null.
+ *
+ * For lectures: `primaryOverride` is the lecture's editor override and there
+ * is no secondary. For clips: `primaryOverride` is the clip's editor override
+ * and `secondaryOverride` is the parent lecture's editor override. `fallback`
+ * is always the parent metadata's thumbnail URL.
  */
 export function resolveThumbnailUrl(args: {
-  clipOverride?: ThumbnailRef
-  parentOverride?: ThumbnailRef
-  parentMetadataUrl?: string | null
+  primaryOverride?: ThumbnailRef
+  secondaryOverride?: ThumbnailRef
+  fallback?: string | null
 }): string | null {
   return (
-    thumbnailUrl(args.clipOverride) ??
-    thumbnailUrl(args.parentOverride) ??
-    (args.parentMetadataUrl ?? null)
+    thumbnailUrl(args.primaryOverride) ??
+    thumbnailUrl(args.secondaryOverride) ??
+    (args.fallback ?? null)
   )
 }
 
@@ -201,8 +218,8 @@ export const lecturesForViewer: Endpoint = {
           startTime: 0,
           endTime: null,
           thumbnailUrl: resolveThumbnailUrl({
-            clipOverride: lecture.thumbnail,
-            parentMetadataUrl: metadata.thumbnailUrl,
+            primaryOverride: lecture.thumbnail,
+            fallback: metadata.thumbnailUrl,
           }),
           subtitles: { ...(metadata.subtitles ?? {}) } as Record<string, string>,
         }
@@ -214,12 +231,20 @@ export const lecturesForViewer: Endpoint = {
       .map((clip): ViewerItem | null => {
         const parentId = extractID(clip.parent)
         const parent = typeof parentId === 'number' ? parentById.get(parentId) ?? null : null
-        const metadata = parent?.metadata as LectureMetadata | null | undefined
-        if (!parent || !metadata?.hlsUrl) {
+        if (!parent) {
+          req.payload.logger.warn({
+            msg: 'Clip parent lecture not found — skipping in /for-viewer',
+            clipId: clip.id,
+            parentId,
+          })
+          return null
+        }
+        const metadata = parent.metadata as LectureMetadata | null | undefined
+        if (!metadata?.hlsUrl) {
           req.payload.logger.warn({
             msg: 'Clip parent missing metadata.hlsUrl — skipping in /for-viewer',
             clipId: clip.id,
-            parentId,
+            parentId: parent.id,
           })
           return null
         }
@@ -232,9 +257,9 @@ export const lecturesForViewer: Endpoint = {
           startTime: clip.startTime,
           endTime: clip.endTime,
           thumbnailUrl: resolveThumbnailUrl({
-            clipOverride: clip.thumbnail,
-            parentOverride: parent.thumbnail,
-            parentMetadataUrl: metadata.thumbnailUrl,
+            primaryOverride: clip.thumbnail,
+            secondaryOverride: parent.thumbnail,
+            fallback: metadata.thumbnailUrl,
           }),
           subtitles: mergeSubtitles(metadata.subtitles, clip.subtitles),
         }

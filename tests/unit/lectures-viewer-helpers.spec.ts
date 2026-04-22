@@ -51,43 +51,43 @@ describe('mergeSubtitles', () => {
 describe('resolveThumbnailUrl', () => {
   const img = (url: string) => ({ id: 1, url } as { id: number; url: string })
 
-  it('picks the clip editor override first', () => {
+  it('picks the primary override first', () => {
     expect(
       resolveThumbnailUrl({
-        clipOverride: img('clip-url'),
-        parentOverride: img('parent-url'),
-        parentMetadataUrl: 'metadata-url',
+        primaryOverride: img('primary-url'),
+        secondaryOverride: img('secondary-url'),
+        fallback: 'fallback-url',
       }),
-    ).toBe('clip-url')
+    ).toBe('primary-url')
   })
 
-  it('falls back to the parent editor override when the clip has none', () => {
+  it('falls back to the secondary override when the primary is missing', () => {
     expect(
       resolveThumbnailUrl({
-        clipOverride: null,
-        parentOverride: img('parent-url'),
-        parentMetadataUrl: 'metadata-url',
+        primaryOverride: null,
+        secondaryOverride: img('secondary-url'),
+        fallback: 'fallback-url',
       }),
-    ).toBe('parent-url')
+    ).toBe('secondary-url')
   })
 
-  it('falls back to parent metadata URL when both editor overrides are empty', () => {
+  it('falls back to the fallback URL when both overrides are empty', () => {
     expect(
       resolveThumbnailUrl({
-        clipOverride: undefined,
-        parentOverride: null,
-        parentMetadataUrl: 'metadata-url',
+        primaryOverride: undefined,
+        secondaryOverride: null,
+        fallback: 'fallback-url',
       }),
-    ).toBe('metadata-url')
+    ).toBe('fallback-url')
   })
 
   it('returns null when nothing is supplied', () => {
     expect(resolveThumbnailUrl({})).toBeNull()
     expect(
       resolveThumbnailUrl({
-        clipOverride: null,
-        parentOverride: null,
-        parentMetadataUrl: null,
+        primaryOverride: null,
+        secondaryOverride: null,
+        fallback: null,
       }),
     ).toBeNull()
   })
@@ -98,10 +98,27 @@ describe('resolveThumbnailUrl', () => {
     // through to the next tier.
     expect(
       resolveThumbnailUrl({
-        clipOverride: 42,
-        parentOverride: img('parent-url'),
-        parentMetadataUrl: 'metadata-url',
+        primaryOverride: 42,
+        secondaryOverride: img('secondary-url'),
+        fallback: 'fallback-url',
       }),
-    ).toBe('parent-url')
+    ).toBe('secondary-url')
+  })
+
+  it('supports lecture usage (primary-only, no secondary)', () => {
+    // Lectures pass only `primaryOverride` (their own editor thumbnail) and
+    // `fallback` (metadata.thumbnailUrl). `secondaryOverride` is unused.
+    expect(
+      resolveThumbnailUrl({
+        primaryOverride: img('lecture-editor'),
+        fallback: 'metadata-url',
+      }),
+    ).toBe('lecture-editor')
+    expect(
+      resolveThumbnailUrl({
+        primaryOverride: null,
+        fallback: 'metadata-url',
+      }),
+    ).toBe('metadata-url')
   })
 })
