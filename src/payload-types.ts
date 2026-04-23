@@ -952,6 +952,10 @@ export interface AppCard {
         value: number | LectureClip;
       } | null)
     | ({
+        relationTo: 'lectures';
+        value: number | Lecture;
+      } | null)
+    | ({
         relationTo: 'albums';
         value: number | Album;
       } | null)
