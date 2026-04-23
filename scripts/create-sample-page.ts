@@ -192,9 +192,7 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
   console.log(`  Meditations: ${data.meditationIds.length} found`)
   console.log(`  Meditation Tags: ${data.meditationTagIds.length} found (IDs: ${data.meditationTagIds.join(', ')})`)
   console.log(`  Song Tags: ${data.songTagIds.length} found (IDs: ${data.songTagIds.join(', ')})`)
-  console.log(
-    `  Audiences: ${data.audienceIds.length} found${data.audienceIds.length === 0 ? ' (skipping ContentIndex lectures variant)' : ''}`,
-  )
+  console.log(`  Audiences: ${data.audienceIds.length} found`)
   console.log(
     `  App Cards: ${data.appCardIds.length} found${data.appCardIds.length === 0 ? ' (will not include in Showcase)' : ''}`,
   )
@@ -481,6 +479,7 @@ function buildContentIndexBlocks(data: SeedData): unknown[] {
   blocks.push(
     blockNode('content-index', {
       type: 'meditations',
+      limit: 10,
       meditationFilters: data.meditationTagIds.slice(0, 3),
     }),
   )
@@ -489,6 +488,7 @@ function buildContentIndexBlocks(data: SeedData): unknown[] {
   blocks.push(
     blockNode('content-index', {
       type: 'pages',
+      limit: 10,
       pageFilters: ['wisdom', 'lifestyle', 'creativity'],
     }),
   )
@@ -498,6 +498,7 @@ function buildContentIndexBlocks(data: SeedData): unknown[] {
     blocks.push(
       blockNode('content-index', {
         type: 'songs',
+        limit: 10,
         songFilters: data.songTagIds.slice(0, 2),
       }),
     )
@@ -505,17 +506,13 @@ function buildContentIndexBlocks(data: SeedData): unknown[] {
     console.log('  Skipping ContentIndex songs variant (no song-tags)')
   }
 
-  // Lectures (if audiences exist)
-  if (data.audienceIds.length > 0) {
-    blocks.push(
-      blockNode('content-index', {
-        type: 'lectures',
-        lectureFilters: data.audienceIds.slice(0, 2),
-      }),
-    )
-  } else {
-    console.log('  Skipping ContentIndex lectures variant (no audiences)')
-  }
+  // Lectures — uses /api/lectures/for-audience; no editor-selected audience list.
+  blocks.push(
+    blockNode('content-index', {
+      type: 'lectures',
+      limit: 10,
+    }),
+  )
 
   return blocks
 }
