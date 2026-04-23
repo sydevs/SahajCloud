@@ -226,13 +226,14 @@ describe('lecturesForAudience endpoint', () => {
   const isLecture = (d: ItemPlayerData) => d.lectureId === undefined
 
   describe('Flat response shape', () => {
-    it('emits only the flat ItemPlayerData keys — no nested parent document, no `type`', async () => {
+    it('emits only the flat ItemPlayerData keys — no nested parent document', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
       const docs = (body as { docs: ItemPlayerData[] }).docs
 
       expect(docs.length).toBeGreaterThan(0)
       const lectureKeys = [
         'id',
+        'type',
         'title',
         'videoUrl',
         'thumbnailUrl',
@@ -246,7 +247,6 @@ describe('lecturesForAudience endpoint', () => {
         const expected = isClip(doc) ? clipKeys : lectureKeys
         expect(Object.keys(doc).sort()).toEqual(expected)
         // No removed/legacy fields
-        expect((doc as unknown as { type?: unknown }).type).toBeUndefined()
         expect((doc as unknown as { parentId?: unknown }).parentId).toBeUndefined()
         // No unexpected nested parent object
         expect((doc as unknown as { parent?: unknown }).parent).toBeUndefined()
@@ -315,7 +315,7 @@ describe('lecturesForAudience endpoint', () => {
   })
 
   describe('Clip shape', () => {
-    it("exposes clip `duration` from the virtual field (endTime − startTime)", async () => {
+    it('exposes clip `duration` from the virtual field (endTime − startTime)', async () => {
       const clip = await testData.createLectureClip(
         payload,
         { lecture: lectureBeginnerOnly.id },
@@ -384,34 +384,26 @@ describe('lecturesForAudience endpoint', () => {
     it('includes a lecture when ANY of its multiple audiences passes', async () => {
       // pathProgress=3 → Beginner passes, Intermediate fails. Lecture has both.
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
-      const ids = (body as { docs: ItemPlayerData[] }).docs
-        .filter(isLecture)
-        .map((d) => d.id)
+      const ids = (body as { docs: ItemPlayerData[] }).docs.filter(isLecture).map((d) => d.id)
       expect(ids).toContain(lectureMultiAudience.id)
     })
 
     it('excludes a lecture when ALL of its audiences fail', async () => {
       // pathProgress=3 → Intermediate fails. Lecture has only Intermediate.
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
-      const ids = (body as { docs: ItemPlayerData[] }).docs
-        .filter(isLecture)
-        .map((d) => d.id)
+      const ids = (body as { docs: ItemPlayerData[] }).docs.filter(isLecture).map((d) => d.id)
       expect(ids).not.toContain(lectureAllFailingAudiences.id)
     })
 
     it('includes a clip when ANY of its multiple audiences passes', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
-      const ids = (body as { docs: ItemPlayerData[] }).docs
-        .filter(isClip)
-        .map((d) => d.id)
+      const ids = (body as { docs: ItemPlayerData[] }).docs.filter(isClip).map((d) => d.id)
       expect(ids).toContain(clipMultiAudience.id)
     })
 
     it('excludes a clip when ALL of its audiences fail', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
-      const ids = (body as { docs: ItemPlayerData[] }).docs
-        .filter(isClip)
-        .map((d) => d.id)
+      const ids = (body as { docs: ItemPlayerData[] }).docs.filter(isClip).map((d) => d.id)
       expect(ids).not.toContain(clipAllFailingAudiences.id)
     })
   })

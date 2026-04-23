@@ -29,6 +29,7 @@ const querySchema = z.object({
 export type ItemPlayerData =
   | {
       id: number
+      type: 'lecture'
       title: string | null | undefined
       videoUrl: string
       thumbnailUrl: string | null
@@ -40,6 +41,7 @@ export type ItemPlayerData =
     }
   | {
       id: number
+      type: 'lecture-clip'
       title: string
       videoUrl: string
       thumbnailUrl: string | null
@@ -97,7 +99,8 @@ export function resolveThumbnailUrl(args: {
   return (
     thumbnailUrl(args.primaryOverride) ??
     thumbnailUrl(args.secondaryOverride) ??
-    (args.fallback ?? null)
+    args.fallback ??
+    null
   )
 }
 
@@ -225,6 +228,7 @@ export const lecturesForAudience: Endpoint = {
         const duration = metadata.duration ?? null
         return {
           id: lecture.id,
+          type: 'lecture',
           title: lecture.title,
           videoUrl: metadata.hlsUrl,
           thumbnailUrl: resolveThumbnailUrl({
@@ -243,7 +247,7 @@ export const lecturesForAudience: Endpoint = {
     const shapedClips: ItemPlayerData[] = eligibleClips
       .map((clip): ItemPlayerData | null => {
         const parentId = extractID(clip.lecture)
-        const parent = typeof parentId === 'number' ? parentById.get(parentId) ?? null : null
+        const parent = typeof parentId === 'number' ? (parentById.get(parentId) ?? null) : null
         if (!parent) {
           req.payload.logger.warn({
             msg: 'Clip parent lecture not found — skipping in /for-audience',
@@ -263,6 +267,7 @@ export const lecturesForAudience: Endpoint = {
         }
         return {
           id: clip.id,
+          type: 'lecture-clip',
           title: clip.title,
           videoUrl: metadata.hlsUrl,
           thumbnailUrl: resolveThumbnailUrl({
