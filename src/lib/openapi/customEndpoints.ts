@@ -62,6 +62,14 @@ interface OpenAPIResponse {
  * Maps a `RuleDefinition` to its OpenAPI 3.1 schema. Mirrors the Zod shape
  * produced by `buildAudienceDataShape` in `src/fields/rulesField.ts` — the
  * two must stay in lockstep so docs match runtime validation.
+ *
+ * Boolean-type caveat: the Zod shape currently accepts only the strings
+ * `'true'` / `'false'` (`z.enum(['true', 'false'])`), while this OpenAPI
+ * schema reports `type: 'boolean'`. Scalar and most generators serialize
+ * boolean query params as literal `true`/`false` strings, so the two line
+ * up today. If a generator emits `1`/`0` instead, Zod will reject the
+ * request. There are no boolean rules in `AUDIENCE_DEFINITIONS` today; when
+ * one is added, widen the Zod shape to accept numeric encodings too.
  */
 function ruleToSchema(rule: RuleDefinition): OpenAPISchemaObject {
   switch (rule.type) {
@@ -121,6 +129,21 @@ const jsonDocsResponse = (itemSchemaRef: string): OpenAPIResponse => ({
   },
 })
 
+/**
+ * Shared error response shape. All three handlers return `{ errors: [...] }`
+ * on 4xx — Zod-validated endpoints return `parsed.error.issues` directly,
+ * and framesByNarrator's 404 emits `[{ message }]`. Both line up with the
+ * `ErrorResponse` schema in `CUSTOM_ENDPOINT_SCHEMAS` below.
+ */
+const errorResponse = (description: string): OpenAPIResponse => ({
+  description,
+  content: {
+    'application/json': {
+      schema: { $ref: '#/components/schemas/ErrorResponse' },
+    },
+  },
+})
+
 // ── Path definitions ──────────────────────────────────────────────────────────
 
 /**
@@ -161,8 +184,8 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
             },
           },
         },
-        '400': { description: 'Missing or invalid narratorId.' },
-        '404': { description: 'Narrator not found.' },
+        '400': errorResponse('Missing or invalid narratorId.'),
+        '404': errorResponse('Narrator not found.'),
       },
     },
   },
@@ -181,7 +204,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       parameters: [...audienceQueryParameters, forAudienceLimitParam(100)],
       responses: {
         '200': jsonDocsResponse('#/components/schemas/ItemPlayerData'),
-        '400': { description: 'Query param validation failed.' },
+        '400': errorResponse('Query param validation failed.'),
       },
     },
   },
@@ -208,7 +231,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       ],
       responses: {
         '200': jsonDocsResponse('#/components/schemas/AppCards'),
-        '400': { description: 'Query param validation failed.' },
+        '400': errorResponse('Query param validation failed.'),
       },
     },
   },
@@ -231,6 +254,12 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
     oneOf: [
       {
         type: 'object',
+        // `additionalProperties: false` locks the lecture variant shape so
+        // accidental fields (most importantly `lectureId`, which is clip-only
+        // in the TS union) are rejected by the docs' request/response
+        // validation. If you add a new field to `ItemPlayerData`, update the
+        // matching variant here too.
+        additionalProperties: false,
         required: [
           'id',
           'type',
@@ -259,6 +288,7 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       },
       {
         type: 'object',
+        additionalProperties: false,
         required: [
           'id',
           'type',
@@ -290,5 +320,33 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       },
     ],
     discriminator: { propertyName: 'type' },
+  },
+  /**
+   * Shape of 4xx response bodies emitted by the custom endpoints. Zod errors
+   * use `{ errors: ZodIssue[] }` (each issue has at minimum `message` + `path`);
+   * framesByNarrator's 404 emits `{ errors: [{ message }] }`. Both flow through
+   * this schema — `path` is declared optional to cover the narrator-not-found
+   * case.
+   */
+  ErrorResponse: {
+    type: 'object',
+    required: ['errors'],
+    properties: {
+      errors: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['message'],
+          properties: {
+            message: { type: 'string' },
+            path: {
+              type: 'array',
+              items: { type: ['string', 'integer'] },
+            },
+            code: { type: 'string' },
+          },
+        },
+      },
+    },
   },
 }

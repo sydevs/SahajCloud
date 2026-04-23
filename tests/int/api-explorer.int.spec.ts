@@ -651,6 +651,81 @@ describe('Custom Endpoint Shims', () => {
       expect(clipVariant?.required).toContain('lectureId')
       expect(lectureVariant?.required ?? []).not.toContain('lectureId')
     })
+
+    it('lecture variant pins startTime to 0 and forbids additional properties', () => {
+      const schema = CUSTOM_ENDPOINT_SCHEMAS.ItemPlayerData as {
+        oneOf: Array<{
+          additionalProperties?: boolean
+          properties?: {
+            type?: { enum?: string[] }
+            startTime?: { type?: string; enum?: number[] }
+            lectureId?: unknown
+          }
+        }>
+      }
+
+      const lectureVariant = schema.oneOf.find(
+        (v) => v.properties?.type?.enum?.[0] === 'lecture',
+      )
+
+      expect(lectureVariant?.additionalProperties).toBe(false)
+      expect(lectureVariant?.properties?.startTime?.enum).toEqual([0])
+      // `lectureId` must not be declared on the lecture variant — it's the
+      // discriminator-implied clip-only field.
+      expect(lectureVariant?.properties?.lectureId).toBeUndefined()
+    })
+
+    it('lecture-clip variant forbids additional properties', () => {
+      const schema = CUSTOM_ENDPOINT_SCHEMAS.ItemPlayerData as {
+        oneOf: Array<{
+          additionalProperties?: boolean
+          properties?: { type?: { enum?: string[] } }
+        }>
+      }
+
+      const clipVariant = schema.oneOf.find(
+        (v) => v.properties?.type?.enum?.[0] === 'lecture-clip',
+      )
+
+      expect(clipVariant?.additionalProperties).toBe(false)
+    })
+
+    it('defines ErrorResponse with an errors array whose items require a message', () => {
+      const schema = CUSTOM_ENDPOINT_SCHEMAS.ErrorResponse as
+        | {
+            required?: string[]
+            properties?: {
+              errors?: { type?: string; items?: { required?: string[] } }
+            }
+          }
+        | undefined
+
+      expect(schema).toBeDefined()
+      expect(schema?.required).toContain('errors')
+      expect(schema?.properties?.errors?.type).toBe('array')
+      expect(schema?.properties?.errors?.items?.required).toContain('message')
+    })
+
+    it('wires ErrorResponse into 4xx responses on all three endpoints', () => {
+      const pathsWithErrorResponses: Array<[string, string[]]> = [
+        ['/api/frames/by-narrator/{narratorId}', ['400', '404']],
+        ['/api/lectures/for-audience', ['400']],
+        ['/api/app-cards/for-audience', ['400']],
+      ]
+
+      for (const [path, statusCodes] of pathsWithErrorResponses) {
+        const responses = CUSTOM_ENDPOINT_PATHS[path]!.get!.responses!
+        for (const code of statusCodes) {
+          const ref = (
+            responses[code]!.content?.['application/json']?.schema as { $ref?: string } | undefined
+          )?.$ref
+          expect(
+            ref,
+            `${path} ${code} should reference ErrorResponse`,
+          ).toBe('#/components/schemas/ErrorResponse')
+        }
+      }
+    })
   })
 })
 
