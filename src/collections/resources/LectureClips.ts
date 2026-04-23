@@ -71,6 +71,15 @@ export const LectureClips: CollectionConfig = {
       ],
     },
     {
+      name: 'duration',
+      type: 'number',
+      virtual: true,
+      admin: { hidden: true },
+      hooks: {
+        afterRead: [({ data }) => (data?.endTime ?? 0) - (data?.startTime ?? 0)],
+      },
+    },
+    {
       name: 'title',
       type: 'text',
       required: true,

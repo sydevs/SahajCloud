@@ -883,6 +883,7 @@ export interface LectureClip {
    * End of the excerpt (HH:MM:SS)
    */
   endTime: number;
+  duration?: number | null;
   title: string;
   /**
    * Optional. Falls back to the parent lecture's thumbnail when empty — fallback is applied by /api/lectures/for-audience, not by this collection's CRUD endpoints.
@@ -1931,6 +1932,7 @@ export interface LectureClipsSelect<T extends boolean = true> {
   parent?: T;
   startTime?: T;
   endTime?: T;
+  duration?: T;
   title?: T;
   thumbnail?: T;
   subtitles?:
