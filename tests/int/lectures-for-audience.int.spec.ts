@@ -136,7 +136,7 @@ describe('lecturesForAudience endpoint', () => {
     // the tier-1 thumbnail fallback and the subtitle merge layer.
     clipWithEligibleParent = await testData.createLectureClip(
       payload,
-      { parent: lectureBeginnerOnly.id },
+      { lecture: lectureBeginnerOnly.id },
       {
         title: 'Clip of Beginner Lecture',
         audiences: [audienceBeginner.id],
@@ -149,7 +149,7 @@ describe('lecturesForAudience endpoint', () => {
     // thumbnail override; parent has no editor override → tier-1 win.
     clipWithIneligibleParent = await testData.createLectureClip(
       payload,
-      { parent: lectureIntermediateOnly.id },
+      { lecture: lectureIntermediateOnly.id },
       {
         title: 'Clip of Intermediate Lecture',
         audiences: [audienceBeginner.id],
@@ -161,7 +161,7 @@ describe('lecturesForAudience endpoint', () => {
     // (lectureBeginnerOnly has one) and parent metadata subtitles.
     clipMissingOverrides = await testData.createLectureClip(
       payload,
-      { parent: lectureBeginnerOnly.id },
+      { lecture: lectureBeginnerOnly.id },
       {
         title: 'Clip relying on parent fallbacks',
         audiences: [audienceBeginner.id],
@@ -171,7 +171,7 @@ describe('lecturesForAudience endpoint', () => {
     // OR-match coverage: clip with one passing + one failing audience.
     clipMultiAudience = await testData.createLectureClip(
       payload,
-      { parent: lectureBeginnerOnly.id },
+      { lecture: lectureBeginnerOnly.id },
       {
         title: 'Multi Audience Clip',
         audiences: [audienceBeginner.id, audienceIntermediate.id],
@@ -181,7 +181,7 @@ describe('lecturesForAudience endpoint', () => {
     // OR-match coverage: clip with only failing audience.
     clipAllFailingAudiences = await testData.createLectureClip(
       payload,
-      { parent: lectureBeginnerOnly.id },
+      { lecture: lectureBeginnerOnly.id },
       {
         title: 'All Failing Audiences Clip',
         audiences: [audienceIntermediate.id],
@@ -191,7 +191,7 @@ describe('lecturesForAudience endpoint', () => {
     // Clip with no audience — should never appear.
     await testData.createLectureClip(
       payload,
-      { parent: lectureBeginnerOnly.id },
+      { lecture: lectureBeginnerOnly.id },
       { title: 'No audience clip', audiences: [] },
     )
   })
@@ -429,7 +429,7 @@ describe('lecturesForAudience endpoint', () => {
       )
       const clipNoOverride = await testData.createLectureClip(
         payload,
-        { parent: parentNoOverride.id },
+        { lecture: parentNoOverride.id },
         { title: 'Clip relying on metadata url', audiences: [audienceBeginner.id] },
       )
 

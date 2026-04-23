@@ -63,7 +63,7 @@ describe('Lecture Clips Collection', () => {
         payload.create({
           collection: 'lecture-clips',
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          data: { parent: parent.id, startTime: 0, endTime: 60 } as any,
+          data: { lecture: parent.id, startTime: 0, endTime: 60 } as any,
         }),
       ).rejects.toThrow()
     })
@@ -102,7 +102,7 @@ describe('Lecture Clips Collection', () => {
   describe('Parent relationship & clips join', () => {
     it('appears in the parent Lecture.clips join after creation', async () => {
       const parent = await testData.createLecture(payload)
-      const clip = await testData.createLectureClip(payload, { parent: parent.id })
+      const clip = await testData.createLectureClip(payload, { lecture: parent.id })
 
       const refreshed = await payload.findByID({
         collection: 'lectures',
@@ -199,8 +199,8 @@ describe('Lecture Clips Collection', () => {
   describe('Parent deletion cascade', () => {
     it('deletes child clips when the parent lecture is deleted', async () => {
       const parent = await testData.createLecture(payload)
-      const clipA = await testData.createLectureClip(payload, { parent: parent.id })
-      const clipB = await testData.createLectureClip(payload, { parent: parent.id })
+      const clipA = await testData.createLectureClip(payload, { lecture: parent.id })
+      const clipB = await testData.createLectureClip(payload, { lecture: parent.id })
 
       await payload.delete({ collection: 'lectures', id: parent.id })
 
@@ -217,8 +217,8 @@ describe('Lecture Clips Collection', () => {
       // creates collide on the images.filename unique index.
       const parentA = await testData.createLecture(payload)
       const parentB = await testData.createLecture(payload)
-      const clipA = await testData.createLectureClip(payload, { parent: parentA.id })
-      const clipB = await testData.createLectureClip(payload, { parent: parentB.id })
+      const clipA = await testData.createLectureClip(payload, { lecture: parentA.id })
+      const clipB = await testData.createLectureClip(payload, { lecture: parentB.id })
 
       await payload.delete({ collection: 'lectures', id: parentA.id })
 

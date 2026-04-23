@@ -874,7 +874,7 @@ export interface Audience {
  */
 export interface LectureClip {
   id: number;
-  parent: number | Lecture;
+  lecture: number | Lecture;
   /**
    * Start of the excerpt (HH:MM:SS)
    */
@@ -1929,7 +1929,7 @@ export interface LecturesSelect<T extends boolean = true> {
  * via the `definition` "lecture-clips_select".
  */
 export interface LectureClipsSelect<T extends boolean = true> {
-  parent?: T;
+  lecture?: T;
   startTime?: T;
   endTime?: T;
   duration?: T;

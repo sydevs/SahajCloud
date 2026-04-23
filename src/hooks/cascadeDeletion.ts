@@ -43,7 +43,7 @@ export interface CascadeRule {
  * export const Lectures: CollectionConfig = {
  *   hooks: {
  *     beforeDelete: [
- *       deleteChildren({ collection: 'lecture-clips', field: 'parent' }),
+ *       deleteChildren({ collection: 'lecture-clips', field: 'lecture' }),
  *     ],
  *   },
  * }

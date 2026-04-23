@@ -179,7 +179,7 @@ export const lecturesForAudience: Endpoint = {
 
     const parentIdsToFetch = new Set<number>()
     for (const clip of eligibleClips) {
-      const parentId = extractID(clip.parent)
+      const parentId = extractID(clip.lecture)
       if (typeof parentId === 'number' && !parentById.has(parentId)) {
         parentIdsToFetch.add(parentId)
       }
@@ -230,7 +230,7 @@ export const lecturesForAudience: Endpoint = {
     // Shape clips
     const shapedClips: ViewerItem[] = eligibleClips
       .map((clip): ViewerItem | null => {
-        const parentId = extractID(clip.parent)
+        const parentId = extractID(clip.lecture)
         const parent = typeof parentId === 'number' ? parentById.get(parentId) ?? null : null
         if (!parent) {
           req.payload.logger.warn({
