@@ -182,9 +182,9 @@ describe('Collections smoke', () => {
     expect(found.id).toBe(lecture.id)
   })
 
-  it('lecture-clips: create + read (with parent populated through relationship)', async () => {
+  it('lecture-clips: create + read (with lecture populated through relationship)', async () => {
     const parent = await testData.createLecture(payload)
-    const clip = await testData.createLectureClip(payload, { parent: parent.id })
+    const clip = await testData.createLectureClip(payload, { lecture: parent.id })
     expect(clip.id).toBeDefined()
 
     const found = await payload.findByID({
@@ -193,9 +193,9 @@ describe('Collections smoke', () => {
       depth: 1,
     })
     expect(found.id).toBe(clip.id)
-    const populatedParent = found.parent as { id: number }
-    expect(typeof populatedParent).toBe('object')
-    expect(populatedParent.id).toBe(parent.id)
+    const populatedLecture = found.lecture as { id: number }
+    expect(typeof populatedLecture).toBe('object')
+    expect(populatedLecture.id).toBe(parent.id)
   })
 
   it('app-cards: create + read', async () => {

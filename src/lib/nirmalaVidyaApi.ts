@@ -19,6 +19,7 @@ export interface NirmalaVidyaVideoData {
   thumbnailUrl: string | null
   hlsUrl: string
   subtitles: Array<{ languageCode: string; url: string }>
+  duration: number | null
 }
 
 // =============================================================================
@@ -115,6 +116,7 @@ export async function fetchNirmalaVidyaVideo(vimeoId: string): Promise<NirmalaVi
       languageCode: s.language_code,
       url: s.url,
     })),
+    duration: parsed.duration ?? null,
   }
 }
 

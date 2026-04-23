@@ -740,18 +740,18 @@ export const testData = {
    */
   async createLectureClip(
     payload: Payload,
-    deps?: { parent?: number },
+    deps?: { lecture?: number },
     overrides: Partial<LectureClip> = {},
   ): Promise<LectureClip> {
-    let parent = deps?.parent
-    if (!parent) {
+    let lecture = deps?.lecture
+    if (!lecture) {
       const parentLecture = await testData.createLecture(payload)
-      parent = parentLecture.id
+      lecture = parentLecture.id
     }
     return (await payload.create({
       collection: 'lecture-clips',
       data: {
-        parent,
+        lecture,
         title: 'Test Lecture Clip',
         startTime: 0,
         endTime: 60,

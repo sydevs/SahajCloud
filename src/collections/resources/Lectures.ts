@@ -19,7 +19,7 @@ export const Lectures: CollectionConfig = {
   },
   hooks: {
     beforeChange: [populateFromNirmalaVidya],
-    beforeDelete: [deleteChildren({ collection: 'lecture-clips', field: 'parent' })],
+    beforeDelete: [deleteChildren({ collection: 'lecture-clips', field: 'lecture' })],
   },
   fields: [
     urlField({
@@ -78,7 +78,7 @@ export const Lectures: CollectionConfig = {
       name: 'clips',
       type: 'join',
       collection: 'lecture-clips',
-      on: 'parent',
+      on: 'lecture',
       admin: {
         allowCreate: true,
         defaultColumns: ['title', 'startTime', 'endTime', 'audiences'],

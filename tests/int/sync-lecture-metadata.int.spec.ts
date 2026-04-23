@@ -19,6 +19,7 @@ vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
       thumbnailUrl: 'https://example.com/initial-thumb.jpg',
       hlsUrl: 'https://example.com/initial-stream.m3u8',
       subtitles: [{ languageCode: 'en', url: 'https://example.com/initial-en.vtt' }],
+      duration: null,
     }),
   }
 })
@@ -71,6 +72,7 @@ describe('SyncLectureMetadata task', () => {
       thumbnailUrl: 'https://example.com/default-thumb.jpg',
       hlsUrl: 'https://example.com/default-stream.m3u8',
       subtitles: [],
+      duration: null,
     })
   })
 
@@ -81,6 +83,7 @@ describe('SyncLectureMetadata task', () => {
       thumbnailUrl: 'https://example.com/orig.jpg',
       hlsUrl: 'https://example.com/orig.m3u8',
       subtitles: [{ languageCode: 'en', url: 'https://example.com/orig-en.vtt' }],
+      duration: 600,
     })
 
     const lecture = await testData.createLecture(payload)
@@ -98,6 +101,7 @@ describe('SyncLectureMetadata task', () => {
         { languageCode: 'en', url: 'https://example.com/refreshed-en.vtt' },
         { languageCode: 'ru', url: 'https://example.com/refreshed-ru.vtt' },
       ],
+      duration: 2400,
     })
 
     const output = await runTask(payload, { lectureIds: [lecture.id] })
@@ -119,6 +123,7 @@ describe('SyncLectureMetadata task', () => {
       en: 'https://example.com/refreshed-en.vtt',
       ru: 'https://example.com/refreshed-ru.vtt',
     })
+    expect(metadata.duration).toBe(2400)
     expect(new Date(metadata.lastSyncedAt).getTime()).toBeGreaterThan(
       new Date(originalSyncedAt).getTime(),
     )
@@ -145,6 +150,7 @@ describe('SyncLectureMetadata task', () => {
         thumbnailUrl: null,
         hlsUrl: `https://example.com/${vimeoId}.m3u8`,
         subtitles: [] as Array<{ languageCode: string; url: string }>,
+        duration: null,
       }
     }
     vi.mocked(fetchNirmalaVidyaVideo).mockImplementation(fetchImpl)

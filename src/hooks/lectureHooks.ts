@@ -39,6 +39,7 @@ export type LectureMetadata = {
   thumbnailUrl: string | null
   hlsUrl: string
   subtitles: Partial<Record<LocaleCode, string>>
+  duration: number | null
   lastSyncedAt: string
 }
 
@@ -57,6 +58,7 @@ export function buildLectureMetadata(videoData: NirmalaVidyaVideoData): LectureM
     thumbnailUrl: videoData.thumbnailUrl,
     hlsUrl: videoData.hlsUrl,
     subtitles,
+    duration: videoData.duration,
     lastSyncedAt: new Date().toISOString(),
   }
 }
