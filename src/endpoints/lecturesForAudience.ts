@@ -14,25 +14,41 @@ const querySchema = z.object({
 })
 
 /**
- * Flat, playback-ready shape returned from /for-audience. Clips carry a
- * `lectureId` back-reference to their parent lecture; lectures omit it.
- * Discriminate variants with `'lectureId' in doc`, not a separate `type` field.
+ * Flat, playback-ready shape returned from /for-audience. Discriminated by
+ * `lectureId`: clips carry it (points at the parent lecture), lectures omit it.
+ * Discriminate variants with `'lectureId' in doc` or `typeof d.lectureId === 'number'`.
  *
- * `endTime` and `duration` may be `null` on a lecture whose
- * `metadata.duration` hasn't been backfilled yet (new NV-sync field — existing
- * rows populate on the next monthly sync).
+ * Lecture variant — `title` nullable (localized + hook-populated), `endTime`/
+ * `duration` may be `null` on a lecture whose `metadata.duration` hasn't been
+ * backfilled yet (new NV-sync field — existing rows populate on the next
+ * monthly sync), `startTime` is always 0.
+ *
+ * Clip variant — all time fields are concrete numbers (collection enforces
+ * `endTime > startTime`), title is required, `lectureId` is the parent ID.
  */
-export type ItemPlayerData = {
-  id: number
-  title: string | null | undefined
-  videoUrl: string
-  thumbnailUrl: string | null
-  subtitles: Record<string, string>
-  startTime: number
-  endTime: number | null
-  duration: number | null
-  lectureId?: number
-}
+export type ItemPlayerData =
+  | {
+      id: number
+      title: string | null | undefined
+      videoUrl: string
+      thumbnailUrl: string | null
+      subtitles: Record<string, string>
+      startTime: 0
+      endTime: number | null
+      duration: number | null
+      lectureId?: undefined
+    }
+  | {
+      id: number
+      title: string
+      videoUrl: string
+      thumbnailUrl: string | null
+      subtitles: Record<string, string>
+      startTime: number
+      endTime: number
+      duration: number
+      lectureId: number
+    }
 
 // =============================================================================
 // Pure helpers (exported for unit tests)
@@ -216,7 +232,7 @@ export const lecturesForAudience: Endpoint = {
             fallback: metadata.thumbnailUrl,
           }),
           subtitles: { ...(metadata.subtitles ?? {}) } as Record<string, string>,
-          startTime: 0,
+          startTime: 0 as const,
           endTime: duration,
           duration,
         }
@@ -257,7 +273,7 @@ export const lecturesForAudience: Endpoint = {
           subtitles: mergeSubtitles(metadata.subtitles, clip.subtitles),
           startTime: clip.startTime,
           endTime: clip.endTime,
-          duration: clip.duration ?? clip.endTime - clip.startTime,
+          duration: clip.endTime - clip.startTime,
           lectureId: parent.id,
         }
       })
