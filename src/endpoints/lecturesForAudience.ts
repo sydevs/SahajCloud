@@ -13,30 +13,26 @@ const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100),
 })
 
-/** Shared fields across lecture and clip items. */
-type ViewerItemBase = {
+/**
+ * Flat, playback-ready shape returned from /for-audience. Clips carry a
+ * `lectureId` back-reference to their parent lecture; lectures omit it.
+ * Discriminate variants with `'lectureId' in doc`, not a separate `type` field.
+ *
+ * `endTime` and `duration` may be `null` on a lecture whose
+ * `metadata.duration` hasn't been backfilled yet (new NV-sync field — existing
+ * rows populate on the next monthly sync).
+ */
+export type ItemPlayerData = {
   id: number
+  title: string | null | undefined
   videoUrl: string
   thumbnailUrl: string | null
   subtitles: Record<string, string>
+  startTime: number
+  endTime: number | null
+  duration: number | null
+  lectureId?: number
 }
-
-/** Flat, uniform shape returned from /for-audience (discriminated by `type`). */
-export type ViewerItem =
-  | (ViewerItemBase & {
-      type: 'lecture'
-      parentId: null
-      title: string | null | undefined
-      startTime: 0
-      endTime: null
-    })
-  | (ViewerItemBase & {
-      type: 'clip'
-      parentId: number
-      title: string
-      startTime: number
-      endTime: number
-    })
 
 // =============================================================================
 // Pure helpers (exported for unit tests)
@@ -103,7 +99,7 @@ export function resolveThumbnailUrl(args: {
  * `audiences` are always excluded.
  *
  * Response shape (flat, no nested parent doc):
- *   { docs: ViewerItem[] }
+ *   { docs: ItemPlayerData[] }
  *
  * Subtitles are always returned as the full `{ [locale]: url }` map, merged
  * from the lecture's metadata plus (for clips) any per-locale overrides on
@@ -115,7 +111,7 @@ export function resolveThumbnailUrl(args: {
  *   3. Find clips whose `audiences` overlap the eligible set (OR-match).
  *   4. Bulk-fetch parent lectures for clips so we can merge subtitles and
  *      resolve thumbnail fallbacks without an N+1. Seed from step-2 lectures.
- *   5. Shape into flat ViewerItems, concatenate, Fisher-Yates shuffle, slice.
+ *   5. Shape into flat ItemPlayerData, concatenate, Fisher-Yates shuffle, slice.
  */
 export const lecturesForAudience: Endpoint = {
   path: '/for-audience',
@@ -179,7 +175,7 @@ export const lecturesForAudience: Endpoint = {
 
     const parentIdsToFetch = new Set<number>()
     for (const clip of eligibleClips) {
-      const parentId = extractID(clip.parent)
+      const parentId = extractID(clip.lecture)
       if (typeof parentId === 'number' && !parentById.has(parentId)) {
         parentIdsToFetch.add(parentId)
       }
@@ -200,8 +196,8 @@ export const lecturesForAudience: Endpoint = {
     }
 
     // Shape lectures
-    const shapedLectures: ViewerItem[] = eligibleLectures
-      .map((lecture): ViewerItem | null => {
+    const shapedLectures: ItemPlayerData[] = eligibleLectures
+      .map((lecture): ItemPlayerData | null => {
         const metadata = lecture.metadata as LectureMetadata | null | undefined
         if (!metadata?.hlsUrl) {
           req.payload.logger.warn({
@@ -210,27 +206,27 @@ export const lecturesForAudience: Endpoint = {
           })
           return null
         }
+        const duration = metadata.duration ?? null
         return {
           id: lecture.id,
-          type: 'lecture',
-          parentId: null,
           title: lecture.title,
           videoUrl: metadata.hlsUrl,
-          startTime: 0,
-          endTime: null,
           thumbnailUrl: resolveThumbnailUrl({
             primaryOverride: lecture.thumbnail,
             fallback: metadata.thumbnailUrl,
           }),
           subtitles: { ...(metadata.subtitles ?? {}) } as Record<string, string>,
+          startTime: 0,
+          endTime: duration,
+          duration,
         }
       })
-      .filter((item): item is ViewerItem => item !== null)
+      .filter((item): item is ItemPlayerData => item !== null)
 
     // Shape clips
-    const shapedClips: ViewerItem[] = eligibleClips
-      .map((clip): ViewerItem | null => {
-        const parentId = extractID(clip.parent)
+    const shapedClips: ItemPlayerData[] = eligibleClips
+      .map((clip): ItemPlayerData | null => {
+        const parentId = extractID(clip.lecture)
         const parent = typeof parentId === 'number' ? parentById.get(parentId) ?? null : null
         if (!parent) {
           req.payload.logger.warn({
@@ -251,24 +247,24 @@ export const lecturesForAudience: Endpoint = {
         }
         return {
           id: clip.id,
-          type: 'clip',
-          parentId: parent.id,
           title: clip.title,
           videoUrl: metadata.hlsUrl,
-          startTime: clip.startTime,
-          endTime: clip.endTime,
           thumbnailUrl: resolveThumbnailUrl({
             primaryOverride: clip.thumbnail,
             secondaryOverride: parent.thumbnail,
             fallback: metadata.thumbnailUrl,
           }),
           subtitles: mergeSubtitles(metadata.subtitles, clip.subtitles),
+          startTime: clip.startTime,
+          endTime: clip.endTime,
+          duration: clip.duration ?? clip.endTime - clip.startTime,
+          lectureId: parent.id,
         }
       })
-      .filter((item): item is ViewerItem => item !== null)
+      .filter((item): item is ItemPlayerData => item !== null)
 
     // Concatenate + Fisher-Yates shuffle + slice
-    const combined: ViewerItem[] = [...shapedLectures, ...shapedClips]
+    const combined: ItemPlayerData[] = [...shapedLectures, ...shapedClips]
     for (let i = combined.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
       ;[combined[i], combined[j]] = [combined[j], combined[i]]

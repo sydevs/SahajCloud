@@ -19,11 +19,11 @@ export const LectureClips: CollectionConfig = {
     group: 'Content',
     useAsTitle: 'title',
     hidden: true,
-    defaultColumns: ['title', 'parent', 'startTime', 'endTime', 'audiences'],
+    defaultColumns: ['title', 'lecture', 'startTime', 'endTime', 'audiences'],
   },
   fields: [
     {
-      name: 'parent',
+      name: 'lecture',
       type: 'relationship',
       relationTo: 'lectures',
       required: true,
@@ -69,6 +69,15 @@ export const LectureClips: CollectionConfig = {
           },
         },
       ],
+    },
+    {
+      name: 'duration',
+      type: 'number',
+      virtual: true,
+      admin: { hidden: true },
+      hooks: {
+        afterRead: [({ data }) => (data?.endTime ?? 0) - (data?.startTime ?? 0)],
+      },
     },
     {
       name: 'title',
