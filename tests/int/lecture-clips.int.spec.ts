@@ -22,6 +22,7 @@ vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
       thumbnailUrl: 'https://example.com/thumbnail.jpg',
       hlsUrl: 'https://example.com/video.m3u8',
       subtitles: [],
+      duration: null,
     }),
     downloadToBuffer: vi.fn().mockResolvedValue({
       data: new Uint8Array(imgBuffer),
@@ -114,6 +115,46 @@ describe('Lecture Clips Collection', () => {
         (doc) => (typeof doc === 'number' ? doc : doc.id),
       )
       expect(clipIds).toContain(clip.id)
+    })
+  })
+
+  describe('duration virtual field', () => {
+    it('is computed as endTime - startTime on read', async () => {
+      const clip = await testData.createLectureClip(payload, undefined, {
+        startTime: 30,
+        endTime: 150,
+      })
+      const fetched = await payload.findByID({
+        collection: 'lecture-clips',
+        id: clip.id,
+        depth: 0,
+      })
+      expect(fetched.duration).toBe(120)
+    })
+
+    it('re-derives when endTime is updated', async () => {
+      const clip = await testData.createLectureClip(payload, undefined, {
+        startTime: 60,
+        endTime: 120,
+      })
+      const initial = await payload.findByID({
+        collection: 'lecture-clips',
+        id: clip.id,
+        depth: 0,
+      })
+      expect(initial.duration).toBe(60)
+
+      await payload.update({
+        collection: 'lecture-clips',
+        id: clip.id,
+        data: { endTime: 300 },
+      })
+      const refreshed = await payload.findByID({
+        collection: 'lecture-clips',
+        id: clip.id,
+        depth: 0,
+      })
+      expect(refreshed.duration).toBe(240)
     })
   })
 
