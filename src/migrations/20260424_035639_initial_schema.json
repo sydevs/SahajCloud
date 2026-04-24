@@ -101,6 +101,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "featured_video_id": {
+          "name": "featured_video_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "text",
@@ -148,6 +155,13 @@
           ],
           "isUnique": false
         },
+        "pages_featured_video_idx": {
+          "name": "pages_featured_video_idx",
+          "columns": [
+            "featured_video_id"
+          ],
+          "isUnique": false
+        },
         "pages_updated_at_idx": {
           "name": "pages_updated_at_idx",
           "columns": [
@@ -184,6 +198,19 @@
           "tableTo": "authors",
           "columnsFrom": [
             "author_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "pages_featured_video_id_videos_id_fk": {
+          "name": "pages_featured_video_id_videos_id_fk",
+          "tableFrom": "pages",
+          "tableTo": "videos",
+          "columnsFrom": [
+            "featured_video_id"
           ],
           "columnsTo": [
             "id"
@@ -412,6 +439,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "version_featured_video_id": {
+          "name": "version_featured_video_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "version_updated_at": {
           "name": "version_updated_at",
           "type": "text",
@@ -508,6 +542,13 @@
           ],
           "isUnique": false
         },
+        "_pages_v_version_version_featured_video_idx": {
+          "name": "_pages_v_version_version_featured_video_idx",
+          "columns": [
+            "version_featured_video_id"
+          ],
+          "isUnique": false
+        },
         "_pages_v_version_version_updated_at_idx": {
           "name": "_pages_v_version_version_updated_at_idx",
           "columns": [
@@ -599,6 +640,19 @@
           "tableTo": "authors",
           "columnsFrom": [
             "version_author_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_pages_v_version_featured_video_id_videos_id_fk": {
+          "name": "_pages_v_version_featured_video_id_videos_id_fk",
+          "tableFrom": "_pages_v",
+          "tableTo": "videos",
+          "columnsFrom": [
+            "version_featured_video_id"
           ],
           "columnsTo": [
             "id"
@@ -743,8 +797,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false,
-          "default": "'en'"
+          "autoincrement": false
         },
         "narrator_id": {
           "name": "narrator_id",
@@ -760,15 +813,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "file_metadata": {
-          "name": "file_metadata",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "duration_minutes": {
-          "name": "duration_minutes",
+        "duration": {
+          "name": "duration",
           "type": "numeric",
           "primaryKey": false,
           "notNull": false,
@@ -809,7 +855,7 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "default": "'daily'"
+          "default": "'quick'"
         },
         "frames": {
           "name": "frames",
@@ -1016,107 +1062,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "meditations_rels": {
-      "name": "meditations_rels",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "order": {
-          "name": "order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "path": {
-          "name": "path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "meditation_tags_id": {
-          "name": "meditation_tags_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "meditations_rels_order_idx": {
-          "name": "meditations_rels_order_idx",
-          "columns": [
-            "order"
-          ],
-          "isUnique": false
-        },
-        "meditations_rels_parent_idx": {
-          "name": "meditations_rels_parent_idx",
-          "columns": [
-            "parent_id"
-          ],
-          "isUnique": false
-        },
-        "meditations_rels_path_idx": {
-          "name": "meditations_rels_path_idx",
-          "columns": [
-            "path"
-          ],
-          "isUnique": false
-        },
-        "meditations_rels_meditation_tags_id_idx": {
-          "name": "meditations_rels_meditation_tags_id_idx",
-          "columns": [
-            "meditation_tags_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "meditations_rels_parent_fk": {
-          "name": "meditations_rels_parent_fk",
-          "tableFrom": "meditations_rels",
-          "tableTo": "meditations",
-          "columnsFrom": [
-            "parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "meditations_rels_meditation_tags_fk": {
-          "name": "meditations_rels_meditation_tags_fk",
-          "tableFrom": "meditations_rels",
-          "tableTo": "meditation_tags",
-          "columnsFrom": [
-            "meditation_tags_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "_meditations_v": {
       "name": "_meditations_v",
       "columns": {
@@ -1146,8 +1091,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false,
-          "autoincrement": false,
-          "default": "'en'"
+          "autoincrement": false
         },
         "version_narrator_id": {
           "name": "version_narrator_id",
@@ -1163,15 +1107,8 @@
           "notNull": false,
           "autoincrement": false
         },
-        "version_file_metadata": {
-          "name": "version_file_metadata",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "version_duration_minutes": {
-          "name": "version_duration_minutes",
+        "version_duration": {
+          "name": "version_duration",
           "type": "numeric",
           "primaryKey": false,
           "notNull": false,
@@ -1212,7 +1149,7 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "default": "'daily'"
+          "default": "'quick'"
         },
         "version_frames": {
           "name": "version_frames",
@@ -1509,107 +1446,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "_meditations_v_rels": {
-      "name": "_meditations_v_rels",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "order": {
-          "name": "order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "path": {
-          "name": "path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "meditation_tags_id": {
-          "name": "meditation_tags_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "_meditations_v_rels_order_idx": {
-          "name": "_meditations_v_rels_order_idx",
-          "columns": [
-            "order"
-          ],
-          "isUnique": false
-        },
-        "_meditations_v_rels_parent_idx": {
-          "name": "_meditations_v_rels_parent_idx",
-          "columns": [
-            "parent_id"
-          ],
-          "isUnique": false
-        },
-        "_meditations_v_rels_path_idx": {
-          "name": "_meditations_v_rels_path_idx",
-          "columns": [
-            "path"
-          ],
-          "isUnique": false
-        },
-        "_meditations_v_rels_meditation_tags_id_idx": {
-          "name": "_meditations_v_rels_meditation_tags_id_idx",
-          "columns": [
-            "meditation_tags_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "_meditations_v_rels_parent_fk": {
-          "name": "_meditations_v_rels_parent_fk",
-          "tableFrom": "_meditations_v_rels",
-          "tableTo": "_meditations_v",
-          "columnsFrom": [
-            "parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "_meditations_v_rels_meditation_tags_fk": {
-          "name": "_meditations_v_rels_meditation_tags_fk",
-          "tableFrom": "_meditations_v_rels",
-          "tableTo": "meditation_tags",
-          "columnsFrom": [
-            "meditation_tags_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "songs": {
       "name": "songs",
       "columns": {
@@ -1626,6 +1462,14 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "include_for_meditations": {
+          "name": "include_for_meditations",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": true
         },
         "file_metadata": {
           "name": "file_metadata",
@@ -1942,6 +1786,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "artwork_id": {
+          "name": "artwork_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "artist_url": {
           "name": "artist_url",
           "type": "text",
@@ -1971,65 +1822,16 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "thumbnail_u_r_l": {
-          "name": "thumbnail_u_r_l",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "filename": {
-          "name": "filename",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "mime_type": {
-          "name": "mime_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "filesize": {
-          "name": "filesize",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "width": {
-          "name": "width",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "height": {
-          "name": "height",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "focal_x": {
-          "name": "focal_x",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "focal_y": {
-          "name": "focal_y",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
+        "albums_artwork_idx": {
+          "name": "albums_artwork_idx",
+          "columns": [
+            "artwork_id"
+          ],
+          "isUnique": false
+        },
         "albums_updated_at_idx": {
           "name": "albums_updated_at_idx",
           "columns": [
@@ -2050,16 +1852,23 @@
             "deleted_at"
           ],
           "isUnique": false
-        },
-        "albums_filename_idx": {
-          "name": "albums_filename_idx",
-          "columns": [
-            "filename"
-          ],
-          "isUnique": true
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "albums_artwork_id_images_id_fk": {
+          "name": "albums_artwork_id_images_id_fk",
+          "tableFrom": "albums",
+          "tableTo": "images",
+          "columnsFrom": [
+            "artwork_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -2677,22 +2486,22 @@
           "notNull": true,
           "autoincrement": false
         },
-        "thumbnail_id": {
-          "name": "thumbnail_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "video_url": {
-          "name": "video_url",
+        "nirmal_vidya_vimeo_url": {
+          "name": "nirmal_vidya_vimeo_url",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "subtitles_url": {
-          "name": "subtitles_url",
+        "thumbnail_id": {
+          "name": "thumbnail_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "metadata": {
+          "name": "metadata",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -2764,7 +2573,7 @@
           "name": "title",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "id": {
@@ -2806,6 +2615,462 @@
           "tableTo": "lectures",
           "columnsFrom": [
             "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "lectures_rels": {
+      "name": "lectures_rels",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "audiences_id": {
+          "name": "audiences_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "lectures_rels_order_idx": {
+          "name": "lectures_rels_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "lectures_rels_parent_idx": {
+          "name": "lectures_rels_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        },
+        "lectures_rels_path_idx": {
+          "name": "lectures_rels_path_idx",
+          "columns": [
+            "path"
+          ],
+          "isUnique": false
+        },
+        "lectures_rels_audiences_id_idx": {
+          "name": "lectures_rels_audiences_id_idx",
+          "columns": [
+            "audiences_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "lectures_rels_parent_fk": {
+          "name": "lectures_rels_parent_fk",
+          "tableFrom": "lectures_rels",
+          "tableTo": "lectures",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "lectures_rels_audiences_fk": {
+          "name": "lectures_rels_audiences_fk",
+          "tableFrom": "lectures_rels",
+          "tableTo": "audiences",
+          "columnsFrom": [
+            "audiences_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "lecture_clips_subtitles": {
+      "name": "lecture_clips_subtitles",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "locale": {
+          "name": "locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "lecture_clips_subtitles_order_idx": {
+          "name": "lecture_clips_subtitles_order_idx",
+          "columns": [
+            "_order"
+          ],
+          "isUnique": false
+        },
+        "lecture_clips_subtitles_parent_id_idx": {
+          "name": "lecture_clips_subtitles_parent_id_idx",
+          "columns": [
+            "_parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "lecture_clips_subtitles_parent_id_fk": {
+          "name": "lecture_clips_subtitles_parent_id_fk",
+          "tableFrom": "lecture_clips_subtitles",
+          "tableTo": "lecture_clips",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "lecture_clips": {
+      "name": "lecture_clips",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "lecture_id": {
+          "name": "lecture_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "start_time": {
+          "name": "start_time",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "end_time": {
+          "name": "end_time",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 600
+        },
+        "thumbnail_id": {
+          "name": "thumbnail_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        }
+      },
+      "indexes": {
+        "lecture_clips_lecture_idx": {
+          "name": "lecture_clips_lecture_idx",
+          "columns": [
+            "lecture_id"
+          ],
+          "isUnique": false
+        },
+        "lecture_clips_thumbnail_idx": {
+          "name": "lecture_clips_thumbnail_idx",
+          "columns": [
+            "thumbnail_id"
+          ],
+          "isUnique": false
+        },
+        "lecture_clips_updated_at_idx": {
+          "name": "lecture_clips_updated_at_idx",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "lecture_clips_created_at_idx": {
+          "name": "lecture_clips_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "lecture_clips_lecture_id_lectures_id_fk": {
+          "name": "lecture_clips_lecture_id_lectures_id_fk",
+          "tableFrom": "lecture_clips",
+          "tableTo": "lectures",
+          "columnsFrom": [
+            "lecture_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "lecture_clips_thumbnail_id_images_id_fk": {
+          "name": "lecture_clips_thumbnail_id_images_id_fk",
+          "tableFrom": "lecture_clips",
+          "tableTo": "images",
+          "columnsFrom": [
+            "thumbnail_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "lecture_clips_locales": {
+      "name": "lecture_clips_locales",
+      "columns": {
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_locale": {
+          "name": "_locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "lecture_clips_locales_locale_parent_id_unique": {
+          "name": "lecture_clips_locales_locale_parent_id_unique",
+          "columns": [
+            "_locale",
+            "_parent_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "lecture_clips_locales_parent_id_fk": {
+          "name": "lecture_clips_locales_parent_id_fk",
+          "tableFrom": "lecture_clips_locales",
+          "tableTo": "lecture_clips",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "lecture_clips_rels": {
+      "name": "lecture_clips_rels",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "audiences_id": {
+          "name": "audiences_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "lecture_clips_rels_order_idx": {
+          "name": "lecture_clips_rels_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "lecture_clips_rels_parent_idx": {
+          "name": "lecture_clips_rels_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        },
+        "lecture_clips_rels_path_idx": {
+          "name": "lecture_clips_rels_path_idx",
+          "columns": [
+            "path"
+          ],
+          "isUnique": false
+        },
+        "lecture_clips_rels_audiences_id_idx": {
+          "name": "lecture_clips_rels_audiences_id_idx",
+          "columns": [
+            "audiences_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "lecture_clips_rels_parent_fk": {
+          "name": "lecture_clips_rels_parent_fk",
+          "tableFrom": "lecture_clips_rels",
+          "tableTo": "lecture_clips",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "lecture_clips_rels_audiences_fk": {
+          "name": "lecture_clips_rels_audiences_fk",
+          "tableFrom": "lecture_clips_rels",
+          "tableTo": "audiences",
+          "columnsFrom": [
+            "audiences_id"
           ],
           "columnsTo": [
             "id"
@@ -3666,6 +3931,135 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "audiences": {
+      "name": "audiences",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rules": {
+          "name": "rules",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        }
+      },
+      "indexes": {
+        "audiences_updated_at_idx": {
+          "name": "audiences_updated_at_idx",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "audiences_created_at_idx": {
+          "name": "audiences_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "meditation_tags_timings": {
+      "name": "meditation_tags_timings",
+      "columns": {
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "meditation_tags_timings_order_idx": {
+          "name": "meditation_tags_timings_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "meditation_tags_timings_parent_idx": {
+          "name": "meditation_tags_timings_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "meditation_tags_timings_parent_fk": {
+          "name": "meditation_tags_timings_parent_fk",
+          "tableFrom": "meditation_tags_timings",
+          "tableTo": "meditation_tags",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "meditation_tags": {
       "name": "meditation_tags",
       "columns": {
@@ -3698,6 +4092,37 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'#000000'"
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_featured": {
+          "name": "is_featured",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "order": {
+          "name": "order",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 1
+        },
+        "is_parent": {
+          "name": "is_parent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         },
         "updated_at": {
           "name": "updated_at",
@@ -3780,6 +4205,20 @@
           ],
           "isUnique": true
         },
+        "meditation_tags_parent_idx": {
+          "name": "meditation_tags_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        },
+        "meditation_tags_is_parent_idx": {
+          "name": "meditation_tags_is_parent_idx",
+          "columns": [
+            "is_parent"
+          ],
+          "isUnique": false
+        },
         "meditation_tags_updated_at_idx": {
           "name": "meditation_tags_updated_at_idx",
           "columns": [
@@ -3802,7 +4241,21 @@
           "isUnique": true
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "meditation_tags_parent_id_meditation_tags_id_fk": {
+          "name": "meditation_tags_parent_id_meditation_tags_id_fk",
+          "tableFrom": "meditation_tags",
+          "tableTo": "meditation_tags",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -3815,6 +4268,34 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "morning_meditation_id": {
+          "name": "morning_meditation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "afternoon_meditation_id": {
+          "name": "afternoon_meditation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "evening_meditation_id": {
+          "name": "evening_meditation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "night_meditation_id": {
+          "name": "night_meditation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "id": {
@@ -3840,6 +4321,38 @@
         }
       },
       "indexes": {
+        "meditation_tags_morning_meditation_idx": {
+          "name": "meditation_tags_morning_meditation_idx",
+          "columns": [
+            "morning_meditation_id",
+            "_locale"
+          ],
+          "isUnique": false
+        },
+        "meditation_tags_afternoon_meditation_idx": {
+          "name": "meditation_tags_afternoon_meditation_idx",
+          "columns": [
+            "afternoon_meditation_id",
+            "_locale"
+          ],
+          "isUnique": false
+        },
+        "meditation_tags_evening_meditation_idx": {
+          "name": "meditation_tags_evening_meditation_idx",
+          "columns": [
+            "evening_meditation_id",
+            "_locale"
+          ],
+          "isUnique": false
+        },
+        "meditation_tags_night_meditation_idx": {
+          "name": "meditation_tags_night_meditation_idx",
+          "columns": [
+            "night_meditation_id",
+            "_locale"
+          ],
+          "isUnique": false
+        },
         "meditation_tags_locales_locale_parent_id_unique": {
           "name": "meditation_tags_locales_locale_parent_id_unique",
           "columns": [
@@ -3850,6 +4363,58 @@
         }
       },
       "foreignKeys": {
+        "meditation_tags_locales_morning_meditation_id_meditations_id_fk": {
+          "name": "meditation_tags_locales_morning_meditation_id_meditations_id_fk",
+          "tableFrom": "meditation_tags_locales",
+          "tableTo": "meditations",
+          "columnsFrom": [
+            "morning_meditation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "meditation_tags_locales_afternoon_meditation_id_meditations_id_fk": {
+          "name": "meditation_tags_locales_afternoon_meditation_id_meditations_id_fk",
+          "tableFrom": "meditation_tags_locales",
+          "tableTo": "meditations",
+          "columnsFrom": [
+            "afternoon_meditation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "meditation_tags_locales_evening_meditation_id_meditations_id_fk": {
+          "name": "meditation_tags_locales_evening_meditation_id_meditations_id_fk",
+          "tableFrom": "meditation_tags_locales",
+          "tableTo": "meditations",
+          "columnsFrom": [
+            "evening_meditation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "meditation_tags_locales_night_meditation_id_meditations_id_fk": {
+          "name": "meditation_tags_locales_night_meditation_id_meditations_id_fk",
+          "tableFrom": "meditation_tags_locales",
+          "tableTo": "meditations",
+          "columnsFrom": [
+            "night_meditation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "meditation_tags_locales_parent_id_fk": {
           "name": "meditation_tags_locales_parent_id_fk",
           "tableFrom": "meditation_tags_locales",
@@ -4808,6 +5373,1454 @@
           "tableTo": "managers",
           "columnsFrom": [
             "managers_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "app_cards_schedule_weekdays": {
+      "name": "app_cards_schedule_weekdays",
+      "columns": {
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "app_cards_schedule_weekdays_order_idx": {
+          "name": "app_cards_schedule_weekdays_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "app_cards_schedule_weekdays_parent_idx": {
+          "name": "app_cards_schedule_weekdays_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "app_cards_schedule_weekdays_parent_fk": {
+          "name": "app_cards_schedule_weekdays_parent_fk",
+          "tableFrom": "app_cards_schedule_weekdays",
+          "tableTo": "app_cards",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "app_cards_schedule_exclusions": {
+      "name": "app_cards_schedule_exclusions",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "app_cards_schedule_exclusions_order_idx": {
+          "name": "app_cards_schedule_exclusions_order_idx",
+          "columns": [
+            "_order"
+          ],
+          "isUnique": false
+        },
+        "app_cards_schedule_exclusions_parent_id_idx": {
+          "name": "app_cards_schedule_exclusions_parent_id_idx",
+          "columns": [
+            "_parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "app_cards_schedule_exclusions_parent_id_fk": {
+          "name": "app_cards_schedule_exclusions_parent_id_fk",
+          "tableFrom": "app_cards_schedule_exclusions",
+          "tableTo": "app_cards",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "app_cards_target_sections": {
+      "name": "app_cards_target_sections",
+      "columns": {
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "app_cards_target_sections_order_idx": {
+          "name": "app_cards_target_sections_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "app_cards_target_sections_parent_idx": {
+          "name": "app_cards_target_sections_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "app_cards_target_sections_parent_fk": {
+          "name": "app_cards_target_sections_parent_fk",
+          "tableFrom": "app_cards_target_sections",
+          "tableTo": "app_cards",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "app_cards": {
+      "name": "app_cards",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "image_id": {
+          "name": "image_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'app-page'"
+        },
+        "app_page": {
+          "name": "app_page",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "countdown": {
+          "name": "countdown",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
+        },
+        "overlay": {
+          "name": "overlay",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
+        },
+        "schedule_first_date": {
+          "name": "schedule_first_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "schedule_firstdate_tz": {
+          "name": "schedule_firstdate_tz",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "schedule_recurrence_type": {
+          "name": "schedule_recurrence_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "schedule_interval": {
+          "name": "schedule_interval",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 1
+        },
+        "weight": {
+          "name": "weight",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 3
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "_status": {
+          "name": "_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'draft'"
+        }
+      },
+      "indexes": {
+        "app_cards_image_idx": {
+          "name": "app_cards_image_idx",
+          "columns": [
+            "image_id"
+          ],
+          "isUnique": false
+        },
+        "app_cards_updated_at_idx": {
+          "name": "app_cards_updated_at_idx",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "app_cards_created_at_idx": {
+          "name": "app_cards_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "app_cards__status_idx": {
+          "name": "app_cards__status_idx",
+          "columns": [
+            "_status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "app_cards_image_id_images_id_fk": {
+          "name": "app_cards_image_id_images_id_fk",
+          "tableFrom": "app_cards",
+          "tableTo": "images",
+          "columnsFrom": [
+            "image_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "app_cards_locales": {
+      "name": "app_cards_locales",
+      "columns": {
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "subtitle": {
+          "name": "subtitle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "button": {
+          "name": "button",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "header": {
+          "name": "header",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "link_url": {
+          "name": "link_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_locale": {
+          "name": "_locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "app_cards_locales_locale_parent_id_unique": {
+          "name": "app_cards_locales_locale_parent_id_unique",
+          "columns": [
+            "_locale",
+            "_parent_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "app_cards_locales_parent_id_fk": {
+          "name": "app_cards_locales_parent_id_fk",
+          "tableFrom": "app_cards_locales",
+          "tableTo": "app_cards",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "app_cards_rels": {
+      "name": "app_cards_rels",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "lecture_clips_id": {
+          "name": "lecture_clips_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lectures_id": {
+          "name": "lectures_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "albums_id": {
+          "name": "albums_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "meditations_id": {
+          "name": "meditations_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "audiences_id": {
+          "name": "audiences_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "app_cards_rels_order_idx": {
+          "name": "app_cards_rels_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "app_cards_rels_parent_idx": {
+          "name": "app_cards_rels_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        },
+        "app_cards_rels_path_idx": {
+          "name": "app_cards_rels_path_idx",
+          "columns": [
+            "path"
+          ],
+          "isUnique": false
+        },
+        "app_cards_rels_lecture_clips_id_idx": {
+          "name": "app_cards_rels_lecture_clips_id_idx",
+          "columns": [
+            "lecture_clips_id"
+          ],
+          "isUnique": false
+        },
+        "app_cards_rels_lectures_id_idx": {
+          "name": "app_cards_rels_lectures_id_idx",
+          "columns": [
+            "lectures_id"
+          ],
+          "isUnique": false
+        },
+        "app_cards_rels_albums_id_idx": {
+          "name": "app_cards_rels_albums_id_idx",
+          "columns": [
+            "albums_id"
+          ],
+          "isUnique": false
+        },
+        "app_cards_rels_meditations_id_idx": {
+          "name": "app_cards_rels_meditations_id_idx",
+          "columns": [
+            "meditations_id"
+          ],
+          "isUnique": false
+        },
+        "app_cards_rels_audiences_id_idx": {
+          "name": "app_cards_rels_audiences_id_idx",
+          "columns": [
+            "audiences_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "app_cards_rels_parent_fk": {
+          "name": "app_cards_rels_parent_fk",
+          "tableFrom": "app_cards_rels",
+          "tableTo": "app_cards",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "app_cards_rels_lecture_clips_fk": {
+          "name": "app_cards_rels_lecture_clips_fk",
+          "tableFrom": "app_cards_rels",
+          "tableTo": "lecture_clips",
+          "columnsFrom": [
+            "lecture_clips_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "app_cards_rels_lectures_fk": {
+          "name": "app_cards_rels_lectures_fk",
+          "tableFrom": "app_cards_rels",
+          "tableTo": "lectures",
+          "columnsFrom": [
+            "lectures_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "app_cards_rels_albums_fk": {
+          "name": "app_cards_rels_albums_fk",
+          "tableFrom": "app_cards_rels",
+          "tableTo": "albums",
+          "columnsFrom": [
+            "albums_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "app_cards_rels_meditations_fk": {
+          "name": "app_cards_rels_meditations_fk",
+          "tableFrom": "app_cards_rels",
+          "tableTo": "meditations",
+          "columnsFrom": [
+            "meditations_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "app_cards_rels_audiences_fk": {
+          "name": "app_cards_rels_audiences_fk",
+          "tableFrom": "app_cards_rels",
+          "tableTo": "audiences",
+          "columnsFrom": [
+            "audiences_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "_app_cards_v_version_schedule_weekdays": {
+      "name": "_app_cards_v_version_schedule_weekdays",
+      "columns": {
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "_app_cards_v_version_schedule_weekdays_order_idx": {
+          "name": "_app_cards_v_version_schedule_weekdays_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_version_schedule_weekdays_parent_idx": {
+          "name": "_app_cards_v_version_schedule_weekdays_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "_app_cards_v_version_schedule_weekdays_parent_fk": {
+          "name": "_app_cards_v_version_schedule_weekdays_parent_fk",
+          "tableFrom": "_app_cards_v_version_schedule_weekdays",
+          "tableTo": "_app_cards_v",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "_app_cards_v_version_schedule_exclusions": {
+      "name": "_app_cards_v_version_schedule_exclusions",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "_uuid": {
+          "name": "_uuid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "_app_cards_v_version_schedule_exclusions_order_idx": {
+          "name": "_app_cards_v_version_schedule_exclusions_order_idx",
+          "columns": [
+            "_order"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_version_schedule_exclusions_parent_id_idx": {
+          "name": "_app_cards_v_version_schedule_exclusions_parent_id_idx",
+          "columns": [
+            "_parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "_app_cards_v_version_schedule_exclusions_parent_id_fk": {
+          "name": "_app_cards_v_version_schedule_exclusions_parent_id_fk",
+          "tableFrom": "_app_cards_v_version_schedule_exclusions",
+          "tableTo": "_app_cards_v",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "_app_cards_v_version_target_sections": {
+      "name": "_app_cards_v_version_target_sections",
+      "columns": {
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "_app_cards_v_version_target_sections_order_idx": {
+          "name": "_app_cards_v_version_target_sections_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_version_target_sections_parent_idx": {
+          "name": "_app_cards_v_version_target_sections_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "_app_cards_v_version_target_sections_parent_fk": {
+          "name": "_app_cards_v_version_target_sections_parent_fk",
+          "tableFrom": "_app_cards_v_version_target_sections",
+          "tableTo": "_app_cards_v",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "_app_cards_v": {
+      "name": "_app_cards_v",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_image_id": {
+          "name": "version_image_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_type": {
+          "name": "version_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'app-page'"
+        },
+        "version_app_page": {
+          "name": "version_app_page",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_countdown": {
+          "name": "version_countdown",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
+        },
+        "version_overlay": {
+          "name": "version_overlay",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
+        },
+        "version_schedule_first_date": {
+          "name": "version_schedule_first_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_schedule_firstdate_tz": {
+          "name": "version_schedule_firstdate_tz",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_schedule_recurrence_type": {
+          "name": "version_schedule_recurrence_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_schedule_interval": {
+          "name": "version_schedule_interval",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 1
+        },
+        "version_weight": {
+          "name": "version_weight",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 3
+        },
+        "version_updated_at": {
+          "name": "version_updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_created_at": {
+          "name": "version_created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version__status": {
+          "name": "version__status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'draft'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "snapshot": {
+          "name": "snapshot",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "published_locale": {
+          "name": "published_locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "latest": {
+          "name": "latest",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "_app_cards_v_parent_idx": {
+          "name": "_app_cards_v_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_version_version_image_idx": {
+          "name": "_app_cards_v_version_version_image_idx",
+          "columns": [
+            "version_image_id"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_version_version_updated_at_idx": {
+          "name": "_app_cards_v_version_version_updated_at_idx",
+          "columns": [
+            "version_updated_at"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_version_version_created_at_idx": {
+          "name": "_app_cards_v_version_version_created_at_idx",
+          "columns": [
+            "version_created_at"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_version_version__status_idx": {
+          "name": "_app_cards_v_version_version__status_idx",
+          "columns": [
+            "version__status"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_created_at_idx": {
+          "name": "_app_cards_v_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_updated_at_idx": {
+          "name": "_app_cards_v_updated_at_idx",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_snapshot_idx": {
+          "name": "_app_cards_v_snapshot_idx",
+          "columns": [
+            "snapshot"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_published_locale_idx": {
+          "name": "_app_cards_v_published_locale_idx",
+          "columns": [
+            "published_locale"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_latest_idx": {
+          "name": "_app_cards_v_latest_idx",
+          "columns": [
+            "latest"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "_app_cards_v_parent_id_app_cards_id_fk": {
+          "name": "_app_cards_v_parent_id_app_cards_id_fk",
+          "tableFrom": "_app_cards_v",
+          "tableTo": "app_cards",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_app_cards_v_version_image_id_images_id_fk": {
+          "name": "_app_cards_v_version_image_id_images_id_fk",
+          "tableFrom": "_app_cards_v",
+          "tableTo": "images",
+          "columnsFrom": [
+            "version_image_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "_app_cards_v_locales": {
+      "name": "_app_cards_v_locales",
+      "columns": {
+        "version_title": {
+          "name": "version_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_subtitle": {
+          "name": "version_subtitle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_button": {
+          "name": "version_button",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_header": {
+          "name": "version_header",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_link_url": {
+          "name": "version_link_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_locale": {
+          "name": "_locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "_app_cards_v_locales_locale_parent_id_unique": {
+          "name": "_app_cards_v_locales_locale_parent_id_unique",
+          "columns": [
+            "_locale",
+            "_parent_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "_app_cards_v_locales_parent_id_fk": {
+          "name": "_app_cards_v_locales_parent_id_fk",
+          "tableFrom": "_app_cards_v_locales",
+          "tableTo": "_app_cards_v",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "_app_cards_v_rels": {
+      "name": "_app_cards_v_rels",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "lecture_clips_id": {
+          "name": "lecture_clips_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lectures_id": {
+          "name": "lectures_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "albums_id": {
+          "name": "albums_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "meditations_id": {
+          "name": "meditations_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "audiences_id": {
+          "name": "audiences_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "_app_cards_v_rels_order_idx": {
+          "name": "_app_cards_v_rels_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_rels_parent_idx": {
+          "name": "_app_cards_v_rels_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_rels_path_idx": {
+          "name": "_app_cards_v_rels_path_idx",
+          "columns": [
+            "path"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_rels_lecture_clips_id_idx": {
+          "name": "_app_cards_v_rels_lecture_clips_id_idx",
+          "columns": [
+            "lecture_clips_id"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_rels_lectures_id_idx": {
+          "name": "_app_cards_v_rels_lectures_id_idx",
+          "columns": [
+            "lectures_id"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_rels_albums_id_idx": {
+          "name": "_app_cards_v_rels_albums_id_idx",
+          "columns": [
+            "albums_id"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_rels_meditations_id_idx": {
+          "name": "_app_cards_v_rels_meditations_id_idx",
+          "columns": [
+            "meditations_id"
+          ],
+          "isUnique": false
+        },
+        "_app_cards_v_rels_audiences_id_idx": {
+          "name": "_app_cards_v_rels_audiences_id_idx",
+          "columns": [
+            "audiences_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "_app_cards_v_rels_parent_fk": {
+          "name": "_app_cards_v_rels_parent_fk",
+          "tableFrom": "_app_cards_v_rels",
+          "tableTo": "_app_cards_v",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "_app_cards_v_rels_lecture_clips_fk": {
+          "name": "_app_cards_v_rels_lecture_clips_fk",
+          "tableFrom": "_app_cards_v_rels",
+          "tableTo": "lecture_clips",
+          "columnsFrom": [
+            "lecture_clips_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "_app_cards_v_rels_lectures_fk": {
+          "name": "_app_cards_v_rels_lectures_fk",
+          "tableFrom": "_app_cards_v_rels",
+          "tableTo": "lectures",
+          "columnsFrom": [
+            "lectures_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "_app_cards_v_rels_albums_fk": {
+          "name": "_app_cards_v_rels_albums_fk",
+          "tableFrom": "_app_cards_v_rels",
+          "tableTo": "albums",
+          "columnsFrom": [
+            "albums_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "_app_cards_v_rels_meditations_fk": {
+          "name": "_app_cards_v_rels_meditations_fk",
+          "tableFrom": "_app_cards_v_rels",
+          "tableTo": "meditations",
+          "columnsFrom": [
+            "meditations_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "_app_cards_v_rels_audiences_fk": {
+          "name": "_app_cards_v_rels_audiences_fk",
+          "tableFrom": "_app_cards_v_rels",
+          "tableTo": "audiences",
+          "columnsFrom": [
+            "audiences_id"
           ],
           "columnsTo": [
             "id"
@@ -7356,6 +9369,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "lecture_clips_id": {
+          "name": "lecture_clips_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "frames_id": {
           "name": "frames_id",
           "type": "integer",
@@ -7391,6 +9411,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "audiences_id": {
+          "name": "audiences_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "meditation_tags_id": {
           "name": "meditation_tags_id",
           "type": "integer",
@@ -7414,6 +9441,13 @@
         },
         "clients_id": {
           "name": "clients_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "app_cards_id": {
+          "name": "app_cards_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -7505,6 +9539,13 @@
           ],
           "isUnique": false
         },
+        "payload_locked_documents_rels_lecture_clips_id_idx": {
+          "name": "payload_locked_documents_rels_lecture_clips_id_idx",
+          "columns": [
+            "lecture_clips_id"
+          ],
+          "isUnique": false
+        },
         "payload_locked_documents_rels_frames_id_idx": {
           "name": "payload_locked_documents_rels_frames_id_idx",
           "columns": [
@@ -7540,6 +9581,13 @@
           ],
           "isUnique": false
         },
+        "payload_locked_documents_rels_audiences_id_idx": {
+          "name": "payload_locked_documents_rels_audiences_id_idx",
+          "columns": [
+            "audiences_id"
+          ],
+          "isUnique": false
+        },
         "payload_locked_documents_rels_meditation_tags_id_idx": {
           "name": "payload_locked_documents_rels_meditation_tags_id_idx",
           "columns": [
@@ -7565,6 +9613,13 @@
           "name": "payload_locked_documents_rels_clients_id_idx",
           "columns": [
             "clients_id"
+          ],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_app_cards_id_idx": {
+          "name": "payload_locked_documents_rels_app_cards_id_idx",
+          "columns": [
+            "app_cards_id"
           ],
           "isUnique": false
         },
@@ -7688,6 +9743,19 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
+        "payload_locked_documents_rels_lecture_clips_fk": {
+          "name": "payload_locked_documents_rels_lecture_clips_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "lecture_clips",
+          "columnsFrom": [
+            "lecture_clips_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
         "payload_locked_documents_rels_frames_fk": {
           "name": "payload_locked_documents_rels_frames_fk",
           "tableFrom": "payload_locked_documents_rels",
@@ -7753,6 +9821,19 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
+        "payload_locked_documents_rels_audiences_fk": {
+          "name": "payload_locked_documents_rels_audiences_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "audiences",
+          "columnsFrom": [
+            "audiences_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
         "payload_locked_documents_rels_meditation_tags_fk": {
           "name": "payload_locked_documents_rels_meditation_tags_fk",
           "tableFrom": "payload_locked_documents_rels",
@@ -7798,6 +9879,19 @@
           "tableTo": "clients",
           "columnsFrom": [
             "clients_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_app_cards_fk": {
+          "name": "payload_locked_documents_rels_app_cards_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "app_cards",
+          "columnsFrom": [
+            "app_cards_id"
           ],
           "columnsTo": [
             "id"
@@ -8290,8 +10384,15 @@
     "wm_web_translations_locales": {
       "name": "wm_web_translations_locales",
       "columns": {
-        "strings": {
-          "name": "strings",
+        "common": {
+          "name": "common",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "navigation": {
+          "name": "navigation",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -8413,8 +10514,15 @@
     "_wm_web_translations_v_locales": {
       "name": "_wm_web_translations_v_locales",
       "columns": {
-        "version_strings": {
-          "name": "version_strings",
+        "version_common": {
+          "name": "version_common",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_navigation": {
+          "name": "version_navigation",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -8471,6 +10579,141 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "wm_app_config_vibe_check_tracks": {
+      "name": "wm_app_config_vibe_check_tracks",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_locale": {
+          "name": "_locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "identifier": {
+          "name": "identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "audio_id": {
+          "name": "audio_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "subtitles_id": {
+          "name": "subtitles_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "wm_app_config_vibe_check_tracks_order_idx": {
+          "name": "wm_app_config_vibe_check_tracks_order_idx",
+          "columns": [
+            "_order"
+          ],
+          "isUnique": false
+        },
+        "wm_app_config_vibe_check_tracks_parent_id_idx": {
+          "name": "wm_app_config_vibe_check_tracks_parent_id_idx",
+          "columns": [
+            "_parent_id"
+          ],
+          "isUnique": false
+        },
+        "wm_app_config_vibe_check_tracks_locale_idx": {
+          "name": "wm_app_config_vibe_check_tracks_locale_idx",
+          "columns": [
+            "_locale"
+          ],
+          "isUnique": false
+        },
+        "wm_app_config_vibe_check_tracks_audio_idx": {
+          "name": "wm_app_config_vibe_check_tracks_audio_idx",
+          "columns": [
+            "audio_id"
+          ],
+          "isUnique": false
+        },
+        "wm_app_config_vibe_check_tracks_subtitles_idx": {
+          "name": "wm_app_config_vibe_check_tracks_subtitles_idx",
+          "columns": [
+            "subtitles_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "wm_app_config_vibe_check_tracks_audio_id_files_id_fk": {
+          "name": "wm_app_config_vibe_check_tracks_audio_id_files_id_fk",
+          "tableFrom": "wm_app_config_vibe_check_tracks",
+          "tableTo": "files",
+          "columnsFrom": [
+            "audio_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "wm_app_config_vibe_check_tracks_subtitles_id_files_id_fk": {
+          "name": "wm_app_config_vibe_check_tracks_subtitles_id_files_id_fk",
+          "tableFrom": "wm_app_config_vibe_check_tracks",
+          "tableTo": "files",
+          "columnsFrom": [
+            "subtitles_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "wm_app_config_vibe_check_tracks_parent_id_fk": {
+          "name": "wm_app_config_vibe_check_tracks_parent_id_fk",
+          "tableFrom": "wm_app_config_vibe_check_tracks",
+          "tableTo": "wm_app_config",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "wm_app_config": {
       "name": "wm_app_config",
       "columns": {
@@ -8498,6 +10741,116 @@
       },
       "indexes": {},
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "wm_app_config_locales": {
+      "name": "wm_app_config_locales",
+      "columns": {
+        "self_realization_meditation_id": {
+          "name": "self_realization_meditation_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "post_realization_lecture_id": {
+          "name": "post_realization_lecture_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_locale": {
+          "name": "_locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "wm_app_config_self_realization_meditation_idx": {
+          "name": "wm_app_config_self_realization_meditation_idx",
+          "columns": [
+            "self_realization_meditation_id",
+            "_locale"
+          ],
+          "isUnique": false
+        },
+        "wm_app_config_post_realization_lecture_idx": {
+          "name": "wm_app_config_post_realization_lecture_idx",
+          "columns": [
+            "post_realization_lecture_id",
+            "_locale"
+          ],
+          "isUnique": false
+        },
+        "wm_app_config_locales_locale_parent_id_unique": {
+          "name": "wm_app_config_locales_locale_parent_id_unique",
+          "columns": [
+            "_locale",
+            "_parent_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "wm_app_config_locales_self_realization_meditation_id_meditations_id_fk": {
+          "name": "wm_app_config_locales_self_realization_meditation_id_meditations_id_fk",
+          "tableFrom": "wm_app_config_locales",
+          "tableTo": "meditations",
+          "columnsFrom": [
+            "self_realization_meditation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "wm_app_config_locales_post_realization_lecture_id_lecture_clips_id_fk": {
+          "name": "wm_app_config_locales_post_realization_lecture_id_lecture_clips_id_fk",
+          "tableFrom": "wm_app_config_locales",
+          "tableTo": "lecture_clips",
+          "columnsFrom": [
+            "post_realization_lecture_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "wm_app_config_locales_parent_id_fk": {
+          "name": "wm_app_config_locales_parent_id_fk",
+          "tableFrom": "wm_app_config_locales",
+          "tableTo": "wm_app_config",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -8536,8 +10889,36 @@
     "wm_app_translations_locales": {
       "name": "wm_app_translations_locales",
       "columns": {
-        "strings": {
-          "name": "strings",
+        "daily": {
+          "name": "daily",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "explore": {
+          "name": "explore",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "profile": {
+          "name": "profile",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "meditation": {
+          "name": "meditation",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -8659,8 +11040,36 @@
     "_wm_app_translations_v_locales": {
       "name": "_wm_app_translations_v_locales",
       "columns": {
-        "version_strings": {
-          "name": "version_strings",
+        "version_daily": {
+          "name": "version_daily",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_path": {
+          "name": "version_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_explore": {
+          "name": "version_explore",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_profile": {
+          "name": "version_profile",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_meditation": {
+          "name": "version_meditation",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -8806,8 +11215,22 @@
     "sy_atlas_translations_locales": {
       "name": "sy_atlas_translations_locales",
       "columns": {
-        "strings": {
-          "name": "strings",
+        "common": {
+          "name": "common",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "map": {
+          "name": "map",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "location": {
+          "name": "location",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -8929,8 +11352,22 @@
     "_sy_atlas_translations_v_locales": {
       "name": "_sy_atlas_translations_v_locales",
       "columns": {
-        "version_strings": {
-          "name": "version_strings",
+        "version_common": {
+          "name": "version_common",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_map": {
+          "name": "version_map",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "version_location": {
+          "name": "version_location",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -9035,6 +11472,6 @@
   "internal": {
     "indexes": {}
   },
-  "id": "a900b1f1-65f8-4331-8012-d7c85c59d72c",
+  "id": "bdc0a811-592d-4bab-bbfa-1c36372fb97a",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

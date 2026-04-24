@@ -34,7 +34,8 @@ NC='\033[0m'
 # Configuration
 MIGRATIONS_DIR="src/migrations"
 BACKUP_DIR="src/migrations.bak"
-DB_NAME="sahajcloud"
+DB_NAME="sahajcloud"            # prod binding (wrangler.toml top-level)
+DB_NAME_DEV="sahajcloud-dev"    # dev binding (wrangler.toml [env.dev])
 WRANGLER_STATE_BACKUP=".wrangler.squash-backup"
 PROD_SCHEMA_FILE="prod-schema.sql"
 BASELINE_SCHEMA_FILE="baseline-schema.sql"
@@ -195,9 +196,9 @@ fi
 # only the single baseline applied.
 cross-env NODE_OPTIONS=--no-deprecation CLOUDFLARE_ENV=dev pnpm payload migrate
 
-# Dump the local schema via wrangler. The --env=dev selects [env.dev] where the
-# D1 binding points at the local miniflare DB.
-pnpm exec wrangler d1 export "$DB_NAME" --env=dev --local --no-data --output="$BASELINE_SCHEMA_FILE"
+# Dump the local schema via wrangler. The --env=dev selects [env.dev], where the
+# D1 binding is named "sahajcloud-dev" (see wrangler.toml).
+pnpm exec wrangler d1 export "$DB_NAME_DEV" --env=dev --local --no-data --output="$BASELINE_SCHEMA_FILE"
 echo "Baseline schema written to $BASELINE_SCHEMA_FILE ($(wc -l < "$BASELINE_SCHEMA_FILE") lines)"
 
 # Restore operator's .wrangler
@@ -246,11 +247,13 @@ fi
 log_step "Step 9: Rewriting payload_migrations on prod"
 confirm "Last chance — rewrite prod payload_migrations with single row '${NEW_NAME}'?"
 
+# D1 rejects explicit BEGIN/COMMIT (Durable Objects own the transaction).
+# Wrangler atomically coalesces the whole --file into a single write; if any
+# statement fails the DB is rolled back. See
+# https://developers.cloudflare.com/d1/configuration/transactions/
 cat > "$REWRITE_SQL_FILE" <<SQL
-BEGIN;
 DELETE FROM payload_migrations;
 INSERT INTO payload_migrations (name, batch) VALUES ('${NEW_NAME}', 1);
-COMMIT;
 SQL
 
 echo "Executing SQL against prod D1:"

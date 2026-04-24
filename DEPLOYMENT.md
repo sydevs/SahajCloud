@@ -241,7 +241,9 @@ Use this when you need to consolidate migrations into a single initial migration
 
 Use this when you want to shrink the migration surface area, not reset the database.
 
-**How it works**: the script dumps the current prod schema, generates a new single baseline migration locally, applies that baseline to a throwaway local D1 to verify it produces the same schema, then rewrites the prod `payload_migrations` table inside a single transaction so prod believes the baseline is already applied. No DDL runs against prod. In fresh environments the baseline runs normally and produces the correct empty schema.
+**How it works**: the script dumps the current prod schema, generates a new single baseline migration locally, applies that baseline to a throwaway local D1 to verify it produces the same schema, then rewrites the prod `payload_migrations` table via `wrangler d1 execute --file=...` so prod believes the baseline is already applied. No DDL runs against prod. In fresh environments the baseline runs normally and produces the correct empty schema.
+
+> **D1 transactions**: Cloudflare D1 rejects explicit `BEGIN`/`COMMIT` statements in `--file` input (Durable Objects own the transaction). Wrangler instead atomically coalesces every statement in the file into a single write — if any statement fails, the database rolls back to its pre-execution state and you can safely retry. This is why the rewrite SQL is just `DELETE` + `INSERT` with no transaction wrapper.
 
 **Automated Script** (recommended):
 
@@ -323,24 +325,22 @@ The local `.wrangler` DB still carries the pre-squash `payload_migrations` rows.
    ```bash
    sed -i '' 's/{ db, payload, req }/{ db, payload: _payload, req: _req }/g' src/migrations/<new>.ts
    ```
-5. **Apply to a throwaway local D1** and dump its schema:
+5. **Apply to a throwaway local D1** and dump its schema (the dev binding is named `sahajcloud-dev`, not `sahajcloud`; see `[env.dev]` in `wrangler.toml`):
    ```bash
    mv .wrangler .wrangler.backup
    CLOUDFLARE_ENV=dev pnpm payload migrate
-   wrangler d1 export sahajcloud --env=dev --local --no-data --output=baseline-schema.sql
+   wrangler d1 export sahajcloud-dev --env=dev --local --no-data --output=baseline-schema.sql
    rm -rf .wrangler && mv .wrangler.backup .wrangler
    ```
 6. **Diff** and confirm empty output:
    ```bash
    diff <(sort prod-schema.sql) <(sort baseline-schema.sql)
    ```
-7. **Rewrite `payload_migrations` on prod** in a single transaction:
+7. **Rewrite `payload_migrations` on prod** (wrangler coalesces the file into one atomic write; no explicit BEGIN/COMMIT):
    ```bash
    cat > rewrite.sql <<SQL
-   BEGIN;
    DELETE FROM payload_migrations;
    INSERT INTO payload_migrations (name, batch) VALUES ('<new-migration-name>', 1);
-   COMMIT;
    SQL
    wrangler d1 execute sahajcloud --remote --file=rewrite.sql
    ```
