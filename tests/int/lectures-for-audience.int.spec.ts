@@ -4,10 +4,16 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { Audience, Client, Image, Lecture, LectureClip } from '@/payload-types'
 
-import { lecturesForAudience, type ItemPlayerData } from '@/endpoints/lecturesForAudience'
+import {
+  lecturesForAudience,
+  type LectureClipPlayerData,
+  type LecturePlayerData,
+} from '@/endpoints/lecturesForAudience'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
+
+type ItemPlayerData = LecturePlayerData | LectureClipPlayerData
 
 // Prevent live Nirmala Vidya API calls from the populateFromNirmalaVidya hook
 // fired by testData.createLecture. Each test can override the mock response.
@@ -28,14 +34,29 @@ vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
   }
 })
 
+// All audience params are required by the endpoint's Zod schema. Tests that
+// don't exercise a specific param still need to pass neutral defaults; only
+// the 400-validation cases should call with `{ skipAudienceDefaults: true }`
+// to omit them and exercise the "missing required param" path.
+const AUDIENCE_DEFAULTS = {
+  pathProgress: 0,
+  meditationsPerWeek: 0,
+  totalMeditationsViewed: 0,
+  totalLecturesViewed: 0,
+}
+
 async function callEndpoint(
   payload: Payload,
   query: Record<string, string | number | boolean>,
   user?: { id: number | string; collection: string },
+  options: { skipAudienceDefaults?: boolean } = {},
 ): Promise<{ status: number; body: { docs: ItemPlayerData[] } | unknown }> {
+  const finalQuery = options.skipAudienceDefaults
+    ? query
+    : { ...AUDIENCE_DEFAULTS, ...query }
   const req = {
     payload,
-    query,
+    query: finalQuery,
     headers: new Headers(),
     routeParams: {},
     user,
@@ -217,6 +238,18 @@ describe('lecturesForAudience endpoint', () => {
         limit: 10,
         pathProgress: 'not-a-number',
       })
+      expect(status).toBe(400)
+    })
+
+    it('returns 400 when any audience-data param is missing', async () => {
+      // Only `limit` + a single audience param supplied; the other three
+      // required audience params are absent → Zod fails the request.
+      const { status } = await callEndpoint(
+        payload,
+        { limit: 10, pathProgress: 3 },
+        undefined,
+        { skipAudienceDefaults: true },
+      )
       expect(status).toBe(400)
     })
   })

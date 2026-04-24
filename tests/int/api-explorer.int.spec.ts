@@ -20,6 +20,11 @@ import { openapi } from 'payload-oapi'
 
 import { collections, Managers } from '../../src/collections'
 import { globals } from '../../src/globals'
+import { AUDIENCE_DEFINITIONS } from '../../src/collections/tags/Audiences'
+import {
+  CUSTOM_ENDPOINT_PATHS,
+  CUSTOM_ENDPOINT_SCHEMAS,
+} from '../../src/lib/openapi/customEndpoints'
 import {
   filterSpec,
   ALWAYS_HIDDEN_COLLECTIONS,
@@ -471,6 +476,259 @@ describe('OpenAPI Spec Marker Utility', () => {
 
       // System collections should still be hidden
       expect(result.paths!['/api/images']!.get!['x-internal']).toBe(true)
+    })
+
+    describe('custom endpoint visibility', () => {
+      // Build a spec that mirrors the merge the Next.js route handler does.
+      const specWithCustomEndpoints = {
+        ...mockSpec,
+        paths: { ...mockSpec.paths, ...CUSTOM_ENDPOINT_PATHS },
+      }
+
+      it('exposes frames + lectures + app-cards custom endpoints to wemeditate-app', () => {
+        const result = filterSpec(specWithCustomEndpoints, { project: 'wemeditate-app' })
+
+        expect(
+          result.paths!['/api/frames/by-narrator/{narratorId}']!.get!['x-internal'],
+        ).toBeUndefined()
+        expect(result.paths!['/api/lectures/for-audience']!.get!['x-internal']).toBeUndefined()
+        expect(result.paths!['/api/app-cards/for-audience']!.get!['x-internal']).toBeUndefined()
+      })
+
+      it('exposes frames + lectures but hides app-cards for wemeditate-web', () => {
+        const result = filterSpec(specWithCustomEndpoints, { project: 'wemeditate-web' })
+
+        expect(
+          result.paths!['/api/frames/by-narrator/{narratorId}']!.get!['x-internal'],
+        ).toBeUndefined()
+        expect(result.paths!['/api/lectures/for-audience']!.get!['x-internal']).toBeUndefined()
+        // app-cards is not in the wemeditate-web project
+        expect(result.paths!['/api/app-cards/for-audience']!.get!['x-internal']).toBe(true)
+      })
+
+      it('hides all three custom endpoints from sahaj-atlas', () => {
+        const result = filterSpec(specWithCustomEndpoints, { project: 'sahaj-atlas' })
+
+        expect(result.paths!['/api/frames/by-narrator/{narratorId}']!.get!['x-internal']).toBe(true)
+        expect(result.paths!['/api/lectures/for-audience']!.get!['x-internal']).toBe(true)
+        expect(result.paths!['/api/app-cards/for-audience']!.get!['x-internal']).toBe(true)
+      })
+
+      it('exposes all three custom endpoints in the admin / unfiltered view', () => {
+        const result = filterSpec(specWithCustomEndpoints)
+
+        expect(
+          result.paths!['/api/frames/by-narrator/{narratorId}']!.get!['x-internal'],
+        ).toBeUndefined()
+        expect(result.paths!['/api/lectures/for-audience']!.get!['x-internal']).toBeUndefined()
+        expect(result.paths!['/api/app-cards/for-audience']!.get!['x-internal']).toBeUndefined()
+      })
+    })
+  })
+})
+
+describe('Custom Endpoint Shims', () => {
+  describe('CUSTOM_ENDPOINT_PATHS', () => {
+    it('defines all three custom endpoints with GET operations', () => {
+      expect(CUSTOM_ENDPOINT_PATHS['/api/frames/by-narrator/{narratorId}']?.get).toBeDefined()
+      expect(CUSTOM_ENDPOINT_PATHS['/api/lectures/for-audience']?.get).toBeDefined()
+      expect(CUSTOM_ENDPOINT_PATHS['/api/app-cards/for-audience']?.get).toBeDefined()
+    })
+
+    it('frames/by-narrator declares a required narratorId path param and refs the Frames schema', () => {
+      const op = CUSTOM_ENDPOINT_PATHS['/api/frames/by-narrator/{narratorId}']!.get!
+      const narratorParam = op.parameters?.find((p) => p.name === 'narratorId')
+      expect(narratorParam).toBeDefined()
+      expect(narratorParam?.in).toBe('path')
+      expect(narratorParam?.required).toBe(true)
+      expect(narratorParam?.schema?.type).toBe('string')
+
+      const successRef =
+        op.responses?.['200']?.content?.['application/json']?.schema?.$ref
+      expect(successRef).toBe('#/components/schemas/Frames')
+    })
+
+    it('lectures/for-audience requires a bounded limit (1–100) and refs both player-data schemas via oneOf', () => {
+      const op = CUSTOM_ENDPOINT_PATHS['/api/lectures/for-audience']!.get!
+      const limitParam = op.parameters?.find((p) => p.name === 'limit')
+      expect(limitParam).toBeDefined()
+      expect(limitParam?.in).toBe('query')
+      expect(limitParam?.required).toBe(true)
+      expect(limitParam?.schema?.type).toBe('integer')
+      expect(limitParam?.schema?.minimum).toBe(1)
+      expect(limitParam?.schema?.maximum).toBe(100)
+
+      const successSchema = op.responses?.['200']?.content?.['application/json']?.schema as
+        | {
+            properties?: {
+              docs?: {
+                items?: { oneOf?: Array<{ $ref?: string }>; discriminator?: { propertyName?: string } }
+              }
+            }
+          }
+        | undefined
+
+      const items = successSchema?.properties?.docs?.items
+      const refs = (items?.oneOf ?? []).map((s) => s.$ref).sort()
+      expect(refs).toEqual([
+        '#/components/schemas/LectureClipPlayerData',
+        '#/components/schemas/LecturePlayerData',
+      ])
+      expect(items?.discriminator?.propertyName).toBe('type')
+    })
+
+    it('app-cards/for-audience requires targetSection (hero|highlights) and a bounded limit (1–20)', () => {
+      const op = CUSTOM_ENDPOINT_PATHS['/api/app-cards/for-audience']!.get!
+
+      const targetParam = op.parameters?.find((p) => p.name === 'targetSection')
+      expect(targetParam).toBeDefined()
+      expect(targetParam?.required).toBe(true)
+      expect(targetParam?.schema?.enum).toEqual(['hero', 'highlights', 'lectures'])
+
+      const limitParam = op.parameters?.find((p) => p.name === 'limit')
+      expect(limitParam?.required).toBe(true)
+      expect(limitParam?.schema?.minimum).toBe(1)
+      expect(limitParam?.schema?.maximum).toBe(20)
+
+      const successSchema = op.responses?.['200']?.content?.['application/json']?.schema as
+        | { properties?: { docs?: { items?: { $ref?: string } } } }
+        | undefined
+      expect(successSchema?.properties?.docs?.items?.$ref).toBe('#/components/schemas/AppCards')
+    })
+
+    it('audience query params stay in sync with AUDIENCE_DEFINITIONS on both for-audience endpoints', () => {
+      // Regression guard: if a new rule is added to AUDIENCE_DEFINITIONS but
+      // not plumbed through `audienceQueryParameters` in customEndpoints.ts,
+      // the generated docs silently under-advertise the endpoint.
+      const ruleNames = AUDIENCE_DEFINITIONS.map((rule) => rule.name)
+
+      for (const path of [
+        '/api/lectures/for-audience',
+        '/api/app-cards/for-audience',
+      ] as const) {
+        const op = CUSTOM_ENDPOINT_PATHS[path]!.get!
+        const paramNames = (op.parameters ?? []).map((p) => p.name)
+        for (const ruleName of ruleNames) {
+          expect(paramNames, `${path} should expose '${ruleName}' as a query param`).toContain(
+            ruleName,
+          )
+        }
+      }
+    })
+
+    it('audience params are all required query params', () => {
+      const ruleNames = new Set(AUDIENCE_DEFINITIONS.map((rule) => rule.name))
+      const op = CUSTOM_ENDPOINT_PATHS['/api/lectures/for-audience']!.get!
+
+      for (const param of op.parameters ?? []) {
+        if (ruleNames.has(param.name)) {
+          expect(param.in).toBe('query')
+          expect(param.required).toBe(true)
+        }
+      }
+    })
+
+    it('audience query-param descriptions mirror RuleDefinition.description', () => {
+      // Each rule with an authored description in AUDIENCE_DEFINITIONS should
+      // surface that exact text on both for-audience endpoints — keeps admin
+      // UI hint + OpenAPI docs copy in lockstep.
+      const definedDescriptions = new Map<string, string>()
+      for (const rule of AUDIENCE_DEFINITIONS) {
+        if (rule.description) definedDescriptions.set(rule.name, rule.description)
+      }
+      expect(definedDescriptions.size).toBeGreaterThan(0)
+
+      for (const path of [
+        '/api/lectures/for-audience',
+        '/api/app-cards/for-audience',
+      ] as const) {
+        const op = CUSTOM_ENDPOINT_PATHS[path]!.get!
+        for (const param of op.parameters ?? []) {
+          const expected = definedDescriptions.get(param.name)
+          if (expected) {
+            expect(param.description, `${path} ${param.name} description`).toBe(expected)
+          }
+        }
+      }
+    })
+  })
+
+  describe('CUSTOM_ENDPOINT_SCHEMAS', () => {
+    type PlayerSchema = {
+      type?: string
+      additionalProperties?: boolean
+      required?: string[]
+      properties?: {
+        type?: { enum?: string[] }
+        startTime?: { type?: string; enum?: number[] }
+        lectureId?: unknown
+      }
+    }
+
+    it('exports split LecturePlayerData + LectureClipPlayerData schemas and no ItemPlayerData alias', () => {
+      expect(CUSTOM_ENDPOINT_SCHEMAS.LecturePlayerData).toBeDefined()
+      expect(CUSTOM_ENDPOINT_SCHEMAS.LectureClipPlayerData).toBeDefined()
+      // ItemPlayerData is no longer exported as a combined schema; the union
+      // is inlined on the endpoint response.
+      expect(CUSTOM_ENDPOINT_SCHEMAS.ItemPlayerData).toBeUndefined()
+    })
+
+    it('LecturePlayerData discriminates on type="lecture" and pins startTime to 0', () => {
+      const schema = CUSTOM_ENDPOINT_SCHEMAS.LecturePlayerData as PlayerSchema
+
+      expect(schema.type).toBe('object')
+      expect(schema.additionalProperties).toBe(false)
+      expect(schema.properties?.type?.enum).toEqual(['lecture'])
+      expect(schema.properties?.startTime?.enum).toEqual([0])
+      // `lectureId` is the clip-only field and must not appear here.
+      expect(schema.properties?.lectureId).toBeUndefined()
+      expect(schema.required ?? []).not.toContain('lectureId')
+    })
+
+    it('LectureClipPlayerData discriminates on type="lecture-clip" and requires lectureId', () => {
+      const schema = CUSTOM_ENDPOINT_SCHEMAS.LectureClipPlayerData as PlayerSchema
+
+      expect(schema.type).toBe('object')
+      expect(schema.additionalProperties).toBe(false)
+      expect(schema.properties?.type?.enum).toEqual(['lecture-clip'])
+      expect(schema.required).toContain('lectureId')
+    })
+
+    it('defines ErrorResponse with an errors array whose items require a message', () => {
+      const schema = CUSTOM_ENDPOINT_SCHEMAS.ErrorResponse as
+        | {
+            required?: string[]
+            properties?: {
+              errors?: { type?: string; items?: { required?: string[] } }
+            }
+          }
+        | undefined
+
+      expect(schema).toBeDefined()
+      expect(schema?.required).toContain('errors')
+      expect(schema?.properties?.errors?.type).toBe('array')
+      expect(schema?.properties?.errors?.items?.required).toContain('message')
+    })
+
+    it('wires ErrorResponse into 4xx responses on all three endpoints', () => {
+      const pathsWithErrorResponses: Array<[string, string[]]> = [
+        ['/api/frames/by-narrator/{narratorId}', ['400', '404']],
+        ['/api/lectures/for-audience', ['400']],
+        ['/api/app-cards/for-audience', ['400']],
+      ]
+
+      for (const [path, statusCodes] of pathsWithErrorResponses) {
+        const responses = CUSTOM_ENDPOINT_PATHS[path]!.get!.responses!
+        for (const code of statusCodes) {
+          const ref = (
+            responses[code]!.content?.['application/json']?.schema as { $ref?: string } | undefined
+          )?.$ref
+          expect(
+            ref,
+            `${path} ${code} should reference ErrorResponse`,
+          ).toBe('#/components/schemas/ErrorResponse')
+        }
+      }
     })
   })
 })

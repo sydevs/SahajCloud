@@ -9,10 +9,26 @@ import { rulesField } from '@/fields'
  * their query schemas — add a rule here and both sides pick it up.
  */
 export const AUDIENCE_DEFINITIONS: RuleDefinition[] = [
-  { name: 'pathProgress', type: 'range' },
-  { name: 'meditationsPerWeek', type: 'range' },
-  { name: 'totalMeditationsViewed', type: 'range' },
-  { name: 'totalLecturesViewed', type: 'range' },
+  {
+    name: 'pathProgress',
+    type: 'range',
+    description: 'Index of the current Path step the user has reached (0 = not started).',
+  },
+  {
+    name: 'meditationsPerWeek',
+    type: 'range',
+    description: 'Meditation sessions the user has completed in the past seven days.',
+  },
+  {
+    name: 'totalMeditationsViewed',
+    type: 'range',
+    description: 'Lifetime count of distinct meditations the user has opened.',
+  },
+  {
+    name: 'totalLecturesViewed',
+    type: 'range',
+    description: 'Lifetime count of distinct lectures or lecture clips the user has played.',
+  },
 ]
 
 export const Audiences: CollectionConfig = {
