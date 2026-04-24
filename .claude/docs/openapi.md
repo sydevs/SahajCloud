@@ -147,9 +147,23 @@ plugins: [
 ]
 ```
 
+## Custom Endpoint Shim
+
+`payload-oapi` v0.2.5 does not auto-generate paths for Payload collection endpoints (the ones wired via a collection's `endpoints` array under `src/endpoints/`). We hand-author their spec entries in [`src/lib/openapi/customEndpoints.ts`](../../src/lib/openapi/customEndpoints.ts) and merge them into the raw spec inside [`src/app/(payload)/api/openapi.json/route.ts`](../../src/app/(payload)/api/openapi.json/route.ts) — specifically between `generateV31Spec` and `filterSpec` so project-based visibility applies automatically by collection slug.
+
+| Custom path | Handler | Response schema |
+|---|---|---|
+| `GET /api/frames/by-narrator/{narratorId}` | [framesByNarrator](../../src/endpoints/framesByNarrator.ts) | `#/components/schemas/Frames` |
+| `GET /api/lectures/for-audience` | [lecturesForAudience](../../src/endpoints/lecturesForAudience.ts) | `#/components/schemas/ItemPlayerData` (hand-authored) |
+| `GET /api/app-cards/for-audience` | [appCardsForAudience](../../src/endpoints/appCardsForAudience.ts) | `#/components/schemas/AppCards` |
+
+The audience query params on the two `for-audience` endpoints are generated at module load from `AUDIENCE_DEFINITIONS` ([src/collections/tags/Audiences.ts](../../src/collections/tags/Audiences.ts)) and mirror the Zod shape produced by `buildAudienceDataShape` in [rulesField.ts](../../src/fields/rulesField.ts) — so adding a rule flows through to the docs automatically. The `audience params stay in sync` assertion in [api-explorer.int.spec.ts](../../tests/int/api-explorer.int.spec.ts) is the regression guard.
+
+When `payload-oapi` ships native custom-endpoint support, the shim module and the merge block can both be deleted in a single follow-up.
+
 ## Known Limitations
 
-- **Custom endpoints not documented**: `/api/frames/by-narrator/:narratorId` and `/api/health` are not in spec
 - **API key format**: Plugin uses OAuth2 password flow instead of `Authorization: clients API-Key <key>` format
+- **`/api/health` + webhook routes**: Next.js app-router routes (`/api/health`, `/api/webhooks/...`, `/api/seed/:script`) are intentionally omitted — they're infrastructure, not part of the public client API.
 
 **Plugin Review**: Check payload-oapi for updates quarterly or when new features needed.

@@ -188,7 +188,7 @@ The filtering system uses a two-tier approach defined in `src/lib/openapi/`:
 
 The following features are not supported by the current plugin version:
 
-- **Custom Endpoints Not Documented**: `/api/frames/by-narrator/:narratorId`, `/api/meditation-tags/by-timing/:timing`, and `/api/health` are not included in the spec
+- **Custom endpoints not auto-generated**: `payload-oapi` doesn't emit paths for custom Payload collection endpoints. We hand-author the three `src/endpoints/*` entries (`/api/frames/by-narrator/:narratorId`, `/api/lectures/for-audience`, `/api/app-cards/for-audience`) in [`src/lib/openapi/customEndpoints.ts`](../../src/lib/openapi/customEndpoints.ts) and merge them into the spec inside the `/api/openapi.json` route handler. Next.js app-router routes like `/api/health` stay internal. See [openapi.md](openapi.md#custom-endpoint-shim) for the full shim architecture.
 - **API Key Header Format**: Plugin uses OAuth2 password flow instead of `Authorization: clients API-Key <key>` format
 
 **Plugin Review Schedule**: Check for updates quarterly or when new features needed. See [GitHub](https://github.com/janbuchar/payload-oapi) for roadmap.

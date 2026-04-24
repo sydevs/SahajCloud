@@ -14,43 +14,47 @@ const querySchema = z.object({
 })
 
 /**
- * Flat, playback-ready shape returned from /for-audience. Discriminated by
- * `lectureId`: clips carry it (points at the parent lecture), lectures omit it.
- * Discriminate variants with `'lectureId' in doc` or `typeof d.lectureId === 'number'`.
+ * Flat, playback-ready shape for a full lecture returned from /for-audience.
  *
- * Lecture variant — `title` nullable (localized + hook-populated), `endTime`/
- * `duration` may be `null` on a lecture whose `metadata.duration` hasn't been
- * backfilled yet (new NV-sync field — existing rows populate on the next
- * monthly sync), `startTime` is always 0.
- *
- * Clip variant — all time fields are concrete numbers (collection enforces
- * `endTime > startTime`), title is required, `lectureId` is the parent ID.
+ * `title` is nullable (localized + hook-populated). `endTime`/`duration` may
+ * be `null` on a lecture whose `metadata.duration` hasn't been backfilled
+ * yet (new NV-sync field — existing rows populate on the next monthly sync).
+ * `startTime` is always 0. `lectureId` is omitted — that field is
+ * clip-exclusive.
  */
-export type ItemPlayerData =
-  | {
-      id: number
-      type: 'lecture'
-      title: string | null | undefined
-      videoUrl: string
-      thumbnailUrl: string | null
-      subtitles: Record<string, string>
-      startTime: 0
-      endTime: number | null
-      duration: number | null
-      lectureId?: undefined
-    }
-  | {
-      id: number
-      type: 'lecture-clip'
-      title: string
-      videoUrl: string
-      thumbnailUrl: string | null
-      subtitles: Record<string, string>
-      startTime: number
-      endTime: number
-      duration: number
-      lectureId: number
-    }
+export type LecturePlayerData = {
+  id: number
+  type: 'lecture'
+  title: string | null | undefined
+  videoUrl: string
+  thumbnailUrl: string | null
+  subtitles: Record<string, string>
+  startTime: 0
+  endTime: number | null
+  duration: number | null
+  lectureId?: undefined
+}
+
+/**
+ * Flat, playback-ready shape for a lecture clip returned from /for-audience.
+ *
+ * All time fields are concrete numbers (the collection enforces
+ * `endTime > startTime`), `title` is required, and `lectureId` points at
+ * the parent lecture. Discriminate clip vs lecture on `type` or on the
+ * presence of `lectureId`.
+ */
+export type LectureClipPlayerData = {
+  id: number
+  type: 'lecture-clip'
+  title: string
+  videoUrl: string
+  thumbnailUrl: string | null
+  subtitles: Record<string, string>
+  startTime: number
+  endTime: number
+  duration: number
+  lectureId: number
+}
 
 // =============================================================================
 // Pure helpers (exported for unit tests)
@@ -118,19 +122,20 @@ export function resolveThumbnailUrl(args: {
  * `audiences` are always excluded.
  *
  * Response shape (flat, no nested parent doc):
- *   { docs: ItemPlayerData[] }
+ *   { docs: (LecturePlayerData | LectureClipPlayerData)[] }
  *
  * Subtitles are always returned as the full `{ [locale]: url }` map, merged
  * from the lecture's metadata plus (for clips) any per-locale overrides on
  * the clip. The player picks the track it wants at playback time.
  *
  * Pipeline:
- *   1. Evaluate `audiences` with `audienceData` to build the eligible-audience set.
+ *   1. Evaluate `audiences` with the audience data to build the eligible-audience set.
  *   2. Find lectures whose `audiences` overlap the eligible set (OR-match).
  *   3. Find clips whose `audiences` overlap the eligible set (OR-match).
  *   4. Bulk-fetch parent lectures for clips so we can merge subtitles and
  *      resolve thumbnail fallbacks without an N+1. Seed from step-2 lectures.
- *   5. Shape into flat ItemPlayerData, concatenate, Fisher-Yates shuffle, slice.
+ *   5. Shape each variant into its respective player type, concatenate,
+ *      Fisher-Yates shuffle, slice.
  */
 export const lecturesForAudience: Endpoint = {
   path: '/for-audience',
@@ -215,8 +220,8 @@ export const lecturesForAudience: Endpoint = {
     }
 
     // Shape lectures
-    const shapedLectures: ItemPlayerData[] = eligibleLectures
-      .map((lecture): ItemPlayerData | null => {
+    const shapedLectures: LecturePlayerData[] = eligibleLectures
+      .map((lecture): LecturePlayerData | null => {
         const metadata = lecture.metadata as LectureMetadata | null | undefined
         if (!metadata?.hlsUrl) {
           req.payload.logger.warn({
@@ -241,11 +246,11 @@ export const lecturesForAudience: Endpoint = {
           duration,
         }
       })
-      .filter((item): item is ItemPlayerData => item !== null)
+      .filter((item): item is LecturePlayerData => item !== null)
 
     // Shape clips
-    const shapedClips: ItemPlayerData[] = eligibleClips
-      .map((clip): ItemPlayerData | null => {
+    const shapedClips: LectureClipPlayerData[] = eligibleClips
+      .map((clip): LectureClipPlayerData | null => {
         const parentId = extractID(clip.lecture)
         const parent = typeof parentId === 'number' ? (parentById.get(parentId) ?? null) : null
         if (!parent) {
@@ -282,10 +287,13 @@ export const lecturesForAudience: Endpoint = {
           lectureId: parent.id,
         }
       })
-      .filter((item): item is ItemPlayerData => item !== null)
+      .filter((item): item is LectureClipPlayerData => item !== null)
 
     // Concatenate + Fisher-Yates shuffle + slice
-    const combined: ItemPlayerData[] = [...shapedLectures, ...shapedClips]
+    const combined: Array<LecturePlayerData | LectureClipPlayerData> = [
+      ...shapedLectures,
+      ...shapedClips,
+    ]
     for (let i = combined.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
       ;[combined[i], combined[j]] = [combined[j], combined[i]]

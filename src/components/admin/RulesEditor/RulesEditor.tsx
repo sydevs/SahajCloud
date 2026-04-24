@@ -130,12 +130,23 @@ const styles = {
     gap: 'calc(var(--base) * 0.5)',
     '--base': '12px',
   },
+  ruleLabelColumn: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 'calc(var(--base) * 0.15)',
+    minWidth: '180px',
+    flexShrink: 0,
+  },
   ruleLabel: {
     fontSize: 'calc(var(--base-body-size) * 1px)',
     color: 'var(--theme-elevation-800)',
     fontWeight: 500 as const,
-    minWidth: '160px',
-    flexShrink: 0,
+  },
+  ruleDescription: {
+    fontSize: 'calc(var(--base-body-size) * 0.85px)',
+    color: 'var(--theme-elevation-500)',
+    fontWeight: 400 as const,
+    lineHeight: 1.3,
   },
   rangeGroup: {
     display: 'flex',
@@ -303,7 +314,12 @@ export const RulesEditor: React.FC<RulesEditorProps> = ({
 
           return (
             <div key={rule.name} style={styles.ruleRow}>
-              <span style={styles.ruleLabel}>{toWords(rule.name)}</span>
+              <div style={styles.ruleLabelColumn}>
+                <span style={styles.ruleLabel}>{toWords(rule.name)}</span>
+                {rule.description && (
+                  <span style={styles.ruleDescription}>{rule.description}</span>
+                )}
+              </div>
 
               {rule.type === 'boolean' ? (
                 <ToggleGroup

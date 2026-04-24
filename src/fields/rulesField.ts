@@ -12,6 +12,12 @@ export interface RuleDefinition {
   name: string
   /** 'boolean' = true/false (clearable), 'range' = min/max numbers, 'select' = multi-choice */
   type: RuleType
+  /**
+   * One-line explanation of what the rule targets. Surfaced in the RulesEditor
+   * admin UI (as the per-rule hint) and in the OpenAPI query-param description
+   * for the matching endpoint input.
+   */
+  description?: string
   /** Options for 'select' type rules (label/value pairs) */
   options?: Array<{ label: string; value: string }>
 }
@@ -41,21 +47,16 @@ export interface RulesFieldOptions {
   }
 }
 
-// ── Request-context key ────────────────────────────────────────────────────────
+// ── Request-context helper ────────────────────────────────────────────────────
 
 /**
- * Top-level `req.context` key that endpoints set before calling `payload.find`
- * so the rule-matcher virtual field can evaluate against caller inputs.
+ * Returns a shallow-cloned req with each audience-data key spread directly
+ * onto `req.context` so the virtual `isEligibleForAudience` field can read
+ * them by rule name. Used by the for-audience endpoints.
  *
- * If two rule fields ever coexist on the same document with conflicting input
- * needs, switch to a scoped shape like `{ [fieldName]: AudienceData }`.
- */
-export const AUDIENCE_DATA_CONTEXT_KEY = 'audienceData' as const
-
-/**
- * Returns a shallow-cloned req with `audienceData` stashed on `req.context` so
- * the virtual `isEligibleForAudience` field can evaluate against it during
- * `payload.find` calls. Used by the for-audience endpoints.
+ * Rule names are specific enough (`pathProgress`, `meditationsPerWeek`, …)
+ * that collisions with unrelated `req.context` keys are unlikely. If that
+ * changes, switch back to a scoped shape like `{ audienceRules: {...} }`.
  */
 export function withAudienceContext(
   req: PayloadRequest,
@@ -63,17 +64,23 @@ export function withAudienceContext(
 ): PayloadRequest {
   return {
     ...req,
-    context: { ...req.context, [AUDIENCE_DATA_CONTEXT_KEY]: audienceData },
+    context: { ...req.context, ...audienceData },
   } as PayloadRequest
 }
 
 /**
  * Build the Zod shape dict for query-param audience data from rule definitions.
- * Each rule dimension becomes an optional coerced value matching its type:
+ * Each rule dimension becomes a **required** coerced value matching its type:
  *
- *   - `range`   → `z.coerce.number().optional()` (caller sends a single number)
- *   - `boolean` → `z.enum(['true', 'false']).optional().transform(...)`
- *   - `select`  → `z.string().optional()`
+ *   - `range`   → `z.coerce.number()` (caller sends a single number)
+ *   - `boolean` → `z.enum(['true', 'false']).transform(...)`
+ *   - `select`  → `z.string()`
+ *
+ * Required-by-default matches the runtime eligibility model: with
+ * `evaluateRules`, a missing caller value for a configured rule causes that
+ * rule to fail — making the param optional would silently filter out any
+ * doc with a rule configured for it. Callers that want "no opinion" should
+ * pass a neutral sentinel (e.g. `0` for ranges).
  *
  * Returns the raw shape (not a `z.object(...)`) so consumers can spread it
  * into their own schema alongside endpoint-specific fields:
@@ -91,14 +98,11 @@ export function buildAudienceDataShape(rules: RuleDefinition[]): Record<string, 
   const shape: Record<string, z.ZodTypeAny> = {}
   for (const rule of rules) {
     if (rule.type === 'range') {
-      shape[rule.name] = z.coerce.number().optional()
+      shape[rule.name] = z.coerce.number()
     } else if (rule.type === 'boolean') {
-      shape[rule.name] = z
-        .enum(['true', 'false'])
-        .optional()
-        .transform((v) => (v === undefined ? undefined : v === 'true'))
+      shape[rule.name] = z.enum(['true', 'false']).transform((v) => v === 'true')
     } else if (rule.type === 'select') {
-      shape[rule.name] = z.string().optional()
+      shape[rule.name] = z.string()
     }
   }
   return shape
@@ -264,17 +268,28 @@ function buildJsonField(options: RulesFieldOptions): JSONField {
 
 /**
  * Virtual checkbox field that evaluates the sibling rules JSON against caller
- * inputs stashed on `req.context[AUDIENCE_DATA_CONTEXT_KEY]`.
+ * inputs read directly from `req.context` by rule name
+ * (e.g. `req.context.pathProgress`).
  *
- * Returns `null` when no inputs are present (no evaluation requested), so
- * near-zero overhead for admin UI reads and unrelated fetches.
+ * Returns `null` when none of the rule keys are present on `req.context`
+ * (no evaluation requested), so near-zero overhead for admin UI reads and
+ * unrelated fetches.
  */
 function buildEligibilityField(options: RulesFieldOptions): CheckboxField {
   const { name = 'rules', rules } = options
 
   const afterRead: FieldHook = ({ req, siblingData }) => {
-    const inputs = req?.context?.[AUDIENCE_DATA_CONTEXT_KEY] as AudienceData | undefined
-    if (!inputs) return null
+    const context = (req?.context ?? {}) as Record<string, unknown>
+    const inputs: AudienceData = {}
+    let hasInput = false
+    for (const rule of rules) {
+      if (rule.name in context) {
+        inputs[rule.name] = context[rule.name]
+        hasInput = true
+      }
+    }
+    if (!hasInput) return null
+
     const stored = (siblingData as Record<string, unknown> | undefined)?.[name] as
       | RulesValue
       | null
@@ -294,9 +309,10 @@ function buildEligibilityField(options: RulesFieldOptions): CheckboxField {
 /**
  * Creates a JSON field with a custom visual editor for targeting rules, plus
  * a virtual `isEligibleForAudience` sibling whose `afterRead` hook evaluates
- * the document's stored rules against `req.context.audienceData`. Endpoints
- * set the context once and filter results by the virtual field instead of
- * importing rule-evaluation logic.
+ * the document's stored rules against rule-name keys spread onto
+ * `req.context` (e.g. `req.context.pathProgress`). Endpoints set the context
+ * once via `withAudienceContext(req, audienceData)` and filter results by
+ * the virtual field instead of importing rule-evaluation logic.
  *
  * Rules are stored as a JSON blob, making the system extensible without
  * schema changes. The RulesEditor component provides a visual editing

@@ -20,6 +20,7 @@ import { getPayload } from 'payload'
 import { generateV31Spec } from 'payload-oapi/dist/openapi/generators.js'
 
 import { isValidProject } from '@/lib/access'
+import { CUSTOM_ENDPOINT_PATHS, CUSTOM_ENDPOINT_SCHEMAS } from '@/lib/openapi/customEndpoints'
 import { filterSpec, type OpenAPISpec } from '@/lib/openapi/specFilter'
 import type { ProjectSlug } from '@/payload-types'
 
@@ -84,6 +85,16 @@ export async function GET(request: NextRequest) {
       metadata: OPENAPI_METADATA,
       authEndpoint: '/openapi-auth', // Required by generator for security schemes
     })) as OpenAPISpec
+
+    // Inject custom endpoint paths + schemas before filtering so project-based
+    // visibility in filterSpec applies them automatically by collection slug.
+    // See src/lib/openapi/customEndpoints.ts for the shape rationale.
+    rawSpec.paths = { ...(rawSpec.paths ?? {}), ...CUSTOM_ENDPOINT_PATHS }
+    rawSpec.components ??= {}
+    rawSpec.components.schemas = {
+      ...((rawSpec.components.schemas as Record<string, unknown> | undefined) ?? {}),
+      ...CUSTOM_ENDPOINT_SCHEMAS,
+    }
 
     // Filter spec using project-based filtering
     const filteredSpec = filterSpec(rawSpec, { project })
