@@ -67,6 +67,7 @@ Development:
 - @.claude/docs/refactoring.md - Refactoring patterns (collection renames)
 - @.claude/docs/testing.md - Testing strategy with in-memory SQLite
 - @.claude/docs/decisions/ffmpeg.md - Architectural decision: FFmpeg deprecation
+- @.claude/docs/decisions/lexical-relationship-patch.md - pnpm patch on `@payloadcms/richtext-lexical` so the relationship picker respects `enabledCollections` for `admin.hidden` collections (e.g. lecture-clips). Review on every Lexical bump.
 
 **See also**: [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive deployment documentation
 

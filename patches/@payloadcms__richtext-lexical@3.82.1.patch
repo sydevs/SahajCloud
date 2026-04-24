@@ -1,0 +1,18 @@
+diff --git a/dist/features/relationship/client/utils/useEnabledRelationships.js b/dist/features/relationship/client/utils/useEnabledRelationships.js
+index 42d06025e6d4c11c894f78e2c5c44dc0c80a7a02..290b68da448b50973a27c71aa968ba0fcd3dc4ac 100644
+--- a/dist/features/relationship/client/utils/useEnabledRelationships.js
++++ b/dist/features/relationship/client/utils/useEnabledRelationships.js
+@@ -29,8 +29,11 @@ export const useEnabledRelationships = options => {
+         },
+         upload
+       } = collection;
+-      // Check visibility
+-      if (!visibleEntities?.collections.includes(slug)) {
++      // Check visibility — whitelisted slugs bypass admin.hidden so
++      // RelationshipFeature({ enabledCollections: [...] }) can expose hidden
++      // collections (e.g. lecture-clips) in the picker.
++      // See .claude/docs/decisions/lexical-relationship-patch.md
++      if (!(whitelistSet && whitelistSet.has(slug)) && !visibleEntities?.collections.includes(slug)) {
+         continue;
+       }
+       // Check rich text relationship and upload settings
