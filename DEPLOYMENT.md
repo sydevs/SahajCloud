@@ -235,6 +235,121 @@ Use this when you need to consolidate migrations into a single initial migration
    wrangler d1 execute sahajcloud --remote --command "SELECT * FROM payload_migrations;"
    ```
 
+### Squashing Migrations (Preserve Data)
+
+**When to use**: The migration chain has grown large enough that fresh clones, `pnpm reset --local` replays, or CI bootstraps are noticeably slow, or a new Drizzle rebuild bug forces you into a hand-edit cycle. Squashing collapses the whole chain into one schema-equivalent baseline **without dropping a single row of prod data** — as opposed to the "Fresh Start" procedure above, which drops everything.
+
+Use this when you want to shrink the migration surface area, not reset the database.
+
+**How it works**: the script dumps the current prod schema, generates a new single baseline migration locally, applies that baseline to a throwaway local D1 to verify it produces the same schema, then rewrites the prod `payload_migrations` table inside a single transaction so prod believes the baseline is already applied. No DDL runs against prod. In fresh environments the baseline runs normally and produces the correct empty schema.
+
+**Automated Script** (recommended):
+
+```bash
+# Preview: dumps prod schema, generates baseline, shows the diff, then
+# restores the repo to its pre-run state. Nothing is written to prod.
+./seeds/squash-migrations.sh --dry-run
+
+# Live cutover: performs the prod payload_migrations rewrite after a clean diff
+# and explicit confirmations.
+./seeds/squash-migrations.sh
+```
+
+The script is operator-interactive: at Step 4 it pauses and asks you to run `pnpm db:migrations:create` in a second terminal, because that command prompts for a migration name and hangs if piped or backgrounded (see [AGENTS.md](AGENTS.md) "Database Migrations"). This is unavoidable — the compensating pattern is a clearly signalled pause.
+
+**Coordination checklist** (required before running without `--dry-run`):
+
+- [ ] Team Slack announcement posted ≥24h prior.
+- [ ] No other open migration PRs (`gh pr list --search "migration"`).
+- [ ] Deploys paused for the cutover window.
+- [ ] `--dry-run` output reviewed; `schema-drift.diff` is empty or all differences are explicitly understood.
+- [ ] Pre-cutover canary count captured: `wrangler d1 execute sahajcloud --remote --command "SELECT COUNT(*) FROM meditations;"`.
+
+**Reading the drift diff**:
+
+The script sorts both sides before diffing, so ordering-only differences collapse. What's left should be empty. Common signals and how to act:
+
+| Diff content | Meaning | Action |
+|---|---|---|
+| Empty file | Baseline matches prod exactly | Proceed |
+| New `CREATE INDEX` lines on one side only | Prod has indexes the baseline doesn't emit, or vice versa | Investigate — likely a hand-created prod index or a generator regression; do NOT proceed until resolved |
+| `CREATE TABLE` lines differ in column order | Drizzle regenerated a table with a new column layout | Safe as long as column names + types match; SQLite doesn't expose column order to queries |
+| `CREATE TABLE` lines differ in column **definitions** (type, NOT NULL, defaults) | Real schema drift | Stop. Either prod has been hand-edited or an un-migrated local change made it into the generator. Root-cause before squashing |
+| `_rels` table rebuilds with missing columns | The Drizzle polymorphic-FK bug documented in [AGENTS.md](AGENTS.md) has re-surfaced | Hand-patch the generated `.ts` per the pattern in AGENTS.md, re-run the script |
+
+**Rollback**:
+
+If the `payload_migrations` rewrite fails mid-flight, the `BEGIN/COMMIT` transaction leaves prod in its pre-run state. If the rewrite succeeds but downstream smoke tests fail, you can restore the old migration chain from the `src/migrations.bak/` folder the script leaves on disk:
+
+```bash
+# Restore the chain in-repo
+rm -rf src/migrations && git mv src/migrations.bak src/migrations
+
+# Restore prod's payload_migrations to the pre-squash state (requires the
+# pre-cutover rows — capture these by snapshotting BEFORE running the squash):
+#   wrangler d1 execute sahajcloud --remote \
+#     --command "SELECT * FROM payload_migrations ORDER BY id;" > payload-migrations-pre.json
+# Then turn those rows back into INSERT statements and re-run against prod.
+```
+
+Delete `src/migrations.bak/` only after prod has been verified healthy (admin login succeeds, sample API reads return expected data, canary row counts match pre-cutover).
+
+**After merging the squash PR** — every developer must reset their local DB:
+
+```bash
+pnpm reset --local
+pnpm payload migrate
+```
+
+The local `.wrangler` DB still carries the pre-squash `payload_migrations` rows. Without this reset the next `pnpm payload migrate` will no-op (every local migration looks "already applied") and new migrations authored against the new baseline will fail to apply cleanly.
+
+**Manual Steps** (if the script fails):
+
+1. **Dump prod schema**:
+   ```bash
+   wrangler d1 export sahajcloud --remote --no-data --output=prod-schema.sql
+   ```
+2. **Back up existing migrations**:
+   ```bash
+   git mv src/migrations src/migrations.bak
+   mkdir src/migrations
+   echo "export const migrations = []" > src/migrations/index.ts
+   ```
+3. **Generate the baseline** — in a fresh terminal:
+   ```bash
+   pnpm db:migrations:create   # enter name: initial_schema
+   ```
+4. **Wire up** `src/migrations/index.ts` with the single new migration, and apply the same `sed` fix `seeds/reset-migrations.sh` uses:
+   ```bash
+   sed -i '' 's/{ db, payload, req }/{ db, payload: _payload, req: _req }/g' src/migrations/<new>.ts
+   ```
+5. **Apply to a throwaway local D1** and dump its schema:
+   ```bash
+   mv .wrangler .wrangler.backup
+   CLOUDFLARE_ENV=dev pnpm payload migrate
+   wrangler d1 export sahajcloud --env=dev --local --no-data --output=baseline-schema.sql
+   rm -rf .wrangler && mv .wrangler.backup .wrangler
+   ```
+6. **Diff** and confirm empty output:
+   ```bash
+   diff <(sort prod-schema.sql) <(sort baseline-schema.sql)
+   ```
+7. **Rewrite `payload_migrations` on prod** in a single transaction:
+   ```bash
+   cat > rewrite.sql <<SQL
+   BEGIN;
+   DELETE FROM payload_migrations;
+   INSERT INTO payload_migrations (name, batch) VALUES ('<new-migration-name>', 1);
+   COMMIT;
+   SQL
+   wrangler d1 execute sahajcloud --remote --file=rewrite.sql
+   ```
+8. **Verify**:
+   ```bash
+   wrangler d1 execute sahajcloud --remote \
+     --command "SELECT * FROM payload_migrations;"
+   ```
+
 ---
 
 ## Environment Variables
