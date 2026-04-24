@@ -88,16 +88,22 @@ function ruleToSchema(rule: RuleDefinition): OpenAPISchemaObject {
 }
 
 /**
- * Produces one optional query parameter per entry in `AUDIENCE_DEFINITIONS`.
- * Generated at module load so adding a new rule flows through automatically
- * (the test `audience params stay in sync with AUDIENCE_DEFINITIONS` in
- * `api-explorer.int.spec.ts` fails loudly if this drifts).
+ * Produces one required query parameter per entry in `AUDIENCE_DEFINITIONS`.
+ * Required matches the runtime contract (`buildAudienceDataShape` emits
+ * non-optional Zod schemas), and the per-rule `description` is sourced from
+ * `RuleDefinition.description` so the Scalar docs explain each input in the
+ * same words as the admin UI. Generated at module load so adding a new rule
+ * flows through automatically — the test `audience params stay in sync with
+ * AUDIENCE_DEFINITIONS` in `api-explorer.int.spec.ts` fails loudly if this
+ * drifts.
  */
 const audienceQueryParameters: OpenAPIParameter[] = AUDIENCE_DEFINITIONS.map((rule) => ({
   name: rule.name,
   in: 'query',
-  required: false,
-  description: `Audience targeting input (${rule.type}) — evaluated against each doc's attached audiences.`,
+  required: true,
+  description:
+    rule.description ??
+    `Audience targeting input (${rule.type}) — evaluated against each doc's attached audiences.`,
   schema: ruleToSchema(rule),
 }))
 
@@ -160,7 +166,7 @@ const errorResponse = (description: string): OpenAPIResponse => ({
 export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
   '/api/frames/by-narrator/{narratorId}': {
     get: {
-      tags: ['frames'],
+      tags: ['Meditation Frames'],
       summary: 'List frames for a narrator',
       description:
         "Returns frames filtered by the narrator's gender (`imageSet`), sorted " +
@@ -192,18 +198,41 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
 
   '/api/lectures/for-audience': {
     get: {
-      tags: ['lectures'],
+      tags: ['Lectures'],
       summary: 'Audience-targeted lecture feed',
       description:
-        'Returns a uniform-random mix of full lectures and clips whose attached ' +
-        'audiences match the supplied `audienceData` (OR semantics across ' +
-        'audiences). Each item is shaped into a flat `ItemPlayerData` record ' +
-        'ready for the player — the response is discriminated by `type` ' +
-        "(`'lecture'` vs `'lecture-clip'`).",
+        'Returns a uniform-random mix of full lectures and clips whose ' +
+        'attached audiences match the supplied audience data (OR semantics ' +
+        'across audiences). Each item is shaped into a flat, player-ready ' +
+        'record; the response is discriminated by `type` — `lecture` items ' +
+        'match `LecturePlayerData` and `lecture-clip` items match ' +
+        '`LectureClipPlayerData`.',
       operationId: 'lecturesForAudience',
       parameters: [...audienceQueryParameters, forAudienceLimitParam(100)],
       responses: {
-        '200': jsonDocsResponse('#/components/schemas/ItemPlayerData'),
+        '200': {
+          description: 'Audience-filtered lecture and clip player records.',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['docs'],
+                properties: {
+                  docs: {
+                    type: 'array',
+                    items: {
+                      oneOf: [
+                        { $ref: '#/components/schemas/LecturePlayerData' },
+                        { $ref: '#/components/schemas/LectureClipPlayerData' },
+                      ],
+                      discriminator: { propertyName: 'type' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
         '400': errorResponse('Query param validation failed.'),
       },
     },
@@ -211,7 +240,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
 
   '/api/app-cards/for-audience': {
     get: {
-      tags: ['app-cards'],
+      tags: ['App Cards'],
       summary: 'Audience-targeted app cards',
       description:
         'Returns published app cards targeting the requested `targetSection`, ' +
@@ -225,7 +254,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           in: 'query',
           required: true,
           description: 'Section of the app where the card will be shown.',
-          schema: { type: 'string', enum: ['hero', 'highlights'] },
+          schema: { type: 'string', enum: ['hero', 'highlights', 'lectures'] },
         },
         forAudienceLimitParam(20),
       ],
@@ -242,84 +271,81 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
 /**
  * Hand-authored schemas referenced by `CUSTOM_ENDPOINT_PATHS`. `Frames` and
  * `AppCards` are already produced by `payload-oapi` (camelized collection
- * slug), so we only need to define `ItemPlayerData` — the discriminated
- * union returned by `/api/lectures/for-audience`.
+ * slug). The two player-data schemas below (`LecturePlayerData` and
+ * `LectureClipPlayerData`) are inlined as a `oneOf` on
+ * `/api/lectures/for-audience`'s response — the endpoint returns a union
+ * of those two shapes discriminated by `type`.
  *
- * Keep in lockstep with the `ItemPlayerData` type in
+ * Keep in lockstep with the matching types in
  * `src/endpoints/lecturesForAudience.ts` — the `api-explorer.int.spec.ts`
  * shape test is the tripwire.
+ *
+ * `additionalProperties: false` locks each variant so accidental fields
+ * (most importantly `lectureId`, which is clip-only in the TS union) are
+ * rejected by the docs' request/response validation. If you add a new
+ * field to either type, update the matching schema here too.
  */
 export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
-  ItemPlayerData: {
-    oneOf: [
-      {
-        type: 'object',
-        // `additionalProperties: false` locks the lecture variant shape so
-        // accidental fields (most importantly `lectureId`, which is clip-only
-        // in the TS union) are rejected by the docs' request/response
-        // validation. If you add a new field to `ItemPlayerData`, update the
-        // matching variant here too.
-        additionalProperties: false,
-        required: [
-          'id',
-          'type',
-          'videoUrl',
-          'thumbnailUrl',
-          'subtitles',
-          'startTime',
-          'endTime',
-          'duration',
-        ],
-        properties: {
-          id: { type: 'integer' },
-          type: { type: 'string', enum: ['lecture'] },
-          title: { type: ['string', 'null'] },
-          videoUrl: { type: 'string' },
-          thumbnailUrl: { type: ['string', 'null'] },
-          subtitles: {
-            type: 'object',
-            additionalProperties: { type: 'string' },
-            description: 'Map of locale code to subtitle URL.',
-          },
-          startTime: { type: 'integer', enum: [0] },
-          endTime: { type: ['number', 'null'] },
-          duration: { type: ['number', 'null'] },
-        },
-      },
-      {
-        type: 'object',
-        additionalProperties: false,
-        required: [
-          'id',
-          'type',
-          'title',
-          'videoUrl',
-          'thumbnailUrl',
-          'subtitles',
-          'startTime',
-          'endTime',
-          'duration',
-          'lectureId',
-        ],
-        properties: {
-          id: { type: 'integer' },
-          type: { type: 'string', enum: ['lecture-clip'] },
-          title: { type: 'string' },
-          videoUrl: { type: 'string' },
-          thumbnailUrl: { type: ['string', 'null'] },
-          subtitles: {
-            type: 'object',
-            additionalProperties: { type: 'string' },
-            description: 'Map of locale code to subtitle URL.',
-          },
-          startTime: { type: 'number' },
-          endTime: { type: 'number' },
-          duration: { type: 'number' },
-          lectureId: { type: 'integer' },
-        },
-      },
+  LecturePlayerData: {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'id',
+      'type',
+      'videoUrl',
+      'thumbnailUrl',
+      'subtitles',
+      'startTime',
+      'endTime',
+      'duration',
     ],
-    discriminator: { propertyName: 'type' },
+    properties: {
+      id: { type: 'integer' },
+      type: { type: 'string', enum: ['lecture'] },
+      title: { type: ['string', 'null'] },
+      videoUrl: { type: 'string' },
+      thumbnailUrl: { type: ['string', 'null'] },
+      subtitles: {
+        type: 'object',
+        additionalProperties: { type: 'string' },
+        description: 'Map of locale code to subtitle URL.',
+      },
+      startTime: { type: 'integer', enum: [0] },
+      endTime: { type: ['number', 'null'] },
+      duration: { type: ['number', 'null'] },
+    },
+  },
+  LectureClipPlayerData: {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'id',
+      'type',
+      'title',
+      'videoUrl',
+      'thumbnailUrl',
+      'subtitles',
+      'startTime',
+      'endTime',
+      'duration',
+      'lectureId',
+    ],
+    properties: {
+      id: { type: 'integer' },
+      type: { type: 'string', enum: ['lecture-clip'] },
+      title: { type: 'string' },
+      videoUrl: { type: 'string' },
+      thumbnailUrl: { type: ['string', 'null'] },
+      subtitles: {
+        type: 'object',
+        additionalProperties: { type: 'string' },
+        description: 'Map of locale code to subtitle URL.',
+      },
+      startTime: { type: 'number' },
+      endTime: { type: 'number' },
+      duration: { type: 'number' },
+      lectureId: { type: 'integer' },
+    },
   },
   /**
    * Shape of 4xx response bodies emitted by the custom endpoints. Zod errors

@@ -31,7 +31,6 @@ export {
   generateRulesJsonSchema,
   buildAudienceDataShape,
   withAudienceContext,
-  AUDIENCE_DATA_CONTEXT_KEY,
 } from './rulesField'
 export type {
   RuleDefinition,

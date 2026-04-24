@@ -9,14 +9,29 @@ import { appCardsForAudience } from '@/endpoints'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
+// All audience params are required by the endpoint's Zod schema. Tests that
+// don't exercise a specific param still need to pass neutral defaults; pass
+// `{ skipAudienceDefaults: true }` on the 400-validation cases that want to
+// exercise the missing-audience-param path.
+const AUDIENCE_DEFAULTS = {
+  pathProgress: 0,
+  meditationsPerWeek: 0,
+  totalMeditationsViewed: 0,
+  totalLecturesViewed: 0,
+}
+
 async function callEndpoint(
   payload: Payload,
   query: Record<string, string | number | boolean>,
   user?: { id: number | string; collection: string },
+  options: { skipAudienceDefaults?: boolean } = {},
 ): Promise<{ status: number; body: unknown }> {
+  const finalQuery = options.skipAudienceDefaults
+    ? query
+    : { ...AUDIENCE_DEFAULTS, ...query }
   const req = {
     payload,
-    query,
+    query: finalQuery,
     headers: new Headers(),
     routeParams: {},
     user,

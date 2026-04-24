@@ -9,7 +9,7 @@ import type { AppCard, Audience } from '@/payload-types'
 
 const querySchema = z.object({
   ...buildAudienceDataShape(AUDIENCE_DEFINITIONS),
-  targetSection: z.enum(['hero', 'highlights']),
+  targetSection: z.enum(['hero', 'highlights', 'lectures']),
   limit: z.coerce.number().int().min(1).max(20),
 })
 
@@ -19,8 +19,8 @@ const querySchema = z.object({
  * Returns a randomized, filtered list of published AppCards for the app
  * homepage (Hero or Highlights section). Audience evaluation is delegated to
  * the `audiences` docs referenced by each card's `audiences` hasMany
- * relationship — the endpoint stashes the audience data on
- * `req.context[AUDIENCE_DATA_CONTEXT_KEY]` and populates `audiences` at
+ * relationship — the endpoint spreads the audience-data keys onto
+ * `req.context` (via `withAudienceContext`) and populates `audiences` at
  * depth:1, so the virtual `isEligibleForAudience` flag is computed on each
  * populated audience. A card is included when ANY of its attached audiences
  * passes (OR semantics). Cards with empty `audiences` are always excluded.
