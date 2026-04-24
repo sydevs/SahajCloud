@@ -19,6 +19,7 @@
 
 import { AUDIENCE_DEFINITIONS } from '@/collections/tags/Audiences'
 import type { RuleDefinition } from '@/fields/rulesField'
+import { LOCALES } from '@/lib/locales'
 
 /** Minimal OpenAPI 3.1 schema object — we only need the subset used below. */
 type OpenAPISchemaObject = Record<string, unknown>
@@ -134,6 +135,25 @@ const jsonDocsResponse = (itemSchemaRef: string): OpenAPIResponse => ({
     },
   },
 })
+
+/**
+ * Subtitle map schema shared by both player-data variants. Keys are
+ * constrained to the known `LOCALES` codes via `propertyNames: { enum: ... }`
+ * (JSON Schema 2020-12 / OpenAPI 3.1 — advisory for most validators, but
+ * Scalar renders the constraint). Values are declared as URL-formatted
+ * strings (`format: 'uri'` is also advisory but documents intent).
+ */
+const subtitlesSchema: OpenAPISchemaObject = {
+  type: 'object',
+  description: 'Map of locale code to subtitle URL.',
+  propertyNames: {
+    enum: LOCALES.map((l) => l.code),
+  },
+  additionalProperties: {
+    type: 'string',
+    format: 'uri',
+  },
+}
 
 /**
  * Shared error response shape. All three handlers return `{ errors: [...] }`
@@ -305,11 +325,7 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       title: { type: ['string', 'null'] },
       videoUrl: { type: 'string' },
       thumbnailUrl: { type: ['string', 'null'] },
-      subtitles: {
-        type: 'object',
-        additionalProperties: { type: 'string' },
-        description: 'Map of locale code to subtitle URL.',
-      },
+      subtitles: subtitlesSchema,
       startTime: { type: 'integer', enum: [0] },
       endTime: { type: ['number', 'null'] },
       duration: { type: ['number', 'null'] },
@@ -336,11 +352,7 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       title: { type: 'string' },
       videoUrl: { type: 'string' },
       thumbnailUrl: { type: ['string', 'null'] },
-      subtitles: {
-        type: 'object',
-        additionalProperties: { type: 'string' },
-        description: 'Map of locale code to subtitle URL.',
-      },
+      subtitles: subtitlesSchema,
       startTime: { type: 'number' },
       endTime: { type: 'number' },
       duration: { type: 'number' },
