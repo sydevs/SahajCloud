@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionBeforeChangeHook, CollectionConfig, FieldAccess } from 'payload'
 
 import { colorField, slugField } from '@/fields'
 import {
@@ -7,6 +7,30 @@ import {
   validateNesting,
 } from '@/hooks/meditationTagHooks'
 import { virtualUrlField } from '@/lib/storage/urlFields'
+
+/**
+ * Field-level access that restricts updates to admin managers only.
+ * Non-admin managers (e.g. meditations-editor) can only update the per-timing
+ * meditation relationship fields on meditation-tags; everything else — title,
+ * slug, icon upload, color, parent, isFeatured, order, timings — stays admin-only.
+ */
+const adminOnlyUpdate: FieldAccess = ({ req }) =>
+  req.user?.collection === 'managers' && req.user?.type === 'admin'
+
+/**
+ * Block non-admin managers from replacing the uploaded icon.
+ * Field-level access covers the scalar fields, but the upload's file payload
+ * isn't a field — it arrives via `req.file`. Reject the request before the
+ * storage adapter touches it.
+ */
+const restrictIconUploadToAdmin: CollectionBeforeChangeHook = ({ req, operation }) => {
+  if (operation !== 'update') return
+  const isAdmin = req.user?.collection === 'managers' && req.user?.type === 'admin'
+  if (isAdmin) return
+  if (req.file) {
+    throw new Error('Only admins can replace the icon on a meditation category.')
+  }
+}
 
 export const MeditationTags: CollectionConfig = {
   slug: 'meditation-tags',
@@ -22,6 +46,7 @@ export const MeditationTags: CollectionConfig = {
   },
   hooks: {
     beforeValidate: [validateNesting],
+    beforeChange: [restrictIconUploadToAdmin],
     afterChange: [maintainIsParent],
     afterDelete: [clearIsParentOnDelete],
   },
@@ -37,6 +62,14 @@ export const MeditationTags: CollectionConfig = {
     slugField({
       useAsSlug: 'title',
       description: 'URL-friendly identifier (auto-generated from {sourceField})',
+      overrides: (field) => {
+        for (const inner of field.fields) {
+          if (inner.type === 'text' || inner.type === 'checkbox') {
+            inner.access = { ...(inner.access ?? {}), update: adminOnlyUpdate }
+          }
+        }
+        return field
+      },
     }),
     // Title (localized, for public display)
     {
@@ -44,6 +77,7 @@ export const MeditationTags: CollectionConfig = {
       type: 'text',
       required: true,
       localized: true,
+      access: { update: adminOnlyUpdate },
       admin: {
         description: 'Localized title shown to public users',
       },
@@ -53,6 +87,7 @@ export const MeditationTags: CollectionConfig = {
       name: 'color',
       label: 'Color',
       required: true,
+      access: { update: adminOnlyUpdate },
       admin: {
         description: 'Tag color for UI theming (hex format)',
       },
@@ -63,6 +98,7 @@ export const MeditationTags: CollectionConfig = {
       type: 'relationship',
       relationTo: 'meditation-tags',
       maxDepth: 1,
+      access: { update: adminOnlyUpdate },
       admin: {
         condition: (data) => !data.isParent,
         position: 'sidebar',
@@ -83,6 +119,7 @@ export const MeditationTags: CollectionConfig = {
       type: 'checkbox',
       required: true,
       defaultValue: false,
+      access: { update: adminOnlyUpdate },
       admin: {
         position: 'sidebar',
         description:
@@ -95,6 +132,7 @@ export const MeditationTags: CollectionConfig = {
       type: 'number',
       defaultValue: 1,
       min: 1,
+      access: { update: adminOnlyUpdate },
       admin: {
         position: 'sidebar',
         description: 'Display order (lower numbers appear first)',
@@ -111,9 +149,7 @@ export const MeditationTags: CollectionConfig = {
         { label: 'Evening', value: 'evening' },
         { label: 'Night', value: 'night' },
       ],
-      access: {
-        update: ({ req }) => req.user?.collection === 'managers' && req.user?.type === 'admin',
-      },
+      access: { update: adminOnlyUpdate },
       admin: {
         condition: (data) => !data.isParent,
         description: 'Which times of day this category offers meditations',
@@ -178,6 +214,7 @@ export const MeditationTags: CollectionConfig = {
       required: true,
       defaultValue: false,
       index: true,
+      access: { update: adminOnlyUpdate },
       admin: {
         hidden: true,
         description: 'Automatically set when this tag has child categories',
