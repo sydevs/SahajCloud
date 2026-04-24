@@ -235,6 +235,7 @@ One-off operator scripts (NOT seeds — seeds live in `seeds/`). Use for tasks a
 - **Creating**: **Ask the user to run `pnpm db:migrations:create` for you — do not run it yourself.** The command prompts interactively for a migration name and hangs silently when backgrounded or piped (the shell's stdout buffering hides the prompt). Agents that attempt it end up with a frozen shell and waste real time before being interrupted. Pause, describe the schema changes you made, and ask the user to run the command and confirm the new `.ts` + `.json` pair exists. Then augment the `.ts` if needed (see below) and commit both files.
 - **Running**: `pnpm payload migrate`. Never pipe through `| tail` or background — the output is buffered and you lose visibility into progress + any interactive prompts.
 - **Rolling Back**: `pnpm payload migrate:down`
+- **Squashing (preserve data)**: When the chain gets painfully large, use `./seeds/squash-migrations.sh` — see the "Squashing Migrations (Preserve Data)" section in [DEPLOYMENT.md](DEPLOYMENT.md). **After pulling a squash commit, run `pnpm reset --local && pnpm payload migrate`** — without the reset, your local `.wrangler` DB still has the pre-squash `payload_migrations` rows and future migrations will behave inconsistently.
 
 **Important**: Both `.ts` and `.json` files are required for each migration:
 - The `.ts` file contains the migration logic (SQL statements or Payload operations)
