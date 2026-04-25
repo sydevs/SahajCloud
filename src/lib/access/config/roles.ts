@@ -36,6 +36,7 @@ const ROLES = {
     permissions: {
       meditations: ['update', 'create'] as PermissionLevel[],
       narrators: ['update', 'create'] as PermissionLevel[],
+      'meditation-tags': ['update'] as PermissionLevel[],
       images: ['create'] as PermissionLevel[],
       files: ['create'] as PermissionLevel[],
     },

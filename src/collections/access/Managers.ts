@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { getRoleOptions, getProjectOptions } from '@/lib/access'
+import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/lib/access'
 import { getServerUrl } from '@/lib/serverUrl'
 
 export const Managers: CollectionConfig = {
@@ -104,9 +104,7 @@ export const Managers: CollectionConfig = {
       },
       access: {
         // Only admins can update the type field
-        update: ({ req: { user } }) => {
-          return user?.collection === 'managers' && user.type === 'admin'
-        },
+        update: adminOnlyFieldAccess,
       },
     },
 
@@ -127,9 +125,7 @@ export const Managers: CollectionConfig = {
       },
       access: {
         // Only admins can update roles
-        update: ({ req: { user } }) => {
-          return user?.collection === 'managers' && user.type === 'admin'
-        },
+        update: adminOnlyFieldAccess,
       },
     },
 
@@ -146,9 +142,7 @@ export const Managers: CollectionConfig = {
       },
       access: {
         // Only admins can update custom resource access
-        update: ({ req: { user } }) => {
-          return user?.collection === 'managers' && user.type === 'admin'
-        },
+        update: adminOnlyFieldAccess,
       },
     },
   ],
