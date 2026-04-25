@@ -1247,7 +1247,10 @@ describe('Role-Based Access Control', () => {
           user: { ...editor, collection: 'managers' },
           overrideAccess: false,
         }),
-      ).rejects.toThrow(/Only admins can replace the icon/)
+      ).rejects.toMatchObject({
+        status: 403,
+        message: expect.stringMatching(/Only admins can replace the icon/),
+      })
     })
   })
 })
