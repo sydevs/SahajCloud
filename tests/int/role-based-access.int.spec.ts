@@ -1,11 +1,15 @@
 import type { Payload, PayloadRequest } from 'payload'
 
+import fs from 'fs'
+import path from 'path'
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/lib/access'
 
 import { createTestLexicalContent, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
+
+const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 
 function createTrustedPreviewRequest(
   payload: Payload,
@@ -1090,6 +1094,160 @@ describe('Role-Based Access Control', () => {
 
       const narratorIds = clientNarrators.docs.map((doc) => doc.id)
       expect(narratorIds).toContain(narrator.id)
+    })
+  })
+
+  describe('Meditation Categories (meditation-tags) Access', () => {
+    it('grants meditations-editor update access but not create or delete on meditation-tags', () => {
+      const editorUser = testData.dummyUser('managers', {
+        id: 200,
+        roles: ['meditations-editor'],
+      })
+
+      // Implicit read via wemeditate-app project membership
+      expect(
+        hasPermission(
+          { user: editorUser, collection: 'meditation-tags', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(true)
+
+      // Explicit update
+      expect(
+        hasPermission(
+          { user: editorUser, collection: 'meditation-tags', operation: 'update' },
+          bypassPermissions,
+        ),
+      ).toBe(true)
+
+      // No create or delete — editors can only edit existing tag assignments
+      expect(
+        hasPermission(
+          { user: editorUser, collection: 'meditation-tags', operation: 'create' },
+          bypassPermissions,
+        ),
+      ).toBe(false)
+      expect(
+        hasPermission(
+          { user: editorUser, collection: 'meditation-tags', operation: 'delete' },
+          bypassPermissions,
+        ),
+      ).toBe(false)
+    })
+
+    it('allows meditations-editor to update per-timing meditation fields but strips edits to other fields', async () => {
+      // Seed tag with known admin-authored values
+      const tag = await testData.createMeditationTag(payload, {
+        title: 'Original Category Title',
+        color: '#AA0000',
+        order: 5,
+        isFeatured: true,
+        timings: ['morning'],
+      })
+
+      const meditation = await testData.createMeditation(payload, undefined, {
+        label: 'Seed Morning Meditation',
+        locale: 'en',
+        type: 'quick',
+      })
+
+      const editor = await testData.createManager(payload, {
+        name: 'Editor for Field-Level Access Test',
+        roles: { en: ['meditations-editor'] },
+      })
+
+      // Editor attempts to change title/color/order AND set morningMeditation.
+      // Field-level access should silently drop the non-allowed edits.
+      await payload.update({
+        collection: 'meditation-tags',
+        id: tag.id,
+        data: {
+          morningMeditation: meditation.id,
+          title: 'Hijacked Title',
+          color: '#00FF00',
+          order: 99,
+          isFeatured: false,
+        },
+        user: { ...editor, collection: 'managers' },
+        overrideAccess: false,
+      })
+
+      const updated = await payload.findByID({
+        collection: 'meditation-tags',
+        id: tag.id,
+        depth: 0,
+      })
+
+      // Allowed: morningMeditation updated
+      expect(updated.morningMeditation).toBe(meditation.id)
+
+      // Blocked: admin-authored fields unchanged
+      expect(updated.title).toBe('Original Category Title')
+      expect(updated.color).toBe('#AA0000')
+      expect(updated.order).toBe(5)
+      expect(updated.isFeatured).toBe(true)
+    })
+
+    it('allows admin managers to update any field on meditation-tags', async () => {
+      const tag = await testData.createMeditationTag(payload, {
+        title: 'Admin-Editable Tag',
+        color: '#112233',
+        order: 10,
+      })
+
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Field-Level Access Test',
+        type: 'admin' as const,
+      })
+
+      await payload.update({
+        collection: 'meditation-tags',
+        id: tag.id,
+        data: {
+          title: 'Updated by Admin',
+          color: '#445566',
+          order: 20,
+        },
+        user: { ...admin, collection: 'managers' },
+        overrideAccess: false,
+      })
+
+      const updated = await payload.findByID({
+        collection: 'meditation-tags',
+        id: tag.id,
+        depth: 0,
+      })
+
+      expect(updated.title).toBe('Updated by Admin')
+      expect(updated.color).toBe('#445566')
+      expect(updated.order).toBe(20)
+    })
+
+    it('blocks meditations-editor from replacing the uploaded icon', async () => {
+      const tag = await testData.createMeditationTag(payload, { title: 'Locked Icon Tag' })
+
+      const editor = await testData.createManager(payload, {
+        name: 'Editor for Icon Replace Block Test',
+        roles: { en: ['meditations-editor'] },
+      })
+
+      const replacementBuffer = fs.readFileSync(path.join(SAMPLE_FILES_DIR, 'icon-test.svg'))
+
+      await expect(
+        payload.update({
+          collection: 'meditation-tags',
+          id: tag.id,
+          data: {},
+          file: {
+            data: replacementBuffer,
+            mimetype: 'image/svg+xml',
+            name: 'replacement.svg',
+            size: replacementBuffer.length,
+          },
+          user: { ...editor, collection: 'managers' },
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow(/Only admins can replace the icon/)
     })
   })
 })
