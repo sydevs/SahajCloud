@@ -1,4 +1,4 @@
-import type { Field, FieldAccess, TextFieldSingleValidation } from 'payload'
+import type { Condition, Field, FieldAccess, TextFieldSingleValidation } from 'payload'
 
 /**
  * Validates hex color format (#RRGGBB or #RGB)
@@ -24,6 +24,7 @@ export interface ColorFieldOptions {
   admin?: {
     description?: string
     position?: 'sidebar'
+    condition?: Condition
   }
 }
 
@@ -52,6 +53,7 @@ export function colorField(options: ColorFieldOptions = {}): Field {
     admin: {
       description: admin.description || 'Hex color code (e.g., #FF5733)',
       position: admin.position,
+      ...(admin.condition ? { condition: admin.condition } : {}),
       components: {
         Field: '@/components/admin/ColorField/ColorField',
         Cell: '@/components/admin/ColorField/ColorCell',

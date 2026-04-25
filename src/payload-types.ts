@@ -1117,11 +1117,11 @@ export interface MeditationTag {
   /**
    * Localized title shown to public users
    */
-  title: string;
+  title?: string | null;
   /**
    * Tag color for UI theming (hex format)
    */
-  color: string;
+  color?: string | null;
   /**
    * Parent category for grouping. Parent categories are not selectable on meditations.
    */
@@ -1129,7 +1129,7 @@ export interface MeditationTag {
   /**
    * Featured categories are shown prominently; non-featured categories appear in a dropdown
    */
-  isFeatured: boolean;
+  isFeatured?: boolean | null;
   /**
    * Display order (lower numbers appear first)
    */
