@@ -11,6 +11,7 @@ import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 import { serverEnv } from '@/lib/env'
 
 import { applyFilename, generateR2Key } from './filenameUtils'
+import { R2_PREASSIGNED_FILENAME_CONTEXT_KEY } from './r2FilenameHook'
 
 /**
  * Get R2 storage URL for a filename
@@ -59,7 +60,8 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
 
     handleUpload: async ({ data, file, req }) => {
       try {
-        const finalFilename = generateR2Key(file.filename)
+        const filenamePreassigned = Boolean(req.context?.[R2_PREASSIGNED_FILENAME_CONTEXT_KEY])
+        const finalFilename = filenamePreassigned ? file.filename : generateR2Key(file.filename)
 
         applyFilename(file, data, req, finalFilename)
 
