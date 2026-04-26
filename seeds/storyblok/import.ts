@@ -141,8 +141,11 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
       // Preload collections for efficient skip/update mode
       // Note: Lessons use compound key (unit+step), so we preload with a custom cache key
-      // Lectures preload disabled pending clip-aware rewrite (issue #291 follow-up)
-      // await this.preloadCollection('lectures', 'videoUrl')
+      // Lecture parent is keyed on its NV Vimeo URL; pulling `metadata` lets
+      // skip-mode reads see the NV-fetched duration without a follow-up fetch
+      // when the clip's endTime is computed. Child clip is keyed on `lecture`.
+      await this.preloadCollection('lectures', 'nirmalVidyaVimeoUrl', ['metadata', 'title'])
+      await this.preloadCollection('lecture-clips', 'lecture')
       // Preload lessons by building composite key from unit + step
       await this.preloadLessonsWithCompositeKey()
       // Preload meditations for lesson relationship lookups
@@ -580,18 +583,75 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // LECTURE HELPERS
   // ============================================================================
 
+  /**
+   * Upsert a parent Lecture (keyed on the NV Vimeo URL) and a single child
+   * Clip spanning `[0, metadata.duration]`. Returns the **child clip ID** —
+   * rich-text content emits a `lecture-clips` relationship, not a lecture one.
+   *
+   * The parent's `populateFromNirmalaVidya` create hook synchronously fills
+   * `metadata.duration` by hitting the Nirmala Vidya HLS API. If the parent
+   * has no duration (NV API doesn't return one for that video), the clip is
+   * skipped and `null` is returned — the caller drops the inline reference.
+   */
   private async upsertLecture(
-    _videoStory: StoryblokStory,
+    videoStory: StoryblokStory,
     _thumbnailId: number | string,
-  ): Promise<number | string> {
-    // Guard: see issue #291. Legacy `lectures` writes are disabled pending the
-    // clip-aware rewrite. The follow-up PR will retarget this importer to
-    // `lecture-clips` (or split into parent + child upserts as appropriate).
-    // Original implementation preserved in git history.
-    throw new Error(
-      'Seed writes to `lectures` are disabled pending clip-aware migration (issue #291 follow-up). ' +
-        'Legacy video imports should target `lecture-clips` instead.',
+  ): Promise<number | string | null> {
+    const content = videoStory.content as Record<string, any>
+    const videoUrl: string = (content.Video_URL || '').trim()
+
+    if (!videoUrl) {
+      this.addWarning(`Storyblok video story ${videoStory.uuid} has empty Video_URL — skipping`)
+      return null
+    }
+
+    // Note: BaseImporter.upsert swallows hook errors and returns action='error'
+    // (with the input data echoed back as `doc`). The bare error is logged via
+    // reportDocument — we just need to skip clip creation in that case.
+    const lectureResult = await this.upsert<{
+      id: number | string
+      title?: string | null
+      metadata?: { duration?: number | null; title?: string | null } | null
+    }>(
+      'lectures',
+      { nirmalVidyaVimeoUrl: { equals: videoUrl } },
+      { nirmalVidyaVimeoUrl: videoUrl },
+      { identifier: videoStory.uuid },
     )
+
+    if (lectureResult.action === 'error') {
+      // Lecture didn't get persisted (most commonly: NV API failure in the
+      // populateFromNirmalaVidya create hook). The error is already in the
+      // report; tell the caller to drop the inline reference.
+      return null
+    }
+
+    const lecture = lectureResult.doc
+    const duration = lecture.metadata?.duration
+
+    if (!duration || duration <= 0) {
+      this.addWarning(
+        `Skipping clip for storyblok video ${videoStory.uuid} (${videoUrl}): parent lecture metadata.duration is missing or non-positive (${duration})`,
+      )
+      return null
+    }
+
+    const clipTitle =
+      videoStory.name || lecture.title || lecture.metadata?.title || `Lecture ${videoStory.uuid}`
+
+    const clipResult = await this.upsert<{ id: number | string }>(
+      'lecture-clips',
+      { lecture: { equals: lecture.id } },
+      {
+        lecture: lecture.id,
+        startTime: 0,
+        endTime: duration,
+        title: clipTitle,
+      },
+      { identifier: `clip-${videoStory.uuid}` },
+    )
+
+    return clipResult.doc.id
   }
 
   // ============================================================================
@@ -860,12 +920,22 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
               this.addWarning(`Skipping lecture - thumbnail upload failed for ${videoStory.name}`)
               break
             }
-            const lectureId = await this.upsertLecture(videoStory, thumbnailId)
+            // Returns the child LectureClip ID (post-#291: rich-text content
+            // references the clip, not the parent lecture). Null if the parent
+            // lecture's NV metadata didn't yield a usable duration.
+            const clipId = await this.upsertLecture(videoStory, thumbnailId)
+
+            if (clipId === null) {
+              this.addWarning(
+                `Skipping inline DD_Main_video reference: no clip created for ${videoStory.name}`,
+              )
+              break
+            }
 
             children.push({
               type: 'relationship',
-              relationTo: 'lectures',
-              value: { id: lectureId },
+              relationTo: 'lecture-clips',
+              value: { id: clipId },
               version: 1,
             })
           }
