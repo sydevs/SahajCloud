@@ -20,6 +20,7 @@ import { requireBinding, serverEnv } from '@/lib/env'
 import { cloudflareImagesAdapter } from './cloudflareImagesAdapter'
 import { cloudflareStreamAdapter } from './cloudflareStreamAdapter'
 import { mixedMediaAdapter } from './mixedMediaAdapter'
+import { createR2FilenameBeforeOperationHook } from './r2FilenameHook'
 import { r2NativeAdapter } from './r2NativeAdapter'
 
 interface StoragePluginOptions {
@@ -34,6 +35,20 @@ interface StoragePluginOptions {
    * @default true
    */
   enabled?: boolean
+}
+
+const r2FilenameHooks = {
+  always: createR2FilenameBeforeOperationHook('always'),
+  'other-only': createR2FilenameBeforeOperationHook('other-only'),
+}
+
+const r2FilenameHookModes: Record<string, keyof typeof r2FilenameHooks> = {
+  frames: 'other-only',
+  files: 'other-only',
+  'meditation-tags': 'always',
+  'song-tags': 'always',
+  meditations: 'always',
+  songs: 'always',
 }
 
 /**
@@ -95,6 +110,22 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
       bucket: r2Bucket,
       publicUrl: serverEnv.CLOUDFLARE_R2_DELIVERY_URL || '',
     })
+
+    const configWithR2FilenameHooks = {
+      ...config,
+      collections: config.collections?.map((collection) => {
+        const mode = r2FilenameHookModes[collection.slug]
+        if (!mode) return collection
+
+        return {
+          ...collection,
+          hooks: {
+            ...collection.hooks,
+            beforeOperation: [...(collection.hooks?.beforeOperation ?? []), r2FilenameHooks[mode]],
+          },
+        }
+      }),
+    }
 
     // Return a single cloudStoragePlugin with all adapters configured
     return cloudStoragePlugin({
@@ -165,6 +196,6 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
           disablePayloadAccessControl: true,
         },
       },
-    })(config)
+    })(configWithR2FilenameHooks)
   }
 }

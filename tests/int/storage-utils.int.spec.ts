@@ -13,6 +13,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import { generateCloudflareImageId, generateR2Key } from '@/lib/storage/filenameUtils'
 import { getMimeCategory } from '@/lib/storage/mimeUtils'
+import {
+  createR2FilenameBeforeOperationHook,
+  R2_PREASSIGNED_FILENAME_CONTEXT_KEY,
+} from '@/lib/storage/r2FilenameHook'
 
 // Helper to extract the afterRead hook from a field
 const getAfterReadHook = (field: Field): FieldHook | undefined => {
@@ -534,6 +538,57 @@ describe('Filename Utilities', () => {
   })
 })
 
+describe('R2 filename preassignment hook', () => {
+  const callR2Hook = async (
+    mode: 'always' | 'other-only',
+    req: Record<string, unknown>,
+    operation: 'create' | 'update' = 'create',
+  ) => {
+    const hook = createR2FilenameBeforeOperationHook(mode)
+    const args = { req }
+    const result = await hook({ args, operation } as never)
+    return { args, result }
+  }
+
+  it('preassigns a generated R2 key before Payload derives upload metadata', async () => {
+    const req = {
+      file: {
+        name: 'Ready to Upload -- Meditation -- Path Step 18.mp3',
+        mimetype: 'audio/mpeg',
+      },
+    }
+
+    const { args, result } = await callR2Hook('always', req)
+
+    expect(req.file.name).toMatch(/^ready-to-upload-meditation-path-step-18-[a-z0-9]{6}\.mp3$/)
+    expect(req).toHaveProperty(['context', R2_PREASSIGNED_FILENAME_CONTEXT_KEY], true)
+    expect(result).toBe(args)
+  })
+
+  it('only preassigns other-file keys for mixed media collections', async () => {
+    const imageReq = {
+      file: {
+        name: 'Hero Image.png',
+        mimetype: 'image/png',
+      },
+    }
+    const audioReq = {
+      file: {
+        name: 'Intro Audio.mp3',
+        mimetype: 'audio/mpeg',
+      },
+    }
+
+    await callR2Hook('other-only', imageReq)
+    await callR2Hook('other-only', audioReq)
+
+    expect(imageReq.file.name).toBe('Hero Image.png')
+    expect(imageReq).not.toHaveProperty('context')
+    expect(audioReq.file.name).toMatch(/^intro-audio-[a-z0-9]{6}\.mp3$/)
+    expect(audioReq).toHaveProperty(['context', R2_PREASSIGNED_FILENAME_CONTEXT_KEY], true)
+  })
+})
+
 describe('Storage Adapter handleUpload', () => {
   const originalEnv = process.env
   const originalFetch = globalThis.fetch
@@ -565,6 +620,7 @@ describe('Storage Adapter handleUpload', () => {
       },
     },
     file: { name: 'original-input.jpg' },
+    context: {} as Record<string, unknown>,
   })
 
   const makeImageFile = (filename = 'lecture-thumbnail-167289004.jpg') => ({
@@ -743,11 +799,48 @@ describe('Storage Adapter handleUpload', () => {
         collection: { slug: 'meditations' } as never,
       })
 
-      expect(result).toMatchObject({ filename: expect.stringMatching(/^my-audio-1-[a-z0-9]{6}\.mp3$/) })
+      expect(result).toMatchObject({
+        filename: expect.stringMatching(/^my-audio-1-[a-z0-9]{6}\.mp3$/),
+      })
       expect(put).toHaveBeenCalledOnce()
       const [key] = put.mock.calls[0]
       expect(key).toBe(`meditations/${(result as { filename: string }).filename}`)
       expect(data.filename).toBe((result as { filename: string }).filename)
+    })
+
+    it('reuses a preassigned R2 key instead of appending a second suffix', async () => {
+      const { r2NativeAdapter } = await import('@/lib/storage/r2NativeAdapter')
+
+      const put = vi.fn().mockResolvedValue(null)
+      const bucket = { put } as unknown as R2Bucket
+
+      const adapter = r2NativeAdapter({
+        bucket,
+        publicUrl: 'https://assets.test',
+      })({ collection: { slug: 'meditations' } as never, prefix: 'meditations' })
+
+      const data: Record<string, unknown> = {}
+      const file = {
+        filename: 'my-audio-1-abc123.mp3',
+        buffer: Buffer.from([0x00, 0x01]),
+        mimeType: 'audio/mpeg',
+        filesize: 2,
+      }
+      const req = makeReq()
+      req.context[R2_PREASSIGNED_FILENAME_CONTEXT_KEY] = true
+
+      const result = await adapter.handleUpload({
+        data,
+        file: file as never,
+        req: req as never,
+        clientUploadContext: undefined,
+        collection: { slug: 'meditations' } as never,
+      })
+
+      expect(result).toEqual({ filename: 'my-audio-1-abc123.mp3' })
+      expect(put).toHaveBeenCalledOnce()
+      expect(put.mock.calls[0][0]).toBe('meditations/my-audio-1-abc123.mp3')
+      expect(data.filename).toBe('my-audio-1-abc123.mp3')
     })
   })
 
