@@ -127,7 +127,14 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
       }),
     }
 
-    // Return a single cloudStoragePlugin with all adapters configured
+    // Return a single cloudStoragePlugin with all adapters configured.
+    //
+    // ⚠️ When adding/removing an R2-backed collection here, also update
+    // `r2FilenameHookModes` above. The two registries must stay in sync:
+    // a collection that uses the R2 adapter (directly or via mixedMediaAdapter
+    // for non-image/video files) without an entry in `r2FilenameHookModes`
+    // will skip the preassignment hook and reintroduce the DB↔R2 filename
+    // drift that this module exists to prevent.
     return cloudStoragePlugin({
       enabled: true,
       collections: {
