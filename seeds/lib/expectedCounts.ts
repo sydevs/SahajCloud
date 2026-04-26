@@ -40,6 +40,11 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
     albums: 8,
     songs: 27,
     pages: 60,
+    // Counted from seeds/wemeditate/data.json: 161 vimeo block occurrences,
+    // 40 unique vimeo IDs (after dedup across page translations). Each unique
+    // vimeo_id seeds one Lecture + one full-video LectureClip.
+    lectures: 40,
+    'lecture-clips': 40,
   },
   meditations: {
     narrators: 2,
@@ -163,6 +168,25 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       hasFileUploads: true, // Media in content
       batchSize: 1, // Pages have many embedded images, use 1 to avoid D1 rate limits
     },
+    {
+      // 40 unique vimeo_ids in data.json — one Lecture per ID. The
+      // populateFromNirmalaVidya hook fires on create and hits the NV API
+      // synchronously, so this batch implicitly fans out to ~N HTTP calls.
+      slug: 'lectures',
+      totalItems: 40,
+      requiresPagination: false,
+      dependencies: [],
+      naturalKey: 'nirmalVidyaVimeoUrl',
+    },
+    {
+      // One full-video clip per parent Lecture for legacy seed data
+      // (no source data carries clip boundaries).
+      slug: 'lecture-clips',
+      totalItems: 40,
+      requiresPagination: false,
+      dependencies: ['lectures'],
+      naturalKey: 'lecture',
+    },
   ],
   meditations: [
     {
@@ -199,11 +223,21 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       hasFileUploads: true, // Panel images, audio
     },
     {
+      // Storyblok currently carries 0 video stories in source. Code path is
+      // wired but unexercised; promote to >0 once editorial adds DD_Main_video
+      // blocks. Natural key matches lecture upserts (Vimeo URL).
       slug: 'lectures',
       totalItems: 0,
       requiresPagination: false,
       dependencies: [],
-      naturalKey: 'slug',
+      naturalKey: 'nirmalVidyaVimeoUrl',
+    },
+    {
+      slug: 'lecture-clips',
+      totalItems: 0,
+      requiresPagination: false,
+      dependencies: ['lectures'],
+      naturalKey: 'lecture',
     },
   ],
 }

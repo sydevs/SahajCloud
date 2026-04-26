@@ -25,6 +25,12 @@ export const Lectures: CollectionConfig = {
     urlField({
       name: 'nirmalVidyaVimeoUrl',
       required: true,
+      // Promote the natural key from convention to schema. The seed importer
+      // (and any future bulk write path) keys lectures on this URL; the unique
+      // index makes accidental duplicates a hard error rather than a silent
+      // data-shape bug.
+      unique: true,
+      index: true,
       admin: {
         description: 'Paste the Vimeo URL from amruta.org (e.g. https://vimeo.com/123456789).',
       },

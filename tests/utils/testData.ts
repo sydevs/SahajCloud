@@ -720,12 +720,16 @@ export const testData = {
   ): Promise<Lecture> {
     // Thumbnail is an optional editor override — only set it when the caller asks.
     const thumbnail = deps?.thumbnail
+    // `nirmalVidyaVimeoUrl` is unique-indexed at the DB level; generate a
+    // numeric vimeo id per call so multiple lectures created within one test
+    // file don't collide. Vimeo IDs must be numeric (extractVimeoId regex).
+    const uniqueVimeoId = `${Date.now()}${Math.floor(Math.random() * 1000)}`
     return (await payload.create({
       collection: 'lectures',
       data: {
         title: 'Test Lecture',
         ...(thumbnail !== undefined ? { thumbnail } : {}),
-        nirmalVidyaVimeoUrl: 'https://vimeo.com/123456789',
+        nirmalVidyaVimeoUrl: `https://vimeo.com/${uniqueVimeoId}`,
         ...overrides,
       },
     })) as Lecture
