@@ -85,6 +85,19 @@ r2NativeAdapter({
 
 **Example**: `"My Audio File (1).mp3"` → `"my-audio-file-1-xk2j9s.mp3"`
 
+#### R2 Filename Preassignment Hook (`r2FilenameHook.ts`)
+
+`@payloadcms/plugin-cloud-storage` writes the document's `filename` to the database in `beforeChange`, then runs the storage adapter's actual upload in `afterChange`. If the adapter sanitizes the filename (which `r2NativeAdapter` does, via `generateR2Key`), the DB row briefly disagrees with the R2 key. The plugin patches this up by issuing a follow-up `payload.update()` with the adapter's return value — but if that update is skipped or fails (we observed real production drift on ~15% of meditations), the DB ends up pointing at an R2 key that doesn't exist.
+
+The fix is a `beforeOperation` hook (`createR2FilenameBeforeOperationHook`) that runs **before** Payload derives upload metadata. It pre-generates the final R2 key from `req.file.name`, so the DB and R2 are always written with the same key. The adapter checks `req.context._r2PreassignedFilename` and skips its own slugify pass to avoid double-suffixing.
+
+`storagePlugin.ts` injects the hook into every R2-backed collection. Two modes:
+
+- `'always'` — pure-R2 collections (`meditations`, `songs`, `meditation-tags`, `song-tags`).
+- `'other-only'` — mixed-media collections (`frames`, `files`) that route to Cloudflare Images / Stream for image/video MIME types and only fall through to R2 for everything else. The hook leaves Images / Stream filenames untouched (those services generate their own IDs).
+
+⚠️ The mode dictionary (`r2FilenameHookModes`) is a parallel registry to the `cloudStoragePlugin` collections block — keep the two in sync when adding a new R2-backed collection or filename drift will silently return.
+
 ## Route Structure
 - `src/app/(frontend)/` - Public-facing Next.js pages
 - `src/app/(payload)/` - Payload CMS admin interface and API routes
