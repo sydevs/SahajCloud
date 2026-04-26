@@ -263,7 +263,9 @@ describe('Lectures Collection', () => {
       const lecture = await testData.createLecture(payload)
 
       expect(lecture.id).toBeDefined()
-      expect(lecture.nirmalVidyaVimeoUrl).toBe('https://vimeo.com/123456789')
+      // Factory generates a unique numeric vimeo id per call (the URL is now
+      // unique-indexed at the DB level), so assert the shape rather than the value.
+      expect(lecture.nirmalVidyaVimeoUrl).toMatch(/^https:\/\/vimeo\.com\/\d+$/)
     })
 
     it('creates a lecture with an editor-supplied thumbnail', async () => {

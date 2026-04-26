@@ -39,6 +39,8 @@ async function setupTestDatabase() {
       'meditations',
       'music',
       'lessons',
+      'lectures',
+      'lecture-clips',
       'files',
       'pages',
       'authors',
