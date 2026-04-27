@@ -1,484 +1,215 @@
 # Architecture Overview
 
-## Storage Architecture
+Top-level architecture for sy-devs-cms. Subsystem details (storage,
+RBAC, OpenAPI, individual collection schemas, admin components, etc.)
+live in the matching path-scoped rules under `.claude/rules/`.
 
-The application uses **Cloudflare-native storage services** for optimal performance:
+## Storage
 
-### Cloudflare Images (Image Storage)
-- **Collections**: `images`
-- **Referenced by**: `albums` (artwork), `app-cards` (image), `meditations` (thumbnail), `lectures` (thumbnail), `authors` (photo), `lessons` (icon), page blocks
-- **Features**: Automatic format optimization (WebP, AVIF), dynamic transformations, global CDN
-- **URL Format**: `https://imagedelivery.net/<hash>/<imageId>/public`
-- **Replaces**: Sharp image processing
+Three Cloudflare-native services in production, with automatic
+local-file fallback in development.
 
-### Cloudflare Stream (Video Storage)
-- **Collections**: `frames` (video frames only)
-- **Features**: Automatic transcoding, HLS streaming, thumbnail generation, MP4 downloads
-- **URL Format**:
-  - Thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`
-  - MP4: `https://customer-<code>.cloudflarestream.com/<videoId>/downloads/default.mp4`
-- **Replaces**: FFmpeg thumbnail generation
-- **MP4 downloads**: enabled asynchronously via a Cloudflare Stream webhook. After a video finishes transcoding, Cloudflare POSTs to `/api/webhooks/cloudflare-stream`, which verifies the HMAC-SHA256 signature and calls the downloads API. See [cloudflare-stream-webhook.md](./cloudflare-stream-webhook.md) for setup.
+| Storage | Collections | URL format |
+|---|---|---|
+| **Cloudflare Images** | `images` (also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks) | `https://imagedelivery.net/<hash>/<imageId>/public` |
+| **Cloudflare Stream** | `videos`, `frames` (video MIME types) | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>MP4: `.../downloads/default.mp4` |
+| **R2 native binding** | `meditations`, `songs`, `lessons`, `files`, `meditation-tags`, `song-tags`, plus mixed-media fallthrough on `frames` and `files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>` |
 
-### R2 Native Bindings (Audio & Generic Files)
-- **Collections**: `meditations`, `songs`, `lessons`, `files`
-- **Features**: Direct bucket access, high performance, automatic filename sanitization
-- **URL Format**: `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>`
-- **Configuration**: Via `wrangler.toml` bindings (no S3-compatible API)
-- **Filename Sanitization**: All filenames are automatically sanitized to URL-safe slugs with random suffixes
-
-### Development Environment
-- **Automatic Fallback**: Local file storage used when Cloudflare credentials not configured
-- **No Setup Required**: Development works out of the box without Cloudflare accounts
-
-### Storage Implementation Details
-
-**Location**: `src/lib/storage/`
-
-The storage system is built on several key components:
-
-#### Storage Adapters (`storagePlugin.ts`)
-- `cloudflareImagesAdapter` - Handles image uploads to Cloudflare Images
-- `cloudflareStreamAdapter` - Handles video uploads to Cloudflare Stream
-- `r2NativeAdapter` - Direct R2 bucket access for audio/files (custom implementation)
-- `mixedMediaAdapter` - Routes uploads to appropriate adapter based on MIME type (images → Cloudflare Images, videos → Cloudflare Stream, other → R2)
-
-**Important**: All adapters modify `data.filename` directly in `handleUpload` to ensure the database stores the correct filename (service-generated ID or sanitized name).
-
-#### MIME Type Utilities (`mimeUtils.ts`)
-Shared utilities for consistent MIME type classification:
-
-- `getMimeCategory(mimeType)` - Returns `'image'`, `'video'`, or `'other'` based on MIME type prefix
-- Used by both `mixedMediaAdapter` and `mixedMediaUrlField` to ensure consistent routing logic
-
-#### URL Field Factories (`urlFields.ts`)
-Factory functions for creating virtual URL fields with consistent CDN URL generation:
-
-- `virtualUrlField({ collection, adapter })` - Base URL field for any storage adapter
-- `previewUrlField({ collection, width?, height? })` - Preview/thumbnail URLs for images/videos
-- `mixedMediaUrlField({ collection })` - Full resolution URLs for mixed media (images → Cloudflare Images, videos → Stream MP4, other → R2)
-
-**Usage Example**:
-```typescript
-fields: [
-  virtualUrlField({ collection: 'meditations', adapter: 'r2' }),
-  mixedMediaUrlField({ collection: 'files' }),
-  previewUrlField({ collection: 'files', width: 320, height: 320 }),
-]
-```
-
-#### R2 Native Adapter (`r2NativeAdapter.ts`)
-Custom adapter for direct R2 bucket access with automatic filename sanitization:
-
-```typescript
-r2NativeAdapter({
-  bucket: env.R2,
-  publicUrl: process.env.CLOUDFLARE_R2_DELIVERY_URL,
-})
-```
-
-**Filename Sanitization Process** (applied to all uploads):
-1. Extract base name and extension
-2. Slugify base name (lowercase, URL-safe, strict mode)
-3. Add random 6-character suffix for uniqueness
-4. Preserve original extension
-
-**Example**: `"My Audio File (1).mp3"` → `"my-audio-file-1-xk2j9s.mp3"`
-
-#### R2 Filename Preassignment Hook (`r2FilenameHook.ts`)
-
-`@payloadcms/plugin-cloud-storage` writes the document's `filename` to the database in `beforeChange`, then runs the storage adapter's actual upload in `afterChange`. If the adapter sanitizes the filename (which `r2NativeAdapter` does, via `generateR2Key`), the DB row briefly disagrees with the R2 key. The plugin patches this up by issuing a follow-up `payload.update()` with the adapter's return value — but if that update is skipped or fails (we observed real production drift on ~15% of meditations), the DB ends up pointing at an R2 key that doesn't exist.
-
-The fix is a `beforeOperation` hook (`createR2FilenameBeforeOperationHook`) that runs **before** Payload derives upload metadata. It pre-generates the final R2 key from `req.file.name`, so the DB and R2 are always written with the same key. The adapter checks `req.context._r2PreassignedFilename` and skips its own slugify pass to avoid double-suffixing.
-
-`storagePlugin.ts` injects the hook into every R2-backed collection. Two modes:
-
-- `'always'` — pure-R2 collections (`meditations`, `songs`, `meditation-tags`, `song-tags`).
-- `'other-only'` — mixed-media collections (`frames`, `files`) that route to Cloudflare Images / Stream for image/video MIME types and only fall through to R2 for everything else. The hook leaves Images / Stream filenames untouched (those services generate their own IDs).
-
-⚠️ The mode dictionary (`r2FilenameHookModes`) is a parallel registry to the `cloudStoragePlugin` collections block — keep the two in sync when adding a new R2-backed collection or filename drift will silently return.
+Adapter routing, the R2 filename preassignment hook, the
+Cloudflare Stream webhook, and Zod-validated Cloudflare API responses
+are all documented in `.claude/rules/storage.md` (auto-loads when
+editing `src/lib/storage/`).
 
 ## Route Structure
-- `src/app/(frontend)/` - Public-facing Next.js pages
-- `src/app/(payload)/` - Payload CMS admin interface and API routes
-- `src/app/(payload)/api/` - Auto-generated API endpoints including GraphQL
+
+- `src/app/(frontend)/` — public-facing Next.js pages
+- `src/app/(payload)/` — Payload CMS admin interface and API routes
+- `src/app/(payload)/api/` — Payload-generated API endpoints
 
 ## Custom Endpoints
 
-The project has **two** places to add HTTP endpoints. Choose based on the scope of the endpoint:
+Two places to add HTTP endpoints, chosen by scope:
 
-### Payload collection endpoints (`src/endpoints/*.ts`)
+| Use case | Where |
+|---|---|
+| URL belongs under a collection (e.g. `/api/frames/by-narrator/:narratorId`); single-collection ops; want automatic Payload auth/access integration | `src/endpoints/*.ts` — see `.claude/rules/endpoints.md` |
+| Webhooks, health checks, OpenAPI spec generation, seed triggers, multi-collection operations; need raw request body or Next.js features (streaming, redirects) | `src/app/(payload)/api/**/route.ts` — see `.claude/rules/routes.md` |
 
-Use for operations tied to a specific collection. Registered on the collection via its `endpoints` config property. The handler receives `req.payload` for free.
+| Custom Payload endpoints | Path | Purpose |
+|---|---|---|
+| `framesByNarrator` | `/api/frames/by-narrator/:narratorId` | frames filtered by narrator gender |
+| `lecturesForAudience` | `/api/lectures/for-audience` | lectures filtered by runtime audience eligibility |
+| `appCardsForAudience` | `/api/app-cards/for-audience` | app cards filtered by runtime audience eligibility |
 
-**Use when**: the URL logically belongs under a collection (e.g., `/api/frames/by-narrator/:narratorId`), the operation reads or writes a single collection's documents, and you want automatic auth/access integration with Payload.
+| Next.js app-router routes | Path | Purpose |
+|---|---|---|
+| `health/route.ts` | `/api/health` | liveness check |
+| `openapi.json/route.ts` | `/api/openapi.json` | filtered OpenAPI spec |
+| `seed/[script]/route.ts` | `/api/seed/:script` | seed trigger with SSE |
+| `webhooks/cloudflare-stream/route.ts` | `/api/webhooks/cloudflare-stream` | Cloudflare Stream webhook handler |
 
-| File | Collection | Path | Description |
-|------|-----------|------|-------------|
-| `src/endpoints/framesByNarrator.ts` | Frames | `/by-narrator/:narratorId` | Returns frames filtered by narrator gender |
+## OpenAPI / Scalar API Docs
 
-Each endpoint exports an `Endpoint` object (from `payload`) with `path`, `method`, and `handler` properties. The barrel export at `src/endpoints/index.ts` re-exports all handlers.
-
-### Next.js App Router routes (`src/app/(payload)/api/**/route.ts`)
-
-Use for anything not scoped to a single collection — webhooks, health checks, OpenAPI spec generation, seed triggers, or operations that span multiple collections.
-
-**Use when**: the endpoint is not "about" one collection (webhooks from third parties, `/api/health`, `/api/docs`, `/api/seed/:script`), you need direct access to the raw request body (e.g., HMAC signature verification), or you need Next.js-specific features (streaming, `NextResponse.redirect`).
-
-| File | Path | Purpose |
-|------|------|---------|
-| `src/app/(payload)/api/health/route.ts` | `/api/health` | Liveness check |
-| `src/app/(payload)/api/openapi.json/route.ts` | `/api/openapi.json` | Filtered OpenAPI spec |
-| `src/app/(payload)/api/seed/[script]/route.ts` | `/api/seed/:script` | Seed trigger with SSE |
-| `src/app/(payload)/api/webhooks/cloudflare-stream/route.ts` | `/api/webhooks/cloudflare-stream` | Cloudflare Stream webhook handler |
-
-**Critical constraint**: Next.js route files may only export HTTP method handlers (`GET`, `POST`, etc.) and a small set of config constants. Helper functions must live in `src/lib/`, not in the route file. Lint and tests pass with extra exports, but `pnpm build` fails with a cryptic "not a valid Route export field" error. See `.claude/rules/routes.md` for the thin-wrapper + pure-helpers pattern.
-
-## API Explorer (OpenAPI / Scalar)
-
-The application provides interactive REST API documentation using the [payload-oapi](https://github.com/janbuchar/payload-oapi) plugin for spec generation and a custom Scalar plugin with We Meditate branding.
-
-### Endpoints
-
-| Endpoint | Description |
-|----------|-------------|
-| `/api/openapi.json` | Filtered OpenAPI 3.1 specification (hides internal operations) |
-| `/api/openapi.json?role=<role>` | Role-filtered spec (shows only collections for specified client role) |
-| `/api/openapi-raw.json` | Raw OpenAPI 3.1 specification (all operations visible) |
-| `/api/docs` | Scalar interactive documentation with We Meditate branding |
-| `/api/openapi-auth` | OAuth2 password flow authentication |
-
-### Features
-
-- **We Meditate Branding**: Custom coral theme (#F07855) and dynamic logo based on selected role
-- **Client Role Selector**: Dropdown to filter visible endpoints by API client role
-- **Auto-Generated Documentation**: All collection CRUD endpoints documented automatically
-- **Request/Response Schemas**: Generated from Payload field definitions
-- **Query Parameters**: Pagination, sorting, filtering (`where`) documented
-- **Access-Aware Security**: Endpoints requiring auth show security requirements
-- **"Try it Out"**: Test API endpoints directly from Scalar UI
-- **Filtered Spec**: Internal operations hidden via `x-internal: true` markers
-- **Prioritized HTTP Clients**: Shows only JavaScript, Node.js, Dart, Python examples
-
-### Client Role Filtering
-
-The API docs include a role selector dropdown that filters visible endpoints based on client role permissions:
-
-| Role | Description | Key Collections |
-|------|-------------|-----------------|
-| All Endpoints | Union of all client role collections | pages, meditations, songs, albums, lessons, etc. |
-| We Meditate Web | Web frontend application | pages, meditations, songs, albums, forms, authors, tags |
-| We Meditate App | Mobile application | meditations, lessons, lectures, songs, narrators, frames, tags |
-| Sahaj Atlas | Atlas application | sahaj-atlas-settings, images, files |
-
-**Usage**: Select a role from the dropdown or use `?role=` query parameter on `/api/openapi.json`.
-
-### Two-Tier Filtering
-
-The filtering system uses a two-tier approach defined in `src/lib/openapi/`:
-
-**1. ALWAYS_HIDDEN_COLLECTIONS** (System collections always hidden):
-- `managers`, `clients` (access collections)
-- `images`, `files` (system collections)
-- `payload-kv`, `payload-jobs`, `payload-locked-documents`, `payload-preferences`, `payload-migrations`, `payload-job-stats` (Payload internal)
-
-**2. Role-Based Filtering** (Content collections filtered by CLIENT_ROLES):
-- When a role is selected, only that role's collections are shown
-- When no role is selected, union of all client role collections is shown
-- Derived from `CLIENT_ROLES` in `src/fields/PermissionsField.ts`
-
-**Hidden Operations**:
-- All `DELETE` and `PATCH` operations
-- All `POST` operations except for `form-submissions`
-
-### Authentication in Scalar
-
-1. Click "Authorize" button in Scalar
-2. Use your manager email/password for OAuth2 authentication
-3. The access token will be used for subsequent "Try it out" requests
-
-### Known Limitations (payload-oapi v0.2.5)
-
-The following features are not supported by the current plugin version:
-
-- **Custom endpoints not auto-generated**: `payload-oapi` doesn't emit paths for custom Payload collection endpoints. We hand-author the three `src/endpoints/*` entries (`/api/frames/by-narrator/:narratorId`, `/api/lectures/for-audience`, `/api/app-cards/for-audience`) in [`src/lib/openapi/customEndpoints.ts`](../../src/lib/openapi/customEndpoints.ts) and merge them into the spec inside the `/api/openapi.json` route handler. Next.js app-router routes like `/api/health` stay internal. See [openapi.md](openapi.md#custom-endpoint-shim) for the full shim architecture.
-- **API Key Header Format**: Plugin uses OAuth2 password flow instead of `Authorization: clients API-Key <key>` format
-
-**Plugin Review Schedule**: Check for updates quarterly or when new features needed. See [GitHub](https://github.com/janbuchar/payload-oapi) for roadmap.
-
-### Configuration
-
-Located in `src/payload.config.ts`:
-
-```typescript
-import { openapi } from 'payload-oapi'
-import { scalarPlugin } from '@/lib/openapi'
-
-plugins: [
-  openapi({
-    openapiVersion: '3.1',
-    specEndpoint: '/openapi-raw.json', // Raw spec
-    metadata: {
-      title: 'Sahaj Cloud API',
-      version: '1.0.0',
-      description: 'REST API for Sahaj Cloud CMS - We Meditate content management',
-    },
-  }),
-  scalarPlugin({
-    specEndpoint: '/openapi.json', // Filtered spec
-    docsUrl: '/docs',
-  }),
-]
-```
-
-### Key Files
-
-| File | Purpose |
-|------|---------|
-| `src/lib/openapi/scalarPlugin.ts` | Custom Scalar plugin with branding and role selector |
-| `src/lib/openapi/markInternalPaths.ts` | Two-tier filtering logic (ALWAYS_HIDDEN + role-based) |
-| `src/lib/openapi/filterByClientRole.ts` | Role-based collection filtering utilities |
-| `src/app/(payload)/api/openapi.json/route.ts` | Route handler with `?role=` parameter support |
+REST API documentation built on `payload-oapi` + a custom Scalar plugin
+with We Meditate branding. Endpoints, project filtering, custom-endpoint
+shim, and the known-limitations list are in `.claude/rules/openapi.md`
+(auto-loads when editing `src/lib/openapi/` or the OpenAPI route handlers).
 
 ## Collections
 
-### Access & User Management
-- **Managers** (`src/collections/access/Managers.ts`) - Authentication-enabled admin users with email/password authentication, admin toggle for complete access bypass, and granular collection/locale-based permissions array
-- **Clients** (`src/collections/access/Clients.ts`) - API client management with authentication keys, usage tracking, granular collection/locale-based permissions, and high-usage alerts
+### Access & user management
+- **Managers** (`src/collections/access/Managers.ts`) — auth-enabled admin users with email/password, admin toggle, granular collection/locale-based permissions.
+- **Clients** (`src/collections/access/Clients.ts`) — API client management with API keys, usage tracking, granular permissions, high-usage alerts.
 
-### Content Collections
-- **Pages** (`src/collections/content/Pages.ts`) - Rich text content with embedded blocks using Lexical editor, author relationships, tags, auto-generated slugs, drafts system with autosave (60s), version history, and scheduled publishing
-- **Meditations** (`src/collections/content/Meditations.ts`) - Guided meditation content with audio files, **type select** (quick/daily/lesson with `quick` as default), **timings multi-select** (morning/afternoon/evening/night) for time-based scheduling on quick/daily types, **duration** (stored in seconds, auto-extracted from audio via `music-metadata` in `beforeChange` hook), **durationMinutes** (virtual, computed from duration), frame relationships with timestamps, locale-specific content filtering via `beforeOperation` hook (`filterMeditationsByLocale`), drafts system with scheduled publishing, and beforeChange validation requiring frames for publishing
-- **Albums** (`src/collections/content/Albums.ts`) - Music album groupings with **artwork** relationship to Images collection, localized title/artist fields, optional artistUrl, and join field for related songs
-- **Songs** (`src/collections/content/Songs.ts`) - Background music tracks with direct audio upload, required album relationship, tags, and localized title field (hidden from admin sidebar, managed via Albums)
-- **Lessons** (`src/collections/content/Lessons.ts`) - Meditation lessons (also called "Path Steps" in admin UI) with audio upload, panels array for content sections, unit selection (Unit 1-4), step number, icon, optional meditation relationship, and rich text article field
-- **Videos** (`src/collections/content/Videos.ts`) - Video storage using Cloudflare Stream with automatic transcoding and HLS streaming, localized title, subtitles JSON field, virtual URL fields (`url` for MP4 download, `previewUrl` for thumbnails), tags relationship, and read-only fileMetadata
-- **AppCards** (`src/collections/content/AppCards.ts`) - Mobile app cards with **image** relationship to Images collection, **type select** (app-page/content/external), **countdown checkbox** for optional recurring schedules, conditional type-based fields (appPage for app-page, content relationship for content, linkUrl for external), **targetSections** field (multi-select) for Hero/Highlight section targeting, **audiences** relationship to `audiences` (hasMany, optional) — when empty, the card is hidden from `/api/app-cards/for-audience`; otherwise the card is shown when ANY attached audience passes (OR-match), evaluated against `audiences.isEligibleForAudience`, **weight** field (1-5, default 3) for selection priority
+### Content
+- **Pages** — Lexical rich text with embedded blocks; drafts (60 s autosave), version history, scheduled publishing, per-locale publishing.
+- **Meditations** — guided audio with `type` select (quick / daily / lesson), `timings` multi-select, `duration` (auto-extracted via `music-metadata`), frame relationships with timestamps, locale-specific filtering, drafts.
+- **Albums** — music album groupings with `artwork` relationship to Images and a join field for related songs.
+- **Songs** — background music tracks with audio upload, required album relationship, hidden from sidebar (managed via Albums).
+- **Lessons** ("Path Steps") — audio + panels array, unit selection (1–4), step number, optional meditation relationship, localized rich text article.
+- **Videos** — Cloudflare Stream uploads with HLS streaming, virtual `url` (MP4) and `previewUrl` (thumbnail) fields.
+- **AppCards** — mobile cards with `image` relationship, type (app-page / content / external), countdown checkbox, audiences hasMany, weight (1–5).
 
-### Resource Collections
-- **Images** (`src/collections/resources/Images.ts`) - Image storage using Cloudflare Images with automatic format optimization (WebP, AVIF), dynamic transformations, tags, credit info, and virtual `url` field for Cloudflare CDN delivery
-- **Narrators** (`src/collections/resources/Narrators.ts`) - Meditation guide profiles with name, gender, and slug
-- **Authors** (`src/collections/resources/Authors.ts`) - Article author profiles with localized name, title, description, countryCode, yearsMeditating, and profile image
-- **Lectures** (`src/collections/resources/Lectures.ts`) - Full-talk lecture content integrated with Nirmala Vidya API. Creation requires a Vimeo URL (`nirmalVidyaVimeoUrl`, immutable after creation) which triggers server-side API fetch to auto-populate title, videoUrl (HLS), thumbnail, per-locale `subtitlesUrl`, and the full-video `duration` (all persisted to the `metadata` JSON field; `duration` is refreshed on every monthly `SyncLectureMetadata` run). Has an `audiences` hasMany relationship to `audiences` — when empty, the lecture is excluded from `/api/lectures/for-audience`; otherwise included when ANY attached audience passes (OR-match). Plus a `clips` join field (keyed on `lecture`) to the child `lecture-clips` collection with `admin.allowCreate: true` for inline clip authoring. **No drafts** — changes publish immediately. Time-range excerpts live on `lecture-clips`, not here.
-- **LectureClips** (`src/collections/resources/LectureClips.ts`) - Child collection of a parent Lecture representing a time-range excerpt. Fields: required `lecture` (relationship to `lectures`), `startTime`/`endTime` numeric seconds with an `endTime > startTime` validator and the `TimestampInput` HH:MM:SS admin component, virtual `duration` field (`endTime − startTime`, admin-hidden), required localized `title`, optional `thumbnail` (relationship to `images`), optional localized `subtitlesUrl`, optional `audiences` hasMany to `audiences` (empty ⇒ hidden from the for-audience endpoint; OR-match across attached audiences). Hidden from the sidebar (`admin.hidden: true`) and managed through the parent Lecture's `clips` join. **No hooks** — `thumbnail`/`subtitlesUrl` fallbacks to the parent lecture are applied server-side by `/api/lectures/for-audience` only, not on the collection itself.
+### Resources
+- **Images** — Cloudflare Images uploads with virtual `url`.
+- **Narrators** — meditation guide profiles (name, gender, slug).
+- **Authors** — article author profiles.
+- **Lectures** — full-talk lecture content integrated with Nirmala Vidya API. No drafts. Time-range excerpts live on the child `lecture-clips` collection.
+- **LectureClips** — child of Lecture: `startTime`/`endTime` excerpts, optional thumbnail/subtitles overrides, `audiences` hasMany. Sidebar-hidden; managed through the parent Lecture's `clips` join.
 
-### System Collections
-- **Frames** (`src/collections/system/Frames.ts`) - Mixed media upload (images/videos) with Cloudflare Images for images and Cloudflare Stream for videos, virtual fields (`url` for full resolution, `previewUrl` for thumbnails), tags filtering, and imageSet selection
-- **Files** (`src/collections/system/Files.ts`) - Mixed media storage with intelligent routing: images → Cloudflare Images (WebP/AVIF optimization), videos → Cloudflare Stream (transcoding, HLS), other files (PDFs, audio) → R2. Includes virtual `url` and `previewUrl` fields, trash support, and automatic orphan cleanup via the CleanupOrphanedMedia job
+### System
+- **Frames** — mixed-media uploads (images/videos) with virtual `url` and `previewUrl`, tags filtering, imageSet selection.
+- **Files** — mixed-media storage with intelligent routing (Cloudflare Images / Stream / R2 by MIME type), trash, automatic orphan cleanup.
 
-### Tag Collections
-- **MeditationTags** (`src/collections/tags/MeditationTags.ts`) - Upload collection for meditation tags with SVG icons, **color picker field**, auto-generated slug from localized title, **isFeatured checkbox** (featured categories shown prominently), **order number field** (display order, `defaultSort: 'order'`), **isParent checkbox** (hidden, auto-maintained by hooks), **single-level parent-child nesting** via self-referential `parent` relationship with `filterOptions` (client-side) and Payload's built-in `validateFilterOptions` (server-side), parent categories excluded from meditation tag selection, **timings multi-select** (morning/afternoon/evening/night, admin-only update), and **4 localized relationship fields** (`morningMeditation`, `afternoonMeditation`, `eveningMeditation`, `nightMeditation`) for explicit per-timing meditation assignments per locale (filtered to quick-type meditations only). Standard API query replaces the old custom endpoint: `GET /api/meditation-tags?where[morningMeditation][exists]=true&where[isParent][not_equals]=true&locale=en&depth=1&sort=order`. The `isParent` flag is maintained by `afterChange`/`afterDelete` hooks in `src/hooks/meditationTagHooks.ts`, and `validateNesting` (beforeValidate) prevents tags with children from becoming children themselves.
-- **SongTags** (`src/collections/tags/SongTags.ts`) - Upload collection for song/music tags with SVG icons, auto-generated slug from localized title, and bidirectional relationships (**note: no color field**, unlike MeditationTags). Admin labels use "Music Category" for user familiarity.
-- **Audiences** (`src/collections/tags/Audiences.ts`) - Reusable audience/visibility rules referenced by AppCards, Lectures, and LectureClips via their `audiences` hasMany field. Non-upload collection with internal `label` field (non-localized) and JSON-based **targeting rules** (`rulesField`) for user progress-based targeting (`pathProgress`, `meditationsPerWeek`, `totalMeditationsViewed`, `totalLecturesViewed` — all range type). Three bidirectional joins — `lectures`, `lectureClips`, and `appCards` — all keyed on each consumer's `audiences` field. Counts surface in the list view via `RelationshipCountCell`. Admin group: Metadata. Visible only in `wemeditate-app` project. The `for-audience` endpoints apply OR-match semantics: a doc is shown when ANY of its attached audiences passes.
+### Tags / Audiences
+- **MeditationTags** — upload collection with SVG icons, color picker, single-level parent/child nesting, `timings`, per-timing localized meditation relationships, `isParent` auto-maintained by hooks.
+- **SongTags** — upload collection with SVG icons (no color field). Admin labels say "Music Category".
+- **Audiences** — reusable visibility/targeting rules referenced by AppCards, Lectures, and LectureClips. JSON-based rules (`pathProgress`, `meditationsPerWeek`, `totalMeditationsViewed`, `totalLecturesViewed` — all range type). Three bidirectional joins. The `for-audience` endpoints apply OR-match across attached audiences.
 
-**Note**: Page, Video, and Image tags are now inline enum select fields on their respective collections (not separate tag collections). This reduces admin sidebar clutter while maintaining tag functionality.
+Page, Video, and Image tags are inline enum select fields on their
+respective collections (not separate tag collections).
 
-#### Tag Collection Admin Components
+Detailed field descriptions, hooks, validators, and per-collection test
+coverage live in `.claude/rules/collections.md` (auto-loads when editing
+`src/collections/` or `src/fields/`).
 
-Custom admin components for tag management:
-
-- **TagSelector** (`src/components/admin/TagSelector/`) - Visual tag selection with colored circular buttons displaying SVG icons. Uses the Component Wrapper Pattern with pure UI component + PayloadCMS field wrapper. See [custom-components.md](custom-components.md#component-wrapper-pattern-pure-ui--field-wrapper) for details.
-- **ColorField** (`src/components/admin/ColorField.tsx`) - Hex color picker using native HTML color input. Used with `ColorField()` factory function from `src/fields/ColorField.ts` for field configuration with validation.
-
-### Plugin-Generated Collections
-- **Forms** (Auto-generated by Form Builder plugin) - Form definitions with field configuration and submission handling
-- **Form Submissions** (Auto-generated by Form Builder plugin) - Stored form submission data
-
-## Key Configuration Files
-- `src/payload.config.ts` - Main Payload CMS configuration with collections, database, email, and plugins
-- `next.config.mjs` - Next.js configuration with Payload integration
-- `src/payload-types.ts` - Auto-generated TypeScript types (do not edit manually)
-- `tsconfig.json` - TypeScript configuration with path aliases
-- `eslint.config.mjs` - ESLint configuration for code quality
-- `vitest.config.mts` - Vitest configuration for integration tests
-- `playwright.config.ts` - Playwright configuration for E2E tests
-- `src/lib/richEditor.ts` - Rich text editor configuration presets
-- `src/lib/storage/storagePlugin.ts` - Storage plugin configuration and adapter routing
-- `src/lib/storage/mixedMediaAdapter.ts` - Mixed media adapter (routes to Images/Stream/R2 based on MIME type)
-- `src/lib/storage/mimeUtils.ts` - Shared MIME type classification utilities
-- `src/lib/storage/urlFields.ts` - URL field factory functions
-- `src/lib/storage/r2NativeAdapter.ts` - Custom R2 storage adapter
-- `src/lib/schemaUtils.ts` - Schema introspection utilities for auto-discovering field references
+### Plugin-generated collections
+- **Forms** — auto-generated by Form Builder plugin (form definitions).
+- **Form Submissions** — auto-generated submission storage.
 
 ## Component Architecture
-- `src/components/AdminProvider.tsx` - Payload admin UI provider component (wraps with ProjectProvider)
-- `src/components/ErrorBoundary.tsx` - React error boundary for error handling
-- `src/app/(payload)/` - Payload CMS admin interface and API routes
-- `src/app/(frontend)/` - Public-facing Next.js pages
+
+- `src/components/AdminProvider.tsx` — admin UI provider (wraps with ProjectProvider).
+- `src/components/ErrorBoundary.tsx` — React error boundary.
+- `src/app/(payload)/` — Payload CMS admin interface and API routes.
+- `src/app/(frontend)/` — public-facing Next.js pages.
+
+Custom admin components, the project-aware dashboard, branding system,
+and the audio-synchronized frame editor are documented in
+`.claude/rules/admin-ui.md` (auto-loads when editing
+`src/components/admin/`, `src/components/branding/`, or `src/globals/`).
 
 ## Logging & Error Tracking
 
-The application uses a **custom console-backed Payload logger** for server-side logging and **Sentry** for error tracking.
+Server-side logging uses a **custom console-backed Payload logger**
+(`src/lib/workerSafeLogger.ts`); error tracking uses **Sentry** via
+`@sentry/cloudflare`.
 
-### Server Logger Architecture
+### Why not Payload's default logger?
 
-- **Logger implementation**: `src/lib/workerSafeLogger.ts`
-- **Logger wiring**: `src/payload.config.ts`
-- **Why not Payload's default logger?** Payload's default logger uses Pino transports that eventually write through Node-style fs destinations. In Cloudflare Workers, those write paths can fail under Node compatibility shims, so the project uses `console` directly instead.
+Payload's default Pino logger uses transports that ultimately write
+through Node-style `fs` destinations. In Cloudflare Workers, those write
+paths can fail under Node-compat shims, so this project routes through
+`console` directly instead. The custom logger:
 
-The logger is intentionally small:
+- Implements the subset of the Pino interface that Payload uses here.
+- Respects `NEXT_PUBLIC_LOG_LEVEL` (`silent` | `error` | `warn` | `info` | `debug`).
+- Supports `child()` bindings (preserves contextual fields).
+- Normalizes `Error` objects into plain serializable objects.
 
-- It implements the subset of the Pino interface that Payload uses in this project.
-- It respects `NEXT_PUBLIC_LOG_LEVEL`.
-- It supports `child()` bindings, so contextual fields are preserved.
-- It normalizes `Error` objects into plain serializable objects before logging.
+The same logger runs in local dev, CLI usage, and Workers — consistent
+behavior across environments.
 
-Using the same logger in local development, CLI usage, and Workers keeps behavior consistent across environments.
+### Logging patterns
 
-### Log Level Configuration
-
-Both server-side and client-side logging are controlled by `NEXT_PUBLIC_LOG_LEVEL`:
-
-```bash
-# Levels: 'silent' | 'error' | 'warn' | 'info' | 'debug'
-NEXT_PUBLIC_LOG_LEVEL=info
-```
-
-- **silent**: No console output (errors still captured by Sentry)
-- **error**: Only errors
-- **warn**: Errors and warnings
-- **info**: Errors, warnings, and info messages (default for production)
-- **debug**: All messages including debug
-
-### Logging Patterns
-
-**Server-Side (Payload hooks, collections, adapters)**:
 ```typescript
-// In hooks with req access
+// Server-side (hooks, collections, adapters with req)
 req.payload.logger.info({ msg: 'Operation completed', documentId: doc.id })
 req.payload.logger.warn({ msg: 'Warning message', context: 'details' })
 req.payload.logger.error({ msg: 'Error occurred', error: error.message })
 
-// In adapters with payload access
+// Adapters with payload directly
 payload.logger.info({ msg: 'Adapter initialized' })
 ```
 
-**Client-Side (React components)**:
 ```typescript
+// Client-side (React)
 import { clientLogger } from '@/lib/clientLogger'
-
 clientLogger.error('Failed to load data', error, { componentId: '123' })
 clientLogger.warn('Unexpected state', { details: 'info' })
 ```
 
-**Routes without Payload access**:
 ```typescript
-// Use console.error with eslint-disable for critical errors only
+// Routes without Payload access — use sparingly
 // eslint-disable-next-line no-console
 console.error('[Route Name] Error message:', { error: error.message })
 ```
 
-### Sentry Integration
+### Sentry integration
 
-- **Custom Plugin**: `src/lib/sentryPlugin.ts` - Cloudflare Workers-compatible Sentry plugin using `@sentry/cloudflare`
-- **Client Initialization**: `src/instrumentation-client.ts` - Browser-side Sentry via `@sentry/react` (Next.js instrumentation hook)
-- **Error Boundary**: `src/app/global-error.tsx` - React error boundary with Sentry reporting
+- `src/lib/sentryPlugin.ts` — Cloudflare Workers-compatible Sentry plugin (`@sentry/cloudflare`).
+- `src/instrumentation-client.ts` — browser-side Sentry via `@sentry/react` (Next.js instrumentation hook).
+- `src/app/global-error.tsx` — React error boundary with Sentry reporting.
 
-**Note**: The official `@payloadcms/plugin-sentry` is NOT used because it depends on `@sentry/nextjs` which is incompatible with Cloudflare Workers.
-
-## Rich Text Editor Configuration
-
-The application uses Lexical editor with two configuration presets:
-
-### Basic Rich Text Editor (`basicRichTextEditor`)
-- **Features**: Bold, Italic, Link, and InlineToolbar
-- **Usage**: Simple text fields that need minimal formatting
-
-### Full Rich Text Editor (`fullRichTextEditor`)
-- **Features**: All basic formatting plus:
-  - Unordered and Ordered Lists
-  - Blockquote
-  - Headings (H1, H2)
-  - Relationship feature for linking to meditations, songs, pages, and forms
-  - Blocks feature for embedding custom block components
-- **Usage**: Page content and other rich content areas
-
-Configuration located in `src/lib/richEditor.ts`
-
-## Data Seed Scripts
-
-The system includes seed scripts for seeding content from external sources into Payload CMS.
-
-**Documentation**: See [seeds/AGENTS.md](../../seeds/AGENTS.md) for commands, environment variables, and troubleshooting.
-
-**Available Seed Scripts**:
-- **Storyblok** (`pnpm seed storyblok`) - Path Steps from Storyblok CMS to Lessons
-- **WeMeditate** (`pnpm seed wemeditate`) - Authors, categories, pages from Rails PostgreSQL
-- **Meditations** (`pnpm seed meditations`) - Meditation content from legacy database
-- **Tags** (`pnpm seed tags`) - MeditationTags and SongTags from Cloudinary SVGs
-
-All scripts extend `BaseImporter` for idempotent upserts, resilient error handling, and comprehensive reporting.
-
-**Note**: Database schema migrations are in `src/migrations/` using PayloadCMS's built-in migration system.
+The official `@payloadcms/plugin-sentry` is **not** used because it
+depends on `@sentry/nextjs`, which is incompatible with Cloudflare Workers.
 
 ## Scheduled Jobs
 
-The application uses PayloadCMS's built-in jobs system for background task processing.
+PayloadCMS's built-in jobs system handles background task processing.
 
-### CleanupOrphanedMedia Job
+### `CleanupOrphanedMedia` (`src/jobs/tasks/CleanupOrphanedMedia.ts`)
 
-**Location**: `src/jobs/tasks/CleanupOrphanedMedia.ts`
+Monthly task that cleans up orphaned files and images. Two-phase:
 
-Automatically cleans up orphaned files and images that are no longer referenced by any collection. Runs monthly via scheduled task.
+1. **Permanent deletion** — purges items already in trash (`deletedAt` set) past the grace period (30+ days).
+2. **Orphan detection** — identifies unreferenced media and moves them to trash.
 
-**Two-Phase Cleanup Process**:
-
-1. **Phase A - Permanent Deletion**: Permanently deletes items already in trash (soft-deleted with `deletedAt` timestamp) that have been there for the grace period
-2. **Phase B - Orphan Detection**: Identifies unreferenced media and moves them to trash (soft delete)
-
-**Schema-Driven Discovery**:
-
-Instead of hardcoding which collections reference files/images, the job uses schema introspection utilities (`src/lib/schemaUtils.ts`) to auto-discover all references:
-
-```typescript
-// Auto-discovers all fields referencing 'files' or 'images' collections
-const fileRefs = discoverReferencesForCollection(payload, 'files')
-const imageRefs = discoverReferencesForCollection(payload, 'images')
-```
-
-**Key Features**:
-- **Grace Period**: Items are soft-deleted first, then permanently deleted after 30+ days
-- **Tag-Based Preservation**: Images with non-orientation tags are preserved (e.g., tagged as "featured")
-- **Lexical Content Scanning**: Scans rich text content for embedded block references
-- **Comprehensive Logging**: Logs discovered references and cleanup operations
-
-**Configuration**:
-- Registered in `src/payload.config.ts` under `jobs.tasks`
-- Scheduled via PayloadCMS job queue system
-
-### Job Files
+Uses **schema introspection** (`src/lib/schemaUtils.ts`) to auto-discover
+all `files` / `images` references across collections instead of
+hardcoding the list. Scans Lexical rich-text content for embedded block
+references. Tag-based preservation: images with non-orientation tags
+(e.g. "featured") are kept.
 
 | File | Purpose |
-|------|---------|
-| `src/jobs/tasks/CleanupOrphanedMedia.ts` | Orphan media cleanup implementation |
-| `src/lib/schemaUtils.ts` | Schema introspection utilities for field discovery |
-| `tests/int/cleanup-orphaned-media.int.spec.ts` | Integration tests for cleanup job |
-| `tests/int/schema-utils.int.spec.ts` | Tests for schema introspection utilities |
+|---|---|
+| `src/jobs/tasks/CleanupOrphanedMedia.ts` | Implementation |
+| `src/lib/schemaUtils.ts` | Schema introspection utilities |
+| `tests/int/cleanup-orphaned-media.int.spec.ts` | Integration tests |
+| `tests/int/schema-utils.int.spec.ts` | Schema-utils tests |
 
-### Usage Tracking Jobs
+### Usage tracking (`src/lib/usage/tasks.ts`)
 
-**Location**: `src/lib/usage/tasks.ts`
+The usage plugin auto-registers two tasks:
 
-The usage plugin auto-registers two tasks for API usage tracking:
+- **`trackUsage`** — increments `dailyRequests`, updates `lastRequestAt`,
+  triggers high-usage alerts. Queued asynchronously via `afterRead` hook.
+- **`resetUsage`** — runs daily at midnight UTC. Updates
+  `peakDailyRequests` if current is higher, then resets `dailyRequests`
+  to 0.
 
-**trackUsage Task**:
-- Increments `dailyRequests` counter for the consumer
-- Updates `lastRequestAt` timestamp
-- Triggers high usage alert if threshold exceeded (logged to Pino)
-- Queued asynchronously via `afterRead` hook
+Configuration and rate-limiting details are in
+`.claude/rules/api-clients.md` (auto-loads when editing `src/lib/usage/`
+or `src/collections/access/Clients.ts`).
 
-**resetUsage Task**:
-- Runs at midnight UTC daily via cron schedule
-- Finds all consumers with `dailyRequests > 0`
-- Updates `peakDailyRequests` if current is higher
-- Resets `dailyRequests` to 0
+## Key Configuration Files
 
-**Configuration**:
-- Tasks auto-registered by `usagePlugin` in `src/payload.config.ts`
-- Consumer collections configurable via plugin options
-
-| File | Purpose |
-|------|---------|
-| `src/lib/usage/tasks.ts` | Task factory functions |
-| `src/lib/usage/usagePlugin.ts` | Plugin orchestration and task registration |
-| `tests/int/api.int.spec.ts` | Integration tests for usage tracking |
+- `src/payload.config.ts` — main Payload CMS configuration
+- `next.config.mjs` — Next.js configuration
+- `src/payload-types.ts` — auto-generated types (do not edit)
+- `tsconfig.json` — TypeScript path aliases
+- `eslint.config.mjs` — ESLint configuration
+- `vitest.config.mts` — Vitest (integration test) configuration
+- `playwright.config.ts` — Playwright (E2E) configuration
+- `wrangler.toml` — Cloudflare Workers + bindings (D1, R2, Rate Limiter)
+- `src/lib/richEditor.ts` — Lexical editor presets

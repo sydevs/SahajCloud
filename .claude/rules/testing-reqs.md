@@ -29,4 +29,4 @@ pnpm test
 pnpm lint & pnpm build & pnpm test  # BAD - CPU overload
 ```
 
-Full testing documentation: @.claude/docs/testing.md
+Full testing reference: `.claude/rules/tests.md` (auto-loads when working with `tests/**/*.spec.ts`).

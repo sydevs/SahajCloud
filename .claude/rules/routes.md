@@ -80,8 +80,9 @@ does not guarantee byte-identical output.
 
 ## When to use a route handler vs a Payload endpoint
 
-See `.claude/docs/architecture.md` → "Custom Endpoints" for the full decision
-matrix. Short version:
+See `.claude/rules/endpoints.md` ("When to use a Payload endpoint vs a
+Next.js route") and `@.claude/docs/architecture.md` → "Custom Endpoints"
+for the full decision matrix. Short version:
 
 - **`src/endpoints/*.ts` (Payload endpoint)**: operations tied to a specific
   collection (e.g., `/api/frames/by-narrator/:id`). Registered via the
