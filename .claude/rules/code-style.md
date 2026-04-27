@@ -67,3 +67,29 @@ pnpm lint              # Run ESLint
 pnpm generate:types    # Generate types from Payload schema
 pnpm generate:importmap  # Generate import map for admin panel
 ```
+
+## Debugging library-integration bugs
+
+When a bug's symptoms suggest a third-party plugin / hook / SDK isn't
+doing what you assumed, **read the compiled library source in
+`node_modules/`** before theorizing. Actual runtime behavior often differs
+from README/docs, especially for PayloadCMS plugins, Next.js internals,
+and Cloudflare SDKs.
+
+Practical approach:
+
+- `ls node_modules/<pkg>/dist/` to find entry points.
+- Open the relevant hook/handler file directly with `Read`.
+- Grep for the method names you're calling (`handleUpload`, `beforeChange`,
+  ...) to see how the library invokes them and what it does with the
+  return value.
+
+Often faster than fetching external docs and catches behavior the docs
+don't describe — e.g. "the cloud-storage plugin only persists via return
+values, not mutation" — undocumented but unambiguous from three lines of
+source. (See the `handleUpload` return-value contract in
+`.claude/rules/storage.md` for the canonical example.)
+
+**When external docs are better**: researching *new* features or APIs
+you haven't used yet, where you need the canonical contract before
+writing code. For *debugging*, local source wins.
