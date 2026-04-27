@@ -54,6 +54,7 @@ describe('appCardsForAudience endpoint', () => {
   let highlightsCard: AppCard
   let draftHeroCard: AppCard
   let bothSectionsCard: AppCard
+  let nullRulesAudienceCard: AppCard
   let emptyAudiencesCard: AppCard
   let multiAudienceCard: AppCard
   let allFailingAudiencesCard: AppCard
@@ -130,6 +131,20 @@ describe('appCardsForAudience endpoint', () => {
       image: imageId,
       targetSections: ['hero', 'highlights'],
       audiences: [openAudience.id],
+      weight: 3,
+      _status: 'published',
+    })
+
+    const nullRulesAudience = await testData.createAudience(payload, {
+      label: 'Null Rules Audience',
+      rules: null,
+    })
+
+    nullRulesAudienceCard = await testData.createAppCard(payload, {
+      title: 'Null Rules Audience Card',
+      image: imageId,
+      targetSections: ['hero'],
+      audiences: [nullRulesAudience.id],
       weight: 3,
       _status: 'published',
     })
@@ -277,6 +292,16 @@ describe('appCardsForAudience endpoint', () => {
     })
     const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
     expect(ids).toContain(heroCardPathStarted.id)
+  })
+
+  it('includes cards attached to an audience with null rules', async () => {
+    const { body } = await callEndpoint(payload, {
+      targetSection: 'hero',
+      limit: 20,
+      pathProgress: 0,
+    })
+    const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
+    expect(ids).toContain(nullRulesAudienceCard.id)
   })
 
   describe('OR-match audiences', () => {

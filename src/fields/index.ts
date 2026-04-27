@@ -30,7 +30,7 @@ export {
   rulesField,
   generateRulesJsonSchema,
   buildAudienceDataShape,
-  withAudienceContext,
+  evaluateRules,
 } from './rulesField'
 export type {
   RuleDefinition,

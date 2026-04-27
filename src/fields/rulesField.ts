@@ -1,5 +1,5 @@
 import type { JSONSchema4 } from 'json-schema'
-import type { CheckboxField, Field, FieldHook, JSONField, PayloadRequest } from 'payload'
+import type { Field, JSONField } from 'payload'
 
 import { z } from 'zod'
 
@@ -45,27 +45,6 @@ export interface RulesFieldOptions {
     condition?: (...args: unknown[]) => boolean
     description?: string
   }
-}
-
-// ── Request-context helper ────────────────────────────────────────────────────
-
-/**
- * Returns a shallow-cloned req with each audience-data key spread directly
- * onto `req.context` so the virtual `isEligibleForAudience` field can read
- * them by rule name. Used by the for-audience endpoints.
- *
- * Rule names are specific enough (`pathProgress`, `meditationsPerWeek`, …)
- * that collisions with unrelated `req.context` keys are unlikely. If that
- * changes, switch back to a scoped shape like `{ audienceRules: {...} }`.
- */
-export function withAudienceContext(
-  req: PayloadRequest,
-  audienceData: AudienceData,
-): PayloadRequest {
-  return {
-    ...req,
-    context: { ...req.context, ...audienceData },
-  } as PayloadRequest
 }
 
 /**
@@ -129,7 +108,7 @@ function evaluateSelect(stored: string[], supplied: unknown): boolean {
 }
 
 /**
- * Evaluate whether a card's stored targeting rules match the caller's inputs.
+ * Evaluate whether stored targeting rules match the caller's inputs.
  *
  * Contract:
  *   - Empty / missing rules → always match
@@ -267,52 +246,8 @@ function buildJsonField(options: RulesFieldOptions): JSONField {
 }
 
 /**
- * Virtual checkbox field that evaluates the sibling rules JSON against caller
- * inputs read directly from `req.context` by rule name
- * (e.g. `req.context.pathProgress`).
- *
- * Returns `null` when none of the rule keys are present on `req.context`
- * (no evaluation requested), so near-zero overhead for admin UI reads and
- * unrelated fetches.
- */
-function buildEligibilityField(options: RulesFieldOptions): CheckboxField {
-  const { name = 'rules', rules } = options
-
-  const afterRead: FieldHook = ({ req, siblingData }) => {
-    const context = (req?.context ?? {}) as Record<string, unknown>
-    const inputs: AudienceData = {}
-    let hasInput = false
-    for (const rule of rules) {
-      if (rule.name in context) {
-        inputs[rule.name] = context[rule.name]
-        hasInput = true
-      }
-    }
-    if (!hasInput) return null
-
-    const stored = (siblingData as Record<string, unknown> | undefined)?.[name] as
-      | RulesValue
-      | null
-      | undefined
-    return evaluateRules(stored, inputs, rules)
-  }
-
-  return {
-    name: 'isEligibleForAudience',
-    type: 'checkbox',
-    virtual: true,
-    admin: { hidden: true },
-    hooks: { afterRead: [afterRead] },
-  }
-}
-
-/**
- * Creates a JSON field with a custom visual editor for targeting rules, plus
- * a virtual `isEligibleForAudience` sibling whose `afterRead` hook evaluates
- * the document's stored rules against rule-name keys spread onto
- * `req.context` (e.g. `req.context.pathProgress`). Endpoints set the context
- * once via `withAudienceContext(req, audienceData)` and filter results by
- * the virtual field instead of importing rule-evaluation logic.
+ * Creates a JSON field with a custom visual editor for targeting rules.
+ * Runtime callers should evaluate the stored rules with `evaluateRules`.
  *
  * Rules are stored as a JSON blob, making the system extensible without
  * schema changes. The RulesEditor component provides a visual editing
@@ -329,5 +264,5 @@ function buildEligibilityField(options: RulesFieldOptions): CheckboxField {
  * }),
  */
 export function rulesField(options: RulesFieldOptions): Field[] {
-  return [buildJsonField(options), buildEligibilityField(options)]
+  return [buildJsonField(options)]
 }
