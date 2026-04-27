@@ -4,7 +4,7 @@ import { extractID } from 'payload/shared'
 import { z } from 'zod'
 
 import { AUDIENCE_DEFINITIONS } from '@/collections/tags/Audiences'
-import { buildAudienceDataShape, withAudienceContext } from '@/fields'
+import { buildAudienceDataShape, evaluateRules, type RulesValue } from '@/fields'
 import type { LectureMetadata } from '@/hooks/lectureHooks'
 import type { Audience, Image, Lecture, LectureClip } from '@/payload-types'
 
@@ -154,12 +154,18 @@ export const lecturesForAudience: Endpoint = {
       limit: 200,
       depth: 0,
       pagination: false,
-      req: withAudienceContext(req, audienceData),
+      req,
     })
 
     const eligibleAudienceIds = new Set<number>(
       (audienceDocs as Audience[])
-        .filter((audience) => audience.isEligibleForAudience === true)
+        .filter((audience) =>
+          evaluateRules(
+            audience.rules as RulesValue | null | undefined,
+            audienceData,
+            AUDIENCE_DEFINITIONS,
+          ),
+        )
         .map((audience) => audience.id),
     )
 

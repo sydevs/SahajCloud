@@ -167,8 +167,7 @@ export const AppCards: CollectionConfig = {
             },
             // Audiences (hasMany). Empty ⇒ card is hidden from the for-audience
             // endpoint. The card is shown when ANY of the selected audiences
-            // passes — eligibility is evaluated on the populated
-            // `audiences[].isEligibleForAudience` virtual field.
+            // passes.
             {
               name: 'audiences',
               type: 'relationship',

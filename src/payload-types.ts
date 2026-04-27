@@ -849,7 +849,6 @@ export interface Audience {
       max?: number;
     };
   };
-  isEligibleForAudience?: boolean | null;
   lectures?: {
     docs?: (number | Lecture)[];
     hasNextPage?: boolean;
@@ -2046,7 +2045,6 @@ export interface FilesSelect<T extends boolean = true> {
 export interface AudiencesSelect<T extends boolean = true> {
   label?: T;
   rules?: T;
-  isEligibleForAudience?: T;
   lectures?: T;
   lectureClips?: T;
   appCards?: T;
