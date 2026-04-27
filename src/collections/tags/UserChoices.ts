@@ -7,7 +7,7 @@ import {
   clearIsParentOnDelete,
   maintainIsParent,
   validateNesting,
-} from '@/hooks/meditationTagHooks'
+} from '@/hooks/userChoiceHooks'
 import { adminOnlyCondition, adminOnlyFieldAccess, isAdminManager } from '@/lib/access'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
@@ -29,21 +29,33 @@ const restrictIconUploadToAdmin: CollectionBeforeChangeHook = ({ req, operation 
   if (operation !== 'update') return
   if (isAdminManager(req.user)) return
   if (req.file) {
-    throw new APIError('Only admins can replace the icon on a meditation category.', 403)
+    throw new APIError('Only admins can replace the icon on a user choice.', 403)
   }
 }
 
-export const MeditationTags: CollectionConfig = {
-  slug: 'meditation-tags',
+const isMoodChoice = (data: { type?: string } | undefined): boolean =>
+  !data || data.type !== 'goal'
+
+export const UserChoices: CollectionConfig = {
+  slug: 'user-choices',
   defaultSort: 'order',
   labels: {
-    singular: 'Meditation Category',
-    plural: 'Meditation Categories',
+    singular: 'User Choice',
+    plural: 'User Choices',
   },
   admin: {
     group: 'Metadata',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'filename', 'color', 'order', 'isFeatured', 'parent', 'timings'],
+    defaultColumns: [
+      'title',
+      'type',
+      'filename',
+      'color',
+      'order',
+      'isFeatured',
+      'parent',
+      'timings',
+    ],
   },
   hooks: {
     beforeValidate: [validateNesting],
@@ -52,13 +64,13 @@ export const MeditationTags: CollectionConfig = {
     afterDelete: [clearIsParentOnDelete],
   },
   upload: {
-    staticDir: 'media/meditation-tags',
+    staticDir: 'media/user-choices',
     hideRemoveFile: true,
     mimeTypes: ['image/svg+xml'],
   },
   fields: [
     // Virtual URL field for CDN delivery (R2 for SVG support)
-    virtualUrlField({ collection: 'meditation-tags', adapter: 'r2' }),
+    virtualUrlField({ collection: 'user-choices', adapter: 'r2' }),
     // Slug auto-generated from title. Hide the whole row from non-admins
     // (the row is in the sidebar) and lock the inner `slug` text at the
     // access layer. The sibling `generateSlug` checkbox is already
@@ -89,6 +101,23 @@ export const MeditationTags: CollectionConfig = {
         description: 'Localized title shown to public users',
       },
     },
+    // Mood vs goal classifier
+    {
+      name: 'type',
+      type: 'select',
+      required: true,
+      defaultValue: 'mood',
+      access: { update: adminOnlyFieldAccess },
+      options: [
+        { label: 'Mood', value: 'mood' },
+        { label: 'Goal', value: 'goal' },
+      ],
+      admin: {
+        position: 'sidebar',
+        description:
+          "Whether this choice describes how the user feels right now (mood) or what they want to work toward (goal). Time-of-day timings and per-timing meditation assignments only apply to mood choices.",
+      },
+    },
     // Color picker (hex format)
     colorField({
       name: 'color',
@@ -111,7 +140,7 @@ export const MeditationTags: CollectionConfig = {
     {
       name: 'parent',
       type: 'relationship',
-      relationTo: 'meditation-tags',
+      relationTo: 'user-choices',
       maxDepth: 1,
       access: { update: adminOnlyFieldAccess },
       admin: {
@@ -155,7 +184,8 @@ export const MeditationTags: CollectionConfig = {
         description: 'Display order (lower numbers appear first)',
       },
     },
-    // Timings this tag is active for (controls which meditation fields are visible)
+    // Timings this tag is active for (controls which meditation fields are visible).
+    // Mood-only: goal-type choices don't carry per-timing meditation assignments.
     {
       name: 'timings',
       type: 'select',
@@ -168,7 +198,8 @@ export const MeditationTags: CollectionConfig = {
       ],
       access: { update: adminOnlyFieldAccess },
       admin: {
-        condition: (data, _siblingData, { user }) => !data.isParent && isAdminManager(user),
+        condition: (data, _siblingData, { user }) =>
+          isMoodChoice(data) && !data.isParent && isAdminManager(user),
         description: 'Which times of day this category offers meditations',
         components: {
           Field: '@/components/admin/ToggleGroupField',
@@ -184,7 +215,10 @@ export const MeditationTags: CollectionConfig = {
       filterOptions: { type: { in: ['quick', 'daily'] } },
       admin: {
         condition: (data) =>
-          !data.isParent && Array.isArray(data.timings) && data.timings.includes('morning'),
+          isMoodChoice(data) &&
+          !data.isParent &&
+          Array.isArray(data.timings) &&
+          data.timings.includes('morning'),
         description: 'The meditation offered for this category in the morning',
       },
     },
@@ -196,7 +230,10 @@ export const MeditationTags: CollectionConfig = {
       filterOptions: { type: { in: ['quick', 'daily'] } },
       admin: {
         condition: (data) =>
-          !data.isParent && Array.isArray(data.timings) && data.timings.includes('afternoon'),
+          isMoodChoice(data) &&
+          !data.isParent &&
+          Array.isArray(data.timings) &&
+          data.timings.includes('afternoon'),
         description: 'The meditation offered for this category in the afternoon',
       },
     },
@@ -208,7 +245,10 @@ export const MeditationTags: CollectionConfig = {
       filterOptions: { type: { in: ['quick', 'daily'] } },
       admin: {
         condition: (data) =>
-          !data.isParent && Array.isArray(data.timings) && data.timings.includes('evening'),
+          isMoodChoice(data) &&
+          !data.isParent &&
+          Array.isArray(data.timings) &&
+          data.timings.includes('evening'),
         description: 'The meditation offered for this category in the evening',
       },
     },
@@ -220,7 +260,10 @@ export const MeditationTags: CollectionConfig = {
       filterOptions: { type: { in: ['quick', 'daily'] } },
       admin: {
         condition: (data) =>
-          !data.isParent && Array.isArray(data.timings) && data.timings.includes('night'),
+          isMoodChoice(data) &&
+          !data.isParent &&
+          Array.isArray(data.timings) &&
+          data.timings.includes('night'),
         description: 'The meditation offered for this category at night',
       },
     },
@@ -228,7 +271,7 @@ export const MeditationTags: CollectionConfig = {
     // Hooks update this on the *parent* tag when a child's parent relationship
     // changes — they don't self-correct a doc that gets `isParent` flipped
     // directly via API. The field-level access guards against that, so a
-    // non-admin editor with `meditation-tags` update permission can't corrupt
+    // non-admin editor with `user-choices` update permission can't corrupt
     // the nesting tree by PATCHing `{ isParent: true }` themselves.
     {
       name: 'isParent',
@@ -246,12 +289,28 @@ export const MeditationTags: CollectionConfig = {
     {
       name: 'children',
       type: 'join',
-      collection: 'meditation-tags',
+      collection: 'user-choices',
       on: 'parent',
       admin: {
         condition: (data) => data.isParent,
         components: {
           Cell: '@/components/admin/RelationshipCountCell',
+        },
+      },
+    },
+    // Reverse join: lectures referencing this user choice
+    {
+      name: 'lectures',
+      type: 'join',
+      collection: 'lectures',
+      on: 'userChoices',
+      defaultLimit: 100,
+      admin: {
+        components: {
+          Cell: {
+            path: '@/components/admin/RelationshipCountCell',
+            serverProps: { disableLink: true },
+          },
         },
       },
     },

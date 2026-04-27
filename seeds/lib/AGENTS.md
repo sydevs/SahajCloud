@@ -113,8 +113,8 @@ const stats = uploader.getStats()  // { uploaded: number, reused: number }
 import { TagManager } from '../lib'
 const tagManager = new TagManager(payload, logger)
 
-// For meditation-tags and music-tags collections (require SVG icons)
-const tagId = await tagManager.ensureTag('meditation-tags', 'My Tag')
+// For user-choices and music-tags collections (require SVG icons)
+const tagId = await tagManager.ensureTag('user-choices', 'My Tag')
 
 // For image tags (now inline enum strings - pass string array directly)
 await tagManager.addTagsToImage(imageId, ['thumbnail', 'meditation'])
@@ -161,7 +161,7 @@ Preload collections in `setup()` for efficient skip/update decisions without per
 protected async setup(): Promise<void> {
   // Preload all collections that will be checked for existing docs
   await Promise.all([
-    this.preloadCollection('meditation-tags', 'slug'),  // naturalKey = 'slug'
+    this.preloadCollection('user-choices', 'slug'),  // naturalKey = 'slug'
     this.preloadCollection('frames', 'filename'),       // naturalKey = 'filename'
   ])
 }
@@ -170,7 +170,7 @@ protected async import(): Promise<void> {
   for (const item of items) {
     // Skip mode: if doc exists in cache, upsert() skips it entirely (no DB ops)
     // Update mode: if doc exists in cache, upsert() updates it using cached ID
-    await this.upsert('meditation-tags', { slug: { equals: item.slug } }, data)
+    await this.upsert('user-choices', { slug: { equals: item.slug } }, data)
   }
 }
 ```

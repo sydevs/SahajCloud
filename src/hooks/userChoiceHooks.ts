@@ -45,12 +45,12 @@ export const validateNesting: CollectionBeforeValidateHook = async ({
  */
 async function updateIsParent(payload: Payload, parentId: number | string): Promise<void> {
   const { totalDocs } = await payload.count({
-    collection: 'meditation-tags',
+    collection: 'user-choices',
     where: { parent: { equals: parentId } },
   })
 
   await payload.update({
-    collection: 'meditation-tags',
+    collection: 'user-choices',
     id: parentId,
     data: { isParent: totalDocs > 0 },
     context: { skipIsParentHook: true },

@@ -5,7 +5,7 @@ import type { UIFieldClientComponent } from 'payload'
 import { Pill, toast, useField } from '@payloadcms/ui'
 import React, { useCallback, useMemo, useState } from 'react'
 
-import { FRAME_CATEGORIES } from '@/lib/data'
+import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/collections/tags/SubtleSystemNodes'
 import type { Frame } from '@/payload-types'
 import type { KeyframeData } from '@/types/frames'
 
@@ -13,7 +13,11 @@ import styles from './FrameInserter.module.css'
 import { FrameThumbnail } from './FrameThumbnail'
 import { useAvailableFrames, useLivePreviewAuto, usePlaybackTime } from './hooks'
 import { baseStyles, inserterStyles } from './styles'
-import { formatTime, getCategoryLabel } from './utils'
+import {
+  formatTime,
+  getFrameSubtleSystemNodeSlug,
+  getSubtleSystemNodeLabel,
+} from './utils'
 
 // ============================================================================
 // FrameCard Subcomponent
@@ -32,16 +36,20 @@ const FrameCard: React.FC<FrameCardProps> = ({
   insertionTimestamp,
   onInsert,
 }) => {
+  const nodeSlug = getFrameSubtleSystemNodeSlug(frame)
+  const nodeLabel = getSubtleSystemNodeLabel(nodeSlug)
   return (
     <div
       className={`${styles['frame-card']}${isClicked ? ` ${styles['frame-card_clicked']}` : ''}`}
       onClick={() => onInsert(frame)}
-      title={`Insert ${getCategoryLabel(frame.category || '')} at ${formatTime(insertionTimestamp)}`}
+      title={`Insert ${nodeLabel || `Frame ${frame.id}`} at ${formatTime(insertionTimestamp)}`}
     >
       {/* Thumbnail with category pill overlay */}
       <div style={inserterStyles.thumbnailContainer}>
         <FrameThumbnail frame={frame} style={inserterStyles.frameThumbnail} />
-        <div style={inserterStyles.categoryPill}>{getCategoryLabel(frame.category || '')}</div>
+        {nodeLabel ? (
+          <div style={inserterStyles.categoryPill}>{nodeLabel}</div>
+        ) : null}
       </div>
 
       {/* Tags below thumbnail */}
@@ -89,10 +97,12 @@ export const FrameInserter: UIFieldClientComponent = () => {
 
   const currentFrames = useMemo(() => frames || [], [frames])
 
-  // Filter frames by selected category (client-side, after server-side gender filter)
+  // Filter frames by selected node slug (client-side, after server-side gender filter)
   const filteredFrames = useMemo(() => {
     if (!selectedCategory) return availableFrames
-    return availableFrames.filter((frame) => frame.category === selectedCategory)
+    return availableFrames.filter(
+      (frame) => getFrameSubtleSystemNodeSlug(frame) === selectedCategory,
+    )
   }, [availableFrames, selectedCategory])
 
   // Handle category filter toggle
@@ -166,15 +176,15 @@ export const FrameInserter: UIFieldClientComponent = () => {
         }}
       >
         <div style={inserterStyles.categoryFilters}>
-          {FRAME_CATEGORIES.map((category) => (
+          {SUBTLE_SYSTEM_NODE_OPTIONS.map(({ value, label }) => (
             <Pill
-              key={category}
+              key={value}
               size="small"
-              pillStyle={selectedCategory === category ? 'success' : 'warning'}
-              onClick={() => handleCategoryToggle(category)}
+              pillStyle={selectedCategory === value ? 'success' : 'warning'}
+              onClick={() => handleCategoryToggle(value)}
               elementProps={{ ref: () => {}, style: inserterStyles.filterPillElement }}
             >
-              {getCategoryLabel(category)}
+              {label}
             </Pill>
           ))}
         </div>
@@ -184,7 +194,7 @@ export const FrameInserter: UIFieldClientComponent = () => {
       {filteredFrames.length === 0 ? (
         <div style={baseStyles.emptyState}>
           {selectedCategory
-            ? `No frames in ${getCategoryLabel(selectedCategory)}.`
+            ? `No frames in ${getSubtleSystemNodeLabel(selectedCategory)}.`
             : 'No frames available.'}
         </div>
       ) : (

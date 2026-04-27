@@ -98,7 +98,8 @@ export interface Config {
     images: Image;
     files: File;
     audiences: Audience;
-    'meditation-tags': MeditationTag;
+    'user-choices': UserChoice;
+    'subtle-system-nodes': SubtleSystemNode;
     'song-tags': SongTag;
     managers: Manager;
     clients: Client;
@@ -126,8 +127,13 @@ export interface Config {
       lectureClips: 'lecture-clips';
       appCards: 'app-cards';
     };
-    'meditation-tags': {
-      children: 'meditation-tags';
+    'user-choices': {
+      children: 'user-choices';
+      lectures: 'lectures';
+    };
+    'subtle-system-nodes': {
+      lectures: 'lectures';
+      frames: 'frames';
     };
     'song-tags': {
       songs: 'songs';
@@ -148,7 +154,8 @@ export interface Config {
     images: ImagesSelect<false> | ImagesSelect<true>;
     files: FilesSelect<false> | FilesSelect<true>;
     audiences: AudiencesSelect<false> | AudiencesSelect<true>;
-    'meditation-tags': MeditationTagsSelect<false> | MeditationTagsSelect<true>;
+    'user-choices': UserChoicesSelect<false> | UserChoicesSelect<true>;
+    'subtle-system-nodes': SubtleSystemNodesSelect<false> | SubtleSystemNodesSelect<true>;
     'song-tags': SongTagsSelect<false> | SongTagsSelect<true>;
     managers: ManagersSelect<false> | ManagersSelect<true>;
     clients: ClientsSelect<false> | ClientsSelect<true>;
@@ -815,6 +822,14 @@ export interface Lecture {
    * Audiences that control visibility. The lecture is shown to a viewer if ANY of the selected audiences passes. If empty, it is hidden from /api/lectures/for-audience and only surfaced when directly referenced (e.g. from a meditation or path step).
    */
   audiences?: (number | Audience)[] | null;
+  /**
+   * User choices (mood/feeling tags) this lecture is relevant to. Used by the app to select contextually appropriate lectures.
+   */
+  userChoices?: (number | UserChoice)[] | null;
+  /**
+   * Chakras and nadis discussed in this lecture. Used for smart lecture selection based on meditation context.
+   */
+  subtleSystemNodes?: (number | SubtleSystemNode)[] | null;
   clips?: {
     docs?: (number | LectureClip)[];
     hasNextPage?: boolean;
@@ -1027,83 +1042,9 @@ export interface AppCard {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "frames".
+ * via the `definition` "user-choices".
  */
-export interface Frame {
-  id: number;
-  streamUrl?: string | null;
-  previewUrl?: string | null;
-  imageSet: 'male' | 'female';
-  category:
-    | 'mooladhara'
-    | 'swadhistan'
-    | 'nabhi'
-    | 'void'
-    | 'anahat'
-    | 'vishuddhi'
-    | 'agnya'
-    | 'sahasrara'
-    | 'clearing'
-    | 'kundalini'
-    | 'meditate'
-    | 'ready'
-    | 'namaste';
-  tags?:
-    | (
-        | 'anahat'
-        | 'back'
-        | 'bandhan'
-        | 'both hands'
-        | 'center'
-        | 'channel'
-        | 'earth'
-        | 'ego'
-        | 'feel'
-        | 'ham ksham'
-        | 'hamsa'
-        | 'hand'
-        | 'hands'
-        | 'ida'
-        | 'left'
-        | 'lefthanded'
-        | 'massage'
-        | 'pingala'
-        | 'raise'
-        | 'right'
-        | 'righthanded'
-        | 'rising'
-        | 'silent'
-        | 'superego'
-        | 'tapping'
-      )[]
-    | null;
-  duration?: number | null;
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditation-tags".
- */
-export interface MeditationTag {
+export interface UserChoice {
   id: number;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
@@ -1118,13 +1059,17 @@ export interface MeditationTag {
    */
   title?: string | null;
   /**
+   * Whether this choice describes how the user feels right now (mood) or what they want to work toward (goal). Time-of-day timings and per-timing meditation assignments only apply to mood choices.
+   */
+  type: 'mood' | 'goal';
+  /**
    * Tag color for UI theming (hex format)
    */
   color?: string | null;
   /**
    * Parent category for grouping. Parent categories are not selectable on meditations.
    */
-  parent?: (number | null) | MeditationTag;
+  parent?: (number | null) | UserChoice;
   /**
    * Featured categories are shown prominently; non-featured categories appear in a dropdown
    */
@@ -1158,10 +1103,120 @@ export interface MeditationTag {
    */
   isParent: boolean;
   children?: {
-    docs?: (number | MeditationTag)[];
+    docs?: (number | UserChoice)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  lectures?: {
+    docs?: (number | Lecture)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "subtle-system-nodes".
+ */
+export interface SubtleSystemNode {
+  id: number;
+  /**
+   * Identifier for this chakra or nadi. Closed enum of 12 values.
+   */
+  slug:
+    | 'mooladhara'
+    | 'swadhistan'
+    | 'nabhi'
+    | 'void'
+    | 'anahat'
+    | 'vishuddhi'
+    | 'agnya'
+    | 'sahasrara'
+    | 'kundalini'
+    | 'pingala'
+    | 'ida'
+    | 'sushumna';
+  /**
+   * Page describing this node. Used by app/web clients to render details.
+   */
+  page: number | Page;
+  lectures?: {
+    docs?: (number | Lecture)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  frames?: {
+    docs?: (number | Frame)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "frames".
+ */
+export interface Frame {
+  id: number;
+  streamUrl?: string | null;
+  previewUrl?: string | null;
+  imageSet: 'male' | 'female';
+  /**
+   * Which chakra or nadi this frame depicts.
+   */
+  subtleSystemNode?: (number | null) | SubtleSystemNode;
+  tags?:
+    | (
+        | 'anahat'
+        | 'back'
+        | 'bandhan'
+        | 'both hands'
+        | 'center'
+        | 'channel'
+        | 'clearing'
+        | 'earth'
+        | 'ego'
+        | 'feel'
+        | 'ham ksham'
+        | 'hamsa'
+        | 'hand'
+        | 'hands'
+        | 'left'
+        | 'lefthanded'
+        | 'massage'
+        | 'meditate'
+        | 'namaste'
+        | 'raise'
+        | 'ready'
+        | 'right'
+        | 'righthanded'
+        | 'rising'
+        | 'silent'
+        | 'superego'
+        | 'tapping'
+      )[]
+    | null;
+  duration?: number | null;
+  fileMetadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1680,8 +1735,12 @@ export interface PayloadLockedDocument {
         value: number | Audience;
       } | null)
     | ({
-        relationTo: 'meditation-tags';
-        value: number | MeditationTag;
+        relationTo: 'user-choices';
+        value: number | UserChoice;
+      } | null)
+    | ({
+        relationTo: 'subtle-system-nodes';
+        value: number | SubtleSystemNode;
       } | null)
     | ({
         relationTo: 'song-tags';
@@ -1919,6 +1978,8 @@ export interface LecturesSelect<T extends boolean = true> {
   thumbnail?: T;
   metadata?: T;
   audiences?: T;
+  userChoices?: T;
+  subtleSystemNodes?: T;
   clips?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1953,7 +2014,7 @@ export interface FramesSelect<T extends boolean = true> {
   streamUrl?: T;
   previewUrl?: T;
   imageSet?: T;
-  category?: T;
+  subtleSystemNode?: T;
   tags?: T;
   duration?: T;
   fileMetadata?: T;
@@ -2053,12 +2114,13 @@ export interface AudiencesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditation-tags_select".
+ * via the `definition` "user-choices_select".
  */
-export interface MeditationTagsSelect<T extends boolean = true> {
+export interface UserChoicesSelect<T extends boolean = true> {
   generateSlug?: T;
   slug?: T;
   title?: T;
+  type?: T;
   color?: T;
   parent?: T;
   isFeatured?: T;
@@ -2070,6 +2132,7 @@ export interface MeditationTagsSelect<T extends boolean = true> {
   nightMeditation?: T;
   isParent?: T;
   children?: T;
+  lectures?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -2081,6 +2144,18 @@ export interface MeditationTagsSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "subtle-system-nodes_select".
+ */
+export interface SubtleSystemNodesSelect<T extends boolean = true> {
+  slug?: T;
+  page?: T;
+  lectures?: T;
+  frames?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

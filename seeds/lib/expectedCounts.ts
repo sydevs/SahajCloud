@@ -32,7 +32,7 @@ export interface ExpectedCounts {
  */
 export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   tags: {
-    'meditation-tags': 27,
+    'user-choices': 27,
     'song-tags': 7,
   },
   wemeditate: {
@@ -117,7 +117,7 @@ const PAGINATION_THRESHOLD = 50
 const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   tags: [
     {
-      slug: 'meditation-tags',
+      slug: 'user-choices',
       totalItems: 27,
       requiresPagination: false,
       dependencies: [],
@@ -208,7 +208,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       slug: 'meditations',
       totalItems: 73,
       requiresPagination: true, // Large collection with uploads
-      dependencies: ['narrators', 'frames', 'meditation-tags', 'song-tags'],
+      dependencies: ['narrators', 'frames', 'user-choices', 'song-tags'],
       naturalKey: 'slug',
       hasFileUploads: true, // Audio files
     },

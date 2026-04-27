@@ -9,7 +9,7 @@
  * Serves as a frontend implementation reference.
  *
  * Prerequisites:
- *   pnpm seed tags        # Creates meditation-tags, song-tags
+ *   pnpm seed tags        # Creates user-choices, song-tags
  *   pnpm seed wemeditate  # Creates pages, authors, albums
  *
  * Usage:
@@ -146,7 +146,7 @@ interface SeedData {
   imageIds: number[]
   pageIds: number[]
   meditationIds: number[]
-  meditationTagIds: number[]
+  userChoiceIds: number[]
   songTagIds: number[]
   audienceIds: number[]
   appCardIds: number[]
@@ -158,7 +158,7 @@ interface SeedData {
 async function fetchSeedData(payload: Payload): Promise<SeedData> {
   console.log('\nFetching seed data...')
 
-  const [images, pages, meditations, meditationTags, songTags, audiences, appCards] =
+  const [images, pages, meditations, userChoices, songTags, audiences, appCards] =
     await Promise.all([
       payload.find({ collection: 'images', limit: 20, depth: 0 }),
       payload.find({
@@ -169,7 +169,7 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
         where: { slug: { not_equals: SLUG } },
       }),
       payload.find({ collection: 'meditations', limit: 10, depth: 0 }),
-      payload.find({ collection: 'meditation-tags', limit: 10, depth: 0 }),
+      payload.find({ collection: 'user-choices', limit: 10, depth: 0 }),
       payload.find({ collection: 'song-tags', limit: 10, depth: 0 }),
       payload.find({ collection: 'audiences', limit: 10, depth: 0 }),
       payload.find({ collection: 'app-cards', limit: 10, depth: 0 }).catch(() => ({ docs: [] })),
@@ -179,7 +179,7 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
     imageIds: images.docs.map((d) => d.id as number),
     pageIds: pages.docs.map((d) => d.id as number),
     meditationIds: meditations.docs.map((d) => d.id as number),
-    meditationTagIds: meditationTags.docs.map((d) => d.id as number),
+    userChoiceIds: userChoices.docs.map((d) => d.id as number),
     songTagIds: songTags.docs.map((d) => d.id as number),
     audienceIds: audiences.docs.map((d) => d.id as number),
     appCardIds: appCards.docs.map((d) => d.id as number),
@@ -190,7 +190,7 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
   console.log(`  Images: ${data.imageIds.length} found (IDs: ${data.imageIds.slice(0, 5).join(', ')}${data.imageIds.length > 5 ? '...' : ''})`)
   console.log(`  Pages: ${data.pageIds.length} found (IDs: ${data.pageIds.slice(0, 5).join(', ')}${data.pageIds.length > 5 ? '...' : ''})`)
   console.log(`  Meditations: ${data.meditationIds.length} found`)
-  console.log(`  Meditation Tags: ${data.meditationTagIds.length} found (IDs: ${data.meditationTagIds.join(', ')})`)
+  console.log(`  Meditation Tags: ${data.userChoiceIds.length} found (IDs: ${data.userChoiceIds.join(', ')})`)
   console.log(`  Song Tags: ${data.songTagIds.length} found (IDs: ${data.songTagIds.join(', ')})`)
   console.log(`  Audiences: ${data.audienceIds.length} found`)
   console.log(
@@ -216,7 +216,7 @@ function validateSeedData(data: SeedData): void {
       `Need at least 12 pages for SubtleSystem block (found ${data.pageIds.length}). Run: pnpm seed wemeditate`,
     )
   }
-  if (data.meditationTagIds.length === 0) {
+  if (data.userChoiceIds.length === 0) {
     errors.push('Need at least 1 meditation-tag for ContentIndex block. Run: pnpm seed tags')
   }
 
@@ -480,7 +480,7 @@ function buildContentIndexBlocks(data: SeedData): unknown[] {
     blockNode('content-index', {
       type: 'meditations',
       limit: 10,
-      meditationFilters: data.meditationTagIds.slice(0, 3),
+      meditationFilters: data.userChoiceIds.slice(0, 3),
     }),
   )
 
