@@ -147,7 +147,7 @@ export const UserChoices: CollectionConfig = {
         condition: (data) => !data.isParent,
         position: 'sidebar',
         description:
-          'Parent category for grouping. Parent categories are not selectable on meditations.',
+          'Parent category for grouping. Parent categories are not selectable on meditations. Editable by admin managers only.',
       },
       // Only root-level tags (no parent) can be selected as parents.
       // Conditionally excludes self to avoid { not_equals: undefined } on create.

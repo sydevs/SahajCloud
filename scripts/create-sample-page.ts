@@ -190,7 +190,7 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
   console.log(`  Images: ${data.imageIds.length} found (IDs: ${data.imageIds.slice(0, 5).join(', ')}${data.imageIds.length > 5 ? '...' : ''})`)
   console.log(`  Pages: ${data.pageIds.length} found (IDs: ${data.pageIds.slice(0, 5).join(', ')}${data.pageIds.length > 5 ? '...' : ''})`)
   console.log(`  Meditations: ${data.meditationIds.length} found`)
-  console.log(`  Meditation Tags: ${data.userChoiceIds.length} found (IDs: ${data.userChoiceIds.join(', ')})`)
+  console.log(`  User Choices: ${data.userChoiceIds.length} found (IDs: ${data.userChoiceIds.join(', ')})`)
   console.log(`  Song Tags: ${data.songTagIds.length} found (IDs: ${data.songTagIds.join(', ')})`)
   console.log(`  Audiences: ${data.audienceIds.length} found`)
   console.log(
@@ -217,7 +217,7 @@ function validateSeedData(data: SeedData): void {
     )
   }
   if (data.userChoiceIds.length === 0) {
-    errors.push('Need at least 1 meditation-tag for ContentIndex block. Run: pnpm seed tags')
+    errors.push('Need at least 1 user-choice for ContentIndex block. Run: pnpm seed tags')
   }
 
   // Showcase needs at least 3 items from any combination
@@ -690,7 +690,7 @@ function buildLexicalContent(data: SeedData) {
   )
   children.push(
     listNode('ol', [
-      'Meditations — filtered by meditation tags',
+      'Meditations — filtered by user choices',
       'Pages — filtered by page tags (wisdom, lifestyle, creativity, event, technique)',
       'Songs — filtered by song/music tags',
       'Lectures — filtered by lecture tags',

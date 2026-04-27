@@ -49,13 +49,19 @@ export const Frames: CollectionConfig = {
       options: GENDER_OPTIONS,
       required: true,
     },
+    // Optional: a null `subtleSystemNode` is the "Other" bucket for frames
+    // that don't depict a specific chakra/nadi (e.g. bandhan, namaste). The
+    // legacy `category` enum was required, but its value space mixed chakras
+    // with non-chakra ritual gestures; splitting non-chakra values into `tags`
+    // means the relationship genuinely doesn't apply to every frame.
     {
       name: 'subtleSystemNode',
       type: 'relationship',
       relationTo: 'subtle-system-nodes',
       hasMany: false,
       admin: {
-        description: 'Which chakra or nadi this frame depicts.',
+        description:
+          'Which chakra or nadi this frame depicts. Leave blank for "Other" frames (e.g. bandhan, namaste) — use the tags field for those instead.',
       },
     },
     {

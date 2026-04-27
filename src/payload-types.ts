@@ -1067,7 +1067,7 @@ export interface UserChoice {
    */
   color?: string | null;
   /**
-   * Parent category for grouping. Parent categories are not selectable on meditations.
+   * Parent category for grouping. Parent categories are not selectable on meditations. Editable by admin managers only.
    */
   parent?: (number | null) | UserChoice;
   /**
@@ -1173,7 +1173,7 @@ export interface Frame {
   previewUrl?: string | null;
   imageSet: 'male' | 'female';
   /**
-   * Which chakra or nadi this frame depicts.
+   * Which chakra or nadi this frame depicts. Leave blank for "Other" frames (e.g. bandhan, namaste) — use the tags field for those instead.
    */
   subtleSystemNode?: (number | null) | SubtleSystemNode;
   tags?:
