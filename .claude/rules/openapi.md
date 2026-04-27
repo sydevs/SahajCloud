@@ -2,8 +2,6 @@
 paths:
   - src/lib/openapi/**/*.ts
   - src/app/(payload)/api/openapi.json/**/*.ts
-  - src/app/(payload)/api/openapi-raw.json/**/*.ts
-  - src/app/(payload)/api/docs/**/*.ts
 ---
 
 # OpenAPI / Scalar API Docs

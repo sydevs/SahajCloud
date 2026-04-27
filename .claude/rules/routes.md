@@ -1,5 +1,5 @@
 ---
-paths: src/app/(payload)/api/**/route.ts
+paths: src/app/**/route.ts
 ---
 
 # Next.js App Router Route Rules
@@ -81,7 +81,7 @@ does not guarantee byte-identical output.
 ## When to use a route handler vs a Payload endpoint
 
 See `.claude/rules/endpoints.md` ("When to use a Payload endpoint vs a
-Next.js route") and `@.claude/docs/architecture.md` → "Custom Endpoints"
+Next.js route") and `.claude/docs/architecture.md` → "Custom Endpoints"
 for the full decision matrix. Short version:
 
 - **`src/endpoints/*.ts` (Payload endpoint)**: operations tied to a specific

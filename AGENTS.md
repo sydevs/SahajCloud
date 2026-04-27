@@ -25,7 +25,7 @@ This file provides guidance to AI coding agents when working with this repositor
 | `access.md` | `src/lib/access/**/*.ts`, `src/collections/access/**/*.ts` |
 | `api-clients.md` | `src/lib/usage/**/*.ts`, `src/collections/access/Clients.ts` |
 | `storage.md` | `src/lib/storage/**/*.ts`, `src/app/(payload)/api/webhooks/**/*.ts` |
-| `openapi.md` | `src/lib/openapi/**/*.ts`, `src/app/(payload)/api/openapi*/**/*.ts` |
+| `openapi.md` | `src/lib/openapi/**/*.ts`, `src/app/(payload)/api/openapi.json/**/*.ts` |
 | `blocks.md` | `src/blocks/**/*.ts` |
 | `globals.md` | `src/globals/**/*.ts` |
 | `email.md` | `src/lib/email/**/*.ts` |
