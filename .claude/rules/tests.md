@@ -2,65 +2,64 @@
 paths: tests/**/*.spec.ts
 ---
 
-# Testing Rules
+# Testing
 
-Rules for writing tests in this codebase.
+Rules for writing and running tests in this codebase.
 
-## What to Test vs What NOT to Test
+## What to test (and what NOT to test)
 
-### DO Test (Our Custom Code)
-- Custom hooks (`src/hooks/`)
-- Custom utilities (`src/lib/`)
-- Access control functions (`hasPermission()`, `roleBasedAccess()`)
-- Custom field logic (virtual fields, computed values)
-- Business-critical workflows
-- Collection relationships
+### DO test
 
-### DO NOT Test (Payload CMS Core)
+- Custom hooks (`src/hooks/`) — `validateClientData`, `checkHighUsageAlert`, etc.
+- Storage utilities (`src/lib/storage/`) — URL field factories, R2 filename sanitization
+- Access control (`hasPermission`, `roleBasedAccess`, `customResourceAccess`)
+- Custom field logic — virtual fields, computed values, custom validators
+- Document-level permissions
+- Business-critical workflows — usage tracking, API auth
+- Custom collection relationships and joins
+- Locale-specific custom logic — e.g., the Meditations locale filter
+
+### DO NOT test (PayloadCMS internals)
+
 - Basic CRUD operations
-- Field validation (required fields, types)
+- Field validation (required, type checks)
 - Slug generation
-- Localization behavior
-- Email/Auth flows
+- Localization fallback behavior
+- Email / auth flows
 - File upload mechanics
-- minRows/maxRows validation
+- `minRows` / `maxRows` array validation
 
-## Verifying "coverage gap" claims before writing tests
+## Test lanes (Vitest projects)
 
-When an issue or PR description asserts that some behavior is under-tested, **verify the claim before writing the test**. Grep the existing suite for the behavior under test — a surprising share of claimed gaps turn out to be already covered, and writing redundant tests is the #1 form of scope creep on test-audit work.
-
-Practical approach:
-
-```bash
-# 1. Find files that already touch the claimed area
-rg -l "RRuleTemporal|DST|timezone" tests/
-rg -l "filterMeditationsByLocale|locale.*filter" tests/
-
-# 2. List their existing cases
-grep -E "^\s*(it|describe)\(" tests/int/schedule-hooks.int.spec.ts
-```
-
-If the cases are already covered, **document that finding in the PR description** and move on. Add a test only when you can point to a specific behavior the existing suite does not assert. Examples from #281: claimed schedule-DST gaps were already covered by `schedule-hooks.spec.ts`; real gap was OpenAPI DELETE/PATCH filtering across every content collection (not just `/api/pages`).
-
-## Pure Functions vs Payload-backed Tests
-
-**Rule of thumb**: if the code under test doesn't touch Payload (no `req.payload`, no collection queries, no access control), place the test in **`tests/unit/`** as `.spec.ts` — not `tests/int/` as `.int.spec.ts`. The unit project has no `globalSetup`/`setupFiles`, so the whole lane runs in ~1–2 seconds even across ~200 cases. The int project pays ~8s of Payload bootstrap per file.
+| Lane | Files | Speed | When |
+|---|---|---|---|
+| **Unit** | `tests/unit/**/*.spec.ts` | ~1–2 s for ~200 cases | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`. |
+| **Integration** | `tests/int/**/*.int.spec.ts` | ~8 s bootstrap per file | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. |
+| **E2E** | `tests/e2e/**/*.e2e.spec.ts` | Playwright | Full UI flows, file-based SQLite. |
 
 ### When to put a test in `tests/unit/`
-- Utilities in `src/lib/` with no Payload dependency (e.g., `cloudflareStreamWebhook.ts`, `mimeUtils.ts`, `weightedSample.ts`)
-- Signature verification, parsing, validation logic
-- Pure helpers extracted from route handlers (the thin-wrapper pattern — see `.claude/rules/routes.md`)
-- Factory-style field builders whose tests only assert config shape
-- Migration transform functions (pure data-in, data-out)
+
+- Has no `createTestEnvironment()` call.
+- Doesn't touch `payload.*` or collection operations.
+- Is a utility, helper, factory, or schema validator.
+
+Examples already in the codebase: rule evaluation, color utilities,
+weighted sampling, locale builder, duration extraction, schedule
+RRULE/DST computations, Lexical block migration helpers,
+filterAvailableLocales, buildRateLimitKey, seed pagination helpers,
+unify-index-blocks migration transforms.
 
 ### When to put a test in `tests/int/`
-- The test calls `createTestEnvironment()`
-- The code under test takes a `Payload` instance as a parameter
-- You need hooks, access control, or actual collection state
 
-### Pattern
+- The test calls `createTestEnvironment()`.
+- The code under test takes a `Payload` instance as a parameter.
+- You need hooks, access control, or actual collection state.
 
-Use `vi.resetModules()` + dynamic `await import(...)` in `beforeEach` to swap env vars between cases. Inject dependencies (e.g., `fetchFn`, `logger`) as function arguments rather than stubbing globals, so tests don't leak state.
+### Pattern for env-var swapping (unit lane)
+
+Use `vi.resetModules()` + dynamic `await import(...)` to swap env vars
+between cases. Inject dependencies (`fetchFn`, `logger`) as function
+arguments instead of stubbing globals — keeps tests state-clean.
 
 ```typescript
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -80,13 +79,36 @@ afterEach(() => {
 })
 ```
 
-Examples in the codebase: `tests/int/storage-utils.int.spec.ts`, `tests/int/cloudflare-stream-webhook.int.spec.ts`.
+Examples: `tests/int/storage-utils.int.spec.ts`,
+`tests/int/cloudflare-stream-webhook.int.spec.ts`.
 
-## Writing Payload-backed Tests
+## Verifying "coverage gap" claims
 
-Use `createTestEnvironment()` for tests that need a real Payload instance (collection operations, hooks, access control integration, relationships).
+When an issue or PR description claims behavior is under-tested,
+**verify the claim before writing the test**. Grep the existing suite —
+a surprising share of "gaps" are already covered, and writing redundant
+tests is the #1 form of scope creep on test-audit work.
 
-**IMPORTANT**: Only call `createTestEnvironment()` once per test file. Multiple calls cause Payload global state conflicts. Use nested `describe` blocks to organize tests within a single environment.
+```bash
+rg -l "RRuleTemporal|DST|timezone" tests/
+rg -l "filterMeditationsByLocale|locale.*filter" tests/
+grep -E "^\s*(it|describe)\(" tests/int/schedule-hooks.int.spec.ts
+```
+
+If existing cases cover the claim, **document that finding in the PR
+description** and move on. Add a test only when you can point to a
+specific behavior the existing suite does not assert.
+
+Real example from #281: claimed schedule-DST gaps were already covered
+by `schedule-hooks.spec.ts`; the actual gap was OpenAPI DELETE/PATCH
+filtering across every content collection.
+
+## Writing Payload-backed tests
+
+Use `createTestEnvironment()` from `tests/utils/testHelpers.ts`. **Only
+call it once per file** — multiple calls cause Payload global-state
+conflicts (`TypeError: Cannot read properties of undefined`). Use nested
+`describe` blocks to organize cases inside a single environment.
 
 ```typescript
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
@@ -108,66 +130,140 @@ describe('My Collection', () => {
   })
 
   it('performs operations with complete isolation', async () => {
-    // Test operations here
+    // Test operations
   })
 
   describe('nested feature tests', () => {
-    // Share the same payload instance - do NOT create a new environment
-    it('tests a specific feature', async () => {
-      // Uses the same payload from outer describe
-    })
+    // Share the same payload instance
   })
 })
 ```
 
-## Upload Collection Filename Assertions
+## Integration test isolation
 
-Payload adds numeric suffixes to prevent collisions. Use regex patterns:
+Each integration test file gets its own in-memory SQLite database (via
+`better-sqlite3`). Automatic creation/destruction per test suite. No
+external dependencies. No data conflicts between suites. Tests run
+sequentially (`maxConcurrency: 1`) to prevent resource conflicts.
 
-```typescript
-// DON'T: Exact match
-expect(song.filename).toBe('audio-42s.mp3')
-
-// DO: Regex pattern allowing optional suffix
-expect(song.filename).toMatch(/^audio-42s(-\d+)?\.mp3$/)
-```
-
-## Test File Organization
+## Test file organization
 
 | File | Purpose |
-|------|---------|
-| `collections-smoke.int.spec.ts` | **One reachability canary per content-bearing collection.** Before creating a dedicated `[collection].int.spec.ts`, check whether the smoke file already covers your case — only add a new file if you're testing collection-specific custom behavior. |
+|---|---|
+| `collections-smoke.int.spec.ts` | **One reachability canary per content-bearing collection** (create + read + relationship populate). Before creating a dedicated `[collection].int.spec.ts`, check if the smoke file already covers your case. Only add a new file for collection-specific custom behavior. |
 | `client-hooks.int.spec.ts` | Client beforeChange/afterChange hooks |
-| `field-utils.int.spec.ts` | processFile utility |
+| `meditation-duration.int.spec.ts` | Audio duration extraction + `durationMinutes` virtual field |
+| `field-utils.int.spec.ts` | `processFile` utility |
 | `storage-utils.int.spec.ts` | URL field factories, R2 adapter |
-| `role-based-access.int.spec.ts` | hasPermission(), customResourceAccess |
-| `[collection].int.spec.ts` | **Collection-specific custom behavior only** — do not duplicate smoke coverage |
+| `role-based-access.int.spec.ts` | `hasPermission`, `customResourceAccess`, locale permissions |
+| `usage-tracking.int.spec.ts` | API usage tracking job handlers |
+| `[collection].int.spec.ts` | **Collection-specific custom behavior only** — don't duplicate smoke coverage |
 
-## PayloadCMS Field Behavior Gotchas
+## Common testing patterns
 
-| Scenario | Wrong Assumption | Correct Behavior |
-|----------|-----------------|------------------|
+### Upload collection filename assertions
+
+Payload appends numeric suffixes to prevent collisions. Match with regex,
+not exact strings:
+
+```typescript
+// ❌ Exact match — fails when collision suffix is added
+expect(song.filename).toBe('audio-42s.mp3')
+
+// ✅ Regex pattern allowing optional suffix
+expect(song.filename).toMatch(/^audio-42s(-\d+)?\.mp3$/)
+
+// For filenames with dots in the name
+const escapedName = format.name.replace('.', '(-\\d+)?\\.')
+expect(song.filename).toMatch(new RegExp(`^${escapedName}$`))
+```
+
+### Mock user objects for visibility tests
+
+The bypass function checks `user.collection === 'managers'` before
+`user.type === 'admin'`. Mock users **must** include `collection`:
+
+```typescript
+// ✅ bypass recognizes admin
+const mockAdmin = { collection: 'managers', type: 'admin', currentProject: 'wemeditate-web' }
+expect(hiddenFn({ user: mockAdmin as any })).toBe(false)
+
+// ❌ bypass won't grant admin access — missing collection
+const mockAdmin = { type: 'admin', currentProject: 'wemeditate-web' }
+```
+
+### PayloadCMS field sanitization
+
+PayloadCMS sanitizes field configs during initialization — `localized: true`
+is removed when the parent is already localized (or when localization is
+disabled). This affects how you test:
+
+```typescript
+// ❌ Direct check on sanitized config — property has been removed
+const field = payload.globals.config.find(g => g.slug === 'my-global')?.fields[0]
+expect(field.localized).toBe(true)  // FAILS
+
+// ✅ Functional test — proves localization works
+await payload.updateGlobal({ slug: 'my-global', locale: 'en', data: { field: 'English value' } })
+await payload.updateGlobal({ slug: 'my-global', locale: 'cs', data: { field: 'Czech value' } })
+const en = await payload.findGlobal({ slug: 'my-global', locale: 'en', fallbackLocale: false })
+expect(en.field).toBe('English value')
+```
+
+Unit tests on raw config output (e.g. `buildTranslationTabs()`) can check
+`localized: true` because they run **before** sanitization. Integration
+tests accessing `payload.globals.config` cannot.
+
+The test environment in `testHelpers.ts` must have `localization`
+configured for localized-field tests to work properly.
+
+## PayloadCMS field-behavior gotchas
+
+| Scenario | Wrong assumption | Correct behavior |
+|---|---|---|
 | `hasMany` select, no values | `null` / `undefined` | `[]` (empty array) |
 | Join field at `depth: 0` | `{ id: number }[]` | `number[]` (raw IDs) |
 | `payload.create()` + relationship | Returns raw ID | Returns populated object |
 | `filterOptions` fallback | Return `{}` | Return `true` |
 | Mixed-collection response assertions | `.docs.map(d => d.id)` uniquely identifies a row | Each collection has its own auto-increment, so `lectures.id=3` and `lecture-clips.id=3` both exist. Filter by discriminator first (`d.type === 'lecture'`) or match on `title`/slug. Asserting raw numeric id against a mixed pool silently false-positives. |
 
-## Meditations Locale Filtering in Tests
+```typescript
+// hasMany select with no values
+expect(tag.timings).toEqual([])  // not toBeFalsy() / toBeNull()
 
-The Meditations collection has a `filterMeditationsByLocale` beforeOperation hook that reads `req.locale` and adds a `{ locale: { equals: req.locale } }` where clause. In local API calls, `req.locale` defaults to `'en'`.
+// Join at depth: 0
+const childIds = children.docs.map((c) =>
+  typeof c === 'number' ? c : c.id
+)
 
-When testing non-English meditation queries, you **must** pass `locale` to `payload.find()` — otherwise the hook's implicit `locale: 'en'` filter conflicts with your explicit where clause:
+// payload.create() auto-populates
+const child = await payload.create({ collection: 'tags', data: { parent: parentTag.id } })
+const parentId = typeof child.parent === 'object' && child.parent !== null
+  ? child.parent.id
+  : child.parent
+expect(parentId).toBe(parentTag.id)
+```
+
+## Meditations locale filtering in tests
+
+The Meditations collection has a `filterMeditationsByLocale`
+beforeOperation hook that reads `req.locale` and adds
+`{ locale: { equals: req.locale } }` to `find`/`count`. In local API
+calls `req.locale` defaults to `'en'`.
+
+When testing non-English meditation queries you **must** pass `locale`
+to `payload.find()` — otherwise the hook's implicit `locale: 'en'`
+filter conflicts with your explicit where clause:
 
 ```typescript
-// ❌ WRONG: req.locale defaults to 'en', hook adds locale='en', conflicts with where locale='cs'
+// ❌ req.locale defaults to 'en', conflicts with where locale='cs'
 const result = await payload.find({
   collection: 'meditations',
   where: { locale: { equals: 'cs' } },
 })
-// Returns empty — no doc has locale='en' AND locale='cs'
+// Returns empty — no doc matches locale='en' AND locale='cs'
 
-// ✅ CORRECT: pass locale so req.locale='cs' matches the where clause
+// ✅ pass locale so req.locale='cs'
 const result = await payload.find({
   collection: 'meditations',
   locale: 'cs',
@@ -175,14 +271,48 @@ const result = await payload.find({
 })
 ```
 
-Full details: @.claude/docs/testing.md
+## E2E test database isolation
 
-## E2E Test Commands
+E2E tests use a separate file-based SQLite DB at `tests/.e2e.sqlite`,
+isolated from the dev D1 database. Run on port 4567 (separate from dev
+server).
+
+| File | Purpose |
+|---|---|
+| `tests/setup/playwright.global-setup.ts` | Seeds test data before E2E tests |
+| `tests/setup/playwright.global-teardown.ts` | Optional cleanup |
+| `tests/config/e2e-payload.config.ts` | E2E-specific Payload config |
+| `tests/files/` | Sample audio/image files for seeding |
+
+### Seeded test data
+
+- Default Manager: `contact@sydevelopers.com` / `evk1VTH5dxz_nhg-mzk` (admin, `_verified: true`)
+- Test Narrator (male)
+- Test Image (sample thumbnail)
+- Test Meditation (with audio file)
+- Test Frames
+
+### Env vars
+
+| Var | Purpose |
+|---|---|
+| `E2E_TEST=true` | Enables E2E mode (file-based SQLite, not D1) |
+| `CLEAN_E2E_DB=true` | Removes the E2E database after teardown |
+| `PAYLOAD_SECRET` | `e2e-test-secret-key` for E2E |
+
+The DB is reset at the start of every run to prevent `drizzle-kit push`
+from prompting on stale schemas (which would hang Playwright's
+subprocess). Manager must have `_verified: true` for login (bypasses
+email verification).
+
+### E2E commands
 
 ```bash
-pnpm test:e2e                    # Run all E2E tests
-pnpm exec playwright test --ui   # Run with UI mode
-CLEAN_E2E_DB=true pnpm test:e2e  # Clean database first
+pnpm test:e2e                              # all E2E tests
+pnpm exec playwright test tests/e2e/clients.e2e.spec.ts
+pnpm exec playwright test --ui             # debug UI
+CLEAN_E2E_DB=true pnpm test:e2e            # clean teardown
 ```
 
-Full testing reference: @.claude/docs/testing.md
+The `tests/e2e/` directory is currently empty; `pnpm test:e2e` no-ops
+until a spec is added.
