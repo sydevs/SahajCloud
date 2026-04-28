@@ -40,6 +40,7 @@ Two places to add HTTP endpoints, chosen by scope:
 | `framesByNarrator` | `/api/frames/by-narrator/:narratorId` | frames filtered by narrator gender |
 | `lecturesForAudience` | `/api/lectures/for-audience` | lectures filtered by runtime audience eligibility |
 | `appCardsForAudience` | `/api/app-cards/for-audience` | app cards filtered by runtime audience eligibility |
+| `meditationLectures` | `/api/meditations/:id/lectures` | clips ranked by topical overlap between the meditation's frames and each lecture's `subtleSystemNodes`; optional `userChoice` gate restricts candidates to clips whose parent lecture has that user-choice |
 
 | Next.js app-router routes | Path | Purpose |
 |---|---|---|
@@ -63,7 +64,7 @@ shim, and the known-limitations list are in `.claude/rules/openapi.md`
 
 ### Content
 - **Pages** — Lexical rich text with embedded blocks; drafts (60 s autosave), version history, scheduled publishing, per-locale publishing.
-- **Meditations** — guided audio with `type` select (quick / daily / lesson), `timings` multi-select, `duration` (auto-extracted via `music-metadata`), frame relationships with timestamps, locale-specific filtering, drafts.
+- **Meditations** — guided audio with `type` select (quick / daily / lesson), `timings` multi-select, `duration` (auto-extracted via `music-metadata`), frame relationships with timestamps, locale-specific filtering, drafts. A denormalized `subtleSystemNodeWeights` JSON field (`{ slug → on-screen seconds }`) caches per-meditation topical fingerprints; recomputed by an `afterChange` hook when `frames`/`duration` change, and cascaded by Frames' `afterChange` when a frame's `subtleSystemNode` is repointed. Drives the topical-overlap ranking in `/api/meditations/:id/lectures`.
 - **Albums** — music album groupings with `artwork` relationship to Images and a join field for related songs.
 - **Songs** — background music tracks with audio upload, required album relationship, hidden from sidebar (managed via Albums).
 - **Lessons** ("Path Steps") — audio + panels array, unit selection (1–4), step number, optional meditation relationship, localized rich text article.
