@@ -1,4 +1,5 @@
-import { FRAME_CATEGORY_OPTIONS } from '@/lib/data'
+import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/collections/tags/SubtleSystemNodes'
+import type { Frame, SubtleSystemNode } from '@/payload-types'
 
 /**
  * Format seconds to MM:SS display format
@@ -55,11 +56,26 @@ export const validateTimestamp = (
 }
 
 /**
- * Get the category label for a category value
+ * Resolve a frame's subtle-system node slug.
+ * Handles both populated objects and bare ids/null.
  */
-export const getCategoryLabel = (value: string): string => {
-  const option = FRAME_CATEGORY_OPTIONS.find((opt) => opt.value === value)
-  return option?.label || value
+export const getFrameSubtleSystemNodeSlug = (
+  frame: Pick<Frame, 'subtleSystemNode'> | null | undefined,
+): string | null => {
+  const value = frame?.subtleSystemNode
+  if (!value) return null
+  if (typeof value === 'object') return (value as SubtleSystemNode).slug ?? null
+  return null
+}
+
+/**
+ * Get the display label for a subtle-system node slug.
+ * Falls back to the raw value when no label is registered.
+ */
+export const getSubtleSystemNodeLabel = (slug: string | null | undefined): string => {
+  if (!slug) return ''
+  const option = SUBTLE_SYSTEM_NODE_OPTIONS.find((opt) => opt.value === slug)
+  return option?.label || slug
 }
 
 /**

@@ -204,7 +204,7 @@ English + Czech — not German/French/etc.
 ### Field-level localization
 
 Mark fields `localized: true`. Currently localized fields include:
-- `MeditationTags` / `SongTags`: `title`
+- `UserChoices` / `SongTags`: `title`
 - `Media`: `alt`, `credit`
 - `Songs`: `title`, `credit`
 - (Many other content-collection fields — see individual collection files.)
@@ -222,7 +222,7 @@ a single-locale document:
 - `locale=all` bypasses filtering.
 
 ```bash
-GET /api/meditation-tags?locale=en
+GET /api/user-choices?locale=en
 GET /api/meditations?locale=cs    # Czech meditations only
 GET /api/songs?locale=cs
 ```
@@ -320,7 +320,7 @@ to upload collections (Media, Frames, Files, tag collections):
 ```typescript
 // ✅
 await payload.create({
-  collection: 'meditation-tags',
+  collection: 'user-choices',
   data: { title: 'My Tag', slug: 'my-tag' },
   file: {
     data: Buffer.from(svgContent, 'utf-8'),

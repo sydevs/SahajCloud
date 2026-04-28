@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { framesByNarrator } from '@/endpoints'
-import { FRAME_CATEGORY_OPTIONS, GENDER_OPTIONS } from '@/lib/data'
+import { GENDER_OPTIONS } from '@/lib/data'
 import { mixedMediaUrlField, previewUrlField, streamUrlField } from '@/lib/storage/urlFields'
 
 export const Frames: CollectionConfig = {
@@ -34,7 +34,7 @@ export const Frames: CollectionConfig = {
   admin: {
     group: 'Media',
     useAsTitle: 'filename',
-    defaultColumns: ['category', 'tags', 'previewUrl', 'imageSet'],
+    defaultColumns: ['subtleSystemNode', 'tags', 'previewUrl', 'imageSet'],
     groupBy: true,
   },
   fields: [
@@ -49,11 +49,20 @@ export const Frames: CollectionConfig = {
       options: GENDER_OPTIONS,
       required: true,
     },
+    // Optional: a null `subtleSystemNode` is the "Other" bucket for frames
+    // that don't depict a specific chakra/nadi (e.g. bandhan, namaste). The
+    // legacy `category` enum was required, but its value space mixed chakras
+    // with non-chakra ritual gestures; splitting non-chakra values into `tags`
+    // means the relationship genuinely doesn't apply to every frame.
     {
-      name: 'category',
-      type: 'select',
-      options: [...FRAME_CATEGORY_OPTIONS],
-      required: true,
+      name: 'subtleSystemNode',
+      type: 'relationship',
+      relationTo: 'subtle-system-nodes',
+      hasMany: false,
+      admin: {
+        description:
+          'Which chakra or nadi this frame depicts. Leave blank for "Other" frames (e.g. bandhan, namaste) — use the tags field for those instead.',
+      },
     },
     {
       name: 'tags',
@@ -66,6 +75,7 @@ export const Frames: CollectionConfig = {
         { label: 'Both Hands', value: 'both hands' },
         { label: 'Center', value: 'center' },
         { label: 'Channel', value: 'channel' },
+        { label: 'Clearing', value: 'clearing' },
         { label: 'Earth', value: 'earth' },
         { label: 'Ego', value: 'ego' },
         { label: 'Feel', value: 'feel' },
@@ -73,12 +83,13 @@ export const Frames: CollectionConfig = {
         { label: 'Hamsa', value: 'hamsa' },
         { label: 'Hand', value: 'hand' },
         { label: 'Hands', value: 'hands' },
-        { label: 'Ida', value: 'ida' },
         { label: 'Left', value: 'left' },
         { label: 'Left Handed', value: 'lefthanded' },
         { label: 'Massage', value: 'massage' },
-        { label: 'Pingala', value: 'pingala' },
+        { label: 'Meditate', value: 'meditate' },
+        { label: 'Namaste', value: 'namaste' },
         { label: 'Raise', value: 'raise' },
+        { label: 'Ready', value: 'ready' },
         { label: 'Right', value: 'right' },
         { label: 'Right Handed', value: 'righthanded' },
         { label: 'Rising', value: 'rising' },

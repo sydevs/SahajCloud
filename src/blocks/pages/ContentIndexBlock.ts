@@ -14,8 +14,8 @@ const CONTENT_TYPE_CONFIG: Record<
   { basePath: string; filterField?: string; queryParam?: string; extraParams?: string }
 > = {
   meditations: {
-    basePath: '/api/meditation-tags',
-    filterField: 'meditationFilters',
+    basePath: '/api/user-choices',
+    filterField: 'userChoiceFilters',
     queryParam: 'where[id][in]',
     extraParams: '&depth=1',
   },
@@ -143,16 +143,16 @@ export const ContentIndexBlock: Block = {
       },
     },
     {
-      name: 'meditationFilters',
+      name: 'userChoiceFilters',
       type: 'relationship',
-      relationTo: 'meditation-tags',
+      relationTo: 'user-choices',
       hasMany: true,
       minRows: 1,
       maxDepth: 0,
       hooks: clearWhenTypeNot('meditations'),
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'meditations',
-        description: 'Select meditation tags to use as filters for this index grid',
+        description: 'Select user choices to use as filters for this index grid',
       },
     },
     {

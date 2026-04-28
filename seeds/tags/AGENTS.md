@@ -1,6 +1,6 @@
 # Tags Import
 
-Imports MeditationTags (24 items) and MusicTags (4 items) from Cloudinary-hosted SVG assets.
+Imports UserChoices (24 items) and MusicTags (4 items) from Cloudinary-hosted SVG assets.
 
 ## No Prerequisites
 

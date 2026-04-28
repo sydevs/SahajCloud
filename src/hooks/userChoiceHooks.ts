@@ -2,7 +2,7 @@ import type {
   CollectionAfterChangeHook,
   CollectionAfterDeleteHook,
   CollectionBeforeValidateHook,
-  Payload,
+  PayloadRequest,
 } from 'payload'
 
 import { ValidationError } from 'payload'
@@ -41,19 +41,25 @@ export const validateNesting: CollectionBeforeValidateHook = async ({
 
 /**
  * Update the `isParent` flag on a tag based on whether it has children.
- * Uses `payload.count()` for efficiency and sets `isParent` accordingly.
+ *
+ * The `req` is threaded through so both the `count` and `update` join the
+ * caller's Payload transaction. Without it, two concurrent reparenting events
+ * on the same parent could interleave their count→update steps and leave
+ * `isParent` flipped against reality.
  */
-async function updateIsParent(payload: Payload, parentId: number | string): Promise<void> {
-  const { totalDocs } = await payload.count({
-    collection: 'meditation-tags',
+async function updateIsParent(req: PayloadRequest, parentId: number | string): Promise<void> {
+  const { totalDocs } = await req.payload.count({
+    collection: 'user-choices',
     where: { parent: { equals: parentId } },
+    req,
   })
 
-  await payload.update({
-    collection: 'meditation-tags',
+  await req.payload.update({
+    collection: 'user-choices',
     id: parentId,
     data: { isParent: totalDocs > 0 },
     context: { skipIsParentHook: true },
+    req,
   })
 }
 
@@ -78,12 +84,12 @@ export const maintainIsParent: CollectionAfterChangeHook = async ({
 
   // Update new parent's isParent flag
   if (currentParentId) {
-    await updateIsParent(req.payload, currentParentId)
+    await updateIsParent(req, currentParentId)
   }
 
   // Update old parent's isParent flag
   if (previousParentId) {
-    await updateIsParent(req.payload, previousParentId)
+    await updateIsParent(req, previousParentId)
   }
 
   return doc
@@ -97,7 +103,7 @@ export const clearIsParentOnDelete: CollectionAfterDeleteHook = async ({ doc, re
   const parentId = doc.parent ? extractID(doc.parent) : null
 
   if (parentId) {
-    await updateIsParent(req.payload, parentId)
+    await updateIsParent(req, parentId)
   }
 
   return doc

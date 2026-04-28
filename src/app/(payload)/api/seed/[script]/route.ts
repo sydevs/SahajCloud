@@ -9,7 +9,7 @@
  *   Streams progress updates via Server-Sent Events.
  *
  * Scripts:
- * - tags: MeditationTags and MusicTags
+ * - tags: UserChoices, SongTags, and SubtleSystemNodes
  * - wemeditate: Authors, Albums, Music, Pages
  * - meditations: Meditations, Frames, Music
  * - storyblok: Lessons, Lectures
@@ -389,9 +389,9 @@ async function getDatabaseCounts(
     switch (script) {
       case 'tags': {
         // Note: image-tags removed - now inline enum strings on Images collection
-        const meditationTags = await payload.count({ collection: 'meditation-tags' })
+        const userChoices = await payload.count({ collection: 'user-choices' })
         const songTags = await payload.count({ collection: 'song-tags' })
-        counts['meditation-tags'] = meditationTags.totalDocs
+        counts['user-choices'] = userChoices.totalDocs
         counts['song-tags'] = songTags.totalDocs
         break
       }

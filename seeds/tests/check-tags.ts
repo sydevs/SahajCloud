@@ -42,7 +42,7 @@ async function checkTags() {
     console.log('\n\nAll Meditation Tags:')
     console.log('====================')
     const meditationTags = await payload.find({
-      collection: 'meditation-tags',
+      collection: 'user-choices',
       limit: 100,
     })
     console.log(JSON.stringify(meditationTags.docs, null, 2))

@@ -1097,8 +1097,8 @@ describe('Role-Based Access Control', () => {
     })
   })
 
-  describe('Meditation Categories (meditation-tags) Access', () => {
-    it('grants meditations-editor update access but not create or delete on meditation-tags', () => {
+  describe('User Choices (user-choices) Access', () => {
+    it('grants meditations-editor update access but not create or delete on user-choices', () => {
       const editorUser = testData.dummyUser('managers', {
         id: 200,
         roles: ['meditations-editor'],
@@ -1107,7 +1107,7 @@ describe('Role-Based Access Control', () => {
       // Implicit read via wemeditate-app project membership
       expect(
         hasPermission(
-          { user: editorUser, collection: 'meditation-tags', operation: 'read' },
+          { user: editorUser, collection: 'user-choices', operation: 'read' },
           bypassPermissions,
         ),
       ).toBe(true)
@@ -1115,7 +1115,7 @@ describe('Role-Based Access Control', () => {
       // Explicit update
       expect(
         hasPermission(
-          { user: editorUser, collection: 'meditation-tags', operation: 'update' },
+          { user: editorUser, collection: 'user-choices', operation: 'update' },
           bypassPermissions,
         ),
       ).toBe(true)
@@ -1123,13 +1123,13 @@ describe('Role-Based Access Control', () => {
       // No create or delete — editors can only edit existing tag assignments
       expect(
         hasPermission(
-          { user: editorUser, collection: 'meditation-tags', operation: 'create' },
+          { user: editorUser, collection: 'user-choices', operation: 'create' },
           bypassPermissions,
         ),
       ).toBe(false)
       expect(
         hasPermission(
-          { user: editorUser, collection: 'meditation-tags', operation: 'delete' },
+          { user: editorUser, collection: 'user-choices', operation: 'delete' },
           bypassPermissions,
         ),
       ).toBe(false)
@@ -1137,7 +1137,7 @@ describe('Role-Based Access Control', () => {
 
     it('allows meditations-editor to update per-timing meditation fields but strips edits to other fields', async () => {
       // Seed tag with known admin-authored values
-      const tag = await testData.createMeditationTag(payload, {
+      const tag = await testData.createUserChoice(payload, {
         title: 'Original Category Title',
         color: '#AA0000',
         order: 5,
@@ -1159,7 +1159,7 @@ describe('Role-Based Access Control', () => {
       // Editor attempts to change title/color/order AND set morningMeditation.
       // Field-level access should silently drop the non-allowed edits.
       await payload.update({
-        collection: 'meditation-tags',
+        collection: 'user-choices',
         id: tag.id,
         data: {
           morningMeditation: meditation.id,
@@ -1173,7 +1173,7 @@ describe('Role-Based Access Control', () => {
       })
 
       const updated = await payload.findByID({
-        collection: 'meditation-tags',
+        collection: 'user-choices',
         id: tag.id,
         depth: 0,
       })
@@ -1188,8 +1188,8 @@ describe('Role-Based Access Control', () => {
       expect(updated.isFeatured).toBe(true)
     })
 
-    it('allows admin managers to update any field on meditation-tags', async () => {
-      const tag = await testData.createMeditationTag(payload, {
+    it('allows admin managers to update any field on user-choices', async () => {
+      const tag = await testData.createUserChoice(payload, {
         title: 'Admin-Editable Tag',
         color: '#112233',
         order: 10,
@@ -1201,7 +1201,7 @@ describe('Role-Based Access Control', () => {
       })
 
       await payload.update({
-        collection: 'meditation-tags',
+        collection: 'user-choices',
         id: tag.id,
         data: {
           title: 'Updated by Admin',
@@ -1213,7 +1213,7 @@ describe('Role-Based Access Control', () => {
       })
 
       const updated = await payload.findByID({
-        collection: 'meditation-tags',
+        collection: 'user-choices',
         id: tag.id,
         depth: 0,
       })
@@ -1224,7 +1224,7 @@ describe('Role-Based Access Control', () => {
     })
 
     it('blocks meditations-editor from replacing the uploaded icon', async () => {
-      const tag = await testData.createMeditationTag(payload, { title: 'Locked Icon Tag' })
+      const tag = await testData.createUserChoice(payload, { title: 'Locked Icon Tag' })
 
       const editor = await testData.createManager(payload, {
         name: 'Editor for Icon Replace Block Test',
@@ -1235,7 +1235,7 @@ describe('Role-Based Access Control', () => {
 
       await expect(
         payload.update({
-          collection: 'meditation-tags',
+          collection: 'user-choices',
           id: tag.id,
           data: {},
           file: {

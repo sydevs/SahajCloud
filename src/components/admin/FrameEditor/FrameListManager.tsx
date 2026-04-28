@@ -11,7 +11,13 @@ import styles from './FrameListManager.module.css'
 import { FrameThumbnail } from './FrameThumbnail'
 import { useLivePreviewAuto, usePlaybackTime, useSeekToTime } from './hooks'
 import { baseStyles, listManagerStyles } from './styles'
-import { formatTime, getCategoryLabel, parseTime, validateTimestamp } from './utils'
+import {
+  formatTime,
+  getFrameSubtleSystemNodeSlug,
+  getSubtleSystemNodeLabel,
+  parseTime,
+  validateTimestamp,
+} from './utils'
 
 // ============================================================================
 // FrameItem Subcomponent
@@ -47,7 +53,8 @@ const FrameItem: React.FC<FrameItemProps> = ({
   onSeek,
 }) => {
   const [isHovered, setIsHovered] = useState(false)
-  const categoryLabel = frame.category ? getCategoryLabel(frame.category) : `Frame ${frame.id}`
+  const nodeSlug = getFrameSubtleSystemNodeSlug(frame)
+  const categoryLabel = nodeSlug ? getSubtleSystemNodeLabel(nodeSlug) : `Frame ${frame.id}`
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // Only seek if click wasn't on input or button
@@ -211,7 +218,8 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
   const handleRemoveFrame = useCallback(
     (index: number) => {
       const frame = frames[index]
-      const categoryLabel = frame.category ? getCategoryLabel(frame.category) : `Frame ${index + 1}`
+      const nodeSlug = getFrameSubtleSystemNodeSlug(frame)
+      const categoryLabel = nodeSlug ? getSubtleSystemNodeLabel(nodeSlug) : `Frame ${index + 1}`
 
       if (window.confirm(`Remove "${categoryLabel}" at ${formatTime(frame.timestamp)}?`)) {
         const updatedFrames = frames.filter((_, i) => i !== index)

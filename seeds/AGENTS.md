@@ -66,7 +66,7 @@ Each script has collection-level metadata in `seeds/lib/expectedCounts.ts`:
 
 | Script | Collection | Items | Paginated? | Dependencies |
 |--------|------------|-------|------------|--------------|
-| tags | meditation-tags | 27 | No | None |
+| tags | user-choices | 27 | No | None |
 | tags | music-tags | 7 | No | None |
 | wemeditate | authors | 18 | No | None |
 | wemeditate | albums | 8 | No | None |
@@ -128,7 +128,7 @@ The CLI automatically orchestrates paginated imports on Workers:
 | storyblok | `pnpm seed storyblok` | STORYBLOK_ACCESS_TOKEN | lessons, images, files |
 | wemeditate | `pnpm seed wemeditate` | data.json (pre-extracted) | pages, authors, page-tags, albums |
 | meditations | `pnpm seed meditations` | Run `tags` + `wemeditate` first, data.json | meditations, frames, music, narrators |
-| tags | `pnpm seed tags` | None | meditation-tags, music-tags |
+| tags | `pnpm seed tags` | None | user-choices, music-tags |
 
 **Seed Order**: For a full seed, run scripts in this order:
 1. `pnpm seed tags` - Creates tag definitions

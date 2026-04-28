@@ -13,7 +13,7 @@ local-file fallback in development.
 |---|---|---|
 | **Cloudflare Images** | `images` (also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks) | `https://imagedelivery.net/<hash>/<imageId>/public` |
 | **Cloudflare Stream** | `videos`, `frames` (video MIME types) | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>MP4: `.../downloads/default.mp4` |
-| **R2 native binding** | `meditations`, `songs`, `lessons`, `files`, `meditation-tags`, `song-tags`, plus mixed-media fallthrough on `frames` and `files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>` |
+| **R2 native binding** | `meditations`, `songs`, `lessons`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames` and `files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>` |
 
 Adapter routing, the R2 filename preassignment hook, the
 Cloudflare Stream webhook, and Zod-validated Cloudflare API responses
@@ -74,15 +74,16 @@ shim, and the known-limitations list are in `.claude/rules/openapi.md`
 - **Images** — Cloudflare Images uploads with virtual `url`.
 - **Narrators** — meditation guide profiles (name, gender, slug).
 - **Authors** — article author profiles.
-- **Lectures** — full-talk lecture content integrated with Nirmala Vidya API. No drafts. Time-range excerpts live on the child `lecture-clips` collection.
+- **Lectures** — full-talk lecture content integrated with Nirmala Vidya API. No drafts. Time-range excerpts live on the child `lecture-clips` collection. Optional `userChoices` and `subtleSystemNodes` hasMany relationships drive smart context-based selection.
 - **LectureClips** — child of Lecture: `startTime`/`endTime` excerpts, optional thumbnail/subtitles overrides, `audiences` hasMany. Sidebar-hidden; managed through the parent Lecture's `clips` join.
 
 ### System
-- **Frames** — mixed-media uploads (images/videos) with virtual `url` and `previewUrl`, tags filtering, imageSet selection.
+- **Frames** — mixed-media uploads (images/videos) with virtual `url` and `previewUrl`, `tags` enum filtering, `imageSet` selection, and a `subtleSystemNode` relationship classifying each frame by chakra/nadi.
 - **Files** — mixed-media storage with intelligent routing (Cloudflare Images / Stream / R2 by MIME type), trash, automatic orphan cleanup.
 
 ### Tags / Audiences
-- **MeditationTags** — upload collection with SVG icons, color picker, single-level parent/child nesting, `timings`, per-timing localized meditation relationships, `isParent` auto-maintained by hooks.
+- **UserChoices** (formerly MeditationTags) — upload collection with SVG icons, color picker, single-level parent/child nesting, required `type` (`mood` | `goal`), `timings`, per-timing localized meditation relationships, `isParent` auto-maintained by hooks. Mood-only fields hide via `admin.condition` on goal-type rows. Reverse joins expose attached `lectures`.
+- **SubtleSystemNodes** — closed enum of 12 chakras + nadis. Each row has a unique `slug` and a required relationship to a `pages` doc that describes it. Reverse joins expose attached `lectures` and `frames`. Referenced by Lectures (`subtleSystemNodes` hasMany) and Frames (`subtleSystemNode` single relationship — replaces the old enum `category` field).
 - **SongTags** — upload collection with SVG icons (no color field). Admin labels say "Music Category".
 - **Audiences** — reusable visibility/targeting rules referenced by AppCards, Lectures, and LectureClips. JSON-based rules (`pathProgress`, `meditationsPerWeek`, `totalMeditationsViewed`, `totalLecturesViewed` — all range type). Three bidirectional joins. The `for-audience` endpoints apply OR-match across attached audiences.
 

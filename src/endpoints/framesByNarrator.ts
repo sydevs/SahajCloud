@@ -39,13 +39,14 @@ export const framesByNarrator: Endpoint = {
     }
 
     // Get frames filtered by narrator's gender (imageSet)
-    // Sort by mimeType to show images before videos (image/* < video/*)
+    // Sort by mimeType to show images before videos (image/* < video/*).
+    // depth: 1 hydrates `subtleSystemNode` so the FrameInserter can group by slug.
     const frames = await req.payload.find({
       collection: 'frames',
       where: { imageSet: { equals: narrator.gender } },
       sort: 'mimeType',
       limit: 100,
-      depth: 0,
+      depth: 1,
     })
 
     return Response.json(frames)

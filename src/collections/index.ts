@@ -15,8 +15,9 @@ import { Narrators } from './resources/Narrators'
 import { Files } from './system/Files'
 import { Frames } from './system/Frames'
 import { Audiences } from './tags/Audiences'
-import { MeditationTags } from './tags/MeditationTags'
 import { SongTags } from './tags/SongTags'
+import { SubtleSystemNodes } from './tags/SubtleSystemNodes'
+import { UserChoices } from './tags/UserChoices'
 
 // Export all collections as an array
 export const collections = [
@@ -37,7 +38,8 @@ export const collections = [
   Files,
   // Tags
   Audiences,
-  MeditationTags,
+  UserChoices,
+  SubtleSystemNodes,
   SongTags,
   // Access
   Managers,
@@ -64,7 +66,8 @@ export {
   Files,
   // Tags
   Audiences,
-  MeditationTags,
+  UserChoices,
+  SubtleSystemNodes,
   SongTags,
   // Access
   Managers,

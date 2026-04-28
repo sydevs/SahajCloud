@@ -4,9 +4,9 @@ import type { Condition, FieldAccess, PayloadRequest } from 'payload'
  * Admin-only access helpers.
  *
  * Centralizes the "is this request from an admin manager?" check used by
- * field-level access configs (e.g. `Managers.type`, `MeditationTags.title`)
+ * field-level access configs (e.g. `Managers.type`, `UserChoices.title`)
  * and by hooks that need the same predicate outside a FieldAccess context
- * (e.g. blocking non-admin icon uploads on meditation-tags).
+ * (e.g. blocking non-admin icon uploads on user-choices).
  */
 
 /**

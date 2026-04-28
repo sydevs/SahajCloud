@@ -45,7 +45,7 @@ const r2FilenameHooks = {
 const r2FilenameHookModes: Record<string, keyof typeof r2FilenameHooks> = {
   frames: 'other-only',
   files: 'other-only',
-  'meditation-tags': 'always',
+  'user-choices': 'always',
   'song-tags': 'always',
   meditations: 'always',
   songs: 'always',
@@ -166,7 +166,7 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
         },
 
         // Tag collections with SVG icons - R2 storage (Cloudflare Images doesn't support SVG)
-        'meditation-tags': {
+        'user-choices': {
           adapter: r2Adapter,
           disableLocalStorage: true,
           disablePayloadAccessControl: true,

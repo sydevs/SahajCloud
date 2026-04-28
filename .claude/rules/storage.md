@@ -15,7 +15,7 @@ local-file fallback in development.
 |---|---|---|
 | **Cloudflare Images** | `images` (uploads); also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks | `https://imagedelivery.net/<hash>/<imageId>/public` |
 | **Cloudflare Stream** | `videos`, `frames` (video MIME types) | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>MP4: `.../downloads/default.mp4` |
-| **R2 native binding** | `meditations`, `songs`, `lessons`, `files`, `meditation-tags`, `song-tags`, plus mixed-media fallthrough on `frames` and `files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>` |
+| **R2 native binding** | `meditations`, `songs`, `lessons`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames` and `files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>` |
 
 R2 is configured via `wrangler.toml` bindings (no S3-compatible API).
 Filenames are sanitized to URL-safe slugs with random 6-char suffixes.
@@ -90,7 +90,7 @@ avoid double-suffixing.
 `storagePlugin.ts` injects the hook into every R2-backed collection.
 Two modes:
 
-- `'always'` — pure-R2 collections: `meditations`, `songs`, `meditation-tags`, `song-tags`.
+- `'always'` — pure-R2 collections: `meditations`, `songs`, `user-choices`, `song-tags`.
 - `'other-only'` — mixed-media (`frames`, `files`) — Images / Stream
   filenames are left untouched (those services generate their own IDs);
   only the "other" fallthrough goes through R2 sanitization.

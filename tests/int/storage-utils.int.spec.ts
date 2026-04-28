@@ -941,7 +941,7 @@ describe('storagePlugin R2 filename hook wiring', () => {
     // Cover every collection currently in `r2FilenameHookModes` plus a
     // non-R2 collection (`pages`) and the pure Cloudflare-Images collection
     // (`images`) which must NOT receive the hook.
-    const r2Backed = ['meditations', 'songs', 'meditation-tags', 'song-tags', 'frames', 'files']
+    const r2Backed = ['meditations', 'songs', 'user-choices', 'song-tags', 'frames', 'files']
     const nonR2 = ['pages', 'images', 'videos']
     const result = (await runStoragePlugin([...r2Backed, ...nonR2], r2Bucket)) as {
       collections: Array<{ slug: string; hooks?: { beforeOperation?: unknown[] } }>

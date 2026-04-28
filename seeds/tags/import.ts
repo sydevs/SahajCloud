@@ -1,7 +1,7 @@
 /**
  * Tags Import Script
  *
- * Imports MeditationTags (24 items) and SongTags (7 items).
+ * Imports UserChoices (24 items) and SongTags (7 items).
  *
  * Features:
  * - Downloads SVG icons from remote URLs or loads from local files (local: prefix)
@@ -335,7 +335,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
 
     // Preload all tag collections for efficient skip/update mode
     await Promise.all([
-      this.preloadCollection('meditation-tags', 'slug'),
+      this.preloadCollection('user-choices', 'slug'),
       this.preloadCollection('song-tags', 'slug'),
     ])
   }
@@ -345,7 +345,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   protected async import(): Promise<void> {
-    await this.importMeditationTags()
+    await this.importUserChoices()
     await this.importSongTags()
   }
 
@@ -353,7 +353,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
   // MEDITATION TAGS
   // ============================================================================
 
-  private async importMeditationTags(): Promise<void> {
+  private async importUserChoices(): Promise<void> {
     const total = MEDITATION_TAGS.length
 
     for (let i = 0; i < total; i++) {
@@ -372,7 +372,7 @@ export class TagsImporter extends BaseImporter<BaseImportOptions> {
 
         // Upsert: find by slug, update if exists, create if not
         await this.upsert(
-          'meditation-tags',
+          'user-choices',
           { slug: { equals: tag.slug } },
           {
             slug: tag.slug,

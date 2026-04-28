@@ -16,7 +16,7 @@
  *   storyblok    - Seed Path Steps from Storyblok CMS
  *   wemeditate   - Seed content from WeMeditate Rails database
  *   meditations  - Seed meditation content from legacy database
- *   tags         - Seed MeditationTags and MusicTags from Cloudinary
+ *   tags         - Seed UserChoices and MusicTags from Cloudinary
  *
  * Options:
  *   --dry-run      Validate data without writing to database
@@ -55,7 +55,7 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   storyblok: 'Seed Path Steps from Storyblok CMS',
   wemeditate: 'Seed content from WeMeditate Rails database',
   meditations: 'Seed meditation content from legacy database',
-  tags: 'Seed MeditationTags and MusicTags from Cloudinary',
+  tags: 'Seed UserChoices and MusicTags from Cloudinary',
 }
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
@@ -88,7 +88,7 @@ Available Scripts:
   storyblok     Seed Path Steps from Storyblok CMS
   wemeditate    Seed content from WeMeditate Rails database
   meditations   Seed meditation content from legacy database
-  tags          Seed MeditationTags and MusicTags from Cloudinary
+  tags          Seed UserChoices and MusicTags from Cloudinary
 
 Options:
   --dry-run      Validate data without writing to database

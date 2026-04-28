@@ -24,31 +24,31 @@ function callHook(siblingData: Record<string, unknown>): string | null {
 
 describe('computeApiEndpoint hook (pure)', () => {
   describe('meditations type', () => {
-    it('generates meditation-tags endpoint with raw IDs', () => {
+    it('generates user-choices endpoint with raw IDs', () => {
       const result = callHook({
         type: 'meditations',
         limit: 10,
-        meditationFilters: [1, 2, 3],
+        userChoiceFilters: [1, 2, 3],
       })
-      expect(result).toBe('/api/meditation-tags?where[id][in]=1,2,3&depth=1&limit=10')
+      expect(result).toBe('/api/user-choices?where[id][in]=1,2,3&depth=1&limit=10')
     })
 
-    it('generates meditation-tags endpoint with populated objects', () => {
+    it('generates user-choices endpoint with populated objects', () => {
       const result = callHook({
         type: 'meditations',
         limit: 10,
-        meditationFilters: [{ id: 10, title: 'Tag A' }, { id: 20, title: 'Tag B' }],
+        userChoiceFilters: [{ id: 10, title: 'Tag A' }, { id: 20, title: 'Tag B' }],
       })
-      expect(result).toBe('/api/meditation-tags?where[id][in]=10,20&depth=1&limit=10')
+      expect(result).toBe('/api/user-choices?where[id][in]=10,20&depth=1&limit=10')
     })
 
     it('appends depth=1 and limit in the correct order', () => {
       const result = callHook({
         type: 'meditations',
         limit: 25,
-        meditationFilters: [5],
+        userChoiceFilters: [5],
       })
-      expect(result).toBe('/api/meditation-tags?where[id][in]=5&depth=1&limit=25')
+      expect(result).toBe('/api/user-choices?where[id][in]=5&depth=1&limit=25')
     })
   })
 
@@ -282,16 +282,16 @@ describe('ContentIndexBlock apiEndpoint (integration)', () => {
     )
   })
 
-  it('computes apiEndpoint for meditations with meditation-tags base', async () => {
-    const meditationTag = await testData.createMeditationTag(payload)
+  it('computes apiEndpoint for meditations with user-choices base', async () => {
+    const userChoice = await testData.createUserChoice(payload)
     const page = await createPageWithBlock({
       type: 'meditations',
       limit: 10,
-      meditationFilters: [meditationTag.id],
+      userChoiceFilters: [userChoice.id],
     })
     const fetched = await payload.findByID({ collection: 'pages', id: page.id, depth: 0 })
     expect(getBlockFields(fetched).apiEndpoint).toBe(
-      `/api/meditation-tags?where[id][in]=${meditationTag.id}&depth=1&limit=10`,
+      `/api/user-choices?where[id][in]=${userChoice.id}&depth=1&limit=10`,
     )
   })
 

@@ -92,11 +92,18 @@ describe('Collections smoke', () => {
 
   // ---- Tag collections ---------------------------------------------------
 
-  it('meditation-tags: create + read', async () => {
-    const tag = await testData.createMeditationTag(payload, { title: 'Smoke MTag' })
-    expect(tag.id).toBeDefined()
-    const found = await payload.findByID({ collection: 'meditation-tags', id: tag.id })
-    expect(found.title).toBe('Smoke MTag')
+  it('user-choices: create + read', async () => {
+    const choice = await testData.createUserChoice(payload, { title: 'Smoke Choice' })
+    expect(choice.id).toBeDefined()
+    const found = await payload.findByID({ collection: 'user-choices', id: choice.id })
+    expect(found.title).toBe('Smoke Choice')
+  })
+
+  it('subtle-system-nodes: create + read', async () => {
+    const node = await testData.createSubtleSystemNode(payload, {}, { slug: 'mooladhara' })
+    expect(node.id).toBeDefined()
+    const found = await payload.findByID({ collection: 'subtle-system-nodes', id: node.id })
+    expect(found.slug).toBe('mooladhara')
   })
 
   it('song-tags: create + read', async () => {

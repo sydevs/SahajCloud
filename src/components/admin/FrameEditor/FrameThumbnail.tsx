@@ -5,7 +5,7 @@ import type { CSSProperties } from 'react'
 import type { Frame } from '@/payload-types'
 
 interface FrameThumbnailProps {
-  frame: Partial<Pick<Frame, 'previewUrl' | 'url' | 'streamUrl' | 'mimeType' | 'category'>>
+  frame: Partial<Pick<Frame, 'previewUrl' | 'url' | 'streamUrl' | 'mimeType'>>
   style: CSSProperties
   lazyLoad?: boolean
 }
@@ -35,9 +35,9 @@ export const FrameThumbnail: React.FC<FrameThumbnailProps> = ({
   style,
   lazyLoad = true,
 }) => {
-  const { previewUrl, url, streamUrl, mimeType, category } = frame
+  const { previewUrl, url, streamUrl, mimeType } = frame
   const isVideo = mimeType?.startsWith('video/')
-  const alt = category || 'Frame'
+  const alt = 'Frame'
 
   // Video indicator overlay
   const videoIndicator = isVideo ? (

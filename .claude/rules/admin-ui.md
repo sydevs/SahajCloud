@@ -614,7 +614,7 @@ To add a collection to a project: edit the `collections:` array in
 | authors | ✅ | | |
 | **Tags / Audiences** | | | |
 | audiences | | ✅ | |
-| meditation-tags, song-tags | ✅ | ✅ | |
+| user-choices, song-tags | ✅ | ✅ | |
 | **Forms** | | | |
 | forms, form-submissions | ✅ | | |
 | **Globals** | | | |

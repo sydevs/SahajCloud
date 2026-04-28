@@ -8,7 +8,8 @@ export {
   formatTime,
   parseTime,
   validateTimestamp,
-  getCategoryLabel,
+  getFrameSubtleSystemNodeSlug,
+  getSubtleSystemNodeLabel,
   isVideoFrame,
 } from './utils'
 

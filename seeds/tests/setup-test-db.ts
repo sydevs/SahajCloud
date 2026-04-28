@@ -32,7 +32,7 @@ async function setupTestDatabase() {
     const collectionNames = [
       'managers',
       'images',
-      'meditation-tags',
+      'user-choices',
       'music-tags',
       'narrators',
       'frames',
