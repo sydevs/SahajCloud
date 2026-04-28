@@ -4,11 +4,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { Audience, Client, Image, Lecture, LectureClip } from '@/payload-types'
 
-import {
-  lecturesForAudience,
-  type LectureClipPlayerData,
-  type LecturePlayerData,
-} from '@/endpoints/lecturesForAudience'
+import { lecturesForAudience } from '@/endpoints/lecturesForAudience'
+import type { LectureClipPlayerData, LecturePlayerData } from '@/lib/lectureClipShape'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'

@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { framesByNarrator } from '@/endpoints'
+import { cascadeFrameNodeChange } from '@/hooks/frameHooks'
 import { GENDER_OPTIONS } from '@/lib/data'
 import { mixedMediaUrlField, previewUrlField, streamUrlField } from '@/lib/storage/urlFields'
 
@@ -16,6 +17,9 @@ export const Frames: CollectionConfig = {
     },
   ],
   endpoints: [framesByNarrator],
+  hooks: {
+    afterChange: [cascadeFrameNodeChange],
+  },
   upload: {
     staticDir: 'media/frames',
     hideRemoveFile: true,

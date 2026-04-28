@@ -133,5 +133,15 @@ export const LectureClips: CollectionConfig = {
           'Audiences that control visibility. The clip is shown to a viewer if ANY of the selected audiences passes. If empty, it is hidden from /api/lectures/for-audience and only surfaced when directly referenced (e.g. from a meditation or path step).',
       },
     },
+    {
+      name: 'subtleSystemNodes',
+      type: 'relationship',
+      relationTo: 'subtle-system-nodes',
+      hasMany: true,
+      admin: {
+        description:
+          "Chakras / nadis this clip focuses on. Drives the topical-overlap ranking in /api/meditations/:id/related-lecture-clips — clips with no nodes are excluded from that endpoint. Independent of the parent lecture's `subtleSystemNodes`.",
+      },
+    },
   ],
 }
