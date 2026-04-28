@@ -32,6 +32,9 @@ export const SubtleSystemNodes: CollectionConfig = {
     group: 'Metadata',
     useAsTitle: 'slug',
     defaultColumns: ['slug', 'page', 'lectures', 'frames'],
+    pagination: {
+      defaultLimit: 25,
+    },
   },
   fields: [
     {
