@@ -13,6 +13,7 @@ import type {
 } from '@/payload-types'
 
 import { meditationLectures } from '@/endpoints/meditationLectures'
+import { recomputeWeightsForMeditation } from '@/hooks/meditationHooks'
 import type { LectureClipPlayerData } from '@/lib/lectureClipShape'
 
 import { testData } from '../utils/testData'
@@ -308,9 +309,11 @@ describe('meditationLectures endpoint', () => {
     expect(docs[0].type).toBe('lecture-clip')
   })
 
-  it('lazy fallback: clears weights then hit the endpoint → repopulates', async () => {
-    // Wipe the cached weights via direct DB update with the skip flag, so the
-    // afterChange hook doesn't immediately repopulate them.
+  it('ad-hoc compute when cached weights are null', async () => {
+    // Wipe the cached weights via direct DB update with the skip flag so the
+    // afterChange hook doesn't immediately repopulate them. The endpoint
+    // should still rank correctly by computing on the fly — and (per
+    // GET-is-side-effect-free) leave the cache untouched.
     await payload.update({
       collection: 'meditations',
       id: meditation.id,
@@ -325,17 +328,27 @@ describe('meditationLectures endpoint', () => {
     })) as Meditation
     expect(cleared.subtleSystemNodeWeights).toBeFalsy()
 
-    const { status } = await callEndpoint(payload, meditation.id, { limit: 1 })
+    const { status, body } = await callEndpoint(payload, meditation.id, { limit: 5 })
     expect(status).toBe(200)
+    const docs = (body as { docs: LectureClipPlayerData[] }).docs
+    expect(docs.length).toBeGreaterThan(0)
 
-    const repopulated = (await payload.findByID({
+    const stillNull = (await payload.findByID({
       collection: 'meditations',
       id: meditation.id,
       locale: 'en',
     })) as Meditation
-    const weights = repopulated.subtleSystemNodeWeights as Record<string, number> | null
-    expect(weights).not.toBeNull()
-    expect(weights?.sahasrara).toBeGreaterThan(0)
+    expect(stillNull.subtleSystemNodeWeights).toBeFalsy()
+
+    // Restore the cache for the cascade test that follows.
+    const restored = await recomputeWeightsForMeditation(payload, stillNull)
+    await payload.update({
+      collection: 'meditations',
+      id: meditation.id,
+      data: { subtleSystemNodeWeights: restored },
+      context: { skipRecomputeNodeWeights: true },
+      locale: 'en',
+    })
   })
 
   it('Frames cascade hook: changing a frame node updates dependent meditation weights', async () => {

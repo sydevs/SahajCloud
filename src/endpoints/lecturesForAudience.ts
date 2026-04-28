@@ -14,15 +14,6 @@ import {
 } from '@/lib/lectureClipShape'
 import type { Audience, Lecture, LectureClip } from '@/payload-types'
 
-// Re-export shared shape types/helpers so existing imports of
-// `@/endpoints/lecturesForAudience` keep working (tests, and any other callers).
-export {
-  mergeSubtitles,
-  resolveThumbnailUrl,
-  type LectureClipPlayerData,
-  type LecturePlayerData,
-}
-
 const querySchema = z.object({
   ...buildAudienceDataShape(AUDIENCE_DEFINITIONS),
   limit: z.coerce.number().int().min(1).max(100),

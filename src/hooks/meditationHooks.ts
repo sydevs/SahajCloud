@@ -121,7 +121,7 @@ export async function recomputeWeightsForMeditation(
 
   const frameIds = rawFrames
     .map((f) => (f && typeof f === 'object' ? (f as { id?: unknown }).id : null))
-    .filter((id): id is number | string => typeof id === 'number' || typeof id === 'string')
+    .filter((id): id is number => typeof id === 'number')
 
   if (frameIds.length === 0) return {}
 
@@ -134,7 +134,7 @@ export async function recomputeWeightsForMeditation(
     req,
   })
 
-  const frameMap = new Map<number | string, Frame>(frameDocs.map((d) => [d.id, d as Frame]))
+  const frameMap = new Map<number, Frame>(frameDocs.map((d) => [d.id, d as Frame]))
 
   type PopulatedFrame = {
     timestamp: number
@@ -142,9 +142,9 @@ export async function recomputeWeightsForMeditation(
   }
   const populated: PopulatedFrame[] = []
   for (const f of rawFrames) {
-    const id = (f as { id?: unknown }).id as number | string | undefined
-    const timestamp = (f as { timestamp?: unknown }).timestamp as number | undefined
-    if (id === undefined || typeof timestamp !== 'number') continue
+    const id = (f as { id?: unknown }).id
+    const timestamp = (f as { timestamp?: unknown }).timestamp
+    if (typeof id !== 'number' || typeof timestamp !== 'number') continue
     const frameDoc = frameMap.get(id)
     populated.push({
       timestamp,
@@ -200,9 +200,9 @@ export const recomputeMeditationNodeWeights: CollectionAfterChangeHook = async (
   return doc
 }
 
-function extractFrameIds(frames: unknown): Array<number | string> {
+function extractFrameIds(frames: unknown): number[] {
   if (!Array.isArray(frames)) return []
   return frames
     .map((f) => (f && typeof f === 'object' ? (f as { id?: unknown }).id : null))
-    .filter((id): id is number | string => typeof id === 'number' || typeof id === 'string')
+    .filter((id): id is number => typeof id === 'number')
 }

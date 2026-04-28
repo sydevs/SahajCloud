@@ -10,10 +10,11 @@ import type { Meditation } from '@/payload-types'
  * relationship changes, find every meditation whose JSON `frames` array
  * references this frame and recompute its cached `subtleSystemNodeWeights`.
  *
- * Bounded scan: meditations are stored with `frames` as a JSON column
- * (array of `{ id, timestamp }`), so we walk all meditations and filter in
- * app code rather than relying on a SQLite JSON_EXTRACT query (no precedent
- * in this codebase, and the active scale stays well under the limit).
+ * Full-table scan: meditations store `frames` as a JSON column (array of
+ * `{ id, timestamp }`), so we walk all meditations and filter in app code
+ * rather than relying on a SQLite JSON_EXTRACT query (no precedent in this
+ * codebase). Acceptable while the active scale stays small; revisit if the
+ * meditations table grows past the order of a few thousand rows.
  *
  * Each Meditation update sets `context.skipRecomputeNodeWeights` so the
  * cascade doesn't re-trigger Meditation's own afterChange hook.
@@ -34,7 +35,7 @@ export const cascadeFrameNodeChange: CollectionAfterChangeHook = async ({
 
   const { docs } = await req.payload.find({
     collection: 'meditations',
-    limit: 1000,
+    limit: 0,
     depth: 0,
     pagination: false,
     locale: 'all',

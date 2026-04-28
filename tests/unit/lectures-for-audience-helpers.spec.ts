@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { mergeSubtitles, resolveThumbnailUrl } from '@/endpoints/lecturesForAudience'
+import { mergeSubtitles, resolveThumbnailUrl } from '@/lib/lectureClipShape'
 
 describe('mergeSubtitles', () => {
   it('returns the parent map unchanged when there are no clip overrides', () => {

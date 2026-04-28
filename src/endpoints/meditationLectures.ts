@@ -49,9 +49,9 @@ const querySchema = z.object({
  *
  * Pipeline:
  *   1. Look up the meditation (404 if not found).
- *   2. Lazy-fallback for `subtleSystemNodeWeights`: compute + persist when
- *      the cached map is missing (defensive — the migration backfills, but
- *      this guards against the migration→deploy race window).
+ *   2. Read `subtleSystemNodeWeights` from the cache; if missing, compute
+ *      ad-hoc without persisting (the migration backfills + the afterChange
+ *      hooks keep the cache fresh — keeping the GET side-effect-free).
  *   3. Evaluate audiences → eligible-audience-ID set; empty → `{ docs: [] }`.
  *   4. Resolve eligible parent lecture IDs (only when `userChoice` is set).
  *   5. Find candidate clips with audience + optional userChoice + optional
@@ -87,30 +87,29 @@ export const meditationLectures: Endpoint = {
         collection: 'meditations',
         id: idParam,
         depth: 0,
-        // Match the meditation regardless of locale — meditations live as
-        // single-locale docs and the caller may not know the locale.
-        locale: 'all',
         req,
       })) as Meditation
-    } catch {
+    } catch (err) {
+      req.payload.logger.error({
+        msg: 'meditationLectures: findByID threw — treating as not found',
+        meditationId: idParam,
+        error: err instanceof Error ? err.message : String(err),
+      })
       meditation = null
     }
     if (!meditation) {
       return Response.json({ errors: [{ message: 'Meditation not found' }] }, { status: 404 })
     }
 
-    let weights = (meditation.subtleSystemNodeWeights ?? null) as Record<string, number> | null
-    if (weights === null) {
-      weights = await recomputeWeightsForMeditation(req.payload, meditation, req)
-      await req.payload.update({
-        collection: 'meditations',
-        id: meditation.id,
-        data: { subtleSystemNodeWeights: weights },
-        context: { skipRecomputeNodeWeights: true },
-        locale: meditation.locale ?? undefined,
-        req,
-      })
-    }
+    // Cached weights are populated by the migration backfill and kept fresh by
+    // the Meditations/Frames afterChange hooks. Falling through to an ad-hoc
+    // compute covers any unbackfilled row without mutating state from a GET.
+    const cachedWeights = meditation.subtleSystemNodeWeights as
+      | Record<string, number>
+      | null
+      | undefined
+    const weights =
+      cachedWeights ?? (await recomputeWeightsForMeditation(req.payload, meditation, req))
 
     const { docs: audienceDocs } = await req.payload.find({
       collection: 'audiences',
@@ -177,10 +176,13 @@ export const meditationLectures: Endpoint = {
       return Response.json({ docs: [] })
     }
 
+    const clipsWithParentId: Array<{ clip: LectureClip; parentId: number }> = []
     const parentIds = new Set<number>()
     for (const clip of eligibleClips) {
       const pid = extractID(clip.lecture)
-      if (typeof pid === 'number') parentIds.add(pid)
+      if (typeof pid !== 'number') continue
+      clipsWithParentId.push({ clip, parentId: pid })
+      parentIds.add(pid)
     }
 
     const parentById = new Map<number, Lecture>()
@@ -202,9 +204,8 @@ export const meditationLectures: Endpoint = {
     type WeightedClip = { clip: LectureClip; parent: Lecture; weight: number }
     const weighted: WeightedClip[] = []
 
-    for (const clip of eligibleClips) {
-      const pid = extractID(clip.lecture)
-      const parent = typeof pid === 'number' ? parentById.get(pid) : undefined
+    for (const { clip, parentId } of clipsWithParentId) {
+      const parent = parentById.get(parentId)
       if (!parent) continue
 
       const nodes = (parent.subtleSystemNodes ?? []) as Array<number | SubtleSystemNode>
