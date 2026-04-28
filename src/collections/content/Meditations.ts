@@ -1,7 +1,12 @@
 import type { CollectionConfig, FieldHook, JSONField, Validate, Where } from 'payload'
 
+import { meditationLectures } from '@/endpoints'
 import { mediaField, slugField } from '@/fields'
-import { extractAudioDuration, filterMeditationsByLocale } from '@/hooks/meditationHooks'
+import {
+  extractAudioDuration,
+  filterMeditationsByLocale,
+  recomputeMeditationNodeWeights,
+} from '@/hooks/meditationHooks'
 import { LOCALES } from '@/lib/locales'
 import { getR2Url } from '@/lib/storage/r2NativeAdapter'
 import { virtualUrlField } from '@/lib/storage/urlFields'
@@ -100,9 +105,11 @@ const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
   trash: true,
+  endpoints: [meditationLectures],
   hooks: {
     beforeOperation: [filterMeditationsByLocale],
     beforeChange: [extractAudioDuration],
+    afterChange: [recomputeMeditationNodeWeights],
   },
   defaultPopulate: {
     randomSongUrl: false,
@@ -227,6 +234,19 @@ export const Meditations: CollectionConfig = {
               name: 'duration',
               type: 'number',
               label: 'Duration (seconds)',
+              admin: {
+                readOnly: true,
+                hidden: true,
+              },
+            },
+            {
+              // Cached `{ slug → on-screen seconds }` map for the meditation's
+              // frames. Drives the topical-overlap ranking in
+              // `/api/meditations/:id/related-lecture-clips`. Recomputed by the
+              // `recomputeMeditationNodeWeights` afterChange hook on Meditations
+              // and cascaded from Frames via `cascadeFrameNodeChange`.
+              name: 'subtleSystemNodeWeights',
+              type: 'json',
               admin: {
                 readOnly: true,
                 hidden: true,

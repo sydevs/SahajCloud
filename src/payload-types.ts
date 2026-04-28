@@ -507,6 +507,15 @@ export interface Meditation {
    */
   songTag?: (number | null) | SongTag;
   duration?: number | null;
+  subtleSystemNodeWeights?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   durationMinutes?: number | null;
   title?: string | null;
   /**
@@ -933,8 +942,117 @@ export interface LectureClip {
    * Audiences that control visibility. The clip is shown to a viewer if ANY of the selected audiences passes. If empty, it is hidden from /api/lectures/for-audience and only surfaced when directly referenced (e.g. from a meditation or path step).
    */
   audiences?: (number | Audience)[] | null;
+  /**
+   * Chakras / nadis this clip focuses on. Drives the topical-overlap ranking in /api/meditations/:id/related-lecture-clips — clips with no nodes are excluded from that endpoint. Independent of the parent lecture's `subtleSystemNodes`.
+   */
+  subtleSystemNodes?: (number | SubtleSystemNode)[] | null;
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "subtle-system-nodes".
+ */
+export interface SubtleSystemNode {
+  id: number;
+  /**
+   * Identifier for this chakra or nadi. Closed enum of 12 values.
+   */
+  slug:
+    | 'mooladhara'
+    | 'swadhistan'
+    | 'nabhi'
+    | 'void'
+    | 'anahat'
+    | 'vishuddhi'
+    | 'agnya'
+    | 'sahasrara'
+    | 'kundalini'
+    | 'pingala'
+    | 'ida'
+    | 'sushumna';
+  /**
+   * Page describing this node. Used by app/web clients to render details.
+   */
+  page: number | Page;
+  lectures?: {
+    docs?: (number | Lecture)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  frames?: {
+    docs?: (number | Frame)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "frames".
+ */
+export interface Frame {
+  id: number;
+  streamUrl?: string | null;
+  previewUrl?: string | null;
+  imageSet: 'male' | 'female';
+  /**
+   * Which chakra or nadi this frame depicts. Leave blank for "Other" frames (e.g. bandhan, namaste) — use the tags field for those instead.
+   */
+  subtleSystemNode?: (number | null) | SubtleSystemNode;
+  tags?:
+    | (
+        | 'anahat'
+        | 'back'
+        | 'bandhan'
+        | 'both hands'
+        | 'center'
+        | 'channel'
+        | 'clearing'
+        | 'earth'
+        | 'ego'
+        | 'feel'
+        | 'ham ksham'
+        | 'hamsa'
+        | 'hand'
+        | 'hands'
+        | 'left'
+        | 'lefthanded'
+        | 'massage'
+        | 'meditate'
+        | 'namaste'
+        | 'raise'
+        | 'ready'
+        | 'right'
+        | 'righthanded'
+        | 'rising'
+        | 'silent'
+        | 'superego'
+        | 'tapping'
+      )[]
+    | null;
+  duration?: number | null;
+  fileMetadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1112,111 +1230,6 @@ export interface UserChoice {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "subtle-system-nodes".
- */
-export interface SubtleSystemNode {
-  id: number;
-  /**
-   * Identifier for this chakra or nadi. Closed enum of 12 values.
-   */
-  slug:
-    | 'mooladhara'
-    | 'swadhistan'
-    | 'nabhi'
-    | 'void'
-    | 'anahat'
-    | 'vishuddhi'
-    | 'agnya'
-    | 'sahasrara'
-    | 'kundalini'
-    | 'pingala'
-    | 'ida'
-    | 'sushumna';
-  /**
-   * Page describing this node. Used by app/web clients to render details.
-   */
-  page: number | Page;
-  lectures?: {
-    docs?: (number | Lecture)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  frames?: {
-    docs?: (number | Frame)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "frames".
- */
-export interface Frame {
-  id: number;
-  streamUrl?: string | null;
-  previewUrl?: string | null;
-  imageSet: 'male' | 'female';
-  /**
-   * Which chakra or nadi this frame depicts. Leave blank for "Other" frames (e.g. bandhan, namaste) — use the tags field for those instead.
-   */
-  subtleSystemNode?: (number | null) | SubtleSystemNode;
-  tags?:
-    | (
-        | 'anahat'
-        | 'back'
-        | 'bandhan'
-        | 'both hands'
-        | 'center'
-        | 'channel'
-        | 'clearing'
-        | 'earth'
-        | 'ego'
-        | 'feel'
-        | 'ham ksham'
-        | 'hamsa'
-        | 'hand'
-        | 'hands'
-        | 'left'
-        | 'lefthanded'
-        | 'massage'
-        | 'meditate'
-        | 'namaste'
-        | 'raise'
-        | 'ready'
-        | 'right'
-        | 'righthanded'
-        | 'rising'
-        | 'silent'
-        | 'superego'
-        | 'tapping'
-      )[]
-    | null;
-  duration?: number | null;
-  fileMetadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1853,6 +1866,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   narrator?: T;
   songTag?: T;
   duration?: T;
+  subtleSystemNodeWeights?: T;
   durationMinutes?: T;
   title?: T;
   generateSlug?: T;
@@ -2003,6 +2017,7 @@ export interface LectureClipsSelect<T extends boolean = true> {
         id?: T;
       };
   audiences?: T;
+  subtleSystemNodes?: T;
   updatedAt?: T;
   createdAt?: T;
 }
