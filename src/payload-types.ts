@@ -507,6 +507,15 @@ export interface Meditation {
    */
   songTag?: (number | null) | SongTag;
   duration?: number | null;
+  subtleSystemNodeWeights?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   durationMinutes?: number | null;
   title?: string | null;
   /**
@@ -1853,6 +1862,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   narrator?: T;
   songTag?: T;
   duration?: T;
+  subtleSystemNodeWeights?: T;
   durationMinutes?: T;
   title?: T;
   generateSlug?: T;

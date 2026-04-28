@@ -284,6 +284,76 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       },
     },
   },
+
+  '/api/meditations/{id}/lectures': {
+    get: {
+      tags: ['Meditations'],
+      summary: 'Context-aware lecture clips for a meditation',
+      description:
+        'Returns lecture clips ranked by topical overlap between the ' +
+        "meditation's on-screen subtle system nodes (cached on the " +
+        "meditation's `subtleSystemNodeWeights`) and each candidate clip's " +
+        "parent lecture's `subtleSystemNodes`. Audience filter (OR " +
+        'semantics across attached audiences) gates the candidate set; ' +
+        'clips with no audiences are excluded. When `userChoice` is ' +
+        'supplied, candidates are restricted to clips whose parent lecture ' +
+        'has that user-choice in its `userChoices`. Results are sorted ' +
+        'descending by weight, tie-broken by clip id ascending — ' +
+        'deterministic across calls.',
+      operationId: 'meditationLectures',
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          description: 'ID of the meditation whose context drives the ranking.',
+          schema: { type: 'string' },
+        },
+        ...audienceQueryParameters,
+        forAudienceLimitParam(100),
+        {
+          name: 'userChoice',
+          in: 'query',
+          required: false,
+          description:
+            'Optional ID of a UserChoices doc. Restricts candidates to ' +
+            'clips whose parent lecture has that user-choice in its ' +
+            '`userChoices` hasMany.',
+          schema: { type: 'integer' },
+        },
+        {
+          name: 'excludedLectureClipIds',
+          in: 'query',
+          required: false,
+          description:
+            'Comma-separated lecture-clip IDs to exclude (e.g. clips the ' +
+            'user has already watched).',
+          schema: { type: 'string' },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Audience- and topic-filtered lecture-clip records.',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['docs'],
+                properties: {
+                  docs: {
+                    type: 'array',
+                    items: { $ref: '#/components/schemas/LectureClipPlayerData' },
+                  },
+                },
+              },
+            },
+          },
+        },
+        '400': errorResponse('Query param validation failed.'),
+        '404': errorResponse('Meditation not found.'),
+      },
+    },
+  },
 }
 
 // ── Schema definitions ────────────────────────────────────────────────────────
