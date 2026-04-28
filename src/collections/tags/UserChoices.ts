@@ -3,11 +3,7 @@ import type { CollectionBeforeChangeHook, CollectionConfig } from 'payload'
 import { APIError } from 'payload'
 
 import { colorField, slugField } from '@/fields'
-import {
-  clearIsParentOnDelete,
-  maintainIsParent,
-  validateNesting,
-} from '@/hooks/userChoiceHooks'
+import { clearIsParentOnDelete, maintainIsParent, validateNesting } from '@/hooks/userChoiceHooks'
 import { adminOnlyCondition, adminOnlyFieldAccess, isAdminManager } from '@/lib/access'
 import { virtualUrlField } from '@/lib/storage/urlFields'
 
@@ -33,8 +29,7 @@ const restrictIconUploadToAdmin: CollectionBeforeChangeHook = ({ req, operation 
   }
 }
 
-const isMoodChoice = (data: { type?: string } | undefined): boolean =>
-  !data || data.type !== 'goal'
+const isMoodChoice = (data: { type?: string } | undefined): boolean => !data || data.type !== 'goal'
 
 export const UserChoices: CollectionConfig = {
   slug: 'user-choices',
@@ -111,11 +106,12 @@ export const UserChoices: CollectionConfig = {
       options: [
         { label: 'Mood', value: 'mood' },
         { label: 'Goal', value: 'goal' },
+        { label: 'Quick Meditations', value: 'quick' },
       ],
       admin: {
         position: 'sidebar',
         description:
-          "Whether this choice describes how the user feels right now (mood) or what they want to work toward (goal). Time-of-day timings and per-timing meditation assignments only apply to mood choices.",
+          'Whether this choice describes how the user feels right now (mood) or what they want to work toward (goal). Time-of-day timings and per-timing meditation assignments only apply to mood choices.',
       },
     },
     // Color picker (hex format)
