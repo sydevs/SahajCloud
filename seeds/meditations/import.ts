@@ -34,7 +34,7 @@ import type { CollectionSlug, Payload } from 'payload'
 
 import * as path from 'path'
 
-import type { MeditationTag, SongTag } from '@/payload-types'
+import type { SongTag, SubtleSystemNode, UserChoice } from '@/payload-types'
 
 import {
   BaseImporter,
@@ -234,7 +234,7 @@ const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
   'deeper experience': 'spiritual-experience',
   'seeking deeper spiritual experience': 'spiritual-experience',
 
-  // Time-based tags - NOTE: These now map to the timings field, not MeditationTags
+  // Time-based tags - NOTE: These now map to the timings field, not UserChoices
   // See TIMING_SLUGS constant and extractTimingsFromTags() for handling
   'morning': 'morning',
   'afternoon': 'afternoon',
@@ -272,7 +272,7 @@ const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
 }
 
 /**
- * Timing slugs that should be handled as timings field values, not MeditationTags.
+ * Timing slugs that should be handled as timings field values, not UserChoices.
  * Maps to the timings select field options: morning, afternoon, evening, night.
  *
  * Note: 'night' is intentionally excluded because legacy timing tags only included
@@ -336,13 +336,14 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
   // In-memory maps for import (legacy ID → new Payload ID)
   private idMaps = {
-    meditationTags: new Map<number, number | string>(),
+    userChoices: new Map<number, number | string>(),
     songTags: new Map<number, number | string>(),
     frames: new Map<string, number | string>(), // key format: "{legacyId}_{gender}"
     meditations: new Map<number, number | string>(),
     songs: new Map<number, number | string>(),
     narrators: new Map<number, number | string>(),
     albumsByArtist: new Map<string, number | string>(), // key: artist name (lowercase)
+    subtleSystemNodes: new Map<string, number | string>(), // key: node slug
   }
 
   // Preload cache for songs lookup (composite key: "title|albumId")
@@ -363,7 +364,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         this.preloadCollection('frames', 'filename'),
         this.preloadCollection('meditations', 'label'),
         this.preloadCollection('narrators', 'name'),
-        this.preloadCollection('meditation-tags', 'slug'),
+        this.preloadCollection('user-choices', 'slug'),
         this.preloadCollection('song-tags', 'slug'),
         this.preloadCollection('songs', 'slug'),
         this.preloadSongsWithCompositeKey(),
@@ -410,8 +411,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     const framesCount = await this.payload.count({ collection: 'frames' })
     await this.logger.info(`✓ Found ${framesCount.totalDocs} existing frames`)
 
-    const meditationTagsCount = await this.payload.count({ collection: 'meditation-tags' })
-    await this.logger.info(`✓ Found ${meditationTagsCount.totalDocs} existing meditation tags`)
+    const userChoicesCount = await this.payload.count({ collection: 'user-choices' })
+    await this.logger.info(`✓ Found ${userChoicesCount.totalDocs} existing user choices`)
 
     const songTagsCount = await this.payload.count({ collection: 'song-tags' })
     await this.logger.info(`✓ Found ${songTagsCount.totalDocs} existing song tags`)
@@ -489,37 +490,37 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     // Filter taggings to only those with context = 'tags'
     const filteredTaggings = taggings.filter((t) => t.context === 'tags')
 
-    const meditationTagIds = new Set<number>()
+    const userChoiceTagIds = new Set<number>()
     const songTagIds = new Set<number>()
 
     filteredTaggings.forEach((tagging) => {
       if (tagging.taggable_type === 'Meditation') {
-        meditationTagIds.add(tagging.tag_id)
+        userChoiceTagIds.add(tagging.tag_id)
       } else if (tagging.taggable_type === 'Music') {
         songTagIds.add(tagging.tag_id)
       }
     })
 
     // Preload existing tags
-    const [meditationTagsCache, songTagsCache] = await Promise.all([
-      this.preloadCollection('meditation-tags', 'slug'),
+    const [userChoicesCache, songTagsCache] = await Promise.all([
+      this.preloadCollection('user-choices', 'slug'),
       this.preloadCollection('song-tags', 'slug'),
     ])
 
-    let meditationMapped = 0
+    let userChoiceMapped = 0
     let musicMapped = 0
 
     for (const tag of tags) {
       const legacyName = tag.name.toLowerCase().trim()
 
       // Map meditation tags
-      if (meditationTagIds.has(tag.id)) {
+      if (userChoiceTagIds.has(tag.id)) {
         const mappedSlug = LEGACY_TO_MEDITATION_TAG_SLUG[legacyName]
         if (mappedSlug) {
-          const existingTag = meditationTagsCache.get(mappedSlug)
+          const existingTag = userChoicesCache.get(mappedSlug)
           if (existingTag) {
-            this.idMaps.meditationTags.set(tag.id, existingTag.id as number)
-            meditationMapped++
+            this.idMaps.userChoices.set(tag.id, existingTag.id as number)
+            userChoiceMapped++
           }
         }
       }
@@ -537,7 +538,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       }
     }
 
-    await this.logger.info(`✓ Rebuilt ${meditationMapped} meditation tags, ${musicMapped} music tags`)
+    await this.logger.info(`✓ Rebuilt ${userChoiceMapped} user choices, ${musicMapped} music tags`)
   }
 
   // ============================================================================
@@ -587,16 +588,16 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     // On subsequent batches when targeting meditations, just rebuild idMaps (no re-import needed)
     const shouldImportTags =
       !isPaginated ||
-      this.isCollectionTargeted('meditation-tags') ||
+      this.isCollectionTargeted('user-choices') ||
       this.isCollectionTargeted('frames')
     const shouldRebuildTags =
       isSkipMode &&
       this.isCollectionTargeted('meditations') &&
       !this.isCollectionTargeted('frames') &&
-      !this.isCollectionTargeted('meditation-tags')
+      !this.isCollectionTargeted('user-choices')
     const isSubsequentMeditationsBatch =
       this.isCollectionTargeted('meditations') &&
-      !this.isCollectionTargeted('meditation-tags') &&
+      !this.isCollectionTargeted('user-choices') &&
       !this.isCollectionTargeted('frames') &&
       !isFirstBatch
 
@@ -997,51 +998,51 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     // Filter taggings to only those with context = 'tags'
     const filteredTaggings = taggings.filter((t) => t.context === 'tags')
 
-    const meditationTagIds = new Set<number>()
+    const userChoiceTagIds = new Set<number>()
     const songTagIds = new Set<number>()
 
     filteredTaggings.forEach((tagging) => {
       if (tagging.taggable_type === 'Meditation') {
-        meditationTagIds.add(tagging.tag_id)
+        userChoiceTagIds.add(tagging.tag_id)
       } else if (tagging.taggable_type === 'Music') {
         songTagIds.add(tagging.tag_id)
       }
     })
 
-    await this.logger.info(`    ℹ️  ${meditationTagIds.size} tags used by meditations`)
+    await this.logger.info(`    ℹ️  ${userChoiceTagIds.size} tags used by meditations`)
     await this.logger.info(`    ℹ️  ${songTagIds.size} tags used by songs`)
 
     // Load existing predefined tags
-    const [existingMeditationTags, existingSongTags] = await Promise.all([
-      this.payload.find({ collection: 'meditation-tags', limit: 1000 }),
+    const [existingUserChoices, existingSongTags] = await Promise.all([
+      this.payload.find({ collection: 'user-choices', limit: 1000 }),
       this.payload.find({ collection: 'song-tags', limit: 1000 }),
     ])
 
-    const meditationTagsBySlug = new Map<string, MeditationTag>()
+    const userChoicesBySlug = new Map<string, UserChoice>()
     const songTagsBySlug = new Map<string, SongTag>()
 
-    existingMeditationTags.docs.forEach((tag) => {
-      if (tag.slug) meditationTagsBySlug.set(tag.slug, tag)
+    existingUserChoices.docs.forEach((tag) => {
+      if (tag.slug) userChoicesBySlug.set(tag.slug, tag)
     })
     existingSongTags.docs.forEach((tag) => {
       if (tag.slug) songTagsBySlug.set(tag.slug, tag)
     })
 
-    let meditationMapped = 0,
+    let userChoiceMapped = 0,
       musicMapped = 0
 
     for (const tag of tags) {
       const legacyName = tag.name.toLowerCase().trim()
 
       // Map meditation tags
-      if (meditationTagIds.has(tag.id)) {
+      if (userChoiceTagIds.has(tag.id)) {
         const mappedSlug = LEGACY_TO_MEDITATION_TAG_SLUG[legacyName]
         if (mappedSlug) {
-          const existingTag = meditationTagsBySlug.get(mappedSlug)
+          const existingTag = userChoicesBySlug.get(mappedSlug)
           if (existingTag) {
-            this.idMaps.meditationTags.set(tag.id, existingTag.id as number)
+            this.idMaps.userChoices.set(tag.id, existingTag.id as number)
             await this.logger.log(`    ✓ Mapped "${tag.name}" → "${mappedSlug}"`)
-            meditationMapped++
+            userChoiceMapped++
           } else {
             this.addWarning(`Predefined tag "${mappedSlug}" not found - run tags import first`)
           }
@@ -1070,7 +1071,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     }
 
     await this.logger.info(
-      `✓ Mapped ${meditationMapped} meditation tags, ${musicMapped} music tags`,
+      `✓ Mapped ${userChoiceMapped} meditation tags, ${musicMapped} music tags`,
     )
   }
 
@@ -1078,8 +1079,19 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   // FRAMES IMPORT
   // ============================================================================
 
-  private mapFrameCategory(oldCategory: string): string | null {
-    const categoryMap: Record<string, string> = {
+  /**
+   * Maps a legacy `category` string from the source data to the post-rename
+   * shape. Chakras / nadis become a `subtleSystemNode` relationship; the four
+   * non-chakra values (clearing, meditate, ready, namaste) ride along on the
+   * frame's `tags` array instead.
+   *
+   * Returns `null` when the legacy value is unrecognised so the importer can
+   * skip the frame loudly.
+   */
+  private mapFrameCategoryToSubtleSystemNode(
+    oldCategory: string,
+  ): { node: string | null; extraTags: string[] } | null {
+    const SUBTLE_SYSTEM_SLUGS: Record<string, string> = {
       heart: 'anahat',
       mooladhara: 'mooladhara',
       swadhistan: 'swadhistan',
@@ -1089,13 +1101,29 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       vishuddhi: 'vishuddhi',
       agnya: 'agnya',
       sahasrara: 'sahasrara',
-      clearing: 'clearing',
       kundalini: 'kundalini',
-      meditate: 'meditate',
-      ready: 'ready',
-      namaste: 'namaste',
     }
-    return categoryMap[oldCategory.toLowerCase().trim()] || null
+    const TAG_FALLBACK = new Set(['clearing', 'meditate', 'ready', 'namaste'])
+
+    const key = oldCategory.toLowerCase().trim()
+    const slug = SUBTLE_SYSTEM_SLUGS[key]
+    if (slug) return { node: slug, extraTags: [] }
+    if (TAG_FALLBACK.has(key)) return { node: null, extraTags: [key] }
+    return null
+  }
+
+  private async loadSubtleSystemNodes(): Promise<void> {
+    const result = await this.payload.find({
+      collection: 'subtle-system-nodes',
+      limit: 100,
+      depth: 0,
+    })
+    for (const node of result.docs) {
+      if (node.slug) this.idMaps.subtleSystemNodes.set(node.slug, node.id)
+    }
+    await this.logger.info(
+      `✓ Loaded ${this.idMaps.subtleSystemNodes.size} subtle system nodes`,
+    )
   }
 
   private async importFrames(
@@ -1103,12 +1131,17 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     attachments: any[],
     blobs: any[],
   ): Promise<void> {
+    // ida/pingala/kundalini are now expressed via the subtleSystemNode relationship.
     const validFrameTags = [
-      'anahat', 'back', 'bandhan', 'both hands', 'center', 'channel', 'earth', 'ego',
-      'feel', 'ham ksham', 'hamsa', 'hand', 'hands', 'ida', 'left', 'lefthanded',
-      'massage', 'pingala', 'raise', 'right', 'righthanded', 'rising', 'silent',
-      'superego', 'tapping',
+      'anahat', 'back', 'bandhan', 'both hands', 'center', 'channel', 'clearing',
+      'earth', 'ego', 'feel', 'ham ksham', 'hamsa', 'hand', 'hands', 'left',
+      'lefthanded', 'massage', 'meditate', 'namaste', 'raise', 'ready', 'right',
+      'righthanded', 'rising', 'silent', 'superego', 'tapping',
     ]
+
+    if (this.idMaps.subtleSystemNodes.size === 0) {
+      await this.loadSubtleSystemNodes()
+    }
 
     // Apply pagination if active, BUT run in bulk when meditations is targeted
     // (we need all frames to populate idMaps for meditation keyframe references)
@@ -1140,8 +1173,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       const globalIndex = offset + i
       const identifier = `${frame.category}-${frame.id}`
 
-      const mappedCategory = this.mapFrameCategory(frame.category)
-      if (!mappedCategory) {
+      const mapping = this.mapFrameCategoryToSubtleSystemNode(frame.category)
+      if (!mapping) {
         await this.skip(`frame with unknown category "${frame.category}"`, {
           collection: 'frames',
           identifier,
@@ -1151,10 +1184,27 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         continue
       }
 
+      const subtleSystemNodeId = mapping.node
+        ? (this.idMaps.subtleSystemNodes.get(mapping.node) as number | undefined) ?? null
+        : null
+      if (mapping.node && subtleSystemNodeId === null) {
+        this.addWarning(
+          `SubtleSystemNode "${mapping.node}" not found - was the migration applied?`,
+        )
+      }
+
+      // Drop legacy chakra/nadi tag values that are now expressed via the relationship.
+      const droppedFromTags = new Set(['ida', 'pingala', 'kundalini'])
       const frameTagNames = frame.tags
         ? frame.tags.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean)
         : []
-      const tagValues = frameTagNames.filter((tag) => validFrameTags.includes(tag))
+      const tagValues = Array.from(
+        new Set(
+          frameTagNames
+            .filter((tag) => validFrameTags.includes(tag) && !droppedFromTags.has(tag))
+            .concat(mapping.extraTags),
+        ),
+      )
 
       const frameAttachments = this.getAttachmentsForRecord('Frame', frame.id, attachments, blobs)
       const maleAttachment = frameAttachments.find((att) => att.name === 'male')
@@ -1166,7 +1216,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
           frame.id,
           'male',
           maleAttachment,
-          mappedCategory,
+          subtleSystemNodeId,
           tagValues,
           globalIndex + 1,
           total,
@@ -1179,7 +1229,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
           frame.id,
           'female',
           femaleAttachment,
-          mappedCategory,
+          subtleSystemNodeId,
           tagValues,
           globalIndex + 1,
           total,
@@ -1201,14 +1251,15 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     legacyFrameId: number,
     gender: 'male' | 'female',
     attachment: any,
-    category: string,
+    subtleSystemNodeId: number | null,
     tagValues: string[],
     current: number,
     total: number,
   ): Promise<void> {
     const filename = attachment.blob.filename
-    // Include filename in identifier for unique identification (multiple frames can share same category)
-    const identifier = `${category}-${gender} (${filename})`
+    // Identifier for logging — the legacy ID + gender + filename keeps it unique
+    // even after the move from `category` to a relationship.
+    const identifier = `frame-${legacyFrameId}-${gender} (${filename})`
 
     // Check preload cache (fast, in-memory)
     // Preload caches by both filename (Cloudflare ID) and originalFilename (source filename)
@@ -1224,11 +1275,11 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         return
       }
 
-      // Update mode: update metadata (category, tags, imageSet) without re-uploading image
+      // Update mode: update metadata without re-uploading image
       try {
         const frameData = {
           imageSet: gender,
-          category: category as any,
+          subtleSystemNode: subtleSystemNodeId ?? undefined,
           tags: tagValues as any[],
         }
         await this.payload.update({
@@ -1263,7 +1314,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     try {
       const frameData = {
         imageSet: gender,
-        category: category as any,
+        subtleSystemNode: subtleSystemNodeId ?? undefined,
         tags: tagValues as any[],
         // Store original filename for preload cache matching in development mode
         // (Cloudflare adapters set this automatically, but local storage doesn't)
@@ -1746,9 +1797,9 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     const { timings, timingTagIds } = this.extractTimingsFromTags(meditationTaggings, allTags)
 
     // Get regular tag IDs, excluding timing-related tags
-    const meditationTagIds = meditationTaggings
+    const userChoiceTagIds = meditationTaggings
       .filter((t) => !timingTagIds.has(t.tag_id))
-      .map((t) => this.idMaps.meditationTags.get(t.tag_id))
+      .map((t) => this.idMaps.userChoices.get(t.tag_id))
       .filter((id): id is number => Boolean(id))
 
     // Check for path tag (used for type and thumbnail)
@@ -1869,9 +1920,9 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     const { timings, timingTagIds } = this.extractTimingsFromTags(meditationTaggings, allTags)
 
     // Get regular tag IDs, excluding timing-related tags
-    const meditationTagIds = meditationTaggings
+    const userChoiceTagIds = meditationTaggings
       .filter((t) => !timingTagIds.has(t.tag_id))
-      .map((t) => this.idMaps.meditationTags.get(t.tag_id))
+      .map((t) => this.idMaps.userChoices.get(t.tag_id))
       .filter((id): id is number => Boolean(id))
 
     // Check for path tag (used for type and thumbnail)

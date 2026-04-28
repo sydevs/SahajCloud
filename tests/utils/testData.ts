@@ -14,7 +14,8 @@ import type {
   Frame,
   Manager,
   Client,
-  MeditationTag,
+  UserChoice,
+  SubtleSystemNode,
   SongTag,
   Audience,
   Page,
@@ -215,11 +216,11 @@ export const testData = {
    * Create a meditation tag (upload collection with SVG icon)
    * Note: SVG files need Buffer (not Uint8Array) for detectSvgFromXml to work
    */
-  async createMeditationTag(
+  async createUserChoice(
     payload: Payload,
-    overrides: Partial<MeditationTag> = {},
+    overrides: Partial<UserChoice> = {},
     sampleFile = 'icon-test.svg',
-  ): Promise<MeditationTag> {
+  ): Promise<UserChoice> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
 
@@ -228,10 +229,10 @@ export const testData = {
 
     // Generate unique title suffix if no title override provided
     const uniqueId = Math.random().toString(36).substring(7)
-    const defaultTitle = overrides.title || `Test Tag ${uniqueId}`
+    const defaultTitle = overrides.title || `Test Choice ${uniqueId}`
 
     return (await payload.create({
-      collection: 'meditation-tags',
+      collection: 'user-choices',
       data: {
         title: defaultTitle,
         color: '#FF5733',
@@ -244,7 +245,66 @@ export const testData = {
         name: uniqueFilename,
         size: fileBuffer.length,
       },
-    })) as MeditationTag
+    })) as UserChoice
+  },
+
+  /**
+   * Create a SubtleSystemNode (chakra/nadi metadata) along with a placeholder Page.
+   *
+   * Picks an unused slug from the closed 12-element enum each call to allow
+   * multiple nodes per test. Pass `slug` in overrides to pin a specific value
+   * (e.g. when seeding a known node for backfill testing).
+   */
+  async createSubtleSystemNode(
+    payload: Payload,
+    deps: { page?: number } = {},
+    overrides: Partial<SubtleSystemNode> = {},
+  ): Promise<SubtleSystemNode> {
+    const NODE_SLUGS = [
+      'mooladhara',
+      'swadhistan',
+      'nabhi',
+      'void',
+      'anahat',
+      'vishuddhi',
+      'agnya',
+      'sahasrara',
+      'kundalini',
+      'pingala',
+      'ida',
+      'sushumna',
+    ] as const
+
+    let pageId = deps.page
+    if (pageId === undefined) {
+      const placeholder = await testData.createPage(payload)
+      pageId = placeholder.id
+    }
+
+    let slug = (overrides.slug as (typeof NODE_SLUGS)[number] | undefined) ?? null
+    if (!slug) {
+      const existing = await payload.find({
+        collection: 'subtle-system-nodes',
+        select: { slug: true },
+        limit: NODE_SLUGS.length,
+        depth: 0,
+      })
+      const taken = new Set(existing.docs.map((d) => d.slug))
+      const available = NODE_SLUGS.find((s) => !taken.has(s))
+      if (!available) {
+        throw new Error('No SubtleSystemNode slugs available — all 12 enum values are taken')
+      }
+      slug = available
+    }
+
+    return (await payload.create({
+      collection: 'subtle-system-nodes',
+      data: {
+        slug,
+        page: pageId,
+        ...overrides,
+      },
+    })) as SubtleSystemNode
   },
 
   /**
@@ -393,7 +453,7 @@ export const testData = {
     return (await payload.create({
       collection: 'meditations',
       // locale option provides request-level locale context for join subqueries
-      // that reference localized fields on other collections (e.g., meditation-tags)
+      // that reference localized fields on other collections (e.g., user-choices)
       locale: overrides.locale || 'en',
       data: {
         label: overrides.label || overrides.title || defaultTitle,
@@ -505,7 +565,6 @@ export const testData = {
       collection: 'frames',
       data: {
         imageSet: 'male' as const,
-        category: 'mooladhara' as const,
         ...overrides,
       },
       file: {

@@ -81,6 +81,26 @@ export const Lectures: CollectionConfig = {
       },
     },
     {
+      name: 'userChoices',
+      type: 'relationship',
+      relationTo: 'user-choices',
+      hasMany: true,
+      admin: {
+        description:
+          'User choices (mood/feeling tags) this lecture is relevant to. Used by the app to select contextually appropriate lectures.',
+      },
+    },
+    {
+      name: 'subtleSystemNodes',
+      type: 'relationship',
+      relationTo: 'subtle-system-nodes',
+      hasMany: true,
+      admin: {
+        description:
+          'Chakras and nadis discussed in this lecture. Used for smart lecture selection based on meditation context.',
+      },
+    },
+    {
       name: 'clips',
       type: 'join',
       collection: 'lecture-clips',

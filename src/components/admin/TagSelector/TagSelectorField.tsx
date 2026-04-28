@@ -32,12 +32,12 @@ import { TagSelector, type TagOption, type TagSelectorSize } from './TagSelector
  *
  * Works with any tag collection that has `id`, `title`, and optionally `url` and `color` fields.
  *
- * @example Usage with meditation-tags
+ * @example Usage with user-choices
  * ```typescript
  * {
  *   name: 'tags',
  *   type: 'relationship',
- *   relationTo: 'meditation-tags',
+ *   relationTo: 'user-choices',
  *   hasMany: true,
  *   admin: {
  *     components: {

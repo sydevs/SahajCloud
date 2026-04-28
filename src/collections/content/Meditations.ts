@@ -48,7 +48,7 @@ const randomSongUrlAfterRead: FieldHook = async ({ data, req }) => {
 }
 
 /**
- * Factory for afterRead hooks that find MeditationTags referencing this meditation
+ * Factory for afterRead hooks that find UserChoices referencing this meditation
  * for a specific timing field. Returns an array of { id, title } objects.
  *
  * @deprecated Workaround for a PayloadCMS bug — replace with native join fields
@@ -60,7 +60,7 @@ const randomSongUrlAfterRead: FieldHook = async ({ data, req }) => {
  * fields with afterRead hooks.
  *
  * Each call maps 1:1 to this native join field config:
- *   { type: 'join', collection: 'meditation-tags', on: '<onField>' }
+ *   { type: 'join', collection: 'user-choices', on: '<onField>' }
  */
 const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField => ({
   name,
@@ -76,7 +76,7 @@ const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField
         if (!data?.id) return []
         try {
           const result = await req.payload.find({
-            collection: 'meditation-tags',
+            collection: 'user-choices',
             where: { [on]: { equals: data.id }, isParent: { not_equals: true } },
             select: { title: true },
             locale: req.locale || 'en',

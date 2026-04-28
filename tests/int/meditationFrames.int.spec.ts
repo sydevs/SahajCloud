@@ -33,15 +33,12 @@ describe('Meditation Frames Field', () => {
     // Create test frames
     testFrame1 = await testData.createFrame(payload, {
       imageSet: 'male',
-      category: 'mooladhara',
     })
     testFrame2 = await testData.createFrame(payload, {
       imageSet: 'male',
-      category: 'swadhistan',
     })
     testFrame3 = await testData.createFrame(payload, {
       imageSet: 'male',
-      category: 'nabhi',
     })
 
     // Create test meditation without frames initially
@@ -299,12 +296,14 @@ describe('Meditation Frames Field', () => {
         id: testMeditation.id,
       })) as Meditation
 
-      const enrichedFrames = fetched.frames as Array<KeyframeDefinition & { category?: string }>
+      const enrichedFrames = fetched.frames as Array<
+        KeyframeDefinition & { imageSet?: string }
+      >
 
       expect(enrichedFrames).toHaveLength(2)
-      // Should have category from frame data
-      expect(enrichedFrames[0].category).toBe('mooladhara')
-      expect(enrichedFrames[1].category).toBe('swadhistan')
+      // Enrichment populates fields from the underlying Frame doc
+      expect(enrichedFrames[0].imageSet).toBe('male')
+      expect(enrichedFrames[1].imageSet).toBe('male')
     })
   })
 

@@ -2,26 +2,26 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import type { Meditation, MeditationTag } from '@/payload-types'
+import type { Meditation, UserChoice } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
- * Tests for the per-timing meditation assignment model on MeditationTags.
+ * Tests for the per-timing meditation assignment model on UserChoices.
  *
  * Each tag has a `timings` select field and 4 localized relationship fields
  * (morningMeditation, afternoonMeditation, eveningMeditation, nightMeditation).
  * The standard API replaces the old custom endpoint.
  */
-describe('MeditationTags per-timing assignments', () => {
+describe('UserChoices per-timing assignments', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
   // Test fixtures
-  let morningTag: MeditationTag
-  let eveningTag: MeditationTag
-  let parentTag: MeditationTag
+  let morningTag: UserChoice
+  let eveningTag: UserChoice
+  let parentTag: UserChoice
   // Test meditations
   let quickMorning: Meditation
   let quickEvening: Meditation
@@ -76,7 +76,7 @@ describe('MeditationTags per-timing assignments', () => {
     )
 
     // Create tags with timings and assignments
-    morningTag = await testData.createMeditationTag(payload, {
+    morningTag = await testData.createUserChoice(payload, {
       title: 'Morning Focus',
       order: 1,
       timings: ['morning', 'afternoon'],
@@ -84,7 +84,7 @@ describe('MeditationTags per-timing assignments', () => {
 
     // Assign morning meditation (EN)
     morningTag = await payload.update({
-      collection: 'meditation-tags',
+      collection: 'user-choices',
       id: morningTag.id,
       locale: 'en',
       data: { morningMeditation: quickMorning.id },
@@ -92,13 +92,13 @@ describe('MeditationTags per-timing assignments', () => {
 
     // Assign Czech morning meditation (title required for localized update)
     await payload.update({
-      collection: 'meditation-tags',
+      collection: 'user-choices',
       id: morningTag.id,
       locale: 'cs',
       data: { title: 'Ranní Soustředění', morningMeditation: czechMorning.id },
     })
 
-    eveningTag = await testData.createMeditationTag(payload, {
+    eveningTag = await testData.createUserChoice(payload, {
       title: 'Evening Calm',
       order: 2,
       timings: ['evening', 'night'],
@@ -106,22 +106,22 @@ describe('MeditationTags per-timing assignments', () => {
 
     // Assign evening meditation (EN)
     eveningTag = await payload.update({
-      collection: 'meditation-tags',
+      collection: 'user-choices',
       id: eveningTag.id,
       locale: 'en',
       data: { eveningMeditation: quickEvening.id },
     })
 
-    await testData.createMeditationTag(payload, {
+    await testData.createUserChoice(payload, {
       title: 'Unused Tag',
       order: 3,
     })
 
     // Create parent tag (should be excluded from results)
-    parentTag = await testData.createMeditationTag(payload, {
+    parentTag = await testData.createUserChoice(payload, {
       title: 'Parent Category',
     })
-    await testData.createMeditationTag(payload, {
+    await testData.createUserChoice(payload, {
       title: 'Child of Parent',
       parent: parentTag.id,
     })
@@ -134,7 +134,7 @@ describe('MeditationTags per-timing assignments', () => {
   describe('standard API filtering by timing', () => {
     it('returns tags with morning meditation assignments', async () => {
       const result = await payload.find({
-        collection: 'meditation-tags',
+        collection: 'user-choices',
         locale: 'en',
         where: {
           morningMeditation: { exists: true },
@@ -153,7 +153,7 @@ describe('MeditationTags per-timing assignments', () => {
 
     it('returns tags with evening meditation assignments', async () => {
       const result = await payload.find({
-        collection: 'meditation-tags',
+        collection: 'user-choices',
         locale: 'en',
         where: {
           eveningMeditation: { exists: true },
@@ -170,7 +170,7 @@ describe('MeditationTags per-timing assignments', () => {
 
     it('returns tags sorted by order', async () => {
       const result = await payload.find({
-        collection: 'meditation-tags',
+        collection: 'user-choices',
         where: {
           morningMeditation: { exists: true },
           isParent: { not_equals: true },
@@ -187,7 +187,7 @@ describe('MeditationTags per-timing assignments', () => {
   describe('locale-specific assignments', () => {
     it('returns English meditation for English locale', async () => {
       const result = await payload.findByID({
-        collection: 'meditation-tags',
+        collection: 'user-choices',
         id: morningTag.id,
         locale: 'en',
         depth: 1,
@@ -201,7 +201,7 @@ describe('MeditationTags per-timing assignments', () => {
 
     it('returns Czech meditation for Czech locale', async () => {
       const result = await payload.findByID({
-        collection: 'meditation-tags',
+        collection: 'user-choices',
         id: morningTag.id,
         locale: 'cs',
         depth: 1,
@@ -215,7 +215,7 @@ describe('MeditationTags per-timing assignments', () => {
     it('filters by locale when querying with exists', async () => {
       // Czech locale should have morningMeditation on morningTag
       const csResult = await payload.find({
-        collection: 'meditation-tags',
+        collection: 'user-choices',
         locale: 'cs',
         where: {
           morningMeditation: { exists: true },
@@ -231,7 +231,7 @@ describe('MeditationTags per-timing assignments', () => {
   describe('parent tag exclusion', () => {
     it('excludes parent tags from filtered results', async () => {
       const result = await payload.find({
-        collection: 'meditation-tags',
+        collection: 'user-choices',
         where: {
           isParent: { not_equals: true },
         },
@@ -245,7 +245,7 @@ describe('MeditationTags per-timing assignments', () => {
   describe('populated meditation at depth=1', () => {
     it('populates the meditation document', async () => {
       const result = await payload.find({
-        collection: 'meditation-tags',
+        collection: 'user-choices',
         locale: 'en',
         where: {
           morningMeditation: { exists: true },
@@ -270,12 +270,12 @@ describe('MeditationTags per-timing assignments', () => {
 
   describe('timings field access control', () => {
     it('admin managers can update timings', async () => {
-      const tag = await testData.createMeditationTag(payload, {
+      const tag = await testData.createUserChoice(payload, {
         title: 'Admin Timings Test',
       })
 
       const updated = await payload.update({
-        collection: 'meditation-tags',
+        collection: 'user-choices',
         id: tag.id,
         data: { timings: ['morning', 'night'] },
       })
@@ -288,7 +288,7 @@ describe('MeditationTags per-timing assignments', () => {
     it('returns no tags for timing with no assignments', async () => {
       // No tags have nightMeditation assigned
       const result = await payload.find({
-        collection: 'meditation-tags',
+        collection: 'user-choices',
         locale: 'en',
         where: {
           nightMeditation: { exists: true },

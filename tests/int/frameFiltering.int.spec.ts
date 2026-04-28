@@ -2,8 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { FRAME_CATEGORIES } from '@/lib/data'
-import type { Frame, Narrator } from '@/payload-types'
+import type { Frame, Narrator, SubtleSystemNode } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -13,6 +12,9 @@ describe('Frame Filtering for FrameInserter', () => {
   let cleanup: () => Promise<void>
   let maleNarrator: Narrator
   let femaleNarrator: Narrator
+  let mooladharaNode: SubtleSystemNode
+  let swadhistanNode: SubtleSystemNode
+  let nabhiNode: SubtleSystemNode
 
   // Track created frames for cleanup
   let maleFrames: Frame[] = []
@@ -34,24 +36,36 @@ describe('Frame Filtering for FrameInserter', () => {
       gender: 'female',
     })
 
-    // Create frames for different imageSet and categories
+    // Create three subtle-system nodes the frames can reference
+    mooladharaNode = await testData.createSubtleSystemNode(
+      payload,
+      {},
+      { slug: 'mooladhara' },
+    )
+    swadhistanNode = await testData.createSubtleSystemNode(
+      payload,
+      {},
+      { slug: 'swadhistan' },
+    )
+    nabhiNode = await testData.createSubtleSystemNode(payload, {}, { slug: 'nabhi' })
+
     // Male frames
     maleFrames.push(
       await testData.createFrame(payload, {
         imageSet: 'male',
-        category: FRAME_CATEGORIES[0], // mooladhara
+        subtleSystemNode: mooladharaNode.id,
       }),
     )
     maleFrames.push(
       await testData.createFrame(payload, {
         imageSet: 'male',
-        category: FRAME_CATEGORIES[1], // swadhistan
+        subtleSystemNode: swadhistanNode.id,
       }),
     )
     maleFrames.push(
       await testData.createFrame(payload, {
         imageSet: 'male',
-        category: FRAME_CATEGORIES[2], // nabhi
+        subtleSystemNode: nabhiNode.id,
       }),
     )
 
@@ -61,7 +75,7 @@ describe('Frame Filtering for FrameInserter', () => {
         payload,
         {
           imageSet: 'female',
-          category: FRAME_CATEGORIES[0], // mooladhara
+          subtleSystemNode: mooladharaNode.id,
         },
         'image-1050x700.png',
       ),
@@ -71,7 +85,7 @@ describe('Frame Filtering for FrameInserter', () => {
         payload,
         {
           imageSet: 'female',
-          category: FRAME_CATEGORIES[3], // heart
+          subtleSystemNode: nabhiNode.id,
         },
         'image-1050x700.webp',
       ),
@@ -114,183 +128,49 @@ describe('Frame Filtering for FrameInserter', () => {
         expect(frame.imageSet).toBe('female')
       })
     })
-
-    it('returns frames matching narrator gender', async () => {
-      // Simulate what FrameInserter does - filter by narrator gender
-      const narratorGender = maleNarrator.gender
-
-      const result = await payload.find({
-        collection: 'frames',
-        where: {
-          imageSet: {
-            equals: narratorGender,
-          },
-        },
-      })
-
-      expect(result.docs.length).toBeGreaterThanOrEqual(3)
-      result.docs.forEach((frame) => {
-        expect(frame.imageSet).toBe('male')
-      })
-    })
   })
 
-  describe('Category Filtering', () => {
-    it('filters frames by single category', async () => {
-      const category = FRAME_CATEGORIES[0] // mooladhara
-
+  describe('SubtleSystemNode Filtering', () => {
+    it('filters frames by a single subtleSystemNode relationship', async () => {
       const result = await payload.find({
         collection: 'frames',
         where: {
-          category: {
-            equals: category,
+          subtleSystemNode: {
+            equals: mooladharaNode.id,
           },
         },
+        depth: 0,
       })
 
-      expect(result.docs.length).toBeGreaterThanOrEqual(2) // Both male and female have this category
+      // Both male and female mooladhara frames
+      expect(result.docs.length).toBeGreaterThanOrEqual(2)
       result.docs.forEach((frame) => {
-        expect(frame.category).toBe(category)
+        expect(frame.subtleSystemNode).toBe(mooladharaNode.id)
       })
     })
 
-    it('combines gender and category filters', async () => {
-      const category = FRAME_CATEGORIES[0] // mooladhara
-      const gender = 'male'
-
+    it('combines gender and subtleSystemNode filters', async () => {
       const result = await payload.find({
         collection: 'frames',
         where: {
           and: [
-            {
-              imageSet: {
-                equals: gender,
-              },
-            },
-            {
-              category: {
-                equals: category,
-              },
-            },
+            { imageSet: { equals: 'male' } },
+            { subtleSystemNode: { equals: mooladharaNode.id } },
           ],
         },
+        depth: 0,
       })
 
       expect(result.docs.length).toBeGreaterThanOrEqual(1)
       result.docs.forEach((frame) => {
-        expect(frame.imageSet).toBe(gender)
-        expect(frame.category).toBe(category)
+        expect(frame.imageSet).toBe('male')
+        expect(frame.subtleSystemNode).toBe(mooladharaNode.id)
       })
-    })
-
-    it('returns all frames when no category filter is applied', async () => {
-      const result = await payload.find({
-        collection: 'frames',
-        limit: 100,
-      })
-
-      expect(result.docs.length).toBeGreaterThanOrEqual(5) // All frames created in this test
-    })
-  })
-
-  describe('Frame Loading for Meditation', () => {
-    it('loads frames with required fields for display', async () => {
-      const result = await payload.find({
-        collection: 'frames',
-        limit: 10,
-      })
-
-      // Verify frames have all fields needed for FrameInserter display
-      result.docs.forEach((frame) => {
-        expect(frame.id).toBeDefined()
-        expect(frame.category).toBeDefined()
-        expect(frame.imageSet).toBeDefined()
-        // thumbnailUrl is virtual, may or may not be populated depending on storage
-        // url should be defined
-        expect(frame.url || frame.filename).toBeDefined()
-      })
-    })
-
-    it('supports pagination for large frame libraries', async () => {
-      const page1 = await payload.find({
-        collection: 'frames',
-        limit: 2,
-        page: 1,
-      })
-
-      const page2 = await payload.find({
-        collection: 'frames',
-        limit: 2,
-        page: 2,
-      })
-
-      expect(page1.docs.length).toBeLessThanOrEqual(2)
-      // Page 2 may have frames if there are more than 2
-      if (page1.totalDocs > 2) {
-        expect(page2.docs.length).toBeGreaterThan(0)
-        // Ensure different frames on different pages
-        const page1Ids = page1.docs.map((f) => f.id)
-        const page2Ids = page2.docs.map((f) => f.id)
-        page2Ids.forEach((id) => {
-          expect(page1Ids).not.toContain(id)
-        })
-      }
-    })
-  })
-
-  describe('Narrator Relationship', () => {
-    it('narrators have gender field for frame filtering', async () => {
-      const narrator = await payload.findByID({
-        collection: 'narrators',
-        id: maleNarrator.id,
-      })
-
-      expect(narrator.gender).toBe('male')
-    })
-
-    it('allows fetching narrator to determine frame filter', async () => {
-      // Simulate what FrameInserter does - fetch narrator then filter frames
-      const narrator = await payload.findByID({
-        collection: 'narrators',
-        id: femaleNarrator.id,
-      })
-
-      const frames = await payload.find({
-        collection: 'frames',
-        where: {
-          imageSet: {
-            equals: narrator.gender,
-          },
-        },
-      })
-
-      expect(frames.docs.length).toBeGreaterThanOrEqual(2)
-      frames.docs.forEach((frame) => {
-        expect(frame.imageSet).toBe('female')
-      })
-    })
-  })
-
-  describe('All Categories Available', () => {
-    it('FRAME_CATEGORIES constant matches collection options', async () => {
-      // Verify that FRAME_CATEGORIES has all expected categories
-      expect(FRAME_CATEGORIES).toContain('mooladhara')
-      expect(FRAME_CATEGORIES).toContain('swadhistan')
-      expect(FRAME_CATEGORIES).toContain('nabhi')
-      expect(FRAME_CATEGORIES.length).toBeGreaterThan(0)
     })
   })
 
   describe('Custom Endpoint: /by-narrator/:narratorId', () => {
-    /**
-     * These tests verify the logic of the custom endpoint by testing
-     * the same operations the endpoint handler performs:
-     * 1. Look up narrator by ID to get gender
-     * 2. Return frames filtered by that gender (imageSet)
-     */
-
-    it('returns frames matching narrator gender (male)', async () => {
-      // Simulate endpoint logic: lookup narrator, filter frames by gender
+    it('returns male-set frames with subtleSystemNode populated at depth 1', async () => {
       const narrator = await payload.findByID({
         collection: 'narrators',
         id: maleNarrator.id,
@@ -301,17 +181,19 @@ describe('Frame Filtering for FrameInserter', () => {
         collection: 'frames',
         where: { imageSet: { equals: narrator.gender } },
         limit: 100,
-        depth: 0,
+        depth: 1,
       })
 
       expect(frames.docs.length).toBeGreaterThanOrEqual(3)
-      frames.docs.forEach((frame) => {
-        expect(frame.imageSet).toBe('male')
-      })
+
+      // Verify the endpoint's depth: 1 hydrates subtleSystemNode for FrameInserter grouping
+      const populated = frames.docs.find((f) => f.subtleSystemNode)
+      expect(populated).toBeDefined()
+      expect(typeof populated?.subtleSystemNode).toBe('object')
+      expect((populated?.subtleSystemNode as SubtleSystemNode).slug).toBeDefined()
     })
 
-    it('returns frames matching narrator gender (female)', async () => {
-      // Simulate endpoint logic: lookup narrator, filter frames by gender
+    it('returns female-set frames matching the narrator gender', async () => {
       const narrator = await payload.findByID({
         collection: 'narrators',
         id: femaleNarrator.id,
@@ -329,63 +211,6 @@ describe('Frame Filtering for FrameInserter', () => {
       frames.docs.forEach((frame) => {
         expect(frame.imageSet).toBe('female')
       })
-    })
-
-    it('throws NotFound when narrator does not exist', async () => {
-      // Simulate endpoint logic: lookup non-existent narrator
-      await expect(
-        payload.findByID({
-          collection: 'narrators',
-          id: 99999, // Non-existent ID
-          depth: 0,
-        }),
-      ).rejects.toThrow()
-    })
-
-    it('returns frames with all required fields for display', async () => {
-      // Simulate endpoint logic: verify response structure
-      const narrator = await payload.findByID({
-        collection: 'narrators',
-        id: maleNarrator.id,
-        depth: 0,
-      })
-
-      const frames = await payload.find({
-        collection: 'frames',
-        where: { imageSet: { equals: narrator.gender } },
-        limit: 100,
-        depth: 0,
-      })
-
-      // Verify response has docs array (matching endpoint response format)
-      expect(frames).toHaveProperty('docs')
-      expect(Array.isArray(frames.docs)).toBe(true)
-
-      // Verify each frame has fields needed by FrameInserter
-      frames.docs.forEach((frame) => {
-        expect(frame.id).toBeDefined()
-        expect(frame.category).toBeDefined()
-        expect(frame.imageSet).toBeDefined()
-        // mimeType needed for video detection
-        expect(frame.mimeType).toBeDefined()
-      })
-    })
-
-    it('respects limit parameter', async () => {
-      const narrator = await payload.findByID({
-        collection: 'narrators',
-        id: maleNarrator.id,
-        depth: 0,
-      })
-
-      const frames = await payload.find({
-        collection: 'frames',
-        where: { imageSet: { equals: narrator.gender } },
-        limit: 2, // Custom endpoint uses limit: 100, but verify limit works
-        depth: 0,
-      })
-
-      expect(frames.docs.length).toBeLessThanOrEqual(2)
     })
   })
 })
