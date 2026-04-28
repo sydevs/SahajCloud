@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { computeMeditationNodeWeights } from '@/lib/computeMeditationNodeWeights'
+import { computeMeditationNodeWeights } from '@/hooks/meditationHooks'
 
 describe('computeMeditationNodeWeights', () => {
   it('returns {} for empty frames', () => {

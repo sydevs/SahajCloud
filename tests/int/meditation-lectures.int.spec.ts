@@ -139,65 +139,45 @@ describe('meditationLectures endpoint', () => {
 
     userChoice = await testData.createUserChoice(payload, { title: 'Stress relief' })
 
-    lectureA = await testData.createLecture(
-      payload,
-      {},
-      { title: 'Lecture A', subtleSystemNodes: [nodeA.id] },
-    )
-    lectureB = await testData.createLecture(
-      payload,
-      {},
-      { title: 'Lecture B', subtleSystemNodes: [nodeC.id] },
-    )
-    lectureAB = await testData.createLecture(
-      payload,
-      {},
-      { title: 'Lecture AB', subtleSystemNodes: [nodeA.id, nodeB.id] },
-    )
-    lectureNone = await testData.createLecture(
-      payload,
-      {},
-      { title: 'Lecture None', subtleSystemNodes: [] },
-    )
+    lectureA = await testData.createLecture(payload, {}, { title: 'Lecture A' })
+    lectureB = await testData.createLecture(payload, {}, { title: 'Lecture B' })
+    lectureAB = await testData.createLecture(payload, {}, { title: 'Lecture AB' })
+    lectureNone = await testData.createLecture(payload, {}, { title: 'Lecture None' })
     lectureUC = await testData.createLecture(
       payload,
       {},
-      {
-        title: 'Lecture UC',
-        subtleSystemNodes: [nodeA.id],
-        userChoices: [userChoice.id],
-      },
+      { title: 'Lecture UC', userChoices: [userChoice.id] },
     )
 
     clipA = await testData.createLectureClip(
       payload,
       { lecture: lectureA.id },
-      { title: 'Clip A', audiences: [audience.id] },
+      { title: 'Clip A', audiences: [audience.id], subtleSystemNodes: [nodeA.id] },
     )
     clipB = await testData.createLectureClip(
       payload,
       { lecture: lectureB.id },
-      { title: 'Clip B', audiences: [audience.id] },
+      { title: 'Clip B', audiences: [audience.id], subtleSystemNodes: [nodeC.id] },
     )
     clipAB = await testData.createLectureClip(
       payload,
       { lecture: lectureAB.id },
-      { title: 'Clip AB', audiences: [audience.id] },
+      { title: 'Clip AB', audiences: [audience.id], subtleSystemNodes: [nodeA.id, nodeB.id] },
     )
     clipNone = await testData.createLectureClip(
       payload,
       { lecture: lectureNone.id },
-      { title: 'Clip None', audiences: [audience.id] },
+      { title: 'Clip None', audiences: [audience.id], subtleSystemNodes: [] },
     )
     clipUC = await testData.createLectureClip(
       payload,
       { lecture: lectureUC.id },
-      { title: 'Clip UC', audiences: [audience.id] },
+      { title: 'Clip UC', audiences: [audience.id], subtleSystemNodes: [nodeA.id] },
     )
     clipNoAudience = await testData.createLectureClip(
       payload,
       { lecture: lectureA.id },
-      { title: 'Clip No Audience', audiences: [] },
+      { title: 'Clip No Audience', audiences: [], subtleSystemNodes: [nodeA.id] },
     )
   }, 60000)
 

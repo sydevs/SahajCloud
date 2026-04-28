@@ -605,7 +605,7 @@ describe('Custom Endpoint Shims', () => {
       for (const path of [
         '/api/lectures/for-audience',
         '/api/app-cards/for-audience',
-        '/api/meditations/{id}/lectures',
+        '/api/meditations/{id}/related-lecture-clips',
       ] as const) {
         const op = CUSTOM_ENDPOINT_PATHS[path]!.get!
         const paramNames = (op.parameters ?? []).map((p) => p.name)
@@ -629,8 +629,8 @@ describe('Custom Endpoint Shims', () => {
       }
     })
 
-    it('meditations/:id/lectures returns clip-only data via single LectureClipPlayerData $ref', () => {
-      const op = CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/lectures']!.get!
+    it('meditations/:id/related-lecture-clips returns clip-only data via single LectureClipPlayerData $ref', () => {
+      const op = CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/related-lecture-clips']!.get!
       const successSchema = (op.responses?.['200'] as { content?: Record<string, { schema: { properties?: { docs?: { items?: { $ref?: string; oneOf?: unknown } } } } }> })?.content?.['application/json']?.schema
       const items = successSchema?.properties?.docs?.items
       // Clip-only response — single $ref, not a oneOf union.
@@ -638,8 +638,8 @@ describe('Custom Endpoint Shims', () => {
       expect(items?.oneOf).toBeUndefined()
     })
 
-    it('meditations/:id/lectures exposes optional userChoice + excludedLectureClipIds + path id', () => {
-      const op = CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/lectures']!.get!
+    it('meditations/:id/related-lecture-clips exposes optional userChoice + excludedLectureClipIds + path id', () => {
+      const op = CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/related-lecture-clips']!.get!
       const params = op.parameters ?? []
 
       const idParam = params.find((p) => p.name === 'id')
@@ -676,7 +676,7 @@ describe('Custom Endpoint Shims', () => {
       for (const path of [
         '/api/lectures/for-audience',
         '/api/app-cards/for-audience',
-        '/api/meditations/{id}/lectures',
+        '/api/meditations/{id}/related-lecture-clips',
       ] as const) {
         const op = CUSTOM_ENDPOINT_PATHS[path]!.get!
         for (const param of op.parameters ?? []) {

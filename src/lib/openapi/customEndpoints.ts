@@ -285,21 +285,16 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
     },
   },
 
-  '/api/meditations/{id}/lectures': {
+  '/api/meditations/{id}/related-lecture-clips': {
     get: {
       tags: ['Meditations'],
-      summary: 'Context-aware lecture clips for a meditation',
+      summary: 'Suggested lecture clips for a meditation',
       description:
-        'Returns lecture clips ranked by topical overlap between the ' +
-        "meditation's on-screen subtle system nodes (cached on the " +
-        "meditation's `subtleSystemNodeWeights`) and each candidate clip's " +
-        "parent lecture's `subtleSystemNodes`. Audience filter (OR " +
-        'semantics across attached audiences) gates the candidate set; ' +
-        'clips with no audiences are excluded. When `userChoice` is ' +
-        'supplied, candidates are restricted to clips whose parent lecture ' +
-        'has that user-choice in its `userChoices`. Results are sorted ' +
-        'descending by weight, tie-broken by clip id ascending — ' +
-        'deterministic across calls.',
+        'Returns lecture clips related to a meditation, ordered most-' +
+        'relevant first. Pass the `userChoice` query param to limit ' +
+        'results to a single mood/goal category, and `excludedLectureClipIds` ' +
+        'to omit clips the user has already watched. Audience inputs ' +
+        'filter the pool to clips eligible for this viewer.',
       operationId: 'meditationLectures',
       parameters: [
         {

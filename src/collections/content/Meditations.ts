@@ -242,7 +242,7 @@ export const Meditations: CollectionConfig = {
             {
               // Cached `{ slug → on-screen seconds }` map for the meditation's
               // frames. Drives the topical-overlap ranking in
-              // `/api/meditations/:id/lectures`. Recomputed by the
+              // `/api/meditations/:id/related-lecture-clips`. Recomputed by the
               // `recomputeMeditationNodeWeights` afterChange hook on Meditations
               // and cascaded from Frames via `cascadeFrameNodeChange`.
               name: 'subtleSystemNodeWeights',

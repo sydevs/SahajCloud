@@ -32,12 +32,12 @@ const querySchema = z.object({
 })
 
 /**
- * GET /api/meditations/:id/lectures
+ * GET /api/meditations/:id/related-lecture-clips
  *
  * Returns lecture clips contextually relevant to a specific meditation,
  * ranked by topical overlap between the meditation's on-screen subtle
  * system nodes (cached on `meditation.subtleSystemNodeWeights`) and each
- * candidate clip's parent lecture's `subtleSystemNodes`.
+ * candidate clip's own `subtleSystemNodes`.
  *
  * Query params:
  *   - audience inputs (required, mirrors `/for-audience` endpoints)
@@ -55,10 +55,11 @@ const querySchema = z.object({
  *   3. Evaluate audiences → eligible-audience-ID set; empty → `{ docs: [] }`.
  *   4. Resolve eligible parent lecture IDs (only when `userChoice` is set).
  *   5. Find candidate clips with audience + optional userChoice + optional
- *      excluded-id filters; bulk-fetch parent lectures for the result.
+ *      excluded-id filters; bulk-fetch parent lectures for the result so
+ *      we have the player metadata (hlsUrl, thumbnail, subtitles).
  *   6. Compute clip weight = sum of `weights[node.slug]` over each
- *      populated `subtleSystemNodes` entry on the parent lecture; drop
- *      weight = 0.
+ *      populated `subtleSystemNodes` entry on the clip itself; drop
+ *      weight = 0 (clips with no nodes contribute nothing).
  *   7. Sort descending by weight; tie-break by clip id ascending →
  *      deterministic order.
  *   8. Slice to `limit`.
@@ -66,7 +67,7 @@ const querySchema = z.object({
  *      `src/lib/lectureClipShape.ts`).
  */
 export const meditationLectures: Endpoint = {
-  path: '/:id/lectures',
+  path: '/:id/related-lecture-clips',
   method: 'get',
   handler: async (req) => {
     const idParam = req.routeParams?.id as string | number | undefined
@@ -208,7 +209,7 @@ export const meditationLectures: Endpoint = {
       const parent = parentById.get(parentId)
       if (!parent) continue
 
-      const nodes = (parent.subtleSystemNodes ?? []) as Array<number | SubtleSystemNode>
+      const nodes = (clip.subtleSystemNodes ?? []) as Array<number | SubtleSystemNode>
       let weight = 0
       for (const node of nodes) {
         if (node && typeof node === 'object' && typeof node.slug === 'string') {
@@ -232,7 +233,7 @@ export const meditationLectures: Endpoint = {
         const metadata = parent.metadata as LectureMetadata | null | undefined
         if (!metadata?.hlsUrl) {
           req.payload.logger.warn({
-            msg: 'Clip parent missing metadata.hlsUrl — skipping in /meditations/:id/lectures',
+            msg: 'Clip parent missing metadata.hlsUrl — skipping in /meditations/:id/related-lecture-clips',
             clipId: clip.id,
             parentId: parent.id,
           })

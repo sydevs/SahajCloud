@@ -24,7 +24,7 @@ export type LecturePlayerData = {
 
 /**
  * Flat, playback-ready shape for a lecture clip returned from /for-audience
- * and /api/meditations/:id/lectures.
+ * and /api/meditations/:id/related-lecture-clips.
  *
  * All time fields are concrete numbers (the collection enforces
  * `endTime > startTime`), `title` is required, and `lectureId` points at
