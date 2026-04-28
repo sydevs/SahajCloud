@@ -596,7 +596,7 @@ describe('Custom Endpoint Shims', () => {
       expect(successSchema?.properties?.docs?.items?.$ref).toBe('#/components/schemas/AppCards')
     })
 
-    it('audience query params stay in sync with AUDIENCE_DEFINITIONS on both for-audience endpoints', () => {
+    it('audience query params stay in sync with AUDIENCE_DEFINITIONS on every audience-aware endpoint', () => {
       // Regression guard: if a new rule is added to AUDIENCE_DEFINITIONS but
       // not plumbed through `audienceQueryParameters` in customEndpoints.ts,
       // the generated docs silently under-advertise the endpoint.
@@ -605,6 +605,7 @@ describe('Custom Endpoint Shims', () => {
       for (const path of [
         '/api/lectures/for-audience',
         '/api/app-cards/for-audience',
+        '/api/meditations/{id}/lectures',
       ] as const) {
         const op = CUSTOM_ENDPOINT_PATHS[path]!.get!
         const paramNames = (op.parameters ?? []).map((p) => p.name)
@@ -628,6 +629,40 @@ describe('Custom Endpoint Shims', () => {
       }
     })
 
+    it('meditations/:id/lectures returns clip-only data via single LectureClipPlayerData $ref', () => {
+      const op = CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/lectures']!.get!
+      const successSchema = (op.responses?.['200'] as { content?: Record<string, { schema: { properties?: { docs?: { items?: { $ref?: string; oneOf?: unknown } } } } }> })?.content?.['application/json']?.schema
+      const items = successSchema?.properties?.docs?.items
+      // Clip-only response — single $ref, not a oneOf union.
+      expect(items?.$ref).toBe('#/components/schemas/LectureClipPlayerData')
+      expect(items?.oneOf).toBeUndefined()
+    })
+
+    it('meditations/:id/lectures exposes optional userChoice + excludedLectureClipIds + path id', () => {
+      const op = CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/lectures']!.get!
+      const params = op.parameters ?? []
+
+      const idParam = params.find((p) => p.name === 'id')
+      expect(idParam?.in).toBe('path')
+      expect(idParam?.required).toBe(true)
+
+      const userChoiceParam = params.find((p) => p.name === 'userChoice')
+      expect(userChoiceParam?.in).toBe('query')
+      expect(userChoiceParam?.required).toBe(false)
+      expect((userChoiceParam?.schema as { type?: string })?.type).toBe('integer')
+
+      const excludedParam = params.find((p) => p.name === 'excludedLectureClipIds')
+      expect(excludedParam?.in).toBe('query')
+      expect(excludedParam?.required).toBe(false)
+      expect((excludedParam?.schema as { type?: string })?.type).toBe('string')
+
+      // Limit is required and bounded 1–100, mirroring lectures/for-audience.
+      const limitParam = params.find((p) => p.name === 'limit')
+      expect(limitParam?.required).toBe(true)
+      expect((limitParam?.schema as { maximum?: number; minimum?: number })?.maximum).toBe(100)
+      expect((limitParam?.schema as { maximum?: number; minimum?: number })?.minimum).toBe(1)
+    })
+
     it('audience query-param descriptions mirror RuleDefinition.description', () => {
       // Each rule with an authored description in AUDIENCE_DEFINITIONS should
       // surface that exact text on both for-audience endpoints — keeps admin
@@ -641,6 +676,7 @@ describe('Custom Endpoint Shims', () => {
       for (const path of [
         '/api/lectures/for-audience',
         '/api/app-cards/for-audience',
+        '/api/meditations/{id}/lectures',
       ] as const) {
         const op = CUSTOM_ENDPOINT_PATHS[path]!.get!
         for (const param of op.parameters ?? []) {

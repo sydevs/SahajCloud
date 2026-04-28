@@ -168,19 +168,24 @@ export const recomputeMeditationNodeWeights: CollectionAfterChangeHook = async (
   doc,
   previousDoc,
   req,
-  operation,
   context,
 }) => {
   if (context?.skipRecomputeNodeWeights) return doc
 
   const framesChanged =
-    operation === 'create' ||
     JSON.stringify(extractFrameIds(doc.frames)) !==
-      JSON.stringify(extractFrameIds(previousDoc?.frames))
+    JSON.stringify(extractFrameIds(previousDoc?.frames))
 
   const durationChanged = doc.duration !== previousDoc?.duration
 
   if (!framesChanged && !durationChanged) return doc
+
+  // Skip computing/persisting weights when the meditation has no frames yet
+  // (typical fresh-create state) — the `frames` field is required on update,
+  // so attempting to write back the (empty) weights would trip its validator.
+  // Subsequent edits that introduce frames will fire the hook normally.
+  const frameIds = extractFrameIds(doc.frames)
+  if (frameIds.length === 0) return doc
 
   const weights = await recomputeWeightsForMeditation(req.payload, doc as Meditation, req)
 

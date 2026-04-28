@@ -37,7 +37,6 @@ export const cascadeFrameNodeChange: CollectionAfterChangeHook = async ({
     limit: 1000,
     depth: 0,
     pagination: false,
-    select: { frames: true },
     locale: 'all',
     req,
   })

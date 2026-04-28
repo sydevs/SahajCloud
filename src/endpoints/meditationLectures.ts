@@ -168,6 +168,7 @@ export const meditationLectures: Endpoint = {
       limit: 0,
       depth: 1,
       pagination: false,
+      locale: req.locale ?? 'en',
       req,
     })
 
@@ -190,6 +191,7 @@ export const meditationLectures: Endpoint = {
         limit: parentIds.size,
         depth: 1,
         pagination: false,
+        locale: req.locale ?? 'en',
         req,
       })
       for (const parent of parents as Lecture[]) {
