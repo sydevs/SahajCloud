@@ -47,6 +47,10 @@ export const SubtleSystemNodes: CollectionConfig = {
       admin: {
         description: 'Identifier for this chakra or nadi. Closed enum of 12 values.',
       },
+      access: {
+        // Vimeo URL is immutable after creation
+        update: () => false,
+      },
     },
     {
       name: 'page',
