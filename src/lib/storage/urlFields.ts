@@ -82,32 +82,6 @@ interface VideoUrlFieldOptions {
   collection: CollectionSlug
 }
 
-// ============================================================================
-// Shared resolvers
-// ============================================================================
-
-/**
- * Returns the MP4 download URL for video MIME types, `null` for everything else.
- *
- * Used by `mp4UrlField`. Returns `null` for non-video so mixed-media
- * collections (`frames`, `files`) can expose a uniform `mp4Url` field.
- */
-const buildVideoMp4Resolver = (collection: CollectionSlug): FieldHook => {
-  return ({ data }) => {
-    if (!data?.filename) return undefined
-
-    const category = getMimeCategory(data.mimeType)
-
-    if (category === 'video') {
-      return (
-        getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
-      )
-    }
-
-    return null
-  }
-}
-
 /**
  * Creates a virtual URL field for upload collections
  *
@@ -336,12 +310,26 @@ export const hlsUrlField = (options: VideoUrlFieldOptions): Field => {
 export const mp4UrlField = (options: VideoUrlFieldOptions): Field => {
   const { collection } = options
 
+  const afterReadHook: FieldHook = ({ data }) => {
+    if (!data?.filename) return undefined
+
+    const category = getMimeCategory(data.mimeType)
+
+    if (category === 'video') {
+      return (
+        getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
+      )
+    }
+
+    return null
+  }
+
   return {
     name: 'mp4Url',
     type: 'text',
     virtual: true,
     hooks: {
-      afterRead: [buildVideoMp4Resolver(collection)],
+      afterRead: [afterReadHook],
     },
     admin: { hidden: true },
   }
