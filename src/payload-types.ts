@@ -437,8 +437,8 @@ export interface Video {
    * DEPRECATED: read `hlsUrl` instead. Will be removed after the mobile-app cutover (#319).
    */
   streamUrl?: string | null;
-  mp4Url?: string | null;
   hlsUrl?: string | null;
+  mp4Url?: string | null;
   previewUrl?: string | null;
   /**
    * Video title shown to users
@@ -1957,8 +1957,8 @@ export interface AlbumsSelect<T extends boolean = true> {
  */
 export interface VideosSelect<T extends boolean = true> {
   streamUrl?: T;
-  mp4Url?: T;
   hlsUrl?: T;
+  mp4Url?: T;
   previewUrl?: T;
   title?: T;
   subtitles?: T;

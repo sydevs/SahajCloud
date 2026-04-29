@@ -113,10 +113,8 @@ const buildHlsResolver = (collection: CollectionSlug): FieldHook => {
 /**
  * Returns the MP4 download URL for video MIME types, `null` for everything else.
  *
- * Used by `mp4UrlField`. Note `virtualUrlField({ adapter: 'cloudflare-stream' })`
- * has a near-identical resolver but emits a fallback URL instead of `null` for
- * non-video data because that legacy field always returns a string for any
- * upload — it's deprecated, see #319.
+ * Used by `mp4UrlField`. Returns `null` for non-video so mixed-media
+ * collections (`frames`, `files`) can expose a uniform `mp4Url` field.
  */
 const buildVideoMp4Resolver = (collection: CollectionSlug): FieldHook => {
   return ({ data }) => {

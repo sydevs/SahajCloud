@@ -33,8 +33,8 @@ export const Videos: CollectionConfig = {
     // url + streamUrl are deprecated aliases pending mobile-app cutover (#319)
     virtualUrlField({ collection: 'videos', adapter: 'cloudflare-stream' }),
     streamUrlField({ collection: 'videos' }),
-    mp4UrlField({ collection: 'videos' }),
     hlsUrlField({ collection: 'videos' }),
+    mp4UrlField({ collection: 'videos' }),
     previewUrlField({ collection: 'videos' }),
     {
       name: 'title',
