@@ -117,7 +117,8 @@
       "Bash(npm view:*)",
       "Edit(.claude/docs/**)",
       "Write(.claude/docs/**)",
-      "Bash(pnpm test:unit *)"
+      "Bash(pnpm test:unit *)",
+      "Bash(git fetch *)"
     ]
   },
   "hooks": {
