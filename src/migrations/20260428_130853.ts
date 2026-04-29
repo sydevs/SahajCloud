@@ -3,9 +3,25 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-d1-sqlite'
 import { recomputeWeightsForMeditation } from '@/hooks/meditationHooks'
 import type { Meditation } from '@/payload-types'
 
+type MigrationDb = MigrateUpArgs['db']
+type MigrationTable = 'meditations' | '_meditations_v'
+
+async function columnExists(
+  db: MigrationDb,
+  table: MigrationTable,
+  column: string,
+): Promise<boolean> {
+  const rows = await db.all<{ name: string }>(sql.raw(`PRAGMA table_info(\`${table}\`);`))
+  return rows.some((row) => row.name === column)
+}
+
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
-  await db.run(sql`ALTER TABLE \`meditations\` ADD \`subtle_system_node_weights\` text;`)
-  await db.run(sql`ALTER TABLE \`_meditations_v\` ADD \`version_subtle_system_node_weights\` text;`)
+  if (!(await columnExists(db, 'meditations', 'subtle_system_node_weights'))) {
+    await db.run(sql`ALTER TABLE \`meditations\` ADD \`subtle_system_node_weights\` text;`)
+  }
+  if (!(await columnExists(db, '_meditations_v', 'version_subtle_system_node_weights'))) {
+    await db.run(sql`ALTER TABLE \`_meditations_v\` ADD \`version_subtle_system_node_weights\` text;`)
+  }
 
   // Backfill: walk every meditation and compute on-screen-time weights from its
   // frames + duration via the same helper the runtime uses. Persist directly so
@@ -31,6 +47,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
 }
 
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
-  await db.run(sql`ALTER TABLE \`meditations\` DROP COLUMN \`subtle_system_node_weights\`;`)
-  await db.run(sql`ALTER TABLE \`_meditations_v\` DROP COLUMN \`version_subtle_system_node_weights\`;`)
+  if (await columnExists(db, 'meditations', 'subtle_system_node_weights')) {
+    await db.run(sql`ALTER TABLE \`meditations\` DROP COLUMN \`subtle_system_node_weights\`;`)
+  }
+  if (await columnExists(db, '_meditations_v', 'version_subtle_system_node_weights')) {
+    await db.run(sql`ALTER TABLE \`_meditations_v\` DROP COLUMN \`version_subtle_system_node_weights\`;`)
+  }
 }
