@@ -14,7 +14,7 @@ local-file fallback in development.
 | Storage | Collections | URL format |
 |---|---|---|
 | **Cloudflare Images** | `images` (uploads); also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks | `https://imagedelivery.net/<hash>/<imageId>/public` |
-| **Cloudflare Stream** | `videos`, `frames` (video MIME types) | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>MP4: `.../downloads/default.mp4` |
+| **Cloudflare Stream** | `videos`, `frames` (video MIME types) | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>MP4: `.../downloads/default.mp4` (`mp4Url`)<br>HLS: `.../manifest/video.m3u8` (`hlsUrl`) |
 | **R2 native binding** | `meditations`, `songs`, `lessons`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames` and `files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>` |
 
 R2 is configured via `wrangler.toml` bindings (no S3-compatible API).
@@ -53,6 +53,11 @@ fields: [
 | `virtualUrlField({ collection, adapter })` | Base URL for any single-storage collection |
 | `previewUrlField({ collection, width?, height? })` | Preview/thumbnail URL for images/videos |
 | `mixedMediaUrlField({ collection })` | Full-resolution URL for mixed media (images → Images, videos → Stream MP4, other → R2) |
+| `hlsUrlField({ collection })` | **Canonical** HLS manifest (`hlsUrl`); `null` for non-video. Mount on every collection that previously used `streamUrlField`. |
+| `mp4UrlField({ collection })` | **Canonical** MP4 download (`mp4Url`); `null` for non-video. Mount alongside `hlsUrlField`. |
+| `streamUrlField({ collection })` | **Deprecated alias** of `hlsUrlField` (#319). Will be removed after the mobile-app cutover. Resolves to the same value as `hlsUrl`. |
+
+`virtualUrlField({ adapter: 'cloudflare-stream' })` (used only on Videos) is also deprecated as of #319 — its `url` is always an MP4, so callers should read `mp4Url` instead. The other adapters (`cloudflare-images`, `r2`) of `virtualUrlField` and the `mixedMediaUrlField` `url` field are not deprecated.
 
 ## R2 native adapter (`r2NativeAdapter.ts`)
 
