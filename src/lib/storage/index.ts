@@ -23,9 +23,4 @@ export { getMimeCategory } from './mimeUtils'
 export type { MimeCategory } from './mimeUtils'
 
 // URL field factories
-export {
-  virtualUrlField,
-  previewUrlField,
-  mixedMediaUrlField,
-  streamUrlField,
-} from './urlFields'
+export { virtualUrlField, previewUrlField, mixedMediaUrlField } from './urlFields'

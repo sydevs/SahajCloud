@@ -378,7 +378,6 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       'id',
       'type',
       'hlsUrl',
-      'videoUrl',
       'thumbnailUrl',
       'subtitles',
       'startTime',
@@ -390,12 +389,6 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       type: { type: 'string', enum: ['lecture'] },
       title: { type: ['string', 'null'] },
       hlsUrl: { type: 'string' },
-      videoUrl: {
-        type: 'string',
-        deprecated: true,
-        description:
-          'DEPRECATED: read `hlsUrl` instead. Will be removed after the mobile-app cutover (#319).',
-      },
       thumbnailUrl: { type: ['string', 'null'] },
       subtitles: subtitlesSchema,
       startTime: { type: 'integer', enum: [0] },
@@ -411,7 +404,6 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       'type',
       'title',
       'hlsUrl',
-      'videoUrl',
       'thumbnailUrl',
       'subtitles',
       'startTime',
@@ -424,12 +416,6 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       type: { type: 'string', enum: ['lecture-clip'] },
       title: { type: 'string' },
       hlsUrl: { type: 'string' },
-      videoUrl: {
-        type: 'string',
-        deprecated: true,
-        description:
-          'DEPRECATED: read `hlsUrl` instead. Will be removed after the mobile-app cutover (#319).',
-      },
       thumbnailUrl: { type: ['string', 'null'] },
       subtitles: subtitlesSchema,
       startTime: { type: 'number' },

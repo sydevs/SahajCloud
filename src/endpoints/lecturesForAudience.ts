@@ -105,7 +105,7 @@ export const lecturesForAudience: Endpoint = {
     const eligibleLectures = lectureDocs as Lecture[]
     const eligibleClips = clipDocs as LectureClip[]
 
-    // Bulk-fetch parent lectures for clips (always — needed for videoUrl,
+    // Bulk-fetch parent lectures for clips (always — needed for hlsUrl,
     // subtitle merge, and thumbnail fallback). Seed from already-fetched
     // eligible lectures to avoid a round-trip when the parent is itself
     // audience-eligible.
@@ -153,7 +153,6 @@ export const lecturesForAudience: Endpoint = {
           type: 'lecture',
           title: lecture.title,
           hlsUrl: metadata.hlsUrl,
-          videoUrl: metadata.hlsUrl,
           thumbnailUrl: resolveThumbnailUrl({
             primaryOverride: lecture.thumbnail,
             fallback: metadata.thumbnailUrl,
@@ -193,7 +192,6 @@ export const lecturesForAudience: Endpoint = {
           type: 'lecture-clip',
           title: clip.title,
           hlsUrl: metadata.hlsUrl,
-          videoUrl: metadata.hlsUrl,
           thumbnailUrl: resolveThumbnailUrl({
             primaryOverride: clip.thumbnail,
             secondaryOverride: parent.thumbnail,

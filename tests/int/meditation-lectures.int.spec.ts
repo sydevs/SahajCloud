@@ -284,12 +284,9 @@ describe('meditationLectures endpoint', () => {
       'thumbnailUrl',
       'title',
       'type',
-      'videoUrl',
     ]
     expect(Object.keys(docs[0]).sort()).toEqual(expectedKeys)
     expect(docs[0].type).toBe('lecture-clip')
-    // hlsUrl is the canonical name; videoUrl is a deprecated alias (#319)
-    expect(docs[0].hlsUrl).toBe(docs[0].videoUrl)
   })
 
   it('ad-hoc compute when cached weights are null', async () => {

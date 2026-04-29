@@ -266,7 +266,6 @@ describe('lecturesForAudience endpoint', () => {
         'type',
         'title',
         'hlsUrl',
-        'videoUrl',
         'thumbnailUrl',
         'subtitles',
         'startTime',
@@ -299,15 +298,13 @@ describe('lecturesForAudience endpoint', () => {
   })
 
   describe('Lecture shape', () => {
-    it('pulls videoUrl from metadata.hlsUrl and exposes startTime=0, no lectureId', async () => {
+    it('pulls hlsUrl from metadata.hlsUrl and exposes startTime=0, no lectureId', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
       const lecture = (body as { docs: ItemPlayerData[] }).docs.find(
         (d) => isLecture(d) && d.id === lectureBeginnerOnly.id,
       )
       expect(lecture).toBeDefined()
-      expect(lecture!.videoUrl).toBe('https://example.com/stream.m3u8')
-      // hlsUrl is the canonical name; videoUrl is a deprecated alias (#319)
-      expect(lecture!.hlsUrl).toBe(lecture!.videoUrl)
+      expect(lecture!.hlsUrl).toBe('https://example.com/stream.m3u8')
       expect(lecture!.startTime).toBe(0)
       expect(lecture!.lectureId).toBeUndefined()
     })

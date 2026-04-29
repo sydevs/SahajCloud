@@ -433,10 +433,6 @@ export interface Author {
  */
 export interface Video {
   id: number;
-  /**
-   * DEPRECATED: read `hlsUrl` instead. Will be removed after the mobile-app cutover (#319).
-   */
-  streamUrl?: string | null;
   hlsUrl?: string | null;
   mp4Url?: string | null;
   previewUrl?: string | null;
@@ -468,9 +464,6 @@ export interface Video {
     | null;
   updatedAt: string;
   createdAt: string;
-  /**
-   * DEPRECATED: read `mp4Url` instead. Will be removed after the mobile-app cutover (#319).
-   */
   url?: string | null;
   thumbnailURL?: string | null;
   filename?: string | null;
@@ -791,10 +784,6 @@ export interface Lesson {
 export interface File {
   id: number;
   createdAt: string;
-  /**
-   * DEPRECATED: read `hlsUrl` instead. Will be removed after the mobile-app cutover (#319).
-   */
-  streamUrl?: string | null;
   hlsUrl?: string | null;
   mp4Url?: string | null;
   previewUrl?: string | null;
@@ -1007,10 +996,6 @@ export interface SubtleSystemNode {
  */
 export interface Frame {
   id: number;
-  /**
-   * DEPRECATED: read `hlsUrl` instead. Will be removed after the mobile-app cutover (#319).
-   */
-  streamUrl?: string | null;
   hlsUrl?: string | null;
   mp4Url?: string | null;
   previewUrl?: string | null;
@@ -1197,7 +1182,7 @@ export interface UserChoice {
   /**
    * Whether this choice describes how the user feels right now (mood) or what they want to work toward (goal). Time-of-day timings and per-timing meditation assignments only apply to mood choices.
    */
-  type: 'mood' | 'goal' | 'quick';
+  type: 'mood' | 'goal' | 'duration';
   /**
    * Tag color for UI theming (hex format)
    */
@@ -1956,7 +1941,6 @@ export interface AlbumsSelect<T extends boolean = true> {
  * via the `definition` "videos_select".
  */
 export interface VideosSelect<T extends boolean = true> {
-  streamUrl?: T;
   hlsUrl?: T;
   mp4Url?: T;
   previewUrl?: T;
@@ -2046,7 +2030,6 @@ export interface LectureClipsSelect<T extends boolean = true> {
  * via the `definition` "frames_select".
  */
 export interface FramesSelect<T extends boolean = true> {
-  streamUrl?: T;
   hlsUrl?: T;
   mp4Url?: T;
   previewUrl?: T;
@@ -2122,7 +2105,6 @@ export interface ImagesSelect<T extends boolean = true> {
  */
 export interface FilesSelect<T extends boolean = true> {
   createdAt?: T;
-  streamUrl?: T;
   hlsUrl?: T;
   mp4Url?: T;
   previewUrl?: T;

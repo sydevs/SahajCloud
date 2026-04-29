@@ -244,7 +244,6 @@ export const meditationLectures: Endpoint = {
           type: 'lecture-clip',
           title: clip.title,
           hlsUrl: metadata.hlsUrl,
-          videoUrl: metadata.hlsUrl,
           thumbnailUrl: resolveThumbnailUrl({
             primaryOverride: clip.thumbnail,
             secondaryOverride: parent.thumbnail,
