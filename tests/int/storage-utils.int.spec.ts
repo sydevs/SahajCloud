@@ -329,7 +329,7 @@ describe('URL Field Factories', () => {
 
       const hook = getAfterReadHook(field)
       const url = callHook(hook!, { filename: 'video-id', mimeType: 'video/mp4' })
-      // mixedMediaUrlField returns MP4 download URL for videos (use streamUrlField for HLS)
+      // mixedMediaUrlField returns MP4 download URL for videos (use hlsUrlField for HLS)
       expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/downloads/default.mp4')
     })
 
@@ -422,6 +422,110 @@ describe('URL Field Factories', () => {
       const hook = getAfterReadHook(field)
       const url = callHook(hook!, null)
       expect(url).toBeUndefined()
+    })
+  })
+
+  describe('hlsUrlField', () => {
+    it('returns the HLS manifest URL for video MIME types', async () => {
+      process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
+      process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
+
+      const { hlsUrlField } = await import('@/lib/storage/urlFields')
+      const field = hlsUrlField({ collection: 'videos' })
+      expect((field as { name: string }).name).toBe('hlsUrl')
+
+      const hook = getAfterReadHook(field)
+      const url = callHook(hook!, { filename: 'video-id', mimeType: 'video/mp4' })
+      expect(url).toBe(
+        'https://customer-test.cloudflarestream.com/video-id/manifest/video.m3u8',
+      )
+    })
+
+    it('returns null for non-video MIME types', async () => {
+      process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
+      process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
+
+      const { hlsUrlField } = await import('@/lib/storage/urlFields')
+      const field = hlsUrlField({ collection: 'frames' })
+
+      const hook = getAfterReadHook(field)
+      expect(callHook(hook!, { filename: 'image-id', mimeType: 'image/png' })).toBeNull()
+      expect(callHook(hook!, { filename: 'doc.pdf', mimeType: 'application/pdf' })).toBeNull()
+    })
+
+    it('falls back to local URL when CLOUDFLARE_STREAM_DELIVERY_URL is not set (video)', async () => {
+      delete process.env.CLOUDFLARE_STREAM_DELIVERY_URL
+      process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
+
+      const { hlsUrlField } = await import('@/lib/storage/urlFields')
+      const field = hlsUrlField({ collection: 'frames' })
+
+      const hook = getAfterReadHook(field)
+      const url = callHook(hook!, { filename: 'video.mp4', mimeType: 'video/mp4' })
+      expect(url).toBe('/api/frames/file/video.mp4')
+    })
+
+    it('streamUrlField is a deprecated alias that resolves identically', async () => {
+      process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
+      process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
+
+      const { hlsUrlField, streamUrlField } = await import('@/lib/storage/urlFields')
+
+      const hlsHook = getAfterReadHook(hlsUrlField({ collection: 'videos' }))!
+      const streamHook = getAfterReadHook(streamUrlField({ collection: 'videos' }))!
+
+      const videoData = { filename: 'video-id', mimeType: 'video/mp4' }
+      const imageData = { filename: 'image-id', mimeType: 'image/png' }
+
+      expect(callHook(streamHook, videoData)).toBe(callHook(hlsHook, videoData))
+      expect(callHook(streamHook, imageData)).toBe(callHook(hlsHook, imageData))
+    })
+  })
+
+  describe('mp4UrlField', () => {
+    it('returns the MP4 download URL for video MIME types', async () => {
+      process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
+      process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
+
+      const { mp4UrlField } = await import('@/lib/storage/urlFields')
+      const field = mp4UrlField({ collection: 'videos' })
+      expect((field as { name: string }).name).toBe('mp4Url')
+
+      const hook = getAfterReadHook(field)
+      const url = callHook(hook!, { filename: 'video-id', mimeType: 'video/mp4' })
+      expect(url).toBe(
+        'https://customer-test.cloudflarestream.com/video-id/downloads/default.mp4',
+      )
+    })
+
+    it('returns null for non-video MIME types (mixed-media collections)', async () => {
+      process.env.CLOUDFLARE_IMAGES_DELIVERY_URL = 'https://imagedelivery.net/abc123'
+      process.env.CLOUDFLARE_R2_DELIVERY_URL = 'https://assets.example.com'
+      process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
+
+      const { mp4UrlField } = await import('@/lib/storage/urlFields')
+      const field = mp4UrlField({ collection: 'frames' })
+
+      const hook = getAfterReadHook(field)
+      expect(callHook(hook!, { filename: 'image.jpg', mimeType: 'image/jpeg' })).toBeNull()
+      expect(callHook(hook!, { filename: 'audio.mp3', mimeType: 'audio/mpeg' })).toBeNull()
+    })
+
+    it('matches the cloudflare-stream branch of virtualUrlField for videos', async () => {
+      // Videos collection mounts both `url` (legacy, via virtualUrlField) and
+      // `mp4Url` (canonical). Both should resolve identically for video data.
+      process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
+      process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
+
+      const { mp4UrlField, virtualUrlField } = await import('@/lib/storage/urlFields')
+
+      const mp4Hook = getAfterReadHook(mp4UrlField({ collection: 'videos' }))!
+      const urlHook = getAfterReadHook(
+        virtualUrlField({ collection: 'videos', adapter: 'cloudflare-stream' }),
+      )!
+
+      const videoData = { filename: 'cf-uid', mimeType: 'video/mp4' }
+      expect(callHook(mp4Hook, videoData)).toBe(callHook(urlHook, videoData))
     })
   })
 })

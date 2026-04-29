@@ -12,8 +12,12 @@ local-file fallback in development.
 | Storage | Collections | URL format |
 |---|---|---|
 | **Cloudflare Images** | `images` (also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks) | `https://imagedelivery.net/<hash>/<imageId>/public` |
-| **Cloudflare Stream** | `videos`, `frames` (video MIME types) | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>MP4: `.../downloads/default.mp4` |
+| **Cloudflare Stream** | `videos`, `frames` (video MIME types) | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>MP4: `.../downloads/default.mp4` (`mp4Url`)<br>HLS: `.../manifest/video.m3u8` (`hlsUrl`) |
 | **R2 native binding** | `meditations`, `songs`, `lessons`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames` and `files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>` |
+
+### Canonical URL field names (#319)
+
+`videos`, `frames`, and `files` expose the canonical `hlsUrl` (HLS manifest) and `mp4Url` (MP4 download) virtual fields. The legacy `streamUrl` and — on Videos only — `url` (MP4 download) are kept as deprecated aliases until the mobile app cuts over. On `frames` and `files` the generic `url` field is *not* deprecated: it remains the mixed-media file URL (image / R2 / MP4 by MIME); read `mp4Url` when you specifically need the MP4. Lecture player-data responses (`/api/lectures/for-audience`, `/api/meditations/:id/related-lecture-clips`) likewise expose both `hlsUrl` (canonical) and `videoUrl` (deprecated alias) holding the same HLS URL.
 
 Adapter routing, the R2 filename preassignment hook, the
 Cloudflare Stream webhook, and Zod-validated Cloudflare API responses
