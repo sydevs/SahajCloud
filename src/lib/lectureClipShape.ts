@@ -8,11 +8,17 @@ import type { Image, LectureClip } from '@/payload-types'
  * yet (new NV-sync field — existing rows populate on the next monthly sync).
  * `startTime` is always 0. `lectureId` is omitted — that field is
  * clip-exclusive.
+ *
+ * `hlsUrl` is the canonical name; `videoUrl` is a deprecated alias kept in
+ * the response until the mobile app cuts over (#319). Both hold the same
+ * HLS manifest URL.
  */
 export type LecturePlayerData = {
   id: number
   type: 'lecture'
   title: string | null | undefined
+  hlsUrl: string
+  /** @deprecated Use `hlsUrl`. Will be removed after the mobile-app cutover (#319). */
   videoUrl: string
   thumbnailUrl: string | null
   subtitles: Record<string, string>
@@ -30,11 +36,15 @@ export type LecturePlayerData = {
  * `endTime > startTime`), `title` is required, and `lectureId` points at
  * the parent lecture. Discriminate clip vs lecture on `type` or on the
  * presence of `lectureId`.
+ *
+ * `hlsUrl` / `videoUrl`: see `LecturePlayerData`.
  */
 export type LectureClipPlayerData = {
   id: number
   type: 'lecture-clip'
   title: string
+  hlsUrl: string
+  /** @deprecated Use `hlsUrl`. Will be removed after the mobile-app cutover (#319). */
   videoUrl: string
   thumbnailUrl: string | null
   subtitles: Record<string, string>
