@@ -36,6 +36,23 @@ describe('Videos Collection — custom behavior', () => {
     expect(video.url).toContain('/api/videos/file/')
   })
 
+  it('virtual `mp4Url` field is populated alongside the deprecated `url` (#319)', async () => {
+    const video = await testData.createVideo(payload, { title: 'mp4Url Test Video' })
+
+    // mp4Url is the canonical replacement; url is the deprecated alias.
+    // Both resolve to the same Cloudflare Stream MP4 URL (or the local
+    // fallback in this test environment).
+    expect(video.mp4Url).toBeDefined()
+    expect(video.mp4Url).toBe(video.url)
+  })
+
+  it('virtual `hlsUrl` field is populated alongside the deprecated `streamUrl` (#319)', async () => {
+    const video = await testData.createVideo(payload, { title: 'hlsUrl Test Video' })
+
+    expect(video.hlsUrl).toBeDefined()
+    expect(video.hlsUrl).toBe(video.streamUrl)
+  })
+
   it('configures `previewUrl` as a virtual field', async () => {
     const config = payload.collections['videos'].config
     const previewUrlField = config.fields.find((f) => 'name' in f && f.name === 'previewUrl')

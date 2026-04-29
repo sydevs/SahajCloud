@@ -265,6 +265,7 @@ describe('lecturesForAudience endpoint', () => {
         'id',
         'type',
         'title',
+        'hlsUrl',
         'videoUrl',
         'thumbnailUrl',
         'subtitles',
@@ -305,6 +306,8 @@ describe('lecturesForAudience endpoint', () => {
       )
       expect(lecture).toBeDefined()
       expect(lecture!.videoUrl).toBe('https://example.com/stream.m3u8')
+      // hlsUrl is the canonical name; videoUrl is a deprecated alias (#319)
+      expect(lecture!.hlsUrl).toBe(lecture!.videoUrl)
       expect(lecture!.startTime).toBe(0)
       expect(lecture!.lectureId).toBeUndefined()
     })

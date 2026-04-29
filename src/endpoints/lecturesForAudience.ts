@@ -152,6 +152,7 @@ export const lecturesForAudience: Endpoint = {
           id: lecture.id,
           type: 'lecture',
           title: lecture.title,
+          hlsUrl: metadata.hlsUrl,
           videoUrl: metadata.hlsUrl,
           thumbnailUrl: resolveThumbnailUrl({
             primaryOverride: lecture.thumbnail,
@@ -191,6 +192,7 @@ export const lecturesForAudience: Endpoint = {
           id: clip.id,
           type: 'lecture-clip',
           title: clip.title,
+          hlsUrl: metadata.hlsUrl,
           videoUrl: metadata.hlsUrl,
           thumbnailUrl: resolveThumbnailUrl({
             primaryOverride: clip.thumbnail,
