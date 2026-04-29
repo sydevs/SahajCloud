@@ -51,6 +51,7 @@ export const UserChoices: CollectionConfig = {
       'parent',
       'timings',
     ],
+    groupBy: true,
   },
   hooks: {
     beforeValidate: [validateNesting],
@@ -106,7 +107,7 @@ export const UserChoices: CollectionConfig = {
       options: [
         { label: 'Mood', value: 'mood' },
         { label: 'Goal', value: 'goal' },
-        { label: 'Quick Meditations', value: 'quick' },
+        { label: 'Duration', value: 'duration' },
       ],
       admin: {
         position: 'sidebar',
