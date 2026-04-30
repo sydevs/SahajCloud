@@ -27,7 +27,7 @@ export const AUDIENCE_DEFINITIONS: RuleDefinition[] = [
   {
     name: 'totalLecturesViewed',
     type: 'range',
-    description: 'Lifetime count of distinct lectures or lecture clips the user has played.',
+    description: 'Lifetime count of distinct lectures the user has played.',
   },
 ]
 

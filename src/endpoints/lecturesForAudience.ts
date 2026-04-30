@@ -32,7 +32,7 @@ const querySchema = z.object({
  *
  * Pipeline:
  *   1. Evaluate `audiences` with the audience data to build the eligible-audience set.
- *   2. Find lectures whose `audiences` overlap the eligible set (OR-match).
+ *   2. Find ALL lectures whose `audiences` overlap the eligible set (OR-match).
  *   3. Shape each record into `LecturePlayerData`, Fisher-Yates shuffle, slice.
  */
 export const lecturesForAudience: Endpoint = {
@@ -74,7 +74,10 @@ export const lecturesForAudience: Endpoint = {
     const { docs: lectureDocs } = await req.payload.find({
       collection: 'lectures',
       where: { audiences: { in: [...eligibleAudienceIds] } },
-      limit,
+      // Fetch all eligible candidates so the Fisher-Yates shuffle below
+      // samples uniformly across the entire pool, not just the first N
+      // rows by DB order. Sliced down to `limit` after shuffling.
+      limit: 0,
       depth: 1,
       pagination: false,
       req,

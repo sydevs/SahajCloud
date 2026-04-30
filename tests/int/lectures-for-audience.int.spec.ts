@@ -249,6 +249,25 @@ describe('lecturesForAudience endpoint', () => {
       const docs = (body as { docs: LecturePlayerData[] }).docs
       expect(docs).toHaveLength(1)
     })
+
+    it('fetches the full eligible pool, not just `limit` rows, before sampling', async () => {
+      const findSpy = vi.spyOn(payload, 'find')
+      try {
+        await callEndpoint(payload, { limit: 1, pathProgress: 3 })
+        const lectureFindCall = findSpy.mock.calls.find(
+          ([args]) => (args as { collection?: string }).collection === 'lectures',
+        )
+        expect(lectureFindCall).toBeDefined()
+        const args = lectureFindCall![0] as { limit?: number; pagination?: boolean }
+        // limit:0 = no limit. Combined with pagination:false, this ensures the
+        // Fisher-Yates shuffle samples uniformly across the entire eligible
+        // pool rather than just the first N rows by DB order.
+        expect(args.limit).toBe(0)
+        expect(args.pagination).toBe(false)
+      } finally {
+        findSpy.mockRestore()
+      }
+    })
   })
 
   describe('Default time fields', () => {
@@ -437,7 +456,4 @@ describe('lecturesForAudience endpoint', () => {
       }
     })
   })
-
-  // Silence unused-var linter for image references kept around for context.
-  void editorThumbnailImage
 })

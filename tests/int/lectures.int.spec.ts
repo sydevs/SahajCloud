@@ -330,6 +330,23 @@ describe('Lectures Collection', () => {
       ).rejects.toThrow()
     })
 
+    it('endTime validator catches startTime-only updates that violate the invariant', async () => {
+      const lecture = await testData.createLecture(payload)
+      await payload.update({
+        collection: 'lectures',
+        id: lecture.id,
+        data: { startTime: 0, endTime: 60 },
+      })
+      // endTime is unchanged at 60; new startTime=100 should violate endTime > startTime.
+      await expect(
+        payload.update({
+          collection: 'lectures',
+          id: lecture.id,
+          data: { startTime: 100 },
+        }),
+      ).rejects.toThrow()
+    })
+
     it('startTime/endTime are optional — either field may be left null', async () => {
       const lecture = await testData.createLecture(payload)
       // startTime alone — passes
