@@ -720,18 +720,15 @@ export interface Lesson {
      * Image or video for this panel.
      */
     media?: (number | null) | File;
-    /**
-     * Subtitles for video media (JSON format).
-     */
-    subtitles?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
+    subtitles?: {
+      captions: {
+        duration: number;
+        content: string;
+        startTime: string;
+        [k: string]: unknown;
+      }[];
+      [k: string]: unknown;
+    };
     id?: string | null;
   }[];
   /**
@@ -742,18 +739,15 @@ export interface Lesson {
    * Audio introduction to this lesson.
    */
   introAudio?: (number | null) | File;
-  /**
-   * Subtitles for intro audio (JSON format). Schema: duration, content, startTime.
-   */
-  introSubtitles?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  introSubtitles?: {
+    captions: {
+      duration: number;
+      content: string;
+      startTime: string;
+      [k: string]: unknown;
+    }[];
+    [k: string]: unknown;
+  };
   article?: {
     root: {
       type: string;
@@ -817,9 +811,6 @@ export interface Lecture {
    * Paste the Vimeo URL from amruta.org (e.g. https://vimeo.com/123456789).
    */
   nirmalVidyaVimeoUrl: string;
-  /**
-   * Auto-populated from Nirmala Vidya. Can be edited after creation.
-   */
   title?: string | null;
   /**
    * Optional override for the Nirmala Vidya thumbnail. If blank, the API thumbnail is used.
