@@ -1,12 +1,13 @@
 /**
- * Integration tests for the WeMeditate seed importer's lectures+clip flow.
+ * Integration tests for the WeMeditate seed importer's lectures flow.
  *
- * Covers the three behaviors that aren't reachable from pure unit tests:
- *   1. importLectures() upserts parent + child clip per unique vimeo_id
- *      and the parent's `metadata.duration` flows into the clip's `endTime`.
+ * After #330 the importer creates one Lecture per unique vimeo_id (no
+ * separate clip child). Coverage:
+ *   1. importLectures() upserts a Lecture per vimeo_id; the parent's
+ *      `metadata.duration` flows in from the NV API.
  *   2. Re-running is a flat-counts no-op in skip mode.
  *   3. NV API errors are isolated per vimeo_id — one bad video doesn't kill
- *      the run; the failing id is just absent from `lectureClipMap`.
+ *      the run; the failing id is just absent from `lectureMap`.
  */
 
 import type { Payload } from 'payload'
@@ -53,20 +54,19 @@ async function buildTestImporter(payload: Payload) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const self = this as any
       await self.preloadCollection('lectures', 'nirmalVidyaVimeoUrl', ['metadata', 'title'])
-      await self.preloadCollection('lecture-clips', 'lecture')
       await self.importLectures()
     }
 
-    getLectureClipMap(): Map<string, number | string> {
+    getLectureMap(): Map<string, number | string> {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (this as any).idMaps.lectureClips
+      return (this as any).idMaps.lectures
     }
 
     resetPreloadCache(): void {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(this as any).preloadCache = new Map()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(this as any).idMaps.lectureClips = new Map()
+      ;(this as any).idMaps.lectures = new Map()
     }
   }
 
@@ -129,7 +129,7 @@ function buildSyntheticData(
   }
 }
 
-describe('Seed: importLectures (parent + clip)', () => {
+describe('Seed: importLectures', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
@@ -156,14 +156,14 @@ describe('Seed: importLectures (parent + clip)', () => {
     })
   })
 
-  it('upserts a parent Lecture + child Clip whose endTime matches metadata.duration', async () => {
+  it('upserts a Lecture per unique vimeo_id and stores metadata.duration', async () => {
     const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
     vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
       title: 'NV Title For 111',
       thumbnailUrl: 'https://example.com/thumb.jpg',
       hlsUrl: 'https://example.com/stream.m3u8',
       subtitles: [],
-      duration: 1234, // Distinctive value so we can assert it on the clip.
+      duration: 1234,
     })
 
     const importer = await buildTestImporter(payload)
@@ -180,21 +180,11 @@ describe('Seed: importLectures (parent + clip)', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((lecture.metadata as any)?.duration).toBe(1234)
 
-    const clips = await payload.find({
-      collection: 'lecture-clips',
-      where: { lecture: { equals: lecture.id } },
-    })
-    expect(clips.docs.length).toBe(1)
-    const clip = clips.docs[0]
-    expect(clip.startTime).toBe(0)
-    expect(clip.endTime).toBe(1234) // From the lecture's NV-fetched duration.
-    expect(clip.title).toBe('Legacy Block Title') // Block title preferred over NV title.
-
-    // The map the converter consumes should hold the *clip* id, not the lecture id.
-    expect(importer.getLectureClipMap().get('111')).toBe(clip.id)
+    // The map the converter consumes should hold the *lecture* id.
+    expect(importer.getLectureMap().get('111')).toBe(lecture.id)
   })
 
-  it('re-running is a no-op in skip mode (parent + clip counts unchanged, no duplicate NV calls)', async () => {
+  it('re-running is a no-op in skip mode (counts unchanged, no duplicate NV calls)', async () => {
     const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
 
     const data = buildSyntheticData([{ vimeoId: '222', title: 'Once' }])
@@ -210,15 +200,7 @@ describe('Seed: importLectures (parent + clip)', () => {
       collection: 'lectures',
       where: { nirmalVidyaVimeoUrl: { equals: 'https://vimeo.com/222' } },
     })
-    const clipsAfterFirst = await payload.count({
-      collection: 'lecture-clips',
-      // We don't have the lecture id here; just count anything pointing at our URL via depth=1
-      // is overkill — instead just count total clips for parent Vimeo URL 222 indirectly by
-      // counting lectures (1) and asserting the same count is reachable as the only one with
-      // a matching parent.
-    })
     expect(lecturesAfterFirst.totalDocs).toBe(1)
-    expect(clipsAfterFirst.totalDocs).toBeGreaterThanOrEqual(1)
 
     // Second run — fresh importer instance picks up the existing lecture via preload.
     // The NV hook only fires on create; the existing lecture should be skipped, not re-fetched.
@@ -232,19 +214,17 @@ describe('Seed: importLectures (parent + clip)', () => {
       collection: 'lectures',
       where: { nirmalVidyaVimeoUrl: { equals: 'https://vimeo.com/222' } },
     })
-    const clipsAfterSecond = await payload.count({ collection: 'lecture-clips' })
     expect(lecturesAfterSecond.totalDocs).toBe(1)
-    expect(clipsAfterSecond.totalDocs).toBe(clipsAfterFirst.totalDocs)
 
-    // Map still resolves on the second run (looked up from existing clip).
-    expect(importer2.getLectureClipMap().get('222')).toBeDefined()
+    // Map still resolves on the second run (looked up from existing lecture).
+    expect(importer2.getLectureMap().get('222')).toBeDefined()
   })
 
   it('isolates per-vimeo errors — one NV failure does not abort the rest of the batch', async () => {
     const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
 
     // Order matches the order of unique vimeo_ids encountered in source data.
-    // First call: succeeds (vimeoId 333). Second: fails (444). Third: succeeds (555).
+    // First call: succeeds (333). Second: fails (444). Third: succeeds (555).
     vi.mocked(fetchNirmalaVidyaVideo)
       .mockResolvedValueOnce({
         title: 'NV Title 333',
@@ -271,8 +251,7 @@ describe('Seed: importLectures (parent + clip)', () => {
       ]),
     )
 
-    // Surviving lectures + clips for the two successful ids.
-    const map = importer.getLectureClipMap()
+    const map = importer.getLectureMap()
     expect(map.get('333')).toBeDefined()
     expect(map.has('444')).toBe(false) // Failed id absent — converter will warn.
     expect(map.get('555')).toBeDefined()

@@ -90,7 +90,7 @@ EditorJS blocks → Lexical format via `lexicalConverter.ts`:
 | `header` | heading |
 | `list` | list |
 | `image` | upload |
-| `vimeo` | relationship (lecture-clips); each unique `vimeo_id` seeds one parent Lecture + one full-video LectureClip via the `populateFromNirmalaVidya` create hook (synchronous NV API call). YouTube blocks are dropped with a warning. |
+| `vimeo` | relationship (lectures); each unique `vimeo_id` seeds one Lecture via the `populateFromNirmalaVidya` create hook (synchronous NV API call). YouTube blocks are dropped with a warning. |
 
 ## Troubleshooting
 

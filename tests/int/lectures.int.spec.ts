@@ -263,8 +263,9 @@ describe('Lectures Collection', () => {
       const lecture = await testData.createLecture(payload)
 
       expect(lecture.id).toBeDefined()
-      // Factory generates a unique numeric vimeo id per call (the URL is now
-      // unique-indexed at the DB level), so assert the shape rather than the value.
+      // Factory generates a unique numeric vimeo id per call so each call lands
+      // on a distinct URL; uniqueness is no longer enforced at the DB level
+      // (after #330 excerpts share the parent's URL).
       expect(lecture.nirmalVidyaVimeoUrl).toMatch(/^https:\/\/vimeo\.com\/\d+$/)
     })
 
@@ -307,6 +308,90 @@ describe('Lectures Collection', () => {
           : updated.thumbnail
 
       expect(thumbnailId).toBe(newThumbnail.id)
+    })
+  })
+
+  describe('Merged schema (#330)', () => {
+    it('endTime > startTime validator rejects endTime <= startTime when both set', async () => {
+      const lecture = await testData.createLecture(payload)
+      await expect(
+        payload.update({
+          collection: 'lectures',
+          id: lecture.id,
+          data: { startTime: 100, endTime: 50 },
+        }),
+      ).rejects.toThrow()
+      await expect(
+        payload.update({
+          collection: 'lectures',
+          id: lecture.id,
+          data: { startTime: 100, endTime: 100 },
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('startTime/endTime are optional — either field may be left null', async () => {
+      const lecture = await testData.createLecture(payload)
+      // startTime alone — passes
+      const updated = await payload.update({
+        collection: 'lectures',
+        id: lecture.id,
+        data: { startTime: 30 },
+      })
+      expect(updated.startTime).toBe(30)
+      expect(updated.endTime).toBeFalsy()
+      // endTime alone — passes
+      const updated2 = await payload.update({
+        collection: 'lectures',
+        id: lecture.id,
+        data: { startTime: null, endTime: 200 },
+      })
+      expect(updated2.startTime).toBeFalsy()
+      expect(updated2.endTime).toBe(200)
+    })
+
+    it('fullLecture relationship persists round-trip', async () => {
+      const parent = await testData.createLecture(payload)
+      const excerpt = await testData.createLectureExcerpt(payload, { fullLecture: parent.id })
+      const fetched = await payload.findByID({
+        collection: 'lectures',
+        id: excerpt.id,
+        depth: 0,
+      })
+      expect(fetched.fullLecture).toBe(parent.id)
+    })
+
+    it('subtitles array persists per-locale override entries', async () => {
+      const lecture = await testData.createLecture(payload)
+      const updated = await payload.update({
+        collection: 'lectures',
+        id: lecture.id,
+        data: {
+          subtitles: [
+            { locale: 'en', url: 'https://example.com/override-en.vtt' },
+            { locale: 'es', url: 'https://example.com/override-es.vtt' },
+          ],
+        },
+      })
+      expect(updated.subtitles).toHaveLength(2)
+      expect(updated.subtitles?.[0].locale).toBe('en')
+      expect(updated.subtitles?.[0].url).toBe('https://example.com/override-en.vtt')
+    })
+
+    it('clips join surfaces lectures pointing at this one via fullLecture', async () => {
+      const parent = await testData.createLecture(payload)
+      const excerpt1 = await testData.createLectureExcerpt(payload, { fullLecture: parent.id })
+      const excerpt2 = await testData.createLectureExcerpt(payload, { fullLecture: parent.id })
+
+      const fetched = await payload.findByID({
+        collection: 'lectures',
+        id: parent.id,
+        depth: 0,
+      })
+      const clipDocs = (fetched.clips as { docs?: Array<number | { id: number }> } | undefined)
+        ?.docs ?? []
+      const clipIds = clipDocs.map((c) => (typeof c === 'number' ? c : c.id)).sort()
+      expect(clipIds).toEqual([excerpt1.id, excerpt2.id].sort())
     })
   })
 

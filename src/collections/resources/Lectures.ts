@@ -2,8 +2,10 @@ import type { CollectionConfig } from 'payload'
 
 import { lecturesForAudience } from '@/endpoints'
 import { mediaField, urlField } from '@/fields'
-import { deleteChildren } from '@/hooks/cascadeDeletion'
 import { populateFromNirmalaVidya } from '@/hooks/lectureHooks'
+import { LOCALES, getLocaleLabel } from '@/lib/locales'
+
+const LOCALE_OPTIONS = LOCALES.map(({ code }) => ({ label: getLocaleLabel(code), value: code }))
 
 export const Lectures: CollectionConfig = {
   slug: 'lectures',
@@ -19,17 +21,15 @@ export const Lectures: CollectionConfig = {
   },
   hooks: {
     beforeChange: [populateFromNirmalaVidya],
-    beforeDelete: [deleteChildren({ collection: 'lecture-clips', field: 'lecture' })],
   },
   fields: [
     urlField({
       name: 'nirmalVidyaVimeoUrl',
       required: true,
-      // Promote the natural key from convention to schema. The seed importer
-      // (and any future bulk write path) keys lectures on this URL; the unique
-      // index makes accidental duplicates a hard error rather than a silent
-      // data-shape bug.
-      unique: true,
+      // Indexed for query performance. Uniqueness is no longer enforced at
+      // the schema level — excerpts share the parent's URL by design (each
+      // record independently runs `populateFromNirmalaVidya` and stores its
+      // own metadata copy).
       index: true,
       admin: {
         description: 'Paste the Vimeo URL from amruta.org (e.g. https://vimeo.com/123456789).',
@@ -70,6 +70,80 @@ export const Lectures: CollectionConfig = {
       },
     },
     {
+      type: 'row',
+      fields: [
+        {
+          name: 'startTime',
+          type: 'number',
+          min: 0,
+          admin: {
+            description: 'Optional start of the playback window (HH:MM:SS).',
+            components: {
+              Field: '@/components/admin/TimestampInput',
+            },
+            condition: (data) => !!data?.id,
+          },
+        },
+        {
+          name: 'endTime',
+          type: 'number',
+          min: 0,
+          admin: {
+            description: 'Optional end of the playback window (HH:MM:SS).',
+            components: {
+              Field: '@/components/admin/TimestampInput',
+            },
+            condition: (data) => !!data?.id,
+          },
+          validate: (
+            value: number | null | undefined,
+            { siblingData }: { siblingData: Record<string, unknown> },
+          ) => {
+            if (typeof value === 'number' && typeof siblingData?.startTime === 'number') {
+              if (value <= siblingData.startTime) {
+                return 'End time must be after start time'
+              }
+            }
+            return true
+          },
+        },
+      ],
+    },
+    {
+      name: 'subtitles',
+      type: 'array',
+      localized: false,
+      admin: {
+        description:
+          'Per-locale subtitle overrides. Any locale not listed here falls back to the Nirmala Vidya subtitles in metadata.',
+        condition: (data) => !!data?.id,
+      },
+      fields: [
+        {
+          name: 'locale',
+          type: 'select',
+          required: true,
+          options: LOCALE_OPTIONS,
+        },
+        {
+          name: 'url',
+          type: 'text',
+          required: true,
+        },
+      ],
+    },
+    {
+      name: 'fullLecture',
+      type: 'relationship',
+      relationTo: 'lectures',
+      filterOptions: ({ id }) => (id ? { id: { not_equals: id } } : true),
+      admin: {
+        description:
+          'Optional pointer to a related lecture (e.g. the full talk that this excerpt is taken from). Informational only — chains and depth are not interpreted.',
+        condition: (data) => !!data?.id,
+      },
+    },
+    {
       name: 'audiences',
       type: 'relationship',
       relationTo: 'audiences',
@@ -97,14 +171,14 @@ export const Lectures: CollectionConfig = {
       hasMany: true,
       admin: {
         description:
-          'Chakras and nadis discussed in this lecture. Used for smart lecture selection based on meditation context.',
+          'Chakras and nadis discussed in this lecture. Drives the topical-overlap ranking in /api/meditations/:id/related-lectures — lectures with no nodes are excluded from that endpoint.',
       },
     },
     {
       name: 'clips',
       type: 'join',
-      collection: 'lecture-clips',
-      on: 'lecture',
+      collection: 'lectures',
+      on: 'fullLecture',
       admin: {
         allowCreate: true,
         defaultColumns: ['title', 'startTime', 'endTime', 'audiences'],
