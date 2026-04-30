@@ -52,6 +52,7 @@ export const fullRichTextEditor = (blocks?: Block[]) =>
                 name: 'align',
                 type: 'select',
                 required: true,
+                defaultValue: 'center',
                 options: [
                   {
                     label: 'Center',
