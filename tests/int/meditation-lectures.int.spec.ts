@@ -87,6 +87,7 @@ describe('meditationLectures endpoint', () => {
   let lectureAB: Lecture // [nodeA, nodeB]    → mid weight
   let lectureNone: Lecture // []
   let lectureUC: Lecture // [nodeA] + userChoice
+  let lectureUCNone: Lecture // []         + userChoice (zero weight; only kept under userChoice query)
   let lectureNoAudience: Lecture // [nodeA] but no audience
 
   beforeAll(async () => {
@@ -166,6 +167,16 @@ describe('meditationLectures endpoint', () => {
         userChoices: [userChoice.id],
       },
     )
+    lectureUCNone = await testData.createLecture(
+      payload,
+      {},
+      {
+        title: 'Lecture UC None',
+        audiences: [audience.id],
+        subtleSystemNodes: [],
+        userChoices: [userChoice.id],
+      },
+    )
     lectureNoAudience = await testData.createLecture(
       payload,
       {},
@@ -203,12 +214,14 @@ describe('meditationLectures endpoint', () => {
     //   lectureB  → nodeC          ≈ 17s
     //   lectureA  → nodeA          ≈ 10s
     //   lectureUC → nodeA          ≈ 10s   (tie with lectureA; tie-break by id asc)
-    //   lectureNone, lectureNoAudience excluded (zero weight / no audience)
+    //   lectureNone, lectureUCNone, lectureNoAudience excluded
+    //   (zero weight without userChoice, or no audience)
     const ids = docs.map((d) => d.id)
     expect(ids[0]).toBe(lectureAB.id)
     expect(ids[1]).toBe(lectureB.id)
     expect(ids.slice(2, 4).sort()).toEqual([lectureA.id, lectureUC.id].sort())
     expect(ids).not.toContain(lectureNone.id)
+    expect(ids).not.toContain(lectureUCNone.id)
     expect(ids).not.toContain(lectureNoAudience.id)
   })
 
@@ -220,14 +233,17 @@ describe('meditationLectures endpoint', () => {
     )
   })
 
-  it('userChoice gates candidates to lectures whose own userChoices contain that ID', async () => {
+  it('userChoice returns all matching lectures, ranking weighted ones first (#333)', async () => {
+    // lectureUC has nodeA (≈10s weight); lectureUCNone has [] (zero weight).
+    // Both share the userChoice. With userChoice set, the chakra filter
+    // relaxes — lectureUCNone is kept and sorted after lectureUC.
     const { status, body } = await callEndpoint(payload, meditation.id, {
       limit: 10,
       userChoice: userChoice.id,
     })
     expect(status).toBe(200)
     const docs = (body as { docs: LecturePlayerData[] }).docs
-    expect(docs.map((d) => d.id)).toEqual([lectureUC.id])
+    expect(docs.map((d) => d.id)).toEqual([lectureUC.id, lectureUCNone.id])
   })
 
   it('excludedLectureIds removes the listed lectures', async () => {

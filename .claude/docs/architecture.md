@@ -17,7 +17,7 @@ local-file fallback in development.
 
 ### Canonical URL field names (#319)
 
-`videos`, `frames`, and `files` expose the canonical `hlsUrl` (HLS manifest) and `mp4Url` (MP4 download) virtual fields. The legacy `streamUrl` and — on Videos only — `url` (MP4 download) are kept as deprecated aliases until the mobile app cuts over. On `frames` and `files` the generic `url` field is *not* deprecated: it remains the mixed-media file URL (image / R2 / MP4 by MIME); read `mp4Url` when you specifically need the MP4. Lecture player-data responses (`/api/lectures/for-audience`, `/api/meditations/:id/related-lecture-clips`) likewise expose both `hlsUrl` (canonical) and `videoUrl` (deprecated alias) holding the same HLS URL.
+`videos`, `frames`, and `files` expose the canonical `hlsUrl` (HLS manifest) and `mp4Url` (MP4 download) virtual fields. The legacy `streamUrl` and — on Videos only — `url` (MP4 download) are kept as deprecated aliases until the mobile app cuts over. On `frames` and `files` the generic `url` field is *not* deprecated: it remains the mixed-media file URL (image / R2 / MP4 by MIME); read `mp4Url` when you specifically need the MP4. Lecture player-data responses (`/api/lectures/for-audience`, `/api/meditations/:id/related-lectures`) likewise expose both `hlsUrl` (canonical) and `videoUrl` (deprecated alias) holding the same HLS URL.
 
 Adapter routing, the R2 filename preassignment hook, the
 Cloudflare Stream webhook, and Zod-validated Cloudflare API responses
@@ -44,7 +44,7 @@ Two places to add HTTP endpoints, chosen by scope:
 | `framesByNarrator` | `/api/frames/by-narrator/:narratorId` | frames filtered by narrator gender |
 | `lecturesForAudience` | `/api/lectures/for-audience` | lectures filtered by runtime audience eligibility |
 | `appCardsForAudience` | `/api/app-cards/for-audience` | app cards filtered by runtime audience eligibility |
-| `meditationLectures` | `/api/meditations/:id/related-lecture-clips` | clips ranked by topical overlap between the meditation's frames and each clip's own `subtleSystemNodes`; optional `userChoice` gate restricts candidates to clips whose parent lecture has that user-choice |
+| `meditationLectures` | `/api/meditations/:id/related-lectures` | lectures ranked by topical overlap between the meditation's frames and each lecture's own `subtleSystemNodes` (zero-overlap lectures dropped). Optional `userChoice` query restricts candidates to lectures with that user-choice and **relaxes** the chakra filter so zero-overlap matches are kept (ranked after weighted ones). |
 
 | Next.js app-router routes | Path | Purpose |
 |---|---|---|
@@ -68,7 +68,7 @@ shim, and the known-limitations list are in `.claude/rules/openapi.md`
 
 ### Content
 - **Pages** — Lexical rich text with embedded blocks; drafts (60 s autosave), version history, scheduled publishing, per-locale publishing.
-- **Meditations** — guided audio with `type` select (quick / daily / lesson), `timings` multi-select, `duration` (auto-extracted via `music-metadata`), frame relationships with timestamps, locale-specific filtering, drafts. A denormalized `subtleSystemNodeWeights` JSON field (`{ slug → on-screen seconds }`) caches per-meditation topical fingerprints; recomputed by an `afterChange` hook when `frames`/`duration` change, and cascaded by Frames' `afterChange` when a frame's `subtleSystemNode` is repointed. Drives the topical-overlap ranking in `/api/meditations/:id/related-lecture-clips`.
+- **Meditations** — guided audio with `type` select (quick / daily / lesson), `timings` multi-select, `duration` (auto-extracted via `music-metadata`), frame relationships with timestamps, locale-specific filtering, drafts. A denormalized `subtleSystemNodeWeights` JSON field (`{ slug → on-screen seconds }`) caches per-meditation topical fingerprints; recomputed by an `afterChange` hook when `frames`/`duration` change, and cascaded by Frames' `afterChange` when a frame's `subtleSystemNode` is repointed. Drives the topical-overlap ranking in `/api/meditations/:id/related-lectures`.
 - **Albums** — music album groupings with `artwork` relationship to Images and a join field for related songs.
 - **Songs** — background music tracks with audio upload, required album relationship, hidden from sidebar (managed via Albums).
 - **Lessons** ("Path Steps") — audio + panels array, unit selection (1–4), step number, optional meditation relationship, localized rich text article.
@@ -79,8 +79,7 @@ shim, and the known-limitations list are in `.claude/rules/openapi.md`
 - **Images** — Cloudflare Images uploads with virtual `url`.
 - **Narrators** — meditation guide profiles (name, gender, slug).
 - **Authors** — article author profiles.
-- **Lectures** — full-talk lecture content integrated with Nirmala Vidya API. No drafts. Time-range excerpts live on the child `lecture-clips` collection. Optional `userChoices` (drives the user-choice gate on `/api/meditations/:id/related-lecture-clips`) and `subtleSystemNodes` hasMany (admin browsing — not used for clip ranking; that lives on LectureClips).
-- **LectureClips** — child of Lecture: `startTime`/`endTime` excerpts, optional thumbnail/subtitles overrides, `audiences` hasMany, `subtleSystemNodes` hasMany (drives the topical-overlap ranking on `/api/meditations/:id/related-lecture-clips` — clips with no nodes are excluded from that endpoint). Sidebar-hidden; managed through the parent Lecture's `clips` join.
+- **Lectures** — full-talk lecture content integrated with Nirmala Vidya API. No drafts. Optional `startTime`/`endTime` excerpt fields, `audiences` hasMany, `subtleSystemNodes` hasMany (drives the topical-overlap ranking on `/api/meditations/:id/related-lectures`), and optional `userChoices` (drives the user-choice gate on the same endpoint, where setting a `userChoice` query also relaxes the chakra filter so zero-overlap matches are kept).
 
 ### System
 - **Frames** — mixed-media uploads (images/videos) with virtual `url` and `previewUrl`, `tags` enum filtering, `imageSet` selection, and a `subtleSystemNode` relationship classifying each frame by chakra/nadi.
@@ -88,9 +87,9 @@ shim, and the known-limitations list are in `.claude/rules/openapi.md`
 
 ### Tags / Audiences
 - **UserChoices** (formerly MeditationTags) — upload collection with SVG icons, color picker, single-level parent/child nesting, required `type` (`mood` | `goal`), `timings`, per-timing localized meditation relationships, `isParent` auto-maintained by hooks. Mood-only fields hide via `admin.condition` on goal-type rows. Reverse joins expose attached `lectures`.
-- **SubtleSystemNodes** — closed enum of 12 chakras + nadis. Each row has a unique `slug` and a required relationship to a `pages` doc that describes it. Reverse joins expose attached `lectures` and `frames`. Referenced by Lectures (`subtleSystemNodes` hasMany — admin browsing), LectureClips (`subtleSystemNodes` hasMany — drives the meditationLectures ranking), and Frames (`subtleSystemNode` single relationship — replaces the old enum `category` field).
+- **SubtleSystemNodes** — closed enum of 12 chakras + nadis. Each row has a unique `slug` and a required relationship to a `pages` doc that describes it. Reverse joins expose attached `lectures` and `frames`. Referenced by Lectures (`subtleSystemNodes` hasMany — drives the meditationLectures ranking) and Frames (`subtleSystemNode` single relationship — replaces the old enum `category` field).
 - **SongTags** — upload collection with SVG icons (no color field). Admin labels say "Music Category".
-- **Audiences** — reusable visibility/targeting rules referenced by AppCards, Lectures, and LectureClips. JSON-based rules (`pathProgress`, `meditationsPerWeek`, `totalMeditationsViewed`, `totalLecturesViewed` — all range type). Three bidirectional joins. The `for-audience` endpoints apply OR-match across attached audiences.
+- **Audiences** — reusable visibility/targeting rules referenced by AppCards and Lectures. JSON-based rules (`pathProgress`, `meditationsPerWeek`, `totalMeditationsViewed`, `totalLecturesViewed` — all range type). Two bidirectional joins. The `for-audience` endpoints apply OR-match across attached audiences.
 
 Page, Video, and Image tags are inline enum select fields on their
 respective collections (not separate tag collections).

@@ -266,14 +266,22 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
   '/api/meditations/{id}/related-lectures': {
     get: {
       tags: ['Meditations'],
-      summary: 'Suggested lectures for a meditation',
+      summary: 'Lectures relevant to a meditation, ranked by chakra overlap',
       description:
-        'Returns lectures related to a meditation, ordered most-relevant ' +
-        'first. Pass the `userChoice` query param to limit results to a ' +
-        'single mood/goal category, and `excludedLectureIds` to omit ' +
-        'lectures the user has already watched. Audience inputs filter the ' +
-        'pool to lectures eligible for this viewer. Lectures with no ' +
-        '`subtleSystemNodes` are excluded from the ranking.',
+        'Returns lectures contextually relevant to a meditation, ranked by ' +
+        'the topical overlap between the meditation\'s on-screen chakras ' +
+        '(its frames\' `subtleSystemNodes`, weighted by on-screen seconds) ' +
+        'and each lecture\'s tagged `subtleSystemNodes`. ' +
+        'By default, lectures with no chakra overlap are excluded — they ' +
+        'have no relevance signal. ' +
+        'When `userChoice` is set, the user-choice match is itself a ' +
+        'sufficient relevance signal: all lectures matching the user-choice ' +
+        'are returned regardless of chakra overlap. Positive-weight lectures ' +
+        'rank first by descending weight; zero-overlap matches follow, ' +
+        'ordered by id ascending. ' +
+        'Audience inputs filter the candidate pool to lectures eligible for ' +
+        'this viewer. Use `excludedLectureIds` to omit already-watched ' +
+        'lectures.',
       operationId: 'meditationLectures',
       parameters: [
         {
@@ -291,7 +299,9 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           required: false,
           description:
             'Optional ID of a UserChoices doc. Restricts candidates to ' +
-            "lectures whose own `userChoices` hasMany contains that ID.",
+            'lectures whose own `userChoices` hasMany contains that ID, AND ' +
+            'relaxes the chakra-overlap filter so zero-overlap matches are ' +
+            'kept (ranked after positive-overlap ones).',
           schema: { type: 'integer' },
         },
         {
