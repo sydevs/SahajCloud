@@ -166,10 +166,8 @@ export const meditationLectures: Endpoint = {
           weight += weights[node.slug] ?? 0
         }
       }
-      // When userChoice is set, the user-choice match is itself a sufficient
-      // relevance signal — keep zero-weight matches and rank them after
-      // weighted ones via the existing comparator (#333).
-      if (weight <= 0 && typeof userChoice !== 'number') continue
+      // userChoice match is itself a sufficient relevance signal (#333)
+      if (weight <= 0 && userChoice === undefined) continue
       weighted.push({ lecture, weight })
     }
 

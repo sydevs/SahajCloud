@@ -257,6 +257,25 @@ describe('meditationLectures endpoint', () => {
     expect(ids).toContain(lectureA.id)
   })
 
+  it('userChoice + excludedLectureIds removes weighted and zero-weight matches', async () => {
+    // Exclude the weighted match — zero-weight match still returns under userChoice.
+    const a = await callEndpoint(payload, meditation.id, {
+      limit: 10,
+      userChoice: userChoice.id,
+      excludedLectureIds: `${lectureUC.id}`,
+    })
+    expect((a.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)).toEqual([
+      lectureUCNone.id,
+    ])
+    // Exclude both — empty.
+    const b = await callEndpoint(payload, meditation.id, {
+      limit: 10,
+      userChoice: userChoice.id,
+      excludedLectureIds: `${lectureUC.id},${lectureUCNone.id}`,
+    })
+    expect((b.body as { docs: LecturePlayerData[] }).docs).toEqual([])
+  })
+
   it('returns 404 for unknown meditation', async () => {
     const { status, body } = await callEndpoint(payload, 999999, { limit: 10 })
     expect(status).toBe(404)

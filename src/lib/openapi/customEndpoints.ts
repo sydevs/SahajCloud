@@ -266,7 +266,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
   '/api/meditations/{id}/related-lectures': {
     get: {
       tags: ['Meditations'],
-      summary: 'Lectures relevant to a meditation, ranked by chakra overlap',
+      summary: 'Lectures related to a meditation',
       description:
         'Returns lectures contextually relevant to a meditation, ranked by ' +
         'the topical overlap between the meditation\'s on-screen chakras ' +
