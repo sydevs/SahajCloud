@@ -39,7 +39,6 @@ This file provides guidance to AI coding agents when working with this repositor
 
 - @.claude/docs/environment.md — environment variables and Wrangler configuration
 - @.claude/docs/architecture.md — top-level architecture (collections, routes, logging, scheduled jobs)
-- @.claude/docs/decisions/lexical-relationship-patch.md — pnpm patch on `@payloadcms/richtext-lexical` so the relationship picker respects `enabledCollections` for `admin.hidden` collections (e.g. lecture-clips). Review on every Lexical bump.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment documentation.
 

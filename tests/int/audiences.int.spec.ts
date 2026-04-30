@@ -194,10 +194,8 @@ describe('Audiences Collection', () => {
       })
 
       const lectures = fetchedAudience.lectures as { docs: unknown[] }
-      const lectureClips = fetchedAudience.lectureClips as { docs: unknown[] }
       const appCards = fetchedAudience.appCards as { docs: unknown[] }
       expect(lectures.docs).toHaveLength(0)
-      expect(lectureClips.docs).toHaveLength(0)
       expect(appCards.docs).toHaveLength(0)
     })
 

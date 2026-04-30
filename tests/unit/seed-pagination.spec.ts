@@ -54,16 +54,13 @@ describe('Pagination Utilities', () => {
       const metadata = getScriptMetadata('wemeditate')
 
       expect(metadata).toBeDefined()
-      expect(metadata.collections).toHaveLength(6)
-      // lectures + lecture-clips were added in the #311 follow-up so the seed
-      // can re-emit Lexical relationship nodes pointing at the new clip shape.
+      expect(metadata.collections).toHaveLength(5)
       expect(metadata.collections.map((c) => c.slug)).toEqual([
         'authors',
         'albums',
         'songs',
         'pages',
         'lectures',
-        'lecture-clips',
       ])
       expect(metadata.requiresPagination).toBe(true) // pages requires pagination
     })
@@ -81,12 +78,8 @@ describe('Pagination Utilities', () => {
       const metadata = getScriptMetadata('storyblok')
 
       expect(metadata).toBeDefined()
-      expect(metadata.collections).toHaveLength(3)
-      expect(metadata.collections.map((c) => c.slug)).toEqual([
-        'lessons',
-        'lectures',
-        'lecture-clips',
-      ])
+      expect(metadata.collections).toHaveLength(2)
+      expect(metadata.collections.map((c) => c.slug)).toEqual(['lessons', 'lectures'])
       expect(metadata.requiresPagination).toBe(true) // lessons requires pagination for consistency
     })
 
@@ -233,10 +226,7 @@ describe('Pagination Utilities', () => {
           albums: 8,
           songs: 27,
           pages: 30, // After 3 batches
-          // Lectures + LectureClips were added in #311; include the expected
-          // counts so this batch-progress assertion still passes overall.
           lectures: 40,
-          'lecture-clips': 40,
         }
         const pagination = { collection: 'pages', offset: 20, limit: 10 }
         const { results, allPassed } = verifyCountsForScript('wemeditate', actualCounts, pagination)

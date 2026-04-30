@@ -9,7 +9,6 @@ import { Songs } from './content/Songs'
 import { Videos } from './content/Videos'
 import { Authors } from './resources/Authors'
 import { Images } from './resources/Images'
-import { LectureClips } from './resources/LectureClips'
 import { Lectures } from './resources/Lectures'
 import { Narrators } from './resources/Narrators'
 import { Files } from './system/Files'
@@ -30,7 +29,6 @@ export const collections = [
   Lessons,
   // Resources
   Lectures,
-  LectureClips,
   Frames,
   Narrators,
   Authors,
@@ -58,7 +56,6 @@ export {
   Lessons,
   // Resources
   Lectures,
-  LectureClips,
   Frames,
   Narrators,
   Authors,

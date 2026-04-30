@@ -41,10 +41,9 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
     songs: 27,
     pages: 60,
     // Counted from seeds/wemeditate/data.json: 161 vimeo block occurrences,
-    // 40 unique vimeo IDs (after dedup across page translations). Each unique
-    // vimeo_id seeds one Lecture + one full-video LectureClip.
+    // 40 unique vimeo IDs (after dedup across page translations). Each
+    // unique vimeo_id seeds one Lecture.
     lectures: 40,
-    'lecture-clips': 40,
   },
   meditations: {
     narrators: 2,
@@ -178,15 +177,6 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       dependencies: [],
       naturalKey: 'nirmalVidyaVimeoUrl',
     },
-    {
-      // One full-video clip per parent Lecture for legacy seed data
-      // (no source data carries clip boundaries).
-      slug: 'lecture-clips',
-      totalItems: 40,
-      requiresPagination: false,
-      dependencies: ['lectures'],
-      naturalKey: 'lecture',
-    },
   ],
   meditations: [
     {
@@ -231,13 +221,6 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       requiresPagination: false,
       dependencies: [],
       naturalKey: 'nirmalVidyaVimeoUrl',
-    },
-    {
-      slug: 'lecture-clips',
-      totalItems: 0,
-      requiresPagination: false,
-      dependencies: ['lectures'],
-      naturalKey: 'lecture',
     },
   ],
 }

@@ -20,7 +20,7 @@ export interface ConversionContext {
   // ID maps for relationships (Payload IDs can be number or string)
   mediaMap: Map<string, number | string> // image URL → Media ID
   formMap: Map<string, number | string> // form type → Form ID
-  lectureClipMap: Map<string, number | string> // vimeo_id → LectureClip ID
+  lectureMap: Map<string, number | string> // vimeo_id → Lecture ID
   treatmentMap: Map<number, number | string> // treatment ID → Page ID
   treatmentThumbnailMap: Map<number, number | string> // treatment ID → Media ID (for thumbnails)
   meditationTitleMap: Map<string, number | string> // meditation title → Meditation ID
@@ -719,12 +719,12 @@ export function convertAction(
 }
 
 /**
- * Convert EditorJS vimeo block to LectureClip relationship.
+ * Convert EditorJS vimeo block to Lecture relationship.
  *
  * Source-data shape: `{ type: 'vimeo', data: { items: [{ vimeo_id, youtube_id?, title? }] } }`.
  * Each block carries exactly one item in observed wemeditate data; we only
  * read the first. YouTube blocks are dropped — there is no Nirmala Vidya
- * YouTube ingest path. Missing-clip lookups also return null + warn (the
+ * YouTube ingest path. Missing-lecture lookups also return null + warn (the
  * parent importer logs the upstream NV API failure separately).
  */
 export function convertVimeo(block: EditorJSBlock, context: ConversionContext): LexicalNode | null {
@@ -747,15 +747,15 @@ export function convertVimeo(block: EditorJSBlock, context: ConversionContext): 
     return null
   }
 
-  const clipId = context.lectureClipMap.get(vimeoId)
-  if (!clipId) {
+  const lectureId = context.lectureMap.get(vimeoId)
+  if (!lectureId) {
     context.logger.warn(
-      `No LectureClip found for vimeo_id=${vimeoId}; dropping block on page "${context.pageTitle}" (Rails ID ${context.pageId})`,
+      `No Lecture found for vimeo_id=${vimeoId}; dropping block on page "${context.pageTitle}" (Rails ID ${context.pageId})`,
     )
     return null
   }
 
-  return createRelationshipNode('lecture-clips', clipId)
+  return createRelationshipNode('lectures', lectureId)
 }
 
 /**

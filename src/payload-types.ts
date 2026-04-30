@@ -91,7 +91,6 @@ export interface Config {
     videos: Video;
     lessons: Lesson;
     lectures: Lecture;
-    'lecture-clips': LectureClip;
     frames: Frame;
     narrators: Narrator;
     authors: Author;
@@ -117,14 +116,13 @@ export interface Config {
       songs: 'songs';
     };
     lectures: {
-      clips: 'lecture-clips';
+      clips: 'lectures';
     };
     authors: {
       articles: 'pages';
     };
     audiences: {
       lectures: 'lectures';
-      lectureClips: 'lecture-clips';
       appCards: 'app-cards';
     };
     'user-choices': {
@@ -147,7 +145,6 @@ export interface Config {
     videos: VideosSelect<false> | VideosSelect<true>;
     lessons: LessonsSelect<false> | LessonsSelect<true>;
     lectures: LecturesSelect<false> | LecturesSelect<true>;
-    'lecture-clips': LectureClipsSelect<false> | LectureClipsSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
     authors: AuthorsSelect<false> | AuthorsSelect<true>;
@@ -829,7 +826,41 @@ export interface Lecture {
    */
   thumbnail?: (number | null) | Image;
   /**
-   * Auto-populated from Nirmala Vidya API on create and by the monthly sync job. Contains title, HLS URL, thumbnail URL, and per-locale subtitle URLs.
+   * Optional start of the playback window (HH:MM:SS).
+   */
+  startTime?: number | null;
+  /**
+   * Optional end of the playback window (HH:MM:SS).
+   */
+  endTime?: number | null;
+  /**
+   * Per-locale subtitle overrides. Any locale not listed here falls back to the Nirmala Vidya subtitles (see metadata).
+   */
+  subtitles?:
+    | {
+        locale:
+          | 'en'
+          | 'es'
+          | 'de'
+          | 'it'
+          | 'fr'
+          | 'ru'
+          | 'ro'
+          | 'cs'
+          | 'uk'
+          | 'el'
+          | 'hy'
+          | 'pl'
+          | 'pt-br'
+          | 'fa'
+          | 'bg'
+          | 'tr';
+        url: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Auto-populated from Nirmala Vidya API and updated monthly.
    */
   metadata?:
     | {
@@ -841,19 +872,23 @@ export interface Lecture {
     | boolean
     | null;
   /**
-   * Audiences that control visibility. The lecture is shown to a viewer if ANY of the selected audiences passes. If empty, it is hidden from /api/lectures/for-audience and only surfaced when directly referenced (e.g. from a meditation or path step).
+   * If this lecture is an excerpt, filling this field will allow the user to see a link to the full lecture.
+   */
+  fullLecture?: (number | null) | Lecture;
+  /**
+   * A user can view this lecture if they are a member of any of these audience groups. If empty, this lecture is only visible when directly referenced (e.g. from a meditation or path step).
    */
   audiences?: (number | Audience)[] | null;
   /**
-   * User choices (mood/feeling tags) this lecture is relevant to. Used by the app to select contextually appropriate lectures.
+   * User choices this lecture is relevant to. Used by the app to select contextually appropriate lectures.
    */
   userChoices?: (number | UserChoice)[] | null;
   /**
-   * Chakras and nadis discussed in this lecture. Used for smart lecture selection based on meditation context.
+   * Chakras and nadis discussed in this lecture. This allows us to select relevant lectures when a viewer finishes a meditation.
    */
   subtleSystemNodes?: (number | SubtleSystemNode)[] | null;
   clips?: {
-    docs?: (number | LectureClip)[];
+    docs?: (number | Lecture)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -891,11 +926,6 @@ export interface Audience {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
-  lectureClips?: {
-    docs?: (number | LectureClip)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
   appCards?: {
     docs?: (number | AppCard)[];
     hasNextPage?: boolean;
@@ -906,61 +936,187 @@ export interface Audience {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "lecture-clips".
+ * via the `definition` "app-cards".
  */
-export interface LectureClip {
+export interface AppCard {
   id: number;
-  lecture: number | Lecture;
-  /**
-   * Start of the excerpt (HH:MM:SS)
-   */
-  startTime: number;
-  /**
-   * End of the excerpt (HH:MM:SS)
-   */
-  endTime: number;
-  duration?: number | null;
+  image: number | Image;
   title: string;
+  subtitle?: string | null;
   /**
-   * Optional. Falls back to the parent lecture's thumbnail when empty — fallback is applied by /api/lectures/for-audience, not by this collection's CRUD endpoints.
+   * Button label text
    */
-  thumbnail?: (number | null) | Image;
+  button?: string | null;
   /**
-   * Per-locale subtitle overrides. Any locale not listed here falls back to the parent lecture's Nirmala Vidya subtitles.
+   * A custom header that will appear above the card if it is selected as a hero card.
    */
-  subtitles?:
-    | {
-        locale:
-          | 'en'
-          | 'es'
-          | 'de'
-          | 'it'
-          | 'fr'
-          | 'ru'
-          | 'ro'
-          | 'cs'
-          | 'uk'
-          | 'el'
-          | 'hy'
-          | 'pl'
-          | 'pt-br'
-          | 'fa'
-          | 'bg'
-          | 'tr';
-        url: string;
-        id?: string | null;
-      }[]
-    | null;
+  header: string;
+  type: 'app-page' | 'content' | 'external';
   /**
-   * Audiences that control visibility. The clip is shown to a viewer if ANY of the selected audiences passes. If empty, it is hidden from /api/lectures/for-audience and only surfaced when directly referenced (e.g. from a meditation or path step).
+   * Select the app page this card links to
+   */
+  appPage?: ('map' | 'lectures' | 'path' | 'music' | 'live-meditations') | null;
+  /**
+   * Select the content item this card links to
+   */
+  content?:
+    | ({
+        relationTo: 'lectures';
+        value: number | Lecture;
+      } | null)
+    | ({
+        relationTo: 'albums';
+        value: number | Album;
+      } | null)
+    | ({
+        relationTo: 'meditations';
+        value: number | Meditation;
+      } | null);
+  /**
+   * External URL this card links to
+   */
+  linkUrl?: string | null;
+  /**
+   * Enable recurring schedule for this card (countdown/reminder functionality)
+   */
+  countdown?: boolean | null;
+  /**
+   * Render the card with a dark overlay and white text instead of the default style.
+   */
+  overlay?: boolean | null;
+  /**
+   * Configure the recurring schedule for this reminder card
+   */
+  schedule?: {
+    firstDate: string;
+    firstDate_tz: SupportedTimezones;
+    recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
+    /**
+     * Repeat every N days/weeks/months
+     */
+    interval?: number | null;
+    weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
+    /**
+     * Dates when this recurring event will not occur, such as holidays or seasonal breaks.
+     */
+    exclusions?:
+      | {
+          startDate: string;
+          endDate?: string | null;
+          reason?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    icalRule?: string | null;
+    upcomingDates?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  /**
+   * Target sections where this card should appear on the app homepage.
+   */
+  targetSections?: ('hero' | 'highlights' | 'lectures')[] | null;
+  /**
+   * Audiences that control visibility. The card is shown to a viewer if ANY of the selected audiences passes. If empty, the card is hidden from /api/app-cards/for-audience and never appears on the app homepage.
    */
   audiences?: (number | Audience)[] | null;
   /**
-   * Chakras / nadis this clip focuses on. Drives the topical-overlap ranking in /api/meditations/:id/related-lecture-clips — clips with no nodes are excluded from that endpoint. Independent of the parent lecture's `subtleSystemNodes`.
+   * Controls how likely this card is to be chosen when displayed to a user.
    */
-  subtleSystemNodes?: (number | SubtleSystemNode)[] | null;
+  weight?: number | null;
   updatedAt: string;
   createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "user-choices".
+ */
+export interface UserChoice {
+  id: number;
+  /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  /**
+   * URL-friendly identifier (auto-generated from title)
+   */
+  slug: string;
+  /**
+   * Localized title shown to public users
+   */
+  title?: string | null;
+  /**
+   * Whether this choice describes how the user feels right now (mood) or what they want to work toward (goal). Time-of-day timings and per-timing meditation assignments only apply to mood choices.
+   */
+  type: 'mood' | 'goal' | 'duration';
+  /**
+   * Tag color for UI theming (hex format)
+   */
+  color?: string | null;
+  /**
+   * Parent category for grouping. Parent categories are not selectable on meditations. Editable by admin managers only.
+   */
+  parent?: (number | null) | UserChoice;
+  /**
+   * Featured categories are shown prominently; non-featured categories appear in a dropdown
+   */
+  isFeatured?: boolean | null;
+  /**
+   * Display order (lower numbers appear first)
+   */
+  order?: number | null;
+  /**
+   * Which times of day this category offers meditations
+   */
+  timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
+  /**
+   * The meditation offered for this category in the morning
+   */
+  morningMeditation?: (number | null) | Meditation;
+  /**
+   * The meditation offered for this category in the afternoon
+   */
+  afternoonMeditation?: (number | null) | Meditation;
+  /**
+   * The meditation offered for this category in the evening
+   */
+  eveningMeditation?: (number | null) | Meditation;
+  /**
+   * The meditation offered for this category at night
+   */
+  nightMeditation?: (number | null) | Meditation;
+  /**
+   * Automatically set when this tag has child categories
+   */
+  isParent: boolean;
+  children?: {
+    docs?: (number | UserChoice)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  lectures?: {
+    docs?: (number | Lecture)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1060,194 +1216,6 @@ export interface Frame {
     | number
     | boolean
     | null;
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "app-cards".
- */
-export interface AppCard {
-  id: number;
-  image: number | Image;
-  title: string;
-  subtitle?: string | null;
-  /**
-   * Button label text
-   */
-  button?: string | null;
-  /**
-   * A custom header that will appear above the card if it is selected as a hero card.
-   */
-  header: string;
-  type: 'app-page' | 'content' | 'external';
-  /**
-   * Select the app page this card links to
-   */
-  appPage?: ('map' | 'lectures' | 'path' | 'music' | 'live-meditations') | null;
-  /**
-   * Select the content item this card links to
-   */
-  content?:
-    | ({
-        relationTo: 'lecture-clips';
-        value: number | LectureClip;
-      } | null)
-    | ({
-        relationTo: 'lectures';
-        value: number | Lecture;
-      } | null)
-    | ({
-        relationTo: 'albums';
-        value: number | Album;
-      } | null)
-    | ({
-        relationTo: 'meditations';
-        value: number | Meditation;
-      } | null);
-  /**
-   * External URL this card links to
-   */
-  linkUrl?: string | null;
-  /**
-   * Enable recurring schedule for this card (countdown/reminder functionality)
-   */
-  countdown?: boolean | null;
-  /**
-   * Render the card with a dark overlay and white text instead of the default style.
-   */
-  overlay?: boolean | null;
-  /**
-   * Configure the recurring schedule for this reminder card
-   */
-  schedule?: {
-    firstDate: string;
-    firstDate_tz: SupportedTimezones;
-    recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
-    /**
-     * Repeat every N days/weeks/months
-     */
-    interval?: number | null;
-    weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
-    /**
-     * Dates when this recurring event will not occur, such as holidays or seasonal breaks.
-     */
-    exclusions?:
-      | {
-          startDate: string;
-          endDate?: string | null;
-          reason?: string | null;
-          id?: string | null;
-        }[]
-      | null;
-    icalRule?: string | null;
-    upcomingDates?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-  };
-  /**
-   * Target sections where this card should appear on the app homepage.
-   */
-  targetSections?: ('hero' | 'highlights' | 'lectures')[] | null;
-  /**
-   * Audiences that control visibility. The card is shown to a viewer if ANY of the selected audiences passes. If empty, the card is hidden from /api/app-cards/for-audience and never appears on the app homepage.
-   */
-  audiences?: (number | Audience)[] | null;
-  /**
-   * Controls how likely this card is to be chosen when displayed to a user.
-   */
-  weight?: number | null;
-  updatedAt: string;
-  createdAt: string;
-  _status?: ('draft' | 'published') | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "user-choices".
- */
-export interface UserChoice {
-  id: number;
-  /**
-   * When enabled, the slug will auto-generate from the title field on save and autosave.
-   */
-  generateSlug?: boolean | null;
-  /**
-   * URL-friendly identifier (auto-generated from title)
-   */
-  slug: string;
-  /**
-   * Localized title shown to public users
-   */
-  title?: string | null;
-  /**
-   * Whether this choice describes how the user feels right now (mood) or what they want to work toward (goal). Time-of-day timings and per-timing meditation assignments only apply to mood choices.
-   */
-  type: 'mood' | 'goal' | 'quick';
-  /**
-   * Tag color for UI theming (hex format)
-   */
-  color?: string | null;
-  /**
-   * Parent category for grouping. Parent categories are not selectable on meditations. Editable by admin managers only.
-   */
-  parent?: (number | null) | UserChoice;
-  /**
-   * Featured categories are shown prominently; non-featured categories appear in a dropdown
-   */
-  isFeatured?: boolean | null;
-  /**
-   * Display order (lower numbers appear first)
-   */
-  order?: number | null;
-  /**
-   * Which times of day this category offers meditations
-   */
-  timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
-  /**
-   * The meditation offered for this category in the morning
-   */
-  morningMeditation?: (number | null) | Meditation;
-  /**
-   * The meditation offered for this category in the afternoon
-   */
-  afternoonMeditation?: (number | null) | Meditation;
-  /**
-   * The meditation offered for this category in the evening
-   */
-  eveningMeditation?: (number | null) | Meditation;
-  /**
-   * The meditation offered for this category at night
-   */
-  nightMeditation?: (number | null) | Meditation;
-  /**
-   * Automatically set when this tag has child categories
-   */
-  isParent: boolean;
-  children?: {
-    docs?: (number | UserChoice)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  lectures?: {
-    docs?: (number | Lecture)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1738,10 +1706,6 @@ export interface PayloadLockedDocument {
         value: number | Lecture;
       } | null)
     | ({
-        relationTo: 'lecture-clips';
-        value: number | LectureClip;
-      } | null)
-    | ({
         relationTo: 'frames';
         value: number | Frame;
       } | null)
@@ -2010,25 +1974,8 @@ export interface LecturesSelect<T extends boolean = true> {
   nirmalVidyaVimeoUrl?: T;
   title?: T;
   thumbnail?: T;
-  metadata?: T;
-  audiences?: T;
-  userChoices?: T;
-  subtleSystemNodes?: T;
-  clips?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "lecture-clips_select".
- */
-export interface LectureClipsSelect<T extends boolean = true> {
-  lecture?: T;
   startTime?: T;
   endTime?: T;
-  duration?: T;
-  title?: T;
-  thumbnail?: T;
   subtitles?:
     | T
     | {
@@ -2036,8 +1983,12 @@ export interface LectureClipsSelect<T extends boolean = true> {
         url?: T;
         id?: T;
       };
+  metadata?: T;
+  fullLecture?: T;
   audiences?: T;
+  userChoices?: T;
   subtleSystemNodes?: T;
+  clips?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2146,7 +2097,6 @@ export interface AudiencesSelect<T extends boolean = true> {
   label?: T;
   rules?: T;
   lectures?: T;
-  lectureClips?: T;
   appCards?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -2618,9 +2568,9 @@ export interface WmAppConfig {
    */
   selfRealizationMeditation?: (number | null) | Meditation;
   /**
-   * Lecture clip shown after the first meditation.
+   * Lecture shown after the first meditation.
    */
-  postRealizationLecture?: (number | null) | LectureClip;
+  postRealizationLecture?: (number | null) | Lecture;
   /**
    * Audio prompts and subtitles for the vibe check step of the first meditation.
    */
