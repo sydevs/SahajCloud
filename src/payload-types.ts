@@ -826,18 +826,6 @@ export interface Lecture {
    */
   thumbnail?: (number | null) | Image;
   /**
-   * Auto-populated from Nirmala Vidya API on create and by the monthly sync job. Contains title, HLS URL, thumbnail URL, and per-locale subtitle URLs.
-   */
-  metadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  /**
    * Optional start of the playback window (HH:MM:SS).
    */
   startTime?: number | null;
@@ -846,7 +834,7 @@ export interface Lecture {
    */
   endTime?: number | null;
   /**
-   * Per-locale subtitle overrides. Any locale not listed here falls back to the Nirmala Vidya subtitles in metadata.
+   * Per-locale subtitle overrides. Any locale not listed here falls back to the Nirmala Vidya subtitles (see metadata).
    */
   subtitles?:
     | {
@@ -872,19 +860,31 @@ export interface Lecture {
       }[]
     | null;
   /**
-   * Optional pointer to a related lecture (e.g. the full talk that this excerpt is taken from). Informational only — chains and depth are not interpreted.
+   * Auto-populated from Nirmala Vidya API and updated monthly.
+   */
+  metadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * If this lecture is an excerpt, filling this field will allow the user to see a link to the full lecture.
    */
   fullLecture?: (number | null) | Lecture;
   /**
-   * Audiences that control visibility. The lecture is shown to a viewer if ANY of the selected audiences passes. If empty, it is hidden from /api/lectures/for-audience and only surfaced when directly referenced (e.g. from a meditation or path step).
+   * A user can view this lecture if they are a member of any of these audience groups. If empty, this lecture is only visible when directly referenced (e.g. from a meditation or path step).
    */
   audiences?: (number | Audience)[] | null;
   /**
-   * User choices (mood/feeling tags) this lecture is relevant to. Used by the app to select contextually appropriate lectures.
+   * User choices this lecture is relevant to. Used by the app to select contextually appropriate lectures.
    */
   userChoices?: (number | UserChoice)[] | null;
   /**
-   * Chakras and nadis discussed in this lecture. Drives the topical-overlap ranking in /api/meditations/:id/related-lectures — lectures with no nodes are excluded from that endpoint.
+   * Chakras and nadis discussed in this lecture. This allows us to select relevant lectures when a viewer finishes a meditation.
    */
   subtleSystemNodes?: (number | SubtleSystemNode)[] | null;
   clips?: {
@@ -1974,7 +1974,6 @@ export interface LecturesSelect<T extends boolean = true> {
   nirmalVidyaVimeoUrl?: T;
   title?: T;
   thumbnail?: T;
-  metadata?: T;
   startTime?: T;
   endTime?: T;
   subtitles?:
@@ -1984,6 +1983,7 @@ export interface LecturesSelect<T extends boolean = true> {
         url?: T;
         id?: T;
       };
+  metadata?: T;
   fullLecture?: T;
   audiences?: T;
   userChoices?: T;

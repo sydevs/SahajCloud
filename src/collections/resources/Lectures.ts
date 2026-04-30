@@ -35,8 +35,7 @@ export const Lectures: CollectionConfig = {
         description: 'Paste the Vimeo URL from amruta.org (e.g. https://vimeo.com/123456789).',
       },
       access: {
-        // Vimeo URL is immutable after creation
-        update: () => false,
+        update: () => false, // Vimeo URL is immutable after creation
       },
     }),
     {
@@ -45,9 +44,7 @@ export const Lectures: CollectionConfig = {
       required: false, // Hook satisfies this on create
       localized: true,
       admin: {
-        // Hidden during create — the hook auto-populates this field
-        condition: (data) => !!data?.id,
-        description: 'Auto-populated from Nirmala Vidya. Can be edited after creation.',
+        condition: (data) => !!data?.id, // Hidden during create — the hook auto-populates this field
       },
     },
     mediaField({
@@ -59,16 +56,6 @@ export const Lectures: CollectionConfig = {
         condition: (data) => !!data?.id,
       },
     }),
-    {
-      name: 'metadata',
-      type: 'json',
-      admin: {
-        readOnly: true,
-        condition: (data) => !!data?.id,
-        description:
-          'Auto-populated from Nirmala Vidya API on create and by the monthly sync job. Contains title, HLS URL, thumbnail URL, and per-locale subtitle URLs.',
-      },
-    },
     {
       type: 'row',
       fields: [
@@ -115,22 +102,36 @@ export const Lectures: CollectionConfig = {
       localized: false,
       admin: {
         description:
-          'Per-locale subtitle overrides. Any locale not listed here falls back to the Nirmala Vidya subtitles in metadata.',
+          'Per-locale subtitle overrides. Any locale not listed here falls back to the Nirmala Vidya subtitles (see metadata).',
         condition: (data) => !!data?.id,
       },
       fields: [
         {
-          name: 'locale',
-          type: 'select',
-          required: true,
-          options: LOCALE_OPTIONS,
-        },
-        {
-          name: 'url',
-          type: 'text',
-          required: true,
+          type: 'row',
+          fields: [
+            {
+              name: 'locale',
+              type: 'select',
+              required: true,
+              options: LOCALE_OPTIONS,
+            },
+            {
+              name: 'url',
+              type: 'text',
+              required: true,
+            },
+          ],
         },
       ],
+    },
+    {
+      name: 'metadata',
+      type: 'json',
+      admin: {
+        readOnly: true,
+        condition: (data) => !!data?.id,
+        description: 'Auto-populated from Nirmala Vidya API and updated monthly.',
+      },
     },
     {
       name: 'fullLecture',
@@ -139,8 +140,9 @@ export const Lectures: CollectionConfig = {
       filterOptions: ({ id }) => (id ? { id: { not_equals: id } } : true),
       admin: {
         description:
-          'Optional pointer to a related lecture (e.g. the full talk that this excerpt is taken from). Informational only — chains and depth are not interpreted.',
+          'If this lecture is an excerpt, filling this field will allow the user to see a link to the full lecture.',
         condition: (data) => !!data?.id,
+        position: 'sidebar',
       },
     },
     {
@@ -151,7 +153,8 @@ export const Lectures: CollectionConfig = {
       filterOptions: () => true,
       admin: {
         description:
-          'Audiences that control visibility. The lecture is shown to a viewer if ANY of the selected audiences passes. If empty, it is hidden from /api/lectures/for-audience and only surfaced when directly referenced (e.g. from a meditation or path step).',
+          'A user can view this lecture if they are a member of any of these audience groups. If empty, this lecture is only visible when directly referenced (e.g. from a meditation or path step).',
+        position: 'sidebar',
       },
     },
     {
@@ -161,7 +164,8 @@ export const Lectures: CollectionConfig = {
       hasMany: true,
       admin: {
         description:
-          'User choices (mood/feeling tags) this lecture is relevant to. Used by the app to select contextually appropriate lectures.',
+          'User choices this lecture is relevant to. Used by the app to select contextually appropriate lectures.',
+        position: 'sidebar',
       },
     },
     {
@@ -171,7 +175,8 @@ export const Lectures: CollectionConfig = {
       hasMany: true,
       admin: {
         description:
-          'Chakras and nadis discussed in this lecture. Drives the topical-overlap ranking in /api/meditations/:id/related-lectures — lectures with no nodes are excluded from that endpoint.',
+          'Chakras and nadis discussed in this lecture. This allows us to select relevant lectures when a viewer finishes a meditation.',
+        position: 'sidebar',
       },
     },
     {
@@ -181,7 +186,7 @@ export const Lectures: CollectionConfig = {
       on: 'fullLecture',
       admin: {
         allowCreate: true,
-        defaultColumns: ['title', 'startTime', 'endTime', 'audiences'],
+        defaultColumns: ['title', 'startTime', 'endTime', 'subtleSystemNodes'],
         condition: (data) => !!data?.id,
       },
     },
