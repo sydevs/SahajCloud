@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { validateSubtitles } from '@/lib/subtitles'
+import { parseSubtitles } from '@/lib/subtitles'
 
-// Payload calls validate with a second `options` argument we don't read; cast
-// to `any` so the unit tests don't need to fabricate a full ValidateOptions.
-const validate = (value: unknown) => (validateSubtitles as any)(value, {})
-
-describe('validateSubtitles', () => {
+describe('parseSubtitles', () => {
   const validSubtitles = {
     captions: [
       { duration: 1.5, content: 'Hello', startTime: '00:00:00.000' },
@@ -15,24 +11,24 @@ describe('validateSubtitles', () => {
   }
 
   it('accepts well-formed subtitles', () => {
-    expect(validate(validSubtitles)).toBe(true)
+    expect(parseSubtitles(validSubtitles)).toBe(true)
   })
 
   it('treats undefined / null / empty object / empty array as valid (field is optional)', () => {
-    expect(validate(undefined)).toBe(true)
-    expect(validate(null)).toBe(true)
-    expect(validate({})).toBe(true)
-    expect(validate([])).toBe(true)
+    expect(parseSubtitles(undefined)).toBe(true)
+    expect(parseSubtitles(null)).toBe(true)
+    expect(parseSubtitles({})).toBe(true)
+    expect(parseSubtitles([])).toBe(true)
   })
 
   it('rejects payloads missing the required `captions` key', () => {
-    const result = validate({ notCaptions: [] })
+    const result = parseSubtitles({ notCaptions: [] })
     expect(typeof result).toBe('string')
     expect(result as string).toContain('captions')
   })
 
   it('rejects when a caption is missing a required field', () => {
-    const result = validate({
+    const result = parseSubtitles({
       captions: [{ duration: 1, content: 'no startTime' }],
     })
     expect(typeof result).toBe('string')
@@ -40,7 +36,7 @@ describe('validateSubtitles', () => {
   })
 
   it('rejects when a caption field has the wrong type', () => {
-    const result = validate({
+    const result = parseSubtitles({
       captions: [{ duration: '10', content: 'oops', startTime: '00:00:00.000' }],
     })
     expect(typeof result).toBe('string')
@@ -48,13 +44,13 @@ describe('validateSubtitles', () => {
   })
 
   it('rejects when `captions` is not an array', () => {
-    const result = validate({ captions: 'not-an-array' })
+    const result = parseSubtitles({ captions: 'not-an-array' })
     expect(typeof result).toBe('string')
     expect(result as string).toContain('captions')
   })
 
   it('rejects a top-level non-object value', () => {
-    expect(typeof validate('a string')).toBe('string')
-    expect(typeof validate(42)).toBe('string')
+    expect(typeof parseSubtitles('a string')).toBe('string')
+    expect(typeof parseSubtitles(42)).toBe('string')
   })
 })

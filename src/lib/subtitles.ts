@@ -3,6 +3,10 @@ import type { JSONFieldValidation } from 'payload'
 
 import { z } from 'zod'
 
+// Zod schema and JSON schema below mirror each other. If you change one,
+// change the other — they describe the same shape but feed different
+// systems (Zod = runtime validation, JSON schema = `typescriptSchema`
+// for generated TypeScript types).
 export const subtitlesZodSchema = z.object({
   captions: z.array(
     z.object({
@@ -15,6 +19,7 @@ export const subtitlesZodSchema = z.object({
 
 export type Subtitles = z.infer<typeof subtitlesZodSchema>
 
+// Mirrors `subtitlesZodSchema` — see the note above.
 export const subtitlesJsonSchema: JSONSchema4 = {
   type: 'object',
   properties: {
@@ -45,7 +50,7 @@ const isEmpty = (value: unknown): boolean => {
 // which compiles via AJV's `new Function(...)` and is blocked by the V8
 // isolate (issue #317). Uses Zod, which is already a project dependency
 // and runs cleanly under Workers.
-export const validateSubtitles: JSONFieldValidation = (value) => {
+export const parseSubtitles = (value: unknown): true | string => {
   if (isEmpty(value)) return true
 
   const result = subtitlesZodSchema.safeParse(value)
@@ -58,3 +63,5 @@ export const validateSubtitles: JSONFieldValidation = (value) => {
     })
     .join('; ')
 }
+
+export const validateSubtitles: JSONFieldValidation = (value) => parseSubtitles(value)
