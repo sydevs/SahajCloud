@@ -2,7 +2,10 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { createLexicalWithQuoteBlock } from '../utils/lexicalTestHelpers'
+import {
+  createLexicalWithQuoteBlock,
+  createLexicalWithUploadNode,
+} from '../utils/lexicalTestHelpers'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -146,6 +149,56 @@ describe('Pages Collection', () => {
       expect(fields.text).toBe('A simple quote without attribution.')
       expect(fields.credit).toBeUndefined()
       expect(fields.caption).toBeUndefined()
+    })
+  })
+
+  describe('Lexical Upload Node', () => {
+    it('saves an upload node without an explicit align value (defaults to "center")', async () => {
+      const image = await testData.createMediaImage(payload, { alt: 'Inline upload' })
+      const content = createLexicalWithUploadNode(image.id)
+
+      const page = await testData.createPage(payload, {
+        title: 'Page with Upload (no align)',
+        content,
+      })
+
+      const fetched = await payload.findByID({
+        collection: 'pages',
+        id: page.id,
+        depth: 0,
+      })
+
+      const root = fetched.content?.root as { children: Array<Record<string, unknown>> }
+      const uploadNode = root.children[0]
+      expect(uploadNode.type).toBe('upload')
+      expect(uploadNode.relationTo).toBe('images')
+
+      const fields = uploadNode.fields as Record<string, unknown>
+      expect(fields.align).toBe('center')
+    })
+
+    it('preserves an explicitly-set align value', async () => {
+      const image = await testData.createMediaImage(payload, { alt: 'Inline upload' })
+      const content = createLexicalWithUploadNode(image.id, {
+        align: 'left',
+        caption: 'A caption',
+      })
+
+      const page = await testData.createPage(payload, {
+        title: 'Page with Upload (explicit align)',
+        content,
+      })
+
+      const fetched = await payload.findByID({
+        collection: 'pages',
+        id: page.id,
+        depth: 0,
+      })
+
+      const root = fetched.content?.root as { children: Array<Record<string, unknown>> }
+      const fields = root.children[0].fields as Record<string, unknown>
+      expect(fields.align).toBe('left')
+      expect(fields.caption).toBe('A caption')
     })
   })
 
