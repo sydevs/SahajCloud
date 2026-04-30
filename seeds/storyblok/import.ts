@@ -20,7 +20,8 @@
 import type { Payload } from 'payload'
 
 import * as path from 'path'
-import { z } from 'zod'
+
+import { type Subtitles, subtitlesZodSchema } from '@/lib/subtitles'
 
 import { seedEnv } from '../env'
 import {
@@ -58,20 +59,6 @@ interface StoryblokResponse {
   cv?: number
   rels?: StoryblokStory[]
 }
-
-/**
- * Zod schema for subtitle validation (matches src/lib/subtitlesSchema.json)
- * Used to validate Storyblok subtitle files before passing to Payload
- */
-const SubtitleCaptionSchema = z.object({
-  duration: z.number(),
-  content: z.string(),
-  startTime: z.string(),
-})
-
-const SubtitlesSchema = z.object({
-  captions: z.array(SubtitleCaptionSchema),
-})
 
 // ============================================================================
 // STORYBLOK IMPORTER CLASS
@@ -805,7 +792,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // SUBTITLE PARSING
   // ============================================================================
 
-  private async parseSubtitles(url: string): Promise<z.infer<typeof SubtitlesSchema> | undefined> {
+  private async parseSubtitles(url: string): Promise<Subtitles | undefined> {
     const filename = path.basename(url.split('?')[0])
     const cachePath = path.join(this.cacheDir, 'assets/subtitles', filename)
 
@@ -837,7 +824,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     }
 
     // Validate against schema
-    const result = SubtitlesSchema.safeParse(parsed)
+    const result = subtitlesZodSchema.safeParse(parsed)
 
     if (!result.success) {
       // Log validation errors with actual data for debugging

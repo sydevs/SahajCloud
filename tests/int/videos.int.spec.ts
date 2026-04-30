@@ -71,4 +71,30 @@ describe('Videos Collection — custom behavior', () => {
 
     expect(tagged.tags).toBe('workshop')
   })
+
+  describe('subtitles validator wiring (#317)', () => {
+    it('accepts well-formed subtitles', async () => {
+      const valid = {
+        captions: [{ duration: 1, content: 'Hello', startTime: '00:00:00.000' }],
+      }
+      const video = await testData.createVideo(payload, {
+        title: 'Valid Subs Video',
+        subtitles: valid,
+      })
+
+      expect(video.subtitles).toEqual(valid)
+    })
+
+    it('rejects malformed subtitles via the field validator', async () => {
+      // Guards against a future regression where someone removes
+      // `validate: validateSubtitles` from the field config — the unit
+      // suite would still pass, but the wiring would be silently broken.
+      await expect(
+        testData.createVideo(payload, {
+          title: 'Invalid Subs Video',
+          subtitles: { captions: [{ duration: 'oops', content: 'x', startTime: '00:00:00' }] },
+        }),
+      ).rejects.toThrow(/subtitles|captions/i)
+    })
+  })
 })

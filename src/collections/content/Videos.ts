@@ -1,7 +1,5 @@
 import type { CollectionConfig } from 'payload'
 
-import { JSONSchema4 } from 'json-schema'
-
 import {
   hlsUrlField,
   mp4UrlField,
@@ -9,7 +7,7 @@ import {
   streamUrlField,
   virtualUrlField,
 } from '@/lib/storage/urlFields'
-import subtitleSchema from '@/lib/subtitlesSchema.json' with { type: 'json' }
+import { subtitlesJsonSchema, validateSubtitles } from '@/lib/subtitles'
 
 export const Videos: CollectionConfig = {
   slug: 'videos',
@@ -49,13 +47,10 @@ export const Videos: CollectionConfig = {
       name: 'subtitles',
       type: 'json',
       admin: {
-        description: 'Array of subtitle entries: [{startTime, endTime, text}]',
+        description: 'Subtitle captions: { captions: [{ duration, content, startTime }] }',
       },
-      jsonSchema: {
-        uri: 'a://subtitles.json',
-        fileMatch: ['a://subtitles.json'],
-        schema: subtitleSchema as JSONSchema4,
-      },
+      validate: validateSubtitles,
+      typescriptSchema: [() => subtitlesJsonSchema],
     },
     {
       name: 'tags',
