@@ -137,13 +137,16 @@ const jsonDocsResponse = (itemSchemaRef: string): OpenAPIResponse => ({
 })
 
 /**
- * Subtitle map schema shared by both player-data variants. Keys are
- * constrained to the known `LOCALES` codes via `propertyNames: { enum: ... }`
- * (JSON Schema 2020-12 / OpenAPI 3.1 — advisory for most validators, but
- * Scalar renders the constraint). Values are declared as URL-formatted
- * strings (`format: 'uri'` is also advisory but documents intent).
+ * Lecture player-data subtitle map: `{ [localeCode]: subtitleFileUrl }`.
+ * Distinct from the inline caption-data shape in `src/lib/subtitles.ts`
+ * (which is what Videos / Lessons / Lecture authoring fields store).
+ * Keys are constrained to the known `LOCALES` codes via
+ * `propertyNames: { enum: ... }` (JSON Schema 2020-12 / OpenAPI 3.1 —
+ * advisory for most validators, but Scalar renders the constraint).
+ * Values are declared as URL-formatted strings (`format: 'uri'` is also
+ * advisory but documents intent).
  */
-const subtitlesSchema: OpenAPISchemaObject = {
+const lectureSubtitleUrlsSchema: OpenAPISchemaObject = {
   type: 'object',
   description: 'Map of locale code to subtitle URL.',
   propertyNames: {
@@ -363,7 +366,7 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
           'DEPRECATED: read `hlsUrl` instead. Will be removed after the mobile-app cutover (#319).',
       },
       thumbnailUrl: { type: ['string', 'null'] },
-      subtitles: subtitlesSchema,
+      subtitles: lectureSubtitleUrlsSchema,
       startTime: { type: 'number' },
       endTime: { type: ['number', 'null'] },
       duration: { type: ['number', 'null'] },
