@@ -51,9 +51,13 @@ const querySchema = z.object({
  *   4. Find candidate lectures with audience + optional userChoice + optional
  *      excluded-id filters.
  *   5. Compute lecture weight = sum of `weights[node.slug]` over each
- *      populated `subtleSystemNodes` entry on the lecture; drop weight = 0
- *      (lectures with no nodes contribute nothing).
+ *      populated `subtleSystemNodes` entry on the lecture. By default, drop
+ *      zero-weight lectures (no relevance signal). When `userChoice` is set,
+ *      keep zero-weight lectures — the user-choice match is itself a
+ *      sufficient relevance signal (#333).
  *   6. Sort descending by weight; tie-break by id ascending → deterministic.
+ *      Zero-weight lectures (only present when `userChoice` is set) sort
+ *      after positive-weight ones and order among themselves by id ascending.
  *   7. Slice to `limit` and shape into `LecturePlayerData`.
  */
 export const meditationLectures: Endpoint = {
@@ -162,7 +166,10 @@ export const meditationLectures: Endpoint = {
           weight += weights[node.slug] ?? 0
         }
       }
-      if (weight <= 0) continue
+      // When userChoice is set, the user-choice match is itself a sufficient
+      // relevance signal — keep zero-weight matches and rank them after
+      // weighted ones via the existing comparator (#333).
+      if (weight <= 0 && typeof userChoice !== 'number') continue
       weighted.push({ lecture, weight })
     }
 
