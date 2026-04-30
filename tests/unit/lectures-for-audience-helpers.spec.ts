@@ -1,38 +1,38 @@
 import { describe, expect, it } from 'vitest'
 
-import { mergeSubtitles, resolveThumbnailUrl } from '@/lib/lectureClipShape'
+import { mergeSubtitles, resolveThumbnailUrl } from '@/lib/lectureShape'
 
 describe('mergeSubtitles', () => {
-  it('returns the parent map unchanged when there are no clip overrides', () => {
-    const parent = { en: 'parent-en', es: 'parent-es' }
-    expect(mergeSubtitles(parent, undefined)).toEqual(parent)
-    expect(mergeSubtitles(parent, null)).toEqual(parent)
-    expect(mergeSubtitles(parent, [])).toEqual(parent)
+  it('returns the base map unchanged when there are no overrides', () => {
+    const base = { en: 'base-en', es: 'base-es' }
+    expect(mergeSubtitles(base, undefined)).toEqual(base)
+    expect(mergeSubtitles(base, null)).toEqual(base)
+    expect(mergeSubtitles(base, [])).toEqual(base)
   })
 
-  it('layers each non-empty clip override on top of the parent map', () => {
-    const parent = { en: 'parent-en', es: 'parent-es', de: 'parent-de' }
-    const clip = [
-      { locale: 'es', url: 'clip-es' },
-      { locale: 'fr', url: 'clip-fr' },
+  it('layers each non-empty override on top of the base map', () => {
+    const base = { en: 'base-en', es: 'base-es', de: 'base-de' }
+    const overrides = [
+      { locale: 'es', url: 'override-es' },
+      { locale: 'fr', url: 'override-fr' },
     ]
-    expect(mergeSubtitles(parent, clip)).toEqual({
-      en: 'parent-en',
-      es: 'clip-es', // overridden
-      de: 'parent-de',
-      fr: 'clip-fr', // added
+    expect(mergeSubtitles(base, overrides)).toEqual({
+      en: 'base-en',
+      es: 'override-es', // overridden
+      de: 'base-de',
+      fr: 'override-fr', // added
     })
   })
 
-  it('ignores clip rows with empty or missing url', () => {
-    const parent = { en: 'parent-en' }
-    const clip = [
+  it('ignores override rows with empty or missing url', () => {
+    const base = { en: 'base-en' }
+    const overrides = [
       { locale: 'en', url: '' },
-      { locale: 'es', url: 'clip-es' },
+      { locale: 'es', url: 'override-es' },
     ] as Array<{ locale: string; url: string }>
-    expect(mergeSubtitles(parent, clip)).toEqual({
-      en: 'parent-en', // empty url did NOT override
-      es: 'clip-es',
+    expect(mergeSubtitles(base, overrides)).toEqual({
+      en: 'base-en', // empty url did NOT override
+      es: 'override-es',
     })
   })
 
@@ -41,41 +41,35 @@ describe('mergeSubtitles', () => {
     expect(mergeSubtitles(undefined, undefined)).toEqual({})
   })
 
-  it('does not mutate the input parent map', () => {
-    const parent = { en: 'parent-en' }
-    mergeSubtitles(parent, [{ locale: 'es', url: 'clip-es' }])
-    expect(parent).toEqual({ en: 'parent-en' })
+  it('does not mutate the input base map', () => {
+    const base = { en: 'base-en' }
+    mergeSubtitles(base, [{ locale: 'es', url: 'override-es' }])
+    expect(base).toEqual({ en: 'base-en' })
   })
 })
 
 describe('resolveThumbnailUrl', () => {
   const img = (url: string) => ({ id: 1, url } as { id: number; url: string })
 
-  it('picks the primary override first', () => {
+  it('picks the override first', () => {
     expect(
       resolveThumbnailUrl({
-        primaryOverride: img('primary-url'),
-        secondaryOverride: img('secondary-url'),
+        override: img('override-url'),
         fallback: 'fallback-url',
       }),
-    ).toBe('primary-url')
+    ).toBe('override-url')
   })
 
-  it('falls back to the secondary override when the primary is missing', () => {
+  it('falls back to the fallback URL when the override is empty', () => {
     expect(
       resolveThumbnailUrl({
-        primaryOverride: null,
-        secondaryOverride: img('secondary-url'),
+        override: null,
         fallback: 'fallback-url',
       }),
-    ).toBe('secondary-url')
-  })
-
-  it('falls back to the fallback URL when both overrides are empty', () => {
+    ).toBe('fallback-url')
     expect(
       resolveThumbnailUrl({
-        primaryOverride: undefined,
-        secondaryOverride: null,
+        override: undefined,
         fallback: 'fallback-url',
       }),
     ).toBe('fallback-url')
@@ -85,40 +79,21 @@ describe('resolveThumbnailUrl', () => {
     expect(resolveThumbnailUrl({})).toBeNull()
     expect(
       resolveThumbnailUrl({
-        primaryOverride: null,
-        secondaryOverride: null,
+        override: null,
         fallback: null,
       }),
     ).toBeNull()
   })
 
   it('ignores number-only refs (depth:0 IDs have no url to extract)', () => {
-    // At depth:1 the /api/lectures/for-audience endpoint always receives populated Image objects;
-    // if it ever sees a raw number it cannot resolve a URL, so it must fall
-    // through to the next tier.
+    // At depth:1 the /api/lectures/for-audience endpoint always receives
+    // populated Image objects; if it ever sees a raw number it cannot resolve
+    // a URL, so it must fall through to the fallback.
     expect(
       resolveThumbnailUrl({
-        primaryOverride: 42,
-        secondaryOverride: img('secondary-url'),
+        override: 42,
         fallback: 'fallback-url',
       }),
-    ).toBe('secondary-url')
-  })
-
-  it('supports lecture usage (primary-only, no secondary)', () => {
-    // Lectures pass only `primaryOverride` (their own editor thumbnail) and
-    // `fallback` (metadata.thumbnailUrl). `secondaryOverride` is unused.
-    expect(
-      resolveThumbnailUrl({
-        primaryOverride: img('lecture-editor'),
-        fallback: 'metadata-url',
-      }),
-    ).toBe('lecture-editor')
-    expect(
-      resolveThumbnailUrl({
-        primaryOverride: null,
-        fallback: 'metadata-url',
-      }),
-    ).toBe('metadata-url')
+    ).toBe('fallback-url')
   })
 })

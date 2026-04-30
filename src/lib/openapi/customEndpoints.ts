@@ -221,38 +221,16 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       tags: ['Lectures'],
       summary: 'Audience-targeted lecture feed',
       description:
-        'Returns a uniform-random mix of full lectures and clips whose ' +
-        'attached audiences match the supplied audience data (OR semantics ' +
-        'across audiences). Each item is shaped into a flat, player-ready ' +
-        'record; the response is discriminated by `type` — `lecture` items ' +
-        'match `LecturePlayerData` and `lecture-clip` items match ' +
-        '`LectureClipPlayerData`.',
+        'Returns a uniform-random feed of lectures whose attached audiences ' +
+        'match the supplied audience data (OR semantics across audiences). ' +
+        'Each lecture is shaped into a flat, player-ready record matching ' +
+        '`LecturePlayerData`. Records carrying `startTime`/`endTime` denote ' +
+        'a playback window within the lecture; `fullLectureId` (when set) ' +
+        'points at a related lecture for editorial grouping.',
       operationId: 'lecturesForAudience',
       parameters: [...audienceQueryParameters, forAudienceLimitParam(100)],
       responses: {
-        '200': {
-          description: 'Audience-filtered lecture and clip player records.',
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                required: ['docs'],
-                properties: {
-                  docs: {
-                    type: 'array',
-                    items: {
-                      oneOf: [
-                        { $ref: '#/components/schemas/LecturePlayerData' },
-                        { $ref: '#/components/schemas/LectureClipPlayerData' },
-                      ],
-                      discriminator: { propertyName: 'type' },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
+        '200': jsonDocsResponse('#/components/schemas/LecturePlayerData'),
         '400': errorResponse('Query param validation failed.'),
       },
     },
@@ -285,16 +263,17 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
     },
   },
 
-  '/api/meditations/{id}/related-lecture-clips': {
+  '/api/meditations/{id}/related-lectures': {
     get: {
       tags: ['Meditations'],
-      summary: 'Suggested lecture clips for a meditation',
+      summary: 'Suggested lectures for a meditation',
       description:
-        'Returns lecture clips related to a meditation, ordered most-' +
-        'relevant first. Pass the `userChoice` query param to limit ' +
-        'results to a single mood/goal category, and `excludedLectureClipIds` ' +
-        'to omit clips the user has already watched. Audience inputs ' +
-        'filter the pool to clips eligible for this viewer.',
+        'Returns lectures related to a meditation, ordered most-relevant ' +
+        'first. Pass the `userChoice` query param to limit results to a ' +
+        'single mood/goal category, and `excludedLectureIds` to omit ' +
+        'lectures the user has already watched. Audience inputs filter the ' +
+        'pool to lectures eligible for this viewer. Lectures with no ' +
+        '`subtleSystemNodes` are excluded from the ranking.',
       operationId: 'meditationLectures',
       parameters: [
         {
@@ -312,38 +291,21 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           required: false,
           description:
             'Optional ID of a UserChoices doc. Restricts candidates to ' +
-            'clips whose parent lecture has that user-choice in its ' +
-            '`userChoices` hasMany.',
+            "lectures whose own `userChoices` hasMany contains that ID.",
           schema: { type: 'integer' },
         },
         {
-          name: 'excludedLectureClipIds',
+          name: 'excludedLectureIds',
           in: 'query',
           required: false,
           description:
-            'Comma-separated lecture-clip IDs to exclude (e.g. clips the ' +
+            'Comma-separated lecture IDs to exclude (e.g. lectures the ' +
             'user has already watched).',
           schema: { type: 'string' },
         },
       ],
       responses: {
-        '200': {
-          description: 'Audience- and topic-filtered lecture-clip records.',
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                required: ['docs'],
-                properties: {
-                  docs: {
-                    type: 'array',
-                    items: { $ref: '#/components/schemas/LectureClipPlayerData' },
-                  },
-                },
-              },
-            },
-          },
-        },
+        '200': jsonDocsResponse('#/components/schemas/LecturePlayerData'),
         '400': errorResponse('Query param validation failed.'),
         '404': errorResponse('Meditation not found.'),
       },
@@ -356,19 +318,14 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
 /**
  * Hand-authored schemas referenced by `CUSTOM_ENDPOINT_PATHS`. `Frames` and
  * `AppCards` are already produced by `payload-oapi` (camelized collection
- * slug). The two player-data schemas below (`LecturePlayerData` and
- * `LectureClipPlayerData`) are inlined as a `oneOf` on
- * `/api/lectures/for-audience`'s response — the endpoint returns a union
- * of those two shapes discriminated by `type`.
+ * slug).
  *
- * Keep in lockstep with the matching types in
- * `src/endpoints/lecturesForAudience.ts` — the `api-explorer.int.spec.ts`
- * shape test is the tripwire.
- *
- * `additionalProperties: false` locks each variant so accidental fields
- * (most importantly `lectureId`, which is clip-only in the TS union) are
- * rejected by the docs' request/response validation. If you add a new
- * field to either type, update the matching schema here too.
+ * Keep `LecturePlayerData` in lockstep with the matching type in
+ * `src/lib/lectureShape.ts` and the shapers in
+ * `src/endpoints/lecturesForAudience.ts` /
+ * `src/endpoints/meditationLectures.ts` — the `api-explorer.int.spec.ts`
+ * shape test is the tripwire. `additionalProperties: false` keeps the
+ * shape tight so accidental fields are rejected.
  */
 export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
   LecturePlayerData: {
@@ -376,7 +333,6 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
     additionalProperties: false,
     required: [
       'id',
-      'type',
       'hlsUrl',
       'videoUrl',
       'thumbnailUrl',
@@ -384,10 +340,10 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       'startTime',
       'endTime',
       'duration',
+      'fullLectureId',
     ],
     properties: {
       id: { type: 'integer' },
-      type: { type: 'string', enum: ['lecture'] },
       title: { type: ['string', 'null'] },
       hlsUrl: { type: 'string' },
       videoUrl: {
@@ -398,44 +354,10 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       },
       thumbnailUrl: { type: ['string', 'null'] },
       subtitles: subtitlesSchema,
-      startTime: { type: 'integer', enum: [0] },
+      startTime: { type: 'number' },
       endTime: { type: ['number', 'null'] },
       duration: { type: ['number', 'null'] },
-    },
-  },
-  LectureClipPlayerData: {
-    type: 'object',
-    additionalProperties: false,
-    required: [
-      'id',
-      'type',
-      'title',
-      'hlsUrl',
-      'videoUrl',
-      'thumbnailUrl',
-      'subtitles',
-      'startTime',
-      'endTime',
-      'duration',
-      'lectureId',
-    ],
-    properties: {
-      id: { type: 'integer' },
-      type: { type: 'string', enum: ['lecture-clip'] },
-      title: { type: 'string' },
-      hlsUrl: { type: 'string' },
-      videoUrl: {
-        type: 'string',
-        deprecated: true,
-        description:
-          'DEPRECATED: read `hlsUrl` instead. Will be removed after the mobile-app cutover (#319).',
-      },
-      thumbnailUrl: { type: ['string', 'null'] },
-      subtitles: subtitlesSchema,
-      startTime: { type: 'number' },
-      endTime: { type: 'number' },
-      duration: { type: 'number' },
-      lectureId: { type: 'integer' },
+      fullLectureId: { type: ['integer', 'null'] },
     },
   },
   /**

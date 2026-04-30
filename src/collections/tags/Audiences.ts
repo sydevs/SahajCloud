@@ -27,7 +27,7 @@ export const AUDIENCE_DEFINITIONS: RuleDefinition[] = [
   {
     name: 'totalLecturesViewed',
     type: 'range',
-    description: 'Lifetime count of distinct lectures or lecture clips the user has played.',
+    description: 'Lifetime count of distinct lectures the user has played.',
   },
 ]
 
@@ -40,7 +40,7 @@ export const Audiences: CollectionConfig = {
   admin: {
     group: 'Metadata',
     useAsTitle: 'label',
-    defaultColumns: ['label', 'lectures', 'lectureClips', 'appCards'],
+    defaultColumns: ['label', 'lectures', 'appCards'],
   },
   fields: [
     // Internal CMS label (not localized, not public-facing)
@@ -56,22 +56,6 @@ export const Audiences: CollectionConfig = {
       name: 'lectures',
       type: 'join',
       collection: 'lectures',
-      on: 'audiences',
-      defaultLimit: 100,
-      admin: {
-        components: {
-          Cell: {
-            path: '@/components/admin/RelationshipCountCell',
-            serverProps: { disableLink: true },
-          },
-        },
-      },
-    },
-    // Bidirectional join to lecture clips
-    {
-      name: 'lectureClips',
-      type: 'join',
-      collection: 'lecture-clips',
       on: 'audiences',
       defaultLimit: 100,
       admin: {

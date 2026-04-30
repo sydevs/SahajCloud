@@ -559,22 +559,12 @@ describe('Custom Endpoint Shims', () => {
       expect(limitParam?.schema?.maximum).toBe(100)
 
       const successSchema = op.responses?.['200']?.content?.['application/json']?.schema as
-        | {
-            properties?: {
-              docs?: {
-                items?: { oneOf?: Array<{ $ref?: string }>; discriminator?: { propertyName?: string } }
-              }
-            }
-          }
+        | { properties?: { docs?: { items?: { $ref?: string } } } }
         | undefined
 
       const items = successSchema?.properties?.docs?.items
-      const refs = (items?.oneOf ?? []).map((s) => s.$ref).sort()
-      expect(refs).toEqual([
-        '#/components/schemas/LectureClipPlayerData',
-        '#/components/schemas/LecturePlayerData',
-      ])
-      expect(items?.discriminator?.propertyName).toBe('type')
+      // After #330: single uniform shape — no oneOf / discriminator.
+      expect(items?.$ref).toBe('#/components/schemas/LecturePlayerData')
     })
 
     it('app-cards/for-audience requires targetSection (hero|highlights) and a bounded limit (1–20)', () => {
@@ -605,7 +595,7 @@ describe('Custom Endpoint Shims', () => {
       for (const path of [
         '/api/lectures/for-audience',
         '/api/app-cards/for-audience',
-        '/api/meditations/{id}/related-lecture-clips',
+        '/api/meditations/{id}/related-lectures',
       ] as const) {
         const op = CUSTOM_ENDPOINT_PATHS[path]!.get!
         const paramNames = (op.parameters ?? []).map((p) => p.name)
@@ -629,17 +619,16 @@ describe('Custom Endpoint Shims', () => {
       }
     })
 
-    it('meditations/:id/related-lecture-clips returns clip-only data via single LectureClipPlayerData $ref', () => {
-      const op = CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/related-lecture-clips']!.get!
+    it('meditations/:id/related-lectures returns LecturePlayerData via single $ref', () => {
+      const op = CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/related-lectures']!.get!
       const successSchema = (op.responses?.['200'] as { content?: Record<string, { schema: { properties?: { docs?: { items?: { $ref?: string; oneOf?: unknown } } } } }> })?.content?.['application/json']?.schema
       const items = successSchema?.properties?.docs?.items
-      // Clip-only response — single $ref, not a oneOf union.
-      expect(items?.$ref).toBe('#/components/schemas/LectureClipPlayerData')
+      expect(items?.$ref).toBe('#/components/schemas/LecturePlayerData')
       expect(items?.oneOf).toBeUndefined()
     })
 
-    it('meditations/:id/related-lecture-clips exposes optional userChoice + excludedLectureClipIds + path id', () => {
-      const op = CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/related-lecture-clips']!.get!
+    it('meditations/:id/related-lectures exposes optional userChoice + excludedLectureIds + path id', () => {
+      const op = CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/related-lectures']!.get!
       const params = op.parameters ?? []
 
       const idParam = params.find((p) => p.name === 'id')
@@ -651,7 +640,7 @@ describe('Custom Endpoint Shims', () => {
       expect(userChoiceParam?.required).toBe(false)
       expect((userChoiceParam?.schema as { type?: string })?.type).toBe('integer')
 
-      const excludedParam = params.find((p) => p.name === 'excludedLectureClipIds')
+      const excludedParam = params.find((p) => p.name === 'excludedLectureIds')
       expect(excludedParam?.in).toBe('query')
       expect(excludedParam?.required).toBe(false)
       expect((excludedParam?.schema as { type?: string })?.type).toBe('string')
@@ -676,7 +665,7 @@ describe('Custom Endpoint Shims', () => {
       for (const path of [
         '/api/lectures/for-audience',
         '/api/app-cards/for-audience',
-        '/api/meditations/{id}/related-lecture-clips',
+        '/api/meditations/{id}/related-lectures',
       ] as const) {
         const op = CUSTOM_ENDPOINT_PATHS[path]!.get!
         for (const param of op.parameters ?? []) {
@@ -695,39 +684,33 @@ describe('Custom Endpoint Shims', () => {
       additionalProperties?: boolean
       required?: string[]
       properties?: {
-        type?: { enum?: string[] }
+        type?: unknown
         startTime?: { type?: string; enum?: number[] }
+        fullLectureId?: { type?: string | string[] }
         lectureId?: unknown
       }
     }
 
-    it('exports split LecturePlayerData + LectureClipPlayerData schemas and no ItemPlayerData alias', () => {
+    it('exports a single LecturePlayerData schema (no LectureClipPlayerData / ItemPlayerData)', () => {
       expect(CUSTOM_ENDPOINT_SCHEMAS.LecturePlayerData).toBeDefined()
-      expect(CUSTOM_ENDPOINT_SCHEMAS.LectureClipPlayerData).toBeDefined()
-      // ItemPlayerData is no longer exported as a combined schema; the union
-      // is inlined on the endpoint response.
+      // After #330 the lecture / clip distinction is gone — both legacy
+      // schema names are removed.
+      expect(CUSTOM_ENDPOINT_SCHEMAS.LectureClipPlayerData).toBeUndefined()
       expect(CUSTOM_ENDPOINT_SCHEMAS.ItemPlayerData).toBeUndefined()
     })
 
-    it('LecturePlayerData discriminates on type="lecture" and pins startTime to 0', () => {
+    it('LecturePlayerData has no `type` discriminator and exposes nullable fullLectureId', () => {
       const schema = CUSTOM_ENDPOINT_SCHEMAS.LecturePlayerData as PlayerSchema
 
       expect(schema.type).toBe('object')
       expect(schema.additionalProperties).toBe(false)
-      expect(schema.properties?.type?.enum).toEqual(['lecture'])
-      expect(schema.properties?.startTime?.enum).toEqual([0])
-      // `lectureId` is the clip-only field and must not appear here.
+      // No discriminator field after the merge.
+      expect(schema.properties?.type).toBeUndefined()
+      // `lectureId` is the legacy clip-only field; replaced by `fullLectureId`.
       expect(schema.properties?.lectureId).toBeUndefined()
       expect(schema.required ?? []).not.toContain('lectureId')
-    })
-
-    it('LectureClipPlayerData discriminates on type="lecture-clip" and requires lectureId', () => {
-      const schema = CUSTOM_ENDPOINT_SCHEMAS.LectureClipPlayerData as PlayerSchema
-
-      expect(schema.type).toBe('object')
-      expect(schema.additionalProperties).toBe(false)
-      expect(schema.properties?.type?.enum).toEqual(['lecture-clip'])
-      expect(schema.required).toContain('lectureId')
+      expect(schema.required ?? []).toContain('fullLectureId')
+      expect(schema.properties?.fullLectureId?.type).toEqual(['integer', 'null'])
     })
 
     it('defines ErrorResponse with an errors array whose items require a message', () => {

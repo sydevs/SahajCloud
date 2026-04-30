@@ -141,11 +141,9 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
       // Preload collections for efficient skip/update mode
       // Note: Lessons use compound key (unit+step), so we preload with a custom cache key
-      // Lecture parent is keyed on its NV Vimeo URL; pulling `metadata` lets
-      // skip-mode reads see the NV-fetched duration without a follow-up fetch
-      // when the clip's endTime is computed. Child clip is keyed on `lecture`.
+      // Lectures are keyed on the NV Vimeo URL; pulling `metadata` + `title`
+      // lets skip-mode reads see NV-fetched fields without a follow-up fetch.
       await this.preloadCollection('lectures', 'nirmalVidyaVimeoUrl', ['metadata', 'title'])
-      await this.preloadCollection('lecture-clips', 'lecture')
       // Preload lessons by building composite key from unit + step
       await this.preloadLessonsWithCompositeKey()
       // Preload meditations for lesson relationship lookups
@@ -584,14 +582,13 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   /**
-   * Upsert a parent Lecture (keyed on the NV Vimeo URL) and a single child
-   * Clip spanning `[0, metadata.duration]`. Returns the **child clip ID** —
-   * rich-text content emits a `lecture-clips` relationship, not a lecture one.
+   * Upsert a Lecture keyed on the NV Vimeo URL. Returns the lecture ID for
+   * the rich-text relationship reference.
    *
-   * The parent's `populateFromNirmalaVidya` create hook synchronously fills
-   * `metadata.duration` by hitting the Nirmala Vidya HLS API. If the parent
-   * has no duration (NV API doesn't return one for that video), the clip is
-   * skipped and `null` is returned — the caller drops the inline reference.
+   * The `populateFromNirmalaVidya` create hook synchronously fills
+   * `metadata` by hitting the Nirmala Vidya HLS API. Hook errors flow back
+   * through `BaseImporter.upsert` as `action='error'`; in that case the
+   * caller drops the inline reference.
    */
   private async upsertLecture(
     videoStory: StoryblokStory,
@@ -605,53 +602,15 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       return null
     }
 
-    // Note: BaseImporter.upsert swallows hook errors and returns action='error'
-    // (with the input data echoed back as `doc`). The bare error is logged via
-    // reportDocument — we just need to skip clip creation in that case.
-    const lectureResult = await this.upsert<{
-      id: number | string
-      title?: string | null
-      metadata?: { duration?: number | null; title?: string | null } | null
-    }>(
+    const lectureResult = await this.upsert<{ id: number | string }>(
       'lectures',
       { nirmalVidyaVimeoUrl: { equals: videoUrl } },
       { nirmalVidyaVimeoUrl: videoUrl },
       { identifier: videoStory.uuid },
     )
 
-    if (lectureResult.action === 'error') {
-      // Lecture didn't get persisted (most commonly: NV API failure in the
-      // populateFromNirmalaVidya create hook). The error is already in the
-      // report; tell the caller to drop the inline reference.
-      return null
-    }
-
-    const lecture = lectureResult.doc
-    const duration = lecture.metadata?.duration
-
-    if (!duration || duration <= 0) {
-      this.addWarning(
-        `Skipping clip for storyblok video ${videoStory.uuid} (${videoUrl}): parent lecture metadata.duration is missing or non-positive (${duration})`,
-      )
-      return null
-    }
-
-    const clipTitle =
-      videoStory.name || lecture.title || lecture.metadata?.title || `Lecture ${videoStory.uuid}`
-
-    const clipResult = await this.upsert<{ id: number | string }>(
-      'lecture-clips',
-      { lecture: { equals: lecture.id } },
-      {
-        lecture: lecture.id,
-        startTime: 0,
-        endTime: duration,
-        title: clipTitle,
-      },
-      { identifier: `clip-${videoStory.uuid}` },
-    )
-
-    return clipResult.doc.id
+    if (lectureResult.action === 'error') return null
+    return lectureResult.doc.id
   }
 
   // ============================================================================
@@ -920,22 +879,21 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
               this.addWarning(`Skipping lecture - thumbnail upload failed for ${videoStory.name}`)
               break
             }
-            // Returns the child LectureClip ID (post-#291: rich-text content
-            // references the clip, not the parent lecture). Null if the parent
-            // lecture's NV metadata didn't yield a usable duration.
-            const clipId = await this.upsertLecture(videoStory, thumbnailId)
+            // Rich-text content references the lecture directly. Null when
+            // the NV API hook fails for this video.
+            const lectureId = await this.upsertLecture(videoStory, thumbnailId)
 
-            if (clipId === null) {
+            if (lectureId === null) {
               this.addWarning(
-                `Skipping inline DD_Main_video reference: no clip created for ${videoStory.name}`,
+                `Skipping inline DD_Main_video reference: no lecture created for ${videoStory.name}`,
               )
               break
             }
 
             children.push({
               type: 'relationship',
-              relationTo: 'lecture-clips',
-              value: { id: clipId },
+              relationTo: 'lectures',
+              value: { id: lectureId },
               version: 1,
             })
           }
