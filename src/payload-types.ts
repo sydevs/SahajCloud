@@ -808,9 +808,13 @@ export interface File {
 export interface Lecture {
   id: number;
   /**
-   * Paste the Vimeo URL from amruta.org (e.g. https://vimeo.com/123456789).
+   * Whether this is a full lecture or a clip excerpted from one. Cannot be changed after creation.
    */
-  nirmalVidyaVimeoUrl: string;
+  type: 'full' | 'clip';
+  /**
+   * Paste the Vimeo URL from amruta.org (e.g. https://vimeo.com/123456789). For clips, this is a creation-time lookup key — supply it OR pick a Full Lecture below; it is nulled after save.
+   */
+  nirmalVidyaVimeoUrl?: string | null;
   title?: string | null;
   /**
    * Optional override for the Nirmala Vidya thumbnail. If blank, the API thumbnail is used.
@@ -821,11 +825,11 @@ export interface Lecture {
    */
   startTime?: number | null;
   /**
-   * Optional end of the playback window (HH:MM:SS).
+   * Optional stop of the playback window (HH:MM:SS).
    */
-  endTime?: number | null;
+  stopTime?: number | null;
   /**
-   * Per-locale subtitle overrides. Any locale not listed here falls back to the Nirmala Vidya subtitles (see metadata).
+   * Per-locale subtitle overrides. Any locale not listed here falls back to the parent lecture’s Nirmala Vidya subtitles.
    */
   subtitles?:
     | {
@@ -863,7 +867,7 @@ export interface Lecture {
     | boolean
     | null;
   /**
-   * If this lecture is an excerpt, filling this field will allow the user to see a link to the full lecture.
+   * The full lecture this clip is excerpted from. Required for clips (alternatively, supply a Vimeo URL during create to look up or create the parent automatically).
    */
   fullLecture?: (number | null) | Lecture;
   /**
@@ -1962,11 +1966,12 @@ export interface LessonsSelect<T extends boolean = true> {
  * via the `definition` "lectures_select".
  */
 export interface LecturesSelect<T extends boolean = true> {
+  type?: T;
   nirmalVidyaVimeoUrl?: T;
   title?: T;
   thumbnail?: T;
   startTime?: T;
-  endTime?: T;
+  stopTime?: T;
   subtitles?:
     | T
     | {

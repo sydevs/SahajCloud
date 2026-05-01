@@ -64,14 +64,84 @@ export function buildLectureMetadata(videoData: NirmalaVidyaVideoData): LectureM
 }
 
 // =============================================================================
-// beforeChange Hook
+// beforeChange Hooks
 // =============================================================================
 
 /**
- * beforeChange hook — create-only. Fetches the NV API once and packs the
- * response into a single `metadata` JSON field. The editor-visible `title` is
- * auto-filled for the current request locale if the editor didn't supply one;
- * other locales fall back to it via Payload's locale-fallback mechanism.
+ * Resolve a clip's parent full lecture before NV fetch runs.
+ *
+ * For clip creates only: validates that exactly one of `nirmalVidyaVimeoUrl` or
+ * `fullLecture` is supplied (both is fine — `fullLecture` wins), looks up an
+ * existing full lecture by URL or creates one on the fly, and nulls out the
+ * URL on the clip record (it was a creation-time lookup key only).
+ *
+ * Must run BEFORE `populateFromNirmalaVidya`, which then no-ops because
+ * `data.type === 'clip'`.
+ */
+export const resolveClipParent: CollectionBeforeChangeHook = async ({ data, operation, req }) => {
+  if (operation !== 'create') return data
+  if (data.type !== 'clip') return data
+
+  const url = typeof data.nirmalVidyaVimeoUrl === 'string' ? data.nirmalVidyaVimeoUrl : ''
+  const hasUrl = url.length > 0
+  const hasParent = data.fullLecture !== undefined && data.fullLecture !== null
+
+  if (!hasUrl && !hasParent) {
+    throw new ValidationError({
+      errors: [
+        {
+          message:
+            'A clip must reference a full lecture: provide either a Vimeo URL or pick an existing full lecture.',
+          path: 'fullLecture',
+        },
+      ],
+    })
+  }
+
+  // If both supplied, fullLecture wins — null out the URL.
+  if (hasParent) {
+    data.nirmalVidyaVimeoUrl = null
+    return data
+  }
+
+  // hasUrl only: lookup-or-create the parent full lecture by URL.
+  const existing = await req.payload.find({
+    collection: 'lectures',
+    where: {
+      and: [{ type: { equals: 'full' } }, { nirmalVidyaVimeoUrl: { equals: url } }],
+    },
+    limit: 1,
+    depth: 0,
+    req,
+  })
+
+  let parentId: number
+  if (existing.docs.length > 0) {
+    parentId = existing.docs[0].id as number
+  } else {
+    const created = await req.payload.create({
+      collection: 'lectures',
+      data: { type: 'full', nirmalVidyaVimeoUrl: url },
+      req,
+    })
+    parentId = created.id as number
+  }
+
+  data.fullLecture = parentId
+  data.nirmalVidyaVimeoUrl = null
+  return data
+}
+
+/**
+ * beforeChange hook — create-only, runs only for `type === 'full'`. Fetches
+ * the NV API once and packs the response into a single `metadata` JSON field.
+ * The editor-visible `title` is auto-filled for the current request locale if
+ * the editor didn't supply one; other locales fall back to it via Payload's
+ * locale-fallback mechanism.
+ *
+ * Also enforces uniqueness of `nirmalVidyaVimeoUrl` across full lectures —
+ * clips have their URL nulled by `resolveClipParent` before this hook runs,
+ * so they don't collide.
  *
  * No thumbnail auto-upload — the editor `thumbnail` field is an optional
  * override now; the /api/lectures/for-audience endpoint falls back to
@@ -80,11 +150,22 @@ export function buildLectureMetadata(videoData: NirmalaVidyaVideoData): LectureM
 export const populateFromNirmalaVidya: CollectionBeforeChangeHook = async ({
   data,
   operation,
+  req,
 }) => {
   if (operation !== 'create') return data
+  if (data.type !== 'full') return data
 
   const vimeoUrl = data.nirmalVidyaVimeoUrl as string | undefined
-  if (!vimeoUrl) return data
+  if (!vimeoUrl) {
+    throw new ValidationError({
+      errors: [
+        {
+          message: 'A Vimeo URL is required for full lectures.',
+          path: 'nirmalVidyaVimeoUrl',
+        },
+      ],
+    })
+  }
 
   const vimeoId = extractVimeoId(vimeoUrl)
   if (!vimeoId) {
@@ -93,6 +174,28 @@ export const populateFromNirmalaVidya: CollectionBeforeChangeHook = async ({
         {
           message:
             'Invalid Vimeo URL. Please enter a URL like https://vimeo.com/123456789 or https://player.vimeo.com/video/123456789',
+          path: 'nirmalVidyaVimeoUrl',
+        },
+      ],
+    })
+  }
+
+  // Reject duplicates — surface the existing record's admin URL so the editor
+  // can navigate to it directly.
+  const existing = await req.payload.find({
+    collection: 'lectures',
+    where: {
+      and: [{ type: { equals: 'full' } }, { nirmalVidyaVimeoUrl: { equals: vimeoUrl } }],
+    },
+    limit: 1,
+    depth: 0,
+    req,
+  })
+  if (existing.docs.length > 0) {
+    throw new ValidationError({
+      errors: [
+        {
+          message: `A lecture with this URL already exists: /admin/collections/lectures/${existing.docs[0].id}`,
           path: 'nirmalVidyaVimeoUrl',
         },
       ],

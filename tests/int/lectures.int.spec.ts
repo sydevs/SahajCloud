@@ -311,33 +311,33 @@ describe('Lectures Collection', () => {
     })
   })
 
-  describe('Merged schema (#330)', () => {
-    it('endTime > startTime validator rejects endTime <= startTime when both set', async () => {
+  describe('Merged schema (#330, #338)', () => {
+    it('stopTime > startTime validator rejects stopTime <= startTime when both set', async () => {
       const lecture = await testData.createLecture(payload)
       await expect(
         payload.update({
           collection: 'lectures',
           id: lecture.id,
-          data: { startTime: 100, endTime: 50 },
+          data: { startTime: 100, stopTime: 50 },
         }),
       ).rejects.toThrow()
       await expect(
         payload.update({
           collection: 'lectures',
           id: lecture.id,
-          data: { startTime: 100, endTime: 100 },
+          data: { startTime: 100, stopTime: 100 },
         }),
       ).rejects.toThrow()
     })
 
-    it('endTime validator catches startTime-only updates that violate the invariant', async () => {
+    it('stopTime validator catches startTime-only updates that violate the invariant', async () => {
       const lecture = await testData.createLecture(payload)
       await payload.update({
         collection: 'lectures',
         id: lecture.id,
-        data: { startTime: 0, endTime: 60 },
+        data: { startTime: 0, stopTime: 60 },
       })
-      // endTime is unchanged at 60; new startTime=100 should violate endTime > startTime.
+      // stopTime is unchanged at 60; new startTime=100 should violate stopTime > startTime.
       await expect(
         payload.update({
           collection: 'lectures',
@@ -347,7 +347,7 @@ describe('Lectures Collection', () => {
       ).rejects.toThrow()
     })
 
-    it('startTime/endTime are optional — either field may be left null', async () => {
+    it('startTime/stopTime are optional — either field may be left null', async () => {
       const lecture = await testData.createLecture(payload)
       // startTime alone — passes
       const updated = await payload.update({
@@ -356,18 +356,18 @@ describe('Lectures Collection', () => {
         data: { startTime: 30 },
       })
       expect(updated.startTime).toBe(30)
-      expect(updated.endTime).toBeFalsy()
-      // endTime alone — passes
+      expect(updated.stopTime).toBeFalsy()
+      // stopTime alone — passes
       const updated2 = await payload.update({
         collection: 'lectures',
         id: lecture.id,
-        data: { startTime: null, endTime: 200 },
+        data: { startTime: null, stopTime: 200 },
       })
       expect(updated2.startTime).toBeFalsy()
-      expect(updated2.endTime).toBe(200)
+      expect(updated2.stopTime).toBe(200)
     })
 
-    it('fullLecture relationship persists round-trip', async () => {
+    it('fullLecture relationship persists round-trip on a clip', async () => {
       const parent = await testData.createLecture(payload)
       const excerpt = await testData.createLectureExcerpt(payload, { fullLecture: parent.id })
       const fetched = await payload.findByID({
@@ -376,13 +376,14 @@ describe('Lectures Collection', () => {
         depth: 0,
       })
       expect(fetched.fullLecture).toBe(parent.id)
+      expect(fetched.type).toBe('clip')
     })
 
-    it('subtitles array persists per-locale override entries', async () => {
-      const lecture = await testData.createLecture(payload)
+    it('subtitles array persists per-locale override entries on a clip', async () => {
+      const clip = await testData.createLectureExcerpt(payload)
       const updated = await payload.update({
         collection: 'lectures',
-        id: lecture.id,
+        id: clip.id,
         data: {
           subtitles: [
             { locale: 'en', url: 'https://example.com/override-en.vtt' },
@@ -395,7 +396,7 @@ describe('Lectures Collection', () => {
       expect(updated.subtitles?.[0].url).toBe('https://example.com/override-en.vtt')
     })
 
-    it('clips join surfaces lectures pointing at this one via fullLecture', async () => {
+    it('clips join surfaces clips pointing at this full lecture via fullLecture', async () => {
       const parent = await testData.createLecture(payload)
       const excerpt1 = await testData.createLectureExcerpt(payload, { fullLecture: parent.id })
       const excerpt2 = await testData.createLectureExcerpt(payload, { fullLecture: parent.id })
@@ -409,6 +410,148 @@ describe('Lectures Collection', () => {
         ?.docs ?? []
       const clipIds = clipDocs.map((c) => (typeof c === 'number' ? c : c.id)).sort()
       expect(clipIds).toEqual([excerpt1.id, excerpt2.id].sort())
+    })
+  })
+
+  describe('type field (#338)', () => {
+    it('defaults to "full" when not specified', async () => {
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
+        title: 'Default Type Test',
+        thumbnailUrl: null,
+        hlsUrl: 'https://example.com/stream.m3u8',
+        subtitles: [],
+      })
+      const uniqueId = `${Date.now()}${Math.floor(Math.random() * 1000)}`
+      const lecture = await payload.create({
+        collection: 'lectures',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data: { nirmalVidyaVimeoUrl: `https://vimeo.com/${uniqueId}` } as any,
+      })
+      expect(lecture.type).toBe('full')
+    })
+
+    it('rejects a second full lecture with the same Vimeo URL — message includes admin path', async () => {
+      const first = await testData.createLecture(payload)
+      const dupUrl = first.nirmalVidyaVimeoUrl as string
+
+      try {
+        await payload.create({
+          collection: 'lectures',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          data: { type: 'full', nirmalVidyaVimeoUrl: dupUrl } as any,
+        })
+        throw new Error('expected create to throw — duplicate URL should be rejected')
+      } catch (err) {
+        // Payload's ValidationError exposes per-field messages on `.data.errors`.
+        const data = (err as { data?: { errors?: Array<{ path: string; message: string }> } })
+          .data
+        const errors = data?.errors ?? []
+        const fieldErr = errors.find((e) => e.path === 'nirmalVidyaVimeoUrl')
+        expect(fieldErr?.message).toContain(`/admin/collections/lectures/${first.id}`)
+      }
+    })
+  })
+
+  describe('clip create flow (#338)', () => {
+    it('rejects a clip with neither nirmalVidyaVimeoUrl nor fullLecture', async () => {
+      await expect(
+        payload.create({
+          collection: 'lectures',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          data: { type: 'clip' } as any,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('links to existing full lecture when its URL is supplied', async () => {
+      const parent = await testData.createLecture(payload)
+      const parentUrl = parent.nirmalVidyaVimeoUrl as string
+
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const callCountBefore = vi.mocked(fetchNirmalaVidyaVideo).mock.calls.length
+
+      const clip = await payload.create({
+        collection: 'lectures',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data: { type: 'clip', nirmalVidyaVimeoUrl: parentUrl } as any,
+      })
+
+      // Clip linked to existing parent — no NV API call (parent already exists).
+      expect(vi.mocked(fetchNirmalaVidyaVideo).mock.calls.length).toBe(callCountBefore)
+      const fullLectureId =
+        typeof clip.fullLecture === 'object' && clip.fullLecture !== null
+          ? clip.fullLecture.id
+          : clip.fullLecture
+      expect(fullLectureId).toBe(parent.id)
+      // URL nulled — it was a creation-time lookup key only.
+      expect(clip.nirmalVidyaVimeoUrl).toBeFalsy()
+      // Clip has no own metadata.
+      expect(clip.metadata).toBeFalsy()
+    })
+
+    it('auto-creates a parent full lecture when supplied URL has no match', async () => {
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
+        title: 'Brand New Parent',
+        thumbnailUrl: 'https://example.com/parent.jpg',
+        hlsUrl: 'https://example.com/parent.m3u8',
+        subtitles: [],
+      })
+
+      const newUrl = `https://vimeo.com/${Date.now()}999`
+      const clip = await payload.create({
+        collection: 'lectures',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data: { type: 'clip', nirmalVidyaVimeoUrl: newUrl } as any,
+      })
+
+      const parentId =
+        typeof clip.fullLecture === 'object' && clip.fullLecture !== null
+          ? clip.fullLecture.id
+          : clip.fullLecture
+      expect(parentId).toBeDefined()
+
+      // Parent was auto-created with type='full' and the original URL.
+      const parent = await payload.findByID({
+        collection: 'lectures',
+        id: parentId as number,
+      })
+      expect(parent.type).toBe('full')
+      expect(parent.nirmalVidyaVimeoUrl).toBe(newUrl)
+
+      // Clip's URL is nulled.
+      expect(clip.nirmalVidyaVimeoUrl).toBeFalsy()
+    })
+
+    it('accepts a clip with only fullLecture set (no URL)', async () => {
+      const parent = await testData.createLecture(payload)
+      const clip = await payload.create({
+        collection: 'lectures',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data: { type: 'clip', fullLecture: parent.id } as any,
+      })
+      const parentId =
+        typeof clip.fullLecture === 'object' && clip.fullLecture !== null
+          ? clip.fullLecture.id
+          : clip.fullLecture
+      expect(parentId).toBe(parent.id)
+      expect(clip.nirmalVidyaVimeoUrl).toBeFalsy()
+      expect(clip.metadata).toBeFalsy()
+    })
+
+    it('does not call the Nirmala Vidya API when a clip is created with fullLecture', async () => {
+      const parent = await testData.createLecture(payload)
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const callCountBefore = vi.mocked(fetchNirmalaVidyaVideo).mock.calls.length
+
+      await payload.create({
+        collection: 'lectures',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data: { type: 'clip', fullLecture: parent.id } as any,
+      })
+
+      expect(vi.mocked(fetchNirmalaVidyaVideo).mock.calls.length).toBe(callCountBefore)
     })
   })
 

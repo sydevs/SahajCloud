@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { lecturesForAudience } from '@/endpoints'
 import { mediaField, urlField } from '@/fields'
-import { populateFromNirmalaVidya } from '@/hooks/lectureHooks'
+import { populateFromNirmalaVidya, resolveClipParent } from '@/hooks/lectureHooks'
 import { LOCALES, getLocaleLabel } from '@/lib/locales'
 
 const LOCALE_OPTIONS = LOCALES.map(({ code }) => ({ label: getLocaleLabel(code), value: code }))
@@ -17,22 +17,46 @@ export const Lectures: CollectionConfig = {
   admin: {
     group: 'Content',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'thumbnail'],
+    defaultColumns: ['title', 'type', 'thumbnail'],
   },
   hooks: {
-    beforeChange: [populateFromNirmalaVidya],
+    // resolveClipParent runs first so clip records have their parent resolved
+    // (and `nirmalVidyaVimeoUrl` nulled) before populateFromNirmalaVidya checks
+    // `type === 'full'` and decides whether to fetch from NV.
+    beforeChange: [resolveClipParent, populateFromNirmalaVidya],
   },
   fields: [
+    {
+      name: 'type',
+      type: 'select',
+      required: true,
+      defaultValue: 'full',
+      options: [
+        { label: 'Full Lecture', value: 'full' },
+        { label: 'Clip', value: 'clip' },
+      ],
+      access: {
+        update: () => false, // immutable after creation
+      },
+      admin: {
+        description: 'Whether this is a full lecture or a clip excerpted from one. Cannot be changed after creation.',
+        components: {
+          Field: '@/components/admin/ToggleGroupField',
+        },
+      },
+    },
     urlField({
       name: 'nirmalVidyaVimeoUrl',
-      required: true,
-      // Indexed for query performance. Uniqueness is no longer enforced at
-      // the schema level — excerpts share the parent's URL by design (each
-      // record independently runs `populateFromNirmalaVidya` and stores its
-      // own metadata copy).
+      required: false, // Required only at validation time for full lectures (clips can use fullLecture instead)
+      // Indexed for query performance. Uniqueness is enforced in
+      // `populateFromNirmalaVidya` for full lectures only — clips have their
+      // URL nulled after the parent is resolved.
       index: true,
       admin: {
-        description: 'Paste the Vimeo URL from amruta.org (e.g. https://vimeo.com/123456789).',
+        description:
+          'Paste the Vimeo URL from amruta.org (e.g. https://vimeo.com/123456789). For clips, this is a creation-time lookup key — supply it OR pick a Full Lecture below; it is nulled after save.',
+        // Show during create for either type; hide on a saved clip (URL is nulled there).
+        condition: (data) => !data?.id || data?.type === 'full',
       },
       access: {
         update: () => false, // Vimeo URL is immutable after creation
@@ -41,10 +65,10 @@ export const Lectures: CollectionConfig = {
     {
       name: 'title',
       type: 'text',
-      required: false, // Hook satisfies this on create
+      required: false, // Hook satisfies this on create for full lectures
       localized: true,
       admin: {
-        condition: (data) => !!data?.id, // Hidden during create — the hook auto-populates this field
+        condition: (data) => !!data?.id, // Hidden during create — the hook auto-populates this field for full lectures
       },
     },
     mediaField({
@@ -72,11 +96,11 @@ export const Lectures: CollectionConfig = {
           },
         },
         {
-          name: 'endTime',
+          name: 'stopTime',
           type: 'number',
           min: 0,
           admin: {
-            description: 'Optional end of the playback window (HH:MM:SS).',
+            description: 'Optional stop of the playback window (HH:MM:SS).',
             components: {
               Field: '@/components/admin/TimestampInput',
             },
@@ -88,7 +112,7 @@ export const Lectures: CollectionConfig = {
           ) => {
             if (typeof value === 'number' && typeof siblingData?.startTime === 'number') {
               if (value <= siblingData.startTime) {
-                return 'End time must be after start time'
+                return 'Stop time must be after start time'
               }
             }
             return true
@@ -102,8 +126,8 @@ export const Lectures: CollectionConfig = {
       localized: false,
       admin: {
         description:
-          'Per-locale subtitle overrides. Any locale not listed here falls back to the Nirmala Vidya subtitles (see metadata).',
-        condition: (data) => !!data?.id,
+          'Per-locale subtitle overrides. Any locale not listed here falls back to the parent lecture’s Nirmala Vidya subtitles.',
+        condition: (data) => !!data?.id && data?.type === 'clip',
       },
       fields: [
         {
@@ -129,7 +153,7 @@ export const Lectures: CollectionConfig = {
       type: 'json',
       admin: {
         readOnly: true,
-        condition: (data) => !!data?.id,
+        condition: (data) => !!data?.id && data?.type === 'full',
         description: 'Auto-populated from Nirmala Vidya API and updated monthly.',
       },
     },
@@ -137,11 +161,16 @@ export const Lectures: CollectionConfig = {
       name: 'fullLecture',
       type: 'relationship',
       relationTo: 'lectures',
-      filterOptions: ({ id }) => (id ? { id: { not_equals: id } } : true),
+      filterOptions: ({ id }) => {
+        // Restrict to full lectures, and exclude self when editing.
+        const where: Record<string, unknown> = { type: { equals: 'full' } }
+        if (id) where.id = { not_equals: id }
+        return where as never
+      },
       admin: {
         description:
-          'If this lecture is an excerpt, filling this field will allow the user to see a link to the full lecture.',
-        condition: (data) => !!data?.id,
+          'The full lecture this clip is excerpted from. Required for clips (alternatively, supply a Vimeo URL during create to look up or create the parent automatically).',
+        condition: (data) => data?.type === 'clip',
         position: 'sidebar',
       },
     },
@@ -155,6 +184,7 @@ export const Lectures: CollectionConfig = {
         description:
           'A user can view this lecture if they are a member of any of these audience groups. If empty, this lecture is only visible when directly referenced (e.g. from a meditation or path step).',
         position: 'sidebar',
+        condition: (data) => !!data?.id,
       },
     },
     {
@@ -166,6 +196,7 @@ export const Lectures: CollectionConfig = {
         description:
           'User choices this lecture is relevant to. Used by the app to select contextually appropriate lectures.',
         position: 'sidebar',
+        condition: (data) => !!data?.id,
       },
     },
     {
@@ -177,6 +208,7 @@ export const Lectures: CollectionConfig = {
         description:
           'Chakras and nadis discussed in this lecture. This allows us to select relevant lectures when a viewer finishes a meditation.',
         position: 'sidebar',
+        condition: (data) => !!data?.id,
       },
     },
     {
@@ -186,8 +218,8 @@ export const Lectures: CollectionConfig = {
       on: 'fullLecture',
       admin: {
         allowCreate: true,
-        defaultColumns: ['title', 'startTime', 'endTime', 'subtleSystemNodes'],
-        condition: (data) => !!data?.id,
+        defaultColumns: ['title', 'startTime', 'stopTime', 'subtleSystemNodes'],
+        condition: (data) => !!data?.id && data?.type === 'full',
       },
     },
   ],
