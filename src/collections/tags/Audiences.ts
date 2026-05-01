@@ -1,35 +1,13 @@
 import type { CollectionConfig } from 'payload'
 
-import type { RuleDefinition } from '@/fields'
+import { audiencesForUser } from '@/endpoints'
 import { rulesField } from '@/fields'
+import { AUDIENCE_DEFINITIONS } from '@/lib/audiences/definitions'
 
-/**
- * Single source of truth for the rule dimensions an Audience can target.
- * Consumed by Audiences itself and by the for-audience endpoints to derive
- * their query schemas — add a rule here and both sides pick it up.
- */
-export const AUDIENCE_DEFINITIONS: RuleDefinition[] = [
-  {
-    name: 'pathProgress',
-    type: 'range',
-    description: 'Index of the current Path step the user has reached (0 = not started).',
-  },
-  {
-    name: 'meditationsPerWeek',
-    type: 'range',
-    description: 'Meditation sessions the user has completed in the past seven days.',
-  },
-  {
-    name: 'totalMeditationsViewed',
-    type: 'range',
-    description: 'Lifetime count of distinct meditations the user has opened.',
-  },
-  {
-    name: 'totalLecturesViewed',
-    type: 'range',
-    description: 'Lifetime count of distinct lectures the user has played.',
-  },
-]
+// Re-exported so existing call sites can keep importing from this module
+// (the canonical home is `@/lib/audiences/definitions` — see that file
+// for the rationale).
+export { AUDIENCE_DEFINITIONS }
 
 export const Audiences: CollectionConfig = {
   slug: 'audiences',
@@ -42,6 +20,7 @@ export const Audiences: CollectionConfig = {
     useAsTitle: 'label',
     defaultColumns: ['label', 'lectures', 'appCards'],
   },
+  endpoints: [audiencesForUser],
   fields: [
     // Internal CMS label (not localized, not public-facing)
     {
