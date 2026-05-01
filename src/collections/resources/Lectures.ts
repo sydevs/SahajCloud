@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, Where } from 'payload'
 
 import { lecturesForAudience } from '@/endpoints'
 import { mediaField, urlField } from '@/fields'
@@ -151,6 +151,12 @@ export const Lectures: CollectionConfig = {
     {
       name: 'metadata',
       type: 'json',
+      access: {
+        // Clips source NV metadata from their parent and have `metadata: null`
+        // by design (#338). Reject API writes that would diverge a clip from
+        // its parent. Hooks bypass field access, so internal mutations stand.
+        update: ({ doc }) => doc?.type === 'full',
+      },
       admin: {
         readOnly: true,
         condition: (data) => !!data?.id && data?.type === 'full',
@@ -163,9 +169,9 @@ export const Lectures: CollectionConfig = {
       relationTo: 'lectures',
       filterOptions: ({ id }) => {
         // Restrict to full lectures, and exclude self when editing.
-        const where: Record<string, unknown> = { type: { equals: 'full' } }
+        const where: Where = { type: { equals: 'full' } }
         if (id) where.id = { not_equals: id }
-        return where as never
+        return where
       },
       admin: {
         description:

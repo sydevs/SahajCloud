@@ -119,12 +119,28 @@ export const resolveClipParent: CollectionBeforeChangeHook = async ({ data, oper
   if (existing.docs.length > 0) {
     parentId = existing.docs[0].id as number
   } else {
-    const created = await req.payload.create({
-      collection: 'lectures',
-      data: { type: 'full', nirmalVidyaVimeoUrl: url },
-      req,
-    })
-    parentId = created.id as number
+    try {
+      const created = await req.payload.create({
+        collection: 'lectures',
+        data: { type: 'full', nirmalVidyaVimeoUrl: url },
+        req,
+      })
+      parentId = created.id as number
+    } catch (err) {
+      // A concurrent clip create may have raced us to creating the parent;
+      // populateFromNirmalaVidya rejects the duplicate. Re-find and reuse.
+      const refind = await req.payload.find({
+        collection: 'lectures',
+        where: {
+          and: [{ type: { equals: 'full' } }, { nirmalVidyaVimeoUrl: { equals: url } }],
+        },
+        limit: 1,
+        depth: 0,
+        req,
+      })
+      if (refind.docs.length === 0) throw err
+      parentId = refind.docs[0].id as number
+    }
   }
 
   data.fullLecture = parentId

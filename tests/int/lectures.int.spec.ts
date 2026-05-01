@@ -356,14 +356,14 @@ describe('Lectures Collection', () => {
         data: { startTime: 30 },
       })
       expect(updated.startTime).toBe(30)
-      expect(updated.stopTime).toBeFalsy()
+      expect(updated.stopTime).toBeNull()
       // stopTime alone — passes
       const updated2 = await payload.update({
         collection: 'lectures',
         id: lecture.id,
         data: { startTime: null, stopTime: 200 },
       })
-      expect(updated2.startTime).toBeFalsy()
+      expect(updated2.startTime).toBeNull()
       expect(updated2.stopTime).toBe(200)
     })
 
@@ -485,7 +485,7 @@ describe('Lectures Collection', () => {
           : clip.fullLecture
       expect(fullLectureId).toBe(parent.id)
       // URL nulled — it was a creation-time lookup key only.
-      expect(clip.nirmalVidyaVimeoUrl).toBeFalsy()
+      expect(clip.nirmalVidyaVimeoUrl).toBeNull()
       // Clip has no own metadata.
       expect(clip.metadata).toBeFalsy()
     })
@@ -521,7 +521,7 @@ describe('Lectures Collection', () => {
       expect(parent.nirmalVidyaVimeoUrl).toBe(newUrl)
 
       // Clip's URL is nulled.
-      expect(clip.nirmalVidyaVimeoUrl).toBeFalsy()
+      expect(clip.nirmalVidyaVimeoUrl).toBeNull()
     })
 
     it('accepts a clip with only fullLecture set (no URL)', async () => {
@@ -536,7 +536,7 @@ describe('Lectures Collection', () => {
           ? clip.fullLecture.id
           : clip.fullLecture
       expect(parentId).toBe(parent.id)
-      expect(clip.nirmalVidyaVimeoUrl).toBeFalsy()
+      expect(clip.nirmalVidyaVimeoUrl).toBeNull()
       expect(clip.metadata).toBeFalsy()
     })
 
