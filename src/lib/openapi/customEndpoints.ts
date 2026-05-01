@@ -90,13 +90,18 @@ function ruleToSchema(rule: RuleDefinition): OpenAPISchemaObject {
 
 /**
  * Produces one required query parameter per entry in `AUDIENCE_DEFINITIONS`.
+ * Consumed only by `/api/audiences/for-user` — the three data endpoints
+ * (`/lectures/for-audience`, `/app-cards/for-audience`,
+ * `/meditations/{id}/related-lectures`) take the pre-resolved
+ * `audiencesIdsParam` instead, so they can be edge-cached (#340).
+ *
  * Required matches the runtime contract (`buildAudienceDataShape` emits
  * non-optional Zod schemas), and the per-rule `description` is sourced from
  * `RuleDefinition.description` so the Scalar docs explain each input in the
  * same words as the admin UI. Generated at module load so adding a new rule
- * flows through automatically — the test `audience params stay in sync with
- * AUDIENCE_DEFINITIONS` in `api-explorer.int.spec.ts` fails loudly if this
- * drifts.
+ * flows through automatically — the test `audience query params on
+ * /api/audiences/for-user stay in sync with AUDIENCE_DEFINITIONS` in
+ * `api-explorer.int.spec.ts` fails loudly if this drifts.
  */
 const audienceQueryParameters: OpenAPIParameter[] = AUDIENCE_DEFINITIONS.map((rule) => ({
   name: rule.name,

@@ -1,4 +1,9 @@
 {
+  "model": "sonnet",
+  "env": {
+    "MAX_THINKING_TOKENS": "10000",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
+  },
   "permissions": {
     "allow": [
       "mcp__plugin_sydevs-web_*",
@@ -70,7 +75,6 @@
       "Bash(git log:*)",
       "Bash(git check-ignore:*)",
       "Bash(git fetch:*)",
-      "Bash(git pr diff:*)",
       "Bash(find:*)",
       "Bash(ls:*)",
       "Bash(grep:*)",

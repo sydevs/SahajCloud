@@ -4,10 +4,13 @@ import { z } from 'zod'
  * Zod schema for the `audiences` query param accepted by the three
  * `/for-audience` data endpoints.
  *
- * Wire format: comma-separated positive integers (e.g. `audiences=3,1,2`).
- * Repeated query params (`audiences=3&audiences=1`) are intentionally not
- * supported — the single canonical form keeps the OpenAPI shape simple
- * and the cache-key permutation predictable.
+ * Canonical wire format: comma-separated positive integers
+ * (e.g. `audiences=3,1,2`). The single canonical form keeps the OpenAPI
+ * shape simple and the cache-key permutation predictable. As a
+ * compatibility nicety, repeated query params (`audiences=3&audiences=1`),
+ * which `qs-esm` parses into an array, are also accepted: array values get
+ * joined with commas and run through the same parser, so the canonical
+ * comma-separated form remains the contract.
  *
  * Server-side normalization: the parsed list is **deduplicated and sorted
  * ascending**, so `audiences=3,1,2` and `audiences=2,3,1,2` collapse to the
@@ -21,7 +24,10 @@ import { z } from 'zod'
  * round-trip we know will return `{ docs: [] }`.
  */
 export const audiencesQueryParamSchema = z
-  .string()
+  .preprocess((value) => {
+    if (Array.isArray(value)) return value.join(',')
+    return value
+  }, z.string({ error: 'audiences must be a comma-separated string of IDs' }))
   .transform((raw, ctx) => {
     const parts = raw
       .split(',')

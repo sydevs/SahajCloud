@@ -1,0 +1,4 @@
+name: researcher
+description: Read, Grep, Glob across the repo and return a short summary. Use for "find all callers of X" or "where is Y configured" questions.
+model: haiku
+tools: [Read, Grep, Glob, WebFetch]
