@@ -32,22 +32,19 @@ vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
   }
 })
 
-const AUDIENCE_DEFAULTS = {
-  pathProgress: 3,
-  meditationsPerWeek: 1,
-  totalMeditationsViewed: 5,
-  totalLecturesViewed: 0,
-}
-
+// `audiences` is a required, non-empty comma-separated list of IDs. Tests
+// that don't exercise validation pass the resolved-audience ID through
+// `defaultAudiences`. Cases that want to omit it entirely set
+// `skipDefaultAudiences: true`.
 async function callEndpoint(
   payload: Payload,
   meditationId: number | string,
   query: Record<string, string | number | boolean> = {},
-  options: { skipAudienceDefaults?: boolean } = {},
-): Promise<{ status: number; body: { docs: LecturePlayerData[] } | unknown }> {
-  const finalQuery = options.skipAudienceDefaults
+  options: { skipDefaultAudiences?: boolean; defaultAudiences?: string } = {},
+): Promise<{ status: number; headers: Headers; body: { docs: LecturePlayerData[] } | unknown }> {
+  const finalQuery = options.skipDefaultAudiences
     ? query
-    : { ...AUDIENCE_DEFAULTS, ...query }
+    : { audiences: options.defaultAudiences ?? '', ...query }
   const req = {
     payload,
     query: finalQuery,
@@ -62,7 +59,7 @@ async function callEndpoint(
 
   const response = (await meditationLectures.handler(req)) as Response
   const body = await response.json()
-  return { status: response.status, body }
+  return { status: response.status, headers: response.headers, body }
 }
 
 describe('meditationLectures endpoint', () => {
@@ -80,6 +77,8 @@ describe('meditationLectures endpoint', () => {
   let frameC: Frame
 
   let audience: Audience
+  let audienceFilter: string // comma-separated audiences param including `audience`
+  let unusedAudience: Audience // matches no lectures — used for the empty-result test
   let userChoice: UserChoice
 
   let lectureA: Lecture // [nodeA]            ≈ 10s
@@ -129,6 +128,12 @@ describe('meditationLectures endpoint', () => {
     audience = await testData.createAudience(payload, {
       label: 'Everyone',
       rules: { logic: 'AND', pathProgress: { min: 0, max: 100 } },
+    })
+    audienceFilter = String(audience.id)
+
+    unusedAudience = await testData.createAudience(payload, {
+      label: 'Unused',
+      rules: {},
     })
 
     userChoice = await testData.createUserChoice(payload, { title: 'Stress relief' })
@@ -205,7 +210,9 @@ describe('meditationLectures endpoint', () => {
   })
 
   it('returns lectures sorted by descending overlap weight', async () => {
-    const { status, body } = await callEndpoint(payload, meditation.id, { limit: 10 })
+    const { status, body } = await callEndpoint(payload, meditation.id, { limit: 10 }, {
+      defaultAudiences: audienceFilter,
+    })
     expect(status).toBe(200)
     const docs = (body as { docs: LecturePlayerData[] }).docs
 
@@ -226,8 +233,12 @@ describe('meditationLectures endpoint', () => {
   })
 
   it('is deterministic across repeated calls', async () => {
-    const a = await callEndpoint(payload, meditation.id, { limit: 10 })
-    const b = await callEndpoint(payload, meditation.id, { limit: 10 })
+    const a = await callEndpoint(payload, meditation.id, { limit: 10 }, {
+      defaultAudiences: audienceFilter,
+    })
+    const b = await callEndpoint(payload, meditation.id, { limit: 10 }, {
+      defaultAudiences: audienceFilter,
+    })
     expect((a.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)).toEqual(
       (b.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id),
     )
@@ -237,20 +248,24 @@ describe('meditationLectures endpoint', () => {
     // lectureUC has nodeA (≈10s weight); lectureUCNone has [] (zero weight).
     // Both share the userChoice. With userChoice set, the chakra filter
     // relaxes — lectureUCNone is kept and sorted after lectureUC.
-    const { status, body } = await callEndpoint(payload, meditation.id, {
-      limit: 10,
-      userChoice: userChoice.id,
-    })
+    const { status, body } = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 10, userChoice: userChoice.id },
+      { defaultAudiences: audienceFilter },
+    )
     expect(status).toBe(200)
     const docs = (body as { docs: LecturePlayerData[] }).docs
     expect(docs.map((d) => d.id)).toEqual([lectureUC.id, lectureUCNone.id])
   })
 
   it('excludedLectureIds removes the listed lectures', async () => {
-    const { body } = await callEndpoint(payload, meditation.id, {
-      limit: 10,
-      excludedLectureIds: `${lectureAB.id},${lectureB.id}`,
-    })
+    const { body } = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 10, excludedLectureIds: `${lectureAB.id},${lectureB.id}` },
+      { defaultAudiences: audienceFilter },
+    )
     const ids = (body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)
     expect(ids).not.toContain(lectureAB.id)
     expect(ids).not.toContain(lectureB.id)
@@ -259,44 +274,102 @@ describe('meditationLectures endpoint', () => {
 
   it('userChoice + excludedLectureIds removes weighted and zero-weight matches', async () => {
     // Exclude the weighted match — zero-weight match still returns under userChoice.
-    const a = await callEndpoint(payload, meditation.id, {
-      limit: 10,
-      userChoice: userChoice.id,
-      excludedLectureIds: `${lectureUC.id}`,
-    })
+    const a = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 10, userChoice: userChoice.id, excludedLectureIds: `${lectureUC.id}` },
+      { defaultAudiences: audienceFilter },
+    )
     expect((a.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)).toEqual([
       lectureUCNone.id,
     ])
     // Exclude both — empty.
-    const b = await callEndpoint(payload, meditation.id, {
-      limit: 10,
-      userChoice: userChoice.id,
-      excludedLectureIds: `${lectureUC.id},${lectureUCNone.id}`,
-    })
+    const b = await callEndpoint(
+      payload,
+      meditation.id,
+      {
+        limit: 10,
+        userChoice: userChoice.id,
+        excludedLectureIds: `${lectureUC.id},${lectureUCNone.id}`,
+      },
+      { defaultAudiences: audienceFilter },
+    )
     expect((b.body as { docs: LecturePlayerData[] }).docs).toEqual([])
   })
 
   it('returns 404 for unknown meditation', async () => {
-    const { status, body } = await callEndpoint(payload, 999999, { limit: 10 })
+    const { status, body } = await callEndpoint(payload, 999999, { limit: 10 }, {
+      defaultAudiences: audienceFilter,
+    })
     expect(status).toBe(404)
     expect((body as { errors: Array<{ message: string }> }).errors[0].message).toContain(
       'Meditation not found',
     )
   })
 
-  it('returns empty when audience filter rejects everything', async () => {
-    // Use a pathProgress outside the [0,100] range so no audience matches
+  it('returns empty when audiences filter rejects everything', async () => {
+    // Caller's resolved audiences don't include `audience`, so no lectures qualify.
     const { status, body } = await callEndpoint(
       payload,
       meditation.id,
-      { limit: 10, pathProgress: 999 },
+      { limit: 10 },
+      { defaultAudiences: String(unusedAudience.id) },
     )
     expect(status).toBe(200)
     expect((body as { docs: LecturePlayerData[] }).docs).toEqual([])
   })
 
+  it('returns 400 when audiences is missing', async () => {
+    const { status } = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 10 },
+      { skipDefaultAudiences: true },
+    )
+    expect(status).toBe(400)
+  })
+
+  it('returns 400 when audiences is empty', async () => {
+    const { status } = await callEndpoint(payload, meditation.id, { audiences: '', limit: 10 })
+    expect(status).toBe(400)
+  })
+
+  it('returns 400 when audiences contains non-numeric values', async () => {
+    const { status } = await callEndpoint(payload, meditation.id, {
+      audiences: '1,abc',
+      limit: 10,
+    })
+    expect(status).toBe(400)
+  })
+
+  it('sets Cache-Control: public, max-age=600, s-maxage=600 on success', async () => {
+    const { status, headers } = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 10 },
+      { defaultAudiences: audienceFilter },
+    )
+    expect(status).toBe(200)
+    expect(headers.get('Cache-Control')).toBe('public, max-age=600, s-maxage=600')
+  })
+
+  it('treats unsorted/duplicated audiences as equivalent to the canonical sorted form', async () => {
+    const messy = `${audience.id},${audience.id}`
+    const a = await callEndpoint(payload, meditation.id, { limit: 10 }, {
+      defaultAudiences: audienceFilter,
+    })
+    const b = await callEndpoint(payload, meditation.id, { audiences: messy, limit: 10 })
+    expect(a.status).toBe(200)
+    expect(b.status).toBe(200)
+    expect((a.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)).toEqual(
+      (b.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id),
+    )
+  })
+
   it('emits the flat LecturePlayerData shape', async () => {
-    const { body } = await callEndpoint(payload, meditation.id, { limit: 1 })
+    const { body } = await callEndpoint(payload, meditation.id, { limit: 1 }, {
+      defaultAudiences: audienceFilter,
+    })
     const docs = (body as { docs: LecturePlayerData[] }).docs
     expect(docs.length).toBe(1)
     const expectedKeys = [
@@ -335,7 +408,9 @@ describe('meditationLectures endpoint', () => {
     })) as Meditation
     expect(cleared.subtleSystemNodeWeights).toBeFalsy()
 
-    const { status, body } = await callEndpoint(payload, meditation.id, { limit: 5 })
+    const { status, body } = await callEndpoint(payload, meditation.id, { limit: 5 }, {
+      defaultAudiences: audienceFilter,
+    })
     expect(status).toBe(200)
     const docs = (body as { docs: LecturePlayerData[] }).docs
     expect(docs.length).toBeGreaterThan(0)

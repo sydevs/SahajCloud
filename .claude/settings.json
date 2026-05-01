@@ -1,4 +1,9 @@
 {
+  "model": "sonnet",
+  "env": {
+    "MAX_THINKING_TOKENS": "10000",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
+  },
   "permissions": {
     "allow": [
       "mcp__plugin_sydevs-web_*",
@@ -69,6 +74,7 @@
       "Bash(git stash:*)",
       "Bash(git log:*)",
       "Bash(git check-ignore:*)",
+      "Bash(git fetch:*)",
       "Bash(find:*)",
       "Bash(ls:*)",
       "Bash(grep:*)",
@@ -107,7 +113,6 @@
       "Bash(time pnpm build:*)",
       "mcp__payloadcms-docs__*",
       "mcp__plugin_sydevs-web_cloudflare-docs__*",
-      "Bash(git mv:*)",
       "WebFetch(domain:mapi.nirmalavidya.org)",
       "mcp__plugin_sydevs-web_puppeteer__puppeteer_navigate",
       "mcp__plugin_sydevs-web_puppeteer__puppeteer_fill",
@@ -117,8 +122,7 @@
       "Bash(npm view:*)",
       "Edit(.claude/docs/**)",
       "Write(.claude/docs/**)",
-      "Bash(pnpm test:unit *)",
-      "Bash(git fetch *)"
+      "Bash(pnpm test:unit *)"
     ]
   },
   "hooks": {
