@@ -529,10 +529,12 @@ describe('OpenAPI Spec Marker Utility', () => {
 
 describe('Custom Endpoint Shims', () => {
   describe('CUSTOM_ENDPOINT_PATHS', () => {
-    it('defines all three custom endpoints with GET operations', () => {
+    it('defines all custom endpoints with GET operations', () => {
       expect(CUSTOM_ENDPOINT_PATHS['/api/frames/by-narrator/{narratorId}']?.get).toBeDefined()
       expect(CUSTOM_ENDPOINT_PATHS['/api/lectures/for-audience']?.get).toBeDefined()
       expect(CUSTOM_ENDPOINT_PATHS['/api/app-cards/for-audience']?.get).toBeDefined()
+      expect(CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/related-lectures']?.get).toBeDefined()
+      expect(CUSTOM_ENDPOINT_PATHS['/api/audiences/for-user']?.get).toBeDefined()
     })
 
     it('frames/by-narrator declares a required narratorId path param and refs the Frames schema', () => {
@@ -586,30 +588,25 @@ describe('Custom Endpoint Shims', () => {
       expect(successSchema?.properties?.docs?.items?.$ref).toBe('#/components/schemas/AppCards')
     })
 
-    it('audience query params stay in sync with AUDIENCE_DEFINITIONS on every audience-aware endpoint', () => {
+    it('audience query params on /api/audiences/for-user stay in sync with AUDIENCE_DEFINITIONS', () => {
       // Regression guard: if a new rule is added to AUDIENCE_DEFINITIONS but
       // not plumbed through `audienceQueryParameters` in customEndpoints.ts,
-      // the generated docs silently under-advertise the endpoint.
+      // the generated docs silently under-advertise the resolver endpoint.
+      // After #340 the data endpoints no longer carry rule-data params —
+      // they take a pre-resolved `audiences` ID list instead — so the sync
+      // contract only applies to /for-user.
       const ruleNames = AUDIENCE_DEFINITIONS.map((rule) => rule.name)
+      const op = CUSTOM_ENDPOINT_PATHS['/api/audiences/for-user']!.get!
+      const paramNames = (op.parameters ?? []).map((p) => p.name)
 
-      for (const path of [
-        '/api/lectures/for-audience',
-        '/api/app-cards/for-audience',
-        '/api/meditations/{id}/related-lectures',
-      ] as const) {
-        const op = CUSTOM_ENDPOINT_PATHS[path]!.get!
-        const paramNames = (op.parameters ?? []).map((p) => p.name)
-        for (const ruleName of ruleNames) {
-          expect(paramNames, `${path} should expose '${ruleName}' as a query param`).toContain(
-            ruleName,
-          )
-        }
+      for (const ruleName of ruleNames) {
+        expect(paramNames, `/audiences/for-user should expose '${ruleName}'`).toContain(ruleName)
       }
     })
 
-    it('audience params are all required query params', () => {
+    it('audience params on /api/audiences/for-user are all required query params', () => {
       const ruleNames = new Set(AUDIENCE_DEFINITIONS.map((rule) => rule.name))
-      const op = CUSTOM_ENDPOINT_PATHS['/api/lectures/for-audience']!.get!
+      const op = CUSTOM_ENDPOINT_PATHS['/api/audiences/for-user']!.get!
 
       for (const param of op.parameters ?? []) {
         if (ruleNames.has(param.name)) {
@@ -617,6 +614,48 @@ describe('Custom Endpoint Shims', () => {
           expect(param.required).toBe(true)
         }
       }
+    })
+
+    it('the three data endpoints expose a required `audiences` query param instead', () => {
+      // After #340 callers pass a pre-resolved comma-separated list of
+      // audience IDs. The schema documents the canonical wire format via a
+      // pattern, so OpenAPI codegen / validation tools see the same shape
+      // the Zod schema enforces at runtime.
+      for (const path of [
+        '/api/lectures/for-audience',
+        '/api/app-cards/for-audience',
+        '/api/meditations/{id}/related-lectures',
+      ] as const) {
+        const op = CUSTOM_ENDPOINT_PATHS[path]!.get!
+        const audiencesParam = (op.parameters ?? []).find((p) => p.name === 'audiences')
+        expect(audiencesParam, `${path} should expose 'audiences'`).toBeDefined()
+        expect(audiencesParam?.in).toBe('query')
+        expect(audiencesParam?.required).toBe(true)
+        expect(audiencesParam?.schema?.type).toBe('string')
+        expect(audiencesParam?.schema?.pattern).toBe('^\\d+(,\\d+)*$')
+
+        // Old rule-data params must not be present anymore.
+        const paramNames = (op.parameters ?? []).map((p) => p.name)
+        for (const rule of AUDIENCE_DEFINITIONS) {
+          expect(
+            paramNames,
+            `${path} should NOT expose old rule param '${rule.name}'`,
+          ).not.toContain(rule.name)
+        }
+      }
+    })
+
+    it('/api/audiences/for-user returns the AudienceIdList shape', () => {
+      const op = CUSTOM_ENDPOINT_PATHS['/api/audiences/for-user']!.get!
+      const successRef = op.responses?.['200']?.content?.['application/json']?.schema?.$ref
+      expect(successRef).toBe('#/components/schemas/AudienceIdList')
+
+      const listSchema = CUSTOM_ENDPOINT_SCHEMAS.AudienceIdList as
+        | { type?: string; required?: string[]; properties?: { audiences?: { items?: { type?: string } } } }
+        | undefined
+      expect(listSchema?.type).toBe('object')
+      expect(listSchema?.required).toContain('audiences')
+      expect(listSchema?.properties?.audiences?.items?.type).toBe('integer')
     })
 
     it('meditations/:id/related-lectures returns LecturePlayerData via single $ref', () => {
@@ -652,27 +691,23 @@ describe('Custom Endpoint Shims', () => {
       expect((limitParam?.schema as { maximum?: number; minimum?: number })?.minimum).toBe(1)
     })
 
-    it('audience query-param descriptions mirror RuleDefinition.description', () => {
+    it('audience query-param descriptions on /api/audiences/for-user mirror RuleDefinition.description', () => {
       // Each rule with an authored description in AUDIENCE_DEFINITIONS should
-      // surface that exact text on both for-audience endpoints — keeps admin
-      // UI hint + OpenAPI docs copy in lockstep.
+      // surface that exact text on the resolver endpoint — keeps admin UI
+      // hint + OpenAPI docs copy in lockstep.
       const definedDescriptions = new Map<string, string>()
       for (const rule of AUDIENCE_DEFINITIONS) {
         if (rule.description) definedDescriptions.set(rule.name, rule.description)
       }
       expect(definedDescriptions.size).toBeGreaterThan(0)
 
-      for (const path of [
-        '/api/lectures/for-audience',
-        '/api/app-cards/for-audience',
-        '/api/meditations/{id}/related-lectures',
-      ] as const) {
-        const op = CUSTOM_ENDPOINT_PATHS[path]!.get!
-        for (const param of op.parameters ?? []) {
-          const expected = definedDescriptions.get(param.name)
-          if (expected) {
-            expect(param.description, `${path} ${param.name} description`).toBe(expected)
-          }
+      const op = CUSTOM_ENDPOINT_PATHS['/api/audiences/for-user']!.get!
+      for (const param of op.parameters ?? []) {
+        const expected = definedDescriptions.get(param.name)
+        if (expected) {
+          expect(param.description, `/audiences/for-user ${param.name} description`).toBe(
+            expected,
+          )
         }
       }
     })
@@ -729,11 +764,12 @@ describe('Custom Endpoint Shims', () => {
       expect(schema?.properties?.errors?.items?.required).toContain('message')
     })
 
-    it('wires ErrorResponse into 4xx responses on all three endpoints', () => {
+    it('wires ErrorResponse into 4xx responses on all custom endpoints', () => {
       const pathsWithErrorResponses: Array<[string, string[]]> = [
         ['/api/frames/by-narrator/{narratorId}', ['400', '404']],
         ['/api/lectures/for-audience', ['400']],
         ['/api/app-cards/for-audience', ['400']],
+        ['/api/audiences/for-user', ['400']],
       ]
 
       for (const [path, statusCodes] of pathsWithErrorResponses) {
