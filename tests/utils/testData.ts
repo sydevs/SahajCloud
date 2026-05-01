@@ -779,13 +779,13 @@ export const testData = {
     // Thumbnail is an optional editor override — only set it when the caller asks.
     const thumbnail = deps?.thumbnail
     // Generate a numeric vimeo id per call so each lecture lands on a distinct
-    // Vimeo URL (the underlying NV mock keys on it). Uniqueness is no longer
-    // enforced at the DB level, but the per-call key keeps mocks predictable.
-    // Vimeo IDs must be numeric (extractVimeoId regex).
+    // Vimeo URL (the underlying NV mock keys on it). `populateFromNirmalaVidya`
+    // also enforces uniqueness across full lectures.
     const uniqueVimeoId = `${Date.now()}${Math.floor(Math.random() * 1000)}`
     return (await payload.create({
       collection: 'lectures',
       data: {
+        type: 'full',
         title: 'Test Lecture',
         ...(thumbnail !== undefined ? { thumbnail } : {}),
         nirmalVidyaVimeoUrl: `https://vimeo.com/${uniqueVimeoId}`,
@@ -795,38 +795,33 @@ export const testData = {
   },
 
   /**
-   * Create an excerpt Lecture (a Lecture with `fullLecture` pointing at a
-   * parent Lecture, plus playback bounds).
+   * Create a clip Lecture (`type: 'clip'`) referencing a parent full lecture
+   * via `fullLecture`, plus playback bounds.
    *
    * Pass `deps.fullLecture` to reuse an existing parent. If omitted, a new
    * parent is created via `createLecture` — requires the Nirmala Vidya API
-   * mock (`vi.mock('@/lib/nirmalaVidyaApi', ...)`) to be in place. Uniqueness
-   * across `nirmalVidyaVimeoUrl` is no longer enforced, so the excerpt
-   * defaults to the parent's URL.
+   * mock (`vi.mock('@/lib/nirmalaVidyaApi', ...)`) to be in place.
+   *
+   * The clip's own `nirmalVidyaVimeoUrl` is intentionally not set: clips
+   * source NV metadata from their parent (#338).
    */
   async createLectureExcerpt(
     payload: Payload,
-    deps?: { fullLecture?: number; nirmalVidyaVimeoUrl?: string },
+    deps?: { fullLecture?: number },
     overrides: Partial<Lecture> = {},
   ): Promise<Lecture> {
     let fullLecture = deps?.fullLecture
-    let parentUrl = deps?.nirmalVidyaVimeoUrl
     if (!fullLecture) {
       const parentLecture = await testData.createLecture(payload)
       fullLecture = parentLecture.id
-      parentUrl = parentLecture.nirmalVidyaVimeoUrl ?? undefined
     }
-    // Vimeo IDs must be purely numeric (extractVimeoId regex). Generate one
-    // here so an excerpt without a parent (or with a parent we couldn't read
-    // back) still passes validation.
-    const fallbackVimeoId = `${Date.now()}${Math.floor(Math.random() * 1000)}`
     return (await payload.create({
       collection: 'lectures',
       data: {
-        nirmalVidyaVimeoUrl: parentUrl ?? `https://vimeo.com/${fallbackVimeoId}`,
+        type: 'clip',
         title: 'Test Lecture Excerpt',
         startTime: 0,
-        endTime: 60,
+        stopTime: 60,
         fullLecture,
         ...overrides,
       },

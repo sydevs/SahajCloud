@@ -193,6 +193,26 @@ describe('SyncLectureMetadata task', () => {
     void lectureB
   })
 
+  it('skips clip-type lectures (only full lectures own metadata)', async () => {
+    // Create a full parent + a clip pointing at it.
+    const parent = await testData.createLecture(payload)
+    const clip = await testData.createLectureExcerpt(payload, { fullLecture: parent.id })
+
+    const output = await runTask(payload, { lectureIds: [parent.id, clip.id] })
+    // Only the full lecture is processed; the clip is filtered out by the
+    // task's `where.type: { equals: 'full' }` clause.
+    expect(output.totalProcessed).toBe(1)
+    expect(output.synced).toBe(1)
+    expect(output.failed).toBe(0)
+
+    // Clip's metadata stays null (it has none).
+    const clipFresh = (await payload.findByID({
+      collection: 'lectures',
+      id: clip.id,
+    })) as Lecture
+    expect(clipFresh.metadata).toBeFalsy()
+  })
+
   it('counts lectures with an invalid Vimeo URL under skippedNoVimeoId', async () => {
     // Creating via testData.createLecture requires a valid URL (the hook
     // rejects invalid URLs at create time). To set up this state we bypass
