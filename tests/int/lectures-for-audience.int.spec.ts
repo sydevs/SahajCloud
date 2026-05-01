@@ -29,26 +29,19 @@ vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
   }
 })
 
-// All audience params are required by the endpoint's Zod schema. Tests that
-// don't exercise a specific param still need to pass neutral defaults; only
-// the 400-validation cases should call with `{ skipAudienceDefaults: true }`
-// to omit them and exercise the "missing required param" path.
-const AUDIENCE_DEFAULTS = {
-  pathProgress: 0,
-  meditationsPerWeek: 0,
-  totalMeditationsViewed: 0,
-  totalLecturesViewed: 0,
-}
-
+// `audiences` is required by the endpoint's Zod schema. Tests that don't
+// exercise a specific eligibility scenario still need to pass a non-empty
+// list; pass `{ skipDefaultAudiences: true }` on the 400-validation cases
+// that want to omit it entirely.
 async function callEndpoint(
   payload: Payload,
   query: Record<string, string | number | boolean>,
   user?: { id: number | string; collection: string },
-  options: { skipAudienceDefaults?: boolean } = {},
-): Promise<{ status: number; body: { docs: LecturePlayerData[] } | unknown }> {
-  const finalQuery = options.skipAudienceDefaults
+  options: { skipDefaultAudiences?: boolean; defaultAudiences?: string } = {},
+): Promise<{ status: number; headers: Headers; body: { docs: LecturePlayerData[] } | unknown }> {
+  const finalQuery = options.skipDefaultAudiences
     ? query
-    : { ...AUDIENCE_DEFAULTS, ...query }
+    : { audiences: options.defaultAudiences ?? '', ...query }
   const req = {
     payload,
     query: finalQuery,
@@ -59,7 +52,7 @@ async function callEndpoint(
 
   const response = (await lecturesForAudience.handler(req)) as Response
   const body = await response.json()
-  return { status: response.status, body }
+  return { status: response.status, headers: response.headers, body }
 }
 
 describe('lecturesForAudience endpoint', () => {
@@ -69,6 +62,10 @@ describe('lecturesForAudience endpoint', () => {
 
   let audienceBeginner: Audience
   let audienceIntermediate: Audience
+  let audienceUnused: Audience
+
+  let beginnerOnly: string // audiences param for "Beginner only is eligible"
+  let intermediateOnly: string
 
   let lectureBeginnerOnly: Lecture
   let lectureIntermediateOnly: Lecture
@@ -95,6 +92,14 @@ describe('lecturesForAudience endpoint', () => {
       label: 'Intermediate',
       rules: { logic: 'AND', pathProgress: { min: 5, max: 10 } },
     })
+    // No lectures attached — used to exercise the empty-result path.
+    audienceUnused = await testData.createAudience(payload, {
+      label: 'Unused',
+      rules: { logic: 'AND', pathProgress: { min: 50, max: 100 } },
+    })
+
+    beginnerOnly = String(audienceBeginner.id)
+    intermediateOnly = String(audienceIntermediate.id)
 
     editorThumbnailImage = (await testData.createMediaImage(payload, {
       alt: 'Editor override',
@@ -118,7 +123,7 @@ describe('lecturesForAudience endpoint', () => {
       { title: 'No Audience Lecture', audiences: [] },
     )
 
-    // OR-match: passes when ANY attached audience matches.
+    // OR-match: passes when ANY attached audience is in the requested list.
     lectureMultiAudience = await testData.createLecture(
       payload,
       {},
@@ -128,7 +133,7 @@ describe('lecturesForAudience endpoint', () => {
       },
     )
 
-    // OR-match: should be excluded for pathProgress=3 (Intermediate fails).
+    // Should be excluded when only Beginner is requested.
     lectureAllFailingAudiences = await testData.createLecture(
       payload,
       {},
@@ -189,37 +194,77 @@ describe('lecturesForAudience endpoint', () => {
 
   describe('Validation', () => {
     it('returns 400 when limit is missing', async () => {
-      const { status } = await callEndpoint(payload, {})
-      expect(status).toBe(400)
-    })
-
-    it('returns 400 when limit is out of range', async () => {
-      expect((await callEndpoint(payload, { limit: 0 })).status).toBe(400)
-      expect((await callEndpoint(payload, { limit: 101 })).status).toBe(400)
-    })
-
-    it('returns 400 when a numeric param is non-numeric', async () => {
-      const { status } = await callEndpoint(payload, {
-        limit: 10,
-        pathProgress: 'not-a-number',
+      const { status } = await callEndpoint(payload, {}, undefined, {
+        defaultAudiences: beginnerOnly,
       })
       expect(status).toBe(400)
     })
 
-    it('returns 400 when any audience-data param is missing', async () => {
+    it('returns 400 when limit is out of range', async () => {
+      expect(
+        (await callEndpoint(payload, { limit: 0 }, undefined, { defaultAudiences: beginnerOnly })).status,
+      ).toBe(400)
+      expect(
+        (await callEndpoint(payload, { limit: 101 }, undefined, { defaultAudiences: beginnerOnly })).status,
+      ).toBe(400)
+    })
+
+    it('returns 400 when audiences is missing', async () => {
       const { status } = await callEndpoint(
         payload,
-        { limit: 10, pathProgress: 3 },
+        { limit: 10 },
         undefined,
-        { skipAudienceDefaults: true },
+        { skipDefaultAudiences: true },
       )
       expect(status).toBe(400)
+    })
+
+    it('returns 400 when audiences is empty', async () => {
+      const { status } = await callEndpoint(payload, { audiences: '', limit: 10 })
+      expect(status).toBe(400)
+    })
+
+    it('returns 400 when audiences contains non-numeric values', async () => {
+      const { status } = await callEndpoint(payload, { audiences: '1,abc,3', limit: 10 })
+      expect(status).toBe(400)
+    })
+  })
+
+  describe('Cache headers', () => {
+    it('sets Cache-Control: public, max-age=600, s-maxage=600', async () => {
+      const { headers, status } = await callEndpoint(
+        payload,
+        { limit: 10 },
+        undefined,
+        { defaultAudiences: beginnerOnly },
+      )
+      expect(status).toBe(200)
+      expect(headers.get('Cache-Control')).toBe('public, max-age=600, s-maxage=600')
+    })
+  })
+
+  describe('audiences param normalization', () => {
+    it('treats unsorted/duplicated audiences as equivalent to the canonical sorted form', async () => {
+      const canonical = `${audienceBeginner.id},${audienceIntermediate.id}`
+      const messy = `${audienceIntermediate.id},${audienceBeginner.id},${audienceBeginner.id}`
+
+      const a = await callEndpoint(payload, { audiences: canonical, limit: 100 })
+      const b = await callEndpoint(payload, { audiences: messy, limit: 100 })
+      expect(a.status).toBe(200)
+      expect(b.status).toBe(200)
+
+      const idsA = (a.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id).sort((x, y) => x - y)
+      const idsB = (b.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id).sort((x, y) => x - y)
+      // Same eligible pool — random order but identical set.
+      expect(idsA).toEqual(idsB)
     })
   })
 
   describe('Uniform response shape', () => {
     it('emits the same flat key set for every record (no excerpt-vs-full branching)', async () => {
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const docs = (body as { docs: LecturePlayerData[] }).docs
 
       expect(docs.length).toBeGreaterThan(0)
@@ -245,7 +290,9 @@ describe('lecturesForAudience endpoint', () => {
     })
 
     it('respects `limit` across the full pool', async () => {
-      const { body } = await callEndpoint(payload, { limit: 1, pathProgress: 3 })
+      const { body } = await callEndpoint(payload, { limit: 1 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const docs = (body as { docs: LecturePlayerData[] }).docs
       expect(docs).toHaveLength(1)
     })
@@ -253,7 +300,9 @@ describe('lecturesForAudience endpoint', () => {
     it('fetches the full eligible pool, not just `limit` rows, before sampling', async () => {
       const findSpy = vi.spyOn(payload, 'find')
       try {
-        await callEndpoint(payload, { limit: 1, pathProgress: 3 })
+        await callEndpoint(payload, { limit: 1 }, undefined, {
+          defaultAudiences: beginnerOnly,
+        })
         const lectureFindCall = findSpy.mock.calls.find(
           ([args]) => (args as { collection?: string }).collection === 'lectures',
         )
@@ -272,7 +321,9 @@ describe('lecturesForAudience endpoint', () => {
 
   describe('Default time fields', () => {
     it('lectures with no startTime/stopTime resolve to startTime=0, stopTime=null when metadata.duration is missing', async () => {
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const lecture = (body as { docs: LecturePlayerData[] }).docs.find(
         (d) => d.id === lectureBeginnerOnly.id,
       )
@@ -298,7 +349,9 @@ describe('lecturesForAudience endpoint', () => {
         { title: 'Lecture With Duration', audiences: [audienceBeginner.id] },
       )
 
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const item = (body as { docs: LecturePlayerData[] }).docs.find(
         (d) => d.id === lectureWithDuration.id,
       )
@@ -309,7 +362,9 @@ describe('lecturesForAudience endpoint', () => {
     })
 
     it('excerpts with explicit startTime/stopTime pass them through and expose fullLectureId', async () => {
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const item = (body as { docs: LecturePlayerData[] }).docs.find(
         (d) => d.id === excerptOfBeginner.id,
       )
@@ -322,14 +377,18 @@ describe('lecturesForAudience endpoint', () => {
   })
 
   describe('Eligibility', () => {
-    it('returns lectures whose audiences pass', async () => {
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+    it('returns lectures whose audiences overlap the requested list', async () => {
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const ids = (body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)
       expect(ids).toContain(lectureBeginnerOnly.id)
     })
 
     it('excludes records with no audiences', async () => {
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const ids = (body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)
       expect(ids).not.toContain(lectureNoAudience.id)
       const titles = (body as { docs: LecturePlayerData[] }).docs.map((d) => d.title)
@@ -337,7 +396,9 @@ describe('lecturesForAudience endpoint', () => {
     })
 
     it('returns excerpts independently of their fullLecture parent eligibility', async () => {
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const ids = (body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)
       expect(ids).toContain(excerptOfBeginner.id)
       expect(ids).toContain(excerptOfIntermediate.id)
@@ -347,11 +408,10 @@ describe('lecturesForAudience endpoint', () => {
       expect(ineligibleParentExcerpt.fullLectureId).toBe(lectureIntermediateOnly.id)
     })
 
-    it('returns empty docs when no audiences pass', async () => {
+    it('returns empty docs when the requested audiences match no lectures', async () => {
       const { status, body } = await callEndpoint(payload, {
+        audiences: String(audienceUnused.id),
         limit: 100,
-        pathProgress: 99,
-        totalLecturesViewed: 0,
       })
       expect(status).toBe(200)
       expect((body as { docs: LecturePlayerData[] }).docs).toEqual([])
@@ -359,15 +419,20 @@ describe('lecturesForAudience endpoint', () => {
   })
 
   describe('OR-match audiences', () => {
-    it('includes a lecture when ANY of its multiple audiences passes', async () => {
-      // pathProgress=3 → Beginner passes, Intermediate fails. Lecture has both.
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+    it('includes a lecture when ANY of its multiple audiences overlaps the requested list', async () => {
+      // Requested only Beginner. lectureMultiAudience has [Beginner, Intermediate].
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const ids = (body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)
       expect(ids).toContain(lectureMultiAudience.id)
     })
 
-    it('excludes a lecture when ALL of its audiences fail', async () => {
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+    it('excludes a lecture when NONE of its audiences are in the requested list', async () => {
+      // Requested only Beginner. lectureAllFailingAudiences has [Intermediate].
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const ids = (body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)
       expect(ids).not.toContain(lectureAllFailingAudiences.id)
     })
@@ -375,7 +440,9 @@ describe('lecturesForAudience endpoint', () => {
 
   describe('Subtitle merge', () => {
     it('exposes the full metadata.subtitles map when no overrides are set', async () => {
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const lecture = (body as { docs: LecturePlayerData[] }).docs.find(
         (d) => d.id === lectureBeginnerOnly.id,
       )
@@ -387,7 +454,9 @@ describe('lecturesForAudience endpoint', () => {
     })
 
     it('layers a per-locale override on top of metadata.subtitles', async () => {
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const lecture = (body as { docs: LecturePlayerData[] }).docs.find(
         (d) => d.id === lectureWithSubtitleOverride.id,
       )
@@ -402,7 +471,9 @@ describe('lecturesForAudience endpoint', () => {
 
   describe('Thumbnail fallback', () => {
     it('uses the editor override when present', async () => {
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const lecture = (body as { docs: LecturePlayerData[] }).docs.find(
         (d) => d.id === lectureBeginnerOnly.id,
       )
@@ -411,7 +482,9 @@ describe('lecturesForAudience endpoint', () => {
     })
 
     it('falls back to metadata.thumbnailUrl when no editor override is set', async () => {
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 7 })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: intermediateOnly,
+      })
       const lecture = (body as { docs: LecturePlayerData[] }).docs.find(
         (d) => d.id === lectureIntermediateOnly.id,
       )
@@ -422,7 +495,9 @@ describe('lecturesForAudience endpoint', () => {
 
   describe('Clip sources metadata from parent (#338)', () => {
     it('uses parent.metadata.hlsUrl for clip records (clips have metadata: null)', async () => {
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const clip = (body as { docs: LecturePlayerData[] }).docs.find(
         (d) => d.id === excerptOfBeginner.id,
       )
@@ -449,7 +524,9 @@ describe('lecturesForAudience endpoint', () => {
         { audiences: [audienceBeginner.id] },
       )
 
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const item = (body as { docs: LecturePlayerData[] }).docs.find((d) => d.id === clip.id)
       expect(item).toBeDefined()
       expect(item!.thumbnailUrl).toBe('https://example.com/parent-thumb.jpg')
@@ -472,7 +549,9 @@ describe('lecturesForAudience endpoint', () => {
         { audiences: [audienceBeginner.id], thumbnail: overrideThumb.id },
       )
 
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const item = (body as { docs: LecturePlayerData[] }).docs.find((d) => d.id === clip.id)
       expect(item).toBeDefined()
       // Override thumbnail came back through the editor relationship, not the
@@ -503,7 +582,9 @@ describe('lecturesForAudience endpoint', () => {
         },
       )
 
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const item = (body as { docs: LecturePlayerData[] }).docs.find((d) => d.id === clip.id)
       expect(item).toBeDefined()
       expect(item!.subtitles).toEqual({
@@ -528,7 +609,9 @@ describe('lecturesForAudience endpoint', () => {
         { audiences: [audienceBeginner.id], startTime: null, stopTime: null },
       )
 
-      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       const item = (body as { docs: LecturePlayerData[] }).docs.find((d) => d.id === clip.id)
       expect(item).toBeDefined()
       expect(item!.startTime).toBe(0)
@@ -538,7 +621,7 @@ describe('lecturesForAudience endpoint', () => {
   })
 
   describe('req forwarding', () => {
-    it('threads req through all payload.find calls for usage-tracking / rate-limit hooks', async () => {
+    it('threads req through the lectures payload.find call for usage-tracking / rate-limit hooks', async () => {
       void audienceIntermediate
       void lectureIntermediateOnly
 
@@ -550,8 +633,9 @@ describe('lecturesForAudience endpoint', () => {
       try {
         const { status } = await callEndpoint(
           payload,
-          { limit: 5, pathProgress: 3 },
+          { limit: 5 },
           { id: client.id, collection: 'clients' },
+          { defaultAudiences: beginnerOnly },
         )
         expect(status).toBe(200)
 
@@ -560,7 +644,6 @@ describe('lecturesForAudience endpoint', () => {
             .map(([args]) => (args as { collection?: string }).collection)
             .filter(Boolean) as string[],
         )
-        expect(collectionsHit.has('audiences')).toBe(true)
         expect(collectionsHit.has('lectures')).toBe(true)
 
         for (const args of findSpy.mock.calls.map((c) => c[0])) {

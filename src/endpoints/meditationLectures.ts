@@ -2,14 +2,13 @@ import type { Endpoint, Where } from 'payload'
 
 import { z } from 'zod'
 
-import { AUDIENCE_DEFINITIONS } from '@/collections/tags/Audiences'
-import { buildAudienceDataShape, evaluateRules, type RulesValue } from '@/fields'
 import { recomputeWeightsForMeditation } from '@/hooks/meditationHooks'
+import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
 import { shapeLecture, type LecturePlayerData } from '@/lib/lectureShape'
-import type { Audience, Lecture, Meditation, SubtleSystemNode } from '@/payload-types'
+import type { Lecture, Meditation, SubtleSystemNode } from '@/payload-types'
 
 const querySchema = z.object({
-  ...buildAudienceDataShape(AUDIENCE_DEFINITIONS),
+  audiences: audiencesQueryParamSchema,
   limit: z.coerce.number().int().min(1).max(100),
   userChoice: z.coerce.number().int().optional(),
   excludedLectureIds: z
@@ -33,8 +32,16 @@ const querySchema = z.object({
  * (cached on `meditation.subtleSystemNodeWeights`) and each candidate
  * lecture's own `subtleSystemNodes`.
  *
+ * Audience eligibility is **not** evaluated here — clients are expected to
+ * call `/api/audiences/for-user` once to resolve their eligible audience
+ * IDs and pass the result back as the `audiences` query param. Splitting
+ * the rule eval out keeps this endpoint cacheable behind Cloudflare's edge
+ * (see #340).
+ *
  * Query params:
- *   - audience inputs (required, mirrors `/for-audience` endpoints)
+ *   - `audiences` (required, comma-separated IDs) — resolved audience IDs
+ *     from `/api/audiences/for-user`. Server dedupes + sorts so equivalent
+ *     client requests share an edge-cache key.
  *   - `limit` (required, 1–100)
  *   - `userChoice` (optional int) — if set, restrict candidates to lectures
  *     whose own `userChoices` contain that ID.
@@ -45,18 +52,17 @@ const querySchema = z.object({
  *   1. Look up the meditation (404 if not found).
  *   2. Read `subtleSystemNodeWeights` from the cache; fall through to an
  *      ad-hoc compute (no persistence — keeps the GET side-effect-free).
- *   3. Evaluate audiences → eligible-audience-ID set; empty → `{ docs: [] }`.
- *   4. Find candidate lectures with audience + optional userChoice + optional
- *      excluded-id filters.
- *   5. Compute lecture weight = sum of `weights[node.slug]` over each
+ *   3. Find candidate lectures whose `audiences` overlap the requested
+ *      list, with optional userChoice + excluded-id filters.
+ *   4. Compute lecture weight = sum of `weights[node.slug]` over each
  *      populated `subtleSystemNodes` entry on the lecture. By default, drop
  *      zero-weight lectures (no relevance signal). When `userChoice` is set,
  *      keep zero-weight lectures — the user-choice match is itself a
  *      sufficient relevance signal (#333).
- *   6. Sort descending by weight; tie-break by id ascending → deterministic.
+ *   5. Sort descending by weight; tie-break by id ascending → deterministic.
  *      Zero-weight lectures (only present when `userChoice` is set) sort
  *      after positive-weight ones and order among themselves by id ascending.
- *   7. Slice to `limit` and shape into `LecturePlayerData`.
+ *   6. Slice to `limit` and shape into `LecturePlayerData`.
  */
 export const meditationLectures: Endpoint = {
   path: '/:id/related-lectures',
@@ -72,7 +78,7 @@ export const meditationLectures: Endpoint = {
       return Response.json({ errors: parsed.error.issues }, { status: 400 })
     }
 
-    const { limit, userChoice, excludedLectureIds, ...audienceData } = parsed.data
+    const { audiences: audienceIds, limit, userChoice, excludedLectureIds } = parsed.data
 
     let meditation: Meditation | null = null
     try {
@@ -104,32 +110,8 @@ export const meditationLectures: Endpoint = {
     const weights =
       cachedWeights ?? (await recomputeWeightsForMeditation(req.payload, meditation, req))
 
-    const { docs: audienceDocs } = await req.payload.find({
-      collection: 'audiences',
-      limit: 200,
-      depth: 0,
-      pagination: false,
-      req,
-    })
-
-    const eligibleAudienceIds = new Set<number>(
-      (audienceDocs as Audience[])
-        .filter((audience) =>
-          evaluateRules(
-            audience.rules as RulesValue | null | undefined,
-            audienceData,
-            AUDIENCE_DEFINITIONS,
-          ),
-        )
-        .map((audience) => audience.id),
-    )
-
-    if (eligibleAudienceIds.size === 0) {
-      return Response.json({ docs: [] })
-    }
-
     const lectureWhere: Where = {
-      audiences: { in: [...eligibleAudienceIds] },
+      audiences: { in: audienceIds },
     }
     if (excludedLectureIds.length > 0) {
       lectureWhere.id = { not_in: excludedLectureIds }
@@ -152,7 +134,10 @@ export const meditationLectures: Endpoint = {
 
     const eligibleLectures = lectureDocs as Lecture[]
     if (eligibleLectures.length === 0) {
-      return Response.json({ docs: [] })
+      return Response.json(
+        { docs: [] },
+        { headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600' } },
+      )
     }
 
     type WeightedLecture = { lecture: Lecture; weight: number }
@@ -182,6 +167,9 @@ export const meditationLectures: Endpoint = {
       .map(({ lecture }): LecturePlayerData | null => shapeLecture(lecture, req.payload.logger))
       .filter((item): item is LecturePlayerData => item !== null)
 
-    return Response.json({ docs: shaped })
+    return Response.json(
+      { docs: shaped },
+      { headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600' } },
+    )
   },
 }

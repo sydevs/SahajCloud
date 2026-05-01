@@ -90,13 +90,18 @@ function ruleToSchema(rule: RuleDefinition): OpenAPISchemaObject {
 
 /**
  * Produces one required query parameter per entry in `AUDIENCE_DEFINITIONS`.
+ * Consumed only by `/api/audiences/for-user` — the three data endpoints
+ * (`/lectures/for-audience`, `/app-cards/for-audience`,
+ * `/meditations/{id}/related-lectures`) take the pre-resolved
+ * `audiencesIdsParam` instead, so they can be edge-cached (#340).
+ *
  * Required matches the runtime contract (`buildAudienceDataShape` emits
  * non-optional Zod schemas), and the per-rule `description` is sourced from
  * `RuleDefinition.description` so the Scalar docs explain each input in the
  * same words as the admin UI. Generated at module load so adding a new rule
- * flows through automatically — the test `audience params stay in sync with
- * AUDIENCE_DEFINITIONS` in `api-explorer.int.spec.ts` fails loudly if this
- * drifts.
+ * flows through automatically — the test `audience query params on
+ * /api/audiences/for-user stay in sync with AUDIENCE_DEFINITIONS` in
+ * `api-explorer.int.spec.ts` fails loudly if this drifts.
  */
 const audienceQueryParameters: OpenAPIParameter[] = AUDIENCE_DEFINITIONS.map((rule) => ({
   name: rule.name,
@@ -117,6 +122,27 @@ const forAudienceLimitParam = (max: number): OpenAPIParameter => ({
   description: `Maximum number of docs to return (1–${max}).`,
   schema: { type: 'integer', minimum: 1, maximum: max },
 })
+
+/**
+ * The `audiences` query parameter accepted by the three `/for-audience` data
+ * endpoints. Comma-separated positive integers; server dedupes + sorts so
+ * equivalent client requests collapse to the same edge-cache key. Mobile
+ * clients are expected to call `/api/audiences/for-user` first and pass the
+ * resulting ID list back.
+ *
+ * Mirrors the Zod schema in `src/lib/audiences/audiencesQueryParam.ts`.
+ */
+const audiencesIdsParam: OpenAPIParameter = {
+  name: 'audiences',
+  in: 'query',
+  required: true,
+  description:
+    'Comma-separated audience IDs the caller qualifies for, e.g. `1,2,3`. ' +
+    'Resolve via `GET /api/audiences/for-user`. Server-side the list is ' +
+    'deduplicated and sorted ascending, so `3,1,2` and `2,3,1,2` are ' +
+    'treated identically and share the same edge-cache key.',
+  schema: { type: 'string', pattern: '^\\d+(,\\d+)*$' },
+}
 
 const jsonDocsResponse = (itemSchemaRef: string): OpenAPIResponse => ({
   description: 'Audience-filtered docs.',
@@ -219,19 +245,53 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
     },
   },
 
+  '/api/audiences/for-user': {
+    get: {
+      tags: ['Audiences'],
+      summary: 'Resolve eligible audience IDs for a user',
+      description:
+        'Evaluates every Audience\'s rules against the supplied user ' +
+        'progress data (path step, meditation/lecture counts) and returns ' +
+        'the IDs of those that pass. Mobile clients call this once per ' +
+        'state change and pass the resulting list as `audiences` to the ' +
+        '`/for-audience` data endpoints, which lets those endpoints become ' +
+        'edge-cacheable. ' +
+        'IDs are returned sorted ascending so the response body is stable ' +
+        'across calls. Sets `Cache-Control: public, max-age=300, ' +
+        's-maxage=300` to absorb repeat calls within a foreground/background ' +
+        'cycle while keeping the TTL short enough for rule changes to ' +
+        'propagate.',
+      operationId: 'audiencesForUser',
+      parameters: [...audienceQueryParameters],
+      responses: {
+        '200': {
+          description: 'List of eligible audience IDs.',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/AudienceIdList' },
+            },
+          },
+        },
+        '400': errorResponse('Query param validation failed.'),
+      },
+    },
+  },
+
   '/api/lectures/for-audience': {
     get: {
       tags: ['Lectures'],
       summary: 'Audience-targeted lecture feed',
       description:
         'Returns a uniform-random feed of lectures whose attached audiences ' +
-        'match the supplied audience data (OR semantics across audiences). ' +
-        'Each lecture is shaped into a flat, player-ready record matching ' +
+        'overlap the supplied `audiences` ID list (OR semantics). Each ' +
+        'lecture is shaped into a flat, player-ready record matching ' +
         '`LecturePlayerData`. Records carrying `startTime`/`stopTime` denote ' +
         'a playback window within the lecture; `fullLectureId` (when set) ' +
-        'points at a related lecture for editorial grouping.',
+        'points at a related lecture for editorial grouping. ' +
+        'Resolve `audiences` first via `GET /api/audiences/for-user`; this ' +
+        'endpoint sets `Cache-Control: public, max-age=600, s-maxage=600`.',
       operationId: 'lecturesForAudience',
-      parameters: [...audienceQueryParameters, forAudienceLimitParam(100)],
+      parameters: [audiencesIdsParam, forAudienceLimitParam(100)],
       responses: {
         '200': jsonDocsResponse('#/components/schemas/LecturePlayerData'),
         '400': errorResponse('Query param validation failed.'),
@@ -245,11 +305,13 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       summary: 'Audience-targeted app cards',
       description:
         'Returns published app cards targeting the requested `targetSection`, ' +
-        'filtered by audience eligibility (OR semantics across audiences) and ' +
-        'weighted-random sampled by `weight`.',
+        'filtered to those whose `audiences` overlap the supplied list (OR ' +
+        'semantics) and weighted-random sampled by `weight`. ' +
+        'Resolve `audiences` first via `GET /api/audiences/for-user`; this ' +
+        'endpoint sets `Cache-Control: public, max-age=600, s-maxage=600`.',
       operationId: 'appCardsForAudience',
       parameters: [
-        ...audienceQueryParameters,
+        audiencesIdsParam,
         {
           name: 'targetSection',
           in: 'query',
@@ -282,9 +344,10 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'are returned regardless of chakra overlap. Positive-weight lectures ' +
         'rank first by descending weight; zero-overlap matches follow, ' +
         'ordered by id ascending. ' +
-        'Audience inputs filter the candidate pool to lectures eligible for ' +
-        'this viewer. Use `excludedLectureIds` to omit already-watched ' +
-        'lectures.',
+        'Pass `audiences` (resolved via `GET /api/audiences/for-user`) to ' +
+        'restrict the candidate pool to lectures eligible for this viewer. ' +
+        'Use `excludedLectureIds` to omit already-watched lectures. ' +
+        'This endpoint sets `Cache-Control: public, max-age=600, s-maxage=600`.',
       operationId: 'meditationLectures',
       parameters: [
         {
@@ -294,7 +357,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           description: 'ID of the meditation whose context drives the ranking.',
           schema: { type: 'string' },
         },
-        ...audienceQueryParameters,
+        audiencesIdsParam,
         forAudienceLimitParam(100),
         {
           name: 'userChoice',
@@ -341,6 +404,21 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
  * shape tight so accidental fields are rejected.
  */
 export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
+  /**
+   * Response shape for `GET /api/audiences/for-user`. Sorted ascending so
+   * the body is byte-stable across calls.
+   */
+  AudienceIdList: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['audiences'],
+    properties: {
+      audiences: {
+        type: 'array',
+        items: { type: 'integer' },
+      },
+    },
+  },
   LecturePlayerData: {
     type: 'object',
     additionalProperties: false,

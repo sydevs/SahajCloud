@@ -2,36 +2,31 @@ import type { Endpoint } from 'payload'
 
 import { z } from 'zod'
 
-import { AUDIENCE_DEFINITIONS } from '@/collections/tags/Audiences'
-import { buildAudienceDataShape, evaluateRules, type RulesValue } from '@/fields'
+import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
 import { shapeLecture, type LecturePlayerData } from '@/lib/lectureShape'
-import type { Audience, Lecture } from '@/payload-types'
+import type { Lecture } from '@/payload-types'
 
 const querySchema = z.object({
-  ...buildAudienceDataShape(AUDIENCE_DEFINITIONS),
+  audiences: audiencesQueryParamSchema,
   limit: z.coerce.number().int().min(1).max(100),
 })
 
 /**
  * GET /api/lectures/for-audience
  *
- * Returns a uniform-random, audience-filtered feed of lectures. Each lecture
- * carries an `audiences` hasMany relationship to `audiences` docs. Items are
- * eligible when ANY of their attached audiences passes evaluation against
- * `audienceData` (OR semantics). Items with empty `audiences` are always
- * excluded.
+ * Returns a uniform-random feed of lectures whose attached audiences
+ * overlap the supplied `audiences` ID list. Items with empty `audiences`
+ * are always excluded.
  *
- * Response shape (single uniform shape — no excerpt-vs-full branching):
- *   { docs: LecturePlayerData[] }
+ * Audience eligibility is **not** evaluated here — clients are expected to
+ * call `/api/audiences/for-user` once to resolve their eligible audience
+ * IDs and pass the result back as the `audiences` query param. Splitting
+ * the rule eval out keeps this endpoint cacheable behind Cloudflare's edge
+ * (see #340).
  *
- * Subtitles are returned as the full `{ [locale]: url }` map: `metadata.subtitles`
- * (NV-sourced) merged with per-locale entries on the lecture's own `subtitles`
- * array. The player picks the track it wants at playback time.
- *
- * Pipeline:
- *   1. Evaluate `audiences` with the audience data to build the eligible-audience set.
- *   2. Find ALL lectures whose `audiences` overlap the eligible set (OR-match).
- *   3. Shape each record into `LecturePlayerData`, Fisher-Yates shuffle, slice.
+ * Response shape: `{ docs: LecturePlayerData[] }`. Subtitles are returned as
+ * the full `{ [locale]: url }` map merged from NV metadata and per-locale
+ * entries on the lecture's own `subtitles` array.
  */
 export const lecturesForAudience: Endpoint = {
   path: '/for-audience',
@@ -43,35 +38,11 @@ export const lecturesForAudience: Endpoint = {
       return Response.json({ errors: parsed.error.issues }, { status: 400 })
     }
 
-    const { limit, ...audienceData } = parsed.data
-
-    const { docs: audienceDocs } = await req.payload.find({
-      collection: 'audiences',
-      limit: 200,
-      depth: 0,
-      pagination: false,
-      req,
-    })
-
-    const eligibleAudienceIds = new Set<number>(
-      (audienceDocs as Audience[])
-        .filter((audience) =>
-          evaluateRules(
-            audience.rules as RulesValue | null | undefined,
-            audienceData,
-            AUDIENCE_DEFINITIONS,
-          ),
-        )
-        .map((audience) => audience.id),
-    )
-
-    if (eligibleAudienceIds.size === 0) {
-      return Response.json({ docs: [] })
-    }
+    const { audiences: audienceIds, limit } = parsed.data
 
     const { docs: lectureDocs } = await req.payload.find({
       collection: 'lectures',
-      where: { audiences: { in: [...eligibleAudienceIds] } },
+      where: { audiences: { in: audienceIds } },
       // Fetch all eligible candidates so the Fisher-Yates shuffle below
       // samples uniformly across the entire pool, not just the first N
       // rows by DB order. Sliced down to `limit` after shuffling.
@@ -95,6 +66,9 @@ export const lecturesForAudience: Endpoint = {
       ;[shaped[i], shaped[j]] = [shaped[j], shaped[i]]
     }
 
-    return Response.json({ docs: shaped.slice(0, limit) })
+    return Response.json(
+      { docs: shaped.slice(0, limit) },
+      { headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600' } },
+    )
   },
 }
