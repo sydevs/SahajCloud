@@ -1,4 +1,4 @@
-import type { TaskConfig } from 'payload'
+import type { TaskConfig, Where } from 'payload'
 
 import { buildLectureMetadata } from '@/hooks/lectureHooks'
 import { extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/nirmalaVidyaApi'
@@ -59,9 +59,12 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
     }
 
     const lectureIds = (input as SyncLectureMetadataInput | undefined)?.lectureIds
-    const where = Array.isArray(lectureIds) && lectureIds.length > 0
-      ? { id: { in: lectureIds } }
-      : undefined
+    // Only full lectures own NV `metadata`; clips reference their parent and
+    // have `metadata: null` by design (#338).
+    const where: Where =
+      Array.isArray(lectureIds) && lectureIds.length > 0
+        ? { and: [{ type: { equals: 'full' } }, { id: { in: lectureIds } }] }
+        : { type: { equals: 'full' } }
 
     req.payload.logger.info({
       msg: 'Starting SyncLectureMetadata',

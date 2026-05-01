@@ -1,17 +1,22 @@
+import type { PayloadLogger } from 'payload'
+
+import type { LectureMetadata } from '@/hooks/lectureHooks'
 import type { Image, Lecture } from '@/payload-types'
 
 /**
  * Flat, playback-ready shape for a lecture returned from /api/lectures/for-audience
  * and /api/meditations/:id/related-lectures.
  *
- * Every record carries the same shape — no excerpt-vs-full branching. A record
- * that defines `startTime`/`endTime` represents a playback window; if the field
- * is `null`/absent, defaults are derived from `metadata.duration`. `fullLectureId`
- * is informational — it points at a related lecture for editorial grouping when
- * set, otherwise `null`.
+ * Every record carries the same shape — no excerpt-vs-full branching at the
+ * response layer. A record that defines `startTime`/`stopTime` represents a
+ * playback window; if `stopTime` is `null`/absent, defaults are derived from
+ * the source `metadata.duration`. For clips, the source is the parent lecture's
+ * metadata, not the clip's own (clips have `metadata: null`). `fullLectureId`
+ * is informational — populated for clips, `null` for full lectures.
  *
- * `title` is nullable (localized + hook-populated). `endTime` and `duration` may
- * be `null` when neither an explicit value nor `metadata.duration` is available.
+ * `title` is nullable (localized + hook-populated). `stopTime` and `duration`
+ * may be `null` when neither an explicit value nor `metadata.duration` is
+ * available.
  */
 export type LecturePlayerData = {
   id: number
@@ -22,7 +27,7 @@ export type LecturePlayerData = {
   thumbnailUrl: string | null
   subtitles: Record<string, string>
   startTime: number
-  endTime: number | null
+  stopTime: number | null
   duration: number | null
   fullLectureId: number | null
 }
@@ -64,4 +69,62 @@ export function resolveThumbnailUrl(args: {
   fallback?: string | null
 }): string | null {
   return thumbnailUrl(args.override) ?? args.fallback ?? null
+}
+
+/**
+ * Shape a Lecture record into a `LecturePlayerData` for the audience-facing
+ * endpoints. For clips, sources NV `metadata` from the parent lecture (clips
+ * have `metadata: null` after #338 — the parent owns the canonical NV data).
+ *
+ * Per-clip `thumbnail` and `subtitles` overrides still win/merge as before.
+ *
+ * Returns `null` when no usable `metadata.hlsUrl` is available (full lecture
+ * with missing metadata, or clip whose parent isn't populated / missing
+ * metadata) — the endpoint filters these out.
+ *
+ * Requires `depth ≥ 2` on the lecture query so a clip's `fullLecture` is
+ * populated as a `Lecture` object rather than a numeric id.
+ */
+export function shapeLecture(
+  lecture: Lecture,
+  logger?: Pick<PayloadLogger, 'warn'>,
+): LecturePlayerData | null {
+  const isClip = lecture.type === 'clip'
+  const parent =
+    isClip && lecture.fullLecture && typeof lecture.fullLecture === 'object'
+      ? (lecture.fullLecture as Lecture)
+      : null
+  const metadataSource = isClip ? parent : lecture
+  const metadata = (metadataSource?.metadata ?? null) as LectureMetadata | null
+
+  if (!metadata?.hlsUrl) {
+    logger?.warn({
+      msg: 'Lecture missing metadata.hlsUrl — skipping',
+      lectureId: lecture.id,
+      isClip,
+      parentId: parent?.id,
+    })
+    return null
+  }
+
+  const startTime = typeof lecture.startTime === 'number' ? lecture.startTime : 0
+  const stopTime =
+    typeof lecture.stopTime === 'number' ? lecture.stopTime : (metadata.duration ?? null)
+  const duration = stopTime !== null ? stopTime - startTime : null
+
+  return {
+    id: lecture.id,
+    title: lecture.title,
+    hlsUrl: metadata.hlsUrl,
+    videoUrl: metadata.hlsUrl,
+    thumbnailUrl: resolveThumbnailUrl({
+      override: lecture.thumbnail,
+      fallback: metadata.thumbnailUrl,
+    }),
+    subtitles: mergeSubtitles(metadata.subtitles, lecture.subtitles),
+    startTime,
+    stopTime,
+    duration,
+    fullLectureId: isClip ? (parent?.id ?? null) : null,
+  }
 }

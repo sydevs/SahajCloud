@@ -301,11 +301,11 @@ describe('meditationLectures endpoint', () => {
     expect(docs.length).toBe(1)
     const expectedKeys = [
       'duration',
-      'endTime',
       'fullLectureId',
       'hlsUrl',
       'id',
       'startTime',
+      'stopTime',
       'subtitles',
       'thumbnailUrl',
       'title',

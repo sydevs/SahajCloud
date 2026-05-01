@@ -1,13 +1,11 @@
 import type { Endpoint, Where } from 'payload'
 
-import { extractID } from 'payload/shared'
 import { z } from 'zod'
 
 import { AUDIENCE_DEFINITIONS } from '@/collections/tags/Audiences'
 import { buildAudienceDataShape, evaluateRules, type RulesValue } from '@/fields'
-import type { LectureMetadata } from '@/hooks/lectureHooks'
 import { recomputeWeightsForMeditation } from '@/hooks/meditationHooks'
-import { mergeSubtitles, resolveThumbnailUrl, type LecturePlayerData } from '@/lib/lectureShape'
+import { shapeLecture, type LecturePlayerData } from '@/lib/lectureShape'
 import type { Audience, Lecture, Meditation, SubtleSystemNode } from '@/payload-types'
 
 const querySchema = z.object({
@@ -144,7 +142,9 @@ export const meditationLectures: Endpoint = {
       collection: 'lectures',
       where: lectureWhere,
       limit: 0,
-      depth: 1,
+      // depth: 2 so a clip's `fullLecture` is populated as a Lecture object
+      // — clips have `metadata: null` and source it from their parent.
+      depth: 2,
       pagination: false,
       locale: req.locale ?? 'en',
       req,
@@ -179,35 +179,7 @@ export const meditationLectures: Endpoint = {
     const sliced = weighted.slice(0, limit)
 
     const shaped: LecturePlayerData[] = sliced
-      .map(({ lecture }): LecturePlayerData | null => {
-        const metadata = lecture.metadata as LectureMetadata | null | undefined
-        if (!metadata?.hlsUrl) {
-          req.payload.logger.warn({
-            msg: 'Lecture missing metadata.hlsUrl — skipping in /meditations/:id/related-lectures',
-            lectureId: lecture.id,
-          })
-          return null
-        }
-        const startTime = typeof lecture.startTime === 'number' ? lecture.startTime : 0
-        const endTime =
-          typeof lecture.endTime === 'number' ? lecture.endTime : (metadata.duration ?? null)
-        const duration = endTime !== null ? endTime - startTime : null
-        return {
-          id: lecture.id,
-          title: lecture.title,
-          hlsUrl: metadata.hlsUrl,
-          videoUrl: metadata.hlsUrl,
-          thumbnailUrl: resolveThumbnailUrl({
-            override: lecture.thumbnail,
-            fallback: metadata.thumbnailUrl,
-          }),
-          subtitles: mergeSubtitles(metadata.subtitles, lecture.subtitles),
-          startTime,
-          endTime,
-          duration,
-          fullLectureId: lecture.fullLecture ? (extractID(lecture.fullLecture) ?? null) : null,
-        }
-      })
+      .map(({ lecture }): LecturePlayerData | null => shapeLecture(lecture, req.payload.logger))
       .filter((item): item is LecturePlayerData => item !== null)
 
     return Response.json({ docs: shaped })

@@ -227,7 +227,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'Returns a uniform-random feed of lectures whose attached audiences ' +
         'match the supplied audience data (OR semantics across audiences). ' +
         'Each lecture is shaped into a flat, player-ready record matching ' +
-        '`LecturePlayerData`. Records carrying `startTime`/`endTime` denote ' +
+        '`LecturePlayerData`. Records carrying `startTime`/`stopTime` denote ' +
         'a playback window within the lecture; `fullLectureId` (when set) ' +
         'points at a related lecture for editorial grouping.',
       operationId: 'lecturesForAudience',
@@ -351,7 +351,7 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       'thumbnailUrl',
       'subtitles',
       'startTime',
-      'endTime',
+      'stopTime',
       'duration',
       'fullLectureId',
     ],
@@ -368,7 +368,7 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       thumbnailUrl: { type: ['string', 'null'] },
       subtitles: lectureSubtitleUrlsSchema,
       startTime: { type: 'number' },
-      endTime: { type: ['number', 'null'] },
+      stopTime: { type: ['number', 'null'] },
       duration: { type: ['number', 'null'] },
       fullLectureId: { type: ['integer', 'null'] },
     },

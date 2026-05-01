@@ -1,12 +1,10 @@
 import type { Endpoint } from 'payload'
 
-import { extractID } from 'payload/shared'
 import { z } from 'zod'
 
 import { AUDIENCE_DEFINITIONS } from '@/collections/tags/Audiences'
 import { buildAudienceDataShape, evaluateRules, type RulesValue } from '@/fields'
-import type { LectureMetadata } from '@/hooks/lectureHooks'
-import { mergeSubtitles, resolveThumbnailUrl, type LecturePlayerData } from '@/lib/lectureShape'
+import { shapeLecture, type LecturePlayerData } from '@/lib/lectureShape'
 import type { Audience, Lecture } from '@/payload-types'
 
 const querySchema = z.object({
@@ -78,7 +76,9 @@ export const lecturesForAudience: Endpoint = {
       // samples uniformly across the entire pool, not just the first N
       // rows by DB order. Sliced down to `limit` after shuffling.
       limit: 0,
-      depth: 1,
+      // depth: 2 so a clip's `fullLecture` is populated as a Lecture object
+      // — clips have `metadata: null` and source it from their parent.
+      depth: 2,
       pagination: false,
       req,
     })
@@ -86,35 +86,7 @@ export const lecturesForAudience: Endpoint = {
     const eligibleLectures = lectureDocs as Lecture[]
 
     const shaped: LecturePlayerData[] = eligibleLectures
-      .map((lecture): LecturePlayerData | null => {
-        const metadata = lecture.metadata as LectureMetadata | null | undefined
-        if (!metadata?.hlsUrl) {
-          req.payload.logger.warn({
-            msg: 'Lecture missing metadata.hlsUrl — skipping in /for-audience',
-            lectureId: lecture.id,
-          })
-          return null
-        }
-        const startTime = typeof lecture.startTime === 'number' ? lecture.startTime : 0
-        const endTime =
-          typeof lecture.endTime === 'number' ? lecture.endTime : (metadata.duration ?? null)
-        const duration = endTime !== null ? endTime - startTime : null
-        return {
-          id: lecture.id,
-          title: lecture.title,
-          hlsUrl: metadata.hlsUrl,
-          videoUrl: metadata.hlsUrl,
-          thumbnailUrl: resolveThumbnailUrl({
-            override: lecture.thumbnail,
-            fallback: metadata.thumbnailUrl,
-          }),
-          subtitles: mergeSubtitles(metadata.subtitles, lecture.subtitles),
-          startTime,
-          endTime,
-          duration,
-          fullLectureId: lecture.fullLecture ? (extractID(lecture.fullLecture) ?? null) : null,
-        }
-      })
+      .map((lecture): LecturePlayerData | null => shapeLecture(lecture, req.payload.logger))
       .filter((item): item is LecturePlayerData => item !== null)
 
     // Fisher-Yates shuffle + slice

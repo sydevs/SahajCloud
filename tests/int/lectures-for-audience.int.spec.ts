@@ -75,7 +75,7 @@ describe('lecturesForAudience endpoint', () => {
   let lectureNoAudience: Lecture
   let lectureMultiAudience: Lecture
   let lectureAllFailingAudiences: Lecture
-  let excerptOfBeginner: Lecture // Lecture with fullLecture + startTime/endTime
+  let excerptOfBeginner: Lecture // Lecture with fullLecture + startTime/stopTime
   let excerptOfIntermediate: Lecture
   let lectureWithSubtitleOverride: Lecture
 
@@ -147,7 +147,7 @@ describe('lecturesForAudience endpoint', () => {
         title: 'Excerpt of Beginner Lecture',
         audiences: [audienceBeginner.id],
         startTime: 30,
-        endTime: 150,
+        stopTime: 150,
       },
     )
 
@@ -160,7 +160,7 @@ describe('lecturesForAudience endpoint', () => {
         title: 'Excerpt of Intermediate Lecture',
         audiences: [audienceBeginner.id],
         startTime: 0,
-        endTime: 60,
+        stopTime: 60,
       },
     )
 
@@ -225,11 +225,11 @@ describe('lecturesForAudience endpoint', () => {
       expect(docs.length).toBeGreaterThan(0)
       const expectedKeys = [
         'duration',
-        'endTime',
         'fullLectureId',
         'hlsUrl',
         'id',
         'startTime',
+        'stopTime',
         'subtitles',
         'thumbnailUrl',
         'title',
@@ -271,19 +271,19 @@ describe('lecturesForAudience endpoint', () => {
   })
 
   describe('Default time fields', () => {
-    it('lectures with no startTime/endTime resolve to startTime=0, endTime=null when metadata.duration is missing', async () => {
+    it('lectures with no startTime/stopTime resolve to startTime=0, stopTime=null when metadata.duration is missing', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
       const lecture = (body as { docs: LecturePlayerData[] }).docs.find(
         (d) => d.id === lectureBeginnerOnly.id,
       )
       expect(lecture).toBeDefined()
       expect(lecture!.startTime).toBe(0)
-      expect(lecture!.endTime).toBeNull()
+      expect(lecture!.stopTime).toBeNull()
       expect(lecture!.duration).toBeNull()
       expect(lecture!.fullLectureId).toBeNull()
     })
 
-    it('lectures with metadata.duration but no explicit endTime fall through to metadata.duration', async () => {
+    it('lectures with metadata.duration but no explicit stopTime fall through to metadata.duration', async () => {
       const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'Lecture With Duration',
@@ -304,18 +304,18 @@ describe('lecturesForAudience endpoint', () => {
       )
       expect(item).toBeDefined()
       expect(item!.startTime).toBe(0)
-      expect(item!.endTime).toBe(1200)
+      expect(item!.stopTime).toBe(1200)
       expect(item!.duration).toBe(1200)
     })
 
-    it('excerpts with explicit startTime/endTime pass them through and expose fullLectureId', async () => {
+    it('excerpts with explicit startTime/stopTime pass them through and expose fullLectureId', async () => {
       const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
       const item = (body as { docs: LecturePlayerData[] }).docs.find(
         (d) => d.id === excerptOfBeginner.id,
       )
       expect(item).toBeDefined()
       expect(item!.startTime).toBe(30)
-      expect(item!.endTime).toBe(150)
+      expect(item!.stopTime).toBe(150)
       expect(item!.duration).toBe(120)
       expect(item!.fullLectureId).toBe(lectureBeginnerOnly.id)
     })
@@ -417,6 +417,123 @@ describe('lecturesForAudience endpoint', () => {
       )
       expect(lecture).toBeDefined()
       expect(lecture!.thumbnailUrl).toBe('https://example.com/metadata-thumb.jpg')
+    })
+  })
+
+  describe('Clip sources metadata from parent (#338)', () => {
+    it('uses parent.metadata.hlsUrl for clip records (clips have metadata: null)', async () => {
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const clip = (body as { docs: LecturePlayerData[] }).docs.find(
+        (d) => d.id === excerptOfBeginner.id,
+      )
+      expect(clip).toBeDefined()
+      // Parent (lectureBeginnerOnly) was created with the default NV mock
+      // pointing at https://example.com/stream.m3u8.
+      expect(clip!.hlsUrl).toBe('https://example.com/stream.m3u8')
+    })
+
+    it("falls back to parent.metadata.thumbnailUrl when clip has no own thumbnail", async () => {
+      // Set up: a full parent (no editor thumbnail) + a clip with no thumbnail.
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
+        title: 'Parent for thumb fallback',
+        thumbnailUrl: 'https://example.com/parent-thumb.jpg',
+        hlsUrl: 'https://example.com/parent-stream.m3u8',
+        subtitles: [],
+        duration: null,
+      })
+      const parent = await testData.createLecture(payload, {}, { audiences: [] })
+      const clip = await testData.createLectureExcerpt(
+        payload,
+        { fullLecture: parent.id },
+        { audiences: [audienceBeginner.id] },
+      )
+
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const item = (body as { docs: LecturePlayerData[] }).docs.find((d) => d.id === clip.id)
+      expect(item).toBeDefined()
+      expect(item!.thumbnailUrl).toBe('https://example.com/parent-thumb.jpg')
+    })
+
+    it('clip thumbnail override wins over parent.metadata.thumbnailUrl', async () => {
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
+        title: 'Parent for clip override',
+        thumbnailUrl: 'https://example.com/parent-thumb-2.jpg',
+        hlsUrl: 'https://example.com/parent-stream-2.m3u8',
+        subtitles: [],
+        duration: null,
+      })
+      const parent = await testData.createLecture(payload, {}, { audiences: [] })
+      const overrideThumb = await testData.createMediaImage(payload, { alt: 'Clip override' })
+      const clip = await testData.createLectureExcerpt(
+        payload,
+        { fullLecture: parent.id },
+        { audiences: [audienceBeginner.id], thumbnail: overrideThumb.id },
+      )
+
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const item = (body as { docs: LecturePlayerData[] }).docs.find((d) => d.id === clip.id)
+      expect(item).toBeDefined()
+      // Override thumbnail came back through the editor relationship, not the
+      // parent metadata fallback.
+      expect(item!.thumbnailUrl).not.toBe('https://example.com/parent-thumb-2.jpg')
+      expect(item!.thumbnailUrl).toBeTruthy()
+    })
+
+    it("clip subtitle overrides merge with parent.metadata.subtitles", async () => {
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
+        title: 'Parent for subtitle merge',
+        thumbnailUrl: null,
+        hlsUrl: 'https://example.com/parent-merge.m3u8',
+        subtitles: [
+          { languageCode: 'en', url: 'https://example.com/parent-merge-en.vtt' },
+          { languageCode: 'es', url: 'https://example.com/parent-merge-es.vtt' },
+        ],
+        duration: null,
+      })
+      const parent = await testData.createLecture(payload, {}, { audiences: [] })
+      const clip = await testData.createLectureExcerpt(
+        payload,
+        { fullLecture: parent.id },
+        {
+          audiences: [audienceBeginner.id],
+          subtitles: [{ locale: 'es', url: 'https://example.com/clip-merge-es.vtt' }],
+        },
+      )
+
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const item = (body as { docs: LecturePlayerData[] }).docs.find((d) => d.id === clip.id)
+      expect(item).toBeDefined()
+      expect(item!.subtitles).toEqual({
+        en: 'https://example.com/parent-merge-en.vtt',
+        es: 'https://example.com/clip-merge-es.vtt',
+      })
+    })
+
+    it('clip falls through to parent.metadata.duration for stopTime when stopTime is unset', async () => {
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
+        title: 'Parent with duration',
+        thumbnailUrl: null,
+        hlsUrl: 'https://example.com/parent-dur.m3u8',
+        subtitles: [],
+        duration: 900,
+      })
+      const parent = await testData.createLecture(payload, {}, { audiences: [] })
+      const clip = await testData.createLectureExcerpt(
+        payload,
+        { fullLecture: parent.id },
+        { audiences: [audienceBeginner.id], startTime: null, stopTime: null },
+      )
+
+      const { body } = await callEndpoint(payload, { limit: 100, pathProgress: 3 })
+      const item = (body as { docs: LecturePlayerData[] }).docs.find((d) => d.id === clip.id)
+      expect(item).toBeDefined()
+      expect(item!.startTime).toBe(0)
+      expect(item!.stopTime).toBe(900)
+      expect(item!.duration).toBe(900)
     })
   })
 
