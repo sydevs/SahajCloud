@@ -4,11 +4,6 @@ import { audiencesForUser } from '@/endpoints'
 import { rulesField } from '@/fields'
 import { AUDIENCE_DEFINITIONS } from '@/lib/audiences/definitions'
 
-// Re-exported so existing call sites can keep importing from this module
-// (the canonical home is `@/lib/audiences/definitions` — see that file
-// for the rationale).
-export { AUDIENCE_DEFINITIONS }
-
 export const Audiences: CollectionConfig = {
   slug: 'audiences',
   labels: {

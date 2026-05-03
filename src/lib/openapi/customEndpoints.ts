@@ -17,9 +17,10 @@
  * module and the merge block in the route handler.
  */
 
-import { AUDIENCE_DEFINITIONS } from '@/collections/tags/Audiences'
 import type { RuleDefinition } from '@/fields/rulesField'
+import { AUDIENCE_DEFINITIONS } from '@/lib/audiences/definitions'
 import { LOCALES } from '@/lib/locales'
+
 
 /** Minimal OpenAPI 3.1 schema object — we only need the subset used below. */
 type OpenAPISchemaObject = Record<string, unknown>
@@ -339,11 +340,12 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'and each lecture\'s tagged `subtleSystemNodes`. ' +
         'By default, lectures with no chakra overlap are excluded — they ' +
         'have no relevance signal. ' +
-        'When `userChoice` is set, the user-choice match is itself a ' +
-        'sufficient relevance signal: all lectures matching the user-choice ' +
-        'are returned regardless of chakra overlap. Positive-weight lectures ' +
-        'rank first by descending weight; zero-overlap matches follow, ' +
-        'ordered by id ascending. ' +
+        'When `userChoice` is set, candidates expand to lectures that ' +
+        'either carry that tag OR have positive chakra overlap (OR ' +
+        'semantics). Results are split into two groups: Group 1 — ' +
+        'userChoice-tagged lectures (weight DESC, id ASC, including ' +
+        'zero-overlap ones); Group 2 — non-tagged lectures with positive ' +
+        'overlap (weight DESC, id ASC). ' +
         'Pass `audiences` (resolved via `GET /api/audiences/for-user`) to ' +
         'restrict the candidate pool to lectures eligible for this viewer. ' +
         'Use `excludedLectureIds` to omit already-watched lectures. ' +
@@ -364,10 +366,12 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           in: 'query',
           required: false,
           description:
-            'Optional ID of a UserChoices doc. Restricts candidates to ' +
-            'lectures whose own `userChoices` hasMany contains that ID, AND ' +
-            'relaxes the chakra-overlap filter so zero-overlap matches are ' +
-            'kept (ranked after positive-overlap ones).',
+            'Optional ID of a UserChoices doc. Expands candidates to ' +
+            'lectures that either carry this tag OR have positive ' +
+            'subtle-system-node overlap with the meditation (OR semantics). ' +
+            'Tagged lectures are returned first as a group (weight DESC, ' +
+            'including zero-weight); non-tagged positive-overlap lectures ' +
+            'follow.',
           schema: { type: 'integer' },
         },
         {
