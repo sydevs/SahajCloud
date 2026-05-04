@@ -463,6 +463,23 @@ describe('OpenAPI Spec Marker Utility', () => {
     })
   })
 
+  describe('Path ordering', () => {
+    it('returns paths sorted alphabetically', () => {
+      const unorderedSpec = {
+        ...mockSpec,
+        paths: {
+          '/api/pages/{id}': { get: { summary: 'Get page' } },
+          '/api/meditations': { get: { summary: 'List meditations' } },
+          '/api/form-submissions': { post: { summary: 'Submit form' } },
+          '/api/pages': { get: { summary: 'List pages' } },
+        },
+      }
+      const result = filterSpec(unorderedSpec)
+      const keys = Object.keys(result.paths!)
+      expect(keys).toEqual([...keys].sort())
+    })
+  })
+
   describe('Project-based filtering', () => {
     it('filters to wemeditate-web collections when project is specified', () => {
       const result = filterSpec(mockSpec, { project: 'wemeditate-web' })
