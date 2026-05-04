@@ -6,9 +6,10 @@
  * - Filters by client role permissions (project-based filtering)
  * - Injects API-Key security scheme for client authentication
  *
- * Two-tier filtering approach:
+ * Three-tier filtering approach:
  * 1. ALWAYS_HIDDEN_COLLECTIONS - System collections always hidden from public docs
  * 2. Client role filtering - Content collections filtered by project-based implicit reads
+ * 3. CUSTOM_ENDPOINTS_ONLY_COLLECTIONS - Base CRUD paths hidden; custom subpaths remain visible
  */
 
 import type { CollectionSlug } from 'payload'
@@ -235,12 +236,12 @@ function injectRateLimitingParameter(spec: OpenAPISpec): OpenAPISpec {
 /**
  * Filters an OpenAPI spec for client documentation.
  *
- * Two-tier filtering approach:
+ * Three-tier filtering approach:
  * 1. Always hides ALWAYS_HIDDEN_COLLECTIONS (system collections)
  * 2. When project is specified, only shows that project's collections
  *    When project is null/undefined, shows union of all client role collections
- * 3. Always hides DELETE and PATCH operations
- * 4. Hides POST operations except for ALLOW_POST_FOR collections
+ * 3. Hides base CRUD paths for CUSTOM_ENDPOINTS_ONLY_COLLECTIONS; custom subpaths remain visible
+ * Also hides DELETE and PATCH operations; hides POST except for ALLOW_POST_FOR collections
  *
  * Operations marked with `x-internal: true` will be hidden from
  * Scalar's documentation UI while remaining in the spec.

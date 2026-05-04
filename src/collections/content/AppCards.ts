@@ -17,7 +17,7 @@ export const AppCards: CollectionConfig = {
     singular: 'App Card',
     plural: 'App Cards',
   },
-  access: { read: denyApiClientReads },
+  access: { read: denyApiClientReads('app-cards') },
   versions: {
     drafts: true,
     maxPerDoc: 5,
