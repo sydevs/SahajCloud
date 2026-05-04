@@ -42,6 +42,13 @@ export const ALWAYS_HIDDEN_COLLECTIONS: ContentSlug[] = [
 ]
 
 /**
+ * Collections whose base CRUD paths (/api/{slug} and /api/{slug}/{id}) are
+ * hidden from public docs, but whose custom subpaths (/for-audience, etc.)
+ * remain visible. API clients should use only the curated custom endpoints.
+ */
+export const CUSTOM_ENDPOINTS_ONLY_COLLECTIONS: ContentSlug[] = ['lectures', 'app-cards']
+
+/**
  * HTTP operations excluded from public docs.
  * API clients only have read access (plus form-submissions POST).
  */
@@ -266,6 +273,11 @@ export function filterSpec(spec: OpenAPISpec, options: FilterOptions = {}): Open
     // Check if this collection should be hidden
     const isAlwaysHidden = ALWAYS_HIDDEN_COLLECTIONS.includes(collection as ContentSlug)
     const isNotInAllowedCollections = !allowedCollections.includes(collection as ContentSlug)
+    // Tier 3: base CRUD paths hidden for collections served only via custom subpaths.
+    // Matches /api/{collection} and /api/{collection}/{id} but NOT /api/{collection}/for-audience.
+    const isBaseCrudPath =
+      CUSTOM_ENDPOINTS_ONLY_COLLECTIONS.includes(collection as ContentSlug) &&
+      /^\/api\/[^/]+(\/{[^}]+})?$/.test(path)
 
     // Process each HTTP method
     const methods: HttpMethod[] = ['get', 'post', 'patch', 'delete', 'put', 'options', 'head']
@@ -285,6 +297,11 @@ export function filterSpec(spec: OpenAPISpec, options: FilterOptions = {}): Open
 
       // Tier 2: Mark if collection is not in allowed collections for this project
       if (isNotInAllowedCollections) {
+        shouldMark = true
+      }
+
+      // Tier 3: Mark base CRUD paths for custom-endpoints-only collections
+      if (isBaseCrudPath) {
         shouldMark = true
       }
 
