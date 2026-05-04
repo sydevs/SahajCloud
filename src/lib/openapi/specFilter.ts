@@ -328,5 +328,12 @@ export function filterSpec(spec: OpenAPISpec, options: FilterOptions = {}): Open
   // Inject X-User-ID parameter for rate limiting (only to non-internal GET operations)
   injectRateLimitingParameter(markedSpec)
 
+  // Sort paths alphabetically for stable, human-readable output
+  if (markedSpec.paths) {
+    markedSpec.paths = Object.fromEntries(
+      Object.entries(markedSpec.paths).sort(([a], [b]) => a.localeCompare(b)),
+    ) as Record<string, OpenAPIPathItem>
+  }
+
   return markedSpec
 }
