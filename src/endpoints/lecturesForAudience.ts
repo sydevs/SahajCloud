@@ -51,13 +51,19 @@ export const lecturesForAudience: Endpoint = {
       // — clips have `metadata: null` and source it from their parent.
       depth: 2,
       pagination: false,
+      // Bypass the collection-level denyApiClientReads access check (#341).
+      // This endpoint is the authorized path for API clients; audience
+      // filtering is applied above via the `audiences` where clause.
+      overrideAccess: true,
       req,
     })
 
     const eligibleLectures = lectureDocs as Lecture[]
 
     const shaped: LecturePlayerData[] = eligibleLectures
-      .map((lecture): LecturePlayerData | null => shapeLecture(lecture, req.payload.logger))
+      .map((lecture): LecturePlayerData | null =>
+        shapeLecture(lecture, req.payload.logger, audienceIds),
+      )
       .filter((item): item is LecturePlayerData => item !== null)
 
     // Fisher-Yates shuffle + slice

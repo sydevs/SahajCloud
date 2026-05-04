@@ -34,6 +34,7 @@ export { bypassPermissions } from './bypassPermissions'
 
 export { filterAvailableLocales } from './filterAvailableLocales'
 export { adminOnlyCondition, adminOnlyFieldAccess, isAdminManager } from './adminOnly'
+export { denyApiClientReads } from './denyApiClientReads'
 
 // ============================================================================
 // HELPER FUNCTIONS (public API - consolidated from projects.ts and data.ts)
