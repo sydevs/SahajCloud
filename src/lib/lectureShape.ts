@@ -72,6 +72,26 @@ export function resolveThumbnailUrl(args: {
 }
 
 /**
+ * Resolve the `fullLectureId` for a clip, gated on audience eligibility.
+ *
+ * When `eligibleAudienceIds` is `null` (no gating), returns the parent ID
+ * unconditionally (backward-compatible). When provided, returns the parent ID
+ * only if the parent's audiences intersect `eligibleAudienceIds`; otherwise
+ * returns `null` to avoid leaking the existence of a restricted parent.
+ */
+function resolveFullLectureId(
+  parent: Lecture | null,
+  eligibleAudienceIds: number[] | null,
+): number | null {
+  if (!parent) return null
+  if (eligibleAudienceIds === null) return parent.id
+  const parentAudienceIds = ((parent.audiences ?? []) as Array<number | { id: number }>).map(
+    (a) => (typeof a === 'number' ? a : a.id),
+  )
+  return eligibleAudienceIds.some((id) => parentAudienceIds.includes(id)) ? parent.id : null
+}
+
+/**
  * Shape a Lecture record into a `LecturePlayerData` for the audience-facing
  * endpoints. For clips, sources NV `metadata` from the parent lecture (clips
  * have `metadata: null` after #338 — the parent owns the canonical NV data).
@@ -84,10 +104,15 @@ export function resolveThumbnailUrl(args: {
  *
  * Requires `depth ≥ 2` on the lecture query so a clip's `fullLecture` is
  * populated as a `Lecture` object rather than a numeric id.
+ *
+ * @param eligibleAudienceIds - When provided, gates `fullLectureId` on
+ *   parent-audience intersection (#341). Pass `null` for no gating (default,
+ *   backward-compatible).
  */
 export function shapeLecture(
   lecture: Lecture,
   logger?: Pick<PayloadLogger, 'warn'>,
+  eligibleAudienceIds: number[] | null = null,
 ): LecturePlayerData | null {
   const isClip = lecture.type === 'clip'
   const parent =
@@ -125,6 +150,6 @@ export function shapeLecture(
     startTime,
     stopTime,
     duration,
-    fullLectureId: isClip ? (parent?.id ?? null) : null,
+    fullLectureId: isClip ? resolveFullLectureId(parent, eligibleAudienceIds) : null,
   }
 }

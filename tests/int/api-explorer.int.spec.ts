@@ -28,6 +28,7 @@ import {
 import {
   filterSpec,
   ALWAYS_HIDDEN_COLLECTIONS,
+  CUSTOM_ENDPOINTS_ONLY_COLLECTIONS,
   EXCLUDED_OPERATIONS,
   ALLOW_POST_FOR,
 } from '../../src/lib/openapi/specFilter'
@@ -345,6 +346,48 @@ describe('OpenAPI Spec Marker Utility', () => {
       expect(ALWAYS_HIDDEN_COLLECTIONS).toContain('payload-locked-documents')
       expect(ALWAYS_HIDDEN_COLLECTIONS).toContain('payload-preferences')
       expect(ALWAYS_HIDDEN_COLLECTIONS).toContain('payload-migrations')
+    })
+  })
+
+  describe('CUSTOM_ENDPOINTS_ONLY_COLLECTIONS (#341)', () => {
+    const specWithLecturesAndCards = {
+      ...mockSpec,
+      paths: {
+        ...mockSpec.paths,
+        '/api/lectures': { get: { summary: 'List lectures' }, post: { summary: 'Create lecture' } },
+        '/api/lectures/{id}': { get: { summary: 'Get lecture' } },
+        '/api/lectures/for-audience': { get: { summary: 'Lectures for audience' } },
+        '/api/app-cards': { get: { summary: 'List app-cards' } },
+        '/api/app-cards/{id}': { get: { summary: 'Get app-card' } },
+        '/api/app-cards/for-audience': { get: { summary: 'App-cards for audience' } },
+      },
+    }
+
+    it('marks /api/lectures and /api/lectures/{id} as internal', () => {
+      const result = filterSpec(specWithLecturesAndCards)
+      expect(result.paths!['/api/lectures']!.get!['x-internal']).toBe(true)
+      expect(result.paths!['/api/lectures/{id}']!.get!['x-internal']).toBe(true)
+    })
+
+    it('marks /api/app-cards and /api/app-cards/{id} as internal', () => {
+      const result = filterSpec(specWithLecturesAndCards)
+      expect(result.paths!['/api/app-cards']!.get!['x-internal']).toBe(true)
+      expect(result.paths!['/api/app-cards/{id}']!.get!['x-internal']).toBe(true)
+    })
+
+    it('leaves /api/lectures/for-audience visible (custom subpath)', () => {
+      const result = filterSpec(specWithLecturesAndCards, { project: 'wemeditate-app' })
+      expect(result.paths!['/api/lectures/for-audience']!.get!['x-internal']).toBeUndefined()
+    })
+
+    it('leaves /api/app-cards/for-audience visible (custom subpath)', () => {
+      const result = filterSpec(specWithLecturesAndCards, { project: 'wemeditate-app' })
+      expect(result.paths!['/api/app-cards/for-audience']!.get!['x-internal']).toBeUndefined()
+    })
+
+    it('includes lectures and app-cards in CUSTOM_ENDPOINTS_ONLY_COLLECTIONS', () => {
+      expect(CUSTOM_ENDPOINTS_ONLY_COLLECTIONS).toContain('lectures')
+      expect(CUSTOM_ENDPOINTS_ONLY_COLLECTIONS).toContain('app-cards')
     })
   })
 

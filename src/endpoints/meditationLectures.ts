@@ -151,6 +151,10 @@ export const meditationLectures: Endpoint = {
       depth: 2,
       pagination: false,
       locale: req.locale ?? 'en',
+      // Bypass the collection-level denyApiClientReads access check (#341).
+      // This endpoint is the authorized path for API clients; audience
+      // filtering is applied above via the `audiences` where clause.
+      overrideAccess: true,
       req,
     })
 
@@ -195,7 +199,9 @@ export const meditationLectures: Endpoint = {
     const sliced = weighted.slice(0, limit)
 
     const shaped: LecturePlayerData[] = sliced
-      .map(({ lecture }): LecturePlayerData | null => shapeLecture(lecture, req.payload.logger))
+      .map(({ lecture }): LecturePlayerData | null =>
+        shapeLecture(lecture, req.payload.logger, audienceIds),
+      )
       .filter((item): item is LecturePlayerData => item !== null)
 
     return Response.json(
