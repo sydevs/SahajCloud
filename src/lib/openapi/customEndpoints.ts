@@ -21,7 +21,6 @@ import type { RuleDefinition } from '@/fields/rulesField'
 import { AUDIENCE_DEFINITIONS } from '@/lib/audiences/definitions'
 import { LOCALES } from '@/lib/locales'
 
-
 /** Minimal OpenAPI 3.1 schema object — we only need the subset used below. */
 type OpenAPISchemaObject = Record<string, unknown>
 

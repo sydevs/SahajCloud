@@ -313,6 +313,29 @@ describe('meditationLectures endpoint', () => {
     ])
   })
 
+  it('userChoice with no positive-weight nodes falls back to userChoices-only filter (#343)', async () => {
+    // A meditation with no frames has empty subtleSystemNodeWeights → no
+    // positive-weight nodes → the OR filter degrades to userChoices-only.
+    // Non-userChoice lectures that have positive chakra overlap with the
+    // original meditation must NOT appear here.
+    const emptyMeditation = await testData.createMeditation(payload, undefined, {
+      title: 'Empty weights meditation',
+    })
+    const { status, body } = await callEndpoint(
+      payload,
+      emptyMeditation.id,
+      { limit: 10, userChoice: userChoice.id },
+      { defaultAudiences: audienceFilter },
+    )
+    expect(status).toBe(200)
+    const ids = (body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)
+    expect(ids).toContain(lectureUC.id)
+    expect(ids).toContain(lectureUCNone.id)
+    expect(ids).not.toContain(lectureAB.id)
+    expect(ids).not.toContain(lectureB.id)
+    expect(ids).not.toContain(lectureA.id)
+  })
+
   it('returns 404 for unknown meditation', async () => {
     const { status, body } = await callEndpoint(payload, 999999, { limit: 10 }, {
       defaultAudiences: audienceFilter,
