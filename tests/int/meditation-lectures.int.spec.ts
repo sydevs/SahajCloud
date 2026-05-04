@@ -244,10 +244,12 @@ describe('meditationLectures endpoint', () => {
     )
   })
 
-  it('userChoice returns all matching lectures, ranking weighted ones first (#333)', async () => {
-    // lectureUC has nodeA (≈10s weight); lectureUCNone has [] (zero weight).
-    // Both share the userChoice. With userChoice set, the chakra filter
-    // relaxes — lectureUCNone is kept and sorted after lectureUC.
+  it('userChoice returns all matching lectures, ranking userChoice group first (#343)', async () => {
+    // With userChoice set, candidates are lectures that either carry the
+    // userChoice tag OR have positive subtle-system-node overlap with the
+    // meditation. The result is split into two groups:
+    //   Group 1 (userChoice-tagged, by weight): lectureUC (≈10s), lectureUCNone (0s)
+    //   Group 2 (non-userChoice, positive weight): lectureAB (≈25s), lectureB (≈17s), lectureA (≈10s)
     const { status, body } = await callEndpoint(
       payload,
       meditation.id,
@@ -256,7 +258,13 @@ describe('meditationLectures endpoint', () => {
     )
     expect(status).toBe(200)
     const docs = (body as { docs: LecturePlayerData[] }).docs
-    expect(docs.map((d) => d.id)).toEqual([lectureUC.id, lectureUCNone.id])
+    expect(docs.map((d) => d.id)).toEqual([
+      lectureUC.id,
+      lectureUCNone.id,
+      lectureAB.id,
+      lectureB.id,
+      lectureA.id,
+    ])
   })
 
   it('excludedLectureIds removes the listed lectures', async () => {
@@ -272,8 +280,9 @@ describe('meditationLectures endpoint', () => {
     expect(ids).toContain(lectureA.id)
   })
 
-  it('userChoice + excludedLectureIds removes weighted and zero-weight matches', async () => {
-    // Exclude the weighted match — zero-weight match still returns under userChoice.
+  it('userChoice + excludedLectureIds removes excluded lectures from both groups', async () => {
+    // Exclude the weighted userChoice match — zero-weight match stays in Group 1;
+    // positive-weight non-userChoice lectures still appear in Group 2.
     const a = await callEndpoint(
       payload,
       meditation.id,
@@ -282,8 +291,11 @@ describe('meditationLectures endpoint', () => {
     )
     expect((a.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)).toEqual([
       lectureUCNone.id,
+      lectureAB.id,
+      lectureB.id,
+      lectureA.id,
     ])
-    // Exclude both — empty.
+    // Exclude both userChoice lectures — only Group 2 remains.
     const b = await callEndpoint(
       payload,
       meditation.id,
@@ -294,7 +306,34 @@ describe('meditationLectures endpoint', () => {
       },
       { defaultAudiences: audienceFilter },
     )
-    expect((b.body as { docs: LecturePlayerData[] }).docs).toEqual([])
+    expect((b.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)).toEqual([
+      lectureAB.id,
+      lectureB.id,
+      lectureA.id,
+    ])
+  })
+
+  it('userChoice with no positive-weight nodes falls back to userChoices-only filter (#343)', async () => {
+    // A meditation with no frames has empty subtleSystemNodeWeights → no
+    // positive-weight nodes → the OR filter degrades to userChoices-only.
+    // Non-userChoice lectures that have positive chakra overlap with the
+    // original meditation must NOT appear here.
+    const emptyMeditation = await testData.createMeditation(payload, undefined, {
+      title: 'Empty weights meditation',
+    })
+    const { status, body } = await callEndpoint(
+      payload,
+      emptyMeditation.id,
+      { limit: 10, userChoice: userChoice.id },
+      { defaultAudiences: audienceFilter },
+    )
+    expect(status).toBe(200)
+    const ids = (body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)
+    expect(ids).toContain(lectureUC.id)
+    expect(ids).toContain(lectureUCNone.id)
+    expect(ids).not.toContain(lectureAB.id)
+    expect(ids).not.toContain(lectureB.id)
+    expect(ids).not.toContain(lectureA.id)
   })
 
   it('returns 404 for unknown meditation', async () => {
