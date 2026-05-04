@@ -395,17 +395,13 @@ describe('lecturesForAudience endpoint', () => {
       expect(titles).not.toContain('No-audience excerpt')
     })
 
-    it('returns excerpts independently of their fullLecture parent eligibility', async () => {
+    it('returns clips independently of their parent audience eligibility', async () => {
       const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
         defaultAudiences: beginnerOnly,
       })
       const ids = (body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)
       expect(ids).toContain(excerptOfBeginner.id)
       expect(ids).toContain(excerptOfIntermediate.id)
-      const ineligibleParentExcerpt = (body as { docs: LecturePlayerData[] }).docs.find(
-        (d) => d.id === excerptOfIntermediate.id,
-      )!
-      expect(ineligibleParentExcerpt.fullLectureId).toBe(lectureIntermediateOnly.id)
     })
 
     it('returns empty docs when the requested audiences match no lectures', async () => {
@@ -415,6 +411,45 @@ describe('lecturesForAudience endpoint', () => {
       })
       expect(status).toBe(200)
       expect((body as { docs: LecturePlayerData[] }).docs).toEqual([])
+    })
+  })
+
+  describe('fullLectureId audience gating (#341)', () => {
+    it('exposes fullLectureId when the parent lecture is in the eligible audience set', async () => {
+      // excerptOfBeginner → parent is lectureBeginnerOnly (audiences: [Beginner])
+      // Request with Beginner eligible → intersection → fullLectureId populated.
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
+      const clip = (body as { docs: LecturePlayerData[] }).docs.find(
+        (d) => d.id === excerptOfBeginner.id,
+      )
+      expect(clip).toBeDefined()
+      expect(clip!.fullLectureId).toBe(lectureBeginnerOnly.id)
+    })
+
+    it('returns fullLectureId: null when the parent lecture is NOT in the eligible audience set', async () => {
+      // excerptOfIntermediate → parent is lectureIntermediateOnly (audiences: [Intermediate])
+      // Request with only Beginner eligible → no intersection → fullLectureId null.
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
+      const clip = (body as { docs: LecturePlayerData[] }).docs.find(
+        (d) => d.id === excerptOfIntermediate.id,
+      )
+      expect(clip).toBeDefined()
+      expect(clip!.fullLectureId).toBeNull()
+    })
+
+    it('exposes fullLectureId when both parent and clip share an eligible audience', async () => {
+      // Request with both Beginner + Intermediate eligible → parent qualifies.
+      const bothAudiences = `${audienceBeginner.id},${audienceIntermediate.id}`
+      const { body } = await callEndpoint(payload, { audiences: bothAudiences, limit: 100 })
+      const clip = (body as { docs: LecturePlayerData[] }).docs.find(
+        (d) => d.id === excerptOfIntermediate.id,
+      )
+      expect(clip).toBeDefined()
+      expect(clip!.fullLectureId).toBe(lectureIntermediateOnly.id)
     })
   })
 

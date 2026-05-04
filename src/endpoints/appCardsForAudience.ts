@@ -55,6 +55,10 @@ export const appCardsForAudience: Endpoint = {
       limit: 200,
       depth: 1,
       pagination: false,
+      // Bypass the collection-level denyApiClientReads access check (#341).
+      // This endpoint is the authorized path for API clients; audience
+      // filtering and _status checks are applied above.
+      overrideAccess: true,
       req,
     })
 

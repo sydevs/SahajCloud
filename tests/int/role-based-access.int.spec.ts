@@ -831,63 +831,25 @@ describe('Role-Based Access Control', () => {
       expect(foundPage._status).toBe('draft')
     })
 
-    it('wemeditate-app-client can read published app-cards', async () => {
-      // Create admin manager
+    it('wemeditate-app-client is denied from the base app-cards CRUD endpoint (#341)', async () => {
+      // API clients must use /api/app-cards/for-audience, not the base CRUD path.
       const admin = await testData.createManager(payload, {
-        name: 'Admin for App Cards Test',
+        name: 'Admin for App Cards Client Block Test',
         type: 'admin' as const,
       })
-
-      // Create a client with wemeditate-app-client role
       const client = await testData.createClient(payload, admin.id, {
-        name: 'App Client for Cards Test',
+        name: 'App Client for Cards Block Test',
         roles: ['wemeditate-app-client'],
         active: true,
       })
 
-      // Create an app card (draft by default)
-      const draftCard = await testData.createAppCard(payload, {
-        title: 'Draft Card for Client Test',
-      })
-
-      expect(draftCard._status).toBe('draft')
-
-      // Publish the card
-      const publishedCard = await payload.update({
-        collection: 'app-cards',
-        id: draftCard.id,
-        data: { _status: 'published' },
-        user: { ...admin, collection: 'managers' },
-      })
-
-      expect(publishedCard._status).toBe('published')
-
-      // Query app-cards as client - published card SHOULD appear
-      const clientCards = await payload.find({
-        collection: 'app-cards',
-        user: client,
-        overrideAccess: false,
-      })
-
-      const publishedIds = clientCards.docs.map((doc) => doc.id)
-      expect(publishedIds).toContain(publishedCard.id)
-
-      // Draft card should NOT appear
-      const allIds = clientCards.docs.map((doc) => doc.id)
-      // draftCard was updated to published, so create another draft to verify filtering
-      const anotherDraft = await testData.createAppCard(payload, {
-        title: 'Another Draft Card',
-      })
-      expect(anotherDraft._status).toBe('draft')
-
-      const clientCardsAfter = await payload.find({
-        collection: 'app-cards',
-        user: client,
-        overrideAccess: false,
-      })
-
-      const afterIds = clientCardsAfter.docs.map((doc) => doc.id)
-      expect(afterIds).not.toContain(anotherDraft.id)
+      await expect(
+        payload.find({
+          collection: 'app-cards',
+          user: client,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
     })
 
     it('wemeditate-web-client cannot read app-cards', async () => {
@@ -912,6 +874,88 @@ describe('Role-Based Access Control', () => {
           overrideAccess: false,
         }),
       ).rejects.toThrow()
+    })
+
+    describe('Base endpoint blocking for API clients (#341)', () => {
+      it('blocks any API client from reading the base /api/lectures CRUD path', async () => {
+        const admin = await testData.createManager(payload, {
+          name: 'Admin for Lectures Block Test',
+          type: 'admin' as const,
+        })
+        const client = await testData.createClient(payload, admin.id, {
+          name: 'App Client for Lectures Block Test',
+          roles: ['wemeditate-app-client'],
+          active: true,
+        })
+
+        await expect(
+          payload.find({
+            collection: 'lectures',
+            user: client,
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow()
+      })
+
+      it('allows admin managers to read the base /api/lectures path', async () => {
+        const admin = await testData.createManager(payload, {
+          name: 'Admin for Lectures Manager Read Test',
+          type: 'admin' as const,
+        })
+
+        // Should not throw for an admin manager
+        const result = await payload.find({
+          collection: 'lectures',
+          user: { ...admin, collection: 'managers' } as any,
+          overrideAccess: false,
+        })
+        expect(result).toBeDefined()
+      })
+
+      it('allows admin managers to read the base /api/app-cards path', async () => {
+        const admin = await testData.createManager(payload, {
+          name: 'Admin for App Cards Manager Read Test',
+          type: 'admin' as const,
+        })
+
+        // Should not throw for an admin manager
+        const result = await payload.find({
+          collection: 'app-cards',
+          user: { ...admin, collection: 'managers' } as any,
+          overrideAccess: false,
+        })
+        expect(result).toBeDefined()
+      })
+
+      it('blocks inactive managers from reading the base /api/lectures path (#341)', async () => {
+        const inactive = await testData.createManager(payload, {
+          name: 'Inactive Manager for Lectures Block Test',
+          type: 'inactive' as const,
+        })
+
+        await expect(
+          payload.find({
+            collection: 'lectures',
+            user: { ...inactive, collection: 'managers' } as any,
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow()
+      })
+
+      it('blocks inactive managers from reading the base /api/app-cards path (#341)', async () => {
+        const inactive = await testData.createManager(payload, {
+          name: 'Inactive Manager for App Cards Block Test',
+          type: 'inactive' as const,
+        })
+
+        await expect(
+          payload.find({
+            collection: 'app-cards',
+            user: { ...inactive, collection: 'managers' } as any,
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow()
+      })
     })
 
     it('manager can access draft documents', async () => {

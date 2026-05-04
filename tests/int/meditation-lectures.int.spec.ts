@@ -504,4 +504,107 @@ describe('meditationLectures endpoint', () => {
     expect(afterWeights.mooladhara).toBeUndefined()
     expect(afterWeights.kundalini).toBeGreaterThan(0)
   })
+
+  describe('fullLectureId audience gating (#341)', () => {
+    // Uses the outer `audience` (Everyone) and `userChoice` tag to guarantee
+    // clips survive the weight-ranking step regardless of subtleSystemNode overlap.
+    // userChoice-tagged lectures are always kept even at weight=0 (#343).
+    let parentForGating: Lecture
+    let clipEligibleParent: Lecture
+    let parentIneligible: Lecture // tagged only to a separate audience
+    let clipIneligibleParent: Lecture
+    let separateAudienceId: number
+
+    beforeAll(async () => {
+      const separateAudience = await testData.createAudience(payload, {
+        label: 'Separate (gating test)',
+        rules: {},
+      })
+      separateAudienceId = separateAudience.id
+
+      // Parent in the same eligible set (audience) — fullLectureId should be exposed.
+      parentForGating = await testData.createLecture(
+        payload,
+        {},
+        { title: 'Parent (gating eligible)', audiences: [audience.id], subtleSystemNodes: [nodeA.id] },
+      )
+      // Clip referencing eligible parent. Tagged with userChoice so the endpoint
+      // includes it even at weight=0 (clips don't always inherit nodeA weight).
+      clipEligibleParent = await testData.createLectureExcerpt(
+        payload,
+        { fullLecture: parentForGating.id },
+        {
+          title: 'Clip (eligible parent)',
+          audiences: [audience.id],
+          userChoices: [userChoice.id],
+        },
+      )
+
+      // Parent tagged only to separateAudience — ineligible when requesting `audience`.
+      parentIneligible = await testData.createLecture(
+        payload,
+        {},
+        {
+          title: 'Parent (ineligible)',
+          audiences: [separateAudience.id],
+          subtleSystemNodes: [nodeA.id],
+        },
+      )
+      // Clip of ineligible parent, itself tagged to the eligible `audience` + userChoice.
+      clipIneligibleParent = await testData.createLectureExcerpt(
+        payload,
+        { fullLecture: parentIneligible.id },
+        {
+          title: 'Clip (ineligible parent)',
+          audiences: [audience.id],
+          userChoices: [userChoice.id],
+        },
+      )
+    })
+
+    it('returns fullLectureId when the parent lecture is in the eligible audience set', async () => {
+      const { body } = await callEndpoint(
+        payload,
+        meditation.id,
+        // Pass userChoice so clips survive the weight ranking (userChoice-tagged
+        // lectures are always kept regardless of subtleSystemNode overlap).
+        { limit: 100, userChoice: userChoice.id },
+        { defaultAudiences: audienceFilter },
+      )
+      const clip = (body as { docs: LecturePlayerData[] }).docs.find(
+        (d) => d.id === clipEligibleParent.id,
+      )
+      expect(clip).toBeDefined()
+      expect(clip!.fullLectureId).toBe(parentForGating.id)
+    })
+
+    it('returns fullLectureId: null when the parent lecture is NOT in the eligible audience set', async () => {
+      const { body } = await callEndpoint(
+        payload,
+        meditation.id,
+        { limit: 100, userChoice: userChoice.id },
+        { defaultAudiences: audienceFilter },
+      )
+      const clip = (body as { docs: LecturePlayerData[] }).docs.find(
+        (d) => d.id === clipIneligibleParent.id,
+      )
+      expect(clip).toBeDefined()
+      expect(clip!.fullLectureId).toBeNull()
+    })
+
+    it('exposes fullLectureId when the eligible set includes both the clip and parent audience', async () => {
+      // Add separateAudience to the eligible set so the ineligible parent now qualifies.
+      const { body } = await callEndpoint(
+        payload,
+        meditation.id,
+        { audiences: `${audienceFilter},${separateAudienceId}`, limit: 100, userChoice: userChoice.id },
+        { skipDefaultAudiences: true },
+      )
+      const clip = (body as { docs: LecturePlayerData[] }).docs.find(
+        (d) => d.id === clipIneligibleParent.id,
+      )
+      expect(clip).toBeDefined()
+      expect(clip!.fullLectureId).toBe(parentIneligible.id)
+    })
+  })
 })

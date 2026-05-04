@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { appCardsForAudience } from '@/endpoints'
 import { mediaField, scheduleField, urlField } from '@/fields'
+import { denyApiClientReads } from '@/lib/access'
 
 /**
  * App Cards Collection
@@ -16,6 +17,7 @@ export const AppCards: CollectionConfig = {
     singular: 'App Card',
     plural: 'App Cards',
   },
+  access: { read: denyApiClientReads('app-cards') },
   versions: {
     drafts: true,
     maxPerDoc: 5,
