@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { recomputeWeightsForMeditation } from '@/hooks/meditationHooks'
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
 import { shapeLecture, type LecturePlayerData } from '@/lib/lectureShape'
-import type { Lecture, Meditation, SubtleSystemNode } from '@/payload-types'
+import type { Lecture, Meditation, SubtleSystemNode, UserChoice } from '@/payload-types'
 
 const querySchema = z.object({
   audiences: audiencesQueryParamSchema,
@@ -43,8 +43,11 @@ const querySchema = z.object({
  *     from `/api/audiences/for-user`. Server dedupes + sorts so equivalent
  *     client requests share an edge-cache key.
  *   - `limit` (required, 1–100)
- *   - `userChoice` (optional int) — if set, restrict candidates to lectures
- *     whose own `userChoices` contain that ID.
+ *   - `userChoice` (optional int) — if set, expand candidates to lectures that
+ *     either carry that userChoice tag OR have positive subtle-system-node
+ *     overlap with the meditation. userChoice-tagged lectures are ranked first
+ *     as a group (even if zero-weight), followed by the remaining positive-
+ *     weight lectures.
  *   - `excludedLectureIds` (optional comma-separated ints) — lectures to
  *     exclude (typically already-watched).
  *
@@ -52,16 +55,17 @@ const querySchema = z.object({
  *   1. Look up the meditation (404 if not found).
  *   2. Read `subtleSystemNodeWeights` from the cache; fall through to an
  *      ad-hoc compute (no persistence — keeps the GET side-effect-free).
- *   3. Find candidate lectures whose `audiences` overlap the requested
- *      list, with optional userChoice + excluded-id filters.
+ *   3. Find candidate lectures. Without `userChoice`, filter to lectures
+ *      whose `audiences` overlap the requested list. With `userChoice`, resolve
+ *      positive-weight node slugs → IDs (one bounded query, max 12 rows) and
+ *      apply an OR filter: audiences match AND (userChoices contains the ID OR
+ *      subtleSystemNodes overlaps positive nodes). Falls back to userChoices-
+ *      only when the meditation has no positive-weight nodes.
  *   4. Compute lecture weight = sum of `weights[node.slug]` over each
- *      populated `subtleSystemNodes` entry on the lecture. By default, drop
- *      zero-weight lectures (no relevance signal). When `userChoice` is set,
- *      keep zero-weight lectures — the user-choice match is itself a
- *      sufficient relevance signal (#333).
- *   5. Sort descending by weight; tie-break by id ascending → deterministic.
- *      Zero-weight lectures (only present when `userChoice` is set) sort
- *      after positive-weight ones and order among themselves by id ascending.
+ *      populated `subtleSystemNodes` entry on the lecture. Drop zero-weight
+ *      lectures unless they carry the userChoice tag (#343).
+ *   5. Sort in two groups: userChoice-tagged lectures first (weight DESC,
+ *      id ASC), then non-userChoice lectures (weight DESC, id ASC).
  *   6. Slice to `limit` and shape into `LecturePlayerData`.
  */
 export const meditationLectures: Endpoint = {
@@ -117,7 +121,25 @@ export const meditationLectures: Endpoint = {
       lectureWhere.id = { not_in: excludedLectureIds }
     }
     if (typeof userChoice === 'number') {
-      lectureWhere.userChoices = { in: [userChoice] }
+      const positiveNodeSlugs = Object.keys(weights).filter((slug) => (weights[slug] ?? 0) > 0)
+
+      if (positiveNodeSlugs.length > 0) {
+        const { docs: positiveNodes } = await req.payload.find({
+          collection: 'subtle-system-nodes',
+          where: { slug: { in: positiveNodeSlugs } },
+          limit: 0,
+          pagination: false,
+          req,
+        })
+        const positiveNodeIds = positiveNodes.map((n) => n.id)
+        lectureWhere.or = [
+          { userChoices: { in: [userChoice] } },
+          { subtleSystemNodes: { in: positiveNodeIds } },
+        ]
+      } else {
+        // No positive-weight nodes — only userChoice-tagged lectures qualify.
+        lectureWhere.userChoices = { in: [userChoice] }
+      }
     }
 
     const { docs: lectureDocs } = await req.payload.find({
@@ -140,7 +162,7 @@ export const meditationLectures: Endpoint = {
       )
     }
 
-    type WeightedLecture = { lecture: Lecture; weight: number }
+    type WeightedLecture = { lecture: Lecture; weight: number; hasUserChoice: boolean }
     const weighted: WeightedLecture[] = []
 
     for (const lecture of eligibleLectures) {
@@ -151,12 +173,21 @@ export const meditationLectures: Endpoint = {
           weight += weights[node.slug] ?? 0
         }
       }
-      // userChoice match is itself a sufficient relevance signal (#333)
-      if (weight <= 0 && userChoice === undefined) continue
-      weighted.push({ lecture, weight })
+      const hasUserChoice =
+        typeof userChoice === 'number' &&
+        ((lecture.userChoices ?? []) as Array<number | UserChoice>).some(
+          (uc) => (typeof uc === 'number' ? uc : uc.id) === userChoice,
+        )
+      // Keep userChoice-tagged lectures even at zero weight (#343); drop all
+      // other zero-weight lectures (no relevance signal).
+      if (!hasUserChoice && weight <= 0) continue
+      weighted.push({ lecture, weight, hasUserChoice })
     }
 
+    // Group 1: userChoice-tagged lectures (weight DESC, id ASC).
+    // Group 2: remaining positive-weight lectures (weight DESC, id ASC).
     weighted.sort((a, b) => {
+      if (a.hasUserChoice !== b.hasUserChoice) return a.hasUserChoice ? -1 : 1
       if (b.weight !== a.weight) return b.weight - a.weight
       return a.lecture.id - b.lecture.id
     })

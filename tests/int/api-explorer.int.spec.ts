@@ -20,7 +20,7 @@ import { openapi } from 'payload-oapi'
 
 import { collections, Managers } from '../../src/collections'
 import { globals } from '../../src/globals'
-import { AUDIENCE_DEFINITIONS } from '../../src/collections/tags/Audiences'
+import { AUDIENCE_DEFINITIONS } from '../../src/lib/audiences/definitions'
 import {
   CUSTOM_ENDPOINT_PATHS,
   CUSTOM_ENDPOINT_SCHEMAS,

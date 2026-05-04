@@ -24,10 +24,13 @@ import { z } from 'zod'
  * round-trip we know will return `{ docs: [] }`.
  */
 export const audiencesQueryParamSchema = z
-  .preprocess((value) => {
-    if (Array.isArray(value)) return value.join(',')
-    return value
-  }, z.string({ error: 'audiences must be a comma-separated string of IDs' }))
+  .preprocess(
+    (value) => {
+      if (Array.isArray(value)) return value.join(',')
+      return value
+    },
+    z.string({ error: 'audiences must be a comma-separated string of IDs' }),
+  )
   .transform((raw, ctx) => {
     const parts = raw
       .split(',')
@@ -38,9 +41,8 @@ export const audiencesQueryParamSchema = z
     for (const part of parts) {
       if (!/^\d+$/.test(part)) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           message: `Invalid audience ID: "${part}"`,
-          path: ['audiences'],
         })
         return z.NEVER
       }
@@ -49,9 +51,8 @@ export const audiencesQueryParamSchema = z
 
     if (ids.length === 0) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message: 'audiences must be a non-empty list of comma-separated IDs',
-        path: ['audiences'],
       })
       return z.NEVER
     }
