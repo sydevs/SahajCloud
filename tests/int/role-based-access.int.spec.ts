@@ -926,6 +926,36 @@ describe('Role-Based Access Control', () => {
         })
         expect(result).toBeDefined()
       })
+
+      it('blocks inactive managers from reading the base /api/lectures path (#341)', async () => {
+        const inactive = await testData.createManager(payload, {
+          name: 'Inactive Manager for Lectures Block Test',
+          type: 'inactive' as const,
+        })
+
+        await expect(
+          payload.find({
+            collection: 'lectures',
+            user: { ...inactive, collection: 'managers' } as any,
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow()
+      })
+
+      it('blocks inactive managers from reading the base /api/app-cards path (#341)', async () => {
+        const inactive = await testData.createManager(payload, {
+          name: 'Inactive Manager for App Cards Block Test',
+          type: 'inactive' as const,
+        })
+
+        await expect(
+          payload.find({
+            collection: 'app-cards',
+            user: { ...inactive, collection: 'managers' } as any,
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow()
+      })
     })
 
     it('manager can access draft documents', async () => {

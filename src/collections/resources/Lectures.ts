@@ -14,7 +14,7 @@ export const Lectures: CollectionConfig = {
     singular: 'Lecture',
     plural: 'Lectures',
   },
-  access: { read: denyApiClientReads },
+  access: { read: denyApiClientReads('lectures') },
   endpoints: [lecturesForAudience],
   admin: {
     group: 'Content',
