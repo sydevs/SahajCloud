@@ -188,7 +188,7 @@ export const AppCards: CollectionConfig = {
               type: 'relationship',
               relationTo: 'audiences',
               hasMany: true,
-              filterOptions: () => ({ type: { equals: 'condition' } }),
+              filterOptions: () => ({ type: { equals: 'context' } }),
               admin: {
                 description:
                   'Display conditions that ALL must be satisfied (AND). Use for country gates, time-of-day windows, and event scheduling. Leave empty to bypass condition gating.',
