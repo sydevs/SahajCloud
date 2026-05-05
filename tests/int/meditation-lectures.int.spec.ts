@@ -358,6 +358,33 @@ describe('meditationLectures endpoint', () => {
     expect((body as { docs: LecturePlayerData[] }).docs).toEqual([])
   })
 
+  it('redirect preserves userChoice param in Location URL (#349)', async () => {
+    // When userChoice is included and all eligible lectures are excluded, the
+    // redirect Location URL must retain userChoice so the fallback request
+    // still applies the same tag filter.
+    const excludedIds = [
+      lectureA.id,
+      lectureB.id,
+      lectureAB.id,
+      lectureNone.id,
+      lectureUC.id,
+      lectureUCNone.id,
+    ].join(',')
+    const { status, headers } = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 10, excludedLectureIds: excludedIds, userChoice: userChoice.id },
+      { defaultAudiences: audienceFilter },
+    )
+    expect(status).toBe(307)
+    const location = headers.get('Location')
+    expect(location).not.toBeNull()
+    const redirected = new URL(location!)
+    expect(redirected.searchParams.get('userChoice')).toBe(String(userChoice.id))
+    expect(redirected.searchParams.has('excludedLectureIds')).toBe(false)
+    expect(redirected.searchParams.get('limit')).toBe('1')
+  })
+
   it('userChoice with no positive-weight nodes falls back to userChoices-only filter (#343)', async () => {
     // A meditation with no frames has empty subtleSystemNodeWeights → no
     // positive-weight nodes → the OR filter degrades to userChoices-only.
