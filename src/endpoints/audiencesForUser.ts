@@ -20,9 +20,9 @@ const querySchema = z.object({
   meditationsPerWeek: z.coerce.number(),
   totalMeditationsViewed: z.coerce.number(),
   totalLecturesViewed: z.coerce.number(),
-  // Context params (optional — required for context audiences that use those fields)
-  country: z.string().length(2).optional(),
-  timezone: z.string().optional(),
+  // Context params (always required)
+  country: z.string().length(2),
+  timezone: z.string(),
 })
 
 type QueryParams = z.infer<typeof querySchema>
@@ -66,6 +66,7 @@ function buildProgressWhereClause(params: QueryParams) {
  *
  * Progress audiences: evaluated via a single SQL WHERE query.
  * Context audiences: fetched all, then JS-filtered by country/schedule/eventTime.
+ * All six query params (four progress + country + timezone) are required.
  *
  * Clients call this once per state change and pass the result to the
  * `/for-audience` data endpoints, which skip rule eval and are more cacheable.
@@ -114,21 +115,20 @@ export const audiencesForUser: Endpoint = {
         // Country gate: empty list = pass for any user; otherwise country must match
         const countryList = audience.country as string[] | null | undefined
         if (countryList && countryList.length > 0) {
-          if (!params.country || !countryList.includes(params.country)) return false
+          if (!countryList.includes(params.country)) return false
         }
 
-        // Schedule gate: requires timezone; if firstDate is set, occurrence must be active
+        // Schedule gate: if firstDate is set, occurrence must be active now
         const schedule = audience.schedule as Partial<ScheduleSubFields> | null | undefined
         if (schedule?.firstDate) {
-          if (!params.timezone) return false
           if (!isScheduleActiveNow({ schedule, now })) return false
         }
 
-        // EventTime gate: requires timezone; local hour must be in [08:00, 22:00)
+        // EventTime gate: local hour must be in [08:00, 22:00)
         const eventTime = audience.eventTime as string | null | undefined
         const eventTimeTz = audience.eventTime_tz as string | null | undefined
         if (eventTime) {
-          if (!params.timezone || !eventTimeTz) return false
+          if (!eventTimeTz) return false
           if (
             !isEventInUserDaytime({
               eventTime,

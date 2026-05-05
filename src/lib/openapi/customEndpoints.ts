@@ -59,9 +59,7 @@ interface OpenAPIResponse {
 
 /**
  * Query parameters for `GET /api/audiences/for-user`.
- * Progress params (all required) mirror the Zod schema in the endpoint handler.
- * Context params (optional) are required for condition audiences that gate on
- * country/schedule/eventTime; absent → those condition audiences are excluded.
+ * All six params are required — four progress params + country + timezone.
  */
 const audienceQueryParameters: OpenAPIParameter[] = [
   {
@@ -95,19 +93,16 @@ const audienceQueryParameters: OpenAPIParameter[] = [
   {
     name: 'country',
     in: 'query',
-    required: false,
-    description:
-      'ISO 3166-1 alpha-2 country code of the user (e.g. `US`, `GB`). ' +
-      'Required for condition audiences that gate on country. Absent → those audiences are excluded.',
+    required: true,
+    description: 'ISO 3166-1 alpha-2 country code of the user (e.g. `US`, `GB`).',
     schema: { type: 'string', minLength: 2, maxLength: 2 },
   },
   {
     name: 'timezone',
     in: 'query',
-    required: false,
+    required: true,
     description:
       'IANA timezone name of the user (e.g. `America/Los_Angeles`). ' +
-      'Required for condition audiences that gate on time-of-day (eventTime) or schedule. ' +
       'Server clock is used for `now` — do not pass a `currentDateTime` param.',
     schema: { type: 'string' },
   },
@@ -251,13 +246,12 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       summary: 'Resolve eligible audience IDs for a user',
       description:
         'Resolves the Audiences a user qualifies for based on progress data ' +
-        '(path step, meditation/lecture counts) and optional context ' +
-        '(country, timezone). Returns the combined IDs of matching progress ' +
-        'and condition audiences. ' +
+        '(path step, meditation/lecture counts) and context (country, timezone). ' +
+        'All six query params are required. Returns the combined IDs of matching ' +
+        'progress and context audiences. ' +
         'Progress audiences are evaluated via a SQL WHERE query. ' +
-        'Condition audiences (country gate, time-of-day gate, schedule gate) ' +
-        'are fetched and JS-filtered; condition audiences requiring `timezone` ' +
-        'or `country` are excluded when those params are absent. ' +
+        'Context audiences (country gate, time-of-day gate, schedule gate) ' +
+        'are fetched and JS-filtered. ' +
         'Mobile clients call this once per state change and pass the result ' +
         'as `audiences` to the `/for-audience` data endpoints, keeping those ' +
         'endpoints edge-cacheable. ' +
