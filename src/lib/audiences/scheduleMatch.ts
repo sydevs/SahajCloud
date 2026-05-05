@@ -8,8 +8,8 @@ import type { ScheduleSubFields } from '@/types/schedule'
  *
  * Each occurrence defines a window: [occurrenceStart, occurrenceStart + duration).
  * Duration is derived from the time-of-day delta between `firstDate` and `endTime`
- * (both stored as ISO datetime strings). If `endTime` is absent or the delta is
- * zero/negative, a default 1-hour window is used.
+ * (`endTime` is stored as HH:MM text by scheduleField, e.g. "17:00"). If `endTime`
+ * is absent or the delta is zero/negative, a default 1-hour window is used.
  *
  * To find occurrences that are "currently active", we search the range
  * [now − duration, now] — any occurrence that started in that window and
@@ -29,17 +29,22 @@ export function isScheduleActiveNow({
 
   const timezone = schedule.firstDate_tz || 'UTC'
 
-  // Compute duration of each occurrence window
+  // Compute duration of each occurrence window.
+  // endTime is stored as HH:MM text by scheduleField (e.g. "17:00").
   let durationMs = 60 * 60 * 1000 // default 1 hour
   if (schedule.endTime) {
     try {
       const startInTz = Temporal.Instant.from(schedule.firstDate).toZonedDateTimeISO(timezone)
-      const endInTz = Temporal.Instant.from(schedule.endTime).toZonedDateTimeISO(timezone)
       const startMinutes = startInTz.hour * 60 + startInTz.minute
-      let endMinutes = endInTz.hour * 60 + endInTz.minute
-      if (endMinutes <= startMinutes) endMinutes += 24 * 60 // overnight event
-      const delta = endMinutes - startMinutes
-      if (delta > 0) durationMs = delta * 60 * 1000
+      const parts = schedule.endTime.split(':')
+      const endHour = parseInt(parts[0] ?? '', 10)
+      const endMinute = parseInt(parts[1] ?? '', 10)
+      if (!isNaN(endHour) && !isNaN(endMinute)) {
+        let endMinutes = endHour * 60 + endMinute
+        if (endMinutes <= startMinutes) endMinutes += 24 * 60 // overnight event
+        const delta = endMinutes - startMinutes
+        if (delta > 0) durationMs = delta * 60 * 1000
+      }
     } catch {
       // keep default 1 hour
     }

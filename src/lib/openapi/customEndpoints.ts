@@ -308,7 +308,11 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       description:
         'Returns published app cards targeting the requested `targetSection`, ' +
         'filtered to those whose `audiences` overlap the supplied list (OR ' +
-        'semantics) and weighted-random sampled by `weight`. ' +
+        'semantics), and further restricted to cards whose `conditions` are ' +
+        'all present in the supplied list (AND semantics — all condition ' +
+        'audience IDs on the card must appear in `audiences`; cards with no ' +
+        'conditions pass automatically). Results are weighted-random sampled ' +
+        'by `weight`. ' +
         'Resolve `audiences` first via `GET /api/audiences/for-user`; this ' +
         'endpoint sets `Cache-Control: public, max-age=600, s-maxage=600`.',
       operationId: 'appCardsForAudience',
