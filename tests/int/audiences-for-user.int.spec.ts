@@ -14,6 +14,8 @@ const AUDIENCE_DEFAULTS = {
   meditationsPerWeek: 0,
   totalMeditationsViewed: 0,
   totalLecturesViewed: 0,
+  country: 'US',
+  timezone: 'Europe/London',
 }
 
 async function callEndpoint(
@@ -38,30 +40,39 @@ describe('audiencesForUser endpoint', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
-  let audienceBeginner: Audience
-  let audienceIntermediate: Audience
-  let audienceFrequent: Audience
+  // Progress audiences — matched via SQL WHERE on native range fields
+  let audienceBeginner: Audience // pathProgress 0..5
+  let audienceIntermediate: Audience // pathProgress 5..10
+  let audienceFrequent: Audience // meditationsPerWeek >= 3
+
+  // Context audiences — matched via JS filter on country/schedule/eventTime
+  let audienceConditionOpen: Audience // no constraints → always passes
+  let audienceConditionUS: Audience // country: ['US']
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
 
-    // Three audiences whose rule sets target distinct slices of the user-state space.
-    // Beginner — pathProgress 0..5
     audienceBeginner = await testData.createAudience(payload, {
       label: 'Beginner',
-      rules: { logic: 'AND', pathProgress: { min: 0, max: 5 } },
+      pathProgress: { min: 0, max: 5 },
     })
-    // Intermediate — pathProgress 5..10
     audienceIntermediate = await testData.createAudience(payload, {
       label: 'Intermediate',
-      rules: { logic: 'AND', pathProgress: { min: 5, max: 10 } },
+      pathProgress: { min: 5, max: 10 },
     })
-    // Frequent meditator — meditationsPerWeek >= 3
     audienceFrequent = await testData.createAudience(payload, {
       label: 'Frequent',
-      rules: { logic: 'AND', meditationsPerWeek: { min: 3 } },
+      meditationsPerWeek: { min: 3 },
+    })
+
+    audienceConditionOpen = await testData.createConditionAudience(payload, {
+      label: 'Open Condition',
+    })
+    audienceConditionUS = await testData.createConditionAudience(payload, {
+      label: 'US Condition',
+      country: ['US'],
     })
   })
 
@@ -69,13 +80,13 @@ describe('audiencesForUser endpoint', () => {
     await cleanup()
   })
 
-  it('returns 400 when audience rule-data params are missing', async () => {
+  it('returns 400 when required params are missing', async () => {
     const { status, body } = await callEndpoint(payload, {}, { skipAudienceDefaults: true })
     expect(status).toBe(400)
     expect(body).toHaveProperty('errors')
   })
 
-  it('returns IDs of audiences whose rules pass for the supplied data', async () => {
+  it('returns progress audience IDs matching the supplied data', async () => {
     const { status, body } = await callEndpoint(payload, { pathProgress: 3 })
     expect(status).toBe(200)
     expect(body.audiences).toContain(audienceBeginner.id)
@@ -92,7 +103,7 @@ describe('audiencesForUser endpoint', () => {
     expect(ids).toEqual(sorted)
   })
 
-  it('combines matches across rule dimensions (e.g. path + frequency)', async () => {
+  it('matches across multiple progress rule dimensions', async () => {
     const { body } = await callEndpoint(payload, {
       pathProgress: 7,
       meditationsPerWeek: 5,
@@ -105,5 +116,33 @@ describe('audiencesForUser endpoint', () => {
   it('sets Cache-Control: public, max-age=300, s-maxage=300', async () => {
     const { headers } = await callEndpoint(payload, { pathProgress: 0 })
     expect(headers.get('Cache-Control')).toBe('public, max-age=300, s-maxage=300')
+  })
+
+  describe('Condition audiences', () => {
+    it('includes a condition audience with no constraints', async () => {
+      const { status, body } = await callEndpoint(payload, {})
+      expect(status).toBe(200)
+      expect(body.audiences).toContain(audienceConditionOpen.id)
+    })
+
+    it('includes condition audience when country matches', async () => {
+      const { body } = await callEndpoint(payload, { country: 'US' })
+      expect(body.audiences).toContain(audienceConditionUS.id)
+    })
+
+    it('excludes condition audience when country does not match', async () => {
+      const { body } = await callEndpoint(payload, { country: 'DE' })
+      expect(body.audiences).not.toContain(audienceConditionUS.id)
+    })
+
+    it('condition and progress audience IDs are combined and sorted ascending', async () => {
+      const { body } = await callEndpoint(payload, { country: 'US' })
+      const ids = body.audiences ?? []
+      const sorted = [...ids].sort((a, b) => a - b)
+      expect(ids).toEqual(sorted)
+      // Both types contribute to the result
+      expect(ids).toContain(audienceConditionOpen.id)
+      expect(ids).toContain(audienceConditionUS.id)
+    })
   })
 })
