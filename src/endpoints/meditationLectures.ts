@@ -161,7 +161,7 @@ export const meditationLectures: Endpoint = {
     const eligibleLectures = lectureDocs as Lecture[]
     if (eligibleLectures.length === 0) {
       if (excludedLectureIds.length > 0) {
-        const fallbackUrl = new URL(req.url)
+        const fallbackUrl = new URL(req.url!)
         fallbackUrl.searchParams.delete('excludedLectureIds')
         fallbackUrl.searchParams.set('limit', '1')
         fallbackUrl.searchParams.set('audiences', audienceIds.join(','))
