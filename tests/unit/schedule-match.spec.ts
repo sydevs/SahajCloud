@@ -84,8 +84,8 @@ describe('isScheduleActiveNow', () => {
   describe('custom window via endTime', () => {
     const scheduleWith90MinWindow: Partial<ScheduleSubFields> = {
       ...DAILY_SCHEDULE,
-      // endTime is stored as ISO — only the HH:MM component matters
-      endTime: '2024-01-15T10:30:00.000Z', // 10:30 London → delta = 90 min
+      // endTime is stored as HH:MM text by scheduleField
+      endTime: '10:30', // 10:30 → delta from 09:00 = 90 min
     }
 
     it('returns true when now is 60 min into a 90-min window', () => {
@@ -116,7 +116,7 @@ describe('isScheduleActiveNow', () => {
       firstDate_tz: 'Europe/London',
       recurrenceType: 'DAILY',
       interval: 1,
-      endTime: '2024-01-15T02:00:00.000Z', // 02:00 London → 4-hour overnight window
+      endTime: '02:00', // 02:00 HH:MM → 4-hour overnight window
     }
 
     it('returns true when now is 1 hour into an overnight window', () => {

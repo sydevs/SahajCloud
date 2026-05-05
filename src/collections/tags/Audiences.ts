@@ -136,7 +136,6 @@ export const Audiences: CollectionConfig = {
           admin: {
             description:
               'Schedule gate: passes only when a recurring or one-off occurrence is currently active. Empty = no schedule filter.',
-            condition: (data: Record<string, unknown>) => data?.type === 'condition',
           },
         }),
       ],

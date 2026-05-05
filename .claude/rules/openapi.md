@@ -121,18 +121,18 @@ collection slug.
 | `GET /api/app-cards/for-audience` | `src/endpoints/appCardsForAudience.ts` | `#/components/schemas/AppCards` |
 | `GET /api/meditations/{id}/related-lectures` | `src/endpoints/meditationLectures.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
 
-The audience rule-data query params on `/api/audiences/for-user` are
-generated at module load from `AUDIENCE_DEFINITIONS` in
-`src/lib/audiences/definitions.ts` and mirror the Zod shape produced by
-`buildAudienceDataShape` in `src/fields/rulesField.ts` — adding a rule
-flows through to the docs automatically. The three data endpoints
+The audience query params on `/api/audiences/for-user` are hand-authored
+in `customEndpoints.ts` as `audienceQueryParameters` — four required
+progress params (`pathProgress`, `meditationsPerWeek`,
+`totalMeditationsViewed`, `totalLecturesViewed`) plus two optional
+context params (`country`, `timezone`). The three data endpoints
 (`/lectures/for-audience`, `/app-cards/for-audience`,
 `/meditations/{id}/related-lectures`) take a single pre-resolved
 `audiences` ID list (mirrors `audiencesQueryParamSchema` in
 `src/lib/audiences/audiencesQueryParam.ts`) instead of the rule-data
-params (#340). The `audience query params on /api/audiences/for-user
-stay in sync with AUDIENCE_DEFINITIONS` assertion in
-`tests/int/api-explorer.int.spec.ts` is the regression guard.
+params (#340). The "audience query params on /api/audiences/for-user
+expose all progress + context params" assertion in
+`tests/int/api-explorer.int.spec.ts` is the regression guard (#345).
 
 When `payload-oapi` ships native custom-endpoint support, both the
 shim module and the merge block in the route handler can be deleted in
@@ -158,5 +158,5 @@ Review payload-oapi quarterly for native support of these.
 - `ALWAYS_HIDDEN_COLLECTIONS` exclusion
 - Operation filtering (DELETE, PATCH hidden)
 - Scalar UI endpoint responses
-- Audience query-param sync between `AUDIENCE_DEFINITIONS` and the `/api/audiences/for-user` resolver
+- Audience query-param coverage on `/api/audiences/for-user` (required progress + optional context params)
 - Pre-resolved `audiences` ID-list shape on the three data endpoints (#340)
