@@ -187,7 +187,7 @@ export const Lectures: CollectionConfig = {
       type: 'relationship',
       relationTo: 'audiences',
       hasMany: true,
-      filterOptions: () => true,
+      filterOptions: () => ({ type: { equals: 'progress' } }),
       admin: {
         description:
           'A user can view this lecture if they are a member of any of these audience groups. If empty, this lecture is only visible when directly referenced (e.g. from a meditation or path step).',

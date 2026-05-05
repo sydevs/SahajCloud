@@ -43,6 +43,7 @@ describe('appCardsForAudience endpoint', () => {
   let openAudience: Audience
   let pathStartedAudience: Audience
   let nullRulesAudience: Audience
+  let conditionAudience: Audience // condition-type, no constraints → always passes
 
   // Audience-ID combinations representative of the previous rule scenarios:
   // - allEligible:  resolved audiences for a "path-started" caller
@@ -64,6 +65,9 @@ describe('appCardsForAudience endpoint', () => {
   let allFailingAudiencesCard: AppCard
   let contentAlbum: Album
   let contentCard: AppCard
+  // AND-conditions gate cards
+  let cardWithCondition: AppCard
+  let cardWithMultipleConditions: AppCard
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -74,28 +78,27 @@ describe('appCardsForAudience endpoint', () => {
     const img = await testData.createMediaImage(payload, { alt: 'Shared card image' })
     const imageId = img.id
 
-    // Always-match audience — no configured rules. (Rule semantics are now
+    // Always-match audiences — no configured range rules. Rule semantics are
     // tested in audiences-for-user.int.spec.ts; here we only care about
-    // which audiences end up in the caller's `audiences` list.)
+    // which audiences end up in the caller's `audiences` list.
     openAudience = await testData.createAudience(payload, {
       label: 'Open Audience',
-      rules: {},
     })
 
-    // A "path-started" audience the new resolver would only return for callers
-    // with pathProgress >= 1. We emulate the difference by varying the
+    // A "path-started" audience — emulate the difference by varying the
     // `audiences` list passed to the endpoint per test.
     pathStartedAudience = await testData.createAudience(payload, {
       label: 'Path Started',
-      rules: {
-        logic: 'AND',
-        pathProgress: { min: 1, max: 5 },
-      },
+      pathProgress: { min: 1, max: 5 },
     })
 
     nullRulesAudience = await testData.createAudience(payload, {
       label: 'Null Rules Audience',
-      rules: null,
+    })
+
+    // Condition-type audience (always passes; used for AND-gate tests)
+    conditionAudience = await testData.createConditionAudience(payload, {
+      label: 'Open Condition',
     })
 
     allEligible = [openAudience.id, pathStartedAudience.id, nullRulesAudience.id].join(',')
@@ -205,6 +208,34 @@ describe('appCardsForAudience endpoint', () => {
       weight: 3,
       _status: 'published',
     })
+
+    // AND-conditions gate: card with a single condition audience
+    cardWithCondition = await testData.createAppCard(payload, {
+      title: 'Card With Single Condition',
+      image: imageId,
+      targetSections: ['hero'],
+      audiences: [openAudience.id],
+      conditions: [conditionAudience.id],
+      weight: 3,
+      _status: 'published',
+    })
+
+    // AND-conditions gate: card with two condition audiences — both must be present
+    const conditionAudienceB = await testData.createConditionAudience(payload, {
+      label: 'Open Condition B',
+    })
+    cardWithMultipleConditions = await testData.createAppCard(payload, {
+      title: 'Card With Two Conditions',
+      image: imageId,
+      targetSections: ['hero'],
+      audiences: [openAudience.id],
+      conditions: [conditionAudience.id, conditionAudienceB.id],
+      weight: 3,
+      _status: 'published',
+    })
+    // Store conditionAudienceB id on the card for assertions below
+    ;(cardWithMultipleConditions as AppCard & { _conditionAudienceBId: number })._conditionAudienceBId =
+      conditionAudienceB.id
   })
 
   afterAll(async () => {
@@ -429,6 +460,77 @@ describe('appCardsForAudience endpoint', () => {
       )
       const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
       expect(ids).not.toContain(allFailingAudiencesCard.id)
+    })
+  })
+
+  describe('AND-conditions gate', () => {
+    it('includes card when its condition audience ID is present in the audiences list', async () => {
+      const audiencesWithCondition = [
+        openAudience.id,
+        nullRulesAudience.id,
+        conditionAudience.id,
+      ].join(',')
+
+      const { body } = await callEndpoint(
+        payload,
+        { targetSection: 'hero', limit: 20 },
+        undefined,
+        { defaultAudiences: audiencesWithCondition },
+      )
+      const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
+      expect(ids).toContain(cardWithCondition.id)
+    })
+
+    it('excludes card when its condition audience ID is absent from the audiences list', async () => {
+      // conditionAudience not included in openOnly — card is blocked
+      const { body } = await callEndpoint(
+        payload,
+        { targetSection: 'hero', limit: 20 },
+        undefined,
+        { defaultAudiences: openOnly },
+      )
+      const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
+      expect(ids).not.toContain(cardWithCondition.id)
+    })
+
+    it('requires ALL condition IDs to be present (AND semantics)', async () => {
+      const condAudienceBId = (
+        cardWithMultipleConditions as AppCard & { _conditionAudienceBId: number }
+      )._conditionAudienceBId
+
+      // Only conditionAudience (first) present — second is absent → excluded
+      const onlyFirstCondition = [openAudience.id, conditionAudience.id].join(',')
+      const { body: bodyMissing } = await callEndpoint(
+        payload,
+        { targetSection: 'hero', limit: 20 },
+        undefined,
+        { defaultAudiences: onlyFirstCondition },
+      )
+      const idsMissing = (bodyMissing as { docs: AppCard[] }).docs.map((c) => c.id)
+      expect(idsMissing).not.toContain(cardWithMultipleConditions.id)
+
+      // Both conditions present → included
+      const bothConditions = [openAudience.id, conditionAudience.id, condAudienceBId].join(',')
+      const { body: bodyBoth } = await callEndpoint(
+        payload,
+        { targetSection: 'hero', limit: 20 },
+        undefined,
+        { defaultAudiences: bothConditions },
+      )
+      const idsBoth = (bodyBoth as { docs: AppCard[] }).docs.map((c) => c.id)
+      expect(idsBoth).toContain(cardWithMultipleConditions.id)
+    })
+
+    it('includes cards with no conditions regardless of the audiences list', async () => {
+      // heroCardOpen has no conditions — passes the AND-gate automatically
+      const { body } = await callEndpoint(
+        payload,
+        { targetSection: 'hero', limit: 20 },
+        undefined,
+        { defaultAudiences: allEligible },
+      )
+      const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
+      expect(ids).toContain(heroCardOpen.id)
     })
   })
 

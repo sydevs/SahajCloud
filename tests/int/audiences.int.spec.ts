@@ -2,8 +2,6 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import { generateRulesJsonSchema } from '@/fields/rulesField'
-
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -98,70 +96,44 @@ describe('Audiences Collection', () => {
     })
   })
 
-  describe('rules field', () => {
-    it('accepts valid range rules with AND logic', async () => {
-      const rules = {
-        logic: 'AND' as const,
+  describe('type field', () => {
+    it('defaults to progress type', async () => {
+      const audience = await testData.createAudience(payload, { label: 'Default Type Test' })
+      expect(audience.type).toBe('progress')
+    })
+
+    it('accepts condition type', async () => {
+      const audience = await testData.createAudience(payload, {
+        label: 'Condition Type Test',
+        type: 'condition',
+      })
+      expect(audience.type).toBe('condition')
+    })
+  })
+
+  describe('progress range fields', () => {
+    it('accepts valid range rules with min and max', async () => {
+      const audience = await testData.createAudience(payload, {
+        label: 'Progress Range Test',
         pathProgress: { min: 1, max: 10 },
         totalMeditationsViewed: { min: 5 },
-      }
-      const audience = await testData.createAudience(payload, { rules })
+      })
       const fetched = await payload.findByID({ collection: 'audiences', id: audience.id })
-      expect(fetched.rules).toEqual(rules)
+      expect((fetched.pathProgress as { min?: number; max?: number })?.min).toBe(1)
+      expect((fetched.pathProgress as { min?: number; max?: number })?.max).toBe(10)
     })
 
-    it('accepts null rules (always-match audience)', async () => {
-      const audience = await testData.createAudience(payload, { rules: null })
-      const fetched = await payload.findByID({ collection: 'audiences', id: audience.id })
-      expect(fetched.rules).toBeNull()
-    })
-
-    it('accepts empty object rules', async () => {
-      const audience = await testData.createAudience(payload, { rules: {} })
-      const fetched = await payload.findByID({ collection: 'audiences', id: audience.id })
-      expect(fetched.rules).toEqual({})
-    })
-
-    it('accepts a single range rule', async () => {
-      const rules = { pathProgress: { min: 3, max: 7 } }
-      const audience = await testData.createAudience(payload, { rules })
-      expect(audience.rules).toEqual(rules)
-    })
-
-    it('accepts all four range rules', async () => {
-      const rules = {
-        logic: 'OR' as const,
-        pathProgress: { min: 0, max: 5 },
-        meditationsPerWeek: { min: 1, max: 7 },
-        totalMeditationsViewed: { min: 10, max: 50 },
-        totalLecturesViewed: { min: 1, max: 20 },
-      }
-      const audience = await testData.createAudience(payload, { rules })
-      expect(audience.rules).toEqual(rules)
-    })
-
-    it('rejects range rules where max <= min', async () => {
-      const rules = {
-        pathProgress: { min: 10, max: 5 },
-      }
+    it('rejects range where max <= min (custom validator)', async () => {
       await expect(
-        testData.createAudience(payload, { rules }),
+        payload.create({
+          collection: 'audiences',
+          data: {
+            label: 'Invalid Range',
+            type: 'progress',
+            pathProgress: { min: 10, max: 5 },
+          },
+        }),
       ).rejects.toThrow()
-    })
-
-    it('defines JSON schema with additionalProperties: false for client-side validation', () => {
-      const schema = generateRulesJsonSchema([
-        { name: 'pathProgress', type: 'range' },
-        { name: 'meditationsPerWeek', type: 'range' },
-        { name: 'totalMeditationsViewed', type: 'range' },
-        { name: 'totalLecturesViewed', type: 'range' },
-      ])
-      expect(schema.additionalProperties).toBe(false)
-      expect(schema.properties).toHaveProperty('pathProgress')
-      expect(schema.properties).toHaveProperty('meditationsPerWeek')
-      expect(schema.properties).toHaveProperty('totalMeditationsViewed')
-      expect(schema.properties).toHaveProperty('totalLecturesViewed')
-      expect(schema.properties).toHaveProperty('logic')
     })
   })
 
