@@ -385,6 +385,12 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       ],
       responses: {
         '200': jsonDocsResponse('#/components/schemas/LecturePlayerData'),
+        '307': {
+          description:
+            'Redirects to the same endpoint without `excludedLectureIds` and ' +
+            'with `limit=1` when all eligible lectures have been excluded. ' +
+            'Follow the `Location` header to retrieve the fallback result.',
+        },
         '400': errorResponse('Query param validation failed.'),
         '404': errorResponse('Meditation not found.'),
       },
