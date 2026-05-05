@@ -14,6 +14,8 @@ const AUDIENCE_DEFAULTS = {
   meditationsPerWeek: 0,
   totalMeditationsViewed: 0,
   totalLecturesViewed: 0,
+  country: 'US',
+  timezone: 'Europe/London',
 }
 
 async function callEndpoint(
@@ -43,10 +45,9 @@ describe('audiencesForUser endpoint', () => {
   let audienceIntermediate: Audience // pathProgress 5..10
   let audienceFrequent: Audience // meditationsPerWeek >= 3
 
-  // Condition audiences — matched via JS filter on country/schedule/eventTime
+  // Context audiences — matched via JS filter on country/schedule/eventTime
   let audienceConditionOpen: Audience // no constraints → always passes
   let audienceConditionUS: Audience // country: ['US']
-  let audienceConditionScheduled: Audience // has schedule → requires timezone param
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -73,22 +74,13 @@ describe('audiencesForUser endpoint', () => {
       label: 'US Condition',
       country: ['US'],
     })
-    audienceConditionScheduled = await testData.createConditionAudience(payload, {
-      label: 'Scheduled Condition',
-      schedule: {
-        firstDate: '2024-01-15T09:00:00.000Z',
-        firstDate_tz: 'Europe/London',
-        recurrenceType: 'DAILY',
-        interval: 1,
-      } as Audience['schedule'],
-    })
   })
 
   afterAll(async () => {
     await cleanup()
   })
 
-  it('returns 400 when required progress params are missing', async () => {
+  it('returns 400 when required params are missing', async () => {
     const { status, body } = await callEndpoint(payload, {}, { skipAudienceDefaults: true })
     expect(status).toBe(400)
     expect(body).toHaveProperty('errors')
@@ -141,23 +133,6 @@ describe('audiencesForUser endpoint', () => {
     it('excludes condition audience when country does not match', async () => {
       const { body } = await callEndpoint(payload, { country: 'DE' })
       expect(body.audiences).not.toContain(audienceConditionUS.id)
-    })
-
-    it('excludes country condition audience when no country param is supplied', async () => {
-      const { body } = await callEndpoint(payload, {}) // no country param
-      expect(body.audiences).not.toContain(audienceConditionUS.id)
-    })
-
-    it('excludes schedule condition audience when timezone param is missing', async () => {
-      const { body } = await callEndpoint(payload, {}) // no timezone
-      expect(body.audiences).not.toContain(audienceConditionScheduled.id)
-    })
-
-    it('still includes progress audiences when condition audiences are excluded', async () => {
-      // No timezone → schedule condition audiences excluded, but progress ones still match.
-      const { body } = await callEndpoint(payload, { pathProgress: 3 })
-      expect(body.audiences).toContain(audienceBeginner.id)
-      expect(body.audiences).not.toContain(audienceConditionScheduled.id)
     })
 
     it('condition and progress audience IDs are combined and sorted ascending', async () => {

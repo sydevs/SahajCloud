@@ -647,40 +647,38 @@ describe('Custom Endpoint Shims', () => {
       expect(successSchema?.properties?.docs?.items?.$ref).toBe('#/components/schemas/AppCards')
     })
 
-    it('audience query params on /api/audiences/for-user expose all progress + context params', () => {
-      // Regression guard: progress params must be required; context params optional.
-      const requiredProgressParams = [
+    it('audience query params on /api/audiences/for-user expose all six required params', () => {
+      const allRequiredParams = [
         'pathProgress',
         'meditationsPerWeek',
         'totalMeditationsViewed',
         'totalLecturesViewed',
+        'country',
+        'timezone',
       ]
-      const optionalContextParams = ['country', 'timezone']
       const op = CUSTOM_ENDPOINT_PATHS['/api/audiences/for-user']!.get!
       const paramNames = (op.parameters ?? []).map((p) => p.name)
 
-      for (const name of [...requiredProgressParams, ...optionalContextParams]) {
+      for (const name of allRequiredParams) {
         expect(paramNames, `/audiences/for-user should expose '${name}'`).toContain(name)
       }
     })
 
-    it('audience params on /api/audiences/for-user: progress required, context optional', () => {
-      const requiredProgressParams = new Set([
+    it('all params on /api/audiences/for-user are required', () => {
+      const allRequiredParams = new Set([
         'pathProgress',
         'meditationsPerWeek',
         'totalMeditationsViewed',
         'totalLecturesViewed',
+        'country',
+        'timezone',
       ])
-      const optionalContextParams = new Set(['country', 'timezone'])
       const op = CUSTOM_ENDPOINT_PATHS['/api/audiences/for-user']!.get!
 
       for (const param of op.parameters ?? []) {
-        if (requiredProgressParams.has(param.name)) {
+        if (allRequiredParams.has(param.name)) {
           expect(param.in).toBe('query')
           expect(param.required).toBe(true)
-        } else if (optionalContextParams.has(param.name)) {
-          expect(param.in).toBe('query')
-          expect(param.required).toBeFalsy()
         }
       }
     })

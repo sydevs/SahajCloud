@@ -122,16 +122,16 @@ collection slug.
 | `GET /api/meditations/{id}/related-lectures` | `src/endpoints/meditationLectures.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
 
 The audience query params on `/api/audiences/for-user` are hand-authored
-in `customEndpoints.ts` as `audienceQueryParameters` — four required
-progress params (`pathProgress`, `meditationsPerWeek`,
-`totalMeditationsViewed`, `totalLecturesViewed`) plus two optional
-context params (`country`, `timezone`). The three data endpoints
+in `customEndpoints.ts` as `audienceQueryParameters` — six required
+params: four progress params (`pathProgress`, `meditationsPerWeek`,
+`totalMeditationsViewed`, `totalLecturesViewed`) plus `country` and
+`timezone`. The three data endpoints
 (`/lectures/for-audience`, `/app-cards/for-audience`,
 `/meditations/{id}/related-lectures`) take a single pre-resolved
 `audiences` ID list (mirrors `audiencesQueryParamSchema` in
 `src/lib/audiences/audiencesQueryParam.ts`) instead of the rule-data
 params (#340). The "audience query params on /api/audiences/for-user
-expose all progress + context params" assertion in
+expose all six required params" assertion in
 `tests/int/api-explorer.int.spec.ts` is the regression guard (#345).
 
 When `payload-oapi` ships native custom-endpoint support, both the
@@ -158,5 +158,5 @@ Review payload-oapi quarterly for native support of these.
 - `ALWAYS_HIDDEN_COLLECTIONS` exclusion
 - Operation filtering (DELETE, PATCH hidden)
 - Scalar UI endpoint responses
-- Audience query-param coverage on `/api/audiences/for-user` (required progress + optional context params)
+- Audience query-param coverage on `/api/audiences/for-user` (all six params required)
 - Pre-resolved `audiences` ID-list shape on the three data endpoints (#340)
