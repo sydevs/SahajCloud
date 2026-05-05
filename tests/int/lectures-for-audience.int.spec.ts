@@ -655,6 +655,153 @@ describe('lecturesForAudience endpoint', () => {
     })
   })
 
+  describe('priority ordering', () => {
+    // Audience A: 1 pinned (priority 5) + 3 normal (priority 0) + 1 unset (tests 1 & 4)
+    let audienceA: Audience
+    let lectureAPinned: Lecture
+    let lectureANormal1: Lecture
+    let lectureANormal2: Lecture
+    let lectureANormal3: Lecture
+    let lectureAUnset: Lecture
+
+    // Audience B: all pinned at distinct priorities 10 / 5 / 1 (tests 2 & 5)
+    let audienceB: Audience
+    let lectureBHigh: Lecture
+    let lectureBMid: Lecture
+    let lectureBLow: Lecture
+
+    // Audience C: two lectures at equal priority 5 (test 3)
+    let audienceC: Audience
+    let lectureCTie1: Lecture
+    let lectureCTie2: Lecture
+
+    // Audience D: 4 pinned lectures at distinct priorities (test 6)
+    let audienceD: Audience
+    let lectureDPinned1: Lecture
+    let lectureDPinned2: Lecture
+    let lectureDPinned3: Lecture
+    let lectureDPinned4: Lecture
+
+    // Audience E: 3 lectures all at priority 0 — all-normal pool (test 7)
+    let audienceE: Audience
+    let lectureENormal1: Lecture
+    let lectureENormal2: Lecture
+    let lectureENormal3: Lecture
+
+    beforeAll(async () => {
+      audienceA = await testData.createAudience(payload)
+      audienceB = await testData.createAudience(payload)
+      audienceC = await testData.createAudience(payload)
+      audienceD = await testData.createAudience(payload)
+      audienceE = await testData.createAudience(payload)
+
+      lectureAPinned = await testData.createLecture(payload, {}, { audiences: [audienceA.id], priority: 5 })
+      lectureANormal1 = await testData.createLecture(payload, {}, { audiences: [audienceA.id], priority: 0 })
+      lectureANormal2 = await testData.createLecture(payload, {}, { audiences: [audienceA.id], priority: 0 })
+      lectureANormal3 = await testData.createLecture(payload, {}, { audiences: [audienceA.id], priority: 0 })
+      // Priority field omitted — defaultValue:0 applies, testing the "unset" path
+      lectureAUnset = await testData.createLecture(payload, {}, { audiences: [audienceA.id] })
+
+      lectureBHigh = await testData.createLecture(payload, {}, { audiences: [audienceB.id], priority: 10 })
+      lectureBMid = await testData.createLecture(payload, {}, { audiences: [audienceB.id], priority: 5 })
+      lectureBLow = await testData.createLecture(payload, {}, { audiences: [audienceB.id], priority: 1 })
+
+      lectureCTie1 = await testData.createLecture(payload, {}, { audiences: [audienceC.id], priority: 5 })
+      lectureCTie2 = await testData.createLecture(payload, {}, { audiences: [audienceC.id], priority: 5 })
+
+      lectureDPinned1 = await testData.createLecture(payload, {}, { audiences: [audienceD.id], priority: 10 })
+      lectureDPinned2 = await testData.createLecture(payload, {}, { audiences: [audienceD.id], priority: 8 })
+      lectureDPinned3 = await testData.createLecture(payload, {}, { audiences: [audienceD.id], priority: 6 })
+      lectureDPinned4 = await testData.createLecture(payload, {}, { audiences: [audienceD.id], priority: 4 })
+
+      lectureENormal1 = await testData.createLecture(payload, {}, { audiences: [audienceE.id], priority: 0 })
+      lectureENormal2 = await testData.createLecture(payload, {}, { audiences: [audienceE.id], priority: 0 })
+      lectureENormal3 = await testData.createLecture(payload, {}, { audiences: [audienceE.id], priority: 0 })
+    })
+
+    it('pinned lecture (priority > 0) always appears before all un-pinned lectures', async () => {
+      const param = String(audienceA.id)
+      for (let i = 0; i < 5; i++) {
+        const { body } = await callEndpoint(payload, { limit: 100 }, undefined, { defaultAudiences: param })
+        const docs = (body as { docs: LecturePlayerData[] }).docs
+        const pinnedIdx = docs.findIndex((d) => d.id === lectureAPinned.id)
+        expect(pinnedIdx).toBe(0)
+        for (const normal of [lectureANormal1, lectureANormal2, lectureANormal3, lectureAUnset]) {
+          expect(pinnedIdx).toBeLessThan(docs.findIndex((d) => d.id === normal.id))
+        }
+      }
+    })
+
+    it('lecture with higher priority always appears before lower-priority lecture', async () => {
+      const param = String(audienceB.id)
+      for (let i = 0; i < 5; i++) {
+        const { body } = await callEndpoint(payload, { limit: 100 }, undefined, { defaultAudiences: param })
+        const docs = (body as { docs: LecturePlayerData[] }).docs
+        const highIdx = docs.findIndex((d) => d.id === lectureBHigh.id)
+        const midIdx = docs.findIndex((d) => d.id === lectureBMid.id)
+        const lowIdx = docs.findIndex((d) => d.id === lectureBLow.id)
+        expect(highIdx).toBeLessThan(midIdx)
+        expect(midIdx).toBeLessThan(lowIdx)
+      }
+    })
+
+    it('equal-priority lectures appear in random order across calls', async () => {
+      const param = String(audienceC.id)
+      const orderings = new Set<string>()
+
+      for (let i = 0; i < 20; i++) {
+        const { body } = await callEndpoint(payload, { limit: 100 }, undefined, { defaultAudiences: param })
+        const docs = (body as { docs: LecturePlayerData[] }).docs
+        const tie1Idx = docs.findIndex((d) => d.id === lectureCTie1.id)
+        const tie2Idx = docs.findIndex((d) => d.id === lectureCTie2.id)
+        orderings.add(tie1Idx < tie2Idx ? 'tie1-first' : 'tie2-first')
+      }
+
+      expect(orderings.size).toBe(2)
+    })
+
+    it('lecture with default priority (unset → 0) participates in the normal pool, after pinned', async () => {
+      const param = String(audienceA.id)
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, { defaultAudiences: param })
+      const docs = (body as { docs: LecturePlayerData[] }).docs
+      const pinnedIdx = docs.findIndex((d) => d.id === lectureAPinned.id)
+      const unsetIdx = docs.findIndex((d) => d.id === lectureAUnset.id)
+      expect(pinnedIdx).toBeLessThan(unsetIdx)
+    })
+
+    it('all-pinned pool is sorted by priority descending with no normal items appended', async () => {
+      const param = String(audienceB.id)
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, { defaultAudiences: param })
+      const docs = (body as { docs: LecturePlayerData[] }).docs
+      expect(docs).toHaveLength(3)
+      expect(docs[0].id).toBe(lectureBHigh.id)
+      expect(docs[1].id).toBe(lectureBMid.id)
+      expect(docs[2].id).toBe(lectureBLow.id)
+    })
+
+    it('when limit is smaller than the pinned pool, only the highest-priority lectures are returned', async () => {
+      const param = String(audienceD.id)
+      const { body } = await callEndpoint(payload, { limit: 2 }, undefined, { defaultAudiences: param })
+      const docs = (body as { docs: LecturePlayerData[] }).docs
+      expect(docs).toHaveLength(2)
+      const returnedIds = docs.map((d) => d.id)
+      expect(returnedIds).toContain(lectureDPinned1.id)
+      expect(returnedIds).toContain(lectureDPinned2.id)
+      expect(returnedIds).not.toContain(lectureDPinned3.id)
+      expect(returnedIds).not.toContain(lectureDPinned4.id)
+    })
+
+    it('all-normal pool (no pinned lectures) returns all lectures', async () => {
+      const param = String(audienceE.id)
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, { defaultAudiences: param })
+      const docs = (body as { docs: LecturePlayerData[] }).docs
+      const returnedIds = docs.map((d) => d.id)
+      expect(returnedIds).toContain(lectureENormal1.id)
+      expect(returnedIds).toContain(lectureENormal2.id)
+      expect(returnedIds).toContain(lectureENormal3.id)
+    })
+  })
+
   describe('req forwarding', () => {
     it('threads req through the lectures payload.find call for usage-tracking / rate-limit hooks', async () => {
       void audienceIntermediate

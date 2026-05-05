@@ -883,6 +883,10 @@ export interface Lecture {
    * Chakras and nadis discussed in this lecture. This allows us to select relevant lectures when a viewer finishes a meditation.
    */
   subtleSystemNodes?: (number | SubtleSystemNode)[] | null;
+  /**
+   * Lectures with priority > 0 are always returned first in the for-audience feed, sorted by priority (highest first). Lectures with equal priority are shuffled randomly. Leave at 0 for the normal random pool.
+   */
+  priority?: number | null;
   clips?: {
     docs?: (number | Lecture)[];
     hasNextPage?: boolean;
@@ -2316,6 +2320,7 @@ export interface LecturesSelect<T extends boolean = true> {
   audiences?: T;
   userChoices?: T;
   subtleSystemNodes?: T;
+  priority?: T;
   clips?: T;
   updatedAt?: T;
   createdAt?: T;
