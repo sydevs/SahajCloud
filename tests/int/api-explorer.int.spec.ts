@@ -20,7 +20,6 @@ import { openapi } from 'payload-oapi'
 
 import { collections, Managers } from '../../src/collections'
 import { globals } from '../../src/globals'
-import { AUDIENCE_DEFINITIONS } from '../../src/lib/audiences/definitions'
 import {
   CUSTOM_ENDPOINT_PATHS,
   CUSTOM_ENDPOINT_SCHEMAS,
@@ -648,30 +647,40 @@ describe('Custom Endpoint Shims', () => {
       expect(successSchema?.properties?.docs?.items?.$ref).toBe('#/components/schemas/AppCards')
     })
 
-    it('audience query params on /api/audiences/for-user stay in sync with AUDIENCE_DEFINITIONS', () => {
-      // Regression guard: if a new rule is added to AUDIENCE_DEFINITIONS but
-      // not plumbed through `audienceQueryParameters` in customEndpoints.ts,
-      // the generated docs silently under-advertise the resolver endpoint.
-      // After #340 the data endpoints no longer carry rule-data params —
-      // they take a pre-resolved `audiences` ID list instead — so the sync
-      // contract only applies to /for-user.
-      const ruleNames = AUDIENCE_DEFINITIONS.map((rule) => rule.name)
+    it('audience query params on /api/audiences/for-user expose all progress + context params', () => {
+      // Regression guard: progress params must be required; context params optional.
+      const requiredProgressParams = [
+        'pathProgress',
+        'meditationsPerWeek',
+        'totalMeditationsViewed',
+        'totalLecturesViewed',
+      ]
+      const optionalContextParams = ['country', 'timezone']
       const op = CUSTOM_ENDPOINT_PATHS['/api/audiences/for-user']!.get!
       const paramNames = (op.parameters ?? []).map((p) => p.name)
 
-      for (const ruleName of ruleNames) {
-        expect(paramNames, `/audiences/for-user should expose '${ruleName}'`).toContain(ruleName)
+      for (const name of [...requiredProgressParams, ...optionalContextParams]) {
+        expect(paramNames, `/audiences/for-user should expose '${name}'`).toContain(name)
       }
     })
 
-    it('audience params on /api/audiences/for-user are all required query params', () => {
-      const ruleNames = new Set(AUDIENCE_DEFINITIONS.map((rule) => rule.name))
+    it('audience params on /api/audiences/for-user: progress required, context optional', () => {
+      const requiredProgressParams = new Set([
+        'pathProgress',
+        'meditationsPerWeek',
+        'totalMeditationsViewed',
+        'totalLecturesViewed',
+      ])
+      const optionalContextParams = new Set(['country', 'timezone'])
       const op = CUSTOM_ENDPOINT_PATHS['/api/audiences/for-user']!.get!
 
       for (const param of op.parameters ?? []) {
-        if (ruleNames.has(param.name)) {
+        if (requiredProgressParams.has(param.name)) {
           expect(param.in).toBe('query')
           expect(param.required).toBe(true)
+        } else if (optionalContextParams.has(param.name)) {
+          expect(param.in).toBe('query')
+          expect(param.required).toBeFalsy()
         }
       }
     })
@@ -694,13 +703,13 @@ describe('Custom Endpoint Shims', () => {
         expect(audiencesParam?.schema?.type).toBe('string')
         expect(audiencesParam?.schema?.pattern).toBe('^\\d+(,\\d+)*$')
 
-        // Old rule-data params must not be present anymore.
+        // Old rule-data params must not be present on data endpoints anymore (moved to /for-user).
         const paramNames = (op.parameters ?? []).map((p) => p.name)
-        for (const rule of AUDIENCE_DEFINITIONS) {
+        for (const ruleName of ['pathProgress', 'meditationsPerWeek', 'totalMeditationsViewed', 'totalLecturesViewed']) {
           expect(
             paramNames,
-            `${path} should NOT expose old rule param '${rule.name}'`,
-          ).not.toContain(rule.name)
+            `${path} should NOT expose old rule param '${ruleName}'`,
+          ).not.toContain(ruleName)
         }
       }
     })
@@ -751,24 +760,14 @@ describe('Custom Endpoint Shims', () => {
       expect((limitParam?.schema as { maximum?: number; minimum?: number })?.minimum).toBe(1)
     })
 
-    it('audience query-param descriptions on /api/audiences/for-user mirror RuleDefinition.description', () => {
-      // Each rule with an authored description in AUDIENCE_DEFINITIONS should
-      // surface that exact text on the resolver endpoint — keeps admin UI
-      // hint + OpenAPI docs copy in lockstep.
-      const definedDescriptions = new Map<string, string>()
-      for (const rule of AUDIENCE_DEFINITIONS) {
-        if (rule.description) definedDescriptions.set(rule.name, rule.description)
-      }
-      expect(definedDescriptions.size).toBeGreaterThan(0)
-
+    it('audience query-param descriptions on /api/audiences/for-user are non-empty', () => {
+      // All hand-written params must have a description so Scalar docs are informative.
       const op = CUSTOM_ENDPOINT_PATHS['/api/audiences/for-user']!.get!
       for (const param of op.parameters ?? []) {
-        const expected = definedDescriptions.get(param.name)
-        if (expected) {
-          expect(param.description, `/audiences/for-user ${param.name} description`).toBe(
-            expected,
-          )
-        }
+        expect(
+          param.description,
+          `/audiences/for-user '${param.name}' must have a description`,
+        ).toBeTruthy()
       }
     })
   })

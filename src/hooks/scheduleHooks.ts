@@ -22,37 +22,10 @@ import type { FieldHook } from 'payload'
 import { Temporal } from '@js-temporal/polyfill'
 import { type RRuleOptions, RRuleTemporal } from 'rrule-temporal'
 
-/**
- * A single exclusion date range within the exclusions array.
- * When endDate is omitted, only startDate is excluded (single-date exclusion).
- */
-export interface ExclusionRange {
-  startDate: string // YYYY-MM-DD or ISO datetime
-  endDate?: string // YYYY-MM-DD or ISO datetime, optional
-  reason?: string
-  id?: string // PayloadCMS array item ID
-}
+import type { ExclusionRange, ScheduleSubFields } from '@/types/schedule'
 
-/**
- * Sub-field structure matching the PayloadCMS Group field sub-fields.
- * Values use RFC 5545 conventions: uppercase frequencies, two-letter day codes.
- */
-interface ScheduleSubFields {
-  firstDate: string
-  firstDate_tz?: string
-  endTime?: string
-  recurrenceType?: 'DAILY' | 'WEEKLY' | 'MONTHLY'
-  interval?: number
-  weekdays?: string[]
-  monthDay?: number
-  monthlyMode?: 'date' | 'weekday'
-  weekNumber?: string
-  weekdayOfMonth?: string
-  endingType?: 'count' | 'until'
-  count?: number
-  untilDate?: string
-  exclusions?: ExclusionRange[]
-}
+export type { ExclusionRange, ScheduleSubFields }
+
 
 /** Number of upcoming occurrences to compute */
 const UPCOMING_COUNT = 10
@@ -163,7 +136,7 @@ function expandExclusionRanges(
  *
  * Returns null only when firstDate is missing or invalid.
  */
-function buildRRuleTemporal(fields: Partial<ScheduleSubFields>): RRuleTemporal | null {
+export function buildRRuleTemporal(fields: Partial<ScheduleSubFields>): RRuleTemporal | null {
   if (!fields.firstDate) return null
 
   const timezone = fields.firstDate_tz || 'UTC'
