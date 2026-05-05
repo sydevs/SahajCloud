@@ -374,7 +374,7 @@ export const testData = {
     return (await payload.create({
       collection: 'audiences',
       data: {
-        type: 'condition',
+        type: 'context',
         label: defaultLabel,
         ...overrides,
       },

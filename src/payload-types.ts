@@ -900,7 +900,7 @@ export interface Audience {
   /**
    * Does this audience group users based on their progress in the app or based on their context (location & time).
    */
-  type: 'progress' | 'condition';
+  type: 'progress' | 'context';
   label: string;
   pathProgress?: {
     /**

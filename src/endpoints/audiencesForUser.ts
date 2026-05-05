@@ -20,7 +20,7 @@ const querySchema = z.object({
   meditationsPerWeek: z.coerce.number(),
   totalMeditationsViewed: z.coerce.number(),
   totalLecturesViewed: z.coerce.number(),
-  // Context params (optional — required for condition audiences that use those fields)
+  // Context params (optional — required for context audiences that use those fields)
   country: z.string().length(2).optional(),
   timezone: z.string().optional(),
 })
@@ -62,14 +62,14 @@ function buildProgressWhereClause(params: QueryParams) {
  *
  * Resolves the set of Audiences a user qualifies for given their current
  * progress data and optional context (country, timezone). Returns combined
- * matching progress + condition audience IDs.
+ * matching progress + context audience IDs.
  *
  * Progress audiences: evaluated via a single SQL WHERE query.
- * Condition audiences: fetched all, then JS-filtered by country/schedule/eventTime.
+ * Context audiences: fetched all, then JS-filtered by country/schedule/eventTime.
  *
  * Clients call this once per state change and pass the result to the
  * `/for-audience` data endpoints, which skip rule eval and are more cacheable.
- * See #340 for the split rationale; #345 for the condition audience extension.
+ * See #340 for the split rationale; #345 for the context audience extension.
  */
 export const audiencesForUser: Endpoint = {
   path: '/for-user',
@@ -99,10 +99,10 @@ export const audiencesForUser: Endpoint = {
 
     const progressIds: number[] = progressResult.docs.map((a) => a.id)
 
-    // ── Condition audiences: fetch-all + JS filter ─────────────────────────
+    // ── Context audiences: fetch-all + JS filter ──────────────────────────
     const conditionResult = await req.payload.find({
       collection: 'audiences',
-      where: { type: { equals: 'condition' } },
+      where: { type: { equals: 'context' } },
       depth: 1,
       limit: 200,
       pagination: false,

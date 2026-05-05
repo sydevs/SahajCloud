@@ -102,12 +102,12 @@ describe('Audiences Collection', () => {
       expect(audience.type).toBe('progress')
     })
 
-    it('accepts condition type', async () => {
+    it('accepts context type', async () => {
       const audience = await testData.createAudience(payload, {
-        label: 'Condition Type Test',
-        type: 'condition',
+        label: 'Context Type Test',
+        type: 'context',
       })
-      expect(audience.type).toBe('condition')
+      expect(audience.type).toBe('context')
     })
   })
 

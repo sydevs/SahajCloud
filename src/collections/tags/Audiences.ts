@@ -73,7 +73,7 @@ export const Audiences: CollectionConfig = {
       defaultValue: 'progress',
       options: [
         { label: 'Progress', value: 'progress' },
-        { label: 'Condition', value: 'condition' },
+        { label: 'Time & Location', value: 'context' },
       ],
       admin: {
         description:
@@ -108,7 +108,7 @@ export const Audiences: CollectionConfig = {
       type: 'collapsible',
       label: 'Display Conditions',
       admin: {
-        condition: (data) => data?.type === 'condition',
+        condition: (data) => data?.type === 'context',
         description: 'Any empty rule will be ignored',
       },
       fields: [
