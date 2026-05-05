@@ -11,14 +11,12 @@
  *   - `src/app/(payload)/api/openapi.json/route.ts` merges these into the
  *     spec between `generateV31Spec` and `filterSpec`.
  *   - `tests/int/api-explorer.int.spec.ts` asserts the shape is kept in sync
- *     with `AUDIENCE_DEFINITIONS` and with the actual handler return types.
+ *     with the actual handler return types and query params.
  *
  * When `payload-oapi` ships native custom-endpoint support, delete this
  * module and the merge block in the route handler.
  */
 
-import type { RuleDefinition } from '@/fields/rulesField'
-import { AUDIENCE_DEFINITIONS } from '@/lib/audiences/definitions'
 import { LOCALES } from '@/lib/locales'
 
 /** Minimal OpenAPI 3.1 schema object — we only need the subset used below. */
@@ -57,61 +55,58 @@ interface OpenAPIResponse {
   content?: Record<string, { schema: OpenAPISchemaObject }>
 }
 
-// ── Audience query-param generator ────────────────────────────────────────────
+// ── Audience query params (hand-written) ─────────────────────────────────────
 
 /**
- * Maps a `RuleDefinition` to its OpenAPI 3.1 schema. Mirrors the Zod shape
- * produced by `buildAudienceDataShape` in `src/fields/rulesField.ts` — the
- * two must stay in lockstep so docs match runtime validation.
- *
- * Boolean-type caveat: the Zod shape currently accepts only the strings
- * `'true'` / `'false'` (`z.enum(['true', 'false'])`), while this OpenAPI
- * schema reports `type: 'boolean'`. Scalar and most generators serialize
- * boolean query params as literal `true`/`false` strings, so the two line
- * up today. If a generator emits `1`/`0` instead, Zod will reject the
- * request. There are no boolean rules in `AUDIENCE_DEFINITIONS` today; when
- * one is added, widen the Zod shape to accept numeric encodings too.
+ * Query parameters for `GET /api/audiences/for-user`.
+ * All six params are required — four progress params + country + timezone.
  */
-function ruleToSchema(rule: RuleDefinition): OpenAPISchemaObject {
-  switch (rule.type) {
-    case 'range':
-      return { type: 'number' }
-    case 'boolean':
-      return { type: 'boolean' }
-    case 'select': {
-      const schema: OpenAPISchemaObject = { type: 'string' }
-      if (rule.options && rule.options.length > 0) {
-        schema.enum = rule.options.map((opt) => opt.value)
-      }
-      return schema
-    }
-  }
-}
-
-/**
- * Produces one required query parameter per entry in `AUDIENCE_DEFINITIONS`.
- * Consumed only by `/api/audiences/for-user` — the three data endpoints
- * (`/lectures/for-audience`, `/app-cards/for-audience`,
- * `/meditations/{id}/related-lectures`) take the pre-resolved
- * `audiencesIdsParam` instead, so they can be edge-cached (#340).
- *
- * Required matches the runtime contract (`buildAudienceDataShape` emits
- * non-optional Zod schemas), and the per-rule `description` is sourced from
- * `RuleDefinition.description` so the Scalar docs explain each input in the
- * same words as the admin UI. Generated at module load so adding a new rule
- * flows through automatically — the test `audience query params on
- * /api/audiences/for-user stay in sync with AUDIENCE_DEFINITIONS` in
- * `api-explorer.int.spec.ts` fails loudly if this drifts.
- */
-const audienceQueryParameters: OpenAPIParameter[] = AUDIENCE_DEFINITIONS.map((rule) => ({
-  name: rule.name,
-  in: 'query',
-  required: true,
-  description:
-    rule.description ??
-    `Audience targeting input (${rule.type}) — evaluated against each doc's attached audiences.`,
-  schema: ruleToSchema(rule),
-}))
+const audienceQueryParameters: OpenAPIParameter[] = [
+  {
+    name: 'pathProgress',
+    in: 'query',
+    required: true,
+    description: 'Index of the current Path step the user has reached (0 = not started).',
+    schema: { type: 'integer', minimum: 0 },
+  },
+  {
+    name: 'meditationsPerWeek',
+    in: 'query',
+    required: true,
+    description: 'Meditation sessions the user has completed in the past seven days.',
+    schema: { type: 'integer', minimum: 0 },
+  },
+  {
+    name: 'totalMeditationsViewed',
+    in: 'query',
+    required: true,
+    description: 'Lifetime count of distinct meditations the user has opened.',
+    schema: { type: 'integer', minimum: 0 },
+  },
+  {
+    name: 'totalLecturesViewed',
+    in: 'query',
+    required: true,
+    description: 'Lifetime count of distinct lectures the user has played.',
+    schema: { type: 'integer', minimum: 0 },
+  },
+  {
+    name: 'country',
+    in: 'query',
+    required: true,
+    description: 'ISO 3166-1 alpha-2 country code of the user (e.g. `US`, `GB`).',
+    schema: { type: 'string', minLength: 2, maxLength: 2 },
+  },
+  {
+    name: 'timezone',
+    in: 'query',
+    required: true,
+    description:
+      'IANA timezone name of the user (e.g. `America/Los_Angeles`). ' +
+      'Server clock is used for `now` — do not pass a `currentDateTime` param.',
+    schema: { type: 'string' },
+  },
+]
 
 // ── Shared response fragments ─────────────────────────────────────────────────
 
@@ -250,17 +245,18 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       tags: ['Audiences'],
       summary: 'Resolve eligible audience IDs for a user',
       description:
-        'Evaluates every Audience\'s rules against the supplied user ' +
-        'progress data (path step, meditation/lecture counts) and returns ' +
-        'the IDs of those that pass. Mobile clients call this once per ' +
-        'state change and pass the resulting list as `audiences` to the ' +
-        '`/for-audience` data endpoints, which lets those endpoints become ' +
-        'edge-cacheable. ' +
-        'IDs are returned sorted ascending so the response body is stable ' +
-        'across calls. Sets `Cache-Control: public, max-age=300, ' +
-        's-maxage=300` to absorb repeat calls within a foreground/background ' +
-        'cycle while keeping the TTL short enough for rule changes to ' +
-        'propagate.',
+        'Resolves the Audiences a user qualifies for based on progress data ' +
+        '(path step, meditation/lecture counts) and context (country, timezone). ' +
+        'All six query params are required. Returns the combined IDs of matching ' +
+        'progress and context audiences. ' +
+        'Progress audiences are evaluated via a SQL WHERE query. ' +
+        'Context audiences (country gate, time-of-day gate, schedule gate) ' +
+        'are fetched and JS-filtered. ' +
+        'Mobile clients call this once per state change and pass the result ' +
+        'as `audiences` to the `/for-audience` data endpoints, keeping those ' +
+        'endpoints edge-cacheable. ' +
+        'IDs are returned sorted ascending for byte-stable responses. ' +
+        'Sets `Cache-Control: public, max-age=300, s-maxage=300`.',
       operationId: 'audiencesForUser',
       parameters: [...audienceQueryParameters],
       responses: {
@@ -306,7 +302,11 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       description:
         'Returns published app cards targeting the requested `targetSection`, ' +
         'filtered to those whose `audiences` overlap the supplied list (OR ' +
-        'semantics) and weighted-random sampled by `weight`. ' +
+        'semantics), and further restricted to cards whose `conditions` are ' +
+        'all present in the supplied list (AND semantics — all condition ' +
+        'audience IDs on the card must appear in `audiences`; cards with no ' +
+        'conditions pass automatically). Results are weighted-random sampled ' +
+        'by `weight`. ' +
         'Resolve `audiences` first via `GET /api/audiences/for-user`; this ' +
         'endpoint sets `Cache-Control: public, max-age=600, s-maxage=600`.',
       operationId: 'appCardsForAudience',

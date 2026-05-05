@@ -124,6 +124,7 @@ export interface Config {
     audiences: {
       lectures: 'lectures';
       appCards: 'app-cards';
+      appCardConditions: 'app-cards';
     };
     'user-choices': {
       children: 'user-choices';
@@ -896,32 +897,359 @@ export interface Lecture {
  */
 export interface Audience {
   id: number;
+  /**
+   * Does this audience group users based on their progress in the app or based on their context (location & time).
+   */
+  type: 'progress' | 'context';
   label: string;
-  rules?: {
-    logic?: 'AND' | 'OR';
-    pathProgress?: {
-      min?: number;
-      max?: number;
-    };
-    meditationsPerWeek?: {
-      min?: number;
-      max?: number;
-    };
-    totalMeditationsViewed?: {
-      min?: number;
-      max?: number;
-    };
-    totalLecturesViewed?: {
-      min?: number;
-      max?: number;
-    };
+  pathProgress?: {
+    /**
+     * Minimum (inclusive). Empty = no lower bound.
+     */
+    min?: number | null;
+    /**
+     * Maximum (inclusive). Empty = no upper bound.
+     */
+    max?: number | null;
   };
+  meditationsPerWeek?: {
+    /**
+     * Minimum (inclusive). Empty = no lower bound.
+     */
+    min?: number | null;
+    /**
+     * Maximum (inclusive). Empty = no upper bound.
+     */
+    max?: number | null;
+  };
+  totalMeditationsViewed?: {
+    /**
+     * Minimum (inclusive). Empty = no lower bound.
+     */
+    min?: number | null;
+    /**
+     * Maximum (inclusive). Empty = no upper bound.
+     */
+    max?: number | null;
+  };
+  totalLecturesViewed?: {
+    /**
+     * Minimum (inclusive). Empty = no lower bound.
+     */
+    min?: number | null;
+    /**
+     * Maximum (inclusive). Empty = no upper bound.
+     */
+    max?: number | null;
+  };
+  /**
+   * Restrict to users in these countries.
+   */
+  country?:
+    | (
+        | 'AF'
+        | 'AX'
+        | 'AL'
+        | 'DZ'
+        | 'AS'
+        | 'AD'
+        | 'AO'
+        | 'AI'
+        | 'AQ'
+        | 'AG'
+        | 'AR'
+        | 'AM'
+        | 'AW'
+        | 'AU'
+        | 'AT'
+        | 'AZ'
+        | 'BS'
+        | 'BH'
+        | 'BD'
+        | 'BB'
+        | 'BY'
+        | 'BE'
+        | 'BZ'
+        | 'BJ'
+        | 'BM'
+        | 'BT'
+        | 'BO'
+        | 'BQ'
+        | 'BA'
+        | 'BW'
+        | 'BV'
+        | 'BR'
+        | 'IO'
+        | 'BN'
+        | 'BG'
+        | 'BF'
+        | 'BI'
+        | 'KH'
+        | 'CM'
+        | 'CA'
+        | 'CV'
+        | 'KY'
+        | 'CF'
+        | 'TD'
+        | 'CL'
+        | 'CX'
+        | 'CC'
+        | 'CO'
+        | 'KM'
+        | 'CK'
+        | 'CR'
+        | 'CI'
+        | 'HR'
+        | 'CU'
+        | 'CW'
+        | 'CY'
+        | 'CZ'
+        | 'CD'
+        | 'DK'
+        | 'DJ'
+        | 'DM'
+        | 'DO'
+        | 'EC'
+        | 'EG'
+        | 'SV'
+        | 'GQ'
+        | 'ER'
+        | 'EE'
+        | 'SZ'
+        | 'ET'
+        | 'FK'
+        | 'FO'
+        | 'FJ'
+        | 'FI'
+        | 'FR'
+        | 'GF'
+        | 'PF'
+        | 'TF'
+        | 'GA'
+        | 'GE'
+        | 'DE'
+        | 'GH'
+        | 'GI'
+        | 'GR'
+        | 'GL'
+        | 'GD'
+        | 'GP'
+        | 'GU'
+        | 'GT'
+        | 'GG'
+        | 'GN'
+        | 'GW'
+        | 'GY'
+        | 'HT'
+        | 'HM'
+        | 'VA'
+        | 'HN'
+        | 'HK'
+        | 'HU'
+        | 'IS'
+        | 'IN'
+        | 'ID'
+        | 'IQ'
+        | 'IE'
+        | 'IR'
+        | 'IM'
+        | 'IL'
+        | 'IT'
+        | 'JM'
+        | 'JP'
+        | 'JE'
+        | 'JO'
+        | 'KZ'
+        | 'KE'
+        | 'KI'
+        | 'XK'
+        | 'KW'
+        | 'KG'
+        | 'LA'
+        | 'LV'
+        | 'LB'
+        | 'LS'
+        | 'LR'
+        | 'LY'
+        | 'LI'
+        | 'LT'
+        | 'LU'
+        | 'MO'
+        | 'MG'
+        | 'MW'
+        | 'MY'
+        | 'MV'
+        | 'ML'
+        | 'MT'
+        | 'MH'
+        | 'MQ'
+        | 'MR'
+        | 'MU'
+        | 'YT'
+        | 'MX'
+        | 'FM'
+        | 'MD'
+        | 'MC'
+        | 'MN'
+        | 'ME'
+        | 'MS'
+        | 'MA'
+        | 'MZ'
+        | 'MM'
+        | 'NA'
+        | 'NR'
+        | 'NP'
+        | 'NL'
+        | 'NC'
+        | 'NZ'
+        | 'NI'
+        | 'NE'
+        | 'NG'
+        | 'NU'
+        | 'NF'
+        | 'KP'
+        | 'MP'
+        | 'NO'
+        | 'OM'
+        | 'PK'
+        | 'PW'
+        | 'PA'
+        | 'PG'
+        | 'PY'
+        | 'CN'
+        | 'PE'
+        | 'PH'
+        | 'PN'
+        | 'PL'
+        | 'PT'
+        | 'PR'
+        | 'QA'
+        | 'CG'
+        | 'GM'
+        | 'RE'
+        | 'RO'
+        | 'RU'
+        | 'RW'
+        | 'BL'
+        | 'SH'
+        | 'KN'
+        | 'LC'
+        | 'MF'
+        | 'PM'
+        | 'VC'
+        | 'WS'
+        | 'SM'
+        | 'ST'
+        | 'SA'
+        | 'SN'
+        | 'RS'
+        | 'SC'
+        | 'SL'
+        | 'SG'
+        | 'SX'
+        | 'SK'
+        | 'SI'
+        | 'SB'
+        | 'SO'
+        | 'ZA'
+        | 'GS'
+        | 'KR'
+        | 'SS'
+        | 'ES'
+        | 'LK'
+        | 'PS'
+        | 'SD'
+        | 'SR'
+        | 'SJ'
+        | 'SE'
+        | 'CH'
+        | 'SY'
+        | 'TW'
+        | 'TJ'
+        | 'TH'
+        | 'MK'
+        | 'TL'
+        | 'TG'
+        | 'TK'
+        | 'TO'
+        | 'TT'
+        | 'TN'
+        | 'TR'
+        | 'TM'
+        | 'TC'
+        | 'TV'
+        | 'UG'
+        | 'UA'
+        | 'AE'
+        | 'GB'
+        | 'TZ'
+        | 'UM'
+        | 'US'
+        | 'UY'
+        | 'UZ'
+        | 'VU'
+        | 'VE'
+        | 'VN'
+        | 'VG'
+        | 'VI'
+        | 'WF'
+        | 'EH'
+        | 'YE'
+        | 'ZM'
+        | 'ZW'
+      )[]
+    | null;
+  /**
+   * This condition is met if the this moment is during daytime hours for the user (between 08:00 and 22:00 local time).
+   */
+  eventTime?: string | null;
+  eventTime_tz?: SupportedTimezones;
+  /**
+   * This condition will be met during the scheduled times. This does not rely on the user's local time
+   */
+  schedule?: {
+    firstDate?: string | null;
+    firstDate_tz?: SupportedTimezones;
+    /**
+     * Optional, same day (24-hour format)
+     */
+    endTime?: string | null;
+    recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
+    /**
+     * Repeat every N days/weeks/months
+     */
+    interval?: number | null;
+    icalRule?: string | null;
+    upcomingDates?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  /**
+   * All lectures tagged with this audience
+   */
   lectures?: {
     docs?: (number | Lecture)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  /**
+   * All app cards tagged with this audience
+   */
   appCards?: {
+    docs?: (number | AppCard)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * All lectures tagged with this condition audience
+   */
+  appCardConditions?: {
     docs?: (number | AppCard)[];
     hasNextPage?: boolean;
     totalDocs?: number;
@@ -1021,6 +1349,10 @@ export interface AppCard {
    * Audiences that control visibility. The card is shown to a viewer if ANY of the selected audiences passes. If empty, the card is hidden from /api/app-cards/for-audience and never appears on the app homepage.
    */
   audiences?: (number | Audience)[] | null;
+  /**
+   * Display conditions that ALL must be satisfied (AND). Use for country gates, time-of-day windows, and event scheduling. Leave empty to bypass condition gating.
+   */
+  conditions?: (number | Audience)[] | null;
   /**
    * Controls how likely this card is to be chosen when displayed to a user.
    */
@@ -2090,10 +2422,49 @@ export interface FilesSelect<T extends boolean = true> {
  * via the `definition` "audiences_select".
  */
 export interface AudiencesSelect<T extends boolean = true> {
+  type?: T;
   label?: T;
-  rules?: T;
+  pathProgress?:
+    | T
+    | {
+        min?: T;
+        max?: T;
+      };
+  meditationsPerWeek?:
+    | T
+    | {
+        min?: T;
+        max?: T;
+      };
+  totalMeditationsViewed?:
+    | T
+    | {
+        min?: T;
+        max?: T;
+      };
+  totalLecturesViewed?:
+    | T
+    | {
+        min?: T;
+        max?: T;
+      };
+  country?: T;
+  eventTime?: T;
+  eventTime_tz?: T;
+  schedule?:
+    | T
+    | {
+        firstDate?: T;
+        firstDate_tz?: T;
+        endTime?: T;
+        recurrenceType?: T;
+        interval?: T;
+        icalRule?: T;
+        upcomingDates?: T;
+      };
   lectures?: T;
   appCards?: T;
+  appCardConditions?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2260,6 +2631,7 @@ export interface AppCardsSelect<T extends boolean = true> {
       };
   targetSections?: T;
   audiences?: T;
+  conditions?: T;
   weight?: T;
   updatedAt?: T;
   createdAt?: T;

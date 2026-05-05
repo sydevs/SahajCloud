@@ -175,10 +175,23 @@ export const AppCards: CollectionConfig = {
               type: 'relationship',
               relationTo: 'audiences',
               hasMany: true,
-              filterOptions: () => true,
+              filterOptions: () => ({ type: { equals: 'progress' } }),
               admin: {
                 description:
                   'Audiences that control visibility. The card is shown to a viewer if ANY of the selected audiences passes. If empty, the card is hidden from /api/app-cards/for-audience and never appears on the app homepage.',
+              },
+            },
+            // Conditions (hasMany). ALL must be satisfied for the card to show.
+            // Leave empty to bypass condition gating entirely.
+            {
+              name: 'conditions',
+              type: 'relationship',
+              relationTo: 'audiences',
+              hasMany: true,
+              filterOptions: () => ({ type: { equals: 'context' } }),
+              admin: {
+                description:
+                  'Display conditions that ALL must be satisfied (AND). Use for country gates, time-of-day windows, and event scheduling. Leave empty to bypass condition gating.',
               },
             },
             // Selection weight for client-side card prioritization
