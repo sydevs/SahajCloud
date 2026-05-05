@@ -220,6 +220,19 @@ export const Lectures: CollectionConfig = {
       },
     },
     {
+      name: 'priority',
+      type: 'number',
+      min: 0,
+      max: 100,
+      defaultValue: 0,
+      admin: {
+        description:
+          'Lectures with priority > 0 are always returned first in the for-audience feed, sorted by priority (highest first). Lectures with equal priority are shuffled randomly. Leave at 0 for the normal random pool.',
+        position: 'sidebar',
+        condition: (data) => !!data?.id,
+      },
+    },
+    {
       name: 'clips',
       type: 'join',
       collection: 'lectures',
