@@ -898,7 +898,7 @@ export interface Lecture {
 export interface Audience {
   id: number;
   /**
-   * Progress audiences gate based on user progress data. Condition audiences gate based on country, time of day, or schedule.
+   * Does this audience group users based on their progress in the app or based on their context (location & time).
    */
   type: 'progress' | 'condition';
   label: string;
@@ -943,7 +943,7 @@ export interface Audience {
     max?: number | null;
   };
   /**
-   * Restrict to users in these countries. Empty = no country filter.
+   * Restrict to users in these countries.
    */
   country?:
     | (
@@ -1200,12 +1200,12 @@ export interface Audience {
       )[]
     | null;
   /**
-   * Time-of-day gate: passes if this moment, expressed in the user's timezone, falls between 08:00 and 22:00. Empty = no time gate.
+   * This condition is met if the this moment is during daytime hours for the user (between 08:00 and 22:00 local time).
    */
   eventTime?: string | null;
   eventTime_tz?: SupportedTimezones;
   /**
-   * Schedule gate: passes only when a recurring or one-off occurrence is currently active. Empty = no schedule filter.
+   * This condition will be met during the scheduled times. This does not rely on the user's local time
    */
   schedule?: {
     firstDate?: string | null;
@@ -1231,7 +1231,7 @@ export interface Audience {
       | null;
   };
   /**
-   * Only populated for progress-type audiences (lectures use audience targeting, not condition gating).
+   * All lectures tagged with this audience
    */
   lectures?: {
     docs?: (number | Lecture)[];
@@ -1239,7 +1239,7 @@ export interface Audience {
     totalDocs?: number;
   };
   /**
-   * Populated for progress-type audiences (referenced via audiences field).
+   * All app cards tagged with this audience
    */
   appCards?: {
     docs?: (number | AppCard)[];
@@ -1247,7 +1247,7 @@ export interface Audience {
     totalDocs?: number;
   };
   /**
-   * Populated for condition-type audiences (referenced via conditions field on app cards).
+   * All lectures tagged with this condition audience
    */
   appCardConditions?: {
     docs?: (number | AppCard)[];

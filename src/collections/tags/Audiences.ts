@@ -25,13 +25,13 @@ function progressRangeField(name: string, label: string) {
             name: 'min',
             type: 'number' as const,
             label: 'Min',
-            admin: { width: '50%', description: 'Minimum (inclusive). Empty = no lower bound.' },
+            admin: { width: '300px', description: 'Minimum (inclusive). Empty = no lower bound.' },
           },
           {
             name: 'max',
             type: 'number' as const,
             label: 'Max',
-            admin: { width: '50%', description: 'Maximum (inclusive). Empty = no upper bound.' },
+            admin: { width: '300px', description: 'Maximum (inclusive). Empty = no upper bound.' },
             validate: (
               value: number | null | undefined,
               { siblingData }: { siblingData: Record<string, unknown> },
@@ -77,7 +77,10 @@ export const Audiences: CollectionConfig = {
       ],
       admin: {
         description:
-          'Progress audiences gate based on user progress data. Condition audiences gate based on country, time of day, or schedule.',
+          'Does this audience group users based on their progress in the app or based on their context (location & time).',
+        components: {
+          Field: '@/components/admin/ToggleGroupField',
+        },
       },
     },
     {
@@ -91,8 +94,7 @@ export const Audiences: CollectionConfig = {
       label: 'Progress Rules',
       admin: {
         condition: (data) => !data?.type || data.type === 'progress',
-        description:
-          'Set at least one rule. Leave a field empty to match any value for that dimension.',
+        description: 'Any empty rule will be ignored',
       },
       fields: [
         progressRangeField('pathProgress', 'Path Progress'),
@@ -107,8 +109,7 @@ export const Audiences: CollectionConfig = {
       label: 'Display Conditions',
       admin: {
         condition: (data) => data?.type === 'condition',
-        description:
-          'Leave a condition empty to skip that check. All non-empty conditions must be satisfied.',
+        description: 'Any empty rule will be ignored',
       },
       fields: [
         {
@@ -117,7 +118,7 @@ export const Audiences: CollectionConfig = {
           hasMany: true,
           options: COUNTRY_OPTIONS,
           admin: {
-            description: 'Restrict to users in these countries. Empty = no country filter.',
+            description: 'Restrict to users in these countries.',
           },
         },
         {
@@ -126,7 +127,7 @@ export const Audiences: CollectionConfig = {
           admin: {
             date: { pickerAppearance: 'timeOnly' },
             description:
-              "Time-of-day gate: passes if this moment, expressed in the user's timezone, falls between 08:00 and 22:00. Empty = no time gate.",
+              'This condition is met if the this moment is during daytime hours for the user (between 08:00 and 22:00 local time).',
           },
           timezone: true,
         },
@@ -135,7 +136,7 @@ export const Audiences: CollectionConfig = {
           required: false,
           admin: {
             description:
-              'Schedule gate: passes only when a recurring or one-off occurrence is currently active. Empty = no schedule filter.',
+              "This condition will be met during the scheduled times. This does not rely on the user's local time",
           },
         }),
       ],
@@ -148,8 +149,7 @@ export const Audiences: CollectionConfig = {
       on: 'audiences',
       defaultLimit: 100,
       admin: {
-        description:
-          'Only populated for progress-type audiences (lectures use audience targeting, not condition gating).',
+        description: 'All lectures tagged with this audience',
         components: {
           Cell: {
             path: '@/components/admin/RelationshipCountCell',
@@ -165,7 +165,7 @@ export const Audiences: CollectionConfig = {
       on: 'audiences',
       defaultLimit: 100,
       admin: {
-        description: 'Populated for progress-type audiences (referenced via audiences field).',
+        description: 'All app cards tagged with this audience',
         components: {
           Cell: {
             path: '@/components/admin/RelationshipCountCell',
@@ -181,8 +181,7 @@ export const Audiences: CollectionConfig = {
       on: 'conditions',
       defaultLimit: 100,
       admin: {
-        description:
-          'Populated for condition-type audiences (referenced via conditions field on app cards).',
+        description: 'All lectures tagged with this condition audience',
         components: {
           Cell: {
             path: '@/components/admin/RelationshipCountCell',
