@@ -682,11 +682,18 @@ describe('lecturesForAudience endpoint', () => {
     let lectureDPinned3: Lecture
     let lectureDPinned4: Lecture
 
+    // Audience E: 3 lectures all at priority 0 — all-normal pool (test 7)
+    let audienceE: Audience
+    let lectureENormal1: Lecture
+    let lectureENormal2: Lecture
+    let lectureENormal3: Lecture
+
     beforeAll(async () => {
       audienceA = await testData.createAudience(payload)
       audienceB = await testData.createAudience(payload)
       audienceC = await testData.createAudience(payload)
       audienceD = await testData.createAudience(payload)
+      audienceE = await testData.createAudience(payload)
 
       lectureAPinned = await testData.createLecture(payload, {}, { audiences: [audienceA.id], priority: 5 })
       lectureANormal1 = await testData.createLecture(payload, {}, { audiences: [audienceA.id], priority: 0 })
@@ -706,6 +713,10 @@ describe('lecturesForAudience endpoint', () => {
       lectureDPinned2 = await testData.createLecture(payload, {}, { audiences: [audienceD.id], priority: 8 })
       lectureDPinned3 = await testData.createLecture(payload, {}, { audiences: [audienceD.id], priority: 6 })
       lectureDPinned4 = await testData.createLecture(payload, {}, { audiences: [audienceD.id], priority: 4 })
+
+      lectureENormal1 = await testData.createLecture(payload, {}, { audiences: [audienceE.id], priority: 0 })
+      lectureENormal2 = await testData.createLecture(payload, {}, { audiences: [audienceE.id], priority: 0 })
+      lectureENormal3 = await testData.createLecture(payload, {}, { audiences: [audienceE.id], priority: 0 })
     })
 
     it('pinned lecture (priority > 0) always appears before all un-pinned lectures', async () => {
@@ -778,6 +789,16 @@ describe('lecturesForAudience endpoint', () => {
       expect(returnedIds).toContain(lectureDPinned2.id)
       expect(returnedIds).not.toContain(lectureDPinned3.id)
       expect(returnedIds).not.toContain(lectureDPinned4.id)
+    })
+
+    it('all-normal pool (no pinned lectures) returns all lectures', async () => {
+      const param = String(audienceE.id)
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, { defaultAudiences: param })
+      const docs = (body as { docs: LecturePlayerData[] }).docs
+      const returnedIds = docs.map((d) => d.id)
+      expect(returnedIds).toContain(lectureENormal1.id)
+      expect(returnedIds).toContain(lectureENormal2.id)
+      expect(returnedIds).toContain(lectureENormal3.id)
     })
   })
 

@@ -279,9 +279,12 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       tags: ['Lectures'],
       summary: 'Audience-targeted lecture feed',
       description:
-        'Returns a uniform-random feed of lectures whose attached audiences ' +
-        'overlap the supplied `audiences` ID list (OR semantics). Each ' +
-        'lecture is shaped into a flat, player-ready record matching ' +
+        'Returns a feed of lectures whose attached audiences overlap the ' +
+        'supplied `audiences` ID list (OR semantics). Lectures with ' +
+        '`priority > 0` are always returned first, sorted by priority ' +
+        'descending; ties within a priority level are randomised. The ' +
+        'remaining lectures (priority ≤ 0) are returned in random order. ' +
+        'Each lecture is shaped into a flat, player-ready record matching ' +
         '`LecturePlayerData`. Records carrying `startTime`/`stopTime` denote ' +
         'a playback window within the lecture; `fullLectureId` (when set) ' +
         'points at a related lecture for editorial grouping. ' +
