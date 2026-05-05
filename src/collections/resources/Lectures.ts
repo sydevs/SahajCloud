@@ -225,11 +225,6 @@ export const Lectures: CollectionConfig = {
       min: 0,
       max: 100,
       defaultValue: 0,
-      // Existing rows have NULL after the migration (ALTER TABLE DEFAULT only covers new rows).
-      // Coerce to 0 so the number input never receives undefined → NaN.
-      hooks: {
-        afterRead: [({ value }: { value: number | null | undefined }) => value ?? 0],
-      },
       admin: {
         description:
           'Lectures with priority > 0 are always returned first in the for-audience feed, sorted by priority (highest first). Lectures with equal priority are shuffled randomly. Leave at 0 for the normal random pool.',
