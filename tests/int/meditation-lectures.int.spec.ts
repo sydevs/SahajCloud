@@ -45,7 +45,13 @@ async function callEndpoint(
   const finalQuery = options.skipDefaultAudiences
     ? query
     : { audiences: options.defaultAudiences ?? '', ...query }
+  const searchParams = new URLSearchParams()
+  for (const [key, value] of Object.entries(finalQuery)) {
+    searchParams.set(key, String(value))
+  }
+  const url = `http://localhost:3000/api/meditations/${meditationId}/related-lectures?${searchParams.toString()}`
   const req = {
+    url,
     payload,
     query: finalQuery,
     headers: new Headers(),
@@ -58,7 +64,8 @@ async function callEndpoint(
   } as unknown as PayloadRequest
 
   const response = (await meditationLectures.handler(req)) as Response
-  const body = await response.json()
+  const isRedirect = response.status >= 300 && response.status < 400
+  const body = isRedirect ? null : await response.json()
   return { status: response.status, headers: response.headers, body }
 }
 
@@ -311,6 +318,71 @@ describe('meditationLectures endpoint', () => {
       lectureB.id,
       lectureA.id,
     ])
+  })
+
+  it('redirects (307) when excludedLectureIds causes an empty result (#349)', async () => {
+    // Exclude every lecture that would match the audience filter — result should
+    // be a 307 redirect to the same URL with limit=1 and excludedLectureIds gone.
+    const excludedIds = [
+      lectureA.id,
+      lectureB.id,
+      lectureAB.id,
+      lectureNone.id,
+      lectureUC.id,
+      lectureUCNone.id,
+    ].join(',')
+    const { status, headers } = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 10, excludedLectureIds: excludedIds },
+      { defaultAudiences: audienceFilter },
+    )
+    expect(status).toBe(307)
+    const location = headers.get('Location')
+    expect(location).not.toBeNull()
+    const redirected = new URL(location!)
+    expect(redirected.searchParams.has('excludedLectureIds')).toBe(false)
+    expect(redirected.searchParams.get('limit')).toBe('1')
+    expect(redirected.searchParams.get('audiences')).toBe(audienceFilter)
+  })
+
+  it('does not redirect when empty result is not caused by excludedLectureIds (#349)', async () => {
+    // No excludedLectureIds — empty result stays as { docs: [] } not a redirect.
+    const { status, body } = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 10 },
+      { defaultAudiences: String(unusedAudience.id) },
+    )
+    expect(status).toBe(200)
+    expect((body as { docs: LecturePlayerData[] }).docs).toEqual([])
+  })
+
+  it('redirect preserves userChoice param in Location URL (#349)', async () => {
+    // When userChoice is included and all eligible lectures are excluded, the
+    // redirect Location URL must retain userChoice so the fallback request
+    // still applies the same tag filter.
+    const excludedIds = [
+      lectureA.id,
+      lectureB.id,
+      lectureAB.id,
+      lectureNone.id,
+      lectureUC.id,
+      lectureUCNone.id,
+    ].join(',')
+    const { status, headers } = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 10, excludedLectureIds: excludedIds, userChoice: userChoice.id },
+      { defaultAudiences: audienceFilter },
+    )
+    expect(status).toBe(307)
+    const location = headers.get('Location')
+    expect(location).not.toBeNull()
+    const redirected = new URL(location!)
+    expect(redirected.searchParams.get('userChoice')).toBe(String(userChoice.id))
+    expect(redirected.searchParams.has('excludedLectureIds')).toBe(false)
+    expect(redirected.searchParams.get('limit')).toBe('1')
   })
 
   it('userChoice with no positive-weight nodes falls back to userChoices-only filter (#343)', async () => {

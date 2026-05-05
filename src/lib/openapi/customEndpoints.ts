@@ -53,6 +53,7 @@ interface OpenAPIParameter {
 interface OpenAPIResponse {
   description: string
   content?: Record<string, { schema: OpenAPISchemaObject }>
+  headers?: Record<string, { description: string; schema: OpenAPISchemaObject }>
 }
 
 // ── Audience query params (hand-written) ─────────────────────────────────────
@@ -385,6 +386,20 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       ],
       responses: {
         '200': jsonDocsResponse('#/components/schemas/LecturePlayerData'),
+        '307': {
+          description:
+            'Redirects to the same endpoint without `excludedLectureIds` and ' +
+            'with `limit=1` when all eligible lectures have been excluded. ' +
+            'Follow the `Location` header to retrieve the fallback result.',
+          headers: {
+            Location: {
+              description:
+                'Fallback URL — same path and query params without `excludedLectureIds`, ' +
+                'with `limit=1` and `audiences` normalised to the canonical sorted form.',
+              schema: { type: 'string', format: 'uri' },
+            },
+          },
+        },
         '400': errorResponse('Query param validation failed.'),
         '404': errorResponse('Meditation not found.'),
       },
