@@ -177,6 +177,34 @@ export function createLexicalWithUploadNode(
 }
 
 /**
+ * Create Lexical content with a relationship node.
+ * Useful for regression tests around stale relationship collection slugs.
+ */
+export function createLexicalWithRelationshipNode(options: {
+  relationTo: string
+  value: unknown
+}): Page['content'] {
+  return {
+    root: {
+      type: 'root',
+      children: [
+        {
+          type: 'relationship',
+          version: 2,
+          format: '',
+          relationTo: options.relationTo,
+          value: options.value,
+        },
+      ],
+      direction: null,
+      format: '',
+      indent: 0,
+      version: 1,
+    },
+  } as unknown as Page['content']
+}
+
+/**
  * Create Lexical content with TableOfContentsBlock
  * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts
  */

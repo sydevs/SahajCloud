@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { pageBlocks } from '@/blocks/pages'
 import { slugField } from '@/fields'
+import { removeDanglingLexicalReferencesAfterRead } from '@/hooks/lexicalHooks'
 import { PAGE_TAGS } from '@/lib/constants'
 import { fullRichTextEditor } from '@/lib/richEditor'
 
@@ -46,6 +47,9 @@ export const Pages: CollectionConfig = {
               type: 'richText',
               localized: true,
               editor: fullRichTextEditor(pageBlocks),
+              hooks: {
+                afterRead: [removeDanglingLexicalReferencesAfterRead],
+              },
             },
           ],
         },

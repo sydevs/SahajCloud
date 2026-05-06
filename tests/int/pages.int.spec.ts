@@ -4,6 +4,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
 import {
   createLexicalWithQuoteBlock,
+  createLexicalWithRelationshipNode,
   createLexicalWithUploadNode,
 } from '../utils/lexicalTestHelpers'
 import { testData } from '../utils/testData'
@@ -199,6 +200,29 @@ describe('Pages Collection', () => {
       const fields = root.children[0].fields as Record<string, unknown>
       expect(fields.align).toBe('left')
       expect(fields.caption).toBe('A caption')
+    })
+  })
+
+  describe('content rich text', () => {
+    it('strips stale relationship nodes for removed collections before rendering the editor', async () => {
+      const staleContent = createLexicalWithRelationshipNode({
+        relationTo: 'lecture-clips',
+        value: 123,
+      })
+
+      const page = await testData.createPage(payload, {
+        title: 'Page with stale content relationship',
+        content: staleContent,
+      })
+
+      const fetched = await payload.findByID({
+        collection: 'pages',
+        id: page.id,
+        depth: 0,
+      })
+
+      const contentRoot = fetched.content?.root as { children: unknown[] }
+      expect(contentRoot.children).toEqual([])
     })
   })
 
