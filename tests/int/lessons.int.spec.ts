@@ -5,14 +5,16 @@
  * this file holds tests for behavior that's project-specific.
  *
  * Currently: subtitle JSON behavior (documents that Payload's `jsonSchema`
- * is a Monaco editor hint, not API-enforced validation).
+ * is a Monaco editor hint, not API-enforced validation) and article rich-text
+ * cleanup for stale Lexical relationship nodes.
  */
 import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import type { Meditation } from '@/payload-types'
+import type { Lesson, Meditation } from '@/payload-types'
 
+import { createLexicalWithRelationshipNode } from '../utils/lexicalTestHelpers'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -78,6 +80,30 @@ describe('Lessons Collection — custom behavior', () => {
       })
 
       expect(lesson.introSubtitles).toEqual(subtitlesWithLegacyField)
+    })
+  })
+
+  describe('article rich text', () => {
+    it('strips stale relationship nodes for removed collections before rendering the editor', async () => {
+      const staleArticle = createLexicalWithRelationshipNode({
+        relationTo: 'lecture-clips',
+        value: 123,
+      }) as Lesson['article']
+
+      const lesson = await testData.createLesson(payload, {
+        title: 'Lesson with stale article relationship',
+        meditation: testMeditation.id,
+        article: staleArticle,
+      })
+
+      const fetched = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        depth: 0,
+      })
+
+      const articleRoot = fetched.article?.root as { children: unknown[] }
+      expect(articleRoot.children).toEqual([])
     })
   })
 })

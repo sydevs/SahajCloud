@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { QuoteBlock } from '@/blocks/pages'
 import { mediaField } from '@/fields'
+import { removeDanglingLexicalReferencesAfterRead } from '@/hooks/lexicalHooks'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { subtitlesJsonSchema, validateSubtitles } from '@/lib/subtitles'
 
@@ -132,6 +133,9 @@ export const Lessons: CollectionConfig = {
               type: 'richText',
               localized: true,
               editor: fullRichTextEditor([QuoteBlock]),
+              hooks: {
+                afterRead: [removeDanglingLexicalReferencesAfterRead],
+              },
             },
           ],
         },
