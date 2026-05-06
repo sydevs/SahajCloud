@@ -20,7 +20,7 @@ function isDanglingReferenceNode(
   if (typeof node.relationTo !== 'string') return true
   if (!validCollectionSlugs.has(node.relationTo)) return true
 
-  return node.value === null || node.value === undefined || node.value === ''
+  return node.value === null || node.value === undefined
 }
 
 function sanitizeNodes(

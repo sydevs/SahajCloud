@@ -66,6 +66,33 @@ describe('removeDanglingLexicalReferences', () => {
     expect(sanitized.root.children).toEqual([])
   })
 
+  it('removes upload nodes that point at removed collections', () => {
+    const content = lexicalWithChildren([
+      {
+        type: 'upload',
+        version: 3,
+        format: '',
+        relationTo: 'lecture-clips',
+        value: 123,
+      },
+      {
+        type: 'paragraph',
+        children: [{ type: 'text', text: 'Keep me', version: 1 }],
+        version: 1,
+      },
+    ])
+
+    const sanitized = removeDanglingLexicalReferences(content, validCollections) as typeof content
+
+    expect(sanitized.root.children).toEqual([
+      {
+        type: 'paragraph',
+        children: [{ type: 'text', text: 'Keep me', version: 1 }],
+        version: 1,
+      },
+    ])
+  })
+
   it('preserves valid references and sanitizes nested children', () => {
     const validRelationship = {
       type: 'relationship',
