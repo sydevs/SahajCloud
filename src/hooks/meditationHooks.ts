@@ -9,7 +9,7 @@ import type {
 
 import { parseBuffer } from 'music-metadata'
 
-import type { Frame, Meditation } from '@/payload-types'
+import type { Frame, Manager, Meditation } from '@/payload-types'
 
 const MAX_DURATION_MINUTES = 50
 
@@ -117,10 +117,26 @@ export const filterMeditationsByLocale: CollectionBeforeOperationHook = ({ opera
  *
  * Sets `data.duration` to the rounded duration in seconds.
  * Throws if the audio exceeds MAX_DURATION_MINUTES (50 minutes).
+ * Throws if a non-admin manager attempts to replace the audio on an existing meditation.
  */
-export const extractAudioDuration: CollectionBeforeChangeHook = async ({ data, req }) => {
+export const extractAudioDuration: CollectionBeforeChangeHook = async ({
+  data,
+  req,
+  operation,
+  originalDoc,
+}) => {
   if (!req.file?.data) {
     return data
+  }
+
+  // Restrict audio replacement to admin users.
+  // Triggered when: this is an update, the doc already has a file, and a new file is being uploaded.
+  // System calls (overrideAccess: true, req.user = null) are not restricted.
+  if (operation === 'update' && originalDoc?.filename && req.user?.collection === 'managers') {
+    const manager = req.user as unknown as Manager
+    if (manager.type !== 'admin') {
+      throw new Error('Only admin users can replace the audio file of an existing meditation')
+    }
   }
 
   const buffer = Buffer.isBuffer(req.file.data) ? req.file.data : Buffer.from(req.file.data)

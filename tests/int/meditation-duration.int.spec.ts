@@ -175,4 +175,81 @@ describe('Meditation Duration Extraction', () => {
       expect(result).toEqual({ label: 'test', duration: 100 })
     })
   })
+
+  describe('audio replacement restriction', () => {
+    const sampleFilePath = path.join(__dirname, '../files/audio-42s.mp3')
+
+    function makeFileReq(userOverride: Record<string, unknown>) {
+      const buffer = fs.readFileSync(sampleFilePath)
+      return {
+        file: {
+          data: new Uint8Array(buffer) as unknown as Buffer,
+          mimetype: 'audio/mpeg',
+          name: 'audio-42s.mp3',
+        },
+        user: userOverride,
+        payload: { logger: { warn: () => {} } },
+      }
+    }
+
+    const existingDoc = { filename: 'existing-audio.mp3' }
+
+    it('allows admin to replace audio on an existing meditation', async () => {
+      const result = await extractAudioDuration({
+        data: { label: 'test' },
+        req: makeFileReq({ collection: 'managers', type: 'admin' }),
+        operation: 'update',
+        originalDoc: existingDoc,
+      } as never)
+
+      expect((result as Record<string, unknown>).duration).toBeDefined()
+      expect((result as Record<string, unknown>).duration).toBeGreaterThan(0)
+    })
+
+    it('blocks a meditations-editor manager from replacing audio on an existing meditation', async () => {
+      await expect(
+        extractAudioDuration({
+          data: { label: 'test' },
+          req: makeFileReq({ collection: 'managers', type: 'manager' }),
+          operation: 'update',
+          originalDoc: existingDoc,
+        } as never),
+      ).rejects.toThrow('Only admin users can replace the audio file of an existing meditation')
+    })
+
+    it('allows a manager to upload audio when no existing file is present (first upload)', async () => {
+      // When originalDoc has no filename, the restriction does not apply
+      const result = await extractAudioDuration({
+        data: { label: 'test' },
+        req: makeFileReq({ collection: 'managers', type: 'manager' }),
+        operation: 'update',
+        originalDoc: { filename: null },
+      } as never)
+
+      expect((result as Record<string, unknown>).duration).toBeDefined()
+    })
+
+    it('allows system operations (no user) to replace audio', async () => {
+      // Seed scripts / migrations run with req.user = null
+      const buffer = fs.readFileSync(sampleFilePath)
+      const sysReq = {
+        file: {
+          data: new Uint8Array(buffer) as unknown as Buffer,
+          mimetype: 'audio/mpeg',
+          name: 'audio-42s.mp3',
+        },
+        user: null,
+        payload: { logger: { warn: () => {} } },
+      }
+
+      const result = await extractAudioDuration({
+        data: { label: 'test' },
+        req: sysReq,
+        operation: 'update',
+        originalDoc: existingDoc,
+      } as never)
+
+      expect((result as Record<string, unknown>).duration).toBeDefined()
+    })
+  })
 })
