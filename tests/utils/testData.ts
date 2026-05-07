@@ -65,11 +65,16 @@ export const testData = {
    */
   async createAppCard(payload: Payload, overrides: Partial<AppCard> = {}): Promise<AppCard> {
     const uniqueId = Math.random().toString(36).substring(7)
-    const defaultTitle = overrides.title || `Test Card ${uniqueId}`
+    const { default: defaultOverrides, ...restOverrides } = overrides
 
-    // Create image for the card unless already provided
-    let imageId = overrides.image
-    if (!imageId || typeof imageId === 'object') {
+    const defaultTitle = (defaultOverrides as { title?: string })?.title || `Test Card ${uniqueId}`
+
+    // Create image for the card unless a default.image is already provided
+    const providedImage = (defaultOverrides as { image?: number | object | null })?.image
+    let imageId: number
+    if (providedImage && typeof providedImage === 'number') {
+      imageId = providedImage
+    } else {
       const img = await testData.createMediaImage(payload, { alt: 'App card image' })
       imageId = img.id
     }
@@ -77,12 +82,17 @@ export const testData = {
     return (await payload.create({
       collection: 'app-cards',
       data: {
-        title: defaultTitle,
-        header: 'Test Header',
-        type: 'app-page',
-        appPage: 'map',
-        image: imageId,
-        ...overrides,
+        type: 'standard',
+        ...restOverrides,
+        default: {
+          title: defaultTitle,
+          header: 'Test Header',
+          overlay: false,
+          destination: 'appPage',
+          appPage: 'map',
+          image: imageId,
+          ...defaultOverrides,
+        },
       },
     })) as AppCard
   },
