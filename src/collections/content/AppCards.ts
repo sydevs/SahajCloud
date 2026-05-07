@@ -15,10 +15,11 @@ const APP_PAGE_OPTIONS = [
 const TIME_REGEX = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
 
 /** Destination row shared across all view tabs. */
-function destinationFields(): Field[] {
+function destinationFields(condition?: (data: Record<string, unknown>, siblingData: Record<string, unknown>) => boolean): Field[] {
   return [
     {
       type: 'row',
+      ...(condition ? { admin: { condition } } : {}),
       fields: [
         {
           name: 'destination',
@@ -194,7 +195,7 @@ function eventViewFields(thresholdDefault: string): Field[] {
         description: 'Button label text.',
       },
     },
-    ...destinationFields(),
+    ...destinationFields((_, siblingData) => siblingData?.enabled === true),
   ]
 }
 
@@ -213,7 +214,7 @@ export const AppCards: CollectionConfig = {
   endpoints: [appCardsForAudience],
   admin: {
     group: 'WeMeditate App',
-    defaultColumns: ['type', '_status'],
+    defaultColumns: ['default.title', 'type', '_status'],
   },
   fields: [
     {
@@ -242,7 +243,7 @@ export const AppCards: CollectionConfig = {
               name: 'viewWindowDisplay',
               admin: {
                 components: {
-                  Field: '@/components/admin/ViewWindowDisplay/ViewWindowDisplay',
+                  Field: '@/components/admin/ViewWindowDisplay',
                 },
                 condition: (data) => data.type === 'event',
               },

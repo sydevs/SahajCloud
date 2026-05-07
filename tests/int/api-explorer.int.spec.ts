@@ -647,14 +647,13 @@ describe('Custom Endpoint Shims', () => {
       expect(successSchema?.properties?.docs?.items?.$ref).toBe('#/components/schemas/AppCards')
     })
 
-    it('audience query params on /api/audiences/for-user expose all six required params', () => {
+    it('audience query params on /api/audiences/for-user expose all five required params', () => {
       const allRequiredParams = [
         'pathProgress',
         'meditationsPerWeek',
         'totalMeditationsViewed',
         'totalLecturesViewed',
         'country',
-        'timezone',
       ]
       const op = CUSTOM_ENDPOINT_PATHS['/api/audiences/for-user']!.get!
       const paramNames = (op.parameters ?? []).map((p) => p.name)
@@ -671,7 +670,6 @@ describe('Custom Endpoint Shims', () => {
         'totalMeditationsViewed',
         'totalLecturesViewed',
         'country',
-        'timezone',
       ])
       const op = CUSTOM_ENDPOINT_PATHS['/api/audiences/for-user']!.get!
 

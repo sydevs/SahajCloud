@@ -15,7 +15,6 @@ const AUDIENCE_DEFAULTS = {
   totalMeditationsViewed: 0,
   totalLecturesViewed: 0,
   country: 'US',
-  timezone: 'Europe/London',
 }
 
 async function callEndpoint(
