@@ -251,8 +251,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'All six query params are required. Returns the combined IDs of matching ' +
         'progress and context audiences. ' +
         'Progress audiences are evaluated via a SQL WHERE query. ' +
-        'Context audiences (country gate, time-of-day gate, schedule gate) ' +
-        'are fetched and JS-filtered. ' +
+        'Context audiences (country gate) are fetched and JS-filtered. ' +
         'Mobile clients call this once per state change and pass the result ' +
         'as `audiences` to the `/for-audience` data endpoints, keeping those ' +
         'endpoints edge-cacheable. ' +
