@@ -1,11 +1,6 @@
 import type { Endpoint } from 'payload'
 
-import { Temporal } from '@js-temporal/polyfill'
 import { z } from 'zod'
-
-import { isEventInUserDaytime } from '@/lib/audiences/daytimeMatch'
-import { isScheduleActiveNow } from '@/lib/audiences/scheduleMatch'
-import type { ScheduleSubFields } from '@/types/schedule'
 
 const PROGRESS_RULES = [
   'pathProgress',
@@ -61,16 +56,15 @@ function buildProgressWhereClause(params: QueryParams) {
  * GET /api/audiences/for-user
  *
  * Resolves the set of Audiences a user qualifies for given their current
- * progress data and optional context (country, timezone). Returns combined
- * matching progress + context audience IDs.
+ * progress data and context (country). Returns combined matching progress +
+ * context audience IDs.
  *
  * Progress audiences: evaluated via a single SQL WHERE query.
- * Context audiences: fetched all, then JS-filtered by country/schedule/eventTime.
+ * Context audiences: fetched all, then JS-filtered by country gate only.
  * All six query params (four progress + country + timezone) are required.
  *
  * Clients call this once per state change and pass the result to the
  * `/for-audience` data endpoints, which skip rule eval and are more cacheable.
- * See #340 for the split rationale; #345 for the context audience extension.
  */
 export const audiencesForUser: Endpoint = {
   path: '/for-user',
@@ -83,8 +77,6 @@ export const audiencesForUser: Endpoint = {
     }
 
     const params = parsed.data
-    const now = new Date()
-    const nowInstant = Temporal.Instant.from(now.toISOString())
 
     // ── Progress audiences: single SQL WHERE query ─────────────────────────
     const progressResult = await req.payload.find({
@@ -100,11 +92,11 @@ export const audiencesForUser: Endpoint = {
 
     const progressIds: number[] = progressResult.docs.map((a) => a.id)
 
-    // ── Context audiences: fetch-all + JS filter ──────────────────────────
+    // ── Context audiences: fetch-all + country JS filter ──────────────────
     const conditionResult = await req.payload.find({
       collection: 'audiences',
       where: { type: { equals: 'context' } },
-      depth: 1,
+      depth: 0,
       limit: 200,
       pagination: false,
       req,
@@ -112,34 +104,10 @@ export const audiencesForUser: Endpoint = {
 
     const conditionIds: number[] = conditionResult.docs
       .filter((audience) => {
-        // Country gate: empty list = pass for any user; otherwise country must match
         const countryList = audience.country as string[] | null | undefined
         if (countryList && countryList.length > 0) {
           if (!countryList.includes(params.country)) return false
         }
-
-        // Schedule gate: if firstDate is set, occurrence must be active now
-        const schedule = audience.schedule as Partial<ScheduleSubFields> | null | undefined
-        if (schedule?.firstDate) {
-          if (!isScheduleActiveNow({ schedule, now })) return false
-        }
-
-        // EventTime gate: local hour must be in [08:00, 22:00)
-        const eventTime = audience.eventTime as string | null | undefined
-        const eventTimeTz = audience.eventTime_tz as string | null | undefined
-        if (eventTime) {
-          if (!eventTimeTz) return false
-          if (
-            !isEventInUserDaytime({
-              eventTime,
-              eventTimeTz,
-              userTimezone: params.timezone,
-              now: nowInstant,
-            })
-          )
-            return false
-        }
-
         return true
       })
       .map((a) => a.id)

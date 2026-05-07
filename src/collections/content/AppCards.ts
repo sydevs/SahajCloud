@@ -1,16 +1,203 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, Field } from 'payload'
 
 import { appCardsForAudience } from '@/endpoints'
 import { mediaField, scheduleField, urlField } from '@/fields'
 import { denyApiClientReads } from '@/lib/access'
 
-/**
- * App Cards Collection
- *
- * Promotional cards for the WeMeditate App that display images and can link to
- * app pages, external URLs, or content items (meditations, albums, lectures).
- * Cards can have optional recurring schedules for countdown/reminder functionality.
- */
+const APP_PAGE_OPTIONS = [
+  { label: 'Map', value: 'map' },
+  { label: 'Lectures', value: 'lectures' },
+  { label: 'Path', value: 'path' },
+  { label: 'Music', value: 'music' },
+  { label: 'Live Meditations', value: 'live-meditations' },
+]
+
+const TIME_REGEX = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
+
+/** Destination row shared across all view tabs. */
+function destinationFields(): Field[] {
+  return [
+    {
+      type: 'row',
+      fields: [
+        {
+          name: 'destination',
+          type: 'select',
+          options: [
+            { label: 'App Page', value: 'appPage' },
+            { label: 'Lecture', value: 'lecture' },
+            { label: 'Album', value: 'album' },
+            { label: 'Meditation', value: 'meditation' },
+            { label: 'URL', value: 'url' },
+          ],
+          admin: {
+            description: 'Where this card navigates to when tapped.',
+          },
+        },
+        {
+          name: 'appPage',
+          type: 'select',
+          options: APP_PAGE_OPTIONS,
+          admin: {
+            condition: (_, siblingData) => siblingData?.destination === 'appPage',
+            description: 'App page this card links to.',
+          },
+        },
+        {
+          name: 'lecture',
+          type: 'relationship',
+          relationTo: 'lectures',
+          admin: {
+            condition: (_, siblingData) => siblingData?.destination === 'lecture',
+          },
+        },
+        {
+          name: 'album',
+          type: 'relationship',
+          relationTo: 'albums',
+          admin: {
+            condition: (_, siblingData) => siblingData?.destination === 'album',
+          },
+        },
+        {
+          name: 'meditation',
+          type: 'relationship',
+          relationTo: 'meditations',
+          admin: {
+            condition: (_, siblingData) => siblingData?.destination === 'meditation',
+          },
+        },
+        urlField({
+          name: 'url',
+          label: 'URL',
+          localized: true,
+          admin: {
+            condition: (_, siblingData) => siblingData?.destination === 'url',
+          },
+        }),
+      ],
+    },
+  ]
+}
+
+/** Fields shared by all view tabs (no enabled/threshold). */
+function defaultViewFields(): Field[] {
+  return [
+    {
+      name: 'header',
+      type: 'text',
+      localized: true,
+      admin: {
+        description: 'Shown above the card in hero placement.',
+      },
+    },
+    mediaField({ name: 'image', label: 'Card Image' }),
+    {
+      name: 'overlay',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description: 'Render card with dark overlay and white text.',
+      },
+    },
+    {
+      name: 'title',
+      type: 'text',
+      required: true,
+      localized: true,
+    },
+    {
+      name: 'subtitle',
+      type: 'text',
+      localized: true,
+    },
+    {
+      name: 'button',
+      type: 'text',
+      localized: true,
+      admin: {
+        description: 'Button label text.',
+      },
+    },
+    ...destinationFields(),
+  ]
+}
+
+/** Fields for Starting Soon / Live Now view tabs (adds enabled + threshold gate). */
+function eventViewFields(thresholdDefault: string): Field[] {
+  return [
+    {
+      name: 'enabled',
+      type: 'checkbox',
+      defaultValue: false,
+    },
+    {
+      name: 'threshold',
+      type: 'text',
+      defaultValue: thresholdDefault,
+      admin: {
+        condition: (_, siblingData) => siblingData?.enabled === true,
+        description: 'How long before the event start this view activates (HH:MM).',
+      },
+      validate: (value: string | null | undefined) => {
+        if (!value) return true
+        if (!TIME_REGEX.test(value)) return 'Enter time in HH:MM format (e.g., 1:00 or 00:30)'
+        return true
+      },
+    },
+    {
+      name: 'header',
+      type: 'text',
+      localized: true,
+      admin: {
+        condition: (_, siblingData) => siblingData?.enabled === true,
+        description: 'Shown above the card in hero placement.',
+      },
+    },
+    mediaField({
+      name: 'image',
+      label: 'Card Image',
+      admin: { condition: (_, siblingData) => siblingData?.enabled === true },
+    }),
+    {
+      name: 'overlay',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        condition: (_, siblingData) => siblingData?.enabled === true,
+        description: 'Render card with dark overlay and white text.',
+      },
+    },
+    {
+      name: 'title',
+      type: 'text',
+      required: true,
+      localized: true,
+      admin: {
+        condition: (_, siblingData) => siblingData?.enabled === true,
+      },
+    },
+    {
+      name: 'subtitle',
+      type: 'text',
+      localized: true,
+      admin: {
+        condition: (_, siblingData) => siblingData?.enabled === true,
+      },
+    },
+    {
+      name: 'button',
+      type: 'text',
+      localized: true,
+      admin: {
+        condition: (_, siblingData) => siblingData?.enabled === true,
+        description: 'Button label text.',
+      },
+    },
+    ...destinationFields(),
+  ]
+}
+
 export const AppCards: CollectionConfig = {
   slug: 'app-cards',
   labels: {
@@ -26,134 +213,80 @@ export const AppCards: CollectionConfig = {
   endpoints: [appCardsForAudience],
   admin: {
     group: 'WeMeditate App',
-    useAsTitle: 'title',
-    defaultColumns: ['title', 'type', '_status'],
+    defaultColumns: ['type', '_status'],
   },
   fields: [
+    {
+      name: 'type',
+      type: 'select',
+      required: true,
+      defaultValue: 'standard',
+      options: [
+        { label: 'Standard', value: 'standard' },
+        { label: 'Event', value: 'event' },
+      ],
+      admin: {
+        components: {
+          Field: '@/components/admin/ToggleGroupField',
+        },
+      },
+    },
     {
       type: 'tabs',
       tabs: [
         {
           label: 'Appearance',
           fields: [
-            mediaField({ name: 'image', label: 'Card Image', required: true }),
             {
-              name: 'title',
-              type: 'text',
-              required: true,
-              localized: true,
-            },
-            {
-              name: 'subtitle',
-              type: 'text',
-              localized: true,
-            },
-            {
-              name: 'button',
-              type: 'text',
-              localized: true,
-              admin: {
-                description: 'Button label text',
-              },
-            },
-            {
-              name: 'header',
-              type: 'text',
-              required: true,
-              localized: true,
-              admin: {
-                description:
-                  'A custom header that will appear above the card if it is selected as a hero card.',
-              },
-            },
-            {
-              name: 'type',
-              type: 'select',
-              required: true,
-              defaultValue: 'app-page',
-              options: [
-                { label: 'App Page', value: 'app-page' },
-                { label: 'Content', value: 'content' },
-                { label: 'External', value: 'external' },
-              ],
+              type: 'ui',
+              name: 'viewWindowDisplay',
               admin: {
                 components: {
-                  Field: '@/components/admin/ToggleGroupField',
+                  Field: '@/components/admin/ViewWindowDisplay/ViewWindowDisplay',
                 },
+                condition: (data) => data.type === 'event',
               },
             },
-            // Conditional: App Page
             {
-              name: 'appPage',
-              type: 'select',
-              required: true,
-              options: [
-                { label: 'Map', value: 'map' },
-                { label: 'Lectures', value: 'lectures' },
-                { label: 'Path', value: 'path' },
-                { label: 'Music', value: 'music' },
-                { label: 'Live Meditations', value: 'live-meditations' },
+              type: 'tabs',
+              tabs: [
+                {
+                  name: 'default',
+                  label: 'Default',
+                  fields: defaultViewFields(),
+                },
+                {
+                  name: 'startingSoon',
+                  label: 'Starting Soon',
+                  admin: {
+                    condition: (data) => data.type === 'event',
+                  },
+                  fields: eventViewFields('1:00'),
+                },
+                {
+                  name: 'liveNow',
+                  label: 'Live Now',
+                  admin: {
+                    condition: (data) => data.type === 'event',
+                  },
+                  fields: eventViewFields('0:00'),
+                },
               ],
-              admin: {
-                condition: (data) => data.type === 'app-page',
-                description: 'Select the app page this card links to',
-              },
             },
-            // Conditional: Content
-            {
-              name: 'content',
-              type: 'relationship',
-              relationTo: ['lectures', 'albums', 'meditations'],
-              required: true,
-              admin: {
-                condition: (data) => data.type === 'content',
-                description: 'Select the content item this card links to',
-              },
-            },
-            // Conditional: External
-            urlField({
-              name: 'linkUrl',
-              label: 'External URL',
-              localized: true,
-              required: true,
-              admin: {
-                condition: (data) => data.type === 'external',
-                description: 'External URL this card links to',
-              },
-            }),
-            {
-              name: 'countdown',
-              type: 'checkbox',
-              defaultValue: false,
-              admin: {
-                description:
-                  'Enable recurring schedule for this card (countdown/reminder functionality)',
-              },
-            },
-            {
-              name: 'overlay',
-              type: 'checkbox',
-              defaultValue: false,
-              admin: {
-                description:
-                  'Render the card with a dark overlay and white text instead of the default style.',
-              },
-            },
-            // Conditional: Schedule (shown when countdown is enabled)
-            scheduleField({
-              hasExclusions: true,
-              hasComplexWeekly: true,
-              admin: {
-                condition: (data) => data.countdown === true,
-                description: 'Configure the recurring schedule for this reminder card',
-              },
-            }),
           ],
         },
         {
           label: 'Rules',
           fields: [
-            // Target sections (Hero/Highlight)
+            scheduleField({
+              hasExclusions: true,
+              hasComplexWeekly: true,
+              hasEndTime: true,
+              admin: {
+                condition: (data) => data.type === 'event',
+                description: 'Configure the recurring event schedule for this card.',
+              },
+            }),
             {
               name: 'targetSections',
               type: 'select',
@@ -167,9 +300,6 @@ export const AppCards: CollectionConfig = {
                 description: 'Target sections where this card should appear on the app homepage.',
               },
             },
-            // Audiences (hasMany). Empty ⇒ card is hidden from the for-audience
-            // endpoint. The card is shown when ANY of the selected audiences
-            // passes.
             {
               name: 'audiences',
               type: 'relationship',
@@ -181,8 +311,6 @@ export const AppCards: CollectionConfig = {
                   'Audiences that control visibility. The card is shown to a viewer if ANY of the selected audiences passes. If empty, the card is hidden from /api/app-cards/for-audience and never appears on the app homepage.',
               },
             },
-            // Conditions (hasMany). ALL must be satisfied for the card to show.
-            // Leave empty to bypass condition gating entirely.
             {
               name: 'conditions',
               type: 'relationship',
@@ -191,10 +319,9 @@ export const AppCards: CollectionConfig = {
               filterOptions: () => ({ type: { equals: 'context' } }),
               admin: {
                 description:
-                  'Display conditions that ALL must be satisfied (AND). Use for country gates, time-of-day windows, and event scheduling. Leave empty to bypass condition gating.',
+                  'Display conditions that ALL must be satisfied (AND). Use for country gates. Leave empty to bypass condition gating.',
               },
             },
-            // Selection weight for client-side card prioritization
             {
               name: 'weight',
               type: 'number',
