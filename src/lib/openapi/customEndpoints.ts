@@ -60,7 +60,7 @@ interface OpenAPIResponse {
 
 /**
  * Query parameters for `GET /api/audiences/for-user`.
- * All six params are required — four progress params + country + timezone.
+ * All five params are required — four progress params + country.
  */
 const audienceQueryParameters: OpenAPIParameter[] = [
   {
@@ -97,15 +97,6 @@ const audienceQueryParameters: OpenAPIParameter[] = [
     required: true,
     description: 'ISO 3166-1 alpha-2 country code of the user (e.g. `US`, `GB`).',
     schema: { type: 'string', minLength: 2, maxLength: 2 },
-  },
-  {
-    name: 'timezone',
-    in: 'query',
-    required: true,
-    description:
-      'IANA timezone name of the user (e.g. `America/Los_Angeles`). ' +
-      'Server clock is used for `now` — do not pass a `currentDateTime` param.',
-    schema: { type: 'string' },
   },
 ]
 

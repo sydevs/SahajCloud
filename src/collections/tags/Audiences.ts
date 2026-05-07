@@ -162,7 +162,7 @@ export const Audiences: CollectionConfig = {
       on: 'conditions',
       defaultLimit: 100,
       admin: {
-        description: 'All lectures tagged with this condition audience',
+        description: 'All app cards tagged with this condition audience',
         components: {
           Cell: {
             path: '@/components/admin/RelationshipCountCell',

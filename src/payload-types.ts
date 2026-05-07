@@ -1220,7 +1220,7 @@ export interface Audience {
     totalDocs?: number;
   };
   /**
-   * All lectures tagged with this condition audience
+   * All app cards tagged with this condition audience
    */
   appCardConditions?: {
     docs?: (number | AppCard)[];

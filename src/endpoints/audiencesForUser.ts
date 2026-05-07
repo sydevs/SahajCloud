@@ -17,7 +17,6 @@ const querySchema = z.object({
   totalLecturesViewed: z.coerce.number(),
   // Context params (always required)
   country: z.string().length(2),
-  timezone: z.string(),
 })
 
 type QueryParams = z.infer<typeof querySchema>
@@ -61,7 +60,7 @@ function buildProgressWhereClause(params: QueryParams) {
  *
  * Progress audiences: evaluated via a single SQL WHERE query.
  * Context audiences: fetched all, then JS-filtered by country gate only.
- * All six query params (four progress + country + timezone) are required.
+ * All five query params (four progress + country) are required.
  *
  * Clients call this once per state change and pass the result to the
  * `/for-audience` data endpoints, which skip rule eval and are more cacheable.
