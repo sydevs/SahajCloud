@@ -2,6 +2,8 @@ import type { RowField, TextField } from 'payload'
 
 import { slugField as payloadSlugField } from 'payload'
 
+import { adminOnlyCondition, adminOnlyFieldAccess } from '@/lib/access/adminOnly'
+
 /**
  * Options for creating a slug field.
  * Based on Payload's internal SlugFieldArgs type.
@@ -49,22 +51,33 @@ export type SlugFieldOptions = {
 export function slugField(options: SlugFieldOptions = {}): RowField {
   const { description, overrides: userOverrides, ...payloadOptions } = options
   const sourceField = options.useAsSlug || 'title'
-
-  if (!description) {
-    return payloadSlugField({ ...payloadOptions, overrides: userOverrides })
-  }
-
-  const resolvedDescription = description.replace('{sourceField}', sourceField)
+  const resolvedDescription = description?.replace('{sourceField}', sourceField)
 
   return payloadSlugField({
     ...payloadOptions,
     overrides: (field) => {
-      if (field.fields[1].type === 'text') {
+      // Apply description if provided
+      if (resolvedDescription && field.fields[1].type === 'text') {
         field.fields[1].admin = {
           ...field.fields[1].admin,
           description: resolvedDescription,
         }
       }
+
+      // Lock the generateSlug checkbox: hide from non-admins in UI, and block
+      // update via the API. create is intentionally left open so non-admin
+      // editors can choose whether to auto-generate on first save.
+      if (field.fields[0].type === 'checkbox') {
+        field.fields[0].access = { ...field.fields[0].access, update: adminOnlyFieldAccess }
+        field.fields[0].admin = { ...field.fields[0].admin, condition: adminOnlyCondition }
+      }
+
+      // Lock the slug text field on update. create is intentionally left open
+      // so non-admin editors can still populate the slug when creating a doc.
+      if (field.fields[1].type === 'text') {
+        field.fields[1].access = { ...field.fields[1].access, update: adminOnlyFieldAccess }
+      }
+
       return userOverrides ? userOverrides(field) : field
     },
   })

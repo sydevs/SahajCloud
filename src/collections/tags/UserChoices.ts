@@ -68,20 +68,13 @@ export const UserChoices: CollectionConfig = {
     // Virtual URL field for CDN delivery (R2 for SVG support)
     virtualUrlField({ collection: 'user-choices', adapter: 'r2' }),
     // Slug auto-generated from title. Hide the whole row from non-admins
-    // (the row is in the sidebar) and lock the inner `slug` text at the
-    // access layer. The sibling `generateSlug` checkbox is already
-    // `admin.hidden: true` upstream and doesn't need its own access guard.
+    // (the row is in the sidebar). Update access on the inner slug text and
+    // generateSlug checkbox is locked to admin-only by the slugField default.
     slugField({
       useAsSlug: 'title',
       description: 'URL-friendly identifier (auto-generated from {sourceField})',
       overrides: (field) => {
         field.admin = { ...(field.admin ?? {}), condition: adminOnlyCondition }
-        const slugInner = field.fields.find(
-          (f) => 'name' in f && f.name === 'slug' && f.type === 'text',
-        )
-        if (slugInner && slugInner.type === 'text') {
-          slugInner.access = { ...(slugInner.access ?? {}), update: adminOnlyFieldAccess }
-        }
         return field
       },
     }),
