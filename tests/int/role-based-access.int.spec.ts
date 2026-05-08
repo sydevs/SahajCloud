@@ -1297,4 +1297,51 @@ describe('Role-Based Access Control', () => {
       })
     })
   })
+
+  describe('Slug field access', () => {
+    // Use user-choices as the test collection: meditations-editor has explicit
+    // update permission on it, and its update path has no blocking validation.
+    it('prevents non-admin editors from changing a slug on update', async () => {
+      const tag = await testData.createUserChoice(payload, { title: 'Slug Lock Test Tag' })
+      const originalSlug = tag.slug
+
+      const editor = await testData.createManager(payload, {
+        name: 'Editor for Slug Lock Test',
+        roles: { en: ['meditations-editor'] },
+      })
+
+      // Note: overrideAccess: false is required to test access control with Local API
+      await payload.update({
+        collection: 'user-choices',
+        id: tag.id,
+        data: { slug: 'should-not-change', generateSlug: false },
+        user: { ...editor, collection: 'managers' },
+        overrideAccess: false,
+      })
+
+      const refetched = await payload.findByID({ collection: 'user-choices', id: tag.id })
+      expect(refetched.slug).toBe(originalSlug)
+    })
+
+    it('allows admin to change a slug', async () => {
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Slug Change Test',
+        type: 'admin' as const,
+      })
+
+      const tag = await testData.createUserChoice(payload, { title: 'Admin Slug Change Tag' })
+
+      // Note: overrideAccess: false is required to test access control with Local API
+      await payload.update({
+        collection: 'user-choices',
+        id: tag.id,
+        data: { slug: 'admin-changed-slug', generateSlug: false },
+        user: { ...admin, collection: 'managers' },
+        overrideAccess: false,
+      })
+
+      const refetched = await payload.findByID({ collection: 'user-choices', id: tag.id })
+      expect(refetched.slug).toBe('admin-changed-slug')
+    })
+  })
 })
