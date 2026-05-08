@@ -39,12 +39,9 @@ describe('audiencesForUser endpoint', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
-  // Progress audiences — matched via SQL WHERE on native range fields
   let audienceBeginner: Audience // pathProgress 0..5
   let audienceIntermediate: Audience // pathProgress 5..10
   let audienceFrequent: Audience // meditationsPerWeek >= 3
-
-  // Context audiences — matched via JS filter on country gate only
   let audienceConditionOpen: Audience // no constraints → always passes
   let audienceConditionUS: Audience // country: ['US']
 
@@ -66,10 +63,10 @@ describe('audiencesForUser endpoint', () => {
       meditationsPerWeek: { min: 3 },
     })
 
-    audienceConditionOpen = await testData.createConditionAudience(payload, {
+    audienceConditionOpen = await testData.createAudience(payload, {
       label: 'Open Condition',
     })
-    audienceConditionUS = await testData.createConditionAudience(payload, {
+    audienceConditionUS = await testData.createAudience(payload, {
       label: 'US Condition',
       country: ['US'],
     })
