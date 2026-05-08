@@ -75,7 +75,8 @@ export const Audiences: CollectionConfig = {
       type: 'collapsible',
       label: 'Rules',
       admin: {
-        description: 'Any empty rule will be ignored. All rules must pass for the audience to match.',
+        description:
+          'Any empty rule will be ignored. All rules must pass for the audience to match.',
       },
       fields: [
         progressRangeField('pathProgress', 'Path Progress'),
@@ -83,13 +84,22 @@ export const Audiences: CollectionConfig = {
         progressRangeField('totalMeditationsViewed', 'Total Meditations Viewed'),
         progressRangeField('totalLecturesViewed', 'Total Lectures Viewed'),
         {
-          name: 'country',
-          type: 'select',
-          hasMany: true,
-          options: COUNTRY_OPTIONS,
-          admin: {
-            description: 'Country gate: restrict to users in these countries. Leave empty to match all countries.',
-          },
+          name: 'location',
+          type: 'group',
+          label: 'Location',
+          fields: [
+            {
+              name: 'countries',
+              label: 'Allowed Countries',
+              type: 'select',
+              hasMany: true,
+              options: COUNTRY_OPTIONS,
+              admin: {
+                description:
+                  'Restrict to users in these countries. Leave empty to match all countries.',
+              },
+            },
+          ],
         },
       ],
     },

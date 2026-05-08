@@ -22,7 +22,7 @@ const querySchema = z.object({
 type QueryParams = z.infer<typeof querySchema>
 
 /**
- * Build the Payload WHERE clause that matches progress audiences whose
+ * Build the Payload WHERE clause that matches audiences whose
  * configured ranges contain the supplied value for each dimension.
  *
  * For each rule: OR(min not set, min ≤ value) AND OR(max not set, max ≥ value)
@@ -88,7 +88,8 @@ export const audiencesForUser: Endpoint = {
 
     const audienceIds = result.docs
       .filter((audience) => {
-        const countryList = audience.country as string[] | null | undefined
+        const location = audience.location as { countries?: string[] | null } | null | undefined
+        const countryList = location?.countries
         if (countryList && countryList.length > 0) {
           return countryList.includes(params.country)
         }

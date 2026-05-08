@@ -372,14 +372,6 @@ export const testData = {
     })) as Audience
   },
 
-  /** @deprecated Use createAudience() — audiences no longer have a type discriminator */
-  async createConditionAudience(
-    payload: Payload,
-    overrides: Partial<Audience> = {},
-  ): Promise<Audience> {
-    return testData.createAudience(payload, overrides)
-  },
-
   // Note: createImageTag, createPageTag, createVideoTag removed
   // These tags are now inline enum select values, not separate collections
 
