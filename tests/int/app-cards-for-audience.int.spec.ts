@@ -95,8 +95,8 @@ describe('appCardsForAudience endpoint', () => {
       label: 'Null Rules Audience',
     })
 
-    // Condition-type audience (always passes; used for AND-gate tests)
-    conditionAudience = await testData.createConditionAudience(payload, {
+    // Unconstrained audience (always passes; used for AND-gate tests)
+    conditionAudience = await testData.createAudience(payload, {
       label: 'Open Condition',
     })
 
@@ -211,7 +211,7 @@ describe('appCardsForAudience endpoint', () => {
     })
 
     // AND-conditions gate: card with two condition audiences — both must be present
-    const conditionAudienceB = await testData.createConditionAudience(payload, {
+    const conditionAudienceB = await testData.createAudience(payload, {
       label: 'Open Condition B',
     })
     cardWithMultipleConditions = await testData.createAppCard(payload, {

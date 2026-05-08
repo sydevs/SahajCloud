@@ -352,7 +352,9 @@ export const testData = {
   },
 
   /**
-   * Create a progress-type audience (NOT an upload collection — no file needed)
+   * Create an audience with optional progress ranges and/or country gate.
+   * All fields are optional — omit a range to leave it unbounded; omit
+   * country to match all countries.
    */
   async createAudience(
     payload: Payload,
@@ -364,27 +366,6 @@ export const testData = {
     return (await payload.create({
       collection: 'audiences',
       data: {
-        label: defaultLabel,
-        ...overrides,
-      },
-    })) as Audience
-  },
-
-  /**
-   * Create a condition-type audience (country, eventTime, or schedule gating).
-   * Pass the relevant condition fields in overrides.
-   */
-  async createConditionAudience(
-    payload: Payload,
-    overrides: Partial<Audience> = {},
-  ): Promise<Audience> {
-    const uniqueId = Math.random().toString(36).substring(7)
-    const defaultLabel = overrides.label || `Test Condition Audience ${uniqueId}`
-
-    return (await payload.create({
-      collection: 'audiences',
-      data: {
-        type: 'context',
         label: defaultLabel,
         ...overrides,
       },

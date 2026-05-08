@@ -39,14 +39,11 @@ describe('audiencesForUser endpoint', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
 
-  // Progress audiences — matched via SQL WHERE on native range fields
   let audienceBeginner: Audience // pathProgress 0..5
   let audienceIntermediate: Audience // pathProgress 5..10
   let audienceFrequent: Audience // meditationsPerWeek >= 3
-
-  // Context audiences — matched via JS filter on country gate only
   let audienceConditionOpen: Audience // no constraints → always passes
-  let audienceConditionUS: Audience // country: ['US']
+  let audienceConditionUS: Audience // location.countries: ['US']
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -66,12 +63,12 @@ describe('audiencesForUser endpoint', () => {
       meditationsPerWeek: { min: 3 },
     })
 
-    audienceConditionOpen = await testData.createConditionAudience(payload, {
+    audienceConditionOpen = await testData.createAudience(payload, {
       label: 'Open Condition',
     })
-    audienceConditionUS = await testData.createConditionAudience(payload, {
+    audienceConditionUS = await testData.createAudience(payload, {
       label: 'US Condition',
-      country: ['US'],
+      location: { countries: ['US'] },
     })
   })
 
@@ -142,6 +139,34 @@ describe('audiencesForUser endpoint', () => {
       // Both types contribute to the result
       expect(ids).toContain(audienceConditionOpen.id)
       expect(ids).toContain(audienceConditionUS.id)
+    })
+
+    it('excludes audience when progress passes but country does not match', async () => {
+      const combined = await testData.createAudience(payload, {
+        label: 'Combined Rules',
+        pathProgress: { min: 0 },
+        location: { countries: ['US'] },
+      })
+      // pathProgress=0 passes (>= 0), but country=DE fails
+      const { body } = await callEndpoint(payload, { pathProgress: 0, country: 'DE' })
+      expect(body.audiences).not.toContain(combined.id)
+      // Same progress, matching country → included
+      const { body: bodyUS } = await callEndpoint(payload, { pathProgress: 0, country: 'US' })
+      expect(bodyUS.audiences).toContain(combined.id)
+    })
+
+    it('excludes audience when country passes but progress does not match', async () => {
+      const combined = await testData.createAudience(payload, {
+        label: 'Combined Rules Progress Gate',
+        pathProgress: { min: 5 },
+        location: { countries: ['US'] },
+      })
+      // country=US passes, but pathProgress=0 fails (< min 5)
+      const { body } = await callEndpoint(payload, { pathProgress: 0, country: 'US' })
+      expect(body.audiences).not.toContain(combined.id)
+      // Both pass → included
+      const { body: bodyPass } = await callEndpoint(payload, { pathProgress: 5, country: 'US' })
+      expect(bodyPass.audiences).toContain(combined.id)
     })
   })
 })

@@ -462,26 +462,31 @@ export const AppCards: CollectionConfig = {
               },
             },
             {
-              name: 'audiences',
-              type: 'relationship',
-              relationTo: 'audiences',
-              hasMany: true,
-              filterOptions: () => ({ type: { equals: 'progress' } }),
-              admin: {
-                description:
-                  'Audiences that control visibility. The card is shown to a viewer if ANY of the selected audiences passes. If empty, the card is hidden from /api/app-cards/for-audience and never appears on the app homepage.',
-              },
-            },
-            {
-              name: 'conditions',
-              type: 'relationship',
-              relationTo: 'audiences',
-              hasMany: true,
-              filterOptions: () => ({ type: { equals: 'context' } }),
-              admin: {
-                description:
-                  'Display conditions that ALL must be satisfied (AND). Use for country gates. Leave empty to bypass condition gating.',
-              },
+              type: 'row',
+              fields: [
+                {
+                  name: 'audiences',
+                  label: 'Viewer Audiences',
+                  type: 'relationship',
+                  relationTo: 'audiences',
+                  hasMany: true,
+                  admin: {
+                    description:
+                      'Card is shown to a viewer if they match ANY of these audiences (OR). Leave empty to hide the card from all viewers.',
+                  },
+                },
+                {
+                  name: 'conditions',
+                  label: 'Required Conditions',
+                  type: 'relationship',
+                  relationTo: 'audiences',
+                  hasMany: true,
+                  admin: {
+                    description:
+                      'ALL of these must also pass (AND). Use for country gates. Leave empty to skip additional gating.',
+                  },
+                },
+              ],
             },
             {
               name: 'weight',

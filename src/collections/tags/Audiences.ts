@@ -61,64 +61,45 @@ export const Audiences: CollectionConfig = {
   admin: {
     group: 'Metadata',
     useAsTitle: 'label',
-    defaultColumns: ['label', 'type', 'lectures', 'appCards'],
+    defaultColumns: ['label', 'lectures', 'appCards'],
   },
   endpoints: [audiencesForUser],
   fields: [
-    {
-      name: 'type',
-      type: 'select',
-      required: true,
-      defaultValue: 'progress',
-      options: [
-        { label: 'Progress', value: 'progress' },
-        { label: 'Time & Location', value: 'context' },
-      ],
-      admin: {
-        description:
-          'Does this audience group users based on their progress in the app or based on their context (location & time).',
-        components: {
-          Field: '@/components/admin/ToggleGroupField',
-        },
-      },
-    },
     {
       name: 'label',
       type: 'text',
       required: true,
     },
-    // ── Progress Rules (shown only for progress-type audiences) ───────────
+    // ── Rules (progress ranges + optional country gate) ───────────────────
     {
       type: 'collapsible',
-      label: 'Progress Rules',
+      label: 'Rules',
       admin: {
-        condition: (data) => !data?.type || data.type === 'progress',
-        description: 'Any empty rule will be ignored',
+        description:
+          'Any empty rule will be ignored. All rules must pass for the audience to match.',
       },
       fields: [
         progressRangeField('pathProgress', 'Path Progress'),
         progressRangeField('meditationsPerWeek', 'Meditations Per Week'),
         progressRangeField('totalMeditationsViewed', 'Total Meditations Viewed'),
         progressRangeField('totalLecturesViewed', 'Total Lectures Viewed'),
-      ],
-    },
-    // ── Display Conditions (shown only for condition-type audiences) ──────
-    {
-      type: 'collapsible',
-      label: 'Display Conditions',
-      admin: {
-        condition: (data) => data?.type === 'context',
-        description: 'Country gate: leave empty to match all countries.',
-      },
-      fields: [
         {
-          name: 'country',
-          type: 'select',
-          hasMany: true,
-          options: COUNTRY_OPTIONS,
-          admin: {
-            description: 'Restrict to users in these countries.',
-          },
+          name: 'location',
+          type: 'group',
+          label: 'Location',
+          fields: [
+            {
+              name: 'countries',
+              label: 'Allowed Countries',
+              type: 'select',
+              hasMany: true,
+              options: COUNTRY_OPTIONS,
+              admin: {
+                description:
+                  'Restrict to users in these countries. Leave empty to match all countries.',
+              },
+            },
+          ],
         },
       ],
     },
@@ -162,7 +143,7 @@ export const Audiences: CollectionConfig = {
       on: 'conditions',
       defaultLimit: 100,
       admin: {
-        description: 'All app cards tagged with this condition audience',
+        description: 'All app cards that require this audience as a condition',
         components: {
           Cell: {
             path: '@/components/admin/RelationshipCountCell',
