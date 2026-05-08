@@ -29,7 +29,7 @@ type ViewName = 'startingSoon' | 'liveNow' | 'default'
  * event occurrence. Returns null when no event views are enabled or no future
  * occurrence exists.
  */
-const viewScheduleAfterRead: FieldHook = ({ data: doc }) => {
+const viewScheduleAfterRead: FieldHook = ({ data: doc, req }) => {
   if (doc?.type !== 'event') return null
 
   const schedule = doc.schedule as Partial<ScheduleSubFields> | null | undefined
@@ -152,7 +152,8 @@ const viewScheduleAfterRead: FieldHook = ({ data: doc }) => {
     }
 
     return { timezone: 'UTC' as const, schedule: timelineSchedule }
-  } catch {
+  } catch (err) {
+    req.payload.logger.debug({ msg: 'viewSchedule computation failed', error: err })
     return null
   }
 }

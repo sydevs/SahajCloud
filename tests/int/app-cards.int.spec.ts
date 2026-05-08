@@ -252,6 +252,62 @@ describe('AppCards type field', () => {
     expect(card.liveNow?.threshold).toBe('0:15')
     expect(card.liveNow?.title).toBe('Happening Now')
   })
+
+  it('computes viewSchedule virtual field for event card with both views enabled', async () => {
+    // Pin to 15:00 UTC so threshold math produces predictable keys
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+    futureDate.setUTCHours(15, 0, 0, 0)
+
+    const card = await testData.createAppCard(payload, {
+      type: 'event',
+      schedule: {
+        firstDate: futureDate.toISOString(),
+        firstDate_tz: 'UTC',
+        recurrenceType: 'DAILY',
+        interval: 1,
+        endTime: '16:00',
+      },
+      startingSoon: {
+        enabled: true,
+        threshold: '1:00', // 15:00 − 1h = 14:00 UTC
+        title: 'Coming Soon',
+      },
+      liveNow: {
+        enabled: true,
+        threshold: '0:00', // starts exactly at event start = 15:00 UTC
+        title: 'Happening Now',
+      },
+    })
+
+    type ViewSchedule = { timezone: string; schedule: Record<string, string> }
+    const viewSchedule = card.viewSchedule as ViewSchedule | null
+    expect(viewSchedule).not.toBeNull()
+    expect(viewSchedule!.timezone).toBe('UTC')
+    const schedule = viewSchedule!.schedule
+    expect(schedule['14:00']).toBe('startingSoon')
+    expect(schedule['15:00']).toBe('liveNow')
+    expect(schedule['16:00']).toBe('default')
+  })
+
+  it('returns null viewSchedule for standard cards and event cards with no enabled views', async () => {
+    const standardCard = await testData.createAppCard(payload, { type: 'standard' })
+    expect(standardCard.viewSchedule).toBeNull()
+
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+    const noViewsCard = await testData.createAppCard(payload, {
+      type: 'event',
+      schedule: {
+        firstDate: futureDate.toISOString(),
+        firstDate_tz: 'UTC',
+        recurrenceType: 'DAILY',
+        interval: 1,
+      },
+      // startingSoon and liveNow both disabled (default)
+    })
+    expect(noViewsCard.viewSchedule).toBeNull()
+  })
 })
 
 // ── Integration Tests: AppCards destination field ─────────────────────────────
