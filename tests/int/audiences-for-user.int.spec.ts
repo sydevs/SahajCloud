@@ -15,7 +15,6 @@ const AUDIENCE_DEFAULTS = {
   totalMeditationsViewed: 0,
   totalLecturesViewed: 0,
   country: 'US',
-  timezone: 'Europe/London',
 }
 
 async function callEndpoint(
@@ -45,7 +44,7 @@ describe('audiencesForUser endpoint', () => {
   let audienceIntermediate: Audience // pathProgress 5..10
   let audienceFrequent: Audience // meditationsPerWeek >= 3
 
-  // Context audiences — matched via JS filter on country/schedule/eventTime
+  // Context audiences — matched via JS filter on country gate only
   let audienceConditionOpen: Audience // no constraints → always passes
   let audienceConditionUS: Audience // country: ['US']
 

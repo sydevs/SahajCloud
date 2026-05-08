@@ -4,9 +4,6 @@ import type { Payload } from 'payload'
 import { createTestEnvironment } from '../utils/testHelpers'
 import { testData } from '../utils/testData'
 
-// ── Integration Tests: AppCards audiences, weight, targetSections ──────────────
-
-// Shared test environment for all AppCards tests
 let payload: Payload
 let cleanup: () => Promise<void>
 
@@ -20,15 +17,7 @@ afterAll(async () => {
   await cleanup()
 })
 
-function extractFirstAudienceId(audiences: unknown): number | null {
-  if (!Array.isArray(audiences) || audiences.length === 0) return null
-  const first = audiences[0]
-  if (typeof first === 'number') return first
-  if (typeof first === 'object' && first !== null && 'id' in first) {
-    return (first as { id: number }).id
-  }
-  return null
-}
+// ── Integration Tests: AppCards audiences, weight, targetSections ──────────────
 
 describe('AppCards audiences, weight, targetSections', () => {
   it('creates card with audiences relationship to an audience', async () => {
@@ -38,18 +27,22 @@ describe('AppCards audiences, weight, targetSections', () => {
     })
 
     const card = await testData.createAppCard(payload, {
-      title: 'Continue Path',
       audiences: [audience.id],
       weight: 4,
     })
 
-    expect(extractFirstAudienceId(card.audiences)).toBe(audience.id)
+    const firstAudienceId =
+      Array.isArray(card.audiences) && card.audiences.length > 0
+        ? typeof card.audiences[0] === 'number'
+          ? card.audiences[0]
+          : (card.audiences[0] as { id: number }).id
+        : null
+    expect(firstAudienceId).toBe(audience.id)
     expect(card.weight).toBe(4)
   })
 
   it('creates card with empty audiences (hidden from for-audience endpoint)', async () => {
     const card = await testData.createAppCard(payload, {
-      title: 'Hidden Card',
       audiences: [],
     })
 
@@ -57,22 +50,14 @@ describe('AppCards audiences, weight, targetSections', () => {
   })
 
   it('creates card with default weight of 3', async () => {
-    const card = await testData.createAppCard(payload, {
-      title: 'Default Weight Card',
-    })
+    const card = await testData.createAppCard(payload)
 
     expect(card.weight).toBe(3)
   })
 
   it('creates card with custom weight values', async () => {
-    const cardLow = await testData.createAppCard(payload, {
-      title: 'Rare Card',
-      weight: 1,
-    })
-    const cardHigh = await testData.createAppCard(payload, {
-      title: 'Frequent Card',
-      weight: 5,
-    })
+    const cardLow = await testData.createAppCard(payload, { weight: 1 })
+    const cardHigh = await testData.createAppCard(payload, { weight: 5 })
 
     expect(cardLow.weight).toBe(1)
     expect(cardHigh.weight).toBe(5)
@@ -80,7 +65,6 @@ describe('AppCards audiences, weight, targetSections', () => {
 
   it('creates card with targetSections field (single value)', async () => {
     const card = await testData.createAppCard(payload, {
-      title: 'Hero Card',
       targetSections: ['hero'],
     })
 
@@ -95,7 +79,6 @@ describe('AppCards audiences, weight, targetSections', () => {
 
   it('creates card with targetSections field (multiple values)', async () => {
     const card = await testData.createAppCard(payload, {
-      title: 'Multi-Section Card',
       targetSections: ['hero', 'highlights'],
     })
 
@@ -109,72 +92,86 @@ describe('AppCards audiences, weight, targetSections', () => {
     })
 
     const card = await testData.createAppCard(payload, {
-      title: 'Mixed Fields Card',
       targetSections: ['highlights'],
       audiences: [audience.id],
     })
 
     expect(card.targetSections).toEqual(['highlights'])
-    expect(extractFirstAudienceId(card.audiences)).toBe(audience.id)
+    const firstId =
+      Array.isArray(card.audiences) && card.audiences.length > 0
+        ? typeof card.audiences[0] === 'number'
+          ? card.audiences[0]
+          : (card.audiences[0] as { id: number }).id
+        : null
+    expect(firstId).toBe(audience.id)
   })
 })
 
-// ── Integration Tests: AppCards Overlay Field ─────────────────────────────────
+// ── Integration Tests: AppCards overlay field ─────────────────────────────────
 
 describe('AppCards overlay field', () => {
   it('defaults overlay to false and persists overlay: true', async () => {
-    const defaultCard = await testData.createAppCard(payload, { title: 'No Overlay' })
-    expect(defaultCard.overlay).toBe(false)
+    const defaultCard = await testData.createAppCard(payload)
+    expect(defaultCard.default?.overlay).toBe(false)
 
     const overlayCard = await testData.createAppCard(payload, {
-      title: 'With Overlay',
-      overlay: true,
+      default: { overlay: true },
     })
-    expect(overlayCard.overlay).toBe(true)
+    expect(overlayCard.default?.overlay).toBe(true)
 
     const fetched = await payload.findByID({
       collection: 'app-cards',
       id: overlayCard.id,
     })
-    expect(fetched.overlay).toBe(true)
+    expect(fetched.default?.overlay).toBe(true)
   })
 })
 
-// ── Integration Tests: AppCards Countdown & Schedule ───────────────────────────
+// ── Integration Tests: AppCards type field ────────────────────────────────────
 
-describe('AppCards countdown and schedule fields', () => {
-  it('creates card with countdown: false (default) without schedule', async () => {
-    const card = await testData.createAppCard(payload, {
-      title: 'Regular Card',
-      type: 'app-page',
-      appPage: 'map',
-    })
+describe('AppCards type field', () => {
+  it('creates standard card with type: standard', async () => {
+    const card = await testData.createAppCard(payload, { type: 'standard' })
 
-    expect(card.countdown).toBeFalsy()
-    // Schedule field exists but should have no firstDate when countdown is false
-    expect(card.schedule?.firstDate).toBeNull()
+    expect(card.type).toBe('standard')
   })
 
-  it('creates card with countdown: true and valid schedule data', async () => {
+  it('creates standard card with default view fields', async () => {
+    const card = await testData.createAppCard(payload, {
+      default: {
+        title: 'My Standard Card',
+        header: 'My Header',
+        destination: 'appPage',
+        appPage: 'map',
+      },
+    })
+
+    expect(card.default?.title).toBe('My Standard Card')
+    expect(card.default?.header).toBe('My Header')
+    expect(card.default?.destination).toBe('appPage')
+    expect(card.default?.appPage).toBe('map')
+  })
+
+  it('creates event card with type: event', async () => {
     const futureDate = new Date()
     futureDate.setDate(futureDate.getDate() + 7)
+    // Anchor to 12:00 UTC (8am NY) so endTime '20:00' always passes NY start-time validation
+    futureDate.setUTCHours(12, 0, 0, 0)
     const dateString = futureDate.toISOString()
 
     const card = await testData.createAppCard(payload, {
-      title: 'Countdown Card',
-      type: 'app-page',
-      appPage: 'path',
-      countdown: true,
+      type: 'event',
       schedule: {
         firstDate: dateString,
         firstDate_tz: 'America/New_York',
         recurrenceType: 'WEEKLY',
         interval: 1,
         weekdays: ['MO'],
+        endTime: '20:00',
       },
     })
 
-    expect(card.countdown).toBe(true)
+    expect(card.type).toBe('event')
     expect(card.schedule).toBeDefined()
     expect(card.schedule!.firstDate).toBe(dateString)
     expect(card.schedule!.firstDate_tz).toBe('America/New_York')
@@ -182,14 +179,13 @@ describe('AppCards countdown and schedule fields', () => {
     expect(card.schedule!.interval).toBe(1)
   })
 
-  it('computes icalRule and upcomingDates virtual fields for countdown cards', async () => {
+  it('computes icalRule and upcomingDates virtual fields for event cards', async () => {
     const futureDate = new Date()
     futureDate.setDate(futureDate.getDate() + 7)
     const dateString = futureDate.toISOString()
 
     const card = await testData.createAppCard(payload, {
-      title: 'Recurring Countdown',
-      countdown: true,
+      type: 'event',
       schedule: {
         firstDate: dateString,
         firstDate_tz: 'UTC',
@@ -198,64 +194,158 @@ describe('AppCards countdown and schedule fields', () => {
       },
     })
 
-    // Virtual fields should be computed by afterRead hook
     expect(card.schedule!.icalRule).toBeDefined()
     expect(card.schedule!.icalRule).toContain('DTSTART')
     expect(card.schedule!.icalRule).toContain('RRULE:FREQ=DAILY;INTERVAL=2')
 
-    expect(card.schedule!.upcomingDates).toBeDefined()
     expect(Array.isArray(card.schedule!.upcomingDates)).toBe(true)
-    expect(card.schedule!.upcomingDates!.length).toBeGreaterThan(0)
+    expect((card.schedule!.upcomingDates as unknown[]).length).toBeGreaterThan(0)
   })
 
-  it('allows countdown cards with content type', async () => {
+  it('creates event card with startingSoon view enabled and custom threshold', async () => {
     const futureDate = new Date()
-    futureDate.setDate(futureDate.getDate() + 1)
-    const dateString = futureDate.toISOString()
-
-    // Create a meditation first for the content relationship
-    const meditation = await testData.createMeditation(payload, { title: 'Test Meditation' })
+    futureDate.setDate(futureDate.getDate() + 3)
 
     const card = await testData.createAppCard(payload, {
-      title: 'Content Countdown',
-      type: 'content',
-      // Polymorphic relationship requires explicit collection specification
-      content: { relationTo: 'meditations', value: meditation.id },
-      countdown: true,
+      type: 'event',
       schedule: {
-        firstDate: dateString,
+        firstDate: futureDate.toISOString(),
+        firstDate_tz: 'UTC',
+        recurrenceType: 'DAILY',
+        interval: 1,
+        endTime: '21:00',
+      },
+      startingSoon: {
+        enabled: true,
+        threshold: '2:00',
+        title: 'Coming Soon',
+      },
+    })
+
+    expect(card.type).toBe('event')
+    expect(card.startingSoon?.enabled).toBe(true)
+    expect(card.startingSoon?.threshold).toBe('2:00')
+    expect(card.startingSoon?.title).toBe('Coming Soon')
+  })
+
+  it('creates event card with liveNow view enabled', async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 3)
+
+    const card = await testData.createAppCard(payload, {
+      type: 'event',
+      schedule: {
+        firstDate: futureDate.toISOString(),
+        firstDate_tz: 'UTC',
+        recurrenceType: 'DAILY',
+        interval: 1,
+        endTime: '21:00',
+      },
+      liveNow: {
+        enabled: true,
+        threshold: '0:15',
+        title: 'Happening Now',
+      },
+    })
+
+    expect(card.liveNow?.enabled).toBe(true)
+    expect(card.liveNow?.threshold).toBe('0:15')
+    expect(card.liveNow?.title).toBe('Happening Now')
+  })
+
+  it('computes viewSchedule virtual field for event card with both views enabled', async () => {
+    // Pin to 15:00 UTC so threshold math produces predictable keys
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+    futureDate.setUTCHours(15, 0, 0, 0)
+
+    const card = await testData.createAppCard(payload, {
+      type: 'event',
+      schedule: {
+        firstDate: futureDate.toISOString(),
+        firstDate_tz: 'UTC',
+        recurrenceType: 'DAILY',
+        interval: 1,
+        endTime: '16:00',
+      },
+      startingSoon: {
+        enabled: true,
+        threshold: '1:00', // 15:00 − 1h = 14:00 UTC
+        title: 'Coming Soon',
+      },
+      liveNow: {
+        enabled: true,
+        threshold: '0:00', // starts exactly at event start = 15:00 UTC
+        title: 'Happening Now',
+      },
+    })
+
+    type ViewSchedule = { timezone: string; schedule: Record<string, string> }
+    const viewSchedule = card.viewSchedule as ViewSchedule | null
+    expect(viewSchedule).not.toBeNull()
+    expect(viewSchedule!.timezone).toBe('UTC')
+    const schedule = viewSchedule!.schedule
+    expect(schedule['14:00']).toBe('startingSoon')
+    expect(schedule['15:00']).toBe('liveNow')
+    expect(schedule['16:00']).toBe('default')
+  })
+
+  it('returns null viewSchedule for standard cards and event cards with no enabled views', async () => {
+    const standardCard = await testData.createAppCard(payload, { type: 'standard' })
+    expect(standardCard.viewSchedule).toBeNull()
+
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+    const noViewsCard = await testData.createAppCard(payload, {
+      type: 'event',
+      schedule: {
+        firstDate: futureDate.toISOString(),
         firstDate_tz: 'UTC',
         recurrenceType: 'DAILY',
         interval: 1,
       },
+      // startingSoon and liveNow both disabled (default)
+    })
+    expect(noViewsCard.viewSchedule).toBeNull()
+  })
+})
+
+// ── Integration Tests: AppCards destination field ─────────────────────────────
+
+describe('AppCards destination field', () => {
+  it('creates card with appPage destination', async () => {
+    const card = await testData.createAppCard(payload, {
+      default: { destination: 'appPage', appPage: 'lectures' },
     })
 
-    expect(card.countdown).toBe(true)
-    expect(card.type).toBe('content')
-    expect(card.schedule).toBeDefined()
+    expect(card.default?.destination).toBe('appPage')
+    expect(card.default?.appPage).toBe('lectures')
   })
 
-  it('allows countdown cards with external type', async () => {
-    const futureDate = new Date()
-    futureDate.setDate(futureDate.getDate() + 1)
-    const dateString = futureDate.toISOString()
+  it('creates card with url destination', async () => {
+    const card = await testData.createAppCard(payload, {
+      default: { destination: 'url', url: 'https://example.com' },
+    })
+
+    expect(card.default?.destination).toBe('url')
+    expect(card.default?.url).toBe('https://example.com')
+  })
+
+  it('creates card with meditation destination', async () => {
+    const meditation = await testData.createMeditation(payload, { title: 'Linked Meditation' })
 
     const card = await testData.createAppCard(payload, {
-      title: 'External Countdown',
-      type: 'external',
-      linkUrl: 'https://example.com',
-      countdown: true,
-      schedule: {
-        firstDate: dateString,
-        firstDate_tz: 'UTC',
-        recurrenceType: 'WEEKLY',
-        interval: 1,
-        weekdays: ['MO'],
+      default: {
+        destination: 'meditation',
+        meditation: meditation.id,
       },
     })
 
-    expect(card.countdown).toBe(true)
-    expect(card.type).toBe('external')
-    expect(card.schedule).toBeDefined()
+    expect(card.default?.destination).toBe('meditation')
+    const meditationId =
+      typeof card.default?.meditation === 'number'
+        ? card.default.meditation
+        : (card.default?.meditation as { id: number } | null)?.id
+    expect(meditationId).toBe(meditation.id)
   })
 })

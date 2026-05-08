@@ -13,8 +13,8 @@ import {
 export interface ScheduleFieldOptions {
   /** Field name (default: 'schedule') */
   name?: string
-  /** Field label (default: 'Schedule') */
-  label?: string
+  /** Field label (default: 'Schedule', false to hide) */
+  label?: false | string
   /** Whether sub-fields are required (default: true) */
   required?: boolean
   /** Show end time field (default: false) */
