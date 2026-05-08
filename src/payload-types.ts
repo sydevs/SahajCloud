@@ -1237,16 +1237,16 @@ export interface Audience {
 export interface AppCard {
   id: number;
   type: 'standard' | 'event';
+  viewSchedule?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   default: {
-    /**
-     * Shown above the card in hero placement.
-     */
-    header?: string | null;
-    image?: (number | null) | Image;
-    /**
-     * Render card with dark overlay and white text.
-     */
-    overlay?: boolean | null;
     title: string;
     subtitle?: string | null;
     /**
@@ -1265,6 +1265,15 @@ export interface AppCard {
     album?: (number | null) | Album;
     meditation?: (number | null) | Meditation;
     url?: string | null;
+    /**
+     * Shown above the card in hero placement.
+     */
+    header?: string | null;
+    image?: (number | null) | Image;
+    /**
+     * Render card with dark overlay and white text.
+     */
+    overlay?: boolean | null;
   };
   startingSoon?: {
     enabled?: boolean | null;
@@ -1272,15 +1281,6 @@ export interface AppCard {
      * How long before the event start this view activates (HH:MM).
      */
     threshold?: string | null;
-    /**
-     * Shown above the card in hero placement.
-     */
-    header?: string | null;
-    image?: (number | null) | Image;
-    /**
-     * Render card with dark overlay and white text.
-     */
-    overlay?: boolean | null;
     title?: string | null;
     subtitle?: string | null;
     /**
@@ -1299,6 +1299,15 @@ export interface AppCard {
     album?: (number | null) | Album;
     meditation?: (number | null) | Meditation;
     url?: string | null;
+    /**
+     * Shown above the card in hero placement.
+     */
+    header?: string | null;
+    image?: (number | null) | Image;
+    /**
+     * Render card with dark overlay and white text.
+     */
+    overlay?: boolean | null;
   };
   liveNow?: {
     enabled?: boolean | null;
@@ -1306,15 +1315,6 @@ export interface AppCard {
      * How long before the event start this view activates (HH:MM).
      */
     threshold?: string | null;
-    /**
-     * Shown above the card in hero placement.
-     */
-    header?: string | null;
-    image?: (number | null) | Image;
-    /**
-     * Render card with dark overlay and white text.
-     */
-    overlay?: boolean | null;
     title?: string | null;
     subtitle?: string | null;
     /**
@@ -1333,11 +1333,20 @@ export interface AppCard {
     album?: (number | null) | Album;
     meditation?: (number | null) | Meditation;
     url?: string | null;
+    /**
+     * Shown above the card in hero placement.
+     */
+    header?: string | null;
+    image?: (number | null) | Image;
+    /**
+     * Render card with dark overlay and white text.
+     */
+    overlay?: boolean | null;
   };
   /**
-   * Configure the recurring event schedule for this card.
+   * Configure when this event occurs and repeats
    */
-  schedule?: {
+  schedule: {
     firstDate: string;
     firstDate_tz: SupportedTimezones;
     /**
@@ -2619,12 +2628,10 @@ export interface ClientsSelect<T extends boolean = true> {
  */
 export interface AppCardsSelect<T extends boolean = true> {
   type?: T;
+  viewSchedule?: T;
   default?:
     | T
     | {
-        header?: T;
-        image?: T;
-        overlay?: T;
         title?: T;
         subtitle?: T;
         button?: T;
@@ -2634,15 +2641,15 @@ export interface AppCardsSelect<T extends boolean = true> {
         album?: T;
         meditation?: T;
         url?: T;
+        header?: T;
+        image?: T;
+        overlay?: T;
       };
   startingSoon?:
     | T
     | {
         enabled?: T;
         threshold?: T;
-        header?: T;
-        image?: T;
-        overlay?: T;
         title?: T;
         subtitle?: T;
         button?: T;
@@ -2652,15 +2659,15 @@ export interface AppCardsSelect<T extends boolean = true> {
         album?: T;
         meditation?: T;
         url?: T;
+        header?: T;
+        image?: T;
+        overlay?: T;
       };
   liveNow?:
     | T
     | {
         enabled?: T;
         threshold?: T;
-        header?: T;
-        image?: T;
-        overlay?: T;
         title?: T;
         subtitle?: T;
         button?: T;
@@ -2670,6 +2677,9 @@ export interface AppCardsSelect<T extends boolean = true> {
         album?: T;
         meditation?: T;
         url?: T;
+        header?: T;
+        image?: T;
+        overlay?: T;
       };
   schedule?:
     | T

@@ -155,6 +155,8 @@ describe('AppCards type field', () => {
   it('creates event card with type: event', async () => {
     const futureDate = new Date()
     futureDate.setDate(futureDate.getDate() + 7)
+    // Anchor to 12:00 UTC (8am NY) so endTime '20:00' always passes NY start-time validation
+    futureDate.setUTCHours(12, 0, 0, 0)
     const dateString = futureDate.toISOString()
 
     const card = await testData.createAppCard(payload, {
