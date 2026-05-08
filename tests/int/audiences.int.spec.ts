@@ -96,21 +96,6 @@ describe('Audiences Collection', () => {
     })
   })
 
-  describe('type field', () => {
-    it('defaults to progress type', async () => {
-      const audience = await testData.createAudience(payload, { label: 'Default Type Test' })
-      expect(audience.type).toBe('progress')
-    })
-
-    it('accepts context type', async () => {
-      const audience = await testData.createAudience(payload, {
-        label: 'Context Type Test',
-        type: 'context',
-      })
-      expect(audience.type).toBe('context')
-    })
-  })
-
   describe('progress range fields', () => {
     it('accepts valid range rules with min and max', async () => {
       const audience = await testData.createAudience(payload, {
@@ -129,7 +114,6 @@ describe('Audiences Collection', () => {
           collection: 'audiences',
           data: {
             label: 'Invalid Range',
-            type: 'progress',
             pathProgress: { min: 10, max: 5 },
           },
         }),
