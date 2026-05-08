@@ -55,12 +55,11 @@ function buildProgressWhereClause(params: QueryParams) {
  * GET /api/audiences/for-user
  *
  * Resolves the set of Audiences a user qualifies for given their current
- * progress data and context (country). Returns combined matching progress +
- * context audience IDs.
+ * progress data and context (country). Returns matching audience IDs.
  *
- * Progress audiences: evaluated via a single SQL WHERE query.
- * Context audiences: fetched all, then JS-filtered by country gate only.
- * All five query params (four progress + country) are required.
+ * Single query: progress-range WHERE clause applied to all audiences
+ * (unset bounds always pass). Country gate applied in JS post-query
+ * (empty list passes). All five query params (four progress + country) are required.
  *
  * Clients call this once per state change and pass the result to the
  * `/for-audience` data endpoints, which skip rule eval and are more cacheable.
@@ -77,42 +76,26 @@ export const audiencesForUser: Endpoint = {
 
     const params = parsed.data
 
-    // ── Progress audiences: single SQL WHERE query ─────────────────────────
-    const progressResult = await req.payload.find({
+    // ── Single query: progress WHERE clause + JS country filter ───────────
+    const result = await req.payload.find({
       collection: 'audiences',
-      where: {
-        and: [{ type: { equals: 'progress' } }, buildProgressWhereClause(params)],
-      },
+      where: buildProgressWhereClause(params),
       depth: 0,
       limit: 200,
       pagination: false,
       req,
     })
 
-    const progressIds: number[] = progressResult.docs.map((a) => a.id)
-
-    // ── Context audiences: fetch-all + country JS filter ──────────────────
-    const conditionResult = await req.payload.find({
-      collection: 'audiences',
-      where: { type: { equals: 'context' } },
-      depth: 0,
-      limit: 200,
-      pagination: false,
-      req,
-    })
-
-    const conditionIds: number[] = conditionResult.docs
+    const audienceIds = result.docs
       .filter((audience) => {
         const countryList = audience.country as string[] | null | undefined
         if (countryList && countryList.length > 0) {
-          if (!countryList.includes(params.country)) return false
+          return countryList.includes(params.country)
         }
         return true
       })
       .map((a) => a.id)
-
-    // ── Combine, dedup, sort ascending (stable cache keys) ────────────────
-    const audienceIds = [...new Set([...progressIds, ...conditionIds])].sort((a, b) => a - b)
+      .sort((a, b) => a - b)
 
     return Response.json(
       { audiences: audienceIds },

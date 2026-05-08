@@ -901,10 +901,6 @@ export interface Lecture {
  */
 export interface Audience {
   id: number;
-  /**
-   * Does this audience group users based on their progress in the app or based on their context (location & time).
-   */
-  type: 'progress' | 'context';
   label: string;
   pathProgress?: {
     /**
@@ -947,7 +943,7 @@ export interface Audience {
     max?: number | null;
   };
   /**
-   * Restrict to users in these countries.
+   * Country gate: restrict to users in these countries. Leave empty to match all countries.
    */
   country?:
     | (
@@ -1220,7 +1216,7 @@ export interface Audience {
     totalDocs?: number;
   };
   /**
-   * All app cards tagged with this condition audience
+   * All app cards that require this audience as a condition
    */
   appCardConditions?: {
     docs?: (number | AppCard)[];
@@ -1386,11 +1382,11 @@ export interface AppCard {
    */
   targetSections?: ('hero' | 'highlights' | 'lectures')[] | null;
   /**
-   * Audiences that control visibility. The card is shown to a viewer if ANY of the selected audiences passes. If empty, the card is hidden from /api/app-cards/for-audience and never appears on the app homepage.
+   * Card is shown to a viewer if they match ANY of these audiences (OR). Leave empty to hide the card from all viewers.
    */
   audiences?: (number | Audience)[] | null;
   /**
-   * Display conditions that ALL must be satisfied (AND). Use for country gates. Leave empty to bypass condition gating.
+   * ALL of these must also pass (AND). Use for country gates. Leave empty to skip additional gating.
    */
   conditions?: (number | Audience)[] | null;
   /**
@@ -2463,7 +2459,6 @@ export interface FilesSelect<T extends boolean = true> {
  * via the `definition` "audiences_select".
  */
 export interface AudiencesSelect<T extends boolean = true> {
-  type?: T;
   label?: T;
   pathProgress?:
     | T
