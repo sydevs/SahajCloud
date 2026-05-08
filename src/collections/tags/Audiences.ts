@@ -4,7 +4,6 @@ import countries from 'i18n-iso-countries'
 import enLocale from 'i18n-iso-countries/langs/en.json'
 
 import { audiencesForUser } from '@/endpoints'
-import { scheduleField } from '@/fields'
 
 countries.registerLocale(enLocale)
 
@@ -109,7 +108,7 @@ export const Audiences: CollectionConfig = {
       label: 'Display Conditions',
       admin: {
         condition: (data) => data?.type === 'context',
-        description: 'Any empty rule will be ignored',
+        description: 'Country gate: leave empty to match all countries.',
       },
       fields: [
         {
@@ -121,24 +120,6 @@ export const Audiences: CollectionConfig = {
             description: 'Restrict to users in these countries.',
           },
         },
-        {
-          name: 'eventTime',
-          type: 'date',
-          admin: {
-            date: { pickerAppearance: 'timeOnly' },
-            description:
-              'This condition is met if the this moment is during daytime hours for the user (between 08:00 and 22:00 local time).',
-          },
-          timezone: true,
-        },
-        scheduleField({
-          hasEndTime: true,
-          required: false,
-          admin: {
-            description:
-              "This condition will be met during the scheduled times. This does not rely on the user's local time",
-          },
-        }),
       ],
     },
     // ── Bidirectional joins (unconditional — read-only inverses) ──────────
@@ -181,7 +162,7 @@ export const Audiences: CollectionConfig = {
       on: 'conditions',
       defaultLimit: 100,
       admin: {
-        description: 'All lectures tagged with this condition audience',
+        description: 'All app cards tagged with this condition audience',
         components: {
           Cell: {
             path: '@/components/admin/RelationshipCountCell',

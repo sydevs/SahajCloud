@@ -2,7 +2,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { Album, AppCard, Audience, Client, Image } from '@/payload-types'
+import type { AppCard, Audience, Client, Image } from '@/payload-types'
 
 import { appCardsForAudience } from '@/endpoints'
 
@@ -63,7 +63,6 @@ describe('appCardsForAudience endpoint', () => {
   let emptyAudiencesCard: AppCard
   let multiAudienceCard: AppCard
   let allFailingAudiencesCard: AppCard
-  let contentAlbum: Album
   let contentCard: AppCard
   // AND-conditions gate cards
   let cardWithCondition: AppCard
@@ -106,8 +105,7 @@ describe('appCardsForAudience endpoint', () => {
 
     // Hero card with open audience — present whenever Open is in the caller's list.
     heroCardOpen = await testData.createAppCard(payload, {
-      title: 'Hero Open',
-      image: imageId,
+      default: { title: 'Hero Open', image: imageId },
       targetSections: ['hero'],
       audiences: [openAudience.id],
       weight: 3,
@@ -116,8 +114,7 @@ describe('appCardsForAudience endpoint', () => {
 
     // Hero card requiring the path-started audience.
     heroCardPathStarted = await testData.createAppCard(payload, {
-      title: 'Hero Path Started',
-      image: imageId,
+      default: { title: 'Hero Path Started', image: imageId },
       targetSections: ['hero'],
       audiences: [pathStartedAudience.id],
       weight: 3,
@@ -126,8 +123,7 @@ describe('appCardsForAudience endpoint', () => {
 
     // Highlights-only card
     highlightsCard = await testData.createAppCard(payload, {
-      title: 'Highlights Only',
-      image: imageId,
+      default: { title: 'Highlights Only', image: imageId },
       targetSections: ['highlights'],
       audiences: [openAudience.id],
       weight: 3,
@@ -136,8 +132,7 @@ describe('appCardsForAudience endpoint', () => {
 
     // Draft card that should never appear
     draftHeroCard = await testData.createAppCard(payload, {
-      title: 'Draft Hero',
-      image: imageId,
+      default: { title: 'Draft Hero', image: imageId },
       targetSections: ['hero'],
       audiences: [openAudience.id],
       weight: 3,
@@ -146,8 +141,7 @@ describe('appCardsForAudience endpoint', () => {
 
     // Card targeted to both sections
     bothSectionsCard = await testData.createAppCard(payload, {
-      title: 'Hero and Highlights',
-      image: imageId,
+      default: { title: 'Hero and Highlights', image: imageId },
       targetSections: ['hero', 'highlights'],
       audiences: [openAudience.id],
       weight: 3,
@@ -155,8 +149,7 @@ describe('appCardsForAudience endpoint', () => {
     })
 
     nullRulesAudienceCard = await testData.createAppCard(payload, {
-      title: 'Null Rules Audience Card',
-      image: imageId,
+      default: { title: 'Null Rules Audience Card', image: imageId },
       targetSections: ['hero'],
       audiences: [nullRulesAudience.id],
       weight: 3,
@@ -165,8 +158,7 @@ describe('appCardsForAudience endpoint', () => {
 
     // Card with no audiences — must be hidden
     emptyAudiencesCard = await testData.createAppCard(payload, {
-      title: 'No Audiences',
-      image: imageId,
+      default: { title: 'No Audiences', image: imageId },
       targetSections: ['hero'],
       audiences: [],
       weight: 3,
@@ -176,8 +168,7 @@ describe('appCardsForAudience endpoint', () => {
     // OR-match coverage: card with one matching + one non-matching audience
     // for a beginner caller (audiences=openOnly).
     multiAudienceCard = await testData.createAppCard(payload, {
-      title: 'Multi Audience Card',
-      image: imageId,
+      default: { title: 'Multi Audience Card', image: imageId },
       targetSections: ['hero'],
       audiences: [openAudience.id, pathStartedAudience.id],
       weight: 3,
@@ -187,22 +178,22 @@ describe('appCardsForAudience endpoint', () => {
     // OR-match coverage: card whose only audience is missing from the
     // caller's resolved list (audiences=openOnly excludes PathStarted).
     allFailingAudiencesCard = await testData.createAppCard(payload, {
-      title: 'All Failing Audiences Card',
-      image: imageId,
+      default: { title: 'All Failing Audiences Card', image: imageId },
       targetSections: ['hero'],
       audiences: [pathStartedAudience.id],
       weight: 3,
       _status: 'published',
     })
 
-    // Card with content relationship — verifies depth:1 population
-    contentAlbum = await testData.createAlbum(payload, { title: 'Content Album' })
+    // Card with album destination — verifies depth:1 population
+    const contentAlbum = await testData.createAlbum(payload, { title: 'Content Album' })
     contentCard = await testData.createAppCard(payload, {
-      title: 'Content Card',
-      image: imageId,
-      type: 'content',
-      content: { relationTo: 'albums', value: contentAlbum.id },
-      appPage: null,
+      default: {
+        title: 'Content Card',
+        image: imageId,
+        destination: 'album',
+        album: contentAlbum.id,
+      },
       targetSections: ['hero'],
       audiences: [openAudience.id],
       weight: 3,
@@ -211,8 +202,7 @@ describe('appCardsForAudience endpoint', () => {
 
     // AND-conditions gate: card with a single condition audience
     cardWithCondition = await testData.createAppCard(payload, {
-      title: 'Card With Single Condition',
-      image: imageId,
+      default: { title: 'Card With Single Condition', image: imageId },
       targetSections: ['hero'],
       audiences: [openAudience.id],
       conditions: [conditionAudience.id],
@@ -225,8 +215,7 @@ describe('appCardsForAudience endpoint', () => {
       label: 'Open Condition B',
     })
     cardWithMultipleConditions = await testData.createAppCard(payload, {
-      title: 'Card With Two Conditions',
-      image: imageId,
+      default: { title: 'Card With Two Conditions', image: imageId },
       targetSections: ['hero'],
       audiences: [openAudience.id],
       conditions: [conditionAudience.id, conditionAudienceB.id],
@@ -585,14 +574,13 @@ describe('appCardsForAudience endpoint', () => {
     const docs = (body as { docs: AppCard[] }).docs
     const card = docs.find((c) => c.id === contentCard.id)
     expect(card).toBeDefined()
-    // image relationship populated
-    const image = card!.image as Image
+    // default.image relationship populated
+    const image = card!.default?.image as Image
     expect(typeof image).toBe('object')
     expect(image.id).toBeDefined()
-    // content relationship populated
-    const content = card!.content as { relationTo: string; value: Album }
-    expect(content.relationTo).toBe('albums')
-    expect(typeof content.value).toBe('object')
-    expect((content.value as Album).title).toBe('Content Album')
+    // default.album relationship populated
+    const album = card!.default?.album
+    expect(typeof album).toBe('object')
+    expect((album as { id: number }).id).toBeDefined()
   })
 })

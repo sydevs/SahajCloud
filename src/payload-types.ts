@@ -1204,37 +1204,6 @@ export interface Audience {
       )[]
     | null;
   /**
-   * This condition is met if the this moment is during daytime hours for the user (between 08:00 and 22:00 local time).
-   */
-  eventTime?: string | null;
-  eventTime_tz?: SupportedTimezones;
-  /**
-   * This condition will be met during the scheduled times. This does not rely on the user's local time
-   */
-  schedule?: {
-    firstDate?: string | null;
-    firstDate_tz?: SupportedTimezones;
-    /**
-     * Optional, same day (24-hour format)
-     */
-    endTime?: string | null;
-    recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
-    /**
-     * Repeat every N days/weeks/months
-     */
-    interval?: number | null;
-    icalRule?: string | null;
-    upcomingDates?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-  };
-  /**
    * All lectures tagged with this audience
    */
   lectures?: {
@@ -1251,7 +1220,7 @@ export interface Audience {
     totalDocs?: number;
   };
   /**
-   * All lectures tagged with this condition audience
+   * All app cards tagged with this condition audience
    */
   appCardConditions?: {
     docs?: (number | AppCard)[];
@@ -1267,56 +1236,123 @@ export interface Audience {
  */
 export interface AppCard {
   id: number;
-  image: number | Image;
-  title: string;
-  subtitle?: string | null;
+  type: 'standard' | 'event';
+  viewSchedule?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  default: {
+    title: string;
+    subtitle?: string | null;
+    /**
+     * Button label text.
+     */
+    button?: string | null;
+    /**
+     * Where this card navigates to when tapped.
+     */
+    destination?: ('appPage' | 'lecture' | 'album' | 'meditation' | 'url') | null;
+    /**
+     * App page this card links to.
+     */
+    appPage?: ('map' | 'lectures' | 'path' | 'music' | 'live-meditations') | null;
+    lecture?: (number | null) | Lecture;
+    album?: (number | null) | Album;
+    meditation?: (number | null) | Meditation;
+    url?: string | null;
+    /**
+     * Shown above the card in hero placement.
+     */
+    header?: string | null;
+    image?: (number | null) | Image;
+    /**
+     * Render card with dark overlay and white text.
+     */
+    overlay?: boolean | null;
+  };
+  startingSoon?: {
+    enabled?: boolean | null;
+    /**
+     * How long before the event start this view activates (HH:MM).
+     */
+    threshold?: string | null;
+    title?: string | null;
+    subtitle?: string | null;
+    /**
+     * Button label text.
+     */
+    button?: string | null;
+    /**
+     * Where this card navigates to when tapped.
+     */
+    destination?: ('appPage' | 'lecture' | 'album' | 'meditation' | 'url') | null;
+    /**
+     * App page this card links to.
+     */
+    appPage?: ('map' | 'lectures' | 'path' | 'music' | 'live-meditations') | null;
+    lecture?: (number | null) | Lecture;
+    album?: (number | null) | Album;
+    meditation?: (number | null) | Meditation;
+    url?: string | null;
+    /**
+     * Shown above the card in hero placement.
+     */
+    header?: string | null;
+    image?: (number | null) | Image;
+    /**
+     * Render card with dark overlay and white text.
+     */
+    overlay?: boolean | null;
+  };
+  liveNow?: {
+    enabled?: boolean | null;
+    /**
+     * How long before the event start this view activates (HH:MM).
+     */
+    threshold?: string | null;
+    title?: string | null;
+    subtitle?: string | null;
+    /**
+     * Button label text.
+     */
+    button?: string | null;
+    /**
+     * Where this card navigates to when tapped.
+     */
+    destination?: ('appPage' | 'lecture' | 'album' | 'meditation' | 'url') | null;
+    /**
+     * App page this card links to.
+     */
+    appPage?: ('map' | 'lectures' | 'path' | 'music' | 'live-meditations') | null;
+    lecture?: (number | null) | Lecture;
+    album?: (number | null) | Album;
+    meditation?: (number | null) | Meditation;
+    url?: string | null;
+    /**
+     * Shown above the card in hero placement.
+     */
+    header?: string | null;
+    image?: (number | null) | Image;
+    /**
+     * Render card with dark overlay and white text.
+     */
+    overlay?: boolean | null;
+  };
   /**
-   * Button label text
+   * Configure when this event occurs and repeats
    */
-  button?: string | null;
-  /**
-   * A custom header that will appear above the card if it is selected as a hero card.
-   */
-  header: string;
-  type: 'app-page' | 'content' | 'external';
-  /**
-   * Select the app page this card links to
-   */
-  appPage?: ('map' | 'lectures' | 'path' | 'music' | 'live-meditations') | null;
-  /**
-   * Select the content item this card links to
-   */
-  content?:
-    | ({
-        relationTo: 'lectures';
-        value: number | Lecture;
-      } | null)
-    | ({
-        relationTo: 'albums';
-        value: number | Album;
-      } | null)
-    | ({
-        relationTo: 'meditations';
-        value: number | Meditation;
-      } | null);
-  /**
-   * External URL this card links to
-   */
-  linkUrl?: string | null;
-  /**
-   * Enable recurring schedule for this card (countdown/reminder functionality)
-   */
-  countdown?: boolean | null;
-  /**
-   * Render the card with a dark overlay and white text instead of the default style.
-   */
-  overlay?: boolean | null;
-  /**
-   * Configure the recurring schedule for this reminder card
-   */
-  schedule?: {
+  schedule: {
     firstDate: string;
     firstDate_tz: SupportedTimezones;
+    /**
+     * Optional, same day (24-hour format)
+     */
+    endTime?: string | null;
     recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
     /**
      * Repeat every N days/weeks/months
@@ -1354,7 +1390,7 @@ export interface AppCard {
    */
   audiences?: (number | Audience)[] | null;
   /**
-   * Display conditions that ALL must be satisfied (AND). Use for country gates, time-of-day windows, and event scheduling. Leave empty to bypass condition gating.
+   * Display conditions that ALL must be satisfied (AND). Use for country gates. Leave empty to bypass condition gating.
    */
   conditions?: (number | Audience)[] | null;
   /**
@@ -2454,19 +2490,6 @@ export interface AudiencesSelect<T extends boolean = true> {
         max?: T;
       };
   country?: T;
-  eventTime?: T;
-  eventTime_tz?: T;
-  schedule?:
-    | T
-    | {
-        firstDate?: T;
-        firstDate_tz?: T;
-        endTime?: T;
-        recurrenceType?: T;
-        interval?: T;
-        icalRule?: T;
-        upcomingDates?: T;
-      };
   lectures?: T;
   appCards?: T;
   appCardConditions?: T;
@@ -2604,22 +2627,66 @@ export interface ClientsSelect<T extends boolean = true> {
  * via the `definition` "app-cards_select".
  */
 export interface AppCardsSelect<T extends boolean = true> {
-  image?: T;
-  title?: T;
-  subtitle?: T;
-  button?: T;
-  header?: T;
   type?: T;
-  appPage?: T;
-  content?: T;
-  linkUrl?: T;
-  countdown?: T;
-  overlay?: T;
+  viewSchedule?: T;
+  default?:
+    | T
+    | {
+        title?: T;
+        subtitle?: T;
+        button?: T;
+        destination?: T;
+        appPage?: T;
+        lecture?: T;
+        album?: T;
+        meditation?: T;
+        url?: T;
+        header?: T;
+        image?: T;
+        overlay?: T;
+      };
+  startingSoon?:
+    | T
+    | {
+        enabled?: T;
+        threshold?: T;
+        title?: T;
+        subtitle?: T;
+        button?: T;
+        destination?: T;
+        appPage?: T;
+        lecture?: T;
+        album?: T;
+        meditation?: T;
+        url?: T;
+        header?: T;
+        image?: T;
+        overlay?: T;
+      };
+  liveNow?:
+    | T
+    | {
+        enabled?: T;
+        threshold?: T;
+        title?: T;
+        subtitle?: T;
+        button?: T;
+        destination?: T;
+        appPage?: T;
+        lecture?: T;
+        album?: T;
+        meditation?: T;
+        url?: T;
+        header?: T;
+        image?: T;
+        overlay?: T;
+      };
   schedule?:
     | T
     | {
         firstDate?: T;
         firstDate_tz?: T;
+        endTime?: T;
         recurrenceType?: T;
         interval?: T;
         weekdays?: T;

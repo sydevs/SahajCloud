@@ -231,8 +231,7 @@ describe('Pages Collection', () => {
       // Create an image and app-card (with image reference) to embed via relationship
       const image = await testData.createMediaImage(payload, { alt: 'App card cover' })
       const appCard = await testData.createAppCard(payload, {
-        title: 'Embedded App Card',
-        image: image.id,
+        default: { title: 'Embedded App Card', image: image.id },
       })
 
       // Build a page with a Lexical relationship node pointing at the app-card
@@ -276,11 +275,12 @@ describe('Pages Collection', () => {
       const populatedCard = relationshipNode.value as Record<string, unknown>
       expect(typeof populatedCard).toBe('object')
       expect(populatedCard.id).toBe(appCard.id)
-      expect(populatedCard.title).toBe('Embedded App Card')
+      const populatedDefault = populatedCard.default as Record<string, unknown>
+      expect(populatedDefault.title).toBe('Embedded App Card')
 
-      // The app-card's own `image` relationship should ALSO be populated (not just an ID).
+      // The app-card's own `default.image` relationship should ALSO be populated (not just an ID).
       // This verifies RelationshipFeature is not capping depth below the caller's request.
-      const populatedImage = populatedCard.image as Record<string, unknown> | number
+      const populatedImage = populatedDefault.image as Record<string, unknown> | number
       expect(typeof populatedImage).toBe('object')
       expect((populatedImage as Record<string, unknown>).id).toBe(image.id)
       expect((populatedImage as Record<string, unknown>).alt).toBe('App card cover')
