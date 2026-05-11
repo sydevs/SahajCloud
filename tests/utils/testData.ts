@@ -82,6 +82,7 @@ export const testData = {
     return (await payload.create({
       collection: 'app-cards',
       data: {
+        label: `Test Card ${uniqueId}`,
         type: 'standard',
         ...restOverrides,
         default: {

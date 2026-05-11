@@ -290,9 +290,12 @@ describe('AppCards type field', () => {
     expect(schedule['16:00']).toBe('default')
   })
 
-  it('returns null viewSchedule for standard cards and event cards with no enabled views', async () => {
+  it('returns default-only viewSchedule for standard cards; null for event cards with no enabled views', async () => {
     const standardCard = await testData.createAppCard(payload, { type: 'standard' })
-    expect(standardCard.viewSchedule).toBeNull()
+    type ViewSchedule = { timezone: string; schedule: Record<string, string> }
+    const vs = standardCard.viewSchedule as ViewSchedule
+    expect(vs.timezone).toBe('UTC')
+    expect(vs.schedule).toEqual({ '00:00': 'default' })
 
     const futureDate = new Date()
     futureDate.setDate(futureDate.getDate() + 7)
@@ -347,5 +350,128 @@ describe('AppCards destination field', () => {
         ? card.default.meditation
         : (card.default?.meditation as { id: number } | null)?.id
     expect(meditationId).toBe(meditation.id)
+  })
+})
+
+// ── Integration Tests: AppCards new fields (label, timings, icon, alignment) ──
+
+describe('AppCards label field', () => {
+  it('persists label and returns it on read', async () => {
+    const card = await testData.createAppCard(payload, { label: 'My Internal Label' })
+
+    expect(card.label).toBe('My Internal Label')
+
+    const fetched = await payload.findByID({ collection: 'app-cards', id: card.id })
+    expect(fetched.label).toBe('My Internal Label')
+  })
+
+  it('allows cards without a label (optional field)', async () => {
+    const card = await payload.create({
+      collection: 'app-cards',
+      data: {
+        type: 'standard',
+        default: { title: 'No Label Card' },
+      },
+    })
+
+    expect(card.label === null || card.label === undefined || card.label === '').toBe(true)
+  })
+})
+
+describe('AppCards timings field', () => {
+  it('persists a single timing value', async () => {
+    const card = await testData.createAppCard(payload, { timings: ['morning'] })
+
+    expect(card.timings).toEqual(['morning'])
+  })
+
+  it('persists multiple timing values', async () => {
+    const card = await testData.createAppCard(payload, {
+      timings: ['morning', 'evening', 'night'],
+    })
+
+    expect(card.timings).toEqual(['morning', 'evening', 'night'])
+  })
+
+  it('defaults to empty array when no timings set', async () => {
+    const card = await testData.createAppCard(payload)
+
+    expect(card.timings ?? []).toEqual([])
+  })
+})
+
+describe('AppCards alignment field', () => {
+  it('persists alignment in default view tab', async () => {
+    const card = await testData.createAppCard(payload, {
+      default: { alignment: 'center' },
+    })
+
+    expect(card.default?.alignment).toBe('center')
+  })
+
+  it('persists alignment in startingSoon view tab', async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+
+    const card = await testData.createAppCard(payload, {
+      type: 'event',
+      schedule: { firstDate: futureDate.toISOString(), firstDate_tz: 'UTC', recurrenceType: 'DAILY', interval: 1 },
+      startingSoon: { enabled: true, threshold: '1:00', title: 'Soon', alignment: 'left' },
+    })
+
+    expect(card.startingSoon?.alignment).toBe('left')
+  })
+
+  it('persists alignment in liveNow view tab', async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+
+    const card = await testData.createAppCard(payload, {
+      type: 'event',
+      schedule: { firstDate: futureDate.toISOString(), firstDate_tz: 'UTC', recurrenceType: 'DAILY', interval: 1 },
+      liveNow: { enabled: true, threshold: '0:00', title: 'Live', alignment: 'center' },
+    })
+
+    expect(card.liveNow?.alignment).toBe('center')
+  })
+})
+
+describe('AppCards icon field', () => {
+  it('persists icon in default view tab', async () => {
+    const iconImage = await testData.createMediaImage(payload, { alt: 'Button icon' })
+
+    const card = await testData.createAppCard(payload, {
+      default: { buttonIcon: iconImage.id },
+    })
+
+    const iconId =
+      typeof card.default?.buttonIcon === 'number'
+        ? card.default.buttonIcon
+        : (card.default?.buttonIcon as { id: number } | null)?.id
+    expect(iconId).toBe(iconImage.id)
+  })
+
+  it('persists icon in startingSoon view tab', async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+    const iconImage = await testData.createMediaImage(payload, { alt: 'SS icon' })
+
+    const card = await testData.createAppCard(payload, {
+      type: 'event',
+      schedule: { firstDate: futureDate.toISOString(), firstDate_tz: 'UTC', recurrenceType: 'DAILY', interval: 1 },
+      startingSoon: { enabled: true, threshold: '1:00', title: 'Soon', buttonIcon: iconImage.id },
+    })
+
+    const iconId =
+      typeof card.startingSoon?.buttonIcon === 'number'
+        ? card.startingSoon.buttonIcon
+        : (card.startingSoon?.buttonIcon as { id: number } | null)?.id
+    expect(iconId).toBe(iconImage.id)
+  })
+
+  it('allows saving a card without icon (optional)', async () => {
+    const card = await testData.createAppCard(payload)
+
+    expect(card.default?.buttonIcon === null || card.default?.buttonIcon === undefined).toBe(true)
   })
 })

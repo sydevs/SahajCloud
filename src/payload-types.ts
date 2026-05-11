@@ -1234,6 +1234,7 @@ export interface Audience {
  */
 export interface AppCard {
   id: number;
+  label?: string | null;
   type: 'standard' | 'event';
   viewSchedule?:
     | {
@@ -1245,12 +1246,17 @@ export interface AppCard {
     | boolean
     | null;
   default: {
+    /**
+     * Shown above the card in hero placement.
+     */
+    header?: string | null;
     title: string;
     subtitle?: string | null;
     /**
      * Button label text.
      */
-    button?: string | null;
+    buttonText?: string | null;
+    buttonIcon?: (number | null) | Image;
     /**
      * Where this card navigates to when tapped.
      */
@@ -1263,15 +1269,15 @@ export interface AppCard {
     album?: (number | null) | Album;
     meditation?: (number | null) | Meditation;
     url?: string | null;
-    /**
-     * Shown above the card in hero placement.
-     */
-    header?: string | null;
     image?: (number | null) | Image;
     /**
      * Render card with dark overlay and white text.
      */
     overlay?: boolean | null;
+    /**
+     * Text alignment for card content.
+     */
+    alignment: 'left' | 'center';
   };
   startingSoon?: {
     enabled?: boolean | null;
@@ -1279,12 +1285,17 @@ export interface AppCard {
      * How long before the event start this view activates (HH:MM).
      */
     threshold?: string | null;
+    /**
+     * Shown above the card in hero placement.
+     */
+    header?: string | null;
     title?: string | null;
     subtitle?: string | null;
     /**
      * Button label text.
      */
-    button?: string | null;
+    buttonText?: string | null;
+    buttonIcon?: (number | null) | Image;
     /**
      * Where this card navigates to when tapped.
      */
@@ -1297,15 +1308,15 @@ export interface AppCard {
     album?: (number | null) | Album;
     meditation?: (number | null) | Meditation;
     url?: string | null;
-    /**
-     * Shown above the card in hero placement.
-     */
-    header?: string | null;
     image?: (number | null) | Image;
     /**
      * Render card with dark overlay and white text.
      */
     overlay?: boolean | null;
+    /**
+     * Text alignment for card content.
+     */
+    alignment?: ('left' | 'center') | null;
   };
   liveNow?: {
     enabled?: boolean | null;
@@ -1313,12 +1324,17 @@ export interface AppCard {
      * How long before the event start this view activates (HH:MM).
      */
     threshold?: string | null;
+    /**
+     * Shown above the card in hero placement.
+     */
+    header?: string | null;
     title?: string | null;
     subtitle?: string | null;
     /**
      * Button label text.
      */
-    button?: string | null;
+    buttonText?: string | null;
+    buttonIcon?: (number | null) | Image;
     /**
      * Where this card navigates to when tapped.
      */
@@ -1331,15 +1347,15 @@ export interface AppCard {
     album?: (number | null) | Album;
     meditation?: (number | null) | Meditation;
     url?: string | null;
-    /**
-     * Shown above the card in hero placement.
-     */
-    header?: string | null;
     image?: (number | null) | Image;
     /**
      * Render card with dark overlay and white text.
      */
     overlay?: boolean | null;
+    /**
+     * Text alignment for card content.
+     */
+    alignment?: ('left' | 'center') | null;
   };
   /**
    * Configure when this event occurs and repeats
@@ -1383,6 +1399,10 @@ export interface AppCard {
    * Target sections where this card should appear on the app homepage.
    */
   targetSections?: ('hero' | 'highlights' | 'lectures')[] | null;
+  /**
+   * Time-of-day slots when this card should be shown. Leave empty to show at all times.
+   */
+  timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
   /**
    * Card is shown to a viewer if they match ANY of these audiences (OR). Leave empty to hide the card from all viewers.
    */
@@ -2628,59 +2648,66 @@ export interface ClientsSelect<T extends boolean = true> {
  * via the `definition` "app-cards_select".
  */
 export interface AppCardsSelect<T extends boolean = true> {
+  label?: T;
   type?: T;
   viewSchedule?: T;
   default?:
     | T
     | {
+        header?: T;
         title?: T;
         subtitle?: T;
-        button?: T;
+        buttonText?: T;
+        buttonIcon?: T;
         destination?: T;
         appPage?: T;
         lecture?: T;
         album?: T;
         meditation?: T;
         url?: T;
-        header?: T;
         image?: T;
         overlay?: T;
+        alignment?: T;
       };
   startingSoon?:
     | T
     | {
         enabled?: T;
         threshold?: T;
+        header?: T;
         title?: T;
         subtitle?: T;
-        button?: T;
+        buttonText?: T;
+        buttonIcon?: T;
         destination?: T;
         appPage?: T;
         lecture?: T;
         album?: T;
         meditation?: T;
         url?: T;
-        header?: T;
         image?: T;
         overlay?: T;
+        alignment?: T;
       };
   liveNow?:
     | T
     | {
         enabled?: T;
         threshold?: T;
+        header?: T;
         title?: T;
         subtitle?: T;
-        button?: T;
+        buttonText?: T;
+        buttonIcon?: T;
         destination?: T;
         appPage?: T;
         lecture?: T;
         album?: T;
         meditation?: T;
         url?: T;
-        header?: T;
         image?: T;
         overlay?: T;
+        alignment?: T;
       };
   schedule?:
     | T
@@ -2703,6 +2730,7 @@ export interface AppCardsSelect<T extends boolean = true> {
         upcomingDates?: T;
       };
   targetSections?: T;
+  timings?: T;
   audiences?: T;
   conditions?: T;
   weight?: T;
