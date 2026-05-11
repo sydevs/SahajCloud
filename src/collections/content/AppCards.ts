@@ -30,7 +30,9 @@ type ViewName = 'startingSoon' | 'liveNow' | 'default'
  * occurrence exists.
  */
 const viewScheduleAfterRead: FieldHook = ({ data: doc, req }) => {
-  if (doc?.type !== 'event') return null
+  if (doc?.type !== 'event') {
+    return { timezone: 'UTC' as const, schedule: { '00:00': 'default' as ViewName } }
+  }
 
   const schedule = doc.schedule as Partial<ScheduleSubFields> | null | undefined
   if (!schedule?.firstDate) return null
@@ -229,36 +231,67 @@ function destinationFields(
 
 /** Fields shared by all view tabs (no enabled/threshold). */
 function defaultViewFields(): Field[] {
+  const heroCondition = (data: Record<string, unknown>) => {
+    const sections = data?.targetSections as string[] | null | undefined
+    return !!sections?.includes('hero')
+  }
+
   return [
-    {
-      name: 'title',
-      type: 'text',
-      required: true,
-      localized: true,
-    },
-    {
-      name: 'subtitle',
-      type: 'text',
-      localized: true,
-    },
-    mediaField({ name: 'icon', label: 'Button Icon' }),
-    {
-      name: 'button',
-      type: 'text',
-      localized: true,
-      admin: {
-        description: 'Button label text.',
-      },
-    },
-    ...destinationFields(),
     {
       name: 'header',
       type: 'text',
       localized: true,
       admin: {
+        condition: heroCondition,
         description: 'Shown above the card in hero placement.',
       },
     },
+    {
+      name: 'title',
+      type: 'text',
+      required: true,
+      localized: true,
+      admin: {
+        components: {
+          afterInput: ['@/components/admin/VariableInsert'],
+        },
+        custom: {
+          variables: ['event_time'],
+        },
+      },
+    },
+    {
+      name: 'subtitle',
+      type: 'text',
+      localized: true,
+      admin: {
+        components: {
+          afterInput: ['@/components/admin/VariableInsert'],
+        },
+        custom: {
+          variables: ['event_time'],
+        },
+      },
+    },
+    {
+      type: 'row',
+      fields: [
+        {
+          name: 'buttonText',
+          type: 'text',
+          localized: true,
+          admin: {
+            description: 'Button label text.',
+          },
+        },
+        mediaField({
+          name: 'buttonIcon',
+          label: 'Button Icon',
+          admin: { condition: (_, siblingData) => !!siblingData?.buttonText },
+        }),
+      ],
+    },
+    ...destinationFields(),
     mediaField({ name: 'image', label: 'Card Image' }),
     {
       name: 'overlay',
@@ -271,6 +304,8 @@ function defaultViewFields(): Field[] {
     {
       name: 'alignment',
       type: 'select',
+      defaultValue: 'center',
+      required: true,
       options: [
         { label: 'Left', value: 'left' },
         { label: 'Center', value: 'center' },
@@ -289,6 +324,12 @@ function defaultViewFields(): Field[] {
 function eventViewFields(thresholdDefault: string): Field[] {
   const enabledCondition = (_: Record<string, unknown>, siblingData: Record<string, unknown>) =>
     siblingData?.enabled === true
+
+  const headerCondition = (data: Record<string, unknown>, siblingData: Record<string, unknown>) => {
+    if (siblingData?.enabled !== true) return false
+    const sections = data?.targetSections as string[] | null | undefined
+    return !!sections?.includes('hero')
+  }
 
   return [
     {
@@ -311,6 +352,15 @@ function eventViewFields(thresholdDefault: string): Field[] {
       },
     },
     {
+      name: 'header',
+      type: 'text',
+      localized: true,
+      admin: {
+        condition: headerCondition,
+        description: 'Shown above the card in hero placement.',
+      },
+    },
+    {
       name: 'title',
       type: 'text',
       required: true,
@@ -339,30 +389,26 @@ function eventViewFields(thresholdDefault: string): Field[] {
         },
       },
     },
-    mediaField({
-      name: 'icon',
-      label: 'Button Icon',
-      admin: { condition: enabledCondition },
-    }),
     {
-      name: 'button',
-      type: 'text',
-      localized: true,
-      admin: {
-        condition: enabledCondition,
-        description: 'Button label text.',
-      },
+      type: 'row',
+      admin: { condition: enabledCondition },
+      fields: [
+        {
+          name: 'buttonText',
+          type: 'text',
+          localized: true,
+          admin: {
+            description: 'Button label text.',
+          },
+        },
+        mediaField({
+          name: 'buttonIcon',
+          label: 'Button Icon',
+          admin: { condition: (_, siblingData) => !!siblingData?.buttonText },
+        }),
+      ],
     },
     ...destinationFields(enabledCondition),
-    {
-      name: 'header',
-      type: 'text',
-      localized: true,
-      admin: {
-        condition: enabledCondition,
-        description: 'Shown above the card in hero placement.',
-      },
-    },
     mediaField({
       name: 'image',
       label: 'Card Image',
@@ -411,7 +457,7 @@ export const AppCards: CollectionConfig = {
   admin: {
     group: 'WeMeditate App',
     useAsTitle: 'label',
-    defaultColumns: ['label', 'default.title', 'type', '_status'],
+    defaultColumns: ['label', 'type', '_status'],
   },
   fields: [
     {

@@ -1246,13 +1246,17 @@ export interface AppCard {
     | boolean
     | null;
   default: {
+    /**
+     * Shown above the card in hero placement.
+     */
+    header?: string | null;
     title: string;
     subtitle?: string | null;
-    icon?: (number | null) | Image;
     /**
      * Button label text.
      */
-    button?: string | null;
+    buttonText?: string | null;
+    buttonIcon?: (number | null) | Image;
     /**
      * Where this card navigates to when tapped.
      */
@@ -1265,10 +1269,6 @@ export interface AppCard {
     album?: (number | null) | Album;
     meditation?: (number | null) | Meditation;
     url?: string | null;
-    /**
-     * Shown above the card in hero placement.
-     */
-    header?: string | null;
     image?: (number | null) | Image;
     /**
      * Render card with dark overlay and white text.
@@ -1277,7 +1277,7 @@ export interface AppCard {
     /**
      * Text alignment for card content.
      */
-    alignment?: ('left' | 'center') | null;
+    alignment: 'left' | 'center';
   };
   startingSoon?: {
     enabled?: boolean | null;
@@ -1285,13 +1285,17 @@ export interface AppCard {
      * How long before the event start this view activates (HH:MM).
      */
     threshold?: string | null;
+    /**
+     * Shown above the card in hero placement.
+     */
+    header?: string | null;
     title?: string | null;
     subtitle?: string | null;
-    icon?: (number | null) | Image;
     /**
      * Button label text.
      */
-    button?: string | null;
+    buttonText?: string | null;
+    buttonIcon?: (number | null) | Image;
     /**
      * Where this card navigates to when tapped.
      */
@@ -1304,10 +1308,6 @@ export interface AppCard {
     album?: (number | null) | Album;
     meditation?: (number | null) | Meditation;
     url?: string | null;
-    /**
-     * Shown above the card in hero placement.
-     */
-    header?: string | null;
     image?: (number | null) | Image;
     /**
      * Render card with dark overlay and white text.
@@ -1324,13 +1324,17 @@ export interface AppCard {
      * How long before the event start this view activates (HH:MM).
      */
     threshold?: string | null;
+    /**
+     * Shown above the card in hero placement.
+     */
+    header?: string | null;
     title?: string | null;
     subtitle?: string | null;
-    icon?: (number | null) | Image;
     /**
      * Button label text.
      */
-    button?: string | null;
+    buttonText?: string | null;
+    buttonIcon?: (number | null) | Image;
     /**
      * Where this card navigates to when tapped.
      */
@@ -1343,10 +1347,6 @@ export interface AppCard {
     album?: (number | null) | Album;
     meditation?: (number | null) | Meditation;
     url?: string | null;
-    /**
-     * Shown above the card in hero placement.
-     */
-    header?: string | null;
     image?: (number | null) | Image;
     /**
      * Render card with dark overlay and white text.
@@ -2654,17 +2654,17 @@ export interface AppCardsSelect<T extends boolean = true> {
   default?:
     | T
     | {
+        header?: T;
         title?: T;
         subtitle?: T;
-        icon?: T;
-        button?: T;
+        buttonText?: T;
+        buttonIcon?: T;
         destination?: T;
         appPage?: T;
         lecture?: T;
         album?: T;
         meditation?: T;
         url?: T;
-        header?: T;
         image?: T;
         overlay?: T;
         alignment?: T;
@@ -2674,17 +2674,17 @@ export interface AppCardsSelect<T extends boolean = true> {
     | {
         enabled?: T;
         threshold?: T;
+        header?: T;
         title?: T;
         subtitle?: T;
-        icon?: T;
-        button?: T;
+        buttonText?: T;
+        buttonIcon?: T;
         destination?: T;
         appPage?: T;
         lecture?: T;
         album?: T;
         meditation?: T;
         url?: T;
-        header?: T;
         image?: T;
         overlay?: T;
         alignment?: T;
@@ -2694,17 +2694,17 @@ export interface AppCardsSelect<T extends boolean = true> {
     | {
         enabled?: T;
         threshold?: T;
+        header?: T;
         title?: T;
         subtitle?: T;
-        icon?: T;
-        button?: T;
+        buttonText?: T;
+        buttonIcon?: T;
         destination?: T;
         appPage?: T;
         lecture?: T;
         album?: T;
         meditation?: T;
         url?: T;
-        header?: T;
         image?: T;
         overlay?: T;
         alignment?: T;

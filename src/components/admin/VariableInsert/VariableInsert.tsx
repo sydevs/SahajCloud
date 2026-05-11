@@ -2,14 +2,14 @@
 
 import type { FieldClientComponent } from 'payload'
 
-import { useField } from '@payloadcms/ui'
-import React, { useEffect, useRef, useState } from 'react'
+import { Pill, useField } from '@payloadcms/ui'
+import React, { useEffect, useRef } from 'react'
 
 const VariableInsert: FieldClientComponent = ({ field }) => {
   const variables = field.admin?.custom?.variables as string[] | undefined
   const { value, setValue, path } = useField<string>()
   const cursorRef = useRef<number | null>(null)
-  const [pendingCursor, setPendingCursor] = useState<number | null>(null)
+  const pendingCursorRef = useRef<number | null>(null)
 
   // Track cursor position on the sibling text input
   useEffect(() => {
@@ -29,17 +29,21 @@ const VariableInsert: FieldClientComponent = ({ field }) => {
     }
   }, [path])
 
-  // Restore cursor position after value update
+  // After Payload re-renders the input with the new value, restore cursor via rAF
+  // so Payload's own effects don't override our setSelectionRange.
   useEffect(() => {
-    if (pendingCursor === null) return
+    const cursor = pendingCursorRef.current
+    if (cursor === null) return
     const inputId = `field-${path.replace(/\./g, '__')}`
-    const input = document.getElementById(inputId) as HTMLInputElement | null
-    if (input) {
+    const raf = requestAnimationFrame(() => {
+      pendingCursorRef.current = null
+      const input = document.getElementById(inputId) as HTMLInputElement | null
+      if (!input) return
       input.focus()
-      input.setSelectionRange(pendingCursor, pendingCursor)
-    }
-    setPendingCursor(null)
-  }, [value, pendingCursor, path])
+      input.setSelectionRange(cursor, cursor)
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [value, path])
 
   if (!variables?.length) return null
 
@@ -48,36 +52,32 @@ const VariableInsert: FieldClientComponent = ({ field }) => {
     const current = value ?? ''
     const pos = cursorRef.current ?? current.length
     const newValue = current.slice(0, pos) + token + current.slice(pos)
+    pendingCursorRef.current = pos + token.length
     setValue(newValue)
-    setPendingCursor(pos + token.length)
   }
 
   return (
     <div
       style={{
         display: 'flex',
+        alignItems: 'center',
         gap: 'calc(var(--base) * 0.4)',
         marginTop: 'calc(var(--base) * 0.3)',
         flexWrap: 'wrap',
       }}
     >
+      <span
+        style={{
+          fontSize: 'calc(var(--base-body-size) * 1px)',
+          color: 'var(--theme-elevation-600)',
+        }}
+      >
+        Insert variable:
+      </span>
       {variables.map((v) => (
-        <button
-          key={v}
-          type="button"
-          onClick={() => handleInsert(v)}
-          style={{
-            padding: 'calc(var(--base) * 0.2) calc(var(--base) * 0.5)',
-            border: '1px solid var(--theme-elevation-300)',
-            borderRadius: 'var(--style-radius-s)',
-            background: 'transparent',
-            color: 'var(--theme-elevation-600)',
-            fontSize: 'calc(var(--base-body-size) * 1px)',
-            cursor: 'pointer',
-          }}
-        >
+        <Pill key={v} size="small" pillStyle="white" onClick={() => handleInsert(v)}>
           {`{${v}}`}
-        </button>
+        </Pill>
       ))}
     </div>
   )

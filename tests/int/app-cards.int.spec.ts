@@ -290,9 +290,12 @@ describe('AppCards type field', () => {
     expect(schedule['16:00']).toBe('default')
   })
 
-  it('returns null viewSchedule for standard cards and event cards with no enabled views', async () => {
+  it('returns default-only viewSchedule for standard cards; null for event cards with no enabled views', async () => {
     const standardCard = await testData.createAppCard(payload, { type: 'standard' })
-    expect(standardCard.viewSchedule).toBeNull()
+    type ViewSchedule = { timezone: string; schedule: Record<string, string> }
+    const vs = standardCard.viewSchedule as ViewSchedule
+    expect(vs.timezone).toBe('UTC')
+    expect(vs.schedule).toEqual({ '00:00': 'default' })
 
     const futureDate = new Date()
     futureDate.setDate(futureDate.getDate() + 7)
@@ -438,13 +441,13 @@ describe('AppCards icon field', () => {
     const iconImage = await testData.createMediaImage(payload, { alt: 'Button icon' })
 
     const card = await testData.createAppCard(payload, {
-      default: { icon: iconImage.id },
+      default: { buttonIcon: iconImage.id },
     })
 
     const iconId =
-      typeof card.default?.icon === 'number'
-        ? card.default.icon
-        : (card.default?.icon as { id: number } | null)?.id
+      typeof card.default?.buttonIcon === 'number'
+        ? card.default.buttonIcon
+        : (card.default?.buttonIcon as { id: number } | null)?.id
     expect(iconId).toBe(iconImage.id)
   })
 
@@ -456,19 +459,19 @@ describe('AppCards icon field', () => {
     const card = await testData.createAppCard(payload, {
       type: 'event',
       schedule: { firstDate: futureDate.toISOString(), firstDate_tz: 'UTC', recurrenceType: 'DAILY', interval: 1 },
-      startingSoon: { enabled: true, threshold: '1:00', title: 'Soon', icon: iconImage.id },
+      startingSoon: { enabled: true, threshold: '1:00', title: 'Soon', buttonIcon: iconImage.id },
     })
 
     const iconId =
-      typeof card.startingSoon?.icon === 'number'
-        ? card.startingSoon.icon
-        : (card.startingSoon?.icon as { id: number } | null)?.id
+      typeof card.startingSoon?.buttonIcon === 'number'
+        ? card.startingSoon.buttonIcon
+        : (card.startingSoon?.buttonIcon as { id: number } | null)?.id
     expect(iconId).toBe(iconImage.id)
   })
 
   it('allows saving a card without icon (optional)', async () => {
     const card = await testData.createAppCard(payload)
 
-    expect(card.default?.icon === null || card.default?.icon === undefined).toBe(true)
+    expect(card.default?.buttonIcon === null || card.default?.buttonIcon === undefined).toBe(true)
   })
 })
