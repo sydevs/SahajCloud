@@ -241,6 +241,7 @@ function defaultViewFields(): Field[] {
       type: 'text',
       localized: true,
     },
+    mediaField({ name: 'icon', label: 'Button Icon' }),
     {
       name: 'button',
       type: 'text',
@@ -265,6 +266,20 @@ function defaultViewFields(): Field[] {
       defaultValue: false,
       admin: {
         description: 'Render card with dark overlay and white text.',
+      },
+    },
+    {
+      name: 'alignment',
+      type: 'select',
+      options: [
+        { label: 'Left', value: 'left' },
+        { label: 'Center', value: 'center' },
+      ],
+      admin: {
+        description: 'Text alignment for card content.',
+        components: {
+          Field: '@/components/admin/ToggleGroupField',
+        },
       },
     },
   ]
@@ -302,6 +317,12 @@ function eventViewFields(thresholdDefault: string): Field[] {
       localized: true,
       admin: {
         condition: enabledCondition,
+        components: {
+          afterInput: ['@/components/admin/VariableInsert'],
+        },
+        custom: {
+          variables: ['event_time'],
+        },
       },
     },
     {
@@ -310,8 +331,19 @@ function eventViewFields(thresholdDefault: string): Field[] {
       localized: true,
       admin: {
         condition: enabledCondition,
+        components: {
+          afterInput: ['@/components/admin/VariableInsert'],
+        },
+        custom: {
+          variables: ['event_time'],
+        },
       },
     },
+    mediaField({
+      name: 'icon',
+      label: 'Button Icon',
+      admin: { condition: enabledCondition },
+    }),
     {
       name: 'button',
       type: 'text',
@@ -345,6 +377,21 @@ function eventViewFields(thresholdDefault: string): Field[] {
         description: 'Render card with dark overlay and white text.',
       },
     },
+    {
+      name: 'alignment',
+      type: 'select',
+      options: [
+        { label: 'Left', value: 'left' },
+        { label: 'Center', value: 'center' },
+      ],
+      admin: {
+        condition: enabledCondition,
+        description: 'Text alignment for card content.',
+        components: {
+          Field: '@/components/admin/ToggleGroupField',
+        },
+      },
+    },
   ]
 }
 
@@ -363,9 +410,15 @@ export const AppCards: CollectionConfig = {
   endpoints: [appCardsForAudience],
   admin: {
     group: 'WeMeditate App',
-    defaultColumns: ['default.title', 'type', '_status'],
+    useAsTitle: 'label',
+    defaultColumns: ['label', 'default.title', 'type', '_status'],
   },
   fields: [
+    {
+      name: 'label',
+      type: 'text',
+      label: 'Internal Name',
+    },
     {
       name: 'type',
       type: 'select',
@@ -459,6 +512,24 @@ export const AppCards: CollectionConfig = {
               ],
               admin: {
                 description: 'Target sections where this card should appear on the app homepage.',
+              },
+            },
+            {
+              name: 'timings',
+              type: 'select',
+              hasMany: true,
+              options: [
+                { label: 'Morning', value: 'morning' },
+                { label: 'Afternoon', value: 'afternoon' },
+                { label: 'Evening', value: 'evening' },
+                { label: 'Night', value: 'night' },
+              ],
+              admin: {
+                description:
+                  'Time-of-day slots when this card should be shown. Leave empty to show at all times.',
+                components: {
+                  Field: '@/components/admin/ToggleGroupField',
+                },
               },
             },
             {

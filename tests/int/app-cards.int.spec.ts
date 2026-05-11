@@ -349,3 +349,126 @@ describe('AppCards destination field', () => {
     expect(meditationId).toBe(meditation.id)
   })
 })
+
+// ── Integration Tests: AppCards new fields (label, timings, icon, alignment) ──
+
+describe('AppCards label field', () => {
+  it('persists label and returns it on read', async () => {
+    const card = await testData.createAppCard(payload, { label: 'My Internal Label' })
+
+    expect(card.label).toBe('My Internal Label')
+
+    const fetched = await payload.findByID({ collection: 'app-cards', id: card.id })
+    expect(fetched.label).toBe('My Internal Label')
+  })
+
+  it('allows cards without a label (optional field)', async () => {
+    const card = await payload.create({
+      collection: 'app-cards',
+      data: {
+        type: 'standard',
+        default: { title: 'No Label Card' },
+      },
+    })
+
+    expect(card.label === null || card.label === undefined || card.label === '').toBe(true)
+  })
+})
+
+describe('AppCards timings field', () => {
+  it('persists a single timing value', async () => {
+    const card = await testData.createAppCard(payload, { timings: ['morning'] })
+
+    expect(card.timings).toEqual(['morning'])
+  })
+
+  it('persists multiple timing values', async () => {
+    const card = await testData.createAppCard(payload, {
+      timings: ['morning', 'evening', 'night'],
+    })
+
+    expect(card.timings).toEqual(['morning', 'evening', 'night'])
+  })
+
+  it('defaults to empty array when no timings set', async () => {
+    const card = await testData.createAppCard(payload)
+
+    expect(card.timings ?? []).toEqual([])
+  })
+})
+
+describe('AppCards alignment field', () => {
+  it('persists alignment in default view tab', async () => {
+    const card = await testData.createAppCard(payload, {
+      default: { alignment: 'center' },
+    })
+
+    expect(card.default?.alignment).toBe('center')
+  })
+
+  it('persists alignment in startingSoon view tab', async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+
+    const card = await testData.createAppCard(payload, {
+      type: 'event',
+      schedule: { firstDate: futureDate.toISOString(), firstDate_tz: 'UTC', recurrenceType: 'DAILY', interval: 1 },
+      startingSoon: { enabled: true, threshold: '1:00', title: 'Soon', alignment: 'left' },
+    })
+
+    expect(card.startingSoon?.alignment).toBe('left')
+  })
+
+  it('persists alignment in liveNow view tab', async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+
+    const card = await testData.createAppCard(payload, {
+      type: 'event',
+      schedule: { firstDate: futureDate.toISOString(), firstDate_tz: 'UTC', recurrenceType: 'DAILY', interval: 1 },
+      liveNow: { enabled: true, threshold: '0:00', title: 'Live', alignment: 'center' },
+    })
+
+    expect(card.liveNow?.alignment).toBe('center')
+  })
+})
+
+describe('AppCards icon field', () => {
+  it('persists icon in default view tab', async () => {
+    const iconImage = await testData.createMediaImage(payload, { alt: 'Button icon' })
+
+    const card = await testData.createAppCard(payload, {
+      default: { icon: iconImage.id },
+    })
+
+    const iconId =
+      typeof card.default?.icon === 'number'
+        ? card.default.icon
+        : (card.default?.icon as { id: number } | null)?.id
+    expect(iconId).toBe(iconImage.id)
+  })
+
+  it('persists icon in startingSoon view tab', async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+    const iconImage = await testData.createMediaImage(payload, { alt: 'SS icon' })
+
+    const card = await testData.createAppCard(payload, {
+      type: 'event',
+      schedule: { firstDate: futureDate.toISOString(), firstDate_tz: 'UTC', recurrenceType: 'DAILY', interval: 1 },
+      startingSoon: { enabled: true, threshold: '1:00', title: 'Soon', icon: iconImage.id },
+    })
+
+    const iconId =
+      typeof card.startingSoon?.icon === 'number'
+        ? card.startingSoon.icon
+        : (card.startingSoon?.icon as { id: number } | null)?.id
+    expect(iconId).toBe(iconImage.id)
+  })
+
+  it('allows saving a card without icon (optional)', async () => {
+    const card = await testData.createAppCard(payload)
+
+    expect(card.default?.icon === null || card.default?.icon === undefined).toBe(true)
+  })
+})

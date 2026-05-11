@@ -1234,6 +1234,7 @@ export interface Audience {
  */
 export interface AppCard {
   id: number;
+  label?: string | null;
   type: 'standard' | 'event';
   viewSchedule?:
     | {
@@ -1247,6 +1248,7 @@ export interface AppCard {
   default: {
     title: string;
     subtitle?: string | null;
+    icon?: (number | null) | Image;
     /**
      * Button label text.
      */
@@ -1272,6 +1274,10 @@ export interface AppCard {
      * Render card with dark overlay and white text.
      */
     overlay?: boolean | null;
+    /**
+     * Text alignment for card content.
+     */
+    alignment?: ('left' | 'center') | null;
   };
   startingSoon?: {
     enabled?: boolean | null;
@@ -1281,6 +1287,7 @@ export interface AppCard {
     threshold?: string | null;
     title?: string | null;
     subtitle?: string | null;
+    icon?: (number | null) | Image;
     /**
      * Button label text.
      */
@@ -1306,6 +1313,10 @@ export interface AppCard {
      * Render card with dark overlay and white text.
      */
     overlay?: boolean | null;
+    /**
+     * Text alignment for card content.
+     */
+    alignment?: ('left' | 'center') | null;
   };
   liveNow?: {
     enabled?: boolean | null;
@@ -1315,6 +1326,7 @@ export interface AppCard {
     threshold?: string | null;
     title?: string | null;
     subtitle?: string | null;
+    icon?: (number | null) | Image;
     /**
      * Button label text.
      */
@@ -1340,6 +1352,10 @@ export interface AppCard {
      * Render card with dark overlay and white text.
      */
     overlay?: boolean | null;
+    /**
+     * Text alignment for card content.
+     */
+    alignment?: ('left' | 'center') | null;
   };
   /**
    * Configure when this event occurs and repeats
@@ -1383,6 +1399,10 @@ export interface AppCard {
    * Target sections where this card should appear on the app homepage.
    */
   targetSections?: ('hero' | 'highlights' | 'lectures')[] | null;
+  /**
+   * Time-of-day slots when this card should be shown. Leave empty to show at all times.
+   */
+  timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
   /**
    * Card is shown to a viewer if they match ANY of these audiences (OR). Leave empty to hide the card from all viewers.
    */
@@ -2628,6 +2648,7 @@ export interface ClientsSelect<T extends boolean = true> {
  * via the `definition` "app-cards_select".
  */
 export interface AppCardsSelect<T extends boolean = true> {
+  label?: T;
   type?: T;
   viewSchedule?: T;
   default?:
@@ -2635,6 +2656,7 @@ export interface AppCardsSelect<T extends boolean = true> {
     | {
         title?: T;
         subtitle?: T;
+        icon?: T;
         button?: T;
         destination?: T;
         appPage?: T;
@@ -2645,6 +2667,7 @@ export interface AppCardsSelect<T extends boolean = true> {
         header?: T;
         image?: T;
         overlay?: T;
+        alignment?: T;
       };
   startingSoon?:
     | T
@@ -2653,6 +2676,7 @@ export interface AppCardsSelect<T extends boolean = true> {
         threshold?: T;
         title?: T;
         subtitle?: T;
+        icon?: T;
         button?: T;
         destination?: T;
         appPage?: T;
@@ -2663,6 +2687,7 @@ export interface AppCardsSelect<T extends boolean = true> {
         header?: T;
         image?: T;
         overlay?: T;
+        alignment?: T;
       };
   liveNow?:
     | T
@@ -2671,6 +2696,7 @@ export interface AppCardsSelect<T extends boolean = true> {
         threshold?: T;
         title?: T;
         subtitle?: T;
+        icon?: T;
         button?: T;
         destination?: T;
         appPage?: T;
@@ -2681,6 +2707,7 @@ export interface AppCardsSelect<T extends boolean = true> {
         header?: T;
         image?: T;
         overlay?: T;
+        alignment?: T;
       };
   schedule?:
     | T
@@ -2703,6 +2730,7 @@ export interface AppCardsSelect<T extends boolean = true> {
         upcomingDates?: T;
       };
   targetSections?: T;
+  timings?: T;
   audiences?: T;
   conditions?: T;
   weight?: T;
