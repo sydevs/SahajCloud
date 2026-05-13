@@ -3,6 +3,7 @@ import { RscEntryLexicalField as RscEntryLexicalField_44fe37237e0ebf4470c9990d8c
 import { LexicalDiffComponent as LexicalDiffComponent_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
 import { BlocksFeatureClient as BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { default as default_f91e9026f7498cd1e5fb4b586be3d1a1 } from '@/components/admin/ThumbnailCell/RelationshipThumbnailCell'
+import { default as default_11a2281e0aa4f5a6fb73db1ce1538d0c } from '@/components/admin/SelectDescription'
 import { default as default_153ca68fe8ddf15a21abb9e4fd2a6300 } from '@/components/admin/ToggleGroupField'
 import { default as default_fb8891978ae045ad6d23399fc1e14651 } from '@/components/admin/TableOfContentsField'
 import { UploadFeatureClient as UploadFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -22,7 +23,6 @@ import { MetaImageComponent as MetaImageComponent_a8a977ebc872c5d5ea7ee689724c08
 import { PreviewComponent as PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
 import { default as default_aab4ebf5529acd7d615f7dc8a0ee17ec } from '@/components/admin/LockedSlugField'
 import { default as default_c3b32cae85b800f9348e9cdb8fc7a176 } from '@/components/admin/TagSelector'
-import { default as default_11a2281e0aa4f5a6fb73db1ce1538d0c } from '@/components/admin/SelectDescription'
 import { default as default_bc10fee3a76719781454f604d687129b } from '@/components/admin/TagAssignmentField'
 import { default as default_75e666f79b1160c03532515ca11818f3 } from '@/components/admin/FrameEditor/FrameListManager'
 import { default as default_e201aca8b8f7be4559f38e80e7a23040 } from '@/components/admin/FrameEditor/FrameInserter'
@@ -66,6 +66,7 @@ export const importMap = {
   "@payloadcms/richtext-lexical/rsc#LexicalDiffComponent": LexicalDiffComponent_44fe37237e0ebf4470c9990d8cb7b07e,
   "@payloadcms/richtext-lexical/client#BlocksFeatureClient": BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@/components/admin/ThumbnailCell/RelationshipThumbnailCell#default": default_f91e9026f7498cd1e5fb4b586be3d1a1,
+  "@/components/admin/SelectDescription#default": default_11a2281e0aa4f5a6fb73db1ce1538d0c,
   "@/components/admin/ToggleGroupField#default": default_153ca68fe8ddf15a21abb9e4fd2a6300,
   "@/components/admin/TableOfContentsField#default": default_fb8891978ae045ad6d23399fc1e14651,
   "@payloadcms/richtext-lexical/client#UploadFeatureClient": UploadFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
@@ -85,7 +86,6 @@ export const importMap = {
   "@payloadcms/plugin-seo/client#PreviewComponent": PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860,
   "@/components/admin/LockedSlugField#default": default_aab4ebf5529acd7d615f7dc8a0ee17ec,
   "@/components/admin/TagSelector#default": default_c3b32cae85b800f9348e9cdb8fc7a176,
-  "@/components/admin/SelectDescription#default": default_11a2281e0aa4f5a6fb73db1ce1538d0c,
   "@/components/admin/TagAssignmentField#default": default_bc10fee3a76719781454f604d687129b,
   "@/components/admin/FrameEditor/FrameListManager#default": default_75e666f79b1160c03532515ca11818f3,
   "@/components/admin/FrameEditor/FrameInserter#default": default_e201aca8b8f7be4559f38e80e7a23040,
