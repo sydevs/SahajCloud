@@ -73,6 +73,22 @@ export const LayoutBlock: Block = {
         description:
           'Enter the title of the tab that should be open by default. Will be converted to match the tab anchor (e.g. "My Tab" → "#my-tab").',
       },
+      validate: (value: string | null | undefined, { siblingData }: { siblingData: unknown }) => {
+        const block = siblingData as { style?: string; items?: Array<{ title?: string }> }
+        if (block?.style !== 'tabs' || !value) return true
+
+        const slug = `#${slugify(String(value), { strict: true, lower: true })}`
+        const tabTitles = (block.items ?? [])
+          .map((item) => item?.title)
+          .filter((t): t is string => Boolean(t))
+        const anchors = tabTitles.map((t) => `#${slugify(t, { strict: true, lower: true })}`)
+
+        if (!anchors.includes(slug)) {
+          const hint = tabTitles.length ? ` Available tabs: ${tabTitles.join(', ')}.` : ''
+          return `Must match the title of one of the tabs.${hint}`
+        }
+        return true
+      },
       hooks: {
         beforeChange: [
           ({ value }) => {
