@@ -438,6 +438,7 @@ export interface Video {
   hlsUrl?: string | null;
   mp4Url?: string | null;
   previewUrl?: string | null;
+  thumbnail?: (number | null) | Image;
   /**
    * Video title shown to users
    */
@@ -2309,6 +2310,7 @@ export interface VideosSelect<T extends boolean = true> {
   hlsUrl?: T;
   mp4Url?: T;
   previewUrl?: T;
+  thumbnail?: T;
   title?: T;
   subtitles?: T;
   tags?: T;

@@ -8,6 +8,7 @@ import {
   virtualUrlField,
 } from '@/lib/storage/urlFields'
 import { subtitlesJsonSchema, validateSubtitles } from '@/lib/subtitles'
+import { mediaField } from '@/fields'
 
 export const Videos: CollectionConfig = {
   slug: 'videos',
@@ -34,6 +35,7 @@ export const Videos: CollectionConfig = {
     hlsUrlField({ collection: 'videos' }),
     mp4UrlField({ collection: 'videos' }),
     previewUrlField({ collection: 'videos' }),
+    mediaField({ name: 'thumbnail' }),
     {
       name: 'title',
       type: 'text',
