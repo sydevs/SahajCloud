@@ -74,8 +74,20 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
 
       // Lock the slug text field on update. create is intentionally left open
       // so non-admin editors can still populate the slug when creating a doc.
+      // The custom Field component hides unlock/generate buttons for non-admins.
       if (field.fields[1].type === 'text') {
         field.fields[1].access = { ...field.fields[1].access, update: adminOnlyFieldAccess }
+        field.fields[1].admin = {
+          ...field.fields[1].admin,
+          custom: {
+            ...((field.fields[1].admin?.custom as Record<string, unknown>) ?? {}),
+            useAsSlug: sourceField,
+          },
+          components: {
+            ...(field.fields[1].admin?.components ?? {}),
+            Field: '@/components/admin/LockedSlugField',
+          },
+        }
       }
 
       return userOverrides ? userOverrides(field) : field
