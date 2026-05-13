@@ -13,7 +13,7 @@ export const LayoutBlock: Block = {
   fields: [
     {
       name: 'style',
-      type: 'radio',
+      type: 'select',
       required: true,
       options: [
         {
@@ -32,7 +32,16 @@ export const LayoutBlock: Block = {
           label: 'List',
           value: 'list',
         },
+        {
+          label: 'Text List',
+          value: 'textList',
+        },
       ],
+      admin: {
+        components: {
+          Field: '@/components/admin/ToggleGroupField',
+        },
+      },
     },
     {
       name: 'title',
@@ -64,6 +73,9 @@ export const LayoutBlock: Block = {
         mediaField({
           name: 'image',
           orientation: 'landscape',
+          admin: {
+            condition: (data) => (data as { style?: string })?.style !== 'textList',
+          },
         }),
         {
           type: 'row',
@@ -77,7 +89,9 @@ export const LayoutBlock: Block = {
               type: 'text',
               label: 'Title Link',
               admin: {
-                condition: (_, siblingData) => Boolean(siblingData?.title),
+                condition: (data, siblingData) =>
+                  (data as { style?: string })?.style !== 'textList' &&
+                  Boolean(siblingData?.title),
               },
             },
           ],

@@ -3,8 +3,8 @@ import { RscEntryLexicalField as RscEntryLexicalField_44fe37237e0ebf4470c9990d8c
 import { LexicalDiffComponent as LexicalDiffComponent_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
 import { BlocksFeatureClient as BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { default as default_f91e9026f7498cd1e5fb4b586be3d1a1 } from '@/components/admin/ThumbnailCell/RelationshipThumbnailCell'
-import { default as default_fb8891978ae045ad6d23399fc1e14651 } from '@/components/admin/TableOfContentsField'
 import { default as default_153ca68fe8ddf15a21abb9e4fd2a6300 } from '@/components/admin/ToggleGroupField'
+import { default as default_fb8891978ae045ad6d23399fc1e14651 } from '@/components/admin/TableOfContentsField'
 import { UploadFeatureClient as UploadFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { RelationshipFeatureClient as RelationshipFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { HeadingFeatureClient as HeadingFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -66,8 +66,8 @@ export const importMap = {
   "@payloadcms/richtext-lexical/rsc#LexicalDiffComponent": LexicalDiffComponent_44fe37237e0ebf4470c9990d8cb7b07e,
   "@payloadcms/richtext-lexical/client#BlocksFeatureClient": BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@/components/admin/ThumbnailCell/RelationshipThumbnailCell#default": default_f91e9026f7498cd1e5fb4b586be3d1a1,
-  "@/components/admin/TableOfContentsField#default": default_fb8891978ae045ad6d23399fc1e14651,
   "@/components/admin/ToggleGroupField#default": default_153ca68fe8ddf15a21abb9e4fd2a6300,
+  "@/components/admin/TableOfContentsField#default": default_fb8891978ae045ad6d23399fc1e14651,
   "@payloadcms/richtext-lexical/client#UploadFeatureClient": UploadFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#RelationshipFeatureClient": RelationshipFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#HeadingFeatureClient": HeadingFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
