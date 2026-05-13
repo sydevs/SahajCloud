@@ -1,4 +1,7 @@
+import type { FieldHook } from 'payload'
+
 import { Block } from 'payload'
+import slugify from 'slugify'
 
 import { mediaField } from '@/fields'
 
@@ -21,8 +24,8 @@ export const LayoutBlock: Block = {
           value: 'grid',
         },
         {
-          label: 'Columns',
-          value: 'columns',
+          label: 'Tabs',
+          value: 'tabs',
         },
         {
           label: 'Accordion',
@@ -52,6 +55,15 @@ export const LayoutBlock: Block = {
       },
     },
     {
+      name: 'useColumnsOnDesktop',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        condition: (data) => data?.style === 'tabs',
+        description: 'Display tabs as side-by-side columns on desktop screens.',
+      },
+    },
+    {
       name: 'items',
       type: 'array',
       labels: {
@@ -60,14 +72,18 @@ export const LayoutBlock: Block = {
       },
       minRows: 1,
       maxRows: 10,
-      validate: (value, { siblingData }) => {
-        const style = (siblingData as { style?: string })?.style
-
-        if (style === 'columns' && Array.isArray(value) && value.length > 3) {
-          return 'When style is "Columns", you can add a maximum of 3 items'
-        }
-
-        return true
+      hooks: {
+        afterRead: [
+          (({ value, siblingData }) => {
+            if ((siblingData as { style?: string })?.style !== 'tabs') return value
+            return (value as Array<{ title?: string; titleUrl?: string }>).map((item) => ({
+              ...item,
+              titleUrl: item.title
+                ? `#${slugify(item.title, { strict: true, lower: true })}`
+                : item.titleUrl,
+            }))
+          }) satisfies FieldHook,
+        ],
       },
       fields: [
         mediaField({
@@ -75,7 +91,7 @@ export const LayoutBlock: Block = {
           orientation: 'landscape',
           admin: {
             condition: (_, _siblingData, { blockData }) =>
-              (blockData as { style?: string })?.style !== 'textList',
+              !['textList', 'tabs'].includes((blockData as { style?: string })?.style ?? ''),
           },
         }),
         {
@@ -93,6 +109,8 @@ export const LayoutBlock: Block = {
                 condition: (_, siblingData, { blockData }) =>
                   (blockData as { style?: string })?.style !== 'textList' &&
                   Boolean((siblingData as { title?: string })?.title),
+                description:
+                  'For Tabs style this is auto-computed as #slug-of-title and cannot be changed manually.',
               },
             },
           ],
@@ -100,6 +118,16 @@ export const LayoutBlock: Block = {
         {
           name: 'text',
           type: 'textarea',
+        },
+        {
+          name: 'isDefault',
+          type: 'checkbox',
+          defaultValue: false,
+          admin: {
+            condition: (_, _siblingData, { blockData }) =>
+              (blockData as { style?: string })?.style === 'tabs',
+            description: 'Mark this tab as selected by default.',
+          },
         },
       ],
     },
