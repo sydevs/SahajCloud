@@ -58,21 +58,12 @@ export const LayoutBlock: Block = {
         singular: 'Item',
         plural: 'Items',
       },
+      minRows: 1,
       maxRows: 10,
-      admin: {
-        condition: (_, siblingData) =>
-          (siblingData as { style?: string })?.style !== 'textList',
-      },
       validate: (value, { siblingData }) => {
         const style = (siblingData as { style?: string })?.style
 
-        if (style === 'textList') return true
-
-        if (!Array.isArray(value) || value.length < 1) {
-          return 'At least 1 item is required'
-        }
-
-        if (style === 'columns' && value.length > 3) {
+        if (style === 'columns' && Array.isArray(value) && value.length > 3) {
           return 'When style is "Columns", you can add a maximum of 3 items'
         }
 
@@ -82,6 +73,10 @@ export const LayoutBlock: Block = {
         mediaField({
           name: 'image',
           orientation: 'landscape',
+          admin: {
+            condition: (_, _siblingData, { blockData }) =>
+              (blockData as { style?: string })?.style !== 'textList',
+          },
         }),
         {
           type: 'row',
@@ -95,44 +90,12 @@ export const LayoutBlock: Block = {
               type: 'text',
               label: 'Title Link',
               admin: {
-                condition: (_, siblingData) => Boolean(siblingData?.title),
+                condition: (_, siblingData, { blockData }) =>
+                  (blockData as { style?: string })?.style !== 'textList' &&
+                  Boolean((siblingData as { title?: string })?.title),
               },
             },
           ],
-        },
-        {
-          name: 'text',
-          type: 'textarea',
-        },
-      ],
-    },
-    {
-      name: 'textListItems',
-      type: 'array',
-      labels: {
-        singular: 'Item',
-        plural: 'Items',
-      },
-      maxRows: 10,
-      admin: {
-        condition: (_, siblingData) =>
-          (siblingData as { style?: string })?.style === 'textList',
-      },
-      validate: (value, { siblingData }) => {
-        const style = (siblingData as { style?: string })?.style
-
-        if (style !== 'textList') return true
-
-        if (!Array.isArray(value) || value.length < 1) {
-          return 'At least 1 item is required'
-        }
-
-        return true
-      },
-      fields: [
-        {
-          name: 'title',
-          type: 'text',
         },
         {
           name: 'text',
