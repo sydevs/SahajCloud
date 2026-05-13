@@ -43,6 +43,16 @@ export const LayoutBlock: Block = {
       admin: {
         components: {
           Field: '@/components/admin/ToggleGroupField',
+          Description: '@/components/admin/SelectDescription',
+        },
+        custom: {
+          descriptions: {
+            grid: 'A responsive grid of items, each with an optional image, title, link, and text.',
+            tabs: 'A tabbed interface where each item becomes a selectable tab.',
+            accordion: 'A collapsible accordion where items can be expanded or collapsed.',
+            list: 'A simple vertical list of items with optional images and links.',
+            textList: 'A minimal list of text-only items without images or links.',
+          },
         },
       },
     },
@@ -55,11 +65,29 @@ export const LayoutBlock: Block = {
       },
     },
     {
+      // Fill with the title of the default tab — slugified on save to match each item's titleUrl anchor
+      name: 'defaultTab',
+      type: 'text',
+      admin: {
+        condition: (_, siblingData) => (siblingData as { style?: string })?.style === 'tabs',
+        description:
+          'Enter the title of the tab that should be open by default. The value is automatically converted to match the tab anchor (e.g. "My Tab" → "#my-tab").',
+      },
+      hooks: {
+        beforeChange: [
+          ({ value }) => {
+            if (!value || typeof value !== 'string') return value
+            return `#${slugify(value, { strict: true, lower: true })}`
+          },
+        ],
+      },
+    },
+    {
       name: 'useColumnsOnDesktop',
       type: 'checkbox',
       defaultValue: false,
       admin: {
-        condition: (data) => data?.style === 'tabs',
+        condition: (_, siblingData) => (siblingData as { style?: string })?.style === 'tabs',
         description: 'Display tabs as side-by-side columns on desktop screens.',
       },
     },
@@ -74,6 +102,17 @@ export const LayoutBlock: Block = {
       maxRows: 10,
       hooks: {
         afterRead: [
+          (({ value, siblingData }) => {
+            if ((siblingData as { style?: string })?.style !== 'tabs') return value
+            return (value as Array<{ title?: string; titleUrl?: string }>).map((item) => ({
+              ...item,
+              titleUrl: item.title
+                ? `#${slugify(item.title, { strict: true, lower: true })}`
+                : item.titleUrl,
+            }))
+          }) satisfies FieldHook,
+        ],
+        beforeChange: [
           (({ value, siblingData }) => {
             if ((siblingData as { style?: string })?.style !== 'tabs') return value
             return (value as Array<{ title?: string; titleUrl?: string }>).map((item) => ({
@@ -106,11 +145,12 @@ export const LayoutBlock: Block = {
               type: 'text',
               label: 'Title Link',
               admin: {
-                condition: (_, siblingData, { blockData }) =>
-                  (blockData as { style?: string })?.style !== 'textList' &&
-                  Boolean((siblingData as { title?: string })?.title),
-                description:
-                  'For Tabs style this is auto-computed as #slug-of-title and cannot be changed manually.',
+                // Hidden for tabs — the anchor is auto-computed and returned via the afterRead hook
+                condition: (_, siblingData, { blockData }) => {
+                  const style = (blockData as { style?: string })?.style
+                  if (style === 'textList' || style === 'tabs') return false
+                  return Boolean((siblingData as { title?: string })?.title)
+                },
               },
             },
           ],
@@ -118,16 +158,6 @@ export const LayoutBlock: Block = {
         {
           name: 'text',
           type: 'textarea',
-        },
-        {
-          name: 'isDefault',
-          type: 'checkbox',
-          defaultValue: false,
-          admin: {
-            condition: (_, _siblingData, { blockData }) =>
-              (blockData as { style?: string })?.style === 'tabs',
-            description: 'Mark this tab as selected by default.',
-          },
         },
       ],
     },
