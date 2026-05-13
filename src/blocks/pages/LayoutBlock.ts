@@ -74,7 +74,8 @@ export const LayoutBlock: Block = {
           name: 'image',
           orientation: 'landscape',
           admin: {
-            condition: (data) => (data as { style?: string })?.style !== 'textList',
+            condition: (_, siblingData) =>
+              (siblingData as { style?: string })?.style !== 'textList',
           },
         }),
         {
@@ -89,8 +90,8 @@ export const LayoutBlock: Block = {
               type: 'text',
               label: 'Title Link',
               admin: {
-                condition: (data, siblingData) =>
-                  (data as { style?: string })?.style !== 'textList' &&
+                condition: (_, siblingData) =>
+                  (siblingData as { style?: string })?.style !== 'textList' &&
                   Boolean(siblingData?.title),
               },
             },
