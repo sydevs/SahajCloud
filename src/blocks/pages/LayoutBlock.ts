@@ -71,7 +71,7 @@ export const LayoutBlock: Block = {
       admin: {
         condition: (_, siblingData) => (siblingData as { style?: string })?.style === 'tabs',
         description:
-          'Enter the title of the tab that should be open by default. The value is automatically converted to match the tab anchor (e.g. "My Tab" → "#my-tab").',
+          'Enter the title of the tab that should be open by default. Will be converted to match the tab anchor (e.g. "My Tab" → "#my-tab").',
       },
       hooks: {
         beforeChange: [
@@ -145,10 +145,13 @@ export const LayoutBlock: Block = {
               type: 'text',
               label: 'Title Link',
               admin: {
-                // Hidden for tabs — the anchor is auto-computed and returned via the afterRead hook
                 condition: (_, siblingData, { blockData }) => {
                   const style = (blockData as { style?: string })?.style
-                  if (style === 'textList' || style === 'tabs') return false
+                  if (style === 'textList') return false
+                  // For tabs, show the auto-computed anchor only after first save (beforeChange stores it)
+                  if (style === 'tabs') {
+                    return Boolean((siblingData as { titleUrl?: string })?.titleUrl)
+                  }
                   return Boolean((siblingData as { title?: string })?.title)
                 },
               },
