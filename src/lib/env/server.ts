@@ -140,6 +140,14 @@ const ServerEnvSchema = ClientEnvSchema.extend({
   SAHAJATLAS_URL: z.url(),
 
   /**
+   * API documentation password (HTTP Basic Auth)
+   * When set, password-protects the /api/docs endpoint
+   * Any username is accepted; only the password is checked
+   * Optional — docs are publicly accessible when not set
+   */
+  DOCS_PASSWORD: z.string().min(8, 'DOCS_PASSWORD must be at least 8 characters').optional(),
+
+  /**
    * Server port number
    * @default 3000
    */
