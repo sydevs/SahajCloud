@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /api/docs
+Disallow: /api/openapi.json
+Disallow: /api/openapi-raw.json
