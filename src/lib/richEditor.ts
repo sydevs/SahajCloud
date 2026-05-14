@@ -2,6 +2,7 @@ import {
   lexicalEditor,
   BoldFeature,
   ItalicFeature,
+  AlignFeature,
   UnorderedListFeature,
   OrderedListFeature,
   LinkFeature,
@@ -35,6 +36,7 @@ export const fullRichTextEditor = (blocks?: Block[]) =>
       OrderedListFeature(),
       LinkFeature(),
       BlockquoteFeature(),
+      AlignFeature(),
       InlineToolbarFeature(),
       HeadingFeature({ enabledHeadingSizes: ['h2', 'h3'] }),
       RelationshipFeature({
