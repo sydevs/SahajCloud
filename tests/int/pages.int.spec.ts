@@ -285,5 +285,75 @@ describe('Pages Collection', () => {
       expect((populatedImage as Record<string, unknown>).id).toBe(image.id)
       expect((populatedImage as Record<string, unknown>).alt).toBe('App card cover')
     })
+
+    it('populates app-card lexical relationships for wemeditate app clients', async () => {
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Page App Card Relationship Test',
+        type: 'admin' as const,
+      })
+      const client = await testData.createClient(payload, admin.id, {
+        name: 'Client for Page App Card Relationship Test',
+        roles: ['wemeditate-app-client'],
+        active: true,
+      })
+
+      const image = await testData.createMediaImage(payload, { alt: 'Client app card cover' })
+      const appCard = await testData.createAppCard(payload, {
+        _status: 'published',
+        default: { title: 'Client Embedded App Card', image: image.id },
+      })
+
+      const content = {
+        root: {
+          type: 'root',
+          children: [
+            {
+              type: 'relationship',
+              version: 2,
+              format: '',
+              relationTo: 'app-cards',
+              value: appCard.id,
+            },
+          ],
+          direction: null,
+          format: '',
+          indent: 0,
+          version: 1,
+        },
+      } as unknown as Parameters<typeof testData.createPage>[1]['content']
+
+      const page = await testData.createPage(payload, {
+        title: 'Published Page with Client App Card Relationship',
+        _status: 'published',
+        content,
+      })
+
+      const fetched = await payload.findByID({
+        collection: 'pages',
+        id: page.id,
+        depth: 2,
+        user: client,
+        overrideAccess: false,
+      })
+
+      const root = fetched.content?.root as { children: Array<Record<string, unknown>> }
+      const relationshipNode = root.children[0]
+      const populatedCard = relationshipNode.value as Record<string, unknown>
+      const populatedDefault = populatedCard.default as Record<string, unknown>
+      const populatedImage = populatedDefault.image as Record<string, unknown>
+
+      expect(relationshipNode.type).toBe('relationship')
+      expect(relationshipNode.relationTo).toBe('app-cards')
+      expect(populatedCard.id).toBe(appCard.id)
+      expect(populatedDefault.title).toBe('Client Embedded App Card')
+      expect(populatedImage.id).toBe(image.id)
+
+      const directRead = await payload.find({
+        collection: 'app-cards',
+        user: client,
+        overrideAccess: false,
+      })
+      expect(directRead.docs.map((doc) => doc.id)).toContain(appCard.id)
+    })
   })
 })
