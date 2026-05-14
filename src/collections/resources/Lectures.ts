@@ -3,7 +3,6 @@ import type { CollectionConfig, Where } from 'payload'
 import { lecturesForAudience } from '@/endpoints'
 import { mediaField, urlField } from '@/fields'
 import { populateFromNirmalaVidya, resolveClipParent } from '@/hooks/lectureHooks'
-import { denyApiClientReads } from '@/lib/access'
 import { LOCALES, getLocaleLabel } from '@/lib/locales'
 
 const LOCALE_OPTIONS = LOCALES.map(({ code }) => ({ label: getLocaleLabel(code), value: code }))
@@ -14,7 +13,6 @@ export const Lectures: CollectionConfig = {
     singular: 'Lecture',
     plural: 'Lectures',
   },
-  access: { read: denyApiClientReads('lectures') },
   endpoints: [lecturesForAudience],
   admin: {
     group: 'Content',

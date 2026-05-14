@@ -151,10 +151,6 @@ export const meditationLectures: Endpoint = {
       depth: 2,
       pagination: false,
       locale: req.locale ?? 'en',
-      // Bypass the collection-level denyApiClientReads access check (#341).
-      // This endpoint is the authorized path for API clients; audience
-      // filtering is applied above via the `audiences` where clause.
-      overrideAccess: true,
       req,
     })
 

@@ -6,7 +6,6 @@ import { appCardsForAudience } from '@/endpoints'
 import { mediaField, scheduleField, urlField } from '@/fields'
 import type { ScheduleSubFields } from '@/hooks/scheduleHooks'
 import { buildRRuleTemporal } from '@/hooks/scheduleHooks'
-import { denyApiClientReads } from '@/lib/access'
 
 const APP_PAGE_OPTIONS = [
   { label: 'Map', value: 'map' },
@@ -447,7 +446,6 @@ export const AppCards: CollectionConfig = {
     singular: 'App Card',
     plural: 'App Cards',
   },
-  access: { read: denyApiClientReads('app-cards') },
   versions: {
     drafts: true,
     maxPerDoc: 5,

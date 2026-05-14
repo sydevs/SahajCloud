@@ -2,7 +2,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import fs from 'fs'
 import path from 'path'
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/lib/access'
 
@@ -10,6 +10,20 @@ import { createTestLexicalContent, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
+
+vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/nirmalaVidyaApi')>()
+  return {
+    extractVimeoId: vi.fn(original.extractVimeoId),
+    fetchNirmalaVidyaVideo: vi.fn().mockResolvedValue({
+      title: 'Test Lecture from Nirmala Vidya',
+      thumbnailUrl: 'https://example.com/metadata-thumb.jpg',
+      hlsUrl: 'https://example.com/stream.m3u8',
+      subtitles: [],
+      duration: null,
+    }),
+  }
+})
 
 function createTrustedPreviewRequest(
   payload: Payload,
@@ -831,25 +845,35 @@ describe('Role-Based Access Control', () => {
       expect(foundPage._status).toBe('draft')
     })
 
-    it('wemeditate-app-client is denied from the base app-cards CRUD endpoint (#341)', async () => {
-      // API clients must use /api/app-cards/for-audience, not the base CRUD path.
+    it('wemeditate-app-client can read published app-cards', async () => {
       const admin = await testData.createManager(payload, {
-        name: 'Admin for App Cards Client Block Test',
+        name: 'Admin for App Cards Test',
         type: 'admin' as const,
       })
       const client = await testData.createClient(payload, admin.id, {
-        name: 'App Client for Cards Block Test',
+        name: 'App Client for Cards Test',
         roles: ['wemeditate-app-client'],
         active: true,
       })
 
-      await expect(
-        payload.find({
-          collection: 'app-cards',
-          user: client,
-          overrideAccess: false,
-        }),
-      ).rejects.toThrow()
+      const publishedCard = await testData.createAppCard(payload, {
+        label: 'Published Card for Client Test',
+        _status: 'published',
+      })
+      const draftCard = await testData.createAppCard(payload, {
+        label: 'Draft Card for Client Test',
+        _status: 'draft',
+      })
+
+      const clientCards = await payload.find({
+        collection: 'app-cards',
+        user: client,
+        overrideAccess: false,
+      })
+
+      const ids = clientCards.docs.map((doc) => doc.id)
+      expect(ids).toContain(publishedCard.id)
+      expect(ids).not.toContain(draftCard.id)
     })
 
     it('wemeditate-web-client cannot read app-cards', async () => {
@@ -876,85 +900,31 @@ describe('Role-Based Access Control', () => {
       ).rejects.toThrow()
     })
 
-    describe('Base endpoint blocking for API clients (#341)', () => {
-      it('blocks any API client from reading the base /api/lectures CRUD path', async () => {
+    describe('App content collection reads', () => {
+      it('wemeditate-app-client can read lectures through normal RBAC', async () => {
         const admin = await testData.createManager(payload, {
-          name: 'Admin for Lectures Block Test',
+          name: 'Admin for Lectures Read Test',
           type: 'admin' as const,
         })
         const client = await testData.createClient(payload, admin.id, {
-          name: 'App Client for Lectures Block Test',
+          name: 'App Client for Lectures Read Test',
           roles: ['wemeditate-app-client'],
           active: true,
         })
 
-        await expect(
-          payload.find({
-            collection: 'lectures',
-            user: client,
-            overrideAccess: false,
-          }),
-        ).rejects.toThrow()
-      })
-
-      it('allows admin managers to read the base /api/lectures path', async () => {
-        const admin = await testData.createManager(payload, {
-          name: 'Admin for Lectures Manager Read Test',
-          type: 'admin' as const,
+        const lecture = await testData.createLecture(payload, undefined, {
+          title: 'Published Lecture for Client RBAC Test',
         })
 
-        // Should not throw for an admin manager
         const result = await payload.find({
           collection: 'lectures',
-          user: { ...admin, collection: 'managers' } as any,
+          user: client,
           overrideAccess: false,
         })
+
         expect(result).toBeDefined()
-      })
-
-      it('allows admin managers to read the base /api/app-cards path', async () => {
-        const admin = await testData.createManager(payload, {
-          name: 'Admin for App Cards Manager Read Test',
-          type: 'admin' as const,
-        })
-
-        // Should not throw for an admin manager
-        const result = await payload.find({
-          collection: 'app-cards',
-          user: { ...admin, collection: 'managers' } as any,
-          overrideAccess: false,
-        })
-        expect(result).toBeDefined()
-      })
-
-      it('blocks inactive managers from reading the base /api/lectures path (#341)', async () => {
-        const inactive = await testData.createManager(payload, {
-          name: 'Inactive Manager for Lectures Block Test',
-          type: 'inactive' as const,
-        })
-
-        await expect(
-          payload.find({
-            collection: 'lectures',
-            user: { ...inactive, collection: 'managers' } as any,
-            overrideAccess: false,
-          }),
-        ).rejects.toThrow()
-      })
-
-      it('blocks inactive managers from reading the base /api/app-cards path (#341)', async () => {
-        const inactive = await testData.createManager(payload, {
-          name: 'Inactive Manager for App Cards Block Test',
-          type: 'inactive' as const,
-        })
-
-        await expect(
-          payload.find({
-            collection: 'app-cards',
-            user: { ...inactive, collection: 'managers' } as any,
-            overrideAccess: false,
-          }),
-        ).rejects.toThrow()
+        expect(Array.isArray(result.docs)).toBe(true)
+        expect(result.docs.map((doc) => doc.id)).toContain(lecture.id)
       })
     })
 
