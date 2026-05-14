@@ -13,23 +13,8 @@ import type { Config, Endpoint } from 'payload'
 import { getProjectIcon, getProjectLabel, getProjectOptions, isValidProject } from '@/lib/access'
 import { getScalarThemeColors, type ScalarThemeColors } from '@/lib/branding'
 import { serverEnv } from '@/lib/env'
+import { checkBasicAuth } from '@/lib/openapi/basicAuth'
 import type { ProjectSlug } from '@/payload-types'
-
-/**
- * Validates an HTTP Basic Auth header against a known password.
- * Accepts any username — only the password is checked.
- */
-export function checkBasicAuth(authHeader: string, password: string): boolean {
-  if (!authHeader.startsWith('Basic ')) return false
-  try {
-    const decoded = atob(authHeader.slice(6).trim())
-    const colonIdx = decoded.indexOf(':')
-    const pwd = colonIdx >= 0 ? decoded.slice(colonIdx + 1) : decoded
-    return pwd === password
-  } catch {
-    return false
-  }
-}
 
 export interface ScalarPluginOptions {
   /** Path to the OpenAPI spec endpoint (default: '/openapi.json') */
@@ -379,7 +364,6 @@ export const scalarPlugin =
           method: 'get',
           path: docsUrl,
           handler: async (req) => {
-            // Enforce Basic Auth when DOCS_PASSWORD is configured
             const docsPassword = serverEnv.DOCS_PASSWORD
             if (docsPassword) {
               const authHeader = req.headers.get('authorization') ?? ''
@@ -389,6 +373,7 @@ export const scalarPlugin =
                   headers: {
                     'WWW-Authenticate': 'Basic realm="Sahaj Cloud API Documentation"',
                     'Content-Type': 'text/plain',
+                    'Cache-Control': 'no-store',
                   },
                 })
               }

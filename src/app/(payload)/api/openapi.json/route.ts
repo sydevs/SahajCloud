@@ -20,6 +20,7 @@ import { getPayload } from 'payload'
 import { generateV31Spec } from 'payload-oapi/dist/openapi/generators.js'
 
 import { isValidProject } from '@/lib/access'
+import { checkBasicAuth } from '@/lib/openapi/basicAuth'
 import { CUSTOM_ENDPOINT_PATHS, CUSTOM_ENDPOINT_SCHEMAS } from '@/lib/openapi/customEndpoints'
 import { filterSpec, type OpenAPISpec } from '@/lib/openapi/specFilter'
 import type { ProjectSlug } from '@/payload-types'
@@ -45,6 +46,21 @@ const OPENAPI_METADATA = {
 
 export async function GET(request: NextRequest) {
   try {
+    const docsPassword = process.env.DOCS_PASSWORD
+    if (docsPassword) {
+      const authHeader = request.headers.get('authorization') ?? ''
+      if (!checkBasicAuth(authHeader, docsPassword)) {
+        return new NextResponse('Authentication required', {
+          status: 401,
+          headers: {
+            'WWW-Authenticate': 'Basic realm="Sahaj Cloud API Documentation"',
+            'Content-Type': 'text/plain',
+            'Cache-Control': 'no-store',
+          },
+        })
+      }
+    }
+
     // Parse project from query params
     const projectParam = request.nextUrl.searchParams.get('project')
     const project: ProjectSlug | null =
@@ -54,9 +70,9 @@ export async function GET(request: NextRequest) {
     const cacheUrl = `https://cache.internal/openapi.json${project ? `?project=${project}` : ''}`
     const cacheKey = new Request(cacheUrl, { method: 'GET' })
 
-    // Check Cloudflare Cache API (only available in production Workers)
+    // Check Cloudflare Cache API (only available in production Workers, skip when password-protected)
     const cfCaches = typeof caches !== 'undefined' ? (caches as CloudflareCacheStorage) : null
-    const cache = cfCaches?.default ?? null
+    const cache = docsPassword ? null : (cfCaches?.default ?? null)
     if (cache) {
       const cachedResponse = await cache.match(cacheKey)
       if (cachedResponse) {
@@ -103,8 +119,8 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.json(filteredSpec, {
       headers: {
         'Content-Type': 'application/json',
-        // Allow caching for 5 minutes, vary by project parameter
-        'Cache-Control': `public, max-age=${CACHE_TTL}`,
+        // Don't cache password-protected responses publicly
+        'Cache-Control': docsPassword ? 'private, no-store' : `public, max-age=${CACHE_TTL}`,
         Vary: 'Accept',
       },
     })

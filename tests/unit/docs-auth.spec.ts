@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-import { checkBasicAuth } from '../../src/lib/openapi/scalarPlugin'
+import { checkBasicAuth } from '../../src/lib/openapi/basicAuth'
 
 const PASSWORD = 'correcthorsebatterystaple'
 
