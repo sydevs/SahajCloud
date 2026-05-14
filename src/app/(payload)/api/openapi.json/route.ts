@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
 
     // Create a request-like object for the generator
     // The generator needs: payload, protocol, headers.get('host')
-    const protocol = request.nextUrl.protocol.replace(':', '')
+    const protocol = request.nextUrl.protocol
     const host = request.headers.get('host') || request.nextUrl.host
     const mockHeaders = new Headers()
     mockHeaders.set('host', host)

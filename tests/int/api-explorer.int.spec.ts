@@ -124,7 +124,7 @@ describe('API Explorer', () => {
       // Create a mock request
       const mockReq = {
         payload,
-        protocol: 'http',
+        protocol: 'http:',
         headers: new Headers({ host: 'localhost:3000' }),
       } as unknown as PayloadRequest
 
@@ -139,6 +139,7 @@ describe('API Explorer', () => {
       expect(spec.info).toBeDefined()
       expect(spec.info.title).toBe('Sahaj Cloud API')
       expect(spec.info.version).toBe('1.0.0')
+      expect(spec.servers).toEqual([{ url: 'http://localhost:3000' }])
       expect(spec.paths).toBeDefined()
       expect(spec.components).toBeDefined()
     })
@@ -151,7 +152,7 @@ describe('API Explorer', () => {
 
       const mockReq = {
         payload,
-        protocol: 'http',
+        protocol: 'http:',
         headers: new Headers({ host: 'localhost:3000' }),
       } as unknown as PayloadRequest
 
@@ -183,7 +184,7 @@ describe('API Explorer', () => {
 
       const mockReq = {
         payload,
-        protocol: 'http',
+        protocol: 'http:',
         headers: new Headers({ host: 'localhost:3000' }),
         url: 'http://localhost:3000/api/docs',
       } as unknown as PayloadRequest
@@ -202,6 +203,8 @@ describe('API Explorer', () => {
       // Verify project selector
       expect(html).toContain('project-select')
       expect(html).toContain('All Endpoints')
+      expect(html).toContain("url: 'http://localhost:3000/api/openapi.json'")
+      expect(html).not.toContain('http//localhost')
       // Verify Scalar is loaded
       expect(html.toLowerCase()).toContain('scalar')
       // Verify noindex meta tag (prevents search engine indexing)
@@ -216,7 +219,7 @@ describe('API Explorer', () => {
 
       const mockReq = {
         payload,
-        protocol: 'http',
+        protocol: 'http:',
         headers: new Headers({ host: 'localhost:3000' }),
         url: 'http://localhost:3000/api/docs?project=wemeditate-web',
       } as unknown as PayloadRequest
@@ -236,7 +239,7 @@ describe('API Explorer', () => {
 
       const mockReq = {
         payload,
-        protocol: 'http',
+        protocol: 'http:',
         headers: new Headers({ host: 'localhost:3000' }),
         url: 'http://localhost:3000/api/docs',
       } as unknown as PayloadRequest
