@@ -12,6 +12,8 @@ import type { Config, Endpoint } from 'payload'
 
 import { getProjectIcon, getProjectLabel, getProjectOptions, isValidProject } from '@/lib/access'
 import { getScalarThemeColors, type ScalarThemeColors } from '@/lib/branding'
+import { serverEnv } from '@/lib/env'
+import { checkBasicAuth } from '@/lib/openapi/basicAuth'
 import type { ProjectSlug } from '@/payload-types'
 
 export interface ScalarPluginOptions {
@@ -100,6 +102,7 @@ function generateScalarHtml(specUrl: string, project: ProjectSlug | null, baseUr
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${projectTitle} API Documentation</title>
   <meta name="description" content="REST API documentation for ${projectTitle}" />
+  <meta name="robots" content="noindex, nofollow" />
   <link rel="icon" type="image/svg+xml" href="${currentLogo}" />
   <!-- Critical CSS first to prevent flash of unstyled content -->
   <style>
@@ -361,6 +364,21 @@ export const scalarPlugin =
           method: 'get',
           path: docsUrl,
           handler: async (req) => {
+            const docsPassword = serverEnv.DOCS_PASSWORD
+            if (docsPassword) {
+              const authHeader = req.headers.get('authorization') ?? ''
+              if (!checkBasicAuth(authHeader, docsPassword)) {
+                return new Response('Authentication required', {
+                  status: 401,
+                  headers: {
+                    'WWW-Authenticate': 'Basic realm="Sahaj Cloud API Documentation"',
+                    'Content-Type': 'text/plain',
+                    'Cache-Control': 'no-store',
+                  },
+                })
+              }
+            }
+
             // Construct base URL using payload-oapi pattern
             const baseUrl = `${req.protocol}//${req.headers.get('host')}`
             const fullSpecUrl = `${baseUrl}/api${specEndpoint}`
@@ -378,7 +396,9 @@ export const scalarPlugin =
             return new Response(html, {
               headers: {
                 'Content-Type': 'text/html',
-                'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+                // Don't cache password-protected pages publicly
+                'Cache-Control': docsPassword ? 'private, no-store' : 'public, max-age=3600',
+                'X-Robots-Tag': 'noindex, nofollow',
               },
             })
           },

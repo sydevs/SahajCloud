@@ -204,6 +204,10 @@ describe('API Explorer', () => {
       expect(html).toContain('All Endpoints')
       // Verify Scalar is loaded
       expect(html.toLowerCase()).toContain('scalar')
+      // Verify noindex meta tag (prevents search engine indexing)
+      expect(html).toContain('<meta name="robots" content="noindex, nofollow"')
+      // Verify X-Robots-Tag header
+      expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow')
     })
 
     it('applies project-specific theme when project is selected', async () => {
