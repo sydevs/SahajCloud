@@ -5,6 +5,16 @@ import slugify from 'slugify'
 
 import { mediaField } from '@/fields'
 
+const computeTabTitleUrls: FieldHook = ({ value, siblingData }) => {
+  if ((siblingData as { style?: string })?.style !== 'tabs') return value
+  return (value as Array<{ title?: string; titleUrl?: string }>).map((item) => ({
+    ...item,
+    titleUrl: item.title
+      ? `#${slugify(item.title, { strict: true, lower: true })}`
+      : item.titleUrl,
+  }))
+}
+
 export const LayoutBlock: Block = {
   slug: 'layout',
   // Icon: 2x2 grid (20x20, gray stroked)
@@ -117,28 +127,8 @@ export const LayoutBlock: Block = {
       minRows: 1,
       maxRows: 10,
       hooks: {
-        afterRead: [
-          (({ value, siblingData }) => {
-            if ((siblingData as { style?: string })?.style !== 'tabs') return value
-            return (value as Array<{ title?: string; titleUrl?: string }>).map((item) => ({
-              ...item,
-              titleUrl: item.title
-                ? `#${slugify(item.title, { strict: true, lower: true })}`
-                : item.titleUrl,
-            }))
-          }) satisfies FieldHook,
-        ],
-        beforeChange: [
-          (({ value, siblingData }) => {
-            if ((siblingData as { style?: string })?.style !== 'tabs') return value
-            return (value as Array<{ title?: string; titleUrl?: string }>).map((item) => ({
-              ...item,
-              titleUrl: item.title
-                ? `#${slugify(item.title, { strict: true, lower: true })}`
-                : item.titleUrl,
-            }))
-          }) satisfies FieldHook,
-        ],
+        afterRead: [computeTabTitleUrls],
+        beforeChange: [computeTabTitleUrls],
       },
       fields: [
         mediaField({
