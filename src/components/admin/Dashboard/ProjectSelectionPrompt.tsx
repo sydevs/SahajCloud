@@ -47,7 +47,7 @@ export default function ProjectSelectionPrompt() {
           >
             ⚠️
           </div>
-          <h1
+          <h2
             style={{
               fontSize: 'calc(var(--base-body-size) * 2px)',
               fontWeight: 'bold',
@@ -56,7 +56,7 @@ export default function ProjectSelectionPrompt() {
             }}
           >
             No Projects Available
-          </h1>
+          </h2>
           <p
             style={{
               fontSize: 'calc(var(--base-body-size) * 1.15px)',
@@ -121,7 +121,7 @@ export default function ProjectSelectionPrompt() {
           border: '1px solid var(--theme-elevation-200)',
         }}
       >
-        <h1
+        <h2
           style={{
             fontSize: 'calc(var(--base-body-size) * 2px)',
             fontWeight: 'bold',
@@ -131,7 +131,7 @@ export default function ProjectSelectionPrompt() {
           }}
         >
           Select a Project
-        </h1>
+        </h2>
         <p
           style={{
             fontSize: 'calc(var(--base-body-size) * 1.15px)',

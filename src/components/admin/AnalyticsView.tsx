@@ -1,6 +1,8 @@
 import type { AdminViewServerProps } from 'payload'
+import type { ReactNode } from 'react'
 
 import { DefaultTemplate } from '@payloadcms/next/templates'
+import { SetStepNav } from '@payloadcms/ui'
 
 import type { Manager } from '@/payload-types'
 
@@ -12,7 +14,7 @@ export default function AnalyticsView({ initPageResult, params, searchParams }: 
   const user = req.user as Manager | null
   const currentProject = user?.currentProject
 
-  let content: React.ReactNode
+  let content: ReactNode
 
   switch (currentProject) {
     case 'wemeditate-web':
@@ -79,6 +81,7 @@ export default function AnalyticsView({ initPageResult, params, searchParams }: 
       user={req.user ?? undefined}
       visibleEntities={visibleEntities}
     >
+      <SetStepNav nav={[{ label: 'Analytics' }]} />
       {content}
     </DefaultTemplate>
   )

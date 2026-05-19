@@ -58,7 +58,7 @@ import { default as default_742835b254059f88bfb2f781ea75df90 } from '@/component
 import { default as default_99ec85ba93967a6d388d145a54b117df } from '@/components/admin/Dashboard/InactiveAccountAlert'
 import { default as default_1035e04fd02d13e92bb29364184fcf83 } from '@/components/admin/Dashboard/ProjectSelectionPrompt'
 import { default as default_b4b93444e002b46abfd0c5006e1279a0 } from '@/components/admin/ProjectSelector'
-import { default as default_fb17e397022e83cc802d5c55b8837bc2 } from '@/components/admin/AnalyticsNavLink'
+import { default as default_f5da5fa50c48fc2ef14afcb84f969fcf } from '@/components/admin/AdminNavLinks'
 import { default as default_70d6a18357c47b1a9d8a541fcd53f95f } from '@/components/AdminProvider.tsx'
 import { default as default_db43129b90862b042c8e58805b1c34d3 } from '@/components/admin/AnalyticsView'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
@@ -124,7 +124,7 @@ export const importMap = {
   "@/components/admin/Dashboard/InactiveAccountAlert#default": default_99ec85ba93967a6d388d145a54b117df,
   "@/components/admin/Dashboard/ProjectSelectionPrompt#default": default_1035e04fd02d13e92bb29364184fcf83,
   "@/components/admin/ProjectSelector#default": default_b4b93444e002b46abfd0c5006e1279a0,
-  "@/components/admin/AnalyticsNavLink#default": default_fb17e397022e83cc802d5c55b8837bc2,
+  "@/components/admin/AdminNavLinks#default": default_f5da5fa50c48fc2ef14afcb84f969fcf,
   "@/components/AdminProvider.tsx#default": default_70d6a18357c47b1a9d8a541fcd53f95f,
   "@/components/admin/AnalyticsView#default": default_db43129b90862b042c8e58805b1c34d3,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
