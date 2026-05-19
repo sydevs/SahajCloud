@@ -83,6 +83,60 @@ describe('Lessons Collection — custom behavior', () => {
     })
   })
 
+  describe('meditation field — locale isolation', () => {
+    let enMeditation: Meditation
+    let esMeditation: Meditation
+
+    beforeAll(async () => {
+      enMeditation = await testData.createMeditation(payload, undefined, { type: 'lesson', locale: 'en' })
+      esMeditation = await testData.createMeditation(payload, undefined, { type: 'lesson', locale: 'es' })
+    })
+
+    it('en meditation does not appear in es locale when fallbackLocale is false', async () => {
+      const lesson = await testData.createLesson(payload, { meditation: enMeditation.id })
+
+      const fetched = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'es',
+        fallbackLocale: false,
+        depth: 0,
+      })
+
+      // Payload returns undefined (no locale row) rather than null when fallbackLocale is false
+      expect(fetched.meditation).toBeFalsy()
+    })
+
+    it('assigns different meditation per locale without overwriting the other', async () => {
+      const lesson = await testData.createLesson(payload, { meditation: enMeditation.id })
+
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'es',
+        data: { meditation: esMeditation.id },
+      })
+
+      // English locale retains the original assignment
+      const enFetched = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'en',
+        depth: 0,
+      })
+      expect(enFetched.meditation).toBe(enMeditation.id)
+
+      // Spanish locale has the Spanish assignment
+      const esFetched = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'es',
+        depth: 0,
+      })
+      expect(esFetched.meditation).toBe(esMeditation.id)
+    })
+  })
+
   describe('article rich text', () => {
     it('strips stale relationship nodes for removed collections before rendering the editor', async () => {
       const staleArticle = createLexicalWithRelationshipNode({

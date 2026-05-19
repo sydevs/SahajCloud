@@ -93,6 +93,7 @@ export const Lessons: CollectionConfig = {
               name: 'meditation',
               type: 'relationship',
               relationTo: 'meditations',
+              localized: true,
               required: false,
               filterOptions: {
                 type: { equals: 'lesson' },
