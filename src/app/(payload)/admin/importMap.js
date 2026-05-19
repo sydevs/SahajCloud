@@ -55,9 +55,12 @@ import { UnderlineFeatureClient as UnderlineFeatureClient_e70f5e05f09f93e00b997e
 import { default as default_ef5e6a70945e57a6ae410f9328826634 } from '@/components/admin/TranslationsTable'
 import { default as default_7b4ba381140135af5cae014b3533be0b } from '@/components/branding/Icon'
 import { default as default_742835b254059f88bfb2f781ea75df90 } from '@/components/branding/Logo'
+import { default as default_99ec85ba93967a6d388d145a54b117df } from '@/components/admin/Dashboard/InactiveAccountAlert'
+import { default as default_1035e04fd02d13e92bb29364184fcf83 } from '@/components/admin/Dashboard/ProjectSelectionPrompt'
 import { default as default_b4b93444e002b46abfd0c5006e1279a0 } from '@/components/admin/ProjectSelector'
+import { default as default_fb17e397022e83cc802d5c55b8837bc2 } from '@/components/admin/AnalyticsNavLink'
 import { default as default_70d6a18357c47b1a9d8a541fcd53f95f } from '@/components/AdminProvider.tsx'
-import { default as default_0e7b23c75ea046975e1784ba01f82886 } from '@/components/admin/Dashboard'
+import { default as default_db43129b90862b042c8e58805b1c34d3 } from '@/components/admin/AnalyticsView'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
 export const importMap = {
@@ -118,8 +121,11 @@ export const importMap = {
   "@/components/admin/TranslationsTable#default": default_ef5e6a70945e57a6ae410f9328826634,
   "@/components/branding/Icon#default": default_7b4ba381140135af5cae014b3533be0b,
   "@/components/branding/Logo#default": default_742835b254059f88bfb2f781ea75df90,
+  "@/components/admin/Dashboard/InactiveAccountAlert#default": default_99ec85ba93967a6d388d145a54b117df,
+  "@/components/admin/Dashboard/ProjectSelectionPrompt#default": default_1035e04fd02d13e92bb29364184fcf83,
   "@/components/admin/ProjectSelector#default": default_b4b93444e002b46abfd0c5006e1279a0,
+  "@/components/admin/AnalyticsNavLink#default": default_fb17e397022e83cc802d5c55b8837bc2,
   "@/components/AdminProvider.tsx#default": default_70d6a18357c47b1a9d8a541fcd53f95f,
-  "@/components/admin/Dashboard#default": default_0e7b23c75ea046975e1784ba01f82886,
+  "@/components/admin/AnalyticsView#default": default_db43129b90862b042c8e58805b1c34d3,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }
