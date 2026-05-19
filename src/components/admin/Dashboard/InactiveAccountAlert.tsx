@@ -1,12 +1,12 @@
 'use client'
 
-/**
- * InactiveAccountAlert Component
- *
- * Displayed on dashboard when a manager's account is disabled (active: false).
- * Replaces the entire dashboard with a clear alert message and contact information.
- */
+import { useAuth } from '@payloadcms/ui'
+
 export default function InactiveAccountAlert() {
+  const { user } = useAuth()
+
+  if (user?.type !== 'inactive') return null
+
   return (
     <div
       style={{
