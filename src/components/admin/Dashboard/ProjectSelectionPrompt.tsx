@@ -1,21 +1,22 @@
 'use client'
 
-import { getProjectLabel } from '@/lib/access'
+import { useAuth } from '@payloadcms/ui'
+
+import { getProjectLabel, getProjectsFromRoles } from '@/lib/access'
 import type { ProjectSlug } from '@/payload-types'
 
 import ProjectSelector from '../ProjectSelector'
 
-interface Props {
-  allowedProjects: ProjectSlug[]
-}
+export default function ProjectSelectionPrompt() {
+  const { user } = useAuth()
 
-/**
- * ProjectSelectionPrompt Component
- *
- * Displayed on dashboard when a manager has undefined currentProject.
- * Shows ProjectSelector if they have access to projects, or a message if they have no access.
- */
-export default function ProjectSelectionPrompt({ allowedProjects }: Props) {
+  // Only show for regular managers who haven't selected a project
+  if (!user || user.type === 'admin' || user.type === 'inactive' || user.currentProject) {
+    return null
+  }
+
+  const allowedProjects = getProjectsFromRoles(user.roles) as ProjectSlug[]
+
   // No projects available - show error message
   if (allowedProjects.length === 0) {
     return (

@@ -92,13 +92,13 @@ Reserve `fetch()` for external APIs only.
 src/components/
 ├── admin/
 │   ├── ProjectSelector.tsx          # standalone interactive widget
+│   ├── AnalyticsView.tsx            # custom admin page at /admin/analytics
+│   ├── AnalyticsNavLink.tsx         # beforeNavLinks sidebar link to /admin/analytics
 │   ├── Dashboard/                   # component family → folder + barrel
 │   │   ├── index.ts
-│   │   ├── Dashboard.tsx            # server entry point
-│   │   ├── DefaultDashboard.tsx     # client sub-component
-│   │   ├── FathomDashboard.tsx      # client (state)
-│   │   ├── MetricsDashboard.tsx     # server (data fetching)
-│   │   └── ...
+│   │   ├── FathomDashboard.tsx      # client (state) — used by AnalyticsView
+│   │   ├── InactiveAccountAlert.tsx # beforeDashboard — self-guards via useAuth()
+│   │   └── ProjectSelectionPrompt.tsx # beforeDashboard — self-guards via useAuth()
 │   └── ThumbnailCell/
 │       ├── index.ts
 │       ├── ThumbnailCell.tsx
@@ -510,24 +510,44 @@ re-evaluates them.
 
 ## Project-aware dashboard
 
-Custom dashboard view registered in `payload.config.ts`:
+The admin dashboard uses Payload's built-in widget system. Dashboard-related
+concerns are separated into dedicated Payload slots:
 
 ```typescript
 admin: {
   components: {
-    views: { dashboard: { Component: '@/components/admin/Dashboard' } },
+    beforeNavLinks: ['@/components/admin/ProjectSelector', '@/components/admin/AnalyticsNavLink'],
+    beforeDashboard: [
+      '@/components/admin/Dashboard/InactiveAccountAlert',
+      '@/components/admin/Dashboard/ProjectSelectionPrompt',
+    ],
+    views: {
+      analytics: { Component: '@/components/admin/AnalyticsView', path: '/analytics' },
+    },
   },
 }
 ```
 
-`Dashboard.tsx` is a server component; it routes by `user.currentProject`
-to one of:
+**`AnalyticsView`** (`src/components/admin/AnalyticsView.tsx`) — server
+component at `/admin/analytics`; typed as `AdminViewServerProps` (from
+`payload`); wraps content in `DefaultTemplate` from
+`@payloadcms/next/templates`; routes by `initPageResult.req.user.currentProject`:
 
-- `wemeditate-web` → `FathomDashboard` (Fathom Analytics iframe, siteId `pfpcdamq`)
+- `wemeditate-web` → `FathomDashboard` (siteId `pfpcdamq`)
 - `sahaj-atlas` → `FathomDashboard` (siteId `qqwctiuv`)
-- `wemeditate-app` → `MetricsDashboard` (server component, direct
-  `payload.count()` calls in parallel)
-- admin view (null) → `DefaultDashboard` (quick links)
+- other → "No analytics available" message
+
+**`InactiveAccountAlert`** — client component; self-guards via
+`useAuth()` and returns `null` unless `user.type === 'inactive'`.
+
+**`ProjectSelectionPrompt`** — client component; self-guards via
+`useAuth()` and returns `null` unless user is a regular manager with no
+`currentProject`. Computes allowed projects via `getProjectsFromRoles()`
+from `@/lib/access`.
+
+**`AnalyticsNavLink`** (`src/components/admin/AnalyticsNavLink.tsx`) —
+client component rendered in `beforeNavLinks`; link to `/admin/analytics`;
+highlights when pathname matches.
 
 CSP headers in `next.config.mjs` whitelist `https://app.usefathom.com` for
 Fathom iframes.
