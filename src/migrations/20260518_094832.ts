@@ -34,6 +34,11 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
 }
 
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
+  // Restore meditation_id to lessons and backfill from the English locale row while
+  // lessons_locales still has the data, before we rebuild that table to drop the column.
+  await db.run(sql`ALTER TABLE \`lessons\` ADD \`meditation_id\` integer REFERENCES meditations(id);`)
+  await db.run(sql`UPDATE \`lessons\` SET \`meditation_id\` = (SELECT \`meditation_id\` FROM \`lessons_locales\` WHERE \`lessons_locales\`.\`_parent_id\` = \`lessons\`.\`id\` AND \`lessons_locales\`.\`_locale\` = 'en');`)
+  await db.run(sql`CREATE INDEX \`lessons_meditation_idx\` ON \`lessons\` (\`meditation_id\`);`)
   await db.run(sql`PRAGMA foreign_keys=OFF;`)
   await db.run(sql`CREATE TABLE \`__new_lessons_locales\` (
   	\`article\` text,
@@ -48,6 +53,4 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   await db.run(sql`ALTER TABLE \`__new_lessons_locales\` RENAME TO \`lessons_locales\`;`)
   await db.run(sql`PRAGMA foreign_keys=ON;`)
   await db.run(sql`CREATE UNIQUE INDEX \`lessons_locales_locale_parent_id_unique\` ON \`lessons_locales\` (\`_locale\`,\`_parent_id\`);`)
-  await db.run(sql`ALTER TABLE \`lessons\` ADD \`meditation_id\` integer REFERENCES meditations(id);`)
-  await db.run(sql`CREATE INDEX \`lessons_meditation_idx\` ON \`lessons\` (\`meditation_id\`);`)
 }

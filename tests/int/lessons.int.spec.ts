@@ -5,8 +5,9 @@
  * this file holds tests for behavior that's project-specific.
  *
  * Currently: subtitle JSON behavior (documents that Payload's `jsonSchema`
- * is a Monaco editor hint, not API-enforced validation) and article rich-text
- * cleanup for stale Lexical relationship nodes.
+ * is a Monaco editor hint, not API-enforced validation), article rich-text
+ * cleanup for stale Lexical relationship nodes, and meditation field locale
+ * isolation (per-locale meditation assignments are independent).
  */
 import type { Payload } from 'payload'
 
