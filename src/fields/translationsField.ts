@@ -1,5 +1,5 @@
 import type { JSONSchema4 } from 'json-schema'
-import type { JSONField, TabsField } from 'payload'
+import type { JSONField, TabsField, UIField } from 'payload'
 
 // ============================================================================
 // Types
@@ -32,12 +32,23 @@ interface StringPropertySchema {
  *   a tab containing inner sub-tabs, one per child group).
  *
  * Mixing string and object properties at the same level is not supported.
+ *
+ * Non-JSON-Schema extension fields (ignored by Monaco validation, consumed only
+ * by the Payload admin builder):
+ * - `screenshot`: relative path or URL to an image / Figma design that shows
+ *   where the strings in this group appear in the app. Rendered above the
+ *   TranslationsTable as orientation for translators. Only honoured on leaf
+ *   groups — parent groups are pure containers with no UI of their own.
+ *   Common forms:
+ *   - "/admin-screenshots/wm-app-translations/onboarding__name.png" — repo asset
+ *   - "https://www.figma.com/design/.../?node-id=11564-91404" — Figma URL link
  */
 interface GroupSchema {
   type: 'object'
   description?: string
   properties?: Record<string, StringPropertySchema | GroupSchema>
   additionalProperties?: boolean
+  screenshot?: string
 }
 
 /**
@@ -90,6 +101,35 @@ function extractSchemaEntries(
       key,
       description: prop.description || '',
     }))
+}
+
+/**
+ * Creates a UI-only field that renders a screenshot or design-context link
+ * above the translation table for a leaf group. Returns null when no
+ * screenshot is configured so the helper can skip the entry.
+ */
+function createScreenshotField(
+  groupSlug: string,
+  groupSchema: GroupSchema,
+  globalSlug: string,
+): UIField | null {
+  const screenshot = groupSchema.screenshot
+  if (!screenshot) return null
+
+  return {
+    name: `${groupSlug}__screenshot`,
+    type: 'ui',
+    admin: {
+      components: {
+        Field: '@/components/admin/TabScreenshot',
+      },
+      custom: {
+        screenshot,
+        caption: groupSchema.description,
+        globalSlug,
+      },
+    },
+  }
 }
 
 /**
@@ -182,6 +222,8 @@ export function buildTranslationTabs(
       )
 
       // Parent group → outer tab containing one sub-tab per child group.
+      // Screenshots configured on the parent are ignored (parents are pure
+      // containers); each child group renders its own optional screenshot.
       if (subgroups.length > 0) {
         return {
           label: toTitleCase(groupSlug),
@@ -189,23 +231,37 @@ export function buildTranslationTabs(
           fields: [
             {
               type: 'tabs',
-              tabs: subgroups.map(([subSlug, subSchema]) => ({
-                label: toTitleCase(subSlug),
-                description: subSchema.description,
-                fields: [
-                  createGroupJsonField(`${groupSlug}_${subSlug}`, subSchema, globalSlug),
-                ],
-              })),
+              tabs: subgroups.map(([subSlug, subSchema]) => {
+                const leafSlug = `${groupSlug}_${subSlug}`
+                const screenshotField = createScreenshotField(
+                  leafSlug,
+                  subSchema,
+                  globalSlug,
+                )
+                return {
+                  label: toTitleCase(subSlug),
+                  description: subSchema.description,
+                  fields: [
+                    ...(screenshotField ? [screenshotField] : []),
+                    createGroupJsonField(leafSlug, subSchema, globalSlug),
+                  ],
+                }
+              }),
             },
           ],
         }
       }
 
-      // Leaf group → single tab with a flat translations table.
+      // Leaf group → single tab with a flat translations table, optionally
+      // preceded by a screenshot for editor orientation.
+      const screenshotField = createScreenshotField(groupSlug, groupSchema, globalSlug)
       return {
         label: toTitleCase(groupSlug),
         description: groupSchema.description,
-        fields: [createGroupJsonField(groupSlug, groupSchema, globalSlug)],
+        fields: [
+          ...(screenshotField ? [screenshotField] : []),
+          createGroupJsonField(groupSlug, groupSchema, globalSlug),
+        ],
       }
     })
 }

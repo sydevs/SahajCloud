@@ -54,7 +54,8 @@
           "description": "Generic error toast shown when an inline link on the welcome screen fails to open."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5390-8945"
     },
     "onboarding": {
       "type": "object",
@@ -77,7 +78,8 @@
               "description": "Primary CTA to confirm the entered name and continue onboarding."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5390-7392"
         },
         "greeting": {
           "type": "object",
@@ -88,7 +90,8 @@
               "description": "Multi-line greeting prefix shown above the user’s name. Preserve the embedded line breaks (\\n) — they control where the text wraps in the hero layout."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5390-7596"
         },
         "user_type": {
           "type": "object",
@@ -127,7 +130,8 @@
               "description": "Selectable option for long-time Sahaja Yoga practitioners. Maps to userType = yogi (excluded from the ad-measurement path)."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=10253-86746"
         },
         "carousel": {
           "type": "object",
@@ -162,7 +166,8 @@
               "description": "Slide 3 supporting copy."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5390-7673"
         }
       },
       "additionalProperties": false
@@ -478,7 +483,8 @@
               "description": "Inline message asking the user to enable notifications in OS Settings to receive live-meditation reminders."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7064-81297"
         },
         "explore": {
           "type": "object",
@@ -569,7 +575,8 @@
               "description": "Generic 'Coming soon' badge used on locked Explore-block cards."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5878-10306"
         }
       },
       "additionalProperties": false
@@ -920,7 +927,8 @@
               "description": "Error title shown when the meditation track fails to load in the player."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7461-1119009"
         },
         "footsoak": {
           "type": "object",
@@ -1058,7 +1066,8 @@
               "description": "Decline CTA on the restart prompt."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5390-8159"
         },
         "subtle_system": {
           "type": "object",
@@ -1113,7 +1122,8 @@
               "description": "Detail label for the Left Aspect of a chakra."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7307-83858"
         }
       },
       "additionalProperties": false
@@ -1202,7 +1212,8 @@
               "description": "Status label shown on talks that the user has already watched."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=2359-6059"
         },
         "player": {
           "type": "object",
@@ -1287,7 +1298,8 @@
               "description": "Placeholder shown at the bottom of the Path when no further steps are released yet (typically uppercase)."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7846-27543"
         },
         "info": {
           "type": "object",
@@ -1399,7 +1411,8 @@
               "description": "Back CTA returning the user to the step overview."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7846-27579"
         },
         "step_4": {
           "type": "object",
@@ -1453,7 +1466,8 @@
               "description": "CTA returning the user to the Path overview after completing a step."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7846-27656"
         },
         "meditation_feedback": {
           "type": "object",
@@ -1641,7 +1655,8 @@
               "description": "Generic sign-in failure error."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5502-18583"
         },
         "restore_password": {
           "type": "object",
@@ -1672,7 +1687,8 @@
               "description": "Validation error on the recovery form for an invalid email."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5502-19240"
         },
         "restore_password_email_sent": {
           "type": "object",
@@ -1687,7 +1703,8 @@
               "description": "Acknowledge CTA on the confirmation."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5901-23072"
         },
         "create_account": {
           "type": "object",
@@ -1798,7 +1815,8 @@
               "description": "Message shown when the user cancels the social-auth flow."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5390-8755"
         }
       },
       "additionalProperties": false
@@ -1888,7 +1906,8 @@
               "description": "Joined-date string for multiple years ago. MUST preserve the {years} placeholder — it is replaced at runtime with the year count."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7611-1453777"
         },
         "history": {
           "type": "object",
@@ -1907,7 +1926,8 @@
               "description": "Empty-state subtitle when the user has no history entries."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7615-1623198"
         },
         "favourites": {
           "type": "object",
@@ -1922,7 +1942,8 @@
               "description": "Snackbar shown after a favourite is removed (paired with the global Undo action from the general group)."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=9150-87479"
         },
         "account": {
           "type": "object",
@@ -2085,7 +2106,8 @@
               "description": "Destructive CTA opening the delete-account flow."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=9159-89387"
         },
         "contact": {
           "type": "object",
@@ -2132,7 +2154,8 @@
               "description": "Error shown when sending the feedback fails."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=9159-89388"
         }
       },
       "additionalProperties": false
@@ -2186,7 +2209,8 @@
               "description": "Decline CTA. Decline is a single tap and must not block account creation (see analytics-simplified/05-flutter-implementation.md §9)."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=11564-91404"
         },
         "settings": {
           "type": "object",
@@ -2257,7 +2281,8 @@
               "description": "Bullet item for Apple Search Ads. Brand name — usually kept as 'Apple Search Ads'."
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=11571-40337"
         }
       },
       "additionalProperties": false
