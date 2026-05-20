@@ -91,17 +91,18 @@ describe('Translations Globals Configuration', () => {
       expect(global?.fields[0].type).toBe('tabs')
     })
 
-    it('should have 5 tabs: Daily, Path, Explore, Profile, Meditation', () => {
+    it('should have 6 tabs: Daily, Path, Explore, Profile, Meditation, Review', () => {
       const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        expect(tabsField.tabs).toHaveLength(5)
+        expect(tabsField.tabs).toHaveLength(6)
         expect(tabsField.tabs[0].label).toBe('Daily')
         expect(tabsField.tabs[1].label).toBe('Path')
         expect(tabsField.tabs[2].label).toBe('Explore')
         expect(tabsField.tabs[3].label).toBe('Profile')
         expect(tabsField.tabs[4].label).toBe('Meditation')
+        expect(tabsField.tabs[5].label).toBe('Review')
       }
     })
 
@@ -110,18 +111,20 @@ describe('Translations Globals Configuration', () => {
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        const fieldNames = tabsField.tabs.map((tab) => tab.fields[0].name)
+        const translationTabs = tabsField.tabs.slice(0, 5)
+        const fieldNames = translationTabs.map((tab) => tab.fields[0].name)
 
         expect(fieldNames).toEqual(['daily', 'path', 'explore', 'profile', 'meditation'])
       }
     })
 
-    it('should have globalSlug passed to each field', () => {
+    it('should have globalSlug passed to each translation field', () => {
       const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        for (const tab of tabsField.tabs) {
+        const translationTabs = tabsField.tabs.slice(0, 5)
+        for (const tab of translationTabs) {
           const field = tab.fields[0]
           expect(field.admin?.custom?.globalSlug).toBe('wm-app-translations')
         }
@@ -154,6 +157,19 @@ describe('Translations Globals Configuration', () => {
         expect(meditationKeys).toContain('play')
         expect(meditationKeys).toContain('pause')
         expect(meditationKeys).toContain('complete')
+      }
+    })
+
+    it('should have a Review tab with markReviewed and lastReviewedAt fields', () => {
+      const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
+      const tabsField = global?.fields[0]
+
+      if (tabsField?.type === 'tabs') {
+        const reviewTab = tabsField.tabs[5]
+        expect(reviewTab.label).toBe('Review')
+
+        const fieldNames = reviewTab.fields.map((f) => ('name' in f ? f.name : undefined))
+        expect(fieldNames).toEqual(['markReviewed', 'lastReviewedAt'])
       }
     })
   })
@@ -225,6 +241,9 @@ describe('Translations Globals Configuration', () => {
 
       if (tabsField?.type === 'tabs') {
         for (const tab of tabsField.tabs) {
+          // Skip non-translation tabs (e.g., the Review tab on wm-app-translations
+          // which uses non-JSON fields for manual-review tracking).
+          if (tab.label === 'Review') continue
           const field = tab.fields[0]
           expect(field.jsonSchema).toBeDefined()
           expect(field.jsonSchema?.uri).toMatch(/^a:\/\//)
