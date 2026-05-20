@@ -1,4 +1,4 @@
-import type { Where, BasePayload, PayloadRequest } from 'payload'
+import type { Where, BasePayload, PayloadRequest, TypedLocale } from 'payload'
 
 const PROGRESS_RULES = [
   'pathProgress',
@@ -91,7 +91,7 @@ export async function resolveAudienceIds(
  */
 export async function countLecturesForAudiences(
   payload: BasePayload,
-  args: { audiences: number[]; locale?: string; req?: PayloadRequest },
+  args: { audiences: number[]; locale?: TypedLocale; req?: PayloadRequest },
 ): Promise<number> {
   if (args.audiences.length === 0) return 0
   const result = await payload.count({
