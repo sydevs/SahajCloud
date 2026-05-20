@@ -310,12 +310,31 @@ export async function computeUserChoicesReadiness(
 
 const REQUIRED_UNIT_COUNT = 3
 
+function findFieldByName(fields: unknown[], name: string): unknown {
+  for (const field of fields) {
+    if (!isRecord(field)) continue
+    if (field.name === name) return field
+    // Recurse into common container types
+    if (Array.isArray(field.fields)) {
+      const found = findFieldByName(field.fields, name)
+      if (found) return found
+    }
+    if (field.type === 'tabs' && Array.isArray(field.tabs)) {
+      for (const tab of field.tabs) {
+        if (isRecord(tab) && Array.isArray(tab.fields)) {
+          const found = findFieldByName(tab.fields, name)
+          if (found) return found
+        }
+      }
+    }
+  }
+  return undefined
+}
+
 function getUnitOptions(payload: BasePayload): string[] {
   const lessonsConfig = payload.collections['lessons']?.config
   if (!lessonsConfig) return []
-  const unitField = lessonsConfig.fields.find(
-    (f) => 'name' in f && f.name === 'unit',
-  ) as SelectField | undefined
+  const unitField = findFieldByName(lessonsConfig.fields, 'unit') as SelectField | undefined
   if (!unitField || !Array.isArray(unitField.options)) return []
   return unitField.options.map((o) => (typeof o === 'string' ? o : o.value))
 }
@@ -373,6 +392,12 @@ const PRIORITY_USERCHOICE_THRESHOLD = 10
 const BASELINE_AUDIENCE_THRESHOLD = 20
 const DEFAULT_BASELINE_COUNTRY = 'GB'
 
+// req.context flag set while a compute function is reading the status
+// global's own config-tab fields. The per-field afterRead hooks check this
+// flag and short-circuit when set so we don't recursively re-enter the
+// computations during the inner findGlobal call.
+const STATUS_RECURSION_CONTEXT_KEY = 'wmAppStatusRecursing'
+
 function lectureHasSubtitlesForLocale(
   lecture: Record<string, unknown>,
   locale: TypedLocale,
@@ -405,17 +430,40 @@ function lectureHasSubtitlesForLocale(
   )
 }
 
+async function fetchStatusGlobalRaw(
+  payload: BasePayload,
+  locale: TypedLocale,
+  req?: PayloadRequest,
+): Promise<Record<string, unknown> | null> {
+  // Setting this context flag short-circuits the per-field afterRead hooks
+  // (see `virtualReadinessField`), preventing infinite recursion when a
+  // compute function needs to read its own global's config-tab fields.
+  const ctx = req?.context ?? {}
+  const prev = (ctx as Record<string, unknown>)[STATUS_RECURSION_CONTEXT_KEY]
+  if (req) {
+    req.context = ctx
+    ;(req.context as Record<string, unknown>)[STATUS_RECURSION_CONTEXT_KEY] = true
+  }
+  try {
+    return (await payload.findGlobal({
+      slug: 'wm-app-status',
+      locale,
+      depth: 0,
+      req,
+    })) as unknown as Record<string, unknown> | null
+  } finally {
+    if (req) {
+      ;(req.context as Record<string, unknown>)[STATUS_RECURSION_CONTEXT_KEY] = prev
+    }
+  }
+}
+
 async function getBaselineCountry(
   payload: BasePayload,
   locale: TypedLocale,
   req?: PayloadRequest,
 ): Promise<string> {
-  const status = (await payload.findGlobal({
-    slug: 'wm-app-status',
-    locale,
-    depth: 0,
-    req,
-  })) as unknown as Record<string, unknown> | null
+  const status = await fetchStatusGlobalRaw(payload, locale, req)
   const country = status?.baselineCountry
   if (typeof country === 'string' && country.length === 2) return country
   return DEFAULT_BASELINE_COUNTRY
@@ -777,12 +825,7 @@ export async function computeAppCardsReadiness(
   locale: TypedLocale,
   req?: PayloadRequest,
 ): Promise<ReadinessReport> {
-  const status = (await payload.findGlobal({
-    slug: 'wm-app-status',
-    depth: 0,
-    locale,
-    req,
-  })) as unknown as Record<string, unknown> | null
+  const status = await fetchStatusGlobalRaw(payload, locale, req)
 
   const launchCriticalRaw = Array.isArray(status?.launchCriticalAppCards)
     ? (status!.launchCriticalAppCards as unknown[])
@@ -873,6 +916,9 @@ function virtualReadinessField(name: string, compute: ComputeFn): JSONField {
         async ({ req }) => {
           const locale = req.locale
           if (!locale || locale === 'all') return null
+          // Short-circuit when a compute function is reading this same
+          // global's config-tab fields — see fetchStatusGlobalRaw.
+          if ((req.context as Record<string, unknown>)?.[STATUS_RECURSION_CONTEXT_KEY]) return null
           return compute(req.payload, locale, req)
         },
       ],
