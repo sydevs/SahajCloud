@@ -21,11 +21,14 @@ import {
   computeTranslationsReadiness,
   computeUserChoicesReadiness,
   type ReadinessReport,
+  type StatusConfigValues,
 } from '@/globals/wemeditate-app/status'
 import statusConfig from '@/globals/wemeditate-app/statusConfig.json' with { type: 'json' }
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
+
+const EMPTY_CONFIG: StatusConfigValues = { baselineCountry: 'GB', launchCriticalAppCardIds: [] }
 
 // Mock the Nirmala Vidya API client to prevent real network calls when creating lectures.
 vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
@@ -119,13 +122,13 @@ describe('WeMeditateAppStatus Global', () => {
   describe('statusConfig.json drift detection', () => {
     it('every emitted group/check key has an entry; every section has a collections entry', async () => {
       const reports = await Promise.all([
-        computeUserChoicesReadiness(payload, 'en'),
-        computeLessonsReadiness(payload, 'en'),
-        computeLecturesReadiness(payload, 'en'),
-        computePagesReadiness(payload, 'en'),
-        computeAppConfigReadiness(payload, 'en'),
-        computeTranslationsReadiness(payload, 'en'),
-        computeAppCardsReadiness(payload, 'en'),
+        computeUserChoicesReadiness(payload, 'en', EMPTY_CONFIG),
+        computeLessonsReadiness(payload, 'en', EMPTY_CONFIG),
+        computeLecturesReadiness(payload, 'en', EMPTY_CONFIG),
+        computePagesReadiness(payload, 'en', EMPTY_CONFIG),
+        computeAppConfigReadiness(payload, 'en', EMPTY_CONFIG),
+        computeTranslationsReadiness(payload, 'en', EMPTY_CONFIG),
+        computeAppCardsReadiness(payload, 'en', EMPTY_CONFIG),
       ])
       const sectionKeys = [
         'userChoices',
@@ -197,7 +200,7 @@ describe('WeMeditateAppStatus Global', () => {
         // eveningMeditation omitted → fail
       } as Partial<UserChoice>)
 
-      const report = await computeUserChoicesReadiness(payload, 'en')
+      const report = await computeUserChoicesReadiness(payload, 'en', EMPTY_CONFIG)
       const featured = report.groups.find((g) => g.key === 'featured')
       expect(featured?.type).toBe('documents')
       if (featured?.type !== 'documents') return
@@ -208,7 +211,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
 
     it('emits non-featured-{morning,afternoon,evening,night} aggregate groups', async () => {
-      const report = await computeUserChoicesReadiness(payload, 'en')
+      const report = await computeUserChoicesReadiness(payload, 'en', EMPTY_CONFIG)
       const aggKeys = report.groups.filter((g) => g.type === 'aggregate').map((g) => g.key)
       expect(aggKeys).toContain('non-featured-morning')
       expect(aggKeys).toContain('non-featured-afternoon')
@@ -253,7 +256,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
 
     it('emits one group per unit; Unit 4 is optional', async () => {
-      const report = await computeLessonsReadiness(payload, 'en')
+      const report = await computeLessonsReadiness(payload, 'en', EMPTY_CONFIG)
       const unitGroups = report.groups.filter((g) => g.key.startsWith('unit-'))
       expect(unitGroups.length).toBeGreaterThanOrEqual(4)
       const unit4 = unitGroups.find((g) => g.key === 'unit-4')
@@ -263,7 +266,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
 
     it('lesson with all fields set has all checks passing; partial lesson has failing checks', async () => {
-      const report = await computeLessonsReadiness(payload, 'en')
+      const report = await computeLessonsReadiness(payload, 'en', EMPTY_CONFIG)
       const unit1 = report.groups.find((g) => g.key === 'unit-1')
       expect(unit1?.type).toBe('documents')
       if (unit1?.type !== 'documents') return
@@ -297,7 +300,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
 
     it('summary counts only required (non-optional) groups', async () => {
-      const report = await computeLessonsReadiness(payload, 'en')
+      const report = await computeLessonsReadiness(payload, 'en', EMPTY_CONFIG)
       const requiredGroups = report.groups.filter((g) => !g.optional)
       expect(report.summary.total).toBe(requiredGroups.length)
       const optionalGroups = report.groups.filter((g) => g.optional)
@@ -334,7 +337,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
 
     it('reports per-page published + content-localized checks', async () => {
-      const report = await computePagesReadiness(payload, 'en')
+      const report = await computePagesReadiness(payload, 'en', EMPTY_CONFIG)
       const core = report.groups.find((g) => g.key === 'core-pages')
       expect(core?.type).toBe('documents')
       if (core?.type !== 'documents') return
@@ -355,7 +358,7 @@ describe('WeMeditateAppStatus Global', () => {
   // ---------------------------------------------------------------------------
   describe('Section 3 — Lectures', () => {
     it('emits the four expected group keys', async () => {
-      const report = await computeLecturesReadiness(payload, 'en')
+      const report = await computeLecturesReadiness(payload, 'en', EMPTY_CONFIG)
       const keys = report.groups.map((g) => g.key)
       expect(keys).toEqual(
         expect.arrayContaining([
@@ -369,7 +372,7 @@ describe('WeMeditateAppStatus Global', () => {
 
     it('priority-with-userchoice aggregate fails below threshold and passes when exceeded', async () => {
       // Should fail initially (< 10 lectures with priority > 0 AND userChoices.length > 0)
-      const before = await computeLecturesReadiness(payload, 'en')
+      const before = await computeLecturesReadiness(payload, 'en', EMPTY_CONFIG)
       const priorityBefore = before.groups.find((g) => g.key === 'priority-with-userchoice')
       expect(priorityBefore?.type).toBe('aggregate')
       if (priorityBefore?.type !== 'aggregate') return
@@ -378,7 +381,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
 
     it('user-choice-coverage reports a `has-lecture` check per user choice', async () => {
-      const report = await computeLecturesReadiness(payload, 'en')
+      const report = await computeLecturesReadiness(payload, 'en', EMPTY_CONFIG)
       const group = report.groups.find((g) => g.key === 'user-choice-coverage')
       expect(group?.type).toBe('documents')
       if (group?.type !== 'documents') return
@@ -393,7 +396,7 @@ describe('WeMeditateAppStatus Global', () => {
   // ---------------------------------------------------------------------------
   describe('Section 5 — App Configuration', () => {
     it('vibe-check-tracks emits a row per identifier with present/audio-set/subtitles-set', async () => {
-      const report = await computeAppConfigReadiness(payload, 'en')
+      const report = await computeAppConfigReadiness(payload, 'en', EMPTY_CONFIG)
       const group = report.groups.find((g) => g.key === 'vibe-check-tracks')
       expect(group?.type).toBe('documents')
       if (group?.type !== 'documents') return
@@ -415,7 +418,7 @@ describe('WeMeditateAppStatus Global', () => {
         locale: 'en',
         data: { selfRealizationMeditation: med.id },
       })
-      const report = await computeAppConfigReadiness(payload, 'en')
+      const report = await computeAppConfigReadiness(payload, 'en', EMPTY_CONFIG)
       const group = report.groups.find((g) => g.key === 'self-realization-meditation')
       expect(group?.type).toBe('documents')
       if (group?.type !== 'documents') return
@@ -429,7 +432,7 @@ describe('WeMeditateAppStatus Global', () => {
   // ---------------------------------------------------------------------------
   describe('Section 6 — Translations', () => {
     it('emits one aggregate per top-level schema tab + a manual-review group', async () => {
-      const report = await computeTranslationsReadiness(payload, 'en')
+      const report = await computeTranslationsReadiness(payload, 'en', EMPTY_CONFIG)
       const aggKeys = report.groups.filter((g) => g.type === 'aggregate').map((g) => g.key)
       expect(aggKeys).toEqual(
         expect.arrayContaining([
@@ -447,7 +450,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
 
     it('manual-review row flips between "Never reviewed" and ISO timestamp; lastReviewedAt is per-locale', async () => {
-      const before = await computeTranslationsReadiness(payload, 'en')
+      const before = await computeTranslationsReadiness(payload, 'en', EMPTY_CONFIG)
       const manualBefore = before.groups.find((g) => g.key === 'manual-review')
       expect(manualBefore?.type).toBe('documents')
       if (manualBefore?.type !== 'documents') return
@@ -460,13 +463,13 @@ describe('WeMeditateAppStatus Global', () => {
         data: { markReviewed: true },
       })
 
-      const enAfter = await computeTranslationsReadiness(payload, 'en')
+      const enAfter = await computeTranslationsReadiness(payload, 'en', EMPTY_CONFIG)
       const enManual = enAfter.groups.find((g) => g.key === 'manual-review')
       if (enManual?.type !== 'documents') return
       // English locale unaffected — still never reviewed
       expect(enManual.documents[0].label).toBe('Never reviewed')
 
-      const csAfter = await computeTranslationsReadiness(payload, 'cs')
+      const csAfter = await computeTranslationsReadiness(payload, 'cs', EMPTY_CONFIG)
       const csManual = csAfter.groups.find((g) => g.key === 'manual-review')
       if (csManual?.type !== 'documents') return
       // Czech locale has a timestamp
@@ -485,6 +488,7 @@ describe('WeMeditateAppStatus Global', () => {
   describe('Section 7 — App Cards', () => {
     let launchCard: AppCard
     let otherCard: AppCard
+    let launchConfig: StatusConfigValues
 
     beforeAll(async () => {
       // createAppCard supplies its own image dependency when `default.image` is omitted.
@@ -507,10 +511,12 @@ describe('WeMeditateAppStatus Global', () => {
         slug: 'wm-app-status',
         data: { launchCriticalAppCards: [launchCard.id] },
       })
+
+      launchConfig = { baselineCountry: 'GB', launchCriticalAppCardIds: [launchCard.id] }
     })
 
     it('partitions cards into launch-critical (required) and other-cards (optional)', async () => {
-      const report = await computeAppCardsReadiness(payload, 'en')
+      const report = await computeAppCardsReadiness(payload, 'en', launchConfig)
       const launch = report.groups.find((g) => g.key === 'launch-critical-cards')
       const other = report.groups.find((g) => g.key === 'other-cards')
       expect(launch?.optional).toBeUndefined()
@@ -524,7 +530,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
 
     it('launch-critical card with all fields set passes; missing fields fail', async () => {
-      const report = await computeAppCardsReadiness(payload, 'en')
+      const report = await computeAppCardsReadiness(payload, 'en', launchConfig)
       const launch = report.groups.find((g) => g.key === 'launch-critical-cards')
       if (launch?.type !== 'documents') return
       const launchReport = launch.documents.find((d) => d.id === launchCard.id)!
@@ -541,7 +547,7 @@ describe('WeMeditateAppStatus Global', () => {
     })
 
     it('summary excludes the optional other-cards group; optionalSummary includes it', async () => {
-      const report = await computeAppCardsReadiness(payload, 'en')
+      const report = await computeAppCardsReadiness(payload, 'en', launchConfig)
       // launch-critical-cards counts toward summary; other-cards goes to optionalSummary
       expect(report.summary.total).toBe(1)
       expect(report.optionalSummary?.total).toBe(1)

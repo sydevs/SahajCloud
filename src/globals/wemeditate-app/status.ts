@@ -240,6 +240,7 @@ function meditationMatchesLocale(value: unknown, locale: string): boolean {
 export async function computeUserChoicesReadiness(
   payload: BasePayload,
   locale: TypedLocale,
+  _config: StatusConfigValues,
   req?: PayloadRequest,
 ): Promise<ReadinessReport> {
   // Depth 1 hydrates per-timing meditation references so we can inspect locale + _status.
@@ -346,6 +347,7 @@ function unitGroupKey(unitLabel: string): string {
 export async function computeLessonsReadiness(
   payload: BasePayload,
   locale: TypedLocale,
+  _config: StatusConfigValues,
   req?: PayloadRequest,
 ): Promise<ReadinessReport> {
   const unitOptions = getUnitOptions(payload)
@@ -392,11 +394,33 @@ const PRIORITY_USERCHOICE_THRESHOLD = 10
 const BASELINE_AUDIENCE_THRESHOLD = 20
 const DEFAULT_BASELINE_COUNTRY = 'GB'
 
-// req.context flag set while a compute function is reading the status
-// global's own config-tab fields. The per-field afterRead hooks check this
-// flag and short-circuit when set so we don't recursively re-enter the
-// computations during the inner findGlobal call.
-const STATUS_RECURSION_CONTEXT_KEY = 'wmAppStatusRecursing'
+/**
+ * Configuration values pulled from the status global's own Configuration
+ * tab and threaded into the compute functions by the per-field `afterRead`
+ * hook (via the `data` arg). This avoids a recursive `findGlobal` from
+ * inside the hook chain.
+ */
+export type StatusConfigValues = {
+  baselineCountry: string
+  launchCriticalAppCardIds: Array<number | string>
+}
+
+function extractStatusConfig(data: unknown): StatusConfigValues {
+  if (!isRecord(data)) {
+    return { baselineCountry: DEFAULT_BASELINE_COUNTRY, launchCriticalAppCardIds: [] }
+  }
+  const country =
+    typeof data.baselineCountry === 'string' && data.baselineCountry.length === 2
+      ? data.baselineCountry
+      : DEFAULT_BASELINE_COUNTRY
+  const launchCriticalRaw = Array.isArray(data.launchCriticalAppCards)
+    ? data.launchCriticalAppCards
+    : []
+  const launchCriticalIds = launchCriticalRaw
+    .map(refId)
+    .filter((id): id is number | string => id !== null)
+  return { baselineCountry: country, launchCriticalAppCardIds: launchCriticalIds }
+}
 
 function lectureHasSubtitlesForLocale(
   lecture: Record<string, unknown>,
@@ -430,48 +454,10 @@ function lectureHasSubtitlesForLocale(
   )
 }
 
-async function fetchStatusGlobalRaw(
-  payload: BasePayload,
-  locale: TypedLocale,
-  req?: PayloadRequest,
-): Promise<Record<string, unknown> | null> {
-  // Setting this context flag short-circuits the per-field afterRead hooks
-  // (see `virtualReadinessField`), preventing infinite recursion when a
-  // compute function needs to read its own global's config-tab fields.
-  const ctx = req?.context ?? {}
-  const prev = (ctx as Record<string, unknown>)[STATUS_RECURSION_CONTEXT_KEY]
-  if (req) {
-    req.context = ctx
-    ;(req.context as Record<string, unknown>)[STATUS_RECURSION_CONTEXT_KEY] = true
-  }
-  try {
-    return (await payload.findGlobal({
-      slug: 'wm-app-status',
-      locale,
-      depth: 0,
-      req,
-    })) as unknown as Record<string, unknown> | null
-  } finally {
-    if (req) {
-      ;(req.context as Record<string, unknown>)[STATUS_RECURSION_CONTEXT_KEY] = prev
-    }
-  }
-}
-
-async function getBaselineCountry(
-  payload: BasePayload,
-  locale: TypedLocale,
-  req?: PayloadRequest,
-): Promise<string> {
-  const status = await fetchStatusGlobalRaw(payload, locale, req)
-  const country = status?.baselineCountry
-  if (typeof country === 'string' && country.length === 2) return country
-  return DEFAULT_BASELINE_COUNTRY
-}
-
 export async function computeLecturesReadiness(
   payload: BasePayload,
   locale: TypedLocale,
+  config: StatusConfigValues,
   req?: PayloadRequest,
 ): Promise<ReadinessReport> {
   // Priority/user-choice aggregate — single count via DB
@@ -485,7 +471,6 @@ export async function computeLecturesReadiness(
   })
 
   // Baseline-audience aggregate — resolve audience IDs then count overlapping lectures.
-  const baselineCountry = await getBaselineCountry(payload, locale, req)
   const baselineAudienceIds = await resolveAudienceIds(
     payload,
     {
@@ -493,7 +478,7 @@ export async function computeLecturesReadiness(
       meditationsPerWeek: 0,
       totalMeditationsViewed: 0,
       totalLecturesViewed: 0,
-      country: baselineCountry,
+      country: config.baselineCountry,
     },
     req,
   )
@@ -613,10 +598,11 @@ async function pageCheck(
 export async function computePagesReadiness(
   payload: BasePayload,
   locale: TypedLocale,
+  _config: StatusConfigValues,
   req?: PayloadRequest,
 ): Promise<ReadinessReport> {
   // Core pages — read from wm-app-config Pages tab
-  const config = (await payload.findGlobal({
+  const appConfig = (await payload.findGlobal({
     slug: 'wm-app-config',
     depth: 0,
     locale,
@@ -624,7 +610,7 @@ export async function computePagesReadiness(
   })) as unknown as Record<string, unknown>
   const corePageReports = await Promise.all(
     APP_REQUIRED_PAGE_FIELDS.map((fieldName) =>
-      pageCheck(payload, refId(config[fieldName]), locale, req),
+      pageCheck(payload, refId(appConfig[fieldName]), locale, req),
     ),
   )
   const coreDocs = corePageReports.filter((r): r is DocumentReport => r !== null)
@@ -660,9 +646,10 @@ export async function computePagesReadiness(
 export async function computeAppConfigReadiness(
   payload: BasePayload,
   locale: TypedLocale,
+  _config: StatusConfigValues,
   req?: PayloadRequest,
 ): Promise<ReadinessReport> {
-  const config = (await payload.findGlobal({
+  const appConfig = (await payload.findGlobal({
     slug: 'wm-app-config',
     locale,
     depth: 1,
@@ -670,7 +657,7 @@ export async function computeAppConfigReadiness(
   })) as unknown as Record<string, unknown>
 
   // Self-realization meditation — single 1-row group
-  const meditationRef = config.selfRealizationMeditation
+  const meditationRef = appConfig.selfRealizationMeditation
   const realizationPassed = meditationMatchesLocale(meditationRef, locale)
   const selfRealizationDocs: DocumentReport[] = [
     {
@@ -683,7 +670,7 @@ export async function computeAppConfigReadiness(
   ]
 
   // Post-realization lecture — single 1-row group
-  const lectureRef = config.postRealizationLecture
+  const lectureRef = appConfig.postRealizationLecture
   const lecturePassed = refId(lectureRef) !== null
   const postRealizationDocs: DocumentReport[] = [
     {
@@ -696,8 +683,8 @@ export async function computeAppConfigReadiness(
   ]
 
   // Vibe-check tracks — one row per identifier
-  const tracks = Array.isArray(config.vibeCheckTracks)
-    ? (config.vibeCheckTracks as Array<Record<string, unknown>>)
+  const tracks = Array.isArray(appConfig.vibeCheckTracks)
+    ? (appConfig.vibeCheckTracks as Array<Record<string, unknown>>)
     : []
   const vibeCheckDocs: DocumentReport[] = VIBE_CHECK_IDENTIFIERS.map((id) => {
     const match = tracks.find((t) => t.identifier === id.value)
@@ -749,6 +736,7 @@ function countNonEmptyKeys(
 export async function computeTranslationsReadiness(
   payload: BasePayload,
   locale: TypedLocale,
+  _config: StatusConfigValues,
   req?: PayloadRequest,
 ): Promise<ReadinessReport> {
   const translations = (await payload.findGlobal({
@@ -823,16 +811,10 @@ function appCardChecks(card: Record<string, unknown>): CheckResult[] {
 export async function computeAppCardsReadiness(
   payload: BasePayload,
   locale: TypedLocale,
+  config: StatusConfigValues,
   req?: PayloadRequest,
 ): Promise<ReadinessReport> {
-  const status = await fetchStatusGlobalRaw(payload, locale, req)
-
-  const launchCriticalRaw = Array.isArray(status?.launchCriticalAppCards)
-    ? (status!.launchCriticalAppCards as unknown[])
-    : []
-  const launchCriticalIds = launchCriticalRaw
-    .map(refId)
-    .filter((id): id is number | string => id !== null)
+  const launchCriticalIds = config.launchCriticalAppCardIds
 
   let launchCriticalCards: Record<string, unknown>[] = []
   if (launchCriticalIds.length > 0) {
@@ -898,6 +880,7 @@ const COUNTRY_OPTIONS = Object.entries(countries.getNames('en'))
 type ComputeFn = (
   payload: BasePayload,
   locale: TypedLocale,
+  config: StatusConfigValues,
   req?: PayloadRequest,
 ) => Promise<ReadinessReport>
 
@@ -913,13 +896,15 @@ function virtualReadinessField(name: string, compute: ComputeFn): JSONField {
     },
     hooks: {
       afterRead: [
-        async ({ req }) => {
+        async ({ data, req }) => {
           const locale = req.locale
           if (!locale || locale === 'all') return null
-          // Short-circuit when a compute function is reading this same
-          // global's config-tab fields — see fetchStatusGlobalRaw.
-          if ((req.context as Record<string, unknown>)?.[STATUS_RECURSION_CONTEXT_KEY]) return null
-          return compute(req.payload, locale, req)
+          // The persisted configuration fields (baselineCountry,
+          // launchCriticalAppCards) live on this same global, so read them
+          // directly from the document being processed rather than calling
+          // findGlobal — that would re-enter this hook chain.
+          const config = extractStatusConfig(data)
+          return compute(req.payload, locale, config, req)
         },
       ],
     },
