@@ -485,101 +485,101 @@
           },
           "additionalProperties": false,
           "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7064-81297"
-        },
-        "explore": {
-          "type": "object",
-          "description": "Explore-style block embedded on the Home/Daily tab (a curated grid of Meditate / Learn / Join cards). Distinct from the standalone Explore tab.",
-          "properties": {
-            "section_label": {
-              "type": "string",
-              "description": "Eyebrow label for the embedded Explore block."
-            },
-            "section_meditate_title": {
-              "type": "string",
-              "description": "Section header for the Meditate column."
-            },
-            "section_learn_title": {
-              "type": "string",
-              "description": "Section header for the Learn column."
-            },
-            "section_join_title": {
-              "type": "string",
-              "description": "Section header for the Join Free Classes column."
-            },
-            "card_daily_title": {
-              "type": "string",
-              "description": "Card title for the Daily entry in the Explore block."
-            },
-            "card_daily_subtitle": {
-              "type": "string",
-              "description": "Card subtitle for the Daily entry in the Explore block."
-            },
-            "card_path_title": {
-              "type": "string",
-              "description": "Card title for the Path entry in the Explore block."
-            },
-            "card_path_subtitle": {
-              "type": "string",
-              "description": "Card subtitle for the Path entry in the Explore block."
-            },
-            "card_techniques_title": {
-              "type": "string",
-              "description": "Card title for the Techniques entry in the Explore block."
-            },
-            "card_techniques_subtitle": {
-              "type": "string",
-              "description": "Card subtitle for the Techniques entry in the Explore block."
-            },
-            "card_vibes_check_title": {
-              "type": "string",
-              "description": "Card title for the Vibes Check entry in the Explore block."
-            },
-            "card_vibes_check_subtitle": {
-              "type": "string",
-              "description": "Card subtitle for the Vibes Check entry in the Explore block."
-            },
-            "card_music_title": {
-              "type": "string",
-              "description": "Card title for the Music for Meditation entry in the Explore block."
-            },
-            "card_challenges_title": {
-              "type": "string",
-              "description": "Card title for the Challenges entry in the Explore block."
-            },
-            "card_talks_title": {
-              "type": "string",
-              "description": "Card title for the Shri Mataji Talks entry in the Explore block. Preserve the embedded line break (\\n)."
-            },
-            "card_subtle_system_title": {
-              "type": "string",
-              "description": "Card title for the Subtle System entry in the Explore block."
-            },
-            "card_who_is_title": {
-              "type": "string",
-              "description": "Card title for the 'Who is Shri Mataji' entry in the Explore block. Preserve the embedded line break (\\n)."
-            },
-            "card_what_is_title": {
-              "type": "string",
-              "description": "Card title for the 'What is Sahaja Yoga?' entry in the Explore block."
-            },
-            "card_live_online_title": {
-              "type": "string",
-              "description": "Card title for the Live Online Classes entry in the Explore block. Preserve the embedded line break (\\n)."
-            },
-            "card_find_classes_title": {
-              "type": "string",
-              "description": "Card title for the in-person class finder entry in the Explore block. Preserve the embedded line break (\\n)."
-            },
-            "card_coming_soon": {
-              "type": "string",
-              "description": "Generic 'Coming soon' badge used on locked Explore-block cards."
-            }
-          },
-          "additionalProperties": false,
-          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5878-10306"
         }
       },
       "additionalProperties": false
+    },
+    "explore": {
+      "type": "object",
+      "description": "Standalone Explore tab — curated grid of Meditate / Learn / Join cards linking into the rest of the app. Reached via the Explore entry in the bottom navigation bar.",
+      "properties": {
+        "section_label": {
+          "type": "string",
+          "description": "Eyebrow label for the embedded Explore block."
+        },
+        "section_meditate_title": {
+          "type": "string",
+          "description": "Section header for the Meditate column."
+        },
+        "section_learn_title": {
+          "type": "string",
+          "description": "Section header for the Learn column."
+        },
+        "section_join_title": {
+          "type": "string",
+          "description": "Section header for the Join Free Classes column."
+        },
+        "card_daily_title": {
+          "type": "string",
+          "description": "Card title for the Daily entry in the Explore block."
+        },
+        "card_daily_subtitle": {
+          "type": "string",
+          "description": "Card subtitle for the Daily entry in the Explore block."
+        },
+        "card_path_title": {
+          "type": "string",
+          "description": "Card title for the Path entry in the Explore block."
+        },
+        "card_path_subtitle": {
+          "type": "string",
+          "description": "Card subtitle for the Path entry in the Explore block."
+        },
+        "card_techniques_title": {
+          "type": "string",
+          "description": "Card title for the Techniques entry in the Explore block."
+        },
+        "card_techniques_subtitle": {
+          "type": "string",
+          "description": "Card subtitle for the Techniques entry in the Explore block."
+        },
+        "card_vibes_check_title": {
+          "type": "string",
+          "description": "Card title for the Vibes Check entry in the Explore block."
+        },
+        "card_vibes_check_subtitle": {
+          "type": "string",
+          "description": "Card subtitle for the Vibes Check entry in the Explore block."
+        },
+        "card_music_title": {
+          "type": "string",
+          "description": "Card title for the Music for Meditation entry in the Explore block."
+        },
+        "card_challenges_title": {
+          "type": "string",
+          "description": "Card title for the Challenges entry in the Explore block."
+        },
+        "card_talks_title": {
+          "type": "string",
+          "description": "Card title for the Shri Mataji Talks entry in the Explore block. Preserve the embedded line break (\\n)."
+        },
+        "card_subtle_system_title": {
+          "type": "string",
+          "description": "Card title for the Subtle System entry in the Explore block."
+        },
+        "card_who_is_title": {
+          "type": "string",
+          "description": "Card title for the 'Who is Shri Mataji' entry in the Explore block. Preserve the embedded line break (\\n)."
+        },
+        "card_what_is_title": {
+          "type": "string",
+          "description": "Card title for the 'What is Sahaja Yoga?' entry in the Explore block."
+        },
+        "card_live_online_title": {
+          "type": "string",
+          "description": "Card title for the Live Online Classes entry in the Explore block. Preserve the embedded line break (\\n)."
+        },
+        "card_find_classes_title": {
+          "type": "string",
+          "description": "Card title for the in-person class finder entry in the Explore block. Preserve the embedded line break (\\n)."
+        },
+        "card_coming_soon": {
+          "type": "string",
+          "description": "Generic 'Coming soon' badge used on locked Explore-block cards."
+        }
+      },
+      "additionalProperties": false,
+      "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5878-10306"
     },
     "general": {
       "type": "object",
