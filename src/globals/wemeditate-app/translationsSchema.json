@@ -1,66 +1,66 @@
 {
   "type": "object",
   "properties": {
-    "welcome": {
-      "type": "object",
-      "description": "First screen new users see before any onboarding. Legal disclaimer is inline below the primary CTAs.",
-      "properties": {
-        "title": {
-          "type": "string",
-          "description": "Hero title on the welcome screen. Short greeting (e.g. 'Welcome, friend')."
-        },
-        "subtitle": {
-          "type": "string",
-          "description": "Hero subtitle below the welcome title."
-        },
-        "get_started": {
-          "type": "string",
-          "description": "Primary CTA that begins onboarding for a new user."
-        },
-        "use_existing_account": {
-          "type": "string",
-          "description": "Secondary CTA for returning users who already have an account."
-        },
-        "legal_disclaimer_prefix": {
-          "type": "string",
-          "description": "First inline-text fragment of the legal disclaimer shown under the CTAs. Followed by the Terms link, the connector, and the Privacy Policy link. Include any required trailing space."
-        },
-        "legal_disclaimer_and": {
-          "type": "string",
-          "description": "Connector word between the Terms link and the Privacy Policy link in the inline disclaimer. Include any required surrounding spaces (e.g. ' & ')."
-        },
-        "legal_terms": {
-          "type": "string",
-          "description": "Inline link label that opens the in-app Terms & Conditions webview."
-        },
-        "legal_privacy_policy": {
-          "type": "string",
-          "description": "Inline link label that opens the in-app Privacy Policy webview."
-        },
-        "privacy_policy_title": {
-          "type": "string",
-          "description": "Title of the in-app webview screen that displays the Privacy Policy. The Privacy Policy body itself is the CMS page referenced by wm-app-config.privacyPolicyPage, not a translation string."
-        },
-        "terms_and_conditions_title": {
-          "type": "string",
-          "description": "Title of the in-app webview screen that displays the Terms & Conditions. The body itself is the CMS page referenced by wm-app-config.termsAndConditionsPage."
-        },
-        "email_app_unavailable": {
-          "type": "string",
-          "description": "Error toast shown when the OS cannot find an installed email client to handle a mailto: link from the welcome screen."
-        },
-        "link_open_failed": {
-          "type": "string",
-          "description": "Generic error toast shown when an inline link on the welcome screen fails to open."
-        }
-      },
-      "additionalProperties": false,
-      "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5390-8945"
-    },
     "onboarding": {
       "type": "object",
       "description": "Onboarding flow — name entry, greeting, user-type classification, and the intro carousel. Drives downstream personalisation and the analytics yogi-exclusion gate.",
       "properties": {
+        "welcome": {
+          "type": "object",
+          "description": "First screen new users see before any onboarding. Legal disclaimer is inline below the primary CTAs.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Hero title on the welcome screen. Short greeting (e.g. 'Welcome, friend')."
+            },
+            "subtitle": {
+              "type": "string",
+              "description": "Hero subtitle below the welcome title."
+            },
+            "get_started": {
+              "type": "string",
+              "description": "Primary CTA that begins onboarding for a new user."
+            },
+            "use_existing_account": {
+              "type": "string",
+              "description": "Secondary CTA for returning users who already have an account."
+            },
+            "legal_disclaimer_prefix": {
+              "type": "string",
+              "description": "First inline-text fragment of the legal disclaimer shown under the CTAs. Followed by the Terms link, the connector, and the Privacy Policy link. Include any required trailing space."
+            },
+            "legal_disclaimer_and": {
+              "type": "string",
+              "description": "Connector word between the Terms link and the Privacy Policy link in the inline disclaimer. Include any required surrounding spaces (e.g. ' & ')."
+            },
+            "legal_terms": {
+              "type": "string",
+              "description": "Inline link label that opens the in-app Terms & Conditions webview."
+            },
+            "legal_privacy_policy": {
+              "type": "string",
+              "description": "Inline link label that opens the in-app Privacy Policy webview."
+            },
+            "privacy_policy_title": {
+              "type": "string",
+              "description": "Title of the in-app webview screen that displays the Privacy Policy. The Privacy Policy body itself is the CMS page referenced by wm-app-config.privacyPolicyPage, not a translation string."
+            },
+            "terms_and_conditions_title": {
+              "type": "string",
+              "description": "Title of the in-app webview screen that displays the Terms & Conditions. The body itself is the CMS page referenced by wm-app-config.termsAndConditionsPage."
+            },
+            "email_app_unavailable": {
+              "type": "string",
+              "description": "Error toast shown when the OS cannot find an installed email client to handle a mailto: link from the welcome screen."
+            },
+            "link_open_failed": {
+              "type": "string",
+              "description": "Generic error toast shown when an inline link on the welcome screen fails to open."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5390-8945"
+        },
         "name": {
           "type": "object",
           "description": "Onboarding step where the new user enters their first name.",
