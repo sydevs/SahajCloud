@@ -20,15 +20,15 @@ import {
   computePagesReadiness,
   computeTranslationsReadiness,
   computeUserChoicesReadiness,
-  type ReadinessReport,
-  type StatusConfigValues,
+  type WeMeditateAppStatusConfig,
 } from '@/globals/wemeditate-app/status'
 import statusConfig from '@/globals/wemeditate-app/statusConfig.json' with { type: 'json' }
+import type { ReadinessReport } from '@/lib/status'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-const EMPTY_CONFIG: StatusConfigValues = { baselineCountry: 'GB', launchCriticalAppCardIds: [] }
+const EMPTY_CONFIG: WeMeditateAppStatusConfig = { baselineCountry: 'GB', launchCriticalAppCardIds: [] }
 
 // Mock the Nirmala Vidya API client to prevent real network calls when creating lectures.
 vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
@@ -488,7 +488,7 @@ describe('WeMeditateAppStatus Global', () => {
   describe('Section 7 — App Cards', () => {
     let launchCard: AppCard
     let otherCard: AppCard
-    let launchConfig: StatusConfigValues
+    let launchConfig: WeMeditateAppStatusConfig
 
     beforeAll(async () => {
       // createAppCard supplies its own image dependency when `default.image` is omitted.

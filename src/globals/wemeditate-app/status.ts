@@ -1,7 +1,6 @@
 import type {
   GlobalConfig,
   BasePayload,
-  JSONField,
   SelectField,
   PayloadRequest,
   TypedLocale,
@@ -11,210 +10,94 @@ import countries from 'i18n-iso-countries'
 import enLocale from 'i18n-iso-countries/langs/en.json'
 
 import { adminOnlyCondition, adminOnlyFieldAccess } from '@/lib/access'
+import { countLecturesForAudiences, resolveAudienceIds } from '@/lib/audiences/resolve'
 import {
-  countLecturesForAudiences,
-  resolveAudienceIds,
-} from '@/lib/audiences/resolve'
+  aggregateGroup,
+  collectRelationshipIds,
+  containsRelationship,
+  documentsGroup,
+  findFieldByName,
+  isRecord,
+  isUploadAssigned,
+  labelOf,
+  refId,
+  richTextHasContent,
+  summarize,
+  virtualReadinessField,
+  type CheckResult,
+  type DocumentReport,
+  type ReadinessGroup,
+  type ReadinessReport,
+} from '@/lib/status'
 
 import { APP_REQUIRED_PAGE_FIELDS, VIBE_CHECK_IDENTIFIERS } from './config'
 import translationsSchema from './translationsSchema.json' with { type: 'json' }
 
 // =============================================================================
-// Types — shared report shape
+// Per-project config — extracted from the global's own document by the
+// virtualReadinessField factory and threaded into each compute function.
 // =============================================================================
 
-export type CheckResult = {
-  key: string
-  passed: boolean
+const DEFAULT_BASELINE_COUNTRY = 'GB'
+
+export type WeMeditateAppStatusConfig = {
+  baselineCountry: string
+  launchCriticalAppCardIds: Array<number | string>
 }
 
-export type DocumentReport = {
-  id: number | string
-  label: string
-  checks: CheckResult[]
-}
-
-export type ReadinessGroup =
-  | {
-      type: 'documents'
-      key: string
-      optional?: boolean
-      documents: DocumentReport[]
-      summary: { total: number; passing: number }
-    }
-  | {
-      type: 'aggregate'
-      key: string
-      optional?: boolean
-      passed: boolean
-      actual: number
-      threshold: number
-    }
-
-export type ReadinessReport = {
-  groups: ReadinessGroup[]
-  summary: { total: number; passing: number }
-  optionalSummary?: { total: number; passing: number }
+export function extractWeMeditateAppStatusConfig(data: unknown): WeMeditateAppStatusConfig {
+  if (!isRecord(data)) {
+    return { baselineCountry: DEFAULT_BASELINE_COUNTRY, launchCriticalAppCardIds: [] }
+  }
+  const country =
+    typeof data.baselineCountry === 'string' && data.baselineCountry.length === 2
+      ? data.baselineCountry
+      : DEFAULT_BASELINE_COUNTRY
+  const launchCriticalRaw = Array.isArray(data.launchCriticalAppCards)
+    ? data.launchCriticalAppCards
+    : []
+  const launchCriticalIds = launchCriticalRaw
+    .map(refId)
+    .filter((id): id is number | string => id !== null)
+  return { baselineCountry: country, launchCriticalAppCardIds: launchCriticalIds }
 }
 
 // =============================================================================
-// Helpers — group construction, lexical walker, content emptiness
+// Request-scoped memoizer for wm-app-config — Sections 4 + 5 both read it.
+// Keyed on `${locale}:${depth}` so the two callers can request different
+// depths without colliding.
 // =============================================================================
 
-function isGroupPassing(group: ReadinessGroup): boolean {
-  if (group.type === 'aggregate') return group.passed
-  return group.documents.every((d) => d.checks.every((c) => c.passed))
-}
+const APP_CONFIG_CACHE_KEY = 'wmAppConfigCache'
 
-function documentsGroup(
-  key: string,
-  documents: DocumentReport[],
-  optional = false,
-): ReadinessGroup {
-  return {
-    type: 'documents',
-    key,
-    ...(optional ? { optional: true } : {}),
-    documents,
-    summary: {
-      total: documents.length,
-      passing: documents.filter((d) => d.checks.every((c) => c.passed)).length,
-    },
+async function getWmAppConfig(
+  payload: BasePayload,
+  locale: TypedLocale,
+  depth: 0 | 1,
+  req?: PayloadRequest,
+): Promise<Record<string, unknown>> {
+  const key = `${locale}:${depth}`
+  const ctx = (req?.context ?? {}) as Record<string, unknown>
+  const existing = ctx[APP_CONFIG_CACHE_KEY] as
+    | Map<string, Record<string, unknown>>
+    | undefined
+
+  if (existing?.has(key)) return existing.get(key)!
+
+  const config = (await payload.findGlobal({
+    slug: 'wm-app-config',
+    locale,
+    depth,
+    req,
+  })) as unknown as Record<string, unknown>
+
+  if (req) {
+    const cache = existing ?? new Map<string, Record<string, unknown>>()
+    cache.set(key, config)
+    ctx[APP_CONFIG_CACHE_KEY] = cache
+    req.context = ctx
   }
-}
-
-function aggregateGroup(
-  key: string,
-  actual: number,
-  threshold: number,
-  optional = false,
-): ReadinessGroup {
-  return {
-    type: 'aggregate',
-    key,
-    ...(optional ? { optional: true } : {}),
-    passed: actual >= threshold,
-    actual,
-    threshold,
-  }
-}
-
-function summarize(groups: ReadinessGroup[]): {
-  summary: ReadinessReport['summary']
-  optionalSummary?: ReadinessReport['optionalSummary']
-} {
-  const required = groups.filter((g) => !g.optional)
-  const optional = groups.filter((g) => !!g.optional)
-  const summary = {
-    total: required.length,
-    passing: required.filter(isGroupPassing).length,
-  }
-  if (optional.length === 0) return { summary }
-  return {
-    summary,
-    optionalSummary: {
-      total: optional.length,
-      passing: optional.filter(isGroupPassing).length,
-    },
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-/**
- * Walks a Lexical rich-text value (root + children) and returns true when any
- * descendant is a `relationship` node pointing at the supplied collection.
- */
-function containsLectureRelationship(value: unknown): boolean {
-  if (!isRecord(value)) return false
-  const root = (value as { root?: unknown }).root
-  if (!isRecord(root)) return false
-  const rootChildren = (root as { children?: unknown }).children
-  if (!Array.isArray(rootChildren)) return false
-
-  const visit = (node: unknown): boolean => {
-    if (!isRecord(node)) return false
-    if (node.type === 'relationship' && node.relationTo === 'lectures') return true
-    const children = (node as { children?: unknown }).children
-    if (Array.isArray(children)) return children.some(visit)
-    return false
-  }
-
-  return rootChildren.some(visit)
-}
-
-/**
- * Collects every lecture ID referenced by `relationship` nodes whose
- * `relationTo === 'lectures'` in a Lexical tree. Used by Section 3's
- * `lesson-referenced-subtitles` group to enumerate lectures linked from
- * lessons' `article` fields.
- */
-function collectLectureRelationshipIds(value: unknown): number[] {
-  if (!isRecord(value)) return []
-  const root = (value as { root?: unknown }).root
-  if (!isRecord(root)) return []
-  const rootChildren = (root as { children?: unknown }).children
-  if (!Array.isArray(rootChildren)) return []
-
-  const found = new Set<number>()
-  const visit = (node: unknown): void => {
-    if (!isRecord(node)) return
-    if (node.type === 'relationship' && node.relationTo === 'lectures') {
-      const v = (node as { value?: unknown }).value
-      if (typeof v === 'number') found.add(v)
-      else if (isRecord(v) && typeof v.id === 'number') found.add(v.id)
-    }
-    const children = (node as { children?: unknown }).children
-    if (Array.isArray(children)) children.forEach(visit)
-  }
-  rootChildren.forEach(visit)
-  return Array.from(found)
-}
-
-/**
- * Treats a Lexical rich-text value as "non-empty" if its root has at least
- * one child node carrying real content (text, embedded relationship,
- * block, etc.).
- */
-function richTextHasContent(value: unknown): boolean {
-  if (!isRecord(value)) return false
-  const root = (value as { root?: unknown }).root
-  if (!isRecord(root)) return false
-  const rootChildren = (root as { children?: unknown }).children
-  if (!Array.isArray(rootChildren) || rootChildren.length === 0) return false
-
-  const visit = (node: unknown): boolean => {
-    if (!isRecord(node)) return false
-    const t = (node as { type?: unknown }).type
-    if (t === 'relationship' || t === 'upload' || t === 'block' || t === 'image') return true
-    const text = (node as { text?: unknown }).text
-    if (typeof text === 'string' && text.trim().length > 0) return true
-    const children = (node as { children?: unknown }).children
-    return Array.isArray(children) && children.some(visit)
-  }
-
-  return rootChildren.some(visit)
-}
-
-function refId(value: unknown): number | string | null {
-  if (typeof value === 'number' || typeof value === 'string') return value
-  if (isRecord(value)) {
-    const v = (value as { id?: unknown }).id
-    if (typeof v === 'number' || typeof v === 'string') return v
-  }
-  return null
-}
-
-function isUploadAssigned(value: unknown): boolean {
-  return refId(value) !== null
-}
-
-function labelOf(doc: { id: number | string; title?: unknown; name?: unknown }): string {
-  if (typeof doc.title === 'string' && doc.title.trim().length > 0) return doc.title
-  if (typeof doc.name === 'string' && doc.name.trim().length > 0) return doc.name
-  return `#${doc.id}`
+  return config
 }
 
 // =============================================================================
@@ -232,19 +115,19 @@ type Timing = keyof typeof PER_TIMING_FIELDS
 
 function meditationMatchesLocale(value: unknown, locale: string): boolean {
   if (!isRecord(value)) return false
-  const docLocale = (value as { locale?: unknown }).locale
-  const status = (value as { _status?: unknown })._status
-  return docLocale === locale && status === 'published'
+  return value.locale === locale && value._status === 'published'
 }
+
+type UserChoiceRow = Record<string, unknown>
 
 export async function computeUserChoicesReadiness(
   payload: BasePayload,
   locale: TypedLocale,
-  _config: StatusConfigValues,
+  _config: WeMeditateAppStatusConfig,
   req?: PayloadRequest,
 ): Promise<ReadinessReport> {
   // Depth 1 hydrates per-timing meditation references so we can inspect locale + _status.
-  const { docs: choices } = await payload.find({
+  const { docs } = await payload.find({
     collection: 'user-choices',
     locale,
     limit: 0,
@@ -252,45 +135,37 @@ export async function computeUserChoicesReadiness(
     depth: 1,
     req,
   })
+  const rows = docs as unknown as UserChoiceRow[]
 
-  const buildPerTimingChecks = (choice: Record<string, unknown>) => {
+  const buildPerTimingChecks = (choice: UserChoiceRow): CheckResult[] => {
     const timings = Array.isArray(choice.timings) ? (choice.timings as string[]) : []
     return timings
       .filter((t): t is Timing => t in PER_TIMING_FIELDS)
-      .map((t) => {
-        const med = choice[PER_TIMING_FIELDS[t]]
-        return {
-          key: `meditation-${t}-published`,
-          passed: meditationMatchesLocale(med, locale),
-        }
-      })
+      .map((t) => ({
+        key: `meditation-${t}-published`,
+        passed: meditationMatchesLocale(choice[PER_TIMING_FIELDS[t]], locale),
+      }))
   }
 
-  const featuredDocs: DocumentReport[] = choices
-    .filter((c) => c.isFeatured === true && c.type !== 'duration')
-    .map((c) => ({
-      id: c.id,
-      label: labelOf(c as { id: number | string; title?: unknown }),
-      checks: buildPerTimingChecks(c as unknown as Record<string, unknown>),
-    }))
+  const toDocReport = (choice: UserChoiceRow): DocumentReport => ({
+    id: choice.id as number | string,
+    label: labelOf(choice as { id: number | string; title?: unknown }),
+    checks: buildPerTimingChecks(choice),
+  })
 
-  const durationDocs: DocumentReport[] = choices
-    .filter((c) => c.type === 'duration')
-    .map((c) => ({
-      id: c.id,
-      label: labelOf(c as { id: number | string; title?: unknown }),
-      checks: buildPerTimingChecks(c as unknown as Record<string, unknown>),
-    }))
+  const featuredDocs = rows
+    .filter((c) => c.isFeatured === true && c.type !== 'duration')
+    .map(toDocReport)
+  const durationDocs = rows.filter((c) => c.type === 'duration').map(toDocReport)
 
   const NON_FEATURED_THRESHOLD = 4
   const countForTiming = (timing: Timing) =>
-    choices.filter((c) => {
+    rows.filter((c) => {
       if (c.isFeatured) return false
       if (c.type !== 'mood' && c.type !== 'goal') return false
       const timings = Array.isArray(c.timings) ? (c.timings as string[]) : []
       if (!timings.includes(timing)) return false
-      const med = (c as unknown as Record<string, unknown>)[PER_TIMING_FIELDS[timing]]
-      return meditationMatchesLocale(med, locale)
+      return meditationMatchesLocale(c[PER_TIMING_FIELDS[timing]], locale)
     }).length
 
   const groups: ReadinessGroup[] = [
@@ -311,27 +186,6 @@ export async function computeUserChoicesReadiness(
 
 const REQUIRED_UNIT_COUNT = 3
 
-function findFieldByName(fields: unknown[], name: string): unknown {
-  for (const field of fields) {
-    if (!isRecord(field)) continue
-    if (field.name === name) return field
-    // Recurse into common container types
-    if (Array.isArray(field.fields)) {
-      const found = findFieldByName(field.fields, name)
-      if (found) return found
-    }
-    if (field.type === 'tabs' && Array.isArray(field.tabs)) {
-      for (const tab of field.tabs) {
-        if (isRecord(tab) && Array.isArray(tab.fields)) {
-          const found = findFieldByName(tab.fields, name)
-          if (found) return found
-        }
-      }
-    }
-  }
-  return undefined
-}
-
 function getUnitOptions(payload: BasePayload): string[] {
   const lessonsConfig = payload.collections['lessons']?.config
   if (!lessonsConfig) return []
@@ -347,7 +201,7 @@ function unitGroupKey(unitLabel: string): string {
 export async function computeLessonsReadiness(
   payload: BasePayload,
   locale: TypedLocale,
-  _config: StatusConfigValues,
+  _config: WeMeditateAppStatusConfig,
   req?: PayloadRequest,
 ): Promise<ReadinessReport> {
   const unitOptions = getUnitOptions(payload)
@@ -375,7 +229,7 @@ export async function computeLessonsReadiness(
         { key: 'article-localized', passed: richTextHasContent(lesson.article) },
         {
           key: 'article-has-lecture-link',
-          passed: containsLectureRelationship(lesson.article),
+          passed: containsRelationship(lesson.article, 'lectures'),
         },
         { key: 'icon-set', passed: isUploadAssigned(lesson.icon) },
       ],
@@ -392,35 +246,6 @@ export async function computeLessonsReadiness(
 
 const PRIORITY_USERCHOICE_THRESHOLD = 10
 const BASELINE_AUDIENCE_THRESHOLD = 20
-const DEFAULT_BASELINE_COUNTRY = 'GB'
-
-/**
- * Configuration values pulled from the status global's own Configuration
- * tab and threaded into the compute functions by the per-field `afterRead`
- * hook (via the `data` arg). This avoids a recursive `findGlobal` from
- * inside the hook chain.
- */
-export type StatusConfigValues = {
-  baselineCountry: string
-  launchCriticalAppCardIds: Array<number | string>
-}
-
-function extractStatusConfig(data: unknown): StatusConfigValues {
-  if (!isRecord(data)) {
-    return { baselineCountry: DEFAULT_BASELINE_COUNTRY, launchCriticalAppCardIds: [] }
-  }
-  const country =
-    typeof data.baselineCountry === 'string' && data.baselineCountry.length === 2
-      ? data.baselineCountry
-      : DEFAULT_BASELINE_COUNTRY
-  const launchCriticalRaw = Array.isArray(data.launchCriticalAppCards)
-    ? data.launchCriticalAppCards
-    : []
-  const launchCriticalIds = launchCriticalRaw
-    .map(refId)
-    .filter((id): id is number | string => id !== null)
-  return { baselineCountry: country, launchCriticalAppCardIds: launchCriticalIds }
-}
 
 function lectureHasSubtitlesForLocale(
   lecture: Record<string, unknown>,
@@ -437,7 +262,7 @@ function lectureHasSubtitlesForLocale(
     return true
   }
 
-  // For clips with metadata: null, fall back to the populated parent.
+  // Clips have `metadata: null` and source NV metadata from their parent.
   let sourceMetadata = lecture.metadata
   if (
     !isRecord(sourceMetadata) &&
@@ -457,10 +282,10 @@ function lectureHasSubtitlesForLocale(
 export async function computeLecturesReadiness(
   payload: BasePayload,
   locale: TypedLocale,
-  config: StatusConfigValues,
+  config: WeMeditateAppStatusConfig,
   req?: PayloadRequest,
 ): Promise<ReadinessReport> {
-  // Priority/user-choice aggregate — single count via DB
+  // Priority/user-choice aggregate — one DB count.
   const priorityCount = await payload.count({
     collection: 'lectures',
     where: {
@@ -488,32 +313,47 @@ export async function computeLecturesReadiness(
     req,
   })
 
-  // User-choice coverage — one row per user choice, check has-lecture via reverse join.
-  const { docs: userChoices } = await payload.find({
-    collection: 'user-choices',
-    locale,
-    limit: 0,
-    pagination: false,
-    depth: 0,
-    req,
-  })
-  const userChoiceCoverage: DocumentReport[] = await Promise.all(
-    userChoices.map(async (choice) => {
-      const count = await payload.count({
-        collection: 'lectures',
-        where: { userChoices: { in: [choice.id] } },
-        locale,
-        req,
-      })
-      return {
-        id: choice.id,
-        label: labelOf(choice as { id: number | string; title?: unknown }),
-        checks: [{ key: 'has-lecture', passed: count.totalDocs > 0 }],
-      }
+  // User-choice coverage — one bulk fetch of every lecture that points at a
+  // user-choice, then aggregate covered IDs in JS. Avoids N+1 counts.
+  const [{ docs: userChoices }, { docs: lecturesWithUserChoices }] = await Promise.all([
+    payload.find({
+      collection: 'user-choices',
+      locale,
+      limit: 0,
+      pagination: false,
+      depth: 0,
+      req,
     }),
-  )
+    payload.find({
+      collection: 'lectures',
+      where: { userChoices: { exists: true } },
+      select: { userChoices: true },
+      locale,
+      limit: 0,
+      pagination: false,
+      depth: 0,
+      req,
+    }),
+  ])
 
-  // Lesson-referenced subtitles — collect lecture IDs referenced by lessons' article (Lexical).
+  const coveredUserChoiceIds = new Set<number | string>()
+  for (const lec of lecturesWithUserChoices) {
+    const refs = (lec as { userChoices?: unknown }).userChoices
+    if (!Array.isArray(refs)) continue
+    for (const r of refs) {
+      const id = refId(r)
+      if (id !== null) coveredUserChoiceIds.add(id)
+    }
+  }
+
+  const userChoiceCoverage: DocumentReport[] = userChoices.map((choice) => ({
+    id: choice.id,
+    label: labelOf(choice as { id: number | string; title?: unknown }),
+    checks: [{ key: 'has-lecture', passed: coveredUserChoiceIds.has(choice.id) }],
+  }))
+
+  // Lesson-referenced subtitles — walk every lesson's `article`, collect the
+  // referenced lecture IDs, then one fetch by id list at depth 1 for clip→parent.
   const { docs: lessons } = await payload.find({
     collection: 'lessons',
     locale,
@@ -523,7 +363,7 @@ export async function computeLecturesReadiness(
     req,
   })
   const referencedLectureIds = Array.from(
-    new Set(lessons.flatMap((l) => collectLectureRelationshipIds(l.article))),
+    new Set(lessons.flatMap((l) => collectRelationshipIds(l.article, 'lectures'))),
   )
   let referencedLectures: Record<string, unknown>[] = []
   if (referencedLectureIds.length > 0) {
@@ -564,72 +404,80 @@ export async function computeLecturesReadiness(
 }
 
 // =============================================================================
-// Section 4 — Pages
+// Section 4 — Pages (bulk-fetch all required pages in one query)
 // =============================================================================
 
-async function pageCheck(
+export async function computePagesReadiness(
   payload: BasePayload,
-  pageId: number | string | null,
   locale: TypedLocale,
+  _config: WeMeditateAppStatusConfig,
   req?: PayloadRequest,
-): Promise<DocumentReport | null> {
-  if (pageId === null || pageId === undefined) return null
-  try {
-    const page = (await payload.findByID({
-      collection: 'pages',
-      id: pageId,
+): Promise<ReadinessReport> {
+  // Resolve the page ids the report cares about — 6 from wm-app-config's
+  // Pages tab + every subtle-system-node's `page` relationship.
+  const [appConfig, { docs: nodes }] = await Promise.all([
+    getWmAppConfig(payload, locale, 0, req),
+    payload.find({
+      collection: 'subtle-system-nodes',
       locale,
-      depth: 0,
+      limit: 0,
+      pagination: false,
+      depth: 1,
       req,
-    })) as unknown as Record<string, unknown>
+    }),
+  ])
+
+  const corePageIds = APP_REQUIRED_PAGE_FIELDS.map((fieldName) => refId(appConfig[fieldName]))
+  const nodePageIds = nodes.map((n) =>
+    refId((n as unknown as Record<string, unknown>).page),
+  )
+
+  const allIds = Array.from(
+    new Set(
+      [...corePageIds, ...nodePageIds].filter(
+        (id): id is number | string => id !== null,
+      ),
+    ),
+  )
+
+  const pages =
+    allIds.length === 0
+      ? []
+      : (
+          await payload.find({
+            collection: 'pages',
+            where: { id: { in: allIds } },
+            locale,
+            limit: 0,
+            pagination: false,
+            depth: 0,
+            req,
+          })
+        ).docs
+  const pagesById = new Map<number | string, Record<string, unknown>>(
+    pages.map((p) => [p.id, p as unknown as Record<string, unknown>]),
+  )
+
+  function reportForPage(id: number | string | null): DocumentReport | null {
+    if (id === null) return null
+    const page = pagesById.get(id)
+    if (!page) return null
     return {
-      id: page.id as number,
+      id: page.id as number | string,
       label: labelOf(page as { id: number | string; title?: unknown }),
       checks: [
         { key: 'published', passed: page._status === 'published' },
         { key: 'content-localized', passed: richTextHasContent(page.content) },
       ],
     }
-  } catch {
-    return null
   }
-}
 
-export async function computePagesReadiness(
-  payload: BasePayload,
-  locale: TypedLocale,
-  _config: StatusConfigValues,
-  req?: PayloadRequest,
-): Promise<ReadinessReport> {
-  // Core pages — read from wm-app-config Pages tab
-  const appConfig = (await payload.findGlobal({
-    slug: 'wm-app-config',
-    depth: 0,
-    locale,
-    req,
-  })) as unknown as Record<string, unknown>
-  const corePageReports = await Promise.all(
-    APP_REQUIRED_PAGE_FIELDS.map((fieldName) =>
-      pageCheck(payload, refId(appConfig[fieldName]), locale, req),
-    ),
-  )
-  const coreDocs = corePageReports.filter((r): r is DocumentReport => r !== null)
-
-  // Subtle system pages — derived from subtle-system-nodes collection
-  const { docs: nodes } = await payload.find({
-    collection: 'subtle-system-nodes',
-    locale,
-    limit: 0,
-    pagination: false,
-    depth: 1,
-    req,
-  })
-  const nodePageReports = await Promise.all(
-    nodes.map((n) =>
-      pageCheck(payload, refId((n as unknown as Record<string, unknown>).page), locale, req),
-    ),
-  )
-  const nodeDocs = nodePageReports.filter((r): r is DocumentReport => r !== null)
+  const coreDocs = corePageIds
+    .map(reportForPage)
+    .filter((r): r is DocumentReport => r !== null)
+  const nodeDocs = nodePageIds
+    .map(reportForPage)
+    .filter((r): r is DocumentReport => r !== null)
 
   const groups: ReadinessGroup[] = [
     documentsGroup('core-pages', coreDocs),
@@ -643,20 +491,21 @@ export async function computePagesReadiness(
 // Section 5 — App Configuration (wm-app-config)
 // =============================================================================
 
+type WmAppConfigSlice = {
+  selfRealizationMeditation?: unknown
+  postRealizationLecture?: unknown
+  vibeCheckTracks?: unknown
+}
+
 export async function computeAppConfigReadiness(
   payload: BasePayload,
   locale: TypedLocale,
-  _config: StatusConfigValues,
+  _config: WeMeditateAppStatusConfig,
   req?: PayloadRequest,
 ): Promise<ReadinessReport> {
-  const appConfig = (await payload.findGlobal({
-    slug: 'wm-app-config',
-    locale,
-    depth: 1,
-    req,
-  })) as unknown as Record<string, unknown>
+  const appConfig = (await getWmAppConfig(payload, locale, 1, req)) as WmAppConfigSlice
 
-  // Self-realization meditation — single 1-row group
+  // Self-realization meditation — single 1-row group.
   const meditationRef = appConfig.selfRealizationMeditation
   const realizationPassed = meditationMatchesLocale(meditationRef, locale)
   const selfRealizationDocs: DocumentReport[] = [
@@ -669,7 +518,7 @@ export async function computeAppConfigReadiness(
     },
   ]
 
-  // Post-realization lecture — single 1-row group
+  // Post-realization lecture — single 1-row group.
   const lectureRef = appConfig.postRealizationLecture
   const lecturePassed = refId(lectureRef) !== null
   const postRealizationDocs: DocumentReport[] = [
@@ -682,7 +531,7 @@ export async function computeAppConfigReadiness(
     },
   ]
 
-  // Vibe-check tracks — one row per identifier
+  // Vibe-check tracks — one row per identifier.
   const tracks = Array.isArray(appConfig.vibeCheckTracks)
     ? (appConfig.vibeCheckTracks as Array<Record<string, unknown>>)
     : []
@@ -736,7 +585,7 @@ function countNonEmptyKeys(
 export async function computeTranslationsReadiness(
   payload: BasePayload,
   locale: TypedLocale,
-  _config: StatusConfigValues,
+  _config: WeMeditateAppStatusConfig,
   req?: PayloadRequest,
 ): Promise<ReadinessReport> {
   const translations = (await payload.findGlobal({
@@ -811,7 +660,7 @@ function appCardChecks(card: Record<string, unknown>): CheckResult[] {
 export async function computeAppCardsReadiness(
   payload: BasePayload,
   locale: TypedLocale,
-  config: StatusConfigValues,
+  config: WeMeditateAppStatusConfig,
   req?: PayloadRequest,
 ): Promise<ReadinessReport> {
   const launchCriticalIds = config.launchCriticalAppCardIds
@@ -838,9 +687,7 @@ export async function computeAppCardsReadiness(
   }))
 
   const otherCardsQuery =
-    launchCriticalIds.length > 0
-      ? { id: { not_in: launchCriticalIds } }
-      : undefined
+    launchCriticalIds.length > 0 ? { id: { not_in: launchCriticalIds } } : undefined
   const { docs: otherCardDocs } = await payload.find({
     collection: 'app-cards',
     where: otherCardsQuery,
@@ -868,7 +715,7 @@ export async function computeAppCardsReadiness(
 }
 
 // =============================================================================
-// Field factory + global config
+// Global config
 // =============================================================================
 
 countries.registerLocale(enLocale)
@@ -876,40 +723,6 @@ countries.registerLocale(enLocale)
 const COUNTRY_OPTIONS = Object.entries(countries.getNames('en'))
   .map(([value, label]) => ({ label: label as string, value }))
   .sort((a, b) => a.label.localeCompare(b.label))
-
-type ComputeFn = (
-  payload: BasePayload,
-  locale: TypedLocale,
-  config: StatusConfigValues,
-  req?: PayloadRequest,
-) => Promise<ReadinessReport>
-
-function virtualReadinessField(name: string, compute: ComputeFn): JSONField {
-  return {
-    name,
-    type: 'json',
-    virtual: true,
-    localized: true,
-    admin: {
-      readOnly: true,
-      description: `Computed launch-readiness report for the ${name} section in the current locale.`,
-    },
-    hooks: {
-      afterRead: [
-        async ({ data, req }) => {
-          const locale = req.locale
-          if (!locale || locale === 'all') return null
-          // The persisted configuration fields (baselineCountry,
-          // launchCriticalAppCards) live on this same global, so read them
-          // directly from the document being processed rather than calling
-          // findGlobal — that would re-enter this hook chain.
-          const config = extractStatusConfig(data)
-          return compute(req.payload, locale, config, req)
-        },
-      ],
-    },
-  }
-}
 
 export const WeMeditateAppStatus: GlobalConfig = {
   slug: 'wm-app-status',
@@ -926,13 +739,41 @@ export const WeMeditateAppStatus: GlobalConfig = {
           description:
             'Per-locale launch-readiness report. Each section is recomputed when the global is read.',
           fields: [
-            virtualReadinessField('userChoices', computeUserChoicesReadiness),
-            virtualReadinessField('lessons', computeLessonsReadiness),
-            virtualReadinessField('lectures', computeLecturesReadiness),
-            virtualReadinessField('pages', computePagesReadiness),
-            virtualReadinessField('appConfig', computeAppConfigReadiness),
-            virtualReadinessField('translations', computeTranslationsReadiness),
-            virtualReadinessField('appCards', computeAppCardsReadiness),
+            virtualReadinessField(
+              'userChoices',
+              computeUserChoicesReadiness,
+              extractWeMeditateAppStatusConfig,
+            ),
+            virtualReadinessField(
+              'lessons',
+              computeLessonsReadiness,
+              extractWeMeditateAppStatusConfig,
+            ),
+            virtualReadinessField(
+              'lectures',
+              computeLecturesReadiness,
+              extractWeMeditateAppStatusConfig,
+            ),
+            virtualReadinessField(
+              'pages',
+              computePagesReadiness,
+              extractWeMeditateAppStatusConfig,
+            ),
+            virtualReadinessField(
+              'appConfig',
+              computeAppConfigReadiness,
+              extractWeMeditateAppStatusConfig,
+            ),
+            virtualReadinessField(
+              'translations',
+              computeTranslationsReadiness,
+              extractWeMeditateAppStatusConfig,
+            ),
+            virtualReadinessField(
+              'appCards',
+              computeAppCardsReadiness,
+              extractWeMeditateAppStatusConfig,
+            ),
           ],
         },
         {
