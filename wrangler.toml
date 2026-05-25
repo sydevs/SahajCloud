@@ -1,6 +1,10 @@
 name = "sahajcloud"
 compatibility_date = "2025-11-27"
-main = ".open-next/worker.js"
+# Custom entry wraps the OpenNext-generated worker (.open-next/worker.js,
+# created by the [build] command below) with Sentry's withSentry() so the
+# SDK client is attached to the Worker request context — without this
+# wrapper Sentry.captureException is a silent no-op. See src/worker.ts.
+main = "src/worker.ts"
 compatibility_flags = ["nodejs_compat"]
 
 # Sentry version tracking
