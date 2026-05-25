@@ -328,6 +328,7 @@ export interface Page {
   featuredVideo?: (number | null) | Video;
   tags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] | null;
   webUrl?: string | null;
+  appUrl?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -2234,6 +2235,7 @@ export interface PagesSelect<T extends boolean = true> {
   featuredVideo?: T;
   tags?: T;
   webUrl?: T;
+  appUrl?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
