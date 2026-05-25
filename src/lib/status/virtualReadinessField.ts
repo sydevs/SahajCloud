@@ -50,9 +50,12 @@ export function virtualReadinessField<TConfig>(
     type: 'json',
     virtual: true,
     localized: true,
+    // The custom component renders the section header inline. Hiding the
+    // default field label keeps Payload from rendering a duplicate title
+    // above each Collapsible.
+    label: false,
     admin: {
       readOnly: true,
-      hideLabel: true,
       description: `Computed launch-readiness report for the ${name} section in the current locale.`,
       components: {
         Field: READINESS_FIELD_COMPONENT_PATH,

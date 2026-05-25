@@ -37,7 +37,7 @@ describe('wm-app-status — ReadinessField registration contract', () => {
 
   it('hides the default label and registers the ReadinessField component', () => {
     for (const field of sectionFields) {
-      expect(field.admin?.hideLabel).toBe(true)
+      expect(field.label).toBe(false)
       expect(field.admin?.readOnly).toBe(true)
       expect(field.admin?.components?.Field).toBe(READINESS_FIELD_COMPONENT_PATH)
     }
