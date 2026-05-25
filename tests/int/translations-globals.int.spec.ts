@@ -91,28 +91,38 @@ describe('Translations Globals Configuration', () => {
       expect(global?.fields[0].type).toBe('tabs')
     })
 
-    it('should have 5 tabs: Daily, Path, Explore, Profile, Meditation', () => {
+    it('should have 9 tabs: Onboarding, Daily, Path, Explore, Profile, Meditation, Auth, Navigation, General', () => {
       const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        expect(tabsField.tabs).toHaveLength(5)
-        expect(tabsField.tabs[0].label).toBe('Daily')
-        expect(tabsField.tabs[1].label).toBe('Path')
-        expect(tabsField.tabs[2].label).toBe('Explore')
-        expect(tabsField.tabs[3].label).toBe('Profile')
-        expect(tabsField.tabs[4].label).toBe('Meditation')
+        expect(tabsField.tabs).toHaveLength(9)
+        expect(tabsField.tabs[0].label).toBe('Onboarding')
+        expect(tabsField.tabs[1].label).toBe('Daily')
+        expect(tabsField.tabs[2].label).toBe('Path')
+        expect(tabsField.tabs[3].label).toBe('Explore')
+        expect(tabsField.tabs[4].label).toBe('Profile')
+        expect(tabsField.tabs[5].label).toBe('Meditation')
+        expect(tabsField.tabs[6].label).toBe('Auth')
+        expect(tabsField.tabs[7].label).toBe('Navigation')
+        expect(tabsField.tabs[8].label).toBe('General')
       }
     })
 
-    it('should have JSON fields with correct names matching group slugs', () => {
+    it('should have nested tabs for grouped sections and JSON fields for leaf sections', () => {
       const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        const fieldNames = tabsField.tabs.map((tab) => tab.fields[0].name)
-
-        expect(fieldNames).toEqual(['daily', 'path', 'explore', 'profile', 'meditation'])
+        // Tabs 0–6 (Onboarding through Auth) are grouped — each has a nested tabs field
+        for (let i = 0; i <= 6; i++) {
+          expect(tabsField.tabs[i].fields[0].type).toBe('tabs')
+        }
+        // Tabs 7–8 (Navigation, General) are leaf groups — each has a direct JSON field
+        expect(tabsField.tabs[7].fields[0].name).toBe('navigation')
+        expect(tabsField.tabs[7].fields[0].type).toBe('json')
+        expect(tabsField.tabs[8].fields[0].name).toBe('general')
+        expect(tabsField.tabs[8].fields[0].type).toBe('json')
       }
     })
 
@@ -122,8 +132,18 @@ describe('Translations Globals Configuration', () => {
 
       if (tabsField?.type === 'tabs') {
         for (const tab of tabsField.tabs) {
-          const field = tab.fields[0]
-          expect(field.admin?.custom?.globalSlug).toBe('wm-app-translations')
+          const firstField = tab.fields[0]
+          if (firstField.type === 'tabs') {
+            // Parent group — check globalSlug on each inner sub-tab's JSON field
+            for (const innerTab of (firstField as { type: 'tabs'; tabs: typeof tabsField.tabs }).tabs) {
+              const jsonField = innerTab.fields.find((f) => f.type === 'json')
+              expect(jsonField?.admin?.custom?.globalSlug).toBe('wm-app-translations')
+            }
+          } else {
+            // Leaf group — check globalSlug on the direct JSON field
+            const jsonField = tab.fields.find((f) => f.type === 'json')
+            expect(jsonField?.admin?.custom?.globalSlug).toBe('wm-app-translations')
+          }
         }
       }
     })
@@ -133,27 +153,32 @@ describe('Translations Globals Configuration', () => {
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        // Check daily group has expected keys
-        const dailyEntries = tabsField.tabs[0].fields[0].admin?.custom?.schemaEntries as Array<{
+        // Check daily.main sub-tab has expected keys (daily is tab index 1)
+        const dailyInnerTabs = (
+          tabsField.tabs[1].fields[0] as { type: 'tabs'; tabs: typeof tabsField.tabs }
+        ).tabs
+        const dailyMainJsonField = dailyInnerTabs[0].fields.find((f) => f.type === 'json')
+        const dailyMainEntries = dailyMainJsonField?.admin?.custom?.schemaEntries as Array<{
           key: string
           description: string
         }>
-        const dailyKeys = dailyEntries.map((e) => e.key)
-        expect(dailyKeys).toContain('title')
-        expect(dailyKeys).toContain('subtitle')
-        expect(dailyKeys).toContain('complete')
-        expect(dailyKeys).toContain('streak')
-        expect(dailyKeys).toContain('skip')
+        const dailyMainKeys = dailyMainEntries.map((e) => e.key)
+        expect(dailyMainKeys).toContain('start_meditation')
+        expect(dailyMainKeys).toContain('start_now')
 
-        // Check meditation group has expected keys
-        const meditationEntries = tabsField.tabs[4].fields[0].admin?.custom?.schemaEntries as Array<{
+        // Check explore.talks_player sub-tab has expected keys (explore is tab index 3)
+        const exploreInnerTabs = (
+          tabsField.tabs[3].fields[0] as { type: 'tabs'; tabs: typeof tabsField.tabs }
+        ).tabs
+        const talksPlayerTab = exploreInnerTabs.find((t) => t.label === 'Talks Player')
+        const talksPlayerJsonField = talksPlayerTab?.fields.find((f) => f.type === 'json')
+        const talksPlayerEntries = talksPlayerJsonField?.admin?.custom?.schemaEntries as Array<{
           key: string
           description: string
         }>
-        const meditationKeys = meditationEntries.map((e) => e.key)
-        expect(meditationKeys).toContain('play')
-        expect(meditationKeys).toContain('pause')
-        expect(meditationKeys).toContain('complete')
+        const talksPlayerKeys = talksPlayerEntries.map((e) => e.key)
+        expect(talksPlayerKeys).toContain('play')
+        expect(talksPlayerKeys).toContain('pause')
       }
     })
   })
@@ -225,11 +250,22 @@ describe('Translations Globals Configuration', () => {
 
       if (tabsField?.type === 'tabs') {
         for (const tab of tabsField.tabs) {
-          const field = tab.fields[0]
-          expect(field.jsonSchema).toBeDefined()
-          expect(field.jsonSchema?.uri).toMatch(/^a:\/\//)
-          expect(field.jsonSchema?.schema).toBeDefined()
-          expect(field.jsonSchema?.schema?.type).toBe('object')
+          const firstField = tab.fields[0]
+          const jsonFields =
+            firstField.type === 'tabs'
+              ? // Parent group — collect JSON fields from all inner sub-tabs
+                (firstField as { type: 'tabs'; tabs: typeof tabsField.tabs }).tabs.flatMap((innerTab) =>
+                  innerTab.fields.filter((f) => f.type === 'json'),
+                )
+              : // Leaf group — find the JSON field directly
+                tab.fields.filter((f) => f.type === 'json')
+
+          for (const jsonField of jsonFields) {
+            expect(jsonField.jsonSchema).toBeDefined()
+            expect(jsonField.jsonSchema?.uri).toMatch(/^a:\/\//)
+            expect(jsonField.jsonSchema?.schema).toBeDefined()
+            expect(jsonField.jsonSchema?.schema?.type).toBe('object')
+          }
         }
       }
     })
