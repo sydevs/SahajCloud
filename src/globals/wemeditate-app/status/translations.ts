@@ -14,7 +14,12 @@ const tabProperties =
 const tabEntries = Object.entries(tabProperties)
 
 function countLeafKeys(tab: TranslationSchemaTab): number {
-  return tab.properties ? Object.keys(tab.properties).length : 0
+  if (!tab.properties) return 0
+  return Object.values(tab.properties).reduce((sum, prop) => {
+    const p = prop as { type?: string }
+    if (p?.type === 'object') return sum + countLeafKeys(prop as TranslationSchemaTab)
+    return sum + 1
+  }, 0)
 }
 
 function countNonEmptyKeys(
@@ -22,10 +27,20 @@ function countNonEmptyKeys(
   data: Record<string, unknown> | null | undefined,
 ): number {
   if (!data || !tab.properties) return 0
-  return Object.keys(tab.properties).filter((key) => {
+  return Object.entries(tab.properties).reduce((sum, [key, prop]) => {
+    const p = prop as { type?: string }
+    if (p?.type === 'object') {
+      return (
+        sum +
+        countNonEmptyKeys(
+          prop as TranslationSchemaTab,
+          data[key] as Record<string, unknown> | null | undefined,
+        )
+      )
+    }
     const value = data[key]
-    return typeof value === 'string' && value.trim().length > 0
-  }).length
+    return sum + (typeof value === 'string' && value.trim().length > 0 ? 1 : 0)
+  }, 0)
 }
 
 interface Ctx {

@@ -1,5 +1,5 @@
 import type { JSONSchema4 } from 'json-schema'
-import type { JSONField, TabsField, UIField } from 'payload'
+import type { Field, GroupField, JSONField, TabsField, UIField } from 'payload'
 
 // ============================================================================
 // Types
@@ -135,17 +135,22 @@ function createScreenshotField(
 /**
  * Creates a JSON field configuration for a leaf translation group (one whose
  * properties are all string leaves).
+ *
+ * @param parentSlug - When provided, used to form a unique JSON Schema URI
+ *   (`a://${globalSlug}/${parentSlug}_${groupSlug}.json`) that avoids
+ *   collisions between same-named sub-groups in different parent sections.
  */
 function createGroupJsonField(
   groupSlug: string,
   groupSchema: GroupSchema,
   globalSlug: string,
+  parentSlug?: string,
 ): JSONField {
   const schemaEntries = extractSchemaEntries(groupSchema.properties)
 
   // Only string properties are required keys on the JSON field's own schema.
-  // Nested-group properties, if any, are rendered as separate sub-tabs and not
-  // included in this field's value.
+  // Nested-group properties, if any, are rendered as separate sub-groups and
+  // not included in this field's value.
   const stringProperties: Record<string, StringPropertySchema> = Object.fromEntries(
     Object.entries(groupSchema.properties || {}).filter(
       ([, prop]) => prop.type === 'string',
@@ -162,6 +167,8 @@ function createGroupJsonField(
     additionalProperties: groupSchema.additionalProperties ?? false,
   }
 
+  const uriSlug = parentSlug ? `${parentSlug}_${groupSlug}` : groupSlug
+
   return {
     name: groupSlug,
     type: 'json',
@@ -177,10 +184,41 @@ function createGroupJsonField(
       },
     },
     jsonSchema: {
-      uri: `a://${globalSlug}/${groupSlug}.json`,
-      fileMatch: [`a://${globalSlug}/${groupSlug}.json`],
+      uri: `a://${globalSlug}/${uriSlug}.json`,
+      fileMatch: [`a://${globalSlug}/${uriSlug}.json`],
       schema: groupJsonSchema,
     },
+  }
+}
+
+/**
+ * Creates a Payload `group` field for a parent translation group whose
+ * properties are nested `GroupSchema` values. Each child sub-group becomes a
+ * JSON field (optionally preceded by a screenshot UI field) inside the group.
+ *
+ * Using a group field instead of inner tabs keeps all sub-group fields visible
+ * on one scroll without forcing translators to switch tabs within a tab.
+ */
+function createSubGroupFields(
+  parentSlug: string,
+  parentSchema: GroupSchema,
+  globalSlug: string,
+): GroupField {
+  const subgroups = Object.entries(parentSchema.properties || {}).filter(
+    (entry): entry is [string, GroupSchema] => isGroupSchema(entry[1]),
+  )
+
+  return {
+    name: parentSlug,
+    type: 'group',
+    label: false,
+    fields: subgroups.flatMap(([subSlug, subSchema]) => {
+      const screenshotField = createScreenshotField(subSlug, subSchema, globalSlug)
+      return [
+        ...(screenshotField ? [screenshotField] : []),
+        createGroupJsonField(subSlug, subSchema, globalSlug, parentSlug),
+      ]
+    }),
   }
 }
 
@@ -195,13 +233,15 @@ function createGroupJsonField(
  * - A top-level group whose `properties` are all `string` leaves becomes one tab
  *   with a single JSON field rendered by the TranslationsTable component.
  * - A top-level group whose `properties` are nested `GroupSchema` values becomes
- *   one tab containing an inner tabs field, one sub-tab per child group. Each
- *   sub-tab's JSON field is named `<parentSlug>_<childSlug>` so the global's
- *   API/data shape stays flat (one top-level key per leaf group) — this is the
- *   same field naming the previous flat schema used.
+ *   one tab containing a single Payload `group` field (named after the parent),
+ *   with one JSON field per child sub-group inside it. This replaces the previous
+ *   inner-tabs approach, keeping all sub-group fields visible on one scroll
+ *   without forcing translators to switch tabs within a tab.
+ * - A top-level group with mixed string and nested-group properties renders string
+ *   keys as a flat JSON field above the group field (strings appear first).
  *
- * Mixing strings and nested groups at the same level is not supported. Backward
- * compatible: schemas with no nested groups behave exactly as before.
+ * Backward compatible: schemas with no nested groups (flat leaf groups) behave
+ * exactly as before — wm-web-translations and sy-atlas-translations are unaffected.
  *
  * @param schema - The translations schema with optional nested groups
  * @param globalSlug - The global's slug for API fetching and unique URIs
@@ -221,34 +261,31 @@ export function buildTranslationTabs(
         (entry): entry is [string, GroupSchema] => isGroupSchema(entry[1]),
       )
 
-      // Parent group → outer tab containing one sub-tab per child group.
-      // Screenshots configured on the parent are ignored (parents are pure
-      // containers); each child group renders its own optional screenshot.
+      // Parent group → outer tab with a Payload group field containing one JSON
+      // field per child sub-group. Screenshots on the parent are ignored (parent
+      // is a pure container); each child renders its own optional screenshot.
+      // If the parent also has flat string keys (mixed), they render as a plain
+      // JSON field above the group field so they appear first.
       if (subgroups.length > 0) {
+        const fields: Field[] = []
+
+        const stringEntries = Object.entries(groupProps).filter(
+          ([, prop]) => !isGroupSchema(prop),
+        )
+        if (stringEntries.length > 0) {
+          const flatSchema: GroupSchema = {
+            ...groupSchema,
+            properties: Object.fromEntries(stringEntries) as GroupSchema['properties'],
+          }
+          fields.push(createGroupJsonField(groupSlug, flatSchema, globalSlug))
+        }
+
+        fields.push(createSubGroupFields(groupSlug, groupSchema, globalSlug))
+
         return {
           label: toTitleCase(groupSlug),
           description: groupSchema.description,
-          fields: [
-            {
-              type: 'tabs',
-              tabs: subgroups.map(([subSlug, subSchema]) => {
-                const leafSlug = `${groupSlug}_${subSlug}`
-                const screenshotField = createScreenshotField(
-                  leafSlug,
-                  subSchema,
-                  globalSlug,
-                )
-                return {
-                  label: toTitleCase(subSlug),
-                  description: subSchema.description,
-                  fields: [
-                    ...(screenshotField ? [screenshotField] : []),
-                    createGroupJsonField(leafSlug, subSchema, globalSlug),
-                  ],
-                }
-              }),
-            },
-          ],
+          fields,
         }
       }
 

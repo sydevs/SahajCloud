@@ -52,25 +52,48 @@ All translations globals share a tab-based structure built by
 the global. Versions: max 3.
 
 - WeMeditate Web tabs: Common, Navigation
-- WeMeditate App tabs: Daily, Path, Explore, Profile, Meditation
+- WeMeditate App tabs: Onboarding, Daily, Path, Explore, Profile, Meditation, Auth, Navigation, General, Review
 - Sahaj Atlas tabs: Common, Map, Location
 
 ### Schema → tabs
 
 `translationsSchema.json` has a nested object structure where top-level
-properties become tabs. Each tab renders a single localized JSON field
-backed by the `TranslationsTable` admin component (lists keys with
-descriptions; shows English values when editing non-English locales).
+properties become tabs. `buildTranslationTabs()` converts each top-level
+group into a tab using one of two rendering paths:
+
+- **Flat leaf tab** — top-level group has only string properties (e.g.
+  `navigation`, `general` in wm-app-translations; all wm-web-translations
+  and sy-atlas-translations tabs). Renders a single localized JSON field
+  backed by the `TranslationsTable` admin component.
+- **Nested group tab** — top-level group has object sub-group properties
+  (e.g. `daily`, `path`, `explore` in wm-app-translations). Renders a
+  Payload `group` field (label false) wrapping one JSON sub-field per
+  sub-group. Sub-group JSON URIs use `parentSlug_subSlug` format to avoid
+  Monaco schema collisions (e.g. `a://wm-app-translations/daily_main.json`).
+  The API data shape is `{ daily: { main: {...}, common: {...} } }`.
 
 ```json
 {
   "type": "object",
   "properties": {
-    "common": {
+    "navigation": {
       "type": "object",
-      "description": "Common UI strings",
+      "description": "Navigation strings (flat)",
       "properties": {
-        "loading": { "type": "string", "description": "Loading indicator text" }
+        "home": { "type": "string", "description": "Home tab label" }
+      },
+      "additionalProperties": false
+    },
+    "daily": {
+      "type": "object",
+      "description": "Daily section (nested)",
+      "properties": {
+        "main": {
+          "type": "object",
+          "properties": {
+            "start_now": { "type": "string", "description": "Start now CTA" }
+          }
+        }
       },
       "additionalProperties": false
     }
