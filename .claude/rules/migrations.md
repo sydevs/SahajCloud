@@ -74,6 +74,63 @@ both sides of the INSERT/SELECT (the typical "don't rewrite polymorphic
 FKs" decision). Scan generated `_rels` rebuilds for this whenever you
 rename a polymorphic relationTo.
 
+## Known D1 bug — `PRAGMA foreign_keys=OFF` doesn't span `db.run()` calls
+
+Each `db.run()` is a fresh statement context in Cloudflare D1, so
+`PRAGMA foreign_keys=OFF` does **not** carry over to the next call.
+The PRAGMA wrappers that Drizzle emits around table rebuilds give a
+false sense of safety.
+
+### The dangerous pattern
+
+When a generated migration recreates a *child* table (versions table,
+`_rels` table, etc.) **before** dropping its *parent* — which is the
+order Drizzle codegen typically emits — the parent's `DROP TABLE`
+fires the child's `ON DELETE set null` / `cascade` action on the
+freshly-rebuilt rows. The PRAGMA wrapping the child's block is no
+longer in scope.
+
+Recognize the pattern by these markers, all in the same migration:
+
+```sql
+-- Child rebuild block (e.g. _foo_v)
+CREATE TABLE `__new__foo_v` (..., FOREIGN KEY (`parent_id`) REFERENCES `foo`(`id`) ON DELETE set null);
+INSERT INTO `__new__foo_v`(...) SELECT ... FROM `_foo_v`;
+DROP TABLE `_foo_v`;
+ALTER TABLE `__new__foo_v` RENAME TO `_foo_v`;
+
+-- Parent rebuild block (e.g. foo) — fires the cascade
+CREATE TABLE `__new_foo` (...);
+INSERT INTO `__new_foo`(...) SELECT ... FROM `foo`;
+DROP TABLE `foo`;     -- ← nulls _foo_v.parent_id on D1
+ALTER TABLE `__new_foo` RENAME TO `foo`;
+```
+
+### Mitigation when augmenting
+
+Pick whichever applies:
+
+1. **Reorder** so the parent rebuild runs *before* the child rebuild.
+2. **Avoid the rebuild entirely** — most schema changes can be expressed
+   with `ALTER TABLE ADD COLUMN` instead of a full table rebuild.
+3. **NULL + restore** the child's FK column around the parent drop in
+   the same `db.run()` boundary as the cascade-triggering statement.
+
+### Recovery if a broken migration has already shipped
+
+Editing the original migration won't help — Payload tracks migrations
+by name in `payload_migrations` and won't re-run them. Write a new
+data-only migration that backfills the corrupted FKs. The recovery
+template (see `src/migrations/20260525_212416.ts`) is a three-pass
+`version_label`-based backfill: unique matches → ambiguous-pair
+matching via `ROW_NUMBER() OVER (PARTITION BY ...)` → DELETE
+unrecoverable orphans.
+
+References: #402 (the fix), #401 (the offending migration). This trap
+has bitten this project repeatedly; treat any generated migration that
+rebuilds two related tables in sequence as requiring a manual review
+before merge.
+
 ## Augmenting generated migrations
 
 **Default: don't.** Leave the output of `pnpm db:migrations:create` exactly
