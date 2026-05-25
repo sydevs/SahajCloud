@@ -25,22 +25,6 @@
               "type": "string",
               "description": "Secondary CTA for returning users who already have an account."
             },
-            "legal_disclaimer_prefix": {
-              "type": "string",
-              "description": "First inline-text fragment of the legal disclaimer shown under the CTAs. Followed by the Terms link, the connector, and the Privacy Policy link. Include any required trailing space."
-            },
-            "legal_disclaimer_and": {
-              "type": "string",
-              "description": "Connector word between the Terms link and the Privacy Policy link in the inline disclaimer. Include any required surrounding spaces (e.g. ' & ')."
-            },
-            "legal_terms": {
-              "type": "string",
-              "description": "Inline link label that opens the in-app Terms & Conditions webview."
-            },
-            "legal_privacy_policy": {
-              "type": "string",
-              "description": "Inline link label that opens the in-app Privacy Policy webview."
-            },
             "privacy_policy_title": {
               "type": "string",
               "description": "Title of the in-app webview screen that displays the Privacy Policy. The Privacy Policy body itself is the CMS page referenced by wm-app-config.privacyPolicyPage, not a translation string."
@@ -56,6 +40,10 @@
             "link_open_failed": {
               "type": "string",
               "description": "Generic error toast shown when an inline link on the welcome screen fails to open."
+            },
+            "legal_disclaimer": {
+              "type": "richText",
+              "description": "Inline legal disclaimer below the primary CTAs. Renders two inline links to the in-app Terms and Privacy Policy webviews (URLs use the wemeditate://legal/* scheme — see ticket for full reference). Translators control word order, link placement, and the connector between the two link labels."
             }
           },
           "additionalProperties": false,
@@ -97,18 +85,6 @@
           "type": "object",
           "description": "Onboarding step where the user self-classifies (complete beginner, tried before, attending classes, yogi). Drives downstream personalisation and the analytics yogi-exclusion gate.",
           "properties": {
-            "title_prefix": {
-              "type": "string",
-              "description": "First text fragment of the screen title. Combined with title_brand and title_suffix to form the full prompt (e.g. 'Have you tried Sahaja Yoga before?'). Preserve the trailing line break (\\n)."
-            },
-            "title_brand": {
-              "type": "string",
-              "description": "The 'Sahaja Yoga' brand fragment in the title. Usually kept in original spelling, with optional locale-script transliteration."
-            },
-            "title_suffix": {
-              "type": "string",
-              "description": "Closing text fragment of the title (typically ' before?'). Include the leading space if needed for the locale."
-            },
             "get_started": {
               "type": "string",
               "description": "Primary CTA used after the user picks their classification."
@@ -128,6 +104,10 @@
             "option_yogi": {
               "type": "string",
               "description": "Selectable option for long-time Sahaja Yoga practitioners. Maps to userType = yogi (excluded from the ad-measurement path)."
+            },
+            "title": {
+              "type": "richText",
+              "description": "Screen title prompt (e.g. 'Have you tried Sahaja Yoga before?'). The brand fragment 'Sahaja Yoga' is rendered as a bold inline span; translators may choose a different word to bold or apply no bold per locale convention."
             }
           },
           "additionalProperties": false,
@@ -145,14 +125,6 @@
               "type": "string",
               "description": "Slide 1 supporting copy."
             },
-            "page_true_self_prefix": {
-              "type": "string",
-              "description": "Slide 2 title prefix; combined inline with page_true_self_highlight (e.g. 'Get to know your true self'). Include the trailing space."
-            },
-            "page_true_self_highlight": {
-              "type": "string",
-              "description": "Highlighted phrase at the end of slide 2 title, typically rendered in an accent colour (e.g. 'true self')."
-            },
             "page_true_self_subtitle": {
               "type": "string",
               "description": "Slide 2 supporting copy."
@@ -164,6 +136,10 @@
             "page_unlock_potential_subtitle": {
               "type": "string",
               "description": "Slide 3 supporting copy."
+            },
+            "page_true_self_title": {
+              "type": "richText",
+              "description": "Slide 2 title (e.g. 'Get to know your true self'). The 'true self' fragment is rendered as a bold inline span; the Flutter renderer may also apply an accent colour to bolded segments on this slide."
             }
           },
           "additionalProperties": false,
@@ -177,29 +153,17 @@
               "type": "string",
               "description": "Modal title (e.g. 'Help spread the word')."
             },
-            "body_intro_prefix": {
-              "type": "string",
-              "description": "First paragraph prefix; combined inline with body_intro_link and body_intro_suffix to form a single sentence. Include any trailing space."
-            },
-            "body_intro_link": {
-              "type": "string",
-              "description": "Inline link text inside the first paragraph (e.g. 'what we share'). Tapping opens a detail sheet listing exactly which fields are sent to Meta, Apple and Google Ads."
-            },
-            "body_intro_suffix": {
-              "type": "string",
-              "description": "First paragraph suffix completing the sentence after the inline link. Include the leading separator if needed (e.g. ') with Meta, Apple and Google Ads to understand which outreach helps people discover meditation.')."
-            },
             "body_benefits": {
               "type": "string",
               "description": "Second paragraph explaining the benefits of granting consent (improving campaigns, using donations responsibly, suppressing ads to existing users, reaching similar people)."
             },
             "body_never_share": {
-              "type": "string",
-              "description": "Third paragraph listing categories that are never sent for advertising (mood, goals, hand sensations, reflections, class location, spiritual-practice details). Must remain consistent with the privacy filter in analytics-simplified/03-marketing-event-taxonomy.md §2."
+              "type": "richText",
+              "description": "Third paragraph listing categories that are never sent for advertising (mood, goals, hand sensations, reflections, class location, spiritual-practice details). Lead phrase 'We'll never share' is rendered as a bold inline span. Must remain consistent with the privacy filter in analytics-simplified/03-marketing-event-taxonomy.md §2."
             },
             "body_never_sell": {
-              "type": "string",
-              "description": "Fourth paragraph: short statement that the app never sells user data."
+              "type": "richText",
+              "description": "Fourth paragraph: short statement that the app never sells user data. Phrase 'we never sell' is rendered as a bold inline span."
             },
             "body_settings_hint": {
               "type": "string",
@@ -212,6 +176,10 @@
             "reject": {
               "type": "string",
               "description": "Decline CTA. Decline is a single tap and must not block account creation (see analytics-simplified/05-flutter-implementation.md §9)."
+            },
+            "body_intro": {
+              "type": "richText",
+              "description": "First paragraph of the consent modal. Contains an inline link (e.g. 'what we share') opening the privacy-detail sheet that lists the exact fields sent to Meta, Apple Search Ads and Google Ads. Link URL uses the wemeditate://legal/what-we-share scheme."
             }
           },
           "additionalProperties": false,
@@ -1075,7 +1043,7 @@
             },
             "privacy_and_advertising_subtitle": {
               "type": "string",
-              "description": "Subtitle of the Privacy & advertising entry in the Profile menu."
+              "description": "Subtitle of the Privacy & Advertising entry in the Profile menu (e.g. 'Privacy choices and ad preferences')."
             },
             "feedback_header": {
               "type": "string",
@@ -1112,6 +1080,26 @@
             "joined_years": {
               "type": "string",
               "description": "Joined-date string for multiple years ago. MUST preserve the {years} placeholder — it is replaced at runtime with the year count."
+            },
+            "legal_header": {
+              "type": "string",
+              "description": "Section header above the legal-page navigation rows in the Profile menu (typically capitalised, e.g. 'LEGAL'). Sits between the Contact-us feedback row and the Privacy Policy / Terms & Conditions / Privacy & Advertising rows."
+            },
+            "privacy_policy_title": {
+              "type": "string",
+              "description": "Title of the Privacy Policy entry in the Profile menu's Legal section. Tapping opens the Privacy Policy page (CMS page id 73)."
+            },
+            "privacy_policy_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the Privacy Policy entry in the Profile menu's Legal section (e.g. 'How we collect and use data')."
+            },
+            "terms_and_conditions_title": {
+              "type": "string",
+              "description": "Title of the Terms & Conditions entry in the Profile menu's Legal section. Tapping opens the Terms & Conditions page (CMS page id 76)."
+            },
+            "terms_and_conditions_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the Terms & Conditions entry in the Profile menu's Legal section (e.g. 'Legal terms for using WeMeditate')."
             }
           },
           "additionalProperties": false,
@@ -1345,25 +1333,13 @@
               "type": "string",
               "description": "Section title for the advertising-measurement toggle (e.g. 'Advertising measurement and improvement'). Drives adsMarketingConsent."
             },
-            "advertising_body_intro_prefix": {
-              "type": "string",
-              "description": "First paragraph prefix of the advertising section; combined inline with advertising_body_intro_link and advertising_body_intro_suffix. Include any trailing space."
-            },
-            "advertising_body_intro_link": {
-              "type": "string",
-              "description": "Inline link text inside the first paragraph (e.g. 'what we share'). Tapping opens the same 'what we share' detail used by the ad consent modal."
-            },
-            "advertising_body_intro_suffix": {
-              "type": "string",
-              "description": "First paragraph suffix completing the sentence after the inline link. Include the leading separator if needed."
-            },
             "advertising_body_benefits": {
               "type": "string",
               "description": "Second paragraph of the advertising section: how granting consent helps WeMeditate use donations responsibly, improve campaigns, suppress ads to existing users, and reach similar people."
             },
             "advertising_body_never_share": {
-              "type": "string",
-              "description": "Third paragraph of the advertising section reiterating the never-shared categories (mood, goals, hand sensations, reflections, class location, spiritual-practice details). Must remain consistent with analytics-simplified/03-marketing-event-taxonomy.md §2."
+              "type": "richText",
+              "description": "Third paragraph of the advertising section. Covers both the never-shared categories AND the never-sell statement in a single paragraph with two bold spans ('We'll never share' / 'we never sell'). Must remain consistent with analytics-simplified/03-marketing-event-taxonomy.md §2."
             },
             "advertising_body_change_hint": {
               "type": "string",
@@ -1384,6 +1360,30 @@
             "advertising_platform_apple_search_ads": {
               "type": "string",
               "description": "Bullet item for Apple Search Ads. Brand name — usually kept as 'Apple Search Ads'."
+            },
+            "advertising_body_intro": {
+              "type": "richText",
+              "description": "First paragraph of the advertising section. Contains an inline link (e.g. 'what we share') that opens the Privacy Policy page (CMS page id 73, scrolled to the 'what we share' heading) — same link target as onboarding_consent_modal.body_intro."
+            },
+            "learn_more_header": {
+              "type": "string",
+              "description": "Section header above the legal-page navigation rows at the bottom of the Privacy & Advertising screen (e.g. 'Learn more'). Below this header sit the Privacy Policy and Terms & Conditions rows, which reuse the same labels as the Profile-tab Legal section."
+            },
+            "privacy_policy_title": {
+              "type": "string",
+              "description": "Title of the Privacy Policy row in the Learn-more section at the bottom of the Privacy & Advertising screen. Tapping opens the Privacy Policy page (CMS page id 73). Reuses the same English label as profile_main.privacy_policy_title."
+            },
+            "privacy_policy_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the Privacy Policy row in the Learn-more section (e.g. 'How we collect and use data')."
+            },
+            "terms_and_conditions_title": {
+              "type": "string",
+              "description": "Title of the Terms & Conditions row in the Learn-more section at the bottom of the Privacy & Advertising screen. Tapping opens the Terms & Conditions page (CMS page id 76)."
+            },
+            "terms_and_conditions_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the Terms & Conditions row in the Learn-more section (e.g. 'Legal terms for using WeMeditate')."
             }
           },
           "additionalProperties": false,
@@ -1754,18 +1754,6 @@
               "type": "string",
               "description": "Screen title asking whether the user wants to foot-soak with this meditation."
             },
-            "description_prefix": {
-              "type": "string",
-              "description": "Body-copy prefix; combined inline with description_emphasis and description_suffix to form a single sentence. Include trailing space if the locale needs one."
-            },
-            "description_emphasis": {
-              "type": "string",
-              "description": "Emphasised word in the foot-soak body copy, typically rendered in italic or bold (e.g. 'really')."
-            },
-            "description_suffix": {
-              "type": "string",
-              "description": "Body-copy suffix completing the foot-soak description sentence. Include the leading space."
-            },
             "tutorial_cta": {
               "type": "string",
               "description": "Inline link/CTA opening the foot-soak tutorial."
@@ -1777,6 +1765,10 @@
             "start_meditation": {
               "type": "string",
               "description": "Secondary CTA that starts the meditation without a foot-soak."
+            },
+            "description": {
+              "type": "richText",
+              "description": "Body copy of the foot-soak screen. Contains a short emphasised span (typically italic, e.g. 'really') that translators position freely within the sentence."
             }
           },
           "additionalProperties": false
@@ -2150,22 +2142,6 @@
               "type": "string",
               "description": "Tertiary action allowing a guest user to skip account creation."
             },
-            "consent_prefix": {
-              "type": "string",
-              "description": "Inline-text prefix of the consent checkbox label. Combined with consent_terms, consent_and_acknowledge, and consent_privacy. Include any trailing space."
-            },
-            "consent_terms": {
-              "type": "string",
-              "description": "Inline link text for the Terms & Conditions, opening the in-app webview."
-            },
-            "consent_and_acknowledge": {
-              "type": "string",
-              "description": "Connector text between the Terms link and the Privacy Policy link. Include any required spaces."
-            },
-            "consent_privacy": {
-              "type": "string",
-              "description": "Inline link text for the Privacy Policy, opening the in-app webview."
-            },
             "error_check_consent": {
               "type": "string",
               "description": "Validation error shown when the user tries to submit without checking the consent box."
@@ -2237,6 +2213,10 @@
             "error_provider_cancelled": {
               "type": "string",
               "description": "Message shown when the user cancels the social-auth flow."
+            },
+            "consent_label": {
+              "type": "richText",
+              "description": "Consent checkbox label on the account creation screen. Contains two inline links (Terms & Conditions, Privacy Policy) opening the corresponding in-app webviews (wemeditate://legal/terms, wemeditate://legal/privacy). Independent of the ad-measurement consent."
             }
           },
           "additionalProperties": false,
