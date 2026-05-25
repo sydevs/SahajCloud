@@ -27,6 +27,9 @@ export type DocumentReport = {
  * - `documents`: a per-document list, each with its own checks; passes
  *   when every contained document passes every contained check.
  * - `aggregate`: a single threshold check (`actual >= threshold`).
+ * - `errored`: the group's `evaluate` threw at runtime. Surfaced as a
+ *   failing placeholder so one broken group doesn't sink the whole
+ *   section read; the widget can render the `error` string.
  *
  * `optional: true` flags post-launch / nice-to-have groups — they are
  * excluded from the section's required `summary` and counted separately
@@ -47,6 +50,12 @@ export type ReadinessGroup =
       passed: boolean
       actual: number
       threshold: number
+    }
+  | {
+      type: 'errored'
+      key: string
+      optional?: boolean
+      error: string
     }
 
 /**

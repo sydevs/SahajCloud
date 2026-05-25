@@ -61,7 +61,7 @@ export const appConfigSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         id: refId(meditationRef) ?? 'unset',
         label: realizationPassed
           ? labelOf(meditationRef as { id: number | string; title?: unknown })
-          : 'Self-realization meditation',
+          : 'Not set',
         checks: [{ key: 'set-and-published', passed: realizationPassed }],
       },
     ]
@@ -74,7 +74,7 @@ export const appConfigSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         id: refId(lectureRef) ?? 'unset',
         label: lecturePassed
           ? labelOf(lectureRef as { id: number | string; title?: unknown })
-          : 'Post-realization lecture',
+          : 'Not set',
         checks: [{ key: 'set-and-exists', passed: lecturePassed }],
       },
     ]

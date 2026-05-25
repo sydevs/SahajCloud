@@ -5,19 +5,10 @@ export type {
   ReadinessGroup,
   ReadinessReport,
 } from './types'
-export { aggregateGroup, documentsGroup, isGroupPassing, summarize } from './groups'
-export {
-  collectRelationshipIds,
-  containsRelationship,
-  findFieldByName,
-  isRecord,
-  isUploadAssigned,
-  labelOf,
-  refId,
-  richTextHasContent,
-} from './helpers'
+export { aggregateGroup, documentsGroup, erroredGroup, isGroupPassing, summarize } from './groups'
+export { isUploadAssigned, labelOf, refId } from './helpers'
 export { virtualReadinessField } from './virtualReadinessField'
-export { runSection } from './runSection'
+export { runSection, UndeclaredCheckKeyError } from './runSection'
 export { buildStatusGlobalConfig } from './buildStatusGlobalConfig'
 export { extractStatusConfig } from './extractMetadata'
 export type { StatusConfigJson } from './extractMetadata'

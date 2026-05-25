@@ -87,6 +87,10 @@
       "label": "Subtle system pages",
       "description": "All twelve subtle-system-node pages are published with localized content."
     },
+    "translations-auth": {
+      "label": "Auth strings",
+      "description": "Every key under the Auth translations tab has a non-empty value for this locale."
+    },
     "translations-daily": {
       "label": "Daily strings",
       "description": "Every key under the Daily translations tab has a non-empty value for this locale."
@@ -95,9 +99,21 @@
       "label": "Explore strings",
       "description": "Every key under the Explore translations tab has a non-empty value for this locale."
     },
+    "translations-general": {
+      "label": "General strings",
+      "description": "Every key under the General translations tab has a non-empty value for this locale."
+    },
     "translations-meditation": {
       "label": "Meditation strings",
       "description": "Every key under the Meditation translations tab has a non-empty value for this locale."
+    },
+    "translations-navigation": {
+      "label": "Navigation strings",
+      "description": "Every key under the Navigation translations tab has a non-empty value for this locale."
+    },
+    "translations-onboarding": {
+      "label": "Onboarding strings",
+      "description": "Every key under the Onboarding translations tab has a non-empty value for this locale."
     },
     "translations-path": {
       "label": "Path strings",

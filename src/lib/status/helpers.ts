@@ -10,7 +10,7 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 export function refId(value: unknown): number | string | null {
   if (typeof value === 'number' || typeof value === 'string') return value
   if (isRecord(value)) {
-    const v = (value as { id?: unknown }).id
+    const v = value.id
     if (typeof v === 'number' || typeof v === 'string') return v
   }
   return null
@@ -22,11 +22,16 @@ export function isUploadAssigned(value: unknown): boolean {
 
 /**
  * Best-effort human-readable label for a document. Falls back to a
- * short id-derived placeholder.
+ * short id-derived placeholder, or `#unknown` if no id is present.
  */
-export function labelOf(doc: { id: number | string; title?: unknown; name?: unknown }): string {
+export function labelOf(doc: {
+  id: number | string | null | undefined
+  title?: unknown
+  name?: unknown
+}): string {
   if (typeof doc.title === 'string' && doc.title.trim().length > 0) return doc.title
   if (typeof doc.name === 'string' && doc.name.trim().length > 0) return doc.name
+  if (doc.id == null) return '#unknown'
   return `#${doc.id}`
 }
 
@@ -36,18 +41,18 @@ export function labelOf(doc: { id: number | string; title?: unknown; name?: unkn
  */
 export function richTextHasContent(value: unknown): boolean {
   if (!isRecord(value)) return false
-  const root = (value as { root?: unknown }).root
+  const root = value.root
   if (!isRecord(root)) return false
-  const rootChildren = (root as { children?: unknown }).children
+  const rootChildren = root.children
   if (!Array.isArray(rootChildren) || rootChildren.length === 0) return false
 
   const visit = (node: unknown): boolean => {
     if (!isRecord(node)) return false
-    const t = (node as { type?: unknown }).type
+    const t = node.type
     if (t === 'relationship' || t === 'upload' || t === 'block' || t === 'image') return true
-    const text = (node as { text?: unknown }).text
+    const text = node.text
     if (typeof text === 'string' && text.trim().length > 0) return true
-    const children = (node as { children?: unknown }).children
+    const children = node.children
     return Array.isArray(children) && children.some(visit)
   }
 
@@ -60,20 +65,20 @@ export function richTextHasContent(value: unknown): boolean {
  */
 export function collectRelationshipIds(value: unknown, relationTo: string): number[] {
   if (!isRecord(value)) return []
-  const root = (value as { root?: unknown }).root
+  const root = value.root
   if (!isRecord(root)) return []
-  const rootChildren = (root as { children?: unknown }).children
+  const rootChildren = root.children
   if (!Array.isArray(rootChildren)) return []
 
   const found = new Set<number>()
   const visit = (node: unknown): void => {
     if (!isRecord(node)) return
     if (node.type === 'relationship' && node.relationTo === relationTo) {
-      const v = (node as { value?: unknown }).value
+      const v = node.value
       if (typeof v === 'number') found.add(v)
       else if (isRecord(v) && typeof v.id === 'number') found.add(v.id)
     }
-    const children = (node as { children?: unknown }).children
+    const children = node.children
     if (Array.isArray(children)) children.forEach(visit)
   }
   rootChildren.forEach(visit)

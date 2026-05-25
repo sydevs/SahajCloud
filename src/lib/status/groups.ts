@@ -2,6 +2,7 @@ import type { DocumentReport, ReadinessGroup, ReadinessReport } from './types'
 
 export function isGroupPassing(group: ReadinessGroup): boolean {
   if (group.type === 'aggregate') return group.passed
+  if (group.type === 'errored') return false
   return group.documents.every((d) => d.checks.every((c) => c.passed))
 }
 
@@ -35,6 +36,15 @@ export function aggregateGroup(
     passed: actual >= threshold,
     actual,
     threshold,
+  }
+}
+
+export function erroredGroup(key: string, error: string, optional = false): ReadinessGroup {
+  return {
+    type: 'errored',
+    key,
+    ...(optional ? { optional: true } : {}),
+    error,
   }
 }
 
