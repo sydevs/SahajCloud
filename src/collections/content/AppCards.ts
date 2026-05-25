@@ -293,28 +293,54 @@ function defaultViewFields(): Field[] {
     ...destinationFields(),
     mediaField({ name: 'image', label: 'Card Image' }),
     {
-      name: 'overlay',
-      type: 'checkbox',
-      defaultValue: false,
-      admin: {
-        description: 'Render card with dark overlay and white text.',
-      },
-    },
-    {
-      name: 'alignment',
-      type: 'select',
-      defaultValue: 'center',
-      required: true,
-      options: [
-        { label: 'Left', value: 'left' },
-        { label: 'Center', value: 'center' },
-      ],
-      admin: {
-        description: 'Text alignment for card content.',
-        components: {
-          Field: '@/components/admin/ToggleGroupField',
+      type: 'collapsible',
+      label: 'Text & Layout',
+      fields: [
+        {
+          name: 'aspectRatio',
+          type: 'select',
+          options: [
+            { label: 'Square', value: 'square' },
+            { label: 'Flexible', value: 'flexible' },
+          ],
+          defaultValue: 'square',
+          required: true,
+          admin: {
+            description: 'Card image aspect ratio.',
+            components: { Field: '@/components/admin/ToggleGroupField' },
+          },
         },
-      },
+        {
+          name: 'textColor',
+          type: 'select',
+          options: [
+            { label: 'Black', value: 'black' },
+            { label: 'White', value: 'white' },
+          ],
+          defaultValue: 'black',
+          required: true,
+          admin: {
+            description: 'Text color used over the card image.',
+            components: { Field: '@/components/admin/ToggleGroupField' },
+          },
+        },
+        {
+          name: 'alignment',
+          type: 'select',
+          defaultValue: 'center',
+          required: true,
+          options: [
+            { label: 'Left', value: 'left' },
+            { label: 'Center', value: 'center' },
+          ],
+          admin: {
+            description: 'Text alignment for card content.',
+            components: {
+              Field: '@/components/admin/ToggleGroupField',
+            },
+          },
+        },
+      ],
     },
   ]
 }
@@ -414,28 +440,55 @@ function eventViewFields(thresholdDefault: string): Field[] {
       admin: { condition: enabledCondition },
     }),
     {
-      name: 'overlay',
-      type: 'checkbox',
-      defaultValue: false,
-      admin: {
-        condition: enabledCondition,
-        description: 'Render card with dark overlay and white text.',
-      },
-    },
-    {
-      name: 'alignment',
-      type: 'select',
-      options: [
-        { label: 'Left', value: 'left' },
-        { label: 'Center', value: 'center' },
-      ],
-      admin: {
-        condition: enabledCondition,
-        description: 'Text alignment for card content.',
-        components: {
-          Field: '@/components/admin/ToggleGroupField',
+      type: 'collapsible',
+      label: 'Text & Layout',
+      admin: { condition: enabledCondition },
+      fields: [
+        {
+          name: 'aspectRatio',
+          type: 'select',
+          options: [
+            { label: 'Square', value: 'square' },
+            { label: 'Flexible', value: 'flexible' },
+          ],
+          defaultValue: 'square',
+          required: true,
+          admin: {
+            description: 'Card image aspect ratio.',
+            components: { Field: '@/components/admin/ToggleGroupField' },
+          },
         },
-      },
+        {
+          name: 'textColor',
+          type: 'select',
+          options: [
+            { label: 'Black', value: 'black' },
+            { label: 'White', value: 'white' },
+          ],
+          defaultValue: 'black',
+          required: true,
+          admin: {
+            description: 'Text color used over the card image.',
+            components: { Field: '@/components/admin/ToggleGroupField' },
+          },
+        },
+        {
+          name: 'alignment',
+          type: 'select',
+          defaultValue: 'center',
+          required: true,
+          options: [
+            { label: 'Left', value: 'left' },
+            { label: 'Center', value: 'center' },
+          ],
+          admin: {
+            description: 'Text alignment for card content.',
+            components: {
+              Field: '@/components/admin/ToggleGroupField',
+            },
+          },
+        },
+      ],
     },
   ]
 }
