@@ -21,19 +21,14 @@
 import * as Sentry from '@sentry/cloudflare'
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - resolved by wrangler at deploy time (.open-next/ is git-ignored)
+// @ts-ignore - resolved by wrangler at deploy time (.open-next/ is git-ignored; absent in CI before build)
 import opennextHandler from '../.open-next/worker.js'
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - resolved by wrangler at deploy time
 export { BucketCachePurge, DOQueueHandler, DOShardedTagCache } from '../.open-next/worker.js'
 
-type WorkerEnv = {
-  NEXT_PUBLIC_SENTRY_DSN?: string
-  NODE_ENV?: string
-}
-
-export default Sentry.withSentry<WorkerEnv>(
+export default Sentry.withSentry<CloudflareEnv>(
   (env) => ({
     dsn: env.NEXT_PUBLIC_SENTRY_DSN,
     environment: env.NODE_ENV,
