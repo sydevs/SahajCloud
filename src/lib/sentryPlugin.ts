@@ -8,7 +8,7 @@
  *
  * @see https://payloadcms.com/docs/plugins/sentry
  */
-import type { Config, PayloadRequest } from 'payload'
+import type { AfterErrorHookArgs, Config, PayloadRequest } from 'payload'
 
 import * as Sentry from '@sentry/cloudflare'
 
@@ -53,6 +53,110 @@ export interface SentryPluginOptions {
    * @default true
    */
   enabled?: boolean
+}
+
+const MAX_SENTRY_BODY_BYTES = 10_000
+
+const HTTP_METHOD_TO_OPERATION: Record<string, string> = {
+  DELETE: 'delete',
+  GET: 'read',
+  PATCH: 'update',
+  POST: 'create',
+  PUT: 'update',
+}
+
+/**
+ * Per-collection tag overrides — collections listed here get an extra
+ * `issue` tag so Sentry searches that look for the open ticket also pick
+ * up uncaught errors from the user-facing PATCH path (not just the
+ * breadcrumbs already emitted from `reportMeditationNodeWeightsCacheError`).
+ */
+const COLLECTION_ISSUE_TAGS: Record<string, string> = {
+  meditations: '390',
+}
+
+const extractOperation = (req: PayloadRequest): string | undefined => {
+  if (!req.method) return undefined
+  return HTTP_METHOD_TO_OPERATION[req.method.toUpperCase()] ?? req.method.toLowerCase()
+}
+
+const extractDocumentId = (req: PayloadRequest): string | undefined => {
+  const routeId = req.routeParams?.id
+  if (typeof routeId === 'string' || typeof routeId === 'number') {
+    return String(routeId)
+  }
+
+  const pathname = typeof req.pathname === 'string' ? req.pathname : undefined
+  if (!pathname) return undefined
+
+  // Match /api/<collection>/<id> — id is the last segment, alphanumeric or digit.
+  // Skip /api/<collection> with no id, and skip nested subroutes like
+  // /api/<collection>/<id>/versions which would otherwise grab 'versions'.
+  const match = pathname.match(/\/api\/[^/]+\/([^/?#]+)\/?$/)
+  if (!match) return undefined
+  const candidate = match[1]
+  // Skip well-known subroutes that aren't doc IDs.
+  if (candidate === 'count' || candidate === 'access' || candidate === 'me') return undefined
+  return candidate
+}
+
+const truncateRequestBody = (data: unknown): { bytes: number; preview: string } | undefined => {
+  if (data === undefined || data === null) return undefined
+  let serialized: string
+  try {
+    serialized = JSON.stringify(data)
+  } catch {
+    serialized = '[unserializable]'
+  }
+  if (!serialized) return undefined
+  const bytes = serialized.length
+  const preview =
+    bytes > MAX_SENTRY_BODY_BYTES
+      ? `${serialized.slice(0, MAX_SENTRY_BODY_BYTES)}…[truncated ${bytes - MAX_SENTRY_BODY_BYTES} bytes]`
+      : serialized
+  return { bytes, preview }
+}
+
+/**
+ * Build the default Sentry context for an afterError event. Exposed for
+ * direct unit/integration testing — the inline hook below just wires it
+ * through `Sentry.withScope` + the optional caller-supplied `context`.
+ */
+export const buildDefaultSentryContext = (
+  args: AfterErrorHookArgs,
+  status: number,
+): SentryContext => {
+  const { req } = args
+  const collectionSlug = args.collection?.slug
+  const operation = extractOperation(req)
+  const documentId = extractDocumentId(req)
+  const body = truncateRequestBody(req.data)
+  const issueTag = collectionSlug ? COLLECTION_ISSUE_TAGS[collectionSlug] : undefined
+
+  return {
+    user: req.user
+      ? {
+          id: String(req.user.id),
+          email: 'email' in req.user ? String(req.user.email) : undefined,
+        }
+      : undefined,
+    tags: {
+      environment: process.env.NODE_ENV,
+      locale: req.locale,
+      collection: collectionSlug,
+      operation,
+      issue: issueTag,
+    },
+    extra: {
+      status,
+      url: req.url,
+      method: req.method,
+      documentId,
+      requestBodyBytes: body?.bytes,
+      requestBody: body?.preview,
+    },
+    level: status >= 500 ? 'error' : 'warning',
+  }
 }
 
 /**
@@ -104,24 +208,7 @@ export const sentryPlugin = (options: SentryPluginOptions = {}) => {
 
             // Capture 500+ errors and any explicitly configured status codes
             if (status >= 500 || captureErrors.includes(status)) {
-              const defaultContext: SentryContext = {
-                user: req.user
-                  ? {
-                      id: String(req.user.id),
-                      email: 'email' in req.user ? String(req.user.email) : undefined,
-                    }
-                  : undefined,
-                tags: {
-                  environment: process.env.NODE_ENV,
-                  locale: req.locale,
-                  collection: 'collection' in args ? String(args.collection?.slug) : undefined,
-                },
-                extra: {
-                  status,
-                  url: req.url,
-                },
-                level: status >= 500 ? 'error' : 'warning',
-              }
+              const defaultContext = buildDefaultSentryContext(args, status)
 
               // Apply custom context if provided
               const finalContext = context ? context({ defaultContext, req }) : defaultContext
