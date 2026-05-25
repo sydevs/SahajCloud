@@ -17,3 +17,16 @@ export {
   richTextHasContent,
 } from './helpers'
 export { virtualReadinessField } from './virtualReadinessField'
+export { runSection } from './runSection'
+export { buildStatusGlobalConfig } from './buildStatusGlobalConfig'
+export { extractStatusConfig } from './extractMetadata'
+export type { StatusConfigJson } from './extractMetadata'
+export type {
+  AggregateGroupSpec,
+  CheckMetadata,
+  DocumentsGroupSpec,
+  GroupSpec,
+  ProjectRequestContext,
+  SectionSpec,
+  StatusGlobalSpec,
+} from './spec'
