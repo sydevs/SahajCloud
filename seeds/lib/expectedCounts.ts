@@ -12,7 +12,12 @@ import type { CollectionMetadata, ScriptMetadata } from './pagination'
 
 import { getDefaultBatchSize, getEnvironment } from './pagination'
 
-export type ScriptName = 'tags' | 'wemeditate' | 'meditations' | 'storyblok'
+export type ScriptName =
+  | 'tags'
+  | 'wemeditate'
+  | 'meditations'
+  | 'storyblok'
+  | 'wm-app-translations'
 
 export interface ExpectedCounts {
   [collection: string]: number
@@ -53,6 +58,9 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   storyblok: {
     lessons: 17,
   },
+  // wm-app-translations updates a single PayloadCMS global, not collections.
+  // No collection counts apply — verification is intentionally a no-op.
+  'wm-app-translations': {},
 }
 
 /**
@@ -223,6 +231,10 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       naturalKey: 'nirmalVidyaVimeoUrl',
     },
   ],
+  // wm-app-translations targets the PayloadCMS global of the same slug, not
+  // a collection. The empty array tells the runner there are no per-collection
+  // pagination buckets or dependencies — the importer runs once, in bulk.
+  'wm-app-translations': [],
 }
 
 /**
