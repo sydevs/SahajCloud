@@ -1,4 +1,3 @@
-import type { JSONSchema4 } from 'json-schema'
 import type { Field, GroupField, JSONField, RichTextField, TabsField, UIField } from 'payload'
 
 import { basicRichTextEditor } from '@/lib/richEditor'
@@ -172,12 +171,23 @@ function createScreenshotField(
  * group), otherwise the leaf's own slug. Only string-typed schema properties
  * are surfaced here; richText properties become sibling fields outside this
  * JSON field.
+ *
+ * NOTE — the `jsonSchema` field option is deliberately NOT set here. Payload
+ * compiles `jsonSchema` to a validator via Ajv (`new Ajv()` + `ajv.validate`)
+ * which uses `new Function()` for performance. Cloudflare Workers' V8 isolate
+ * disallows dynamic code generation, so any write to a `jsonSchema`-validated
+ * field throws "Code generation from strings disallowed for this context" on
+ * prod (Workers) while working fine in local dev (Node). The same `additionalProperties:
+ * false` + required-keys + per-key string-type checks are now enforced by a
+ * pure-JS `validate` function instead. Admin UX is unaffected: this field is
+ * rendered by the custom `TranslationsTable` component, not Monaco — losing
+ * Monaco's schema hints costs nothing here.
  */
 function createStringsJsonField(
   fieldName: string,
   groupSchema: GroupSchema,
   globalSlug: string,
-  jsonSchemaUriSlug: string,
+  _jsonSchemaUriSlug: string,
 ): JSONField {
   const schemaEntries = extractSchemaEntries(groupSchema.properties)
 
@@ -186,14 +196,9 @@ function createStringsJsonField(
       [string, StringPropertySchema]
     >,
   )
-  const requiredKeys = Object.keys(stringProperties)
-
-  const groupJsonSchema: JSONSchema4 = {
-    type: 'object',
-    properties: stringProperties,
-    required: requiredKeys.length > 0 ? requiredKeys : undefined,
-    additionalProperties: groupSchema.additionalProperties ?? false,
-  }
+  const requiredKeys = new Set(Object.keys(stringProperties))
+  const allowedKeys = new Set(Object.keys(stringProperties))
+  const allowAdditional = groupSchema.additionalProperties === true
 
   return {
     name: fieldName,
@@ -209,10 +214,29 @@ function createStringsJsonField(
         globalSlug,
       },
     },
-    jsonSchema: {
-      uri: `a://${globalSlug}/${jsonSchemaUriSlug}.json`,
-      fileMatch: [`a://${globalSlug}/${jsonSchemaUriSlug}.json`],
-      schema: groupJsonSchema,
+    validate: (value): true | string => {
+      if (value === null || value === undefined) return true
+      if (typeof value !== 'object' || Array.isArray(value)) {
+        return 'Value must be a JSON object'
+      }
+      const obj = value as Record<string, unknown>
+      const presentKeys = new Set(Object.keys(obj))
+      if (!allowAdditional) {
+        for (const key of presentKeys) {
+          if (!allowedKeys.has(key)) {
+            return `Unknown key "${key}" (not in schema)`
+          }
+        }
+      }
+      for (const key of requiredKeys) {
+        if (!(key in obj)) {
+          return `Missing required key "${key}"`
+        }
+        if (typeof obj[key] !== 'string') {
+          return `Key "${key}" must be a string`
+        }
+      }
+      return true
     },
   }
 }

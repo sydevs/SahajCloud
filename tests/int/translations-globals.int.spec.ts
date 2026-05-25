@@ -70,16 +70,22 @@ describe('Translations Globals Configuration', () => {
       }
     })
 
-    it('should have unique jsonSchema URIs for each tab', () => {
+    it('should NOT set jsonSchema on JSON fields (Ajv breaks on Cloudflare Workers)', () => {
+      // jsonSchema would force Payload to call `new Ajv()` + `ajv.validate` on
+      // every write, which uses `new Function()` for performance. Workers' V8
+      // isolate disallows dynamic code generation, so any write would throw
+      // "Code generation from strings disallowed for this context" on prod.
+      // Validation is instead enforced by a pure-JS `validate` function.
       const global = payload.globals.config.find((g) => g.slug === 'wm-web-translations')
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        const uris = tabsField.tabs.map((tab) => tab.fields[0].jsonSchema?.uri)
-
-        expect(uris[0]).toBe('a://wm-web-translations/common.json')
-        expect(uris[1]).toBe('a://wm-web-translations/navigation.json')
-        expect(new Set(uris).size).toBe(uris.length)
+        for (const tab of tabsField.tabs) {
+          const field = tab.fields[0]
+          if (field.type !== 'json') continue
+          expect(field.jsonSchema).toBeUndefined()
+          expect(typeof field.validate).toBe('function')
+        }
       }
     })
   })
@@ -332,32 +338,49 @@ describe('Translations Globals Configuration', () => {
       expect(global?.versions?.max).toBe(3)
     })
 
-    it.each(translationGlobalSlugs)('should have consistent jsonSchema configuration for %s', (slug) => {
-      const global = payload.globals.config.find((g) => g.slug === slug)
-      const tabsField = global?.fields[0]
+    it.each(translationGlobalSlugs)(
+      'should expose a pure-JS validate function on every JSON field for %s',
+      (slug) => {
+        // Validation moved from `jsonSchema` (Ajv-compiled, breaks on Workers)
+        // to a pure-JS `validate` function. Spot-check that the validator
+        // accepts a well-formed object, rejects unknown keys, and rejects
+        // non-string values — the same contract the old Ajv schema enforced.
+        const global = payload.globals.config.find((g) => g.slug === slug)
+        const tabsField = global?.fields[0]
+        if (tabsField?.type !== 'tabs') return
 
-      if (tabsField?.type === 'tabs') {
+        const collectJsonFields = (
+          fields: ReadonlyArray<{ type: string }>,
+        ): Array<{ name?: string; validate?: unknown }> => {
+          const out: Array<{ name?: string; validate?: unknown }> = []
+          for (const f of fields) {
+            if (f.type === 'json') out.push(f as { name?: string; validate?: unknown })
+            if (f.type === 'group') {
+              out.push(
+                ...((f as { fields: Array<{ type: string }> }).fields.filter(
+                  (sub) => sub.type === 'json',
+                ) as Array<{ name?: string; validate?: unknown }>),
+              )
+            }
+          }
+          return out
+        }
+
         for (const tab of tabsField.tabs) {
           if (tab.label === 'Review') continue
-
           const firstField = tab.fields[0]
           const jsonFields =
             firstField.type === 'tabs'
-              ? // Parent group: collect JSON fields from all inner sub-tabs.
-                (firstField as { type: 'tabs'; tabs: typeof tabsField.tabs }).tabs.flatMap((innerTab) =>
-                  innerTab.fields.filter((f) => f.type === 'json'),
+              ? (firstField as { type: 'tabs'; tabs: typeof tabsField.tabs }).tabs.flatMap((innerTab) =>
+                  collectJsonFields(innerTab.fields),
                 )
-              : // Leaf group: find the JSON field directly.
-                tab.fields.filter((f) => f.type === 'json')
-
+              : collectJsonFields(tab.fields)
           for (const jsonField of jsonFields) {
-            expect(jsonField.jsonSchema).toBeDefined()
-            expect(jsonField.jsonSchema?.uri).toMatch(/^a:\/\//)
-            expect(jsonField.jsonSchema?.schema).toBeDefined()
-            expect(jsonField.jsonSchema?.schema?.type).toBe('object')
+            expect((jsonField as { jsonSchema?: unknown }).jsonSchema).toBeUndefined()
+            expect(typeof jsonField.validate).toBe('function')
           }
         }
-      }
-    })
+      },
+    )
   })
 })
