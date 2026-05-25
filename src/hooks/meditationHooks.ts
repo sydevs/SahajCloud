@@ -9,6 +9,13 @@ import type {
 
 import { parseBuffer } from 'music-metadata'
 
+import {
+  getFrameDiagnosticsLogContext,
+  meditationFramesChanged,
+  normalizeMeditationFrames,
+  persistMeditationNodeWeightsCache,
+  reportMeditationNodeWeightsCacheError,
+} from '@/lib/meditations/frames'
 import type { Frame, Meditation } from '@/payload-types'
 
 const MAX_DURATION_MINUTES = 50
@@ -153,6 +160,21 @@ export const extractAudioDuration: CollectionBeforeChangeHook = async ({ data, r
   return data
 }
 
+export const invalidateMeditationNodeWeights: CollectionBeforeChangeHook = ({
+  data,
+  originalDoc,
+}) => {
+  const hasOwn = (key: string) => Object.prototype.hasOwnProperty.call(data, key)
+  const framesChanged = hasOwn('frames') && meditationFramesChanged(originalDoc?.frames, data.frames)
+  const durationChanged = hasOwn('duration') && data.duration !== originalDoc?.duration
+
+  if (framesChanged || durationChanged) {
+    data.subtleSystemNodeWeights = null
+  }
+
+  return data
+}
+
 /**
  * Read the cached subtle-system-node weights for `meditation` by re-computing
  * from its current `frames` JSON + `duration`. Bulk-fetches Frame docs at
@@ -165,12 +187,11 @@ export async function recomputeWeightsForMeditation(
   req?: PayloadRequest,
 ): Promise<Record<string, number>> {
   const rawFrames = meditation.frames
-  if (!Array.isArray(rawFrames) || rawFrames.length === 0) return {}
+  const { frames } = normalizeMeditationFrames(rawFrames)
+  if (frames.length === 0) return {}
   if (typeof meditation.duration !== 'number' || meditation.duration <= 0) return {}
 
-  const frameIds = rawFrames
-    .map((f) => (f && typeof f === 'object' ? (f as { id?: unknown }).id : null))
-    .filter((id): id is number => typeof id === 'number')
+  const frameIds = [...new Set(frames.map((f) => f.id))]
 
   if (frameIds.length === 0) return {}
 
@@ -190,13 +211,10 @@ export async function recomputeWeightsForMeditation(
     subtleSystemNode: NonNullable<Frame['subtleSystemNode']> | null
   }
   const populated: PopulatedFrame[] = []
-  for (const f of rawFrames) {
-    const id = (f as { id?: unknown }).id
-    const timestamp = (f as { timestamp?: unknown }).timestamp
-    if (typeof id !== 'number' || typeof timestamp !== 'number') continue
-    const frameDoc = frameMap.get(id)
+  for (const f of frames) {
+    const frameDoc = frameMap.get(f.id)
     populated.push({
-      timestamp,
+      timestamp: f.timestamp,
       subtleSystemNode: frameDoc?.subtleSystemNode ?? null,
     })
   }
@@ -218,12 +236,12 @@ export const recomputeMeditationNodeWeights: CollectionAfterChangeHook = async (
   previousDoc,
   req,
   context,
+  operation,
 }) => {
   if (context?.skipRecomputeNodeWeights) return doc
 
-  const framesChanged =
-    JSON.stringify(extractFrameIds(doc.frames)) !==
-    JSON.stringify(extractFrameIds(previousDoc?.frames))
+  const normalizedFrames = normalizeMeditationFrames(doc.frames)
+  const framesChanged = meditationFramesChanged(previousDoc?.frames, doc.frames)
 
   const durationChanged = doc.duration !== previousDoc?.duration
 
@@ -233,25 +251,43 @@ export const recomputeMeditationNodeWeights: CollectionAfterChangeHook = async (
   // (typical fresh-create state) — the `frames` field is required on update,
   // so attempting to write back the (empty) weights would trip its validator.
   // Subsequent edits that introduce frames will fire the hook normally.
-  const frameIds = extractFrameIds(doc.frames)
-  if (frameIds.length === 0) return doc
+  if (normalizedFrames.frames.length === 0) return doc
 
-  const weights = await recomputeWeightsForMeditation(req.payload, doc as Meditation, req)
+  const diagnostics = {
+    operation,
+    status: doc._status,
+    ...getFrameDiagnosticsLogContext(normalizedFrames.diagnostics),
+  }
 
-  await req.payload.update({
-    collection: 'meditations',
-    id: doc.id,
-    data: { subtleSystemNodeWeights: weights },
-    context: { skipRecomputeNodeWeights: true },
+  let weights: Record<string, number>
+  try {
+    weights = await recomputeWeightsForMeditation(req.payload, doc as Meditation, req)
+  } catch (error) {
+    reportMeditationNodeWeightsCacheError({
+      payload: req.payload,
+      req,
+      meditationId: doc.id,
+      reason: 'meditation-after-change-recompute',
+      diagnostics,
+      error,
+    })
+    return doc
+  }
+
+  const persisted = await persistMeditationNodeWeightsCache({
+    payload: req.payload,
     req,
+    meditationId: doc.id,
+    locale: typeof doc.locale === 'string' ? doc.locale : undefined,
+    weights,
+    reason: 'meditation-after-change',
+    diagnostics,
   })
 
-  return doc
-}
+  if (!persisted) return doc
 
-function extractFrameIds(frames: unknown): number[] {
-  if (!Array.isArray(frames)) return []
-  return frames
-    .map((f) => (f && typeof f === 'object' ? (f as { id?: unknown }).id : null))
-    .filter((id): id is number => typeof id === 'number')
+  return {
+    ...doc,
+    subtleSystemNodeWeights: weights,
+  }
 }

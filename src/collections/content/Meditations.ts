@@ -5,12 +5,19 @@ import { mediaField, slugField } from '@/fields'
 import {
   extractAudioDuration,
   filterMeditationsByLocale,
+  invalidateMeditationNodeWeights,
   recomputeMeditationNodeWeights,
 } from '@/hooks/meditationHooks'
 import { LOCALES } from '@/lib/locales'
+import {
+  getFrameDiagnosticsLogContext,
+  hasFrameNormalizationIssues,
+  normalizeMeditationFrames,
+  normalizeMeditationFramesForStorage,
+} from '@/lib/meditations/frames'
 import { getR2Url } from '@/lib/storage/r2NativeAdapter'
 import { virtualUrlField } from '@/lib/storage/urlFields'
-import { KeyframeData, KeyframeDefinition } from '@/types/frames'
+import { KeyframeData } from '@/types/frames'
 
 /**
  * afterRead hook for the randomSongUrl virtual field.
@@ -108,7 +115,7 @@ export const Meditations: CollectionConfig = {
   endpoints: [meditationLectures],
   hooks: {
     beforeOperation: [filterMeditationsByLocale],
-    beforeChange: [extractAudioDuration],
+    beforeChange: [extractAudioDuration, invalidateMeditationNodeWeights],
     afterChange: [recomputeMeditationNodeWeights],
   },
   defaultPopulate: {
@@ -378,39 +385,37 @@ export const Meditations: CollectionConfig = {
                       validate: ((value, options) => {
                         // Only required during update (not on create)
                         const isUpdate = options.operation === 'update' || !!options.id
-                        if (isUpdate && (!value || !Array.isArray(value) || value.length === 0)) {
+                        const previousValue = (options as { previousValue?: unknown }).previousValue
+                        const valueToValidate = value === undefined ? previousValue : value
+                        const { frames } = normalizeMeditationFrames(valueToValidate)
+                        if (isUpdate && frames.length === 0) {
                           return 'At least one frame is required'
                         }
                         return true
                       }) as Validate,
                       hooks: {
                         beforeChange: [
-                          async ({ value }) => {
-                            if (!value || !Array.isArray(value)) return []
+                          async ({ data, operation, req, value }) => {
+                            if (value === undefined) return undefined
 
-                            return value
-                              .filter((v) => {
-                                // Drop malformed frames silently
-                                if (!v || typeof v !== 'object') return false
-                                if (!v.id) return false
-                                if (
-                                  typeof v.timestamp !== 'number' ||
-                                  v.timestamp < 0 ||
-                                  isNaN(v.timestamp)
-                                )
-                                  return false
-                                return true
+                            const normalized = normalizeMeditationFrames(value)
+                            if (hasFrameNormalizationIssues(normalized.diagnostics)) {
+                              req.payload.logger.warn({
+                                msg: 'Dropped malformed meditation frames before save',
+                                issue: '390',
+                                meditationId: data?.id,
+                                operation,
+                                status: data?._status,
+                                ...getFrameDiagnosticsLogContext(normalized.diagnostics),
                               })
-                              .map(
-                                (v) => ({ id: v.id, timestamp: v.timestamp }) as KeyframeDefinition,
-                              )
-                              .sort((a, b) => a.timestamp - b.timestamp)
+                            }
+
+                            return normalizeMeditationFramesForStorage(value)
                           },
                         ],
                         afterRead: [
                           async ({ value, req }) => {
-                            if (!value || !Array.isArray(value)) return []
-                            const frames = value as KeyframeData[]
+                            const { frames } = normalizeMeditationFrames(value)
 
                             const frameIds = frames.map((f) => f.id)
                             if (frameIds.length === 0) return []

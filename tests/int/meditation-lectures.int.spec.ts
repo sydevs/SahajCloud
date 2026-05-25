@@ -216,6 +216,45 @@ describe('meditationLectures endpoint', () => {
     expect(weights!.anahat).toBeGreaterThan(weights!.mooladhara)
   })
 
+  it('recomputes cached weights when timestamps change but frame IDs do not', async () => {
+    try {
+      await payload.update({
+        collection: 'meditations',
+        id: meditation.id,
+        data: {
+          frames: [
+            { id: frameA.id, timestamp: 0 },
+            { id: frameB.id, timestamp: 5 },
+            { id: frameC.id, timestamp: 25 },
+          ] as unknown as Meditation['frames'],
+        },
+        locale: 'en',
+      })
+
+      const updated = (await payload.findByID({
+        collection: 'meditations',
+        id: meditation.id,
+        locale: 'en',
+      })) as Meditation
+      const weights = updated.subtleSystemNodeWeights as Record<string, number>
+      expect(weights.mooladhara).toBe(5)
+      expect(weights.anahat).toBe(20)
+    } finally {
+      await payload.update({
+        collection: 'meditations',
+        id: meditation.id,
+        data: {
+          frames: [
+            { id: frameA.id, timestamp: 0 },
+            { id: frameB.id, timestamp: 10 },
+            { id: frameC.id, timestamp: 25 },
+          ] as unknown as Meditation['frames'],
+        },
+        locale: 'en',
+      })
+    }
+  })
+
   it('returns lectures sorted by descending overlap weight', async () => {
     const { status, body } = await callEndpoint(payload, meditation.id, { limit: 10 }, {
       defaultAudiences: audienceFilter,
