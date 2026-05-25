@@ -1,5 +1,12 @@
 import type { GlobalConfig } from 'payload'
 
+const APP_REQUIRED_PAGES = [
+  { name: 'shriMatajiPage', description: 'Page about Shri Mataji surfaced from the app.' },
+  { name: 'sahajaYogaPage', description: 'Page about Sahaja Yoga surfaced from the app.' },
+  { name: 'explorePage', description: 'Explore section page surfaced from the app.' },
+  { name: 'subtleSystemPage', description: 'Subtle system page surfaced from the app.' },
+]
+
 const VIBE_CHECK_IDENTIFIERS = [
   { label: 'What You Feel - Start', value: 'WHAT-YOU-FEEL-START' },
   { label: 'What You Feel - Left', value: 'WHAT-YOU-FEEL-LEFT' },
@@ -77,6 +84,48 @@ export const WeMeditateAppConfig: GlobalConfig = {
                   required: true,
                   admin: {
                     description: 'WebVTT (.vtt) subtitle file for this audio.',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          label: 'App Pages',
+          fields: APP_REQUIRED_PAGES.map(({ name, description }) => ({
+            name,
+            type: 'relationship' as const,
+            relationTo: 'pages' as const,
+            required: true,
+            admin: { description },
+          })),
+        },
+        {
+          label: 'General',
+          fields: [
+            {
+              name: 'fallbackLecture',
+              type: 'relationship',
+              relationTo: 'lectures',
+              admin: {
+                description: 'Lecture shown when no personalized lecture content is available.',
+              },
+            },
+            {
+              type: 'row',
+              fields: [
+                {
+                  name: 'iosAppUrl',
+                  type: 'text',
+                  admin: {
+                    description: 'App Store URL for the iOS app.',
+                  },
+                },
+                {
+                  name: 'androidAppUrl',
+                  type: 'text',
+                  admin: {
+                    description: 'Play Store URL for the Android app.',
                   },
                 },
               ],

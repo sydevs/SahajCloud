@@ -6,11 +6,14 @@ import { testData } from '../utils/testData'
 
 let payload: Payload
 let cleanup: () => Promise<void>
+let sharedPageId: number
 
 beforeAll(async () => {
   const testEnv = await createTestEnvironment()
   payload = testEnv.payload
   cleanup = testEnv.cleanup
+  const page = await testData.createPage(payload, { title: 'Shared App Card Test Page' })
+  sharedPageId = page.id
 })
 
 afterAll(async () => {
@@ -211,15 +214,15 @@ describe('AppCards type field', () => {
       default: {
         title: 'My Standard Card',
         header: 'My Header',
-        destination: 'appPage',
-        appPage: 'map',
+        destination: 'page',
+        page: sharedPageId,
       },
     })
 
     expect(card.default?.title).toBe('My Standard Card')
     expect(card.default?.header).toBe('My Header')
-    expect(card.default?.destination).toBe('appPage')
-    expect(card.default?.appPage).toBe('map')
+    expect(card.default?.destination).toBe('page')
+    expect(typeof card.default?.page === 'number' ? card.default.page : (card.default?.page as { id: number })?.id).toBe(sharedPageId)
   })
 
   it('creates event card with type: event', async () => {
@@ -386,13 +389,13 @@ describe('AppCards type field', () => {
 // ── Integration Tests: AppCards destination field ─────────────────────────────
 
 describe('AppCards destination field', () => {
-  it('creates card with appPage destination', async () => {
+  it('creates card with page destination', async () => {
     const card = await testData.createAppCard(payload, {
-      default: { destination: 'appPage', appPage: 'lectures' },
+      default: { destination: 'page', page: sharedPageId },
     })
 
-    expect(card.default?.destination).toBe('appPage')
-    expect(card.default?.appPage).toBe('lectures')
+    expect(card.default?.destination).toBe('page')
+    expect(typeof card.default?.page === 'number' ? card.default.page : (card.default?.page as { id: number })?.id).toBe(sharedPageId)
   })
 
   it('creates card with url destination', async () => {

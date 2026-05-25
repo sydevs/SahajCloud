@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import type { File, Lecture, Meditation, WmAppConfig } from '@/payload-types'
+import type { File, Lecture, Meditation, Page, WmAppConfig } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -40,6 +40,12 @@ describe('WeMeditateAppConfig Global', () => {
   let lecture: Lecture
   let audioFile: File
   let vttFile: File
+  let requiredPages: {
+    shriMatajiPage: number
+    sahajaYogaPage: number
+    explorePage: number
+    subtleSystemPage: number
+  }
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
@@ -52,6 +58,20 @@ describe('WeMeditateAppConfig Global', () => {
     lecture = await testData.createLecture(payload)
     audioFile = await testData.createFile(payload, {}, 'audio-42s.mp3')
     vttFile = await testData.createFile(payload, {}, 'subtitles.vtt')
+
+    // Create the 4 required app pages
+    const [shriMatajiPage, sahajaYogaPage, explorePage, subtleSystemPage] = await Promise.all([
+      testData.createPage(payload, { title: 'Shri Mataji Page' }),
+      testData.createPage(payload, { title: 'Sahaja Yoga Page' }),
+      testData.createPage(payload, { title: 'Explore Page' }),
+      testData.createPage(payload, { title: 'Subtle System Page' }),
+    ])
+    requiredPages = {
+      shriMatajiPage: shriMatajiPage.id,
+      sahajaYogaPage: sahajaYogaPage.id,
+      explorePage: explorePage.id,
+      subtleSystemPage: subtleSystemPage.id,
+    }
   })
 
   afterAll(async () => {
@@ -68,8 +88,10 @@ describe('WeMeditateAppConfig Global', () => {
       expect(tabsField.type).toBe('tabs')
 
       if (tabsField.type === 'tabs') {
-        expect(tabsField.tabs).toHaveLength(1)
+        expect(tabsField.tabs).toHaveLength(3)
         expect(tabsField.tabs[0].label).toBe('First Meditation')
+        expect(tabsField.tabs[1].label).toBe('App Pages')
+        expect(tabsField.tabs[2].label).toBe('General')
 
         const tabFields = tabsField.tabs[0].fields
         const fieldNames = tabFields.map((f) => ('name' in f ? f.name : undefined))
@@ -84,7 +106,7 @@ describe('WeMeditateAppConfig Global', () => {
     it('can be set and retrieved', async () => {
       await payload.updateGlobal({
         slug: 'wm-app-config',
-        data: { selfRealizationMeditation: meditation.id },
+        data: { selfRealizationMeditation: meditation.id, ...requiredPages },
       })
 
       const config = (await payload.findGlobal({
@@ -99,7 +121,7 @@ describe('WeMeditateAppConfig Global', () => {
     it('can be set and resolves correctly', async () => {
       await payload.updateGlobal({
         slug: 'wm-app-config',
-        data: { postRealizationLecture: lecture.id },
+        data: { postRealizationLecture: lecture.id, ...requiredPages },
       })
 
       const config = (await payload.findGlobal({
@@ -117,6 +139,7 @@ describe('WeMeditateAppConfig Global', () => {
       await payload.updateGlobal({
         slug: 'wm-app-config',
         data: {
+          ...requiredPages,
           vibeCheckTracks: [
             {
               identifier: 'BH-COOL',
@@ -163,6 +186,7 @@ describe('WeMeditateAppConfig Global', () => {
         slug: 'wm-app-config',
         locale: 'en',
         data: {
+          ...requiredPages,
           selfRealizationMeditation: enMeditation.id,
           postRealizationLecture: enLecture.id,
           vibeCheckTracks: [
@@ -176,6 +200,7 @@ describe('WeMeditateAppConfig Global', () => {
         slug: 'wm-app-config',
         locale: 'cs',
         data: {
+          ...requiredPages,
           selfRealizationMeditation: csMeditation.id,
           postRealizationLecture: csLecture.id,
           vibeCheckTracks: [
