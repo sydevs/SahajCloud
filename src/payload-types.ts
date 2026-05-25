@@ -1271,10 +1271,8 @@ export interface AppCard {
     meditation?: (number | null) | Meditation;
     url?: string | null;
     image?: (number | null) | Image;
-    /**
-     * Render card with dark overlay and white text.
-     */
-    overlay?: boolean | null;
+    aspectRatio: 'square' | 'flexible';
+    textColor: 'black' | 'white';
     /**
      * Text alignment for card content.
      */
@@ -1310,10 +1308,8 @@ export interface AppCard {
     meditation?: (number | null) | Meditation;
     url?: string | null;
     image?: (number | null) | Image;
-    /**
-     * Render card with dark overlay and white text.
-     */
-    overlay?: boolean | null;
+    aspectRatio: 'square' | 'flexible';
+    textColor: 'black' | 'white';
     /**
      * Text alignment for card content.
      */
@@ -1349,10 +1345,8 @@ export interface AppCard {
     meditation?: (number | null) | Meditation;
     url?: string | null;
     image?: (number | null) | Image;
-    /**
-     * Render card with dark overlay and white text.
-     */
-    overlay?: boolean | null;
+    aspectRatio: 'square' | 'flexible';
+    textColor: 'black' | 'white';
     /**
      * Text alignment for card content.
      */
@@ -2668,7 +2662,8 @@ export interface AppCardsSelect<T extends boolean = true> {
         meditation?: T;
         url?: T;
         image?: T;
-        overlay?: T;
+        aspectRatio?: T;
+        textColor?: T;
         alignment?: T;
       };
   startingSoon?:
@@ -2688,7 +2683,8 @@ export interface AppCardsSelect<T extends boolean = true> {
         meditation?: T;
         url?: T;
         image?: T;
-        overlay?: T;
+        aspectRatio?: T;
+        textColor?: T;
         alignment?: T;
       };
   liveNow?:
@@ -2708,7 +2704,8 @@ export interface AppCardsSelect<T extends boolean = true> {
         meditation?: T;
         url?: T;
         image?: T;
-        overlay?: T;
+        aspectRatio?: T;
+        textColor?: T;
         alignment?: T;
       };
   schedule?:
@@ -3079,115 +3076,2017 @@ export interface WmAppConfig {
  */
 export interface WmAppTranslation {
   id: number;
-  daily?: {
+  onboarding_welcome?: {
     /**
-     * Daily meditation section title
+     * Hero title on the welcome screen. Short greeting (e.g. 'Welcome, friend').
      */
     title: string;
     /**
-     * Subtitle or description for daily content
+     * Hero subtitle below the welcome title.
      */
     subtitle: string;
     /**
-     * Message when daily meditation is complete
+     * Primary CTA that begins onboarding for a new user.
      */
-    complete: string;
+    get_started: string;
     /**
-     * Meditation streak counter label
+     * Secondary CTA for returning users who already have an account.
      */
-    streak: string;
+    use_existing_account: string;
     /**
-     * Skip daily meditation button
+     * First inline-text fragment of the legal disclaimer shown under the CTAs. Followed by the Terms link, the connector, and the Privacy Policy link. Include any required trailing space.
      */
-    skip: string;
+    legal_disclaimer_prefix: string;
+    /**
+     * Connector word between the Terms link and the Privacy Policy link in the inline disclaimer. Include any required surrounding spaces (e.g. ' & ').
+     */
+    legal_disclaimer_and: string;
+    /**
+     * Inline link label that opens the in-app Terms & Conditions webview.
+     */
+    legal_terms: string;
+    /**
+     * Inline link label that opens the in-app Privacy Policy webview.
+     */
+    legal_privacy_policy: string;
+    /**
+     * Title of the in-app webview screen that displays the Privacy Policy. The Privacy Policy body itself is the CMS page referenced by wm-app-config.privacyPolicyPage, not a translation string.
+     */
+    privacy_policy_title: string;
+    /**
+     * Title of the in-app webview screen that displays the Terms & Conditions. The body itself is the CMS page referenced by wm-app-config.termsAndConditionsPage.
+     */
+    terms_and_conditions_title: string;
+    /**
+     * Error toast shown when the OS cannot find an installed email client to handle a mailto: link from the welcome screen.
+     */
+    email_app_unavailable: string;
+    /**
+     * Generic error toast shown when an inline link on the welcome screen fails to open.
+     */
+    link_open_failed: string;
   };
-  path?: {
+  onboarding_name?: {
     /**
-     * Path section title
+     * Screen prompt asking the user for their name (e.g. “What’s your name?”).
      */
     title: string;
     /**
-     * Progress indicator label
+     * Input field placeholder hint for the name field.
      */
-    progress: string;
+    placeholder: string;
     /**
-     * Continue lesson button
+     * Primary CTA to confirm the entered name and continue onboarding.
      */
     continue: string;
-    /**
-     * Start new unit button
-     */
-    start_unit: string;
-    /**
-     * Lesson completion message
-     */
-    lesson_complete: string;
   };
-  explore?: {
+  onboarding_greeting?: {
     /**
-     * Explore section title
+     * Multi-line greeting prefix shown above the user’s name. Preserve the embedded line breaks (\n) — they control where the text wraps in the hero layout.
+     */
+    message_prefix: string;
+  };
+  onboarding_user_type?: {
+    /**
+     * First text fragment of the screen title. Combined with title_brand and title_suffix to form the full prompt (e.g. 'Have you tried Sahaja Yoga before?'). Preserve the trailing line break (\n).
+     */
+    title_prefix: string;
+    /**
+     * The 'Sahaja Yoga' brand fragment in the title. Usually kept in original spelling, with optional locale-script transliteration.
+     */
+    title_brand: string;
+    /**
+     * Closing text fragment of the title (typically ' before?'). Include the leading space if needed for the locale.
+     */
+    title_suffix: string;
+    /**
+     * Primary CTA used after the user picks their classification.
+     */
+    get_started: string;
+    /**
+     * Selectable option for users completely new to meditation. Maps to userType = user-complete-beginner.
+     */
+    option_complete_beginner: string;
+    /**
+     * Selectable option for users who have tried meditation before but not deeply. Maps to userType = user-tried-before.
+     */
+    option_tried_before: string;
+    /**
+     * Selectable option for users currently in an in-person or online newcomer class. Maps to userType = user-attending-classes.
+     */
+    option_attending_classes: string;
+    /**
+     * Selectable option for long-time Sahaja Yoga practitioners. Maps to userType = yogi (excluded from the ad-measurement path).
+     */
+    option_yogi: string;
+  };
+  onboarding_carousel?: {
+    /**
+     * Slide 1 title (e.g. 'A moment of peace').
+     */
+    page_moment_title: string;
+    /**
+     * Slide 1 supporting copy.
+     */
+    page_moment_subtitle: string;
+    /**
+     * Slide 2 title prefix; combined inline with page_true_self_highlight (e.g. 'Get to know your true self'). Include the trailing space.
+     */
+    page_true_self_prefix: string;
+    /**
+     * Highlighted phrase at the end of slide 2 title, typically rendered in an accent colour (e.g. 'true self').
+     */
+    page_true_self_highlight: string;
+    /**
+     * Slide 2 supporting copy.
+     */
+    page_true_self_subtitle: string;
+    /**
+     * Slide 3 title (e.g. 'Unlock your potential').
+     */
+    page_unlock_potential_title: string;
+    /**
+     * Slide 3 supporting copy.
+     */
+    page_unlock_potential_subtitle: string;
+  };
+  onboarding_consent_modal?: {
+    /**
+     * Modal title (e.g. 'Help spread the word').
      */
     title: string;
     /**
-     * Search placeholder text
+     * First paragraph prefix; combined inline with body_intro_link and body_intro_suffix to form a single sentence. Include any trailing space.
      */
-    search: string;
+    body_intro_prefix: string;
     /**
-     * Filter button label
+     * Inline link text inside the first paragraph (e.g. 'what we share'). Tapping opens a detail sheet listing exactly which fields are sent to Meta, Apple and Google Ads.
      */
-    filter: string;
+    body_intro_link: string;
     /**
-     * Categories section header
+     * First paragraph suffix completing the sentence after the inline link. Include the leading separator if needed (e.g. ') with Meta, Apple and Google Ads to understand which outreach helps people discover meditation.').
      */
-    categories: string;
+    body_intro_suffix: string;
     /**
-     * View all items link
+     * Second paragraph explaining the benefits of granting consent (improving campaigns, using donations responsibly, suppressing ads to existing users, reaching similar people).
      */
-    view_all: string;
+    body_benefits: string;
+    /**
+     * Third paragraph listing categories that are never sent for advertising (mood, goals, hand sensations, reflections, class location, spiritual-practice details). Must remain consistent with the privacy filter in analytics-simplified/03-marketing-event-taxonomy.md §2.
+     */
+    body_never_share: string;
+    /**
+     * Fourth paragraph: short statement that the app never sells user data.
+     */
+    body_never_sell: string;
+    /**
+     * Fifth paragraph telling the user they can change this anytime via Settings → Privacy & advertising. Preserve the arrow character (→) or substitute the locale equivalent.
+     */
+    body_settings_hint: string;
+    /**
+     * Primary CTA granting consent (sets adsMarketingConsent = true).
+     */
+    allow: string;
+    /**
+     * Decline CTA. Decline is a single tap and must not block account creation (see analytics-simplified/05-flutter-implementation.md §9).
+     */
+    reject: string;
   };
-  profile?: {
+  daily_main?: {
     /**
-     * Profile screen title
+     * Primary CTA on the hero card that begins the suggested meditation.
+     */
+    start_meditation: string;
+    /**
+     * Compact CTA used on secondary cards to start a meditation immediately.
+     */
+    start_now: string;
+    /**
+     * CTA on the Path promo card when the user has not started the course.
+     */
+    start_course: string;
+    /**
+     * CTA on the Path promo card when the user has progress to resume.
+     */
+    continue_course: string;
+    /**
+     * Long-form variant of start_course used in alternate layouts.
+     */
+    start_the_course: string;
+    /**
+     * Long-form variant of continue_course used in alternate layouts.
+     */
+    continue_the_course: string;
+    /**
+     * Accessibility / link label inviting the user to scroll down to the Path section.
+     */
+    scroll_to_the_path: string;
+    /**
+     * Eyebrow label above the Path promo block (typically uppercase, e.g. 'THE PATH: GOING DEEPER').
+     */
+    the_path_going_deeper: string;
+    /**
+     * Hero title used in the morning time-of-day variant.
+     */
+    your_morning_meditation: string;
+    /**
+     * Hero title used in the afternoon time-of-day variant.
+     */
+    your_afternoon_meditation: string;
+    /**
+     * Hero title used in the evening time-of-day variant.
+     */
+    your_evening_meditation: string;
+    /**
+     * Hero subtitle for the morning variant. Preserve the embedded line break (\n) — it controls hero layout.
+     */
+    morning_meditation_subtitle: string;
+    /**
+     * Hero subtitle for the afternoon variant. Preserve the embedded line break (\n).
+     */
+    afternoon_meditation_subtitle: string;
+    /**
+     * Hero subtitle for the evening variant.
+     */
+    evening_meditation_subtitle: string;
+    /**
+     * Title of the Path promo card on Home. Preserve the embedded line break (\n).
+     */
+    path_going_deeper_title: string;
+    /**
+     * Subtitle of the Path promo card on Home.
+     */
+    path_going_deeper_subtitle: string;
+    /**
+     * Eyebrow label above the Shri Mataji talks section on Home (typically uppercase).
+     */
+    learn_from_source: string;
+    /**
+     * Eyebrow chip label on the hero card for pre-activation users (‘Get started’).
+     */
+    hero_label_get_started: string;
+    /**
+     * Eyebrow chip label on the hero card encouraging variation.
+     */
+    hero_label_try_something_new: string;
+    /**
+     * Eyebrow chip label on the hero card promoting Shri Mataji content.
+     */
+    hero_label_learn_from_source: string;
+    /**
+     * Eyebrow chip label on the hero card promoting community sessions.
+     */
+    hero_label_meditate_with_others: string;
+    /**
+     * Eyebrow chip label on the hero card promoting discovery / Explore.
+     */
+    hero_label_discover: string;
+    /**
+     * Section title of the Shri Mataji talks block on Home.
+     */
+    shri_mataji_talks_title: string;
+    /**
+     * Section subtitle of the Shri Mataji talks block on Home.
+     */
+    shri_mataji_talks_subtitle: string;
+    /**
+     * Inline link/CTA to expand a section or view more items.
+     */
+    see_more: string;
+    /**
+     * Eyebrow above the priority chooser on Home, daytime variant (typically uppercase).
+     */
+    whats_your_priority_today: string;
+    /**
+     * Eyebrow above the priority chooser on Home, evening variant (typically uppercase).
+     */
+    whats_your_priority_tonight: string;
+    /**
+     * Chip tag label categorising priority-chooser cards.
+     */
+    whats_your_priority_tag: string;
+    /**
+     * Chip tag label categorising community-session cards.
+     */
+    meditate_with_others_tag: string;
+    /**
+     * Chip tag label categorising improvement / techniques cards.
+     */
+    improve_meditation_tag: string;
+    /**
+     * Quick-meditation card title (morning). Preserve the embedded line break (\n).
+     */
+    quick_morning: string;
+    /**
+     * Quick-meditation card title (afternoon). Preserve the embedded line break (\n) and quoted punctuation.
+     */
+    quick_afternoon: string;
+    /**
+     * Quick-meditation card title (evening). Preserve the embedded line break (\n).
+     */
+    quick_evening: string;
+    /**
+     * Card title for the longer/personalised session. Preserve the embedded line break (\n).
+     */
+    longer_session: string;
+    /**
+     * Card title inviting users to find a meditation matched to a current feeling. Preserve the embedded line break (\n).
+     */
+    help_me_deal: string;
+    /**
+     * Title of the follow-up screen after the user taps the 'Help me deal' card. Preserve the embedded line break (\n).
+     */
+    help_me_deal_custom_title: string;
+    /**
+     * Card title promoting deeper exploration of the practice. Preserve the embedded line break (\n).
+     */
+    explore_deeper: string;
+    /**
+     * Locked-state label shown on cards gated behind the first meditation.
+     */
+    unlock_guided_meditations: string;
+    /**
+     * Eyebrow above the community block on Home (typically uppercase).
+     */
+    meditate_with_others: string;
+    /**
+     * Community card inviting the user to find a local in-person class. Preserve the embedded line break (\n).
+     */
+    find_class_near_you: string;
+    /**
+     * Community card inviting the user to join a live online class. Preserve the embedded line break (\n).
+     */
+    join_live_online_class: string;
+    /**
+     * Eyebrow above the improvement / techniques block on Home (typically uppercase).
+     */
+    improve_your_meditation: string;
+    /**
+     * Title of the Techniques card in the Improve block.
+     */
+    improve_card_techniques_title: string;
+    /**
+     * Subtitle of the Techniques card in the Improve block.
+     */
+    improve_card_techniques_subtitle: string;
+    /**
+     * Title of the Subtle System card in the Improve block.
+     */
+    improve_card_subtle_system_title: string;
+    /**
+     * Subtitle of the Subtle System card in the Improve block.
+     */
+    improve_card_subtle_system_subtitle: string;
+    /**
+     * Eyebrow above the Highlights carousel on Home (typically uppercase).
+     */
+    highlights_title: string;
+    /**
+     * Title used on the resume-card prompting the user back into the flow. Preserve the embedded line break (\n).
+     */
+    get_back_in_the_flow: string;
+    /**
+     * Badge shown on the live-meditation card when a live session is currently in progress.
+     */
+    live_now: string;
+    /**
+     * Short abbreviation for minutes used in card chips (e.g. 'min').
+     */
+    minutes_short: string;
+    /**
+     * Unit label for the days portion of the live-meditation countdown.
+     */
+    live_countdown_days: string;
+    /**
+     * Unit label for the hours portion of the live-meditation countdown.
+     */
+    live_countdown_hours: string;
+    /**
+     * Unit label for the minutes portion of the live-meditation countdown.
+     */
+    live_countdown_minutes: string;
+    /**
+     * Label shown on the live-meditation reminder button when a 30-minute reminder is already scheduled.
+     */
+    live_reminder_button_active: string;
+    /**
+     * Title of the scheduled local notification that reminds the user about an upcoming live meditation.
+     */
+    live_reminder_notification_title: string;
+    /**
+     * Body of the scheduled local notification that reminds the user about an upcoming live meditation.
+     */
+    live_reminder_notification_body: string;
+    /**
+     * Inline message shown after the user denies the notification permission required for live-meditation reminders.
+     */
+    live_reminder_permission_denied: string;
+    /**
+     * Inline message asking the user to enable notifications in OS Settings to receive live-meditation reminders.
+     */
+    live_reminder_permission_settings: string;
+  };
+  daily_common?: {
+    /**
+     * Locked-state message shown on Home cards that are gated behind completing the first meditation.
+     */
+    unlock_after_first_meditation: string;
+    /**
+     * Placeholder shown when the Path tile on Home is not yet available for the current user/locale.
+     */
+    path_coming_soon: string;
+    /**
+     * Generic error message shown on Home when a section fails to load.
+     */
+    something_went_wrong: string;
+    /**
+     * Retry CTA used on Home error states.
+     */
+    retry: string;
+    /**
+     * Toast shown when an external link card on Home is not yet wired up.
+     */
+    external_link_coming_soon: string;
+    /**
+     * Toast shown when tapping a Home card whose action is not yet implemented.
+     */
+    card_action_not_available: string;
+    /**
+     * Placeholder shown for the in-person class finder on Home before the feature ships.
+     */
+    map_coming_soon: string;
+    /**
+     * Placeholder shown for the music section on Home before the feature ships.
+     */
+    music_coming_soon: string;
+  };
+  daily_load_info?: {
+    /**
+     * Banner shown when the hero Daily meditation could not be resolved at all.
+     */
+    top_daily_unavailable: string;
+    /**
+     * Banner shown when the hero Daily meditation failed to load due to a network or content error.
+     */
+    top_daily_failed: string;
+    /**
+     * Banner shown when the hero Daily meditation has been replaced by a random meditation fallback.
+     */
+    top_daily_random: string;
+    /**
+     * Banner shown when the Quick meditations row could not be resolved.
+     */
+    quick_daily_unavailable: string;
+    /**
+     * Banner shown when the Quick meditations row failed to load.
+     */
+    quick_daily_failed: string;
+    /**
+     * Banner shown when the Quick meditations row has been replaced by random fallbacks.
+     */
+    quick_daily_random: string;
+  };
+  path_overview?: {
+    /**
+     * Error message shown when the Path tab fails to load.
+     */
+    error_message: string;
+    /**
+     * Eyebrow label above each unit on the Path overview (typically uppercase, e.g. 'UNIT').
+     */
+    unit: string;
+    /**
+     * Retry CTA on the Path error state.
+     */
+    retry: string;
+    /**
+     * Placeholder shown at the bottom of the Path when no further steps are released yet (typically uppercase).
+     */
+    more_steps_coming_soon: string;
+  };
+  path_info?: {
+    /**
+     * Carousel slide 1 title.
+     */
+    first_title: string;
+    /**
+     * Carousel slide 1 body. Two paragraphs separated by \\n\\n in the source.
+     */
+    first_text: string;
+    /**
+     * Carousel slide 2 title.
+     */
+    second_title: string;
+    /**
+     * Carousel slide 2 body. Two paragraphs separated by \\n\\n in the source.
+     */
+    second_text: string;
+    /**
+     * Carousel slide 3 title.
+     */
+    third_title: string;
+    /**
+     * Carousel slide 3 body. Two paragraphs separated by \\n\\n in the source.
+     */
+    third_text: string;
+  };
+  path_step_1?: {
+    /**
+     * Default intro quote used when no CMS-driven quote is available.
+     */
+    default_intro_quote: string;
+    /**
+     * Attribution under the intro quote.
+     */
+    author: string;
+    /**
+     * Primary CTA that begins step 1.
+     */
+    begin: string;
+    /**
+     * Title of the exit-confirmation prompt shown when the user tries to leave step 1 early.
+     */
+    skip_title: string;
+    /**
+     * CTA on the exit-confirmation prompt that keeps the user inside step 1.
+     */
+    skip_continue: string;
+    /**
+     * CTA on the exit-confirmation prompt that returns the user to the Path overview.
+     */
+    back_to_path: string;
+  };
+  path_step_2?: {
+    /**
+     * Continue CTA used in step 2 screens.
+     */
+    continue_button: string;
+  };
+  path_step_3?: {
+    /**
+     * Eyebrow above the step 3 meditation intro (typically uppercase).
+     */
+    meditation_intro: string;
+    /**
+     * Inline action that opens the skip-intro confirmation.
+     */
+    skip_intro: string;
+    /**
+     * Primary CTA that starts the step 3 meditation.
+     */
+    start_meditation: string;
+    /**
+     * Title of the skip-intro confirmation prompt.
+     */
+    skip_title: string;
+    /**
+     * Confirm CTA on the skip-intro prompt that jumps to the meditation.
+     */
+    skip_continue: string;
+    /**
+     * Decline CTA on the skip-intro prompt that returns to the intro.
+     */
+    back_to_intro: string;
+    /**
+     * Exit CTA used on the step 3 screen.
+     */
+    exit: string;
+    /**
+     * Back CTA returning the user to the step overview.
+     */
+    back_to_step: string;
+  };
+  path_step_4?: {
+    /**
+     * Eyebrow on the step 4 screen (typically uppercase).
+     */
+    delving_deeper: string;
+    /**
+     * Prompt above the lecture media inviting the user to keep meditating while listening.
+     */
+    lecture_prompt: string;
+    /**
+     * Fallback title used on the lecture media card when no CMS-driven title is available. Source uses curly quotes “” intentionally.
+     */
+    media_card_fallback_title: string;
+    /**
+     * Author label on the lecture media card (e.g. 'Talk by Shri Mataji').
+     */
+    media_card_author: string;
+    /**
+     * Author subtitle on the lecture media card (e.g. 'The founder of Sahaja Yoga').
+     */
+    media_card_author_subtitle: string;
+    /**
+     * Secondary CTA on the lecture media card.
+     */
+    media_card_watch_later: string;
+    /**
+     * Primary CTA that completes step 4.
+     */
+    complete_step: string;
+  };
+  path_step_complete?: {
+    /**
+     * Title of the step-complete confirmation.
      */
     title: string;
     /**
-     * Settings button label
+     * Subtitle of the step-complete confirmation.
      */
-    settings: string;
+    subtitle: string;
     /**
-     * Statistics section header
+     * CTA returning the user to the Path overview after completing a step.
      */
-    statistics: string;
-    /**
-     * Logout button
-     */
-    logout: string;
-    /**
-     * Edit profile button
-     */
-    edit: string;
+    back_to_path: string;
   };
-  meditation?: {
+  explore_overview?: {
     /**
-     * Play button label
+     * Eyebrow label for the embedded Explore block.
+     */
+    section_label: string;
+    /**
+     * Section header for the Meditate column.
+     */
+    section_meditate_title: string;
+    /**
+     * Section header for the Learn column.
+     */
+    section_learn_title: string;
+    /**
+     * Section header for the Join Free Classes column.
+     */
+    section_join_title: string;
+    /**
+     * Card title for the Daily entry in the Explore block.
+     */
+    card_daily_title: string;
+    /**
+     * Card subtitle for the Daily entry in the Explore block.
+     */
+    card_daily_subtitle: string;
+    /**
+     * Card title for the Path entry in the Explore block.
+     */
+    card_path_title: string;
+    /**
+     * Card subtitle for the Path entry in the Explore block.
+     */
+    card_path_subtitle: string;
+    /**
+     * Card title for the Techniques entry in the Explore block.
+     */
+    card_techniques_title: string;
+    /**
+     * Card subtitle for the Techniques entry in the Explore block.
+     */
+    card_techniques_subtitle: string;
+    /**
+     * Card title for the Vibes Check entry in the Explore block.
+     */
+    card_vibes_check_title: string;
+    /**
+     * Card subtitle for the Vibes Check entry in the Explore block.
+     */
+    card_vibes_check_subtitle: string;
+    /**
+     * Card title for the Music for Meditation entry in the Explore block.
+     */
+    card_music_title: string;
+    /**
+     * Card title for the Challenges entry in the Explore block.
+     */
+    card_challenges_title: string;
+    /**
+     * Card title for the Shri Mataji Talks entry in the Explore block. Preserve the embedded line break (\n).
+     */
+    card_talks_title: string;
+    /**
+     * Card title for the Subtle System entry in the Explore block.
+     */
+    card_subtle_system_title: string;
+    /**
+     * Card title for the 'Who is Shri Mataji' entry in the Explore block. Preserve the embedded line break (\n).
+     */
+    card_who_is_title: string;
+    /**
+     * Card title for the 'What is Sahaja Yoga?' entry in the Explore block.
+     */
+    card_what_is_title: string;
+    /**
+     * Card title for the Live Online Classes entry in the Explore block. Preserve the embedded line break (\n).
+     */
+    card_live_online_title: string;
+    /**
+     * Card title for the in-person class finder entry in the Explore block. Preserve the embedded line break (\n).
+     */
+    card_find_classes_title: string;
+    /**
+     * Generic 'Coming soon' badge used on locked Explore-block cards.
+     */
+    card_coming_soon: string;
+  };
+  explore_subtle_system?: {
+    /**
+     * Eyebrow / route label for the subtle-system screen.
+     */
+    screen_label: string;
+    /**
+     * Diagram title.
+     */
+    diagram_title: string;
+    /**
+     * Diagram subtitle prompting the user to tap to learn more.
+     */
+    diagram_subtitle: string;
+    /**
+     * Tab label switching the diagram to chakra view.
+     */
+    mode_chakras: string;
+    /**
+     * Tab label switching the diagram to channel view.
+     */
+    mode_channels: string;
+    /**
+     * Caption clarifying that the diagram shows a front view (left/right are mirrored relative to the viewer).
+     */
+    front_view_mirrored: string;
+    /**
+     * Filter chip label for the Right channel.
+     */
+    chip_right: string;
+    /**
+     * Filter chip label for the Center channel.
+     */
+    chip_center: string;
+    /**
+     * Filter chip label for the Left channel.
+     */
+    chip_left: string;
+    /**
+     * Detail label for the Right Aspect of a chakra.
+     */
+    aspect_right: string;
+    /**
+     * Detail label for the Center Aspect of a chakra.
+     */
+    aspect_center: string;
+    /**
+     * Detail label for the Left Aspect of a chakra.
+     */
+    aspect_left: string;
+  };
+  explore_talks_intro?: {
+    /**
+     * Inline message when a talk is temporarily unavailable to play.
+     */
+    unavailable: string;
+    /**
+     * Title of the talks intro screen.
+     */
+    title: string;
+    /**
+     * Long-form description of Shri Mataji and Sahaja Yoga used as fallback intro copy when a specific talk-clip description is unavailable.
+     */
+    generic_description: string;
+    /**
+     * Short clip-level description shown before a specific talk clip starts.
+     */
+    clip_description: string;
+    /**
+     * Speaker name shown on the talk card placed after the first meditation (e.g. 'Shri Mataji,'). The trailing comma is intentional — it precedes the role line.
+     */
+    post_first_meditation_name: string;
+    /**
+     * Speaker role/subtitle on the post-first-meditation talk card (e.g. 'The founder of Sahaja Yoga').
+     */
+    post_first_meditation_subtitle: string;
+    /**
+     * Body copy on the post-first-meditation talk card.
+     */
+    post_first_meditation_description: string;
+    /**
+     * Primary CTA that begins the talk.
+     */
+    start: string;
+    /**
+     * Decline CTA on the post-first-meditation talk card.
+     */
+    maybe_later: string;
+    /**
+     * Alternative CTA used on inline talk placements.
+     */
+    watch_now: string;
+  };
+  explore_talks_list?: {
+    /**
+     * Eyebrow / route title for the talks list screen (typically uppercase).
+     */
+    screen_title: string;
+    /**
+     * Section title above the list.
+     */
+    section_title: string;
+    /**
+     * Section description above the list.
+     */
+    description: string;
+    /**
+     * Default filter chip label ('All tags').
+     */
+    all_tags: string;
+    /**
+     * Inline link/CTA opening more information about a talk.
+     */
+    learn_more: string;
+    /**
+     * Card CTA that begins a talk.
+     */
+    start: string;
+    /**
+     * Status label shown on talks that the user has already watched.
+     */
+    watched: string;
+  };
+  explore_talks_player?: {
+    /**
+     * Error message shown when the player cannot load the requested talk.
+     */
+    unavailable: string;
+    /**
+     * Player play-control label.
      */
     play: string;
     /**
-     * Pause button label
+     * Player pause-control label.
      */
     pause: string;
     /**
-     * Meditation complete message
+     * Player replay-control label.
      */
-    complete: string;
+    replay: string;
     /**
-     * Timer display label
+     * Title of the subtitles bottom sheet.
      */
-    timer: string;
+    subtitles_title: string;
     /**
-     * Background sound selector
+     * Subtitles option label disabling captions.
      */
-    background_sound: string;
+    subtitles_off: string;
+    /**
+     * Subtitles language label — English.
+     */
+    subtitles_english: string;
+    /**
+     * Subtitles language label — Turkish.
+     */
+    subtitles_turkish: string;
+    /**
+     * Subtitles language label — Bulgarian.
+     */
+    subtitles_bulgarian: string;
+    /**
+     * Subtitles language label — Brazilian Portuguese.
+     */
+    subtitles_portuguese_brazil: string;
+    /**
+     * Subtitles language label — French.
+     */
+    subtitles_french: string;
+    /**
+     * Subtitles language label — Spanish.
+     */
+    subtitles_spanish: string;
+  };
+  profile_main?: {
+    /**
+     * Eyebrow above the favourites preview block on Profile (typically uppercase).
+     */
+    favourites_header: string;
+    /**
+     * Inline link expanding a preview block to its full screen.
+     */
+    see_all: string;
+    /**
+     * Empty-state title in the favourites preview block.
+     */
+    no_favourites_title: string;
+    /**
+     * Empty-state subtitle in the favourites preview block.
+     */
+    no_favourites_subtitle: string;
+    /**
+     * Title of the History entry in the Profile menu.
+     */
+    history_title: string;
+    /**
+     * Subtitle of the History entry in the Profile menu.
+     */
+    history_subtitle: string;
+    /**
+     * Title of the Account entry in the Profile menu.
+     */
+    account_title: string;
+    /**
+     * Subtitle of the Account entry in the Profile menu.
+     */
+    account_subtitle: string;
+    /**
+     * Title of the Privacy & advertising entry in the Profile menu — opens the consent settings screen (see consent.settings).
+     */
+    privacy_and_advertising_title: string;
+    /**
+     * Subtitle of the Privacy & advertising entry in the Profile menu.
+     */
+    privacy_and_advertising_subtitle: string;
+    /**
+     * Eyebrow above the feedback block on Profile (typically uppercase).
+     */
+    feedback_header: string;
+    /**
+     * Title of the Contact us entry in the Profile menu.
+     */
+    contact_title: string;
+    /**
+     * Subtitle of the Contact us entry in the Profile menu.
+     */
+    contact_subtitle: string;
+    /**
+     * Fallback joined-date string when no usable creation timestamp is available.
+     */
+    joined_fallback: string;
+    /**
+     * Joined-date string for exactly one month ago (singular).
+     */
+    joined_one_month: string;
+    /**
+     * Joined-date string for the multi-month range. MUST preserve the {months} placeholder — it is replaced at runtime with the month count.
+     */
+    joined_months: string;
+    /**
+     * Joined-date string for less than a year ago (fallback before the months-since helper).
+     */
+    joined_less_than_year: string;
+    /**
+     * Joined-date string for exactly one year ago (singular).
+     */
+    joined_one_year: string;
+    /**
+     * Joined-date string for multiple years ago. MUST preserve the {years} placeholder — it is replaced at runtime with the year count.
+     */
+    joined_years: string;
+  };
+  profile_favourites?: {
+    /**
+     * Screen title (typically uppercase).
+     */
+    title: string;
+    /**
+     * Snackbar shown after a favourite is removed (paired with the global Undo action from the general group).
+     */
+    removed_from_favourites: string;
+  };
+  profile_history?: {
+    /**
+     * Screen title (typically uppercase).
+     */
+    title: string;
+    /**
+     * Empty-state title when the user has no history entries.
+     */
+    empty_title: string;
+    /**
+     * Empty-state subtitle when the user has no history entries.
+     */
+    empty_subtitle: string;
+  };
+  profile_account?: {
+    /**
+     * Screen title.
+     */
+    title: string;
+    /**
+     * Eyebrow above the details block (typically uppercase).
+     */
+    details_header: string;
+    /**
+     * Label for the name input.
+     */
+    name_label: string;
+    /**
+     * Placeholder hint for the name input.
+     */
+    name_hint: string;
+    /**
+     * Save CTA used on inline forms.
+     */
+    save: string;
+    /**
+     * Loading-state label shown on the Save CTA while saving.
+     */
+    saving: string;
+    /**
+     * Confirmation toast shown after settings are saved.
+     */
+    saved: string;
+    /**
+     * Label used by the dedicated first-name edit row.
+     */
+    first_name_label: string;
+    /**
+     * Label used by the email row.
+     */
+    email_label: string;
+    /**
+     * Label used by the password row.
+     */
+    password_label: string;
+    /**
+     * Edit CTA used on read-only rows that open an edit modal.
+     */
+    edit_action: string;
+    /**
+     * Title of the edit-first-name modal.
+     */
+    edit_first_name_title: string;
+    /**
+     * Title of the edit-email modal.
+     */
+    edit_email_title: string;
+    /**
+     * Cancel CTA used in edit modals.
+     */
+    cancel: string;
+    /**
+     * Primary CTA in edit modals.
+     */
+    save_changes: string;
+    /**
+     * Error shown when saving account settings fails.
+     */
+    save_failed: string;
+    /**
+     * Title of the reset-password modal.
+     */
+    reset_password_title: string;
+    /**
+     * Body copy of the reset-password modal.
+     */
+    reset_password_description: string;
+    /**
+     * Primary CTA in the reset-password modal.
+     */
+    reset_password_action: string;
+    /**
+     * Confirmation toast shown after the reset link has been emailed.
+     */
+    reset_password_sent: string;
+    /**
+     * Error shown when sending the reset link fails.
+     */
+    reset_password_error: string;
+    /**
+     * Toast shown when email editing is not yet available.
+     */
+    email_edit_unavailable: string;
+    /**
+     * Inline placeholder shown when no email is available for the account.
+     */
+    email_unavailable: string;
+    /**
+     * CTA shown for guest users prompting them to create an account.
+     */
+    create_account: string;
+    /**
+     * Title of the delete-account confirmation.
+     */
+    delete_account_title: string;
+    /**
+     * Body copy of the delete-account confirmation.
+     */
+    delete_account_description: string;
+    /**
+     * Error shown when delete-account fails.
+     */
+    delete_account_error: string;
+    /**
+     * Error shown when delete-account requires the user to log in again first.
+     */
+    delete_account_requires_recent_login: string;
+    /**
+     * Title of the password re-entry modal used before destructive actions.
+     */
+    reauthenticate_title: string;
+    /**
+     * Body copy of the password re-entry modal.
+     */
+    reauthenticate_description: string;
+    /**
+     * Validation error shown when the password field is empty in the re-entry modal.
+     */
+    reauthenticate_required: string;
+    /**
+     * Error shown when the re-entered password is incorrect.
+     */
+    reauthenticate_invalid: string;
+    /**
+     * Primary CTA on the password re-entry modal.
+     */
+    continue_action: string;
+    /**
+     * Inline prompt shown on the email row for guest users.
+     */
+    guest_email_prompt: string;
+    /**
+     * Inline prompt shown on the password row for guest users.
+     */
+    guest_password_prompt: string;
+    /**
+     * Login CTA used in the guest prompts.
+     */
+    login: string;
+    /**
+     * Logout CTA in the account screen.
+     */
+    logout: string;
+    /**
+     * Inline link opening the Privacy Policy webview from the account screen.
+     */
+    privacy_policy: string;
+    /**
+     * Destructive CTA opening the delete-account flow.
+     */
+    delete_account: string;
+  };
+  profile_privacy_advertising?: {
+    /**
+     * Screen title (e.g. 'Help spread the word and make the app better').
+     */
+    screen_title: string;
+    /**
+     * Status label shown next to a toggle that is currently allowed. MUST preserve the {date} placeholder — it is replaced at runtime with the localized date of the most recent consent decision (e.g. '16 May 2026').
+     */
+    status_allowed: string;
+    /**
+     * Status label shown next to a toggle that is currently disallowed.
+     */
+    status_not_allowed: string;
+    /**
+     * Section title for the anonymous product analytics toggle (e.g. 'Anonymous product analytics'). Drives productAnalyticsOptOut.
+     */
+    product_analytics_title: string;
+    /**
+     * Section body explaining anonymous product analytics: we log aggregated usage data to fix bugs and improve We Meditate, no individual data, no advertisers, no user profile. Must remain consistent with the TelemetryDeck posture in analytics-simplified/01-strategy.md §4.
+     */
+    product_analytics_description: string;
+    /**
+     * Section title for the advertising-measurement toggle (e.g. 'Advertising measurement and improvement'). Drives adsMarketingConsent.
+     */
+    advertising_title: string;
+    /**
+     * First paragraph prefix of the advertising section; combined inline with advertising_body_intro_link and advertising_body_intro_suffix. Include any trailing space.
+     */
+    advertising_body_intro_prefix: string;
+    /**
+     * Inline link text inside the first paragraph (e.g. 'what we share'). Tapping opens the same 'what we share' detail used by the ad consent modal.
+     */
+    advertising_body_intro_link: string;
+    /**
+     * First paragraph suffix completing the sentence after the inline link. Include the leading separator if needed.
+     */
+    advertising_body_intro_suffix: string;
+    /**
+     * Second paragraph of the advertising section: how granting consent helps WeMeditate use donations responsibly, improve campaigns, suppress ads to existing users, and reach similar people.
+     */
+    advertising_body_benefits: string;
+    /**
+     * Third paragraph of the advertising section reiterating the never-shared categories (mood, goals, hand sensations, reflections, class location, spiritual-practice details). Must remain consistent with analytics-simplified/03-marketing-event-taxonomy.md §2.
+     */
+    advertising_body_never_share: string;
+    /**
+     * Fourth paragraph of the advertising section explaining that the user can change their choice anytime using the toggle at the top of this screen.
+     */
+    advertising_body_change_hint: string;
+    /**
+     * Sub-section header listing current advertising platforms (e.g. 'Current advertising platforms').
+     */
+    advertising_platforms_header: string;
+    /**
+     * Bullet item for Meta (Facebook + Instagram + Audience Network). Brand name — usually kept as 'Meta'.
+     */
+    advertising_platform_meta: string;
+    /**
+     * Bullet item for Google Ads. Brand name — usually kept as 'Google Ads'.
+     */
+    advertising_platform_google_ads: string;
+    /**
+     * Bullet item for Apple Search Ads. Brand name — usually kept as 'Apple Search Ads'.
+     */
+    advertising_platform_apple_search_ads: string;
+  };
+  profile_contact?: {
+    /**
+     * Screen title (typically uppercase).
+     */
+    title: string;
+    /**
+     * Hero copy above the form.
+     */
+    header: string;
+    /**
+     * Subtitle below the hero copy.
+     */
+    subtitle: string;
+    /**
+     * Input field placeholder hint for the feedback text area.
+     */
+    placeholder: string;
+    /**
+     * Submit CTA on the form.
+     */
+    send: string;
+    /**
+     * Loading-state label shown on the Submit CTA while sending.
+     */
+    sending: string;
+    /**
+     * Confirmation toast shown after the feedback is sent.
+     */
+    sent: string;
+    /**
+     * Validation error shown when the feedback field is empty.
+     */
+    empty_error: string;
+    /**
+     * Validation error shown when the feedback is shorter than the minimum length (50 characters).
+     */
+    min_length_error: string;
+    /**
+     * Error shown when sending the feedback fails.
+     */
+    send_error: string;
+  };
+  meditation_intent?: {
+    /**
+     * Continue CTA on the intent carousel.
+     */
+    carousel_continue: string;
+    /**
+     * Skip-link shown over the intent video that lets the user proceed without watching.
+     */
+    skip_video_and_continue: string;
+    /**
+     * Replay-link shown after the intent video ends.
+     */
+    repeat_video: string;
+    /**
+     * Primary CTA that starts the actual meditation after the intent flow.
+     */
+    start_meditation: string;
+    /**
+     * Tertiary CTA letting a new user skip the first meditation and just browse the app. Tied to the onboarding_ready_action / skip_and_explore_app_press analytics event.
+     */
+    skip_and_explore_the_app: string;
+    /**
+     * Step indicator (e.g. 'Step 1 of 3') at the top of the intent flow.
+     */
+    step_label: string;
+    /**
+     * Intent screen title shown during the day. Preserve the embedded line break (\n).
+     */
+    title_today: string;
+    /**
+     * Intent screen title shown in the evening. Preserve the embedded line break (\n).
+     */
+    title_tonight: string;
+    /**
+     * Title of the locked first-meditation card before activation.
+     */
+    first_meditation_title: string;
+    /**
+     * Subtitle of the locked first-meditation card.
+     */
+    first_meditation_subtitle: string;
+    /**
+     * Title shown when a returning user is invited to repeat the first meditation.
+     */
+    repeat_first_meditation_title: string;
+    /**
+     * Subtitle shown when a returning user is invited to repeat the first meditation.
+     */
+    repeat_first_meditation_subtitle: string;
+    /**
+     * Title shown on the 'ready to try?' confirmation step before starting the first meditation.
+     */
+    ready_to_try_title: string;
+    /**
+     * Subtitle for the 'ready to try?' step, beginner variant.
+     */
+    ready_to_try_subtitle_beginner: string;
+    /**
+     * Subtitle for the 'ready to try?' step, repeat variant.
+     */
+    ready_to_try_subtitle_repeat: string;
+    /**
+     * Title of the morning quick-meditation card in the intent flow.
+     */
+    quick_morning_title: string;
+    /**
+     * Title of the afternoon quick-meditation card in the intent flow.
+     */
+    quick_afternoon_title: string;
+    /**
+     * Title of the evening quick-meditation card in the intent flow.
+     */
+    quick_evening_title: string;
+    /**
+     * Subtitle of the morning quick-meditation card.
+     */
+    quick_morning_subtitle: string;
+    /**
+     * Subtitle of the afternoon quick-meditation card. Preserve the embedded line break (\n).
+     */
+    quick_afternoon_subtitle: string;
+    /**
+     * Subtitle of the evening quick-meditation card.
+     */
+    quick_evening_subtitle: string;
+    /**
+     * Title of the personalised long-session card in the intent flow.
+     */
+    personalized_title: string;
+    /**
+     * Subtitle of the personalised long-session card.
+     */
+    personalized_subtitle: string;
+    /**
+     * Subtitle shown on cards that are locked until the user completes their first meditation.
+     */
+    locked_subtitle: string;
+    /**
+     * Inline link/CTA used on intent-flow cards to view more detail.
+     */
+    learn_more: string;
+    /**
+     * CTA on a locked card that takes the user back to the first meditation flow.
+     */
+    go_to_first_meditation: string;
+    /**
+     * CTA opening the 'schedule for later' bottom sheet.
+     */
+    set_reminder_for_later: string;
+    /**
+     * Title shown in the locked-preview card for Quick meditations (‘Start right away’).
+     */
+    locked_quick_start_title: string;
+    /**
+     * Locked-preview description for morning Quick meditations.
+     */
+    locked_quick_start_description_morning: string;
+    /**
+     * Locked-preview description for afternoon Quick meditations.
+     */
+    locked_quick_start_description_afternoon: string;
+    /**
+     * Locked-preview description for evening Quick meditations.
+     */
+    locked_quick_start_description_evening: string;
+    /**
+     * Title of the custom-time row in the Quick locked preview.
+     */
+    locked_quick_custom_time_title: string;
+    /**
+     * Description of the custom-time row in the Quick locked preview.
+     */
+    locked_quick_custom_time_description: string;
+    /**
+     * Title of the feeling-picker row in the Personalised locked preview.
+     */
+    locked_personalized_feeling_title: string;
+    /**
+     * Description of the feeling-picker row in the Personalised locked preview.
+     */
+    locked_personalized_feeling_description: string;
+    /**
+     * Title of the custom-time row in the Personalised locked preview.
+     */
+    locked_personalized_custom_time_title: string;
+    /**
+     * Description of the custom-time row in the Personalised locked preview.
+     */
+    locked_personalized_custom_time_description: string;
+  };
+  meditation_reminder?: {
+    /**
+     * Title of the prompt that suggests scheduling the first meditation for later. Preserve the embedded line break (\n).
+     */
+    prompt_title: string;
+    /**
+     * Subtitle of the same scheduling prompt. Preserve the embedded line break (\n).
+     */
+    prompt_subtitle: string;
+    /**
+     * Primary CTA on the scheduling prompt.
+     */
+    prompt_set_reminder: string;
+    /**
+     * Decline CTA on the scheduling prompt.
+     */
+    prompt_no_thanks: string;
+    /**
+     * Title of the rationale screen explaining why notification permission is needed before showing the OS prompt.
+     */
+    prompt_allow_notifications_title: string;
+    /**
+     * Subtitle of the same rationale screen. References the wording on the next (OS) screen — keep 'Allow' consistent with the OS prompt translation if locale-specific.
+     */
+    prompt_allow_notifications_subtitle: string;
+    /**
+     * Primary CTA on the notification-rationale screen that triggers the OS permission prompt.
+     */
+    prompt_allow_notifications_primary: string;
+    /**
+     * Decline CTA on the notification-rationale screen.
+     */
+    prompt_not_now: string;
+    /**
+     * Title shown when notifications were previously denied and need to be re-enabled from OS Settings.
+     */
+    prompt_turn_on_notifications_title: string;
+    /**
+     * Subtitle of the same 'open Settings' prompt.
+     */
+    prompt_turn_on_notifications_subtitle: string;
+    /**
+     * CTA that deep-links to the app’s OS notification settings.
+     */
+    prompt_open_settings: string;
+    /**
+     * Title of the bottom sheet where the user picks a reminder time. Preserve the embedded line break (\n).
+     */
+    sheet_title: string;
+    /**
+     * Dismiss action on the reminder bottom sheet.
+     */
+    sheet_dont_set: string;
+    /**
+     * Confirm CTA on the reminder bottom sheet.
+     */
+    sheet_done: string;
+    /**
+     * CTA letting the user return to the meditation flow from the reminder sheet.
+     */
+    sheet_return_to_meditation: string;
+    /**
+     * CTA letting the user exit the meditation flow from the reminder sheet.
+     */
+    sheet_leave_meditation: string;
+    /**
+     * Title of the success confirmation after a reminder is scheduled.
+     */
+    sheet_success_title: string;
+    /**
+     * Subtitle of the success confirmation after a reminder is scheduled.
+     */
+    sheet_success_subtitle: string;
+    /**
+     * CTA on the success confirmation suggesting the user explores the app while waiting.
+     */
+    sheet_explore_app: string;
+    /**
+     * CTA on the success confirmation suggesting the user starts the first meditation immediately instead.
+     */
+    sheet_start_first_meditation: string;
+    /**
+     * Error toast shown when scheduling the reminder fails.
+     */
+    sheet_error: string;
+    /**
+     * Preset chip label suggesting a reminder later the same day.
+     */
+    preset_unwind_later_today: string;
+    /**
+     * Preset chip label suggesting a reminder at the start of the week.
+     */
+    preset_start_your_week_calm: string;
+    /**
+     * Preset chip label suggesting a reminder midweek.
+     */
+    preset_find_your_midweek_balance: string;
+    /**
+     * Preset chip label suggesting a recharge break.
+     */
+    preset_pause_and_recharge: string;
+    /**
+     * Preset chip label suggesting a reminder before the weekend.
+     */
+    preset_mindful_break_before_weekend: string;
+    /**
+     * Preset chip label suggesting a reminder at the end of the work week.
+     */
+    preset_end_your_week_with_peace: string;
+    /**
+     * Preset chip label suggesting a weekend slow-down reminder.
+     */
+    preset_slow_down_weekend: string;
+    /**
+     * Preset chip label suggesting a Sunday reset reminder.
+     */
+    preset_reset_for_week_ahead: string;
+    /**
+     * Title of the scheduled local notification used by the generic meditation reminder.
+     */
+    notification_title: string;
+    /**
+     * Notification body used when the meditation is still locked at the time the reminder fires.
+     */
+    notification_body_locked: string;
+    /**
+     * Notification body used when the reminder is for a previously exited meditation.
+     */
+    notification_body_exit: string;
+    /**
+     * Title of the dedicated full-screen rationale used when reminder scheduling requires notification permission.
+     */
+    allow_notifications_screen_title: string;
+    /**
+     * Subtitle of the same full-screen rationale. Preserve the embedded line break (\n) and the trailing sparkle emoji (✨) if used in copy.
+     */
+    allow_notifications_screen_subtitle: string;
+  };
+  meditation_footsoak?: {
+    /**
+     * Step indicator (e.g. 'Step 3 of 3') at the top of the foot-soak screen.
+     */
+    step_label: string;
+    /**
+     * Screen title asking whether the user wants to foot-soak with this meditation.
+     */
+    title: string;
+    /**
+     * Body-copy prefix; combined inline with description_emphasis and description_suffix to form a single sentence. Include trailing space if the locale needs one.
+     */
+    description_prefix: string;
+    /**
+     * Emphasised word in the foot-soak body copy, typically rendered in italic or bold (e.g. 'really').
+     */
+    description_emphasis: string;
+    /**
+     * Body-copy suffix completing the foot-soak description sentence. Include the leading space.
+     */
+    description_suffix: string;
+    /**
+     * Inline link/CTA opening the foot-soak tutorial.
+     */
+    tutorial_cta: string;
+    /**
+     * Primary CTA that starts the meditation with a foot-soak.
+     */
+    start_with_footsoak: string;
+    /**
+     * Secondary CTA that starts the meditation without a foot-soak.
+     */
+    start_meditation: string;
+  };
+  meditation_player?: {
+    /**
+     * Error title shown when the meditation track fails to load in the player.
+     */
+    load_error_title: string;
+  };
+  meditation_vibes_check?: {
+    /**
+     * Initial Vibes Check question shown before the per-hand prompt. Preserve the embedded line break (\n).
+     */
+    intro_question: string;
+    /**
+     * Per-hand question prefix; combined with left_hand or right_hand and question_suffix to form the full prompt (e.g. 'What do you feel on your left hand?'). Preserve the trailing line break (\n).
+     */
+    question_prefix: string;
+    /**
+     * Per-hand question suffix (typically ' hand?'). Include the leading space.
+     */
+    question_suffix: string;
+    /**
+     * Inline noun for the left hand, plugged into the per-hand question template.
+     */
+    left_hand: string;
+    /**
+     * Inline noun for the right hand, plugged into the per-hand question template.
+     */
+    right_hand: string;
+    /**
+     * Selectable sensation: cool. Maps to raw selection 'cool' (first-party storage only).
+     */
+    cool: string;
+    /**
+     * Selectable sensation: warm.
+     */
+    warm: string;
+    /**
+     * Selectable sensation: fingers tingling.
+     */
+    fingers_tingling: string;
+    /**
+     * Selectable sensation: nothing felt.
+     */
+    nothing: string;
+    /**
+     * Primary CTA to confirm the current Vibes Check answer and continue.
+     */
+    continue_action: string;
+    /**
+     * Skip-like CTA used when the user is unsure what they felt. Maps to derived firstMedExperience = not_sure.
+     */
+    not_sure: string;
+    /**
+     * Acknowledge CTA at the end of the Vibes Check explanation.
+     */
+    got_it: string;
+    /**
+     * Reassurance shown when the user selects 'nothing' for both hands.
+     */
+    interpretation_nothing: string;
+    /**
+     * Intro line of the Vibes Check interpretation screen.
+     */
+    interpretation_intro: string;
+    /**
+     * Per-hand detail copy in the Vibes Check interpretation screen.
+     */
+    interpretation_detail: string;
+    /**
+     * Inline action that opens the skip-confirmation prompt.
+     */
+    skip_vibes_check: string;
+    /**
+     * Title of the skip-confirmation prompt.
+     */
+    skip_prompt_title: string;
+    /**
+     * Body copy of the skip-confirmation prompt.
+     */
+    skip_prompt_description: string;
+    /**
+     * CTA returning the user from the skip prompt to the Vibes Check explanation.
+     */
+    back_to_explanation: string;
+    /**
+     * Title of the prompt offering to restart the first meditation from the beginning.
+     */
+    return_to_meditation_prompt_title: string;
+    /**
+     * Body copy of the same restart prompt.
+     */
+    return_to_meditation_prompt_description: string;
+    /**
+     * Primary CTA on the restart prompt.
+     */
+    return_to_meditation_action: string;
+    /**
+     * Decline CTA on the restart prompt.
+     */
+    skip_it: string;
+  };
+  meditation_feedback?: {
+    /**
+     * Form title.
+     */
+    title: string;
+    /**
+     * Form description / prompt for free-text feedback.
+     */
+    description: string;
+    /**
+     * Validation error shown when the feedback is shorter than the minimum length (50 characters).
+     */
+    error_length: string;
+    /**
+     * Input field placeholder hint for the feedback text area.
+     */
+    hint: string;
+    /**
+     * Submit CTA on the feedback form.
+     */
+    send: string;
+    /**
+     * Title of the thank-you confirmation after the feedback is submitted.
+     */
+    thank_you: string;
+    /**
+     * Body of the thank-you confirmation. Preserve the embedded line breaks (\n) — they control the hero layout.
+     */
+    thank_you_description: string;
+    /**
+     * Close CTA on the thank-you confirmation.
+     */
+    close: string;
+  };
+  auth_common?: {
+    /**
+     * Divider label between email and social-provider auth options.
+     */
+    or: string;
+    /**
+     * Social-auth button label for Apple Sign-In.
+     */
+    continue_with_apple: string;
+    /**
+     * Social-auth button label for Google Sign-In.
+     */
+    continue_with_google: string;
+    /**
+     * Social-auth button label for Facebook Sign-In.
+     */
+    continue_with_facebook: string;
+    /**
+     * Auth-method button label that opens the email/password flow.
+     */
+    continue_with_email: string;
+    /**
+     * Generic cancel CTA used on auth modals and prompts.
+     */
+    cancel: string;
+    /**
+     * Validation error shown when the email field is empty.
+     */
+    error_enter_email: string;
+    /**
+     * Validation error shown when the email field is not a valid email.
+     */
+    error_invalid_email: string;
+    /**
+     * Validation error shown when the password field is empty.
+     */
+    error_enter_password: string;
+    /**
+     * Validation error shown when the password is shorter than the minimum length (6 characters).
+     */
+    error_password_min_length: string;
+  };
+  auth_login?: {
+    /**
+     * Login screen title.
+     */
+    title: string;
+    /**
+     * Label for the email input.
+     */
+    email_label: string;
+    /**
+     * Placeholder hint for the email input.
+     */
+    email_placeholder: string;
+    /**
+     * Label for the password input.
+     */
+    password_label: string;
+    /**
+     * Placeholder hint for the password input.
+     */
+    password_placeholder: string;
+    /**
+     * Primary CTA on the login form.
+     */
+    next: string;
+    /**
+     * Loading-state label shown on the primary CTA while sign-in is in flight.
+     */
+    signing_in: string;
+    /**
+     * Link opening the password recovery flow.
+     */
+    forgot_password: string;
+    /**
+     * Tertiary link that routes the user to account creation instead of login.
+     */
+    continue_as_new_user: string;
+    /**
+     * Title of the branch shown when the entered email has no matching account.
+     */
+    account_not_found_title: string;
+    /**
+     * Subtitle of the same branch.
+     */
+    account_not_found_subtitle: string;
+    /**
+     * Title of the branch shown when the entered email matches an account that uses a different sign-in method.
+     */
+    account_exists_title: string;
+    /**
+     * Subtitle of the same branch. MUST preserve the {providers} placeholder — it is replaced at runtime with the localized provider list (e.g. 'Google or Apple').
+     */
+    account_exists_subtitle: string;
+    /**
+     * CTA on the account-not-found branch routing the user to account creation.
+     */
+    create_new_account: string;
+    /**
+     * CTA on the account-not-found branch letting the user re-enter a different email.
+     */
+    try_different_account: string;
+    /**
+     * Fallback value injected into the {providers} placeholder when the existing provider list is empty or unresolved.
+     */
+    account_exists_existing_provider_fallback: string;
+    /**
+     * CTA on the account-exists branch that reopens the login flow.
+     */
+    open_login: string;
+    /**
+     * Error shown when the email-continuation branch cannot proceed.
+     */
+    error_cannot_continue_with_email: string;
+    /**
+     * Error shown for invalid email/password combinations.
+     */
+    error_invalid_credentials: string;
+    /**
+     * Error shown when sign-in is rate-limited.
+     */
+    error_too_many_requests: string;
+    /**
+     * Error shown when sign-in succeeds at Firebase but the local session cannot be persisted.
+     */
+    error_session_persistence: string;
+    /**
+     * Generic sign-in failure error.
+     */
+    error_generic: string;
+  };
+  auth_restore_password?: {
+    /**
+     * Password recovery screen title.
+     */
+    title: string;
+    /**
+     * Body copy explaining the recovery-link flow.
+     */
+    description: string;
+    /**
+     * Label for the email input on the recovery form.
+     */
+    email_label: string;
+    /**
+     * Placeholder hint for the email input on the recovery form.
+     */
+    email_placeholder: string;
+    /**
+     * Primary CTA submitting the recovery request.
+     */
+    submit: string;
+    /**
+     * Validation error on the recovery form for an invalid email.
+     */
+    error_invalid_email: string;
+  };
+  auth_restore_password_email_sent?: {
+    /**
+     * Confirmation message. Preserve the embedded line break (\n).
+     */
+    message: string;
+    /**
+     * Acknowledge CTA on the confirmation.
+     */
+    ok: string;
+  };
+  auth_create_account?: {
+    /**
+     * Sheet / modal title shown in the navigation chrome.
+     */
+    title: string;
+    /**
+     * Hero title on the account creation screen.
+     */
+    screen_title: string;
+    /**
+     * Hero subtitle on the account creation screen.
+     */
+    screen_subtitle: string;
+    /**
+     * Tertiary action allowing a guest user to skip account creation.
+     */
+    skip_and_explore: string;
+    /**
+     * Inline-text prefix of the consent checkbox label. Combined with consent_terms, consent_and_acknowledge, and consent_privacy. Include any trailing space.
+     */
+    consent_prefix: string;
+    /**
+     * Inline link text for the Terms & Conditions, opening the in-app webview.
+     */
+    consent_terms: string;
+    /**
+     * Connector text between the Terms link and the Privacy Policy link. Include any required spaces.
+     */
+    consent_and_acknowledge: string;
+    /**
+     * Inline link text for the Privacy Policy, opening the in-app webview.
+     */
+    consent_privacy: string;
+    /**
+     * Validation error shown when the user tries to submit without checking the consent box.
+     */
+    error_check_consent: string;
+    /**
+     * Label for the email input.
+     */
+    email_label: string;
+    /**
+     * Placeholder hint for the email input.
+     */
+    email_placeholder: string;
+    /**
+     * Label for the password input.
+     */
+    password_label: string;
+    /**
+     * Placeholder hint for the password input.
+     */
+    password_placeholder: string;
+    /**
+     * Primary CTA submitting account creation.
+     */
+    submit: string;
+    /**
+     * Loading-state label shown on the primary CTA while account creation is in flight.
+     */
+    creating: string;
+    /**
+     * Error shown when the email is already associated with an account.
+     */
+    error_email_in_use: string;
+    /**
+     * CTA on the email-in-use branch redirecting to login.
+     */
+    login_with_existing_account: string;
+    /**
+     * Validation error for an invalid email.
+     */
+    error_invalid_email: string;
+    /**
+     * Validation error for a password shorter than the minimum length.
+     */
+    error_weak_password: string;
+    /**
+     * Error shown when account creation is rate-limited.
+     */
+    error_too_many_requests: string;
+    /**
+     * Error shown when the account is created but the local session cannot be persisted.
+     */
+    error_session_persistence: string;
+    /**
+     * Generic account-creation failure error.
+     */
+    error_generic: string;
+    /**
+     * Error shown when Google sign-in fails during account creation.
+     */
+    error_google_failed: string;
+    /**
+     * Error shown when Apple sign-in fails during account creation.
+     */
+    error_apple_failed: string;
+    /**
+     * Error shown when Facebook sign-in fails during account creation.
+     */
+    error_facebook_failed: string;
+    /**
+     * Message shown when the user cancels the social-auth flow.
+     */
+    error_provider_cancelled: string;
+  };
+  navigation?: {
+    /**
+     * Bottom-nav label for the Daily tab (home / today’s meditations).
+     */
+    daily: string;
+    /**
+     * Bottom-nav label for the Path tab (guided learning course).
+     */
+    path: string;
+    /**
+     * Bottom-nav label for the Explore tab (library of meditations, talks, techniques).
+     */
+    explore: string;
+    /**
+     * Bottom-nav label for the Profile tab (account, history, favourites, settings).
+     */
+    profile: string;
+  };
+  general?: {
+    /**
+     * Generic back action label (used as accessibility text and as a back button label).
+     */
+    back: string;
+    /**
+     * Generic retry action label used on error states across the app.
+     */
+    retry: string;
+    /**
+     * Generic undo action label used on snackbars and other transient confirmations.
+     */
+    undo: string;
   };
   updatedAt?: string | null;
   createdAt?: string | null;
@@ -3316,11 +5215,46 @@ export interface WmAppConfigSelect<T extends boolean = true> {
  * via the `definition` "wm-app-translations_select".
  */
 export interface WmAppTranslationsSelect<T extends boolean = true> {
-  daily?: T;
-  path?: T;
-  explore?: T;
-  profile?: T;
-  meditation?: T;
+  onboarding_welcome?: T;
+  onboarding_name?: T;
+  onboarding_greeting?: T;
+  onboarding_user_type?: T;
+  onboarding_carousel?: T;
+  onboarding_consent_modal?: T;
+  daily_main?: T;
+  daily_common?: T;
+  daily_load_info?: T;
+  path_overview?: T;
+  path_info?: T;
+  path_step_1?: T;
+  path_step_2?: T;
+  path_step_3?: T;
+  path_step_4?: T;
+  path_step_complete?: T;
+  explore_overview?: T;
+  explore_subtle_system?: T;
+  explore_talks_intro?: T;
+  explore_talks_list?: T;
+  explore_talks_player?: T;
+  profile_main?: T;
+  profile_favourites?: T;
+  profile_history?: T;
+  profile_account?: T;
+  profile_privacy_advertising?: T;
+  profile_contact?: T;
+  meditation_intent?: T;
+  meditation_reminder?: T;
+  meditation_footsoak?: T;
+  meditation_player?: T;
+  meditation_vibes_check?: T;
+  meditation_feedback?: T;
+  auth_common?: T;
+  auth_login?: T;
+  auth_restore_password?: T;
+  auth_restore_password_email_sent?: T;
+  auth_create_account?: T;
+  navigation?: T;
+  general?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
