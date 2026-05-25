@@ -3042,27 +3042,43 @@ export interface WmAppConfig {
   /**
    * Page describing live online classes for the app.
    */
-  classesPage?: (number | null) | Page;
+  classesPage: number | Page;
   /**
    * Page describing the live meditations feature for the app.
    */
-  liveMeditationsPage?: (number | null) | Page;
+  liveMeditationsPage: number | Page;
   /**
    * Page describing meditation techniques for the app.
    */
-  techniquesPage?: (number | null) | Page;
+  techniquesPage: number | Page;
   /**
    * Page describing the lectures feature for the app.
    */
-  lecturesPage?: (number | null) | Page;
+  lecturesPage: number | Page;
   /**
    * Privacy policy page surfaced from the app.
    */
-  privacyPage?: (number | null) | Page;
+  privacyPage: number | Page;
   /**
    * Terms of service page surfaced from the app.
    */
-  termsPage?: (number | null) | Page;
+  termsPage: number | Page;
+  /**
+   * Page about Shri Mataji surfaced from the app.
+   */
+  shriMatajiPage: number | Page;
+  /**
+   * Page about Sahaja Yoga surfaced from the app.
+   */
+  sahajaYogaPage: number | Page;
+  /**
+   * Explore section page surfaced from the app.
+   */
+  explorePage: number | Page;
+  /**
+   * Subtle system page surfaced from the app.
+   */
+  subtleSystemPage: number | Page;
   /**
    * Self-realization meditation for new users.
    */
@@ -3099,22 +3115,6 @@ export interface WmAppConfig {
         id?: string | null;
       }[]
     | null;
-  /**
-   * Page about Shri Mataji surfaced from the app.
-   */
-  shriMatajiPage: number | Page;
-  /**
-   * Page about Sahaja Yoga surfaced from the app.
-   */
-  sahajaYogaPage: number | Page;
-  /**
-   * Explore section page surfaced from the app.
-   */
-  explorePage: number | Page;
-  /**
-   * Subtle system page surfaced from the app.
-   */
-  subtleSystemPage: number | Page;
   /**
    * Lecture shown when no personalized lecture content is available.
    */
@@ -4156,6 +4156,10 @@ export interface WmAppConfigSelect<T extends boolean = true> {
   lecturesPage?: T;
   privacyPage?: T;
   termsPage?: T;
+  shriMatajiPage?: T;
+  sahajaYogaPage?: T;
+  explorePage?: T;
+  subtleSystemPage?: T;
   selfRealizationMeditation?: T;
   postRealizationLecture?: T;
   vibeCheckTracks?:
@@ -4166,10 +4170,6 @@ export interface WmAppConfigSelect<T extends boolean = true> {
         subtitles?: T;
         id?: T;
       };
-  shriMatajiPage?: T;
-  sahajaYogaPage?: T;
-  explorePage?: T;
-  subtleSystemPage?: T;
   fallbackLecture?: T;
   iosAppUrl?: T;
   androidAppUrl?: T;

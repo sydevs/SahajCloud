@@ -30,7 +30,12 @@ const APP_DESTINATION_PAGE_FIELDS = [
   { name: 'subtleSystemPage', description: 'Subtle system page surfaced from the app.' },
 ] as const
 
-export const APP_REQUIRED_PAGE_FIELDS = READINESS_PAGE_FIELDS.map((p) => p.name)
+const ALL_APP_PAGE_FIELDS = [
+  ...READINESS_PAGE_FIELDS,
+  ...APP_DESTINATION_PAGE_FIELDS,
+] as const
+
+export const APP_REQUIRED_PAGE_FIELDS = ALL_APP_PAGE_FIELDS.map((p) => p.name)
 
 export const WeMeditateAppConfig: GlobalConfig = {
   slug: 'wm-app-config',
@@ -46,10 +51,11 @@ export const WeMeditateAppConfig: GlobalConfig = {
           label: 'Pages',
           description:
             'App-required pages. The same page is used for every locale; the localized content on each page is sourced at read time.',
-          fields: READINESS_PAGE_FIELDS.map((page) => ({
+          fields: ALL_APP_PAGE_FIELDS.map((page) => ({
             name: page.name,
             type: 'relationship' as const,
             relationTo: 'pages' as const,
+            required: true,
             admin: { description: page.description },
           })),
         },
@@ -114,16 +120,6 @@ export const WeMeditateAppConfig: GlobalConfig = {
               ],
             },
           ],
-        },
-        {
-          label: 'App Pages',
-          fields: APP_DESTINATION_PAGE_FIELDS.map(({ name, description }) => ({
-            name,
-            type: 'relationship' as const,
-            relationTo: 'pages' as const,
-            required: true,
-            admin: { description },
-          })),
         },
         {
           label: 'General',
