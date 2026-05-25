@@ -163,6 +163,7 @@ console.error('[Route Name] Error message:', { error: error.message })
 
 ### Sentry integration
 
+- `src/worker.ts` — Cloudflare Worker entry. Wraps the OpenNext-generated handler with `Sentry.withSentry()` so `captureException` actually reaches Sentry (without it, the SDK is a silent no-op in Workers).
 - `src/lib/sentryPlugin.ts` — Cloudflare Workers-compatible Sentry plugin (`@sentry/cloudflare`).
 - `src/instrumentation-client.ts` — browser-side Sentry via `@sentry/react` (Next.js instrumentation hook).
 - `src/app/global-error.tsx` — React error boundary with Sentry reporting.

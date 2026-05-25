@@ -156,6 +156,8 @@ declare global {
   interface CloudflareEnv {
     D1: D1Database
     R2: R2Bucket
+    NODE_ENV?: string
+    NEXT_PUBLIC_SENTRY_DSN?: string
   }
 
   /**
