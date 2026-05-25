@@ -92,11 +92,30 @@ function articleWithLectureLink(lectureId: number) {
 describe('WeMeditateAppStatus Global', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
+  let requiredAppPages: {
+    shriMatajiPage: number
+    sahajaYogaPage: number
+    explorePage: number
+    subtleSystemPage: number
+  }
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
+
+    const [shriMatajiPage, sahajaYogaPage, explorePage, subtleSystemPage] = await Promise.all([
+      testData.createPage(payload, { title: 'Shri Mataji Page' }),
+      testData.createPage(payload, { title: 'Sahaja Yoga Page' }),
+      testData.createPage(payload, { title: 'Explore Page' }),
+      testData.createPage(payload, { title: 'Subtle System Page' }),
+    ])
+    requiredAppPages = {
+      shriMatajiPage: shriMatajiPage.id,
+      sahajaYogaPage: sahajaYogaPage.id,
+      explorePage: explorePage.id,
+      subtleSystemPage: subtleSystemPage.id,
+    }
   })
 
   afterAll(async () => {
@@ -263,6 +282,7 @@ describe('WeMeditateAppStatus Global', () => {
       await payload.updateGlobal({
         slug: 'wm-app-config',
         data: {
+          ...requiredAppPages,
           classesPage: publishedCorePage.id,
           lecturesPage: draftCorePage.id,
         },
@@ -348,7 +368,7 @@ describe('WeMeditateAppStatus Global', () => {
       await payload.updateGlobal({
         slug: 'wm-app-config',
         locale: 'en',
-        data: { selfRealizationMeditation: med.id },
+        data: { ...requiredAppPages, selfRealizationMeditation: med.id },
       })
       const report = await run(appConfigSection, payload)
       const group = report.groups.find((g) => g.key === 'self-realization-meditation')

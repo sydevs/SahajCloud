@@ -3,6 +3,12 @@ import type { CollectionAfterChangeHook } from 'payload'
 import { extractID } from 'payload/shared'
 
 import { recomputeWeightsForMeditation } from '@/hooks/meditationHooks'
+import {
+  getFrameDiagnosticsLogContext,
+  normalizeMeditationFrames,
+  persistMeditationNodeWeightsCache,
+  reportMeditationNodeWeightsCacheError,
+} from '@/lib/meditations/frames'
 import type { Meditation } from '@/payload-types'
 
 /**
@@ -33,6 +39,9 @@ export const cascadeFrameNodeChange: CollectionAfterChangeHook = async ({
   const after = doc?.subtleSystemNode ? extractID(doc.subtleSystemNode) : null
   if (before === after) return doc
 
+  const changedFrameId = typeof doc.id === 'number' ? doc.id : Number(doc.id)
+  if (!Number.isSafeInteger(changedFrameId)) return doc
+
   const { docs } = await req.payload.find({
     collection: 'meditations',
     limit: 0,
@@ -42,27 +51,46 @@ export const cascadeFrameNodeChange: CollectionAfterChangeHook = async ({
     req,
   })
 
-  const affected = (docs as Meditation[]).filter(
-    (m) =>
-      Array.isArray(m.frames) &&
-      m.frames.some((f) => {
-        if (!f || typeof f !== 'object') return false
-        const fid = (f as { id?: unknown }).id
-        return fid === doc.id
-      }),
-  )
+  const affected = (docs as Meditation[])
+    .map((meditation) => ({
+      meditation,
+      normalized: normalizeMeditationFrames(meditation.frames),
+    }))
+    .filter(({ normalized }) => normalized.frames.some((f) => f.id === changedFrameId))
 
   if (affected.length === 0) return doc
 
-  for (const m of affected) {
-    const weights = await recomputeWeightsForMeditation(req.payload, m, req)
-    await req.payload.update({
-      collection: 'meditations',
-      id: m.id,
-      data: { subtleSystemNodeWeights: weights },
-      context: { skipRecomputeNodeWeights: true },
+  for (const { meditation, normalized } of affected) {
+    const diagnostics = {
+      frameId: doc.id,
+      operation,
+      status: meditation._status,
+      ...getFrameDiagnosticsLogContext(normalized),
+    }
+
+    let weights: Record<string, number>
+    try {
+      weights = await recomputeWeightsForMeditation(req.payload, meditation, req)
+    } catch (error) {
+      reportMeditationNodeWeightsCacheError({
+        payload: req.payload,
+        req,
+        meditationId: meditation.id,
+        reason: 'frame-cascade-recompute',
+        diagnostics,
+        error,
+      })
+      continue
+    }
+
+    await persistMeditationNodeWeightsCache({
+      payload: req.payload,
+      meditationId: meditation.id,
+      weights,
+      reason: 'frame-cascade',
+      diagnostics,
       req,
-      locale: m.locale ?? undefined,
+      locale: meditation.locale ?? undefined,
     })
   }
 

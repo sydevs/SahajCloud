@@ -6,11 +6,14 @@ import { testData } from '../utils/testData'
 
 let payload: Payload
 let cleanup: () => Promise<void>
+let sharedPageId: number
 
 beforeAll(async () => {
   const testEnv = await createTestEnvironment()
   payload = testEnv.payload
   cleanup = testEnv.cleanup
+  const page = await testData.createPage(payload, { title: 'Shared App Card Test Page' })
+  sharedPageId = page.id
 })
 
 afterAll(async () => {
@@ -107,23 +110,93 @@ describe('AppCards audiences, weight, targetSections', () => {
   })
 })
 
-// ── Integration Tests: AppCards overlay field ─────────────────────────────────
+// ── Integration Tests: AppCards textColor field ───────────────────────────────
 
-describe('AppCards overlay field', () => {
-  it('defaults overlay to false and persists overlay: true', async () => {
-    const defaultCard = await testData.createAppCard(payload)
-    expect(defaultCard.default?.overlay).toBe(false)
+describe('AppCards textColor field', () => {
+  it('defaults textColor to black when not set', async () => {
+    const card = await testData.createAppCard(payload)
+    expect(card.default?.textColor).toBe('black')
+  })
 
-    const overlayCard = await testData.createAppCard(payload, {
-      default: { overlay: true },
+  it('persists textColor: white in default view tab', async () => {
+    const card = await testData.createAppCard(payload, {
+      default: { textColor: 'white' },
     })
-    expect(overlayCard.default?.overlay).toBe(true)
+    expect(card.default?.textColor).toBe('white')
 
-    const fetched = await payload.findByID({
-      collection: 'app-cards',
-      id: overlayCard.id,
+    const fetched = await payload.findByID({ collection: 'app-cards', id: card.id })
+    expect(fetched.default?.textColor).toBe('white')
+  })
+
+  it('persists textColor: white in startingSoon view tab', async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+
+    const card = await testData.createAppCard(payload, {
+      type: 'event',
+      schedule: { firstDate: futureDate.toISOString(), firstDate_tz: 'UTC', recurrenceType: 'DAILY', interval: 1 },
+      startingSoon: { enabled: true, threshold: '1:00', title: 'Soon', textColor: 'white' },
     })
-    expect(fetched.default?.overlay).toBe(true)
+
+    expect(card.startingSoon?.textColor).toBe('white')
+  })
+
+  it('persists textColor: white in liveNow view tab', async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+
+    const card = await testData.createAppCard(payload, {
+      type: 'event',
+      schedule: { firstDate: futureDate.toISOString(), firstDate_tz: 'UTC', recurrenceType: 'DAILY', interval: 1 },
+      liveNow: { enabled: true, threshold: '0:00', title: 'Live', textColor: 'white' },
+    })
+
+    expect(card.liveNow?.textColor).toBe('white')
+  })
+})
+
+// ── Integration Tests: AppCards aspectRatio field ─────────────────────────────
+
+describe('AppCards aspectRatio field', () => {
+  it('defaults aspectRatio to square when not set', async () => {
+    const card = await testData.createAppCard(payload)
+    expect(card.default?.aspectRatio).toBe('square')
+  })
+
+  it('persists aspectRatio: flexible in default view tab', async () => {
+    const card = await testData.createAppCard(payload, {
+      default: { aspectRatio: 'flexible' },
+    })
+    expect(card.default?.aspectRatio).toBe('flexible')
+
+    const fetched = await payload.findByID({ collection: 'app-cards', id: card.id })
+    expect(fetched.default?.aspectRatio).toBe('flexible')
+  })
+
+  it('persists aspectRatio: flexible in startingSoon view tab', async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+
+    const card = await testData.createAppCard(payload, {
+      type: 'event',
+      schedule: { firstDate: futureDate.toISOString(), firstDate_tz: 'UTC', recurrenceType: 'DAILY', interval: 1 },
+      startingSoon: { enabled: true, threshold: '1:00', title: 'Soon', aspectRatio: 'flexible' },
+    })
+
+    expect(card.startingSoon?.aspectRatio).toBe('flexible')
+  })
+
+  it('persists aspectRatio: flexible in liveNow view tab', async () => {
+    const futureDate = new Date()
+    futureDate.setDate(futureDate.getDate() + 7)
+
+    const card = await testData.createAppCard(payload, {
+      type: 'event',
+      schedule: { firstDate: futureDate.toISOString(), firstDate_tz: 'UTC', recurrenceType: 'DAILY', interval: 1 },
+      liveNow: { enabled: true, threshold: '0:00', title: 'Live', aspectRatio: 'flexible' },
+    })
+
+    expect(card.liveNow?.aspectRatio).toBe('flexible')
   })
 })
 
@@ -141,15 +214,15 @@ describe('AppCards type field', () => {
       default: {
         title: 'My Standard Card',
         header: 'My Header',
-        destination: 'appPage',
-        appPage: 'map',
+        destination: 'page',
+        page: sharedPageId,
       },
     })
 
     expect(card.default?.title).toBe('My Standard Card')
     expect(card.default?.header).toBe('My Header')
-    expect(card.default?.destination).toBe('appPage')
-    expect(card.default?.appPage).toBe('map')
+    expect(card.default?.destination).toBe('page')
+    expect(typeof card.default?.page === 'number' ? card.default.page : (card.default?.page as { id: number })?.id).toBe(sharedPageId)
   })
 
   it('creates event card with type: event', async () => {
@@ -316,13 +389,13 @@ describe('AppCards type field', () => {
 // ── Integration Tests: AppCards destination field ─────────────────────────────
 
 describe('AppCards destination field', () => {
-  it('creates card with appPage destination', async () => {
+  it('creates card with page destination', async () => {
     const card = await testData.createAppCard(payload, {
-      default: { destination: 'appPage', appPage: 'lectures' },
+      default: { destination: 'page', page: sharedPageId },
     })
 
-    expect(card.default?.destination).toBe('appPage')
-    expect(card.default?.appPage).toBe('lectures')
+    expect(card.default?.destination).toBe('page')
+    expect(typeof card.default?.page === 'number' ? card.default.page : (card.default?.page as { id: number })?.id).toBe(sharedPageId)
   })
 
   it('creates card with url destination', async () => {

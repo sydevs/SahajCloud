@@ -88,9 +88,7 @@ export const testData = {
         default: {
           title: defaultTitle,
           header: 'Test Header',
-          overlay: false,
-          destination: 'appPage',
-          appPage: 'map',
+          textColor: 'black',
           image: imageId,
           ...defaultOverrides,
         },
