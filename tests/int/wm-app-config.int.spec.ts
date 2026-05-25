@@ -59,7 +59,7 @@ describe('WeMeditateAppConfig Global', () => {
   })
 
   describe('field structure', () => {
-    it('has a First Meditation tab with the expected fields', () => {
+    it('has Pages and First Meditation tabs with the expected fields', () => {
       const globalConfig = payload.globals.config.find((g) => g.slug === 'wm-app-config')
       expect(globalConfig).toBeDefined()
 
@@ -68,11 +68,26 @@ describe('WeMeditateAppConfig Global', () => {
       expect(tabsField.type).toBe('tabs')
 
       if (tabsField.type === 'tabs') {
-        expect(tabsField.tabs).toHaveLength(1)
-        expect(tabsField.tabs[0].label).toBe('First Meditation')
+        expect(tabsField.tabs).toHaveLength(2)
+        const tabLabels = tabsField.tabs.map((t) => t.label)
+        expect(tabLabels).toContain('Pages')
+        expect(tabLabels).toContain('First Meditation')
 
-        const tabFields = tabsField.tabs[0].fields
-        const fieldNames = tabFields.map((f) => ('name' in f ? f.name : undefined))
+        const pagesTab = tabsField.tabs.find((t) => t.label === 'Pages')!
+        const pageFieldNames = pagesTab.fields.map((f) => ('name' in f ? f.name : undefined))
+        expect(pageFieldNames).toEqual(
+          expect.arrayContaining([
+            'classesPage',
+            'liveMeditationsPage',
+            'techniquesPage',
+            'lecturesPage',
+            'privacyPage',
+            'termsPage',
+          ]),
+        )
+
+        const firstMeditationTab = tabsField.tabs.find((t) => t.label === 'First Meditation')!
+        const fieldNames = firstMeditationTab.fields.map((f) => ('name' in f ? f.name : undefined))
         expect(fieldNames).toContain('selfRealizationMeditation')
         expect(fieldNames).toContain('postRealizationLecture')
         expect(fieldNames).toContain('vibeCheckTracks')

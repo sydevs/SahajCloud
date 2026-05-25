@@ -16,6 +16,9 @@
     "plugins": [
       {
         "name": "next"
+      },
+      {
+        "name": "@payloadcms/typescript-plugin"
       }
     ],
     "paths": {
@@ -25,6 +28,18 @@
     },
     "target": "ES2022"
   },
-  "include": ["next-env.d.ts", "worker-configuration.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "src/migrations", "src/payload-generated-schema.ts", "opennext.config.ts", "tests"]
+  "include": [
+    "next-env.d.ts",
+    "worker-configuration.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/migrations",
+    "src/payload-generated-schema.ts",
+    "opennext.config.ts",
+    "tests"
+  ]
 }
