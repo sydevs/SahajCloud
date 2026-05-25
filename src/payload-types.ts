@@ -327,6 +327,7 @@ export interface Page {
    */
   featuredVideo?: (number | null) | Video;
   tags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] | null;
+  webUrl?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -1263,20 +1264,24 @@ export interface AppCard {
     /**
      * Where this card navigates to when tapped.
      */
-    destination?: ('appPage' | 'lecture' | 'album' | 'meditation' | 'url') | null;
+    destination?: ('page' | 'lecture' | 'album' | 'meditation' | 'url') | null;
     /**
-     * App page this card links to.
+     * Page this card links to.
      */
-    appPage?: ('map' | 'lectures' | 'path' | 'music' | 'live-meditations') | null;
+    page?: (number | null) | Page;
     lecture?: (number | null) | Lecture;
     album?: (number | null) | Album;
     meditation?: (number | null) | Meditation;
     url?: string | null;
     image?: (number | null) | Image;
     /**
-     * Render card with dark overlay and white text.
+     * Card image aspect ratio.
      */
-    overlay?: boolean | null;
+    aspectRatio: 'square' | 'flexible';
+    /**
+     * Text color used over the card image.
+     */
+    textColor: 'black' | 'white';
     /**
      * Text alignment for card content.
      */
@@ -1302,24 +1307,28 @@ export interface AppCard {
     /**
      * Where this card navigates to when tapped.
      */
-    destination?: ('appPage' | 'lecture' | 'album' | 'meditation' | 'url') | null;
+    destination?: ('page' | 'lecture' | 'album' | 'meditation' | 'url') | null;
     /**
-     * App page this card links to.
+     * Page this card links to.
      */
-    appPage?: ('map' | 'lectures' | 'path' | 'music' | 'live-meditations') | null;
+    page?: (number | null) | Page;
     lecture?: (number | null) | Lecture;
     album?: (number | null) | Album;
     meditation?: (number | null) | Meditation;
     url?: string | null;
     image?: (number | null) | Image;
     /**
-     * Render card with dark overlay and white text.
+     * Card image aspect ratio.
      */
-    overlay?: boolean | null;
+    aspectRatio: 'square' | 'flexible';
+    /**
+     * Text color used over the card image.
+     */
+    textColor: 'black' | 'white';
     /**
      * Text alignment for card content.
      */
-    alignment?: ('left' | 'center') | null;
+    alignment: 'left' | 'center';
   };
   liveNow?: {
     enabled?: boolean | null;
@@ -1341,24 +1350,28 @@ export interface AppCard {
     /**
      * Where this card navigates to when tapped.
      */
-    destination?: ('appPage' | 'lecture' | 'album' | 'meditation' | 'url') | null;
+    destination?: ('page' | 'lecture' | 'album' | 'meditation' | 'url') | null;
     /**
-     * App page this card links to.
+     * Page this card links to.
      */
-    appPage?: ('map' | 'lectures' | 'path' | 'music' | 'live-meditations') | null;
+    page?: (number | null) | Page;
     lecture?: (number | null) | Lecture;
     album?: (number | null) | Album;
     meditation?: (number | null) | Meditation;
     url?: string | null;
     image?: (number | null) | Image;
     /**
-     * Render card with dark overlay and white text.
+     * Card image aspect ratio.
      */
-    overlay?: boolean | null;
+    aspectRatio: 'square' | 'flexible';
+    /**
+     * Text color used over the card image.
+     */
+    textColor: 'black' | 'white';
     /**
      * Text alignment for card content.
      */
-    alignment?: ('left' | 'center') | null;
+    alignment: 'left' | 'center';
   };
   /**
    * Configure when this event occurs and repeats
@@ -2220,6 +2233,7 @@ export interface PagesSelect<T extends boolean = true> {
   author?: T;
   featuredVideo?: T;
   tags?: T;
+  webUrl?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -2664,13 +2678,14 @@ export interface AppCardsSelect<T extends boolean = true> {
         buttonText?: T;
         buttonIcon?: T;
         destination?: T;
-        appPage?: T;
+        page?: T;
         lecture?: T;
         album?: T;
         meditation?: T;
         url?: T;
         image?: T;
-        overlay?: T;
+        aspectRatio?: T;
+        textColor?: T;
         alignment?: T;
       };
   startingSoon?:
@@ -2684,13 +2699,14 @@ export interface AppCardsSelect<T extends boolean = true> {
         buttonText?: T;
         buttonIcon?: T;
         destination?: T;
-        appPage?: T;
+        page?: T;
         lecture?: T;
         album?: T;
         meditation?: T;
         url?: T;
         image?: T;
-        overlay?: T;
+        aspectRatio?: T;
+        textColor?: T;
         alignment?: T;
       };
   liveNow?:
@@ -2704,13 +2720,14 @@ export interface AppCardsSelect<T extends boolean = true> {
         buttonText?: T;
         buttonIcon?: T;
         destination?: T;
-        appPage?: T;
+        page?: T;
         lecture?: T;
         album?: T;
         meditation?: T;
         url?: T;
         image?: T;
-        overlay?: T;
+        aspectRatio?: T;
+        textColor?: T;
         alignment?: T;
       };
   schedule?:
@@ -3096,6 +3113,34 @@ export interface WmAppConfig {
         id?: string | null;
       }[]
     | null;
+  /**
+   * Page about Shri Mataji surfaced from the app.
+   */
+  shriMatajiPage: number | Page;
+  /**
+   * Page about Sahaja Yoga surfaced from the app.
+   */
+  sahajaYogaPage: number | Page;
+  /**
+   * Explore section page surfaced from the app.
+   */
+  explorePage: number | Page;
+  /**
+   * Subtle system page surfaced from the app.
+   */
+  subtleSystemPage: number | Page;
+  /**
+   * Lecture shown when no personalized lecture content is available.
+   */
+  fallbackLecture?: (number | null) | Lecture;
+  /**
+   * App Store URL for the iOS app.
+   */
+  iosAppUrl?: string | null;
+  /**
+   * Play Store URL for the Android app.
+   */
+  androidAppUrl?: string | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -5600,6 +5645,13 @@ export interface WmAppConfigSelect<T extends boolean = true> {
         subtitles?: T;
         id?: T;
       };
+  shriMatajiPage?: T;
+  sahajaYogaPage?: T;
+  explorePage?: T;
+  subtleSystemPage?: T;
+  fallbackLecture?: T;
+  iosAppUrl?: T;
+  androidAppUrl?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

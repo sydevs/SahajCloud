@@ -7,14 +7,6 @@ import { mediaField, scheduleField, urlField } from '@/fields'
 import type { ScheduleSubFields } from '@/hooks/scheduleHooks'
 import { buildRRuleTemporal } from '@/hooks/scheduleHooks'
 
-const APP_PAGE_OPTIONS = [
-  { label: 'Map', value: 'map' },
-  { label: 'Lectures', value: 'lectures' },
-  { label: 'Path', value: 'path' },
-  { label: 'Music', value: 'music' },
-  { label: 'Live Meditations', value: 'live-meditations' },
-]
-
 const TIME_REGEX = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
 
 type ViewName = 'startingSoon' | 'liveNow' | 'default'
@@ -172,7 +164,7 @@ function destinationFields(
           name: 'destination',
           type: 'select',
           options: [
-            { label: 'App Page', value: 'appPage' },
+            { label: 'Page', value: 'page' },
             { label: 'Lecture', value: 'lecture' },
             { label: 'Album', value: 'album' },
             { label: 'Meditation', value: 'meditation' },
@@ -183,12 +175,12 @@ function destinationFields(
           },
         },
         {
-          name: 'appPage',
-          type: 'select',
-          options: APP_PAGE_OPTIONS,
+          name: 'page',
+          type: 'relationship',
+          relationTo: 'pages',
           admin: {
-            condition: (_, siblingData) => siblingData?.destination === 'appPage',
-            description: 'App page this card links to.',
+            condition: (_, siblingData) => siblingData?.destination === 'page',
+            description: 'Page this card links to.',
           },
         },
         {
@@ -293,28 +285,54 @@ function defaultViewFields(): Field[] {
     ...destinationFields(),
     mediaField({ name: 'image', label: 'Card Image' }),
     {
-      name: 'overlay',
-      type: 'checkbox',
-      defaultValue: false,
-      admin: {
-        description: 'Render card with dark overlay and white text.',
-      },
-    },
-    {
-      name: 'alignment',
-      type: 'select',
-      defaultValue: 'center',
-      required: true,
-      options: [
-        { label: 'Left', value: 'left' },
-        { label: 'Center', value: 'center' },
-      ],
-      admin: {
-        description: 'Text alignment for card content.',
-        components: {
-          Field: '@/components/admin/ToggleGroupField',
+      type: 'collapsible',
+      label: 'Text & Layout',
+      fields: [
+        {
+          name: 'aspectRatio',
+          type: 'select',
+          options: [
+            { label: 'Square', value: 'square' },
+            { label: 'Flexible', value: 'flexible' },
+          ],
+          defaultValue: 'square',
+          required: true,
+          admin: {
+            description: 'Card image aspect ratio.',
+            components: { Field: '@/components/admin/ToggleGroupField' },
+          },
         },
-      },
+        {
+          name: 'textColor',
+          type: 'select',
+          options: [
+            { label: 'Black', value: 'black' },
+            { label: 'White', value: 'white' },
+          ],
+          defaultValue: 'black',
+          required: true,
+          admin: {
+            description: 'Text color used over the card image.',
+            components: { Field: '@/components/admin/ToggleGroupField' },
+          },
+        },
+        {
+          name: 'alignment',
+          type: 'select',
+          defaultValue: 'center',
+          required: true,
+          options: [
+            { label: 'Left', value: 'left' },
+            { label: 'Center', value: 'center' },
+          ],
+          admin: {
+            description: 'Text alignment for card content.',
+            components: {
+              Field: '@/components/admin/ToggleGroupField',
+            },
+          },
+        },
+      ],
     },
   ]
 }
@@ -414,28 +432,55 @@ function eventViewFields(thresholdDefault: string): Field[] {
       admin: { condition: enabledCondition },
     }),
     {
-      name: 'overlay',
-      type: 'checkbox',
-      defaultValue: false,
-      admin: {
-        condition: enabledCondition,
-        description: 'Render card with dark overlay and white text.',
-      },
-    },
-    {
-      name: 'alignment',
-      type: 'select',
-      options: [
-        { label: 'Left', value: 'left' },
-        { label: 'Center', value: 'center' },
-      ],
-      admin: {
-        condition: enabledCondition,
-        description: 'Text alignment for card content.',
-        components: {
-          Field: '@/components/admin/ToggleGroupField',
+      type: 'collapsible',
+      label: 'Text & Layout',
+      admin: { condition: enabledCondition },
+      fields: [
+        {
+          name: 'aspectRatio',
+          type: 'select',
+          options: [
+            { label: 'Square', value: 'square' },
+            { label: 'Flexible', value: 'flexible' },
+          ],
+          defaultValue: 'square',
+          required: true,
+          admin: {
+            description: 'Card image aspect ratio.',
+            components: { Field: '@/components/admin/ToggleGroupField' },
+          },
         },
-      },
+        {
+          name: 'textColor',
+          type: 'select',
+          options: [
+            { label: 'Black', value: 'black' },
+            { label: 'White', value: 'white' },
+          ],
+          defaultValue: 'black',
+          required: true,
+          admin: {
+            description: 'Text color used over the card image.',
+            components: { Field: '@/components/admin/ToggleGroupField' },
+          },
+        },
+        {
+          name: 'alignment',
+          type: 'select',
+          defaultValue: 'center',
+          required: true,
+          options: [
+            { label: 'Left', value: 'left' },
+            { label: 'Center', value: 'center' },
+          ],
+          admin: {
+            description: 'Text alignment for card content.',
+            components: {
+              Field: '@/components/admin/ToggleGroupField',
+            },
+          },
+        },
+      ],
     },
   ]
 }

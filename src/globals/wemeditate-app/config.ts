@@ -11,7 +11,7 @@ export const VIBE_CHECK_IDENTIFIERS = [
   { label: 'BH Nothing', value: 'BH-NOTHING' },
 ]
 
-const APP_REQUIRED_PAGES = [
+const READINESS_PAGE_FIELDS = [
   { name: 'classesPage', description: 'Page describing live online classes for the app.' },
   {
     name: 'liveMeditationsPage',
@@ -23,7 +23,14 @@ const APP_REQUIRED_PAGES = [
   { name: 'termsPage', description: 'Terms of service page surfaced from the app.' },
 ] as const
 
-export const APP_REQUIRED_PAGE_FIELDS = APP_REQUIRED_PAGES.map((p) => p.name)
+const APP_DESTINATION_PAGE_FIELDS = [
+  { name: 'shriMatajiPage', description: 'Page about Shri Mataji surfaced from the app.' },
+  { name: 'sahajaYogaPage', description: 'Page about Sahaja Yoga surfaced from the app.' },
+  { name: 'explorePage', description: 'Explore section page surfaced from the app.' },
+  { name: 'subtleSystemPage', description: 'Subtle system page surfaced from the app.' },
+] as const
+
+export const APP_REQUIRED_PAGE_FIELDS = READINESS_PAGE_FIELDS.map((p) => p.name)
 
 export const WeMeditateAppConfig: GlobalConfig = {
   slug: 'wm-app-config',
@@ -39,7 +46,7 @@ export const WeMeditateAppConfig: GlobalConfig = {
           label: 'Pages',
           description:
             'App-required pages. The same page is used for every locale; the localized content on each page is sourced at read time.',
-          fields: APP_REQUIRED_PAGES.map((page) => ({
+          fields: READINESS_PAGE_FIELDS.map((page) => ({
             name: page.name,
             type: 'relationship' as const,
             relationTo: 'pages' as const,
@@ -102,6 +109,48 @@ export const WeMeditateAppConfig: GlobalConfig = {
                   required: true,
                   admin: {
                     description: 'WebVTT (.vtt) subtitle file for this audio.',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          label: 'App Pages',
+          fields: APP_DESTINATION_PAGE_FIELDS.map(({ name, description }) => ({
+            name,
+            type: 'relationship' as const,
+            relationTo: 'pages' as const,
+            required: true,
+            admin: { description },
+          })),
+        },
+        {
+          label: 'General',
+          fields: [
+            {
+              name: 'fallbackLecture',
+              type: 'relationship',
+              relationTo: 'lectures',
+              admin: {
+                description: 'Lecture shown when no personalized lecture content is available.',
+              },
+            },
+            {
+              type: 'row',
+              fields: [
+                {
+                  name: 'iosAppUrl',
+                  type: 'text',
+                  admin: {
+                    description: 'App Store URL for the iOS app.',
+                  },
+                },
+                {
+                  name: 'androidAppUrl',
+                  type: 'text',
+                  admin: {
+                    description: 'Play Store URL for the Android app.',
                   },
                 },
               ],
