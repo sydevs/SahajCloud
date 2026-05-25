@@ -43,6 +43,9 @@ function countForTiming(rows: UserChoiceRow[], timing: Timing, locale: string): 
 
 export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'userChoices',
+  label: 'User Choices',
+  description:
+    'Mood, goal, and duration user choices have their meditation assignments configured for this locale.',
   tutorialLink: null,
   checks: {
     'meditation-morning-published': {

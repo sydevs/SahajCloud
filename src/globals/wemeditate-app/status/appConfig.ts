@@ -27,6 +27,9 @@ interface Ctx {
 
 export const appConfigSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'appConfig',
+  label: 'App Configuration',
+  description:
+    'Self-realization meditation, post-realization lecture, and vibe-check tracks are configured for this locale.',
   tutorialLink: null,
   checks: {
     'relationship-set': {

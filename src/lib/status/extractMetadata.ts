@@ -6,6 +6,7 @@ import type { StatusGlobalSpec } from './spec'
  */
 export interface StatusConfigJson {
   collections: Record<string, { tutorialLink: string | null }>
+  sections: Record<string, { label: string; description: string; tutorialLink: string | null }>
   groups: Record<string, { label: string; description: string }>
   checks: Record<string, { label: string; description: string }>
 }
@@ -28,10 +29,24 @@ function sortByKey<T>(record: Record<string, T>): Record<string, T> {
 export function extractStatusConfig<TConfig>(
   spec: StatusGlobalSpec<TConfig>,
 ): StatusConfigJson {
+  const sections: Record<
+    string,
+    { label: string; description: string; tutorialLink: string | null }
+  > = {}
   const groups: Record<string, { label: string; description: string }> = {}
   const checks: Record<string, { label: string; description: string }> = {}
 
   for (const section of spec.sections) {
+    if (section.key in sections) {
+      throw new Error(
+        `extractStatusConfig: duplicate section key "${section.key}" — declared more than once.`,
+      )
+    }
+    sections[section.key] = {
+      label: section.label,
+      description: section.description,
+      tutorialLink: section.tutorialLink,
+    }
     for (const group of section.groups) {
       if (group.key in groups) {
         throw new Error(
@@ -54,6 +69,7 @@ export function extractStatusConfig<TConfig>(
 
   return {
     collections: sortByKey(spec.collections),
+    sections: sortByKey(sections),
     groups: sortByKey(groups),
     checks: sortByKey(checks),
   }

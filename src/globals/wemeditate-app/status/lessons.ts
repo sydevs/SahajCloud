@@ -91,6 +91,9 @@ const unitGroupSpecs: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = UNIT_GROUPS.
 
 export const lessonsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'lessons',
+  label: 'Path Lessons',
+  description:
+    'Every lesson in units 1–3 is fully configured for this locale (unit 4 is optional).',
   tutorialLink: null,
   checks: {
     'panels-set': {

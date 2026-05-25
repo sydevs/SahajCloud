@@ -46,6 +46,9 @@ const tabAggregateGroups: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = tabEntri
 
 export const translationsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'translations',
+  label: 'Translations',
+  description:
+    'Every translations tab has values for this locale and an admin has signed off.',
   tutorialLink: null,
   checks: {
     'reviewed-this-cycle': {

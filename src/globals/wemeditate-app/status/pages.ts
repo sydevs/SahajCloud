@@ -28,6 +28,9 @@ function reportForPage(
 
 export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'pages',
+  label: 'Pages',
+  description:
+    'All required core and subtle-system pages are published and localized.',
   tutorialLink: null,
   checks: {
     published: {

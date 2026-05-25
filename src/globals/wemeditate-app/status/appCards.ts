@@ -9,6 +9,8 @@ interface Ctx {
 
 export const appCardsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'appCards',
+  label: 'App Cards',
+  description: 'Launch-critical app cards are published and configured for this locale.',
   tutorialLink: null,
   checks: {
     published: {

@@ -62,6 +62,10 @@ export type GroupSpec<TSectionCtx, TConfig> =
 export interface SectionSpec<TConfig, TSectionCtx = void> {
   /** Top-level key — matches the virtual field name on the status global. */
   key: string
+  /** Human-readable section title rendered in the widget's card header. */
+  label: string
+  /** One-line section subtitle shown under the card header. */
+  description: string
   /** Optional external tutorial URL for the section, rendered by the widget. */
   tutorialLink: string | null
   /**
