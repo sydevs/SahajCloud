@@ -1,16 +1,40 @@
 import type { ProjectRequestContext, SectionSpec } from './spec'
 import type { ReadinessGroup, ReadinessReport } from './types'
 
-import { aggregateGroup, documentsGroup, summarize } from './groups'
+import { aggregateGroup, documentsGroup, erroredGroup, summarize } from './groups'
+
+/**
+ * Thrown when a `documents` group emits a check key that isn't declared
+ * in the parent section's `checks` map. Programming error — never caught
+ * by the runtime; surfaces loudly so typos in evaluators don't silently
+ * degrade the report.
+ */
+export class UndeclaredCheckKeyError extends Error {
+  readonly sectionKey: string
+  readonly groupKey: string
+  readonly checkKey: string
+
+  constructor(sectionKey: string, groupKey: string, checkKey: string) {
+    super(
+      `runSection(${sectionKey}): group "${groupKey}" emitted undeclared check "${checkKey}". ` +
+        `Add it to the section's \`checks\` map (or fix the typo in the evaluator).`,
+    )
+    this.name = 'UndeclaredCheckKeyError'
+    this.sectionKey = sectionKey
+    this.groupKey = groupKey
+    this.checkKey = checkKey
+  }
+}
 
 /**
  * Execute one section's spec and return its `ReadinessReport`. Runs
  * `prepare` once, dispatches to each group's `evaluate`, then aggregates.
  *
- * Validates each emitted check `key` against `spec.checks` — drift
- * between an evaluator and the section's metadata throws a typed error
- * naming the offending key. This is the runtime enforcement of the
- * "single definition site per key" invariant.
+ * Group evaluators run via `Promise.allSettled` so a single failure
+ * degrades to an `errored` placeholder group instead of sinking the
+ * whole section. Programming errors (undeclared check keys) still throw
+ * loudly — we don't want typos hiding behind the graceful-degradation
+ * path.
  */
 export async function runSection<TConfig, TSectionCtx>(
   spec: SectionSpec<TConfig, TSectionCtx>,
@@ -22,7 +46,7 @@ export async function runSection<TConfig, TSectionCtx>(
 
   const declaredCheckKeys = new Set(Object.keys(spec.checks))
 
-  const groups: ReadinessGroup[] = await Promise.all(
+  const settled = await Promise.allSettled(
     spec.groups.map(async (group) => {
       if (group.type === 'aggregate') {
         const actual = await group.evaluate(sectionCtx, req)
@@ -32,16 +56,27 @@ export async function runSection<TConfig, TSectionCtx>(
       for (const doc of documents) {
         for (const check of doc.checks) {
           if (!declaredCheckKeys.has(check.key)) {
-            throw new Error(
-              `runSection(${spec.key}): group "${group.key}" emitted undeclared check "${check.key}". ` +
-                `Add it to the section's \`checks\` map (or fix the typo in the evaluator).`,
-            )
+            throw new UndeclaredCheckKeyError(spec.key, group.key, check.key)
           }
         }
       }
       return documentsGroup(group.key, documents, group.optional ?? false)
     }),
   )
+
+  const groups: ReadinessGroup[] = settled.map((result, i) => {
+    if (result.status === 'fulfilled') return result.value
+    if (result.reason instanceof UndeclaredCheckKeyError) throw result.reason
+    const groupSpec = spec.groups[i]
+    const message = result.reason instanceof Error ? result.reason.message : String(result.reason)
+    req.payload.logger.error({
+      msg: 'runSection: group evaluator threw — returning errored placeholder',
+      section: spec.key,
+      group: groupSpec.key,
+      error: message,
+    })
+    return erroredGroup(groupSpec.key, message, groupSpec.optional ?? false)
+  })
 
   return { groups, ...summarize(groups) }
 }

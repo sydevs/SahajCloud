@@ -1,10 +1,5 @@
-import {
-  labelOf,
-  refId,
-  richTextHasContent,
-  type DocumentReport,
-  type SectionSpec,
-} from '@/lib/status'
+import { labelOf, refId, type DocumentReport, type SectionSpec } from '@/lib/status'
+import { richTextHasContent } from '@/lib/status/helpers'
 
 import { APP_REQUIRED_PAGE_FIELDS } from '../config'
 import { getWmAppConfig, type WeMeditateAppStatusConfig } from './shared'

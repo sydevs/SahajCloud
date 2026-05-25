@@ -1,11 +1,6 @@
 import { countLecturesForAudiences, resolveAudienceIds } from '@/lib/audiences/resolve'
-import {
-  collectRelationshipIds,
-  labelOf,
-  refId,
-  type DocumentReport,
-  type SectionSpec,
-} from '@/lib/status'
+import { labelOf, refId, type DocumentReport, type SectionSpec } from '@/lib/status'
+import { collectRelationshipIds } from '@/lib/status/helpers'
 
 import { lectureHasSubtitlesForLocale, type WeMeditateAppStatusConfig } from './shared'
 

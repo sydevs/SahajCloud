@@ -1,13 +1,12 @@
 import {
-  containsRelationship,
   isUploadAssigned,
   labelOf,
   refId,
-  richTextHasContent,
   type DocumentReport,
   type GroupSpec,
   type SectionSpec,
 } from '@/lib/status'
+import { containsRelationship, richTextHasContent } from '@/lib/status/helpers'
 import { type Lesson } from '@/payload-types'
 
 import { type WeMeditateAppStatusConfig } from './shared'

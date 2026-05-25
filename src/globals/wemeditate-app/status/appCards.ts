@@ -37,6 +37,8 @@ export const appCardsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         collection: 'app-cards',
         where: { id: { in: launchCriticalIds } },
         locale,
+        // Include drafts so unpublished cards still appear in the readiness
+        // report — the per-card `published` check then flags them as failing.
         draft: true,
         limit: 0,
         pagination: false,
@@ -58,6 +60,7 @@ export const appCardsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       collection: 'app-cards',
       where: otherCardsQuery,
       locale,
+      // Include drafts (see comment above) — keeps coverage of every card.
       draft: true,
       limit: 0,
       pagination: false,

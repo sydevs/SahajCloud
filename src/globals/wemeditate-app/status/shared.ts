@@ -1,6 +1,7 @@
 import type { BasePayload, PayloadRequest, TypedLocale } from 'payload'
 
-import { isRecord, isUploadAssigned, type CheckResult } from '@/lib/status'
+import { isUploadAssigned, type CheckResult } from '@/lib/status'
+import { isRecord } from '@/lib/status/helpers'
 
 // =============================================================================
 // Per-project status-global config (persisted on the wm-app-status Configuration
@@ -8,6 +9,7 @@ import { isRecord, isUploadAssigned, type CheckResult } from '@/lib/status'
 // =============================================================================
 
 export const DEFAULT_BASELINE_COUNTRY = 'GB'
+const COUNTRY_CODE_RE = /^[A-Z]{2}$/
 
 export type WeMeditateAppStatusConfig = {
   baselineCountry: string
@@ -19,7 +21,7 @@ export function extractWeMeditateAppStatusConfig(data: unknown): WeMeditateAppSt
     return { baselineCountry: DEFAULT_BASELINE_COUNTRY, launchCriticalAppCardIds: [] }
   }
   const country =
-    typeof data.baselineCountry === 'string' && data.baselineCountry.length === 2
+    typeof data.baselineCountry === 'string' && COUNTRY_CODE_RE.test(data.baselineCountry)
       ? data.baselineCountry
       : DEFAULT_BASELINE_COUNTRY
   const launchCriticalRaw = Array.isArray(data.launchCriticalAppCards)
