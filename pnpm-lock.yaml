@@ -146,6 +146,9 @@ importers:
       '@eslint/eslintrc':
         specifier: ^3.3.3
         version: 3.3.3
+      '@payloadcms/typescript-plugin':
+        specifier: ^3.84.1
+        version: 3.84.1
       '@playwright/test':
         specifier: 1.57.0
         version: 1.57.0
@@ -2369,6 +2372,10 @@ packages:
 
   '@payloadcms/translations@3.82.1':
     resolution: {integrity: sha512-32rREzQNQypz8ER4yj/s8E/pzFbbRs8jbNdyVu2MVQ03qhDkDSgznBe2vwxajiOfpgOMDNhbKqbF/+h5X1ZbWw==}
+
+  '@payloadcms/typescript-plugin@3.84.1':
+    resolution: {integrity: sha512-I5xr/Wsn8qLlotozGAS2/b4Dusu1Afl3YclL5vLeVsTB1nlXrqg7bMIMIp0Gdv5+hSVXzsGtusq3VWa4V5xT7A==}
+    engines: {node: ^18.20.2 || >=20.9.0}
 
   '@payloadcms/ui@3.82.1':
     resolution: {integrity: sha512-oN8EW6M2FeYx7i+jK+2EMr9k7A6v/d/XDVOAKKblVA9mK9pfwRnYEw7+BSMXOeN0CA88RPXOlDEFcGwDWsh/PA==}
@@ -9597,6 +9604,8 @@ snapshots:
   '@payloadcms/translations@3.82.1':
     dependencies:
       date-fns: 4.1.0
+
+  '@payloadcms/typescript-plugin@3.84.1': {}
 
   '@payloadcms/ui@3.82.1(@types/react@19.1.0)(monaco-editor@0.55.1)(next@15.4.11(@babel/core@7.28.5)(@opentelemetry/api@1.9.0)(@playwright/test@1.57.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(sass@1.77.4))(payload@3.82.1(graphql@16.12.0)(typescript@5.7.3))(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(typescript@5.7.3)':
     dependencies:
