@@ -6,6 +6,7 @@ import { Collapsible, useField, useLocale } from '@payloadcms/ui'
 import React from 'react'
 
 import type { ReadinessReport } from '@/lib/status'
+import type { ReadinessFieldAdminCustom } from '@/lib/status/virtualReadinessField'
 
 import { ReadinessGroup } from './ReadinessGroup'
 import {
@@ -17,18 +18,7 @@ import {
 } from './styles'
 import { SummaryBadge } from './SummaryBadge'
 
-export interface ReadinessFieldCustom {
-  sectionMetadata: {
-    key: string
-    label: string
-    description: string
-    tutorialLink: string | null
-  }
-  groupsMetadata: Record<string, { label: string; description: string }>
-  checksMetadata: Record<string, { label: string; description: string }>
-  groupKeyToCollection: Record<string, string | null>
-  configFallback: { type: 'global'; slug: string } | null
-}
+export type ReadinessFieldCustom = ReadinessFieldAdminCustom
 
 function isReadinessFieldCustom(value: unknown): value is ReadinessFieldCustom {
   return (
@@ -37,7 +27,8 @@ function isReadinessFieldCustom(value: unknown): value is ReadinessFieldCustom {
     'sectionMetadata' in value &&
     'groupsMetadata' in value &&
     'checksMetadata' in value &&
-    'groupKeyToCollection' in value
+    'groupKeyToCollection' in value &&
+    'configFallback' in value
   )
 }
 

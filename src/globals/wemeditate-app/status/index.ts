@@ -85,6 +85,7 @@ export const WeMeditateAppStatusSpec: StatusGlobalSpec<WeMeditateAppStatusConfig
     'unit-3': 'lessons',
     'unit-4': 'lessons',
     // lectures section
+    'user-choice-coverage': 'user-choices',
     'lesson-referenced-subtitles': 'lectures',
     // pages section
     'core-pages': 'pages',

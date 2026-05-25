@@ -22,7 +22,6 @@ export const headerDescriptionStyle: CSSProperties = {
 }
 
 export const headerLinkStyle: CSSProperties = {
-  marginLeft: 'auto',
   fontSize: 'calc(var(--base-body-size) * 0.9px)',
   textDecoration: 'underline',
   color: 'var(--theme-elevation-700)',
