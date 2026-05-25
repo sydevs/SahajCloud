@@ -2,46 +2,11 @@ import { type GroupSpec, type SectionSpec } from '@/lib/status'
 
 import translationsSchema from '../translationsSchema.json' with { type: 'json' }
 import { type WeMeditateAppStatusConfig } from './shared'
-
-type TranslationSchemaTab = {
-  type: 'object'
-  description?: string
-  properties?: Record<string, unknown>
-}
+import { countLeafKeys, countNonEmptyKeys, type TranslationSchemaNode } from './translationCounts'
 
 const tabProperties =
-  (translationsSchema as { properties?: Record<string, TranslationSchemaTab> }).properties ?? {}
+  (translationsSchema as { properties?: Record<string, TranslationSchemaNode> }).properties ?? {}
 const tabEntries = Object.entries(tabProperties)
-
-function countLeafKeys(tab: TranslationSchemaTab): number {
-  if (!tab.properties) return 0
-  return Object.values(tab.properties).reduce((sum, prop) => {
-    const p = prop as { type?: string }
-    if (p?.type === 'object') return sum + countLeafKeys(prop as TranslationSchemaTab)
-    return sum + 1
-  }, 0)
-}
-
-function countNonEmptyKeys(
-  tab: TranslationSchemaTab,
-  data: Record<string, unknown> | null | undefined,
-): number {
-  if (!data || !tab.properties) return 0
-  return Object.entries(tab.properties).reduce((sum, [key, prop]) => {
-    const p = prop as { type?: string }
-    if (p?.type === 'object') {
-      return (
-        sum +
-        countNonEmptyKeys(
-          prop as TranslationSchemaTab,
-          data[key] as Record<string, unknown> | null | undefined,
-        )
-      )
-    }
-    const value = data[key]
-    return sum + (typeof value === 'string' && value.trim().length > 0 ? 1 : 0)
-  }, 0)
-}
 
 interface Ctx {
   translations: Record<string, unknown>

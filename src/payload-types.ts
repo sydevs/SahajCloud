@@ -1274,7 +1274,7 @@ export interface AppCard {
     url?: string | null;
     image?: (number | null) | Image;
     /**
-     * Card image aspect ratio.
+     * Card image aspect ratio. 'Square' renders a fixed 1:1 image; 'Flexible' lets the image height follow its natural aspect ratio.
      */
     aspectRatio: 'square' | 'flexible';
     /**
@@ -1317,7 +1317,7 @@ export interface AppCard {
     url?: string | null;
     image?: (number | null) | Image;
     /**
-     * Card image aspect ratio.
+     * Card image aspect ratio. 'Square' renders a fixed 1:1 image; 'Flexible' lets the image height follow its natural aspect ratio.
      */
     aspectRatio: 'square' | 'flexible';
     /**
@@ -1360,7 +1360,7 @@ export interface AppCard {
     url?: string | null;
     image?: (number | null) | Image;
     /**
-     * Card image aspect ratio.
+     * Card image aspect ratio. 'Square' renders a fixed 1:1 image; 'Flexible' lets the image height follow its natural aspect ratio.
      */
     aspectRatio: 'square' | 'flexible';
     /**
