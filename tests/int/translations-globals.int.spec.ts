@@ -131,6 +131,22 @@ describe('Translations Globals Configuration', () => {
       const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
       const tabsField = global?.fields[0]
 
+      // Mixed leaves (with at least one richText property) wrap their JSON field
+      // inside a Payload group. Pure-string leaves keep the JSON field as a direct
+      // child of the tab. Both paths must surface `globalSlug`.
+      const findJsonField = (fields: ReadonlyArray<{ type: string }>): unknown => {
+        for (const f of fields) {
+          if (f.type === 'json') return f
+          if (f.type === 'group') {
+            const inner = (f as { fields: Array<{ type: string }> }).fields.find(
+              (sub) => sub.type === 'json',
+            )
+            if (inner) return inner
+          }
+        }
+        return undefined
+      }
+
       if (tabsField?.type === 'tabs') {
         for (const tab of tabsField.tabs) {
           if (tab.label === 'Review') continue
@@ -138,12 +154,16 @@ describe('Translations Globals Configuration', () => {
           if (firstField.type === 'tabs') {
             // Parent group: check globalSlug on each inner sub-tab's JSON field.
             for (const innerTab of (firstField as { type: 'tabs'; tabs: typeof tabsField.tabs }).tabs) {
-              const jsonField = innerTab.fields.find((f) => f.type === 'json')
+              const jsonField = findJsonField(innerTab.fields) as
+                | { admin?: { custom?: { globalSlug?: string } } }
+                | undefined
               expect(jsonField?.admin?.custom?.globalSlug).toBe('wm-app-translations')
             }
           } else {
             // Leaf group: check globalSlug on the direct JSON field.
-            const jsonField = tab.fields.find((f) => f.type === 'json')
+            const jsonField = findJsonField(tab.fields) as
+              | { admin?: { custom?: { globalSlug?: string } } }
+              | undefined
             expect(jsonField?.admin?.custom?.globalSlug).toBe('wm-app-translations')
           }
         }
@@ -182,6 +202,58 @@ describe('Translations Globals Configuration', () => {
         expect(talksPlayerKeys).toContain('play')
         expect(talksPlayerKeys).toContain('pause')
       }
+    })
+
+    it('should wrap mixed-leaf groups (with richText) in a Payload group with strings JSON + richText siblings', () => {
+      const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
+      const tabsField = global?.fields[0]
+      if (tabsField?.type !== 'tabs') return
+
+      // onboarding > consent_modal has 3 richText keys: body_intro, body_never_share, body_never_sell.
+      const onboardingInnerTabs = (
+        tabsField.tabs[0].fields[0] as { type: 'tabs'; tabs: typeof tabsField.tabs }
+      ).tabs
+      const consentModalTab = onboardingInnerTabs.find((t) => t.label === 'Consent Modal')
+      expect(consentModalTab).toBeDefined()
+      if (!consentModalTab) return
+
+      // The wrapper group is named `onboarding_consent_modal`.
+      const wrapperGroup = consentModalTab.fields.find(
+        (f) => f.type === 'group',
+      ) as { name?: string; fields?: Array<{ type: string; name?: string }> } | undefined
+      expect(wrapperGroup).toBeDefined()
+      expect(wrapperGroup?.name).toBe('onboarding_consent_modal')
+
+      // Inside the group: `strings` JSON + 3 richText siblings.
+      const inner = wrapperGroup?.fields ?? []
+      const stringsField = inner.find((f) => f.type === 'json')
+      expect(stringsField?.name).toBe('strings')
+
+      const richTextNames = inner.filter((f) => f.type === 'richText').map((f) => f.name)
+      expect(richTextNames).toEqual(
+        expect.arrayContaining(['body_intro', 'body_never_share', 'body_never_sell']),
+      )
+    })
+
+    it('should keep pure-string leaves as a direct JSON field (backward compatible)', () => {
+      const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
+      const tabsField = global?.fields[0]
+      if (tabsField?.type !== 'tabs') return
+
+      // onboarding > name has no richText keys → should remain a direct JSON field.
+      const onboardingInnerTabs = (
+        tabsField.tabs[0].fields[0] as { type: 'tabs'; tabs: typeof tabsField.tabs }
+      ).tabs
+      const nameTab = onboardingInnerTabs.find((t) => t.label === 'Name')
+      expect(nameTab).toBeDefined()
+      if (!nameTab) return
+
+      const jsonField = nameTab.fields.find((f) => f.type === 'json') as
+        | { name?: string }
+        | undefined
+      expect(jsonField?.name).toBe('onboarding_name')
+      // And no wrapper group at the tab level.
+      expect(nameTab.fields.find((f) => f.type === 'group')).toBeUndefined()
     })
 
     it('should have a Review tab with markReviewed and lastReviewedAt fields', () => {
