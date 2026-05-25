@@ -1,6 +1,6 @@
 import type { Payload } from 'payload'
 
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
 import type { Meditation, Narrator, Image, Frame } from '@/payload-types'
 import type { KeyframeDefinition } from '@/types/frames'
@@ -476,13 +476,12 @@ describe('Meditation Frames Field', () => {
         thumbnail: testImageMedia.id,
       })
 
-      const originalUpdateOne = payload.db.updateOne
+      const original = payload.db.updateOne.bind(payload.db)
       let cacheWriteAttempted = false
 
-      payload.db.updateOne = (async function updateOneWithCacheFailure(
-        this: typeof payload.db,
-        args: Parameters<typeof originalUpdateOne>[0],
-      ) {
+      const spy = vi.spyOn(payload.db, 'updateOne').mockImplementation((async (
+        args: Parameters<typeof payload.db.updateOne>[0],
+      ) => {
         const data = args.data as Record<string, unknown>
         if (
           args.collection === 'meditations' &&
@@ -494,8 +493,8 @@ describe('Meditation Frames Field', () => {
           throw new Error('forced cache persistence failure')
         }
 
-        return originalUpdateOne.call(this, args)
-      }) as typeof payload.db.updateOne
+        return original(args)
+      }) as typeof payload.db.updateOne)
 
       try {
         const updated = (await payload.update({
@@ -509,7 +508,7 @@ describe('Meditation Frames Field', () => {
         expect(cacheWriteAttempted).toBe(true)
         expect(updated.frames).toHaveLength(1)
       } finally {
-        payload.db.updateOne = originalUpdateOne
+        spy.mockRestore()
       }
     })
   })

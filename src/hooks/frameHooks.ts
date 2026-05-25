@@ -65,7 +65,7 @@ export const cascadeFrameNodeChange: CollectionAfterChangeHook = async ({
       frameId: doc.id,
       operation,
       status: meditation._status,
-      ...getFrameDiagnosticsLogContext(normalized.diagnostics),
+      ...getFrameDiagnosticsLogContext(normalized),
     }
 
     let weights: Record<string, number>

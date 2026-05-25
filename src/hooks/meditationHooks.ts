@@ -256,7 +256,7 @@ export const recomputeMeditationNodeWeights: CollectionAfterChangeHook = async (
   const diagnostics = {
     operation,
     status: doc._status,
-    ...getFrameDiagnosticsLogContext(normalizedFrames.diagnostics),
+    ...getFrameDiagnosticsLogContext(normalizedFrames),
   }
 
   let weights: Record<string, number>

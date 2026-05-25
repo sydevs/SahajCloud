@@ -1,3 +1,20 @@
+/**
+ * Centralized frame normalization for the Meditations `frames` JSON field.
+ *
+ * Shared by:
+ *   - Meditations field hooks (validate / beforeChange / afterRead) — see
+ *     `src/collections/content/Meditations.ts`
+ *   - `invalidateMeditationNodeWeights` / `recomputeMeditationNodeWeights`
+ *     in `src/hooks/meditationHooks.ts`
+ *   - `cascadeFrameNodeChange` in `src/hooks/frameHooks.ts`
+ *
+ * `normalizeMeditationFrames` is idempotent: it drops malformed entries,
+ * coerces string IDs to numbers, and returns diagnostics suitable for
+ * `req.payload.logger.warn` and Sentry breadcrumbs. The persistence helper
+ * (`persistMeditationNodeWeightsCache`) writes the derived
+ * `subtleSystemNodeWeights` cache best-effort; failures must not propagate
+ * to the user-facing save (root cause of issue #390).
+ */
 import type { Payload, PayloadRequest } from 'payload'
 
 import * as Sentry from '@sentry/cloudflare'
@@ -18,7 +35,11 @@ export type FrameNormalizationDiagnostics = {
   frameCount: number
   invalidFrameReasons: Partial<Record<FrameNormalizationIssue, number>>
   normalizedFrameCount: number
-  normalizedPayloadBytes: number
+}
+
+export type NormalizedFramesResult = {
+  diagnostics: FrameNormalizationDiagnostics
+  frames: NormalizedKeyframe[]
 }
 
 export type NormalizedKeyframe = {
@@ -58,13 +79,9 @@ const buildDiagnostics = (
   frameCount,
   invalidFrameReasons,
   normalizedFrameCount: frames.length,
-  normalizedPayloadBytes: JSON.stringify(frames).length,
 })
 
-export function normalizeMeditationFrames(value: unknown): {
-  diagnostics: FrameNormalizationDiagnostics
-  frames: NormalizedKeyframe[]
-} {
+export function normalizeMeditationFrames(value: unknown): NormalizedFramesResult {
   const invalidFrameReasons: Partial<Record<FrameNormalizationIssue, number>> = {}
 
   if (!Array.isArray(value)) {
@@ -131,7 +148,12 @@ export function normalizeMeditationFramesForStorage(value: unknown): KeyframeDef
 export function meditationFramesChanged(previousFrames: unknown, nextFrames: unknown): boolean {
   const previous = normalizeMeditationFrames(previousFrames).frames
   const next = normalizeMeditationFrames(nextFrames).frames
-  return JSON.stringify(previous) !== JSON.stringify(next)
+  if (previous.length !== next.length) return true
+  for (let i = 0; i < previous.length; i++) {
+    if (previous[i].id !== next[i].id) return true
+    if (previous[i].timestamp !== next[i].timestamp) return true
+  }
+  return false
 }
 
 export function hasFrameNormalizationIssues(
@@ -140,13 +162,14 @@ export function hasFrameNormalizationIssues(
   return diagnostics.droppedCount > 0 || Object.keys(diagnostics.invalidFrameReasons).length > 0
 }
 
-export function getFrameDiagnosticsLogContext(diagnostics: FrameNormalizationDiagnostics) {
+export function getFrameDiagnosticsLogContext(result: NormalizedFramesResult) {
+  const { diagnostics, frames } = result
   return {
     droppedFrameCount: diagnostics.droppedCount,
     frameCount: diagnostics.frameCount,
     invalidFrameReasons: diagnostics.invalidFrameReasons,
     normalizedFrameCount: diagnostics.normalizedFrameCount,
-    normalizedPayloadBytes: diagnostics.normalizedPayloadBytes,
+    normalizedPayloadBytes: JSON.stringify(frames).length,
   }
 }
 
@@ -183,6 +206,17 @@ export function reportMeditationNodeWeightsCacheError(args: {
   })
 }
 
+/**
+ * Persist the derived `subtleSystemNodeWeights` cache directly via the DB
+ * adapter. Intentionally bypasses `payload.update` for two reasons:
+ *
+ * 1. It avoids re-entering the Meditations `afterChange` hook (no need
+ *    for a `skipRecomputeNodeWeights` context flag and no risk of an
+ *    infinite recompute loop).
+ * 2. The write is best-effort: on failure we report to logger + Sentry
+ *    and return `false`, but never throw. This is the fix for issue #390
+ *    — a cache-write error must never 500 the user-facing publish.
+ */
 export async function persistMeditationNodeWeightsCache(args: {
   diagnostics?: Record<string, unknown>
   locale?: string | null

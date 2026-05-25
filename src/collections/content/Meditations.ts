@@ -385,8 +385,7 @@ export const Meditations: CollectionConfig = {
                       validate: ((value, options) => {
                         // Only required during update (not on create)
                         const isUpdate = options.operation === 'update' || !!options.id
-                        const previousValue = (options as { previousValue?: unknown }).previousValue
-                        const valueToValidate = value === undefined ? previousValue : value
+                        const valueToValidate = value === undefined ? options.previousValue : value
                         const { frames } = normalizeMeditationFrames(valueToValidate)
                         if (isUpdate && frames.length === 0) {
                           return 'At least one frame is required'
@@ -406,7 +405,7 @@ export const Meditations: CollectionConfig = {
                                 meditationId: data?.id,
                                 operation,
                                 status: data?._status,
-                                ...getFrameDiagnosticsLogContext(normalized.diagnostics),
+                                ...getFrameDiagnosticsLogContext(normalized),
                               })
                             }
 
