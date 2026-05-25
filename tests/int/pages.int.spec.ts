@@ -1,6 +1,6 @@
 import type { Payload } from 'payload'
 
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { describe, it, beforeAll, afterAll, afterEach, expect } from 'vitest'
 
 import {
   createLexicalWithQuoteBlock,
@@ -354,6 +354,57 @@ describe('Pages Collection', () => {
         overrideAccess: false,
       })
       expect(directRead.docs.map((doc) => doc.id)).toContain(appCard.id)
+    })
+  })
+
+  describe('webUrl virtual field', () => {
+    const originalEnv = process.env
+
+    afterEach(() => {
+      process.env = originalEnv
+    })
+
+    it('English page with tag returns base/tag/slug', async () => {
+      process.env = { ...originalEnv, WEMEDITATE_WEB_URL: 'https://wemeditate.com' }
+      const page = await testData.createPage(payload, {
+        title: 'Shri Mataji Page',
+        tags: ['wisdom'],
+      })
+      const fetched = await payload.findByID({ collection: 'pages', id: page.id, locale: 'en' })
+      expect(fetched.webUrl).toBe(`https://wemeditate.com/wisdom/${page.slug}`)
+    })
+
+    it('English page without tag returns base/slug', async () => {
+      process.env = { ...originalEnv, WEMEDITATE_WEB_URL: 'https://wemeditate.com' }
+      const page = await testData.createPage(payload, { title: 'Untagged Page' })
+      const fetched = await payload.findByID({ collection: 'pages', id: page.id, locale: 'en' })
+      expect(fetched.webUrl).toBe(`https://wemeditate.com/${page.slug}`)
+    })
+
+    it('Non-English page with tag returns base/locale/tag/slug', async () => {
+      process.env = { ...originalEnv, WEMEDITATE_WEB_URL: 'https://wemeditate.com' }
+      const page = await testData.createPage(payload, {
+        title: 'Czech Tagged Page',
+        tags: ['wisdom'],
+      })
+      const fetched = await payload.findByID({ collection: 'pages', id: page.id, locale: 'cs' })
+      expect(fetched.webUrl).toBe(`https://wemeditate.com/cs/wisdom/${page.slug}`)
+    })
+
+    it('Non-English page without tag returns base/locale/slug', async () => {
+      process.env = { ...originalEnv, WEMEDITATE_WEB_URL: 'https://wemeditate.com' }
+      const page = await testData.createPage(payload, { title: 'Czech Untagged Page' })
+      const fetched = await payload.findByID({ collection: 'pages', id: page.id, locale: 'cs' })
+      expect(fetched.webUrl).toBe(`https://wemeditate.com/cs/${page.slug}`)
+    })
+
+    it('returns null when WEMEDITATE_WEB_URL is not set', async () => {
+      const env = { ...originalEnv }
+      delete env.WEMEDITATE_WEB_URL
+      process.env = env
+      const page = await testData.createPage(payload, { title: 'No Env Page' })
+      const fetched = await payload.findByID({ collection: 'pages', id: page.id })
+      expect(fetched.webUrl).toBeNull()
     })
   })
 })
