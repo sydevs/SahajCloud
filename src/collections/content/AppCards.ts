@@ -306,7 +306,8 @@ function defaultViewFields(): Field[] {
           defaultValue: 'square',
           required: true,
           admin: {
-            description: 'Card image aspect ratio.',
+            description:
+              "Card image aspect ratio. 'Square' renders a fixed 1:1 image; 'Flexible' lets the image height follow its natural aspect ratio.",
             components: { Field: '@/components/admin/ToggleGroupField' },
           },
         },
@@ -454,7 +455,8 @@ function eventViewFields(thresholdDefault: string): Field[] {
           defaultValue: 'square',
           required: true,
           admin: {
-            description: 'Card image aspect ratio.',
+            description:
+              "Card image aspect ratio. 'Square' renders a fixed 1:1 image; 'Flexible' lets the image height follow its natural aspect ratio.",
             components: { Field: '@/components/admin/ToggleGroupField' },
           },
         },

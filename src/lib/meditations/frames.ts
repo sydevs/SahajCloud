@@ -19,8 +19,6 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import * as Sentry from '@sentry/cloudflare'
 
-import type { KeyframeDefinition } from '@/types/frames'
-
 export type FrameNormalizationIssue =
   | 'invalid-id'
   | 'invalid-timestamp'
@@ -139,10 +137,6 @@ export function normalizeMeditationFrames(value: unknown): NormalizedFramesResul
     diagnostics: buildDiagnostics(value.length, frames, invalidFrameReasons),
     frames,
   }
-}
-
-export function normalizeMeditationFramesForStorage(value: unknown): KeyframeDefinition[] {
-  return normalizeMeditationFrames(value).frames
 }
 
 export function meditationFramesChanged(previousFrames: unknown, nextFrames: unknown): boolean {

@@ -11,6 +11,13 @@ import {
 } from '@/lib/meditations/frames'
 import type { Meditation } from '@/payload-types'
 
+function toNumericId(value: unknown): number | null {
+  if (value === undefined || value === null) return null
+  const id = extractID(value as Parameters<typeof extractID>[0])
+  const numeric = typeof id === 'number' ? id : Number(id)
+  return Number.isFinite(numeric) ? numeric : null
+}
+
 /**
  * afterChange hook on Frames. When a frame's `subtleSystemNode`
  * relationship changes, find every meditation whose JSON `frames` array
@@ -33,11 +40,12 @@ export const cascadeFrameNodeChange: CollectionAfterChangeHook = async ({
 }) => {
   if (operation !== 'update') return doc
 
-  const before = previousDoc?.subtleSystemNode
-    ? extractID(previousDoc.subtleSystemNode)
-    : null
-  const after = doc?.subtleSystemNode ? extractID(doc.subtleSystemNode) : null
-  if (before === after) return doc
+  // `extractID` can return either `number` or `string`; coerce both sides so
+  // `1` and `"1"` compare equal. If coercion yields NaN, fall through and
+  // treat as a change — recomputing is safer than silently skipping.
+  const before = toNumericId(previousDoc?.subtleSystemNode)
+  const after = toNumericId(doc?.subtleSystemNode)
+  if (before !== null && after !== null && before === after) return doc
 
   const changedFrameId = typeof doc.id === 'number' ? doc.id : Number(doc.id)
   if (!Number.isSafeInteger(changedFrameId)) return doc

@@ -13,7 +13,6 @@ import {
   getFrameDiagnosticsLogContext,
   hasFrameNormalizationIssues,
   normalizeMeditationFrames,
-  normalizeMeditationFramesForStorage,
 } from '@/lib/meditations/frames'
 import { getR2Url } from '@/lib/storage/r2NativeAdapter'
 import { virtualUrlField } from '@/lib/storage/urlFields'
@@ -409,7 +408,7 @@ export const Meditations: CollectionConfig = {
                               })
                             }
 
-                            return normalizeMeditationFramesForStorage(value)
+                            return normalized.frames
                           },
                         ],
                         afterRead: [

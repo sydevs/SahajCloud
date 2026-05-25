@@ -1,5 +1,5 @@
 import type { JSONSchema4 } from 'json-schema'
-import type { Field, GroupField, JSONField, TabsField, UIField } from 'payload'
+import type { GroupField, JSONField, TabsField, UIField } from 'payload'
 
 // ============================================================================
 // Types
@@ -26,12 +26,14 @@ interface StringPropertySchema {
  * JSON Schema definition for a group of translations.
  *
  * A group is either:
- * - a leaf group with `properties` of `StringPropertySchema` (renders as one tab
- *   with a flat TranslationsTable), or
- * - a parent group with `properties` of nested `GroupSchema` values (renders as
- *   a tab containing inner sub-tabs, one per child group).
+ * - a leaf group with `properties` of `StringPropertySchema` (renders as one
+ *   tab with a flat TranslationsTable), or
+ * - a parent group with `properties` of nested `GroupSchema` values (renders
+ *   as one tab containing a Payload `group` field, with one JSON sub-field
+ *   per child sub-group — visible on one scroll, no inner-tab switching).
  *
- * Mixing string and object properties at the same level is not supported.
+ * Mixing string and object properties at the same level is not supported and
+ * is rejected at build time by `buildTranslationTabs`.
  *
  * Non-JSON-Schema extension fields (ignored by Monaco validation, consumed only
  * by the Payload admin builder):
@@ -136,9 +138,12 @@ function createScreenshotField(
  * Creates a JSON field configuration for a leaf translation group (one whose
  * properties are all string leaves).
  *
- * @param parentSlug - When provided, used to form a unique JSON Schema URI
- *   (`a://${globalSlug}/${parentSlug}_${groupSlug}.json`) that avoids
- *   collisions between same-named sub-groups in different parent sections.
+ * @param parentSlug - When provided, the field is rendered as a sub-group inside
+ *   a parent `group` field: the JSON field carries a visible label and description
+ *   so translators can tell sub-groups apart, and the JSON Schema URI is namespaced
+ *   (`a://${globalSlug}/${parentSlug}_${groupSlug}.json`) to avoid Monaco collisions
+ *   between same-named sub-groups in different parent sections. Top-level leaf
+ *   tabs (no parent) suppress the label since the tab itself already labels them.
  */
 function createGroupJsonField(
   groupSlug: string,
@@ -167,14 +172,16 @@ function createGroupJsonField(
     additionalProperties: groupSchema.additionalProperties ?? false,
   }
 
-  const uriSlug = parentSlug ? `${parentSlug}_${groupSlug}` : groupSlug
+  const isSubGroup = Boolean(parentSlug)
+  const uriSlug = isSubGroup ? `${parentSlug}_${groupSlug}` : groupSlug
 
   return {
     name: groupSlug,
     type: 'json',
     localized: true,
-    label: false,
+    label: isSubGroup ? toTitleCase(groupSlug) : false,
     admin: {
+      description: isSubGroup ? groupSchema.description : undefined,
       components: {
         Field: '@/components/admin/TranslationsTable',
       },
@@ -234,14 +241,9 @@ function createSubGroupFields(
  *   with a single JSON field rendered by the TranslationsTable component.
  * - A top-level group whose `properties` are nested `GroupSchema` values becomes
  *   one tab containing a single Payload `group` field (named after the parent),
- *   with one JSON field per child sub-group inside it. This replaces the previous
- *   inner-tabs approach, keeping all sub-group fields visible on one scroll
- *   without forcing translators to switch tabs within a tab.
- * - A top-level group with mixed string and nested-group properties renders string
- *   keys as a flat JSON field above the group field (strings appear first).
- *
- * Backward compatible: schemas with no nested groups (flat leaf groups) behave
- * exactly as before — wm-web-translations and sy-atlas-translations are unaffected.
+ *   with one JSON field per child sub-group inside it.
+ * - Mixing string leaves and nested sub-groups at the same level throws — move
+ *   the strings into a sibling sub-group.
  *
  * @param schema - The translations schema with optional nested groups
  * @param globalSlug - The global's slug for API fetching and unique URIs
@@ -261,31 +263,20 @@ export function buildTranslationTabs(
         (entry): entry is [string, GroupSchema] => isGroupSchema(entry[1]),
       )
 
-      // Parent group → outer tab with a Payload group field containing one JSON
-      // field per child sub-group. Screenshots on the parent are ignored (parent
-      // is a pure container); each child renders its own optional screenshot.
-      // If the parent also has flat string keys (mixed), they render as a plain
-      // JSON field above the group field so they appear first.
       if (subgroups.length > 0) {
-        const fields: Field[] = []
-
-        const stringEntries = Object.entries(groupProps).filter(
+        const stringSiblings = Object.entries(groupProps).filter(
           ([, prop]) => !isGroupSchema(prop),
         )
-        if (stringEntries.length > 0) {
-          const flatSchema: GroupSchema = {
-            ...groupSchema,
-            properties: Object.fromEntries(stringEntries) as GroupSchema['properties'],
-          }
-          fields.push(createGroupJsonField(groupSlug, flatSchema, globalSlug))
+        if (stringSiblings.length > 0) {
+          throw new Error(
+            `buildTranslationTabs: parent group "${groupSlug}" has both nested sub-groups and string properties — mixing is not supported. Move the strings into a sibling sub-group.`,
+          )
         }
-
-        fields.push(createSubGroupFields(groupSlug, groupSchema, globalSlug))
 
         return {
           label: toTitleCase(groupSlug),
           description: groupSchema.description,
-          fields,
+          fields: [createSubGroupFields(groupSlug, groupSchema, globalSlug)],
         }
       }
 
