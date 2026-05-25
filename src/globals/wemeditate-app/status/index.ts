@@ -72,6 +72,35 @@ export const WeMeditateAppStatusSpec: StatusGlobalSpec<WeMeditateAppStatusConfig
     translationsSection,
     appCardsSection,
   ],
+  // Group key → admin collection slug for deep-link construction in the
+  // readiness widget. Keys deliberately omitted here render as plain text
+  // in the documents-table (either non-collection rows or aggregate groups).
+  groupCollectionMap: {
+    // userChoices section
+    featured: 'user-choices',
+    duration: 'user-choices',
+    // lessons section
+    'unit-1': 'lessons',
+    'unit-2': 'lessons',
+    'unit-3': 'lessons',
+    'unit-4': 'lessons',
+    // lectures section
+    'lesson-referenced-subtitles': 'lectures',
+    // pages section
+    'core-pages': 'pages',
+    'subtle-system-pages': 'pages',
+    // appCards section
+    'launch-critical-cards': 'app-cards',
+    'other-cards': 'app-cards',
+  },
+  // Section key → global slug for the section card's "Edit configuration"
+  // link. Used when the section's rows aren't backed by a collection
+  // (config-slot rows for appConfig, virtual rows for translations) so
+  // managers still have a one-click path to the source of truth.
+  sectionConfigFallback: {
+    appConfig: { type: 'global', slug: 'wm-app-config' },
+    translations: { type: 'global', slug: 'wm-app-translations' },
+  },
 }
 
 export const WeMeditateAppStatus = buildStatusGlobalConfig(WeMeditateAppStatusSpec)

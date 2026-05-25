@@ -92,6 +92,20 @@ export interface SectionSpec<TConfig, TSectionCtx = void> {
  * carries section-level tutorial links that the generator script writes
  * into the JSON.
  */
+/**
+ * Static "where does this group's documents live?" map.
+ * `null` (or missing entry) marks the group as non-linkable in the widget —
+ * rows render as plain text instead of deep-link anchors.
+ */
+export type GroupCollectionMap = Record<string, string | null>
+
+/**
+ * Optional per-section global slug for the "Edit configuration" header link
+ * — used when the section's rows aren't themselves backed by a collection
+ * (e.g. translations rows, vibe-check identifier rows).
+ */
+export type SectionConfigFallback = Record<string, { type: 'global'; slug: string }>
+
 export interface StatusGlobalSpec<TConfig> {
   slug: string
   label: string
@@ -101,4 +115,8 @@ export interface StatusGlobalSpec<TConfig> {
   extractConfig: (data: unknown) => TConfig
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sections: SectionSpec<TConfig, any>[]
+  /** Group key → collection slug for deep-link construction in the admin widget. */
+  groupCollectionMap?: GroupCollectionMap
+  /** Section key → global slug for the section card's "Edit configuration" link. */
+  sectionConfigFallback?: SectionConfigFallback
 }
