@@ -41,7 +41,7 @@ export const WeMeditateAppTranslations: GlobalConfig = {
               virtual: true,
               admin: {
                 description:
-                  'Save the global with this checked to record that you reviewed this locale’s translations now. The checkbox always reads as off.',
+                  "Save the global with this checked to record that you reviewed this locale’s translations now. The checkbox always reads as off.",
               },
               hooks: {
                 afterRead: [() => false],

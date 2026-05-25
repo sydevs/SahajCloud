@@ -91,72 +91,106 @@ describe('Translations Globals Configuration', () => {
       expect(global?.fields[0].type).toBe('tabs')
     })
 
-    it('should have 6 tabs: Daily, Path, Explore, Profile, Meditation, Review', () => {
+    it('should have 10 tabs: 7 nested + 2 flat + Review', () => {
       const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        expect(tabsField.tabs).toHaveLength(6)
-        expect(tabsField.tabs[0].label).toBe('Daily')
-        expect(tabsField.tabs[1].label).toBe('Path')
-        expect(tabsField.tabs[2].label).toBe('Explore')
-        expect(tabsField.tabs[3].label).toBe('Profile')
-        expect(tabsField.tabs[4].label).toBe('Meditation')
-        expect(tabsField.tabs[5].label).toBe('Review')
+        expect(tabsField.tabs).toHaveLength(10)
+        expect(tabsField.tabs[0].label).toBe('Onboarding')
+        expect(tabsField.tabs[1].label).toBe('Daily')
+        expect(tabsField.tabs[2].label).toBe('Path')
+        expect(tabsField.tabs[3].label).toBe('Explore')
+        expect(tabsField.tabs[4].label).toBe('Profile')
+        expect(tabsField.tabs[5].label).toBe('Meditation')
+        expect(tabsField.tabs[6].label).toBe('Auth')
+        expect(tabsField.tabs[7].label).toBe('Navigation')
+        expect(tabsField.tabs[8].label).toBe('General')
+        expect(tabsField.tabs[9].label).toBe('Review')
       }
     })
 
-    it('should have JSON fields with correct names matching group slugs', () => {
+    it('should have a group field as the first field in each nested translation tab', () => {
       const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        const translationTabs = tabsField.tabs.slice(0, 5)
-        const fieldNames = translationTabs.map((tab) => tab.fields[0].name)
+        const nestedTabs = tabsField.tabs.slice(0, 7)
+        const slugs = ['onboarding', 'daily', 'path', 'explore', 'profile', 'meditation', 'auth']
 
-        expect(fieldNames).toEqual(['daily', 'path', 'explore', 'profile', 'meditation'])
+        nestedTabs.forEach((tab, i) => {
+          const groupField = tab.fields[0]
+          expect(groupField.type).toBe('group')
+          expect((groupField as { name?: string }).name).toBe(slugs[i])
+          expect((groupField as { label?: unknown }).label).toBe(false)
+        })
       }
     })
 
-    it('should have globalSlug passed to each translation field', () => {
+    it('should have JSON sub-fields inside the group with names matching sub-group slugs', () => {
       const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        const translationTabs = tabsField.tabs.slice(0, 5)
-        for (const tab of translationTabs) {
-          const field = tab.fields[0]
-          expect(field.admin?.custom?.globalSlug).toBe('wm-app-translations')
+        // Daily tab: sub-groups are main, common, load_info
+        const dailyGroup = tabsField.tabs[1].fields[0]
+        if (dailyGroup.type === 'group') {
+          const jsonFields = dailyGroup.fields.filter((f) => f.type === 'json')
+          const subSlugs = jsonFields.map((f) => (f as { name?: string }).name)
+          expect(subSlugs).toContain('main')
+          expect(subSlugs).toContain('common')
+          expect(subSlugs).toContain('load_info')
         }
       }
     })
 
-    it('should have schemaEntries with keys for each group', () => {
+    it('should have unique JSON Schema URIs using parentSlug_subSlug format', () => {
       const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        // Check daily group has expected keys
-        const dailyEntries = tabsField.tabs[0].fields[0].admin?.custom?.schemaEntries as Array<{
-          key: string
-          description: string
-        }>
-        const dailyKeys = dailyEntries.map((e) => e.key)
-        expect(dailyKeys).toContain('title')
-        expect(dailyKeys).toContain('subtitle')
-        expect(dailyKeys).toContain('complete')
-        expect(dailyKeys).toContain('streak')
-        expect(dailyKeys).toContain('skip')
+        const dailyGroup = tabsField.tabs[1].fields[0]
+        if (dailyGroup.type === 'group') {
+          const mainField = dailyGroup.fields.find(
+            (f) => f.type === 'json' && (f as { name?: string }).name === 'main',
+          )
+          expect(
+            (mainField as { jsonSchema?: { uri?: string } })?.jsonSchema?.uri,
+          ).toBe('a://wm-app-translations/daily_main.json')
+        }
+      }
+    })
 
-        // Check meditation group has expected keys
-        const meditationEntries = tabsField.tabs[4].fields[0].admin?.custom?.schemaEntries as Array<{
-          key: string
-          description: string
-        }>
-        const meditationKeys = meditationEntries.map((e) => e.key)
-        expect(meditationKeys).toContain('play')
-        expect(meditationKeys).toContain('pause')
-        expect(meditationKeys).toContain('complete')
+    it('should have globalSlug passed to each JSON field inside the groups', () => {
+      const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
+      const tabsField = global?.fields[0]
+
+      if (tabsField?.type === 'tabs') {
+        const dailyGroup = tabsField.tabs[1].fields[0]
+        if (dailyGroup.type === 'group') {
+          const jsonFields = dailyGroup.fields.filter((f) => f.type === 'json')
+          for (const field of jsonFields) {
+            expect(
+              (field as { admin?: { custom?: { globalSlug?: string } } }).admin?.custom?.globalSlug,
+            ).toBe('wm-app-translations')
+          }
+        }
+      }
+    })
+
+    it('should have flat tabs (Navigation, General) with a direct JSON field', () => {
+      const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
+      const tabsField = global?.fields[0]
+
+      if (tabsField?.type === 'tabs') {
+        const navigationTab = tabsField.tabs[7]
+        const generalTab = tabsField.tabs[8]
+
+        expect(navigationTab.fields[0].type).toBe('json')
+        expect((navigationTab.fields[0] as { name?: string }).name).toBe('navigation')
+
+        expect(generalTab.fields[0].type).toBe('json')
+        expect((generalTab.fields[0] as { name?: string }).name).toBe('general')
       }
     })
 
@@ -165,7 +199,7 @@ describe('Translations Globals Configuration', () => {
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        const reviewTab = tabsField.tabs[5]
+        const reviewTab = tabsField.tabs[9]
         expect(reviewTab.label).toBe('Review')
 
         const fieldNames = reviewTab.fields.map((f) => ('name' in f ? f.name : undefined))
@@ -244,11 +278,18 @@ describe('Translations Globals Configuration', () => {
           // Skip non-translation tabs (e.g., the Review tab on wm-app-translations
           // which uses non-JSON fields for manual-review tracking).
           if (tab.label === 'Review') continue
-          const field = tab.fields[0]
-          expect(field.jsonSchema).toBeDefined()
-          expect(field.jsonSchema?.uri).toMatch(/^a:\/\//)
-          expect(field.jsonSchema?.schema).toBeDefined()
-          expect(field.jsonSchema?.schema?.type).toBe('object')
+          const firstField = tab.fields[0]
+          // Nested tabs use a group field wrapping JSON sub-fields; flat tabs use a direct JSON field.
+          const jsonFields =
+            firstField.type === 'group'
+              ? firstField.fields.filter((f) => f.type === 'json')
+              : [firstField]
+          for (const field of jsonFields) {
+            expect(field.jsonSchema).toBeDefined()
+            expect(field.jsonSchema?.uri).toMatch(/^a:\/\//)
+            expect(field.jsonSchema?.schema).toBeDefined()
+            expect(field.jsonSchema?.schema?.type).toBe('object')
+          }
         }
       }
     })
