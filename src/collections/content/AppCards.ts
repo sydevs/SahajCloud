@@ -7,14 +7,6 @@ import { mediaField, scheduleField, urlField } from '@/fields'
 import type { ScheduleSubFields } from '@/hooks/scheduleHooks'
 import { buildRRuleTemporal } from '@/hooks/scheduleHooks'
 
-const APP_PAGE_OPTIONS = [
-  { label: 'Map', value: 'map' },
-  { label: 'Lectures', value: 'lectures' },
-  { label: 'Path', value: 'path' },
-  { label: 'Music', value: 'music' },
-  { label: 'Live Meditations', value: 'live-meditations' },
-]
-
 const TIME_REGEX = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
 
 type ViewName = 'startingSoon' | 'liveNow' | 'default'
@@ -172,7 +164,7 @@ function destinationFields(
           name: 'destination',
           type: 'select',
           options: [
-            { label: 'App Page', value: 'appPage' },
+            { label: 'Page', value: 'page' },
             { label: 'Lecture', value: 'lecture' },
             { label: 'Album', value: 'album' },
             { label: 'Meditation', value: 'meditation' },
@@ -183,12 +175,12 @@ function destinationFields(
           },
         },
         {
-          name: 'appPage',
-          type: 'select',
-          options: APP_PAGE_OPTIONS,
+          name: 'page',
+          type: 'relationship',
+          relationTo: 'pages',
           admin: {
-            condition: (_, siblingData) => siblingData?.destination === 'appPage',
-            description: 'App page this card links to.',
+            condition: (_, siblingData) => siblingData?.destination === 'page',
+            description: 'Page this card links to.',
           },
         },
         {
