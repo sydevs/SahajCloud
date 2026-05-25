@@ -3151,54 +3151,58 @@ export interface WmAppConfig {
 export interface WmAppTranslation {
   id: number;
   onboarding_welcome?: {
+    strings?: {
+      /**
+       * Hero title on the welcome screen. Short greeting (e.g. 'Welcome, friend').
+       */
+      title: string;
+      /**
+       * Hero subtitle below the welcome title.
+       */
+      subtitle: string;
+      /**
+       * Primary CTA that begins onboarding for a new user.
+       */
+      get_started: string;
+      /**
+       * Secondary CTA for returning users who already have an account.
+       */
+      use_existing_account: string;
+      /**
+       * Title of the in-app webview screen that displays the Privacy Policy. The Privacy Policy body itself is the CMS page referenced by wm-app-config.privacyPolicyPage, not a translation string.
+       */
+      privacy_policy_title: string;
+      /**
+       * Title of the in-app webview screen that displays the Terms & Conditions. The body itself is the CMS page referenced by wm-app-config.termsAndConditionsPage.
+       */
+      terms_and_conditions_title: string;
+      /**
+       * Error toast shown when the OS cannot find an installed email client to handle a mailto: link from the welcome screen.
+       */
+      email_app_unavailable: string;
+      /**
+       * Generic error toast shown when an inline link on the welcome screen fails to open.
+       */
+      link_open_failed: string;
+    };
     /**
-     * Hero title on the welcome screen. Short greeting (e.g. 'Welcome, friend').
+     * Inline legal disclaimer below the primary CTAs. Renders two inline links to the in-app Terms and Privacy Policy webviews (URLs use the wemeditate://legal/* scheme — see ticket for full reference). Translators control word order, link placement, and the connector between the two link labels.
      */
-    title: string;
-    /**
-     * Hero subtitle below the welcome title.
-     */
-    subtitle: string;
-    /**
-     * Primary CTA that begins onboarding for a new user.
-     */
-    get_started: string;
-    /**
-     * Secondary CTA for returning users who already have an account.
-     */
-    use_existing_account: string;
-    /**
-     * First inline-text fragment of the legal disclaimer shown under the CTAs. Followed by the Terms link, the connector, and the Privacy Policy link. Include any required trailing space.
-     */
-    legal_disclaimer_prefix: string;
-    /**
-     * Connector word between the Terms link and the Privacy Policy link in the inline disclaimer. Include any required surrounding spaces (e.g. ' & ').
-     */
-    legal_disclaimer_and: string;
-    /**
-     * Inline link label that opens the in-app Terms & Conditions webview.
-     */
-    legal_terms: string;
-    /**
-     * Inline link label that opens the in-app Privacy Policy webview.
-     */
-    legal_privacy_policy: string;
-    /**
-     * Title of the in-app webview screen that displays the Privacy Policy. The Privacy Policy body itself is the CMS page referenced by wm-app-config.privacyPolicyPage, not a translation string.
-     */
-    privacy_policy_title: string;
-    /**
-     * Title of the in-app webview screen that displays the Terms & Conditions. The body itself is the CMS page referenced by wm-app-config.termsAndConditionsPage.
-     */
-    terms_and_conditions_title: string;
-    /**
-     * Error toast shown when the OS cannot find an installed email client to handle a mailto: link from the welcome screen.
-     */
-    email_app_unavailable: string;
-    /**
-     * Generic error toast shown when an inline link on the welcome screen fails to open.
-     */
-    link_open_failed: string;
+    legal_disclaimer?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
   };
   onboarding_name?: {
     /**
@@ -3221,110 +3225,166 @@ export interface WmAppTranslation {
     message_prefix: string;
   };
   onboarding_user_type?: {
+    strings?: {
+      /**
+       * Primary CTA used after the user picks their classification.
+       */
+      get_started: string;
+      /**
+       * Selectable option for users completely new to meditation. Maps to userType = user-complete-beginner.
+       */
+      option_complete_beginner: string;
+      /**
+       * Selectable option for users who have tried meditation before but not deeply. Maps to userType = user-tried-before.
+       */
+      option_tried_before: string;
+      /**
+       * Selectable option for users currently in an in-person or online newcomer class. Maps to userType = user-attending-classes.
+       */
+      option_attending_classes: string;
+      /**
+       * Selectable option for long-time Sahaja Yoga practitioners. Maps to userType = yogi (excluded from the ad-measurement path).
+       */
+      option_yogi: string;
+    };
     /**
-     * First text fragment of the screen title. Combined with title_brand and title_suffix to form the full prompt (e.g. 'Have you tried Sahaja Yoga before?'). Preserve the trailing line break (\n).
+     * Screen title prompt (e.g. 'Have you tried Sahaja Yoga before?'). The brand fragment 'Sahaja Yoga' is rendered as a bold inline span; translators may choose a different word to bold or apply no bold per locale convention.
      */
-    title_prefix: string;
-    /**
-     * The 'Sahaja Yoga' brand fragment in the title. Usually kept in original spelling, with optional locale-script transliteration.
-     */
-    title_brand: string;
-    /**
-     * Closing text fragment of the title (typically ' before?'). Include the leading space if needed for the locale.
-     */
-    title_suffix: string;
-    /**
-     * Primary CTA used after the user picks their classification.
-     */
-    get_started: string;
-    /**
-     * Selectable option for users completely new to meditation. Maps to userType = user-complete-beginner.
-     */
-    option_complete_beginner: string;
-    /**
-     * Selectable option for users who have tried meditation before but not deeply. Maps to userType = user-tried-before.
-     */
-    option_tried_before: string;
-    /**
-     * Selectable option for users currently in an in-person or online newcomer class. Maps to userType = user-attending-classes.
-     */
-    option_attending_classes: string;
-    /**
-     * Selectable option for long-time Sahaja Yoga practitioners. Maps to userType = yogi (excluded from the ad-measurement path).
-     */
-    option_yogi: string;
+    title?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
   };
   onboarding_carousel?: {
+    strings?: {
+      /**
+       * Slide 1 title (e.g. 'A moment of peace').
+       */
+      page_moment_title: string;
+      /**
+       * Slide 1 supporting copy.
+       */
+      page_moment_subtitle: string;
+      /**
+       * Slide 2 supporting copy.
+       */
+      page_true_self_subtitle: string;
+      /**
+       * Slide 3 title (e.g. 'Unlock your potential').
+       */
+      page_unlock_potential_title: string;
+      /**
+       * Slide 3 supporting copy.
+       */
+      page_unlock_potential_subtitle: string;
+    };
     /**
-     * Slide 1 title (e.g. 'A moment of peace').
+     * Slide 2 title (e.g. 'Get to know your true self'). The 'true self' fragment is rendered as a bold inline span; the Flutter renderer may also apply an accent colour to bolded segments on this slide.
      */
-    page_moment_title: string;
-    /**
-     * Slide 1 supporting copy.
-     */
-    page_moment_subtitle: string;
-    /**
-     * Slide 2 title prefix; combined inline with page_true_self_highlight (e.g. 'Get to know your true self'). Include the trailing space.
-     */
-    page_true_self_prefix: string;
-    /**
-     * Highlighted phrase at the end of slide 2 title, typically rendered in an accent colour (e.g. 'true self').
-     */
-    page_true_self_highlight: string;
-    /**
-     * Slide 2 supporting copy.
-     */
-    page_true_self_subtitle: string;
-    /**
-     * Slide 3 title (e.g. 'Unlock your potential').
-     */
-    page_unlock_potential_title: string;
-    /**
-     * Slide 3 supporting copy.
-     */
-    page_unlock_potential_subtitle: string;
+    page_true_self_title?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
   };
   onboarding_consent_modal?: {
+    strings?: {
+      /**
+       * Modal title (e.g. 'Help spread the word').
+       */
+      title: string;
+      /**
+       * Second paragraph explaining the benefits of granting consent (improving campaigns, using donations responsibly, suppressing ads to existing users, reaching similar people).
+       */
+      body_benefits: string;
+      /**
+       * Fifth paragraph telling the user they can change this anytime via Settings → Privacy & advertising. Preserve the arrow character (→) or substitute the locale equivalent.
+       */
+      body_settings_hint: string;
+      /**
+       * Primary CTA granting consent (sets adsMarketingConsent = true).
+       */
+      allow: string;
+      /**
+       * Decline CTA. Decline is a single tap and must not block account creation (see analytics-simplified/05-flutter-implementation.md §9).
+       */
+      reject: string;
+    };
     /**
-     * Modal title (e.g. 'Help spread the word').
+     * Third paragraph listing categories that are never sent for advertising (mood, goals, hand sensations, reflections, class location, spiritual-practice details). Lead phrase 'We'll never share' is rendered as a bold inline span. Must remain consistent with the privacy filter in analytics-simplified/03-marketing-event-taxonomy.md §2.
      */
-    title: string;
+    body_never_share?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
     /**
-     * First paragraph prefix; combined inline with body_intro_link and body_intro_suffix to form a single sentence. Include any trailing space.
+     * Fourth paragraph: short statement that the app never sells user data. Phrase 'we never sell' is rendered as a bold inline span.
      */
-    body_intro_prefix: string;
+    body_never_sell?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
     /**
-     * Inline link text inside the first paragraph (e.g. 'what we share'). Tapping opens a detail sheet listing exactly which fields are sent to Meta, Apple and Google Ads.
+     * First paragraph of the consent modal. Contains an inline link (e.g. 'what we share') opening the privacy-detail sheet that lists the exact fields sent to Meta, Apple Search Ads and Google Ads. Link URL uses the wemeditate://legal/what-we-share scheme.
      */
-    body_intro_link: string;
-    /**
-     * First paragraph suffix completing the sentence after the inline link. Include the leading separator if needed (e.g. ') with Meta, Apple and Google Ads to understand which outreach helps people discover meditation.').
-     */
-    body_intro_suffix: string;
-    /**
-     * Second paragraph explaining the benefits of granting consent (improving campaigns, using donations responsibly, suppressing ads to existing users, reaching similar people).
-     */
-    body_benefits: string;
-    /**
-     * Third paragraph listing categories that are never sent for advertising (mood, goals, hand sensations, reflections, class location, spiritual-practice details). Must remain consistent with the privacy filter in analytics-simplified/03-marketing-event-taxonomy.md §2.
-     */
-    body_never_share: string;
-    /**
-     * Fourth paragraph: short statement that the app never sells user data.
-     */
-    body_never_sell: string;
-    /**
-     * Fifth paragraph telling the user they can change this anytime via Settings → Privacy & advertising. Preserve the arrow character (→) or substitute the locale equivalent.
-     */
-    body_settings_hint: string;
-    /**
-     * Primary CTA granting consent (sets adsMarketingConsent = true).
-     */
-    allow: string;
-    /**
-     * Decline CTA. Decline is a single tap and must not block account creation (see analytics-simplified/05-flutter-implementation.md §9).
-     */
-    reject: string;
+    body_intro?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
   };
   daily_main?: {
     /**
@@ -4070,7 +4130,7 @@ export interface WmAppTranslation {
      */
     privacy_and_advertising_title: string;
     /**
-     * Subtitle of the Privacy & advertising entry in the Profile menu.
+     * Subtitle of the Privacy & Advertising entry in the Profile menu (e.g. 'Privacy choices and ad preferences').
      */
     privacy_and_advertising_subtitle: string;
     /**
@@ -4109,6 +4169,26 @@ export interface WmAppTranslation {
      * Joined-date string for multiple years ago. MUST preserve the {years} placeholder — it is replaced at runtime with the year count.
      */
     joined_years: string;
+    /**
+     * Section header above the legal-page navigation rows in the Profile menu (typically capitalised, e.g. 'LEGAL'). Sits between the Contact-us feedback row and the Privacy Policy / Terms & Conditions / Privacy & Advertising rows.
+     */
+    legal_header: string;
+    /**
+     * Title of the Privacy Policy entry in the Profile menu's Legal section. Tapping opens the Privacy Policy page (CMS page id 73).
+     */
+    privacy_policy_title: string;
+    /**
+     * Subtitle of the Privacy Policy entry in the Profile menu's Legal section (e.g. 'How we collect and use data').
+     */
+    privacy_policy_subtitle: string;
+    /**
+     * Title of the Terms & Conditions entry in the Profile menu's Legal section. Tapping opens the Terms & Conditions page (CMS page id 76).
+     */
+    terms_and_conditions_title: string;
+    /**
+     * Subtitle of the Terms & Conditions entry in the Profile menu's Legal section (e.g. 'Legal terms for using WeMeditate').
+     */
+    terms_and_conditions_subtitle: string;
   };
   profile_favourites?: {
     /**
@@ -4293,70 +4373,112 @@ export interface WmAppTranslation {
     delete_account: string;
   };
   profile_privacy_advertising?: {
+    strings?: {
+      /**
+       * Screen title (e.g. 'Help spread the word and make the app better').
+       */
+      screen_title: string;
+      /**
+       * Status label shown next to a toggle that is currently allowed. MUST preserve the {date} placeholder — it is replaced at runtime with the localized date of the most recent consent decision (e.g. '16 May 2026').
+       */
+      status_allowed: string;
+      /**
+       * Status label shown next to a toggle that is currently disallowed.
+       */
+      status_not_allowed: string;
+      /**
+       * Section title for the anonymous product analytics toggle (e.g. 'Anonymous product analytics'). Drives productAnalyticsOptOut.
+       */
+      product_analytics_title: string;
+      /**
+       * Section body explaining anonymous product analytics: we log aggregated usage data to fix bugs and improve We Meditate, no individual data, no advertisers, no user profile. Must remain consistent with the TelemetryDeck posture in analytics-simplified/01-strategy.md §4.
+       */
+      product_analytics_description: string;
+      /**
+       * Section title for the advertising-measurement toggle (e.g. 'Advertising measurement and improvement'). Drives adsMarketingConsent.
+       */
+      advertising_title: string;
+      /**
+       * Second paragraph of the advertising section: how granting consent helps WeMeditate use donations responsibly, improve campaigns, suppress ads to existing users, and reach similar people.
+       */
+      advertising_body_benefits: string;
+      /**
+       * Fourth paragraph of the advertising section explaining that the user can change their choice anytime using the toggle at the top of this screen.
+       */
+      advertising_body_change_hint: string;
+      /**
+       * Sub-section header listing current advertising platforms (e.g. 'Current advertising platforms').
+       */
+      advertising_platforms_header: string;
+      /**
+       * Bullet item for Meta (Facebook + Instagram + Audience Network). Brand name — usually kept as 'Meta'.
+       */
+      advertising_platform_meta: string;
+      /**
+       * Bullet item for Google Ads. Brand name — usually kept as 'Google Ads'.
+       */
+      advertising_platform_google_ads: string;
+      /**
+       * Bullet item for Apple Search Ads. Brand name — usually kept as 'Apple Search Ads'.
+       */
+      advertising_platform_apple_search_ads: string;
+      /**
+       * Section header above the legal-page navigation rows at the bottom of the Privacy & Advertising screen (e.g. 'Learn more'). Below this header sit the Privacy Policy and Terms & Conditions rows, which reuse the same labels as the Profile-tab Legal section.
+       */
+      learn_more_header: string;
+      /**
+       * Title of the Privacy Policy row in the Learn-more section at the bottom of the Privacy & Advertising screen. Tapping opens the Privacy Policy page (CMS page id 73). Reuses the same English label as profile_main.privacy_policy_title.
+       */
+      privacy_policy_title: string;
+      /**
+       * Subtitle of the Privacy Policy row in the Learn-more section (e.g. 'How we collect and use data').
+       */
+      privacy_policy_subtitle: string;
+      /**
+       * Title of the Terms & Conditions row in the Learn-more section at the bottom of the Privacy & Advertising screen. Tapping opens the Terms & Conditions page (CMS page id 76).
+       */
+      terms_and_conditions_title: string;
+      /**
+       * Subtitle of the Terms & Conditions row in the Learn-more section (e.g. 'Legal terms for using WeMeditate').
+       */
+      terms_and_conditions_subtitle: string;
+    };
     /**
-     * Screen title (e.g. 'Help spread the word and make the app better').
+     * Third paragraph of the advertising section. Covers both the never-shared categories AND the never-sell statement in a single paragraph with two bold spans ('We'll never share' / 'we never sell'). Must remain consistent with analytics-simplified/03-marketing-event-taxonomy.md §2.
      */
-    screen_title: string;
+    advertising_body_never_share?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
     /**
-     * Status label shown next to a toggle that is currently allowed. MUST preserve the {date} placeholder — it is replaced at runtime with the localized date of the most recent consent decision (e.g. '16 May 2026').
+     * First paragraph of the advertising section. Contains an inline link (e.g. 'what we share') that opens the Privacy Policy page (CMS page id 73, scrolled to the 'what we share' heading) — same link target as onboarding_consent_modal.body_intro.
      */
-    status_allowed: string;
-    /**
-     * Status label shown next to a toggle that is currently disallowed.
-     */
-    status_not_allowed: string;
-    /**
-     * Section title for the anonymous product analytics toggle (e.g. 'Anonymous product analytics'). Drives productAnalyticsOptOut.
-     */
-    product_analytics_title: string;
-    /**
-     * Section body explaining anonymous product analytics: we log aggregated usage data to fix bugs and improve We Meditate, no individual data, no advertisers, no user profile. Must remain consistent with the TelemetryDeck posture in analytics-simplified/01-strategy.md §4.
-     */
-    product_analytics_description: string;
-    /**
-     * Section title for the advertising-measurement toggle (e.g. 'Advertising measurement and improvement'). Drives adsMarketingConsent.
-     */
-    advertising_title: string;
-    /**
-     * First paragraph prefix of the advertising section; combined inline with advertising_body_intro_link and advertising_body_intro_suffix. Include any trailing space.
-     */
-    advertising_body_intro_prefix: string;
-    /**
-     * Inline link text inside the first paragraph (e.g. 'what we share'). Tapping opens the same 'what we share' detail used by the ad consent modal.
-     */
-    advertising_body_intro_link: string;
-    /**
-     * First paragraph suffix completing the sentence after the inline link. Include the leading separator if needed.
-     */
-    advertising_body_intro_suffix: string;
-    /**
-     * Second paragraph of the advertising section: how granting consent helps WeMeditate use donations responsibly, improve campaigns, suppress ads to existing users, and reach similar people.
-     */
-    advertising_body_benefits: string;
-    /**
-     * Third paragraph of the advertising section reiterating the never-shared categories (mood, goals, hand sensations, reflections, class location, spiritual-practice details). Must remain consistent with analytics-simplified/03-marketing-event-taxonomy.md §2.
-     */
-    advertising_body_never_share: string;
-    /**
-     * Fourth paragraph of the advertising section explaining that the user can change their choice anytime using the toggle at the top of this screen.
-     */
-    advertising_body_change_hint: string;
-    /**
-     * Sub-section header listing current advertising platforms (e.g. 'Current advertising platforms').
-     */
-    advertising_platforms_header: string;
-    /**
-     * Bullet item for Meta (Facebook + Instagram + Audience Network). Brand name — usually kept as 'Meta'.
-     */
-    advertising_platform_meta: string;
-    /**
-     * Bullet item for Google Ads. Brand name — usually kept as 'Google Ads'.
-     */
-    advertising_platform_google_ads: string;
-    /**
-     * Bullet item for Apple Search Ads. Brand name — usually kept as 'Apple Search Ads'.
-     */
-    advertising_platform_apple_search_ads: string;
+    advertising_body_intro?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
   };
   profile_contact?: {
     /**
@@ -4689,38 +4811,46 @@ export interface WmAppTranslation {
     allow_notifications_screen_subtitle: string;
   };
   meditation_footsoak?: {
+    strings?: {
+      /**
+       * Step indicator (e.g. 'Step 3 of 3') at the top of the foot-soak screen.
+       */
+      step_label: string;
+      /**
+       * Screen title asking whether the user wants to foot-soak with this meditation.
+       */
+      title: string;
+      /**
+       * Inline link/CTA opening the foot-soak tutorial.
+       */
+      tutorial_cta: string;
+      /**
+       * Primary CTA that starts the meditation with a foot-soak.
+       */
+      start_with_footsoak: string;
+      /**
+       * Secondary CTA that starts the meditation without a foot-soak.
+       */
+      start_meditation: string;
+    };
     /**
-     * Step indicator (e.g. 'Step 3 of 3') at the top of the foot-soak screen.
+     * Body copy of the foot-soak screen. Contains a short emphasised span (typically italic, e.g. 'really') that translators position freely within the sentence.
      */
-    step_label: string;
-    /**
-     * Screen title asking whether the user wants to foot-soak with this meditation.
-     */
-    title: string;
-    /**
-     * Body-copy prefix; combined inline with description_emphasis and description_suffix to form a single sentence. Include trailing space if the locale needs one.
-     */
-    description_prefix: string;
-    /**
-     * Emphasised word in the foot-soak body copy, typically rendered in italic or bold (e.g. 'really').
-     */
-    description_emphasis: string;
-    /**
-     * Body-copy suffix completing the foot-soak description sentence. Include the leading space.
-     */
-    description_suffix: string;
-    /**
-     * Inline link/CTA opening the foot-soak tutorial.
-     */
-    tutorial_cta: string;
-    /**
-     * Primary CTA that starts the meditation with a foot-soak.
-     */
-    start_with_footsoak: string;
-    /**
-     * Secondary CTA that starts the meditation without a foot-soak.
-     */
-    start_meditation: string;
+    description?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
   };
   meditation_player?: {
     /**
@@ -5025,110 +5155,114 @@ export interface WmAppTranslation {
     ok: string;
   };
   auth_create_account?: {
+    strings?: {
+      /**
+       * Sheet / modal title shown in the navigation chrome.
+       */
+      title: string;
+      /**
+       * Hero title on the account creation screen.
+       */
+      screen_title: string;
+      /**
+       * Hero subtitle on the account creation screen.
+       */
+      screen_subtitle: string;
+      /**
+       * Tertiary action allowing a guest user to skip account creation.
+       */
+      skip_and_explore: string;
+      /**
+       * Validation error shown when the user tries to submit without checking the consent box.
+       */
+      error_check_consent: string;
+      /**
+       * Label for the email input.
+       */
+      email_label: string;
+      /**
+       * Placeholder hint for the email input.
+       */
+      email_placeholder: string;
+      /**
+       * Label for the password input.
+       */
+      password_label: string;
+      /**
+       * Placeholder hint for the password input.
+       */
+      password_placeholder: string;
+      /**
+       * Primary CTA submitting account creation.
+       */
+      submit: string;
+      /**
+       * Loading-state label shown on the primary CTA while account creation is in flight.
+       */
+      creating: string;
+      /**
+       * Error shown when the email is already associated with an account.
+       */
+      error_email_in_use: string;
+      /**
+       * CTA on the email-in-use branch redirecting to login.
+       */
+      login_with_existing_account: string;
+      /**
+       * Validation error for an invalid email.
+       */
+      error_invalid_email: string;
+      /**
+       * Validation error for a password shorter than the minimum length.
+       */
+      error_weak_password: string;
+      /**
+       * Error shown when account creation is rate-limited.
+       */
+      error_too_many_requests: string;
+      /**
+       * Error shown when the account is created but the local session cannot be persisted.
+       */
+      error_session_persistence: string;
+      /**
+       * Generic account-creation failure error.
+       */
+      error_generic: string;
+      /**
+       * Error shown when Google sign-in fails during account creation.
+       */
+      error_google_failed: string;
+      /**
+       * Error shown when Apple sign-in fails during account creation.
+       */
+      error_apple_failed: string;
+      /**
+       * Error shown when Facebook sign-in fails during account creation.
+       */
+      error_facebook_failed: string;
+      /**
+       * Message shown when the user cancels the social-auth flow.
+       */
+      error_provider_cancelled: string;
+    };
     /**
-     * Sheet / modal title shown in the navigation chrome.
+     * Consent checkbox label on the account creation screen. Contains two inline links (Terms & Conditions, Privacy Policy) opening the corresponding in-app webviews (wemeditate://legal/terms, wemeditate://legal/privacy). Independent of the ad-measurement consent.
      */
-    title: string;
-    /**
-     * Hero title on the account creation screen.
-     */
-    screen_title: string;
-    /**
-     * Hero subtitle on the account creation screen.
-     */
-    screen_subtitle: string;
-    /**
-     * Tertiary action allowing a guest user to skip account creation.
-     */
-    skip_and_explore: string;
-    /**
-     * Inline-text prefix of the consent checkbox label. Combined with consent_terms, consent_and_acknowledge, and consent_privacy. Include any trailing space.
-     */
-    consent_prefix: string;
-    /**
-     * Inline link text for the Terms & Conditions, opening the in-app webview.
-     */
-    consent_terms: string;
-    /**
-     * Connector text between the Terms link and the Privacy Policy link. Include any required spaces.
-     */
-    consent_and_acknowledge: string;
-    /**
-     * Inline link text for the Privacy Policy, opening the in-app webview.
-     */
-    consent_privacy: string;
-    /**
-     * Validation error shown when the user tries to submit without checking the consent box.
-     */
-    error_check_consent: string;
-    /**
-     * Label for the email input.
-     */
-    email_label: string;
-    /**
-     * Placeholder hint for the email input.
-     */
-    email_placeholder: string;
-    /**
-     * Label for the password input.
-     */
-    password_label: string;
-    /**
-     * Placeholder hint for the password input.
-     */
-    password_placeholder: string;
-    /**
-     * Primary CTA submitting account creation.
-     */
-    submit: string;
-    /**
-     * Loading-state label shown on the primary CTA while account creation is in flight.
-     */
-    creating: string;
-    /**
-     * Error shown when the email is already associated with an account.
-     */
-    error_email_in_use: string;
-    /**
-     * CTA on the email-in-use branch redirecting to login.
-     */
-    login_with_existing_account: string;
-    /**
-     * Validation error for an invalid email.
-     */
-    error_invalid_email: string;
-    /**
-     * Validation error for a password shorter than the minimum length.
-     */
-    error_weak_password: string;
-    /**
-     * Error shown when account creation is rate-limited.
-     */
-    error_too_many_requests: string;
-    /**
-     * Error shown when the account is created but the local session cannot be persisted.
-     */
-    error_session_persistence: string;
-    /**
-     * Generic account-creation failure error.
-     */
-    error_generic: string;
-    /**
-     * Error shown when Google sign-in fails during account creation.
-     */
-    error_google_failed: string;
-    /**
-     * Error shown when Apple sign-in fails during account creation.
-     */
-    error_apple_failed: string;
-    /**
-     * Error shown when Facebook sign-in fails during account creation.
-     */
-    error_facebook_failed: string;
-    /**
-     * Message shown when the user cancels the social-auth flow.
-     */
-    error_provider_cancelled: string;
+    consent_label?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
   };
   navigation?: {
     /**
@@ -5661,12 +5795,34 @@ export interface WmAppConfigSelect<T extends boolean = true> {
  * via the `definition` "wm-app-translations_select".
  */
 export interface WmAppTranslationsSelect<T extends boolean = true> {
-  onboarding_welcome?: T;
+  onboarding_welcome?:
+    | T
+    | {
+        strings?: T;
+        legal_disclaimer?: T;
+      };
   onboarding_name?: T;
   onboarding_greeting?: T;
-  onboarding_user_type?: T;
-  onboarding_carousel?: T;
-  onboarding_consent_modal?: T;
+  onboarding_user_type?:
+    | T
+    | {
+        strings?: T;
+        title?: T;
+      };
+  onboarding_carousel?:
+    | T
+    | {
+        strings?: T;
+        page_true_self_title?: T;
+      };
+  onboarding_consent_modal?:
+    | T
+    | {
+        strings?: T;
+        body_never_share?: T;
+        body_never_sell?: T;
+        body_intro?: T;
+      };
   daily_main?: T;
   daily_common?: T;
   daily_load_info?: T;
@@ -5686,11 +5842,22 @@ export interface WmAppTranslationsSelect<T extends boolean = true> {
   profile_favourites?: T;
   profile_history?: T;
   profile_account?: T;
-  profile_privacy_advertising?: T;
+  profile_privacy_advertising?:
+    | T
+    | {
+        strings?: T;
+        advertising_body_never_share?: T;
+        advertising_body_intro?: T;
+      };
   profile_contact?: T;
   meditation_intent?: T;
   meditation_reminder?: T;
-  meditation_footsoak?: T;
+  meditation_footsoak?:
+    | T
+    | {
+        strings?: T;
+        description?: T;
+      };
   meditation_player?: T;
   meditation_vibes_check?: T;
   meditation_feedback?: T;
@@ -5698,7 +5865,12 @@ export interface WmAppTranslationsSelect<T extends boolean = true> {
   auth_login?: T;
   auth_restore_password?: T;
   auth_restore_password_email_sent?: T;
-  auth_create_account?: T;
+  auth_create_account?:
+    | T
+    | {
+        strings?: T;
+        consent_label?: T;
+      };
   navigation?: T;
   general?: T;
   markReviewed?: T;
