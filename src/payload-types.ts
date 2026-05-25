@@ -1271,7 +1271,13 @@ export interface AppCard {
     meditation?: (number | null) | Meditation;
     url?: string | null;
     image?: (number | null) | Image;
+    /**
+     * Card image aspect ratio.
+     */
     aspectRatio: 'square' | 'flexible';
+    /**
+     * Text color used over the card image.
+     */
     textColor: 'black' | 'white';
     /**
      * Text alignment for card content.
@@ -1308,12 +1314,18 @@ export interface AppCard {
     meditation?: (number | null) | Meditation;
     url?: string | null;
     image?: (number | null) | Image;
+    /**
+     * Card image aspect ratio.
+     */
     aspectRatio: 'square' | 'flexible';
+    /**
+     * Text color used over the card image.
+     */
     textColor: 'black' | 'white';
     /**
      * Text alignment for card content.
      */
-    alignment?: ('left' | 'center') | null;
+    alignment: 'left' | 'center';
   };
   liveNow?: {
     enabled?: boolean | null;
@@ -1345,12 +1357,18 @@ export interface AppCard {
     meditation?: (number | null) | Meditation;
     url?: string | null;
     image?: (number | null) | Image;
+    /**
+     * Card image aspect ratio.
+     */
     aspectRatio: 'square' | 'flexible';
+    /**
+     * Text color used over the card image.
+     */
     textColor: 'black' | 'white';
     /**
      * Text alignment for card content.
      */
-    alignment?: ('left' | 'center') | null;
+    alignment: 'left' | 'center';
   };
   /**
    * Configure when this event occurs and repeats

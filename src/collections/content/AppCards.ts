@@ -306,6 +306,7 @@ function defaultViewFields(): Field[] {
           defaultValue: 'square',
           required: true,
           admin: {
+            description: 'Card image aspect ratio.',
             components: { Field: '@/components/admin/ToggleGroupField' },
           },
         },
@@ -319,6 +320,7 @@ function defaultViewFields(): Field[] {
           defaultValue: 'black',
           required: true,
           admin: {
+            description: 'Text color used over the card image.',
             components: { Field: '@/components/admin/ToggleGroupField' },
           },
         },
@@ -452,6 +454,7 @@ function eventViewFields(thresholdDefault: string): Field[] {
           defaultValue: 'square',
           required: true,
           admin: {
+            description: 'Card image aspect ratio.',
             components: { Field: '@/components/admin/ToggleGroupField' },
           },
         },
@@ -465,12 +468,15 @@ function eventViewFields(thresholdDefault: string): Field[] {
           defaultValue: 'black',
           required: true,
           admin: {
+            description: 'Text color used over the card image.',
             components: { Field: '@/components/admin/ToggleGroupField' },
           },
         },
         {
           name: 'alignment',
           type: 'select',
+          defaultValue: 'center',
+          required: true,
           options: [
             { label: 'Left', value: 'left' },
             { label: 'Center', value: 'center' },
