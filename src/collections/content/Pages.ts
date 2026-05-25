@@ -98,7 +98,8 @@ export const Pages: CollectionConfig = {
             const baseURL = process.env.WEMEDITATE_WEB_URL
             if (!baseURL || !data?.slug) return null
             const tag = Array.isArray(data.tags) && data.tags.length > 0 ? data.tags[0] : null
-            const locale = req.locale && req.locale !== 'en' ? req.locale : null
+            const locale =
+              req.locale && req.locale !== 'en' && req.locale !== 'all' ? req.locale : null
             const parts = [locale, tag, data.slug].filter(Boolean)
             return `${baseURL}/${parts.join('/')}`
           },
