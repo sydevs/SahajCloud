@@ -91,12 +91,12 @@ describe('Translations Globals Configuration', () => {
       expect(global?.fields[0].type).toBe('tabs')
     })
 
-    it('should have 9 tabs: Onboarding, Daily, Path, Explore, Profile, Meditation, Auth, Navigation, General', () => {
+    it('should have 10 tabs: Onboarding, Daily, Path, Explore, Profile, Meditation, Auth, Navigation, General, Review', () => {
       const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        expect(tabsField.tabs).toHaveLength(9)
+        expect(tabsField.tabs).toHaveLength(10)
         expect(tabsField.tabs[0].label).toBe('Onboarding')
         expect(tabsField.tabs[1].label).toBe('Daily')
         expect(tabsField.tabs[2].label).toBe('Path')
@@ -106,6 +106,7 @@ describe('Translations Globals Configuration', () => {
         expect(tabsField.tabs[6].label).toBe('Auth')
         expect(tabsField.tabs[7].label).toBe('Navigation')
         expect(tabsField.tabs[8].label).toBe('General')
+        expect(tabsField.tabs[9].label).toBe('Review')
       }
     })
 
@@ -114,11 +115,11 @@ describe('Translations Globals Configuration', () => {
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        // Tabs 0–6 (Onboarding through Auth) are grouped — each has a nested tabs field
+        // Tabs 0-6 (Onboarding through Auth) are grouped; each has a nested tabs field.
         for (let i = 0; i <= 6; i++) {
           expect(tabsField.tabs[i].fields[0].type).toBe('tabs')
         }
-        // Tabs 7–8 (Navigation, General) are leaf groups — each has a direct JSON field
+        // Tabs 7-8 (Navigation, General) are leaf groups; each has a direct JSON field.
         expect(tabsField.tabs[7].fields[0].name).toBe('navigation')
         expect(tabsField.tabs[7].fields[0].type).toBe('json')
         expect(tabsField.tabs[8].fields[0].name).toBe('general')
@@ -126,21 +127,22 @@ describe('Translations Globals Configuration', () => {
       }
     })
 
-    it('should have globalSlug passed to each field', () => {
+    it('should have globalSlug passed to each translation field', () => {
       const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
         for (const tab of tabsField.tabs) {
+          if (tab.label === 'Review') continue
           const firstField = tab.fields[0]
           if (firstField.type === 'tabs') {
-            // Parent group — check globalSlug on each inner sub-tab's JSON field
+            // Parent group: check globalSlug on each inner sub-tab's JSON field.
             for (const innerTab of (firstField as { type: 'tabs'; tabs: typeof tabsField.tabs }).tabs) {
               const jsonField = innerTab.fields.find((f) => f.type === 'json')
               expect(jsonField?.admin?.custom?.globalSlug).toBe('wm-app-translations')
             }
           } else {
-            // Leaf group — check globalSlug on the direct JSON field
+            // Leaf group: check globalSlug on the direct JSON field.
             const jsonField = tab.fields.find((f) => f.type === 'json')
             expect(jsonField?.admin?.custom?.globalSlug).toBe('wm-app-translations')
           }
@@ -179,6 +181,20 @@ describe('Translations Globals Configuration', () => {
         const talksPlayerKeys = talksPlayerEntries.map((e) => e.key)
         expect(talksPlayerKeys).toContain('play')
         expect(talksPlayerKeys).toContain('pause')
+      }
+    })
+
+    it('should have a Review tab with markReviewed and lastReviewedAt fields', () => {
+      const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
+      const tabsField = global?.fields[0]
+
+      if (tabsField?.type === 'tabs') {
+        const reviewTab = tabsField.tabs.find((tab) => tab.label === 'Review')
+        expect(reviewTab).toBeDefined()
+        if (!reviewTab) return
+
+        const fieldNames = reviewTab.fields.map((f) => ('name' in f ? f.name : undefined))
+        expect(fieldNames).toEqual(['markReviewed', 'lastReviewedAt'])
       }
     })
   })
@@ -250,14 +266,16 @@ describe('Translations Globals Configuration', () => {
 
       if (tabsField?.type === 'tabs') {
         for (const tab of tabsField.tabs) {
+          if (tab.label === 'Review') continue
+
           const firstField = tab.fields[0]
           const jsonFields =
             firstField.type === 'tabs'
-              ? // Parent group — collect JSON fields from all inner sub-tabs
+              ? // Parent group: collect JSON fields from all inner sub-tabs.
                 (firstField as { type: 'tabs'; tabs: typeof tabsField.tabs }).tabs.flatMap((innerTab) =>
                   innerTab.fields.filter((f) => f.type === 'json'),
                 )
-              : // Leaf group — find the JSON field directly
+              : // Leaf group: find the JSON field directly.
                 tab.fields.filter((f) => f.type === 'json')
 
           for (const jsonField of jsonFields) {

@@ -2,12 +2,7 @@ import type { Endpoint } from 'payload'
 
 import { z } from 'zod'
 
-const PROGRESS_RULES = [
-  'pathProgress',
-  'meditationsPerWeek',
-  'totalMeditationsViewed',
-  'totalLecturesViewed',
-] as const
+import { resolveAudienceIds } from '@/lib/audiences/resolve'
 
 const querySchema = z.object({
   // Progress params (all required; pass 0 as a neutral sentinel)
@@ -18,38 +13,6 @@ const querySchema = z.object({
   // Context params (always required)
   country: z.string().length(2),
 })
-
-type QueryParams = z.infer<typeof querySchema>
-
-/**
- * Build the Payload WHERE clause that matches audiences whose
- * configured ranges contain the supplied value for each dimension.
- *
- * For each rule: OR(min not set, min ≤ value) AND OR(max not set, max ≥ value)
- * This implements "unset bound = always passes" with a single DB query.
- */
-function buildProgressWhereClause(params: QueryParams) {
-  const conditions = PROGRESS_RULES.map((rule) => {
-    const value = params[rule]
-    return {
-      and: [
-        {
-          or: [
-            { [`${rule}.min`]: { exists: false } },
-            { [`${rule}.min`]: { less_than_equal: value } },
-          ],
-        },
-        {
-          or: [
-            { [`${rule}.max`]: { exists: false } },
-            { [`${rule}.max`]: { greater_than_equal: value } },
-          ],
-        },
-      ],
-    }
-  })
-  return { and: conditions }
-}
 
 /**
  * GET /api/audiences/for-user
@@ -74,29 +37,7 @@ export const audiencesForUser: Endpoint = {
       return Response.json({ errors: parsed.error.issues }, { status: 400 })
     }
 
-    const params = parsed.data
-
-    // ── Single query: progress WHERE clause + JS country filter ───────────
-    const result = await req.payload.find({
-      collection: 'audiences',
-      where: buildProgressWhereClause(params),
-      depth: 0,
-      limit: 200,
-      pagination: false,
-      req,
-    })
-
-    const audienceIds = result.docs
-      .filter((audience) => {
-        const location = audience.location as { countries?: string[] | null } | null | undefined
-        const countryList = location?.countries
-        if (countryList && countryList.length > 0) {
-          return countryList.includes(params.country)
-        }
-        return true
-      })
-      .map((a) => a.id)
-      .sort((a, b) => a - b)
+    const audienceIds = await resolveAudienceIds(req.payload, parsed.data, req)
 
     return Response.json(
       { audiences: audienceIds },
