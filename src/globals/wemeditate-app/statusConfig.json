@@ -213,17 +213,17 @@
       "label": "Published",
       "description": "The document is published for this locale."
     },
+    "relationship-published": {
+      "label": "Relationship published",
+      "description": "The referenced document is published for this locale."
+    },
+    "relationship-set": {
+      "label": "Relationship set",
+      "description": "A relationship value is assigned."
+    },
     "reviewed-this-cycle": {
       "label": "Reviewed at least once",
       "description": "An admin has manually marked translations reviewed for this locale."
-    },
-    "set-and-exists": {
-      "label": "Set and exists",
-      "description": "A relationship is assigned and the referenced document exists."
-    },
-    "set-and-published": {
-      "label": "Set and published",
-      "description": "A relationship is assigned and the referenced document is published for this locale."
     },
     "subtitle-set": {
       "label": "Subtitle set",

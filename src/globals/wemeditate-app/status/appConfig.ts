@@ -29,13 +29,13 @@ export const appConfigSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'appConfig',
   tutorialLink: null,
   checks: {
-    'set-and-published': {
-      label: 'Set and published',
-      description: 'A relationship is assigned and the referenced document is published for this locale.',
+    'relationship-set': {
+      label: 'Relationship set',
+      description: 'A relationship value is assigned.',
     },
-    'set-and-exists': {
-      label: 'Set and exists',
-      description: 'A relationship is assigned and the referenced document exists.',
+    'relationship-published': {
+      label: 'Relationship published',
+      description: 'The referenced document is published for this locale.',
     },
     present: {
       label: 'Present',
@@ -55,27 +55,31 @@ export const appConfigSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
 
     // Self-realization meditation — single 1-row group.
     const meditationRef = appConfig.selfRealizationMeditation
-    const realizationPassed = meditationMatchesLocale(meditationRef, locale)
+    const meditationRefSet = refId(meditationRef) !== null
+    const meditationPublished = meditationMatchesLocale(meditationRef, locale)
     const selfRealizationDocs: DocumentReport[] = [
       {
         id: refId(meditationRef) ?? 'unset',
-        label: realizationPassed
+        label: meditationRefSet
           ? labelOf(meditationRef as { id: number | string; title?: unknown })
           : 'Not set',
-        checks: [{ key: 'set-and-published', passed: realizationPassed }],
+        checks: [
+          { key: 'relationship-set', passed: meditationRefSet },
+          { key: 'relationship-published', passed: meditationPublished },
+        ],
       },
     ]
 
     // Post-realization lecture — single 1-row group.
     const lectureRef = appConfig.postRealizationLecture
-    const lecturePassed = refId(lectureRef) !== null
+    const lectureRefSet = refId(lectureRef) !== null
     const postRealizationDocs: DocumentReport[] = [
       {
         id: refId(lectureRef) ?? 'unset',
-        label: lecturePassed
+        label: lectureRefSet
           ? labelOf(lectureRef as { id: number | string; title?: unknown })
           : 'Not set',
-        checks: [{ key: 'set-and-exists', passed: lecturePassed }],
+        checks: [{ key: 'relationship-set', passed: lectureRefSet }],
       },
     ]
 

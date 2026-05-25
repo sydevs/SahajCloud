@@ -374,8 +374,11 @@ describe('WeMeditateAppStatus Global', () => {
       const group = report.groups.find((g) => g.key === 'self-realization-meditation')
       expect(group?.type).toBe('documents')
       if (group?.type !== 'documents') return
-      expect(group.documents[0].checks[0].key).toBe('set-and-published')
-      expect(group.documents[0].checks[0].passed).toBe(true)
+      expect(group.documents[0].checks.map((c) => c.key)).toEqual([
+        'relationship-set',
+        'relationship-published',
+      ])
+      expect(group.documents[0].checks.every((c) => c.passed)).toBe(true)
     })
   })
 
