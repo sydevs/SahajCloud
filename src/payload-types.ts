@@ -3041,46 +3041,50 @@ export interface WmWebTranslation {
  */
 export interface WmAppConfig {
   id: number;
-  /**
-   * Page describing live online classes for the app.
-   */
   classesPage: number | Page;
-  /**
-   * Page describing the live meditations feature for the app.
-   */
   liveMeditationsPage: number | Page;
   /**
-   * Page describing meditation techniques for the app.
-   */
-  techniquesPage: number | Page;
-  /**
-   * Page describing the lectures feature for the app.
-   */
-  lecturesPage: number | Page;
-  /**
-   * Privacy policy page surfaced from the app.
-   */
-  privacyPage: number | Page;
-  /**
-   * Terms of service page surfaced from the app.
-   */
-  termsPage: number | Page;
-  /**
-   * Page about Shri Mataji surfaced from the app.
-   */
-  shriMatajiPage: number | Page;
-  /**
-   * Page about Sahaja Yoga surfaced from the app.
-   */
-  sahajaYogaPage: number | Page;
-  /**
-   * Explore section page surfaced from the app.
+   * Page for exploring full app content
    */
   explorePage: number | Page;
   /**
-   * Subtle system page surfaced from the app.
+   * Page for going deeper spiritually
+   */
+  exploreDeeperPage: number | Page;
+  /**
+   * Page promoting collective meditation
+   */
+  meditateTogetherPage: number | Page;
+  /**
+   * Index page for techniques
+   */
+  techniquesPage: number | Page;
+  /**
+   * Index page for Shri Mataji's talks
+   */
+  lecturesPage: number | Page;
+  /**
+   * Index page for the path
+   */
+  lessonsPage: number | Page;
+  /**
+   * Index page for music
+   */
+  musicPage: number | Page;
+  /**
+   * Learn more about Shri Mataji.
+   */
+  shriMatajiPage: number | Page;
+  /**
+   * Learn more about Sahaja Yoga.
+   */
+  sahajaYogaPage: number | Page;
+  /**
+   * Learn more about the Subtle System.
    */
   subtleSystemPage: number | Page;
+  privacyPage: number | Page;
+  termsPage: number | Page;
   /**
    * Self-realization meditation for new users.
    */
@@ -4154,14 +4158,18 @@ export interface WmWebTranslationsSelect<T extends boolean = true> {
 export interface WmAppConfigSelect<T extends boolean = true> {
   classesPage?: T;
   liveMeditationsPage?: T;
+  explorePage?: T;
+  exploreDeeperPage?: T;
+  meditateTogetherPage?: T;
   techniquesPage?: T;
   lecturesPage?: T;
-  privacyPage?: T;
-  termsPage?: T;
+  lessonsPage?: T;
+  musicPage?: T;
   shriMatajiPage?: T;
   sahajaYogaPage?: T;
-  explorePage?: T;
   subtleSystemPage?: T;
+  privacyPage?: T;
+  termsPage?: T;
   selfRealizationMeditation?: T;
   postRealizationLecture?: T;
   vibeCheckTracks?:

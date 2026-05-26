@@ -54,7 +54,6 @@ import { StrikethroughFeatureClient as StrikethroughFeatureClient_e70f5e05f09f93
 import { UnderlineFeatureClient as UnderlineFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { default as default_ef5e6a70945e57a6ae410f9328826634 } from '@/components/admin/TranslationsTable'
 import { default as default_cbd7ea31609971bfa7093afb69bf75ad } from '@/components/admin/TabScreenshot'
-import { default as default_8dcebb2ea41c850ff8532af16196e52b } from '@/components/admin/ReadinessField'
 import { default as default_7b4ba381140135af5cae014b3533be0b } from '@/components/branding/Icon'
 import { default as default_742835b254059f88bfb2f781ea75df90 } from '@/components/branding/Logo'
 import { default as default_99ec85ba93967a6d388d145a54b117df } from '@/components/admin/Dashboard/InactiveAccountAlert'
@@ -122,7 +121,6 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#UnderlineFeatureClient": UnderlineFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@/components/admin/TranslationsTable#default": default_ef5e6a70945e57a6ae410f9328826634,
   "@/components/admin/TabScreenshot#default": default_cbd7ea31609971bfa7093afb69bf75ad,
-  "@/components/admin/ReadinessField#default": default_8dcebb2ea41c850ff8532af16196e52b,
   "@/components/branding/Icon#default": default_7b4ba381140135af5cae014b3533be0b,
   "@/components/branding/Logo#default": default_742835b254059f88bfb2f781ea75df90,
   "@/components/admin/Dashboard/InactiveAccountAlert#default": default_99ec85ba93967a6d388d145a54b117df,

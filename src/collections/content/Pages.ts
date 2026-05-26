@@ -139,9 +139,7 @@ export const Pages: CollectionConfig = {
               const val = config![field]
               if (val === data.id) return true
               return (
-                typeof val === 'object' &&
-                val !== null &&
-                (val as { id: unknown }).id === data.id
+                typeof val === 'object' && val !== null && (val as { id: unknown }).id === data.id
               )
             })
 
