@@ -59,7 +59,7 @@ Storyblok `Intro_stories` array → Payload `panels` array:
 
 - **Lessons** with panels array
 - **Images** for panel backgrounds
-- **Lectures** for video references
+- **Lectures** for video references (rich text references the lecture)
 - **Files** for audio/icon attachments
 
 ## Troubleshooting

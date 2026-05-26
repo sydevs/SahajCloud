@@ -15,5 +15,8 @@ export {
   type OpenAPISpec,
 } from './specFilter'
 
+// Custom endpoint shim (payload-oapi doesn't generate these yet)
+export { CUSTOM_ENDPOINT_PATHS, CUSTOM_ENDPOINT_SCHEMAS } from './customEndpoints'
+
 // Custom Scalar plugin
 export { scalarPlugin, type ScalarPluginOptions } from './scalarPlugin'

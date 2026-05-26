@@ -225,6 +225,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     treatments: new Map<number, number | string>(),
     media: new Map<string, number | string>(),
     forms: new Map<string, number | string>(),
+    // vimeo_id → Lecture ID. Rich-text content references the lecture itself.
     lectures: new Map<string, number | string>(),
   }
 
@@ -279,6 +280,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         this.preloadCollection('albums', 'title'), // WeMeditate looks up albums by title
         this.preloadCollection('songs', 'title'), // WeMeditate looks up songs by title
         this.preloadCollection('pages', 'slug'),
+        // Lectures are keyed on the Vimeo URL (the natural key the seed
+        // upserts against). We also pull `metadata` + `title` so skip-mode
+        // re-runs can read the NV-fetched fields without a follow-up fetch.
+        this.preloadCollection('lectures', 'nirmalVidyaVimeoUrl', ['metadata', 'title']),
       ])
     }
   }
@@ -1946,16 +1951,118 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   // LECTURES IMPORT
   // ============================================================================
 
+  /**
+   * Import one Lecture per unique vimeo_id encountered in page content.
+   *
+   * Rich-text content references the lecture directly, so `idMaps.lectures`
+   * ends up keyed `vimeo_id → lectureId` for the converter to consume. The
+   * Lecture is created via natural-key upsert on `nirmalVidyaVimeoUrl`; its
+   * `populateFromNirmalaVidya` create hook synchronously fills
+   * `metadata.duration`/`metadata.title` by hitting the Nirmala Vidya HLS API.
+   *
+   * Per-vimeo errors (NV API 404 / network blip) are isolated so one bad
+   * video doesn't kill the whole batch — downstream `convertVimeo` calls for
+   * that vimeo_id will log a missing-lecture warning and drop the block.
+   */
   private async importLectures(): Promise<void> {
-    // Guard: see issue #291. Legacy `lectures` writes are disabled pending the
-    // clip-aware rewrite; `lectures` now models a full talk and video excerpts
-    // belong in the new `lecture-clips` collection. The follow-up PR will
-    // retarget this importer. Until then, fail loudly so partial seeds don't
-    // silently create the wrong shape. Original implementation preserved in
-    // git history.
-    throw new Error(
-      'Seed writes to `lectures` are disabled pending clip-aware migration (issue #291 follow-up). ' +
-        'Legacy video imports should target `lecture-clips` instead.',
+    await this.logger.info('\n=== Importing Lectures ===')
+
+    // 1. Walk all page-content blocks across all translations and collect
+    //    unique vimeo_ids. youtube_id blocks are skipped — there's no NV
+    //    YouTube path. The lecture title comes from the NV API on create.
+    const vimeoIds = new Set<string>()
+    const allPageTypes = [
+      this.data.staticPages,
+      this.data.articles,
+      this.data.subtleSystemNodes,
+      this.data.treatments,
+    ]
+
+    let youtubeBlockCount = 0
+
+    for (const pages of allPageTypes) {
+      for (const page of pages) {
+        for (const translation of page.translations) {
+          if (!translation.content) continue
+          let content
+          try {
+            content =
+              typeof translation.content === 'string'
+                ? JSON.parse(translation.content)
+                : translation.content
+          } catch {
+            continue
+          }
+          if (!content?.blocks) continue
+
+          for (const block of content.blocks) {
+            if (block.type !== 'vimeo' || !block.data) continue
+
+            // Wemeditate uses nested data.items[]; tolerate flat too.
+            const items = Array.isArray(block.data.items) ? block.data.items : [block.data]
+            for (const item of items) {
+              if (item?.youtube_id) {
+                youtubeBlockCount++
+                continue
+              }
+              const vimeoId: string | undefined = item?.vimeo_id
+              if (vimeoId) vimeoIds.add(vimeoId)
+            }
+          }
+        }
+      }
+    }
+
+    const uniqueVimeoIds = Array.from(vimeoIds)
+    await this.logger.info(
+      `Found ${uniqueVimeoIds.length} unique vimeo_ids (${youtubeBlockCount} youtube blocks dropped)`,
+    )
+
+    if (this.options.dryRun) {
+      // Nothing to write — log and bail. The conversion pass will warn for
+      // every block since the lectures map stays empty in dry-run.
+      return
+    }
+
+    // 2. Per unique vimeoId: upsert one Lecture. Errors are scoped to a single
+    //    vimeoId so the rest of the batch survives.
+    const total = uniqueVimeoIds.length
+    let createdLectures = 0
+
+    for (let i = 0; i < total; i++) {
+      const vimeoId = uniqueVimeoIds[i]
+      const nirmalVidyaVimeoUrl = `https://vimeo.com/${vimeoId}`
+
+      try {
+        // populateFromNirmalaVidya fires on create and fills metadata.
+        // Note: BaseImporter.upsert swallows hook errors and returns action='error'
+        // (with the input data echoed back as `doc`). The bare error is logged via
+        // reportDocument; we just isolate this vimeoId and move on.
+        const lectureResult = await this.upsert<{
+          id: number | string
+          title?: string | null
+          metadata?: { duration?: number | null; title?: string | null } | null
+        }>(
+          'lectures',
+          { nirmalVidyaVimeoUrl: { equals: nirmalVidyaVimeoUrl } },
+          { nirmalVidyaVimeoUrl },
+          { identifier: vimeoId, current: i + 1, total },
+        )
+
+        if (lectureResult.action === 'error') continue
+        if (lectureResult.action === 'created') createdLectures++
+
+        this.idMaps.lectures.set(vimeoId, lectureResult.doc.id)
+      } catch (error) {
+        // Isolate per-vimeo failures so one bad video doesn't kill the run.
+        // The lectures map simply won't contain this vimeo_id; convertVimeo
+        // will log a missing-lecture warning when content references it.
+        this.addError(`Importing lecture for vimeo_id=${vimeoId}`, error as Error)
+      }
+    }
+
+    await this.logger.info(
+      `✓ Lectures: ${createdLectures} created (${total - createdLectures} skipped/updated).`,
     )
   }
 

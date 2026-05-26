@@ -719,25 +719,43 @@ export function convertAction(
 }
 
 /**
- * Convert EditorJS vimeo block to Lecture Clip relationship
+ * Convert EditorJS vimeo block to Lecture relationship.
  *
- * Guard: see issue #291. Legacy `lectures` relationships are disabled pending
- * the clip-aware rewrite. The follow-up PR will retarget this to
- * `lecture-clips` (and likely update the `ConversionContext.lectureMap` shape
- * to a `lectureClipMap`). For now, fail loudly so converted content doesn't
- * silently point at the wrong collection.
+ * Source-data shape: `{ type: 'vimeo', data: { items: [{ vimeo_id, youtube_id?, title? }] } }`.
+ * Each block carries exactly one item in observed wemeditate data; we only
+ * read the first. YouTube blocks are dropped — there is no Nirmala Vidya
+ * YouTube ingest path. Missing-lecture lookups also return null + warn (the
+ * parent importer logs the upstream NV API failure separately).
  */
 export function convertVimeo(block: EditorJSBlock, context: ConversionContext): LexicalNode | null {
   const { data } = block
 
-  if (!data.vimeo_id && !data.youtube_id) {
+  // Tolerate both nested (data.items[0].vimeo_id) and flat (data.vimeo_id) shapes.
+  // Wemeditate uses nested; storyblok / hand-authored blocks may use flat.
+  const item = (Array.isArray(data?.items) && data.items[0]) || data || {}
+  const vimeoId: string | undefined = item.vimeo_id
+  const youtubeId: string | undefined = item.youtube_id
+
+  if (youtubeId) {
+    context.logger.warn(
+      `YouTube block dropped — no Nirmala Vidya ingest path for YouTube. youtube_id=${youtubeId}, page="${context.pageTitle}" (Rails ID ${context.pageId})`,
+    )
     return null
   }
 
-  throw new Error(
-    'Seed writes to `lectures` are disabled pending clip-aware migration (issue #291 follow-up). ' +
-      'Vimeo/YouTube relationship emission must target `lecture-clips` instead.',
-  )
+  if (!vimeoId) {
+    return null
+  }
+
+  const lectureId = context.lectureMap.get(vimeoId)
+  if (!lectureId) {
+    context.logger.warn(
+      `No Lecture found for vimeo_id=${vimeoId}; dropping block on page "${context.pageTitle}" (Rails ID ${context.pageId})`,
+    )
+    return null
+  }
+
+  return createRelationshipNode('lectures', lectureId)
 }
 
 /**

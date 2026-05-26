@@ -40,10 +40,10 @@ export interface CascadeRule {
  * ## Example
  *
  * ```typescript
- * export const Lectures: CollectionConfig = {
+ * export const Albums: CollectionConfig = {
  *   hooks: {
  *     beforeDelete: [
- *       deleteChildren({ collection: 'lecture-clips', field: 'parent' }),
+ *       deleteChildren({ collection: 'songs', field: 'album' }),
  *     ],
  *   },
  * }

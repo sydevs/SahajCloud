@@ -13,6 +13,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 import { generateCloudflareImageId, generateR2Key } from '@/lib/storage/filenameUtils'
 import { getMimeCategory } from '@/lib/storage/mimeUtils'
+import {
+  createR2FilenameBeforeOperationHook,
+  R2_PREASSIGNED_FILENAME_CONTEXT_KEY,
+} from '@/lib/storage/r2FilenameHook'
 
 // Helper to extract the afterRead hook from a field
 const getAfterReadHook = (field: Field): FieldHook | undefined => {
@@ -77,39 +81,6 @@ describe('URL Field Factories', () => {
       const hook = getAfterReadHook(field)
       const url = callHook(hook!, { filename: 'test-image.jpg' })
       expect(url).toBe('/api/images/file/test-image.jpg')
-    })
-
-    it('generates Cloudflare Stream URL when CLOUDFLARE_STREAM_DELIVERY_URL is set', async () => {
-      process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
-      process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
-
-      const { virtualUrlField } = await import('@/lib/storage/urlFields')
-
-      const field = virtualUrlField({
-        collection: 'frames',
-        adapter: 'cloudflare-stream',
-      })
-
-      const hook = getAfterReadHook(field)
-      const url = callHook(hook!, { filename: 'video-id' })
-      // virtualUrlField with cloudflare-stream returns MP4 download URL
-      expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/downloads/default.mp4')
-    })
-
-    it('falls back to local URL when CLOUDFLARE_STREAM_DELIVERY_URL is not set', async () => {
-      delete process.env.CLOUDFLARE_STREAM_DELIVERY_URL
-      process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
-
-      const { virtualUrlField } = await import('@/lib/storage/urlFields')
-
-      const field = virtualUrlField({
-        collection: 'frames',
-        adapter: 'cloudflare-stream',
-      })
-
-      const hook = getAfterReadHook(field)
-      const url = callHook(hook!, { filename: 'test-video.mp4' })
-      expect(url).toBe('/api/frames/file/test-video.mp4')
     })
 
     it('generates R2 URL when CLOUDFLARE_R2_DELIVERY_URL is set', async () => {
@@ -325,7 +296,7 @@ describe('URL Field Factories', () => {
 
       const hook = getAfterReadHook(field)
       const url = callHook(hook!, { filename: 'video-id', mimeType: 'video/mp4' })
-      // mixedMediaUrlField returns MP4 download URL for videos (use streamUrlField for HLS)
+      // mixedMediaUrlField returns MP4 download URL for videos (use hlsUrlField for HLS)
       expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/downloads/default.mp4')
     })
 
@@ -419,6 +390,79 @@ describe('URL Field Factories', () => {
       const url = callHook(hook!, null)
       expect(url).toBeUndefined()
     })
+  })
+
+  describe('hlsUrlField', () => {
+    it('returns the HLS manifest URL for video MIME types', async () => {
+      process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
+      process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
+
+      const { hlsUrlField } = await import('@/lib/storage/urlFields')
+      const field = hlsUrlField({ collection: 'videos' })
+      expect((field as { name: string }).name).toBe('hlsUrl')
+
+      const hook = getAfterReadHook(field)
+      const url = callHook(hook!, { filename: 'video-id', mimeType: 'video/mp4' })
+      expect(url).toBe(
+        'https://customer-test.cloudflarestream.com/video-id/manifest/video.m3u8',
+      )
+    })
+
+    it('returns null for non-video MIME types', async () => {
+      process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
+      process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
+
+      const { hlsUrlField } = await import('@/lib/storage/urlFields')
+      const field = hlsUrlField({ collection: 'frames' })
+
+      const hook = getAfterReadHook(field)
+      expect(callHook(hook!, { filename: 'image-id', mimeType: 'image/png' })).toBeNull()
+      expect(callHook(hook!, { filename: 'doc.pdf', mimeType: 'application/pdf' })).toBeNull()
+    })
+
+    it('falls back to local URL when CLOUDFLARE_STREAM_DELIVERY_URL is not set (video)', async () => {
+      delete process.env.CLOUDFLARE_STREAM_DELIVERY_URL
+      process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
+
+      const { hlsUrlField } = await import('@/lib/storage/urlFields')
+      const field = hlsUrlField({ collection: 'frames' })
+
+      const hook = getAfterReadHook(field)
+      const url = callHook(hook!, { filename: 'video.mp4', mimeType: 'video/mp4' })
+      expect(url).toBe('/api/frames/file/video.mp4')
+    })
+
+  })
+
+  describe('mp4UrlField', () => {
+    it('returns the MP4 download URL for video MIME types', async () => {
+      process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
+      process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
+
+      const { mp4UrlField } = await import('@/lib/storage/urlFields')
+      const field = mp4UrlField({ collection: 'videos' })
+      expect((field as { name: string }).name).toBe('mp4Url')
+
+      const hook = getAfterReadHook(field)
+      const url = callHook(hook!, { filename: 'video-id', mimeType: 'video/mp4' })
+      expect(url).toBe(
+        'https://customer-test.cloudflarestream.com/video-id/downloads/default.mp4',
+      )
+    })
+
+    it('returns null for non-video MIME types (mixed-media collections)', async () => {
+      process.env.CLOUDFLARE_IMAGES_DELIVERY_URL = 'https://imagedelivery.net/abc123'
+      process.env.CLOUDFLARE_R2_DELIVERY_URL = 'https://assets.example.com'
+      process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
+
+      const { mp4UrlField } = await import('@/lib/storage/urlFields')
+      const field = mp4UrlField({ collection: 'frames' })
+
+      const hook = getAfterReadHook(field)
+      expect(callHook(hook!, { filename: 'image.jpg', mimeType: 'image/jpeg' })).toBeNull()
+      expect(callHook(hook!, { filename: 'audio.mp3', mimeType: 'audio/mpeg' })).toBeNull()
+    })
+
   })
 })
 
@@ -534,6 +578,57 @@ describe('Filename Utilities', () => {
   })
 })
 
+describe('R2 filename preassignment hook', () => {
+  const callR2Hook = async (
+    mode: 'always' | 'other-only',
+    req: Record<string, unknown>,
+    operation: 'create' | 'update' = 'create',
+  ) => {
+    const hook = createR2FilenameBeforeOperationHook(mode)
+    const args = { req }
+    const result = await hook({ args, operation } as never)
+    return { args, result }
+  }
+
+  it('preassigns a generated R2 key before Payload derives upload metadata', async () => {
+    const req = {
+      file: {
+        name: 'Ready to Upload -- Meditation -- Path Step 18.mp3',
+        mimetype: 'audio/mpeg',
+      },
+    }
+
+    const { args, result } = await callR2Hook('always', req)
+
+    expect(req.file.name).toMatch(/^ready-to-upload-meditation-path-step-18-[a-z0-9]{6}\.mp3$/)
+    expect(req).toHaveProperty(['context', R2_PREASSIGNED_FILENAME_CONTEXT_KEY], true)
+    expect(result).toBe(args)
+  })
+
+  it('only preassigns other-file keys for mixed media collections', async () => {
+    const imageReq = {
+      file: {
+        name: 'Hero Image.png',
+        mimetype: 'image/png',
+      },
+    }
+    const audioReq = {
+      file: {
+        name: 'Intro Audio.mp3',
+        mimetype: 'audio/mpeg',
+      },
+    }
+
+    await callR2Hook('other-only', imageReq)
+    await callR2Hook('other-only', audioReq)
+
+    expect(imageReq.file.name).toBe('Hero Image.png')
+    expect(imageReq).not.toHaveProperty('context')
+    expect(audioReq.file.name).toMatch(/^intro-audio-[a-z0-9]{6}\.mp3$/)
+    expect(audioReq).toHaveProperty(['context', R2_PREASSIGNED_FILENAME_CONTEXT_KEY], true)
+  })
+})
+
 describe('Storage Adapter handleUpload', () => {
   const originalEnv = process.env
   const originalFetch = globalThis.fetch
@@ -565,6 +660,7 @@ describe('Storage Adapter handleUpload', () => {
       },
     },
     file: { name: 'original-input.jpg' },
+    context: {} as Record<string, unknown>,
   })
 
   const makeImageFile = (filename = 'lecture-thumbnail-167289004.jpg') => ({
@@ -743,11 +839,48 @@ describe('Storage Adapter handleUpload', () => {
         collection: { slug: 'meditations' } as never,
       })
 
-      expect(result).toMatchObject({ filename: expect.stringMatching(/^my-audio-1-[a-z0-9]{6}\.mp3$/) })
+      expect(result).toMatchObject({
+        filename: expect.stringMatching(/^my-audio-1-[a-z0-9]{6}\.mp3$/),
+      })
       expect(put).toHaveBeenCalledOnce()
       const [key] = put.mock.calls[0]
       expect(key).toBe(`meditations/${(result as { filename: string }).filename}`)
       expect(data.filename).toBe((result as { filename: string }).filename)
+    })
+
+    it('reuses a preassigned R2 key instead of appending a second suffix', async () => {
+      const { r2NativeAdapter } = await import('@/lib/storage/r2NativeAdapter')
+
+      const put = vi.fn().mockResolvedValue(null)
+      const bucket = { put } as unknown as R2Bucket
+
+      const adapter = r2NativeAdapter({
+        bucket,
+        publicUrl: 'https://assets.test',
+      })({ collection: { slug: 'meditations' } as never, prefix: 'meditations' })
+
+      const data: Record<string, unknown> = {}
+      const file = {
+        filename: 'my-audio-1-abc123.mp3',
+        buffer: Buffer.from([0x00, 0x01]),
+        mimeType: 'audio/mpeg',
+        filesize: 2,
+      }
+      const req = makeReq()
+      req.context[R2_PREASSIGNED_FILENAME_CONTEXT_KEY] = true
+
+      const result = await adapter.handleUpload({
+        data,
+        file: file as never,
+        req: req as never,
+        clientUploadContext: undefined,
+        collection: { slug: 'meditations' } as never,
+      })
+
+      expect(result).toEqual({ filename: 'my-audio-1-abc123.mp3' })
+      expect(put).toHaveBeenCalledOnce()
+      expect(put.mock.calls[0][0]).toBe('meditations/my-audio-1-abc123.mp3')
+      expect(data.filename).toBe('my-audio-1-abc123.mp3')
     })
   })
 
@@ -794,5 +927,144 @@ describe('Storage Adapter handleUpload', () => {
       expect(innerHandleUpload).toHaveBeenCalledOnce()
       expect(result).toEqual(innerReturn)
     })
+  })
+})
+
+/**
+ * End-to-end wiring test for the R2 filename preassignment.
+ *
+ * Catches the bug class this PR exists to prevent: a new R2-backed collection
+ * added to `cloudStoragePlugin`'s collections block but missing from
+ * `r2FilenameHookModes`, which would silently reintroduce DB↔R2 filename drift.
+ *
+ * Drives `storagePlugin` directly with a synthetic config + mock R2 bucket,
+ * captures the hooks it attaches, and verifies hook + adapter cooperate
+ * through the actual contract (preassignment → adapter no-op).
+ */
+describe('storagePlugin R2 filename hook wiring', () => {
+  const originalEnv = process.env
+
+  beforeEach(() => {
+    vi.resetModules()
+    process.env = {
+      ...originalEnv,
+      PAYLOAD_SECRET: 'test-secret-key-with-32-chars-minimum',
+      CLOUDFLARE_ACCOUNT_ID: 'test-account',
+      CLOUDFLARE_API_KEY: 'test-api-key-with-20-chars-min',
+      CLOUDFLARE_IMAGES_DELIVERY_URL: 'https://imagedelivery.net/test-hash',
+      CLOUDFLARE_STREAM_DELIVERY_URL: 'https://customer-test.cloudflarestream.com',
+      CLOUDFLARE_R2_DELIVERY_URL: 'https://assets.test',
+    }
+  })
+
+  afterEach(() => {
+    process.env = originalEnv
+    vi.restoreAllMocks()
+  })
+
+  // Minimal config shape that `storagePlugin` reads. We don't need a real
+  // SanitizedConfig, but `cloudStoragePlugin` iterates `collection.fields`
+  // when injecting its own field hooks, so an empty array is required.
+  const buildSyntheticConfig = (slugs: string[]) => ({
+    collections: slugs.map((slug) => ({ slug, hooks: {}, fields: [] })),
+  })
+
+  const runStoragePlugin = async (slugs: string[], r2Bucket: R2Bucket) => {
+    const { storagePlugin } = await import('@/lib/storage/storagePlugin')
+    const inputConfig = buildSyntheticConfig(slugs)
+    return await storagePlugin({ env: { R2: r2Bucket }, enabled: true })(inputConfig as never)
+  }
+
+  it('attaches a beforeOperation hook to every R2-backed collection (and only those)', async () => {
+    const r2Bucket = { put: vi.fn(), delete: vi.fn(), get: vi.fn() } as unknown as R2Bucket
+
+    // Cover every collection currently in `r2FilenameHookModes` plus a
+    // non-R2 collection (`pages`) and the pure Cloudflare-Images collection
+    // (`images`) which must NOT receive the hook.
+    const r2Backed = ['meditations', 'songs', 'user-choices', 'song-tags', 'frames', 'files']
+    const nonR2 = ['pages', 'images', 'videos']
+    const result = (await runStoragePlugin([...r2Backed, ...nonR2], r2Bucket)) as {
+      collections: Array<{ slug: string; hooks?: { beforeOperation?: unknown[] } }>
+    }
+
+    for (const slug of r2Backed) {
+      const collection = result.collections.find((c) => c.slug === slug)
+      expect(
+        collection?.hooks?.beforeOperation?.length,
+        `expected ${slug} to receive a preassignment hook`,
+      ).toBeGreaterThanOrEqual(1)
+    }
+
+    for (const slug of nonR2) {
+      const collection = result.collections.find((c) => c.slug === slug)
+      expect(
+        collection?.hooks?.beforeOperation?.length ?? 0,
+        `expected ${slug} NOT to receive a preassignment hook`,
+      ).toBe(0)
+    }
+  })
+
+  it('round-trips a meditation upload: hook preassigns, adapter respects the flag', async () => {
+    // The DB↔R2 drift bug manifests when the hook's renamed filename is NOT
+    // the same as the key the adapter uploads under. Drive both through the
+    // real wiring and assert they agree.
+    const put = vi.fn().mockResolvedValue(null)
+    const r2Bucket = { put, delete: vi.fn(), get: vi.fn() } as unknown as R2Bucket
+
+    const result = (await runStoragePlugin(['meditations'], r2Bucket)) as {
+      collections: Array<{ slug: string; hooks?: { beforeOperation?: unknown[] } }>
+    }
+
+    const meditationsCollection = result.collections.find((c) => c.slug === 'meditations')
+    const beforeOpHook = meditationsCollection?.hooks?.beforeOperation?.[0] as (args: {
+      args: { req: Record<string, unknown> }
+      operation: 'create' | 'update'
+    }) => unknown
+    expect(beforeOpHook).toBeDefined()
+
+    // Stage 1 — Payload's `beforeOperation` phase: hook renames req.file.name
+    // to a final R2 key and sets the context flag.
+    const req: Record<string, unknown> = {
+      file: { name: 'My Audio Track (1).mp3', mimetype: 'audio/mpeg' },
+      context: {} as Record<string, unknown>,
+    }
+    await beforeOpHook({ args: { req }, operation: 'create' })
+
+    const preassignedFilename = (req.file as { name: string }).name
+    expect(preassignedFilename).toMatch(/^my-audio-track-1-[a-z0-9]{6}\.mp3$/)
+    expect(req.context).toHaveProperty(R2_PREASSIGNED_FILENAME_CONTEXT_KEY, true)
+
+    // Stage 2 — Payload's `afterChange` phase: storage adapter uploads. The
+    // `file.filename` Payload passes here mirrors what was written to the DB
+    // (= req.file.name post-hook). The adapter must NOT regenerate the key.
+    const { r2NativeAdapter } = await import('@/lib/storage/r2NativeAdapter')
+    const adapter = r2NativeAdapter({ bucket: r2Bucket, publicUrl: 'https://assets.test' })({
+      collection: { slug: 'meditations' } as never,
+      prefix: 'meditations',
+    })
+
+    const data: Record<string, unknown> = {}
+    const adapterResult = await adapter.handleUpload({
+      data,
+      file: {
+        filename: preassignedFilename,
+        buffer: Buffer.from([0x00]),
+        mimeType: 'audio/mpeg',
+        filesize: 1,
+      } as never,
+      req: {
+        ...req,
+        payload: { logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
+      } as never,
+      clientUploadContext: undefined,
+      collection: { slug: 'meditations' } as never,
+    })
+
+    // The DB write (`data.filename`), the adapter return (`adapterResult.filename`),
+    // and the actual R2 key (`put.calls[0][0]` minus prefix) must all agree.
+    expect((adapterResult as { filename: string }).filename).toBe(preassignedFilename)
+    expect(data.filename).toBe(preassignedFilename)
+    expect(put).toHaveBeenCalledOnce()
+    expect(put.mock.calls[0][0]).toBe(`meditations/${preassignedFilename}`)
   })
 })

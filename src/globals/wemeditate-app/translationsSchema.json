@@ -1,137 +1,2268 @@
 {
   "type": "object",
   "properties": {
+    "onboarding": {
+      "type": "object",
+      "description": "First-run onboarding flow plus the post-first-meditation ad-consent modal that closes the flow. See .kiro/specs/onboarding-flow/requirements.md.",
+      "properties": {
+        "welcome": {
+          "type": "object",
+          "description": "First screen new users see before any onboarding. Legal disclaimer is inline below the primary CTAs.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Hero title on the welcome screen. Short greeting (e.g. 'Welcome, friend')."
+            },
+            "subtitle": {
+              "type": "string",
+              "description": "Hero subtitle below the welcome title."
+            },
+            "get_started": {
+              "type": "string",
+              "description": "Primary CTA that begins onboarding for a new user."
+            },
+            "use_existing_account": {
+              "type": "string",
+              "description": "Secondary CTA for returning users who already have an account."
+            },
+            "privacy_policy_title": {
+              "type": "string",
+              "description": "Title of the in-app webview screen that displays the Privacy Policy. The Privacy Policy body itself is the CMS page referenced by wm-app-config.privacyPolicyPage, not a translation string."
+            },
+            "terms_and_conditions_title": {
+              "type": "string",
+              "description": "Title of the in-app webview screen that displays the Terms & Conditions. The body itself is the CMS page referenced by wm-app-config.termsAndConditionsPage."
+            },
+            "email_app_unavailable": {
+              "type": "string",
+              "description": "Error toast shown when the OS cannot find an installed email client to handle a mailto: link from the welcome screen."
+            },
+            "link_open_failed": {
+              "type": "string",
+              "description": "Generic error toast shown when an inline link on the welcome screen fails to open."
+            },
+            "legal_disclaimer": {
+              "type": "richText",
+              "description": "Inline legal disclaimer below the primary CTAs. Renders two inline links to the in-app Terms and Privacy Policy webviews (URLs use the wemeditate://legal/* scheme — see ticket for full reference). Translators control word order, link placement, and the connector between the two link labels."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5390-8945"
+        },
+        "name": {
+          "type": "object",
+          "description": "Onboarding step where the new user enters their first name.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Screen prompt asking the user for their name (e.g. “What’s your name?”)."
+            },
+            "placeholder": {
+              "type": "string",
+              "description": "Input field placeholder hint for the name field."
+            },
+            "continue": {
+              "type": "string",
+              "description": "Primary CTA to confirm the entered name and continue onboarding."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5390-7392"
+        },
+        "greeting": {
+          "type": "object",
+          "description": "Brief greeting screen shown immediately after the user enters their name.",
+          "properties": {
+            "message_prefix": {
+              "type": "string",
+              "description": "Multi-line greeting prefix shown above the user’s name. Preserve the embedded line breaks (\\n) — they control where the text wraps in the hero layout."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5390-7596"
+        },
+        "user_type": {
+          "type": "object",
+          "description": "Onboarding step where the user self-classifies (complete beginner, tried before, attending classes, yogi). Drives downstream personalisation and the analytics yogi-exclusion gate.",
+          "properties": {
+            "get_started": {
+              "type": "string",
+              "description": "Primary CTA used after the user picks their classification."
+            },
+            "option_complete_beginner": {
+              "type": "string",
+              "description": "Selectable option for users completely new to meditation. Maps to userType = user-complete-beginner."
+            },
+            "option_tried_before": {
+              "type": "string",
+              "description": "Selectable option for users who have tried meditation before but not deeply. Maps to userType = user-tried-before."
+            },
+            "option_attending_classes": {
+              "type": "string",
+              "description": "Selectable option for users currently in an in-person or online newcomer class. Maps to userType = user-attending-classes."
+            },
+            "option_yogi": {
+              "type": "string",
+              "description": "Selectable option for long-time Sahaja Yoga practitioners. Maps to userType = yogi (excluded from the ad-measurement path)."
+            },
+            "title": {
+              "type": "richText",
+              "description": "Screen title prompt (e.g. 'Have you tried Sahaja Yoga before?'). The brand fragment 'Sahaja Yoga' is rendered as a bold inline span; translators may choose a different word to bold or apply no bold per locale convention."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=10253-86746"
+        },
+        "carousel": {
+          "type": "object",
+          "description": "Three-slide intro carousel shown early in onboarding.",
+          "properties": {
+            "page_moment_title": {
+              "type": "string",
+              "description": "Slide 1 title (e.g. 'A moment of peace')."
+            },
+            "page_moment_subtitle": {
+              "type": "string",
+              "description": "Slide 1 supporting copy."
+            },
+            "page_true_self_subtitle": {
+              "type": "string",
+              "description": "Slide 2 supporting copy."
+            },
+            "page_unlock_potential_title": {
+              "type": "string",
+              "description": "Slide 3 title (e.g. 'Unlock your potential')."
+            },
+            "page_unlock_potential_subtitle": {
+              "type": "string",
+              "description": "Slide 3 supporting copy."
+            },
+            "page_true_self_title": {
+              "type": "richText",
+              "description": "Slide 2 title (e.g. 'Get to know your true self'). The 'true self' fragment is rendered as a bold inline span; the Flutter renderer may also apply an accent colour to bolded segments on this slide."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5390-7673"
+        },
+        "consent_modal": {
+          "type": "object",
+          "description": "Post-first-meditation ‘Help spread the word’ ad-measurement consent modal. Shown in the onboarding chain after the first-meditation Vibes Interpretation + Shri Mataji talk and before Account Creation. Approval flips adsMarketingConsent = true. Figma: node-id 11564-91404.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Modal title (e.g. 'Help spread the word')."
+            },
+            "body_benefits": {
+              "type": "string",
+              "description": "Second paragraph explaining the benefits of granting consent (improving campaigns, using donations responsibly, suppressing ads to existing users, reaching similar people)."
+            },
+            "body_never_share": {
+              "type": "richText",
+              "description": "Third paragraph listing categories that are never sent for advertising (mood, goals, hand sensations, reflections, class location, spiritual-practice details). Lead phrase 'We'll never share' is rendered as a bold inline span. Must remain consistent with the privacy filter in analytics-simplified/03-marketing-event-taxonomy.md §2."
+            },
+            "body_never_sell": {
+              "type": "richText",
+              "description": "Fourth paragraph: short statement that the app never sells user data. Phrase 'we never sell' is rendered as a bold inline span."
+            },
+            "body_settings_hint": {
+              "type": "string",
+              "description": "Fifth paragraph telling the user they can change this anytime via Settings → Privacy & advertising. Preserve the arrow character (→) or substitute the locale equivalent."
+            },
+            "allow": {
+              "type": "string",
+              "description": "Primary CTA granting consent (sets adsMarketingConsent = true)."
+            },
+            "reject": {
+              "type": "string",
+              "description": "Decline CTA. Decline is a single tap and must not block account creation (see analytics-simplified/05-flutter-implementation.md §9)."
+            },
+            "body_intro": {
+              "type": "richText",
+              "description": "First paragraph of the consent modal. Contains an inline link (e.g. 'what we share') opening the privacy-detail sheet that lists the exact fields sent to Meta, Apple Search Ads and Google Ads. Link URL uses the wemeditate://legal/what-we-share scheme."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=11564-91404"
+        }
+      },
+      "additionalProperties": false
+    },
     "daily": {
       "type": "object",
-      "description": "Daily meditation and inspiration content",
+      "description": "Daily tab — bottom-nav index 0. Two snap super slides (Daily hero + Path promo) plus a long-panel below with hero, intent capture, classes invitation, and highlights. See .kiro/specs/home-page/requirements.md.",
       "properties": {
-        "title": {
-          "type": "string",
-          "description": "Daily meditation section title"
+        "main": {
+          "type": "object",
+          "description": "Main Daily tab content — super slide 1 (greeting + your-X-meditation hero), super slide 2 (Path promo), and the long-panel sections (hero, intent capture priority chooser, classes invitation, relevant highlights). Excludes the standalone Explore tab cards.",
+          "properties": {
+            "start_meditation": {
+              "type": "string",
+              "description": "Primary CTA on the hero card that begins the suggested meditation."
+            },
+            "start_now": {
+              "type": "string",
+              "description": "Compact CTA used on secondary cards to start a meditation immediately."
+            },
+            "start_course": {
+              "type": "string",
+              "description": "CTA on the Path promo card when the user has not started the course."
+            },
+            "continue_course": {
+              "type": "string",
+              "description": "CTA on the Path promo card when the user has progress to resume."
+            },
+            "start_the_course": {
+              "type": "string",
+              "description": "Long-form variant of start_course used in alternate layouts."
+            },
+            "continue_the_course": {
+              "type": "string",
+              "description": "Long-form variant of continue_course used in alternate layouts."
+            },
+            "scroll_to_the_path": {
+              "type": "string",
+              "description": "Accessibility / link label inviting the user to scroll down to the Path section."
+            },
+            "the_path_going_deeper": {
+              "type": "string",
+              "description": "Eyebrow label above the Path promo block (typically uppercase, e.g. 'THE PATH: GOING DEEPER')."
+            },
+            "your_morning_meditation": {
+              "type": "string",
+              "description": "Hero title used in the morning time-of-day variant."
+            },
+            "your_afternoon_meditation": {
+              "type": "string",
+              "description": "Hero title used in the afternoon time-of-day variant."
+            },
+            "your_evening_meditation": {
+              "type": "string",
+              "description": "Hero title used in the evening time-of-day variant."
+            },
+            "morning_meditation_subtitle": {
+              "type": "string",
+              "description": "Hero subtitle for the morning variant. Preserve the embedded line break (\\n) — it controls hero layout."
+            },
+            "afternoon_meditation_subtitle": {
+              "type": "string",
+              "description": "Hero subtitle for the afternoon variant. Preserve the embedded line break (\\n)."
+            },
+            "evening_meditation_subtitle": {
+              "type": "string",
+              "description": "Hero subtitle for the evening variant."
+            },
+            "path_going_deeper_title": {
+              "type": "string",
+              "description": "Title of the Path promo card on Home. Preserve the embedded line break (\\n)."
+            },
+            "path_going_deeper_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the Path promo card on Home."
+            },
+            "learn_from_source": {
+              "type": "string",
+              "description": "Eyebrow label above the Shri Mataji talks section on Home (typically uppercase)."
+            },
+            "hero_label_get_started": {
+              "type": "string",
+              "description": "Eyebrow chip label on the hero card for pre-activation users (‘Get started’)."
+            },
+            "hero_label_try_something_new": {
+              "type": "string",
+              "description": "Eyebrow chip label on the hero card encouraging variation."
+            },
+            "hero_label_learn_from_source": {
+              "type": "string",
+              "description": "Eyebrow chip label on the hero card promoting Shri Mataji content."
+            },
+            "hero_label_meditate_with_others": {
+              "type": "string",
+              "description": "Eyebrow chip label on the hero card promoting community sessions."
+            },
+            "hero_label_discover": {
+              "type": "string",
+              "description": "Eyebrow chip label on the hero card promoting discovery / Explore."
+            },
+            "shri_mataji_talks_title": {
+              "type": "string",
+              "description": "Section title of the Shri Mataji talks block on Home."
+            },
+            "shri_mataji_talks_subtitle": {
+              "type": "string",
+              "description": "Section subtitle of the Shri Mataji talks block on Home."
+            },
+            "see_more": {
+              "type": "string",
+              "description": "Inline link/CTA to expand a section or view more items."
+            },
+            "whats_your_priority_today": {
+              "type": "string",
+              "description": "Eyebrow above the priority chooser on Home, daytime variant (typically uppercase)."
+            },
+            "whats_your_priority_tonight": {
+              "type": "string",
+              "description": "Eyebrow above the priority chooser on Home, evening variant (typically uppercase)."
+            },
+            "whats_your_priority_tag": {
+              "type": "string",
+              "description": "Chip tag label categorising priority-chooser cards."
+            },
+            "meditate_with_others_tag": {
+              "type": "string",
+              "description": "Chip tag label categorising community-session cards."
+            },
+            "improve_meditation_tag": {
+              "type": "string",
+              "description": "Chip tag label categorising improvement / techniques cards."
+            },
+            "quick_morning": {
+              "type": "string",
+              "description": "Quick-meditation card title (morning). Preserve the embedded line break (\\n)."
+            },
+            "quick_afternoon": {
+              "type": "string",
+              "description": "Quick-meditation card title (afternoon). Preserve the embedded line break (\\n) and quoted punctuation."
+            },
+            "quick_evening": {
+              "type": "string",
+              "description": "Quick-meditation card title (evening). Preserve the embedded line break (\\n)."
+            },
+            "longer_session": {
+              "type": "string",
+              "description": "Card title for the longer/personalised session. Preserve the embedded line break (\\n)."
+            },
+            "help_me_deal": {
+              "type": "string",
+              "description": "Card title inviting users to find a meditation matched to a current feeling. Preserve the embedded line break (\\n)."
+            },
+            "help_me_deal_custom_title": {
+              "type": "string",
+              "description": "Title of the follow-up screen after the user taps the 'Help me deal' card. Preserve the embedded line break (\\n)."
+            },
+            "explore_deeper": {
+              "type": "string",
+              "description": "Card title promoting deeper exploration of the practice. Preserve the embedded line break (\\n)."
+            },
+            "unlock_guided_meditations": {
+              "type": "string",
+              "description": "Locked-state label shown on cards gated behind the first meditation."
+            },
+            "meditate_with_others": {
+              "type": "string",
+              "description": "Eyebrow above the community block on Home (typically uppercase)."
+            },
+            "find_class_near_you": {
+              "type": "string",
+              "description": "Community card inviting the user to find a local in-person class. Preserve the embedded line break (\\n)."
+            },
+            "join_live_online_class": {
+              "type": "string",
+              "description": "Community card inviting the user to join a live online class. Preserve the embedded line break (\\n)."
+            },
+            "improve_your_meditation": {
+              "type": "string",
+              "description": "Eyebrow above the improvement / techniques block on Home (typically uppercase)."
+            },
+            "improve_card_techniques_title": {
+              "type": "string",
+              "description": "Title of the Techniques card in the Improve block."
+            },
+            "improve_card_techniques_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the Techniques card in the Improve block."
+            },
+            "improve_card_subtle_system_title": {
+              "type": "string",
+              "description": "Title of the Subtle System card in the Improve block."
+            },
+            "improve_card_subtle_system_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the Subtle System card in the Improve block."
+            },
+            "highlights_title": {
+              "type": "string",
+              "description": "Eyebrow above the Highlights carousel on Home (typically uppercase)."
+            },
+            "get_back_in_the_flow": {
+              "type": "string",
+              "description": "Title used on the resume-card prompting the user back into the flow. Preserve the embedded line break (\\n)."
+            },
+            "live_now": {
+              "type": "string",
+              "description": "Badge shown on the live-meditation card when a live session is currently in progress."
+            },
+            "minutes_short": {
+              "type": "string",
+              "description": "Short abbreviation for minutes used in card chips (e.g. 'min')."
+            },
+            "live_countdown_days": {
+              "type": "string",
+              "description": "Unit label for the days portion of the live-meditation countdown."
+            },
+            "live_countdown_hours": {
+              "type": "string",
+              "description": "Unit label for the hours portion of the live-meditation countdown."
+            },
+            "live_countdown_minutes": {
+              "type": "string",
+              "description": "Unit label for the minutes portion of the live-meditation countdown."
+            },
+            "live_reminder_button_active": {
+              "type": "string",
+              "description": "Label shown on the live-meditation reminder button when a 30-minute reminder is already scheduled."
+            },
+            "live_reminder_notification_title": {
+              "type": "string",
+              "description": "Title of the scheduled local notification that reminds the user about an upcoming live meditation."
+            },
+            "live_reminder_notification_body": {
+              "type": "string",
+              "description": "Body of the scheduled local notification that reminds the user about an upcoming live meditation."
+            },
+            "live_reminder_permission_denied": {
+              "type": "string",
+              "description": "Inline message shown after the user denies the notification permission required for live-meditation reminders."
+            },
+            "live_reminder_permission_settings": {
+              "type": "string",
+              "description": "Inline message asking the user to enable notifications in OS Settings to receive live-meditation reminders."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7064-81297"
         },
-        "subtitle": {
-          "type": "string",
-          "description": "Subtitle or description for daily content"
+        "common": {
+          "type": "object",
+          "description": "Shared messages and error toasts on the Home (Daily) tab.",
+          "properties": {
+            "unlock_after_first_meditation": {
+              "type": "string",
+              "description": "Locked-state message shown on Home cards that are gated behind completing the first meditation."
+            },
+            "path_coming_soon": {
+              "type": "string",
+              "description": "Placeholder shown when the Path tile on Home is not yet available for the current user/locale."
+            },
+            "something_went_wrong": {
+              "type": "string",
+              "description": "Generic error message shown on Home when a section fails to load."
+            },
+            "retry": {
+              "type": "string",
+              "description": "Retry CTA used on Home error states."
+            },
+            "external_link_coming_soon": {
+              "type": "string",
+              "description": "Toast shown when an external link card on Home is not yet wired up."
+            },
+            "card_action_not_available": {
+              "type": "string",
+              "description": "Toast shown when tapping a Home card whose action is not yet implemented."
+            },
+            "map_coming_soon": {
+              "type": "string",
+              "description": "Placeholder shown for the in-person class finder on Home before the feature ships."
+            },
+            "music_coming_soon": {
+              "type": "string",
+              "description": "Placeholder shown for the music section on Home before the feature ships."
+            }
+          },
+          "additionalProperties": false
         },
-        "complete": {
-          "type": "string",
-          "description": "Message when daily meditation is complete"
-        },
-        "streak": {
-          "type": "string",
-          "description": "Meditation streak counter label"
-        },
-        "skip": {
-          "type": "string",
-          "description": "Skip daily meditation button"
+        "load_info": {
+          "type": "object",
+          "description": "Inline info banners on Home that explain why a section is showing fallback content (network or content failure).",
+          "properties": {
+            "top_daily_unavailable": {
+              "type": "string",
+              "description": "Banner shown when the hero Daily meditation could not be resolved at all."
+            },
+            "top_daily_failed": {
+              "type": "string",
+              "description": "Banner shown when the hero Daily meditation failed to load due to a network or content error."
+            },
+            "top_daily_random": {
+              "type": "string",
+              "description": "Banner shown when the hero Daily meditation has been replaced by a random meditation fallback."
+            },
+            "quick_daily_unavailable": {
+              "type": "string",
+              "description": "Banner shown when the Quick meditations row could not be resolved."
+            },
+            "quick_daily_failed": {
+              "type": "string",
+              "description": "Banner shown when the Quick meditations row failed to load."
+            },
+            "quick_daily_random": {
+              "type": "string",
+              "description": "Banner shown when the Quick meditations row has been replaced by random fallbacks."
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
     },
     "path": {
       "type": "object",
-      "description": "Meditation path and lessons navigation",
+      "description": "Path tab — bottom-nav index 1. Guided lesson course (units > lessons > phases). Lessons have phases Lesson Intro -> Story Panels -> Audio Intro -> Article. See .kiro/specs/path-tab/requirements.md.",
       "properties": {
-        "title": {
-          "type": "string",
-          "description": "Path section title"
+        "overview": {
+          "type": "object",
+          "description": "Path tab top-level chrome (list view, errors, unit header).",
+          "properties": {
+            "error_message": {
+              "type": "string",
+              "description": "Error message shown when the Path tab fails to load."
+            },
+            "unit": {
+              "type": "string",
+              "description": "Eyebrow label above each unit on the Path overview (typically uppercase, e.g. 'UNIT')."
+            },
+            "retry": {
+              "type": "string",
+              "description": "Retry CTA on the Path error state."
+            },
+            "more_steps_coming_soon": {
+              "type": "string",
+              "description": "Placeholder shown at the bottom of the Path when no further steps are released yet (typically uppercase)."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7846-27543"
         },
-        "progress": {
-          "type": "string",
-          "description": "Progress indicator label"
+        "info": {
+          "type": "object",
+          "description": "Three-screen intro carousel shown the first time a user opens the Path tab. Embedded \\\\n sequences in the source YAML render as literal backslash-n on screen if not escaped — keep them as-is (they are intentional paragraph separators in the existing source).",
+          "properties": {
+            "first_title": {
+              "type": "string",
+              "description": "Carousel slide 1 title."
+            },
+            "first_text": {
+              "type": "string",
+              "description": "Carousel slide 1 body. Two paragraphs separated by \\\\n\\\\n in the source."
+            },
+            "second_title": {
+              "type": "string",
+              "description": "Carousel slide 2 title."
+            },
+            "second_text": {
+              "type": "string",
+              "description": "Carousel slide 2 body. Two paragraphs separated by \\\\n\\\\n in the source."
+            },
+            "third_title": {
+              "type": "string",
+              "description": "Carousel slide 3 title."
+            },
+            "third_text": {
+              "type": "string",
+              "description": "Carousel slide 3 body. Two paragraphs separated by \\\\n\\\\n in the source."
+            }
+          },
+          "additionalProperties": false
         },
-        "continue": {
-          "type": "string",
-          "description": "Continue lesson button"
+        "step_1": {
+          "type": "object",
+          "description": "Path step 1 intro screen — quote and entry CTA.",
+          "properties": {
+            "default_intro_quote": {
+              "type": "string",
+              "description": "Default intro quote used when no CMS-driven quote is available."
+            },
+            "author": {
+              "type": "string",
+              "description": "Attribution under the intro quote."
+            },
+            "begin": {
+              "type": "string",
+              "description": "Primary CTA that begins step 1."
+            },
+            "skip_title": {
+              "type": "string",
+              "description": "Title of the exit-confirmation prompt shown when the user tries to leave step 1 early."
+            },
+            "skip_continue": {
+              "type": "string",
+              "description": "CTA on the exit-confirmation prompt that keeps the user inside step 1."
+            },
+            "back_to_path": {
+              "type": "string",
+              "description": "CTA on the exit-confirmation prompt that returns the user to the Path overview."
+            }
+          },
+          "additionalProperties": false
         },
-        "start_unit": {
-          "type": "string",
-          "description": "Start new unit button"
+        "step_2": {
+          "type": "object",
+          "description": "Path step 2 — currently only an inline Continue CTA.",
+          "properties": {
+            "continue_button": {
+              "type": "string",
+              "description": "Continue CTA used in step 2 screens."
+            }
+          },
+          "additionalProperties": false
         },
-        "lesson_complete": {
-          "type": "string",
-          "description": "Lesson completion message"
+        "step_3": {
+          "type": "object",
+          "description": "Path step 3 — meditation intro and skip flow before starting the meditation.",
+          "properties": {
+            "meditation_intro": {
+              "type": "string",
+              "description": "Eyebrow above the step 3 meditation intro (typically uppercase)."
+            },
+            "skip_intro": {
+              "type": "string",
+              "description": "Inline action that opens the skip-intro confirmation."
+            },
+            "start_meditation": {
+              "type": "string",
+              "description": "Primary CTA that starts the step 3 meditation."
+            },
+            "skip_title": {
+              "type": "string",
+              "description": "Title of the skip-intro confirmation prompt."
+            },
+            "skip_continue": {
+              "type": "string",
+              "description": "Confirm CTA on the skip-intro prompt that jumps to the meditation."
+            },
+            "back_to_intro": {
+              "type": "string",
+              "description": "Decline CTA on the skip-intro prompt that returns to the intro."
+            },
+            "exit": {
+              "type": "string",
+              "description": "Exit CTA used on the step 3 screen."
+            },
+            "back_to_step": {
+              "type": "string",
+              "description": "Back CTA returning the user to the step overview."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7846-27579"
+        },
+        "step_4": {
+          "type": "object",
+          "description": "Path step 4 — ‘delving deeper’ lecture screen shown after the step 3 meditation.",
+          "properties": {
+            "delving_deeper": {
+              "type": "string",
+              "description": "Eyebrow on the step 4 screen (typically uppercase)."
+            },
+            "lecture_prompt": {
+              "type": "string",
+              "description": "Prompt above the lecture media inviting the user to keep meditating while listening."
+            },
+            "media_card_fallback_title": {
+              "type": "string",
+              "description": "Fallback title used on the lecture media card when no CMS-driven title is available. Source uses curly quotes “” intentionally."
+            },
+            "media_card_author": {
+              "type": "string",
+              "description": "Author label on the lecture media card (e.g. 'Talk by Shri Mataji')."
+            },
+            "media_card_author_subtitle": {
+              "type": "string",
+              "description": "Author subtitle on the lecture media card (e.g. 'The founder of Sahaja Yoga')."
+            },
+            "media_card_watch_later": {
+              "type": "string",
+              "description": "Secondary CTA on the lecture media card."
+            },
+            "complete_step": {
+              "type": "string",
+              "description": "Primary CTA that completes step 4."
+            }
+          },
+          "additionalProperties": false
+        },
+        "step_complete": {
+          "type": "object",
+          "description": "Confirmation screen shown after the user completes a Path step.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Title of the step-complete confirmation."
+            },
+            "subtitle": {
+              "type": "string",
+              "description": "Subtitle of the step-complete confirmation."
+            },
+            "back_to_path": {
+              "type": "string",
+              "description": "CTA returning the user to the Path overview after completing a step."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7846-27656"
         }
       },
       "additionalProperties": false
     },
     "explore": {
       "type": "object",
-      "description": "Content exploration and discovery",
+      "description": "Explore tab — bottom-nav index 2. Three-section discovery surface (Meditate / Learn / Join free classes) leading into Techniques, Subtle System, Shri Mataji Talks, in-person classes, and live online classes. See .kiro/specs/explore-tab/requirements.md.",
       "properties": {
-        "title": {
-          "type": "string",
-          "description": "Explore section title"
+        "overview": {
+          "type": "object",
+          "description": "Explore tab card grid — section headers (Meditate / Learn / Join free classes) and tile labels for the cards that lead into the subscreens. The actual subscreen copy lives in the other groups under Explore.",
+          "properties": {
+            "section_label": {
+              "type": "string",
+              "description": "Eyebrow label for the embedded Explore block."
+            },
+            "section_meditate_title": {
+              "type": "string",
+              "description": "Section header for the Meditate column."
+            },
+            "section_learn_title": {
+              "type": "string",
+              "description": "Section header for the Learn column."
+            },
+            "section_join_title": {
+              "type": "string",
+              "description": "Section header for the Join Free Classes column."
+            },
+            "card_daily_title": {
+              "type": "string",
+              "description": "Card title for the Daily entry in the Explore block."
+            },
+            "card_daily_subtitle": {
+              "type": "string",
+              "description": "Card subtitle for the Daily entry in the Explore block."
+            },
+            "card_path_title": {
+              "type": "string",
+              "description": "Card title for the Path entry in the Explore block."
+            },
+            "card_path_subtitle": {
+              "type": "string",
+              "description": "Card subtitle for the Path entry in the Explore block."
+            },
+            "card_techniques_title": {
+              "type": "string",
+              "description": "Card title for the Techniques entry in the Explore block."
+            },
+            "card_techniques_subtitle": {
+              "type": "string",
+              "description": "Card subtitle for the Techniques entry in the Explore block."
+            },
+            "card_vibes_check_title": {
+              "type": "string",
+              "description": "Card title for the Vibes Check entry in the Explore block."
+            },
+            "card_vibes_check_subtitle": {
+              "type": "string",
+              "description": "Card subtitle for the Vibes Check entry in the Explore block."
+            },
+            "card_music_title": {
+              "type": "string",
+              "description": "Card title for the Music for Meditation entry in the Explore block."
+            },
+            "card_challenges_title": {
+              "type": "string",
+              "description": "Card title for the Challenges entry in the Explore block."
+            },
+            "card_talks_title": {
+              "type": "string",
+              "description": "Card title for the Shri Mataji Talks entry in the Explore block. Preserve the embedded line break (\\n)."
+            },
+            "card_subtle_system_title": {
+              "type": "string",
+              "description": "Card title for the Subtle System entry in the Explore block."
+            },
+            "card_who_is_title": {
+              "type": "string",
+              "description": "Card title for the 'Who is Shri Mataji' entry in the Explore block. Preserve the embedded line break (\\n)."
+            },
+            "card_what_is_title": {
+              "type": "string",
+              "description": "Card title for the 'What is Sahaja Yoga?' entry in the Explore block."
+            },
+            "card_live_online_title": {
+              "type": "string",
+              "description": "Card title for the Live Online Classes entry in the Explore block. Preserve the embedded line break (\\n)."
+            },
+            "card_find_classes_title": {
+              "type": "string",
+              "description": "Card title for the in-person class finder entry in the Explore block. Preserve the embedded line break (\\n)."
+            },
+            "card_coming_soon": {
+              "type": "string",
+              "description": "Generic 'Coming soon' badge used on locked Explore-block cards."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5878-10306"
         },
-        "search": {
-          "type": "string",
-          "description": "Search placeholder text"
+        "subtle_system": {
+          "type": "object",
+          "description": "Subtle System screen — interactive chakras/channels diagram. Primarily the standalone Explore subscreen (Learn section); the same strings also serve the meditation intro overlay variant. See .kiro/specs/explore-tab/subtle-system/requirements.md.",
+          "properties": {
+            "screen_label": {
+              "type": "string",
+              "description": "Eyebrow / route label for the subtle-system screen."
+            },
+            "diagram_title": {
+              "type": "string",
+              "description": "Diagram title."
+            },
+            "diagram_subtitle": {
+              "type": "string",
+              "description": "Diagram subtitle prompting the user to tap to learn more."
+            },
+            "mode_chakras": {
+              "type": "string",
+              "description": "Tab label switching the diagram to chakra view."
+            },
+            "mode_channels": {
+              "type": "string",
+              "description": "Tab label switching the diagram to channel view."
+            },
+            "front_view_mirrored": {
+              "type": "string",
+              "description": "Caption clarifying that the diagram shows a front view (left/right are mirrored relative to the viewer)."
+            },
+            "chip_right": {
+              "type": "string",
+              "description": "Filter chip label for the Right channel."
+            },
+            "chip_center": {
+              "type": "string",
+              "description": "Filter chip label for the Center channel."
+            },
+            "chip_left": {
+              "type": "string",
+              "description": "Filter chip label for the Left channel."
+            },
+            "aspect_right": {
+              "type": "string",
+              "description": "Detail label for the Right Aspect of a chakra."
+            },
+            "aspect_center": {
+              "type": "string",
+              "description": "Detail label for the Center Aspect of a chakra."
+            },
+            "aspect_left": {
+              "type": "string",
+              "description": "Detail label for the Left Aspect of a chakra."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7307-83858"
         },
-        "filter": {
-          "type": "string",
-          "description": "Filter button label"
+        "talks_intro": {
+          "type": "object",
+          "description": "Shri Mataji talks intro / inline placement copy — used on the standalone talks screen intro AND on the post-first-meditation talk card during onboarding (see post_first_meditation_* keys).",
+          "properties": {
+            "unavailable": {
+              "type": "string",
+              "description": "Inline message when a talk is temporarily unavailable to play."
+            },
+            "title": {
+              "type": "string",
+              "description": "Title of the talks intro screen."
+            },
+            "generic_description": {
+              "type": "string",
+              "description": "Long-form description of Shri Mataji and Sahaja Yoga used as fallback intro copy when a specific talk-clip description is unavailable."
+            },
+            "clip_description": {
+              "type": "string",
+              "description": "Short clip-level description shown before a specific talk clip starts."
+            },
+            "post_first_meditation_name": {
+              "type": "string",
+              "description": "Speaker name shown on the talk card placed after the first meditation (e.g. 'Shri Mataji,'). The trailing comma is intentional — it precedes the role line."
+            },
+            "post_first_meditation_subtitle": {
+              "type": "string",
+              "description": "Speaker role/subtitle on the post-first-meditation talk card (e.g. 'The founder of Sahaja Yoga')."
+            },
+            "post_first_meditation_description": {
+              "type": "string",
+              "description": "Body copy on the post-first-meditation talk card."
+            },
+            "start": {
+              "type": "string",
+              "description": "Primary CTA that begins the talk."
+            },
+            "maybe_later": {
+              "type": "string",
+              "description": "Decline CTA on the post-first-meditation talk card."
+            },
+            "watch_now": {
+              "type": "string",
+              "description": "Alternative CTA used on inline talk placements."
+            }
+          },
+          "additionalProperties": false
         },
-        "categories": {
-          "type": "string",
-          "description": "Categories section header"
+        "talks_list": {
+          "type": "object",
+          "description": "Standalone Shri Mataji talks list screen (Explore -> Talks of Shri Mataji). See .kiro/specs/explore-tab/shri-mataji-talks/requirements.md.",
+          "properties": {
+            "screen_title": {
+              "type": "string",
+              "description": "Eyebrow / route title for the talks list screen (typically uppercase)."
+            },
+            "section_title": {
+              "type": "string",
+              "description": "Section title above the list."
+            },
+            "description": {
+              "type": "string",
+              "description": "Section description above the list."
+            },
+            "all_tags": {
+              "type": "string",
+              "description": "Default filter chip label ('All tags')."
+            },
+            "learn_more": {
+              "type": "string",
+              "description": "Inline link/CTA opening more information about a talk."
+            },
+            "start": {
+              "type": "string",
+              "description": "Card CTA that begins a talk."
+            },
+            "watched": {
+              "type": "string",
+              "description": "Status label shown on talks that the user has already watched."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=2359-6059"
         },
-        "view_all": {
-          "type": "string",
-          "description": "View all items link"
+        "talks_player": {
+          "type": "object",
+          "description": "Shri Mataji talks player controls and subtitle picker — shared across all talk playback surfaces.",
+          "properties": {
+            "unavailable": {
+              "type": "string",
+              "description": "Error message shown when the player cannot load the requested talk."
+            },
+            "play": {
+              "type": "string",
+              "description": "Player play-control label."
+            },
+            "pause": {
+              "type": "string",
+              "description": "Player pause-control label."
+            },
+            "replay": {
+              "type": "string",
+              "description": "Player replay-control label."
+            },
+            "subtitles_title": {
+              "type": "string",
+              "description": "Title of the subtitles bottom sheet."
+            },
+            "subtitles_off": {
+              "type": "string",
+              "description": "Subtitles option label disabling captions."
+            },
+            "subtitles_english": {
+              "type": "string",
+              "description": "Subtitles language label — English."
+            },
+            "subtitles_turkish": {
+              "type": "string",
+              "description": "Subtitles language label — Turkish."
+            },
+            "subtitles_bulgarian": {
+              "type": "string",
+              "description": "Subtitles language label — Bulgarian."
+            },
+            "subtitles_portuguese_brazil": {
+              "type": "string",
+              "description": "Subtitles language label — Brazilian Portuguese."
+            },
+            "subtitles_french": {
+              "type": "string",
+              "description": "Subtitles language label — French."
+            },
+            "subtitles_spanish": {
+              "type": "string",
+              "description": "Subtitles language label — Spanish."
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
     },
     "profile": {
       "type": "object",
-      "description": "User profile and settings",
+      "description": "Profile tab — bottom-nav index 3. Personal area: identity summary, favourites/history activity lists, account settings (with edit/reset/delete bottom sheets), Privacy & advertising settings, and the contact-us feedback form. See .kiro/specs/profile-tab/requirements.md.",
       "properties": {
-        "title": {
-          "type": "string",
-          "description": "Profile screen title"
+        "main": {
+          "type": "object",
+          "description": "Profile tab main screen — settings entries, favourites preview, joined-date copy, and the Privacy & advertising entry.",
+          "properties": {
+            "favourites_header": {
+              "type": "string",
+              "description": "Eyebrow above the favourites preview block on Profile (typically uppercase)."
+            },
+            "see_all": {
+              "type": "string",
+              "description": "Inline link expanding a preview block to its full screen."
+            },
+            "no_favourites_title": {
+              "type": "string",
+              "description": "Empty-state title in the favourites preview block."
+            },
+            "no_favourites_subtitle": {
+              "type": "string",
+              "description": "Empty-state subtitle in the favourites preview block."
+            },
+            "history_title": {
+              "type": "string",
+              "description": "Title of the History entry in the Profile menu."
+            },
+            "history_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the History entry in the Profile menu."
+            },
+            "account_title": {
+              "type": "string",
+              "description": "Title of the Account entry in the Profile menu."
+            },
+            "account_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the Account entry in the Profile menu."
+            },
+            "privacy_and_advertising_title": {
+              "type": "string",
+              "description": "Title of the Privacy & advertising entry in the Profile menu — opens the consent settings screen (see consent.settings)."
+            },
+            "privacy_and_advertising_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the Privacy & Advertising entry in the Profile menu (e.g. 'Privacy choices and ad preferences')."
+            },
+            "feedback_header": {
+              "type": "string",
+              "description": "Eyebrow above the feedback block on Profile (typically uppercase)."
+            },
+            "contact_title": {
+              "type": "string",
+              "description": "Title of the Contact us entry in the Profile menu."
+            },
+            "contact_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the Contact us entry in the Profile menu."
+            },
+            "joined_fallback": {
+              "type": "string",
+              "description": "Fallback joined-date string when no usable creation timestamp is available."
+            },
+            "joined_one_month": {
+              "type": "string",
+              "description": "Joined-date string for exactly one month ago (singular)."
+            },
+            "joined_months": {
+              "type": "string",
+              "description": "Joined-date string for the multi-month range. MUST preserve the {months} placeholder — it is replaced at runtime with the month count."
+            },
+            "joined_less_than_year": {
+              "type": "string",
+              "description": "Joined-date string for less than a year ago (fallback before the months-since helper)."
+            },
+            "joined_one_year": {
+              "type": "string",
+              "description": "Joined-date string for exactly one year ago (singular)."
+            },
+            "joined_years": {
+              "type": "string",
+              "description": "Joined-date string for multiple years ago. MUST preserve the {years} placeholder — it is replaced at runtime with the year count."
+            },
+            "legal_header": {
+              "type": "string",
+              "description": "Section header above the legal-page navigation rows in the Profile menu (typically capitalised, e.g. 'LEGAL'). Sits between the Contact-us feedback row and the Privacy Policy / Terms & Conditions / Privacy & Advertising rows."
+            },
+            "privacy_policy_title": {
+              "type": "string",
+              "description": "Title of the Privacy Policy entry in the Profile menu's Legal section. Tapping opens the Privacy Policy page (CMS page id 73)."
+            },
+            "privacy_policy_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the Privacy Policy entry in the Profile menu's Legal section (e.g. 'How we collect and use data')."
+            },
+            "terms_and_conditions_title": {
+              "type": "string",
+              "description": "Title of the Terms & Conditions entry in the Profile menu's Legal section. Tapping opens the Terms & Conditions page (CMS page id 76)."
+            },
+            "terms_and_conditions_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the Terms & Conditions entry in the Profile menu's Legal section (e.g. 'Legal terms for using WeMeditate')."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7611-1453777"
         },
-        "settings": {
-          "type": "string",
-          "description": "Settings button label"
+        "favourites": {
+          "type": "object",
+          "description": "Profile → Favourites screen.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Screen title (typically uppercase)."
+            },
+            "removed_from_favourites": {
+              "type": "string",
+              "description": "Snackbar shown after a favourite is removed (paired with the global Undo action from the general group)."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=9150-87479"
         },
-        "statistics": {
-          "type": "string",
-          "description": "Statistics section header"
+        "history": {
+          "type": "object",
+          "description": "Profile → History screen.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Screen title (typically uppercase)."
+            },
+            "empty_title": {
+              "type": "string",
+              "description": "Empty-state title when the user has no history entries."
+            },
+            "empty_subtitle": {
+              "type": "string",
+              "description": "Empty-state subtitle when the user has no history entries."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7615-1623198"
         },
-        "logout": {
-          "type": "string",
-          "description": "Logout button"
+        "account": {
+          "type": "object",
+          "description": "Profile → Account settings screen — edit name/email, change password, delete account.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Screen title."
+            },
+            "details_header": {
+              "type": "string",
+              "description": "Eyebrow above the details block (typically uppercase)."
+            },
+            "name_label": {
+              "type": "string",
+              "description": "Label for the name input."
+            },
+            "name_hint": {
+              "type": "string",
+              "description": "Placeholder hint for the name input."
+            },
+            "save": {
+              "type": "string",
+              "description": "Save CTA used on inline forms."
+            },
+            "saving": {
+              "type": "string",
+              "description": "Loading-state label shown on the Save CTA while saving."
+            },
+            "saved": {
+              "type": "string",
+              "description": "Confirmation toast shown after settings are saved."
+            },
+            "first_name_label": {
+              "type": "string",
+              "description": "Label used by the dedicated first-name edit row."
+            },
+            "email_label": {
+              "type": "string",
+              "description": "Label used by the email row."
+            },
+            "password_label": {
+              "type": "string",
+              "description": "Label used by the password row."
+            },
+            "edit_action": {
+              "type": "string",
+              "description": "Edit CTA used on read-only rows that open an edit modal."
+            },
+            "edit_first_name_title": {
+              "type": "string",
+              "description": "Title of the edit-first-name modal."
+            },
+            "edit_email_title": {
+              "type": "string",
+              "description": "Title of the edit-email modal."
+            },
+            "cancel": {
+              "type": "string",
+              "description": "Cancel CTA used in edit modals."
+            },
+            "save_changes": {
+              "type": "string",
+              "description": "Primary CTA in edit modals."
+            },
+            "save_failed": {
+              "type": "string",
+              "description": "Error shown when saving account settings fails."
+            },
+            "reset_password_title": {
+              "type": "string",
+              "description": "Title of the reset-password modal."
+            },
+            "reset_password_description": {
+              "type": "string",
+              "description": "Body copy of the reset-password modal."
+            },
+            "reset_password_action": {
+              "type": "string",
+              "description": "Primary CTA in the reset-password modal."
+            },
+            "reset_password_sent": {
+              "type": "string",
+              "description": "Confirmation toast shown after the reset link has been emailed."
+            },
+            "reset_password_error": {
+              "type": "string",
+              "description": "Error shown when sending the reset link fails."
+            },
+            "email_edit_unavailable": {
+              "type": "string",
+              "description": "Toast shown when email editing is not yet available."
+            },
+            "email_unavailable": {
+              "type": "string",
+              "description": "Inline placeholder shown when no email is available for the account."
+            },
+            "create_account": {
+              "type": "string",
+              "description": "CTA shown for guest users prompting them to create an account."
+            },
+            "delete_account_title": {
+              "type": "string",
+              "description": "Title of the delete-account confirmation."
+            },
+            "delete_account_description": {
+              "type": "string",
+              "description": "Body copy of the delete-account confirmation."
+            },
+            "delete_account_error": {
+              "type": "string",
+              "description": "Error shown when delete-account fails."
+            },
+            "delete_account_requires_recent_login": {
+              "type": "string",
+              "description": "Error shown when delete-account requires the user to log in again first."
+            },
+            "reauthenticate_title": {
+              "type": "string",
+              "description": "Title of the password re-entry modal used before destructive actions."
+            },
+            "reauthenticate_description": {
+              "type": "string",
+              "description": "Body copy of the password re-entry modal."
+            },
+            "reauthenticate_required": {
+              "type": "string",
+              "description": "Validation error shown when the password field is empty in the re-entry modal."
+            },
+            "reauthenticate_invalid": {
+              "type": "string",
+              "description": "Error shown when the re-entered password is incorrect."
+            },
+            "continue_action": {
+              "type": "string",
+              "description": "Primary CTA on the password re-entry modal."
+            },
+            "guest_email_prompt": {
+              "type": "string",
+              "description": "Inline prompt shown on the email row for guest users."
+            },
+            "guest_password_prompt": {
+              "type": "string",
+              "description": "Inline prompt shown on the password row for guest users."
+            },
+            "login": {
+              "type": "string",
+              "description": "Login CTA used in the guest prompts."
+            },
+            "logout": {
+              "type": "string",
+              "description": "Logout CTA in the account screen."
+            },
+            "privacy_policy": {
+              "type": "string",
+              "description": "Inline link opening the Privacy Policy webview from the account screen."
+            },
+            "delete_account": {
+              "type": "string",
+              "description": "Destructive CTA opening the delete-account flow."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=9159-89387"
         },
-        "edit": {
-          "type": "string",
-          "description": "Edit profile button"
+        "privacy_advertising": {
+          "type": "object",
+          "description": "Profile -> Privacy & advertising settings screen — two toggle sections (anonymous product analytics, advertising measurement). Drives productAnalyticsOptOut and adsMarketingConsent. Reached from the Privacy & advertising row on profile.main. See .kiro/specs/analytics-simplified/05-flutter-implementation.md §2 and §8. Figma: node-id 11571-40337.",
+          "properties": {
+            "screen_title": {
+              "type": "string",
+              "description": "Screen title (e.g. 'Help spread the word and make the app better')."
+            },
+            "status_allowed": {
+              "type": "string",
+              "description": "Status label shown next to a toggle that is currently allowed. MUST preserve the {date} placeholder — it is replaced at runtime with the localized date of the most recent consent decision (e.g. '16 May 2026')."
+            },
+            "status_not_allowed": {
+              "type": "string",
+              "description": "Status label shown next to a toggle that is currently disallowed."
+            },
+            "product_analytics_title": {
+              "type": "string",
+              "description": "Section title for the anonymous product analytics toggle (e.g. 'Anonymous product analytics'). Drives productAnalyticsOptOut."
+            },
+            "product_analytics_description": {
+              "type": "string",
+              "description": "Section body explaining anonymous product analytics: we log aggregated usage data to fix bugs and improve We Meditate, no individual data, no advertisers, no user profile. Must remain consistent with the TelemetryDeck posture in analytics-simplified/01-strategy.md §4."
+            },
+            "advertising_title": {
+              "type": "string",
+              "description": "Section title for the advertising-measurement toggle (e.g. 'Advertising measurement and improvement'). Drives adsMarketingConsent."
+            },
+            "advertising_body_benefits": {
+              "type": "string",
+              "description": "Second paragraph of the advertising section: how granting consent helps WeMeditate use donations responsibly, improve campaigns, suppress ads to existing users, and reach similar people."
+            },
+            "advertising_body_never_share": {
+              "type": "richText",
+              "description": "Third paragraph of the advertising section. Covers both the never-shared categories AND the never-sell statement in a single paragraph with two bold spans ('We'll never share' / 'we never sell'). Must remain consistent with analytics-simplified/03-marketing-event-taxonomy.md §2."
+            },
+            "advertising_body_change_hint": {
+              "type": "string",
+              "description": "Fourth paragraph of the advertising section explaining that the user can change their choice anytime using the toggle at the top of this screen."
+            },
+            "advertising_platforms_header": {
+              "type": "string",
+              "description": "Sub-section header listing current advertising platforms (e.g. 'Current advertising platforms')."
+            },
+            "advertising_platform_meta": {
+              "type": "string",
+              "description": "Bullet item for Meta (Facebook + Instagram + Audience Network). Brand name — usually kept as 'Meta'."
+            },
+            "advertising_platform_google_ads": {
+              "type": "string",
+              "description": "Bullet item for Google Ads. Brand name — usually kept as 'Google Ads'."
+            },
+            "advertising_platform_apple_search_ads": {
+              "type": "string",
+              "description": "Bullet item for Apple Search Ads. Brand name — usually kept as 'Apple Search Ads'."
+            },
+            "advertising_body_intro": {
+              "type": "richText",
+              "description": "First paragraph of the advertising section. Contains an inline link (e.g. 'what we share') that opens the Privacy Policy page (CMS page id 73, scrolled to the 'what we share' heading) — same link target as onboarding_consent_modal.body_intro."
+            },
+            "learn_more_header": {
+              "type": "string",
+              "description": "Section header above the legal-page navigation rows at the bottom of the Privacy & Advertising screen (e.g. 'Learn more'). Below this header sit the Privacy Policy and Terms & Conditions rows, which reuse the same labels as the Profile-tab Legal section."
+            },
+            "privacy_policy_title": {
+              "type": "string",
+              "description": "Title of the Privacy Policy row in the Learn-more section at the bottom of the Privacy & Advertising screen. Tapping opens the Privacy Policy page (CMS page id 73). Reuses the same English label as profile_main.privacy_policy_title."
+            },
+            "privacy_policy_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the Privacy Policy row in the Learn-more section (e.g. 'How we collect and use data')."
+            },
+            "terms_and_conditions_title": {
+              "type": "string",
+              "description": "Title of the Terms & Conditions row in the Learn-more section at the bottom of the Privacy & Advertising screen. Tapping opens the Terms & Conditions page (CMS page id 76)."
+            },
+            "terms_and_conditions_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the Terms & Conditions row in the Learn-more section (e.g. 'Legal terms for using WeMeditate')."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=11571-40337"
+        },
+        "contact": {
+          "type": "object",
+          "description": "Profile → Contact us screen — free-text feedback form. The text itself is first-party only — it never reaches the ad path.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Screen title (typically uppercase)."
+            },
+            "header": {
+              "type": "string",
+              "description": "Hero copy above the form."
+            },
+            "subtitle": {
+              "type": "string",
+              "description": "Subtitle below the hero copy."
+            },
+            "placeholder": {
+              "type": "string",
+              "description": "Input field placeholder hint for the feedback text area."
+            },
+            "send": {
+              "type": "string",
+              "description": "Submit CTA on the form."
+            },
+            "sending": {
+              "type": "string",
+              "description": "Loading-state label shown on the Submit CTA while sending."
+            },
+            "sent": {
+              "type": "string",
+              "description": "Confirmation toast shown after the feedback is sent."
+            },
+            "empty_error": {
+              "type": "string",
+              "description": "Validation error shown when the feedback field is empty."
+            },
+            "min_length_error": {
+              "type": "string",
+              "description": "Validation error shown when the feedback is shorter than the minimum length (50 characters)."
+            },
+            "send_error": {
+              "type": "string",
+              "description": "Error shown when sending the feedback fails."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=9159-89388"
         }
       },
       "additionalProperties": false
     },
     "meditation": {
       "type": "object",
-      "description": "Meditation player and controls",
+      "description": "Cross-cutting meditation flow — pre-meditation intent chooser, reminder system, the optional footsoak step, the player itself, Vibes Check (post-first-meditation), and the post-meditation feedback form. Reached from Daily / Path / Explore / Profile / Home cards. See .kiro/specs/meditation-player/requirements.md.",
       "properties": {
-        "play": {
-          "type": "string",
-          "description": "Play button label"
+        "intent": {
+          "type": "object",
+          "description": "Pre-meditation intent flow — time-of-day chooser, quick vs. personalised cards, first-meditation cards, locked-state previews, and the entry CTA for the reminder flow. Reached when the user taps Start meditation on Daily or selects the Daily card from Explore.",
+          "properties": {
+            "carousel_continue": {
+              "type": "string",
+              "description": "Continue CTA on the intent carousel."
+            },
+            "skip_video_and_continue": {
+              "type": "string",
+              "description": "Skip-link shown over the intent video that lets the user proceed without watching."
+            },
+            "repeat_video": {
+              "type": "string",
+              "description": "Replay-link shown after the intent video ends."
+            },
+            "start_meditation": {
+              "type": "string",
+              "description": "Primary CTA that starts the actual meditation after the intent flow."
+            },
+            "skip_and_explore_the_app": {
+              "type": "string",
+              "description": "Tertiary CTA letting a new user skip the first meditation and just browse the app. Tied to the onboarding_ready_action / skip_and_explore_app_press analytics event."
+            },
+            "step_label": {
+              "type": "string",
+              "description": "Step indicator (e.g. 'Step 1 of 3') at the top of the intent flow."
+            },
+            "title_today": {
+              "type": "string",
+              "description": "Intent screen title shown during the day. Preserve the embedded line break (\\n)."
+            },
+            "title_tonight": {
+              "type": "string",
+              "description": "Intent screen title shown in the evening. Preserve the embedded line break (\\n)."
+            },
+            "first_meditation_title": {
+              "type": "string",
+              "description": "Title of the locked first-meditation card before activation."
+            },
+            "first_meditation_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the locked first-meditation card."
+            },
+            "repeat_first_meditation_title": {
+              "type": "string",
+              "description": "Title shown when a returning user is invited to repeat the first meditation."
+            },
+            "repeat_first_meditation_subtitle": {
+              "type": "string",
+              "description": "Subtitle shown when a returning user is invited to repeat the first meditation."
+            },
+            "ready_to_try_title": {
+              "type": "string",
+              "description": "Title shown on the 'ready to try?' confirmation step before starting the first meditation."
+            },
+            "ready_to_try_subtitle_beginner": {
+              "type": "string",
+              "description": "Subtitle for the 'ready to try?' step, beginner variant."
+            },
+            "ready_to_try_subtitle_repeat": {
+              "type": "string",
+              "description": "Subtitle for the 'ready to try?' step, repeat variant."
+            },
+            "quick_morning_title": {
+              "type": "string",
+              "description": "Title of the morning quick-meditation card in the intent flow."
+            },
+            "quick_afternoon_title": {
+              "type": "string",
+              "description": "Title of the afternoon quick-meditation card in the intent flow."
+            },
+            "quick_evening_title": {
+              "type": "string",
+              "description": "Title of the evening quick-meditation card in the intent flow."
+            },
+            "quick_morning_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the morning quick-meditation card."
+            },
+            "quick_afternoon_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the afternoon quick-meditation card. Preserve the embedded line break (\\n)."
+            },
+            "quick_evening_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the evening quick-meditation card."
+            },
+            "personalized_title": {
+              "type": "string",
+              "description": "Title of the personalised long-session card in the intent flow."
+            },
+            "personalized_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the personalised long-session card."
+            },
+            "locked_subtitle": {
+              "type": "string",
+              "description": "Subtitle shown on cards that are locked until the user completes their first meditation."
+            },
+            "learn_more": {
+              "type": "string",
+              "description": "Inline link/CTA used on intent-flow cards to view more detail."
+            },
+            "go_to_first_meditation": {
+              "type": "string",
+              "description": "CTA on a locked card that takes the user back to the first meditation flow."
+            },
+            "set_reminder_for_later": {
+              "type": "string",
+              "description": "CTA opening the 'schedule for later' bottom sheet."
+            },
+            "locked_quick_start_title": {
+              "type": "string",
+              "description": "Title shown in the locked-preview card for Quick meditations (‘Start right away’)."
+            },
+            "locked_quick_start_description_morning": {
+              "type": "string",
+              "description": "Locked-preview description for morning Quick meditations."
+            },
+            "locked_quick_start_description_afternoon": {
+              "type": "string",
+              "description": "Locked-preview description for afternoon Quick meditations."
+            },
+            "locked_quick_start_description_evening": {
+              "type": "string",
+              "description": "Locked-preview description for evening Quick meditations."
+            },
+            "locked_quick_custom_time_title": {
+              "type": "string",
+              "description": "Title of the custom-time row in the Quick locked preview."
+            },
+            "locked_quick_custom_time_description": {
+              "type": "string",
+              "description": "Description of the custom-time row in the Quick locked preview."
+            },
+            "locked_personalized_feeling_title": {
+              "type": "string",
+              "description": "Title of the feeling-picker row in the Personalised locked preview."
+            },
+            "locked_personalized_feeling_description": {
+              "type": "string",
+              "description": "Description of the feeling-picker row in the Personalised locked preview."
+            },
+            "locked_personalized_custom_time_title": {
+              "type": "string",
+              "description": "Title of the custom-time row in the Personalised locked preview."
+            },
+            "locked_personalized_custom_time_description": {
+              "type": "string",
+              "description": "Description of the custom-time row in the Personalised locked preview."
+            }
+          },
+          "additionalProperties": false
         },
-        "pause": {
-          "type": "string",
-          "description": "Pause button label"
+        "reminder": {
+          "type": "object",
+          "description": "Meditation reminder system — prompt that suggests scheduling the meditation for later, time presets, the bottom sheet flow, the OS notification-permission rationale, and the local notification copy itself. Triggered from the intent screen via set_reminder_for_later.",
+          "properties": {
+            "prompt_title": {
+              "type": "string",
+              "description": "Title of the prompt that suggests scheduling the first meditation for later. Preserve the embedded line break (\\n)."
+            },
+            "prompt_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the same scheduling prompt. Preserve the embedded line break (\\n)."
+            },
+            "prompt_set_reminder": {
+              "type": "string",
+              "description": "Primary CTA on the scheduling prompt."
+            },
+            "prompt_no_thanks": {
+              "type": "string",
+              "description": "Decline CTA on the scheduling prompt."
+            },
+            "prompt_allow_notifications_title": {
+              "type": "string",
+              "description": "Title of the rationale screen explaining why notification permission is needed before showing the OS prompt."
+            },
+            "prompt_allow_notifications_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the same rationale screen. References the wording on the next (OS) screen — keep 'Allow' consistent with the OS prompt translation if locale-specific."
+            },
+            "prompt_allow_notifications_primary": {
+              "type": "string",
+              "description": "Primary CTA on the notification-rationale screen that triggers the OS permission prompt."
+            },
+            "prompt_not_now": {
+              "type": "string",
+              "description": "Decline CTA on the notification-rationale screen."
+            },
+            "prompt_turn_on_notifications_title": {
+              "type": "string",
+              "description": "Title shown when notifications were previously denied and need to be re-enabled from OS Settings."
+            },
+            "prompt_turn_on_notifications_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the same 'open Settings' prompt."
+            },
+            "prompt_open_settings": {
+              "type": "string",
+              "description": "CTA that deep-links to the app’s OS notification settings."
+            },
+            "sheet_title": {
+              "type": "string",
+              "description": "Title of the bottom sheet where the user picks a reminder time. Preserve the embedded line break (\\n)."
+            },
+            "sheet_dont_set": {
+              "type": "string",
+              "description": "Dismiss action on the reminder bottom sheet."
+            },
+            "sheet_done": {
+              "type": "string",
+              "description": "Confirm CTA on the reminder bottom sheet."
+            },
+            "sheet_return_to_meditation": {
+              "type": "string",
+              "description": "CTA letting the user return to the meditation flow from the reminder sheet."
+            },
+            "sheet_leave_meditation": {
+              "type": "string",
+              "description": "CTA letting the user exit the meditation flow from the reminder sheet."
+            },
+            "sheet_success_title": {
+              "type": "string",
+              "description": "Title of the success confirmation after a reminder is scheduled."
+            },
+            "sheet_success_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the success confirmation after a reminder is scheduled."
+            },
+            "sheet_explore_app": {
+              "type": "string",
+              "description": "CTA on the success confirmation suggesting the user explores the app while waiting."
+            },
+            "sheet_start_first_meditation": {
+              "type": "string",
+              "description": "CTA on the success confirmation suggesting the user starts the first meditation immediately instead."
+            },
+            "sheet_error": {
+              "type": "string",
+              "description": "Error toast shown when scheduling the reminder fails."
+            },
+            "preset_unwind_later_today": {
+              "type": "string",
+              "description": "Preset chip label suggesting a reminder later the same day."
+            },
+            "preset_start_your_week_calm": {
+              "type": "string",
+              "description": "Preset chip label suggesting a reminder at the start of the week."
+            },
+            "preset_find_your_midweek_balance": {
+              "type": "string",
+              "description": "Preset chip label suggesting a reminder midweek."
+            },
+            "preset_pause_and_recharge": {
+              "type": "string",
+              "description": "Preset chip label suggesting a recharge break."
+            },
+            "preset_mindful_break_before_weekend": {
+              "type": "string",
+              "description": "Preset chip label suggesting a reminder before the weekend."
+            },
+            "preset_end_your_week_with_peace": {
+              "type": "string",
+              "description": "Preset chip label suggesting a reminder at the end of the work week."
+            },
+            "preset_slow_down_weekend": {
+              "type": "string",
+              "description": "Preset chip label suggesting a weekend slow-down reminder."
+            },
+            "preset_reset_for_week_ahead": {
+              "type": "string",
+              "description": "Preset chip label suggesting a Sunday reset reminder."
+            },
+            "notification_title": {
+              "type": "string",
+              "description": "Title of the scheduled local notification used by the generic meditation reminder."
+            },
+            "notification_body_locked": {
+              "type": "string",
+              "description": "Notification body used when the meditation is still locked at the time the reminder fires."
+            },
+            "notification_body_exit": {
+              "type": "string",
+              "description": "Notification body used when the reminder is for a previously exited meditation."
+            },
+            "allow_notifications_screen_title": {
+              "type": "string",
+              "description": "Title of the dedicated full-screen rationale used when reminder scheduling requires notification permission."
+            },
+            "allow_notifications_screen_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the same full-screen rationale. Preserve the embedded line break (\\n) and the trailing sparkle emoji (✨) if used in copy."
+            }
+          },
+          "additionalProperties": false
         },
-        "complete": {
-          "type": "string",
-          "description": "Meditation complete message"
+        "footsoak": {
+          "type": "object",
+          "description": "Step 3 of 3 in the meditation intro: invites the user to do an optional foot-soak before meditating.",
+          "properties": {
+            "step_label": {
+              "type": "string",
+              "description": "Step indicator (e.g. 'Step 3 of 3') at the top of the foot-soak screen."
+            },
+            "title": {
+              "type": "string",
+              "description": "Screen title asking whether the user wants to foot-soak with this meditation."
+            },
+            "tutorial_cta": {
+              "type": "string",
+              "description": "Inline link/CTA opening the foot-soak tutorial."
+            },
+            "start_with_footsoak": {
+              "type": "string",
+              "description": "Primary CTA that starts the meditation with a foot-soak."
+            },
+            "start_meditation": {
+              "type": "string",
+              "description": "Secondary CTA that starts the meditation without a foot-soak."
+            },
+            "description": {
+              "type": "richText",
+              "description": "Body copy of the foot-soak screen. Contains a short emphasised span (typically italic, e.g. 'really') that translators position freely within the sentence."
+            }
+          },
+          "additionalProperties": false
         },
-        "timer": {
-          "type": "string",
-          "description": "Timer display label"
+        "player": {
+          "type": "object",
+          "description": "Meditation audio player (voice + background music). v1 only carries an error title; controls are pictographic.",
+          "properties": {
+            "load_error_title": {
+              "type": "string",
+              "description": "Error title shown when the meditation track fails to load in the player."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=7461-1119009"
         },
-        "background_sound": {
+        "vibes_check": {
+          "type": "object",
+          "description": "Vibes Check post-meditation flow: asks what the user felt on each hand. Strictly first-party copy — the raw selections never ship in analytics (see analytics-simplified/02-product-event-taxonomy.md).",
+          "properties": {
+            "intro_question": {
+              "type": "string",
+              "description": "Initial Vibes Check question shown before the per-hand prompt. Preserve the embedded line break (\\n)."
+            },
+            "question_prefix": {
+              "type": "string",
+              "description": "Per-hand question prefix; combined with left_hand or right_hand and question_suffix to form the full prompt (e.g. 'What do you feel on your left hand?'). Preserve the trailing line break (\\n)."
+            },
+            "question_suffix": {
+              "type": "string",
+              "description": "Per-hand question suffix (typically ' hand?'). Include the leading space."
+            },
+            "left_hand": {
+              "type": "string",
+              "description": "Inline noun for the left hand, plugged into the per-hand question template."
+            },
+            "right_hand": {
+              "type": "string",
+              "description": "Inline noun for the right hand, plugged into the per-hand question template."
+            },
+            "cool": {
+              "type": "string",
+              "description": "Selectable sensation: cool. Maps to raw selection 'cool' (first-party storage only)."
+            },
+            "warm": {
+              "type": "string",
+              "description": "Selectable sensation: warm."
+            },
+            "fingers_tingling": {
+              "type": "string",
+              "description": "Selectable sensation: fingers tingling."
+            },
+            "nothing": {
+              "type": "string",
+              "description": "Selectable sensation: nothing felt."
+            },
+            "continue_action": {
+              "type": "string",
+              "description": "Primary CTA to confirm the current Vibes Check answer and continue."
+            },
+            "not_sure": {
+              "type": "string",
+              "description": "Skip-like CTA used when the user is unsure what they felt. Maps to derived firstMedExperience = not_sure."
+            },
+            "got_it": {
+              "type": "string",
+              "description": "Acknowledge CTA at the end of the Vibes Check explanation."
+            },
+            "interpretation_nothing": {
+              "type": "string",
+              "description": "Reassurance shown when the user selects 'nothing' for both hands."
+            },
+            "interpretation_intro": {
+              "type": "string",
+              "description": "Intro line of the Vibes Check interpretation screen."
+            },
+            "interpretation_detail": {
+              "type": "string",
+              "description": "Per-hand detail copy in the Vibes Check interpretation screen."
+            },
+            "skip_vibes_check": {
+              "type": "string",
+              "description": "Inline action that opens the skip-confirmation prompt."
+            },
+            "skip_prompt_title": {
+              "type": "string",
+              "description": "Title of the skip-confirmation prompt."
+            },
+            "skip_prompt_description": {
+              "type": "string",
+              "description": "Body copy of the skip-confirmation prompt."
+            },
+            "back_to_explanation": {
+              "type": "string",
+              "description": "CTA returning the user from the skip prompt to the Vibes Check explanation."
+            },
+            "return_to_meditation_prompt_title": {
+              "type": "string",
+              "description": "Title of the prompt offering to restart the first meditation from the beginning."
+            },
+            "return_to_meditation_prompt_description": {
+              "type": "string",
+              "description": "Body copy of the same restart prompt."
+            },
+            "return_to_meditation_action": {
+              "type": "string",
+              "description": "Primary CTA on the restart prompt."
+            },
+            "skip_it": {
+              "type": "string",
+              "description": "Decline CTA on the restart prompt."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5390-8159"
+        },
+        "feedback": {
+          "type": "object",
+          "description": "Generic post-meditation free-text feedback form. Currently dormant in code per the meditation-player spec but kept for the planned reinstatement. The text is first-party only — it never reaches the ad path.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Form title."
+            },
+            "description": {
+              "type": "string",
+              "description": "Form description / prompt for free-text feedback."
+            },
+            "error_length": {
+              "type": "string",
+              "description": "Validation error shown when the feedback is shorter than the minimum length (50 characters)."
+            },
+            "hint": {
+              "type": "string",
+              "description": "Input field placeholder hint for the feedback text area."
+            },
+            "send": {
+              "type": "string",
+              "description": "Submit CTA on the feedback form."
+            },
+            "thank_you": {
+              "type": "string",
+              "description": "Title of the thank-you confirmation after the feedback is submitted."
+            },
+            "thank_you_description": {
+              "type": "string",
+              "description": "Body of the thank-you confirmation. Preserve the embedded line breaks (\\n) — they control the hero layout."
+            },
+            "close": {
+              "type": "string",
+              "description": "Close CTA on the thank-you confirmation."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "auth": {
+      "type": "object",
+      "description": "Authentication flows — login, account creation, password recovery, and shared social-auth chrome.",
+      "properties": {
+        "common": {
+          "type": "object",
+          "description": "Shared strings across all auth screens (login, signup, password recovery): divider, social providers, common errors.",
+          "properties": {
+            "or": {
+              "type": "string",
+              "description": "Divider label between email and social-provider auth options."
+            },
+            "continue_with_apple": {
+              "type": "string",
+              "description": "Social-auth button label for Apple Sign-In."
+            },
+            "continue_with_google": {
+              "type": "string",
+              "description": "Social-auth button label for Google Sign-In."
+            },
+            "continue_with_facebook": {
+              "type": "string",
+              "description": "Social-auth button label for Facebook Sign-In."
+            },
+            "continue_with_email": {
+              "type": "string",
+              "description": "Auth-method button label that opens the email/password flow."
+            },
+            "cancel": {
+              "type": "string",
+              "description": "Generic cancel CTA used on auth modals and prompts."
+            },
+            "error_enter_email": {
+              "type": "string",
+              "description": "Validation error shown when the email field is empty."
+            },
+            "error_invalid_email": {
+              "type": "string",
+              "description": "Validation error shown when the email field is not a valid email."
+            },
+            "error_enter_password": {
+              "type": "string",
+              "description": "Validation error shown when the password field is empty."
+            },
+            "error_password_min_length": {
+              "type": "string",
+              "description": "Validation error shown when the password is shorter than the minimum length (6 characters)."
+            }
+          },
+          "additionalProperties": false
+        },
+        "login": {
+          "type": "object",
+          "description": "Email/password login screen, including the account-exists / account-not-found branching states.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Login screen title."
+            },
+            "email_label": {
+              "type": "string",
+              "description": "Label for the email input."
+            },
+            "email_placeholder": {
+              "type": "string",
+              "description": "Placeholder hint for the email input."
+            },
+            "password_label": {
+              "type": "string",
+              "description": "Label for the password input."
+            },
+            "password_placeholder": {
+              "type": "string",
+              "description": "Placeholder hint for the password input."
+            },
+            "next": {
+              "type": "string",
+              "description": "Primary CTA on the login form."
+            },
+            "signing_in": {
+              "type": "string",
+              "description": "Loading-state label shown on the primary CTA while sign-in is in flight."
+            },
+            "forgot_password": {
+              "type": "string",
+              "description": "Link opening the password recovery flow."
+            },
+            "continue_as_new_user": {
+              "type": "string",
+              "description": "Tertiary link that routes the user to account creation instead of login."
+            },
+            "account_not_found_title": {
+              "type": "string",
+              "description": "Title of the branch shown when the entered email has no matching account."
+            },
+            "account_not_found_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the same branch."
+            },
+            "account_exists_title": {
+              "type": "string",
+              "description": "Title of the branch shown when the entered email matches an account that uses a different sign-in method."
+            },
+            "account_exists_subtitle": {
+              "type": "string",
+              "description": "Subtitle of the same branch. MUST preserve the {providers} placeholder — it is replaced at runtime with the localized provider list (e.g. 'Google or Apple')."
+            },
+            "create_new_account": {
+              "type": "string",
+              "description": "CTA on the account-not-found branch routing the user to account creation."
+            },
+            "try_different_account": {
+              "type": "string",
+              "description": "CTA on the account-not-found branch letting the user re-enter a different email."
+            },
+            "account_exists_existing_provider_fallback": {
+              "type": "string",
+              "description": "Fallback value injected into the {providers} placeholder when the existing provider list is empty or unresolved."
+            },
+            "open_login": {
+              "type": "string",
+              "description": "CTA on the account-exists branch that reopens the login flow."
+            },
+            "error_cannot_continue_with_email": {
+              "type": "string",
+              "description": "Error shown when the email-continuation branch cannot proceed."
+            },
+            "error_invalid_credentials": {
+              "type": "string",
+              "description": "Error shown for invalid email/password combinations."
+            },
+            "error_too_many_requests": {
+              "type": "string",
+              "description": "Error shown when sign-in is rate-limited."
+            },
+            "error_session_persistence": {
+              "type": "string",
+              "description": "Error shown when sign-in succeeds at Firebase but the local session cannot be persisted."
+            },
+            "error_generic": {
+              "type": "string",
+              "description": "Generic sign-in failure error."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5502-18583"
+        },
+        "restore_password": {
+          "type": "object",
+          "description": "Password recovery form screen.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Password recovery screen title."
+            },
+            "description": {
+              "type": "string",
+              "description": "Body copy explaining the recovery-link flow."
+            },
+            "email_label": {
+              "type": "string",
+              "description": "Label for the email input on the recovery form."
+            },
+            "email_placeholder": {
+              "type": "string",
+              "description": "Placeholder hint for the email input on the recovery form."
+            },
+            "submit": {
+              "type": "string",
+              "description": "Primary CTA submitting the recovery request."
+            },
+            "error_invalid_email": {
+              "type": "string",
+              "description": "Validation error on the recovery form for an invalid email."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5502-19240"
+        },
+        "restore_password_email_sent": {
+          "type": "object",
+          "description": "Confirmation screen shown after a password recovery email has been sent.",
+          "properties": {
+            "message": {
+              "type": "string",
+              "description": "Confirmation message. Preserve the embedded line break (\\n)."
+            },
+            "ok": {
+              "type": "string",
+              "description": "Acknowledge CTA on the confirmation."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5901-23072"
+        },
+        "create_account": {
+          "type": "object",
+          "description": "Account creation screen with the inline Terms & Privacy consent checkbox. This consent is independent of the ad-measurement consent (see consent.ad_modal / consent.settings).",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Sheet / modal title shown in the navigation chrome."
+            },
+            "screen_title": {
+              "type": "string",
+              "description": "Hero title on the account creation screen."
+            },
+            "screen_subtitle": {
+              "type": "string",
+              "description": "Hero subtitle on the account creation screen."
+            },
+            "skip_and_explore": {
+              "type": "string",
+              "description": "Tertiary action allowing a guest user to skip account creation."
+            },
+            "error_check_consent": {
+              "type": "string",
+              "description": "Validation error shown when the user tries to submit without checking the consent box."
+            },
+            "email_label": {
+              "type": "string",
+              "description": "Label for the email input."
+            },
+            "email_placeholder": {
+              "type": "string",
+              "description": "Placeholder hint for the email input."
+            },
+            "password_label": {
+              "type": "string",
+              "description": "Label for the password input."
+            },
+            "password_placeholder": {
+              "type": "string",
+              "description": "Placeholder hint for the password input."
+            },
+            "submit": {
+              "type": "string",
+              "description": "Primary CTA submitting account creation."
+            },
+            "creating": {
+              "type": "string",
+              "description": "Loading-state label shown on the primary CTA while account creation is in flight."
+            },
+            "error_email_in_use": {
+              "type": "string",
+              "description": "Error shown when the email is already associated with an account."
+            },
+            "login_with_existing_account": {
+              "type": "string",
+              "description": "CTA on the email-in-use branch redirecting to login."
+            },
+            "error_invalid_email": {
+              "type": "string",
+              "description": "Validation error for an invalid email."
+            },
+            "error_weak_password": {
+              "type": "string",
+              "description": "Validation error for a password shorter than the minimum length."
+            },
+            "error_too_many_requests": {
+              "type": "string",
+              "description": "Error shown when account creation is rate-limited."
+            },
+            "error_session_persistence": {
+              "type": "string",
+              "description": "Error shown when the account is created but the local session cannot be persisted."
+            },
+            "error_generic": {
+              "type": "string",
+              "description": "Generic account-creation failure error."
+            },
+            "error_google_failed": {
+              "type": "string",
+              "description": "Error shown when Google sign-in fails during account creation."
+            },
+            "error_apple_failed": {
+              "type": "string",
+              "description": "Error shown when Apple sign-in fails during account creation."
+            },
+            "error_facebook_failed": {
+              "type": "string",
+              "description": "Error shown when Facebook sign-in fails during account creation."
+            },
+            "error_provider_cancelled": {
+              "type": "string",
+              "description": "Message shown when the user cancels the social-auth flow."
+            },
+            "consent_label": {
+              "type": "richText",
+              "description": "Consent checkbox label on the account creation screen. Contains two inline links (Terms & Conditions, Privacy Policy) opening the corresponding in-app webviews (wemeditate://legal/terms, wemeditate://legal/privacy). Independent of the ad-measurement consent."
+            }
+          },
+          "additionalProperties": false,
+          "screenshot": "https://www.figma.com/design/JkJK5lBTjB3oSwATMGqfUt/We-Meditate-App?node-id=5390-8755"
+        }
+      },
+      "additionalProperties": false
+    },
+    "navigation": {
+      "type": "object",
+      "description": "Bottom navigation bar tab labels.",
+      "properties": {
+        "daily": {
           "type": "string",
-          "description": "Background sound selector"
+          "description": "Bottom-nav label for the Daily tab (home / today’s meditations)."
+        },
+        "path": {
+          "type": "string",
+          "description": "Bottom-nav label for the Path tab (guided learning course)."
+        },
+        "explore": {
+          "type": "string",
+          "description": "Bottom-nav label for the Explore tab (library of meditations, talks, techniques)."
+        },
+        "profile": {
+          "type": "string",
+          "description": "Bottom-nav label for the Profile tab (account, history, favourites, settings)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "general": {
+      "type": "object",
+      "description": "Generic UI strings shared across the app (overlays, error states, simple actions).",
+      "properties": {
+        "back": {
+          "type": "string",
+          "description": "Generic back action label (used as accessibility text and as a back button label)."
+        },
+        "retry": {
+          "type": "string",
+          "description": "Generic retry action label used on error states across the app."
+        },
+        "undo": {
+          "type": "string",
+          "description": "Generic undo action label used on snackbars and other transient confirmations."
         }
       },
       "additionalProperties": false

@@ -144,6 +144,67 @@ export function createLexicalWithGalleryBlock(imageIds: number[]): Page['content
 }
 
 /**
+ * Create Lexical content with an Upload node referencing an image.
+ * Structure mirrors what `@payloadcms/richtext-lexical`'s UploadFeature emits:
+ * - `type: 'upload'`, `version: 3` for upload nodes
+ * - `relationTo`: the upload-collection slug ('images' here)
+ * - `value`: the related document ID
+ * - `fields`: bag of UploadFeature custom fields (e.g. caption, align)
+ */
+export function createLexicalWithUploadNode(
+  imageId: number,
+  fields: Record<string, unknown> = {},
+): Page['content'] {
+  return {
+    root: {
+      type: 'root',
+      children: [
+        {
+          type: 'upload',
+          version: 3,
+          format: '',
+          relationTo: 'images',
+          value: imageId,
+          fields,
+        },
+      ],
+      direction: null,
+      format: '',
+      indent: 0,
+      version: 1,
+    },
+  } as unknown as Page['content']
+}
+
+/**
+ * Create Lexical content with a relationship node.
+ * Useful for regression tests around stale relationship collection slugs.
+ */
+export function createLexicalWithRelationshipNode(options: {
+  relationTo: string
+  value: unknown
+}): Page['content'] {
+  return {
+    root: {
+      type: 'root',
+      children: [
+        {
+          type: 'relationship',
+          version: 2,
+          format: '',
+          relationTo: options.relationTo,
+          value: options.value,
+        },
+      ],
+      direction: null,
+      format: '',
+      indent: 0,
+      version: 1,
+    },
+  } as unknown as Page['content']
+}
+
+/**
  * Create Lexical content with TableOfContentsBlock
  * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts
  */

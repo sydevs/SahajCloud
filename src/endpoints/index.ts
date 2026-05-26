@@ -1,3 +1,5 @@
-export { appCardsForViewer } from './appCardsForViewer'
+export { appCardsForAudience } from './appCardsForAudience'
+export { audiencesForUser } from './audiencesForUser'
 export { framesByNarrator } from './framesByNarrator'
-export { lecturesForViewer } from './lecturesForViewer'
+export { lecturesForAudience } from './lecturesForAudience'
+export { meditationLectures } from './meditationLectures'

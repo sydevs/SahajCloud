@@ -14,16 +14,16 @@ import type {
   Frame,
   Manager,
   Client,
-  MeditationTag,
+  UserChoice,
+  SubtleSystemNode,
   SongTag,
-  LectureTag,
+  Audience,
   Page,
   Lesson,
   File,
   Video,
   Author,
   Lecture,
-  LectureClip,
   ManagerRole,
   ClientRole,
 } from '@/payload-types'
@@ -65,11 +65,16 @@ export const testData = {
    */
   async createAppCard(payload: Payload, overrides: Partial<AppCard> = {}): Promise<AppCard> {
     const uniqueId = Math.random().toString(36).substring(7)
-    const defaultTitle = overrides.title || `Test Card ${uniqueId}`
+    const { default: defaultOverrides, ...restOverrides } = overrides
 
-    // Create image for the card unless already provided
-    let imageId = overrides.image
-    if (!imageId || typeof imageId === 'object') {
+    const defaultTitle = (defaultOverrides as { title?: string })?.title || `Test Card ${uniqueId}`
+
+    // Create image for the card unless a default.image is already provided
+    const providedImage = (defaultOverrides as { image?: number | object | null })?.image
+    let imageId: number
+    if (providedImage && typeof providedImage === 'number') {
+      imageId = providedImage
+    } else {
       const img = await testData.createMediaImage(payload, { alt: 'App card image' })
       imageId = img.id
     }
@@ -77,12 +82,16 @@ export const testData = {
     return (await payload.create({
       collection: 'app-cards',
       data: {
-        title: defaultTitle,
-        header: 'Test Header',
-        type: 'app-page',
-        appPage: 'map',
-        image: imageId,
-        ...overrides,
+        label: `Test Card ${uniqueId}`,
+        type: 'standard',
+        ...restOverrides,
+        default: {
+          title: defaultTitle,
+          header: 'Test Header',
+          textColor: 'black',
+          image: imageId,
+          ...defaultOverrides,
+        },
       },
     })) as AppCard
   },
@@ -215,11 +224,11 @@ export const testData = {
    * Create a meditation tag (upload collection with SVG icon)
    * Note: SVG files need Buffer (not Uint8Array) for detectSvgFromXml to work
    */
-  async createMeditationTag(
+  async createUserChoice(
     payload: Payload,
-    overrides: Partial<MeditationTag> = {},
+    overrides: Partial<UserChoice> = {},
     sampleFile = 'icon-test.svg',
-  ): Promise<MeditationTag> {
+  ): Promise<UserChoice> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
 
@@ -228,10 +237,10 @@ export const testData = {
 
     // Generate unique title suffix if no title override provided
     const uniqueId = Math.random().toString(36).substring(7)
-    const defaultTitle = overrides.title || `Test Tag ${uniqueId}`
+    const defaultTitle = overrides.title || `Test Choice ${uniqueId}`
 
     return (await payload.create({
-      collection: 'meditation-tags',
+      collection: 'user-choices',
       data: {
         title: defaultTitle,
         color: '#FF5733',
@@ -244,7 +253,66 @@ export const testData = {
         name: uniqueFilename,
         size: fileBuffer.length,
       },
-    })) as MeditationTag
+    })) as UserChoice
+  },
+
+  /**
+   * Create a SubtleSystemNode (chakra/nadi metadata) along with a placeholder Page.
+   *
+   * Picks an unused slug from the closed 12-element enum each call to allow
+   * multiple nodes per test. Pass `slug` in overrides to pin a specific value
+   * (e.g. when seeding a known node for backfill testing).
+   */
+  async createSubtleSystemNode(
+    payload: Payload,
+    deps: { page?: number } = {},
+    overrides: Partial<SubtleSystemNode> = {},
+  ): Promise<SubtleSystemNode> {
+    const NODE_SLUGS = [
+      'mooladhara',
+      'swadhistan',
+      'nabhi',
+      'void',
+      'anahat',
+      'vishuddhi',
+      'agnya',
+      'sahasrara',
+      'kundalini',
+      'pingala',
+      'ida',
+      'sushumna',
+    ] as const
+
+    let pageId = deps.page
+    if (pageId === undefined) {
+      const placeholder = await testData.createPage(payload)
+      pageId = placeholder.id
+    }
+
+    let slug = (overrides.slug as (typeof NODE_SLUGS)[number] | undefined) ?? null
+    if (!slug) {
+      const existing = await payload.find({
+        collection: 'subtle-system-nodes',
+        select: { slug: true },
+        limit: NODE_SLUGS.length,
+        depth: 0,
+      })
+      const taken = new Set(existing.docs.map((d) => d.slug))
+      const available = NODE_SLUGS.find((s) => !taken.has(s))
+      if (!available) {
+        throw new Error('No SubtleSystemNode slugs available — all 12 enum values are taken')
+      }
+      slug = available
+    }
+
+    return (await payload.create({
+      collection: 'subtle-system-nodes',
+      data: {
+        slug,
+        page: pageId,
+        ...overrides,
+      },
+    })) as SubtleSystemNode
   },
 
   /**
@@ -283,22 +351,24 @@ export const testData = {
   },
 
   /**
-   * Create a lecture tag (NOT an upload collection — no file needed)
+   * Create an audience with optional progress ranges and/or country gate.
+   * All fields are optional — omit a range to leave it unbounded; omit
+   * country to match all countries.
    */
-  async createLectureTag(
+  async createAudience(
     payload: Payload,
-    overrides: Partial<LectureTag> = {},
-  ): Promise<LectureTag> {
+    overrides: Partial<Audience> = {},
+  ): Promise<Audience> {
     const uniqueId = Math.random().toString(36).substring(7)
-    const defaultLabel = overrides.label || `Test Lecture Tag ${uniqueId}`
+    const defaultLabel = overrides.label || `Test Audience ${uniqueId}`
 
     return (await payload.create({
-      collection: 'lecture-tags',
+      collection: 'audiences',
       data: {
         label: defaultLabel,
         ...overrides,
       },
-    })) as LectureTag
+    })) as Audience
   },
 
   // Note: createImageTag, createPageTag, createVideoTag removed
@@ -393,7 +463,7 @@ export const testData = {
     return (await payload.create({
       collection: 'meditations',
       // locale option provides request-level locale context for join subqueries
-      // that reference localized fields on other collections (e.g., meditation-tags)
+      // that reference localized fields on other collections (e.g., user-choices)
       locale: overrides.locale || 'en',
       data: {
         label: overrides.label || overrides.title || defaultTitle,
@@ -505,7 +575,6 @@ export const testData = {
       collection: 'frames',
       data: {
         imageSet: 'male' as const,
-        category: 'mooladhara' as const,
         ...overrides,
       },
       file: {
@@ -718,50 +787,56 @@ export const testData = {
     deps?: { thumbnail?: number },
     overrides: Partial<Lecture> = {},
   ): Promise<Lecture> {
-    let thumbnail = deps?.thumbnail
-    if (!thumbnail) {
-      const thumbMedia = await testData.createMediaImage(payload)
-      thumbnail = thumbMedia.id
-    }
+    // Thumbnail is an optional editor override — only set it when the caller asks.
+    const thumbnail = deps?.thumbnail
+    // Generate a numeric vimeo id per call so each lecture lands on a distinct
+    // Vimeo URL (the underlying NV mock keys on it). `populateFromNirmalaVidya`
+    // also enforces uniqueness across full lectures.
+    const uniqueVimeoId = `${Date.now()}${Math.floor(Math.random() * 1000)}`
     return (await payload.create({
       collection: 'lectures',
       data: {
+        type: 'full',
         title: 'Test Lecture',
-        thumbnail,
-        videoUrl: 'https://example.com/video.mp4',
-        nirmalVidyaVimeoUrl: 'https://vimeo.com/123456789',
+        ...(thumbnail !== undefined ? { thumbnail } : {}),
+        nirmalVidyaVimeoUrl: `https://vimeo.com/${uniqueVimeoId}`,
         ...overrides,
       },
     })) as Lecture
   },
 
   /**
-   * Create a Lecture Clip tied to a parent Lecture.
+   * Create a clip Lecture (`type: 'clip'`) referencing a parent full lecture
+   * via `fullLecture`, plus playback bounds.
    *
-   * Pass `deps.parent` to reuse an existing lecture. If omitted, a new parent
-   * is created via `createLecture` — requires the Nirmala Vidya API mock
-   * (`vi.mock('@/lib/nirmalaVidyaApi', ...)`) to be in place.
+   * Pass `deps.fullLecture` to reuse an existing parent. If omitted, a new
+   * parent is created via `createLecture` — requires the Nirmala Vidya API
+   * mock (`vi.mock('@/lib/nirmalaVidyaApi', ...)`) to be in place.
+   *
+   * The clip's own `nirmalVidyaVimeoUrl` is intentionally not set: clips
+   * source NV metadata from their parent (#338).
    */
-  async createLectureClip(
+  async createLectureExcerpt(
     payload: Payload,
-    deps?: { parent?: number },
-    overrides: Partial<LectureClip> = {},
-  ): Promise<LectureClip> {
-    let parent = deps?.parent
-    if (!parent) {
+    deps?: { fullLecture?: number },
+    overrides: Partial<Lecture> = {},
+  ): Promise<Lecture> {
+    let fullLecture = deps?.fullLecture
+    if (!fullLecture) {
       const parentLecture = await testData.createLecture(payload)
-      parent = parentLecture.id
+      fullLecture = parentLecture.id
     }
     return (await payload.create({
-      collection: 'lecture-clips',
+      collection: 'lectures',
       data: {
-        parent,
-        title: 'Test Lecture Clip',
+        type: 'clip',
+        title: 'Test Lecture Excerpt',
         startTime: 0,
-        endTime: 60,
+        stopTime: 60,
+        fullLecture,
         ...overrides,
       },
-    })) as LectureClip
+    })) as Lecture
   },
 
   // Alias for createManager to maintain backward compatibility with tests

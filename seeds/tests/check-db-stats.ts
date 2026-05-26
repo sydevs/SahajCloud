@@ -28,7 +28,7 @@ async function checkDatabaseStats() {
       'managers',
       'clients',
       'images',
-      'meditation-tags',
+      'user-choices',
       'music-tags',
       'narrators',
       'authors',
@@ -36,6 +36,7 @@ async function checkDatabaseStats() {
       'meditations',
       'music',
       'lessons',
+      'lectures',
       'files',
       'pages',
       'forms',
@@ -72,7 +73,7 @@ async function checkDatabaseStats() {
     console.log('============')
 
     // Note: image-tags, page-tags, video-tags removed - now inline enum select values
-    const importTagCollections = ['meditation-tags', 'music-tags']
+    const importTagCollections = ['user-choices', 'music-tags']
     let foundTags = false
 
     for (const tagCollection of importTagCollections) {

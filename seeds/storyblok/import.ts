@@ -20,7 +20,8 @@
 import type { Payload } from 'payload'
 
 import * as path from 'path'
-import { z } from 'zod'
+
+import { type Subtitles, subtitlesZodSchema } from '@/lib/subtitles'
 
 import { seedEnv } from '../env'
 import {
@@ -58,20 +59,6 @@ interface StoryblokResponse {
   cv?: number
   rels?: StoryblokStory[]
 }
-
-/**
- * Zod schema for subtitle validation (matches src/lib/subtitlesSchema.json)
- * Used to validate Storyblok subtitle files before passing to Payload
- */
-const SubtitleCaptionSchema = z.object({
-  duration: z.number(),
-  content: z.string(),
-  startTime: z.string(),
-})
-
-const SubtitlesSchema = z.object({
-  captions: z.array(SubtitleCaptionSchema),
-})
 
 // ============================================================================
 // STORYBLOK IMPORTER CLASS
@@ -141,8 +128,9 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
       // Preload collections for efficient skip/update mode
       // Note: Lessons use compound key (unit+step), so we preload with a custom cache key
-      // Lectures preload disabled pending clip-aware rewrite (issue #291 follow-up)
-      // await this.preloadCollection('lectures', 'videoUrl')
+      // Lectures are keyed on the NV Vimeo URL; pulling `metadata` + `title`
+      // lets skip-mode reads see NV-fetched fields without a follow-up fetch.
+      await this.preloadCollection('lectures', 'nirmalVidyaVimeoUrl', ['metadata', 'title'])
       // Preload lessons by building composite key from unit + step
       await this.preloadLessonsWithCompositeKey()
       // Preload meditations for lesson relationship lookups
@@ -580,18 +568,36 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // LECTURE HELPERS
   // ============================================================================
 
+  /**
+   * Upsert a Lecture keyed on the NV Vimeo URL. Returns the lecture ID for
+   * the rich-text relationship reference.
+   *
+   * The `populateFromNirmalaVidya` create hook synchronously fills
+   * `metadata` by hitting the Nirmala Vidya HLS API. Hook errors flow back
+   * through `BaseImporter.upsert` as `action='error'`; in that case the
+   * caller drops the inline reference.
+   */
   private async upsertLecture(
-    _videoStory: StoryblokStory,
+    videoStory: StoryblokStory,
     _thumbnailId: number | string,
-  ): Promise<number | string> {
-    // Guard: see issue #291. Legacy `lectures` writes are disabled pending the
-    // clip-aware rewrite. The follow-up PR will retarget this importer to
-    // `lecture-clips` (or split into parent + child upserts as appropriate).
-    // Original implementation preserved in git history.
-    throw new Error(
-      'Seed writes to `lectures` are disabled pending clip-aware migration (issue #291 follow-up). ' +
-        'Legacy video imports should target `lecture-clips` instead.',
+  ): Promise<number | string | null> {
+    const content = videoStory.content as Record<string, any>
+    const videoUrl: string = (content.Video_URL || '').trim()
+
+    if (!videoUrl) {
+      this.addWarning(`Storyblok video story ${videoStory.uuid} has empty Video_URL — skipping`)
+      return null
+    }
+
+    const lectureResult = await this.upsert<{ id: number | string }>(
+      'lectures',
+      { nirmalVidyaVimeoUrl: { equals: videoUrl } },
+      { nirmalVidyaVimeoUrl: videoUrl },
+      { identifier: videoStory.uuid },
     )
+
+    if (lectureResult.action === 'error') return null
+    return lectureResult.doc.id
   }
 
   // ============================================================================
@@ -786,7 +792,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
   // SUBTITLE PARSING
   // ============================================================================
 
-  private async parseSubtitles(url: string): Promise<z.infer<typeof SubtitlesSchema> | undefined> {
+  private async parseSubtitles(url: string): Promise<Subtitles | undefined> {
     const filename = path.basename(url.split('?')[0])
     const cachePath = path.join(this.cacheDir, 'assets/subtitles', filename)
 
@@ -818,7 +824,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     }
 
     // Validate against schema
-    const result = SubtitlesSchema.safeParse(parsed)
+    const result = subtitlesZodSchema.safeParse(parsed)
 
     if (!result.success) {
       // Log validation errors with actual data for debugging
@@ -860,7 +866,16 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
               this.addWarning(`Skipping lecture - thumbnail upload failed for ${videoStory.name}`)
               break
             }
+            // Rich-text content references the lecture directly. Null when
+            // the NV API hook fails for this video.
             const lectureId = await this.upsertLecture(videoStory, thumbnailId)
+
+            if (lectureId === null) {
+              this.addWarning(
+                `Skipping inline DD_Main_video reference: no lecture created for ${videoStory.name}`,
+              )
+              break
+            }
 
             children.push({
               type: 'relationship',

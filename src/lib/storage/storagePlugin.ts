@@ -20,6 +20,7 @@ import { requireBinding, serverEnv } from '@/lib/env'
 import { cloudflareImagesAdapter } from './cloudflareImagesAdapter'
 import { cloudflareStreamAdapter } from './cloudflareStreamAdapter'
 import { mixedMediaAdapter } from './mixedMediaAdapter'
+import { createR2FilenameBeforeOperationHook } from './r2FilenameHook'
 import { r2NativeAdapter } from './r2NativeAdapter'
 
 interface StoragePluginOptions {
@@ -34,6 +35,20 @@ interface StoragePluginOptions {
    * @default true
    */
   enabled?: boolean
+}
+
+const r2FilenameHooks = {
+  always: createR2FilenameBeforeOperationHook('always'),
+  'other-only': createR2FilenameBeforeOperationHook('other-only'),
+}
+
+const r2FilenameHookModes: Record<string, keyof typeof r2FilenameHooks> = {
+  frames: 'other-only',
+  files: 'other-only',
+  'user-choices': 'always',
+  'song-tags': 'always',
+  meditations: 'always',
+  songs: 'always',
 }
 
 /**
@@ -96,7 +111,30 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
       publicUrl: serverEnv.CLOUDFLARE_R2_DELIVERY_URL || '',
     })
 
-    // Return a single cloudStoragePlugin with all adapters configured
+    const configWithR2FilenameHooks = {
+      ...config,
+      collections: config.collections?.map((collection) => {
+        const mode = r2FilenameHookModes[collection.slug]
+        if (!mode) return collection
+
+        return {
+          ...collection,
+          hooks: {
+            ...collection.hooks,
+            beforeOperation: [...(collection.hooks?.beforeOperation ?? []), r2FilenameHooks[mode]],
+          },
+        }
+      }),
+    }
+
+    // Return a single cloudStoragePlugin with all adapters configured.
+    //
+    // ⚠️ When adding/removing an R2-backed collection here, also update
+    // `r2FilenameHookModes` above. The two registries must stay in sync:
+    // a collection that uses the R2 adapter (directly or via mixedMediaAdapter
+    // for non-image/video files) without an entry in `r2FilenameHookModes`
+    // will skip the preassignment hook and reintroduce the DB↔R2 filename
+    // drift that this module exists to prevent.
     return cloudStoragePlugin({
       enabled: true,
       collections: {
@@ -128,7 +166,7 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
         },
 
         // Tag collections with SVG icons - R2 storage (Cloudflare Images doesn't support SVG)
-        'meditation-tags': {
+        'user-choices': {
           adapter: r2Adapter,
           disableLocalStorage: true,
           disablePayloadAccessControl: true,
@@ -165,6 +203,6 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
           disablePayloadAccessControl: true,
         },
       },
-    })(config)
+    })(configWithR2FilenameHooks)
   }
 }

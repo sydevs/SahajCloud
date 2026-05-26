@@ -9,10 +9,11 @@
  *   Streams progress updates via Server-Sent Events.
  *
  * Scripts:
- * - tags: MeditationTags and MusicTags
+ * - tags: UserChoices, SongTags, and SubtleSystemNodes
  * - wemeditate: Authors, Albums, Music, Pages
  * - meditations: Meditations, Frames, Music
  * - storyblok: Lessons, Lectures
+ * - wm-app-translations: WeMeditate App Translations global (English seed)
  *
  * Authentication: Requires admin session
  *
@@ -38,7 +39,13 @@ import {
   type ScriptName,
 } from '../../../../../../seeds/lib/expectedCounts'
 
-const VALID_SCRIPTS: ScriptName[] = ['tags', 'wemeditate', 'meditations', 'storyblok']
+const VALID_SCRIPTS: ScriptName[] = [
+  'tags',
+  'wemeditate',
+  'meditations',
+  'storyblok',
+  'wm-app-translations',
+]
 
 /**
  * Heartbeat interval in milliseconds (5 seconds)
@@ -371,6 +378,12 @@ async function getImporter(
       const { StoryblokImporter } = await import('../../../../../../seeds/storyblok/import')
       return new StoryblokImporter(options, token)
     }
+    case 'wm-app-translations': {
+      const { WeMeditateAppTranslationsImporter } = await import(
+        '../../../../../../seeds/wm-app-translations/import'
+      )
+      return new WeMeditateAppTranslationsImporter(options)
+    }
     default:
       return null
   }
@@ -389,9 +402,9 @@ async function getDatabaseCounts(
     switch (script) {
       case 'tags': {
         // Note: image-tags removed - now inline enum strings on Images collection
-        const meditationTags = await payload.count({ collection: 'meditation-tags' })
+        const userChoices = await payload.count({ collection: 'user-choices' })
         const songTags = await payload.count({ collection: 'song-tags' })
-        counts['meditation-tags'] = meditationTags.totalDocs
+        counts['user-choices'] = userChoices.totalDocs
         counts['song-tags'] = songTags.totalDocs
         break
       }
@@ -420,6 +433,12 @@ async function getDatabaseCounts(
         const lectures = await payload.count({ collection: 'lectures' })
         counts['lessons'] = lessons.totalDocs
         counts['lectures'] = lectures.totalDocs
+        break
+      }
+      case 'wm-app-translations': {
+        // Target is the wm-app-translations PayloadCMS global, not a collection.
+        // Verification (verifyCountsForScript) sees an empty EXPECTED_COUNTS entry
+        // and passes by default — return an empty object to match.
         break
       }
     }

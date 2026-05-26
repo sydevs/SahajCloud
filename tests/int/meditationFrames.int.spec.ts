@@ -1,6 +1,6 @@
 import type { Payload } from 'payload'
 
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
 import type { Meditation, Narrator, Image, Frame } from '@/payload-types'
 import type { KeyframeDefinition } from '@/types/frames'
@@ -33,15 +33,12 @@ describe('Meditation Frames Field', () => {
     // Create test frames
     testFrame1 = await testData.createFrame(payload, {
       imageSet: 'male',
-      category: 'mooladhara',
     })
     testFrame2 = await testData.createFrame(payload, {
       imageSet: 'male',
-      category: 'swadhistan',
     })
     testFrame3 = await testData.createFrame(payload, {
       imageSet: 'male',
-      category: 'nabhi',
     })
 
     // Create test meditation without frames initially
@@ -213,6 +210,26 @@ describe('Meditation Frames Field', () => {
       // Only valid frames remain
       expect(updated.frames).toHaveLength(2)
     })
+
+    it('rejects an explicit all-invalid frames payload', async () => {
+      await payload.update({
+        collection: 'meditations',
+        id: testMeditation.id,
+        data: {
+          frames: [{ id: testFrame1.id, timestamp: 0 }],
+        },
+      })
+
+      await expect(
+        payload.update({
+          collection: 'meditations',
+          id: testMeditation.id,
+          data: {
+            frames: [{ timestamp: 90 }] as unknown as KeyframeDefinition[],
+          },
+        }),
+      ).rejects.toThrow()
+    })
   })
 
   describe('Timestamp Handling', () => {
@@ -299,12 +316,14 @@ describe('Meditation Frames Field', () => {
         id: testMeditation.id,
       })) as Meditation
 
-      const enrichedFrames = fetched.frames as Array<KeyframeDefinition & { category?: string }>
+      const enrichedFrames = fetched.frames as Array<
+        KeyframeDefinition & { imageSet?: string }
+      >
 
       expect(enrichedFrames).toHaveLength(2)
-      // Should have category from frame data
-      expect(enrichedFrames[0].category).toBe('mooladhara')
-      expect(enrichedFrames[1].category).toBe('swadhistan')
+      // Enrichment populates fields from the underlying Frame doc
+      expect(enrichedFrames[0].imageSet).toBe('male')
+      expect(enrichedFrames[1].imageSet).toBe('male')
     })
   })
 
@@ -359,6 +378,29 @@ describe('Meditation Frames Field', () => {
         }),
       ).rejects.toThrow() // Required validation error - frames cannot be empty
     })
+
+    it('preserves existing frames when a partial update omits frames', async () => {
+      await payload.update({
+        collection: 'meditations',
+        id: testMeditation.id,
+        data: {
+          frames: [{ id: testFrame1.id, timestamp: 0 }],
+        },
+      })
+
+      const updated = (await payload.update({
+        collection: 'meditations',
+        id: testMeditation.id,
+        data: {
+          title: 'Updated without frames',
+        },
+      })) as Meditation
+
+      const resultFrames = updated.frames as KeyframeDefinition[]
+      expect(resultFrames).toHaveLength(1)
+      expect(resultFrames[0].id).toBe(testFrame1.id)
+      expect(resultFrames[0].timestamp).toBe(0)
+    })
   })
 
   describe('Publishing Validation with Frames', () => {
@@ -401,6 +443,73 @@ describe('Meditation Frames Field', () => {
 
       expect(published._status).toBe('published')
       expect(published.frames).toHaveLength(1)
+    })
+
+    it('publishes with numeric frame IDs and drops malformed frame entries', async () => {
+      const newMeditation = await testData.createMeditation(payload, {
+        narrator: testNarrator.id,
+        thumbnail: testImageMedia.id,
+      })
+
+      const published = (await payload.update({
+        collection: 'meditations',
+        id: newMeditation.id,
+        data: {
+          frames: [
+            { id: testFrame1.id, timestamp: 0 },
+            { timestamp: 514 },
+          ] as unknown as KeyframeDefinition[],
+          _status: 'published',
+        },
+      })) as Meditation
+
+      const resultFrames = published.frames as KeyframeDefinition[]
+      expect(published._status).toBe('published')
+      expect(resultFrames).toHaveLength(1)
+      expect(resultFrames[0].id).toBe(testFrame1.id)
+      expect(resultFrames[0].timestamp).toBe(0)
+    })
+
+    it('does not fail the save when node-weight cache persistence fails', async () => {
+      const newMeditation = await testData.createMeditation(payload, {
+        narrator: testNarrator.id,
+        thumbnail: testImageMedia.id,
+      })
+
+      const original = payload.db.updateOne.bind(payload.db)
+      let cacheWriteAttempted = false
+
+      const spy = vi.spyOn(payload.db, 'updateOne').mockImplementation((async (
+        args: Parameters<typeof payload.db.updateOne>[0],
+      ) => {
+        const data = args.data as Record<string, unknown>
+        if (
+          args.collection === 'meditations' &&
+          data &&
+          Object.keys(data).length === 1 &&
+          data.subtleSystemNodeWeights !== undefined
+        ) {
+          cacheWriteAttempted = true
+          throw new Error('forced cache persistence failure')
+        }
+
+        return original(args)
+      }) as typeof payload.db.updateOne)
+
+      try {
+        const updated = (await payload.update({
+          collection: 'meditations',
+          id: newMeditation.id,
+          data: {
+            frames: [{ id: testFrame1.id, timestamp: 0 }],
+          },
+        })) as Meditation
+
+        expect(cacheWriteAttempted).toBe(true)
+        expect(updated.frames).toHaveLength(1)
+      } finally {
+        spy.mockRestore()
+      }
     })
   })
 })

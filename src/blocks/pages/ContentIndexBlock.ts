@@ -6,14 +6,16 @@ import { PAGE_TAGS } from '@/lib/constants'
 
 /**
  * Configuration for each content type's API endpoint generation.
+ * `filterField` / `queryParam` are optional — `lectures` hits `/for-audience`,
+ * which evaluates audiences from runtime user context and ignores `where`.
  */
 const CONTENT_TYPE_CONFIG: Record<
   string,
-  { basePath: string; filterField: string; queryParam: string; extraParams?: string }
+  { basePath: string; filterField?: string; queryParam?: string; extraParams?: string }
 > = {
   meditations: {
-    basePath: '/api/meditation-tags',
-    filterField: 'meditationFilters',
+    basePath: '/api/user-choices',
+    filterField: 'userChoiceFilters',
     queryParam: 'where[id][in]',
     extraParams: '&depth=1',
   },
@@ -28,20 +30,13 @@ const CONTENT_TYPE_CONFIG: Record<
     queryParam: 'where[tags][in]',
   },
   lectures: {
-    basePath: '/api/lectures',
-    filterField: 'lectureFilters',
-    queryParam: 'where[tags][in]',
-  },
-  'lecture-clips': {
-    basePath: '/api/lecture-clips',
-    filterField: 'lectureClipFilters',
-    queryParam: 'where[tags][in]',
+    basePath: '/api/lectures/for-audience',
   },
 }
 
 /**
  * afterRead hook for the virtual `apiEndpoint` field.
- * Computes a ready-to-use API endpoint URL from the block's type and selected filters.
+ * Computes a ready-to-use API endpoint URL from the block's type, selected filters, and limit.
  */
 export const computeApiEndpoint: FieldHook = ({ siblingData }) => {
   const type = siblingData?.type as string | undefined
@@ -50,18 +45,32 @@ export const computeApiEndpoint: FieldHook = ({ siblingData }) => {
   const config = CONTENT_TYPE_CONFIG[type]
   if (!config) return null
 
-  const filters = siblingData?.[config.filterField]
-  if (!filters || (Array.isArray(filters) && filters.length === 0)) return null
+  const rawLimit = siblingData?.limit
+  const limit =
+    typeof rawLimit === 'number' &&
+    Number.isInteger(rawLimit) &&
+    rawLimit >= 1 &&
+    rawLimit <= 100
+      ? rawLimit
+      : null
+  if (limit === null) return null
 
-  const filterValues = (Array.isArray(filters) ? filters : [filters]).filter(Boolean)
-  const ids = filterValues.map(extractID)
+  if (config.filterField && config.queryParam) {
+    const filters = siblingData?.[config.filterField]
+    if (!filters || (Array.isArray(filters) && filters.length === 0)) return null
 
-  if (ids.length === 0) return null
+    const filterValues = (Array.isArray(filters) ? filters : [filters]).filter(Boolean)
+    const ids = filterValues.map(extractID)
+    if (ids.length === 0) return null
 
-  const queryValue = ids.map((id) => encodeURIComponent(id)).join(',')
-  const endpoint = `${config.basePath}?${config.queryParam}=${queryValue}`
+    const queryValue = ids.map((id) => encodeURIComponent(id)).join(',')
+    let url = `${config.basePath}?${config.queryParam}=${queryValue}`
+    if (config.extraParams) url = `${url}${config.extraParams}`
+    return `${url}&limit=${limit}`
+  }
 
-  return config.extraParams ? `${endpoint}${config.extraParams}` : endpoint
+  // No filter field → limit is the first query param
+  return `${config.basePath}?limit=${limit}`
 }
 
 /**
@@ -103,12 +112,22 @@ export const ContentIndexBlock: Block = {
         { label: 'Pages', value: 'pages' },
         { label: 'Songs', value: 'songs' },
         { label: 'Lectures', value: 'lectures' },
-        { label: 'Lecture Clips', value: 'lecture-clips' },
       ],
       admin: {
         components: {
           Field: '@/components/admin/ToggleGroupField',
         },
+      },
+    },
+    {
+      name: 'limit',
+      type: 'number',
+      required: true,
+      defaultValue: 10,
+      min: 1,
+      max: 100,
+      admin: {
+        description: 'Maximum number of items to return (1–100)',
       },
     },
     {
@@ -124,16 +143,16 @@ export const ContentIndexBlock: Block = {
       },
     },
     {
-      name: 'meditationFilters',
+      name: 'userChoiceFilters',
       type: 'relationship',
-      relationTo: 'meditation-tags',
+      relationTo: 'user-choices',
       hasMany: true,
       minRows: 1,
       maxDepth: 0,
       hooks: clearWhenTypeNot('meditations'),
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'meditations',
-        description: 'Select meditation tags to use as filters for this index grid',
+        description: 'Select user choices to use as filters for this index grid',
       },
     },
     {
@@ -147,32 +166,6 @@ export const ContentIndexBlock: Block = {
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'songs',
         description: 'Select music tags to use as filters for this index grid',
-      },
-    },
-    {
-      name: 'lectureFilters',
-      type: 'relationship',
-      relationTo: 'lecture-tags',
-      hasMany: true,
-      minRows: 1,
-      maxDepth: 0,
-      hooks: clearWhenTypeNot('lectures'),
-      admin: {
-        condition: (_, siblingData) => siblingData?.type === 'lectures',
-        description: 'Select lecture tags to use as filters for this index grid',
-      },
-    },
-    {
-      name: 'lectureClipFilters',
-      type: 'relationship',
-      relationTo: 'lecture-tags',
-      hasMany: true,
-      minRows: 1,
-      maxDepth: 0,
-      hooks: clearWhenTypeNot('lecture-clips'),
-      admin: {
-        condition: (_, siblingData) => siblingData?.type === 'lecture-clips',
-        description: 'Select lecture tags to use as filters for this clip index grid',
       },
     },
     {

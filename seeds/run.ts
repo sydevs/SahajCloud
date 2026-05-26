@@ -16,7 +16,7 @@
  *   storyblok    - Seed Path Steps from Storyblok CMS
  *   wemeditate   - Seed content from WeMeditate Rails database
  *   meditations  - Seed meditation content from legacy database
- *   tags         - Seed MeditationTags and MusicTags from Cloudinary
+ *   tags         - Seed UserChoices and MusicTags from Cloudinary
  *
  * Options:
  *   --dry-run      Validate data without writing to database
@@ -43,19 +43,38 @@ import type { ScriptMetadata, PaginationResult } from './lib/pagination'
 
 import { seedEnv } from './env'
 
-type ScriptName = 'storyblok' | 'wemeditate' | 'meditations' | 'tags'
+type ScriptName =
+  | 'storyblok'
+  | 'wemeditate'
+  | 'meditations'
+  | 'tags'
+  | 'wm-app-translations'
 
-const VALID_SCRIPTS: ScriptName[] = ['storyblok', 'wemeditate', 'meditations', 'tags']
+const VALID_SCRIPTS: ScriptName[] = [
+  'storyblok',
+  'wemeditate',
+  'meditations',
+  'tags',
+  'wm-app-translations',
+]
 
 // Dependency order: tags first (referenced by other content), then wemeditate (authors/categories),
-// then storyblok (lessons), finally meditations (may reference tags, narrators, etc.)
-const SCRIPT_RUN_ORDER: ScriptName[] = ['tags', 'wemeditate', 'meditations', 'storyblok']
+// then storyblok (lessons), then meditations (may reference tags, narrators, etc.),
+// finally wm-app-translations (independent — updates a PayloadCMS global, no cross-collection deps).
+const SCRIPT_RUN_ORDER: ScriptName[] = [
+  'tags',
+  'wemeditate',
+  'meditations',
+  'storyblok',
+  'wm-app-translations',
+]
 
 const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   storyblok: 'Seed Path Steps from Storyblok CMS',
   wemeditate: 'Seed content from WeMeditate Rails database',
   meditations: 'Seed meditation content from legacy database',
-  tags: 'Seed MeditationTags and MusicTags from Cloudinary',
+  tags: 'Seed UserChoices and MusicTags from Cloudinary',
+  'wm-app-translations': 'Seed English copy for the wm-app-translations global',
 }
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
@@ -85,10 +104,11 @@ If no script is specified, runs ALL scripts in dependency order:
   tags → wemeditate → storyblok → meditations
 
 Available Scripts:
-  storyblok     Seed Path Steps from Storyblok CMS
-  wemeditate    Seed content from WeMeditate Rails database
-  meditations   Seed meditation content from legacy database
-  tags          Seed MeditationTags and MusicTags from Cloudinary
+  storyblok            Seed Path Steps from Storyblok CMS
+  wemeditate           Seed content from WeMeditate Rails database
+  meditations          Seed meditation content from legacy database
+  tags                 Seed UserChoices and MusicTags from Cloudinary
+  wm-app-translations  Seed English copy for the wm-app-translations global
 
 Options:
   --dry-run      Validate data without writing to database

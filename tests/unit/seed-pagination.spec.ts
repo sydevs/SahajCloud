@@ -43,7 +43,7 @@ describe('Pagination Utilities', () => {
 
       expect(metadata).toBeDefined()
       expect(metadata.collections).toHaveLength(2)
-      expect(metadata.collections[0].slug).toBe('meditation-tags')
+      expect(metadata.collections[0].slug).toBe('user-choices')
       expect(metadata.collections[1].slug).toBe('song-tags')
       // image-tags removed - now inline enum strings on Images collection
       expect(metadata.requiresPagination).toBe(false)
@@ -54,8 +54,14 @@ describe('Pagination Utilities', () => {
       const metadata = getScriptMetadata('wemeditate')
 
       expect(metadata).toBeDefined()
-      expect(metadata.collections).toHaveLength(4)
-      expect(metadata.collections.map((c) => c.slug)).toEqual(['authors', 'albums', 'songs', 'pages'])
+      expect(metadata.collections).toHaveLength(5)
+      expect(metadata.collections.map((c) => c.slug)).toEqual([
+        'authors',
+        'albums',
+        'songs',
+        'pages',
+        'lectures',
+      ])
       expect(metadata.requiresPagination).toBe(true) // pages requires pagination
     })
 
@@ -118,7 +124,7 @@ describe('Pagination Utilities', () => {
   describe('verifyCountsForScript', () => {
     it('passes when actual counts meet expected minimums', () => {
       const actualCounts = {
-        'meditation-tags': 30,
+        'user-choices': 30,
         'song-tags': 10,
       }
 
@@ -131,20 +137,20 @@ describe('Pagination Utilities', () => {
 
     it('fails when actual counts are below expected', () => {
       const actualCounts = {
-        'meditation-tags': 10, // Expected is 27
+        'user-choices': 10, // Expected is 27
         'song-tags': 7,
       }
 
       const { results, allPassed } = verifyCountsForScript('tags', actualCounts)
 
       expect(allPassed).toBe(false)
-      const failedResult = results.find((r) => r.collection === 'meditation-tags')
+      const failedResult = results.find((r) => r.collection === 'user-choices')
       expect(failedResult?.passed).toBe(false)
     })
 
     it('handles missing collections as zero count', () => {
       const actualCounts = {
-        'meditation-tags': 30,
+        'user-choices': 30,
         // song-tags missing
       }
 
@@ -159,14 +165,14 @@ describe('Pagination Utilities', () => {
     describe('with pagination', () => {
       it('adjusts expected count for paginated collection', () => {
         const actualCounts = {
-          'meditation-tags': 10,
+          'user-choices': 10,
           'song-tags': 7,
         }
-        const pagination = { collection: 'meditation-tags', offset: 0, limit: 10 }
+        const pagination = { collection: 'user-choices', offset: 0, limit: 10 }
         const { results, allPassed } = verifyCountsForScript('tags', actualCounts, pagination)
 
-        // meditation-tags: expects min(0+10, 27) = 10, actual = 10 → passes
-        const meditationResult = results.find((r) => r.collection === 'meditation-tags')
+        // user-choices: expects min(0+10, 27) = 10, actual = 10 → passes
+        const meditationResult = results.find((r) => r.collection === 'user-choices')
         expect(meditationResult?.expected).toBe(10)
         expect(meditationResult?.passed).toBe(true)
         expect(allPassed).toBe(true)
@@ -174,10 +180,10 @@ describe('Pagination Utilities', () => {
 
       it('uses full expected count for non-paginated collections', () => {
         const actualCounts = {
-          'meditation-tags': 10,
+          'user-choices': 10,
           'song-tags': 7,
         }
-        const pagination = { collection: 'meditation-tags', offset: 0, limit: 10 }
+        const pagination = { collection: 'user-choices', offset: 0, limit: 10 }
         const { results } = verifyCountsForScript('tags', actualCounts, pagination)
 
         // song-tags: not paginated, expects full 7
@@ -187,27 +193,27 @@ describe('Pagination Utilities', () => {
 
       it('caps adjusted expected at full count', () => {
         const actualCounts = {
-          'meditation-tags': 27,
+          'user-choices': 27,
           'song-tags': 7,
         }
-        const pagination = { collection: 'meditation-tags', offset: 20, limit: 100 }
+        const pagination = { collection: 'user-choices', offset: 20, limit: 100 }
         const { results } = verifyCountsForScript('tags', actualCounts, pagination)
 
         // Expected = min(20+100, 27) = 27 (capped at full count)
-        const meditationResult = results.find((r) => r.collection === 'meditation-tags')
+        const meditationResult = results.find((r) => r.collection === 'user-choices')
         expect(meditationResult?.expected).toBe(27)
       })
 
       it('does not adjust when limit is 0 (bulk import)', () => {
         const actualCounts = {
-          'meditation-tags': 10,
+          'user-choices': 10,
           'song-tags': 7,
         }
-        const pagination = { collection: 'meditation-tags', offset: 0, limit: 0 }
+        const pagination = { collection: 'user-choices', offset: 0, limit: 0 }
         const { results, allPassed } = verifyCountsForScript('tags', actualCounts, pagination)
 
         // limit=0 means bulk import, should use full expected count (27)
-        const meditationResult = results.find((r) => r.collection === 'meditation-tags')
+        const meditationResult = results.find((r) => r.collection === 'user-choices')
         expect(meditationResult?.expected).toBe(27)
         expect(meditationResult?.passed).toBe(false) // actual 10 < expected 27
         expect(allPassed).toBe(false)
@@ -220,6 +226,7 @@ describe('Pagination Utilities', () => {
           albums: 8,
           songs: 27,
           pages: 30, // After 3 batches
+          lectures: 40,
         }
         const pagination = { collection: 'pages', offset: 20, limit: 10 }
         const { results, allPassed } = verifyCountsForScript('wemeditate', actualCounts, pagination)
@@ -292,7 +299,7 @@ describe('Collection Metadata', () => {
   describe('pagination requirements', () => {
     it('marks small collections as not requiring pagination', () => {
       const metadata = getScriptMetadata('tags')
-      const meditationTags = metadata.collections.find((c) => c.slug === 'meditation-tags')
+      const meditationTags = metadata.collections.find((c) => c.slug === 'user-choices')
       const songTags = metadata.collections.find((c) => c.slug === 'song-tags')
 
       expect(meditationTags?.requiresPagination).toBe(false)

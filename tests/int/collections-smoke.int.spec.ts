@@ -92,11 +92,18 @@ describe('Collections smoke', () => {
 
   // ---- Tag collections ---------------------------------------------------
 
-  it('meditation-tags: create + read', async () => {
-    const tag = await testData.createMeditationTag(payload, { title: 'Smoke MTag' })
-    expect(tag.id).toBeDefined()
-    const found = await payload.findByID({ collection: 'meditation-tags', id: tag.id })
-    expect(found.title).toBe('Smoke MTag')
+  it('user-choices: create + read', async () => {
+    const choice = await testData.createUserChoice(payload, { title: 'Smoke Choice' })
+    expect(choice.id).toBeDefined()
+    const found = await payload.findByID({ collection: 'user-choices', id: choice.id })
+    expect(found.title).toBe('Smoke Choice')
+  })
+
+  it('subtle-system-nodes: create + read', async () => {
+    const node = await testData.createSubtleSystemNode(payload, {}, { slug: 'mooladhara' })
+    expect(node.id).toBeDefined()
+    const found = await payload.findByID({ collection: 'subtle-system-nodes', id: node.id })
+    expect(found.slug).toBe('mooladhara')
   })
 
   it('song-tags: create + read', async () => {
@@ -106,11 +113,11 @@ describe('Collections smoke', () => {
     expect(found.title).toBe('Smoke STag')
   })
 
-  it('lecture-tags: create + read', async () => {
-    const tag = await testData.createLectureTag(payload, { label: 'Smoke LTag' })
-    expect(tag.id).toBeDefined()
-    const found = await payload.findByID({ collection: 'lecture-tags', id: tag.id })
-    expect(found.label).toBe('Smoke LTag')
+  it('audiences: create + read', async () => {
+    const audience = await testData.createAudience(payload, { label: 'Smoke Audience' })
+    expect(audience.id).toBeDefined()
+    const found = await payload.findByID({ collection: 'audiences', id: audience.id })
+    expect(found.label).toBe('Smoke Audience')
   })
 
   // ---- Content collections ----------------------------------------------
@@ -180,22 +187,6 @@ describe('Collections smoke', () => {
     expect(lecture.id).toBeDefined()
     const found = await payload.findByID({ collection: 'lectures', id: lecture.id })
     expect(found.id).toBe(lecture.id)
-  })
-
-  it('lecture-clips: create + read (with parent populated through relationship)', async () => {
-    const parent = await testData.createLecture(payload)
-    const clip = await testData.createLectureClip(payload, { parent: parent.id })
-    expect(clip.id).toBeDefined()
-
-    const found = await payload.findByID({
-      collection: 'lecture-clips',
-      id: clip.id,
-      depth: 1,
-    })
-    expect(found.id).toBe(clip.id)
-    const populatedParent = found.parent as { id: number }
-    expect(typeof populatedParent).toBe('object')
-    expect(populatedParent.id).toBe(parent.id)
   })
 
   it('app-cards: create + read', async () => {

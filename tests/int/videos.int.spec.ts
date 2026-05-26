@@ -3,8 +3,7 @@
  *
  * Basic CRUD, file-upload mechanics, and required-field validation are
  * covered by collections-smoke. This file holds tests for project-specific
- * behavior: the virtual `url` and `previewUrl` fields, and the inline tag
- * enum field.
+ * behavior: the `previewUrl` virtual field and the inline tag enum field.
  */
 import type { Payload } from 'payload'
 
@@ -27,15 +26,6 @@ describe('Videos Collection — custom behavior', () => {
     await cleanup()
   })
 
-  it('virtual `url` field falls back to PayloadCMS static URL in local mode', async () => {
-    // In test environment (no Cloudflare Stream), url should resolve to the
-    // local file route. This guards the virtualUrlField fallback logic.
-    const video = await testData.createVideo(payload, { title: 'URL Test Video' })
-
-    expect(video.url).toBeDefined()
-    expect(video.url).toContain('/api/videos/file/')
-  })
-
   it('configures `previewUrl` as a virtual field', async () => {
     const config = payload.collections['videos'].config
     const previewUrlField = config.fields.find((f) => 'name' in f && f.name === 'previewUrl')
@@ -53,5 +43,31 @@ describe('Videos Collection — custom behavior', () => {
     })
 
     expect(tagged.tags).toBe('workshop')
+  })
+
+  describe('subtitles validator wiring (#317)', () => {
+    it('accepts well-formed subtitles', async () => {
+      const valid = {
+        captions: [{ duration: 1, content: 'Hello', startTime: '00:00:00.000' }],
+      }
+      const video = await testData.createVideo(payload, {
+        title: 'Valid Subs Video',
+        subtitles: valid,
+      })
+
+      expect(video.subtitles).toEqual(valid)
+    })
+
+    it('rejects malformed subtitles via the field validator', async () => {
+      // Guards against a future regression where someone removes
+      // `validate: validateSubtitles` from the field config — the unit
+      // suite would still pass, but the wiring would be silently broken.
+      await expect(
+        testData.createVideo(payload, {
+          title: 'Invalid Subs Video',
+          subtitles: { captions: [{ duration: 'oops', content: 'x', startTime: '00:00:00' }] },
+        }),
+      ).rejects.toThrow(/subtitles|captions/i)
+    })
   })
 })

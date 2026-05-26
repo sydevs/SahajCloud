@@ -33,7 +33,7 @@ const UPLOAD_COLLECTIONS: readonly string[] = [
   'images',
   'frames',
   'files',
-  'meditation-tags',
+  'user-choices',
   'song-tags',
   'meditations',
   'songs',

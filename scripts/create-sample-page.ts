@@ -9,7 +9,7 @@
  * Serves as a frontend implementation reference.
  *
  * Prerequisites:
- *   pnpm seed tags        # Creates meditation-tags, song-tags
+ *   pnpm seed tags        # Creates user-choices, song-tags
  *   pnpm seed wemeditate  # Creates pages, authors, albums
  *
  * Usage:
@@ -146,9 +146,9 @@ interface SeedData {
   imageIds: number[]
   pageIds: number[]
   meditationIds: number[]
-  meditationTagIds: number[]
+  userChoiceIds: number[]
   songTagIds: number[]
-  lectureTagIds: number[]
+  audienceIds: number[]
   appCardIds: number[]
   // Lectures/clips disabled pending issue #291 follow-up.
   // The sample page script will be migrated to `lecture-clips` separately.
@@ -158,7 +158,7 @@ interface SeedData {
 async function fetchSeedData(payload: Payload): Promise<SeedData> {
   console.log('\nFetching seed data...')
 
-  const [images, pages, meditations, meditationTags, songTags, lectureTags, appCards] =
+  const [images, pages, meditations, userChoices, songTags, audiences, appCards] =
     await Promise.all([
       payload.find({ collection: 'images', limit: 20, depth: 0 }),
       payload.find({
@@ -169,9 +169,9 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
         where: { slug: { not_equals: SLUG } },
       }),
       payload.find({ collection: 'meditations', limit: 10, depth: 0 }),
-      payload.find({ collection: 'meditation-tags', limit: 10, depth: 0 }),
+      payload.find({ collection: 'user-choices', limit: 10, depth: 0 }),
       payload.find({ collection: 'song-tags', limit: 10, depth: 0 }),
-      payload.find({ collection: 'lecture-tags', limit: 10, depth: 0 }),
+      payload.find({ collection: 'audiences', limit: 10, depth: 0 }),
       payload.find({ collection: 'app-cards', limit: 10, depth: 0 }).catch(() => ({ docs: [] })),
     ])
 
@@ -179,9 +179,9 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
     imageIds: images.docs.map((d) => d.id as number),
     pageIds: pages.docs.map((d) => d.id as number),
     meditationIds: meditations.docs.map((d) => d.id as number),
-    meditationTagIds: meditationTags.docs.map((d) => d.id as number),
+    userChoiceIds: userChoices.docs.map((d) => d.id as number),
     songTagIds: songTags.docs.map((d) => d.id as number),
-    lectureTagIds: lectureTags.docs.map((d) => d.id as number),
+    audienceIds: audiences.docs.map((d) => d.id as number),
     appCardIds: appCards.docs.map((d) => d.id as number),
     // Lectures/clips disabled pending issue #291 follow-up migration.
     lectureIds: [],
@@ -190,11 +190,9 @@ async function fetchSeedData(payload: Payload): Promise<SeedData> {
   console.log(`  Images: ${data.imageIds.length} found (IDs: ${data.imageIds.slice(0, 5).join(', ')}${data.imageIds.length > 5 ? '...' : ''})`)
   console.log(`  Pages: ${data.pageIds.length} found (IDs: ${data.pageIds.slice(0, 5).join(', ')}${data.pageIds.length > 5 ? '...' : ''})`)
   console.log(`  Meditations: ${data.meditationIds.length} found`)
-  console.log(`  Meditation Tags: ${data.meditationTagIds.length} found (IDs: ${data.meditationTagIds.join(', ')})`)
+  console.log(`  User Choices: ${data.userChoiceIds.length} found (IDs: ${data.userChoiceIds.join(', ')})`)
   console.log(`  Song Tags: ${data.songTagIds.length} found (IDs: ${data.songTagIds.join(', ')})`)
-  console.log(
-    `  Lecture Tags: ${data.lectureTagIds.length} found${data.lectureTagIds.length === 0 ? ' (skipping ContentIndex lectures variant)' : ''}`,
-  )
+  console.log(`  Audiences: ${data.audienceIds.length} found`)
   console.log(
     `  App Cards: ${data.appCardIds.length} found${data.appCardIds.length === 0 ? ' (will not include in Showcase)' : ''}`,
   )
@@ -218,8 +216,8 @@ function validateSeedData(data: SeedData): void {
       `Need at least 12 pages for SubtleSystem block (found ${data.pageIds.length}). Run: pnpm seed wemeditate`,
     )
   }
-  if (data.meditationTagIds.length === 0) {
-    errors.push('Need at least 1 meditation-tag for ContentIndex block. Run: pnpm seed tags')
+  if (data.userChoiceIds.length === 0) {
+    errors.push('Need at least 1 user-choice for ContentIndex block. Run: pnpm seed tags')
   }
 
   // Showcase needs at least 3 items from any combination
@@ -481,7 +479,8 @@ function buildContentIndexBlocks(data: SeedData): unknown[] {
   blocks.push(
     blockNode('content-index', {
       type: 'meditations',
-      meditationFilters: data.meditationTagIds.slice(0, 3),
+      limit: 10,
+      meditationFilters: data.userChoiceIds.slice(0, 3),
     }),
   )
 
@@ -489,6 +488,7 @@ function buildContentIndexBlocks(data: SeedData): unknown[] {
   blocks.push(
     blockNode('content-index', {
       type: 'pages',
+      limit: 10,
       pageFilters: ['wisdom', 'lifestyle', 'creativity'],
     }),
   )
@@ -498,6 +498,7 @@ function buildContentIndexBlocks(data: SeedData): unknown[] {
     blocks.push(
       blockNode('content-index', {
         type: 'songs',
+        limit: 10,
         songFilters: data.songTagIds.slice(0, 2),
       }),
     )
@@ -505,17 +506,13 @@ function buildContentIndexBlocks(data: SeedData): unknown[] {
     console.log('  Skipping ContentIndex songs variant (no song-tags)')
   }
 
-  // Lectures (if lecture-tags exist)
-  if (data.lectureTagIds.length > 0) {
-    blocks.push(
-      blockNode('content-index', {
-        type: 'lectures',
-        lectureFilters: data.lectureTagIds.slice(0, 2),
-      }),
-    )
-  } else {
-    console.log('  Skipping ContentIndex lectures variant (no lecture-tags)')
-  }
+  // Lectures — uses /api/lectures/for-audience; no editor-selected audience list.
+  blocks.push(
+    blockNode('content-index', {
+      type: 'lectures',
+      limit: 10,
+    }),
+  )
 
   return blocks
 }
@@ -693,7 +690,7 @@ function buildLexicalContent(data: SeedData) {
   )
   children.push(
     listNode('ol', [
-      'Meditations — filtered by meditation tags',
+      'Meditations — filtered by user choices',
       'Pages — filtered by page tags (wisdom, lifestyle, creativity, event, technique)',
       'Songs — filtered by song/music tags',
       'Lectures — filtered by lecture tags',

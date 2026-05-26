@@ -22,7 +22,7 @@ const getLocalFallbackUrl = (collection: CollectionSlug, filename: string): stri
 /**
  * Storage adapter type for URL generation
  */
-type StorageAdapter = 'cloudflare-images' | 'cloudflare-stream' | 'r2'
+type StorageAdapter = 'cloudflare-images' | 'r2'
 
 /**
  * Options for creating a virtual URL field
@@ -35,7 +35,6 @@ interface VirtualUrlFieldOptions {
   /**
    * Storage adapter type
    * - cloudflare-images: Uses CLOUDFLARE_IMAGES_DELIVERY_URL
-   * - cloudflare-stream: Uses CLOUDFLARE_STREAM_DELIVERY_URL
    * - r2: Uses CLOUDFLARE_R2_DELIVERY_URL
    */
   adapter: StorageAdapter
@@ -74,9 +73,9 @@ interface MixedMediaUrlFieldOptions {
 }
 
 /**
- * Options for creating a stream URL field (HLS streaming for videos)
+ * Options for the video-only virtual URL fields (`hlsUrlField`, `mp4UrlField`).
  */
-interface StreamUrlFieldOptions {
+interface VideoUrlFieldOptions {
   /**
    * The collection slug (used for development fallback URL)
    */
@@ -122,13 +121,6 @@ export const virtualUrlField = (options: VirtualUrlFieldOptions): Field => {
 
     if (adapter === 'cloudflare-images') {
       return getCloudflareImagesUrl(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
-    }
-
-    if (adapter === 'cloudflare-stream') {
-      // Return MP4 download URL for direct file access
-      return (
-        getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
-      )
     }
 
     // R2 Storage - falls back to PayloadCMS-generated URL
@@ -274,13 +266,12 @@ export const mixedMediaUrlField = (options: MixedMediaUrlFieldOptions): Field =>
 }
 
 /**
- * Creates a virtual stream URL field for HLS video streaming
+ * Creates a virtual HLS streaming URL field (`hlsUrl`).
  *
- * Returns HLS manifest URL for video content, null for other types:
- * - Videos: Cloudflare Stream HLS manifest URL
- * - Images/Other: null (not streamable)
+ * Returns the HLS manifest URL for video content, null otherwise. Mount on
+ * every collection that exposes a video URL.
  */
-export const streamUrlField = (options: StreamUrlFieldOptions): Field => {
+export const hlsUrlField = (options: VideoUrlFieldOptions): Field => {
   const { collection } = options
 
   const afterReadHook: FieldHook = ({ data }) => {
@@ -294,12 +285,47 @@ export const streamUrlField = (options: StreamUrlFieldOptions): Field => {
       )
     }
 
-    // Non-video content doesn't have a stream URL
     return null
   }
 
   return {
-    name: 'streamUrl',
+    name: 'hlsUrl',
+    type: 'text',
+    virtual: true,
+    hooks: {
+      afterRead: [afterReadHook],
+    },
+    admin: { hidden: true },
+  }
+}
+
+/**
+ * Creates a virtual MP4 download URL field (`mp4Url`).
+ *
+ * Returns the Cloudflare Stream MP4 download URL for video content, null
+ * otherwise. Mount alongside `hlsUrlField` so consumers have a uniform name
+ * for the MP4 across `videos` and mixed-media collections like `frames` and
+ * `files` (where `url` is the generic file URL — image / R2 / MP4 by MIME).
+ */
+export const mp4UrlField = (options: VideoUrlFieldOptions): Field => {
+  const { collection } = options
+
+  const afterReadHook: FieldHook = ({ data }) => {
+    if (!data?.filename) return undefined
+
+    const category = getMimeCategory(data.mimeType)
+
+    if (category === 'video') {
+      return (
+        getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
+      )
+    }
+
+    return null
+  }
+
+  return {
+    name: 'mp4Url',
     type: 'text',
     virtual: true,
     hooks: {

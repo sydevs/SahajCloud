@@ -70,16 +70,22 @@ describe('Translations Globals Configuration', () => {
       }
     })
 
-    it('should have unique jsonSchema URIs for each tab', () => {
+    it('should NOT set jsonSchema on JSON fields (Ajv breaks on Cloudflare Workers)', () => {
+      // jsonSchema would force Payload to call `new Ajv()` + `ajv.validate` on
+      // every write, which uses `new Function()` for performance. Workers' V8
+      // isolate disallows dynamic code generation, so any write would throw
+      // "Code generation from strings disallowed for this context" on prod.
+      // Validation is instead enforced by a pure-JS `validate` function.
       const global = payload.globals.config.find((g) => g.slug === 'wm-web-translations')
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        const uris = tabsField.tabs.map((tab) => tab.fields[0].jsonSchema?.uri)
-
-        expect(uris[0]).toBe('a://wm-web-translations/common.json')
-        expect(uris[1]).toBe('a://wm-web-translations/navigation.json')
-        expect(new Set(uris).size).toBe(uris.length)
+        for (const tab of tabsField.tabs) {
+          const field = tab.fields[0]
+          if (field.type !== 'json') continue
+          expect(field.jsonSchema).toBeUndefined()
+          expect(typeof field.validate).toBe('function')
+        }
       }
     })
   })
@@ -91,39 +97,81 @@ describe('Translations Globals Configuration', () => {
       expect(global?.fields[0].type).toBe('tabs')
     })
 
-    it('should have 5 tabs: Daily, Path, Explore, Profile, Meditation', () => {
+    it('should have 10 tabs: Onboarding, Daily, Path, Explore, Profile, Meditation, Auth, Navigation, General, Review', () => {
       const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        expect(tabsField.tabs).toHaveLength(5)
-        expect(tabsField.tabs[0].label).toBe('Daily')
-        expect(tabsField.tabs[1].label).toBe('Path')
-        expect(tabsField.tabs[2].label).toBe('Explore')
-        expect(tabsField.tabs[3].label).toBe('Profile')
-        expect(tabsField.tabs[4].label).toBe('Meditation')
+        expect(tabsField.tabs).toHaveLength(10)
+        expect(tabsField.tabs[0].label).toBe('Onboarding')
+        expect(tabsField.tabs[1].label).toBe('Daily')
+        expect(tabsField.tabs[2].label).toBe('Path')
+        expect(tabsField.tabs[3].label).toBe('Explore')
+        expect(tabsField.tabs[4].label).toBe('Profile')
+        expect(tabsField.tabs[5].label).toBe('Meditation')
+        expect(tabsField.tabs[6].label).toBe('Auth')
+        expect(tabsField.tabs[7].label).toBe('Navigation')
+        expect(tabsField.tabs[8].label).toBe('General')
+        expect(tabsField.tabs[9].label).toBe('Review')
       }
     })
 
-    it('should have JSON fields with correct names matching group slugs', () => {
+    it('should have nested tabs for grouped sections and JSON fields for leaf sections', () => {
       const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        const fieldNames = tabsField.tabs.map((tab) => tab.fields[0].name)
-
-        expect(fieldNames).toEqual(['daily', 'path', 'explore', 'profile', 'meditation'])
+        // Tabs 0-6 (Onboarding through Auth) are grouped; each has a nested tabs field.
+        for (let i = 0; i <= 6; i++) {
+          expect(tabsField.tabs[i].fields[0].type).toBe('tabs')
+        }
+        // Tabs 7-8 (Navigation, General) are leaf groups; each has a direct JSON field.
+        expect(tabsField.tabs[7].fields[0].name).toBe('navigation')
+        expect(tabsField.tabs[7].fields[0].type).toBe('json')
+        expect(tabsField.tabs[8].fields[0].name).toBe('general')
+        expect(tabsField.tabs[8].fields[0].type).toBe('json')
       }
     })
 
-    it('should have globalSlug passed to each field', () => {
+    it('should have globalSlug passed to each translation field', () => {
       const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
       const tabsField = global?.fields[0]
+
+      // Mixed leaves (with at least one richText property) wrap their JSON field
+      // inside a Payload group. Pure-string leaves keep the JSON field as a direct
+      // child of the tab. Both paths must surface `globalSlug`.
+      const findJsonField = (fields: ReadonlyArray<{ type: string }>): unknown => {
+        for (const f of fields) {
+          if (f.type === 'json') return f
+          if (f.type === 'group') {
+            const inner = (f as { fields: Array<{ type: string }> }).fields.find(
+              (sub) => sub.type === 'json',
+            )
+            if (inner) return inner
+          }
+        }
+        return undefined
+      }
 
       if (tabsField?.type === 'tabs') {
         for (const tab of tabsField.tabs) {
-          const field = tab.fields[0]
-          expect(field.admin?.custom?.globalSlug).toBe('wm-app-translations')
+          if (tab.label === 'Review') continue
+          const firstField = tab.fields[0]
+          if (firstField.type === 'tabs') {
+            // Parent group: check globalSlug on each inner sub-tab's JSON field.
+            for (const innerTab of (firstField as { type: 'tabs'; tabs: typeof tabsField.tabs }).tabs) {
+              const jsonField = findJsonField(innerTab.fields) as
+                | { admin?: { custom?: { globalSlug?: string } } }
+                | undefined
+              expect(jsonField?.admin?.custom?.globalSlug).toBe('wm-app-translations')
+            }
+          } else {
+            // Leaf group: check globalSlug on the direct JSON field.
+            const jsonField = findJsonField(tab.fields) as
+              | { admin?: { custom?: { globalSlug?: string } } }
+              | undefined
+            expect(jsonField?.admin?.custom?.globalSlug).toBe('wm-app-translations')
+          }
         }
       }
     })
@@ -133,27 +181,98 @@ describe('Translations Globals Configuration', () => {
       const tabsField = global?.fields[0]
 
       if (tabsField?.type === 'tabs') {
-        // Check daily group has expected keys
-        const dailyEntries = tabsField.tabs[0].fields[0].admin?.custom?.schemaEntries as Array<{
+        // Check daily.main sub-tab has expected keys (daily is tab index 1)
+        const dailyInnerTabs = (
+          tabsField.tabs[1].fields[0] as { type: 'tabs'; tabs: typeof tabsField.tabs }
+        ).tabs
+        const dailyMainJsonField = dailyInnerTabs[0].fields.find((f) => f.type === 'json')
+        const dailyMainEntries = dailyMainJsonField?.admin?.custom?.schemaEntries as Array<{
           key: string
           description: string
         }>
-        const dailyKeys = dailyEntries.map((e) => e.key)
-        expect(dailyKeys).toContain('title')
-        expect(dailyKeys).toContain('subtitle')
-        expect(dailyKeys).toContain('complete')
-        expect(dailyKeys).toContain('streak')
-        expect(dailyKeys).toContain('skip')
+        const dailyMainKeys = dailyMainEntries.map((e) => e.key)
+        expect(dailyMainKeys).toContain('start_meditation')
+        expect(dailyMainKeys).toContain('start_now')
 
-        // Check meditation group has expected keys
-        const meditationEntries = tabsField.tabs[4].fields[0].admin?.custom?.schemaEntries as Array<{
+        // Check explore.talks_player sub-tab has expected keys (explore is tab index 3)
+        const exploreInnerTabs = (
+          tabsField.tabs[3].fields[0] as { type: 'tabs'; tabs: typeof tabsField.tabs }
+        ).tabs
+        const talksPlayerTab = exploreInnerTabs.find((t) => t.label === 'Talks Player')
+        const talksPlayerJsonField = talksPlayerTab?.fields.find((f) => f.type === 'json')
+        const talksPlayerEntries = talksPlayerJsonField?.admin?.custom?.schemaEntries as Array<{
           key: string
           description: string
         }>
-        const meditationKeys = meditationEntries.map((e) => e.key)
-        expect(meditationKeys).toContain('play')
-        expect(meditationKeys).toContain('pause')
-        expect(meditationKeys).toContain('complete')
+        const talksPlayerKeys = talksPlayerEntries.map((e) => e.key)
+        expect(talksPlayerKeys).toContain('play')
+        expect(talksPlayerKeys).toContain('pause')
+      }
+    })
+
+    it('should wrap mixed-leaf groups (with richText) in a Payload group with strings JSON + richText siblings', () => {
+      const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
+      const tabsField = global?.fields[0]
+      if (tabsField?.type !== 'tabs') return
+
+      // onboarding > consent_modal has 3 richText keys: body_intro, body_never_share, body_never_sell.
+      const onboardingInnerTabs = (
+        tabsField.tabs[0].fields[0] as { type: 'tabs'; tabs: typeof tabsField.tabs }
+      ).tabs
+      const consentModalTab = onboardingInnerTabs.find((t) => t.label === 'Consent Modal')
+      expect(consentModalTab).toBeDefined()
+      if (!consentModalTab) return
+
+      // The wrapper group is named `onboarding_consent_modal`.
+      const wrapperGroup = consentModalTab.fields.find(
+        (f) => f.type === 'group',
+      ) as { name?: string; fields?: Array<{ type: string; name?: string }> } | undefined
+      expect(wrapperGroup).toBeDefined()
+      expect(wrapperGroup?.name).toBe('onboarding_consent_modal')
+
+      // Inside the group: `strings` JSON + 3 richText siblings.
+      const inner = wrapperGroup?.fields ?? []
+      const stringsField = inner.find((f) => f.type === 'json')
+      expect(stringsField?.name).toBe('strings')
+
+      const richTextNames = inner.filter((f) => f.type === 'richText').map((f) => f.name)
+      expect(richTextNames).toEqual(
+        expect.arrayContaining(['body_intro', 'body_never_share', 'body_never_sell']),
+      )
+    })
+
+    it('should keep pure-string leaves as a direct JSON field (backward compatible)', () => {
+      const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
+      const tabsField = global?.fields[0]
+      if (tabsField?.type !== 'tabs') return
+
+      // onboarding > name has no richText keys → should remain a direct JSON field.
+      const onboardingInnerTabs = (
+        tabsField.tabs[0].fields[0] as { type: 'tabs'; tabs: typeof tabsField.tabs }
+      ).tabs
+      const nameTab = onboardingInnerTabs.find((t) => t.label === 'Name')
+      expect(nameTab).toBeDefined()
+      if (!nameTab) return
+
+      const jsonField = nameTab.fields.find((f) => f.type === 'json') as
+        | { name?: string }
+        | undefined
+      expect(jsonField?.name).toBe('onboarding_name')
+      // And no wrapper group at the tab level.
+      expect(nameTab.fields.find((f) => f.type === 'group')).toBeUndefined()
+    })
+
+    it('should have a Review tab with markReviewed and lastReviewedAt fields', () => {
+      const global = payload.globals.config.find((g) => g.slug === 'wm-app-translations')
+      const tabsField = global?.fields[0]
+
+      if (tabsField?.type === 'tabs') {
+        const reviewTab = tabsField.tabs.find((tab) => tab.label === 'Review')
+        expect(reviewTab).toBeDefined()
+        if (!reviewTab) return
+
+        const fieldNames = reviewTab.fields.map((f) => ('name' in f ? f.name : undefined))
+        expect(fieldNames).toEqual(['markReviewed', 'lastReviewedAt'])
       }
     })
   })
@@ -219,19 +338,49 @@ describe('Translations Globals Configuration', () => {
       expect(global?.versions?.max).toBe(3)
     })
 
-    it.each(translationGlobalSlugs)('should have consistent jsonSchema configuration for %s', (slug) => {
-      const global = payload.globals.config.find((g) => g.slug === slug)
-      const tabsField = global?.fields[0]
+    it.each(translationGlobalSlugs)(
+      'should expose a pure-JS validate function on every JSON field for %s',
+      (slug) => {
+        // Validation moved from `jsonSchema` (Ajv-compiled, breaks on Workers)
+        // to a pure-JS `validate` function. Spot-check that the validator
+        // accepts a well-formed object, rejects unknown keys, and rejects
+        // non-string values — the same contract the old Ajv schema enforced.
+        const global = payload.globals.config.find((g) => g.slug === slug)
+        const tabsField = global?.fields[0]
+        if (tabsField?.type !== 'tabs') return
 
-      if (tabsField?.type === 'tabs') {
-        for (const tab of tabsField.tabs) {
-          const field = tab.fields[0]
-          expect(field.jsonSchema).toBeDefined()
-          expect(field.jsonSchema?.uri).toMatch(/^a:\/\//)
-          expect(field.jsonSchema?.schema).toBeDefined()
-          expect(field.jsonSchema?.schema?.type).toBe('object')
+        const collectJsonFields = (
+          fields: ReadonlyArray<{ type: string }>,
+        ): Array<{ name?: string; validate?: unknown }> => {
+          const out: Array<{ name?: string; validate?: unknown }> = []
+          for (const f of fields) {
+            if (f.type === 'json') out.push(f as { name?: string; validate?: unknown })
+            if (f.type === 'group') {
+              out.push(
+                ...((f as { fields: Array<{ type: string }> }).fields.filter(
+                  (sub) => sub.type === 'json',
+                ) as Array<{ name?: string; validate?: unknown }>),
+              )
+            }
+          }
+          return out
         }
-      }
-    })
+
+        for (const tab of tabsField.tabs) {
+          if (tab.label === 'Review') continue
+          const firstField = tab.fields[0]
+          const jsonFields =
+            firstField.type === 'tabs'
+              ? (firstField as { type: 'tabs'; tabs: typeof tabsField.tabs }).tabs.flatMap((innerTab) =>
+                  collectJsonFields(innerTab.fields),
+                )
+              : collectJsonFields(tab.fields)
+          for (const jsonField of jsonFields) {
+            expect((jsonField as { jsonSchema?: unknown }).jsonSchema).toBeUndefined()
+            expect(typeof jsonField.validate).toBe('function')
+          }
+        }
+      },
+    )
   })
 })

@@ -40,7 +40,7 @@ const ExternalLinkIcon: React.FC = () => (
  */
 const TagPill: React.FC<{ tag: TagAssignment }> = ({ tag }) => {
   const [DocumentDrawer, , { openDrawer }] = useDocumentDrawer({
-    collectionSlug: 'meditation-tags',
+    collectionSlug: 'user-choices',
     id: tag.id,
   })
 
@@ -92,7 +92,7 @@ export const TagAssignmentField: JSONFieldClientComponent = ({ field }) => {
           <span style={{ color: 'var(--theme-elevation-400)' }}>
             None assigned —{' '}
             <Link
-              href="/admin/collections/meditation-tags"
+              href="/admin/collections/user-choices"
               target="_blank"
               style={{ color: 'var(--theme-elevation-500)', textDecoration: 'underline' }}
             >

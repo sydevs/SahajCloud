@@ -12,7 +12,12 @@ import type { CollectionMetadata, ScriptMetadata } from './pagination'
 
 import { getDefaultBatchSize, getEnvironment } from './pagination'
 
-export type ScriptName = 'tags' | 'wemeditate' | 'meditations' | 'storyblok'
+export type ScriptName =
+  | 'tags'
+  | 'wemeditate'
+  | 'meditations'
+  | 'storyblok'
+  | 'wm-app-translations'
 
 export interface ExpectedCounts {
   [collection: string]: number
@@ -32,7 +37,7 @@ export interface ExpectedCounts {
  */
 export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   tags: {
-    'meditation-tags': 27,
+    'user-choices': 27,
     'song-tags': 7,
   },
   wemeditate: {
@@ -40,6 +45,10 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
     albums: 8,
     songs: 27,
     pages: 60,
+    // Counted from seeds/wemeditate/data.json: 161 vimeo block occurrences,
+    // 40 unique vimeo IDs (after dedup across page translations). Each
+    // unique vimeo_id seeds one Lecture.
+    lectures: 40,
   },
   meditations: {
     narrators: 2,
@@ -49,6 +58,9 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   storyblok: {
     lessons: 17,
   },
+  // wm-app-translations updates a single PayloadCMS global, not collections.
+  // No collection counts apply — verification is intentionally a no-op.
+  'wm-app-translations': {},
 }
 
 /**
@@ -112,7 +124,7 @@ const PAGINATION_THRESHOLD = 50
 const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   tags: [
     {
-      slug: 'meditation-tags',
+      slug: 'user-choices',
       totalItems: 27,
       requiresPagination: false,
       dependencies: [],
@@ -163,6 +175,16 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       hasFileUploads: true, // Media in content
       batchSize: 1, // Pages have many embedded images, use 1 to avoid D1 rate limits
     },
+    {
+      // 40 unique vimeo_ids in data.json — one Lecture per ID. The
+      // populateFromNirmalaVidya hook fires on create and hits the NV API
+      // synchronously, so this batch implicitly fans out to ~N HTTP calls.
+      slug: 'lectures',
+      totalItems: 40,
+      requiresPagination: false,
+      dependencies: [],
+      naturalKey: 'nirmalVidyaVimeoUrl',
+    },
   ],
   meditations: [
     {
@@ -184,7 +206,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       slug: 'meditations',
       totalItems: 73,
       requiresPagination: true, // Large collection with uploads
-      dependencies: ['narrators', 'frames', 'meditation-tags', 'song-tags'],
+      dependencies: ['narrators', 'frames', 'user-choices', 'song-tags'],
       naturalKey: 'slug',
       hasFileUploads: true, // Audio files
     },
@@ -199,13 +221,20 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       hasFileUploads: true, // Panel images, audio
     },
     {
+      // Storyblok currently carries 0 video stories in source. Code path is
+      // wired but unexercised; promote to >0 once editorial adds DD_Main_video
+      // blocks. Natural key matches lecture upserts (Vimeo URL).
       slug: 'lectures',
       totalItems: 0,
       requiresPagination: false,
       dependencies: [],
-      naturalKey: 'slug',
+      naturalKey: 'nirmalVidyaVimeoUrl',
     },
   ],
+  // wm-app-translations targets the PayloadCMS global of the same slug, not
+  // a collection. The empty array tells the runner there are no per-collection
+  // pagination buckets or dependencies — the importer runs once, in bulk.
+  'wm-app-translations': [],
 }
 
 /**

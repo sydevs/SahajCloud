@@ -199,23 +199,49 @@ async function seedTestFrames(payload: Awaited<ReturnType<typeof getPayload>>) {
   // Read sample image file for frames using shared utility
   const imagePath = path.join(SAMPLE_FILES_DIR, 'image-1050x700.jpg')
 
-  // Create a few test frames (using valid category values from FRAME_CATEGORY_OPTIONS)
-  const categories = ['mooladhara', 'swadhistan', 'nabhi'] as const
+  // Create a placeholder Page so each SubtleSystemNode can satisfy its required `page` rel.
+  const e2ePage = await payload.create({
+    collection: 'pages',
+    data: {
+      title: 'E2E Placeholder Page',
+      content: {
+        root: {
+          type: 'root',
+          children: [{ type: 'paragraph', version: 1, children: [] }],
+          direction: null,
+          format: '',
+          indent: 0,
+          version: 1,
+        },
+      },
+    },
+  })
+
+  // Create a few test frames pointing at SubtleSystemNodes
+  const slugs = ['mooladhara', 'swadhistan', 'nabhi'] as const
   let createdCount = 0
 
-  for (const category of categories) {
-    const fileObject = createFileObject(imagePath, { name: `e2e-frame-${category}.jpg` })
+  for (const slug of slugs) {
+    const fileObject = createFileObject(imagePath, { name: `e2e-frame-${slug}.jpg` })
 
     if (!fileObject) {
       console.log('   Sample image not found, skipping frame seed...')
       return false
     }
 
+    const node = await payload.create({
+      collection: 'subtle-system-nodes',
+      data: {
+        slug,
+        page: e2ePage.id,
+      },
+    })
+
     await payload.create({
       collection: 'frames',
       data: {
         imageSet: 'male',
-        category,
+        subtleSystemNode: node.id,
       },
       file: fileObject,
     })

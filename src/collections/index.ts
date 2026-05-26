@@ -9,14 +9,14 @@ import { Songs } from './content/Songs'
 import { Videos } from './content/Videos'
 import { Authors } from './resources/Authors'
 import { Images } from './resources/Images'
-import { LectureClips } from './resources/LectureClips'
 import { Lectures } from './resources/Lectures'
 import { Narrators } from './resources/Narrators'
 import { Files } from './system/Files'
 import { Frames } from './system/Frames'
-import { LectureTags } from './tags/LectureTags'
-import { MeditationTags } from './tags/MeditationTags'
+import { Audiences } from './tags/Audiences'
 import { SongTags } from './tags/SongTags'
+import { SubtleSystemNodes } from './tags/SubtleSystemNodes'
+import { UserChoices } from './tags/UserChoices'
 
 // Export all collections as an array
 export const collections = [
@@ -29,15 +29,15 @@ export const collections = [
   Lessons,
   // Resources
   Lectures,
-  LectureClips,
   Frames,
   Narrators,
   Authors,
   Images,
   Files,
   // Tags
-  LectureTags,
-  MeditationTags,
+  Audiences,
+  UserChoices,
+  SubtleSystemNodes,
   SongTags,
   // Access
   Managers,
@@ -56,15 +56,15 @@ export {
   Lessons,
   // Resources
   Lectures,
-  LectureClips,
   Frames,
   Narrators,
   Authors,
   Images,
   Files,
   // Tags
-  LectureTags,
-  MeditationTags,
+  Audiences,
+  UserChoices,
+  SubtleSystemNodes,
   SongTags,
   // Access
   Managers,

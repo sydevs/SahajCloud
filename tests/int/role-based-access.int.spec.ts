@@ -1,11 +1,29 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import fs from 'fs'
+import path from 'path'
+import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/lib/access'
 
 import { createTestLexicalContent, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
+
+const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
+
+vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/nirmalaVidyaApi')>()
+  return {
+    extractVimeoId: vi.fn(original.extractVimeoId),
+    fetchNirmalaVidyaVideo: vi.fn().mockResolvedValue({
+      title: 'Test Lecture from Nirmala Vidya',
+      thumbnailUrl: 'https://example.com/metadata-thumb.jpg',
+      hlsUrl: 'https://example.com/stream.m3u8',
+      subtitles: [],
+      duration: null,
+    }),
+  }
+})
 
 function createTrustedPreviewRequest(
   payload: Payload,
@@ -833,37 +851,25 @@ describe('Role-Based Access Control', () => {
     })
 
     it('wemeditate-app-client can read published app-cards', async () => {
-      // Create admin manager
       const admin = await testData.createManager(payload, {
         name: 'Admin for App Cards Test',
         type: 'admin' as const,
       })
-
-      // Create a client with wemeditate-app-client role
       const client = await testData.createClient(payload, admin.id, {
         name: 'App Client for Cards Test',
         roles: ['wemeditate-app-client'],
         active: true,
       })
 
-      // Create an app card (draft by default)
+      const publishedCard = await testData.createAppCard(payload, {
+        label: 'Published Card for Client Test',
+        _status: 'published',
+      })
       const draftCard = await testData.createAppCard(payload, {
-        title: 'Draft Card for Client Test',
+        label: 'Draft Card for Client Test',
+        _status: 'draft',
       })
 
-      expect(draftCard._status).toBe('draft')
-
-      // Publish the card
-      const publishedCard = await payload.update({
-        collection: 'app-cards',
-        id: draftCard.id,
-        data: { _status: 'published' },
-        user: { ...admin, collection: 'managers' },
-      })
-
-      expect(publishedCard._status).toBe('published')
-
-      // Query app-cards as client - published card SHOULD appear
       const clientCards = await payload.find({
         collection: 'app-cards',
         select: { id: true },
@@ -871,26 +877,9 @@ describe('Role-Based Access Control', () => {
         overrideAccess: false,
       })
 
-      const publishedIds = clientCards.docs.map((doc) => doc.id)
-      expect(publishedIds).toContain(publishedCard.id)
-
-      // Draft card should NOT appear
-      const allIds = clientCards.docs.map((doc) => doc.id)
-      // draftCard was updated to published, so create another draft to verify filtering
-      const anotherDraft = await testData.createAppCard(payload, {
-        title: 'Another Draft Card',
-      })
-      expect(anotherDraft._status).toBe('draft')
-
-      const clientCardsAfter = await payload.find({
-        collection: 'app-cards',
-        select: { id: true },
-        user: client,
-        overrideAccess: false,
-      })
-
-      const afterIds = clientCardsAfter.docs.map((doc) => doc.id)
-      expect(afterIds).not.toContain(anotherDraft.id)
+      const ids = clientCards.docs.map((doc) => doc.id)
+      expect(ids).toContain(publishedCard.id)
+      expect(ids).not.toContain(draftCard.id)
     })
 
     it('wemeditate-web-client cannot read app-cards', async () => {
@@ -916,6 +905,35 @@ describe('Role-Based Access Control', () => {
           overrideAccess: false,
         }),
       ).rejects.toThrow()
+    })
+
+    describe('App content collection reads', () => {
+      it('wemeditate-app-client can read lectures through normal RBAC', async () => {
+        const admin = await testData.createManager(payload, {
+          name: 'Admin for Lectures Read Test',
+          type: 'admin' as const,
+        })
+        const client = await testData.createClient(payload, admin.id, {
+          name: 'App Client for Lectures Read Test',
+          roles: ['wemeditate-app-client'],
+          active: true,
+        })
+
+        const lecture = await testData.createLecture(payload, undefined, {
+          title: 'Published Lecture for Client RBAC Test',
+        })
+
+        const result = await payload.find({
+          collection: 'lectures',
+          select: { id: true },
+          user: client,
+          overrideAccess: false,
+        })
+
+        expect(result).toBeDefined()
+        expect(Array.isArray(result.docs)).toBe(true)
+        expect(result.docs.map((doc) => doc.id)).toContain(lecture.id)
+      })
     })
 
     it('manager can access draft documents', async () => {
@@ -1101,6 +1119,210 @@ describe('Role-Based Access Control', () => {
 
       const narratorIds = clientNarrators.docs.map((doc) => doc.id)
       expect(narratorIds).toContain(narrator.id)
+    })
+  })
+
+  describe('User Choices (user-choices) Access', () => {
+    it('grants meditations-editor update access but not create or delete on user-choices', () => {
+      const editorUser = testData.dummyUser('managers', {
+        id: 200,
+        roles: ['meditations-editor'],
+      })
+
+      // Implicit read via wemeditate-app project membership
+      expect(
+        hasPermission(
+          { user: editorUser, collection: 'user-choices', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(true)
+
+      // Explicit update
+      expect(
+        hasPermission(
+          { user: editorUser, collection: 'user-choices', operation: 'update' },
+          bypassPermissions,
+        ),
+      ).toBe(true)
+
+      // No create or delete — editors can only edit existing tag assignments
+      expect(
+        hasPermission(
+          { user: editorUser, collection: 'user-choices', operation: 'create' },
+          bypassPermissions,
+        ),
+      ).toBe(false)
+      expect(
+        hasPermission(
+          { user: editorUser, collection: 'user-choices', operation: 'delete' },
+          bypassPermissions,
+        ),
+      ).toBe(false)
+    })
+
+    it('allows meditations-editor to update per-timing meditation fields but strips edits to other fields', async () => {
+      // Seed tag with known admin-authored values
+      const tag = await testData.createUserChoice(payload, {
+        title: 'Original Category Title',
+        color: '#AA0000',
+        order: 5,
+        isFeatured: true,
+        timings: ['morning'],
+      })
+
+      const meditation = await testData.createMeditation(payload, undefined, {
+        label: 'Seed Morning Meditation',
+        locale: 'en',
+        type: 'quick',
+      })
+
+      const editor = await testData.createManager(payload, {
+        name: 'Editor for Field-Level Access Test',
+        roles: { en: ['meditations-editor'] },
+      })
+
+      // Editor attempts to change title/color/order AND set morningMeditation.
+      // Field-level access should silently drop the non-allowed edits.
+      await payload.update({
+        collection: 'user-choices',
+        id: tag.id,
+        data: {
+          morningMeditation: meditation.id,
+          title: 'Hijacked Title',
+          color: '#00FF00',
+          order: 99,
+          isFeatured: false,
+        },
+        user: { ...editor, collection: 'managers' },
+        overrideAccess: false,
+      })
+
+      const updated = await payload.findByID({
+        collection: 'user-choices',
+        id: tag.id,
+        depth: 0,
+      })
+
+      // Allowed: morningMeditation updated
+      expect(updated.morningMeditation).toBe(meditation.id)
+
+      // Blocked: admin-authored fields unchanged
+      expect(updated.title).toBe('Original Category Title')
+      expect(updated.color).toBe('#AA0000')
+      expect(updated.order).toBe(5)
+      expect(updated.isFeatured).toBe(true)
+    })
+
+    it('allows admin managers to update any field on user-choices', async () => {
+      const tag = await testData.createUserChoice(payload, {
+        title: 'Admin-Editable Tag',
+        color: '#112233',
+        order: 10,
+      })
+
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Field-Level Access Test',
+        type: 'admin' as const,
+      })
+
+      await payload.update({
+        collection: 'user-choices',
+        id: tag.id,
+        data: {
+          title: 'Updated by Admin',
+          color: '#445566',
+          order: 20,
+        },
+        user: { ...admin, collection: 'managers' },
+        overrideAccess: false,
+      })
+
+      const updated = await payload.findByID({
+        collection: 'user-choices',
+        id: tag.id,
+        depth: 0,
+      })
+
+      expect(updated.title).toBe('Updated by Admin')
+      expect(updated.color).toBe('#445566')
+      expect(updated.order).toBe(20)
+    })
+
+    it('blocks meditations-editor from replacing the uploaded icon', async () => {
+      const tag = await testData.createUserChoice(payload, { title: 'Locked Icon Tag' })
+
+      const editor = await testData.createManager(payload, {
+        name: 'Editor for Icon Replace Block Test',
+        roles: { en: ['meditations-editor'] },
+      })
+
+      const replacementBuffer = fs.readFileSync(path.join(SAMPLE_FILES_DIR, 'icon-test.svg'))
+
+      await expect(
+        payload.update({
+          collection: 'user-choices',
+          id: tag.id,
+          data: {},
+          file: {
+            data: replacementBuffer,
+            mimetype: 'image/svg+xml',
+            name: 'replacement.svg',
+            size: replacementBuffer.length,
+          },
+          user: { ...editor, collection: 'managers' },
+          overrideAccess: false,
+        }),
+      ).rejects.toMatchObject({
+        status: 403,
+        message: expect.stringMatching(/Only admins can replace the icon/),
+      })
+    })
+  })
+
+  describe('Slug field access', () => {
+    // Use user-choices as the test collection: meditations-editor has explicit
+    // update permission on it, and its update path has no blocking validation.
+    it('prevents non-admin editors from changing a slug on update', async () => {
+      const tag = await testData.createUserChoice(payload, { title: 'Slug Lock Test Tag' })
+      const originalSlug = tag.slug
+
+      const editor = await testData.createManager(payload, {
+        name: 'Editor for Slug Lock Test',
+        roles: { en: ['meditations-editor'] },
+      })
+
+      // Note: overrideAccess: false is required to test access control with Local API
+      await payload.update({
+        collection: 'user-choices',
+        id: tag.id,
+        data: { slug: 'should-not-change', generateSlug: false },
+        user: { ...editor, collection: 'managers' },
+        overrideAccess: false,
+      })
+
+      const refetched = await payload.findByID({ collection: 'user-choices', id: tag.id })
+      expect(refetched.slug).toBe(originalSlug)
+    })
+
+    it('allows admin to change a slug', async () => {
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Slug Change Test',
+        type: 'admin' as const,
+      })
+
+      const tag = await testData.createUserChoice(payload, { title: 'Admin Slug Change Tag' })
+
+      // Note: overrideAccess: false is required to test access control with Local API
+      await payload.update({
+        collection: 'user-choices',
+        id: tag.id,
+        data: { slug: 'admin-changed-slug', generateSlug: false },
+        user: { ...admin, collection: 'managers' },
+        overrideAccess: false,
+      })
+
+      const refetched = await payload.findByID({ collection: 'user-choices', id: tag.id })
+      expect(refetched.slug).toBe('admin-changed-slug')
     })
   })
 })
