@@ -17,11 +17,14 @@ import { z } from 'zod'
 
 import { serverEnv } from '@/lib/env'
 
-import {
-  RATE_LIMIT_MAX_REQUESTS,
-  RATE_LIMIT_PERIOD_SECONDS,
-  SKIP_CLIENT_QUERY_VALIDATION_KEY,
-} from './constants'
+import { RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_SECONDS } from './constants'
+
+const SKIP_VALIDATION = 'skipClientQueryValidation'
+
+/** Wraps a client request to bypass query-param validation in trusted internal endpoints. */
+export function asTrustedReq(req: PayloadRequest): PayloadRequest {
+  return { ...req, context: { ...req.context, [SKIP_VALIDATION]: true } }
+}
 
 // ============================================================================
 // RATE LIMITING UTILITIES
@@ -137,7 +140,7 @@ export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
   // Trusted internal endpoints that forward client req to payload.find(...) can
   // opt out by setting this context flag — they shape their own response and
   // shouldn't have to enumerate every field via `select` on every internal call.
-  if (req.context?.[SKIP_CLIENT_QUERY_VALIDATION_KEY] === true) {
+  if (req.context?.[SKIP_VALIDATION] === true) {
     return
   }
 
@@ -155,8 +158,6 @@ export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
     findArgs.populate != null &&
     typeof findArgs.populate === 'object' &&
     Object.keys(findArgs.populate as Record<string, unknown>).length > 0
-  const depth = typeof findArgs.depth === 'number' ? findArgs.depth : null
-
   if (!hasSelect) {
     throw new APIError(
       'The "select" query parameter is required for API clients. Specify which fields you need in the response.',
@@ -164,9 +165,9 @@ export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
     )
   }
 
-  if (depth !== null && depth > 1 && !hasPopulate) {
+  if (typeof findArgs.depth === 'number' && findArgs.depth > 1 && !hasPopulate) {
     throw new APIError(
-      `The "populate" query parameter is required when depth > 1. Specify which relationships to populate at depth ${depth}.`,
+      `The "populate" query parameter is required when depth > 1. Specify which relationships to populate at depth ${findArgs.depth}.`,
       400,
     )
   }

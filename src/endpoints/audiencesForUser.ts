@@ -3,7 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { resolveAudienceIds } from '@/lib/audiences/resolve'
-import { SKIP_CLIENT_QUERY_VALIDATION_KEY } from '@/lib/usage/constants'
+import { asTrustedReq } from '@/lib/usage/hooks'
 
 const querySchema = z.object({
   // Progress params (all required; pass 0 as a neutral sentinel)
@@ -38,10 +38,7 @@ export const audiencesForUser: Endpoint = {
       return Response.json({ errors: parsed.error.issues }, { status: 400 })
     }
 
-    const audienceIds = await resolveAudienceIds(req.payload, parsed.data, {
-      ...req,
-      context: { ...req.context, [SKIP_CLIENT_QUERY_VALIDATION_KEY]: true },
-    })
+    const audienceIds = await resolveAudienceIds(req.payload, parsed.data, asTrustedReq(req))
 
     return Response.json(
       { audiences: audienceIds },

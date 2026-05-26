@@ -15,7 +15,6 @@ import type {
 import { meditationLectures } from '@/endpoints/meditationLectures'
 import { recomputeWeightsForMeditation } from '@/hooks/meditationHooks'
 import type { LecturePlayerData } from '@/lib/lectureShape'
-import { SKIP_CLIENT_QUERY_VALIDATION_KEY } from '@/lib/usage/constants'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -541,7 +540,7 @@ describe('meditationLectures endpoint', () => {
       ).req
       expect(forwardedReq?.user?.id).toBe(client.id)
       expect(forwardedReq?.user?.collection).toBe('clients')
-      expect(forwardedReq?.context?.[SKIP_CLIENT_QUERY_VALIDATION_KEY]).toBe(true)
+      expect(forwardedReq?.context?.['skipClientQueryValidation']).toBe(true)
     } finally {
       findSpy.mockRestore()
     }

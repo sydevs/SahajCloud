@@ -2,8 +2,6 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { describe, it, beforeAll, afterAll, afterEach, expect, vi } from 'vitest'
 
-import { SKIP_CLIENT_QUERY_VALIDATION_KEY } from '@/lib/usage/constants'
-
 import {
   createLexicalWithQuoteBlock,
   createLexicalWithRelationshipNode,
@@ -333,7 +331,7 @@ describe('Pages Collection', () => {
         payload,
         user: client,
         headers: new Headers(),
-        context: { [SKIP_CLIENT_QUERY_VALIDATION_KEY]: true },
+        context: { skipClientQueryValidation: true },
       } as unknown as PayloadRequest
 
       const fetched = await payload.findByID({

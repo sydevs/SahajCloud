@@ -1,10 +1,8 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import { beforeAll, afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { Client, Narrator } from '@/payload-types'
-
-import { SKIP_CLIENT_QUERY_VALIDATION_KEY } from '@/lib/usage/constants'
 
 import { testData } from 'tests/utils/testData'
 
@@ -144,7 +142,7 @@ describe('Client query parameter validation', () => {
       // payload.find(...) so they don't have to enumerate every field via select.
       const trustedReq = {
         ...clientReq(),
-        context: { [SKIP_CLIENT_QUERY_VALIDATION_KEY]: true },
+        context: { skipClientQueryValidation: true },
       } as unknown as PayloadRequest
 
       const result = await payload.find({

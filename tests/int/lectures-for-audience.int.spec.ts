@@ -6,7 +6,6 @@ import type { Audience, Client, Image, Lecture } from '@/payload-types'
 
 import { lecturesForAudience } from '@/endpoints/lecturesForAudience'
 import type { LecturePlayerData } from '@/lib/lectureShape'
-import { SKIP_CLIENT_QUERY_VALIDATION_KEY } from '@/lib/usage/constants'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -839,7 +838,7 @@ describe('lecturesForAudience endpoint', () => {
           ).req
           expect(r?.user?.id).toBe(client.id)
           expect(r?.user?.collection).toBe('clients')
-          expect(r?.context?.[SKIP_CLIENT_QUERY_VALIDATION_KEY]).toBe(true)
+          expect(r?.context?.['skipClientQueryValidation']).toBe(true)
         }
       } finally {
         findSpy.mockRestore()

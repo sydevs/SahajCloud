@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
 import { shapeLecture, type LecturePlayerData } from '@/lib/lectureShape'
-import { SKIP_CLIENT_QUERY_VALIDATION_KEY } from '@/lib/usage/constants'
+import { asTrustedReq } from '@/lib/usage/hooks'
 import type { Lecture } from '@/payload-types'
 
 const querySchema = z.object({
@@ -44,11 +44,6 @@ export const lecturesForAudience: Endpoint = {
     }
 
     const { audiences: audienceIds, limit } = parsed.data
-    const trustedReq = {
-      ...req,
-      context: { ...req.context, [SKIP_CLIENT_QUERY_VALIDATION_KEY]: true },
-    }
-
     const { docs: lectureDocs } = await req.payload.find({
       collection: 'lectures',
       where: { audiences: { in: audienceIds } },
@@ -59,7 +54,7 @@ export const lecturesForAudience: Endpoint = {
       // — clips have `metadata: null` and source it from their parent.
       depth: 2,
       pagination: false,
-      req: trustedReq,
+      req: asTrustedReq(req),
     })
 
     const eligibleLectures = lectureDocs as Lecture[]
