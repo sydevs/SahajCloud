@@ -19,6 +19,13 @@ import { serverEnv } from '@/lib/env'
 
 import { RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_SECONDS } from './constants'
 
+const SKIP_VALIDATION = 'skipClientQueryValidation'
+
+/** Wraps a client request to bypass query-param validation in trusted internal endpoints. */
+export function asTrustedReq(req: PayloadRequest): PayloadRequest {
+  return { ...req, context: { ...req.context, [SKIP_VALIDATION]: true } }
+}
+
 // ============================================================================
 // RATE LIMITING UTILITIES
 // ============================================================================
@@ -101,6 +108,67 @@ async function checkRateLimit(req: PayloadRequest): Promise<void> {
     throw new APIError(
       `Rate limit exceeded. Maximum ${RATE_LIMIT_MAX_REQUESTS} requests per ${RATE_LIMIT_PERIOD_SECONDS === 60 ? 'minute' : `${RATE_LIMIT_PERIOD_SECONDS} seconds`}.`,
       429,
+    )
+  }
+}
+
+// ============================================================================
+// QUERY PARAMETER VALIDATION HOOK
+// ============================================================================
+
+/**
+ * beforeOperation hook that forces API clients to declare their data needs explicitly.
+ *
+ * - `select` is required on every client read, so they can't pull whole documents.
+ * - `populate` is required when `depth > 1`, so they can't auto-populate every relationship.
+ *
+ * Validation is argument-based, not URL-based: Payload's REST handler parses URL
+ * query params (e.g., `?select=title`) into `args.select` before the hook fires,
+ * and internal endpoints that forward `req` to `payload.find(...)` with an explicit
+ * `select` also pass the check. Only applies to API client reads; managers and
+ * write operations are untouched.
+ */
+export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
+  args,
+  operation,
+  req,
+}) => {
+  if (operation !== 'read' || req.user?.collection !== 'clients') {
+    return
+  }
+
+  // Trusted internal endpoints that forward client req to payload.find(...) can
+  // opt out by setting this context flag — they shape their own response and
+  // shouldn't have to enumerate every field via `select` on every internal call.
+  if (req.context?.[SKIP_VALIDATION] === true) {
+    return
+  }
+
+  const findArgs = args as {
+    select?: unknown
+    populate?: unknown
+    depth?: unknown
+  }
+
+  const hasSelect =
+    findArgs.select != null &&
+    typeof findArgs.select === 'object' &&
+    Object.keys(findArgs.select as Record<string, unknown>).length > 0
+  const hasPopulate =
+    findArgs.populate != null &&
+    typeof findArgs.populate === 'object' &&
+    Object.keys(findArgs.populate as Record<string, unknown>).length > 0
+  if (!hasSelect) {
+    throw new APIError(
+      'The "select" query parameter is required for API clients. Specify which fields you need in the response.',
+      400,
+    )
+  }
+
+  if (typeof findArgs.depth === 'number' && findArgs.depth > 1 && !hasPopulate) {
+    throw new APIError(
+      `The "populate" query parameter is required when depth > 1. Specify which relationships to populate at depth ${findArgs.depth}.`,
+      400,
     )
   }
 }

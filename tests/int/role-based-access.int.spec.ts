@@ -703,6 +703,7 @@ describe('Role-Based Access Control', () => {
       // Note: overrideAccess: false is required to test access control with Local API
       const clientPages = await payload.find({
         collection: 'pages',
+        select: { id: true },
         user: client,
         overrideAccess: false,
       })
@@ -741,6 +742,7 @@ describe('Role-Based Access Control', () => {
         payload.findByID({
           collection: 'pages',
           id: draftPage.id,
+          select: { id: true },
           user: client,
           overrideAccess: false,
         }),
@@ -787,6 +789,7 @@ describe('Role-Based Access Control', () => {
       // Note: overrideAccess: false is required to test access control with Local API
       const clientPages = await payload.find({
         collection: 'pages',
+        select: { id: true },
         user: client,
         overrideAccess: false,
       })
@@ -798,6 +801,7 @@ describe('Role-Based Access Control', () => {
       const foundPage = await payload.findByID({
         collection: 'pages',
         id: publishedPage.id,
+        select: { id: true },
         user: client,
         overrideAccess: false,
       })
@@ -836,6 +840,7 @@ describe('Role-Based Access Control', () => {
         collection: 'pages',
         id: draftPage.id,
         draft: true,
+        select: { _status: true },
         user: client,
         req: previewReq,
         overrideAccess: false,
@@ -867,6 +872,7 @@ describe('Role-Based Access Control', () => {
 
       const clientCards = await payload.find({
         collection: 'app-cards',
+        select: { id: true },
         user: client,
         overrideAccess: false,
       })
@@ -894,6 +900,7 @@ describe('Role-Based Access Control', () => {
       await expect(
         payload.find({
           collection: 'app-cards',
+          select: { id: true },
           user: client,
           overrideAccess: false,
         }),
@@ -918,6 +925,7 @@ describe('Role-Based Access Control', () => {
 
         const result = await payload.find({
           collection: 'lectures',
+          select: { id: true },
           user: client,
           overrideAccess: false,
         })
@@ -1019,6 +1027,7 @@ describe('Role-Based Access Control', () => {
       // Note: overrideAccess: false is required to test access control with Local API
       const clientMeditations = await payload.find({
         collection: 'meditations',
+        select: { id: true },
         user: client,
         overrideAccess: false,
       })
@@ -1070,6 +1079,7 @@ describe('Role-Based Access Control', () => {
         collection: 'meditations',
         id: draftMeditation.id,
         draft: true,
+        select: { _status: true },
         user: client,
         req: previewReq,
         overrideAccess: false,
@@ -1102,6 +1112,7 @@ describe('Role-Based Access Control', () => {
       // Note: overrideAccess: false is required to test access control with Local API
       const clientNarrators = await payload.find({
         collection: 'narrators',
+        select: { id: true },
         user: client,
         overrideAccess: false,
       })

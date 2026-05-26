@@ -828,9 +828,17 @@ describe('lecturesForAudience endpoint', () => {
         expect(collectionsHit.has('lectures')).toBe(true)
 
         for (const args of findSpy.mock.calls.map((c) => c[0])) {
-          const r = (args as { req?: { user?: { id: unknown; collection: string } } }).req
+          const r = (
+            args as {
+              req?: {
+                user?: { id: unknown; collection: string }
+                context?: Record<string, unknown>
+              }
+            }
+          ).req
           expect(r?.user?.id).toBe(client.id)
           expect(r?.user?.collection).toBe('clients')
+          expect(r?.context?.['skipClientQueryValidation']).toBe(true)
         }
       } finally {
         findSpy.mockRestore()
