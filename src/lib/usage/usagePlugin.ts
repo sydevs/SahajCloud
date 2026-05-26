@@ -10,7 +10,7 @@
 import type { CollectionSlug, Config } from 'payload'
 
 import { SYSTEM_EXCLUSIONS } from './constants'
-import { rateLimitHook, usageTrackingHook } from './hooks'
+import { rateLimitHook, usageTrackingHook, validateClientQueryParamsHook } from './hooks'
 import { resetUsageTask } from './tasks'
 
 /**
@@ -51,7 +51,11 @@ export function usagePlugin(
         ...collection,
         hooks: {
           ...collection.hooks,
-          beforeOperation: [...(collection.hooks?.beforeOperation || []), rateLimitHook],
+          beforeOperation: [
+            ...(collection.hooks?.beforeOperation || []),
+            validateClientQueryParamsHook,
+            rateLimitHook,
+          ],
           afterRead: [...(collection.hooks?.afterRead || []), usageTrackingHook],
         },
       }

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { recomputeWeightsForMeditation } from '@/hooks/meditationHooks'
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
 import { shapeLecture, type LecturePlayerData } from '@/lib/lectureShape'
+import { asTrustedReq } from '@/lib/usage/hooks'
 import type { Lecture, Meditation, SubtleSystemNode, UserChoice } from '@/payload-types'
 
 const querySchema = z.object({
@@ -83,14 +84,13 @@ export const meditationLectures: Endpoint = {
     }
 
     const { audiences: audienceIds, limit, userChoice, excludedLectureIds } = parsed.data
-
     let meditation: Meditation | null = null
     try {
       meditation = (await req.payload.findByID({
         collection: 'meditations',
         id: idParam,
         depth: 0,
-        req,
+        req: asTrustedReq(req),
       })) as Meditation
     } catch (err) {
       req.payload.logger.error({
@@ -112,7 +112,7 @@ export const meditationLectures: Endpoint = {
       | null
       | undefined
     const weights =
-      cachedWeights ?? (await recomputeWeightsForMeditation(req.payload, meditation, req))
+      cachedWeights ?? (await recomputeWeightsForMeditation(req.payload, meditation, asTrustedReq(req)))
 
     const lectureWhere: Where = {
       audiences: { in: audienceIds },
@@ -129,7 +129,7 @@ export const meditationLectures: Endpoint = {
           where: { slug: { in: positiveNodeSlugs } },
           limit: 0,
           pagination: false,
-          req,
+          req: asTrustedReq(req),
         })
         const positiveNodeIds = positiveNodes.map((n) => n.id)
         lectureWhere.or = [
@@ -151,7 +151,7 @@ export const meditationLectures: Endpoint = {
       depth: 2,
       pagination: false,
       locale: req.locale ?? 'en',
-      req,
+      req: asTrustedReq(req),
     })
 
     const eligibleLectures = lectureDocs as Lecture[]

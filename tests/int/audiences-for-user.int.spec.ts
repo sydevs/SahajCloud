@@ -1,8 +1,8 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { Audience } from '@/payload-types'
+import type { Audience, Client } from '@/payload-types'
 
 import { audiencesForUser } from '@/endpoints'
 
@@ -20,7 +20,10 @@ const AUDIENCE_DEFAULTS = {
 async function callEndpoint(
   payload: Payload,
   query: Record<string, string | number | boolean>,
-  options: { skipAudienceDefaults?: boolean } = {},
+  options: {
+    skipAudienceDefaults?: boolean
+    user?: { id: number | string; collection: string }
+  } = {},
 ): Promise<{ status: number; headers: Headers; body: { audiences?: number[]; errors?: unknown } }> {
   const finalQuery = options.skipAudienceDefaults ? query : { ...AUDIENCE_DEFAULTS, ...query }
   const req = {
@@ -28,6 +31,7 @@ async function callEndpoint(
     query: finalQuery,
     headers: new Headers(),
     routeParams: {},
+    user: options.user,
   } as unknown as PayloadRequest
 
   const response = (await audiencesForUser.handler(req)) as Response
@@ -38,6 +42,7 @@ async function callEndpoint(
 describe('audiencesForUser endpoint', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
+  let adminUserId: number
 
   let audienceBeginner: Audience // pathProgress 0..5
   let audienceIntermediate: Audience // pathProgress 5..10
@@ -49,6 +54,7 @@ describe('audiencesForUser endpoint', () => {
     const env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
+    adminUserId = env.adminUser.id
 
     audienceBeginner = await testData.createAudience(payload, {
       label: 'Beginner',
@@ -112,6 +118,35 @@ describe('audiencesForUser endpoint', () => {
   it('sets Cache-Control: public, max-age=300, s-maxage=300', async () => {
     const { headers } = await callEndpoint(payload, { pathProgress: 0 })
     expect(headers.get('Cache-Control')).toBe('public, max-age=300, s-maxage=300')
+  })
+
+  it('threads client req through audience lookup and skips query validation', async () => {
+    const client = (await testData.createClient(payload, adminUserId, {
+      name: 'Audiences Forwarding Test',
+    })) as Client
+
+    const findSpy = vi.spyOn(payload, 'find')
+    try {
+      const { status } = await callEndpoint(payload, { pathProgress: 0 }, {
+        user: { id: client.id, collection: 'clients' },
+      })
+      expect(status).toBe(200)
+
+      const audienceCall = findSpy.mock.calls.find(
+        ([args]) => (args as { collection?: string }).collection === 'audiences',
+      )
+      expect(audienceCall).toBeDefined()
+      const forwardedReq = (
+        audienceCall![0] as {
+          req?: { user?: { id: unknown; collection: string }; context?: Record<string, unknown> }
+        }
+      ).req
+      expect(forwardedReq?.user?.id).toBe(client.id)
+      expect(forwardedReq?.user?.collection).toBe('clients')
+      expect(forwardedReq?.context?.['skipClientQueryValidation']).toBe(true)
+    } finally {
+      findSpy.mockRestore()
+    }
   })
 
   describe('Condition audiences', () => {

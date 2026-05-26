@@ -1,4 +1,4 @@
-import type { Payload } from 'payload'
+import type { Payload, PayloadRequest } from 'payload'
 
 import { describe, it, beforeAll, afterAll, afterEach, expect, vi } from 'vitest'
 
@@ -327,11 +327,19 @@ describe('Pages Collection', () => {
         _status: 'published',
         content,
       })
+      const trustedClientReq = {
+        payload,
+        user: client,
+        headers: new Headers(),
+        context: { skipClientQueryValidation: true },
+      } as unknown as PayloadRequest
 
       const fetched = await payload.findByID({
         collection: 'pages',
         id: page.id,
+        select: { content: true },
         depth: 2,
+        req: trustedClientReq,
         user: client,
         overrideAccess: false,
       })
@@ -350,6 +358,7 @@ describe('Pages Collection', () => {
 
       const directRead = await payload.find({
         collection: 'app-cards',
+        select: { id: true },
         user: client,
         overrideAccess: false,
       })

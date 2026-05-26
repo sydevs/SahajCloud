@@ -48,6 +48,24 @@ access is REST-only.
 - **Encrypted keys** with `PAYLOAD_SECRET`.
 - **GraphQL disabled** — REST only.
 
+## Query Parameter Validation
+
+API client read requests must declare their data needs explicitly:
+
+- `select` is required on every read request.
+- `populate` is required when `depth > 1`.
+
+`validateClientQueryParamsHook` in `src/lib/usage/hooks.ts` enforces this
+before rate limiting, so malformed reads do not consume a rate-limit slot.
+Managers, admin UI requests, and writes are unaffected.
+
+Trusted internal endpoint handlers that forward a client `req` to
+`payload.find(...)` or `payload.findByID(...)` should set
+`req.context[SKIP_CLIENT_QUERY_VALIDATION_KEY] = true`. These handlers shape
+their own response and should not require every endpoint caller to enumerate
+internal fields with `select`, while rate limiting and usage tracking still see
+the authenticated client.
+
 ## Usage monitoring
 
 - **Async tracking** via job queue (no in-request DB write).
