@@ -50,6 +50,24 @@ Both `.ts` and `.json` files are required for each migration:
 `.json` and rename to match your new timestamp. This keeps the schema-snapshot
 chain intact.
 
+## Reviewing generated migrations
+
+Before deploy, scan each new generated `.ts` against the earlier migrations
+in the same pending batch. If it repeats `CREATE TABLE`, `CREATE INDEX`, or
+`ALTER TABLE ADD COLUMN` for schema already introduced earlier in the chain,
+stop and trim or regenerate it; adding `IF NOT EXISTS` to a new migration is
+only a replay-recovery tool, not a substitute for a clean migration delta.
+
+When adding required relationship fields to an existing table, keep the SQL
+column nullable unless the migration also backfills every existing row before
+enforcing `NOT NULL`. Payload validation can require the field at the app
+layer while old rows are hydrated after deploy.
+
+If a field is added and renamed before deploy, inspect the generated rebuild.
+Drizzle can emit `SELECT new_column FROM old_table`, which fails because the
+old table only has the previous column name. Prefer a guarded
+`ALTER TABLE ... RENAME COLUMN` for that narrow rename.
+
 ## Squashing (preserve data)
 
 When the chain gets painfully large, use `./seeds/squash-migrations.sh` —
