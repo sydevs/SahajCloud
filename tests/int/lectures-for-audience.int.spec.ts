@@ -278,7 +278,6 @@ describe('lecturesForAudience endpoint', () => {
         'subtitles',
         'thumbnailUrl',
         'title',
-        'videoUrl',
       ]
       for (const doc of docs) {
         expect(Object.keys(doc).sort()).toEqual(expectedKeys)

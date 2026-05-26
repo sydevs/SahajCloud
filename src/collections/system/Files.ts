@@ -5,7 +5,6 @@ import {
   mixedMediaUrlField,
   mp4UrlField,
   previewUrlField,
-  streamUrlField,
 } from '@/lib/storage/urlFields'
 
 export const Files: CollectionConfig = {
@@ -48,9 +47,7 @@ export const Files: CollectionConfig = {
     },
     // url: direct file URL (mixed-media), hlsUrl: HLS manifest (videos),
     // mp4Url: MP4 download (videos), previewUrl: thumbnail
-    // streamUrl is a deprecated alias of hlsUrl pending mobile-app cutover (#319)
     mixedMediaUrlField({ collection: 'files' }),
-    streamUrlField({ collection: 'files' }),
     hlsUrlField({ collection: 'files' }),
     mp4UrlField({ collection: 'files' }),
     previewUrlField({ collection: 'files' }),

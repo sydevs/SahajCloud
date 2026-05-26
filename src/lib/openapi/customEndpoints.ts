@@ -436,7 +436,6 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
     required: [
       'id',
       'hlsUrl',
-      'videoUrl',
       'thumbnailUrl',
       'subtitles',
       'startTime',
@@ -448,12 +447,6 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       id: { type: 'integer' },
       title: { type: ['string', 'null'] },
       hlsUrl: { type: 'string' },
-      videoUrl: {
-        type: 'string',
-        deprecated: true,
-        description:
-          'DEPRECATED: read `hlsUrl` instead. Will be removed after the mobile-app cutover (#319).',
-      },
       thumbnailUrl: { type: ['string', 'null'] },
       subtitles: lectureSubtitleUrlsSchema,
       startTime: { type: 'number' },

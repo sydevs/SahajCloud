@@ -22,8 +22,6 @@ export type LecturePlayerData = {
   id: number
   title: string | null | undefined
   hlsUrl: string
-  /** @deprecated alias of `hlsUrl` — removed by #329 once mobile clients cut over. */
-  videoUrl: string
   thumbnailUrl: string | null
   subtitles: Record<string, string>
   startTime: number
@@ -141,7 +139,6 @@ export function shapeLecture(
     id: lecture.id,
     title: lecture.title,
     hlsUrl: metadata.hlsUrl,
-    videoUrl: metadata.hlsUrl,
     thumbnailUrl: resolveThumbnailUrl({
       override: lecture.thumbnail,
       fallback: metadata.thumbnailUrl,

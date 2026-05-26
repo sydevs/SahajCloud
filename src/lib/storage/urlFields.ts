@@ -22,7 +22,7 @@ const getLocalFallbackUrl = (collection: CollectionSlug, filename: string): stri
 /**
  * Storage adapter type for URL generation
  */
-type StorageAdapter = 'cloudflare-images' | 'cloudflare-stream' | 'r2'
+type StorageAdapter = 'cloudflare-images' | 'r2'
 
 /**
  * Options for creating a virtual URL field
@@ -35,7 +35,6 @@ interface VirtualUrlFieldOptions {
   /**
    * Storage adapter type
    * - cloudflare-images: Uses CLOUDFLARE_IMAGES_DELIVERY_URL
-   * - cloudflare-stream: Uses CLOUDFLARE_STREAM_DELIVERY_URL
    * - r2: Uses CLOUDFLARE_R2_DELIVERY_URL
    */
   adapter: StorageAdapter
@@ -74,62 +73,13 @@ interface MixedMediaUrlFieldOptions {
 }
 
 /**
- * Options for the video-only virtual URL fields (`hlsUrlField`, `mp4UrlField`,
- * and the deprecated `streamUrlField`).
+ * Options for the video-only virtual URL fields (`hlsUrlField`, `mp4UrlField`).
  */
 interface VideoUrlFieldOptions {
   /**
    * The collection slug (used for development fallback URL)
    */
   collection: CollectionSlug
-}
-
-// ============================================================================
-// Shared resolvers
-// ============================================================================
-
-/**
- * Returns the HLS manifest URL for video MIME types, `null` for everything else.
- *
- * Shared by `hlsUrlField` and the deprecated `streamUrlField` so both produce
- * identical values for the same upload.
- */
-const buildHlsResolver = (collection: CollectionSlug): FieldHook => {
-  return ({ data }) => {
-    if (!data?.filename) return undefined
-
-    const category = getMimeCategory(data.mimeType)
-
-    if (category === 'video') {
-      return (
-        getCloudflareStreamHlsUrl(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
-      )
-    }
-
-    return null
-  }
-}
-
-/**
- * Returns the MP4 download URL for video MIME types, `null` for everything else.
- *
- * Used by `mp4UrlField`. Returns `null` for non-video so mixed-media
- * collections (`frames`, `files`) can expose a uniform `mp4Url` field.
- */
-const buildVideoMp4Resolver = (collection: CollectionSlug): FieldHook => {
-  return ({ data }) => {
-    if (!data?.filename) return undefined
-
-    const category = getMimeCategory(data.mimeType)
-
-    if (category === 'video') {
-      return (
-        getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
-      )
-    }
-
-    return null
-  }
 }
 
 /**
@@ -173,13 +123,6 @@ export const virtualUrlField = (options: VirtualUrlFieldOptions): Field => {
       return getCloudflareImagesUrl(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
     }
 
-    if (adapter === 'cloudflare-stream') {
-      // Return MP4 download URL for direct file access
-      return (
-        getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
-      )
-    }
-
     // R2 Storage - falls back to PayloadCMS-generated URL
     return getR2Url(data.filename) ?? data?.url
   }
@@ -191,13 +134,7 @@ export const virtualUrlField = (options: VirtualUrlFieldOptions): Field => {
     hooks: {
       afterRead: [afterReadHook],
     },
-    admin: {
-      hidden: true,
-      description:
-        adapter === 'cloudflare-stream'
-          ? 'DEPRECATED: read `mp4Url` instead. Will be removed after the mobile-app cutover (#319).'
-          : undefined,
-    },
+    admin: { hidden: true },
   }
 }
 
@@ -331,19 +268,32 @@ export const mixedMediaUrlField = (options: MixedMediaUrlFieldOptions): Field =>
 /**
  * Creates a virtual HLS streaming URL field (`hlsUrl`).
  *
- * Returns the HLS manifest URL for video content, null otherwise. This is the
- * canonical name across the API; mount it on every collection that previously
- * used `streamUrlField`.
+ * Returns the HLS manifest URL for video content, null otherwise. Mount on
+ * every collection that exposes a video URL.
  */
 export const hlsUrlField = (options: VideoUrlFieldOptions): Field => {
   const { collection } = options
+
+  const afterReadHook: FieldHook = ({ data }) => {
+    if (!data?.filename) return undefined
+
+    const category = getMimeCategory(data.mimeType)
+
+    if (category === 'video') {
+      return (
+        getCloudflareStreamHlsUrl(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
+      )
+    }
+
+    return null
+  }
 
   return {
     name: 'hlsUrl',
     type: 'text',
     virtual: true,
     hooks: {
-      afterRead: [buildHlsResolver(collection)],
+      afterRead: [afterReadHook],
     },
     admin: { hidden: true },
   }
@@ -354,42 +304,33 @@ export const hlsUrlField = (options: VideoUrlFieldOptions): Field => {
  *
  * Returns the Cloudflare Stream MP4 download URL for video content, null
  * otherwise. Mount alongside `hlsUrlField` so consumers have a uniform name
- * for the MP4 across `videos` (where `url` is also MP4 but deprecated) and
- * mixed-media collections like `frames` and `files` (where `url` is the
- * generic file URL — image / R2 / MP4 by MIME).
+ * for the MP4 across `videos` and mixed-media collections like `frames` and
+ * `files` (where `url` is the generic file URL — image / R2 / MP4 by MIME).
  */
 export const mp4UrlField = (options: VideoUrlFieldOptions): Field => {
   const { collection } = options
+
+  const afterReadHook: FieldHook = ({ data }) => {
+    if (!data?.filename) return undefined
+
+    const category = getMimeCategory(data.mimeType)
+
+    if (category === 'video') {
+      return (
+        getCloudflareStreamMp4Url(data.filename) ?? getLocalFallbackUrl(collection, data.filename)
+      )
+    }
+
+    return null
+  }
 
   return {
     name: 'mp4Url',
     type: 'text',
     virtual: true,
     hooks: {
-      afterRead: [buildVideoMp4Resolver(collection)],
+      afterRead: [afterReadHook],
     },
     admin: { hidden: true },
-  }
-}
-
-/**
- * @deprecated Use `hlsUrlField` instead. Will be removed after the mobile-app
- * cutover (#319). Resolver behaviour is identical to `hlsUrlField`.
- */
-export const streamUrlField = (options: VideoUrlFieldOptions): Field => {
-  const { collection } = options
-
-  return {
-    name: 'streamUrl',
-    type: 'text',
-    virtual: true,
-    hooks: {
-      afterRead: [buildHlsResolver(collection)],
-    },
-    admin: {
-      hidden: true,
-      description:
-        'DEPRECATED: read `hlsUrl` instead. Will be removed after the mobile-app cutover (#319).',
-    },
   }
 }
