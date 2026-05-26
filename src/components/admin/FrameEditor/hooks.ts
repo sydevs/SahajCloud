@@ -6,24 +6,29 @@ import useSWR from 'swr'
 
 import type { Frame } from '@/payload-types'
 
+import {
+  getCachedPlaybackTime,
+  subscribePlaybackTime,
+} from './playbackTimeStore'
+
 /**
- * Hook to listen for playback time updates from the live preview iframe
- * Receives PLAYBACK_TIME_UPDATE messages via PostMessage API
+ * Hook to listen for playback time updates from the live preview iframe.
+ *
+ * Backed by a module-level singleton ([playbackTimeStore]) so the cached
+ * value survives component remounts — required because the Frames /
+ * Add New tabs each render in their own subtree and unmount when
+ * inactive. Without the singleton, switching tabs while audio was paused
+ * would reset the playhead state to 0.
  */
 export const usePlaybackTime = (): number => {
-  const [currentPlaybackTime, setCurrentPlaybackTime] = useState(0)
+  const [time, setTime] = useState<number>(getCachedPlaybackTime)
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'PLAYBACK_TIME_UPDATE') {
-        setCurrentPlaybackTime(event.data.currentTime)
-      }
-    }
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
+    setTime(getCachedPlaybackTime())
+    return subscribePlaybackTime(setTime)
   }, [])
 
-  return currentPlaybackTime
+  return time
 }
 
 /**

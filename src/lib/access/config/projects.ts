@@ -57,7 +57,6 @@ const PROJECTS = {
       'videos',
       'lessons',
       'lectures',
-      'lecture-clips',
       'audiences',
       'app-cards',
       'frames',
@@ -68,7 +67,7 @@ const PROJECTS = {
       'images',
       'files',
     ],
-    globals: ['wm-app-config', 'wm-app-translations'],
+    globals: ['wm-app-config', 'wm-app-translations', 'wm-app-status'],
   },
   'sahaj-atlas': {
     label: 'Sahaj Atlas',

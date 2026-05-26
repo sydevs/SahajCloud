@@ -91,7 +91,6 @@ export interface Config {
     videos: Video;
     lessons: Lesson;
     lectures: Lecture;
-    'lecture-clips': LectureClip;
     frames: Frame;
     narrators: Narrator;
     authors: Author;
@@ -117,15 +116,15 @@ export interface Config {
       songs: 'songs';
     };
     lectures: {
-      clips: 'lecture-clips';
+      clips: 'lectures';
     };
     authors: {
       articles: 'pages';
     };
     audiences: {
       lectures: 'lectures';
-      lectureClips: 'lecture-clips';
       appCards: 'app-cards';
+      appCardConditions: 'app-cards';
     };
     'user-choices': {
       children: 'user-choices';
@@ -147,7 +146,6 @@ export interface Config {
     videos: VideosSelect<false> | VideosSelect<true>;
     lessons: LessonsSelect<false> | LessonsSelect<true>;
     lectures: LecturesSelect<false> | LecturesSelect<true>;
-    'lecture-clips': LectureClipsSelect<false> | LectureClipsSelect<true>;
     frames: FramesSelect<false> | FramesSelect<true>;
     narrators: NarratorsSelect<false> | NarratorsSelect<true>;
     authors: AuthorsSelect<false> | AuthorsSelect<true>;
@@ -199,6 +197,7 @@ export interface Config {
     'wm-web-translations': WmWebTranslation;
     'wm-app-config': WmAppConfig;
     'wm-app-translations': WmAppTranslation;
+    'wm-app-status': WmAppStatus;
     'sy-atlas-config': SyAtlasConfig;
     'sy-atlas-translations': SyAtlasTranslation;
     'payload-jobs-stats': PayloadJobsStat;
@@ -208,6 +207,7 @@ export interface Config {
     'wm-web-translations': WmWebTranslationsSelect<false> | WmWebTranslationsSelect<true>;
     'wm-app-config': WmAppConfigSelect<false> | WmAppConfigSelect<true>;
     'wm-app-translations': WmAppTranslationsSelect<false> | WmAppTranslationsSelect<true>;
+    'wm-app-status': WmAppStatusSelect<false> | WmAppStatusSelect<true>;
     'sy-atlas-config': SyAtlasConfigSelect<false> | SyAtlasConfigSelect<true>;
     'sy-atlas-translations': SyAtlasTranslationsSelect<false> | SyAtlasTranslationsSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
@@ -327,6 +327,8 @@ export interface Page {
    */
   featuredVideo?: (number | null) | Video;
   tags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] | null;
+  webUrl?: string | null;
+  appUrl?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -436,6 +438,7 @@ export interface Video {
   hlsUrl?: string | null;
   mp4Url?: string | null;
   previewUrl?: string | null;
+  thumbnail?: (number | null) | Image;
   /**
    * Video title shown to users
    */
@@ -716,18 +719,15 @@ export interface Lesson {
      * Image or video for this panel.
      */
     media?: (number | null) | File;
-    /**
-     * Subtitles for video media (JSON format).
-     */
-    subtitles?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
+    subtitles?: {
+      captions: {
+        duration: number;
+        content: string;
+        startTime: string;
+        [k: string]: unknown;
+      }[];
+      [k: string]: unknown;
+    };
     id?: string | null;
   }[];
   /**
@@ -738,18 +738,15 @@ export interface Lesson {
    * Audio introduction to this lesson.
    */
   introAudio?: (number | null) | File;
-  /**
-   * Subtitles for intro audio (JSON format). Schema: duration, content, startTime.
-   */
-  introSubtitles?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  introSubtitles?: {
+    captions: {
+      duration: number;
+      content: string;
+      startTime: string;
+      [k: string]: unknown;
+    }[];
+    [k: string]: unknown;
+  };
   article?: {
     root: {
       type: string;
@@ -806,116 +803,28 @@ export interface File {
 export interface Lecture {
   id: number;
   /**
-   * Paste the Vimeo URL from amruta.org (e.g. https://vimeo.com/123456789).
+   * Whether this is a full lecture or a clip excerpted from one. Cannot be changed after creation.
    */
-  nirmalVidyaVimeoUrl: string;
+  type: 'full' | 'clip';
   /**
-   * Auto-populated from Nirmala Vidya. Can be edited after creation.
+   * Paste the Vimeo URL from amruta.org (e.g. https://vimeo.com/123456789). For clips, this is a creation-time lookup key — supply it OR pick a Full Lecture below; it is nulled after save.
    */
+  nirmalVidyaVimeoUrl?: string | null;
   title?: string | null;
   /**
    * Optional override for the Nirmala Vidya thumbnail. If blank, the API thumbnail is used.
    */
   thumbnail?: (number | null) | Image;
   /**
-   * Auto-populated from Nirmala Vidya API on create and by the monthly sync job. Contains title, HLS URL, thumbnail URL, and per-locale subtitle URLs.
+   * Optional start of the playback window (HH:MM:SS).
    */
-  metadata?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
+  startTime?: number | null;
   /**
-   * Audiences that control visibility. The lecture is shown to a viewer if ANY of the selected audiences passes. If empty, it is hidden from /api/lectures/for-audience and only surfaced when directly referenced (e.g. from a meditation or path step).
+   * Optional stop of the playback window (HH:MM:SS).
    */
-  audiences?: (number | Audience)[] | null;
+  stopTime?: number | null;
   /**
-   * User choices (mood/feeling tags) this lecture is relevant to. Used by the app to select contextually appropriate lectures.
-   */
-  userChoices?: (number | UserChoice)[] | null;
-  /**
-   * Chakras and nadis discussed in this lecture. Used for smart lecture selection based on meditation context.
-   */
-  subtleSystemNodes?: (number | SubtleSystemNode)[] | null;
-  clips?: {
-    docs?: (number | LectureClip)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "audiences".
- */
-export interface Audience {
-  id: number;
-  label: string;
-  rules?: {
-    logic?: 'AND' | 'OR';
-    pathProgress?: {
-      min?: number;
-      max?: number;
-    };
-    meditationsPerWeek?: {
-      min?: number;
-      max?: number;
-    };
-    totalMeditationsViewed?: {
-      min?: number;
-      max?: number;
-    };
-    totalLecturesViewed?: {
-      min?: number;
-      max?: number;
-    };
-  };
-  lectures?: {
-    docs?: (number | Lecture)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  lectureClips?: {
-    docs?: (number | LectureClip)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  appCards?: {
-    docs?: (number | AppCard)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "lecture-clips".
- */
-export interface LectureClip {
-  id: number;
-  lecture: number | Lecture;
-  /**
-   * Start of the excerpt (HH:MM:SS)
-   */
-  startTime: number;
-  /**
-   * End of the excerpt (HH:MM:SS)
-   */
-  endTime: number;
-  duration?: number | null;
-  title: string;
-  /**
-   * Optional. Falls back to the parent lecture's thumbnail when empty — fallback is applied by /api/lectures/for-audience, not by this collection's CRUD endpoints.
-   */
-  thumbnail?: (number | null) | Image;
-  /**
-   * Per-locale subtitle overrides. Any locale not listed here falls back to the parent lecture's Nirmala Vidya subtitles.
+   * Per-locale subtitle overrides. Any locale not listed here falls back to the parent lecture’s Nirmala Vidya subtitles.
    */
   subtitles?:
     | {
@@ -941,15 +850,664 @@ export interface LectureClip {
       }[]
     | null;
   /**
-   * Audiences that control visibility. The clip is shown to a viewer if ANY of the selected audiences passes. If empty, it is hidden from /api/lectures/for-audience and only surfaced when directly referenced (e.g. from a meditation or path step).
+   * Auto-populated from Nirmala Vidya API and updated monthly.
+   */
+  metadata?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * The full lecture this clip is excerpted from. Required for clips (alternatively, supply a Vimeo URL during create to look up or create the parent automatically).
+   */
+  fullLecture?: (number | null) | Lecture;
+  /**
+   * A user can view this lecture if they are a member of any of these audience groups. If empty, this lecture is only visible when directly referenced (e.g. from a meditation or path step).
    */
   audiences?: (number | Audience)[] | null;
   /**
-   * Chakras / nadis this clip focuses on. Drives the topical-overlap ranking in /api/meditations/:id/related-lecture-clips — clips with no nodes are excluded from that endpoint. Independent of the parent lecture's `subtleSystemNodes`.
+   * User choices this lecture is relevant to. Used by the app to select contextually appropriate lectures.
+   */
+  userChoices?: (number | UserChoice)[] | null;
+  /**
+   * Chakras and nadis discussed in this lecture. This allows us to select relevant lectures when a viewer finishes a meditation.
    */
   subtleSystemNodes?: (number | SubtleSystemNode)[] | null;
+  /**
+   * Lectures with priority > 0 are always returned first in the for-audience feed, sorted by priority (highest first). Lectures with equal priority are shuffled randomly. Leave at 0 for the normal random pool.
+   */
+  priority?: number | null;
+  clips?: {
+    docs?: (number | Lecture)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "audiences".
+ */
+export interface Audience {
+  id: number;
+  label: string;
+  pathProgress?: {
+    /**
+     * Minimum (inclusive). Empty = no lower bound.
+     */
+    min?: number | null;
+    /**
+     * Maximum (inclusive). Empty = no upper bound.
+     */
+    max?: number | null;
+  };
+  meditationsPerWeek?: {
+    /**
+     * Minimum (inclusive). Empty = no lower bound.
+     */
+    min?: number | null;
+    /**
+     * Maximum (inclusive). Empty = no upper bound.
+     */
+    max?: number | null;
+  };
+  totalMeditationsViewed?: {
+    /**
+     * Minimum (inclusive). Empty = no lower bound.
+     */
+    min?: number | null;
+    /**
+     * Maximum (inclusive). Empty = no upper bound.
+     */
+    max?: number | null;
+  };
+  totalLecturesViewed?: {
+    /**
+     * Minimum (inclusive). Empty = no lower bound.
+     */
+    min?: number | null;
+    /**
+     * Maximum (inclusive). Empty = no upper bound.
+     */
+    max?: number | null;
+  };
+  location?: {
+    /**
+     * Restrict to users in these countries. Leave empty to match all countries.
+     */
+    countries?:
+      | (
+          | 'AF'
+          | 'AX'
+          | 'AL'
+          | 'DZ'
+          | 'AS'
+          | 'AD'
+          | 'AO'
+          | 'AI'
+          | 'AQ'
+          | 'AG'
+          | 'AR'
+          | 'AM'
+          | 'AW'
+          | 'AU'
+          | 'AT'
+          | 'AZ'
+          | 'BS'
+          | 'BH'
+          | 'BD'
+          | 'BB'
+          | 'BY'
+          | 'BE'
+          | 'BZ'
+          | 'BJ'
+          | 'BM'
+          | 'BT'
+          | 'BO'
+          | 'BQ'
+          | 'BA'
+          | 'BW'
+          | 'BV'
+          | 'BR'
+          | 'IO'
+          | 'BN'
+          | 'BG'
+          | 'BF'
+          | 'BI'
+          | 'KH'
+          | 'CM'
+          | 'CA'
+          | 'CV'
+          | 'KY'
+          | 'CF'
+          | 'TD'
+          | 'CL'
+          | 'CX'
+          | 'CC'
+          | 'CO'
+          | 'KM'
+          | 'CK'
+          | 'CR'
+          | 'CI'
+          | 'HR'
+          | 'CU'
+          | 'CW'
+          | 'CY'
+          | 'CZ'
+          | 'CD'
+          | 'DK'
+          | 'DJ'
+          | 'DM'
+          | 'DO'
+          | 'EC'
+          | 'EG'
+          | 'SV'
+          | 'GQ'
+          | 'ER'
+          | 'EE'
+          | 'SZ'
+          | 'ET'
+          | 'FK'
+          | 'FO'
+          | 'FJ'
+          | 'FI'
+          | 'FR'
+          | 'GF'
+          | 'PF'
+          | 'TF'
+          | 'GA'
+          | 'GE'
+          | 'DE'
+          | 'GH'
+          | 'GI'
+          | 'GR'
+          | 'GL'
+          | 'GD'
+          | 'GP'
+          | 'GU'
+          | 'GT'
+          | 'GG'
+          | 'GN'
+          | 'GW'
+          | 'GY'
+          | 'HT'
+          | 'HM'
+          | 'VA'
+          | 'HN'
+          | 'HK'
+          | 'HU'
+          | 'IS'
+          | 'IN'
+          | 'ID'
+          | 'IQ'
+          | 'IE'
+          | 'IR'
+          | 'IM'
+          | 'IL'
+          | 'IT'
+          | 'JM'
+          | 'JP'
+          | 'JE'
+          | 'JO'
+          | 'KZ'
+          | 'KE'
+          | 'KI'
+          | 'XK'
+          | 'KW'
+          | 'KG'
+          | 'LA'
+          | 'LV'
+          | 'LB'
+          | 'LS'
+          | 'LR'
+          | 'LY'
+          | 'LI'
+          | 'LT'
+          | 'LU'
+          | 'MO'
+          | 'MG'
+          | 'MW'
+          | 'MY'
+          | 'MV'
+          | 'ML'
+          | 'MT'
+          | 'MH'
+          | 'MQ'
+          | 'MR'
+          | 'MU'
+          | 'YT'
+          | 'MX'
+          | 'FM'
+          | 'MD'
+          | 'MC'
+          | 'MN'
+          | 'ME'
+          | 'MS'
+          | 'MA'
+          | 'MZ'
+          | 'MM'
+          | 'NA'
+          | 'NR'
+          | 'NP'
+          | 'NL'
+          | 'NC'
+          | 'NZ'
+          | 'NI'
+          | 'NE'
+          | 'NG'
+          | 'NU'
+          | 'NF'
+          | 'KP'
+          | 'MP'
+          | 'NO'
+          | 'OM'
+          | 'PK'
+          | 'PW'
+          | 'PA'
+          | 'PG'
+          | 'PY'
+          | 'CN'
+          | 'PE'
+          | 'PH'
+          | 'PN'
+          | 'PL'
+          | 'PT'
+          | 'PR'
+          | 'QA'
+          | 'CG'
+          | 'GM'
+          | 'RE'
+          | 'RO'
+          | 'RU'
+          | 'RW'
+          | 'BL'
+          | 'SH'
+          | 'KN'
+          | 'LC'
+          | 'MF'
+          | 'PM'
+          | 'VC'
+          | 'WS'
+          | 'SM'
+          | 'ST'
+          | 'SA'
+          | 'SN'
+          | 'RS'
+          | 'SC'
+          | 'SL'
+          | 'SG'
+          | 'SX'
+          | 'SK'
+          | 'SI'
+          | 'SB'
+          | 'SO'
+          | 'ZA'
+          | 'GS'
+          | 'KR'
+          | 'SS'
+          | 'ES'
+          | 'LK'
+          | 'PS'
+          | 'SD'
+          | 'SR'
+          | 'SJ'
+          | 'SE'
+          | 'CH'
+          | 'SY'
+          | 'TW'
+          | 'TJ'
+          | 'TH'
+          | 'MK'
+          | 'TL'
+          | 'TG'
+          | 'TK'
+          | 'TO'
+          | 'TT'
+          | 'TN'
+          | 'TR'
+          | 'TM'
+          | 'TC'
+          | 'TV'
+          | 'UG'
+          | 'UA'
+          | 'AE'
+          | 'GB'
+          | 'TZ'
+          | 'UM'
+          | 'US'
+          | 'UY'
+          | 'UZ'
+          | 'VU'
+          | 'VE'
+          | 'VN'
+          | 'VG'
+          | 'VI'
+          | 'WF'
+          | 'EH'
+          | 'YE'
+          | 'ZM'
+          | 'ZW'
+        )[]
+      | null;
+  };
+  /**
+   * All lectures tagged with this audience
+   */
+  lectures?: {
+    docs?: (number | Lecture)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * All app cards tagged with this audience
+   */
+  appCards?: {
+    docs?: (number | AppCard)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * All app cards that require this audience as a condition
+   */
+  appCardConditions?: {
+    docs?: (number | AppCard)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "app-cards".
+ */
+export interface AppCard {
+  id: number;
+  label?: string | null;
+  type: 'standard' | 'event';
+  viewSchedule?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  default: {
+    /**
+     * Shown above the card in hero placement.
+     */
+    header?: string | null;
+    title: string;
+    subtitle?: string | null;
+    /**
+     * Button label text.
+     */
+    buttonText?: string | null;
+    buttonIcon?: (number | null) | Image;
+    /**
+     * Where this card navigates to when tapped.
+     */
+    destination?: ('page' | 'lecture' | 'album' | 'meditation' | 'url') | null;
+    /**
+     * Page this card links to.
+     */
+    page?: (number | null) | Page;
+    lecture?: (number | null) | Lecture;
+    album?: (number | null) | Album;
+    meditation?: (number | null) | Meditation;
+    url?: string | null;
+    image?: (number | null) | Image;
+    /**
+     * Card image aspect ratio.
+     */
+    aspectRatio: 'square' | 'flexible';
+    /**
+     * Text color used over the card image.
+     */
+    textColor: 'black' | 'white';
+    /**
+     * Text alignment for card content.
+     */
+    alignment: 'left' | 'center';
+  };
+  startingSoon?: {
+    enabled?: boolean | null;
+    /**
+     * How long before the event start this view activates (HH:MM).
+     */
+    threshold?: string | null;
+    /**
+     * Shown above the card in hero placement.
+     */
+    header?: string | null;
+    title?: string | null;
+    subtitle?: string | null;
+    /**
+     * Button label text.
+     */
+    buttonText?: string | null;
+    buttonIcon?: (number | null) | Image;
+    /**
+     * Where this card navigates to when tapped.
+     */
+    destination?: ('page' | 'lecture' | 'album' | 'meditation' | 'url') | null;
+    /**
+     * Page this card links to.
+     */
+    page?: (number | null) | Page;
+    lecture?: (number | null) | Lecture;
+    album?: (number | null) | Album;
+    meditation?: (number | null) | Meditation;
+    url?: string | null;
+    image?: (number | null) | Image;
+    /**
+     * Card image aspect ratio.
+     */
+    aspectRatio: 'square' | 'flexible';
+    /**
+     * Text color used over the card image.
+     */
+    textColor: 'black' | 'white';
+    /**
+     * Text alignment for card content.
+     */
+    alignment: 'left' | 'center';
+  };
+  liveNow?: {
+    enabled?: boolean | null;
+    /**
+     * How long before the event start this view activates (HH:MM).
+     */
+    threshold?: string | null;
+    /**
+     * Shown above the card in hero placement.
+     */
+    header?: string | null;
+    title?: string | null;
+    subtitle?: string | null;
+    /**
+     * Button label text.
+     */
+    buttonText?: string | null;
+    buttonIcon?: (number | null) | Image;
+    /**
+     * Where this card navigates to when tapped.
+     */
+    destination?: ('page' | 'lecture' | 'album' | 'meditation' | 'url') | null;
+    /**
+     * Page this card links to.
+     */
+    page?: (number | null) | Page;
+    lecture?: (number | null) | Lecture;
+    album?: (number | null) | Album;
+    meditation?: (number | null) | Meditation;
+    url?: string | null;
+    image?: (number | null) | Image;
+    /**
+     * Card image aspect ratio.
+     */
+    aspectRatio: 'square' | 'flexible';
+    /**
+     * Text color used over the card image.
+     */
+    textColor: 'black' | 'white';
+    /**
+     * Text alignment for card content.
+     */
+    alignment: 'left' | 'center';
+  };
+  /**
+   * Configure when this event occurs and repeats
+   */
+  schedule: {
+    firstDate: string;
+    firstDate_tz: SupportedTimezones;
+    /**
+     * Optional, same day (24-hour format)
+     */
+    endTime?: string | null;
+    recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
+    /**
+     * Repeat every N days/weeks/months
+     */
+    interval?: number | null;
+    weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
+    /**
+     * Dates when this recurring event will not occur, such as holidays or seasonal breaks.
+     */
+    exclusions?:
+      | {
+          startDate: string;
+          endDate?: string | null;
+          reason?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    icalRule?: string | null;
+    upcomingDates?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  /**
+   * Target sections where this card should appear on the app homepage.
+   */
+  targetSections?: ('hero' | 'highlights' | 'lectures')[] | null;
+  /**
+   * Time-of-day slots when this card should be shown. Leave empty to show at all times.
+   */
+  timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
+  /**
+   * Card is shown to a viewer if they match ANY of these audiences (OR). Leave empty to hide the card from all viewers.
+   */
+  audiences?: (number | Audience)[] | null;
+  /**
+   * ALL of these must also pass (AND). Use for country gates. Leave empty to skip additional gating.
+   */
+  conditions?: (number | Audience)[] | null;
+  /**
+   * Controls how likely this card is to be chosen when displayed to a user.
+   */
+  weight?: number | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "user-choices".
+ */
+export interface UserChoice {
+  id: number;
+  /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  /**
+   * URL-friendly identifier (auto-generated from title)
+   */
+  slug: string;
+  /**
+   * Localized title shown to public users
+   */
+  title?: string | null;
+  /**
+   * Whether this choice describes how the user feels right now (mood) or what they want to work toward (goal). Time-of-day timings and per-timing meditation assignments only apply to mood choices.
+   */
+  type: 'mood' | 'goal' | 'duration';
+  /**
+   * Tag color for UI theming (hex format)
+   */
+  color?: string | null;
+  /**
+   * Parent category for grouping. Parent categories are not selectable on meditations. Editable by admin managers only.
+   */
+  parent?: (number | null) | UserChoice;
+  /**
+   * Featured categories are shown prominently; non-featured categories appear in a dropdown
+   */
+  isFeatured?: boolean | null;
+  /**
+   * Display order (lower numbers appear first)
+   */
+  order?: number | null;
+  /**
+   * Which times of day this category offers meditations
+   */
+  timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
+  /**
+   * The meditation offered for this category in the morning
+   */
+  morningMeditation?: (number | null) | Meditation;
+  /**
+   * The meditation offered for this category in the afternoon
+   */
+  afternoonMeditation?: (number | null) | Meditation;
+  /**
+   * The meditation offered for this category in the evening
+   */
+  eveningMeditation?: (number | null) | Meditation;
+  /**
+   * The meditation offered for this category at night
+   */
+  nightMeditation?: (number | null) | Meditation;
+  /**
+   * Automatically set when this tag has child categories
+   */
+  isParent: boolean;
+  children?: {
+    docs?: (number | UserChoice)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  lectures?: {
+    docs?: (number | Lecture)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1045,194 +1603,6 @@ export interface Frame {
     | number
     | boolean
     | null;
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "app-cards".
- */
-export interface AppCard {
-  id: number;
-  image: number | Image;
-  title: string;
-  subtitle?: string | null;
-  /**
-   * Button label text
-   */
-  button?: string | null;
-  /**
-   * A custom header that will appear above the card if it is selected as a hero card.
-   */
-  header: string;
-  type: 'app-page' | 'content' | 'external';
-  /**
-   * Select the app page this card links to
-   */
-  appPage?: ('map' | 'lectures' | 'path' | 'music' | 'live-meditations') | null;
-  /**
-   * Select the content item this card links to
-   */
-  content?:
-    | ({
-        relationTo: 'lecture-clips';
-        value: number | LectureClip;
-      } | null)
-    | ({
-        relationTo: 'lectures';
-        value: number | Lecture;
-      } | null)
-    | ({
-        relationTo: 'albums';
-        value: number | Album;
-      } | null)
-    | ({
-        relationTo: 'meditations';
-        value: number | Meditation;
-      } | null);
-  /**
-   * External URL this card links to
-   */
-  linkUrl?: string | null;
-  /**
-   * Enable recurring schedule for this card (countdown/reminder functionality)
-   */
-  countdown?: boolean | null;
-  /**
-   * Render the card with a dark overlay and white text instead of the default style.
-   */
-  overlay?: boolean | null;
-  /**
-   * Configure the recurring schedule for this reminder card
-   */
-  schedule?: {
-    firstDate: string;
-    firstDate_tz: SupportedTimezones;
-    recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
-    /**
-     * Repeat every N days/weeks/months
-     */
-    interval?: number | null;
-    weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
-    /**
-     * Dates when this recurring event will not occur, such as holidays or seasonal breaks.
-     */
-    exclusions?:
-      | {
-          startDate: string;
-          endDate?: string | null;
-          reason?: string | null;
-          id?: string | null;
-        }[]
-      | null;
-    icalRule?: string | null;
-    upcomingDates?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-  };
-  /**
-   * Target sections where this card should appear on the app homepage.
-   */
-  targetSections?: ('hero' | 'highlights' | 'lectures')[] | null;
-  /**
-   * Audiences that control visibility. The card is shown to a viewer if ANY of the selected audiences passes. If empty, the card is hidden from /api/app-cards/for-audience and never appears on the app homepage.
-   */
-  audiences?: (number | Audience)[] | null;
-  /**
-   * Controls how likely this card is to be chosen when displayed to a user.
-   */
-  weight?: number | null;
-  updatedAt: string;
-  createdAt: string;
-  _status?: ('draft' | 'published') | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "user-choices".
- */
-export interface UserChoice {
-  id: number;
-  /**
-   * When enabled, the slug will auto-generate from the title field on save and autosave.
-   */
-  generateSlug?: boolean | null;
-  /**
-   * URL-friendly identifier (auto-generated from title)
-   */
-  slug: string;
-  /**
-   * Localized title shown to public users
-   */
-  title?: string | null;
-  /**
-   * Whether this choice describes how the user feels right now (mood) or what they want to work toward (goal). Time-of-day timings and per-timing meditation assignments only apply to mood choices.
-   */
-  type: 'mood' | 'goal' | 'duration';
-  /**
-   * Tag color for UI theming (hex format)
-   */
-  color?: string | null;
-  /**
-   * Parent category for grouping. Parent categories are not selectable on meditations. Editable by admin managers only.
-   */
-  parent?: (number | null) | UserChoice;
-  /**
-   * Featured categories are shown prominently; non-featured categories appear in a dropdown
-   */
-  isFeatured?: boolean | null;
-  /**
-   * Display order (lower numbers appear first)
-   */
-  order?: number | null;
-  /**
-   * Which times of day this category offers meditations
-   */
-  timings?: ('morning' | 'afternoon' | 'evening' | 'night')[] | null;
-  /**
-   * The meditation offered for this category in the morning
-   */
-  morningMeditation?: (number | null) | Meditation;
-  /**
-   * The meditation offered for this category in the afternoon
-   */
-  afternoonMeditation?: (number | null) | Meditation;
-  /**
-   * The meditation offered for this category in the evening
-   */
-  eveningMeditation?: (number | null) | Meditation;
-  /**
-   * The meditation offered for this category at night
-   */
-  nightMeditation?: (number | null) | Meditation;
-  /**
-   * Automatically set when this tag has child categories
-   */
-  isParent: boolean;
-  children?: {
-    docs?: (number | UserChoice)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  lectures?: {
-    docs?: (number | Lecture)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1723,10 +2093,6 @@ export interface PayloadLockedDocument {
         value: number | Lecture;
       } | null)
     | ({
-        relationTo: 'lecture-clips';
-        value: number | LectureClip;
-      } | null)
-    | ({
         relationTo: 'frames';
         value: number | Frame;
       } | null)
@@ -1853,6 +2219,8 @@ export interface PagesSelect<T extends boolean = true> {
   author?: T;
   featuredVideo?: T;
   tags?: T;
+  webUrl?: T;
+  appUrl?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -1944,6 +2312,7 @@ export interface VideosSelect<T extends boolean = true> {
   hlsUrl?: T;
   mp4Url?: T;
   previewUrl?: T;
+  thumbnail?: T;
   title?: T;
   subtitles?: T;
   tags?: T;
@@ -1991,28 +2360,12 @@ export interface LessonsSelect<T extends boolean = true> {
  * via the `definition` "lectures_select".
  */
 export interface LecturesSelect<T extends boolean = true> {
+  type?: T;
   nirmalVidyaVimeoUrl?: T;
   title?: T;
   thumbnail?: T;
-  metadata?: T;
-  audiences?: T;
-  userChoices?: T;
-  subtleSystemNodes?: T;
-  clips?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "lecture-clips_select".
- */
-export interface LectureClipsSelect<T extends boolean = true> {
-  lecture?: T;
   startTime?: T;
-  endTime?: T;
-  duration?: T;
-  title?: T;
-  thumbnail?: T;
+  stopTime?: T;
   subtitles?:
     | T
     | {
@@ -2020,8 +2373,13 @@ export interface LectureClipsSelect<T extends boolean = true> {
         url?: T;
         id?: T;
       };
+  metadata?: T;
+  fullLecture?: T;
   audiences?: T;
+  userChoices?: T;
   subtleSystemNodes?: T;
+  priority?: T;
+  clips?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2126,10 +2484,38 @@ export interface FilesSelect<T extends boolean = true> {
  */
 export interface AudiencesSelect<T extends boolean = true> {
   label?: T;
-  rules?: T;
+  pathProgress?:
+    | T
+    | {
+        min?: T;
+        max?: T;
+      };
+  meditationsPerWeek?:
+    | T
+    | {
+        min?: T;
+        max?: T;
+      };
+  totalMeditationsViewed?:
+    | T
+    | {
+        min?: T;
+        max?: T;
+      };
+  totalLecturesViewed?:
+    | T
+    | {
+        min?: T;
+        max?: T;
+      };
+  location?:
+    | T
+    | {
+        countries?: T;
+      };
   lectures?: T;
-  lectureClips?: T;
   appCards?: T;
+  appCardConditions?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2264,22 +2650,76 @@ export interface ClientsSelect<T extends boolean = true> {
  * via the `definition` "app-cards_select".
  */
 export interface AppCardsSelect<T extends boolean = true> {
-  image?: T;
-  title?: T;
-  subtitle?: T;
-  button?: T;
-  header?: T;
+  label?: T;
   type?: T;
-  appPage?: T;
-  content?: T;
-  linkUrl?: T;
-  countdown?: T;
-  overlay?: T;
+  viewSchedule?: T;
+  default?:
+    | T
+    | {
+        header?: T;
+        title?: T;
+        subtitle?: T;
+        buttonText?: T;
+        buttonIcon?: T;
+        destination?: T;
+        page?: T;
+        lecture?: T;
+        album?: T;
+        meditation?: T;
+        url?: T;
+        image?: T;
+        aspectRatio?: T;
+        textColor?: T;
+        alignment?: T;
+      };
+  startingSoon?:
+    | T
+    | {
+        enabled?: T;
+        threshold?: T;
+        header?: T;
+        title?: T;
+        subtitle?: T;
+        buttonText?: T;
+        buttonIcon?: T;
+        destination?: T;
+        page?: T;
+        lecture?: T;
+        album?: T;
+        meditation?: T;
+        url?: T;
+        image?: T;
+        aspectRatio?: T;
+        textColor?: T;
+        alignment?: T;
+      };
+  liveNow?:
+    | T
+    | {
+        enabled?: T;
+        threshold?: T;
+        header?: T;
+        title?: T;
+        subtitle?: T;
+        buttonText?: T;
+        buttonIcon?: T;
+        destination?: T;
+        page?: T;
+        lecture?: T;
+        album?: T;
+        meditation?: T;
+        url?: T;
+        image?: T;
+        aspectRatio?: T;
+        textColor?: T;
+        alignment?: T;
+      };
   schedule?:
     | T
     | {
         firstDate?: T;
         firstDate_tz?: T;
+        endTime?: T;
         recurrenceType?: T;
         interval?: T;
         weekdays?: T;
@@ -2295,7 +2735,9 @@ export interface AppCardsSelect<T extends boolean = true> {
         upcomingDates?: T;
       };
   targetSections?: T;
+  timings?: T;
   audiences?: T;
+  conditions?: T;
   weight?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -2554,38 +2996,24 @@ export interface WmWebConfig {
  */
 export interface WmWebTranslation {
   id: number;
-  common?: {
-    /**
-     * Loading indicator text shown while content is being fetched
-     */
-    loading: string;
-    /**
-     * Generic error message shown when something goes wrong
-     */
-    error: string;
-    /**
-     * Button text to retry a failed action
-     */
-    retry: string;
-  };
-  navigation?: {
-    /**
-     * Navigation link to the About Meditation section
-     */
-    about_meditation: string;
-    /**
-     * Navigation link to educational content and resources
-     */
-    learn_more: string;
-    /**
-     * Call-to-action navigation link inviting users to meditate
-     */
-    come_meditate: string;
-    /**
-     * Language selector label in the navigation
-     */
-    languages: string;
-  };
+  common?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  navigation?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2595,14 +3023,58 @@ export interface WmWebTranslation {
  */
 export interface WmAppConfig {
   id: number;
+  classesPage: number | Page;
+  liveMeditationsPage: number | Page;
+  /**
+   * Page for exploring full app content
+   */
+  explorePage: number | Page;
+  /**
+   * Page for going deeper spiritually
+   */
+  exploreDeeperPage: number | Page;
+  /**
+   * Page promoting collective meditation
+   */
+  meditateTogetherPage: number | Page;
+  /**
+   * Index page for techniques
+   */
+  techniquesPage: number | Page;
+  /**
+   * Index page for Shri Mataji's talks
+   */
+  lecturesPage: number | Page;
+  /**
+   * Index page for the path
+   */
+  lessonsPage: number | Page;
+  /**
+   * Index page for music
+   */
+  musicPage: number | Page;
+  /**
+   * Learn more about Shri Mataji.
+   */
+  shriMatajiPage: number | Page;
+  /**
+   * Learn more about Sahaja Yoga.
+   */
+  sahajaYogaPage: number | Page;
+  /**
+   * Learn more about the Subtle System.
+   */
+  subtleSystemPage: number | Page;
+  privacyPage: number | Page;
+  termsPage: number | Page;
   /**
    * Self-realization meditation for new users.
    */
   selfRealizationMeditation?: (number | null) | Meditation;
   /**
-   * Lecture clip shown after the first meditation.
+   * Lecture shown after the first meditation.
    */
-  postRealizationLecture?: (number | null) | LectureClip;
+  postRealizationLecture?: (number | null) | Lecture;
   /**
    * Audio prompts and subtitles for the vibe check step of the first meditation.
    */
@@ -2631,6 +3103,18 @@ export interface WmAppConfig {
         id?: string | null;
       }[]
     | null;
+  /**
+   * Lecture shown when no personalized lecture content is available.
+   */
+  fallbackLecture?: (number | null) | Lecture;
+  /**
+   * App Store URL for the iOS app.
+   */
+  iosAppUrl?: string | null;
+  /**
+   * Play Store URL for the Android app.
+   */
+  androidAppUrl?: string | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2640,116 +3124,919 @@ export interface WmAppConfig {
  */
 export interface WmAppTranslation {
   id: number;
-  daily?: {
+  onboarding_welcome?: {
+    strings?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
     /**
-     * Daily meditation section title
+     * Inline legal disclaimer below the primary CTAs. Renders two inline links to the in-app Terms and Privacy Policy webviews (URLs use the wemeditate://legal/* scheme — see ticket for full reference). Translators control word order, link placement, and the connector between the two link labels.
      */
-    title: string;
-    /**
-     * Subtitle or description for daily content
-     */
-    subtitle: string;
-    /**
-     * Message when daily meditation is complete
-     */
-    complete: string;
-    /**
-     * Meditation streak counter label
-     */
-    streak: string;
-    /**
-     * Skip daily meditation button
-     */
-    skip: string;
+    legal_disclaimer?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
   };
-  path?: {
+  onboarding_name?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  onboarding_greeting?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  onboarding_user_type?: {
+    strings?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
     /**
-     * Path section title
+     * Screen title prompt (e.g. 'Have you tried Sahaja Yoga before?'). The brand fragment 'Sahaja Yoga' is rendered as a bold inline span; translators may choose a different word to bold or apply no bold per locale convention.
      */
-    title: string;
-    /**
-     * Progress indicator label
-     */
-    progress: string;
-    /**
-     * Continue lesson button
-     */
-    continue: string;
-    /**
-     * Start new unit button
-     */
-    start_unit: string;
-    /**
-     * Lesson completion message
-     */
-    lesson_complete: string;
+    title?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
   };
-  explore?: {
+  onboarding_carousel?: {
+    strings?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
     /**
-     * Explore section title
+     * Slide 2 title (e.g. 'Get to know your true self'). The 'true self' fragment is rendered as a bold inline span; the Flutter renderer may also apply an accent colour to bolded segments on this slide.
      */
-    title: string;
-    /**
-     * Search placeholder text
-     */
-    search: string;
-    /**
-     * Filter button label
-     */
-    filter: string;
-    /**
-     * Categories section header
-     */
-    categories: string;
-    /**
-     * View all items link
-     */
-    view_all: string;
+    page_true_self_title?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
   };
-  profile?: {
+  onboarding_consent_modal?: {
+    strings?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
     /**
-     * Profile screen title
+     * Third paragraph listing categories that are never sent for advertising (mood, goals, hand sensations, reflections, class location, spiritual-practice details). Lead phrase 'We'll never share' is rendered as a bold inline span. Must remain consistent with the privacy filter in analytics-simplified/03-marketing-event-taxonomy.md §2.
      */
-    title: string;
+    body_never_share?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
     /**
-     * Settings button label
+     * Fourth paragraph: short statement that the app never sells user data. Phrase 'we never sell' is rendered as a bold inline span.
      */
-    settings: string;
+    body_never_sell?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
     /**
-     * Statistics section header
+     * First paragraph of the consent modal. Contains an inline link (e.g. 'what we share') opening the privacy-detail sheet that lists the exact fields sent to Meta, Apple Search Ads and Google Ads. Link URL uses the wemeditate://legal/what-we-share scheme.
      */
-    statistics: string;
-    /**
-     * Logout button
-     */
-    logout: string;
-    /**
-     * Edit profile button
-     */
-    edit: string;
+    body_intro?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
   };
-  meditation?: {
+  daily_main?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  daily_common?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  daily_load_info?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  path_overview?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  path_info?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  path_step_1?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  path_step_2?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  path_step_3?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  path_step_4?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  path_step_complete?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  explore_overview?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  explore_subtle_system?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  explore_talks_intro?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  explore_talks_list?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  explore_talks_player?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  profile_main?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  profile_favourites?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  profile_history?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  profile_account?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  profile_privacy_advertising?: {
+    strings?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
     /**
-     * Play button label
+     * Third paragraph of the advertising section. Covers both the never-shared categories AND the never-sell statement in a single paragraph with two bold spans ('We'll never share' / 'we never sell'). Must remain consistent with analytics-simplified/03-marketing-event-taxonomy.md §2.
      */
-    play: string;
+    advertising_body_never_share?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
     /**
-     * Pause button label
+     * First paragraph of the advertising section. Contains an inline link (e.g. 'what we share') that opens the Privacy Policy page (CMS page id 73, scrolled to the 'what we share' heading) — same link target as onboarding_consent_modal.body_intro.
      */
-    pause: string;
-    /**
-     * Meditation complete message
-     */
-    complete: string;
-    /**
-     * Timer display label
-     */
-    timer: string;
-    /**
-     * Background sound selector
-     */
-    background_sound: string;
+    advertising_body_intro?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
   };
+  profile_contact?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  meditation_intent?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  meditation_reminder?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  meditation_footsoak?: {
+    strings?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    /**
+     * Body copy of the foot-soak screen. Contains a short emphasised span (typically italic, e.g. 'really') that translators position freely within the sentence.
+     */
+    description?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
+  };
+  meditation_player?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  meditation_vibes_check?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  meditation_feedback?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  auth_common?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  auth_login?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  auth_restore_password?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  auth_restore_password_email_sent?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  auth_create_account?: {
+    strings?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    /**
+     * Consent checkbox label on the account creation screen. Contains two inline links (Terms & Conditions, Privacy Policy) opening the corresponding in-app webviews (wemeditate://legal/terms, wemeditate://legal/privacy). Independent of the ad-measurement consent.
+     */
+    consent_label?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
+  };
+  navigation?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  general?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Save the global with this checked to record that you reviewed this locale’s translations now. The checkbox always reads as off.
+   */
+  markReviewed?: boolean | null;
+  /**
+   * Last time an admin manually marked translations reviewed for this locale.
+   */
+  lastReviewedAt?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "wm-app-status".
+ */
+export interface WmAppStatus {
+  id: number;
+  /**
+   * Computed launch-readiness report for the userChoices section in the current locale.
+   */
+  userChoices?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Computed launch-readiness report for the lessons section in the current locale.
+   */
+  lessons?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Computed launch-readiness report for the lectures section in the current locale.
+   */
+  lectures?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Computed launch-readiness report for the pages section in the current locale.
+   */
+  pages?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Computed launch-readiness report for the appConfig section in the current locale.
+   */
+  appConfig?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Computed launch-readiness report for the translations section in the current locale.
+   */
+  translations?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Computed launch-readiness report for the appCards section in the current locale.
+   */
+  appCards?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * App cards that must be ready before launch. All other app cards roll up under the optional "other-cards" group.
+   */
+  launchCriticalAppCards?: (number | AppCard)[] | null;
+  /**
+   * Baseline country used to resolve the new-user audience set for this locale.
+   */
+  baselineCountry:
+    | 'AF'
+    | 'AX'
+    | 'AL'
+    | 'DZ'
+    | 'AS'
+    | 'AD'
+    | 'AO'
+    | 'AI'
+    | 'AQ'
+    | 'AG'
+    | 'AR'
+    | 'AM'
+    | 'AW'
+    | 'AU'
+    | 'AT'
+    | 'AZ'
+    | 'BS'
+    | 'BH'
+    | 'BD'
+    | 'BB'
+    | 'BY'
+    | 'BE'
+    | 'BZ'
+    | 'BJ'
+    | 'BM'
+    | 'BT'
+    | 'BO'
+    | 'BQ'
+    | 'BA'
+    | 'BW'
+    | 'BV'
+    | 'BR'
+    | 'IO'
+    | 'BN'
+    | 'BG'
+    | 'BF'
+    | 'BI'
+    | 'KH'
+    | 'CM'
+    | 'CA'
+    | 'CV'
+    | 'KY'
+    | 'CF'
+    | 'TD'
+    | 'CL'
+    | 'CX'
+    | 'CC'
+    | 'CO'
+    | 'KM'
+    | 'CK'
+    | 'CR'
+    | 'CI'
+    | 'HR'
+    | 'CU'
+    | 'CW'
+    | 'CY'
+    | 'CZ'
+    | 'CD'
+    | 'DK'
+    | 'DJ'
+    | 'DM'
+    | 'DO'
+    | 'EC'
+    | 'EG'
+    | 'SV'
+    | 'GQ'
+    | 'ER'
+    | 'EE'
+    | 'SZ'
+    | 'ET'
+    | 'FK'
+    | 'FO'
+    | 'FJ'
+    | 'FI'
+    | 'FR'
+    | 'GF'
+    | 'PF'
+    | 'TF'
+    | 'GA'
+    | 'GE'
+    | 'DE'
+    | 'GH'
+    | 'GI'
+    | 'GR'
+    | 'GL'
+    | 'GD'
+    | 'GP'
+    | 'GU'
+    | 'GT'
+    | 'GG'
+    | 'GN'
+    | 'GW'
+    | 'GY'
+    | 'HT'
+    | 'HM'
+    | 'VA'
+    | 'HN'
+    | 'HK'
+    | 'HU'
+    | 'IS'
+    | 'IN'
+    | 'ID'
+    | 'IQ'
+    | 'IE'
+    | 'IR'
+    | 'IM'
+    | 'IL'
+    | 'IT'
+    | 'JM'
+    | 'JP'
+    | 'JE'
+    | 'JO'
+    | 'KZ'
+    | 'KE'
+    | 'KI'
+    | 'XK'
+    | 'KW'
+    | 'KG'
+    | 'LA'
+    | 'LV'
+    | 'LB'
+    | 'LS'
+    | 'LR'
+    | 'LY'
+    | 'LI'
+    | 'LT'
+    | 'LU'
+    | 'MO'
+    | 'MG'
+    | 'MW'
+    | 'MY'
+    | 'MV'
+    | 'ML'
+    | 'MT'
+    | 'MH'
+    | 'MQ'
+    | 'MR'
+    | 'MU'
+    | 'YT'
+    | 'MX'
+    | 'FM'
+    | 'MD'
+    | 'MC'
+    | 'MN'
+    | 'ME'
+    | 'MS'
+    | 'MA'
+    | 'MZ'
+    | 'MM'
+    | 'NA'
+    | 'NR'
+    | 'NP'
+    | 'NL'
+    | 'NC'
+    | 'NZ'
+    | 'NI'
+    | 'NE'
+    | 'NG'
+    | 'NU'
+    | 'NF'
+    | 'KP'
+    | 'MP'
+    | 'NO'
+    | 'OM'
+    | 'PK'
+    | 'PW'
+    | 'PA'
+    | 'PG'
+    | 'PY'
+    | 'CN'
+    | 'PE'
+    | 'PH'
+    | 'PN'
+    | 'PL'
+    | 'PT'
+    | 'PR'
+    | 'QA'
+    | 'CG'
+    | 'GM'
+    | 'RE'
+    | 'RO'
+    | 'RU'
+    | 'RW'
+    | 'BL'
+    | 'SH'
+    | 'KN'
+    | 'LC'
+    | 'MF'
+    | 'PM'
+    | 'VC'
+    | 'WS'
+    | 'SM'
+    | 'ST'
+    | 'SA'
+    | 'SN'
+    | 'RS'
+    | 'SC'
+    | 'SL'
+    | 'SG'
+    | 'SX'
+    | 'SK'
+    | 'SI'
+    | 'SB'
+    | 'SO'
+    | 'ZA'
+    | 'GS'
+    | 'KR'
+    | 'SS'
+    | 'ES'
+    | 'LK'
+    | 'PS'
+    | 'SD'
+    | 'SR'
+    | 'SJ'
+    | 'SE'
+    | 'CH'
+    | 'SY'
+    | 'TW'
+    | 'TJ'
+    | 'TH'
+    | 'MK'
+    | 'TL'
+    | 'TG'
+    | 'TK'
+    | 'TO'
+    | 'TT'
+    | 'TN'
+    | 'TR'
+    | 'TM'
+    | 'TC'
+    | 'TV'
+    | 'UG'
+    | 'UA'
+    | 'AE'
+    | 'GB'
+    | 'TZ'
+    | 'UM'
+    | 'US'
+    | 'UY'
+    | 'UZ'
+    | 'VU'
+    | 'VE'
+    | 'VN'
+    | 'VG'
+    | 'VI'
+    | 'WF'
+    | 'EH'
+    | 'YE'
+    | 'ZM'
+    | 'ZW';
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2773,40 +4060,33 @@ export interface SyAtlasConfig {
  */
 export interface SyAtlasTranslation {
   id: number;
-  common?: {
-    /**
-     * Loading indicator text shown while content is being fetched
-     */
-    loading: string;
-    /**
-     * Generic error message shown when something goes wrong
-     */
-    error: string;
-  };
-  map?: {
-    /**
-     * Tooltip for the zoom in map control button
-     */
-    zoom_in: string;
-    /**
-     * Tooltip for the zoom out map control button
-     */
-    zoom_out: string;
-    /**
-     * Button text to center the map on the user's current location
-     */
-    my_location: string;
-  };
-  location?: {
-    /**
-     * Link text to view full details of a location
-     */
-    details: string;
-    /**
-     * Button text to get directions to a location
-     */
-    directions: string;
-  };
+  common?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  map?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  location?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2858,6 +4138,20 @@ export interface WmWebTranslationsSelect<T extends boolean = true> {
  * via the `definition` "wm-app-config_select".
  */
 export interface WmAppConfigSelect<T extends boolean = true> {
+  classesPage?: T;
+  liveMeditationsPage?: T;
+  explorePage?: T;
+  exploreDeeperPage?: T;
+  meditateTogetherPage?: T;
+  techniquesPage?: T;
+  lecturesPage?: T;
+  lessonsPage?: T;
+  musicPage?: T;
+  shriMatajiPage?: T;
+  sahajaYogaPage?: T;
+  subtleSystemPage?: T;
+  privacyPage?: T;
+  termsPage?: T;
   selfRealizationMeditation?: T;
   postRealizationLecture?: T;
   vibeCheckTracks?:
@@ -2868,6 +4162,9 @@ export interface WmAppConfigSelect<T extends boolean = true> {
         subtitles?: T;
         id?: T;
       };
+  fallbackLecture?: T;
+  iosAppUrl?: T;
+  androidAppUrl?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -2877,11 +4174,104 @@ export interface WmAppConfigSelect<T extends boolean = true> {
  * via the `definition` "wm-app-translations_select".
  */
 export interface WmAppTranslationsSelect<T extends boolean = true> {
-  daily?: T;
-  path?: T;
-  explore?: T;
-  profile?: T;
-  meditation?: T;
+  onboarding_welcome?:
+    | T
+    | {
+        strings?: T;
+        legal_disclaimer?: T;
+      };
+  onboarding_name?: T;
+  onboarding_greeting?: T;
+  onboarding_user_type?:
+    | T
+    | {
+        strings?: T;
+        title?: T;
+      };
+  onboarding_carousel?:
+    | T
+    | {
+        strings?: T;
+        page_true_self_title?: T;
+      };
+  onboarding_consent_modal?:
+    | T
+    | {
+        strings?: T;
+        body_never_share?: T;
+        body_never_sell?: T;
+        body_intro?: T;
+      };
+  daily_main?: T;
+  daily_common?: T;
+  daily_load_info?: T;
+  path_overview?: T;
+  path_info?: T;
+  path_step_1?: T;
+  path_step_2?: T;
+  path_step_3?: T;
+  path_step_4?: T;
+  path_step_complete?: T;
+  explore_overview?: T;
+  explore_subtle_system?: T;
+  explore_talks_intro?: T;
+  explore_talks_list?: T;
+  explore_talks_player?: T;
+  profile_main?: T;
+  profile_favourites?: T;
+  profile_history?: T;
+  profile_account?: T;
+  profile_privacy_advertising?:
+    | T
+    | {
+        strings?: T;
+        advertising_body_never_share?: T;
+        advertising_body_intro?: T;
+      };
+  profile_contact?: T;
+  meditation_intent?: T;
+  meditation_reminder?: T;
+  meditation_footsoak?:
+    | T
+    | {
+        strings?: T;
+        description?: T;
+      };
+  meditation_player?: T;
+  meditation_vibes_check?: T;
+  meditation_feedback?: T;
+  auth_common?: T;
+  auth_login?: T;
+  auth_restore_password?: T;
+  auth_restore_password_email_sent?: T;
+  auth_create_account?:
+    | T
+    | {
+        strings?: T;
+        consent_label?: T;
+      };
+  navigation?: T;
+  general?: T;
+  markReviewed?: T;
+  lastReviewedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "wm-app-status_select".
+ */
+export interface WmAppStatusSelect<T extends boolean = true> {
+  userChoices?: T;
+  lessons?: T;
+  lectures?: T;
+  pages?: T;
+  appConfig?: T;
+  translations?: T;
+  appCards?: T;
+  launchCriticalAppCards?: T;
+  baselineCountry?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

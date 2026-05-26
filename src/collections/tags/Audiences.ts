@@ -1,35 +1,56 @@
 import type { CollectionConfig } from 'payload'
 
-import type { RuleDefinition } from '@/fields'
-import { rulesField } from '@/fields'
+import countries from 'i18n-iso-countries'
+import enLocale from 'i18n-iso-countries/langs/en.json'
 
-/**
- * Single source of truth for the rule dimensions an Audience can target.
- * Consumed by Audiences itself and by the for-audience endpoints to derive
- * their query schemas — add a rule here and both sides pick it up.
- */
-export const AUDIENCE_DEFINITIONS: RuleDefinition[] = [
-  {
-    name: 'pathProgress',
-    type: 'range',
-    description: 'Index of the current Path step the user has reached (0 = not started).',
-  },
-  {
-    name: 'meditationsPerWeek',
-    type: 'range',
-    description: 'Meditation sessions the user has completed in the past seven days.',
-  },
-  {
-    name: 'totalMeditationsViewed',
-    type: 'range',
-    description: 'Lifetime count of distinct meditations the user has opened.',
-  },
-  {
-    name: 'totalLecturesViewed',
-    type: 'range',
-    description: 'Lifetime count of distinct lectures or lecture clips the user has played.',
-  },
-]
+import { audiencesForUser } from '@/endpoints'
+
+countries.registerLocale(enLocale)
+
+const COUNTRY_OPTIONS = Object.entries(countries.getNames('en'))
+  .map(([value, label]) => ({ label: label as string, value }))
+  .sort((a, b) => a.label.localeCompare(b.label))
+
+function progressRangeField(name: string, label: string) {
+  return {
+    name,
+    type: 'group' as const,
+    label,
+    fields: [
+      {
+        type: 'row' as const,
+        fields: [
+          {
+            name: 'min',
+            type: 'number' as const,
+            label: 'Min',
+            admin: { width: '300px', description: 'Minimum (inclusive). Empty = no lower bound.' },
+          },
+          {
+            name: 'max',
+            type: 'number' as const,
+            label: 'Max',
+            admin: { width: '300px', description: 'Maximum (inclusive). Empty = no upper bound.' },
+            validate: (
+              value: number | null | undefined,
+              { siblingData }: { siblingData: Record<string, unknown> },
+            ) => {
+              if (
+                value !== null &&
+                value !== undefined &&
+                siblingData?.min !== null &&
+                siblingData?.min !== undefined
+              ) {
+                if (value <= (siblingData.min as number)) return 'Max must be greater than min'
+              }
+              return true
+            },
+          },
+        ],
+      },
+    ],
+  }
+}
 
 export const Audiences: CollectionConfig = {
   slug: 'audiences',
@@ -40,18 +61,49 @@ export const Audiences: CollectionConfig = {
   admin: {
     group: 'Metadata',
     useAsTitle: 'label',
-    defaultColumns: ['label', 'lectures', 'lectureClips', 'appCards'],
+    defaultColumns: ['label', 'lectures', 'appCards'],
   },
+  endpoints: [audiencesForUser],
   fields: [
-    // Internal CMS label (not localized, not public-facing)
     {
       name: 'label',
       type: 'text',
       required: true,
     },
-    // Targeting rules for user progress-based filtering
-    ...rulesField({ rules: AUDIENCE_DEFINITIONS }),
-    // Bidirectional join to lectures
+    // ── Rules (progress ranges + optional country gate) ───────────────────
+    {
+      type: 'collapsible',
+      label: 'Rules',
+      admin: {
+        description:
+          'Any empty rule will be ignored. All rules must pass for the audience to match.',
+      },
+      fields: [
+        progressRangeField('pathProgress', 'Path Progress'),
+        progressRangeField('meditationsPerWeek', 'Meditations Per Week'),
+        progressRangeField('totalMeditationsViewed', 'Total Meditations Viewed'),
+        progressRangeField('totalLecturesViewed', 'Total Lectures Viewed'),
+        {
+          name: 'location',
+          type: 'group',
+          label: 'Location',
+          fields: [
+            {
+              name: 'countries',
+              label: 'Allowed Countries',
+              type: 'select',
+              hasMany: true,
+              options: COUNTRY_OPTIONS,
+              admin: {
+                description:
+                  'Restrict to users in these countries. Leave empty to match all countries.',
+              },
+            },
+          ],
+        },
+      ],
+    },
+    // ── Bidirectional joins (unconditional — read-only inverses) ──────────
     {
       name: 'lectures',
       type: 'join',
@@ -59,6 +111,7 @@ export const Audiences: CollectionConfig = {
       on: 'audiences',
       defaultLimit: 100,
       admin: {
+        description: 'All lectures tagged with this audience',
         components: {
           Cell: {
             path: '@/components/admin/RelationshipCountCell',
@@ -67,23 +120,6 @@ export const Audiences: CollectionConfig = {
         },
       },
     },
-    // Bidirectional join to lecture clips
-    {
-      name: 'lectureClips',
-      type: 'join',
-      collection: 'lecture-clips',
-      on: 'audiences',
-      defaultLimit: 100,
-      admin: {
-        components: {
-          Cell: {
-            path: '@/components/admin/RelationshipCountCell',
-            serverProps: { disableLink: true },
-          },
-        },
-      },
-    },
-    // Bidirectional join to app cards
     {
       name: 'appCards',
       type: 'join',
@@ -91,6 +127,23 @@ export const Audiences: CollectionConfig = {
       on: 'audiences',
       defaultLimit: 100,
       admin: {
+        description: 'All app cards tagged with this audience',
+        components: {
+          Cell: {
+            path: '@/components/admin/RelationshipCountCell',
+            serverProps: { disableLink: true },
+          },
+        },
+      },
+    },
+    {
+      name: 'appCardConditions',
+      type: 'join',
+      collection: 'app-cards',
+      on: 'conditions',
+      defaultLimit: 100,
+      admin: {
+        description: 'All app cards that require this audience as a condition',
         components: {
           Cell: {
             path: '@/components/admin/RelationshipCountCell',

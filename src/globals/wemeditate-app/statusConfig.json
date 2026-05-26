@@ -1,0 +1,245 @@
+{
+  "collections": {
+    "appCards": {
+      "tutorialLink": null
+    },
+    "appConfig": {
+      "tutorialLink": null
+    },
+    "lectures": {
+      "tutorialLink": null
+    },
+    "lessons": {
+      "tutorialLink": null
+    },
+    "pages": {
+      "tutorialLink": null
+    },
+    "translations": {
+      "tutorialLink": null
+    },
+    "userChoices": {
+      "tutorialLink": null
+    }
+  },
+  "groups": {
+    "baseline-audience": {
+      "label": "Baseline-audience lectures",
+      "description": "At least twenty lectures are visible to the most-restrictive new-user audience for this locale's baseline country."
+    },
+    "core-pages": {
+      "label": "Core app pages",
+      "description": "All ten required app pages are published with localized content."
+    },
+    "duration": {
+      "label": "Duration user choices",
+      "description": "Every duration user choice has a published meditation assigned for each of its enabled timings."
+    },
+    "featured": {
+      "label": "Featured user choices",
+      "description": "Every featured user choice has a published meditation assigned for each of its enabled timings."
+    },
+    "launch-critical-cards": {
+      "label": "Launch-critical app cards",
+      "description": "Every app card flagged as launch-critical is fully configured for this locale."
+    },
+    "lesson-referenced-subtitles": {
+      "label": "Lesson-referenced lecture subtitles",
+      "description": "Every lecture linked from an in-scope lesson has subtitles available for this locale."
+    },
+    "manual-review": {
+      "label": "Manual review",
+      "description": "An admin has marked translations reviewed for this locale at least once."
+    },
+    "non-featured-afternoon": {
+      "label": "Non-featured afternoon meditations",
+      "description": "At least four non-featured mood/goal user choices have a published afternoon meditation assigned."
+    },
+    "non-featured-evening": {
+      "label": "Non-featured evening meditations",
+      "description": "At least four non-featured mood/goal user choices have a published evening meditation assigned."
+    },
+    "non-featured-morning": {
+      "label": "Non-featured morning meditations",
+      "description": "At least four non-featured mood/goal user choices have a published morning meditation assigned."
+    },
+    "non-featured-night": {
+      "label": "Non-featured night meditations",
+      "description": "At least four non-featured mood/goal user choices have a published night meditation assigned."
+    },
+    "other-cards": {
+      "label": "Other app cards",
+      "description": "App cards beyond the launch-critical set (post-launch / nice-to-have)."
+    },
+    "post-realization-lecture": {
+      "label": "Post-realization lecture",
+      "description": "A lecture is assigned for this locale."
+    },
+    "priority-with-userchoice": {
+      "label": "Prioritized lectures with user-choice tags",
+      "description": "At least ten lectures have a priority above zero and at least one user-choice tag."
+    },
+    "self-realization-meditation": {
+      "label": "Self-realization meditation",
+      "description": "A published meditation is assigned for this locale."
+    },
+    "subtle-system-pages": {
+      "label": "Subtle system pages",
+      "description": "All twelve subtle-system-node pages are published with localized content."
+    },
+    "translations-auth": {
+      "label": "Auth strings",
+      "description": "Every key under the Auth translations tab has a non-empty value for this locale."
+    },
+    "translations-daily": {
+      "label": "Daily strings",
+      "description": "Every key under the Daily translations tab has a non-empty value for this locale."
+    },
+    "translations-explore": {
+      "label": "Explore strings",
+      "description": "Every key under the Explore translations tab has a non-empty value for this locale."
+    },
+    "translations-general": {
+      "label": "General strings",
+      "description": "Every key under the General translations tab has a non-empty value for this locale."
+    },
+    "translations-meditation": {
+      "label": "Meditation strings",
+      "description": "Every key under the Meditation translations tab has a non-empty value for this locale."
+    },
+    "translations-navigation": {
+      "label": "Navigation strings",
+      "description": "Every key under the Navigation translations tab has a non-empty value for this locale."
+    },
+    "translations-onboarding": {
+      "label": "Onboarding strings",
+      "description": "Every key under the Onboarding translations tab has a non-empty value for this locale."
+    },
+    "translations-path": {
+      "label": "Path strings",
+      "description": "Every key under the Path translations tab has a non-empty value for this locale."
+    },
+    "translations-profile": {
+      "label": "Profile strings",
+      "description": "Every key under the Profile translations tab has a non-empty value for this locale."
+    },
+    "unit-1": {
+      "label": "Unit 1",
+      "description": "All lessons in Unit 1 are fully configured for this locale."
+    },
+    "unit-2": {
+      "label": "Unit 2",
+      "description": "All lessons in Unit 2 are fully configured for this locale."
+    },
+    "unit-3": {
+      "label": "Unit 3",
+      "description": "All lessons in Unit 3 are fully configured for this locale."
+    },
+    "unit-4": {
+      "label": "Unit 4",
+      "description": "All lessons in Unit 4 are fully configured for this locale (optional for launch)."
+    },
+    "user-choice-coverage": {
+      "label": "User-choice lecture coverage",
+      "description": "Every user choice has at least one lecture tagged with it."
+    },
+    "vibe-check-tracks": {
+      "label": "Vibe-check tracks",
+      "description": "Every predefined vibe-check identifier has audio and subtitles uploaded for this locale."
+    }
+  },
+  "checks": {
+    "article-has-lecture-link": {
+      "label": "Article links to a lecture",
+      "description": "The lesson article contains at least one lecture relationship link."
+    },
+    "article-localized": {
+      "label": "Article translated",
+      "description": "The lesson article has non-empty content for this locale."
+    },
+    "audio-set": {
+      "label": "Audio set",
+      "description": "An audio file is assigned for this vibe-check track."
+    },
+    "button-label-set": {
+      "label": "Button label set",
+      "description": "The card's default-view button label is non-empty for this locale."
+    },
+    "content-localized": {
+      "label": "Content translated",
+      "description": "The document's content field is non-empty for this locale."
+    },
+    "has-lecture": {
+      "label": "Has a lecture",
+      "description": "At least one lecture is tagged with this user choice."
+    },
+    "icon-set": {
+      "label": "Icon assigned",
+      "description": "The lesson has an icon image assigned."
+    },
+    "intro-audio-set": {
+      "label": "Intro audio set",
+      "description": "The lesson has an intro-audio file assigned."
+    },
+    "meditation-afternoon-published": {
+      "label": "Afternoon meditation published",
+      "description": "The user choice has a published afternoon meditation assigned for this locale."
+    },
+    "meditation-evening-published": {
+      "label": "Evening meditation published",
+      "description": "The user choice has a published evening meditation assigned for this locale."
+    },
+    "meditation-morning-published": {
+      "label": "Morning meditation published",
+      "description": "The user choice has a published morning meditation assigned for this locale."
+    },
+    "meditation-night-published": {
+      "label": "Night meditation published",
+      "description": "The user choice has a published night meditation assigned for this locale."
+    },
+    "meditation-set": {
+      "label": "Meditation assigned",
+      "description": "The lesson has a meditation assigned for this locale."
+    },
+    "panels-set": {
+      "label": "Panels configured",
+      "description": "The lesson has at least one panel."
+    },
+    "present": {
+      "label": "Present",
+      "description": "A row exists for this identifier in the locale's vibe-check track list."
+    },
+    "published": {
+      "label": "Published",
+      "description": "The document is published for this locale."
+    },
+    "reviewed-this-cycle": {
+      "label": "Reviewed at least once",
+      "description": "An admin has manually marked translations reviewed for this locale."
+    },
+    "set-and-exists": {
+      "label": "Set and exists",
+      "description": "A relationship is assigned and the referenced document exists."
+    },
+    "set-and-published": {
+      "label": "Set and published",
+      "description": "A relationship is assigned and the referenced document is published for this locale."
+    },
+    "subtitle-set": {
+      "label": "Subtitle set",
+      "description": "The card's default-view subtitle is non-empty for this locale."
+    },
+    "subtitles-available": {
+      "label": "Subtitles available",
+      "description": "The lecture has subtitles available for this locale (clip-level override or NV metadata)."
+    },
+    "subtitles-set": {
+      "label": "Subtitles set",
+      "description": "A subtitles file is assigned for this vibe-check track."
+    },
+    "title-set": {
+      "label": "Title set",
+      "description": "The card's default-view title is non-empty for this locale."
+    }
+  }
+}

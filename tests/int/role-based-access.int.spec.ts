@@ -2,7 +2,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import fs from 'fs'
 import path from 'path'
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
 import { bypassPermissions, hasAnyPermission, hasPermission } from '@/lib/access'
 
@@ -10,6 +10,20 @@ import { createTestLexicalContent, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
+
+vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/nirmalaVidyaApi')>()
+  return {
+    extractVimeoId: vi.fn(original.extractVimeoId),
+    fetchNirmalaVidyaVideo: vi.fn().mockResolvedValue({
+      title: 'Test Lecture from Nirmala Vidya',
+      thumbnailUrl: 'https://example.com/metadata-thumb.jpg',
+      hlsUrl: 'https://example.com/stream.m3u8',
+      subtitles: [],
+      duration: null,
+    }),
+  }
+})
 
 function createTrustedPreviewRequest(
   payload: Payload,
@@ -832,62 +846,34 @@ describe('Role-Based Access Control', () => {
     })
 
     it('wemeditate-app-client can read published app-cards', async () => {
-      // Create admin manager
       const admin = await testData.createManager(payload, {
         name: 'Admin for App Cards Test',
         type: 'admin' as const,
       })
-
-      // Create a client with wemeditate-app-client role
       const client = await testData.createClient(payload, admin.id, {
         name: 'App Client for Cards Test',
         roles: ['wemeditate-app-client'],
         active: true,
       })
 
-      // Create an app card (draft by default)
+      const publishedCard = await testData.createAppCard(payload, {
+        label: 'Published Card for Client Test',
+        _status: 'published',
+      })
       const draftCard = await testData.createAppCard(payload, {
-        title: 'Draft Card for Client Test',
+        label: 'Draft Card for Client Test',
+        _status: 'draft',
       })
 
-      expect(draftCard._status).toBe('draft')
-
-      // Publish the card
-      const publishedCard = await payload.update({
-        collection: 'app-cards',
-        id: draftCard.id,
-        data: { _status: 'published' },
-        user: { ...admin, collection: 'managers' },
-      })
-
-      expect(publishedCard._status).toBe('published')
-
-      // Query app-cards as client - published card SHOULD appear
       const clientCards = await payload.find({
         collection: 'app-cards',
         user: client,
         overrideAccess: false,
       })
 
-      const publishedIds = clientCards.docs.map((doc) => doc.id)
-      expect(publishedIds).toContain(publishedCard.id)
-
-      // Draft card should NOT appear
-      const allIds = clientCards.docs.map((doc) => doc.id)
-      // draftCard was updated to published, so create another draft to verify filtering
-      const anotherDraft = await testData.createAppCard(payload, {
-        title: 'Another Draft Card',
-      })
-      expect(anotherDraft._status).toBe('draft')
-
-      const clientCardsAfter = await payload.find({
-        collection: 'app-cards',
-        user: client,
-        overrideAccess: false,
-      })
-
-      const afterIds = clientCardsAfter.docs.map((doc) => doc.id)
-      expect(afterIds).not.toContain(anotherDraft.id)
+      const ids = clientCards.docs.map((doc) => doc.id)
+      expect(ids).toContain(publishedCard.id)
+      expect(ids).not.toContain(draftCard.id)
     })
 
     it('wemeditate-web-client cannot read app-cards', async () => {
@@ -912,6 +898,34 @@ describe('Role-Based Access Control', () => {
           overrideAccess: false,
         }),
       ).rejects.toThrow()
+    })
+
+    describe('App content collection reads', () => {
+      it('wemeditate-app-client can read lectures through normal RBAC', async () => {
+        const admin = await testData.createManager(payload, {
+          name: 'Admin for Lectures Read Test',
+          type: 'admin' as const,
+        })
+        const client = await testData.createClient(payload, admin.id, {
+          name: 'App Client for Lectures Read Test',
+          roles: ['wemeditate-app-client'],
+          active: true,
+        })
+
+        const lecture = await testData.createLecture(payload, undefined, {
+          title: 'Published Lecture for Client RBAC Test',
+        })
+
+        const result = await payload.find({
+          collection: 'lectures',
+          user: client,
+          overrideAccess: false,
+        })
+
+        expect(result).toBeDefined()
+        expect(Array.isArray(result.docs)).toBe(true)
+        expect(result.docs.map((doc) => doc.id)).toContain(lecture.id)
+      })
     })
 
     it('manager can access draft documents', async () => {
@@ -1251,6 +1265,53 @@ describe('Role-Based Access Control', () => {
         status: 403,
         message: expect.stringMatching(/Only admins can replace the icon/),
       })
+    })
+  })
+
+  describe('Slug field access', () => {
+    // Use user-choices as the test collection: meditations-editor has explicit
+    // update permission on it, and its update path has no blocking validation.
+    it('prevents non-admin editors from changing a slug on update', async () => {
+      const tag = await testData.createUserChoice(payload, { title: 'Slug Lock Test Tag' })
+      const originalSlug = tag.slug
+
+      const editor = await testData.createManager(payload, {
+        name: 'Editor for Slug Lock Test',
+        roles: { en: ['meditations-editor'] },
+      })
+
+      // Note: overrideAccess: false is required to test access control with Local API
+      await payload.update({
+        collection: 'user-choices',
+        id: tag.id,
+        data: { slug: 'should-not-change', generateSlug: false },
+        user: { ...editor, collection: 'managers' },
+        overrideAccess: false,
+      })
+
+      const refetched = await payload.findByID({ collection: 'user-choices', id: tag.id })
+      expect(refetched.slug).toBe(originalSlug)
+    })
+
+    it('allows admin to change a slug', async () => {
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Slug Change Test',
+        type: 'admin' as const,
+      })
+
+      const tag = await testData.createUserChoice(payload, { title: 'Admin Slug Change Tag' })
+
+      // Note: overrideAccess: false is required to test access control with Local API
+      await payload.update({
+        collection: 'user-choices',
+        id: tag.id,
+        data: { slug: 'admin-changed-slug', generateSlug: false },
+        user: { ...admin, collection: 'managers' },
+        overrideAccess: false,
+      })
+
+      const refetched = await payload.findByID({ collection: 'user-choices', id: tag.id })
+      expect(refetched.slug).toBe('admin-changed-slug')
     })
   })
 })

@@ -1,24 +1,17 @@
 import type { Endpoint, Where } from 'payload'
 
-import { extractID } from 'payload/shared'
 import { z } from 'zod'
 
-import { AUDIENCE_DEFINITIONS } from '@/collections/tags/Audiences'
-import { buildAudienceDataShape, evaluateRules, type RulesValue } from '@/fields'
-import type { LectureMetadata } from '@/hooks/lectureHooks'
 import { recomputeWeightsForMeditation } from '@/hooks/meditationHooks'
-import {
-  mergeSubtitles,
-  resolveThumbnailUrl,
-  type LectureClipPlayerData,
-} from '@/lib/lectureClipShape'
-import type { Audience, Lecture, LectureClip, Meditation, SubtleSystemNode } from '@/payload-types'
+import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
+import { shapeLecture, type LecturePlayerData } from '@/lib/lectureShape'
+import type { Lecture, Meditation, SubtleSystemNode, UserChoice } from '@/payload-types'
 
 const querySchema = z.object({
-  ...buildAudienceDataShape(AUDIENCE_DEFINITIONS),
+  audiences: audiencesQueryParamSchema,
   limit: z.coerce.number().int().min(1).max(100),
   userChoice: z.coerce.number().int().optional(),
-  excludedLectureClipIds: z
+  excludedLectureIds: z
     .string()
     .optional()
     .transform((s) => {
@@ -32,42 +25,51 @@ const querySchema = z.object({
 })
 
 /**
- * GET /api/meditations/:id/related-lecture-clips
+ * GET /api/meditations/:id/related-lectures
  *
- * Returns lecture clips contextually relevant to a specific meditation,
- * ranked by topical overlap between the meditation's on-screen subtle
- * system nodes (cached on `meditation.subtleSystemNodeWeights`) and each
- * candidate clip's own `subtleSystemNodes`.
+ * Returns lectures contextually relevant to a specific meditation, ranked by
+ * topical overlap between the meditation's on-screen subtle system nodes
+ * (cached on `meditation.subtleSystemNodeWeights`) and each candidate
+ * lecture's own `subtleSystemNodes`.
+ *
+ * Audience eligibility is **not** evaluated here — clients are expected to
+ * call `/api/audiences/for-user` once to resolve their eligible audience
+ * IDs and pass the result back as the `audiences` query param. Splitting
+ * the rule eval out keeps this endpoint cacheable behind Cloudflare's edge
+ * (see #340).
  *
  * Query params:
- *   - audience inputs (required, mirrors `/for-audience` endpoints)
+ *   - `audiences` (required, comma-separated IDs) — resolved audience IDs
+ *     from `/api/audiences/for-user`. Server dedupes + sorts so equivalent
+ *     client requests share an edge-cache key.
  *   - `limit` (required, 1–100)
- *   - `userChoice` (optional int) — if set, restrict candidates to clips
- *     whose parent lecture has that user-choice in its `userChoices`.
- *   - `excludedLectureClipIds` (optional comma-separated ints) — clips to
+ *   - `userChoice` (optional int) — if set, expand candidates to lectures that
+ *     either carry that userChoice tag OR have positive subtle-system-node
+ *     overlap with the meditation. userChoice-tagged lectures are ranked first
+ *     as a group (even if zero-weight), followed by the remaining positive-
+ *     weight lectures.
+ *   - `excludedLectureIds` (optional comma-separated ints) — lectures to
  *     exclude (typically already-watched).
  *
  * Pipeline:
  *   1. Look up the meditation (404 if not found).
- *   2. Read `subtleSystemNodeWeights` from the cache; if missing, compute
- *      ad-hoc without persisting (the migration backfills + the afterChange
- *      hooks keep the cache fresh — keeping the GET side-effect-free).
- *   3. Evaluate audiences → eligible-audience-ID set; empty → `{ docs: [] }`.
- *   4. Resolve eligible parent lecture IDs (only when `userChoice` is set).
- *   5. Find candidate clips with audience + optional userChoice + optional
- *      excluded-id filters; bulk-fetch parent lectures for the result so
- *      we have the player metadata (hlsUrl, thumbnail, subtitles).
- *   6. Compute clip weight = sum of `weights[node.slug]` over each
- *      populated `subtleSystemNodes` entry on the clip itself; drop
- *      weight = 0 (clips with no nodes contribute nothing).
- *   7. Sort descending by weight; tie-break by clip id ascending →
- *      deterministic order.
- *   8. Slice to `limit`.
- *   9. Shape into `LectureClipPlayerData` (reuses helpers from
- *      `src/lib/lectureClipShape.ts`).
+ *   2. Read `subtleSystemNodeWeights` from the cache; fall through to an
+ *      ad-hoc compute (no persistence — keeps the GET side-effect-free).
+ *   3. Find candidate lectures. Without `userChoice`, filter to lectures
+ *      whose `audiences` overlap the requested list. With `userChoice`, resolve
+ *      positive-weight node slugs → IDs (one bounded query, max 12 rows) and
+ *      apply an OR filter: audiences match AND (userChoices contains the ID OR
+ *      subtleSystemNodes overlaps positive nodes). Falls back to userChoices-
+ *      only when the meditation has no positive-weight nodes.
+ *   4. Compute lecture weight = sum of `weights[node.slug]` over each
+ *      populated `subtleSystemNodes` entry on the lecture. Drop zero-weight
+ *      lectures unless they carry the userChoice tag (#343).
+ *   5. Sort in two groups: userChoice-tagged lectures first (weight DESC,
+ *      id ASC), then non-userChoice lectures (weight DESC, id ASC).
+ *   6. Slice to `limit` and shape into `LecturePlayerData`.
  */
 export const meditationLectures: Endpoint = {
-  path: '/:id/related-lecture-clips',
+  path: '/:id/related-lectures',
   method: 'get',
   handler: async (req) => {
     const idParam = req.routeParams?.id as string | number | undefined
@@ -80,7 +82,7 @@ export const meditationLectures: Endpoint = {
       return Response.json({ errors: parsed.error.issues }, { status: 400 })
     }
 
-    const { limit, userChoice, excludedLectureClipIds, ...audienceData } = parsed.data
+    const { audiences: audienceIds, limit, userChoice, excludedLectureIds } = parsed.data
 
     let meditation: Meditation | null = null
     try {
@@ -112,152 +114,102 @@ export const meditationLectures: Endpoint = {
     const weights =
       cachedWeights ?? (await recomputeWeightsForMeditation(req.payload, meditation, req))
 
-    const { docs: audienceDocs } = await req.payload.find({
-      collection: 'audiences',
-      limit: 200,
-      depth: 0,
-      pagination: false,
-      req,
-    })
-
-    const eligibleAudienceIds = new Set<number>(
-      (audienceDocs as Audience[])
-        .filter((audience) =>
-          evaluateRules(
-            audience.rules as RulesValue | null | undefined,
-            audienceData,
-            AUDIENCE_DEFINITIONS,
-          ),
-        )
-        .map((audience) => audience.id),
-    )
-
-    if (eligibleAudienceIds.size === 0) {
-      return Response.json({ docs: [] })
+    const lectureWhere: Where = {
+      audiences: { in: audienceIds },
     }
-
-    let gatedLectureIds: number[] | null = null
+    if (excludedLectureIds.length > 0) {
+      lectureWhere.id = { not_in: excludedLectureIds }
+    }
     if (typeof userChoice === 'number') {
-      const { docs: gatedLectures } = await req.payload.find({
-        collection: 'lectures',
-        where: { userChoices: { in: [userChoice] } },
-        limit: 0,
-        pagination: false,
-        depth: 0,
-        req,
-      })
-      gatedLectureIds = (gatedLectures as Lecture[]).map((l) => l.id)
-      if (gatedLectureIds.length === 0) {
-        return Response.json({ docs: [] })
+      const positiveNodeSlugs = Object.keys(weights).filter((slug) => (weights[slug] ?? 0) > 0)
+
+      if (positiveNodeSlugs.length > 0) {
+        const { docs: positiveNodes } = await req.payload.find({
+          collection: 'subtle-system-nodes',
+          where: { slug: { in: positiveNodeSlugs } },
+          limit: 0,
+          pagination: false,
+          req,
+        })
+        const positiveNodeIds = positiveNodes.map((n) => n.id)
+        lectureWhere.or = [
+          { userChoices: { in: [userChoice] } },
+          { subtleSystemNodes: { in: positiveNodeIds } },
+        ]
+      } else {
+        // No positive-weight nodes — only userChoice-tagged lectures qualify.
+        lectureWhere.userChoices = { in: [userChoice] }
       }
     }
 
-    const clipWhere: Where = {
-      audiences: { in: [...eligibleAudienceIds] },
-    }
-    if (excludedLectureClipIds.length > 0) {
-      clipWhere.id = { not_in: excludedLectureClipIds }
-    }
-    if (gatedLectureIds) {
-      clipWhere.lecture = { in: gatedLectureIds }
-    }
-
-    const { docs: clipDocs } = await req.payload.find({
-      collection: 'lecture-clips',
-      where: clipWhere,
+    const { docs: lectureDocs } = await req.payload.find({
+      collection: 'lectures',
+      where: lectureWhere,
       limit: 0,
-      depth: 1,
+      // depth: 2 so a clip's `fullLecture` is populated as a Lecture object
+      // — clips have `metadata: null` and source it from their parent.
+      depth: 2,
       pagination: false,
       locale: req.locale ?? 'en',
       req,
     })
 
-    const eligibleClips = clipDocs as LectureClip[]
-    if (eligibleClips.length === 0) {
-      return Response.json({ docs: [] })
-    }
-
-    const clipsWithParentId: Array<{ clip: LectureClip; parentId: number }> = []
-    const parentIds = new Set<number>()
-    for (const clip of eligibleClips) {
-      const pid = extractID(clip.lecture)
-      if (typeof pid !== 'number') continue
-      clipsWithParentId.push({ clip, parentId: pid })
-      parentIds.add(pid)
-    }
-
-    const parentById = new Map<number, Lecture>()
-    if (parentIds.size > 0) {
-      const { docs: parents } = await req.payload.find({
-        collection: 'lectures',
-        where: { id: { in: [...parentIds] } },
-        limit: parentIds.size,
-        depth: 1,
-        pagination: false,
-        locale: req.locale ?? 'en',
-        req,
-      })
-      for (const parent of parents as Lecture[]) {
-        parentById.set(parent.id, parent)
+    const eligibleLectures = lectureDocs as Lecture[]
+    if (eligibleLectures.length === 0) {
+      if (excludedLectureIds.length > 0) {
+        const fallbackUrl = new URL(req.url!)
+        fallbackUrl.searchParams.delete('excludedLectureIds')
+        fallbackUrl.searchParams.set('limit', '1')
+        fallbackUrl.searchParams.set('audiences', audienceIds.join(','))
+        return Response.redirect(fallbackUrl.toString(), 307)
       }
+      return Response.json(
+        { docs: [] },
+        { headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600' } },
+      )
     }
 
-    type WeightedClip = { clip: LectureClip; parent: Lecture; weight: number }
-    const weighted: WeightedClip[] = []
+    type WeightedLecture = { lecture: Lecture; weight: number; hasUserChoice: boolean }
+    const weighted: WeightedLecture[] = []
 
-    for (const { clip, parentId } of clipsWithParentId) {
-      const parent = parentById.get(parentId)
-      if (!parent) continue
-
-      const nodes = (clip.subtleSystemNodes ?? []) as Array<number | SubtleSystemNode>
+    for (const lecture of eligibleLectures) {
+      const nodes = (lecture.subtleSystemNodes ?? []) as Array<number | SubtleSystemNode>
       let weight = 0
       for (const node of nodes) {
         if (node && typeof node === 'object' && typeof node.slug === 'string') {
           weight += weights[node.slug] ?? 0
         }
       }
-      if (weight <= 0) continue
-
-      weighted.push({ clip, parent, weight })
+      const hasUserChoice =
+        typeof userChoice === 'number' &&
+        ((lecture.userChoices ?? []) as Array<number | UserChoice>).some(
+          (uc) => (typeof uc === 'number' ? uc : uc.id) === userChoice,
+        )
+      // Keep userChoice-tagged lectures even at zero weight (#343); drop all
+      // other zero-weight lectures (no relevance signal).
+      if (!hasUserChoice && weight <= 0) continue
+      weighted.push({ lecture, weight, hasUserChoice })
     }
 
+    // Group 1: userChoice-tagged lectures (weight DESC, id ASC).
+    // Group 2: remaining positive-weight lectures (weight DESC, id ASC).
     weighted.sort((a, b) => {
+      if (a.hasUserChoice !== b.hasUserChoice) return a.hasUserChoice ? -1 : 1
       if (b.weight !== a.weight) return b.weight - a.weight
-      return a.clip.id - b.clip.id
+      return a.lecture.id - b.lecture.id
     })
 
     const sliced = weighted.slice(0, limit)
 
-    const shaped: LectureClipPlayerData[] = sliced
-      .map(({ clip, parent }): LectureClipPlayerData | null => {
-        const metadata = parent.metadata as LectureMetadata | null | undefined
-        if (!metadata?.hlsUrl) {
-          req.payload.logger.warn({
-            msg: 'Clip parent missing metadata.hlsUrl — skipping in /meditations/:id/related-lecture-clips',
-            clipId: clip.id,
-            parentId: parent.id,
-          })
-          return null
-        }
-        return {
-          id: clip.id,
-          type: 'lecture-clip',
-          title: clip.title,
-          hlsUrl: metadata.hlsUrl,
-          thumbnailUrl: resolveThumbnailUrl({
-            primaryOverride: clip.thumbnail,
-            secondaryOverride: parent.thumbnail,
-            fallback: metadata.thumbnailUrl,
-          }),
-          subtitles: mergeSubtitles(metadata.subtitles, clip.subtitles),
-          startTime: clip.startTime,
-          endTime: clip.endTime,
-          duration: clip.endTime - clip.startTime,
-          lectureId: parent.id,
-        }
-      })
-      .filter((item): item is LectureClipPlayerData => item !== null)
+    const shaped: LecturePlayerData[] = sliced
+      .map(({ lecture }): LecturePlayerData | null =>
+        shapeLecture(lecture, req.payload.logger, audienceIds),
+      )
+      .filter((item): item is LecturePlayerData => item !== null)
 
-    return Response.json({ docs: shaped })
+    return Response.json(
+      { docs: shaped },
+      { headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600' } },
+    )
   },
 }

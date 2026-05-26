@@ -37,7 +37,6 @@ async function checkDatabaseStats() {
       'music',
       'lessons',
       'lectures',
-      'lecture-clips',
       'files',
       'pages',
       'forms',

@@ -8,16 +8,6 @@ interface FathomDashboardProps {
   title: string
 }
 
-/**
- * Fathom Analytics Dashboard Embed Component
- *
- * Embeds a Fathom Analytics shared dashboard in an iframe.
- * Displays full-screen analytics without header or padding.
- *
- * @param siteId - Fathom site ID (e.g., 'pfpcdamq')
- * @param siteName - URL-encoded site name (e.g., 'we+meditate')
- * @param title - Accessibility title for the iframe
- */
 export default function FathomDashboard({ siteId, siteName, title }: FathomDashboardProps) {
   const [hasError, setHasError] = useState(false)
 
@@ -74,7 +64,6 @@ export default function FathomDashboard({ siteId, siteName, title }: FathomDashb
         height: '100vh',
         border: 'none',
       }}
-      frameBorder="0"
       loading="lazy"
       sandbox="allow-scripts allow-same-origin"
       title={title}

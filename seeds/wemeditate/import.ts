@@ -225,9 +225,8 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
     treatments: new Map<number, number | string>(),
     media: new Map<string, number | string>(),
     forms: new Map<string, number | string>(),
-    // vimeo_id → child LectureClip ID. Post-#291, rich-text content references
-    // the clip (the time-range excerpt), not the parent Lecture.
-    lectureClips: new Map<string, number | string>(),
+    // vimeo_id → Lecture ID. Rich-text content references the lecture itself.
+    lectures: new Map<string, number | string>(),
   }
 
   // Meditation lookup maps
@@ -281,13 +280,10 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         this.preloadCollection('albums', 'title'), // WeMeditate looks up albums by title
         this.preloadCollection('songs', 'title'), // WeMeditate looks up songs by title
         this.preloadCollection('pages', 'slug'),
-        // Lecture parent is keyed on its Vimeo URL (the natural key the seed
+        // Lectures are keyed on the Vimeo URL (the natural key the seed
         // upserts against). We also pull `metadata` + `title` so skip-mode
-        // re-runs can read the NV-fetched duration without a follow-up fetch
-        // when sizing the child clip's endTime. Child clips key on the parent
-        // `lecture` relationship — one clip per lecture for legacy data.
+        // re-runs can read the NV-fetched fields without a follow-up fetch.
         this.preloadCollection('lectures', 'nirmalVidyaVimeoUrl', ['metadata', 'title']),
-        this.preloadCollection('lecture-clips', 'lecture'),
       ])
     }
   }
@@ -686,7 +682,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
         locale: translation.locale,
         mediaMap: this.idMaps.media,
         formMap: this.idMaps.forms,
-        lectureClipMap: this.idMaps.lectureClips,
+        lectureMap: this.idMaps.lectures,
         treatmentMap: this.idMaps.treatments,
         treatmentThumbnailMap: this.treatmentThumbnailMap,
         meditationTitleMap: this.meditationTitleMap,
@@ -1956,28 +1952,25 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
   // ============================================================================
 
   /**
-   * Import lectures (parent) + one full-video clip per unique vimeo_id.
+   * Import one Lecture per unique vimeo_id encountered in page content.
    *
-   * Rich-text content references the **clip** (the time-range excerpt), so
-   * `idMaps.lectureClips` ends up keyed `vimeo_id → clipId` for the converter
-   * to consume. The parent Lecture is created via natural-key upsert on
-   * `nirmalVidyaVimeoUrl`; its `populateFromNirmalaVidya` create hook
-   * synchronously fills `metadata.duration`/`metadata.title` by hitting the
-   * Nirmala Vidya HLS API. The clip then spans `[0, metadata.duration]`.
+   * Rich-text content references the lecture directly, so `idMaps.lectures`
+   * ends up keyed `vimeo_id → lectureId` for the converter to consume. The
+   * Lecture is created via natural-key upsert on `nirmalVidyaVimeoUrl`; its
+   * `populateFromNirmalaVidya` create hook synchronously fills
+   * `metadata.duration`/`metadata.title` by hitting the Nirmala Vidya HLS API.
    *
-   * Per-vimeo errors (NV API 404 / network blip / missing duration) are
-   * isolated so one bad video doesn't kill the whole batch — downstream
-   * `convertVimeo` calls for that vimeo_id will themselves log a missing-clip
-   * warning and drop the block.
+   * Per-vimeo errors (NV API 404 / network blip) are isolated so one bad
+   * video doesn't kill the whole batch — downstream `convertVimeo` calls for
+   * that vimeo_id will log a missing-lecture warning and drop the block.
    */
   private async importLectures(): Promise<void> {
-    await this.logger.info('\n=== Importing Lectures (parent + clip) ===')
+    await this.logger.info('\n=== Importing Lectures ===')
 
     // 1. Walk all page-content blocks across all translations and collect
-    //    unique vimeo_ids with a representative title. We prefer the first
-    //    EN title encountered; otherwise the first non-empty title in any
-    //    locale. youtube_id blocks are skipped — there's no NV YouTube path.
-    const videoMetadata = new Map<string, { title: string; titleLocale: string }>()
+    //    unique vimeo_ids. youtube_id blocks are skipped — there's no NV
+    //    YouTube path. The lecture title comes from the NV API on create.
+    const vimeoIds = new Set<string>()
     const allPageTypes = [
       this.data.staticPages,
       this.data.articles,
@@ -2013,56 +2006,38 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
                 continue
               }
               const vimeoId: string | undefined = item?.vimeo_id
-              if (!vimeoId) continue
-
-              const blockTitle = String(item.title || '').trim()
-              const existing = videoMetadata.get(vimeoId)
-
-              // Prefer first non-empty title in EN; otherwise first non-empty in any locale
-              const shouldReplace =
-                !existing ||
-                (existing.titleLocale !== 'en' && translation.locale === 'en' && blockTitle) ||
-                (!existing.title && blockTitle)
-              if (shouldReplace) {
-                videoMetadata.set(vimeoId, {
-                  title: blockTitle,
-                  titleLocale: translation.locale || 'en',
-                })
-              }
+              if (vimeoId) vimeoIds.add(vimeoId)
             }
           }
         }
       }
     }
 
-    const uniqueVimeoIds = Array.from(videoMetadata.keys())
+    const uniqueVimeoIds = Array.from(vimeoIds)
     await this.logger.info(
       `Found ${uniqueVimeoIds.length} unique vimeo_ids (${youtubeBlockCount} youtube blocks dropped)`,
     )
 
     if (this.options.dryRun) {
       // Nothing to write — log and bail. The conversion pass will warn for
-      // every block since the lectureClipMap stays empty in dry-run.
+      // every block since the lectures map stays empty in dry-run.
       return
     }
 
-    // 2. Per unique vimeoId: upsert parent Lecture, then upsert child Clip.
-    //    Errors are scoped to a single vimeoId so the rest of the batch survives.
+    // 2. Per unique vimeoId: upsert one Lecture. Errors are scoped to a single
+    //    vimeoId so the rest of the batch survives.
     const total = uniqueVimeoIds.length
     let createdLectures = 0
-    let createdClips = 0
-    let skippedClipsMissingDuration = 0
 
     for (let i = 0; i < total; i++) {
       const vimeoId = uniqueVimeoIds[i]
-      const meta = videoMetadata.get(vimeoId)!
       const nirmalVidyaVimeoUrl = `https://vimeo.com/${vimeoId}`
 
       try {
-        // Upsert parent — populateFromNirmalaVidya fires on create and fills metadata.
+        // populateFromNirmalaVidya fires on create and fills metadata.
         // Note: BaseImporter.upsert swallows hook errors and returns action='error'
         // (with the input data echoed back as `doc`). The bare error is logged via
-        // reportDocument; we just need to skip clip creation in that case.
+        // reportDocument; we just isolate this vimeoId and move on.
         const lectureResult = await this.upsert<{
           id: number | string
           title?: string | null
@@ -2074,53 +2049,20 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           { identifier: vimeoId, current: i + 1, total },
         )
 
-        if (lectureResult.action === 'error') {
-          // Lecture didn't get persisted (most commonly: NV API failure in the
-          // populateFromNirmalaVidya create hook). The error is already in the
-          // report; just isolate this vimeoId and move on.
-          continue
-        }
+        if (lectureResult.action === 'error') continue
         if (lectureResult.action === 'created') createdLectures++
 
-        const lecture = lectureResult.doc
-        const duration = lecture.metadata?.duration
-
-        if (!duration || duration <= 0) {
-          skippedClipsMissingDuration++
-          await this.logger.warn(
-            `Skipping clip for vimeo_id=${vimeoId}: parent lecture metadata.duration is missing or non-positive (got ${duration}). Will not appear in lectureClipMap; downstream content references will be dropped.`,
-          )
-          continue
-        }
-
-        const clipTitle =
-          meta.title || lecture.title || lecture.metadata?.title || `Lecture ${vimeoId}`
-
-        const clipResult = await this.upsert<{ id: number | string }>(
-          'lecture-clips',
-          { lecture: { equals: lecture.id } },
-          {
-            lecture: lecture.id,
-            startTime: 0,
-            endTime: duration,
-            title: clipTitle,
-          },
-          { identifier: `clip-${vimeoId}`, current: i + 1, total },
-        )
-        if (clipResult.action === 'created') createdClips++
-
-        this.idMaps.lectureClips.set(vimeoId, clipResult.doc.id)
+        this.idMaps.lectures.set(vimeoId, lectureResult.doc.id)
       } catch (error) {
         // Isolate per-vimeo failures so one bad video doesn't kill the run.
-        // The lectureClipMap simply won't contain this vimeo_id; convertVimeo
-        // will log a missing-clip warning when content references it.
+        // The lectures map simply won't contain this vimeo_id; convertVimeo
+        // will log a missing-lecture warning when content references it.
         this.addError(`Importing lecture for vimeo_id=${vimeoId}`, error as Error)
       }
     }
 
     await this.logger.info(
-      `✓ Lectures: ${createdLectures} created (${total - createdLectures} skipped/updated). ` +
-        `Clips: ${createdClips} created. ${skippedClipsMissingDuration} clips skipped due to missing duration.`,
+      `✓ Lectures: ${createdLectures} created (${total - createdLectures} skipped/updated).`,
     )
   }
 
@@ -2200,7 +2142,7 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
             locale: translation.locale,
             mediaMap: this.idMaps.media,
             formMap: this.idMaps.forms,
-            lectureClipMap: this.idMaps.lectureClips,
+            lectureMap: this.idMaps.lectures,
             treatmentMap: this.idMaps.treatments,
             treatmentThumbnailMap: this.treatmentThumbnailMap,
             meditationTitleMap: this.meditationTitleMap,

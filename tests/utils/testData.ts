@@ -24,7 +24,6 @@ import type {
   Video,
   Author,
   Lecture,
-  LectureClip,
   ManagerRole,
   ClientRole,
 } from '@/payload-types'
@@ -66,11 +65,16 @@ export const testData = {
    */
   async createAppCard(payload: Payload, overrides: Partial<AppCard> = {}): Promise<AppCard> {
     const uniqueId = Math.random().toString(36).substring(7)
-    const defaultTitle = overrides.title || `Test Card ${uniqueId}`
+    const { default: defaultOverrides, ...restOverrides } = overrides
 
-    // Create image for the card unless already provided
-    let imageId = overrides.image
-    if (!imageId || typeof imageId === 'object') {
+    const defaultTitle = (defaultOverrides as { title?: string })?.title || `Test Card ${uniqueId}`
+
+    // Create image for the card unless a default.image is already provided
+    const providedImage = (defaultOverrides as { image?: number | object | null })?.image
+    let imageId: number
+    if (providedImage && typeof providedImage === 'number') {
+      imageId = providedImage
+    } else {
       const img = await testData.createMediaImage(payload, { alt: 'App card image' })
       imageId = img.id
     }
@@ -78,12 +82,16 @@ export const testData = {
     return (await payload.create({
       collection: 'app-cards',
       data: {
-        title: defaultTitle,
-        header: 'Test Header',
-        type: 'app-page',
-        appPage: 'map',
-        image: imageId,
-        ...overrides,
+        label: `Test Card ${uniqueId}`,
+        type: 'standard',
+        ...restOverrides,
+        default: {
+          title: defaultTitle,
+          header: 'Test Header',
+          textColor: 'black',
+          image: imageId,
+          ...defaultOverrides,
+        },
       },
     })) as AppCard
   },
@@ -343,7 +351,9 @@ export const testData = {
   },
 
   /**
-   * Create an audience (NOT an upload collection — no file needed)
+   * Create an audience with optional progress ranges and/or country gate.
+   * All fields are optional — omit a range to leave it unbounded; omit
+   * country to match all countries.
    */
   async createAudience(
     payload: Payload,
@@ -779,13 +789,14 @@ export const testData = {
   ): Promise<Lecture> {
     // Thumbnail is an optional editor override — only set it when the caller asks.
     const thumbnail = deps?.thumbnail
-    // `nirmalVidyaVimeoUrl` is unique-indexed at the DB level; generate a
-    // numeric vimeo id per call so multiple lectures created within one test
-    // file don't collide. Vimeo IDs must be numeric (extractVimeoId regex).
+    // Generate a numeric vimeo id per call so each lecture lands on a distinct
+    // Vimeo URL (the underlying NV mock keys on it). `populateFromNirmalaVidya`
+    // also enforces uniqueness across full lectures.
     const uniqueVimeoId = `${Date.now()}${Math.floor(Math.random() * 1000)}`
     return (await payload.create({
       collection: 'lectures',
       data: {
+        type: 'full',
         title: 'Test Lecture',
         ...(thumbnail !== undefined ? { thumbnail } : {}),
         nirmalVidyaVimeoUrl: `https://vimeo.com/${uniqueVimeoId}`,
@@ -795,32 +806,37 @@ export const testData = {
   },
 
   /**
-   * Create a Lecture Clip tied to a parent Lecture.
+   * Create a clip Lecture (`type: 'clip'`) referencing a parent full lecture
+   * via `fullLecture`, plus playback bounds.
    *
-   * Pass `deps.parent` to reuse an existing lecture. If omitted, a new parent
-   * is created via `createLecture` — requires the Nirmala Vidya API mock
-   * (`vi.mock('@/lib/nirmalaVidyaApi', ...)`) to be in place.
+   * Pass `deps.fullLecture` to reuse an existing parent. If omitted, a new
+   * parent is created via `createLecture` — requires the Nirmala Vidya API
+   * mock (`vi.mock('@/lib/nirmalaVidyaApi', ...)`) to be in place.
+   *
+   * The clip's own `nirmalVidyaVimeoUrl` is intentionally not set: clips
+   * source NV metadata from their parent (#338).
    */
-  async createLectureClip(
+  async createLectureExcerpt(
     payload: Payload,
-    deps?: { lecture?: number },
-    overrides: Partial<LectureClip> = {},
-  ): Promise<LectureClip> {
-    let lecture = deps?.lecture
-    if (!lecture) {
+    deps?: { fullLecture?: number },
+    overrides: Partial<Lecture> = {},
+  ): Promise<Lecture> {
+    let fullLecture = deps?.fullLecture
+    if (!fullLecture) {
       const parentLecture = await testData.createLecture(payload)
-      lecture = parentLecture.id
+      fullLecture = parentLecture.id
     }
     return (await payload.create({
-      collection: 'lecture-clips',
+      collection: 'lectures',
       data: {
-        lecture,
-        title: 'Test Lecture Clip',
+        type: 'clip',
+        title: 'Test Lecture Excerpt',
         startTime: 0,
-        endTime: 60,
+        stopTime: 60,
+        fullLecture,
         ...overrides,
       },
-    })) as LectureClip
+    })) as Lecture
   },
 
   // Alias for createManager to maintain backward compatibility with tests

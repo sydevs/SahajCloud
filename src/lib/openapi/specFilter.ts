@@ -6,9 +6,10 @@
  * - Filters by client role permissions (project-based filtering)
  * - Injects API-Key security scheme for client authentication
  *
- * Two-tier filtering approach:
+ * Three-tier filtering approach:
  * 1. ALWAYS_HIDDEN_COLLECTIONS - System collections always hidden from public docs
  * 2. Client role filtering - Content collections filtered by project-based implicit reads
+ * 3. CUSTOM_ENDPOINTS_ONLY_COLLECTIONS - Base CRUD paths hidden; custom subpaths remain visible
  */
 
 import type { CollectionSlug } from 'payload'
@@ -32,9 +33,6 @@ export const ALWAYS_HIDDEN_COLLECTIONS: ContentSlug[] = [
   'images',
   'files',
 
-  // Child collections - surfaced only via parent join field and for-audience
-  'lecture-clips',
-
   // Payload internal collections
   'payload-kv',
   'payload-jobs',
@@ -43,6 +41,13 @@ export const ALWAYS_HIDDEN_COLLECTIONS: ContentSlug[] = [
   'payload-migrations',
   'payload-jobs-stats',
 ]
+
+/**
+ * Collections whose base CRUD paths (/api/{slug} and /api/{slug}/{id}) are
+ * hidden from public docs, but whose custom subpaths (/for-audience, etc.)
+ * remain visible. API clients should use only the curated custom endpoints.
+ */
+export const CUSTOM_ENDPOINTS_ONLY_COLLECTIONS: ContentSlug[] = ['lectures', 'app-cards']
 
 /**
  * HTTP operations excluded from public docs.
@@ -231,12 +236,12 @@ function injectRateLimitingParameter(spec: OpenAPISpec): OpenAPISpec {
 /**
  * Filters an OpenAPI spec for client documentation.
  *
- * Two-tier filtering approach:
+ * Three-tier filtering approach:
  * 1. Always hides ALWAYS_HIDDEN_COLLECTIONS (system collections)
  * 2. When project is specified, only shows that project's collections
  *    When project is null/undefined, shows union of all client role collections
- * 3. Always hides DELETE and PATCH operations
- * 4. Hides POST operations except for ALLOW_POST_FOR collections
+ * 3. Hides base CRUD paths for CUSTOM_ENDPOINTS_ONLY_COLLECTIONS; custom subpaths remain visible
+ * Also hides DELETE and PATCH operations; hides POST except for ALLOW_POST_FOR collections
  *
  * Operations marked with `x-internal: true` will be hidden from
  * Scalar's documentation UI while remaining in the spec.
@@ -269,6 +274,11 @@ export function filterSpec(spec: OpenAPISpec, options: FilterOptions = {}): Open
     // Check if this collection should be hidden
     const isAlwaysHidden = ALWAYS_HIDDEN_COLLECTIONS.includes(collection as ContentSlug)
     const isNotInAllowedCollections = !allowedCollections.includes(collection as ContentSlug)
+    // Tier 3: base CRUD paths hidden for collections served only via custom subpaths.
+    // Matches /api/{collection} and /api/{collection}/{id} but NOT /api/{collection}/for-audience.
+    const isBaseCrudPath =
+      CUSTOM_ENDPOINTS_ONLY_COLLECTIONS.includes(collection as ContentSlug) &&
+      /^\/api\/[^/]+(\/{[^}]+})?$/.test(path)
 
     // Process each HTTP method
     const methods: HttpMethod[] = ['get', 'post', 'patch', 'delete', 'put', 'options', 'head']
@@ -288,6 +298,11 @@ export function filterSpec(spec: OpenAPISpec, options: FilterOptions = {}): Open
 
       // Tier 2: Mark if collection is not in allowed collections for this project
       if (isNotInAllowedCollections) {
+        shouldMark = true
+      }
+
+      // Tier 3: Mark base CRUD paths for custom-endpoints-only collections
+      if (isBaseCrudPath) {
         shouldMark = true
       }
 
@@ -312,6 +327,13 @@ export function filterSpec(spec: OpenAPISpec, options: FilterOptions = {}): Open
 
   // Inject X-User-ID parameter for rate limiting (only to non-internal GET operations)
   injectRateLimitingParameter(markedSpec)
+
+  // Sort paths alphabetically for stable, human-readable output
+  if (markedSpec.paths) {
+    markedSpec.paths = Object.fromEntries(
+      Object.entries(markedSpec.paths).sort(([a], [b]) => a.localeCompare(b)),
+    ) as Record<string, OpenAPIPathItem>
+  }
 
   return markedSpec
 }

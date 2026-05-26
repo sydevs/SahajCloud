@@ -5,14 +5,17 @@
  * this file holds tests for behavior that's project-specific.
  *
  * Currently: subtitle JSON behavior (documents that Payload's `jsonSchema`
- * is a Monaco editor hint, not API-enforced validation).
+ * is a Monaco editor hint, not API-enforced validation), article rich-text
+ * cleanup for stale Lexical relationship nodes, and meditation field locale
+ * isolation (per-locale meditation assignments are independent).
  */
 import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import type { Meditation } from '@/payload-types'
+import type { Lesson, Meditation } from '@/payload-types'
 
+import { createLexicalWithRelationshipNode } from '../utils/lexicalTestHelpers'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -78,6 +81,84 @@ describe('Lessons Collection — custom behavior', () => {
       })
 
       expect(lesson.introSubtitles).toEqual(subtitlesWithLegacyField)
+    })
+  })
+
+  describe('meditation field — locale isolation', () => {
+    let enMeditation: Meditation
+    let esMeditation: Meditation
+
+    beforeAll(async () => {
+      enMeditation = await testData.createMeditation(payload, undefined, { type: 'lesson', locale: 'en' })
+      esMeditation = await testData.createMeditation(payload, undefined, { type: 'lesson', locale: 'es' })
+    })
+
+    it('en meditation does not appear in es locale when fallbackLocale is false', async () => {
+      const lesson = await testData.createLesson(payload, { meditation: enMeditation.id })
+
+      const fetched = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'es',
+        fallbackLocale: false,
+        depth: 0,
+      })
+
+      // Payload returns undefined (no locale row) rather than null when fallbackLocale is false
+      expect(fetched.meditation).toBeFalsy()
+    })
+
+    it('assigns different meditation per locale without overwriting the other', async () => {
+      const lesson = await testData.createLesson(payload, { meditation: enMeditation.id })
+
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'es',
+        data: { meditation: esMeditation.id },
+      })
+
+      // English locale retains the original assignment
+      const enFetched = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'en',
+        depth: 0,
+      })
+      expect(enFetched.meditation).toBe(enMeditation.id)
+
+      // Spanish locale has the Spanish assignment
+      const esFetched = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'es',
+        depth: 0,
+      })
+      expect(esFetched.meditation).toBe(esMeditation.id)
+    })
+  })
+
+  describe('article rich text', () => {
+    it('strips stale relationship nodes for removed collections before rendering the editor', async () => {
+      const staleArticle = createLexicalWithRelationshipNode({
+        relationTo: 'lecture-clips',
+        value: 123,
+      }) as Lesson['article']
+
+      const lesson = await testData.createLesson(payload, {
+        title: 'Lesson with stale article relationship',
+        meditation: testMeditation.id,
+        article: staleArticle,
+      })
+
+      const fetched = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        depth: 0,
+      })
+
+      const articleRoot = fetched.article?.root as { children: unknown[] }
+      expect(articleRoot.children).toEqual([])
     })
   })
 })

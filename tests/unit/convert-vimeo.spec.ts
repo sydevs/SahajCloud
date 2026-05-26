@@ -1,10 +1,10 @@
 /**
- * Unit tests for convertVimeo — the EditorJS-block → Lexical-relationship converter
- * that the wemeditate / storyblok importers use to retarget legacy Vimeo embeds at
- * the post-#291 LectureClips collection.
+ * Unit tests for convertVimeo — the EditorJS-block → Lexical-relationship
+ * converter that wemeditate / storyblok importers use to retarget legacy
+ * Vimeo embeds at the lectures collection.
  *
  * Pure-function lane: no Payload bootstrap. We stub a minimal ConversionContext
- * with a `Map`-backed `lectureClipMap` and a logger spy so we can assert warnings.
+ * with a `Map`-backed `lectureMap` and a logger spy so we can assert warnings.
  */
 
 import type { ConversionContext, EditorJSBlock } from '../../seeds/lib/lexicalConverter'
@@ -35,7 +35,7 @@ function makeContext(overrides: Partial<ConversionContext> = {}): ConversionCont
     locale: 'en',
     mediaMap: new Map(),
     formMap: new Map(),
-    lectureClipMap: new Map(),
+    lectureMap: new Map(),
     treatmentMap: new Map(),
     treatmentThumbnailMap: new Map(),
     meditationTitleMap: new Map(),
@@ -45,14 +45,14 @@ function makeContext(overrides: Partial<ConversionContext> = {}): ConversionCont
 }
 
 describe('convertVimeo', () => {
-  it('emits a lecture-clips relationship node when the nested vimeo_id is mapped', () => {
+  it('emits a lectures relationship node when the nested vimeo_id is mapped', () => {
     // Wemeditate's actual block shape: data.items[].vimeo_id (verified in source data)
     const block: EditorJSBlock = {
       type: 'vimeo',
       data: { items: [{ vimeo_id: '397267913', title: 'Our Volunteers' }] },
     }
     const context = makeContext({
-      lectureClipMap: new Map([['397267913', 1234]]),
+      lectureMap: new Map([['397267913', 1234]]),
     })
 
     const result = convertVimeo(block, context)
@@ -60,7 +60,7 @@ describe('convertVimeo', () => {
     expect(result).toEqual({
       type: 'relationship',
       version: 2,
-      relationTo: 'lecture-clips',
+      relationTo: 'lectures',
       value: 1234,
     })
     expect(context.logger.warn).not.toHaveBeenCalled()
@@ -72,24 +72,24 @@ describe('convertVimeo', () => {
       data: { vimeo_id: '999', title: 'Flat shape' },
     }
     const context = makeContext({
-      lectureClipMap: new Map([['999', 'clip-id-string']]),
+      lectureMap: new Map([['999', 'lecture-id-string']]),
     })
 
     const result = convertVimeo(block, context)
 
     expect(result).toMatchObject({
       type: 'relationship',
-      relationTo: 'lecture-clips',
-      value: 'clip-id-string',
+      relationTo: 'lectures',
+      value: 'lecture-id-string',
     })
   })
 
-  it('returns null and logs a missing-clip warning when vimeo_id is absent from the map', () => {
+  it('returns null and logs a missing-lecture warning when vimeo_id is absent from the map', () => {
     const block: EditorJSBlock = {
       type: 'vimeo',
       data: { items: [{ vimeo_id: 'unknown-id' }] },
     }
-    const context = makeContext({ lectureClipMap: new Map() })
+    const context = makeContext({ lectureMap: new Map() })
 
     const result = convertVimeo(block, context)
 
@@ -122,8 +122,8 @@ describe('convertVimeo', () => {
     const result = convertVimeo(block, context)
 
     expect(result).toBeNull()
-    // No clip lookup possible → no missing-clip warning either; this is a malformed
-    // block, not a missing reference. Stay quiet.
+    // No lecture lookup possible → no missing-lecture warning either; this is
+    // a malformed block, not a missing reference. Stay quiet.
     expect(context.logger.warn).not.toHaveBeenCalled()
   })
 })

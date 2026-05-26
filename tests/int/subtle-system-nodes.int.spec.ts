@@ -7,9 +7,8 @@ import type { Lecture, SubtleSystemNode } from '@/payload-types'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-// Mock the Nirmala Vidya API client so creating parent Lectures in tests does
-// not hit the network. Mirrors the pattern in lectures.int.spec.ts and
-// lecture-clips.int.spec.ts — keep in sync.
+// Mock the Nirmala Vidya API client so creating Lectures in tests does not
+// hit the network. Mirrors the pattern in lectures.int.spec.ts.
 vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
   const { readFileSync } = await import('fs')
   const { dirname, join } = await import('path')

@@ -25,17 +25,3 @@ export type { SchemaEntry, TranslationsSchema } from './translationsField'
 export { scheduleField } from './scheduleField'
 export type { ScheduleFieldOptions } from './scheduleField'
 
-// Rules field - JSON field with visual targeting rules editor
-export {
-  rulesField,
-  generateRulesJsonSchema,
-  buildAudienceDataShape,
-  evaluateRules,
-} from './rulesField'
-export type {
-  RuleDefinition,
-  RuleType,
-  RulesValue,
-  RulesFieldOptions,
-  AudienceData,
-} from './rulesField'

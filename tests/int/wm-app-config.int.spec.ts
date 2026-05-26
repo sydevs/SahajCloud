@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import type { File, LectureClip, Meditation, WmAppConfig } from '@/payload-types'
+import type { File, Lecture, Meditation, Page, WmAppConfig } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -37,9 +37,15 @@ describe('WeMeditateAppConfig Global', () => {
 
   // Shared test entities
   let meditation: Meditation
-  let lectureClip: LectureClip
+  let lecture: Lecture
   let audioFile: File
   let vttFile: File
+  let requiredPages: {
+    shriMatajiPage: number
+    sahajaYogaPage: number
+    explorePage: number
+    subtleSystemPage: number
+  }
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
@@ -48,10 +54,24 @@ describe('WeMeditateAppConfig Global', () => {
 
     // Create shared test entities
     meditation = await testData.createMeditation(payload)
-    // postRealizationLecture now references `lecture-clips` (issue #291).
-    lectureClip = await testData.createLectureClip(payload)
+    // postRealizationLecture references `lectures` after the merge (#330).
+    lecture = await testData.createLecture(payload)
     audioFile = await testData.createFile(payload, {}, 'audio-42s.mp3')
     vttFile = await testData.createFile(payload, {}, 'subtitles.vtt')
+
+    // Create the 4 required app pages
+    const [shriMatajiPage, sahajaYogaPage, explorePage, subtleSystemPage] = await Promise.all([
+      testData.createPage(payload, { title: 'Shri Mataji Page' }),
+      testData.createPage(payload, { title: 'Sahaja Yoga Page' }),
+      testData.createPage(payload, { title: 'Explore Page' }),
+      testData.createPage(payload, { title: 'Subtle System Page' }),
+    ])
+    requiredPages = {
+      shriMatajiPage: shriMatajiPage.id,
+      sahajaYogaPage: sahajaYogaPage.id,
+      explorePage: explorePage.id,
+      subtleSystemPage: subtleSystemPage.id,
+    }
   })
 
   afterAll(async () => {
@@ -59,7 +79,7 @@ describe('WeMeditateAppConfig Global', () => {
   })
 
   describe('field structure', () => {
-    it('has a First Meditation tab with the expected fields', () => {
+    it('has Pages and First Meditation tabs with the expected fields', () => {
       const globalConfig = payload.globals.config.find((g) => g.slug === 'wm-app-config')
       expect(globalConfig).toBeDefined()
 
@@ -68,11 +88,37 @@ describe('WeMeditateAppConfig Global', () => {
       expect(tabsField.type).toBe('tabs')
 
       if (tabsField.type === 'tabs') {
-        expect(tabsField.tabs).toHaveLength(1)
-        expect(tabsField.tabs[0].label).toBe('First Meditation')
+        expect(tabsField.tabs).toHaveLength(4)
+        const tabLabels = tabsField.tabs.map((t) => t.label)
+        expect(tabLabels).toContain('Pages')
+        expect(tabLabels).toContain('First Meditation')
+        expect(tabLabels).toContain('App Pages')
+        expect(tabLabels).toContain('General')
 
-        const tabFields = tabsField.tabs[0].fields
-        const fieldNames = tabFields.map((f) => ('name' in f ? f.name : undefined))
+        const pagesTab = tabsField.tabs.find((t) => t.label === 'Pages')!
+        const pageFieldNames = pagesTab.fields.map((f) => ('name' in f ? f.name : undefined))
+        expect(pageFieldNames).toEqual(
+          expect.arrayContaining([
+            'classesPage',
+            'liveMeditationsPage',
+            'techniquesPage',
+            'lecturesPage',
+            'privacyPage',
+            'termsPage',
+          ]),
+        )
+
+        const appPagesTab = tabsField.tabs.find((t) => t.label === 'App Pages')!
+        const appPageFieldNames = appPagesTab.fields.map((f) => ('name' in f ? f.name : undefined))
+        expect(appPageFieldNames).toEqual([
+          'shriMatajiPage',
+          'sahajaYogaPage',
+          'explorePage',
+          'subtleSystemPage',
+        ])
+
+        const firstMeditationTab = tabsField.tabs.find((t) => t.label === 'First Meditation')!
+        const fieldNames = firstMeditationTab.fields.map((f) => ('name' in f ? f.name : undefined))
         expect(fieldNames).toContain('selfRealizationMeditation')
         expect(fieldNames).toContain('postRealizationLecture')
         expect(fieldNames).toContain('vibeCheckTracks')
@@ -84,7 +130,7 @@ describe('WeMeditateAppConfig Global', () => {
     it('can be set and retrieved', async () => {
       await payload.updateGlobal({
         slug: 'wm-app-config',
-        data: { selfRealizationMeditation: meditation.id },
+        data: { selfRealizationMeditation: meditation.id, ...requiredPages },
       })
 
       const config = (await payload.findGlobal({
@@ -99,16 +145,16 @@ describe('WeMeditateAppConfig Global', () => {
     it('can be set and resolves correctly', async () => {
       await payload.updateGlobal({
         slug: 'wm-app-config',
-        data: { postRealizationLecture: lectureClip.id },
+        data: { postRealizationLecture: lecture.id, ...requiredPages },
       })
 
       const config = (await payload.findGlobal({
         slug: 'wm-app-config',
         depth: 1,
       })) as WmAppConfig
-      const populated = config.postRealizationLecture as LectureClip
-      expect(populated.id).toBe(lectureClip.id)
-      expect(populated.title).toBeDefined()
+      const populated = config.postRealizationLecture as Lecture
+      expect(populated.id).toBe(lecture.id)
+      expect(populated.nirmalVidyaVimeoUrl).toBeDefined()
     })
   })
 
@@ -117,6 +163,7 @@ describe('WeMeditateAppConfig Global', () => {
       await payload.updateGlobal({
         slug: 'wm-app-config',
         data: {
+          ...requiredPages,
           vibeCheckTracks: [
             {
               identifier: 'BH-COOL',
@@ -147,14 +194,14 @@ describe('WeMeditateAppConfig Global', () => {
   describe('localization', () => {
     let enMeditation: Meditation
     let csMeditation: Meditation
-    let enClip: LectureClip
-    let csClip: LectureClip
+    let enLecture: Lecture
+    let csLecture: Lecture
 
     beforeAll(async () => {
       enMeditation = await testData.createMeditation(payload, undefined, { locale: 'en' })
       csMeditation = await testData.createMeditation(payload, undefined, { locale: 'cs' })
-      enClip = await testData.createLectureClip(payload, undefined, { title: 'English Clip' })
-      csClip = await testData.createLectureClip(payload, undefined, { title: 'Czech Clip' })
+      enLecture = await testData.createLecture(payload, undefined, { title: 'English Lecture' })
+      csLecture = await testData.createLecture(payload, undefined, { title: 'Czech Lecture' })
     })
 
     it('stores different values per locale for all fields', async () => {
@@ -163,8 +210,9 @@ describe('WeMeditateAppConfig Global', () => {
         slug: 'wm-app-config',
         locale: 'en',
         data: {
+          ...requiredPages,
           selfRealizationMeditation: enMeditation.id,
-          postRealizationLecture: enClip.id,
+          postRealizationLecture: enLecture.id,
           vibeCheckTracks: [
             { identifier: 'WHAT-YOU-FEEL-START', audio: audioFile.id, subtitles: vttFile.id },
           ],
@@ -176,8 +224,9 @@ describe('WeMeditateAppConfig Global', () => {
         slug: 'wm-app-config',
         locale: 'cs',
         data: {
+          ...requiredPages,
           selfRealizationMeditation: csMeditation.id,
-          postRealizationLecture: csClip.id,
+          postRealizationLecture: csLecture.id,
           vibeCheckTracks: [
             { identifier: 'BH-NOTHING', audio: audioFile.id, subtitles: vttFile.id },
           ],
@@ -191,7 +240,7 @@ describe('WeMeditateAppConfig Global', () => {
         depth: 0,
       })) as WmAppConfig
       expect(enConfig.selfRealizationMeditation).toBe(enMeditation.id)
-      expect(enConfig.postRealizationLecture).toBe(enClip.id)
+      expect(enConfig.postRealizationLecture).toBe(enLecture.id)
       expect(enConfig.vibeCheckTracks).toHaveLength(1)
       expect(enConfig.vibeCheckTracks![0].identifier).toBe('WHAT-YOU-FEEL-START')
 
@@ -203,7 +252,7 @@ describe('WeMeditateAppConfig Global', () => {
         fallbackLocale: false,
       })) as WmAppConfig
       expect(csConfig.selfRealizationMeditation).toBe(csMeditation.id)
-      expect(csConfig.postRealizationLecture).toBe(csClip.id)
+      expect(csConfig.postRealizationLecture).toBe(csLecture.id)
       expect(csConfig.vibeCheckTracks).toHaveLength(1)
       expect(csConfig.vibeCheckTracks![0].identifier).toBe('BH-NOTHING')
     })

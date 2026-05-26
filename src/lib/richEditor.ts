@@ -2,6 +2,7 @@ import {
   lexicalEditor,
   BoldFeature,
   ItalicFeature,
+  AlignFeature,
   UnorderedListFeature,
   OrderedListFeature,
   LinkFeature,
@@ -35,10 +36,11 @@ export const fullRichTextEditor = (blocks?: Block[]) =>
       OrderedListFeature(),
       LinkFeature(),
       BlockquoteFeature(),
+      AlignFeature(),
       InlineToolbarFeature(),
       HeadingFeature({ enabledHeadingSizes: ['h2', 'h3'] }),
       RelationshipFeature({
-        enabledCollections: ['pages', 'forms', 'lectures', 'lecture-clips', 'albums', 'app-cards'],
+        enabledCollections: ['pages', 'forms', 'lectures', 'albums', 'app-cards'],
       }),
       UploadFeature({
         collections: {
@@ -52,6 +54,7 @@ export const fullRichTextEditor = (blocks?: Block[]) =>
                 name: 'align',
                 type: 'select',
                 required: true,
+                defaultValue: 'center',
                 options: [
                   {
                     label: 'Center',

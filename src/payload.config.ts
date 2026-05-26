@@ -89,14 +89,22 @@ const payloadConfig = (overrides?: Partial<Config>) => {
             path: '@/components/AdminProvider.tsx',
           },
         ],
-        beforeNavLinks: ['@/components/admin/ProjectSelector'],
+        beforeNavLinks: [
+          '@/components/admin/ProjectSelector',
+          '@/components/admin/AdminNavLinks',
+        ],
+        beforeDashboard: [
+          '@/components/admin/Dashboard/InactiveAccountAlert',
+          '@/components/admin/Dashboard/ProjectSelectionPrompt',
+        ],
         graphics: {
           Logo: '@/components/branding/Logo',
           Icon: '@/components/branding/Icon',
         },
         views: {
-          dashboard: {
-            Component: '@/components/admin/Dashboard',
+          analytics: {
+            Component: '@/components/admin/AnalyticsView',
+            path: '/analytics',
           },
         },
       },

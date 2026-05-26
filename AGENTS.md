@@ -7,6 +7,12 @@ This file provides guidance to AI coding agents when working with this repositor
 > `CLAUDE.md` is a symlink to this file for Claude Code compatibility.
 > Claude-specific features (rules, hooks, skills) remain in the `.claude/` folder.
 
+## Model routing
+- Architecture, debugging, security review: Opus
+- Implementation, content, standard coding: Sonnet
+- File search, formatting, renaming, exploration: Haiku
+- Always escalate security-sensitive changes to Opus for review
+
 ## Documentation Structure
 
 - **Root AGENTS.md** (this file) — essential commands, quick references, project overview.
@@ -39,7 +45,6 @@ This file provides guidance to AI coding agents when working with this repositor
 
 - @.claude/docs/environment.md — environment variables and Wrangler configuration
 - @.claude/docs/architecture.md — top-level architecture (collections, routes, logging, scheduled jobs)
-- @.claude/docs/decisions/lexical-relationship-patch.md — pnpm patch on `@payloadcms/richtext-lexical` so the relationship picker respects `enabledCollections` for `admin.hidden` collections (e.g. lecture-clips). Review on every Lexical bump.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment documentation.
 

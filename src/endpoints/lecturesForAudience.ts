@@ -1,52 +1,36 @@
 import type { Endpoint } from 'payload'
 
-import { extractID } from 'payload/shared'
 import { z } from 'zod'
 
-import { AUDIENCE_DEFINITIONS } from '@/collections/tags/Audiences'
-import { buildAudienceDataShape, evaluateRules, type RulesValue } from '@/fields'
-import type { LectureMetadata } from '@/hooks/lectureHooks'
-import {
-  mergeSubtitles,
-  resolveThumbnailUrl,
-  type LectureClipPlayerData,
-  type LecturePlayerData,
-} from '@/lib/lectureClipShape'
-import type { Audience, Lecture, LectureClip } from '@/payload-types'
+import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
+import { shapeLecture, type LecturePlayerData } from '@/lib/lectureShape'
+import type { Lecture } from '@/payload-types'
 
 const querySchema = z.object({
-  ...buildAudienceDataShape(AUDIENCE_DEFINITIONS),
+  audiences: audiencesQueryParamSchema,
   limit: z.coerce.number().int().min(1).max(100),
 })
-
-// =============================================================================
-// Endpoint
-// =============================================================================
 
 /**
  * GET /api/lectures/for-audience
  *
- * Returns a uniform-random, audience-filtered feed mixing full lectures and
- * clips. Each item carries a `audiences` hasMany relationship to `audiences`
- * docs. Items are eligible when ANY of their attached audiences passes
- * evaluation against `audienceData` (OR semantics). Items with empty
- * `audiences` are always excluded.
+ * Returns a feed of lectures whose attached audiences overlap the supplied
+ * `audiences` ID list. Items with empty `audiences` are always excluded.
  *
- * Response shape (flat, no nested parent doc):
- *   { docs: (LecturePlayerData | LectureClipPlayerData)[] }
+ * Lectures with `priority > 0` are always returned before the normal
+ * random pool. Within the pinned group, lectures are sorted by priority
+ * descending; ties are randomised. The normal pool (priority ≤ 0) preserves
+ * the existing uniform-random behaviour.
  *
- * Subtitles are always returned as the full `{ [locale]: url }` map, merged
- * from the lecture's metadata plus (for clips) any per-locale overrides on
- * the clip. The player picks the track it wants at playback time.
+ * Audience eligibility is **not** evaluated here — clients are expected to
+ * call `/api/audiences/for-user` once to resolve their eligible audience
+ * IDs and pass the result back as the `audiences` query param. Splitting
+ * the rule eval out keeps this endpoint cacheable behind Cloudflare's edge
+ * (see #340).
  *
- * Pipeline:
- *   1. Evaluate `audiences` with the audience data to build the eligible-audience set.
- *   2. Find lectures whose `audiences` overlap the eligible set (OR-match).
- *   3. Find clips whose `audiences` overlap the eligible set (OR-match).
- *   4. Bulk-fetch parent lectures for clips so we can merge subtitles and
- *      resolve thumbnail fallbacks without an N+1. Seed from step-2 lectures.
- *   5. Shape each variant into its respective player type, concatenate,
- *      Fisher-Yates shuffle, slice.
+ * Response shape: `{ docs: LecturePlayerData[] }`. Subtitles are returned as
+ * the full `{ [locale]: url }` map merged from NV metadata and per-locale
+ * entries on the lecture's own `subtitles` array.
  */
 export const lecturesForAudience: Endpoint = {
   path: '/for-audience',
@@ -58,164 +42,60 @@ export const lecturesForAudience: Endpoint = {
       return Response.json({ errors: parsed.error.issues }, { status: 400 })
     }
 
-    const { limit, ...audienceData } = parsed.data
-
-    const { docs: audienceDocs } = await req.payload.find({
-      collection: 'audiences',
-      limit: 200,
-      depth: 0,
-      pagination: false,
-      req,
-    })
-
-    const eligibleAudienceIds = new Set<number>(
-      (audienceDocs as Audience[])
-        .filter((audience) =>
-          evaluateRules(
-            audience.rules as RulesValue | null | undefined,
-            audienceData,
-            AUDIENCE_DEFINITIONS,
-          ),
-        )
-        .map((audience) => audience.id),
-    )
-
-    if (eligibleAudienceIds.size === 0) {
-      return Response.json({ docs: [] })
-    }
+    const { audiences: audienceIds, limit } = parsed.data
 
     const { docs: lectureDocs } = await req.payload.find({
       collection: 'lectures',
-      where: { audiences: { in: [...eligibleAudienceIds] } },
-      limit,
-      depth: 1,
-      pagination: false,
-      req,
-    })
-
-    const { docs: clipDocs } = await req.payload.find({
-      collection: 'lecture-clips',
-      where: { audiences: { in: [...eligibleAudienceIds] } },
-      limit,
-      depth: 1,
+      where: { audiences: { in: audienceIds } },
+      // Fetch all eligible candidates so shuffles sample uniformly across
+      // the entire pool, not just the first N rows by DB order.
+      limit: 0,
+      // depth: 2 so a clip's `fullLecture` is populated as a Lecture object
+      // — clips have `metadata: null` and source it from their parent.
+      depth: 2,
       pagination: false,
       req,
     })
 
     const eligibleLectures = lectureDocs as Lecture[]
-    const eligibleClips = clipDocs as LectureClip[]
 
-    // Bulk-fetch parent lectures for clips (always — needed for hlsUrl,
-    // subtitle merge, and thumbnail fallback). Seed from already-fetched
-    // eligible lectures to avoid a round-trip when the parent is itself
-    // audience-eligible.
-    const parentById = new Map<number, Lecture>()
-    for (const lecture of eligibleLectures) {
-      parentById.set(lecture.id, lecture)
+    // Partition into pinned (priority > 0) and normal (priority ≤ 0 / unset) pools.
+    // Partition on raw docs so `priority` is accessible before shaping.
+    const pinnedRaw = eligibleLectures.filter((l) => (l.priority ?? 0) > 0)
+    const normalRaw = eligibleLectures.filter((l) => (l.priority ?? 0) <= 0)
+
+    function shapePool(lectures: Lecture[]): LecturePlayerData[] {
+      return lectures
+        .map((l): LecturePlayerData | null => shapeLecture(l, req.payload.logger, audienceIds))
+        .filter((item): item is LecturePlayerData => item !== null)
     }
 
-    const parentIdsToFetch = new Set<number>()
-    for (const clip of eligibleClips) {
-      const parentId = extractID(clip.lecture)
-      if (typeof parentId === 'number' && !parentById.has(parentId)) {
-        parentIdsToFetch.add(parentId)
-      }
-    }
+    // Pinned pool: build (priority, shaped) pairs, shuffle for tie-breaking,
+    // then stable-sort descending by priority.
+    const pinnedPairs = pinnedRaw
+      .map((l) => ({
+        priority: l.priority ?? 0,
+        shaped: shapeLecture(l, req.payload.logger, audienceIds),
+      }))
+      .filter((p): p is { priority: number; shaped: LecturePlayerData } => p.shaped !== null)
 
-    if (parentIdsToFetch.size > 0) {
-      const { docs: parentDocs } = await req.payload.find({
-        collection: 'lectures',
-        where: { id: { in: [...parentIdsToFetch] } },
-        limit: parentIdsToFetch.size,
-        depth: 1,
-        pagination: false,
-        req,
-      })
-      for (const parent of parentDocs as Lecture[]) {
-        parentById.set(parent.id, parent)
-      }
-    }
-
-    // Shape lectures
-    const shapedLectures: LecturePlayerData[] = eligibleLectures
-      .map((lecture): LecturePlayerData | null => {
-        const metadata = lecture.metadata as LectureMetadata | null | undefined
-        if (!metadata?.hlsUrl) {
-          req.payload.logger.warn({
-            msg: 'Lecture missing metadata.hlsUrl — skipping in /for-audience',
-            lectureId: lecture.id,
-          })
-          return null
-        }
-        const duration = metadata.duration ?? null
-        return {
-          id: lecture.id,
-          type: 'lecture',
-          title: lecture.title,
-          hlsUrl: metadata.hlsUrl,
-          thumbnailUrl: resolveThumbnailUrl({
-            primaryOverride: lecture.thumbnail,
-            fallback: metadata.thumbnailUrl,
-          }),
-          subtitles: { ...(metadata.subtitles ?? {}) } as Record<string, string>,
-          startTime: 0 as const,
-          endTime: duration,
-          duration,
-        }
-      })
-      .filter((item): item is LecturePlayerData => item !== null)
-
-    // Shape clips
-    const shapedClips: LectureClipPlayerData[] = eligibleClips
-      .map((clip): LectureClipPlayerData | null => {
-        const parentId = extractID(clip.lecture)
-        const parent = typeof parentId === 'number' ? (parentById.get(parentId) ?? null) : null
-        if (!parent) {
-          req.payload.logger.warn({
-            msg: 'Clip parent lecture not found — skipping in /for-audience',
-            clipId: clip.id,
-            parentId,
-          })
-          return null
-        }
-        const metadata = parent.metadata as LectureMetadata | null | undefined
-        if (!metadata?.hlsUrl) {
-          req.payload.logger.warn({
-            msg: 'Clip parent missing metadata.hlsUrl — skipping in /for-audience',
-            clipId: clip.id,
-            parentId: parent.id,
-          })
-          return null
-        }
-        return {
-          id: clip.id,
-          type: 'lecture-clip',
-          title: clip.title,
-          hlsUrl: metadata.hlsUrl,
-          thumbnailUrl: resolveThumbnailUrl({
-            primaryOverride: clip.thumbnail,
-            secondaryOverride: parent.thumbnail,
-            fallback: metadata.thumbnailUrl,
-          }),
-          subtitles: mergeSubtitles(metadata.subtitles, clip.subtitles),
-          startTime: clip.startTime,
-          endTime: clip.endTime,
-          duration: clip.endTime - clip.startTime,
-          lectureId: parent.id,
-        }
-      })
-      .filter((item): item is LectureClipPlayerData => item !== null)
-
-    // Concatenate + Fisher-Yates shuffle + slice
-    const combined: Array<LecturePlayerData | LectureClipPlayerData> = [
-      ...shapedLectures,
-      ...shapedClips,
-    ]
-    for (let i = combined.length - 1; i > 0; i--) {
+    for (let i = pinnedPairs.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
-      ;[combined[i], combined[j]] = [combined[j], combined[i]]
+      ;[pinnedPairs[i], pinnedPairs[j]] = [pinnedPairs[j], pinnedPairs[i]]
+    }
+    pinnedPairs.sort((a, b) => b.priority - a.priority)
+    const shapedPinned = pinnedPairs.map((p) => p.shaped)
+
+    // Normal pool: existing Fisher-Yates shuffle
+    const shapedNormal = shapePool(normalRaw)
+    for (let i = shapedNormal.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[shapedNormal[i], shapedNormal[j]] = [shapedNormal[j], shapedNormal[i]]
     }
 
-    return Response.json({ docs: combined.slice(0, limit) })
+    return Response.json(
+      { docs: [...shapedPinned, ...shapedNormal].slice(0, limit) },
+      { headers: { 'Cache-Control': 'public, max-age=600, s-maxage=600' } },
+    )
   },
 }

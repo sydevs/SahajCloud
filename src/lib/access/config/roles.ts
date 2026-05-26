@@ -43,12 +43,11 @@ const ROLES = {
   },
   'path-editor': {
     label: 'Path Editor',
-    description: 'Can edit lessons, lectures, and lecture clips; upload related media and files',
+    description: 'Can edit lessons and lectures; upload related media and files',
     project: 'wemeditate-app' as const,
     permissions: {
       lessons: ['update'] as PermissionLevel[],
       lectures: ['update', 'create'] as PermissionLevel[],
-      'lecture-clips': ['update', 'create'] as PermissionLevel[],
       images: ['create'] as PermissionLevel[],
       files: ['create'] as PermissionLevel[],
     },

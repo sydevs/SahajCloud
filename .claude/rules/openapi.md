@@ -116,16 +116,23 @@ collection slug.
 | Custom path | Handler | Response schema |
 |---|---|---|
 | `GET /api/frames/by-narrator/{narratorId}` | `src/endpoints/framesByNarrator.ts` | `#/components/schemas/Frames` |
-| `GET /api/lectures/for-audience` | `src/endpoints/lecturesForAudience.ts` | `#/components/schemas/ItemPlayerData` (hand-authored) |
+| `GET /api/audiences/for-user` | `src/endpoints/audiencesForUser.ts` | `#/components/schemas/AudienceIdList` |
+| `GET /api/lectures/for-audience` | `src/endpoints/lecturesForAudience.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
 | `GET /api/app-cards/for-audience` | `src/endpoints/appCardsForAudience.ts` | `#/components/schemas/AppCards` |
+| `GET /api/meditations/{id}/related-lectures` | `src/endpoints/meditationLectures.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
 
-The audience query params on the two `for-audience` endpoints are
-generated at module load from `AUDIENCE_DEFINITIONS` in
-`src/collections/tags/Audiences.ts` and mirror the Zod shape produced by
-`buildAudienceDataShape` in `src/fields/rulesField.ts` — adding a rule
-flows through to the docs automatically. The `audience params stay in
-sync` assertion in `tests/int/api-explorer.int.spec.ts` is the
-regression guard.
+The audience query params on `/api/audiences/for-user` are hand-authored
+in `customEndpoints.ts` as `audienceQueryParameters` — six required
+params: four progress params (`pathProgress`, `meditationsPerWeek`,
+`totalMeditationsViewed`, `totalLecturesViewed`) plus `country` and
+`timezone`. The three data endpoints
+(`/lectures/for-audience`, `/app-cards/for-audience`,
+`/meditations/{id}/related-lectures`) take a single pre-resolved
+`audiences` ID list (mirrors `audiencesQueryParamSchema` in
+`src/lib/audiences/audiencesQueryParam.ts`) instead of the rule-data
+params (#340). The "audience query params on /api/audiences/for-user
+expose all six required params" assertion in
+`tests/int/api-explorer.int.spec.ts` is the regression guard (#345).
 
 When `payload-oapi` ships native custom-endpoint support, both the
 shim module and the merge block in the route handler can be deleted in
@@ -151,4 +158,5 @@ Review payload-oapi quarterly for native support of these.
 - `ALWAYS_HIDDEN_COLLECTIONS` exclusion
 - Operation filtering (DELETE, PATCH hidden)
 - Scalar UI endpoint responses
-- Audience query-param sync between Audiences config and the for-audience endpoints
+- Audience query-param coverage on `/api/audiences/for-user` (all six params required)
+- Pre-resolved `audiences` ID-list shape on the three data endpoints (#340)

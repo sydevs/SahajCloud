@@ -12,7 +12,12 @@ import type { CollectionMetadata, ScriptMetadata } from './pagination'
 
 import { getDefaultBatchSize, getEnvironment } from './pagination'
 
-export type ScriptName = 'tags' | 'wemeditate' | 'meditations' | 'storyblok'
+export type ScriptName =
+  | 'tags'
+  | 'wemeditate'
+  | 'meditations'
+  | 'storyblok'
+  | 'wm-app-translations'
 
 export interface ExpectedCounts {
   [collection: string]: number
@@ -41,10 +46,9 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
     songs: 27,
     pages: 60,
     // Counted from seeds/wemeditate/data.json: 161 vimeo block occurrences,
-    // 40 unique vimeo IDs (after dedup across page translations). Each unique
-    // vimeo_id seeds one Lecture + one full-video LectureClip.
+    // 40 unique vimeo IDs (after dedup across page translations). Each
+    // unique vimeo_id seeds one Lecture.
     lectures: 40,
-    'lecture-clips': 40,
   },
   meditations: {
     narrators: 2,
@@ -54,6 +58,9 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   storyblok: {
     lessons: 17,
   },
+  // wm-app-translations updates a single PayloadCMS global, not collections.
+  // No collection counts apply — verification is intentionally a no-op.
+  'wm-app-translations': {},
 }
 
 /**
@@ -178,15 +185,6 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       dependencies: [],
       naturalKey: 'nirmalVidyaVimeoUrl',
     },
-    {
-      // One full-video clip per parent Lecture for legacy seed data
-      // (no source data carries clip boundaries).
-      slug: 'lecture-clips',
-      totalItems: 40,
-      requiresPagination: false,
-      dependencies: ['lectures'],
-      naturalKey: 'lecture',
-    },
   ],
   meditations: [
     {
@@ -232,14 +230,11 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       dependencies: [],
       naturalKey: 'nirmalVidyaVimeoUrl',
     },
-    {
-      slug: 'lecture-clips',
-      totalItems: 0,
-      requiresPagination: false,
-      dependencies: ['lectures'],
-      naturalKey: 'lecture',
-    },
   ],
+  // wm-app-translations targets the PayloadCMS global of the same slug, not
+  // a collection. The empty array tells the runner there are no per-collection
+  // pagination buckets or dependencies — the importer runs once, in bulk.
+  'wm-app-translations': [],
 }
 
 /**
