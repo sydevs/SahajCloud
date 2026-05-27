@@ -3,6 +3,7 @@
 import type { RichTextFieldClientComponent } from 'payload'
 
 import { useField, useLocale } from '@payloadcms/ui'
+import { toWords } from 'payload/shared'
 import React, { useCallback } from 'react'
 
 import { TranslationLexicalEditor, type TranslationLexicalValue } from './TranslationLexicalEditor'
@@ -11,9 +12,6 @@ import { useEnglishTranslation } from './useEnglishTranslation'
 
 import './styles.css'
 
-function toTitleCase(slug: string): string {
-  return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
-}
 
 function extractPlainText(node: unknown): string {
   if (!node) return ''
@@ -62,7 +60,7 @@ export const TranslationsRichTextField: RichTextFieldClientComponent = ({ field,
         .join(' ')}
     >
       <TranslationsRow
-        title={toTitleCase(translationKey)}
+        title={toWords(translationKey.replace(/_/g, '-'))}
         description={typeof description === 'string' ? description : undefined}
         englishValue={englishValue}
         isEnglish={isEnglish}

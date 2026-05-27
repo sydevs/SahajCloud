@@ -6,6 +6,8 @@ import type {
   UIField,
 } from 'payload'
 
+import { toWords } from 'payload/shared'
+
 import { basicRichTextEditor } from '@/lib/richEditor'
 
 // ============================================================================
@@ -79,13 +81,6 @@ function isRichTextProp(prop: LeafPropertySchema | GroupSchema): prop is RichTex
 // Helpers
 // ============================================================================
 
-/**
- * Converts a slug to Title Case.
- * "common" -> "Common", "navigation_links" -> "Navigation Links"
- */
-function toTitleCase(slug: string): string {
-  return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
-}
 
 function createScreenshotField(
   groupSlug: string,
@@ -190,7 +185,7 @@ function createRichTextField(
     type: 'richText',
     editor: basicRichTextEditor,
     localized: true,
-    label: toTitleCase(translationKey),
+    label: toWords(translationKey.replace(/_/g, '-')),
     admin: {
       description: prop.description,
       components: { Field: '@/components/admin/TranslationsRow#TranslationsRichTextField' },
@@ -256,7 +251,7 @@ export function buildTranslationTabs(
 
       if (subgroups.length > 0) {
         return {
-          label: toTitleCase(groupSlug),
+          label: toWords(groupSlug.replace(/_/g, '-')),
           description: groupSchema.description,
           fields: [
             {
@@ -264,7 +259,7 @@ export function buildTranslationTabs(
               tabs: subgroups.map(([subSlug, subSchema]) => {
                 const leafSlug = `${groupSlug}_${subSlug}`
                 return {
-                  label: toTitleCase(subSlug),
+                  label: toWords(subSlug.replace(/_/g, '-')),
                   description: subSchema.description,
                   fields: createLeafFields(leafSlug, subSchema, globalSlug),
                 }
@@ -275,7 +270,7 @@ export function buildTranslationTabs(
       }
 
       return {
-        label: toTitleCase(groupSlug),
+        label: toWords(groupSlug.replace(/_/g, '-')),
         description: groupSchema.description,
         fields: createLeafFields(groupSlug, groupSchema, globalSlug),
       }

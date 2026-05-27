@@ -3,6 +3,7 @@
 import type { JSONFieldClientComponent } from 'payload'
 
 import { FieldError, FieldLabel, useField, useLocale } from '@payloadcms/ui'
+import { toWords } from 'payload/shared'
 import React, { useCallback, useMemo } from 'react'
 
 import { AutoGrowTextarea } from './AutoGrowTextarea'
@@ -16,9 +17,6 @@ interface SchemaEntry {
   description: string
 }
 
-function toTitleCase(slug: string): string {
-  return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
-}
 
 export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly }) => {
   const { name, label, localized, required, admin: { custom } = {} } = field
@@ -70,7 +68,7 @@ export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly
             return (
               <TranslationsRow
                 key={entry.key}
-                title={toTitleCase(entry.key)}
+                title={toWords(entry.key.replace(/_/g, '-'))}
                 description={entry.description || undefined}
                 englishValue={englishValue}
                 isEnglish={isEnglish}

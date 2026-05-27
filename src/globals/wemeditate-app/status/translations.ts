@@ -53,9 +53,24 @@ function collectLeafLookups(tabSlug: string, tabNode: SchemaNode): LeafLookup[] 
   return out
 }
 
+function extractPlainText(node: unknown): string {
+  if (!node) return ''
+  if (typeof node === 'string') return node
+  if (Array.isArray(node)) return node.map(extractPlainText).join('')
+  if (typeof node === 'object') {
+    const obj = node as Record<string, unknown>
+    if (typeof obj.text === 'string') return obj.text
+    if (Array.isArray(obj.children)) return extractPlainText(obj.children)
+    if (obj.root) return extractPlainText(obj.root)
+  }
+  return ''
+}
+
 function isPopulated(translations: Record<string, unknown>, lookup: LeafLookup): boolean {
   if (lookup.innerKey === null) {
-    return translations[lookup.fieldName] != null
+    const raw = translations[lookup.fieldName]
+    if (raw == null) return false
+    return extractPlainText(raw).trim().length > 0
   }
   const blob = translations[lookup.fieldName] as Record<string, unknown> | null | undefined
   if (!blob || typeof blob !== 'object') return false
@@ -85,7 +100,12 @@ const tabAggregateGroups: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = tabEntri
 export const translationsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'translations',
   tutorialLink: null,
-  checks: {},
+  checks: {
+    'is-published': {
+      label: 'Translations published',
+      description: 'The translations global is published for this locale.',
+    },
+  },
   prepare: async ({ payload, locale, req }) => {
     const translations = (await payload.findGlobal({
       slug: 'wm-app-translations',
@@ -96,5 +116,23 @@ export const translationsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = 
     })) as unknown as Record<string, unknown>
     return { translations }
   },
-  groups: [...tabAggregateGroups],
+  groups: [
+    {
+      key: 'publish-status',
+      label: 'Publish status',
+      description: 'Translations have been published for this locale.',
+      type: 'documents',
+      evaluate: async ({ translations }, { locale }) => {
+        const isPublished = translations._status === 'published'
+        return [
+          {
+            id: locale,
+            label: isPublished ? 'Published' : 'Not published',
+            checks: [{ key: 'is-published', passed: isPublished }],
+          },
+        ]
+      },
+    },
+    ...tabAggregateGroups,
+  ],
 }

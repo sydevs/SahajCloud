@@ -271,7 +271,7 @@ const Toolbar: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
           aria-label="Insert link"
           aria-pressed={isLink}
         >
-          🔗
+          <span style={{ textDecoration: 'underline' }}>Link</span>
         </button>
       </div>
       {linkInputVisible && !readOnly && (
