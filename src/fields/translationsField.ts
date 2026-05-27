@@ -196,9 +196,8 @@ function createRichTextField(
     localized: true,
     label: toTitleCase(translationKey),
     admin: {
-      className: 'translations-richtext-row',
       description: prop.description,
-      components: { Description: '@/components/admin/TranslationsRow#RichTextReference' },
+      components: { Field: '@/components/admin/TranslationsRow#TranslationsRichTextField' },
       custom: {
         translationKey,
         globalSlug,

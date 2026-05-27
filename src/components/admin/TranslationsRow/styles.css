@@ -1,24 +1,18 @@
 /*
- * TranslationsRow — shared layout for string + richText translation fields.
+ * TranslationsRow — shared layout for string + richText translation rows.
  *
- * String fields render via TranslationsRowField (a JSON field) which emits
- * one `.translations-row` per schema entry, laid out as a 3-column CSS Grid
- * in non-English locales (title | English reference | input) or 2-column in
- * English (title | input).
- *
- * RichText fields use `admin.className` to apply
- * `.translations-richtext-row` to the standard rich-text-lexical container.
- * The same 2-column grid (title | editor-area) is applied; the English
- * reference renders inside the editor-area as a labelled box above the
- * Lexical editor (since Description is nested inside `field-type__wrap`
- * and cannot be lifted into a sibling grid cell without DOM hacks).
+ * Both string and richText rows render through the same `TranslationsRow`
+ * layout component (3-column grid in non-EN locales: title | English
+ * reference | input; 2-column in English: title | input). The input slot
+ * accepts arbitrary children — `AutoGrowTextarea` for string keys,
+ * `TranslationLexicalEditor` for richText keys.
  *
  * Stacks vertically on screens narrower than Payload's small breakpoint
  * (768px = `--breakpoint-s-width`).
  */
 
 /* ----------------------------------------------------------------------- */
-/* String rows (3 cols in non-EN, 2 cols in EN)                            */
+/* Shared row layout                                                       */
 /* ----------------------------------------------------------------------- */
 
 .translations-row {
@@ -41,43 +35,12 @@
   }
 }
 
-/* ----------------------------------------------------------------------- */
-/* RichText rows — restructure default field-type layout to 2 cols         */
-/* ----------------------------------------------------------------------- */
-
-.translations-richtext-row.field-type.rich-text-lexical {
-  display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: calc(var(--base) * 0.75);
-  align-items: start;
-  padding: calc(var(--base) * 0.5) 0;
-  border-bottom: 1px solid var(--theme-elevation-100);
-}
-
-@media (max-width: 768px) {
-  .translations-richtext-row.field-type.rich-text-lexical {
-    grid-template-columns: 1fr;
-  }
-}
-
-.translations-richtext-row.field-type.rich-text-lexical > .field-label {
+/* The richText Field replacement wraps the row inside a `field-type richText`
+   container. Strip the wrapper's default block layout so the inner row's
+   grid actually applies. */
+.field-type.richText > .translations-row {
+  margin-top: 0;
   margin-bottom: 0;
-}
-
-/* Reorder the wrap's children so the Description (English reference) renders
-   ABOVE the Lexical editor instead of Payload's default below-the-input
-   position. */
-.translations-richtext-row.field-type.rich-text-lexical > .field-type__wrap {
-  display: flex;
-  flex-direction: column;
-}
-
-.translations-richtext-row.field-type.rich-text-lexical > .field-type__wrap > .field-error {
-  order: -2;
-}
-
-.translations-richtext-row.field-type.rich-text-lexical > .field-type__wrap > .field-description {
-  order: -1;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -120,30 +83,8 @@
   font-style: italic;
 }
 
-/* English-ref block above the Lexical editor (richText rows) */
-.translations-row__english-block {
-  padding: calc(var(--base) * 0.4);
-  margin-bottom: calc(var(--base) * 0.4);
-  background: var(--theme-elevation-50);
-  border: 1px solid var(--theme-elevation-100);
-  border-radius: var(--style-radius-s);
-  color: var(--theme-elevation-700);
-  font-size: calc(var(--base-body-size) * 0.9px);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.translations-row__english-label {
-  font-size: calc(var(--base-body-size) * 0.75px);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--theme-elevation-500);
-  margin-bottom: calc(var(--base) * 0.2);
-}
-
 /* ----------------------------------------------------------------------- */
-/* Input cell — Payload textarea inside our row                            */
+/* String input cell (textarea)                                            */
 /* ----------------------------------------------------------------------- */
 
 .translations-row__input-cell {
@@ -167,4 +108,84 @@
 .translations-row__input-cell textarea:disabled {
   background: var(--theme-elevation-50);
   cursor: not-allowed;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Lexical editor (richText input cell)                                    */
+/* ----------------------------------------------------------------------- */
+
+.translations-row__lexical-toolbar {
+  display: flex;
+  gap: calc(var(--base) * 0.2);
+  padding: calc(var(--base) * 0.25);
+  background: var(--theme-elevation-50);
+  border: 1px solid var(--theme-elevation-150);
+  border-bottom: 0;
+  border-radius: var(--style-radius-s) var(--style-radius-s) 0 0;
+}
+
+.translations-row__lexical-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75em;
+  height: 1.75em;
+  padding: 0 calc(var(--base) * 0.25);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--style-radius-s);
+  cursor: pointer;
+  color: var(--theme-elevation-700);
+  font-size: calc(var(--base-body-size) * 1px);
+  font-family: inherit;
+}
+
+.translations-row__lexical-btn:hover:not(:disabled) {
+  background: var(--theme-elevation-100);
+}
+
+.translations-row__lexical-btn--active {
+  background: var(--theme-elevation-150);
+  border-color: var(--theme-elevation-200);
+}
+
+.translations-row__lexical-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.translations-row__lexical-shell {
+  position: relative;
+  background: var(--theme-input-bg);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: 0 0 var(--style-radius-s) var(--style-radius-s);
+}
+
+.translations-row__lexical-content {
+  min-height: calc(var(--base) * 1.5);
+  padding: calc(var(--base) * 0.4);
+  outline: none;
+  color: var(--theme-text);
+  font-size: calc(var(--base-body-size) * 1px);
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.translations-row__lexical-content[contenteditable='false'] {
+  background: var(--theme-elevation-50);
+  cursor: not-allowed;
+}
+
+.translations-row__lexical-placeholder {
+  position: absolute;
+  top: calc(var(--base) * 0.4);
+  left: calc(var(--base) * 0.4);
+  pointer-events: none;
+  color: var(--theme-elevation-400);
+  font-size: calc(var(--base-body-size) * 1px);
+}
+
+.translations-row__lexical-content a {
+  color: var(--theme-elevation-700);
+  text-decoration: underline;
 }
