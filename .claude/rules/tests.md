@@ -1,5 +1,6 @@
 ---
-paths: tests/**/*.spec.ts
+paths:
+  - tests/**/*.spec.ts
 ---
 
 # Testing

@@ -1,7 +1,6 @@
 ---
 paths:
   - src/types/**/*.ts
-  - "**/*.ts"
 ---
 
 # Type Organization Rules
@@ -11,11 +10,13 @@ Rules for TypeScript type definitions and organization.
 ## When to Create Type Files (`src/types/`)
 
 **DO create separate type files for:**
+
 - Complex type hierarchies with 3+ related types
 - Types used across multiple implementation files
 - Types that form a cohesive domain (roles, users, permissions)
 
 **DON'T create separate type files for:**
+
 - Simple one-off types used in a single file
 - Component-specific prop types
 - Types tightly coupled to a specific implementation
@@ -54,25 +55,30 @@ src/types/
 ## Type Refactoring Workflow
 
 ### 1. Analysis
+
 - Identify types to extract and their dependencies
 - Check for circular dependencies
 - Determine which types should move vs. stay
 
 ### 2. Create Type Files
+
 - Create in `src/types/` with descriptive names
 - Add JSDoc comments explaining purpose
 - Group related types together
 
 ### 3. Move Types
+
 - Move type definitions only (interfaces, types, enums)
 - **Keep data/constants in original implementation files**
 - Preserve documentation and comments
 
 ### 4. Update Imports
+
 - Follow import order above
 - Remove unused imports
 
 ### 5. Verify
+
 - Run `npx tsc --noEmit` to check errors
 - Run `pnpm lint` to catch issues
 
@@ -86,6 +92,7 @@ grep -A 20 "export type <TypeName>" node_modules/<package>/dist/types.d.ts
 ```
 
 ### Example - PayloadCMS Types
+
 ```typescript
 // DON'T: Create custom interface
 interface SelectFieldConfig {
@@ -100,6 +107,7 @@ const { name, label, options } = field as SelectFieldClient
 ```
 
 ### When to Use Custom Types
+
 - Library doesn't provide the exact type you need
 - You need a subset or extension of library types
 - Creating domain-specific types that compose library types
@@ -127,7 +135,11 @@ When you need global types that Next.js won't pick up from external files, decla
 // src/types/cloudflare.d.ts
 declare global {
   interface R2Bucket {
-    put(key: string, value: ArrayBuffer | ReadableStream, options?: R2PutOptions): Promise<R2Object | null>
+    put(
+      key: string,
+      value: ArrayBuffer | ReadableStream,
+      options?: R2PutOptions,
+    ): Promise<R2Object | null>
     get(key: string): Promise<R2Object | null>
     delete(key: string | string[]): Promise<void>
   }
@@ -148,10 +160,10 @@ export {} // Makes this a module file
 
 ### Anti-Patterns That Don't Work
 
-| Approach | Why It Fails |
-|----------|--------------|
+| Approach                                        | Why It Fails                           |
+| ----------------------------------------------- | -------------------------------------- |
 | Adding root-level `.d.ts` to tsconfig `include` | Next.js TypeScript plugin ignores them |
-| Triple-slash references to root files | Not resolved by Next.js build |
+| Triple-slash references to root files           | Not resolved by Next.js build          |
 | `declare interface` outside `declare global {}` | In module files, doesn't become global |
 
 ### When to Use This Pattern

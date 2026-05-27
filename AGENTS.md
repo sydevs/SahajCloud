@@ -7,56 +7,19 @@ This file provides guidance to AI coding agents when working with this repositor
 > `CLAUDE.md` is a symlink to this file for Claude Code compatibility.
 > Claude-specific features (rules, hooks, skills) remain in the `.claude/` folder.
 
-## Model routing
-- Architecture, debugging, security review: Opus
-- Implementation, content, standard coding: Sonnet
-- File search, formatting, renaming, exploration: Haiku
-- Always escalate security-sensitive changes to Opus for review
+## Documentation
 
-## Documentation Structure
-
-- **Root AGENTS.md** (this file) — essential commands, quick references, project overview.
-- **Auto-loaded Rules** (`.claude/rules/`) — path-scoped rules that load automatically when working with specific file types (Claude Code only). Most subsystem docs live here.
-- **Reference Documentation** (`.claude/docs/`) — cross-cutting docs loaded via `@import`. Subsystem-specific docs were moved into rules in #315.
-
-### Auto-Loaded Rules (`.claude/rules/`)
-
-| Rule File | Applies When Working With |
-|---|---|
-| `code-style.md`, `pr-requirements.md`, `testing-reqs.md` | All files (global) |
-| `types.md` | `src/types/**/*.ts`, `**/*.ts` |
-| `components.md` | `src/components/**/*.tsx` |
-| `admin-ui.md` | `src/components/admin/**/*.tsx`, `src/components/branding/**/*.tsx`, `src/globals/**/*.ts` |
-| `collections.md` | `src/collections/**/*.ts`, `src/fields/**/*.ts` |
-| `access.md` | `src/lib/access/**/*.ts`, `src/collections/access/**/*.ts` |
-| `api-clients.md` | `src/lib/usage/**/*.ts`, `src/collections/access/Clients.ts` |
-| `storage.md` | `src/lib/storage/**/*.ts`, `src/app/(payload)/api/webhooks/**/*.ts` |
-| `openapi.md` | `src/lib/openapi/**/*.ts`, `src/app/(payload)/api/openapi.json/**/*.ts` |
-| `blocks.md` | `src/blocks/**/*.ts` |
-| `globals.md` | `src/globals/**/*.ts` |
-| `email.md` | `src/lib/email/**/*.ts` |
-| `endpoints.md` | `src/endpoints/**/*.ts` |
-| `routes.md` | `src/app/**/route.ts` |
-| `tests.md` | `tests/**/*.spec.ts` |
-| `migrations.md` | `src/migrations/**/*.{ts,json}` |
-| `scripts.md` | `scripts/**/*.ts` |
-
-### Reference Documentation
-
-- @.claude/docs/environment.md — environment variables and Wrangler configuration
-- @.claude/docs/architecture.md — top-level architecture (collections, routes, logging, scheduled jobs)
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment documentation.
-
-## Claude Code Plugin
-
-Uses the **SY Developers Toolkit** plugin: https://github.com/sydevs/claude-plugins. Key commands: `/code:implement-issue <number>`, `/code:draft-ticket [description]`, `/review:review-pr <number>`, `/debug:fix-bug [description]`, `/meta:setup-hooks`.
+- **`.claude/rules/`** — path-scoped rules that auto-load when reading matching files (run `ls .claude/rules/` for the inventory; each file's frontmatter declares its globs)
+- **`@.claude/docs/environment.md`** — environment variables and Wrangler configuration
+- **`@.claude/docs/architecture.md`** — top-level architecture (collections, routes, logging, scheduled jobs)
+- **`.claude/skills/`** — local workflow skills (run `ls .claude/skills/` to discover; each has a `SKILL.md`)
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** — deployment documentation
 
 ## Overall Instructions
 
 - Always ask before editing, creating, or closing a GitHub issue or PR.
 - When continuing from a previous session: explicitly state what was previously decided/approved, confirm the continuation context, and proceed with implementation only if intent is clear.
-- Prefer specialized MCP tools when researching: `payloadcms-docs` MCP for PayloadCMS, `mcp__plugin_sydevs-web_cloudflare-docs__search_cloudflare_documentation` for Cloudflare, Sentry MCP for Sentry, GitHub MCP for GitHub. Use WebFetch only for sites without MCP coverage.
+- Prefer specialized MCP tools when researching: `payloadcms-docs` MCP for PayloadCMS, `mcp__cloudflare-docs__*` for Cloudflare, `mcp__sentry__*` for Sentry, `mcp__github__*` for GitHub. Use WebFetch only for sites without MCP coverage.
 
 ## Project Overview
 
@@ -99,14 +62,14 @@ After changes: lint and fix all TypeScript errors. Run `pnpm generate:types` aft
 
 macOS is case-insensitive but TypeScript/Webpack builds are case-sensitive. Always verify exact file casing when importing.
 
-| Directory | Convention | Examples |
-|---|---|---|
-| `src/collections/` | PascalCase | `Managers.ts`, `Pages.ts` |
-| `src/fields/` | camelCase | `permissionsField.ts`, `slugField.ts` |
-| `src/lib/` | camelCase | `accessControl.ts`, `serverUrl.ts` |
-| `src/components/` | PascalCase | `Dashboard.tsx`, `ProjectSelector.tsx` |
-| `src/types/` | camelCase | `roles.ts`, `users.ts` |
-| `src/blocks/` | PascalCase | `TextBoxBlock.ts`, `GalleryBlock.ts` |
+| Directory          | Convention | Examples                               |
+| ------------------ | ---------- | -------------------------------------- |
+| `src/collections/` | PascalCase | `Managers.ts`, `Pages.ts`              |
+| `src/fields/`      | camelCase  | `permissionsField.ts`, `slugField.ts`  |
+| `src/lib/`         | camelCase  | `accessControl.ts`, `serverUrl.ts`     |
+| `src/components/`  | PascalCase | `Dashboard.tsx`, `ProjectSelector.tsx` |
+| `src/types/`       | camelCase  | `roles.ts`, `users.ts`                 |
+| `src/blocks/`      | PascalCase | `TextBoxBlock.ts`, `GalleryBlock.ts`   |
 
 Type organization: see `.claude/rules/types.md` (auto-loaded for TypeScript files).
 
@@ -148,7 +111,7 @@ Schema migrations live in `src/migrations/` — see `.claude/rules/migrations.md
 
 ## PR Requirements
 
-Before creating or marking a PR ready for review: full test suite passes, build succeeds, lint passes. Full requirements (including handling pre-existing failures) live in `.claude/rules/pr-requirements.md`.
+Before creating or marking a PR ready for review: full test suite passes, build succeeds, lint passes. Use the `/pr-prep` skill (`.claude/skills/pr-prep/`) for the full pre-PR validation workflow including handling pre-existing failures.
 
 ## Deployment
 
@@ -162,25 +125,4 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive documentation.
 
 ## Project Structure
 
-```
-src/
-├── app/{(frontend),(payload)}/    # Public pages / Payload admin + API
-├── collections/{access,content,resources,system,tags}/
-├── components/                    # React components
-├── globals/                       # Global configurations
-├── types/                         # TypeScript types
-├── lib/                           # Utilities and helpers
-└── migrations/                    # Database migrations
-
-tests/{int,e2e,utils}/             # Vitest, Playwright, helpers/factories
-```
-
-## Windows Setup for Symlinks
-
-`CLAUDE.md` → `AGENTS.md` is a symlink. Windows users:
-
-1. Enable Developer Mode: Settings → Privacy & Security → For developers.
-2. `git config --global core.symlinks true`.
-3. Re-clone the repository (existing clones won't have symlinks).
-
-If symlinks don't work, Claude Code still functions — it will see a text file containing the symlink target path, which it can follow via `@import`.
+Standard Next.js + Payload layout under `src/` (collections, components, globals, lib, types, blocks, fields, app routes, migrations). Tests live under `tests/{int,e2e,utils}/`. Path-scoped rules in `.claude/rules/` document the subsystems Claude is editing.
