@@ -53,7 +53,8 @@ access is REST-only.
 API client read requests must declare their data needs explicitly:
 
 - `select` is required on every read request.
-- `populate` is required when `depth > 1`.
+- `populate` is required when effective `depth > 1` (explicit `depth` or the
+  server default depth when omitted).
 
 `validateClientQueryParamsHook` in `src/lib/usage/hooks.ts` enforces this
 before rate limiting, so malformed reads do not consume a rate-limit slot.
@@ -83,6 +84,21 @@ Parses to:
 ```
 
 Passes validation.
+
+Nested select example:
+
+```
+GET /api/pages/69?select[meta][image]=true&depth=1
+```
+
+Nested `select` is valid. When a selected field is a relationship/upload field
+such as `meta.image`, Payload may perform internal population reads; the
+validator treats those internal reads as part of the already-validated top-level
+request.
+
+If the client does not need nested relationship traversal, pass `depth=1` (or
+`depth=0` for raw relationship IDs). Omitting `depth` uses Payload's server
+default, currently `2`, so `populate` is still required.
 
 ❌ Wrong — comma-separated strings (rejected):
 

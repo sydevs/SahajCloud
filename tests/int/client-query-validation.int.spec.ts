@@ -4,7 +4,7 @@ import { sanitizePopulateParam, sanitizeSelectParam } from 'payload'
 import * as qs from 'qs-esm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import type { Client, Narrator } from '@/payload-types'
+import type { Client, Image, Narrator, Page } from '@/payload-types'
 
 import { testData } from 'tests/utils/testData'
 
@@ -42,6 +42,8 @@ describe('Client query parameter validation', () => {
   let adminUserId: number
   let testClient: Client
   let narrator: Narrator
+  let pageWithMetaImage: Page
+  let metaImage: Image
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
@@ -51,6 +53,10 @@ describe('Client query parameter validation', () => {
 
     testClient = await testData.createClient(payload, adminUserId)
     narrator = await testData.createNarrator(payload)
+    metaImage = await testData.createMediaImage(payload, { alt: 'Page meta image' })
+    pageWithMetaImage = await testData.createPage(payload, {
+      meta: { image: metaImage.id },
+    })
   })
 
   afterAll(async () => {
@@ -81,6 +87,7 @@ describe('Client query parameter validation', () => {
       const result = await payload.find({
         collection: 'narrators',
         select: { name: true },
+        depth: 1,
         req: clientReq(),
         overrideAccess: true,
       })
@@ -103,6 +110,7 @@ describe('Client query parameter validation', () => {
         collection: 'narrators',
         id: narrator.id,
         select: { name: true },
+        depth: 1,
         req: clientReq(),
         overrideAccess: true,
       })
@@ -123,11 +131,33 @@ describe('Client query parameter validation', () => {
       ).rejects.toThrow(/populate/)
     })
 
+    it('rejects client find when default depth > 1 but no populate', async () => {
+      await expect(
+        payload.find({
+          collection: 'narrators',
+          select: { name: true },
+          req: clientReq(),
+          overrideAccess: true,
+        }),
+      ).rejects.toThrow(/populate/)
+    })
+
     it('allows client find with depth > 1 and populate', async () => {
       const result = await payload.find({
         collection: 'narrators',
         select: { name: true },
         depth: 2,
+        populate: { narrators: { name: true } },
+        req: clientReq(),
+        overrideAccess: true,
+      })
+      expect(result.docs).toHaveLength(1)
+    })
+
+    it('allows client find with default depth and populate', async () => {
+      const result = await payload.find({
+        collection: 'narrators',
+        select: { name: true },
         populate: { narrators: { name: true } },
         req: clientReq(),
         overrideAccess: true,
@@ -181,6 +211,17 @@ describe('Client query parameter validation', () => {
       expect(result.docs).toHaveLength(1)
     })
 
+    it('skips validation for Payload internal relationship population reads', async () => {
+      const result = await payload.find({
+        collection: 'narrators',
+        currentDepth: 2,
+        depth: 1,
+        req: clientReq(),
+        overrideAccess: true,
+      })
+      expect(result.docs).toHaveLength(1)
+    })
+
     it('does not affect client write operations missing select', async () => {
       // Create a new narrator as the client — should not be blocked by the hook
       // even though no 'select' param is present.
@@ -216,6 +257,15 @@ describe('Client query parameter validation', () => {
         overrideAccess: true,
       })
 
+    const restFindPageByID = (url: string) =>
+      payload.findByID({
+        collection: 'pages',
+        id: pageWithMetaImage.id,
+        ...parseRestQuery(url),
+        req: clientReq(),
+        overrideAccess: true,
+      })
+
     describe('rejects the wrong format documented in #199', () => {
       it('rejects find when select is a comma-separated string', async () => {
         await expect(restFind('/api/narrators?select=name,gender')).rejects.toThrow(/select/)
@@ -228,22 +278,31 @@ describe('Client query parameter validation', () => {
 
     describe('accepts the correct bracket notation', () => {
       it('accepts find with select[field]=true', async () => {
-        const result = await restFind('/api/narrators?select[name]=true')
+        const result = await restFind('/api/narrators?select[name]=true&depth=1')
         expect(Array.isArray(result.docs)).toBe(true)
       })
 
       it('accepts findByID with select[field]=true', async () => {
-        const result = await restFindByID('/api/narrators/1?select[name]=true')
+        const result = await restFindByID('/api/narrators/1?select[name]=true&depth=1')
         expect(result.id).toBe(narrator.id)
       })
 
       it('accepts percent-encoded bracket notation (select%5Bname%5D=true)', async () => {
-        const result = await restFind('/api/narrators?select%5Bname%5D=true')
+        const result = await restFind('/api/narrators?select%5Bname%5D=true&depth=1')
         expect(Array.isArray(result.docs)).toBe(true)
+      })
+
+      it('accepts nested select for relationship fields that Payload populates internally', async () => {
+        const result = await restFindPageByID('/api/pages/1?select[meta][image]=true&depth=1')
+        expect(result).toBeDefined()
       })
     })
 
     describe('populate at depth > 1', () => {
+      it('rejects when depth is omitted and the server default requires populate', async () => {
+        await expect(restFind('/api/narrators?select[name]=true')).rejects.toThrow(/populate/)
+      })
+
       it('rejects when depth=2 and populate is missing', async () => {
         await expect(restFind('/api/narrators?select[name]=true&depth=2')).rejects.toThrow(
           /populate/,
