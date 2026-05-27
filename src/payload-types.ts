@@ -2996,6 +2996,14 @@ export interface WmWebConfig {
  */
 export interface WmWebTranslation {
   id: number;
+  /**
+   * Check and save to record that this locale has been reviewed.
+   */
+  markReviewed?: boolean | null;
+  /**
+   * Timestamp of the last review for this locale.
+   */
+  lastReviewedAt?: string | null;
   common?:
     | {
         [k: string]: unknown;
@@ -3124,35 +3132,41 @@ export interface WmAppConfig {
  */
 export interface WmAppTranslation {
   id: number;
-  onboarding_welcome?: {
-    strings?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-    /**
-     * Inline legal disclaimer below the primary CTAs. Renders two inline links to the in-app Terms and Privacy Policy webviews (URLs use the wemeditate://legal/* scheme — see ticket for full reference). Translators control word order, link placement, and the connector between the two link labels.
-     */
-    legal_disclaimer?: {
-      root: {
-        type: string;
-        children: {
-          type: any;
-          version: number;
-          [k: string]: unknown;
-        }[];
-        direction: ('ltr' | 'rtl') | null;
-        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-        indent: number;
+  /**
+   * Check and save to record that this locale has been reviewed.
+   */
+  markReviewed?: boolean | null;
+  /**
+   * Timestamp of the last review for this locale.
+   */
+  lastReviewedAt?: string | null;
+  onboarding_welcome?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Inline legal disclaimer below the primary CTAs. Renders two inline links to the in-app Terms and Privacy Policy webviews (URLs use the wemeditate://legal/* scheme — see ticket for full reference). Translators control word order, link placement, and the connector between the two link labels.
+   */
+  onboarding_welcome_legal_disclaimer?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
         version: number;
-      };
-      [k: string]: unknown;
-    } | null;
-  };
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   onboarding_name?:
     | {
         [k: string]: unknown;
@@ -3171,129 +3185,123 @@ export interface WmAppTranslation {
     | number
     | boolean
     | null;
-  onboarding_user_type?: {
-    strings?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-    /**
-     * Screen title prompt (e.g. 'Have you tried Sahaja Yoga before?'). The brand fragment 'Sahaja Yoga' is rendered as a bold inline span; translators may choose a different word to bold or apply no bold per locale convention.
-     */
-    title?: {
-      root: {
-        type: string;
-        children: {
-          type: any;
-          version: number;
-          [k: string]: unknown;
-        }[];
-        direction: ('ltr' | 'rtl') | null;
-        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-        indent: number;
+  onboarding_user_type?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Screen title prompt (e.g. 'Have you tried Sahaja Yoga before?'). The brand fragment 'Sahaja Yoga' is rendered as a bold inline span; translators may choose a different word to bold or apply no bold per locale convention.
+   */
+  onboarding_user_type_title?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
         version: number;
-      };
-      [k: string]: unknown;
-    } | null;
-  };
-  onboarding_carousel?: {
-    strings?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-    /**
-     * Slide 2 title (e.g. 'Get to know your true self'). The 'true self' fragment is rendered as a bold inline span; the Flutter renderer may also apply an accent colour to bolded segments on this slide.
-     */
-    page_true_self_title?: {
-      root: {
-        type: string;
-        children: {
-          type: any;
-          version: number;
-          [k: string]: unknown;
-        }[];
-        direction: ('ltr' | 'rtl') | null;
-        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-        indent: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  onboarding_carousel?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Slide 2 title (e.g. 'Get to know your true self'). The 'true self' fragment is rendered as a bold inline span; the Flutter renderer may also apply an accent colour to bolded segments on this slide.
+   */
+  onboarding_carousel_page_true_self_title?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
         version: number;
-      };
-      [k: string]: unknown;
-    } | null;
-  };
-  onboarding_consent_modal?: {
-    strings?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-    /**
-     * Third paragraph listing categories that are never sent for advertising (mood, goals, hand sensations, reflections, class location, spiritual-practice details). Lead phrase 'We'll never share' is rendered as a bold inline span. Must remain consistent with the privacy filter in analytics-simplified/03-marketing-event-taxonomy.md §2.
-     */
-    body_never_share?: {
-      root: {
-        type: string;
-        children: {
-          type: any;
-          version: number;
-          [k: string]: unknown;
-        }[];
-        direction: ('ltr' | 'rtl') | null;
-        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-        indent: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  onboarding_consent_modal?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Third paragraph listing categories that are never sent for advertising (mood, goals, hand sensations, reflections, class location, spiritual-practice details). Lead phrase 'We'll never share' is rendered as a bold inline span. Must remain consistent with the privacy filter in analytics-simplified/03-marketing-event-taxonomy.md §2.
+   */
+  onboarding_consent_modal_body_never_share?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
         version: number;
-      };
-      [k: string]: unknown;
-    } | null;
-    /**
-     * Fourth paragraph: short statement that the app never sells user data. Phrase 'we never sell' is rendered as a bold inline span.
-     */
-    body_never_sell?: {
-      root: {
-        type: string;
-        children: {
-          type: any;
-          version: number;
-          [k: string]: unknown;
-        }[];
-        direction: ('ltr' | 'rtl') | null;
-        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-        indent: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  /**
+   * Fourth paragraph: short statement that the app never sells user data. Phrase 'we never sell' is rendered as a bold inline span.
+   */
+  onboarding_consent_modal_body_never_sell?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
         version: number;
-      };
-      [k: string]: unknown;
-    } | null;
-    /**
-     * First paragraph of the consent modal. Contains an inline link (e.g. 'what we share') opening the privacy-detail sheet that lists the exact fields sent to Meta, Apple Search Ads and Google Ads. Link URL uses the wemeditate://legal/what-we-share scheme.
-     */
-    body_intro?: {
-      root: {
-        type: string;
-        children: {
-          type: any;
-          version: number;
-          [k: string]: unknown;
-        }[];
-        direction: ('ltr' | 'rtl') | null;
-        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-        indent: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  /**
+   * First paragraph of the consent modal. Contains an inline link (e.g. 'what we share') opening the privacy-detail sheet that lists the exact fields sent to Meta, Apple Search Ads and Google Ads. Link URL uses the wemeditate://legal/what-we-share scheme.
+   */
+  onboarding_consent_modal_body_intro?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
         version: number;
-      };
-      [k: string]: unknown;
-    } | null;
-  };
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   daily_main?:
     | {
         [k: string]: unknown;
@@ -3465,53 +3473,51 @@ export interface WmAppTranslation {
     | number
     | boolean
     | null;
-  profile_privacy_advertising?: {
-    strings?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-    /**
-     * Third paragraph of the advertising section. Covers both the never-shared categories AND the never-sell statement in a single paragraph with two bold spans ('We'll never share' / 'we never sell'). Must remain consistent with analytics-simplified/03-marketing-event-taxonomy.md §2.
-     */
-    advertising_body_never_share?: {
-      root: {
-        type: string;
-        children: {
-          type: any;
-          version: number;
-          [k: string]: unknown;
-        }[];
-        direction: ('ltr' | 'rtl') | null;
-        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-        indent: number;
+  profile_privacy_advertising?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Third paragraph of the advertising section. Covers both the never-shared categories AND the never-sell statement in a single paragraph with two bold spans ('We'll never share' / 'we never sell'). Must remain consistent with analytics-simplified/03-marketing-event-taxonomy.md §2.
+   */
+  profile_privacy_advertising_advertising_body_never_share?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
         version: number;
-      };
-      [k: string]: unknown;
-    } | null;
-    /**
-     * First paragraph of the advertising section. Contains an inline link (e.g. 'what we share') that opens the Privacy Policy page (CMS page id 73, scrolled to the 'what we share' heading) — same link target as onboarding_consent_modal.body_intro.
-     */
-    advertising_body_intro?: {
-      root: {
-        type: string;
-        children: {
-          type: any;
-          version: number;
-          [k: string]: unknown;
-        }[];
-        direction: ('ltr' | 'rtl') | null;
-        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-        indent: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  /**
+   * First paragraph of the advertising section. Contains an inline link (e.g. 'what we share') that opens the Privacy Policy page (CMS page id 73, scrolled to the 'what we share' heading) — same link target as onboarding_consent_modal.body_intro.
+   */
+  profile_privacy_advertising_advertising_body_intro?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
         version: number;
-      };
-      [k: string]: unknown;
-    } | null;
-  };
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   profile_contact?:
     | {
         [k: string]: unknown;
@@ -3539,35 +3545,33 @@ export interface WmAppTranslation {
     | number
     | boolean
     | null;
-  meditation_footsoak?: {
-    strings?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-    /**
-     * Body copy of the foot-soak screen. Contains a short emphasised span (typically italic, e.g. 'really') that translators position freely within the sentence.
-     */
-    description?: {
-      root: {
-        type: string;
-        children: {
-          type: any;
-          version: number;
-          [k: string]: unknown;
-        }[];
-        direction: ('ltr' | 'rtl') | null;
-        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-        indent: number;
+  meditation_footsoak?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Body copy of the foot-soak screen. Contains a short emphasised span (typically italic, e.g. 'really') that translators position freely within the sentence.
+   */
+  meditation_footsoak_description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
         version: number;
-      };
-      [k: string]: unknown;
-    } | null;
-  };
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   meditation_player?:
     | {
         [k: string]: unknown;
@@ -3631,35 +3635,33 @@ export interface WmAppTranslation {
     | number
     | boolean
     | null;
-  auth_create_account?: {
-    strings?:
-      | {
-          [k: string]: unknown;
-        }
-      | unknown[]
-      | string
-      | number
-      | boolean
-      | null;
-    /**
-     * Consent checkbox label on the account creation screen. Contains two inline links (Terms & Conditions, Privacy Policy) opening the corresponding in-app webviews (wemeditate://legal/terms, wemeditate://legal/privacy). Independent of the ad-measurement consent.
-     */
-    consent_label?: {
-      root: {
-        type: string;
-        children: {
-          type: any;
-          version: number;
-          [k: string]: unknown;
-        }[];
-        direction: ('ltr' | 'rtl') | null;
-        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-        indent: number;
+  auth_create_account?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Consent checkbox label on the account creation screen. Contains two inline links (Terms & Conditions, Privacy Policy) opening the corresponding in-app webviews (wemeditate://legal/terms, wemeditate://legal/privacy). Independent of the ad-measurement consent.
+   */
+  auth_create_account_consent_label?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
         version: number;
-      };
-      [k: string]: unknown;
-    } | null;
-  };
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   navigation?:
     | {
         [k: string]: unknown;
@@ -3678,14 +3680,6 @@ export interface WmAppTranslation {
     | number
     | boolean
     | null;
-  /**
-   * Save the global with this checked to record that you reviewed this locale’s translations now. The checkbox always reads as off.
-   */
-  markReviewed?: boolean | null;
-  /**
-   * Last time an admin manually marked translations reviewed for this locale.
-   */
-  lastReviewedAt?: string | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -4060,6 +4054,14 @@ export interface SyAtlasConfig {
  */
 export interface SyAtlasTranslation {
   id: number;
+  /**
+   * Check and save to record that this locale has been reviewed.
+   */
+  markReviewed?: boolean | null;
+  /**
+   * Timestamp of the last review for this locale.
+   */
+  lastReviewedAt?: string | null;
   common?:
     | {
         [k: string]: unknown;
@@ -4127,6 +4129,8 @@ export interface WmWebConfigSelect<T extends boolean = true> {
  * via the `definition` "wm-web-translations_select".
  */
 export interface WmWebTranslationsSelect<T extends boolean = true> {
+  markReviewed?: T;
+  lastReviewedAt?: T;
   common?: T;
   navigation?: T;
   updatedAt?: T;
@@ -4174,34 +4178,20 @@ export interface WmAppConfigSelect<T extends boolean = true> {
  * via the `definition` "wm-app-translations_select".
  */
 export interface WmAppTranslationsSelect<T extends boolean = true> {
-  onboarding_welcome?:
-    | T
-    | {
-        strings?: T;
-        legal_disclaimer?: T;
-      };
+  markReviewed?: T;
+  lastReviewedAt?: T;
+  onboarding_welcome?: T;
+  onboarding_welcome_legal_disclaimer?: T;
   onboarding_name?: T;
   onboarding_greeting?: T;
-  onboarding_user_type?:
-    | T
-    | {
-        strings?: T;
-        title?: T;
-      };
-  onboarding_carousel?:
-    | T
-    | {
-        strings?: T;
-        page_true_self_title?: T;
-      };
-  onboarding_consent_modal?:
-    | T
-    | {
-        strings?: T;
-        body_never_share?: T;
-        body_never_sell?: T;
-        body_intro?: T;
-      };
+  onboarding_user_type?: T;
+  onboarding_user_type_title?: T;
+  onboarding_carousel?: T;
+  onboarding_carousel_page_true_self_title?: T;
+  onboarding_consent_modal?: T;
+  onboarding_consent_modal_body_never_share?: T;
+  onboarding_consent_modal_body_never_sell?: T;
+  onboarding_consent_modal_body_intro?: T;
   daily_main?: T;
   daily_common?: T;
   daily_load_info?: T;
@@ -4221,22 +4211,14 @@ export interface WmAppTranslationsSelect<T extends boolean = true> {
   profile_favourites?: T;
   profile_history?: T;
   profile_account?: T;
-  profile_privacy_advertising?:
-    | T
-    | {
-        strings?: T;
-        advertising_body_never_share?: T;
-        advertising_body_intro?: T;
-      };
+  profile_privacy_advertising?: T;
+  profile_privacy_advertising_advertising_body_never_share?: T;
+  profile_privacy_advertising_advertising_body_intro?: T;
   profile_contact?: T;
   meditation_intent?: T;
   meditation_reminder?: T;
-  meditation_footsoak?:
-    | T
-    | {
-        strings?: T;
-        description?: T;
-      };
+  meditation_footsoak?: T;
+  meditation_footsoak_description?: T;
   meditation_player?: T;
   meditation_vibes_check?: T;
   meditation_feedback?: T;
@@ -4244,16 +4226,10 @@ export interface WmAppTranslationsSelect<T extends boolean = true> {
   auth_login?: T;
   auth_restore_password?: T;
   auth_restore_password_email_sent?: T;
-  auth_create_account?:
-    | T
-    | {
-        strings?: T;
-        consent_label?: T;
-      };
+  auth_create_account?: T;
+  auth_create_account_consent_label?: T;
   navigation?: T;
   general?: T;
-  markReviewed?: T;
-  lastReviewedAt?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -4297,6 +4273,8 @@ export interface SyAtlasConfigSelect<T extends boolean = true> {
  * via the `definition` "sy-atlas-translations_select".
  */
 export interface SyAtlasTranslationsSelect<T extends boolean = true> {
+  markReviewed?: T;
+  lastReviewedAt?: T;
   common?: T;
   map?: T;
   location?: T;

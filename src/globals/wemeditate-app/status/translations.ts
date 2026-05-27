@@ -3,29 +3,64 @@ import { type GroupSpec, type SectionSpec } from '@/lib/status'
 import translationsSchema from '../translationsSchema.json' with { type: 'json' }
 import { type WeMeditateAppStatusConfig } from './shared'
 
-type TranslationSchemaTab = {
+type LeafProp = { type: 'string' | 'richText' }
+type SchemaNode = {
   type: 'object'
   description?: string
-  properties?: Record<string, unknown>
+  properties?: Record<string, LeafProp | SchemaNode>
 }
 
 const tabProperties =
-  (translationsSchema as { properties?: Record<string, TranslationSchemaTab> }).properties ?? {}
+  (translationsSchema as { properties?: Record<string, SchemaNode> }).properties ?? {}
 const tabEntries = Object.entries(tabProperties)
 
-function countLeafKeys(tab: TranslationSchemaTab): number {
-  return tab.properties ? Object.keys(tab.properties).length : 0
+function isObjectNode(node: LeafProp | SchemaNode): node is SchemaNode {
+  return node.type === 'object'
 }
 
-function countNonEmptyKeys(
-  tab: TranslationSchemaTab,
-  data: Record<string, unknown> | null | undefined,
-): number {
-  if (!data || !tab.properties) return 0
-  return Object.keys(tab.properties).filter((key) => {
-    const value = data[key]
-    return typeof value === 'string' && value.trim().length > 0
-  }).length
+/**
+ * Per-leaf-key descriptor for looking up the live value on a loaded global.
+ *
+ * String keys live inside a JSON field named after the (possibly nested)
+ * leaf slug — `data[leafSlug][key]`.
+ *
+ * RichText keys are stored as their own field named `<leafSlug>_<key>` —
+ * `data[fieldName]`.
+ */
+interface LeafLookup {
+  fieldName: string
+  innerKey: string | null
+}
+
+function collectLeafLookups(tabSlug: string, tabNode: SchemaNode): LeafLookup[] {
+  const out: LeafLookup[] = []
+
+  function walk(node: SchemaNode, pathSegments: string[]): void {
+    const props = node.properties ?? {}
+    const leafSlug = pathSegments.join('_')
+    for (const [key, child] of Object.entries(props)) {
+      if (isObjectNode(child)) {
+        walk(child, [...pathSegments, key])
+      } else if (child.type === 'string') {
+        out.push({ fieldName: leafSlug, innerKey: key })
+      } else if (child.type === 'richText') {
+        out.push({ fieldName: `${leafSlug}_${key}`, innerKey: null })
+      }
+    }
+  }
+
+  walk(tabNode, [tabSlug])
+  return out
+}
+
+function isPopulated(translations: Record<string, unknown>, lookup: LeafLookup): boolean {
+  if (lookup.innerKey === null) {
+    return translations[lookup.fieldName] != null
+  }
+  const blob = translations[lookup.fieldName] as Record<string, unknown> | null | undefined
+  if (!blob || typeof blob !== 'object') return false
+  const value = blob[lookup.innerKey]
+  return typeof value === 'string' && value.trim().length > 0
 }
 
 interface Ctx {
@@ -33,15 +68,18 @@ interface Ctx {
 }
 
 const tabAggregateGroups: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = tabEntries.map(
-  ([tabSlug, tabSchema]) => ({
-    key: `translations-${tabSlug}`,
-    label: `${tabSlug.charAt(0).toUpperCase()}${tabSlug.slice(1)} strings`,
-    description: `Every key under the ${tabSlug.charAt(0).toUpperCase()}${tabSlug.slice(1)} translations tab has a non-empty value for this locale.`,
-    type: 'aggregate',
-    threshold: countLeafKeys(tabSchema),
-    evaluate: async ({ translations }) =>
-      countNonEmptyKeys(tabSchema, translations[tabSlug] as Record<string, unknown> | undefined),
-  }),
+  ([tabSlug, tabSchema]) => {
+    const lookups = collectLeafLookups(tabSlug, tabSchema)
+    return {
+      key: `translations-${tabSlug}`,
+      label: `${tabSlug.charAt(0).toUpperCase()}${tabSlug.slice(1)} strings`,
+      description: `Every key under the ${tabSlug.charAt(0).toUpperCase()}${tabSlug.slice(1)} translations tab has a non-empty value for this locale.`,
+      type: 'aggregate',
+      threshold: lookups.length,
+      evaluate: async ({ translations }) =>
+        lookups.filter((lookup) => isPopulated(translations, lookup)).length,
+    }
+  },
 )
 
 export const translationsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {

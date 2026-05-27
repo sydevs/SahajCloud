@@ -55,12 +55,61 @@ the global. Versions: max 3.
 - WeMeditate App tabs: Daily, Path, Explore, Profile, Meditation
 - Sahaj Atlas tabs: Common, Map, Location
 
+### Shared review row + hook
+
+Every translation global has a `row` field ABOVE its tabs containing
+`markReviewed` (virtual checkbox, always reads as `false`) and
+`lastReviewedAt` (read-only date). Both are localized. Saving with
+`markReviewed` checked sets `lastReviewedAt` to the current timestamp
+via the shared `translationReviewHook`. Use the shared exports:
+
+```typescript
+import {
+  buildTranslationTabs,
+  translationReviewFields,
+  translationReviewHook,
+  type TranslationsSchema,
+} from '@/fields'
+import translationsSchema from './translationsSchema.json' with { type: 'json' }
+
+export const MyTranslations: GlobalConfig = {
+  slug: 'my-translations',
+  versions: { max: 3 },
+  hooks: { beforeChange: [translationReviewHook] },
+  fields: [
+    ...translationReviewFields,
+    {
+      type: 'tabs',
+      tabs: buildTranslationTabs(translationsSchema as TranslationsSchema, 'my-translations'),
+    },
+  ],
+}
+```
+
 ### Schema → tabs
 
 `translationsSchema.json` has a nested object structure where top-level
-properties become tabs. Each tab renders a single localized JSON field
-backed by the `TranslationsTable` admin component (lists keys with
-descriptions; shows English values when editing non-English locales).
+properties become tabs. Each leaf group emits:
+
+- one localized JSON field named after the (possibly nested) leaf slug
+  — e.g. `welcome` or `onboarding_welcome` — holding every `string`-typed
+  key as flat `{ key: value }` pairs. Rendered by `TranslationsRow`,
+  which displays each key as its own row (title + description + optional
+  English reference + input).
+- one localized `richText` field per `richText` key, named
+  `<leafSlug>_<key>`. Renders Payload's standard Lexical editor with a
+  custom `RichTextReference` description above showing the title +
+  English reference value.
+
+The legacy `welcome.strings.title` nesting and the `group` wrapper for
+mixed leaves are gone — data paths are flat at the tab level.
+
+Why JSON-per-leaf-group instead of a column-per-key: SQLite (and
+Cloudflare D1) limit `json_array()` to ~100 arguments, which Drizzle
+uses when aggregating a global's localized columns. `wm-app-translations`
+has ~480 leaf keys; a column-per-key design exceeds the limit on
+`findGlobal`. Per-leaf-group JSON keeps the per-row UX while staying
+within SQL constraints.
 
 ```json
 {
@@ -76,21 +125,6 @@ descriptions; shows English values when editing non-English locales).
     }
   },
   "additionalProperties": false
-}
-```
-
-```typescript
-import { buildTranslationTabs, type TranslationsSchema } from '@/fields'
-import translationsSchema from './translationsSchema.json' with { type: 'json' }
-
-export const MyTranslations: GlobalConfig = {
-  slug: 'my-translations',
-  fields: [
-    {
-      type: 'tabs',
-      tabs: buildTranslationTabs(translationsSchema as TranslationsSchema, 'my-translations'),
-    },
-  ],
 }
 ```
 
