@@ -224,51 +224,57 @@ export type SeedLeaf =
   | ({ strings: Record<string, string> } & Record<string, SeedRichTextField | string>)
 
 /**
- * The Payload data shape that gets written to a single leaf-group field on
- * the wm-app-translations global.
+ * Convert a seed leaf into a flat mapping of global-level field names → values,
+ * ready to spread into `payload.updateGlobal({ data: ... })`.
  *
- * - Pure-string leaf: `Record<string, string>` — same as before Phase 1.
- * - Mixed leaf: `{ strings: Record<string, string>, richKey: LexicalRoot, ... }`
- *   matching the Payload group field that wraps the leaf post-Phase-1.
+ * Architecture (post-#414):
+ * - String keys for leaf `onboarding_welcome` are stored in a single JSON field
+ *   also named `onboarding_welcome` — value is `{ key: "..." }` (no wrapper).
+ * - richText keys are stored as separate top-level fields named
+ *   `<leafSlug>_<rtKey>` (e.g. `onboarding_welcome_legal_disclaimer`).
+ *
+ * Handles both pure-string leaves (no `strings` block) and mixed leaves
+ * (`{ strings: {...}, richKey: SeedRichTextField, ... }`).
  */
-export type PayloadLeafData =
-  | Record<string, string>
-  | ({ strings: Record<string, string> } & Record<string, LexicalRoot>)
-
-/**
- * Convert a seed leaf to the Payload data shape, dropping `_*` metadata
- * keys and running every richText sibling through {@link seedRichTextToLexical}.
- */
-export function seedLeafToPayloadData(leafName: string, leaf: SeedLeaf): PayloadLeafData {
+export function seedLeafToGlobalEntries(
+  leafSlug: string,
+  leaf: SeedLeaf,
+): Record<string, Record<string, string> | LexicalRoot> {
+  const out: Record<string, Record<string, string> | LexicalRoot> = {}
   const stringsBlock = (leaf as { strings?: Record<string, string> }).strings
+
   if (!stringsBlock) {
-    // Pure-string leaf.
-    const out: Record<string, string> = {}
+    // Pure-string leaf — keys live directly on the object.
+    const stringKeys: Record<string, string> = {}
     for (const [k, v] of Object.entries(leaf)) {
       if (k.startsWith('_')) continue
       if (typeof v !== 'string') {
         throw new Error(
-          `[${leafName}.${k}] pure-string leaf has non-string value: ${JSON.stringify(v)}`,
+          `[${leafSlug}.${k}] pure-string leaf has non-string value: ${JSON.stringify(v)}`,
         )
       }
-      out[k] = v
+      stringKeys[k] = v
+    }
+    if (Object.keys(stringKeys).length > 0) {
+      out[leafSlug] = stringKeys
     }
     return out
   }
-  // Mixed leaf.
-  const out: Record<string, Record<string, string> | LexicalRoot> = {
-    strings: { ...stringsBlock },
+
+  // Mixed leaf — `strings` block holds string keys; siblings are richText fields.
+  if (Object.keys(stringsBlock).length > 0) {
+    out[leafSlug] = { ...stringsBlock }
   }
   for (const [k, v] of Object.entries(leaf)) {
     if (k === 'strings' || k.startsWith('_')) continue
     if (!isSeedRichTextField(v)) {
       throw new Error(
-        `[${leafName}.${k}] sibling of "strings" is not a richText field: ${JSON.stringify(v)}`,
+        `[${leafSlug}.${k}] sibling of "strings" is not a richText field: ${JSON.stringify(v)}`,
       )
     }
-    out[k] = seedRichTextToLexical(v, `${leafName}.${k}`)
+    out[`${leafSlug}_${k}`] = seedRichTextToLexical(v, `${leafSlug}.${k}`)
   }
-  return out as PayloadLeafData
+  return out
 }
 
 /**

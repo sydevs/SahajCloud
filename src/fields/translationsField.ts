@@ -1,11 +1,7 @@
 import type {
-  CheckboxField,
-  DateField,
   Field,
-  GlobalBeforeChangeHook,
   JSONField,
   RichTextField,
-  RowField,
   TabsField,
   UIField,
 } from 'payload'
@@ -226,47 +222,6 @@ function createLeafFields(leafSlug: string, group: GroupSchema, globalSlug: stri
   return [...(screenshot ? [screenshot] : []), ...fields]
 }
 
-// ============================================================================
-// Shared review fields + hook (used by all three translation globals)
-// ============================================================================
-
-const markReviewedField: CheckboxField = {
-  name: 'markReviewed',
-  type: 'checkbox',
-  localized: true,
-  virtual: true,
-  admin: {
-    description: 'Check and save to record that this locale has been reviewed.',
-  },
-  hooks: {
-    afterRead: [() => false],
-  },
-}
-
-const lastReviewedAtField: DateField = {
-  name: 'lastReviewedAt',
-  type: 'date',
-  localized: true,
-  admin: {
-    readOnly: true,
-    description: 'Timestamp of the last review for this locale.',
-  },
-}
-
-const reviewRow: RowField = {
-  type: 'row',
-  fields: [markReviewedField, lastReviewedAtField],
-}
-
-export const translationReviewFields: Field[] = [reviewRow]
-
-export const translationReviewHook: GlobalBeforeChangeHook = ({ data }) => {
-  if (data?.markReviewed === true) {
-    data.lastReviewedAt = new Date().toISOString()
-    data.markReviewed = false
-  }
-  return data
-}
 
 // ============================================================================
 // Main: buildTranslationTabs

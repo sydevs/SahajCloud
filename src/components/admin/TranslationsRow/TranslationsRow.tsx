@@ -36,7 +36,11 @@ export const TranslationsRow: React.FC<TranslationsRowProps> = ({
         </div>
       )
     } else {
-      englishCell = <div className="translations-row__english">{englishValue || ''}</div>
+      englishCell = (
+        <div className="translations-row__english">
+          {englishValue ? `English: "${englishValue}"` : ''}
+        </div>
+      )
     }
   }
 

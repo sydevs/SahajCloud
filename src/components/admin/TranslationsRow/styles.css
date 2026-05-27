@@ -88,10 +88,14 @@
 /* ----------------------------------------------------------------------- */
 
 .translations-row__input-cell {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 
 .translations-row__input-cell textarea {
+  flex: 1;
   width: 100%;
   resize: none;
   overflow: hidden;
@@ -188,4 +192,51 @@
 .translations-row__lexical-content a {
   color: var(--theme-elevation-700);
   text-decoration: underline;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Inline link input panel (shown between toolbar and editor)              */
+/* ----------------------------------------------------------------------- */
+
+.translations-row__lexical-link-input {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--base) * 0.25);
+  padding: calc(var(--base) * 0.25) calc(var(--base) * 0.3);
+  background: var(--theme-elevation-50);
+  border: 1px solid var(--theme-elevation-150);
+  border-top: 0;
+  border-bottom: 0;
+}
+
+.translations-row__lexical-link-input input[type='url'] {
+  flex: 1;
+  padding: calc(var(--base) * 0.25) calc(var(--base) * 0.4);
+  background: var(--theme-input-bg);
+  border: 1px solid var(--theme-elevation-200);
+  border-radius: var(--style-radius-s);
+  color: var(--theme-text);
+  font-size: calc(var(--base-body-size) * 1px);
+  font-family: inherit;
+}
+
+.translations-row__lexical-link-input input[type='url']:focus {
+  outline: none;
+  border-color: var(--theme-elevation-400);
+}
+
+.translations-row__lexical-link-input button {
+  padding: calc(var(--base) * 0.2) calc(var(--base) * 0.4);
+  background: transparent;
+  border: 1px solid var(--theme-elevation-200);
+  border-radius: var(--style-radius-s);
+  cursor: pointer;
+  color: var(--theme-elevation-700);
+  font-size: calc(var(--base-body-size) * 0.9px);
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.translations-row__lexical-link-input button:hover {
+  background: var(--theme-elevation-100);
 }

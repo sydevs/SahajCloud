@@ -28,8 +28,7 @@ export const AutoGrowTextarea: React.FC<AutoGrowTextareaProps> = ({
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${el.scrollHeight}px`
+    el.style.minHeight = `${el.scrollHeight}px`
   }, [value])
 
   return (

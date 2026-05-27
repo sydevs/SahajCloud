@@ -81,9 +81,7 @@ export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly
                   value={currentValue}
                   onChange={(next) => handleChange(entry.key, next)}
                   readOnly={readOnly}
-                  placeholder={
-                    isEnglish ? 'Enter translation...' : englishValue || 'Enter translation...'
-                  }
+                  placeholder="Enter translation..."
                   ariaLabel={`Translation for ${entry.key}`}
                 />
               </TranslationsRow>

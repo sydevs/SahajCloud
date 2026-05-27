@@ -5,7 +5,6 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { ContentEditable } from '@lexical/react/LexicalContentEditable'
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
-import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin'
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
 import {
@@ -13,15 +12,17 @@ import {
   $isLinkNode,
   LinkNode,
   TOGGLE_LINK_COMMAND,
-} from '@payloadcms/richtext-lexical/lexical/link'
+} from '@payloadcms/richtext-lexical/client'
 import {
+  $createTextNode,
   $getSelection,
   $isRangeSelection,
+  COMMAND_PRIORITY_EDITOR,
   type EditorState,
   FORMAT_TEXT_COMMAND,
   type SerializedEditorState,
 } from 'lexical'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 /**
  * Minimal controlled Lexical editor used inside TranslationsRow for richText
@@ -32,7 +33,10 @@ import React, { useCallback, useEffect, useState } from 'react'
  * replacement.
  *
  * Value is the standard Lexical SerializedEditorState shape Payload already
- * stores for richText fields.
+ * stores for richText fields. Links are stored in Payload's format:
+ * `{ type: 'link', fields: { linkType: 'custom', url, newTab: false }, ... }`.
+ * Importing LinkNode from @payloadcms/richtext-lexical/client avoids pulling
+ * in the server-only pino/worker_threads dependencies.
  */
 
 export type TranslationLexicalValue = SerializedEditorState | null | undefined
@@ -83,7 +87,7 @@ export const TranslationLexicalEditor: React.FC<TranslationLexicalEditorProps> =
         />
       </div>
       <HistoryPlugin />
-      <LinkPlugin />
+      <PayloadLinkPlugin />
       <OnChangePlugin
         ignoreSelectionChange
         onChange={(editorState: EditorState) => {
@@ -128,11 +132,66 @@ const ReadOnlySync: React.FC<{ readOnly: boolean }> = ({ readOnly }) => {
   return null
 }
 
+/**
+ * Handles Payload's TOGGLE_LINK_COMMAND so links are stored in Payload's
+ * format: `fields: { linkType: 'custom', url, newTab }`.
+ * $toggleLink is not exported from the client package so we implement
+ * the minimal subset needed for this editor (single-selection links only).
+ */
+const PayloadLinkPlugin: React.FC = () => {
+  const [editor] = useLexicalComposerContext()
+  useEffect(() => {
+    return editor.registerCommand(
+      TOGGLE_LINK_COMMAND,
+      (payload) => {
+        const selection = $getSelection()
+        if (!$isRangeSelection(selection)) return false
+
+        if (payload === null) {
+          selection.getNodes().forEach((node) => {
+            const parent = node.getParent()
+            if ($isLinkNode(parent)) {
+              parent.getChildren().forEach((child) => parent.insertBefore(child))
+              parent.remove()
+            } else if ($isLinkNode(node)) {
+              node.getChildren().forEach((child) => node.insertBefore(child))
+              node.remove()
+            }
+          })
+          return true
+        }
+
+        const fields = { linkType: 'custom' as const, url: payload.fields?.url ?? '', newTab: false }
+        const nodes = selection.getNodes()
+        const firstNode = nodes[0]
+        const parent = firstNode?.getParent()
+
+        if ($isLinkNode(firstNode)) {
+          firstNode.setFields(fields)
+        } else if ($isLinkNode(parent)) {
+          parent.setFields(fields)
+        } else {
+          const textContent = selection.getTextContent()
+          const linkNode = $createLinkNode({ fields })
+          linkNode.append($createTextNode(textContent))
+          selection.insertNodes([linkNode])
+        }
+        return true
+      },
+      COMMAND_PRIORITY_EDITOR,
+    )
+  }, [editor])
+  return null
+}
+
 const Toolbar: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
   const [editor] = useLexicalComposerContext()
   const [isBold, setIsBold] = useState(false)
   const [isItalic, setIsItalic] = useState(false)
   const [isLink, setIsLink] = useState(false)
+  const [linkInputVisible, setLinkInputVisible] = useState(false)
+  const [pendingUrl, setPendingUrl] = useState('')
+  const urlInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     return editor.registerUpdateListener(({ editorState }) => {
@@ -153,66 +212,94 @@ const Toolbar: React.FC<{ readOnly?: boolean }> = ({ readOnly }) => {
     })
   }, [editor])
 
-  const toggleLink = useCallback(() => {
-    editor.update(() => {
-      const selection = $getSelection()
-      if (!$isRangeSelection(selection)) return
-      if (isLink) {
-        editor.dispatchCommand(TOGGLE_LINK_COMMAND, null)
-      } else {
-        const url = window.prompt('Enter URL:')
-        if (!url) return
-        editor.dispatchCommand(TOGGLE_LINK_COMMAND, url)
-        // Wrap with link node if not already
-        if (!$isLinkNode(selection.getNodes()[0]?.getParent())) {
-          const linkNode = $createLinkNode(url)
-          selection.insertNodes([linkNode])
-        }
-      }
-    })
-  }, [editor, isLink])
+  const applyLink = useCallback(() => {
+    const url = pendingUrl.trim()
+    if (url) {
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, { fields: { linkType: 'custom', url, newTab: false }, text: null })
+    }
+    setLinkInputVisible(false)
+    setPendingUrl('')
+  }, [editor, pendingUrl])
+
+  const cancelLink = useCallback(() => {
+    setLinkInputVisible(false)
+    setPendingUrl('')
+  }, [])
 
   return (
-    <div className="translations-row__lexical-toolbar">
-      <button
-        type="button"
-        disabled={readOnly}
-        className={`translations-row__lexical-btn${isBold ? ' translations-row__lexical-btn--active' : ''}`}
-        onMouseDown={(e) => {
-          e.preventDefault()
-          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')
-        }}
-        aria-label="Bold"
-        aria-pressed={isBold}
-      >
-        <strong>B</strong>
-      </button>
-      <button
-        type="button"
-        disabled={readOnly}
-        className={`translations-row__lexical-btn${isItalic ? ' translations-row__lexical-btn--active' : ''}`}
-        onMouseDown={(e) => {
-          e.preventDefault()
-          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')
-        }}
-        aria-label="Italic"
-        aria-pressed={isItalic}
-      >
-        <em>I</em>
-      </button>
-      <button
-        type="button"
-        disabled={readOnly}
-        className={`translations-row__lexical-btn${isLink ? ' translations-row__lexical-btn--active' : ''}`}
-        onMouseDown={(e) => {
-          e.preventDefault()
-          toggleLink()
-        }}
-        aria-label="Insert link"
-        aria-pressed={isLink}
-      >
-        🔗
-      </button>
-    </div>
+    <>
+      <div className="translations-row__lexical-toolbar">
+        <button
+          type="button"
+          disabled={readOnly}
+          className={`translations-row__lexical-btn${isBold ? ' translations-row__lexical-btn--active' : ''}`}
+          onMouseDown={(e) => {
+            e.preventDefault()
+            editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')
+          }}
+          aria-label="Bold"
+          aria-pressed={isBold}
+        >
+          <strong>B</strong>
+        </button>
+        <button
+          type="button"
+          disabled={readOnly}
+          className={`translations-row__lexical-btn${isItalic ? ' translations-row__lexical-btn--active' : ''}`}
+          onMouseDown={(e) => {
+            e.preventDefault()
+            editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')
+          }}
+          aria-label="Italic"
+          aria-pressed={isItalic}
+        >
+          <em>I</em>
+        </button>
+        <button
+          type="button"
+          disabled={readOnly}
+          className={`translations-row__lexical-btn${isLink ? ' translations-row__lexical-btn--active' : ''}`}
+          onMouseDown={(e) => {
+            e.preventDefault()
+            if (isLink) {
+              editor.dispatchCommand(TOGGLE_LINK_COMMAND, null)
+            } else {
+              setLinkInputVisible(true)
+              setTimeout(() => urlInputRef.current?.focus(), 0)
+            }
+          }}
+          aria-label="Insert link"
+          aria-pressed={isLink}
+        >
+          🔗
+        </button>
+      </div>
+      {linkInputVisible && !readOnly && (
+        <div className="translations-row__lexical-link-input">
+          <input
+            ref={urlInputRef}
+            type="url"
+            value={pendingUrl}
+            onChange={(e) => setPendingUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                applyLink()
+              } else if (e.key === 'Escape') {
+                cancelLink()
+              }
+            }}
+            placeholder="https://..."
+            aria-label="Link URL"
+          />
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); applyLink() }}>
+            Apply
+          </button>
+          <button type="button" onMouseDown={(e) => { e.preventDefault(); cancelLink() }}>
+            Cancel
+          </button>
+        </div>
+      )}
+    </>
   )
 }

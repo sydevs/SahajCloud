@@ -21,8 +21,7 @@ import { BaseImporter, type BaseImportOptions } from '../lib'
 
 import {
   collectSeedTodos,
-  seedLeafToPayloadData,
-  type PayloadLeafData,
+  seedLeafToGlobalEntries,
   type SeedFile,
   type SeedLeaf,
 } from './lexicalConverter'
@@ -57,30 +56,23 @@ export class WeMeditateAppTranslationsImporter extends BaseImporter<BaseImportOp
       workerUrl: SEED_DATA_WORKER_URL,
     })
 
-    // 2. Transform every leaf to its Payload data shape (this runs the
-    //    segments→Lexical conversion for the 7 mixed leaves).
-    const data: Record<string, PayloadLeafData> = {}
+    // 2. Transform every leaf into flat global-level field entries.
+    //    Mixed leaves (strings block + richText siblings) are unpacked:
+    //    string keys → data[leafSlug], richText keys → data[leafSlug_rtKey].
+    const data: Record<string, unknown> = {}
     for (const [leafName, leaf] of Object.entries(seed)) {
       if (leafName.startsWith('_') || !leaf) continue
       try {
-        data[leafName] = seedLeafToPayloadData(leafName, leaf as SeedLeaf)
+        const entries = seedLeafToGlobalEntries(leafName, leaf as SeedLeaf)
+        Object.assign(data, entries)
       } catch (error) {
         this.addError(`Transforming ${leafName}`, error instanceof Error ? error : String(error))
         return
       }
     }
 
-    const leafNames = Object.keys(data)
-    const mixedCount = leafNames.filter(
-      (name) =>
-        'strings' in data[name] &&
-        typeof (data[name] as { strings?: unknown }).strings === 'object',
-    ).length
-    const pureCount = leafNames.length - mixedCount
-
-    await this.logger.info(
-      `Planned writes: ${leafNames.length} leaf groups (${pureCount} pure-string + ${mixedCount} mixed)`,
-    )
+    const fieldNames = Object.keys(data)
+    await this.logger.info(`Planned writes: ${fieldNames.length} global field(s)`)
 
     // 3. Surface every `_todo` marker so editors know what to finalise in
     //    the admin UI after the import lands.
@@ -98,21 +90,19 @@ export class WeMeditateAppTranslationsImporter extends BaseImporter<BaseImportOp
     // 4. Dry-run path: report and stop.
     if (this.options.dryRun) {
       await this.logger.info('Dry-run — no write to the global was sent.')
-      // Report each leaf as a "would-be" create so the importer's report
-      // surfaces the planned changes in the summary + SSE progress UI.
       let current = 0
-      for (const name of leafNames) {
+      for (const name of fieldNames) {
         this.report.incrementCreated()
         current += 1
         await this.reportDocument(GLOBAL_SLUG, name, 'created', {
           current,
-          total: leafNames.length,
+          total: fieldNames.length,
         })
       }
       return
     }
 
-    // 5. Commit path: single updateGlobal call writes all leaves at once.
+    // 5. Commit path: single updateGlobal call writes all fields at once.
     if (!this.payload) {
       throw new Error('Payload instance not initialised (BaseImporter contract violation)')
     }
@@ -123,14 +113,13 @@ export class WeMeditateAppTranslationsImporter extends BaseImporter<BaseImportOp
         locale: LOCALE,
       })
       await this.logger.success(`Updated global "${GLOBAL_SLUG}" (locale=${LOCALE})`)
-      // Report each leaf so the summary shows the write count.
       let current = 0
-      for (const name of leafNames) {
+      for (const name of fieldNames) {
         this.report.incrementUpdated()
         current += 1
         await this.reportDocument(GLOBAL_SLUG, name, 'updated', {
           current,
-          total: leafNames.length,
+          total: fieldNames.length,
         })
       }
     } catch (error) {

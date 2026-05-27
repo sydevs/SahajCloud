@@ -18,11 +18,7 @@ export { slugField } from './slugField'
 export type { SlugFieldOptions } from './slugField'
 
 // Translations field - builds tabs from nested JSON schema for translations
-export {
-  buildTranslationTabs,
-  translationReviewFields,
-  translationReviewHook,
-} from './translationsField'
+export { buildTranslationTabs } from './translationsField'
 export type { SchemaEntry, TranslationsSchema } from './translationsField'
 
 // Schedule field - JSON field with datetime, timezone, and RRULE support

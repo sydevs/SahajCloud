@@ -85,12 +85,7 @@ const tabAggregateGroups: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = tabEntri
 export const translationsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'translations',
   tutorialLink: null,
-  checks: {
-    'reviewed-this-cycle': {
-      label: 'Reviewed at least once',
-      description: 'An admin has manually marked translations reviewed for this locale.',
-    },
-  },
+  checks: {},
   prepare: async ({ payload, locale, req }) => {
     const translations = (await payload.findGlobal({
       slug: 'wm-app-translations',
@@ -101,24 +96,5 @@ export const translationsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = 
     })) as unknown as Record<string, unknown>
     return { translations }
   },
-  groups: [
-    ...tabAggregateGroups,
-    {
-      key: 'manual-review',
-      label: 'Manual review',
-      description: 'An admin has marked translations reviewed for this locale at least once.',
-      type: 'documents',
-      evaluate: async ({ translations }, { locale }) => {
-        const lastReviewedAt =
-          typeof translations.lastReviewedAt === 'string' ? translations.lastReviewedAt : null
-        return [
-          {
-            id: locale,
-            label: lastReviewedAt ?? 'Never reviewed',
-            checks: [{ key: 'reviewed-this-cycle', passed: lastReviewedAt !== null }],
-          },
-        ]
-      },
-    },
-  ],
+  groups: [...tabAggregateGroups],
 }

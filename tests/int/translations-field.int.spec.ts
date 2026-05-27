@@ -3,9 +3,7 @@
  * schema into PayloadCMS tabs. After issue #414 each leaf group emits one
  * localized JSON field (for its string keys, rendered as rows by
  * TranslationsRow) plus one richText field per richText key. The legacy
- * `group` wrapper and `strings` sub-field are gone. The shared review row
- * (`markReviewed` + `lastReviewedAt`) and `translationReviewHook` apply to
- * all three translation globals.
+ * `group` wrapper and `strings` sub-field are gone.
  *
  * Why JSON-per-leaf instead of a column-per-key: SQLite's `json_array()`
  * argument limit (~100) breaks `findGlobal` once a single global has too
@@ -16,8 +14,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildTranslationTabs,
-  translationReviewFields,
-  translationReviewHook,
   type SchemaEntry,
   type TranslationsSchema,
 } from '@/fields'
@@ -198,7 +194,7 @@ describe('buildTranslationTabs', () => {
       expect(fields.find((f) => f.type === 'group')).toBeUndefined()
     })
 
-    it('registers RichTextReference as the Description component', () => {
+    it('registers TranslationsRichTextField as the Field component', () => {
       const schema: TranslationsSchema = {
         type: 'object',
         properties: {
@@ -212,12 +208,12 @@ describe('buildTranslationTabs', () => {
       const tabs = buildTranslationTabs(schema, 'wm-app-translations')
       const field = tabs[0].fields[0] as {
         admin?: {
-          components?: { Description?: string }
+          components?: { Field?: string }
           custom?: { translationKey?: string; globalSlug?: string; fieldType?: string }
         }
       }
-      expect(field.admin?.components?.Description).toBe(
-        '@/components/admin/TranslationsRow#RichTextReference',
+      expect(field.admin?.components?.Field).toBe(
+        '@/components/admin/TranslationsRow#TranslationsRichTextField',
       )
       expect(field.admin?.custom).toMatchObject({
         translationKey: 'body',
@@ -321,34 +317,3 @@ describe('buildTranslationTabs', () => {
   })
 })
 
-describe('translationReviewFields', () => {
-  it('exposes a single row containing markReviewed + lastReviewedAt', () => {
-    expect(translationReviewFields).toHaveLength(1)
-    const row = translationReviewFields[0] as {
-      type: string
-      fields: Array<{ name: string; type: string; localized?: boolean; virtual?: boolean }>
-    }
-    expect(row.type).toBe('row')
-    expect(row.fields.map((f) => f.name)).toEqual(['markReviewed', 'lastReviewedAt'])
-    expect(row.fields[0]).toMatchObject({ type: 'checkbox', localized: true, virtual: true })
-    expect(row.fields[1]).toMatchObject({ type: 'date', localized: true })
-  })
-})
-
-describe('translationReviewHook', () => {
-  it('sets lastReviewedAt and clears markReviewed when checked', () => {
-    const data: Record<string, unknown> = { markReviewed: true }
-    const out = translationReviewHook({ data } as Parameters<typeof translationReviewHook>[0])
-    expect(out.markReviewed).toBe(false)
-    expect(typeof out.lastReviewedAt).toBe('string')
-    expect(() => new Date(out.lastReviewedAt as string).toISOString()).not.toThrow()
-  })
-
-  it('leaves data unchanged when markReviewed is not set', () => {
-    const data: Record<string, unknown> = { somethingElse: 'untouched' }
-    const out = translationReviewHook({ data } as Parameters<typeof translationReviewHook>[0])
-    expect(out.markReviewed).toBeUndefined()
-    expect(out.lastReviewedAt).toBeUndefined()
-    expect(out.somethingElse).toBe('untouched')
-  })
-})

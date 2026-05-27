@@ -19,7 +19,7 @@ import { describe, expect, it } from 'vitest'
 import {
   collectSeedTodos,
   isSeedRichTextField,
-  seedLeafToPayloadData,
+  seedLeafToGlobalEntries,
   seedRichTextToLexical,
   type SeedFile,
   type SeedRichTextField,
@@ -286,29 +286,31 @@ describe('seeds/wm-app-translations/lexicalConverter', () => {
     })
   })
 
-  describe('seedLeafToPayloadData', () => {
-    it('passes pure-string leaves through (stripping _meta keys)', () => {
-      const out = seedLeafToPayloadData('onboarding_name', {
+  describe('seedLeafToGlobalEntries', () => {
+    it('returns a single entry keyed by leafSlug for pure-string leaves, stripping _meta keys', () => {
+      const out = seedLeafToGlobalEntries('onboarding_name', {
         title: "What's your name?",
         placeholder: 'Your first name',
         continue: 'Continue',
         _source: 'documentation only — should be dropped',
       } as never)
       expect(out).toEqual({
-        title: "What's your name?",
-        placeholder: 'Your first name',
-        continue: 'Continue',
+        onboarding_name: {
+          title: "What's your name?",
+          placeholder: 'Your first name',
+          continue: 'Continue',
+        },
       })
     })
 
     it('throws when a pure-string leaf has a non-string value', () => {
       expect(() =>
-        seedLeafToPayloadData('bad_leaf', { good: 'ok', bad: 123 as unknown as string }),
+        seedLeafToGlobalEntries('bad_leaf', { good: 'ok', bad: 123 as unknown as string }),
       ).toThrow(/has non-string value/)
     })
 
-    it('shapes a mixed leaf as { strings, ...richKeys }', () => {
-      const out = seedLeafToPayloadData('onboarding_welcome', {
+    it('unpacks a mixed leaf: strings → leafSlug entry, richText → leafSlug_rtKey entry', () => {
+      const out = seedLeafToGlobalEntries('onboarding_welcome', {
         strings: { title: 'Welcome, friend', get_started: 'Get started' },
         legal_disclaimer: {
           _richText: true,
@@ -320,18 +322,22 @@ describe('seeds/wm-app-translations/lexicalConverter', () => {
           ],
         },
       } as never)
-      expect((out as { strings: Record<string, string> }).strings).toEqual({
+      expect(out['onboarding_welcome']).toEqual({
         title: 'Welcome, friend',
         get_started: 'Get started',
       })
-      const richField = (out as Record<string, unknown>).legal_disclaimer as {
+      const richField = out['onboarding_welcome_legal_disclaimer'] as {
         root: { children: unknown[] }
       }
       expect(richField.root.children).toHaveLength(1)
+      expect(Object.keys(out).sort()).toEqual([
+        'onboarding_welcome',
+        'onboarding_welcome_legal_disclaimer',
+      ])
     })
 
     it('drops _source / _todo / other _-prefixed metadata at all levels', () => {
-      const out = seedLeafToPayloadData('mixed_leaf', {
+      const out = seedLeafToGlobalEntries('mixed_leaf', {
         _source: 'documentation',
         _todo: 'TODO marker',
         strings: { foo: 'bar' },
@@ -342,15 +348,14 @@ describe('seeds/wm-app-translations/lexicalConverter', () => {
           paragraphs: [[{ text: 'paragraph text' }]],
         },
       } as never)
-      const out_obj = out as Record<string, unknown>
-      expect(Object.keys(out_obj).sort()).toEqual(['body', 'strings'])
-      expect('_source' in out_obj).toBe(false)
-      expect('_todo' in out_obj).toBe(false)
+      expect(Object.keys(out).sort()).toEqual(['mixed_leaf', 'mixed_leaf_body'])
+      expect('_source' in out).toBe(false)
+      expect('_todo' in out).toBe(false)
     })
 
     it('throws when a sibling of "strings" is not a richText field', () => {
       expect(() =>
-        seedLeafToPayloadData('bad_mixed', {
+        seedLeafToGlobalEntries('bad_mixed', {
           strings: { foo: 'bar' },
           bad: 'this should be a richText field, not a string',
         } as never),

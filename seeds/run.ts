@@ -49,6 +49,7 @@ type ScriptName =
   | 'meditations'
   | 'tags'
   | 'wm-app-translations'
+  | 'translations'
 
 const VALID_SCRIPTS: ScriptName[] = [
   'storyblok',
@@ -56,6 +57,7 @@ const VALID_SCRIPTS: ScriptName[] = [
   'meditations',
   'tags',
   'wm-app-translations',
+  'translations',
 ]
 
 // Dependency order: tags first (referenced by other content), then wemeditate (authors/categories),
@@ -75,6 +77,7 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   meditations: 'Seed meditation content from legacy database',
   tags: 'Seed UserChoices and MusicTags from Cloudinary',
   'wm-app-translations': 'Seed English copy for the wm-app-translations global',
+  translations: 'Seed English copy for all three translation globals',
 }
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']

@@ -2996,14 +2996,6 @@ export interface WmWebConfig {
  */
 export interface WmWebTranslation {
   id: number;
-  /**
-   * Check and save to record that this locale has been reviewed.
-   */
-  markReviewed?: boolean | null;
-  /**
-   * Timestamp of the last review for this locale.
-   */
-  lastReviewedAt?: string | null;
   common?:
     | {
         [k: string]: unknown;
@@ -3022,6 +3014,7 @@ export interface WmWebTranslation {
     | number
     | boolean
     | null;
+  _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -3132,14 +3125,6 @@ export interface WmAppConfig {
  */
 export interface WmAppTranslation {
   id: number;
-  /**
-   * Check and save to record that this locale has been reviewed.
-   */
-  markReviewed?: boolean | null;
-  /**
-   * Timestamp of the last review for this locale.
-   */
-  lastReviewedAt?: string | null;
   onboarding_welcome?:
     | {
         [k: string]: unknown;
@@ -3680,6 +3665,7 @@ export interface WmAppTranslation {
     | number
     | boolean
     | null;
+  _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -4054,14 +4040,6 @@ export interface SyAtlasConfig {
  */
 export interface SyAtlasTranslation {
   id: number;
-  /**
-   * Check and save to record that this locale has been reviewed.
-   */
-  markReviewed?: boolean | null;
-  /**
-   * Timestamp of the last review for this locale.
-   */
-  lastReviewedAt?: string | null;
   common?:
     | {
         [k: string]: unknown;
@@ -4089,6 +4067,7 @@ export interface SyAtlasTranslation {
     | number
     | boolean
     | null;
+  _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -4129,10 +4108,9 @@ export interface WmWebConfigSelect<T extends boolean = true> {
  * via the `definition` "wm-web-translations_select".
  */
 export interface WmWebTranslationsSelect<T extends boolean = true> {
-  markReviewed?: T;
-  lastReviewedAt?: T;
   common?: T;
   navigation?: T;
+  _status?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -4178,8 +4156,6 @@ export interface WmAppConfigSelect<T extends boolean = true> {
  * via the `definition` "wm-app-translations_select".
  */
 export interface WmAppTranslationsSelect<T extends boolean = true> {
-  markReviewed?: T;
-  lastReviewedAt?: T;
   onboarding_welcome?: T;
   onboarding_welcome_legal_disclaimer?: T;
   onboarding_name?: T;
@@ -4230,6 +4206,7 @@ export interface WmAppTranslationsSelect<T extends boolean = true> {
   auth_create_account_consent_label?: T;
   navigation?: T;
   general?: T;
+  _status?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -4273,11 +4250,10 @@ export interface SyAtlasConfigSelect<T extends boolean = true> {
  * via the `definition` "sy-atlas-translations_select".
  */
 export interface SyAtlasTranslationsSelect<T extends boolean = true> {
-  markReviewed?: T;
-  lastReviewedAt?: T;
   common?: T;
   map?: T;
   location?: T;
+  _status?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

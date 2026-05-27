@@ -55,29 +55,14 @@ the global. Versions: max 3.
 - WeMeditate App tabs: Daily, Path, Explore, Profile, Meditation
 - Sahaj Atlas tabs: Common, Map, Location
 
-### Shared review row + hook
-
-Every translation global has a `row` field ABOVE its tabs containing
-`markReviewed` (virtual checkbox, always reads as `false`) and
-`lastReviewedAt` (read-only date). Both are localized. Saving with
-`markReviewed` checked sets `lastReviewedAt` to the current timestamp
-via the shared `translationReviewHook`. Use the shared exports:
-
 ```typescript
-import {
-  buildTranslationTabs,
-  translationReviewFields,
-  translationReviewHook,
-  type TranslationsSchema,
-} from '@/fields'
+import { buildTranslationTabs, type TranslationsSchema } from '@/fields'
 import translationsSchema from './translationsSchema.json' with { type: 'json' }
 
 export const MyTranslations: GlobalConfig = {
   slug: 'my-translations',
-  versions: { max: 3 },
-  hooks: { beforeChange: [translationReviewHook] },
+  versions: { max: 10, drafts: true },
   fields: [
-    ...translationReviewFields,
     {
       type: 'tabs',
       tabs: buildTranslationTabs(translationsSchema as TranslationsSchema, 'my-translations'),
