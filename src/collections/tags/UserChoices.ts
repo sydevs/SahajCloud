@@ -61,7 +61,6 @@ export const UserChoices: CollectionConfig = {
   },
   upload: {
     staticDir: 'media/user-choices',
-    hideRemoveFile: true,
     mimeTypes: ['image/svg+xml'],
   },
   fields: [
