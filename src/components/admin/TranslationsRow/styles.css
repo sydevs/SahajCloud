@@ -1,0 +1,170 @@
+/*
+ * TranslationsRow — shared layout for string + richText translation fields.
+ *
+ * String fields render via TranslationsRowField (a JSON field) which emits
+ * one `.translations-row` per schema entry, laid out as a 3-column CSS Grid
+ * in non-English locales (title | English reference | input) or 2-column in
+ * English (title | input).
+ *
+ * RichText fields use `admin.className` to apply
+ * `.translations-richtext-row` to the standard rich-text-lexical container.
+ * The same 2-column grid (title | editor-area) is applied; the English
+ * reference renders inside the editor-area as a labelled box above the
+ * Lexical editor (since Description is nested inside `field-type__wrap`
+ * and cannot be lifted into a sibling grid cell without DOM hacks).
+ *
+ * Stacks vertically on screens narrower than Payload's small breakpoint
+ * (768px = `--breakpoint-s-width`).
+ */
+
+/* ----------------------------------------------------------------------- */
+/* String rows (3 cols in non-EN, 2 cols in EN)                            */
+/* ----------------------------------------------------------------------- */
+
+.translations-row {
+  display: grid;
+  grid-template-columns: 340px 280px 1fr;
+  gap: calc(var(--base) * 0.75);
+  align-items: start;
+  padding: calc(var(--base) * 0.5) 0;
+  border-bottom: 1px solid var(--theme-elevation-100);
+}
+
+.translations-row[data-locale='en'] {
+  grid-template-columns: 340px 1fr;
+}
+
+@media (max-width: 768px) {
+  .translations-row,
+  .translations-row[data-locale='en'] {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ----------------------------------------------------------------------- */
+/* RichText rows — restructure default field-type layout to 2 cols         */
+/* ----------------------------------------------------------------------- */
+
+.translations-richtext-row.field-type.rich-text-lexical {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: calc(var(--base) * 0.75);
+  align-items: start;
+  padding: calc(var(--base) * 0.5) 0;
+  border-bottom: 1px solid var(--theme-elevation-100);
+}
+
+@media (max-width: 768px) {
+  .translations-richtext-row.field-type.rich-text-lexical {
+    grid-template-columns: 1fr;
+  }
+}
+
+.translations-richtext-row.field-type.rich-text-lexical > .field-label {
+  margin-bottom: 0;
+}
+
+/* Reorder the wrap's children so the Description (English reference) renders
+   ABOVE the Lexical editor instead of Payload's default below-the-input
+   position. */
+.translations-richtext-row.field-type.rich-text-lexical > .field-type__wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.translations-richtext-row.field-type.rich-text-lexical > .field-type__wrap > .field-error {
+  order: -2;
+}
+
+.translations-richtext-row.field-type.rich-text-lexical > .field-type__wrap > .field-description {
+  order: -1;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Header cell (title + description)                                       */
+/* ----------------------------------------------------------------------- */
+
+.translations-row__header {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) * 0.15);
+  min-width: 0;
+}
+
+.translations-row__title {
+  font-size: calc(var(--base-body-size) * 1px);
+  font-weight: 600;
+  color: var(--theme-elevation-800);
+}
+
+.translations-row__description {
+  font-size: calc(var(--base-body-size) * 0.75px);
+  color: var(--theme-elevation-500);
+  line-height: 1.4;
+}
+
+/* ----------------------------------------------------------------------- */
+/* English reference cell                                                  */
+/* ----------------------------------------------------------------------- */
+
+.translations-row__english {
+  font-size: calc(var(--base-body-size) * 1px);
+  color: var(--theme-elevation-700);
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.translations-row__english--placeholder {
+  color: var(--theme-elevation-400);
+  font-style: italic;
+}
+
+/* English-ref block above the Lexical editor (richText rows) */
+.translations-row__english-block {
+  padding: calc(var(--base) * 0.4);
+  margin-bottom: calc(var(--base) * 0.4);
+  background: var(--theme-elevation-50);
+  border: 1px solid var(--theme-elevation-100);
+  border-radius: var(--style-radius-s);
+  color: var(--theme-elevation-700);
+  font-size: calc(var(--base-body-size) * 0.9px);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.translations-row__english-label {
+  font-size: calc(var(--base-body-size) * 0.75px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--theme-elevation-500);
+  margin-bottom: calc(var(--base) * 0.2);
+}
+
+/* ----------------------------------------------------------------------- */
+/* Input cell — Payload textarea inside our row                            */
+/* ----------------------------------------------------------------------- */
+
+.translations-row__input-cell {
+  min-width: 0;
+}
+
+.translations-row__input-cell textarea {
+  width: 100%;
+  resize: none;
+  overflow: hidden;
+  padding: calc(var(--base) * 0.4);
+  background: var(--theme-input-bg);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-s);
+  color: var(--theme-text);
+  font-size: calc(var(--base-body-size) * 1px);
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.translations-row__input-cell textarea:disabled {
+  background: var(--theme-elevation-50);
+  cursor: not-allowed;
+}

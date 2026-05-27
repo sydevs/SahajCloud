@@ -7,32 +7,7 @@ import React from 'react'
 
 import { useEnglishTranslation } from './useEnglishTranslation'
 
-const containerStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 'calc(var(--base) * 0.25)',
-  padding: 'calc(var(--base) * 0.4) 0',
-  color: 'var(--theme-elevation-600)',
-  fontSize: 'calc(var(--base-body-size) * 0.9px)',
-}
-
-const englishBoxStyle: React.CSSProperties = {
-  padding: 'calc(var(--base) * 0.4)',
-  background: 'var(--theme-elevation-50)',
-  border: '1px solid var(--theme-elevation-100)',
-  borderRadius: 'var(--style-radius-s)',
-  color: 'var(--theme-elevation-700)',
-  whiteSpace: 'pre-wrap',
-  wordBreak: 'break-word',
-}
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 'calc(var(--base-body-size) * 0.8px)',
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  color: 'var(--theme-elevation-500)',
-}
+import './styles.css'
 
 function extractPlainText(node: unknown): string {
   if (!node) return ''
@@ -47,6 +22,13 @@ function extractPlainText(node: unknown): string {
   return ''
 }
 
+/**
+ * Description slot for richText translation fields. Renders the English
+ * reference value (when editing a non-English locale) as a labelled block
+ * positioned above the Lexical editor. Reuses the same module-level Promise
+ * cache (`useEnglishTranslation`) as the string-field rows so the global is
+ * fetched only once per tab open.
+ */
 export const RichTextReference: React.FC<FieldDescriptionClientProps> = ({ field }) => {
   const richField = field as RichTextFieldClient
   const { name, admin: { description, custom } = {} } = richField
@@ -60,22 +42,22 @@ export const RichTextReference: React.FC<FieldDescriptionClientProps> = ({ field
   const englishRaw = data && typeof data === 'object' ? (data as Record<string, unknown>)[name] : null
   const englishText = extractPlainText(englishRaw)
 
+  if (isEnglish && !description) return null
+
   return (
-    <div style={containerStyle}>
-      {typeof description === 'string' && description && <div>{description}</div>}
+    <>
+      {typeof description === 'string' && description && (
+        <div className="translations-row__description">{description}</div>
+      )}
       {!isEnglish && (
         <>
-          <div style={labelStyle}>English reference</div>
-          {isLoading ? (
-            <div style={englishBoxStyle}>Loading...</div>
-          ) : isError ? (
-            <div style={englishBoxStyle}>Reference unavailable</div>
-          ) : (
-            <div style={englishBoxStyle}>{englishText || <em>(empty)</em>}</div>
-          )}
+          <div className="translations-row__english-label">English reference</div>
+          <div className="translations-row__english-block">
+            {isLoading ? 'Loading...' : isError ? 'Reference unavailable' : englishText || <em>(empty)</em>}
+          </div>
         </>
       )}
-    </div>
+    </>
   )
 }
 

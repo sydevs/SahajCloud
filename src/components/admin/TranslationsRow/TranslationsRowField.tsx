@@ -5,8 +5,11 @@ import type { JSONFieldClientComponent } from 'payload'
 import { FieldError, FieldLabel, useField, useLocale } from '@payloadcms/ui'
 import React, { useCallback, useMemo } from 'react'
 
+import { AutoGrowTextarea } from './AutoGrowTextarea'
 import { TranslationsRow } from './TranslationsRow'
 import { useEnglishTranslation } from './useEnglishTranslation'
+
+import './styles.css'
 
 interface SchemaEntry {
   key: string
@@ -15,28 +18,6 @@ interface SchemaEntry {
 
 function toTitleCase(slug: string): string {
   return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
-}
-
-const inputBaseStyle: React.CSSProperties = {
-  width: '100%',
-  padding: 'calc(var(--base) * 0.4)',
-  background: 'var(--theme-input-bg)',
-  border: '1px solid var(--theme-elevation-150)',
-  borderRadius: 'var(--style-radius-s)',
-  color: 'var(--theme-text)',
-  fontSize: 'calc(var(--base-body-size) * 1px)',
-  fontFamily: 'inherit',
-}
-
-const inputReadOnlyStyle: React.CSSProperties = {
-  ...inputBaseStyle,
-  background: 'var(--theme-elevation-50)',
-  cursor: 'not-allowed',
-}
-
-const wrapStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
 }
 
 export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly }) => {
@@ -83,35 +64,31 @@ export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly
             No translation keys defined in schema.
           </div>
         ) : (
-          <div style={wrapStyle}>
-            {schemaEntries.map((entry) => {
-              const englishValue = isEnglish ? '' : englishMap?.[entry.key] ?? ''
-              const currentValue = value?.[entry.key] ?? ''
-              return (
-                <TranslationsRow
-                  key={entry.key}
-                  title={toTitleCase(entry.key)}
-                  description={entry.description || undefined}
-                  englishValue={englishValue}
-                  isEnglish={isEnglish}
-                  isLoadingEnglish={isLoading}
-                  isErrorEnglish={isError}
-                >
-                  <input
-                    type="text"
-                    value={currentValue}
-                    onChange={(e) => handleChange(entry.key, e.target.value)}
-                    disabled={readOnly}
-                    style={readOnly ? inputReadOnlyStyle : inputBaseStyle}
-                    aria-label={`Translation for ${entry.key}`}
-                    placeholder={
-                      isEnglish ? 'Enter translation...' : englishValue || 'Enter translation...'
-                    }
-                  />
-                </TranslationsRow>
-              )
-            })}
-          </div>
+          schemaEntries.map((entry) => {
+            const englishValue = isEnglish ? '' : englishMap?.[entry.key] ?? ''
+            const currentValue = value?.[entry.key] ?? ''
+            return (
+              <TranslationsRow
+                key={entry.key}
+                title={toTitleCase(entry.key)}
+                description={entry.description || undefined}
+                englishValue={englishValue}
+                isEnglish={isEnglish}
+                isLoadingEnglish={isLoading}
+                isErrorEnglish={isError}
+              >
+                <AutoGrowTextarea
+                  value={currentValue}
+                  onChange={(next) => handleChange(entry.key, next)}
+                  readOnly={readOnly}
+                  placeholder={
+                    isEnglish ? 'Enter translation...' : englishValue || 'Enter translation...'
+                  }
+                  ariaLabel={`Translation for ${entry.key}`}
+                />
+              </TranslationsRow>
+            )
+          })
         )}
       </div>
     </div>
