@@ -52,6 +52,12 @@ Manual fallback: `pnpm dev` (start), `pnpm devsafe` (clean dev — removes `.nex
 - `pnpm generate:importmap` — admin-panel import map
 - `pnpm test` / `pnpm test:int` / `pnpm test:e2e` — full / integration / E2E
 
+If wrapping any of these in `timeout` (only when actually needed — most one-shot runs don't need it), use these canonical values; other values will trigger a permission prompt:
+
+- `timeout 600 pnpm build:*` — Next.js + Cloudflare adapter cold builds
+- `timeout 300 pnpm test:*` — full integration/E2E suites
+- `timeout 120 pnpm generate:*` — `generate:types` / `generate:importmap`
+
 CPU resource management for tests: see `.claude/rules/testing-reqs.md` (never run multiple test commands or test+build in parallel).
 
 ## Code Editing
