@@ -13,21 +13,23 @@ for spec generation with a custom Scalar plugin for the UI.
 
 ```
 src/lib/openapi/
-├── index.ts                # barrel export
-├── scalarPlugin.ts         # custom Scalar plugin with branding + project selector
-├── specFilter.ts           # filtering (project-based + operation-based)
-└── customEndpoints.ts      # hand-authored shim for custom collection endpoints
+├── index.ts                       # barrel export
+├── scalarPlugin.ts                # custom Scalar plugin with branding + project selector
+├── specFilter.ts                  # filtering + post-merge parameter injection
+├── customEndpoints.ts             # hand-authored shim for custom collection endpoints
+├── rateLimitingDocs.ts            # X-User-ID header parameter definition
+└── clientReadParametersDocs.ts    # select / populate / depth / limit / page param definitions
 ```
 
 ## Endpoints
 
-| Endpoint | Description |
-|---|---|
-| `/api/openapi.json` | Filtered OpenAPI 3.1 spec (hides internal ops) |
-| `/api/openapi.json?project=<project>` | Project-filtered spec |
-| `/api/openapi-raw.json` | Raw spec — everything visible |
-| `/api/docs` | Scalar UI with We Meditate branding |
-| `/api/docs?project=<project>` | Project-filtered Scalar UI |
+| Endpoint                              | Description                                    |
+| ------------------------------------- | ---------------------------------------------- |
+| `/api/openapi.json`                   | Filtered OpenAPI 3.1 spec (hides internal ops) |
+| `/api/openapi.json?project=<project>` | Project-filtered spec                          |
+| `/api/openapi-raw.json`               | Raw spec — everything visible                  |
+| `/api/docs`                           | Scalar UI with We Meditate branding            |
+| `/api/docs?project=<project>`         | Project-filtered Scalar UI                     |
 
 ## Plugin registration (`src/payload.config.ts`)
 
@@ -74,20 +76,23 @@ import {
   type OpenAPISpec,
 } from '@/lib/openapi/specFilter'
 
-filterSpec(rawSpec)                                 // union of all client collections
-filterSpec(rawSpec, { project: 'wemeditate-web' })  // single project
+filterSpec(rawSpec) // union of all client collections
+filterSpec(rawSpec, { project: 'wemeditate-web' }) // single project
 ```
 
 **Always-hidden collections** (system collections, never visible):
+
 - access: `managers`, `clients`
 - system: `images`, `files`
 - payload internal: `payload-kv`, `payload-jobs`, `payload-locked-documents`,
   `payload-preferences`, `payload-migrations`, `payload-job-stats`
 
 **Excluded operations** (HTTP methods always hidden):
+
 - `DELETE`, `PATCH`
 
 **`ALLOW_POST_FOR`** — collections that may accept POST in the public spec:
+
 - `form-submissions`
 
 **Project-based filtering** — when a project is specified, only its
@@ -113,13 +118,13 @@ raw spec inside the route handler **between** `generateV31Spec` and
 `filterSpec`, so project-based visibility applies automatically by
 collection slug.
 
-| Custom path | Handler | Response schema |
-|---|---|---|
-| `GET /api/frames/by-narrator/{narratorId}` | `src/endpoints/framesByNarrator.ts` | `#/components/schemas/Frames` |
-| `GET /api/audiences/for-user` | `src/endpoints/audiencesForUser.ts` | `#/components/schemas/AudienceIdList` |
-| `GET /api/lectures/for-audience` | `src/endpoints/lecturesForAudience.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
-| `GET /api/app-cards/for-audience` | `src/endpoints/appCardsForAudience.ts` | `#/components/schemas/AppCards` |
-| `GET /api/meditations/{id}/related-lectures` | `src/endpoints/meditationLectures.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
+| Custom path                                  | Handler                                | Response schema                                          |
+| -------------------------------------------- | -------------------------------------- | -------------------------------------------------------- |
+| `GET /api/frames/by-narrator/{narratorId}`   | `src/endpoints/framesByNarrator.ts`    | `#/components/schemas/Frames`                            |
+| `GET /api/audiences/for-user`                | `src/endpoints/audiencesForUser.ts`    | `#/components/schemas/AudienceIdList`                    |
+| `GET /api/lectures/for-audience`             | `src/endpoints/lecturesForAudience.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
+| `GET /api/app-cards/for-audience`            | `src/endpoints/appCardsForAudience.ts` | `#/components/schemas/AppCards`                          |
+| `GET /api/meditations/{id}/related-lectures` | `src/endpoints/meditationLectures.ts`  | `#/components/schemas/LecturePlayerData` (hand-authored) |
 
 The audience query params on `/api/audiences/for-user` are hand-authored
 in `customEndpoints.ts` as `audienceQueryParameters` — six required
@@ -147,12 +152,22 @@ a single follow-up.
   (`/api/health`, `/api/webhooks/...`, `/api/seed/:script`) are
   intentionally omitted. They're infrastructure, not part of the public
   client API.
+- **`select` / `populate` / `depth` / `limit` / `page` query params** are
+  not surfaced in the generated spec for auto-generated CRUD endpoints.
+  `injectClientReadParameters()` in `specFilter.ts` patches this — it
+  registers reusable definitions from `clientReadParametersDocs.ts` under
+  `components.parameters` and adds `$ref`s to every collection list +
+  findByID GET operation (skipping `/api/globals/*` and custom subpath
+  endpoints, which have their own param surface). Added in #419 after
+  the original PR (#294) shipped without REST-format documentation
+  anywhere clients could discover the bracket-notation contract.
 
 Review payload-oapi quarterly for native support of these.
 
 ## Testing
 
 `tests/int/api-explorer.int.spec.ts` covers:
+
 - Spec generation and validation
 - Project-based filtering for each project
 - `ALWAYS_HIDDEN_COLLECTIONS` exclusion

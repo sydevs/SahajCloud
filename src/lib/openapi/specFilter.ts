@@ -18,6 +18,11 @@ import { getAllProjectCollections, getProjectCollections } from '@/lib/access'
 import type { ContentSlug } from '@/lib/access/types'
 import type { ProjectSlug } from '@/payload-types'
 
+import {
+  CLIENT_READ_PARAMETERS,
+  FIND_BY_ID_PARAMETERS,
+  LIST_PARAMETERS,
+} from './clientReadParametersDocs'
 import { xUserIdParameter } from './rateLimitingDocs'
 
 /**
@@ -234,6 +239,70 @@ function injectRateLimitingParameter(spec: OpenAPISpec): OpenAPISpec {
 }
 
 /**
+ * Recognizes auto-generated collection CRUD paths so we only inject client-read
+ * params there (not on custom subpath endpoints like `/for-audience`, which have
+ * hand-authored parameter lists).
+ *
+ * - List GET: `/api/{collection}` (no trailing segment)
+ * - FindByID GET: `/api/{collection}/{id}` (single brace-bracketed segment)
+ *
+ * `/api/globals/*` paths are deliberately excluded — they have their own param
+ * surface and don't accept the same shape.
+ */
+function classifyCollectionGetPath(path: string): 'list' | 'findById' | null {
+  if (path.startsWith('/api/globals/')) return null
+  if (/^\/api\/[^/]+$/.test(path)) return 'list'
+  if (/^\/api\/[^/]+\/\{[^}]+\}$/.test(path)) return 'findById'
+  return null
+}
+
+/**
+ * Injects `select` / `populate` / `depth` / `limit` / `page` parameters into
+ * collection list + findByID GET operations.
+ *
+ * `payload-oapi` v0.2.5 doesn't surface these params in the auto-generated
+ * spec, so Scalar's request-builder panel shows nothing about them. This
+ * walks the filtered spec and adds `$ref`s so clients can discover the
+ * bracket-notation format (the source of the #419 confusion).
+ *
+ * Mirrors `injectRateLimitingParameter()` below — the same walk-and-inject
+ * pattern. Only attaches to GET operations not marked `x-internal: true` and
+ * not on `/api/globals/*` or custom subpaths.
+ */
+function injectClientReadParameters(spec: OpenAPISpec): OpenAPISpec {
+  if (!spec.components) spec.components = {}
+  if (!spec.components.parameters) spec.components.parameters = {}
+
+  // Register reusable parameter definitions under components.parameters
+  for (const [name, definition] of Object.entries(CLIENT_READ_PARAMETERS)) {
+    spec.components.parameters[name] = definition as OpenAPIParameter
+  }
+
+  if (!spec.paths) return spec
+
+  for (const [path, pathItem] of Object.entries(spec.paths)) {
+    const operation = pathItem.get
+    if (!operation || operation['x-internal']) continue
+
+    const kind = classifyCollectionGetPath(path)
+    if (!kind) continue
+
+    if (!operation.parameters) operation.parameters = []
+
+    const paramNames = kind === 'list' ? LIST_PARAMETERS : FIND_BY_ID_PARAMETERS
+    for (const name of paramNames) {
+      const ref = `#/components/parameters/${name}`
+      const alreadyPresent = operation.parameters.some((p) => p.$ref === ref)
+      if (!alreadyPresent) {
+        operation.parameters.push({ $ref: ref })
+      }
+    }
+  }
+
+  return spec
+}
+
+/**
  * Filters an OpenAPI spec for client documentation.
  *
  * Three-tier filtering approach:
@@ -327,6 +396,9 @@ export function filterSpec(spec: OpenAPISpec, options: FilterOptions = {}): Open
 
   // Inject X-User-ID parameter for rate limiting (only to non-internal GET operations)
   injectRateLimitingParameter(markedSpec)
+
+  // Inject select/populate/depth/limit/page on collection list + findByID GETs
+  injectClientReadParameters(markedSpec)
 
   // Sort paths alphabetically for stable, human-readable output
   if (markedSpec.paths) {
