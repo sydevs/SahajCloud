@@ -4,10 +4,9 @@
  * Basic CRUD and required-field validation are covered by collections-smoke;
  * this file holds tests for behavior that's project-specific.
  *
- * Currently: subtitle JSON behavior (documents that Payload's `jsonSchema`
- * is a Monaco editor hint, not API-enforced validation), article rich-text
- * cleanup for stale Lexical relationship nodes, and meditation field locale
- * isolation (per-locale meditation assignments are independent).
+ * Currently: subtitle JSON behavior, article rich-text cleanup for stale
+ * Lexical relationship nodes, and meditation field locale isolation
+ * (per-locale meditation assignments are independent).
  */
 import type { Payload } from 'payload'
 
@@ -43,12 +42,10 @@ describe('Lessons Collection — custom behavior', () => {
 
   describe('introSubtitles JSON behavior', () => {
     it('stores subtitle data with required fields', async () => {
-      const validSubtitles = {
-        captions: [
-          { duration: 0, content: 'First caption', startTime: '00:00:00.300' },
-          { duration: 2, content: 'Second caption', startTime: '00:00:02.500' },
-        ],
-      }
+      const validSubtitles = [
+        { startTimeMs: 300, endTimeMs: 2300, durationMs: 2000, content: 'First caption' },
+        { startTimeMs: 2500, endTimeMs: 4500, content: 'Second caption' },
+      ]
 
       const lesson = await testData.createLesson(payload, {
         title: 'Subtitle Storage Test',
@@ -60,19 +57,17 @@ describe('Lessons Collection — custom behavior', () => {
     })
 
     it('accepts subtitle data with extra fields not in jsonSchema', async () => {
-      // Documents intentional behavior: jsonSchema only guides the Monaco
-      // editor; the API stores whatever shape the client sends. The Storyblok
-      // importer relies on this when migrating legacy `startOfParagraph`.
-      const subtitlesWithLegacyField = {
-        captions: [
-          {
-            duration: 0,
-            content: 'Caption with legacy field',
-            startOfParagraph: null,
-            startTime: '00:00:00.300',
-          },
-        ],
-      }
+      // Documents intentional behavior: the validator only checks the required
+      // cue fields, so legacy cue fields can still be stored.
+      const subtitlesWithLegacyField = [
+        {
+          startTimeMs: 300,
+          endTimeMs: 2300,
+          durationMs: 2000,
+          content: 'Caption with legacy field',
+          startOfParagraph: null,
+        },
+      ]
 
       const lesson = await testData.createLesson(payload, {
         title: 'Subtitle Legacy Field Test',

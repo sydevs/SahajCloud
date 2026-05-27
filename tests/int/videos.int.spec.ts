@@ -47,9 +47,7 @@ describe('Videos Collection — custom behavior', () => {
 
   describe('subtitles validator wiring (#317)', () => {
     it('accepts well-formed subtitles', async () => {
-      const valid = {
-        captions: [{ duration: 1, content: 'Hello', startTime: '00:00:00.000' }],
-      }
+      const valid = [{ startTimeMs: 0, endTimeMs: 1000, durationMs: 1000, content: 'Hello' }]
       const video = await testData.createVideo(payload, {
         title: 'Valid Subs Video',
         subtitles: valid,
@@ -65,9 +63,9 @@ describe('Videos Collection — custom behavior', () => {
       await expect(
         testData.createVideo(payload, {
           title: 'Invalid Subs Video',
-          subtitles: { captions: [{ duration: 'oops', content: 'x', startTime: '00:00:00' }] },
+          subtitles: [{ startTimeMs: 'oops', endTimeMs: 1000, content: 'x' }],
         }),
-      ).rejects.toThrow(/subtitles|captions/i)
+      ).rejects.toThrow(/subtitles|startTimeMs/i)
     })
   })
 })

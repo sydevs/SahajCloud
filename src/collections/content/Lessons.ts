@@ -76,7 +76,8 @@ export const Lessons: CollectionConfig = {
                   label: 'Subtitles',
                   admin: {
                     condition: (_, siblingData) => !!siblingData?.media,
-                    description: 'Subtitles for video media (JSON format).',
+                    description:
+                      'Subtitles for video media: [{ startTimeMs, endTimeMs, durationMs?, content }].',
                   },
                   validate: validateSubtitles,
                   typescriptSchema: [() => subtitlesJsonSchema],
@@ -118,7 +119,7 @@ export const Lessons: CollectionConfig = {
               label: 'Intro Subtitles',
               admin: {
                 description:
-                  'Subtitles for intro audio (JSON format). Schema: duration, content, startTime.',
+                  'Subtitles for intro audio: [{ startTimeMs, endTimeMs, durationMs?, content }].',
               },
               validate: validateSubtitles,
               typescriptSchema: [() => subtitlesJsonSchema],

@@ -38,7 +38,7 @@ export const Videos: CollectionConfig = {
       name: 'subtitles',
       type: 'json',
       admin: {
-        description: 'Subtitle captions: { captions: [{ duration, content, startTime }] }',
+        description: 'Subtitle cues: [{ startTimeMs, endTimeMs, durationMs?, content }]',
       },
       validate: validateSubtitles,
       typescriptSchema: [() => subtitlesJsonSchema],

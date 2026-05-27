@@ -7,36 +7,31 @@ import { z } from 'zod'
 // change the other — they describe the same shape but feed different
 // systems (Zod = runtime validation, JSON schema = `typescriptSchema`
 // for generated TypeScript types).
-export const subtitlesZodSchema = z.object({
-  captions: z.array(
-    z.object({
-      duration: z.number(),
-      content: z.string(),
-      startTime: z.string(),
-    }),
-  ),
-})
+export const subtitlesZodSchema = z.array(
+  z.object({
+    content: z.string(),
+    startTimeMs: z.number(),
+    endTimeMs: z.number(),
+    durationMs: z.number().optional(),
+  }),
+)
 
 export type Subtitles = z.infer<typeof subtitlesZodSchema>
 
 // Mirrors `subtitlesZodSchema` — see the note above.
 export const subtitlesJsonSchema: JSONSchema4 = {
-  type: 'object',
-  properties: {
-    captions: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          duration: { type: 'number' },
-          content: { type: 'string' },
-          startTime: { type: 'string' },
-        },
-        required: ['duration', 'content', 'startTime'],
-      },
+  type: 'array',
+  items: {
+    type: 'object',
+    properties: {
+      content: { type: 'string' },
+      startTimeMs: { type: 'number' },
+      endTimeMs: { type: 'number' },
+      durationMs: { type: 'number' },
     },
+    required: ['content', 'startTimeMs', 'endTimeMs'],
+    additionalProperties: false,
   },
-  required: ['captions'],
 }
 
 const isEmpty = (value: unknown): boolean => {
