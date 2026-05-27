@@ -120,13 +120,30 @@ async function checkRateLimit(req: PayloadRequest): Promise<void> {
  * beforeOperation hook that forces API clients to declare their data needs explicitly.
  *
  * - `select` is required on every client read, so they can't pull whole documents.
- * - `populate` is required when `depth > 1`, so they can't auto-populate every relationship.
+ * - `populate` is required when effective `depth > 1`, so they can't auto-populate
+ *   every relationship.
  *
  * Validation is argument-based, not URL-based: Payload's REST handler parses URL
- * query params (e.g., `?select=title`) into `args.select` before the hook fires,
- * and internal endpoints that forward `req` to `payload.find(...)` with an explicit
- * `select` also pass the check. Only applies to API client reads; managers and
- * write operations are untouched.
+ * query params (e.g., `?select[title]=true`) into `args.select` before the hook
+ * fires, and internal endpoints that forward `req` to `payload.find(...)` with
+ * an explicit `select` also pass the check. Only applies to API client reads;
+ * managers and write operations are untouched.
+ *
+ * Bracket notation (`?select[field]=true`) is required because PayloadCMS REST
+ * uses `qs-esm` to parse query strings into nested objects. Comma-separated
+ * strings (`?select=field1,field2`) parse to a plain string and fail the
+ * `typeof === 'object'` check below. See `.claude/rules/api-clients.md` for the
+ * full format contract and `tests/int/client-query-validation.int.spec.ts` for
+ * REST-format coverage.
+ *
+ * On rejection, logs the offending shape (type + keys + short string preview)
+ * and effective depth at WARN level so production failures are debuggable from
+ * `wrangler tail`.
+ *
+ * Payload also performs internal Local API reads while populating selected
+ * relationship/upload fields. Those reads carry a numeric `currentDepth`; they
+ * are implementation details of the already-validated top-level request and
+ * must not be rejected for lacking their own REST `select` parameter.
  */
 export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
   args,
@@ -145,9 +162,14 @@ export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
   }
 
   const findArgs = args as {
+    currentDepth?: unknown
     select?: unknown
     populate?: unknown
     depth?: unknown
+  }
+
+  if (typeof findArgs.currentDepth === 'number') {
+    return
   }
 
   const hasSelect =
@@ -158,19 +180,54 @@ export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
     findArgs.populate != null &&
     typeof findArgs.populate === 'object' &&
     Object.keys(findArgs.populate as Record<string, unknown>).length > 0
+  const effectiveDepth =
+    typeof findArgs.depth === 'number' ? findArgs.depth : req.payload.config.defaultDepth
+
   if (!hasSelect) {
+    req.payload.logger.warn({
+      msg: 'Client query validation rejected: select missing or wrong shape',
+      clientId: req.user?.id,
+      selectType: typeof findArgs.select,
+      selectKeys: describeKeys(findArgs.select),
+      selectPreview: describeStringPreview(findArgs.select),
+    })
     throw new APIError(
       'The "select" query parameter is required for API clients. Specify which fields you need in the response.',
       400,
     )
   }
 
-  if (typeof findArgs.depth === 'number' && findArgs.depth > 1 && !hasPopulate) {
+  if (effectiveDepth > 1 && !hasPopulate) {
+    req.payload.logger.warn({
+      msg: 'Client query validation rejected: populate missing or wrong shape at depth > 1',
+      clientId: req.user?.id,
+      depth: findArgs.depth,
+      effectiveDepth,
+      populateType: typeof findArgs.populate,
+      populateKeys: describeKeys(findArgs.populate),
+      populatePreview: describeStringPreview(findArgs.populate),
+    })
     throw new APIError(
-      `The "populate" query parameter is required when depth > 1. Specify which relationships to populate at depth ${findArgs.depth}.`,
+      `The "populate" query parameter is required when depth > 1. Specify which relationships to populate at depth ${effectiveDepth}, or pass depth=1 to disable nested relationship traversal.`,
       400,
     )
   }
+}
+
+/** Returns top-level keys of an object, or null for non-objects. Diagnostic-only. */
+function describeKeys(value: unknown): string[] | null {
+  if (value && typeof value === 'object') {
+    return Object.keys(value as Record<string, unknown>)
+  }
+  return null
+}
+
+/** Returns a 100-char preview of a string value, or null for non-strings. Diagnostic-only. */
+function describeStringPreview(value: unknown): string | null {
+  if (typeof value === 'string') {
+    return value.slice(0, 100)
+  }
+  return null
 }
 
 /**
