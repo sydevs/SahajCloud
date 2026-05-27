@@ -400,6 +400,23 @@ import type { Post, User } from '@/payload-types'
 - **[ADVANCED.md](reference/ADVANCED.md)** - Authentication, jobs, endpoints, components, plugins, localization
 - **[PLUGIN-DEVELOPMENT.md](reference/PLUGIN-DEVELOPMENT.md)** - Plugin architecture, monorepo structure, patterns, best practices
 
+## When this skill isn't enough
+
+The reference files above are curated and may lag behind the live Payload docs (newer features, edge-case API signatures, plugin specifics). When you can't find what you need here:
+
+1. Call `mcp__payloadcms-docs__list_doc_sources` to get the entry point (`https://payloadcms.com/llms.txt`).
+2. Call `mcp__payloadcms-docs__fetch_docs` with the sitemap URL to see the full doc tree.
+3. Call `mcp__payloadcms-docs__fetch_docs` with the specific page URL you need.
+
+The MCP is domain-restricted to `payloadcms.com` and returns clean markdown. **Don't WebFetch `payloadcms.com` directly** — the MCP is the canonical path. WebFetch is only for non-Payload sites (GitHub repos, blog posts, etc.).
+
+### Context-cost guardrail
+
+MCP responses go straight into the main conversation thread — a single page is 5–20KB, the sitemap alone is ~10KB. Multiple fetches compound quickly.
+
+- **Single targeted lookup** (one page, you know which one) → call the MCP directly. Fast and cheap enough.
+- **Multi-page research** (3+ pages, or you don't know which page to start with, or the question spans subsystems like "auth + jobs + endpoints") → dispatch an `Explore` subagent and have _it_ call the MCP. The subagent's context is isolated; the main thread receives only the synthesized answer instead of tens of KB of raw doc markdown.
+
 ## Resources
 
 - llms-full.txt: <https://payloadcms.com/llms-full.txt>
