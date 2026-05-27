@@ -78,8 +78,6 @@ export const Lessons: CollectionConfig = {
                     condition: (_, siblingData) => !!siblingData?.media,
                     description: 'Subtitles for video media (JSON format).',
                   },
-                  validate: validateSubtitles,
-                  typescriptSchema: [() => subtitlesJsonSchema],
                 },
               ],
             },
