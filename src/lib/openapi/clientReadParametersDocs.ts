@@ -19,24 +19,42 @@ const PARAMETER_BASE = {
   required: false,
 }
 
+const DEEP_OBJECT_QUERY_PARAMETER = {
+  ...PARAMETER_BASE,
+  style: 'deepObject' as const,
+  explode: true,
+}
+
+const FIELD_SELECTION_VALUE_SCHEMA = {
+  oneOf: [
+    { type: 'boolean' },
+    {
+      type: 'object',
+      additionalProperties: true,
+    },
+  ],
+}
+
 /**
  * `select` parameter. Required for API clients on every read; rejected with 400
  * if missing or a non-object (e.g., comma-separated string). PayloadCMS REST
  * uses `qs-esm` bracket notation: `select[field]=true`.
  */
 export const selectParameter = {
-  ...PARAMETER_BASE,
+  ...DEEP_OBJECT_QUERY_PARAMETER,
   name: 'select',
   required: true,
   schema: {
     type: 'object',
-    additionalProperties: { type: 'boolean' },
+    additionalProperties: FIELD_SELECTION_VALUE_SCHEMA,
   },
-  description: `**Required for API clients.** Specifies which top-level fields to include in the response.
+  description: `**Required for API clients.** Specifies which fields to include in the response.
 
-**Format:** bracket notation, one key per field.
+**Format:** bracket notation, one key per field. Nested fields use nested brackets.
 
 \`?select[title]=true&select[slug]=true\` → \`{ select: { title: true, slug: true } }\`
+
+\`?select[meta][image]=true\` → \`{ select: { meta: { image: true } } }\`
 
 ⚠️ Comma-separated strings (\`?select=title,slug\`) are rejected with a 400 — PayloadCMS REST uses \`qs-esm\` to parse query strings into nested objects, not delimited strings.
 
@@ -51,14 +69,11 @@ export const selectParameter = {
  * as `select`. Nested objects map collection slug → field selection.
  */
 export const populateParameter = {
-  ...PARAMETER_BASE,
+  ...DEEP_OBJECT_QUERY_PARAMETER,
   name: 'populate',
   schema: {
     type: 'object',
-    additionalProperties: {
-      type: 'object',
-      additionalProperties: { type: 'boolean' },
-    },
+    additionalProperties: FIELD_SELECTION_VALUE_SCHEMA,
   },
   description: `**Required when \`depth > 1\`.** Specifies which fields to include on each populated relationship.
 
@@ -78,8 +93,8 @@ Populate \`true\` for an entire collection: \`?populate[narrators]=true\`.
 
 /**
  * `depth` parameter. Controls how many levels of relationships to populate.
- * Default `1` is fine for most reads; `0` returns raw IDs only; `>1` requires
- * `populate` to be set so clients can't accidentally fan out into the graph.
+ * Payload's server default is currently `2`; `0` returns raw IDs only; `>1`
+ * requires `populate` to be set so clients can't accidentally fan out into the graph.
  */
 export const depthParameter = {
   ...PARAMETER_BASE,
@@ -88,15 +103,16 @@ export const depthParameter = {
     type: 'integer',
     minimum: 0,
     maximum: 10,
-    default: 1,
+    default: 2,
   },
   description: `Number of relationship levels to populate.
 
 - \`0\` — return raw relationship IDs (no nested objects).
-- \`1\` — populate top-level relationships with their full doc (default).
+- \`1\` — populate top-level relationships with their full doc.
+- \`2\` — Payload's current server default when \`depth\` is omitted.
 - \`>1\` — also populate the relationships **on** those docs. Requires \`populate\` to be set, or the request is rejected with a 400.
 
-Keep \`depth\` as low as the client needs; deeper depths multiply query work.`,
+Pass \`depth=1\` or \`depth=0\` when you do not need nested relationship traversal. Keep \`depth\` as low as the client needs; deeper depths multiply query work.`,
 }
 
 /**

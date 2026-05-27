@@ -537,6 +537,51 @@ describe('OpenAPI Spec Marker Utility', () => {
       const selectParam = result.components?.parameters?.select
       expect(selectParam?.required).toBe(true)
     })
+
+    it('documents deepObject serialization for select and populate', () => {
+      const result = filterSpec(mockSpec)
+      const selectParam = result.components?.parameters?.select
+      const populateParam = result.components?.parameters?.populate
+
+      expect(selectParam?.style).toBe('deepObject')
+      expect(selectParam?.explode).toBe(true)
+      expect(populateParam?.style).toBe('deepObject')
+      expect(populateParam?.explode).toBe(true)
+    })
+
+    it('allows populate values to be boolean or nested field-selection objects', () => {
+      const result = filterSpec(mockSpec)
+      const populateParam = result.components?.parameters?.populate
+      const additionalProperties = populateParam?.schema?.additionalProperties as
+        | { oneOf?: Array<Record<string, unknown>> }
+        | undefined
+
+      expect(additionalProperties?.oneOf).toContainEqual({ type: 'boolean' })
+      expect(additionalProperties?.oneOf).toContainEqual({
+        type: 'object',
+        additionalProperties: true,
+      })
+    })
+
+    it('allows select values to be boolean or nested field-selection objects', () => {
+      const result = filterSpec(mockSpec)
+      const selectParam = result.components?.parameters?.select
+      const additionalProperties = selectParam?.schema?.additionalProperties as
+        | { oneOf?: Array<Record<string, unknown>> }
+        | undefined
+
+      expect(additionalProperties?.oneOf).toContainEqual({ type: 'boolean' })
+      expect(additionalProperties?.oneOf).toContainEqual({
+        type: 'object',
+        additionalProperties: true,
+      })
+    })
+
+    it('documents Payload default depth', () => {
+      const result = filterSpec(mockSpec)
+      const depthParam = result.components?.parameters?.depth
+      expect(depthParam?.schema?.default).toBe(2)
+    })
   })
 
   describe('Path ordering', () => {
