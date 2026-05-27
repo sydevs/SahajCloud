@@ -1,5 +1,6 @@
 ---
-paths: src/app/**/route.ts
+paths:
+  - src/app/**/route.ts
 ---
 
 # Next.js App Router Route Rules

@@ -33,11 +33,16 @@ try {
     cwd: projectDir,
     encoding: 'utf-8',
     stdio: 'pipe',
+    timeout: 30000,
   })
   console.log(JSON.stringify({ continue: true, suppressOutput: true }))
   process.exit(0)
 } catch (error) {
-  const output = (error.stdout || error.stderr || error.message || '').toString().split('\n').slice(-20).join('\n')
+  const output = (error.stdout || error.stderr || error.message || '')
+    .toString()
+    .split('\n')
+    .slice(-20)
+    .join('\n')
   console.log(
     JSON.stringify({
       continue: true,

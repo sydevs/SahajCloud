@@ -1,3 +1,10 @@
+---
+paths:
+  - tests/**
+  - '**/*.test.ts'
+  - '**/*.spec.ts'
+---
+
 # Testing Requirements
 
 **CRITICAL**: CPU resource management rules for running tests.

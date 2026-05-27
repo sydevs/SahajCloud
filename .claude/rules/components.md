@@ -1,5 +1,6 @@
 ---
-paths: src/components/**/*.tsx
+paths:
+  - src/components/**/*.tsx
 ---
 
 # Component Development Rules

@@ -1,5 +1,6 @@
 ---
-paths: src/endpoints/**/*.ts
+paths:
+  - src/endpoints/**/*.ts
 ---
 
 # Custom Endpoint Rules
