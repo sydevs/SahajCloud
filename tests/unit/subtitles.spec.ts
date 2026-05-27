@@ -3,12 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { parseSubtitles } from '@/lib/subtitles'
 
 describe('parseSubtitles', () => {
-  const validSubtitles = {
-    captions: [
-      { duration: 1.5, content: 'Hello', startTime: '00:00:00.000' },
-      { duration: 2, content: 'World', startTime: '00:00:01.500' },
-    ],
-  }
+  const validSubtitles = [
+    { startTimeMs: 0, endTimeMs: 1500, durationMs: 1500, content: 'Hello' },
+    { startTimeMs: 1500, endTimeMs: 3500, content: 'World' },
+  ]
 
   it('accepts well-formed subtitles', () => {
     expect(parseSubtitles(validSubtitles)).toBe(true)
@@ -21,35 +19,31 @@ describe('parseSubtitles', () => {
     expect(parseSubtitles([])).toBe(true)
   })
 
-  it('rejects payloads missing the required `captions` key', () => {
-    const result = parseSubtitles({ notCaptions: [] })
+  it('rejects top-level objects', () => {
+    const result = parseSubtitles({ notSubtitles: [] })
     expect(typeof result).toBe('string')
-    expect(result as string).toContain('captions')
+    expect(result as string).toMatch(/array/i)
   })
 
-  it('rejects when a caption is missing a required field', () => {
-    const result = parseSubtitles({
-      captions: [{ duration: 1, content: 'no startTime' }],
-    })
+  it('rejects when a subtitle is missing a required field', () => {
+    const result = parseSubtitles([{ startTimeMs: 0, content: 'no endTimeMs' }])
     expect(typeof result).toBe('string')
-    expect(result as string).toContain('startTime')
+    expect(result as string).toContain('endTimeMs')
   })
 
-  it('rejects when a caption field has the wrong type', () => {
-    const result = parseSubtitles({
-      captions: [{ duration: '10', content: 'oops', startTime: '00:00:00.000' }],
-    })
+  it('rejects when a subtitle field has the wrong type', () => {
+    const result = parseSubtitles([{ startTimeMs: '0', endTimeMs: 1000, content: 'oops' }])
     expect(typeof result).toBe('string')
-    expect(result as string).toMatch(/captions\.0\.duration/)
+    expect(result as string).toMatch(/0\.startTimeMs/)
   })
 
-  it('rejects when `captions` is not an array', () => {
-    const result = parseSubtitles({ captions: 'not-an-array' })
+  it('rejects when the top-level value is not an array', () => {
+    const result = parseSubtitles({ subtitles: 'not-an-array' })
     expect(typeof result).toBe('string')
-    expect(result as string).toContain('captions')
+    expect(result as string).toMatch(/array/i)
   })
 
-  it('rejects a top-level non-object value', () => {
+  it('rejects top-level non-array values', () => {
     expect(typeof parseSubtitles('a string')).toBe('string')
     expect(typeof parseSubtitles(42)).toBe('string')
   })

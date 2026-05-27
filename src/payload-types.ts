@@ -444,14 +444,11 @@ export interface Video {
    */
   title: string;
   subtitles?: {
-    captions: {
-      duration: number;
-      content: string;
-      startTime: string;
-      [k: string]: unknown;
-    }[];
-    [k: string]: unknown;
-  };
+    content: string;
+    startTimeMs: number;
+    endTimeMs: number;
+    durationMs?: number;
+  }[];
   tags: 'testimonial' | 'workshop' | 'event' | 'technique';
   /**
    * Auto-populated video metadata (duration, format, etc.)
@@ -720,14 +717,11 @@ export interface Lesson {
      */
     media?: (number | null) | File;
     subtitles?: {
-      captions: {
-        duration: number;
-        content: string;
-        startTime: string;
-        [k: string]: unknown;
-      }[];
-      [k: string]: unknown;
-    };
+      content: string;
+      startTimeMs: number;
+      endTimeMs: number;
+      durationMs?: number;
+    }[];
     id?: string | null;
   }[];
   /**
@@ -739,14 +733,11 @@ export interface Lesson {
    */
   introAudio?: (number | null) | File;
   introSubtitles?: {
-    captions: {
-      duration: number;
-      content: string;
-      startTime: string;
-      [k: string]: unknown;
-    }[];
-    [k: string]: unknown;
-  };
+    content: string;
+    startTimeMs: number;
+    endTimeMs: number;
+    durationMs?: number;
+  }[];
   article?: {
     root: {
       type: string;
