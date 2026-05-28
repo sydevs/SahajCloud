@@ -12,11 +12,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import {
-  buildTranslationTabs,
-  type SchemaEntry,
-  type TranslationsSchema,
-} from '@/fields'
+import { buildTranslationTabs, type SchemaEntry, type TranslationsSchema } from '@/fields'
 
 describe('buildTranslationTabs', () => {
   describe('tab generation', () => {
@@ -72,7 +68,7 @@ describe('buildTranslationTabs', () => {
       expect(fields[0]).toMatchObject({ name: 'welcome', type: 'json' })
     })
 
-    it('flattens nested groups into {parent}_{child} JSON field names', () => {
+    it('wraps nested groups in a group named after the tab slug; leaf JSON fields keep the sub-slug name', () => {
       const schema: TranslationsSchema = {
         type: 'object',
         properties: {
@@ -93,12 +89,19 @@ describe('buildTranslationTabs', () => {
       }
 
       const tabs = buildTranslationTabs(schema, 'test')
-      const innerTabs = (tabs[0].fields[0] as { type: 'tabs'; tabs: Array<{ fields: Array<{ name: string }> }> })
-        .tabs
+      const group = tabs[0].fields[0] as {
+        type: 'group'
+        name: string
+        fields: [{ type: 'tabs'; tabs: Array<{ fields: Array<{ name: string }> }> }]
+      }
 
+      expect(group.type).toBe('group')
+      expect(group.name).toBe('onboarding')
+
+      const innerTabs = group.fields[0].tabs
       expect(innerTabs).toHaveLength(2)
-      expect(innerTabs[0].fields[0].name).toBe('onboarding_welcome')
-      expect(innerTabs[1].fields[0].name).toBe('onboarding_name')
+      expect(innerTabs[0].fields[0].name).toBe('welcome')
+      expect(innerTabs[1].fields[0].name).toBe('name')
     })
 
     it('emits TranslationsRow as the Field component, with schemaEntries + globalSlug in admin.custom', () => {
@@ -142,7 +145,11 @@ describe('buildTranslationTabs', () => {
       }
 
       const tabs = buildTranslationTabs(schema, 'test')
-      const field = tabs[0].fields[0] as { localized?: boolean; jsonSchema?: unknown; validate?: unknown }
+      const field = tabs[0].fields[0] as {
+        localized?: boolean
+        jsonSchema?: unknown
+        validate?: unknown
+      }
       expect(field.localized).toBe(true)
       expect(field.jsonSchema).toBeUndefined()
       expect(typeof field.validate).toBe('function')
@@ -316,4 +323,3 @@ describe('buildTranslationTabs', () => {
     })
   })
 })
-
