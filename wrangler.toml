@@ -89,7 +89,6 @@ command = "WRANGLER_BUILD_CONDITIONS=\"\" WRANGLER_BUILD_PLATFORM=\"node\" pnpm 
 
 [env.dev]
 name = "sahajcloud-dev"
-main = ".next/standalone/server.js"
 workers_dev = true
 preview_urls = true
 
