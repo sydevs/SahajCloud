@@ -704,6 +704,7 @@ describe('Role-Based Access Control', () => {
       const clientPages = await payload.find({
         collection: 'pages',
         select: { id: true },
+        depth: 0,
         user: client,
         overrideAccess: false,
       })
@@ -743,6 +744,7 @@ describe('Role-Based Access Control', () => {
           collection: 'pages',
           id: draftPage.id,
           select: { id: true },
+          depth: 0,
           user: client,
           overrideAccess: false,
         }),
@@ -790,6 +792,7 @@ describe('Role-Based Access Control', () => {
       const clientPages = await payload.find({
         collection: 'pages',
         select: { id: true },
+        depth: 0,
         user: client,
         overrideAccess: false,
       })
@@ -802,6 +805,7 @@ describe('Role-Based Access Control', () => {
         collection: 'pages',
         id: publishedPage.id,
         select: { id: true },
+        depth: 0,
         user: client,
         overrideAccess: false,
       })
@@ -841,6 +845,7 @@ describe('Role-Based Access Control', () => {
         id: draftPage.id,
         draft: true,
         select: { _status: true },
+        depth: 0,
         user: client,
         req: previewReq,
         overrideAccess: false,
@@ -873,6 +878,7 @@ describe('Role-Based Access Control', () => {
       const clientCards = await payload.find({
         collection: 'app-cards',
         select: { id: true },
+        depth: 0,
         user: client,
         overrideAccess: false,
       })
@@ -926,6 +932,7 @@ describe('Role-Based Access Control', () => {
         const result = await payload.find({
           collection: 'lectures',
           select: { id: true },
+          depth: 0,
           user: client,
           overrideAccess: false,
         })
@@ -1028,6 +1035,7 @@ describe('Role-Based Access Control', () => {
       const clientMeditations = await payload.find({
         collection: 'meditations',
         select: { id: true },
+        depth: 0,
         user: client,
         overrideAccess: false,
       })
@@ -1080,6 +1088,7 @@ describe('Role-Based Access Control', () => {
         id: draftMeditation.id,
         draft: true,
         select: { _status: true },
+        depth: 0,
         user: client,
         req: previewReq,
         overrideAccess: false,
@@ -1113,6 +1122,7 @@ describe('Role-Based Access Control', () => {
       const clientNarrators = await payload.find({
         collection: 'narrators',
         select: { id: true },
+        depth: 0,
         user: client,
         overrideAccess: false,
       })

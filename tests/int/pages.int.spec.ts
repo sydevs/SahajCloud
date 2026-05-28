@@ -359,6 +359,7 @@ describe('Pages Collection', () => {
       const directRead = await payload.find({
         collection: 'app-cards',
         select: { id: true },
+        depth: 0,
         user: client,
         overrideAccess: false,
       })

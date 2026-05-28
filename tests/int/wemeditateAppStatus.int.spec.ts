@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { AppCard, Lesson, Manager, Page, UserChoice, WmAppStatus } from '@/payload-types'
 
+import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/wemeditate-app/config'
 import {
   appCardsSection,
   appConfigSection,
@@ -24,7 +25,9 @@ vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
   const { readFileSync } = await import('fs')
   const { dirname, join } = await import('path')
   const { fileURLToPath: toPath } = await import('url')
-  const imgBuffer = readFileSync(join(dirname(toPath(import.meta.url)), '../files/image-1050x700.jpg'))
+  const imgBuffer = readFileSync(
+    join(dirname(toPath(import.meta.url)), '../files/image-1050x700.jpg'),
+  )
   const original = await importOriginal<typeof import('@/lib/nirmalaVidyaApi')>()
   return {
     extractVimeoId: vi.fn(original.extractVimeoId),
@@ -75,7 +78,15 @@ function articleWithLectureLink(lectureId: number) {
           type: 'paragraph',
           version: 1,
           children: [
-            { type: 'text', text: 'Watch this:', format: 0, detail: 0, mode: 'normal', style: '', version: 1 },
+            {
+              type: 'text',
+              text: 'Watch this:',
+              format: 0,
+              detail: 0,
+              mode: 'normal',
+              style: '',
+              version: 1,
+            },
             {
               type: 'relationship',
               version: 1,
@@ -92,30 +103,22 @@ function articleWithLectureLink(lectureId: number) {
 describe('WeMeditateAppStatus Global', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let requiredAppPages: {
-    shriMatajiPage: number
-    sahajaYogaPage: number
-    explorePage: number
-    subtleSystemPage: number
-  }
+  // Every page relationship in the config's "Pages" tab is `required`, so
+  // updateGlobal rejects unless all are present. Build the set from the source
+  // list (one shared placeholder page) so it never drifts as pages are added.
+  let requiredAppPages: Record<string, number>
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
 
-    const [shriMatajiPage, sahajaYogaPage, explorePage, subtleSystemPage] = await Promise.all([
-      testData.createPage(payload, { title: 'Shri Mataji Page' }),
-      testData.createPage(payload, { title: 'Sahaja Yoga Page' }),
-      testData.createPage(payload, { title: 'Explore Page' }),
-      testData.createPage(payload, { title: 'Subtle System Page' }),
-    ])
-    requiredAppPages = {
-      shriMatajiPage: shriMatajiPage.id,
-      sahajaYogaPage: sahajaYogaPage.id,
-      explorePage: explorePage.id,
-      subtleSystemPage: subtleSystemPage.id,
-    }
+    const placeholderPage = await testData.createPage(payload, {
+      title: 'Required Page Placeholder',
+    })
+    requiredAppPages = Object.fromEntries(
+      APP_REQUIRED_PAGE_FIELDS.map((name) => [name, placeholderPage.id]),
+    ) as Record<string, number>
   })
 
   afterAll(async () => {
@@ -458,7 +461,9 @@ describe('WeMeditateAppStatus Global', () => {
       if (other?.type !== 'documents') return
       const otherReport = other.documents.find((d) => d.id === otherCard.id)!
       const failing = otherReport.checks.filter((c) => !c.passed).map((c) => c.key)
-      expect(failing).toEqual(expect.arrayContaining(['published', 'subtitle-set', 'button-label-set']))
+      expect(failing).toEqual(
+        expect.arrayContaining(['published', 'subtitle-set', 'button-label-set']),
+      )
     })
 
     it('summary excludes the optional other-cards group; optionalSummary includes it', async () => {

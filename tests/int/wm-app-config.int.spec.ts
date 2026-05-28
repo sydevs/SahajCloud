@@ -2,7 +2,9 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import type { File, Lecture, Meditation, Page, WmAppConfig } from '@/payload-types'
+import type { File, Lecture, Meditation, WmAppConfig } from '@/payload-types'
+
+import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/wemeditate-app/config'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -12,7 +14,9 @@ vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
   const { readFileSync } = await import('fs')
   const { dirname, join } = await import('path')
   const { fileURLToPath: toPath } = await import('url')
-  const imgBuffer = readFileSync(join(dirname(toPath(import.meta.url)), '../files/image-1050x700.jpg'))
+  const imgBuffer = readFileSync(
+    join(dirname(toPath(import.meta.url)), '../files/image-1050x700.jpg'),
+  )
   const original = await importOriginal<typeof import('@/lib/nirmalaVidyaApi')>()
   return {
     extractVimeoId: vi.fn(original.extractVimeoId),
@@ -40,12 +44,10 @@ describe('WeMeditateAppConfig Global', () => {
   let lecture: Lecture
   let audioFile: File
   let vttFile: File
-  let requiredPages: {
-    shriMatajiPage: number
-    sahajaYogaPage: number
-    explorePage: number
-    subtleSystemPage: number
-  }
+  // Every page relationship in the "Pages" tab is `required`, so updateGlobal
+  // rejects unless all of them are present. Build the set from the source list
+  // (one shared placeholder page) so it never drifts as pages are added.
+  let requiredPages: Record<string, number>
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
@@ -59,19 +61,12 @@ describe('WeMeditateAppConfig Global', () => {
     audioFile = await testData.createFile(payload, {}, 'audio-42s.mp3')
     vttFile = await testData.createFile(payload, {}, 'subtitles.vtt')
 
-    // Create the 4 required app pages
-    const [shriMatajiPage, sahajaYogaPage, explorePage, subtleSystemPage] = await Promise.all([
-      testData.createPage(payload, { title: 'Shri Mataji Page' }),
-      testData.createPage(payload, { title: 'Sahaja Yoga Page' }),
-      testData.createPage(payload, { title: 'Explore Page' }),
-      testData.createPage(payload, { title: 'Subtle System Page' }),
-    ])
-    requiredPages = {
-      shriMatajiPage: shriMatajiPage.id,
-      sahajaYogaPage: sahajaYogaPage.id,
-      explorePage: explorePage.id,
-      subtleSystemPage: subtleSystemPage.id,
-    }
+    const placeholderPage = await testData.createPage(payload, {
+      title: 'Required Page Placeholder',
+    })
+    requiredPages = Object.fromEntries(
+      APP_REQUIRED_PAGE_FIELDS.map((name) => [name, placeholderPage.id]),
+    ) as Record<string, number>
   })
 
   afterAll(async () => {
@@ -79,7 +74,7 @@ describe('WeMeditateAppConfig Global', () => {
   })
 
   describe('field structure', () => {
-    it('has Pages and First Meditation tabs with the expected fields', () => {
+    it('has Pages, First Meditation, and Misc tabs with the expected fields', () => {
       const globalConfig = payload.globals.config.find((g) => g.slug === 'wm-app-config')
       expect(globalConfig).toBeDefined()
 
@@ -88,34 +83,17 @@ describe('WeMeditateAppConfig Global', () => {
       expect(tabsField.type).toBe('tabs')
 
       if (tabsField.type === 'tabs') {
-        expect(tabsField.tabs).toHaveLength(4)
+        expect(tabsField.tabs).toHaveLength(3)
         const tabLabels = tabsField.tabs.map((t) => t.label)
         expect(tabLabels).toContain('Pages')
         expect(tabLabels).toContain('First Meditation')
-        expect(tabLabels).toContain('App Pages')
-        expect(tabLabels).toContain('General')
+        expect(tabLabels).toContain('Misc')
 
+        // All required page relationships live in the single "Pages" tab.
         const pagesTab = tabsField.tabs.find((t) => t.label === 'Pages')!
         const pageFieldNames = pagesTab.fields.map((f) => ('name' in f ? f.name : undefined))
-        expect(pageFieldNames).toEqual(
-          expect.arrayContaining([
-            'classesPage',
-            'liveMeditationsPage',
-            'techniquesPage',
-            'lecturesPage',
-            'privacyPage',
-            'termsPage',
-          ]),
-        )
-
-        const appPagesTab = tabsField.tabs.find((t) => t.label === 'App Pages')!
-        const appPageFieldNames = appPagesTab.fields.map((f) => ('name' in f ? f.name : undefined))
-        expect(appPageFieldNames).toEqual([
-          'shriMatajiPage',
-          'sahajaYogaPage',
-          'explorePage',
-          'subtleSystemPage',
-        ])
+        expect(pageFieldNames).toHaveLength(APP_REQUIRED_PAGE_FIELDS.length)
+        expect(pageFieldNames).toEqual(expect.arrayContaining([...APP_REQUIRED_PAGE_FIELDS]))
 
         const firstMeditationTab = tabsField.tabs.find((t) => t.label === 'First Meditation')!
         const fieldNames = firstMeditationTab.fields.map((f) => ('name' in f ? f.name : undefined))
