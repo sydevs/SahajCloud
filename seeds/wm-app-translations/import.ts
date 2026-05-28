@@ -45,10 +45,7 @@ const LOCALE: 'en' = 'en'
 
 export class WeMeditateAppTranslationsImporter extends BaseImporter<BaseImportOptions> {
   protected readonly importName = 'WeMeditate App Translations (English seed)'
-  protected readonly cacheDir = path.resolve(
-    process.cwd(),
-    'seeds/cache/wm-app-translations',
-  )
+  protected readonly cacheDir = path.resolve(process.cwd(), 'seeds/cache/wm-app-translations')
 
   protected async import(): Promise<void> {
     // 1. Load seed data (works in both local dev and Workers).
@@ -56,6 +53,7 @@ export class WeMeditateAppTranslationsImporter extends BaseImporter<BaseImportOp
     const seed = await loadJsonData<SeedFile>({
       localPath: SEED_DATA_LOCAL_PATH,
       workerUrl: SEED_DATA_WORKER_URL,
+      inlineContent: this.options.inlineData?.[SEED_DATA_LOCAL_PATH],
     })
 
     // 2. Build the nested write payload, driven by the schema so the shape

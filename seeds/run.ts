@@ -82,6 +82,46 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
 
+// Seed-data files that the API endpoint can't fetch itself because they live in
+// a private repo (the Worker's unauthenticated GitHub raw fetch 404s). The CLI
+// reads these locally and uploads them in the POST body; the importer consumes
+// them via loadJsonData({ inlineContent }). Keys must match each importer's
+// DataSource.localPath exactly.
+const SCRIPT_DATA_FILES: Partial<Record<ScriptName, string[]>> = {
+  'wm-app-translations': ['seeds/wm-app-translations/data.en.json'],
+  translations: ['seeds/wm-app-translations/data.en.json'],
+}
+
+/**
+ * Read a script's registered data files into an inlineData map (path → raw
+ * contents) for upload. Returns undefined when the script needs no upload.
+ */
+async function loadInlineData(scriptName: ScriptName): Promise<Record<string, string> | undefined> {
+  const files = SCRIPT_DATA_FILES[scriptName]
+  if (!files?.length) return undefined
+
+  const { readFile } = await import('node:fs/promises')
+  const entries = await Promise.all(
+    files.map(async (filePath) => [filePath, await readFile(filePath, 'utf-8')] as const),
+  )
+  return Object.fromEntries(entries)
+}
+
+/**
+ * Build the fetch init for a seed POST: JWT auth header plus, when present, the
+ * uploaded seed-data files in the JSON body.
+ */
+function seedPostInit(token: string, inlineData?: Record<string, string>): RequestInit {
+  return {
+    method: 'POST',
+    headers: {
+      Authorization: `JWT ${token}`,
+      ...(inlineData ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: inlineData ? JSON.stringify({ inlineData }) : undefined,
+  }
+}
+
 /**
  * Format elapsed milliseconds as human-readable string (e.g., "1m 30s")
  */
@@ -144,7 +184,14 @@ function printScripts(): void {
 }
 
 /**
- * Authenticate with the API and return session cookies
+ * Authenticate with the API and return a JWT for the `Authorization` header.
+ *
+ * Uses the token from the login response *body*, not the `Set-Cookie` header.
+ * Payload's CSRF protection ignores cookie-based JWTs unless the request
+ * `Origin` matches the configured `csrf` allowlist — which a server-to-server
+ * fetch can't satisfy (it sends no `Origin`). The `Authorization: JWT <token>`
+ * header is not subject to CSRF, so it's the correct mechanism here.
+ * Do not switch this back to cookie forwarding.
  */
 async function authenticate(baseUrl: string): Promise<string> {
   const email = seedEnv.ADMIN_EMAIL
@@ -170,13 +217,13 @@ async function authenticate(baseUrl: string): Promise<string> {
     throw new Error(`Authentication failed: ${response.status} ${error}`)
   }
 
-  const cookies = response.headers.get('set-cookie')
-  if (!cookies) {
-    throw new Error('No session cookie received from login')
+  const { token } = (await response.json()) as { token?: string }
+  if (!token) {
+    throw new Error('No token received from login')
   }
 
   console.log('✅ Authentication successful\n')
-  return cookies
+  return token
 }
 
 /**
@@ -403,13 +450,13 @@ function delay(ms: number): Promise<void> {
 async function fetchScriptMetadata(
   scriptName: ScriptName,
   baseUrl: string,
-  cookies: string,
+  token: string,
 ): Promise<ScriptMetadata> {
   const url = `${baseUrl}/api/seed/${scriptName}`
 
   const response = await fetch(url, {
     method: 'GET',
-    headers: { Cookie: cookies },
+    headers: { Authorization: `JWT ${token}` },
   })
 
   if (!response.ok) {
@@ -429,8 +476,8 @@ async function runPaginatedRequest(
   offset: number,
   limit: number,
   baseUrl: string,
-  cookies: string,
-  options: { dryRun: boolean; updateMode: boolean },
+  token: string,
+  options: { dryRun: boolean; updateMode: boolean; inlineData?: Record<string, string> },
 ): Promise<{ success: boolean; errors: string[]; pagination: PaginationResult | null }> {
   const errors: string[] = []
 
@@ -444,10 +491,7 @@ async function runPaginatedRequest(
 
   const url = `${baseUrl}/api/seed/${scriptName}?${params.toString()}`
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { Cookie: cookies },
-  })
+  const response = await fetch(url, seedPostInit(token, options.inlineData))
 
   if (!response.ok) {
     const errorText = await response.text()
@@ -494,8 +538,13 @@ async function runPaginatedImport(
   scriptName: ScriptName,
   metadata: ScriptMetadata,
   baseUrl: string,
-  cookies: string,
-  options: { dryRun: boolean; clearCache: boolean; updateMode: boolean },
+  token: string,
+  options: {
+    dryRun: boolean
+    clearCache: boolean
+    updateMode: boolean
+    inlineData?: Record<string, string>
+  },
 ): Promise<ScriptResult> {
   const errors: string[] = []
   const batchSize = metadata.recommendedBatchSize
@@ -525,8 +574,8 @@ async function runPaginatedImport(
         0,
         0, // 0 means use default (all items)
         baseUrl,
-        cookies,
-        { dryRun: options.dryRun, updateMode: options.updateMode },
+        token,
+        { dryRun: options.dryRun, updateMode: options.updateMode, inlineData: options.inlineData },
       )
 
       if (!result.success) {
@@ -547,8 +596,12 @@ async function runPaginatedImport(
           offset,
           batchSize,
           baseUrl,
-          cookies,
-          { dryRun: options.dryRun, updateMode: options.updateMode },
+          token,
+          {
+            dryRun: options.dryRun,
+            updateMode: options.updateMode,
+            inlineData: options.inlineData,
+          },
         )
 
         if (!result.success) {
@@ -593,8 +646,13 @@ async function runPaginatedImport(
 async function runScript(
   scriptName: ScriptName,
   baseUrl: string,
-  cookies: string,
-  options: { dryRun: boolean; clearCache: boolean; updateMode: boolean },
+  token: string,
+  options: {
+    dryRun: boolean
+    clearCache: boolean
+    updateMode: boolean
+    inlineData?: Record<string, string>
+  },
 ): Promise<ScriptResult> {
   const { dryRun, clearCache, updateMode } = options
   const errors: string[] = []
@@ -612,12 +670,7 @@ async function runScript(
 
   try {
     // Call the seed API
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Cookie: cookies,
-      },
-    })
+    const response = await fetch(url, seedPostInit(token, options.inlineData))
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -733,8 +786,8 @@ async function main(): Promise<void> {
   if (clearCache) console.log('Option: Clear cache')
 
   try {
-    // Authenticate and get session cookie
-    const cookies = await authenticate(baseUrl)
+    // Authenticate and get a JWT for the Authorization header
+    const token = await authenticate(baseUrl)
 
     // Run each script in order
     const results: ScriptResult[] = []
@@ -744,23 +797,38 @@ async function main(): Promise<void> {
       let metadata: ScriptMetadata | null = null
       try {
         console.log(`\n📋 Fetching metadata for ${scriptName}...`)
-        metadata = await fetchScriptMetadata(scriptName, baseUrl, cookies)
+        metadata = await fetchScriptMetadata(scriptName, baseUrl, token)
         console.log(`   Environment: ${metadata.environment}`)
         console.log(`   Total items: ${metadata.totalItems}`)
         console.log(`   Requires pagination: ${metadata.requiresPagination}`)
       } catch (error) {
-        console.warn(`   ⚠️  Could not fetch metadata: ${error instanceof Error ? error.message : error}`)
+        console.warn(
+          `   ⚠️  Could not fetch metadata: ${error instanceof Error ? error.message : error}`,
+        )
         console.warn(`   Falling back to bulk import...`)
       }
+
+      // Upload any private-repo data files this script needs (no-op otherwise).
+      const inlineData = await loadInlineData(scriptName)
 
       let result: ScriptResult
 
       // Use paginated import if metadata indicates it's needed
       if (metadata?.requiresPagination) {
-        result = await runPaginatedImport(scriptName, metadata, baseUrl, cookies, { dryRun, clearCache, updateMode })
+        result = await runPaginatedImport(scriptName, metadata, baseUrl, token, {
+          dryRun,
+          clearCache,
+          updateMode,
+          inlineData,
+        })
       } else {
         // Use bulk import for small datasets
-        result = await runScript(scriptName, baseUrl, cookies, { dryRun, clearCache, updateMode })
+        result = await runScript(scriptName, baseUrl, token, {
+          dryRun,
+          clearCache,
+          updateMode,
+          inlineData,
+        })
       }
 
       results.push(result)

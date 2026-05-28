@@ -163,6 +163,19 @@ export async function POST(
   const offsetParam = request.nextUrl.searchParams.get('offset')
   const limitParam = request.nextUrl.searchParams.get('limit')
 
+  // Optional request body: raw seed-file contents uploaded by the CLI when the
+  // Worker can't fetch them itself (private repo). Keyed by DataSource.localPath.
+  // Body is absent for most requests, so a parse failure is expected and ignored.
+  let inlineData: Record<string, string> | undefined
+  try {
+    const body = (await request.json()) as { inlineData?: Record<string, string> } | null
+    if (body?.inlineData && typeof body.inlineData === 'object') {
+      inlineData = body.inlineData
+    }
+  } catch {
+    // No body or not JSON — importer falls back to filesystem/remote fetch.
+  }
+
   // Validate pagination params - offset/limit require collection
   if ((offsetParam !== null || limitParam !== null) && !collection) {
     return new Response(
@@ -218,7 +231,15 @@ export async function POST(
       })
 
       // Dynamically import the appropriate importer
-      const importer = await getImporter(script as ScriptName, payload, dryRun, updateMode, sendEvent, pagination)
+      const importer = await getImporter(
+        script as ScriptName,
+        payload,
+        dryRun,
+        updateMode,
+        sendEvent,
+        pagination,
+        inlineData,
+      )
 
       if (!importer) {
         await sendEvent({
@@ -349,6 +370,7 @@ async function getImporter(
   updateMode: boolean,
   onProgress: (data: Record<string, unknown>) => Promise<void>,
   pagination?: PaginationOptions,
+  inlineData?: Record<string, string>,
 ) {
   const options = {
     dryRun,
@@ -357,6 +379,7 @@ async function getImporter(
     payload,
     onProgress,
     pagination,
+    inlineData,
   }
 
   switch (script) {
@@ -381,9 +404,8 @@ async function getImporter(
       return new StoryblokImporter(options, token)
     }
     case 'wm-app-translations': {
-      const { WeMeditateAppTranslationsImporter } = await import(
-        '../../../../../../seeds/wm-app-translations/import'
-      )
+      const { WeMeditateAppTranslationsImporter } =
+        await import('../../../../../../seeds/wm-app-translations/import')
       return new WeMeditateAppTranslationsImporter(options)
     }
     case 'translations': {
