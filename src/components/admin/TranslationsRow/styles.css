@@ -1,0 +1,232 @@
+/*
+ * TranslationsRow — shared layout for string + richText translation rows.
+ *
+ * 2-column grid (title | input). In non-EN locales the English reference
+ * appears below the input field. Stacks vertically below 768px.
+ */
+
+/* ----------------------------------------------------------------------- */
+/* Shared row layout                                                       */
+/* ----------------------------------------------------------------------- */
+
+.translations-row {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: calc(var(--base) * 0.75);
+  align-items: start;
+  padding: calc(var(--base) * 0.5) 0;
+  border-bottom: 1px solid var(--theme-elevation-100);
+}
+
+@media (max-width: 768px) {
+  .translations-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* The richText Field replacement wraps the row inside a `field-type richText`
+   container. Strip the wrapper's default block layout so the inner row's
+   grid actually applies. */
+.field-type.richText > .translations-row {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Header cell (title + description)                                       */
+/* ----------------------------------------------------------------------- */
+
+.translations-row__header {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) * 0.15);
+  min-width: 0;
+}
+
+.translations-row__title {
+  font-size: calc(var(--base-body-size) * 1px);
+  font-weight: 600;
+  color: var(--theme-elevation-800);
+}
+
+.translations-row__description {
+  font-size: calc(var(--base-body-size) * 0.75px);
+  color: var(--theme-elevation-500);
+  line-height: 1.4;
+}
+
+/* ----------------------------------------------------------------------- */
+/* English reference cell                                                  */
+/* ----------------------------------------------------------------------- */
+
+.translations-row__english {
+  margin-top: calc(var(--base) * 0.3);
+  font-size: calc(var(--base-body-size) * 0.85px);
+  color: var(--theme-elevation-500);
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.translations-row__english--placeholder {
+  color: var(--theme-elevation-400);
+  font-style: italic;
+}
+
+/* ----------------------------------------------------------------------- */
+/* String input cell (textarea)                                            */
+/* ----------------------------------------------------------------------- */
+
+.translations-row__input-cell {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.translations-row__input-cell textarea {
+  flex: 1;
+  width: 100%;
+  resize: none;
+  overflow: hidden;
+  padding: calc(var(--base) * 0.4);
+  background: var(--theme-input-bg);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-s);
+  color: var(--theme-text);
+  font-size: calc(var(--base-body-size) * 1px);
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.translations-row__input-cell textarea:disabled {
+  background: var(--theme-elevation-50);
+  cursor: not-allowed;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Lexical editor (richText input cell)                                    */
+/* ----------------------------------------------------------------------- */
+
+.translations-row__lexical-toolbar {
+  display: flex;
+  gap: calc(var(--base) * 0.2);
+  padding: calc(var(--base) * 0.25);
+  background: var(--theme-elevation-50);
+  border: 1px solid var(--theme-elevation-150);
+  border-bottom: 0;
+  border-radius: var(--style-radius-s) var(--style-radius-s) 0 0;
+}
+
+.translations-row__lexical-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75em;
+  height: 1.75em;
+  padding: 0 calc(var(--base) * 0.25);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--style-radius-s);
+  cursor: pointer;
+  color: var(--theme-elevation-700);
+  font-size: calc(var(--base-body-size) * 1px);
+  font-family: inherit;
+}
+
+.translations-row__lexical-btn:hover:not(:disabled) {
+  background: var(--theme-elevation-100);
+}
+
+.translations-row__lexical-btn--active {
+  background: var(--theme-elevation-150);
+  border-color: var(--theme-elevation-200);
+}
+
+.translations-row__lexical-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.translations-row__lexical-shell {
+  position: relative;
+  background: var(--theme-input-bg);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: 0 0 var(--style-radius-s) var(--style-radius-s);
+}
+
+.translations-row__lexical-content {
+  min-height: calc(var(--base) * 1.5);
+  padding: calc(var(--base) * 0.4);
+  outline: none;
+  color: var(--theme-text);
+  font-size: calc(var(--base-body-size) * 1px);
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.translations-row__lexical-content[contenteditable='false'] {
+  background: var(--theme-elevation-50);
+  cursor: not-allowed;
+}
+
+.translations-row__lexical-placeholder {
+  position: absolute;
+  top: calc(var(--base) * 0.4);
+  left: calc(var(--base) * 0.4);
+  pointer-events: none;
+  color: var(--theme-elevation-400);
+  font-size: calc(var(--base-body-size) * 1px);
+}
+
+.translations-row__lexical-content a {
+  color: var(--theme-elevation-700);
+  text-decoration: underline;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Inline link input panel (shown between toolbar and editor)              */
+/* ----------------------------------------------------------------------- */
+
+.translations-row__lexical-link-input {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--base) * 0.25);
+  padding: calc(var(--base) * 0.25) calc(var(--base) * 0.3);
+  background: var(--theme-elevation-50);
+  border: 1px solid var(--theme-elevation-150);
+  border-top: 0;
+  border-bottom: 0;
+}
+
+.translations-row__lexical-link-input input[type='url'] {
+  flex: 1;
+  padding: calc(var(--base) * 0.25) calc(var(--base) * 0.4);
+  background: var(--theme-input-bg);
+  border: 1px solid var(--theme-elevation-200);
+  border-radius: var(--style-radius-s);
+  color: var(--theme-text);
+  font-size: calc(var(--base-body-size) * 1px);
+  font-family: inherit;
+}
+
+.translations-row__lexical-link-input input[type='url']:focus {
+  outline: none;
+  border-color: var(--theme-elevation-400);
+}
+
+.translations-row__lexical-link-input button {
+  padding: calc(var(--base) * 0.2) calc(var(--base) * 0.4);
+  background: transparent;
+  border: 1px solid var(--theme-elevation-200);
+  border-radius: var(--style-radius-s);
+  cursor: pointer;
+  color: var(--theme-elevation-700);
+  font-size: calc(var(--base-body-size) * 0.9px);
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.translations-row__lexical-link-input button:hover {
+  background: var(--theme-elevation-100);
+}

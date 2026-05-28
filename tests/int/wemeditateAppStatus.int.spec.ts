@@ -383,7 +383,7 @@ describe('WeMeditateAppStatus Global', () => {
   // Section 6 — Translations
   // ---------------------------------------------------------------------------
   describe('Section 6 — Translations', () => {
-    it('emits one aggregate per top-level schema tab + a manual-review group', async () => {
+    it('emits one aggregate per top-level schema tab', async () => {
       const report = await run(translationsSection, payload)
       const aggKeys = report.groups.filter((g) => g.type === 'aggregate').map((g) => g.key)
       expect(aggKeys).toEqual(
@@ -395,42 +395,7 @@ describe('WeMeditateAppStatus Global', () => {
           'translations-meditation',
         ]),
       )
-      const manual = report.groups.find((g) => g.key === 'manual-review')
-      expect(manual?.type).toBe('documents')
-      if (manual?.type !== 'documents') return
-      expect(manual.documents).toHaveLength(1)
-    })
-
-    it('manual-review row flips between "Never reviewed" and ISO timestamp; lastReviewedAt is per-locale', async () => {
-      const before = await run(translationsSection, payload)
-      const manualBefore = before.groups.find((g) => g.key === 'manual-review')
-      expect(manualBefore?.type).toBe('documents')
-      if (manualBefore?.type !== 'documents') return
-      expect(manualBefore.documents[0].label).toBe('Never reviewed')
-      expect(manualBefore.documents[0].checks[0].passed).toBe(false)
-
-      await payload.updateGlobal({
-        slug: 'wm-app-translations',
-        locale: 'cs',
-        data: { markReviewed: true },
-      })
-
-      const enAfter = await run(translationsSection, payload, 'en')
-      const enManual = enAfter.groups.find((g) => g.key === 'manual-review')
-      if (enManual?.type !== 'documents') return
-      // English locale unaffected — still never reviewed
-      expect(enManual.documents[0].label).toBe('Never reviewed')
-
-      const csAfter = await run(translationsSection, payload, 'cs')
-      const csManual = csAfter.groups.find((g) => g.key === 'manual-review')
-      if (csManual?.type !== 'documents') return
-      // Czech locale has a timestamp
-      expect(csManual.documents[0].label).not.toBe('Never reviewed')
-      expect(csManual.documents[0].checks[0].passed).toBe(true)
-
-      // The virtual markReviewed always reads as false
-      const cs = await payload.findGlobal({ slug: 'wm-app-translations', locale: 'cs' })
-      expect((cs as { markReviewed?: boolean }).markReviewed).toBe(false)
+      expect(report.groups.find((g) => g.key === 'manual-review')).toBeUndefined()
     })
   })
 

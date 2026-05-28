@@ -14,6 +14,7 @@
  * - meditations: Meditations, Frames, Music
  * - storyblok: Lessons, Lectures
  * - wm-app-translations: WeMeditate App Translations global (English seed)
+ * - translations: All three translation globals (English seed)
  *
  * Authentication: Requires admin session
  *
@@ -45,6 +46,7 @@ const VALID_SCRIPTS: ScriptName[] = [
   'meditations',
   'storyblok',
   'wm-app-translations',
+  'translations',
 ]
 
 /**
@@ -384,6 +386,10 @@ async function getImporter(
       )
       return new WeMeditateAppTranslationsImporter(options)
     }
+    case 'translations': {
+      const { TranslationsImporter } = await import('../../../../../../seeds/translations/import')
+      return new TranslationsImporter(options)
+    }
     default:
       return null
   }
@@ -435,10 +441,10 @@ async function getDatabaseCounts(
         counts['lectures'] = lectures.totalDocs
         break
       }
-      case 'wm-app-translations': {
-        // Target is the wm-app-translations PayloadCMS global, not a collection.
-        // Verification (verifyCountsForScript) sees an empty EXPECTED_COUNTS entry
-        // and passes by default — return an empty object to match.
+      case 'wm-app-translations':
+      case 'translations': {
+        // These scripts target PayloadCMS globals, not collections.
+        // Verification sees an empty EXPECTED_COUNTS entry and passes by default.
         break
       }
     }

@@ -18,6 +18,7 @@ export type ScriptName =
   | 'meditations'
   | 'storyblok'
   | 'wm-app-translations'
+  | 'translations'
 
 export interface ExpectedCounts {
   [collection: string]: number
@@ -61,6 +62,8 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   // wm-app-translations updates a single PayloadCMS global, not collections.
   // No collection counts apply — verification is intentionally a no-op.
   'wm-app-translations': {},
+  // translations updates three PayloadCMS globals, not collections.
+  'translations': {},
 }
 
 /**
@@ -235,6 +238,8 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   // a collection. The empty array tells the runner there are no per-collection
   // pagination buckets or dependencies — the importer runs once, in bulk.
   'wm-app-translations': [],
+  // translations targets three PayloadCMS globals, not collections.
+  'translations': [],
 }
 
 /**

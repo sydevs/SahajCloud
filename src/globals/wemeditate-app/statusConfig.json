@@ -47,10 +47,6 @@
       "label": "Lesson-referenced lecture subtitles",
       "description": "Every lecture linked from an in-scope lesson has subtitles available for this locale."
     },
-    "manual-review": {
-      "label": "Manual review",
-      "description": "An admin has marked translations reviewed for this locale at least once."
-    },
     "non-featured-afternoon": {
       "label": "Non-featured afternoon meditations",
       "description": "At least four non-featured mood/goal user choices have a published afternoon meditation assigned."
@@ -78,6 +74,10 @@
     "priority-with-userchoice": {
       "label": "Prioritized lectures with user-choice tags",
       "description": "At least ten lectures have a priority above zero and at least one user-choice tag."
+    },
+    "publish-status": {
+      "label": "Publish status",
+      "description": "Translations have been published for this locale."
     },
     "self-realization-meditation": {
       "label": "Self-realization meditation",
@@ -181,6 +181,10 @@
       "label": "Intro audio set",
       "description": "The lesson has an intro-audio file assigned."
     },
+    "is-published": {
+      "label": "Translations published",
+      "description": "The translations global is published for this locale."
+    },
     "meditation-afternoon-published": {
       "label": "Afternoon meditation published",
       "description": "The user choice has a published afternoon meditation assigned for this locale."
@@ -212,10 +216,6 @@
     "published": {
       "label": "Published",
       "description": "The document is published for this locale."
-    },
-    "reviewed-this-cycle": {
-      "label": "Reviewed at least once",
-      "description": "An admin has manually marked translations reviewed for this locale."
     },
     "set-and-exists": {
       "label": "Set and exists",
