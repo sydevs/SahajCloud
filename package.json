@@ -31,12 +31,12 @@
     "db:schema": "wrangler d1 execute sahajcloud --command '.schema' --remote"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.919.0",
-    "@aws-sdk/lib-storage": "^3.919.0",
+    "@aws-sdk/client-s3": "^3.1055.0",
+    "@aws-sdk/lib-storage": "^3.1055.0",
     "@js-temporal/polyfill": "^0.5.1",
     "@lexical/react": "0.41.0",
     "@lexical/rich-text": "0.41.0",
-    "@opennextjs/cloudflare": "^1.13.1",
+    "@opennextjs/cloudflare": "^1.17.1",
     "@payloadcms/db-d1-sqlite": "^3.82.1",
     "@payloadcms/db-sqlite": "^3.82.1",
     "@payloadcms/email-nodemailer": "^3.82.1",
@@ -60,7 +60,7 @@
     "iso-639-1": "^3.1.5",
     "lexical": "0.41.0",
     "music-metadata": "^11.12.3",
-    "next": "15.4.11",
+    "next": "^15.5.18",
     "payload": "^3.82.1",
     "payload-oapi": "^0.2.5",
     "react": "19.2.1",
@@ -83,7 +83,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^22.18.13",
-    "@types/nodemailer": "^6.4.21",
+    "@types/nodemailer": "^8.0.0",
     "@types/pg": "^8.15.6",
     "@types/react": "19.1.0",
     "@types/react-dom": "19.1.2",
@@ -91,7 +91,7 @@
     "@vitejs/plugin-react": "4.5.2",
     "better-sqlite3": "^12.4.6",
     "eslint": "^9.38.0",
-    "eslint-config-next": "15.4.11",
+    "eslint-config-next": "^15.5.18",
     "eslint-plugin-unused-imports": "^4.3.0",
     "jsdom": "26.1.0",
     "nodemailer": "^7.0.10",
@@ -104,7 +104,7 @@
     "typescript": "5.7.3",
     "vite-tsconfig-paths": "5.1.4",
     "vitest": "3.2.3",
-    "wrangler": "^4.54.0"
+    "wrangler": "^4.59.1"
   },
   "engines": {
     "node": "^18.20.2 || >=20.9.0",
@@ -119,7 +119,7 @@
       "ignoreMissing": []
     },
     "patchedDependencies": {
-      "@opennextjs/cloudflare@1.14.6": "patches/@opennextjs__cloudflare@1.14.6.patch"
+      "@opennextjs/cloudflare@1.19.11": "patches/@opennextjs__cloudflare@1.19.11.patch"
     }
   }
 }
