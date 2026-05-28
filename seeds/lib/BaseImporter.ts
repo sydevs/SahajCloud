@@ -82,6 +82,10 @@ export interface BaseImportOptions {
   payload?: Payload // Optional external Payload instance (for API routes)
   onProgress?: OnProgressCallback // Optional progress callback for SSE streaming
   pagination?: PaginationOptions // Optional pagination for multi-step execution
+  // Raw seed-file contents keyed by their canonical DataSource.localPath,
+  // uploaded by the CLI when the Worker can't fetch them itself (private repo).
+  // Consumed via loadJsonData({ inlineContent }).
+  inlineData?: Record<string, string>
 }
 
 export interface UpsertResult<T = any> {

@@ -134,6 +134,7 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
     const seed = await loadJsonData<SeedFile>({
       localPath: SEED_DATA_LOCAL_PATH,
       workerUrl: SEED_DATA_WORKER_URL,
+      inlineContent: this.options.inlineData?.[SEED_DATA_LOCAL_PATH],
     })
 
     let data: Record<string, unknown>
@@ -192,7 +193,9 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
         data: data as Parameters<typeof this.payload.updateGlobal>[0]['data'],
         locale: LOCALE,
       })
-      await this.logger.success(`Updated global "${slug}" with ${fieldNames.length} field(s) (locale=${LOCALE})`)
+      await this.logger.success(
+        `Updated global "${slug}" with ${fieldNames.length} field(s) (locale=${LOCALE})`,
+      )
       for (const name of fieldNames) {
         this.report.incrementUpdated()
         await this.reportDocument(slug, name, 'updated', {

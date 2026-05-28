@@ -21,6 +21,13 @@ export interface DataSource {
   localPath: string
   /** Remote URL for Workers mode (e.g., GitHub raw URL) */
   workerUrl: string
+  /**
+   * Pre-supplied raw file contents. When set, bypasses both the filesystem and
+   * the remote fetch. Used when seeding a Worker from a private repo: the CLI
+   * reads the file locally and uploads it in the request body, since the Worker
+   * can't fetch it from a private `workerUrl` (GitHub returns 404).
+   */
+  inlineContent?: string
 }
 
 /**
@@ -44,6 +51,10 @@ export interface AssetOptions {
  * @returns File contents as string
  */
 export async function loadDataFile(source: DataSource): Promise<string> {
+  if (source.inlineContent !== undefined) {
+    return source.inlineContent
+  }
+
   if (isCloudflareWorker()) {
     const response = await fetch(source.workerUrl)
     if (!response.ok) {
