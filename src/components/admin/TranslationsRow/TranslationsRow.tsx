@@ -45,13 +45,15 @@ export const TranslationsRow: React.FC<TranslationsRowProps> = ({
   }
 
   return (
-    <div className="translations-row" data-locale={isEnglish ? 'en' : 'other'}>
+    <div className="translations-row">
       <div className="translations-row__header">
         <div className="translations-row__title">{title}</div>
         {description && <div className="translations-row__description">{description}</div>}
       </div>
-      {englishCell}
-      <div className="translations-row__input-cell">{children}</div>
+      <div className="translations-row__input-cell">
+        {children}
+        {englishCell}
+      </div>
     </div>
   )
 }

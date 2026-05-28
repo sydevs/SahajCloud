@@ -1,14 +1,8 @@
 /*
  * TranslationsRow — shared layout for string + richText translation rows.
  *
- * Both string and richText rows render through the same `TranslationsRow`
- * layout component (3-column grid in non-EN locales: title | English
- * reference | input; 2-column in English: title | input). The input slot
- * accepts arbitrary children — `AutoGrowTextarea` for string keys,
- * `TranslationLexicalEditor` for richText keys.
- *
- * Stacks vertically on screens narrower than Payload's small breakpoint
- * (768px = `--breakpoint-s-width`).
+ * 2-column grid (title | input). In non-EN locales the English reference
+ * appears below the input field. Stacks vertically below 768px.
  */
 
 /* ----------------------------------------------------------------------- */
@@ -17,20 +11,15 @@
 
 .translations-row {
   display: grid;
-  grid-template-columns: 340px 280px 1fr;
+  grid-template-columns: 340px 1fr;
   gap: calc(var(--base) * 0.75);
   align-items: start;
   padding: calc(var(--base) * 0.5) 0;
   border-bottom: 1px solid var(--theme-elevation-100);
 }
 
-.translations-row[data-locale='en'] {
-  grid-template-columns: 340px 1fr;
-}
-
 @media (max-width: 768px) {
-  .translations-row,
-  .translations-row[data-locale='en'] {
+  .translations-row {
     grid-template-columns: 1fr;
   }
 }
@@ -71,8 +60,9 @@
 /* ----------------------------------------------------------------------- */
 
 .translations-row__english {
-  font-size: calc(var(--base-body-size) * 1px);
-  color: var(--theme-elevation-700);
+  margin-top: calc(var(--base) * 0.3);
+  font-size: calc(var(--base-body-size) * 0.85px);
+  color: var(--theme-elevation-500);
   white-space: pre-wrap;
   word-break: break-word;
   min-width: 0;

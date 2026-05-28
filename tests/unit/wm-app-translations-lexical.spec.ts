@@ -17,12 +17,14 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildWmAppGlobalData,
   collectSeedTodos,
   isSeedRichTextField,
-  seedLeafToGlobalEntries,
+  seedLeafToFieldValues,
   seedRichTextToLexical,
   type SeedFile,
   type SeedRichTextField,
+  type TranslationsSchemaRoot,
 } from '../../seeds/wm-app-translations/lexicalConverter'
 
 describe('seeds/wm-app-translations/lexicalConverter', () => {
@@ -286,31 +288,32 @@ describe('seeds/wm-app-translations/lexicalConverter', () => {
     })
   })
 
-  describe('seedLeafToGlobalEntries', () => {
-    it('returns a single entry keyed by leafSlug for pure-string leaves, stripping _meta keys', () => {
-      const out = seedLeafToGlobalEntries('onboarding_name', {
+  describe('seedLeafToFieldValues', () => {
+    it('returns strings + empty richText for pure-string leaves, stripping _meta keys', () => {
+      const out = seedLeafToFieldValues('onboarding_name', {
         title: "What's your name?",
         placeholder: 'Your first name',
         continue: 'Continue',
         _source: 'documentation only — should be dropped',
       } as never)
       expect(out).toEqual({
-        onboarding_name: {
+        strings: {
           title: "What's your name?",
           placeholder: 'Your first name',
           continue: 'Continue',
         },
+        richText: {},
       })
     })
 
     it('throws when a pure-string leaf has a non-string value', () => {
       expect(() =>
-        seedLeafToGlobalEntries('bad_leaf', { good: 'ok', bad: 123 as unknown as string }),
+        seedLeafToFieldValues('bad_leaf', { good: 'ok', bad: 123 as unknown as string }),
       ).toThrow(/has non-string value/)
     })
 
-    it('unpacks a mixed leaf: strings → leafSlug entry, richText → leafSlug_rtKey entry', () => {
-      const out = seedLeafToGlobalEntries('onboarding_welcome', {
+    it('unpacks a mixed leaf into strings + bare-keyed richText', () => {
+      const out = seedLeafToFieldValues('onboarding_welcome', {
         strings: { title: 'Welcome, friend', get_started: 'Get started' },
         legal_disclaimer: {
           _richText: true,
@@ -322,22 +325,16 @@ describe('seeds/wm-app-translations/lexicalConverter', () => {
           ],
         },
       } as never)
-      expect(out['onboarding_welcome']).toEqual({
+      expect(out.strings).toEqual({
         title: 'Welcome, friend',
         get_started: 'Get started',
       })
-      const richField = out['onboarding_welcome_legal_disclaimer'] as {
-        root: { children: unknown[] }
-      }
-      expect(richField.root.children).toHaveLength(1)
-      expect(Object.keys(out).sort()).toEqual([
-        'onboarding_welcome',
-        'onboarding_welcome_legal_disclaimer',
-      ])
+      expect(Object.keys(out.richText)).toEqual(['legal_disclaimer'])
+      expect(out.richText.legal_disclaimer.root.children).toHaveLength(1)
     })
 
     it('drops _source / _todo / other _-prefixed metadata at all levels', () => {
-      const out = seedLeafToGlobalEntries('mixed_leaf', {
+      const out = seedLeafToFieldValues('mixed_leaf', {
         _source: 'documentation',
         _todo: 'TODO marker',
         strings: { foo: 'bar' },
@@ -348,18 +345,85 @@ describe('seeds/wm-app-translations/lexicalConverter', () => {
           paragraphs: [[{ text: 'paragraph text' }]],
         },
       } as never)
-      expect(Object.keys(out).sort()).toEqual(['mixed_leaf', 'mixed_leaf_body'])
-      expect('_source' in out).toBe(false)
-      expect('_todo' in out).toBe(false)
+      expect(out.strings).toEqual({ foo: 'bar' })
+      expect(Object.keys(out.richText)).toEqual(['body'])
     })
 
     it('throws when a sibling of "strings" is not a richText field', () => {
       expect(() =>
-        seedLeafToGlobalEntries('bad_mixed', {
+        seedLeafToFieldValues('bad_mixed', {
           strings: { foo: 'bar' },
           bad: 'this should be a richText field, not a string',
         } as never),
       ).toThrow(/is not a richText field/)
+    })
+  })
+
+  describe('buildWmAppGlobalData', () => {
+    const schema: TranslationsSchemaRoot = {
+      type: 'object',
+      properties: {
+        // Nested tab — wrapped in a Payload group named `onboarding`.
+        onboarding: {
+          type: 'object',
+          properties: {
+            welcome: {
+              type: 'object',
+              properties: {
+                title: { type: 'string' },
+                legal_disclaimer: { type: 'richText' },
+              },
+            },
+            name: {
+              type: 'object',
+              properties: { title: { type: 'string' } },
+            },
+          },
+        },
+        // Simple tab — no group wrapper.
+        navigation: {
+          type: 'object',
+          properties: { daily: { type: 'string' } },
+        },
+      },
+    }
+
+    const seed = {
+      onboarding_welcome: {
+        strings: { title: 'Welcome, friend' },
+        legal_disclaimer: {
+          _richText: true,
+          paragraphs: [[{ text: 'Legal text' }]],
+        },
+      },
+      onboarding_name: { title: "What's your name?" },
+      navigation: { daily: 'Daily' },
+    } as unknown as SeedFile
+
+    it('nests sub-group strings under the tab group and keeps the sub-slug prefix on richText', () => {
+      const data = buildWmAppGlobalData(seed, schema) as {
+        onboarding: Record<string, unknown>
+        navigation: Record<string, unknown>
+      }
+      // Strings JSON for `welcome` lives at onboarding.welcome.
+      expect(data.onboarding.welcome).toEqual({ title: 'Welcome, friend' })
+      // richText keeps the sub-slug prefix: onboarding.welcome_legal_disclaimer.
+      const rt = data.onboarding.welcome_legal_disclaimer as { root: { children: unknown[] } }
+      expect(rt.root.children).toHaveLength(1)
+      // Sibling pure-string sub-group.
+      expect(data.onboarding.name).toEqual({ title: "What's your name?" })
+    })
+
+    it('keeps simple-tab fields flat (no group wrapper)', () => {
+      const data = buildWmAppGlobalData(seed, schema)
+      expect(data.navigation).toEqual({ daily: 'Daily' })
+    })
+
+    it('omits schema leaves that have no matching seed entry', () => {
+      const partialSeed = { navigation: { daily: 'Daily' } } as unknown as SeedFile
+      const data = buildWmAppGlobalData(partialSeed, schema)
+      expect(data.onboarding).toBeUndefined()
+      expect(data.navigation).toEqual({ daily: 'Daily' })
     })
   })
 

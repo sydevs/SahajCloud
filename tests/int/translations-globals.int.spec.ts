@@ -9,9 +9,10 @@
  *   after the tab slug so the API response is namespaced:
  *   `{ onboarding: { welcome: {…} } }` instead of `{ onboarding_welcome: {…} }`.
  * - Simple tabs (wm-web, sy-atlas) have no group wrappers.
- * - richText fields inside nested tabs are named after just the key (no sub-slug
- *   prefix) so they sit at the same level as the JSON blob in the group namespace:
- *   `onboarding.legal_disclaimer` not `onboarding.welcome_legal_disclaimer`.
+ * - richText fields inside nested tabs keep the sub-slug prefix (the group
+ *   wrapper supplies the tab namespace), so the field name is
+ *   `welcome_legal_disclaimer` and the API path is
+ *   `onboarding.welcome_legal_disclaimer`.
  */
 import type { Field, Payload, TabsField } from 'payload'
 
@@ -117,13 +118,16 @@ describe('Translations Globals Configuration', () => {
       expect(names).not.toContain('onboarding_welcome')
     })
 
-    it('wm-app-translations exposes legal_disclaimer as a richText field inside the onboarding group', () => {
+    it('wm-app-translations names richText fields <subSlug>_<key> inside the onboarding group', () => {
       const tabsField = findGlobal('wm-app-translations').fields[0] as TabsField
       const richText = tabsField.tabs.flatMap((t) =>
         collectFieldsByPredicate(t.fields, (f) => f.type === 'richText'),
       ) as Array<{ name: string }>
       const names = richText.map((f) => f.name)
-      expect(names).toContain('legal_disclaimer')
+      // The group wrapper supplies the `onboarding` namespace, so the field name
+      // keeps the sub-slug prefix but not the tab prefix.
+      expect(names).toContain('welcome_legal_disclaimer')
+      expect(names).not.toContain('legal_disclaimer')
       expect(names).not.toContain('onboarding_welcome_legal_disclaimer')
     })
 

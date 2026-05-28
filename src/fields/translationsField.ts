@@ -221,8 +221,7 @@ function createLeafFields(
     fields.push(createStringsJsonField(leafSlug, group, globalSlug, parentGroup))
   }
   for (const [key, prop] of richTextEntries) {
-    const fieldName = parentGroup ? key : `${leafSlug}_${key}`
-    fields.push(createRichTextField(fieldName, key, prop, globalSlug, parentGroup))
+    fields.push(createRichTextField(`${leafSlug}_${key}`, key, prop, globalSlug, parentGroup))
   }
 
   return [...(screenshot ? [screenshot] : []), ...fields]

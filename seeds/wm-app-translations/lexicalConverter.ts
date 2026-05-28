@@ -224,24 +224,20 @@ export type SeedLeaf =
   | ({ strings: Record<string, string> } & Record<string, SeedRichTextField | string>)
 
 /**
- * Convert a seed leaf into a flat mapping of global-level field names → values,
- * ready to spread into `payload.updateGlobal({ data: ... })`.
- *
- * Architecture (post-#414):
- * - String keys for leaf `onboarding_welcome` are stored in a single JSON field
- *   also named `onboarding_welcome` — value is `{ key: "..." }` (no wrapper).
- * - richText keys are stored as separate top-level fields named
- *   `<leafSlug>_<rtKey>` (e.g. `onboarding_welcome_legal_disclaimer`).
+ * Field values extracted from a single seed leaf, decoupled from how Payload
+ * names/places them. `strings` is the flat `{ key: value }` map for the leaf's
+ * JSON field (or null when the leaf has no string keys). `richText` maps each
+ * richText key (bare, e.g. `legal_disclaimer`) to its Lexical tree.
  *
  * Handles both pure-string leaves (no `strings` block) and mixed leaves
  * (`{ strings: {...}, richKey: SeedRichTextField, ... }`).
  */
-export function seedLeafToGlobalEntries(
+export function seedLeafToFieldValues(
   leafSlug: string,
   leaf: SeedLeaf,
-): Record<string, Record<string, string> | LexicalRoot> {
-  const out: Record<string, Record<string, string> | LexicalRoot> = {}
+): { strings: Record<string, string> | null; richText: Record<string, LexicalRoot> } {
   const stringsBlock = (leaf as { strings?: Record<string, string> }).strings
+  const richText: Record<string, LexicalRoot> = {}
 
   if (!stringsBlock) {
     // Pure-string leaf — keys live directly on the object.
@@ -255,16 +251,10 @@ export function seedLeafToGlobalEntries(
       }
       stringKeys[k] = v
     }
-    if (Object.keys(stringKeys).length > 0) {
-      out[leafSlug] = stringKeys
-    }
-    return out
+    return { strings: Object.keys(stringKeys).length > 0 ? stringKeys : null, richText }
   }
 
   // Mixed leaf — `strings` block holds string keys; siblings are richText fields.
-  if (Object.keys(stringsBlock).length > 0) {
-    out[leafSlug] = { ...stringsBlock }
-  }
   for (const [k, v] of Object.entries(leaf)) {
     if (k === 'strings' || k.startsWith('_')) continue
     if (!isSeedRichTextField(v)) {
@@ -272,9 +262,85 @@ export function seedLeafToGlobalEntries(
         `[${leafSlug}.${k}] sibling of "strings" is not a richText field: ${JSON.stringify(v)}`,
       )
     }
-    out[`${leafSlug}_${k}`] = seedRichTextToLexical(v, `${leafSlug}.${k}`)
+    richText[k] = seedRichTextToLexical(v, `${leafSlug}.${k}`)
   }
-  return out
+  return { strings: Object.keys(stringsBlock).length > 0 ? { ...stringsBlock } : null, richText }
+}
+
+// ============================================================================
+// Schema-driven placement
+// ============================================================================
+
+interface SchemaLeafProp {
+  type: 'string' | 'richText'
+  description?: string
+}
+interface SchemaGroupNode {
+  type: 'object'
+  description?: string
+  properties?: Record<string, SchemaLeafProp | SchemaGroupNode>
+}
+export interface TranslationsSchemaRoot {
+  type: 'object'
+  properties?: Record<string, SchemaGroupNode>
+}
+
+function isSchemaGroup(node: SchemaLeafProp | SchemaGroupNode): node is SchemaGroupNode {
+  return node.type === 'object'
+}
+
+/**
+ * Build the `payload.updateGlobal({ data })` payload for a translations global
+ * from its seed file, driven by the schema so the shape matches
+ * `buildTranslationTabs()` exactly.
+ *
+ * - Simple tab `navigation`: strings → `data.navigation`, richText `rt` →
+ *   `data.navigation_rt` (no group wrapper).
+ * - Nested tab `onboarding` (has sub-groups): wrapped in a Payload group named
+ *   after the tab, so strings for sub-group `welcome` → `data.onboarding.welcome`
+ *   and richText `legal_disclaimer` → `data.onboarding.welcome_legal_disclaimer`
+ *   (the sub-slug prefix is kept; the group supplies the tab namespace).
+ *
+ * Seed leaf slugs are flat (`onboarding_welcome`); walking the schema avoids
+ * having to guess the tab/sub-group boundary from the slug.
+ */
+export function buildWmAppGlobalData(
+  seed: SeedFile,
+  schema: TranslationsSchemaRoot,
+): Record<string, unknown> {
+  const data: Record<string, unknown> = {}
+  const tabs = schema.properties ?? {}
+
+  for (const [tabSlug, tabNode] of Object.entries(tabs)) {
+    const tabProps = tabNode.properties ?? {}
+    const isNested = Object.values(tabProps).some(isSchemaGroup)
+
+    if (!isNested) {
+      const leaf = seed[tabSlug] as SeedLeaf | undefined
+      if (!leaf) continue
+      const { strings, richText } = seedLeafToFieldValues(tabSlug, leaf)
+      if (strings) data[tabSlug] = strings
+      for (const [rtKey, lexical] of Object.entries(richText)) {
+        data[`${tabSlug}_${rtKey}`] = lexical
+      }
+      continue
+    }
+
+    const group: Record<string, unknown> = {}
+    for (const [subSlug, subNode] of Object.entries(tabProps)) {
+      if (!isSchemaGroup(subNode)) continue
+      const leaf = seed[`${tabSlug}_${subSlug}`] as SeedLeaf | undefined
+      if (!leaf) continue
+      const { strings, richText } = seedLeafToFieldValues(`${tabSlug}_${subSlug}`, leaf)
+      if (strings) group[subSlug] = strings
+      for (const [rtKey, lexical] of Object.entries(richText)) {
+        group[`${subSlug}_${rtKey}`] = lexical
+      }
+    }
+    if (Object.keys(group).length > 0) data[tabSlug] = group
+  }
+
+  return data
 }
 
 /**

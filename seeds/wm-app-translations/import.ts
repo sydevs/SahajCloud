@@ -20,11 +20,13 @@ import * as path from 'path'
 import { BaseImporter, type BaseImportOptions } from '../lib'
 
 import {
+  buildWmAppGlobalData,
   collectSeedTodos,
-  seedLeafToGlobalEntries,
   type SeedFile,
-  type SeedLeaf,
+  type TranslationsSchemaRoot,
 } from './lexicalConverter'
+
+import appSchema from '../../src/globals/wemeditate-app/translationsSchema.json' with { type: 'json' }
 
 // ============================================================================
 // Constants
@@ -56,19 +58,15 @@ export class WeMeditateAppTranslationsImporter extends BaseImporter<BaseImportOp
       workerUrl: SEED_DATA_WORKER_URL,
     })
 
-    // 2. Transform every leaf into flat global-level field entries.
-    //    Mixed leaves (strings block + richText siblings) are unpacked:
-    //    string keys → data[leafSlug], richText keys → data[leafSlug_rtKey].
-    const data: Record<string, unknown> = {}
-    for (const [leafName, leaf] of Object.entries(seed)) {
-      if (leafName.startsWith('_') || !leaf) continue
-      try {
-        const entries = seedLeafToGlobalEntries(leafName, leaf as SeedLeaf)
-        Object.assign(data, entries)
-      } catch (error) {
-        this.addError(`Transforming ${leafName}`, error instanceof Error ? error : String(error))
-        return
-      }
+    // 2. Build the nested write payload, driven by the schema so the shape
+    //    matches buildTranslationTabs(): nested tabs are wrapped in a Payload
+    //    group (data.onboarding.welcome), simple tabs stay flat (data.navigation).
+    let data: Record<string, unknown>
+    try {
+      data = buildWmAppGlobalData(seed, appSchema as TranslationsSchemaRoot)
+    } catch (error) {
+      this.addError('Transforming seed', error instanceof Error ? error : String(error))
+      return
     }
 
     const fieldNames = Object.keys(data)

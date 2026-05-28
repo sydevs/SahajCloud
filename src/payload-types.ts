@@ -3138,7 +3138,7 @@ export interface WmAppTranslation {
     /**
      * Inline legal disclaimer below the primary CTAs. Renders two inline links to the in-app Terms and Privacy Policy webviews (URLs use the wemeditate://legal/* scheme — see ticket for full reference). Translators control word order, link placement, and the connector between the two link labels.
      */
-    legal_disclaimer?: {
+    welcome_legal_disclaimer?: {
       root: {
         type: string;
         children: {
@@ -3183,7 +3183,7 @@ export interface WmAppTranslation {
     /**
      * Screen title prompt (e.g. 'Have you tried Sahaja Yoga before?'). The brand fragment 'Sahaja Yoga' is rendered as a bold inline span; translators may choose a different word to bold or apply no bold per locale convention.
      */
-    title?: {
+    user_type_title?: {
       root: {
         type: string;
         children: {
@@ -3210,7 +3210,7 @@ export interface WmAppTranslation {
     /**
      * Slide 2 title (e.g. 'Get to know your true self'). The 'true self' fragment is rendered as a bold inline span; the Flutter renderer may also apply an accent colour to bolded segments on this slide.
      */
-    page_true_self_title?: {
+    carousel_page_true_self_title?: {
       root: {
         type: string;
         children: {
@@ -3237,7 +3237,7 @@ export interface WmAppTranslation {
     /**
      * Third paragraph listing categories that are never sent for advertising (mood, goals, hand sensations, reflections, class location, spiritual-practice details). Lead phrase 'We'll never share' is rendered as a bold inline span. Must remain consistent with the privacy filter in analytics-simplified/03-marketing-event-taxonomy.md §2.
      */
-    body_never_share?: {
+    consent_modal_body_never_share?: {
       root: {
         type: string;
         children: {
@@ -3255,7 +3255,7 @@ export interface WmAppTranslation {
     /**
      * Fourth paragraph: short statement that the app never sells user data. Phrase 'we never sell' is rendered as a bold inline span.
      */
-    body_never_sell?: {
+    consent_modal_body_never_sell?: {
       root: {
         type: string;
         children: {
@@ -3273,7 +3273,7 @@ export interface WmAppTranslation {
     /**
      * First paragraph of the consent modal. Contains an inline link (e.g. 'what we share') opening the privacy-detail sheet that lists the exact fields sent to Meta, Apple Search Ads and Google Ads. Link URL uses the wemeditate://legal/what-we-share scheme.
      */
-    body_intro?: {
+    consent_modal_body_intro?: {
       root: {
         type: string;
         children: {
@@ -3479,7 +3479,7 @@ export interface WmAppTranslation {
     /**
      * Third paragraph of the advertising section. Covers both the never-shared categories AND the never-sell statement in a single paragraph with two bold spans ('We'll never share' / 'we never sell'). Must remain consistent with analytics-simplified/03-marketing-event-taxonomy.md §2.
      */
-    advertising_body_never_share?: {
+    privacy_advertising_advertising_body_never_share?: {
       root: {
         type: string;
         children: {
@@ -3497,7 +3497,7 @@ export interface WmAppTranslation {
     /**
      * First paragraph of the advertising section. Contains an inline link (e.g. 'what we share') that opens the Privacy Policy page (CMS page id 73, scrolled to the 'what we share' heading) — same link target as onboarding_consent_modal.body_intro.
      */
-    advertising_body_intro?: {
+    privacy_advertising_advertising_body_intro?: {
       root: {
         type: string;
         children: {
@@ -3553,7 +3553,7 @@ export interface WmAppTranslation {
     /**
      * Body copy of the foot-soak screen. Contains a short emphasised span (typically italic, e.g. 'really') that translators position freely within the sentence.
      */
-    description?: {
+    footsoak_description?: {
       root: {
         type: string;
         children: {
@@ -3645,7 +3645,7 @@ export interface WmAppTranslation {
     /**
      * Consent checkbox label on the account creation screen. Contains two inline links (Terms & Conditions, Privacy Policy) opening the corresponding in-app webviews (wemeditate://legal/terms, wemeditate://legal/privacy). Independent of the ad-measurement consent.
      */
-    consent_label?: {
+    create_account_consent_label?: {
       root: {
         type: string;
         children: {
@@ -4174,17 +4174,17 @@ export interface WmAppTranslationsSelect<T extends boolean = true> {
     | T
     | {
         welcome?: T;
-        legal_disclaimer?: T;
+        welcome_legal_disclaimer?: T;
         name?: T;
         greeting?: T;
         user_type?: T;
-        title?: T;
+        user_type_title?: T;
         carousel?: T;
-        page_true_self_title?: T;
+        carousel_page_true_self_title?: T;
         consent_modal?: T;
-        body_never_share?: T;
-        body_never_sell?: T;
-        body_intro?: T;
+        consent_modal_body_never_share?: T;
+        consent_modal_body_never_sell?: T;
+        consent_modal_body_intro?: T;
       };
   daily?:
     | T
@@ -4221,8 +4221,8 @@ export interface WmAppTranslationsSelect<T extends boolean = true> {
         history?: T;
         account?: T;
         privacy_advertising?: T;
-        advertising_body_never_share?: T;
-        advertising_body_intro?: T;
+        privacy_advertising_advertising_body_never_share?: T;
+        privacy_advertising_advertising_body_intro?: T;
         contact?: T;
       };
   meditation?:
@@ -4231,7 +4231,7 @@ export interface WmAppTranslationsSelect<T extends boolean = true> {
         intent?: T;
         reminder?: T;
         footsoak?: T;
-        description?: T;
+        footsoak_description?: T;
         player?: T;
         vibes_check?: T;
         feedback?: T;
@@ -4244,7 +4244,7 @@ export interface WmAppTranslationsSelect<T extends boolean = true> {
         restore_password?: T;
         restore_password_email_sent?: T;
         create_account?: T;
-        consent_label?: T;
+        create_account_consent_label?: T;
       };
   navigation?: T;
   general?: T;

@@ -18,12 +18,13 @@ import * as path from 'path'
 
 import { BaseImporter, type BaseImportOptions } from '../lib'
 import {
+  buildWmAppGlobalData,
   collectSeedTodos,
-  seedLeafToGlobalEntries,
   type SeedFile,
-  type SeedLeaf,
+  type TranslationsSchemaRoot,
 } from '../wm-app-translations/lexicalConverter'
 
+import appSchema from '../../src/globals/wemeditate-app/translationsSchema.json' with { type: 'json' }
 import atlasSchema from '../../src/globals/sahaj-atlas/translationsSchema.json' with { type: 'json' }
 import wmWebSchema from '../../src/globals/wemeditate-web/translationsSchema.json' with { type: 'json' }
 
@@ -135,16 +136,12 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
       workerUrl: SEED_DATA_WORKER_URL,
     })
 
-    const data: Record<string, unknown> = {}
-    for (const [leafName, leaf] of Object.entries(seed)) {
-      if (leafName.startsWith('_') || !leaf) continue
-      try {
-        const entries = seedLeafToGlobalEntries(leafName, leaf as SeedLeaf)
-        Object.assign(data, entries)
-      } catch (error) {
-        this.addError(`Transforming ${leafName}`, error instanceof Error ? error : String(error))
-        return
-      }
+    let data: Record<string, unknown>
+    try {
+      data = buildWmAppGlobalData(seed, appSchema as TranslationsSchemaRoot)
+    } catch (error) {
+      this.addError('Transforming seed', error instanceof Error ? error : String(error))
+      return
     }
 
     const todos = collectSeedTodos(seed)

@@ -27,11 +27,10 @@ function extractPlainText(node: unknown): string {
 }
 
 /**
- * Field replacement for richText translation keys. Renders the exact same
- * `TranslationsRow` layout as string keys (title + description on the left,
- * English reference in the middle, input on the right) — only the input
- * differs. The input here is a minimal Lexical editor matching the features
- * of `basicRichTextEditor` (Bold, Italic, Link).
+ * Field replacement for richText translation keys. Renders the same
+ * `TranslationsRow` layout as string keys — only the input differs.
+ * The input here is a minimal Lexical editor matching `basicRichTextEditor`
+ * (Bold, Italic, Link).
  */
 export const TranslationsRichTextField: RichTextFieldClientComponent = ({ field, readOnly }) => {
   const { name, admin: { description, custom } = {} } = field

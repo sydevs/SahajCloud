@@ -60,7 +60,7 @@ function collectLeafLookups(tabSlug: string, tabNode: SchemaNode): LeafLookup[] 
       if (child.type === 'string') {
         out.push({ groupField: tabSlug, fieldName: subSlug, innerKey: key })
       } else if (child.type === 'richText') {
-        out.push({ groupField: tabSlug, fieldName: key, innerKey: null })
+        out.push({ groupField: tabSlug, fieldName: `${subSlug}_${key}`, innerKey: null })
       }
     }
   }
