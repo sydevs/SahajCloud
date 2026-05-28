@@ -32,11 +32,11 @@ Rules for writing and running tests in this codebase.
 
 ## Test lanes (Vitest projects)
 
-| Lane | Files | Speed | When |
-|---|---|---|---|
-| **Unit** | `tests/unit/**/*.spec.ts` | ~1–2 s for ~200 cases | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`. |
+| Lane            | Files                        | Speed                   | When                                                                                  |
+| --------------- | ---------------------------- | ----------------------- | ------------------------------------------------------------------------------------- |
+| **Unit**        | `tests/unit/**/*.spec.ts`    | ~1–2 s for ~200 cases   | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.              |
 | **Integration** | `tests/int/**/*.int.spec.ts` | ~8 s bootstrap per file | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. |
-| **E2E** | `tests/e2e/**/*.e2e.spec.ts` | Playwright | Full UI flows, file-based SQLite. |
+| **E2E**         | `tests/e2e/**/*.e2e.spec.ts` | Playwright              | Full UI flows, file-based SQLite.                                                     |
 
 ### When to put a test in `tests/unit/`
 
@@ -82,6 +82,19 @@ afterEach(() => {
 
 Examples: `tests/int/storage-utils.int.spec.ts`,
 `tests/int/cloudflare-stream-webhook.int.spec.ts`.
+
+## Running tests locally
+
+CI (`.github/workflows/ci.yml`) runs the full suite on every PR — locally, run **targeted**:
+
+```bash
+pnpm test:unit                                                                      # whole unit lane (fast)
+pnpm exec vitest run tests/int/albums.int.spec.ts --config ./vitest.config.mts      # one integration file
+pnpm exec vitest run tests/int/albums.int.spec.ts -t "creates an album"             # one case by name
+pnpm exec vitest run tests/unit/convert-vimeo.spec.ts --config ./vitest.config.mts  # one unit file
+```
+
+The `--config ./vitest.config.mts` flag is required — the config defines the `unit`/`int` projects and injects test env vars. Reserve the full `pnpm test:int` / `pnpm build` for reproducing a red CI check. See `.claude/rules/testing-reqs.md` for the local-vs-CI split.
 
 ## Verifying "coverage gap" claims
 
@@ -149,16 +162,16 @@ sequentially (`maxConcurrency: 1`) to prevent resource conflicts.
 
 ## Test file organization
 
-| File | Purpose |
-|---|---|
-| `collections-smoke.int.spec.ts` | **One reachability canary per content-bearing collection** (create + read + relationship populate). Before creating a dedicated `[collection].int.spec.ts`, check if the smoke file already covers your case. Only add a new file for collection-specific custom behavior. |
-| `client-hooks.int.spec.ts` | Client beforeChange/afterChange hooks |
-| `meditation-duration.int.spec.ts` | Audio duration extraction + `durationMinutes` virtual field |
-| `field-utils.int.spec.ts` | `processFile` utility |
-| `storage-utils.int.spec.ts` | URL field factories, R2 adapter |
-| `role-based-access.int.spec.ts` | `hasPermission`, `customResourceAccess`, locale permissions |
-| `usage-tracking.int.spec.ts` | API usage tracking job handlers |
-| `[collection].int.spec.ts` | **Collection-specific custom behavior only** — don't duplicate smoke coverage |
+| File                              | Purpose                                                                                                                                                                                                                                                                    |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `collections-smoke.int.spec.ts`   | **One reachability canary per content-bearing collection** (create + read + relationship populate). Before creating a dedicated `[collection].int.spec.ts`, check if the smoke file already covers your case. Only add a new file for collection-specific custom behavior. |
+| `client-hooks.int.spec.ts`        | Client beforeChange/afterChange hooks                                                                                                                                                                                                                                      |
+| `meditation-duration.int.spec.ts` | Audio duration extraction + `durationMinutes` virtual field                                                                                                                                                                                                                |
+| `field-utils.int.spec.ts`         | `processFile` utility                                                                                                                                                                                                                                                      |
+| `storage-utils.int.spec.ts`       | URL field factories, R2 adapter                                                                                                                                                                                                                                            |
+| `role-based-access.int.spec.ts`   | `hasPermission`, `customResourceAccess`, locale permissions                                                                                                                                                                                                                |
+| `usage-tracking.int.spec.ts`      | API usage tracking job handlers                                                                                                                                                                                                                                            |
+| `[collection].int.spec.ts`        | **Collection-specific custom behavior only** — don't duplicate smoke coverage                                                                                                                                                                                              |
 
 ## Common testing patterns
 
@@ -201,8 +214,8 @@ disabled). This affects how you test:
 
 ```typescript
 // ❌ Direct check on sanitized config — property has been removed
-const field = payload.globals.config.find(g => g.slug === 'my-global')?.fields[0]
-expect(field.localized).toBe(true)  // FAILS
+const field = payload.globals.config.find((g) => g.slug === 'my-global')?.fields[0]
+expect(field.localized).toBe(true) // FAILS
 
 // ✅ Functional test — proves localization works
 await payload.updateGlobal({ slug: 'my-global', locale: 'en', data: { field: 'English value' } })
@@ -220,28 +233,25 @@ configured for localized-field tests to work properly.
 
 ## PayloadCMS field-behavior gotchas
 
-| Scenario | Wrong assumption | Correct behavior |
-|---|---|---|
-| `hasMany` select, no values | `null` / `undefined` | `[]` (empty array) |
-| Join field at `depth: 0` | `{ id: number }[]` | `number[]` (raw IDs) |
-| `payload.create()` + relationship | Returns raw ID | Returns populated object |
-| `filterOptions` fallback | Return `{}` | Return `true` |
+| Scenario                             | Wrong assumption                                 | Correct behavior                                                                                                                                                                                                                                             |
+| ------------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `hasMany` select, no values          | `null` / `undefined`                             | `[]` (empty array)                                                                                                                                                                                                                                           |
+| Join field at `depth: 0`             | `{ id: number }[]`                               | `number[]` (raw IDs)                                                                                                                                                                                                                                         |
+| `payload.create()` + relationship    | Returns raw ID                                   | Returns populated object                                                                                                                                                                                                                                     |
+| `filterOptions` fallback             | Return `{}`                                      | Return `true`                                                                                                                                                                                                                                                |
 | Mixed-collection response assertions | `.docs.map(d => d.id)` uniquely identifies a row | Each collection has its own auto-increment, so `lectures.id=3` and `lecture-clips.id=3` both exist. Filter by discriminator first (`d.type === 'lecture'`) or match on `title`/slug. Asserting raw numeric id against a mixed pool silently false-positives. |
 
 ```typescript
 // hasMany select with no values
-expect(tag.timings).toEqual([])  // not toBeFalsy() / toBeNull()
+expect(tag.timings).toEqual([]) // not toBeFalsy() / toBeNull()
 
 // Join at depth: 0
-const childIds = children.docs.map((c) =>
-  typeof c === 'number' ? c : c.id
-)
+const childIds = children.docs.map((c) => (typeof c === 'number' ? c : c.id))
 
 // payload.create() auto-populates
 const child = await payload.create({ collection: 'tags', data: { parent: parentTag.id } })
-const parentId = typeof child.parent === 'object' && child.parent !== null
-  ? child.parent.id
-  : child.parent
+const parentId =
+  typeof child.parent === 'object' && child.parent !== null ? child.parent.id : child.parent
 expect(parentId).toBe(parentTag.id)
 ```
 
@@ -278,12 +288,12 @@ E2E tests use a separate file-based SQLite DB at `tests/.e2e.sqlite`,
 isolated from the dev D1 database. Run on port 4567 (separate from dev
 server).
 
-| File | Purpose |
-|---|---|
-| `tests/setup/playwright.global-setup.ts` | Seeds test data before E2E tests |
-| `tests/setup/playwright.global-teardown.ts` | Optional cleanup |
-| `tests/config/e2e-payload.config.ts` | E2E-specific Payload config |
-| `tests/files/` | Sample audio/image files for seeding |
+| File                                        | Purpose                              |
+| ------------------------------------------- | ------------------------------------ |
+| `tests/setup/playwright.global-setup.ts`    | Seeds test data before E2E tests     |
+| `tests/setup/playwright.global-teardown.ts` | Optional cleanup                     |
+| `tests/config/e2e-payload.config.ts`        | E2E-specific Payload config          |
+| `tests/files/`                              | Sample audio/image files for seeding |
 
 ### Seeded test data
 
@@ -295,11 +305,11 @@ server).
 
 ### Env vars
 
-| Var | Purpose |
-|---|---|
-| `E2E_TEST=true` | Enables E2E mode (file-based SQLite, not D1) |
-| `CLEAN_E2E_DB=true` | Removes the E2E database after teardown |
-| `PAYLOAD_SECRET` | `e2e-test-secret-key` for E2E |
+| Var                 | Purpose                                      |
+| ------------------- | -------------------------------------------- |
+| `E2E_TEST=true`     | Enables E2E mode (file-based SQLite, not D1) |
+| `CLEAN_E2E_DB=true` | Removes the E2E database after teardown      |
+| `PAYLOAD_SECRET`    | `e2e-test-secret-key` for E2E                |
 
 The DB is reset at the start of every run to prevent `drizzle-kit push`
 from prompting on stale schemas (which would hang Playwright's

@@ -124,24 +124,29 @@ See `test-plan-checklist.md` for what to test per change type. Reference `.claud
 
 ### 8. Validate
 
-Run validation **sequentially**. Per `.claude/rules/testing-reqs.md`: never run tests + build in parallel.
+Run the **lean local gate**. Per `.claude/rules/testing-reqs.md`: never run tests + build in parallel.
 
 ```bash
-.claude/skills/implement-issue/scripts/validate.sh
+.claude/skills/implement-issue/scripts/validate.sh          # lint + pnpm test:unit
+.claude/skills/implement-issue/scripts/validate.sh --full   # mirror CI: lint + full pnpm test + Cloudflare build
 ```
 
-Or manually:
+Or manually (lean gate):
 
 ```bash
-pnpm lint && pnpm build && pnpm test
+pnpm lint
+pnpm test:unit
+pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts   # targeted to your change
 ```
 
-If anything fails:
+CI (`.github/workflows/ci.yml`) runs the full `pnpm test` suite + the Cloudflare build on the PR — that is the gate. Use `--full` locally only to reproduce a red CI check.
+
+If anything fails (locally or in CI):
 
 - Fix the failure
 - Commit the fix as a separate commit
 - Re-run validation
-- Do NOT proceed to PR creation while red
+- Do NOT mark the PR ready while CI is red
 
 ### 9. Push the branch
 
@@ -172,10 +177,10 @@ Output the PR URL to the user. Note any unchecked acceptance criteria the user s
 - **Never** skip hooks (`--no-verify`)
 - **Never** auto-run `pnpm db:migrations:create` — ask the user
 - **Never** commit secrets / `.env` / credentials
-- **Never** mark a PR ready while tests fail
+- **Never** mark a PR ready while CI is red
 - **Always** create commits incrementally; never one monolithic commit at the end
 - **Always** use `--body-file` for PR creation (preserves markdown)
-- **Always** verify tests pass before opening the PR
+- **Always** run the lean local gate before opening the PR; CI runs the full suite + Cloudflare build
 
 ## Edge cases
 
