@@ -21,35 +21,49 @@ function isObjectNode(node: LeafProp | SchemaNode): node is SchemaNode {
 /**
  * Per-leaf-key descriptor for looking up the live value on a loaded global.
  *
- * String keys live inside a JSON field named after the (possibly nested)
- * leaf slug — `data[leafSlug][key]`.
+ * For nested tabs (sub-groups wrapped in a Payload group), `groupField` is the
+ * group name (e.g. `onboarding`) and `fieldName` is the sub-slug (e.g.
+ * `welcome`). String keys live at `data[groupField][fieldName][key]`. RichText
+ * keys live at `data[groupField][fieldName_key]`.
  *
- * RichText keys are stored as their own field named `<leafSlug>_<key>` —
- * `data[fieldName]`.
+ * For simple tabs (no sub-groups), `groupField` is null. String keys live at
+ * `data[fieldName][key]`. RichText keys live at `data[fieldName_key]`.
  */
 interface LeafLookup {
+  groupField: string | null
   fieldName: string
   innerKey: string | null
 }
 
 function collectLeafLookups(tabSlug: string, tabNode: SchemaNode): LeafLookup[] {
   const out: LeafLookup[] = []
+  const topLevelProps = tabNode.properties ?? {}
+  const hasSubgroups = Object.values(topLevelProps).some(isObjectNode)
 
-  function walk(node: SchemaNode, pathSegments: string[]): void {
-    const props = node.properties ?? {}
-    const leafSlug = pathSegments.join('_')
-    for (const [key, child] of Object.entries(props)) {
-      if (isObjectNode(child)) {
-        walk(child, [...pathSegments, key])
-      } else if (child.type === 'string') {
-        out.push({ fieldName: leafSlug, innerKey: key })
+  if (!hasSubgroups) {
+    // Simple tab: one JSON field named tabSlug containing all string keys.
+    for (const [key, child] of Object.entries(topLevelProps)) {
+      if (child.type === 'string') {
+        out.push({ groupField: null, fieldName: tabSlug, innerKey: key })
       } else if (child.type === 'richText') {
-        out.push({ fieldName: `${leafSlug}_${key}`, innerKey: null })
+        out.push({ groupField: null, fieldName: `${tabSlug}_${key}`, innerKey: null })
+      }
+    }
+    return out
+  }
+
+  // Nested tab: each sub-group is a field under a Payload group named tabSlug.
+  // API path: data[tabSlug][subSlug][key]
+  for (const [subSlug, subSchema] of Object.entries(topLevelProps)) {
+    if (!isObjectNode(subSchema)) continue
+    for (const [key, child] of Object.entries(subSchema.properties ?? {})) {
+      if (child.type === 'string') {
+        out.push({ groupField: tabSlug, fieldName: subSlug, innerKey: key })
+      } else if (child.type === 'richText') {
+        out.push({ groupField: tabSlug, fieldName: key, innerKey: null })
       }
     }
   }
-
-  walk(tabNode, [tabSlug])
   return out
 }
 
@@ -67,12 +81,16 @@ function extractPlainText(node: unknown): string {
 }
 
 function isPopulated(translations: Record<string, unknown>, lookup: LeafLookup): boolean {
+  const container: Record<string, unknown> = lookup.groupField
+    ? ((translations[lookup.groupField] as Record<string, unknown> | undefined) ?? {})
+    : translations
+
   if (lookup.innerKey === null) {
-    const raw = translations[lookup.fieldName]
+    const raw = container[lookup.fieldName]
     if (raw == null) return false
     return extractPlainText(raw).trim().length > 0
   }
-  const blob = translations[lookup.fieldName] as Record<string, unknown> | null | undefined
+  const blob = container[lookup.fieldName] as Record<string, unknown> | null | undefined
   if (!blob || typeof blob !== 'object') return false
   const value = blob[lookup.innerKey]
   return typeof value === 'string' && value.trim().length > 0

@@ -4,9 +4,14 @@
  * Verifies:
  * - The tabs field is the first (and only) top-level field in each global.
  * - The tabs structure preserves Title-Case labels per global.
- * - Each leaf group emits one JSON field named after its (possibly nested)
- *   leaf slug; richText keys live as `<leafSlug>_<key>` siblings. No more
- *   `strings` sub-field or group wrapper.
+ * - Each leaf group emits one JSON field; richText keys live as siblings.
+ * - Nested tabs (wm-app-translations) are wrapped in a Payload group named
+ *   after the tab slug so the API response is namespaced:
+ *   `{ onboarding: { welcome: {…} } }` instead of `{ onboarding_welcome: {…} }`.
+ * - Simple tabs (wm-web, sy-atlas) have no group wrappers.
+ * - richText fields inside nested tabs are named after just the key (no sub-slug
+ *   prefix) so they sit at the same level as the JSON blob in the group namespace:
+ *   `onboarding.legal_disclaimer` not `onboarding.welcome_legal_disclaimer`.
  */
 import type { Field, Payload, TabsField } from 'payload'
 
@@ -48,6 +53,12 @@ describe('Translations Globals Configuration', () => {
         for (const tab of f.tabs) out.push(...collectFieldsByPredicate(tab.fields, predicate))
       } else if (f.type === 'row' || f.type === 'collapsible') {
         out.push(...collectFieldsByPredicate(f.fields, predicate))
+      } else if (f.type === 'group') {
+        if (predicate(f)) {
+          out.push(f)
+        } else {
+          out.push(...collectFieldsByPredicate(f.fields, predicate))
+        }
       } else if (predicate(f)) {
         out.push(f)
       }
@@ -94,32 +105,51 @@ describe('Translations Globals Configuration', () => {
       expect(names).toEqual(expect.arrayContaining(['common', 'map', 'location']))
     })
 
-    it('wm-app-translations flattens nested groups into onboarding_welcome (no `strings` sub-field)', () => {
+    it('wm-app-translations uses namespaced sub-group field names (no tab prefix, no `strings` sub-field)', () => {
       const tabsField = findGlobal('wm-app-translations').fields[0] as TabsField
       const jsonFields = tabsField.tabs.flatMap((t) =>
         collectFieldsByPredicate(t.fields, (f) => f.type === 'json'),
       ) as Array<{ name: string }>
       const names = jsonFields.map((f) => f.name)
-      expect(names).toContain('onboarding_welcome')
-      expect(names).toContain('onboarding_name')
+      expect(names).toContain('welcome')
+      expect(names).toContain('name')
       expect(names).not.toContain('strings')
+      expect(names).not.toContain('onboarding_welcome')
     })
 
-    it('wm-app-translations exposes legal_disclaimer as a richText sibling at the tab level', () => {
+    it('wm-app-translations exposes legal_disclaimer as a richText field inside the onboarding group', () => {
       const tabsField = findGlobal('wm-app-translations').fields[0] as TabsField
       const richText = tabsField.tabs.flatMap((t) =>
         collectFieldsByPredicate(t.fields, (f) => f.type === 'richText'),
       ) as Array<{ name: string }>
-      expect(richText.map((f) => f.name)).toContain('onboarding_welcome_legal_disclaimer')
+      const names = richText.map((f) => f.name)
+      expect(names).toContain('legal_disclaimer')
+      expect(names).not.toContain('onboarding_welcome_legal_disclaimer')
     })
 
-    it('no group wrapper survives anywhere in the translation tabs', () => {
-      for (const slug of TRANSLATION_GLOBAL_SLUGS) {
+    it('wm-web and sy-atlas have no group wrappers', () => {
+      for (const slug of ['wm-web-translations', 'sy-atlas-translations'] as Slug[]) {
         const tabsField = findGlobal(slug).fields[0] as TabsField
         const groups = tabsField.tabs.flatMap((t) =>
           collectFieldsByPredicate(t.fields, (f) => f.type === 'group'),
         )
         expect(groups).toHaveLength(0)
+      }
+    })
+
+    it('wm-app-translations wraps each nested-tab in a single group containing an inner tabs field', () => {
+      const tabsField = findGlobal('wm-app-translations').fields[0] as TabsField
+      for (const tab of tabsField.tabs) {
+        const groups = tab.fields.filter((f) => f.type === 'group') as Array<{
+          type: 'group'
+          name: string
+          fields: Field[]
+        }>
+        // Each tab has either 0 groups (simple leaf tab) or exactly 1 group (nested sub-groups)
+        expect(groups.length === 0 || groups.length === 1).toBe(true)
+        if (groups.length === 1) {
+          expect(groups[0]!.fields[0]?.type).toBe('tabs')
+        }
       }
     })
   })

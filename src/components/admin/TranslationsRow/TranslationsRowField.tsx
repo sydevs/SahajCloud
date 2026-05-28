@@ -26,15 +26,21 @@ export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly
     [custom?.schemaEntries],
   )
   const globalSlug = (custom?.globalSlug as string | undefined) ?? null
+  const parentGroup = (custom?.parentGroup as string | undefined) ?? null
 
   const { value, setValue, showError } = useField<Record<string, string>>()
   const locale = useLocale()
   const isEnglish = locale?.code === 'en'
 
   const { data, isLoading, isError } = useEnglishTranslation(isEnglish ? null : globalSlug)
-  const englishMap = (data && typeof data === 'object' ? (data as Record<string, unknown>)[name] : null) as
-    | Record<string, string>
-    | null
+  const englishMap = useMemo(() => {
+    if (!data || typeof data !== 'object') return null
+    const root = data as Record<string, unknown>
+    const container = parentGroup
+      ? (root[parentGroup] as Record<string, unknown> | undefined)
+      : root
+    return (container?.[name] ?? null) as Record<string, string> | null
+  }, [data, name, parentGroup])
 
   const handleChange = useCallback(
     (key: string, next: string) => {

@@ -4,7 +4,7 @@ import type { RichTextFieldClientComponent } from 'payload'
 
 import { useField, useLocale } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
-import React, { useCallback } from 'react'
+import React, { useCallback, useMemo } from 'react'
 
 import { TranslationLexicalEditor, type TranslationLexicalValue } from './TranslationLexicalEditor'
 import { TranslationsRow } from './TranslationsRow'
@@ -37,14 +37,21 @@ export const TranslationsRichTextField: RichTextFieldClientComponent = ({ field,
   const { name, admin: { description, custom } = {} } = field
   const translationKey = (custom?.translationKey as string | undefined) ?? name
   const globalSlug = (custom?.globalSlug as string | undefined) ?? null
+  const parentGroup = (custom?.parentGroup as string | undefined) ?? null
 
   const { value, setValue, showError } = useField<TranslationLexicalValue>()
   const locale = useLocale()
   const isEnglish = locale?.code === 'en'
 
   const { data, isLoading, isError } = useEnglishTranslation(isEnglish ? null : globalSlug)
-  const englishRaw = data && typeof data === 'object' ? (data as Record<string, unknown>)[name] : null
-  const englishValue = extractPlainText(englishRaw)
+  const englishValue = useMemo(() => {
+    if (!data || typeof data !== 'object') return ''
+    const root = data as Record<string, unknown>
+    const container = parentGroup
+      ? (root[parentGroup] as Record<string, unknown> | undefined)
+      : root
+    return extractPlainText(container?.[name])
+  }, [data, name, parentGroup])
 
   const handleChange = useCallback(
     (next: NonNullable<TranslationLexicalValue>) => {

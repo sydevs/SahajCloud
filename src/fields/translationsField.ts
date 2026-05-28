@@ -1,5 +1,6 @@
 import type {
   Field,
+  GroupField,
   JSONField,
   RichTextField,
   TabsField,
@@ -108,12 +109,12 @@ function createScreenshotField(
  * One localized JSON field per leaf group, holding every string-typed key in
  * that group as flat `{ key: value }` pairs. Rendered by TranslationsRow,
  * which displays each schema entry as its own row (title + description +
- * optional English reference + input). The field name is the (possibly
- * nested) leaf slug itself — e.g. `welcome` or `onboarding_welcome` — so
- * the data path stays flat and the legacy `welcome.strings.title` nesting
- * disappears.
+ * optional English reference + input). For simple tabs, the field name is
+ * the tab slug (e.g. `navigation`). For nested tabs wrapped in a group, the
+ * field name is the sub-group slug (e.g. `welcome`) and `parentGroup` is the
+ * group name (e.g. `onboarding`), so the data path is `onboarding.welcome`.
  *
- * RichText keys are emitted as sibling richText fields at the tab level
+ * RichText keys are emitted as sibling richText fields at the same level
  * (see createRichTextField), not packed into this JSON blob.
  *
  * NOTE — no `jsonSchema` is set. Payload would compile it to a validator via
@@ -127,6 +128,7 @@ function createStringsJsonField(
   fieldName: string,
   group: GroupSchema,
   globalSlug: string,
+  parentGroup?: string,
 ): JSONField {
   const stringProps = Object.entries(group.properties || {}).filter(
     (entry): entry is [string, StringPropertySchema] => isStringProp(entry[1]),
@@ -148,6 +150,7 @@ function createStringsJsonField(
       custom: {
         schemaEntries,
         globalSlug,
+        parentGroup,
       },
     },
     validate: (value): true | string => {
@@ -179,6 +182,7 @@ function createRichTextField(
   translationKey: string,
   prop: RichTextPropertySchema,
   globalSlug: string,
+  parentGroup?: string,
 ): RichTextField {
   return {
     name: fieldName,
@@ -193,12 +197,18 @@ function createRichTextField(
         translationKey,
         globalSlug,
         fieldType: 'richText',
+        parentGroup,
       },
     },
   }
 }
 
-function createLeafFields(leafSlug: string, group: GroupSchema, globalSlug: string): Field[] {
+function createLeafFields(
+  leafSlug: string,
+  group: GroupSchema,
+  globalSlug: string,
+  parentGroup?: string,
+): Field[] {
   const screenshot = createScreenshotField(leafSlug, group, globalSlug)
   const props = Object.entries(group.properties || {})
   const hasStringKeys = props.some(([, p]) => isStringProp(p))
@@ -208,10 +218,11 @@ function createLeafFields(leafSlug: string, group: GroupSchema, globalSlug: stri
 
   const fields: Field[] = []
   if (hasStringKeys) {
-    fields.push(createStringsJsonField(leafSlug, group, globalSlug))
+    fields.push(createStringsJsonField(leafSlug, group, globalSlug, parentGroup))
   }
   for (const [key, prop] of richTextEntries) {
-    fields.push(createRichTextField(`${leafSlug}_${key}`, key, prop, globalSlug))
+    const fieldName = parentGroup ? key : `${leafSlug}_${key}`
+    fields.push(createRichTextField(fieldName, key, prop, globalSlug, parentGroup))
   }
 
   return [...(screenshot ? [screenshot] : []), ...fields]
@@ -225,15 +236,17 @@ function createLeafFields(leafSlug: string, group: GroupSchema, globalSlug: stri
 /**
  * Converts a translations schema into PayloadCMS tabs configuration.
  *
- * Each top-level group becomes one tab; nested parent groups become a tab
- * containing inner sub-tabs. Every leaf group emits one JSON field (holding
- * its string keys) plus one richText field per richText key. The JSON field
- * is named after the (possibly nested) leaf slug — e.g. `welcome` or
- * `onboarding_welcome`. RichText keys flatten to `<leafSlug>_<key>`.
+ * Each top-level group becomes one tab. Simple tabs (leaf group only) emit
+ * one JSON field named after the tab slug. Nested tabs (containing sub-groups)
+ * wrap their fields in a Payload group named after the tab slug, so the API
+ * response is `{ onboarding: { welcome: {…}, user_type: {…} } }` instead of
+ * the flat `{ onboarding_welcome: {…}, onboarding_user_type: {…} }`. The
+ * underlying SQLite column names are identical in both cases (`group_field`
+ * matches the old `leafSlug` naming), so no migration is required.
  *
- * The flat-leaf-JSON shape keeps the per-row UX from the issue spec while
- * staying under SQLite's `json_array()` argument limit, which a strict
- * one-column-per-key design would otherwise blow past on large schemas.
+ * Every leaf group emits one JSON field (holding string keys) plus one
+ * richText field per richText key. The flat-leaf-JSON shape keeps the per-row
+ * UX while staying under SQLite's `json_array()` argument limit.
  */
 export function buildTranslationTabs(
   schema: TranslationsSchema,
@@ -250,22 +263,27 @@ export function buildTranslationTabs(
       )
 
       if (subgroups.length > 0) {
-        return {
-          label: toWords(groupSlug.replace(/_/g, '-')),
-          description: groupSchema.description,
+        // Wrap sub-group fields in a group named after the tab slug so the
+        // API response is namespaced: { onboarding: { welcome: {…} } }
+        const groupField: GroupField = {
+          name: groupSlug,
+          type: 'group',
+          label: false,
           fields: [
             {
               type: 'tabs',
-              tabs: subgroups.map(([subSlug, subSchema]) => {
-                const leafSlug = `${groupSlug}_${subSlug}`
-                return {
-                  label: toWords(subSlug.replace(/_/g, '-')),
-                  description: subSchema.description,
-                  fields: createLeafFields(leafSlug, subSchema, globalSlug),
-                }
-              }),
+              tabs: subgroups.map(([subSlug, subSchema]) => ({
+                label: toWords(subSlug.replace(/_/g, '-')),
+                description: subSchema.description,
+                fields: createLeafFields(subSlug, subSchema, globalSlug, groupSlug),
+              })),
             },
           ],
+        }
+        return {
+          label: toWords(groupSlug.replace(/_/g, '-')),
+          description: groupSchema.description,
+          fields: [groupField],
         }
       }
 
