@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test # test:unit && test:int — vitest injects its own env
+
+  build:
+    name: Cloudflare Build
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: "--no-deprecation --max-old-space-size=8000"
+      CLOUDFLARE_ENV: ""
+      # Non-sensitive DUMMY values — only present so serverEnv (zod) validates at build/import time.
+      PAYLOAD_SECRET: ci-build-dummy-secret-with-32plus-characters
+      SAHAJCLOUD_PREVIEW_SECRET: ci-build-preview-secret-16plus
+      WEMEDITATE_WEB_URL: http://localhost:5173
+      SAHAJATLAS_URL: http://localhost:5174
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**') }}
+          restore-keys: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+      - name: Generate Cloudflare worker types
+        run: pnpm exec wrangler types # worker-configuration.d.ts is gitignored; next build typechecks against it
+      - name: Build (OpenNext → Cloudflare)
+        run: WRANGLER_BUILD_CONDITIONS="" WRANGLER_BUILD_PLATFORM="node" pnpm exec opennextjs-cloudflare build

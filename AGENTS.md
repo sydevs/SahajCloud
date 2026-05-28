@@ -51,7 +51,10 @@ Manual fallback: `pnpm dev` (start), `pnpm devsafe` (clean dev — removes `.nex
 - `pnpm lint` — ESLint
 - `pnpm generate:types` — TypeScript types from Payload schema (after schema changes)
 - `pnpm generate:importmap` — admin-panel import map
+- `pnpm test:unit` — fast unit lane (~1–2 s, no Payload bootstrap)
 - `pnpm test` / `pnpm test:int` / `pnpm test:e2e` — full / integration / E2E
+
+**Local vs CI**: GitHub Actions runs the **full test suite + the Cloudflare build** on every PR (see [Continuous Integration](#continuous-integration)). Locally, default to **targeted** validation — lint, `pnpm test:unit`, and the specific integration spec(s) for the area you touched: `pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts`. Don't routinely run the full `pnpm test:int` locally or `check.sh --full` / `validate.sh --full` — let CI catch the less-common, cross-cutting failures. Run them only to reproduce a red CI check or when explicitly asked.
 
 If wrapping any of these in `timeout` (only when actually needed — most one-shot runs don't need it), use these canonical values; other values will trigger a permission prompt:
 
@@ -118,7 +121,16 @@ Schema migrations live in `src/migrations/` — see `.claude/rules/migrations.md
 
 ## PR Requirements
 
-Before creating or marking a PR ready for review: full test suite passes, build succeeds, lint passes. Use the `/pr-prep` skill (`.claude/skills/pr-prep/`) for the full pre-PR validation workflow including handling pre-existing failures.
+Every PR is gated by CI (see [Continuous Integration](#continuous-integration)): it runs lint, the full `pnpm test` suite, and the Cloudflare build. Before marking a PR ready, validate **locally** with the lean gate — lint + `pnpm test:unit` + the targeted integration spec(s) for what you changed. Use the `/pr-prep` skill (`.claude/skills/pr-prep/`) for that workflow (its `--full` flag reproduces the CI checks locally when you need to debug a red run, and it documents handling pre-existing failures). Don't block on a local full-suite/build run — that's CI's job.
+
+## Continuous Integration
+
+GitHub Actions runs on every pull request (`.github/workflows/ci.yml`), in two parallel jobs:
+
+- **Lint & Test** — `pnpm lint`, then `pnpm test` (unit + integration). Vitest injects its own env, so no secrets are needed.
+- **Cloudflare Build** — `wrangler types`, then `opennextjs-cloudflare build` (the real deploy artifact; the `next build` inside it also type-checks and lints). Uses non-sensitive dummy env values — no GitHub Secrets.
+
+PR-only triggers; `concurrency: cancel-in-progress` cancels superseded runs on the same branch. CI **reports** status but does not block merges unless a branch-protection rule on `main` requires the `Lint & Test` and `Cloudflare Build` checks to pass.
 
 ## Deployment
 
