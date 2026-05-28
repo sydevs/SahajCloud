@@ -149,7 +149,7 @@ export const Lessons: CollectionConfig = {
               name: 'unit',
               type: 'select',
               required: true,
-              options: Array.from({ length: 4 }, (_, i) => `Unit ${i + 1}`),
+              options: Array.from({ length: 7 }, (_, i) => `Unit ${i + 1}`),
             },
             {
               name: 'step',
