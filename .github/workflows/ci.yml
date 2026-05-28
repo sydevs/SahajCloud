@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.head_ref || github.ref }}
@@ -14,6 +15,7 @@ jobs:
   test:
     name: Lint & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -32,6 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: "--no-deprecation --max-old-space-size=8000"
+      CLOUDFLARE_ENV: ""
       # Non-sensitive DUMMY values — only present so serverEnv (zod) validates at build/import time.
       PAYLOAD_SECRET: ci-build-dummy-secret-with-32plus-characters
       SAHAJCLOUD_PREVIEW_SECRET: ci-build-preview-secret-16plus
