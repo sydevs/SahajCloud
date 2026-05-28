@@ -1,6 +1,6 @@
 ---
 name: pr-prep
-description: Pre-PR validation — runs lint, build, and the test suite sequentially. Use before opening or marking a PR ready for review. Encapsulates the project's PR completion requirements.
+description: Pre-PR validation — runs the lean local gate (lint + unit suite) by default, with --full to reproduce the CI checks (full test suite + Cloudflare build) locally. Use before opening or marking a PR ready for review.
 allowed-tools: Bash, Read, Grep
 ---
 
@@ -8,23 +8,28 @@ allowed-tools: Bash, Read, Grep
 
 Validates that the current branch is PR-ready. Replaces the always-loaded `.claude/rules/pr-requirements.md` global rule with an explicit, on-demand skill.
 
+**The full test suite and the Cloudflare build run in CI on every PR** (`.github/workflows/ci.yml`). This skill's default is the **lean local gate**; CI owns the slower, cross-cutting checks.
+
 ## Quick start
 
 ```bash
-.claude/skills/pr-prep/check.sh
+.claude/skills/pr-prep/check.sh          # lean gate: lint + pnpm test:unit
+.claude/skills/pr-prep/check.sh --full   # reproduce CI locally: lint + full pnpm test + Cloudflare build
 ```
 
-Runs `pnpm lint && pnpm build && pnpm test` sequentially (per `.claude/rules/testing-reqs.md` — never in parallel).
+Sequential by design (per `.claude/rules/testing-reqs.md` — never run test/build commands in parallel).
 
-## Required checks before opening a PR
+## What to run before opening a PR
+
+**Locally (lean gate):**
 
 1. **Lint passes**: `pnpm lint` — 0 errors
-2. **Build succeeds**: `pnpm build`
-3. **Full test suite passes**: `pnpm test`
-   - 0 failures
-   - No skipped tests — fix them or remove with justification
-   - Fix pre-existing failures from `main` as part of the PR (see below)
+2. **Unit suite passes**: `pnpm test:unit`
+3. **Targeted integration spec(s)** for the area you changed:
+   `pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts`
 4. **Types check** (if type changes): `pnpm tsc --noEmit`
+
+**In CI (automatic on the PR):** the full `pnpm test` suite and the Cloudflare build (`opennextjs-cloudflare build`). Don't block locally on these — run `check.sh --full` only to debug a red CI run. Pre-existing failures on `main` still get fixed in your PR (see below).
 
 ## Handling pre-existing test failures on `main`
 
@@ -51,15 +56,14 @@ Swaps just the single test file to its `main` version, re-runs it, then restores
 
 ## PR description format
 
-Include a Test Results section:
+Include a Test Results section. CI (`Lint & Test` + `Cloudflare Build` checks on the PR) is the source of truth for the full suite and build; summarize local + CI status:
 
 ```markdown
 ## Test Results
 
-- Integration tests: X passed
-- E2E tests: Y passed
-- Build: ✓ Success
 - Lint: ✓ No errors
+- Unit + targeted integration (local): ✓ passed
+- Full suite + Cloudflare build: ✓ via CI (see PR checks)
 ```
 
 ## Documentation sync for architectural / API PRs
@@ -79,5 +83,5 @@ If your PR changes architecture or APIs:
 
 ## When NOT to use this skill
 
-- During a focused implementation session — run `pnpm lint` / `pnpm test:int` directly for tighter feedback loops
+- During a focused implementation session — run `pnpm lint` / `pnpm test:unit` / a targeted `pnpm exec vitest run <file> --config ./vitest.config.mts` directly for tighter feedback loops
 - Use this skill specifically before opening / marking-ready a PR
