@@ -58,5 +58,5 @@ jobs:
           restore-keys: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
       - name: Generate Cloudflare worker types
         run: pnpm exec wrangler types # worker-configuration.d.ts is gitignored; next build typechecks against it
-      - name: Build (OpenNext → Cloudflare)
-        run: WRANGLER_BUILD_CONDITIONS="" WRANGLER_BUILD_PLATFORM="node" pnpm exec opennextjs-cloudflare build
+      - name: Package Worker (dry run)
+        run: WRANGLER_BUILD_CONDITIONS="" WRANGLER_BUILD_PLATFORM="node" pnpm exec wrangler deploy --dry-run --env="" --outdir /tmp/sahajcloud-worker-dry-run

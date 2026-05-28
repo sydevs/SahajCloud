@@ -128,7 +128,7 @@ Every PR is gated by CI (see [Continuous Integration](#continuous-integration)):
 GitHub Actions runs on every pull request (`.github/workflows/ci.yml`), in two parallel jobs:
 
 - **Lint & Test** — `pnpm lint`, then `pnpm test` (unit + integration). Vitest injects its own env, so no secrets are needed.
-- **Cloudflare Build** — `wrangler types`, then `opennextjs-cloudflare build` (the real deploy artifact; the `next build` inside it also type-checks and lints). Uses non-sensitive dummy env values — no GitHub Secrets.
+- **Cloudflare Build** — `wrangler types`, then `wrangler deploy --dry-run --env=""` (runs the OpenNext build and final Wrangler packaging without publishing). Uses non-sensitive dummy env values — no GitHub Secrets.
 
 PR-only triggers; `concurrency: cancel-in-progress` cancels superseded runs on the same branch. CI **reports** status but does not block merges unless a branch-protection rule on `main` requires the `Lint & Test` and `Cloudflare Build` checks to pass.
 

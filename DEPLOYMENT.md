@@ -117,8 +117,10 @@ This runs two commands in order:
 
 2. **deploy:app** - Deploys the Worker application:
    ```bash
-   wrangler deploy
+   pnpm exec wrangler deploy --env=""
    ```
+
+   The explicit `--env=""` targets Wrangler's top-level production configuration.
 
 ### How Migrations Work
 
@@ -712,6 +714,7 @@ The application uses **Wrangler Environments** to manage different configuration
 
 - **Production** (`NODE_ENV=production`):
   - Uses default (top-level) configuration from `wrangler.toml`
+  - Deploy commands pass `--env=""` to force the top-level configuration
   - Connects to remote D1 database when `remote = true`
   - Production environment variables
 
