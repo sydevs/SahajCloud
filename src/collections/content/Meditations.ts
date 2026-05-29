@@ -300,7 +300,7 @@ export const Meditations: CollectionConfig = {
                 return true
               }) as Validate,
             },
-            slugField({ useAsSlug: 'title' }),
+            slugField({ useAsSlug: 'title', collectionSlug: 'meditations' }),
             {
               ...mediaField({
                 name: 'thumbnail',

@@ -57,7 +57,7 @@ export const Pages: CollectionConfig = {
         },
       ],
     },
-    slugField({ useAsSlug: 'title' }),
+    slugField({ useAsSlug: 'title', collectionSlug: 'pages' }),
     {
       name: 'author',
       type: 'relationship',

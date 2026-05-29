@@ -25,6 +25,7 @@ export const SongTags: CollectionConfig = {
     // Slug auto-generated from title
     slugField({
       useAsSlug: 'title',
+      collectionSlug: 'song-tags',
       description: 'URL-friendly identifier (auto-generated from {sourceField})',
     }),
     // Title (localized, for public display)

@@ -1,4 +1,4 @@
-import type { RowField, TextField } from 'payload'
+import type { CollectionSlug, RowField, TextField } from 'payload'
 
 import { slugField as payloadSlugField } from 'payload'
 
@@ -21,6 +21,12 @@ export type SlugFieldOptions = {
   position?: 'sidebar'
   /** Custom overrides function for granular field customization */
   overrides?: (field: RowField) => RowField
+  /**
+   * Collection slug to enable application-layer uniqueness validation.
+   * When set, a validate function is added that checks for duplicate slugs
+   * before the DB write, converting 500 constraint errors into 400 validation errors.
+   */
+  collectionSlug?: string
 } & {
   /**
    * Description text for the slug field.
@@ -49,7 +55,7 @@ export type SlugFieldOptions = {
  * ```
  */
 export function slugField(options: SlugFieldOptions = {}): RowField {
-  const { description, overrides: userOverrides, ...payloadOptions } = options
+  const { collectionSlug, description, overrides: userOverrides, ...payloadOptions } = options
   const sourceField = options.useAsSlug || 'title'
   const resolvedDescription = description?.replace('{sourceField}', sourceField)
 
@@ -87,6 +93,37 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
             ...(field.fields[1].admin?.components ?? {}),
             Field: '@/components/admin/LockedSlugField',
           },
+        }
+
+        // Application-layer uniqueness check so D1 UNIQUE constraint violations
+        // surface as 400 validation errors instead of 500 DB errors.
+        if (collectionSlug) {
+          const slugFieldName = options.name ?? 'slug'
+          field.fields[1].validate = (async (
+            value: string | null | undefined,
+            opts: {
+              id?: string | number | null
+              req?: { payload?: { find: (...args: unknown[]) => Promise<{ totalDocs: number }> } }
+            },
+          ) => {
+            const { id, req } = opts
+            if (!value || !req?.payload) return true
+            const existing = await req.payload.find({
+              collection: collectionSlug as CollectionSlug,
+              where: {
+                and: [
+                  { [slugFieldName]: { equals: value } },
+                  ...(id != null ? [{ id: { not_equals: id } }] : []),
+                ],
+              },
+              limit: 1,
+              depth: 0,
+              overrideAccess: true,
+            } as unknown)
+            return existing.totalDocs > 0
+              ? 'This slug is already in use. Please choose a different one.'
+              : true
+          }) as TextField['validate']
         }
       }
 
