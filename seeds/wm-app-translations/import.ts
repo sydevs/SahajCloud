@@ -37,7 +37,7 @@ const SEED_DATA_WORKER_URL =
   'https://raw.githubusercontent.com/sydevs/SahajCloud/main/seeds/wm-app-translations/data.en.json'
 
 const GLOBAL_SLUG = 'wm-app-translations'
-const LOCALE: 'en' = 'en'
+const LOCALE = 'en' as const
 
 // ============================================================================
 // Importer
