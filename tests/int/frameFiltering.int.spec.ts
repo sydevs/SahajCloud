@@ -17,8 +17,8 @@ describe('Frame Filtering for FrameInserter', () => {
   let nabhiNode: SubtleSystemNode
 
   // Track created frames for cleanup
-  let maleFrames: Frame[] = []
-  let femaleFrames: Frame[] = []
+  const maleFrames: Frame[] = []
+  const femaleFrames: Frame[] = []
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
@@ -37,16 +37,8 @@ describe('Frame Filtering for FrameInserter', () => {
     })
 
     // Create three subtle-system nodes the frames can reference
-    mooladharaNode = await testData.createSubtleSystemNode(
-      payload,
-      {},
-      { slug: 'mooladhara' },
-    )
-    swadhistanNode = await testData.createSubtleSystemNode(
-      payload,
-      {},
-      { slug: 'swadhistan' },
-    )
+    mooladharaNode = await testData.createSubtleSystemNode(payload, {}, { slug: 'mooladhara' })
+    swadhistanNode = await testData.createSubtleSystemNode(payload, {}, { slug: 'swadhistan' })
     nabhiNode = await testData.createSubtleSystemNode(payload, {}, { slug: 'nabhi' })
 
     // Male frames

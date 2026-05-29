@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { checkBasicAuth } from '@/lib/openapi/basicAuth'
 
-export function middleware(request: NextRequest): NextResponse {
+export function proxy(request: NextRequest): NextResponse {
   const docsPassword = process.env.DOCS_PASSWORD
   if (!docsPassword) return NextResponse.next()
 
