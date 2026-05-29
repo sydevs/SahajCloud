@@ -878,9 +878,9 @@ describe('Storage Adapter handleUpload', () => {
         collection: { slug: 'meditations' } as never,
       })
 
-      // Returns null to skip the cloud-storage plugin's follow-up payload.update()
+      // Returns undefined to skip the cloud-storage plugin's follow-up payload.update()
       // (the filename is already persisted by beforeChange, so no update is needed).
-      expect(result).toBeNull()
+      expect(result).toBeUndefined()
       expect(put).toHaveBeenCalledOnce()
       expect(put.mock.calls[0][0]).toBe('meditations/my-audio-1-abc123.mp3')
       // applyFilename still runs, keeping in-memory state consistent
@@ -1064,10 +1064,10 @@ describe('storagePlugin R2 filename hook wiring', () => {
       collection: { slug: 'meditations' } as never,
     })
 
-    // Adapter returns null — filename is already in the DB from beforeChange,
+    // Adapter returns undefined — filename is already in the DB from beforeChange,
     // so no follow-up payload.update() should be triggered by the plugin.
     // In-memory state (data.filename) and the actual R2 key must still agree.
-    expect(adapterResult).toBeNull()
+    expect(adapterResult).toBeUndefined()
     expect(data.filename).toBe(preassignedFilename)
     expect(put).toHaveBeenCalledOnce()
     expect(put.mock.calls[0][0]).toBe(`meditations/${preassignedFilename}`)
