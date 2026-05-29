@@ -81,6 +81,12 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
           },
         })
 
+        // When the filename was pre-assigned by r2FilenameHook, it's already
+        // saved to the DB by the cloud-storage plugin's beforeChange hook.
+        // Returning null skips the plugin's follow-up payload.update(), which
+        // would otherwise run all field validators on a partial-data update and
+        // fail required-field checks (title, thumbnail, frames) on new docs.
+        if (filenamePreassigned) return null
         return { filename: finalFilename }
       } catch (error) {
         const key = prefix ? `${prefix}/${file.filename}` : file.filename
