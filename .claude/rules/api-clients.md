@@ -135,6 +135,19 @@ response and should not require every endpoint caller to enumerate internal
 fields with `select`, while rate limiting and usage tracking still see the
 authenticated client.
 
+### Live preview bypass
+
+Admin live preview loads the external We Meditate Web frontend, which fetches
+draft content back from this CMS as a client and forwards the
+`SAHAJCLOUD_PREVIEW_SECRET` in the `x-sahajcloud-preview-secret` header. A
+request carrying the valid secret renders the **whole** document, so requiring
+it to enumerate `select`/`populate` is meaningless — and forcing it 400s the
+preview. `validateClientQueryParamsHook` skips validation for such requests via
+`hasValidPreviewSecret(req)` from `src/lib/previewSecret.ts` (the same helper
+the access layer uses to unlock drafts in `createAccessConfig`). Rate limiting
+and usage tracking still apply. Without this, PR #294's gate breaks the
+meditations, pages, and wemeditate-web live previews.
+
 ## Usage monitoring
 
 - **Async tracking** via job queue (no in-request DB write).

@@ -16,6 +16,7 @@ import { APIError } from 'payload'
 import { z } from 'zod'
 
 import { serverEnv } from '@/lib/env'
+import { hasValidPreviewSecret } from '@/lib/previewSecret'
 
 import { RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_SECONDS } from './constants'
 
@@ -144,6 +145,11 @@ async function checkRateLimit(req: PayloadRequest): Promise<void> {
  * relationship/upload fields. Those reads carry a numeric `currentDepth`; they
  * are implementation details of the already-validated top-level request and
  * must not be rejected for lacking their own REST `select` parameter.
+ *
+ * Live-preview reads are also exempt: a request carrying the valid
+ * `SAHAJCLOUD_PREVIEW_SECRET` header (see `hasValidPreviewSecret`) renders the
+ * whole document, so forcing it to enumerate `select`/`populate` is meaningless
+ * and breaks the admin live preview.
  */
 export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
   args,
@@ -158,6 +164,13 @@ export const validateClientQueryParamsHook: CollectionBeforeOperationHook = ({
   // opt out by setting this context flag — they shape their own response and
   // shouldn't have to enumerate every field via `select` on every internal call.
   if (req.context?.[SKIP_VALIDATION] === true) {
+    return
+  }
+
+  // Trusted live-preview reads (valid preview secret) render the whole document
+  // and must not be forced to enumerate select/populate. Same trust signal that
+  // already unlocks drafts in createAccessConfig.
+  if (hasValidPreviewSecret(req)) {
     return
   }
 
