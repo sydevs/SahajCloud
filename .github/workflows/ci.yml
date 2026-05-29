@@ -47,7 +47,7 @@ jobs:
           version: 10
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Cache Next.js build
@@ -59,4 +59,4 @@ jobs:
       - name: Generate Cloudflare worker types
         run: pnpm exec wrangler types # worker-configuration.d.ts is gitignored; next build typechecks against it
       - name: Package Worker (dry run)
-        run: WRANGLER_BUILD_CONDITIONS="" WRANGLER_BUILD_PLATFORM="node" pnpm exec wrangler deploy --dry-run --env="" --outdir /tmp/sahajcloud-worker-dry-run
+        run: WRANGLER_BUILD_CONDITIONS="" WRANGLER_BUILD_PLATFORM="node" pnpm exec wrangler deploy --experimental-autoconfig=false --dry-run --env="" --outdir /tmp/sahajcloud-worker-dry-run
