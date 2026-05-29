@@ -111,7 +111,10 @@ describe('URL Field Factories', () => {
       })
 
       const hook = getAfterReadHook(field)
-      const url = callHook(hook!, { filename: 'meditation.mp3', url: '/api/meditations/file/meditation.mp3' })
+      const url = callHook(hook!, {
+        filename: 'meditation.mp3',
+        url: '/api/meditations/file/meditation.mp3',
+      })
       expect(url).toBe('/api/meditations/file/meditation.mp3')
     })
 
@@ -190,7 +193,9 @@ describe('URL Field Factories', () => {
 
       const hook = getAfterReadHook(field)
       const url = callHook(hook!, { filename: 'image-id', mimeType: 'image/jpeg' })
-      expect(url).toBe('https://imagedelivery.net/abc123/image-id/format=auto,width=320,height=320,fit=cover')
+      expect(url).toBe(
+        'https://imagedelivery.net/abc123/image-id/format=auto,width=320,height=320,fit=cover',
+      )
     })
 
     it('returns undefined for videos when CLOUDFLARE_STREAM_DELIVERY_URL is not set', async () => {
@@ -229,7 +234,9 @@ describe('URL Field Factories', () => {
 
       const hook = getAfterReadHook(field)
       const url = callHook(hook!, { filename: 'video-id', mimeType: 'video/mp4' })
-      expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/thumbnails/thumbnail.jpg?height=320')
+      expect(url).toBe(
+        'https://customer-test.cloudflarestream.com/video-id/thumbnails/thumbnail.jpg?height=320',
+      )
     })
 
     it('handles files with no MIME type as other', async () => {
@@ -403,9 +410,7 @@ describe('URL Field Factories', () => {
 
       const hook = getAfterReadHook(field)
       const url = callHook(hook!, { filename: 'video-id', mimeType: 'video/mp4' })
-      expect(url).toBe(
-        'https://customer-test.cloudflarestream.com/video-id/manifest/video.m3u8',
-      )
+      expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/manifest/video.m3u8')
     })
 
     it('returns null for non-video MIME types', async () => {
@@ -431,7 +436,6 @@ describe('URL Field Factories', () => {
       const url = callHook(hook!, { filename: 'video.mp4', mimeType: 'video/mp4' })
       expect(url).toBe('/api/frames/file/video.mp4')
     })
-
   })
 
   describe('mp4UrlField', () => {
@@ -445,9 +449,7 @@ describe('URL Field Factories', () => {
 
       const hook = getAfterReadHook(field)
       const url = callHook(hook!, { filename: 'video-id', mimeType: 'video/mp4' })
-      expect(url).toBe(
-        'https://customer-test.cloudflarestream.com/video-id/downloads/default.mp4',
-      )
+      expect(url).toBe('https://customer-test.cloudflarestream.com/video-id/downloads/default.mp4')
     })
 
     it('returns null for non-video MIME types (mixed-media collections)', async () => {
@@ -462,7 +464,6 @@ describe('URL Field Factories', () => {
       expect(callHook(hook!, { filename: 'image.jpg', mimeType: 'image/jpeg' })).toBeNull()
       expect(callHook(hook!, { filename: 'audio.mp3', mimeType: 'audio/mpeg' })).toBeNull()
     })
-
   })
 })
 
@@ -877,9 +878,12 @@ describe('Storage Adapter handleUpload', () => {
         collection: { slug: 'meditations' } as never,
       })
 
-      expect(result).toEqual({ filename: 'my-audio-1-abc123.mp3' })
+      // Returns null to skip the cloud-storage plugin's follow-up payload.update()
+      // (the filename is already persisted by beforeChange, so no update is needed).
+      expect(result).toBeNull()
       expect(put).toHaveBeenCalledOnce()
       expect(put.mock.calls[0][0]).toBe('meditations/my-audio-1-abc123.mp3')
+      // applyFilename still runs, keeping in-memory state consistent
       expect(data.filename).toBe('my-audio-1-abc123.mp3')
     })
   })
@@ -1060,9 +1064,10 @@ describe('storagePlugin R2 filename hook wiring', () => {
       collection: { slug: 'meditations' } as never,
     })
 
-    // The DB write (`data.filename`), the adapter return (`adapterResult.filename`),
-    // and the actual R2 key (`put.calls[0][0]` minus prefix) must all agree.
-    expect((adapterResult as { filename: string }).filename).toBe(preassignedFilename)
+    // Adapter returns null — filename is already in the DB from beforeChange,
+    // so no follow-up payload.update() should be triggered by the plugin.
+    // In-memory state (data.filename) and the actual R2 key must still agree.
+    expect(adapterResult).toBeNull()
     expect(data.filename).toBe(preassignedFilename)
     expect(put).toHaveBeenCalledOnce()
     expect(put.mock.calls[0][0]).toBe(`meditations/${preassignedFilename}`)
