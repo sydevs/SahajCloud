@@ -235,6 +235,51 @@ describe('Client query parameter validation', () => {
     })
   })
 
+  // Live-preview reads carry the SAHAJCLOUD_PREVIEW_SECRET header. They render
+  // the whole document, so the select/populate gate is skipped (see
+  // hasValidPreviewSecret in src/lib/previewSecret.ts). Without this bypass the
+  // admin live preview 400s because it does not enumerate select — the breakage
+  // introduced by #294.
+  describe('live preview bypass', () => {
+    const previewClientReq = (): PayloadRequest => {
+      const req = clientReq()
+      req.headers.set('x-sahajcloud-preview-secret', process.env.SAHAJCLOUD_PREVIEW_SECRET || '')
+      return req
+    }
+
+    it('allows client find without select when the preview secret is present', async () => {
+      const result = await payload.find({
+        collection: 'narrators',
+        req: previewClientReq(),
+        overrideAccess: true,
+      })
+      expect(result.docs.length).toBeGreaterThan(0)
+    })
+
+    it('allows client findByID at depth > 1 without select or populate when the preview secret is present', async () => {
+      const result = await payload.findByID({
+        collection: 'narrators',
+        id: narrator.id,
+        depth: 2,
+        req: previewClientReq(),
+        overrideAccess: true,
+      })
+      expect(result.id).toBe(narrator.id)
+    })
+
+    it('still rejects when the preview secret is wrong', async () => {
+      const req = clientReq()
+      req.headers.set('x-sahajcloud-preview-secret', 'not-the-real-secret')
+      await expect(
+        payload.find({
+          collection: 'narrators',
+          req,
+          overrideAccess: true,
+        }),
+      ).rejects.toThrow(/select/)
+    })
+  })
+
   // These cases exercise the wire format (URL → qs.parse → sanitize → args) that
   // real REST clients hit, not just the SDK shape that the cases above exercise.
   // They guard against the regression in #199/#294 where the docs assumed
