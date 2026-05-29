@@ -71,6 +71,7 @@ export const UserChoices: CollectionConfig = {
     // generateSlug checkbox is locked to admin-only by the slugField default.
     slugField({
       useAsSlug: 'title',
+      collectionSlug: 'user-choices',
       description: 'URL-friendly identifier (auto-generated from {sourceField})',
       overrides: (field) => {
         field.admin = { ...(field.admin ?? {}), condition: adminOnlyCondition }
