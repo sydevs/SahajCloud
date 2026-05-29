@@ -20,3 +20,6 @@ export { CUSTOM_ENDPOINT_PATHS, CUSTOM_ENDPOINT_SCHEMAS } from './customEndpoint
 
 // Custom Scalar plugin
 export { scalarPlugin, type ScalarPluginOptions } from './scalarPlugin'
+
+// Protect generated OpenAPI endpoints without Next middleware/proxy
+export { openapiEndpointAuth, type OpenapiEndpointAuthOptions } from './endpointAuthPlugin'

@@ -44,7 +44,10 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    * Nirmala Vidya API key for fetching lecture metadata from Vimeo
    * Optional at startup — validated at point of use when creating/refreshing lectures
    */
-  NIRMALA_VIDYA_API_KEY: z.string().min(20, 'NIRMALA_VIDYA_API_KEY must be at least 20 characters').optional(),
+  NIRMALA_VIDYA_API_KEY: z
+    .string()
+    .min(20, 'NIRMALA_VIDYA_API_KEY must be at least 20 characters')
+    .optional(),
 
   // ============================================
   // OPTIONAL - Cloudflare Services (Production)
@@ -167,19 +170,31 @@ const ServerEnvSchema = ClientEnvSchema.extend({
 // Type inference for TypeScript
 export type ServerEnv = z.infer<typeof ServerEnvSchema>
 
+let cachedServerEnv: ServerEnv | null = null
+
 /**
- * Validated server-side environment variables
+ * Parse and cache server-side environment variables.
  *
- * Throws validation error on module import if environment is invalid.
- * Provides type-safe access to all server-side environment variables.
+ * Payload collection/config modules can be included in the admin client bundle.
+ * Keep validation lazy so browser evaluation of an unused server module does not
+ * fail on private variables that are intentionally unavailable to the client.
  */
-export const serverEnv = (() => {
+export function getServerEnv(): ServerEnv {
+  if (cachedServerEnv) return cachedServerEnv
+
+  if (typeof window !== 'undefined') {
+    throw new Error(
+      'serverEnv was accessed in a browser bundle. Import clientEnv from "@/lib/env/client" for client-side code.',
+    )
+  }
+
   try {
-    return ServerEnvSchema.parse(process.env)
+    cachedServerEnv = ServerEnvSchema.parse(process.env)
+    return cachedServerEnv
   } catch (error) {
     if (error instanceof z.ZodError) {
       // Note: Using console.error here is intentional for fail-fast behavior
-      // This code runs at module load time, before the Payload logger is initialized
+      // This code runs before the Payload logger is initialized
       // We need immediate, visible feedback when environment validation fails
       // eslint-disable-next-line no-console
       console.error('❌ Environment validation error (server):')
@@ -193,7 +208,41 @@ export const serverEnv = (() => {
     }
     throw error
   }
-})()
+}
+
+/**
+ * Validated server-side environment variables.
+ *
+ * Accessing any property validates once and caches the parsed result. The proxy
+ * preserves the old `serverEnv.NAME` call sites while avoiding eager validation
+ * when this module is accidentally bundled into client-side admin code.
+ */
+export const serverEnv = new Proxy({} as ServerEnv, {
+  get(_target, prop: string | symbol) {
+    if (typeof prop === 'symbol') {
+      if (prop === Symbol.toStringTag) return 'ServerEnv'
+      return undefined
+    }
+
+    return getServerEnv()[prop as keyof ServerEnv]
+  },
+  getOwnPropertyDescriptor(_target, prop: string | symbol) {
+    const env = getServerEnv()
+    if (!(prop in env)) return undefined
+
+    return {
+      configurable: true,
+      enumerable: true,
+      value: env[prop as keyof ServerEnv],
+    }
+  },
+  has(_target, prop: string | symbol) {
+    return prop in getServerEnv()
+  },
+  ownKeys() {
+    return Reflect.ownKeys(getServerEnv())
+  },
+})
 
 /**
  * Runtime validation helper for Cloudflare Workers bindings

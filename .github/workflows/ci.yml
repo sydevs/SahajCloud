@@ -33,8 +33,8 @@ jobs:
     name: Cloudflare Build
     runs-on: ubuntu-latest
     env:
-      NODE_OPTIONS: "--no-deprecation --max-old-space-size=8000"
-      CLOUDFLARE_ENV: ""
+      NODE_OPTIONS: '--no-deprecation --max-old-space-size=8000'
+      CLOUDFLARE_ENV: ''
       # Non-sensitive DUMMY values — only present so serverEnv (zod) validates at build/import time.
       PAYLOAD_SECRET: ci-build-dummy-secret-with-32plus-characters
       SAHAJCLOUD_PREVIEW_SECRET: ci-build-preview-secret-16plus
@@ -59,4 +59,4 @@ jobs:
       - name: Generate Cloudflare worker types
         run: pnpm exec wrangler types # worker-configuration.d.ts is gitignored; next build typechecks against it
       - name: Package Worker (dry run)
-        run: WRANGLER_BUILD_CONDITIONS="" WRANGLER_BUILD_PLATFORM="node" pnpm exec wrangler deploy --experimental-autoconfig=false --dry-run --env="" --outdir /tmp/sahajcloud-worker-dry-run
+        run: WRANGLER_BUILD_CONDITIONS="" WRANGLER_BUILD_PLATFORM="node" pnpm exec wrangler deploy src/worker.ts --experimental-autoconfig=false --dry-run --env="" --outdir /tmp/sahajcloud-worker-dry-run
