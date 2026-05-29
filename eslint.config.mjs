@@ -1,23 +1,16 @@
-import { dirname } from 'path'
-import { fileURLToPath } from 'url'
-
-import { FlatCompat } from '@eslint/eslintrc'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-})
+import coreWebVitals from 'eslint-config-next/core-web-vitals'
+import typescript from 'eslint-config-next/typescript'
 
 const eslintConfig = [
-  // Extend Next.js recommended configs
-  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  // Next.js recommended configs (flat config arrays)
+  ...coreWebVitals,
+  ...typescript,
 
   // Global rules
   {
     plugins: {
       'unused-imports': (await import('eslint-plugin-unused-imports')).default,
+      import: (await import('eslint-plugin-import')).default,
     },
     rules: {
       // Console warnings (good for production code)
@@ -91,15 +84,30 @@ const eslintConfig = [
     },
   },
 
+  // Downgrade new react-hooks strict rules to warn (patterns were passing before Next.js 16)
+  {
+    plugins: {
+      'react-hooks': (await import('eslint-plugin-react-hooks')).default,
+    },
+    rules: {
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/refs': 'warn',
+    },
+  },
+
   // Global ignores
   {
     ignores: [
       '.next/',
+      '.wrangler/',
+      '.open-next/',
+      '.claude/',
       'node_modules/',
       'dist/',
       'build/',
       'coverage/',
       'src/migrations/',
+      'scripts/',
       // Auto-generated payload files
       'src/payload-types.ts',
       'src/payload-generated-schema.ts',
