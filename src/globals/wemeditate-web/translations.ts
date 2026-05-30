@@ -10,7 +10,8 @@ export const WeMeditateWebTranslations: GlobalConfig = {
     group: 'WeMeditate Web',
   },
   versions: {
-    max: 3,
+    max: 10,
+    drafts: true,
   },
   label: 'Translations',
   fields: [

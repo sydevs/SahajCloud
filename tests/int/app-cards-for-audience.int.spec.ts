@@ -556,9 +556,14 @@ describe('appCardsForAudience endpoint', () => {
         ([args]) => (args as { collection?: string }).collection === 'app-cards',
       )
       expect(appCardsCall).toBeDefined()
-      const forwardedReq = (appCardsCall![0] as { req?: { user?: { id: unknown; collection: string } } }).req
+      const forwardedReq = (
+        appCardsCall![0] as {
+          req?: { user?: { id: unknown; collection: string }; context?: Record<string, unknown> }
+        }
+      ).req
       expect(forwardedReq?.user?.id).toBe(client.id)
       expect(forwardedReq?.user?.collection).toBe('clients')
+      expect(forwardedReq?.context?.['skipClientQueryValidation']).toBe(true)
     } finally {
       findSpy.mockRestore()
     }

@@ -13,6 +13,7 @@ export const Authors: CollectionConfig = {
     // Slug auto-generated from name
     slugField({
       useAsSlug: 'name',
+      collectionSlug: 'authors',
       description: 'URL-friendly identifier (auto-generated from {sourceField})',
     }),
     {

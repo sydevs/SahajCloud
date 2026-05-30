@@ -1,4 +1,13 @@
-import type { Field, GroupField, JSONField, RichTextField, TabsField, UIField } from 'payload'
+import type {
+  Field,
+  GroupField,
+  JSONField,
+  RichTextField,
+  TabsField,
+  UIField,
+} from 'payload'
+
+import { toWords } from 'payload/shared'
 
 import { basicRichTextEditor } from '@/lib/richEditor'
 
@@ -6,64 +15,29 @@ import { basicRichTextEditor } from '@/lib/richEditor'
 // Types
 // ============================================================================
 
-/**
- * Schema entry for a single string translation key.
- * Used by TranslationsTable component to render each row.
- */
-export interface SchemaEntry {
-  key: string
-  description: string
-}
-
-/**
- * JSON Schema property definition for a plain-string translation key.
- */
 interface StringPropertySchema {
   type: 'string'
   description?: string
 }
 
-/**
- * JSON Schema property definition for a rich-text translation key.
- *
- * Rendered as a Payload `richText` field using the `basicRichTextEditor`
- * preset (Bold, Italic, Link, InlineToolbar — the minimum needed for inline
- * formatting in body copy). Used for paragraphs that need inline links or
- * bold/italic spans the translator can move freely.
- */
 interface RichTextPropertySchema {
   type: 'richText'
   description?: string
 }
 
-/**
- * A leaf property in the translations schema — either a string or a richText.
- */
 type LeafPropertySchema = StringPropertySchema | RichTextPropertySchema
 
 /**
  * JSON Schema definition for a group of translations.
  *
- * A group is either:
- * - a leaf group with `properties` of `LeafPropertySchema` (strings and/or
- *   richText). All-string leaves render as one tab with a flat
- *   TranslationsTable. Leaves containing at least one richText property
- *   render as a `group` field with `strings` (JSON, only string-typed entries)
- *   plus one stock Payload `richText` field per richText-typed entry.
- * - a parent group with `properties` of nested `GroupSchema` values (renders as
- *   a tab containing inner sub-tabs, one per child group).
+ * A group is either a leaf group whose `properties` are `LeafPropertySchema`
+ * entries (string and/or richText), or a parent group whose `properties` are
+ * nested `GroupSchema` values. Mixing leaf properties and nested groups at
+ * the same level is not supported.
  *
- * Mixing leaf properties and nested groups at the same level is not supported.
- *
- * Non-JSON-Schema extension fields (ignored by Monaco validation, consumed only
- * by the Payload admin builder):
- * - `screenshot`: relative path or URL to an image / Figma design that shows
- *   where the strings in this group appear in the app. Rendered above the
- *   TranslationsTable as orientation for translators. Only honoured on leaf
- *   groups — parent groups are pure containers with no UI of their own.
- *   Common forms:
- *   - "/admin-screenshots/wm-app-translations/onboarding__name.png" — repo asset
- *   - "https://www.figma.com/design/.../?node-id=11564-91404" — Figma URL link
+ * Non-JSON-Schema extension consumed by the Payload admin builder:
+ * - `screenshot`: relative path or URL (image or Figma) shown above the
+ *   translation rows for translator orientation.
  */
 interface GroupSchema {
   type: 'object'
@@ -73,23 +47,26 @@ interface GroupSchema {
   screenshot?: string
 }
 
-/**
- * Top-level translations schema structure.
- * Each property is a group (e.g., "common", "navigation").
- */
 export interface TranslationsSchema {
   type: 'object'
   properties?: Record<string, GroupSchema>
   additionalProperties?: boolean
 }
 
+/**
+ * One entry per string-typed translation key in a leaf group. Consumed by
+ * TranslationsRow to render the title + (optional) English reference + input.
+ */
+export interface SchemaEntry {
+  key: string
+  description: string
+}
+
 // ============================================================================
 // Type guards
 // ============================================================================
 
-function isGroupSchema(
-  prop: LeafPropertySchema | GroupSchema | undefined,
-): prop is GroupSchema {
+function isGroupSchema(prop: LeafPropertySchema | GroupSchema | undefined): prop is GroupSchema {
   return !!prop && prop.type === 'object'
 }
 
@@ -97,50 +74,15 @@ function isStringProp(prop: LeafPropertySchema | GroupSchema): prop is StringPro
   return prop.type === 'string'
 }
 
-function isRichTextProp(
-  prop: LeafPropertySchema | GroupSchema,
-): prop is RichTextPropertySchema {
+function isRichTextProp(prop: LeafPropertySchema | GroupSchema): prop is RichTextPropertySchema {
   return prop.type === 'richText'
 }
 
 // ============================================================================
-// Helper Functions
+// Helpers
 // ============================================================================
 
-/**
- * Converts a slug to Title Case.
- * "common" -> "Common"
- * "navigation_links" -> "Navigation Links"
- * "user-settings" -> "User Settings"
- */
-function toTitleCase(slug: string): string {
-  return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
-}
 
-/**
- * Extracts schema entries from a leaf group's string properties.
- * Each entry contains the key and its description for the TranslationsTable component.
- * Non-string entries (richText, nested-group) are skipped — they are rendered
- * as separate fields outside the TranslationsTable.
- */
-function extractSchemaEntries(
-  groupProperties: Record<string, LeafPropertySchema | GroupSchema> | undefined,
-): SchemaEntry[] {
-  if (!groupProperties) return []
-
-  return Object.entries(groupProperties)
-    .filter(([, prop]) => isStringProp(prop))
-    .map(([key, prop]) => ({
-      key,
-      description: prop.description || '',
-    }))
-}
-
-/**
- * Creates a UI-only field that renders a screenshot or design-context link
- * above the translation table for a leaf group. Returns null when no
- * screenshot is configured so the helper can skip the entry.
- */
 function createScreenshotField(
   groupSlug: string,
   groupSchema: GroupSchema,
@@ -153,9 +95,7 @@ function createScreenshotField(
     name: `${groupSlug}__screenshot`,
     type: 'ui',
     admin: {
-      components: {
-        Field: '@/components/admin/TabScreenshot',
-      },
+      components: { Field: '@/components/admin/TabScreenshot' },
       custom: {
         screenshot,
         caption: groupSchema.description,
@@ -166,39 +106,39 @@ function createScreenshotField(
 }
 
 /**
- * Creates the JSON field configuration for the string-only portion of a leaf
- * group. Field name is `strings` when the leaf is mixed (lives inside a wrapper
- * group), otherwise the leaf's own slug. Only string-typed schema properties
- * are surfaced here; richText properties become sibling fields outside this
- * JSON field.
+ * One localized JSON field per leaf group, holding every string-typed key in
+ * that group as flat `{ key: value }` pairs. Rendered by TranslationsRow,
+ * which displays each schema entry as its own row (title + description +
+ * optional English reference + input). For simple tabs, the field name is
+ * the tab slug (e.g. `navigation`). For nested tabs wrapped in a group, the
+ * field name is the sub-group slug (e.g. `welcome`) and `parentGroup` is the
+ * group name (e.g. `onboarding`), so the data path is `onboarding.welcome`.
  *
- * NOTE — the `jsonSchema` field option is deliberately NOT set here. Payload
- * compiles `jsonSchema` to a validator via Ajv (`new Ajv()` + `ajv.validate`)
- * which uses `new Function()` for performance. Cloudflare Workers' V8 isolate
- * disallows dynamic code generation, so any write to a `jsonSchema`-validated
- * field throws "Code generation from strings disallowed for this context" on
- * prod (Workers) while working fine in local dev (Node). The same `additionalProperties:
- * false` + required-keys + per-key string-type checks are now enforced by a
- * pure-JS `validate` function instead. Admin UX is unaffected: this field is
- * rendered by the custom `TranslationsTable` component, not Monaco — losing
- * Monaco's schema hints costs nothing here.
+ * RichText keys are emitted as sibling richText fields at the same level
+ * (see createRichTextField), not packed into this JSON blob.
+ *
+ * NOTE — no `jsonSchema` is set. Payload would compile it to a validator via
+ * Ajv which uses `new Function()` for performance. Cloudflare Workers' V8
+ * isolate disallows dynamic code generation, so any write to a
+ * `jsonSchema`-validated field throws "Code generation from strings
+ * disallowed" in prod. A pure-JS `validate` function enforces the same
+ * key/type constraints instead.
  */
 function createStringsJsonField(
   fieldName: string,
-  groupSchema: GroupSchema,
+  group: GroupSchema,
   globalSlug: string,
-  _jsonSchemaUriSlug: string,
+  parentGroup?: string,
 ): JSONField {
-  const schemaEntries = extractSchemaEntries(groupSchema.properties)
-
-  const stringProperties: Record<string, StringPropertySchema> = Object.fromEntries(
-    Object.entries(groupSchema.properties || {}).filter(([, prop]) => isStringProp(prop)) as Array<
-      [string, StringPropertySchema]
-    >,
+  const stringProps = Object.entries(group.properties || {}).filter(
+    (entry): entry is [string, StringPropertySchema] => isStringProp(entry[1]),
   )
-  const requiredKeys = new Set(Object.keys(stringProperties))
-  const allowedKeys = new Set(Object.keys(stringProperties))
-  const allowAdditional = groupSchema.additionalProperties === true
+  const schemaEntries: SchemaEntry[] = stringProps.map(([key, prop]) => ({
+    key,
+    description: prop.description || '',
+  }))
+  const allowedKeys = new Set(stringProps.map(([key]) => key))
+  const allowAdditional = group.additionalProperties === true
 
   return {
     name: fieldName,
@@ -206,35 +146,25 @@ function createStringsJsonField(
     localized: true,
     label: false,
     admin: {
-      components: {
-        Field: '@/components/admin/TranslationsTable',
-      },
+      components: { Field: '@/components/admin/TranslationsRow' },
       custom: {
         schemaEntries,
         globalSlug,
+        parentGroup,
       },
     },
     validate: (value): true | string => {
       if (value === null || value === undefined) return true
-      if (typeof value !== 'object' || Array.isArray(value)) {
-        return 'Value must be a JSON object'
-      }
+      if (typeof value !== 'object' || Array.isArray(value)) return 'Value must be a JSON object'
       const obj = value as Record<string, unknown>
-      const presentKeys = new Set(Object.keys(obj))
       if (!allowAdditional) {
-        for (const key of presentKeys) {
-          if (!allowedKeys.has(key)) {
-            return `Unknown key "${key}" (not in schema)`
-          }
+        for (const key of Object.keys(obj)) {
+          if (!allowedKeys.has(key)) return `Unknown key "${key}" (not in schema)`
         }
       }
-      for (const key of requiredKeys) {
-        if (!(key in obj)) {
-          return `Missing required key "${key}"`
-        }
-        if (typeof obj[key] !== 'string') {
-          return `Key "${key}" must be a string`
-        }
+      for (const key of allowedKeys) {
+        if (!(key in obj)) continue
+        if (typeof obj[key] !== 'string') return `Key "${key}" must be a string`
       }
       return true
     },
@@ -242,104 +172,80 @@ function createStringsJsonField(
 }
 
 /**
- * Creates a stock Payload richText field for a single richText-typed leaf
- * property. Uses the `basicRichTextEditor` preset — Bold, Italic, Link,
- * InlineToolbar. Localized.
+ * Creates a localized richText field for a single richText key. Uses the
+ * `basicRichTextEditor` preset (Bold, Italic, Link, InlineToolbar). The
+ * Description slot renders the translation title + English reference above
+ * the standard Lexical editor.
  */
-function createRichTextSubfield(
+function createRichTextField(
   fieldName: string,
-  property: RichTextPropertySchema,
+  translationKey: string,
+  prop: RichTextPropertySchema,
+  globalSlug: string,
+  parentGroup?: string,
 ): RichTextField {
   return {
     name: fieldName,
     type: 'richText',
     editor: basicRichTextEditor,
     localized: true,
-    label: toTitleCase(fieldName),
+    label: toWords(translationKey.replace(/_/g, '-')),
     admin: {
-      description: property.description,
+      description: prop.description,
+      components: { Field: '@/components/admin/TranslationsRow#TranslationsRichTextField' },
+      custom: {
+        translationKey,
+        globalSlug,
+        fieldType: 'richText',
+        parentGroup,
+      },
     },
   }
 }
 
-/**
- * Builds the fields that represent a leaf group. The shape depends on whether
- * the leaf contains any richText properties:
- *
- * - **Pure-string leaf** → a single JSON field rendered by TranslationsTable,
- *   named after the leaf slug. Same shape and field name as the pre-richText
- *   behaviour — backward compatible.
- *
- * - **Mixed leaf** (has ≥ 1 richText) → a wrapper Payload `group` field named
- *   after the leaf slug, containing:
- *     - `strings` — JSON field rendered by TranslationsTable, holding only the
- *       string-typed entries.
- *     - one Payload `richText` field per richText-typed entry, in declaration
- *       order, each using `basicRichTextEditor`.
- *
- *   The wrapping group is necessary to keep the API/data shape predictable —
- *   `<leafSlug>: { strings: { ... }, body_intro: <lexical>, ... }`.
- */
 function createLeafFields(
   leafSlug: string,
-  groupSchema: GroupSchema,
+  group: GroupSchema,
   globalSlug: string,
+  parentGroup?: string,
 ): Field[] {
-  const screenshotField = createScreenshotField(leafSlug, groupSchema, globalSlug)
-  const props = groupSchema.properties || {}
-  const richTextProps = Object.entries(props).filter(
+  const screenshot = createScreenshotField(leafSlug, group, globalSlug)
+  const props = Object.entries(group.properties || {})
+  const hasStringKeys = props.some(([, p]) => isStringProp(p))
+  const richTextEntries = props.filter(
     (entry): entry is [string, RichTextPropertySchema] => isRichTextProp(entry[1]),
   )
-  const hasRichText = richTextProps.length > 0
 
-  if (!hasRichText) {
-    // Pure-string leaf — single JSON field, same as the previous behaviour.
-    return [
-      ...(screenshotField ? [screenshotField] : []),
-      createStringsJsonField(leafSlug, groupSchema, globalSlug, leafSlug),
-    ]
+  const fields: Field[] = []
+  if (hasStringKeys) {
+    fields.push(createStringsJsonField(leafSlug, group, globalSlug, parentGroup))
+  }
+  for (const [key, prop] of richTextEntries) {
+    fields.push(createRichTextField(`${leafSlug}_${key}`, key, prop, globalSlug, parentGroup))
   }
 
-  // Mixed leaf — wrap in a Payload group containing strings JSON + richText siblings.
-  const richTextFields: RichTextField[] = richTextProps.map(([key, property]) =>
-    createRichTextSubfield(key, property),
-  )
-
-  const wrapperGroup: GroupField = {
-    name: leafSlug,
-    type: 'group',
-    label: false,
-    fields: [
-      createStringsJsonField('strings', groupSchema, globalSlug, leafSlug),
-      ...richTextFields,
-    ],
-  }
-
-  return [...(screenshotField ? [screenshotField] : []), wrapperGroup]
+  return [...(screenshot ? [screenshot] : []), ...fields]
 }
 
+
 // ============================================================================
-// Main Function
+// Main: buildTranslationTabs
 // ============================================================================
 
 /**
  * Converts a translations schema into PayloadCMS tabs configuration.
  *
- * Top-level rules:
- * - A top-level group whose `properties` are all leaf properties (string or
- *   richText) becomes one tab; its leaf fields are emitted by createLeafFields().
- * - A top-level group whose `properties` are nested `GroupSchema` values becomes
- *   one tab containing an inner tabs field, one sub-tab per child group. Each
- *   sub-tab's leaf field name is `<parentSlug>_<childSlug>` so the global's
- *   API/data shape stays flat-ish (one top-level key per leaf group).
+ * Each top-level group becomes one tab. Simple tabs (leaf group only) emit
+ * one JSON field named after the tab slug. Nested tabs (containing sub-groups)
+ * wrap their fields in a Payload group named after the tab slug, so the API
+ * response is `{ onboarding: { welcome: {…}, user_type: {…} } }` instead of
+ * the flat `{ onboarding_welcome: {…}, onboarding_user_type: {…} }`. The
+ * underlying SQLite column names are identical in both cases (`group_field`
+ * matches the old `leafSlug` naming), so no migration is required.
  *
- * Mixing leaf properties and nested groups at the same level is not supported.
- * Backward compatible: schemas with no richText properties behave exactly as
- * before — a single JSON field per leaf.
- *
- * @param schema - The translations schema (may include richText leaf properties)
- * @param globalSlug - The global's slug for API fetching and unique URIs
- * @returns Array of tab configurations for use in a TabsField
+ * Every leaf group emits one JSON field (holding string keys) plus one
+ * richText field per richText key. The flat-leaf-JSON shape keeps the per-row
+ * UX while staying under SQLite's `json_array()` argument limit.
  */
 export function buildTranslationTabs(
   schema: TranslationsSchema,
@@ -355,30 +261,33 @@ export function buildTranslationTabs(
         (entry): entry is [string, GroupSchema] => isGroupSchema(entry[1]),
       )
 
-      // Parent group → outer tab containing one sub-tab per child group.
       if (subgroups.length > 0) {
-        return {
-          label: toTitleCase(groupSlug),
-          description: groupSchema.description,
+        // Wrap sub-group fields in a group named after the tab slug so the
+        // API response is namespaced: { onboarding: { welcome: {…} } }
+        const groupField: GroupField = {
+          name: groupSlug,
+          type: 'group',
+          label: false,
           fields: [
             {
               type: 'tabs',
-              tabs: subgroups.map(([subSlug, subSchema]) => {
-                const leafSlug = `${groupSlug}_${subSlug}`
-                return {
-                  label: toTitleCase(subSlug),
-                  description: subSchema.description,
-                  fields: createLeafFields(leafSlug, subSchema, globalSlug),
-                }
-              }),
+              tabs: subgroups.map(([subSlug, subSchema]) => ({
+                label: toWords(subSlug.replace(/_/g, '-')),
+                description: subSchema.description,
+                fields: createLeafFields(subSlug, subSchema, globalSlug, groupSlug),
+              })),
             },
           ],
         }
+        return {
+          label: toWords(groupSlug.replace(/_/g, '-')),
+          description: groupSchema.description,
+          fields: [groupField],
+        }
       }
 
-      // Leaf group at the top level (no nesting).
       return {
-        label: toTitleCase(groupSlug),
+        label: toWords(groupSlug.replace(/_/g, '-')),
         description: groupSchema.description,
         fields: createLeafFields(groupSlug, groupSchema, globalSlug),
       }

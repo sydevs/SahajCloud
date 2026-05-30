@@ -50,14 +50,11 @@ fields: [
 
 | Factory | Purpose |
 |---|---|
-| `virtualUrlField({ collection, adapter })` | Base URL for any single-storage collection |
+| `virtualUrlField({ collection, adapter })` | Base URL for any single-storage collection (adapter: `cloudflare-images` or `r2`) |
 | `previewUrlField({ collection, width?, height? })` | Preview/thumbnail URL for images/videos |
 | `mixedMediaUrlField({ collection })` | Full-resolution URL for mixed media (images → Images, videos → Stream MP4, other → R2) |
-| `hlsUrlField({ collection })` | **Canonical** HLS manifest (`hlsUrl`); `null` for non-video. Mount on every collection that previously used `streamUrlField`. |
-| `mp4UrlField({ collection })` | **Canonical** MP4 download (`mp4Url`); `null` for non-video. Mount alongside `hlsUrlField`. |
-| `streamUrlField({ collection })` | **Deprecated alias** of `hlsUrlField` (#319). Will be removed after the mobile-app cutover. Resolves to the same value as `hlsUrl`. |
-
-`virtualUrlField({ adapter: 'cloudflare-stream' })` (used only on Videos) is also deprecated as of #319 — its `url` is always an MP4, so callers should read `mp4Url` instead. The other adapters (`cloudflare-images`, `r2`) of `virtualUrlField` and the `mixedMediaUrlField` `url` field are not deprecated.
+| `hlsUrlField({ collection })` | HLS manifest (`hlsUrl`); `null` for non-video. Mount on every collection that exposes a video URL. |
+| `mp4UrlField({ collection })` | MP4 download (`mp4Url`); `null` for non-video. Mount alongside `hlsUrlField`. |
 
 ## R2 native adapter (`r2NativeAdapter.ts`)
 

@@ -14,6 +14,7 @@
  * - meditations: Meditations, Frames, Music
  * - storyblok: Lessons, Lectures
  * - wm-app-translations: WeMeditate App Translations global (English seed)
+ * - translations: All three translation globals (English seed)
  *
  * Authentication: Requires admin session
  *
@@ -45,6 +46,7 @@ const VALID_SCRIPTS: ScriptName[] = [
   'meditations',
   'storyblok',
   'wm-app-translations',
+  'translations',
 ]
 
 /**
@@ -161,6 +163,19 @@ export async function POST(
   const offsetParam = request.nextUrl.searchParams.get('offset')
   const limitParam = request.nextUrl.searchParams.get('limit')
 
+  // Optional request body: raw seed-file contents uploaded by the CLI when the
+  // Worker can't fetch them itself (private repo). Keyed by DataSource.localPath.
+  // Body is absent for most requests, so a parse failure is expected and ignored.
+  let inlineData: Record<string, string> | undefined
+  try {
+    const body = (await request.json()) as { inlineData?: Record<string, string> } | null
+    if (body?.inlineData && typeof body.inlineData === 'object') {
+      inlineData = body.inlineData
+    }
+  } catch {
+    // No body or not JSON — importer falls back to filesystem/remote fetch.
+  }
+
   // Validate pagination params - offset/limit require collection
   if ((offsetParam !== null || limitParam !== null) && !collection) {
     return new Response(
@@ -216,7 +231,15 @@ export async function POST(
       })
 
       // Dynamically import the appropriate importer
-      const importer = await getImporter(script as ScriptName, payload, dryRun, updateMode, sendEvent, pagination)
+      const importer = await getImporter(
+        script as ScriptName,
+        payload,
+        dryRun,
+        updateMode,
+        sendEvent,
+        pagination,
+        inlineData,
+      )
 
       if (!importer) {
         await sendEvent({
@@ -347,6 +370,7 @@ async function getImporter(
   updateMode: boolean,
   onProgress: (data: Record<string, unknown>) => Promise<void>,
   pagination?: PaginationOptions,
+  inlineData?: Record<string, string>,
 ) {
   const options = {
     dryRun,
@@ -355,6 +379,7 @@ async function getImporter(
     payload,
     onProgress,
     pagination,
+    inlineData,
   }
 
   switch (script) {
@@ -379,10 +404,13 @@ async function getImporter(
       return new StoryblokImporter(options, token)
     }
     case 'wm-app-translations': {
-      const { WeMeditateAppTranslationsImporter } = await import(
-        '../../../../../../seeds/wm-app-translations/import'
-      )
+      const { WeMeditateAppTranslationsImporter } =
+        await import('../../../../../../seeds/wm-app-translations/import')
       return new WeMeditateAppTranslationsImporter(options)
+    }
+    case 'translations': {
+      const { TranslationsImporter } = await import('../../../../../../seeds/translations/import')
+      return new TranslationsImporter(options)
     }
     default:
       return null
@@ -435,10 +463,10 @@ async function getDatabaseCounts(
         counts['lectures'] = lectures.totalDocs
         break
       }
-      case 'wm-app-translations': {
-        // Target is the wm-app-translations PayloadCMS global, not a collection.
-        // Verification (verifyCountsForScript) sees an empty EXPECTED_COUNTS entry
-        // and passes by default — return an empty object to match.
+      case 'wm-app-translations':
+      case 'translations': {
+        // These scripts target PayloadCMS globals, not collections.
+        // Verification sees an empty EXPECTED_COUNTS entry and passes by default.
         break
       }
     }

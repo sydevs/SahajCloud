@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { AppCard, Lesson, Manager, Page, UserChoice, WmAppStatus } from '@/payload-types'
 
+import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/wemeditate-app/config'
 import {
   appCardsSection,
   appConfigSection,
@@ -24,7 +25,9 @@ vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
   const { readFileSync } = await import('fs')
   const { dirname, join } = await import('path')
   const { fileURLToPath: toPath } = await import('url')
-  const imgBuffer = readFileSync(join(dirname(toPath(import.meta.url)), '../files/image-1050x700.jpg'))
+  const imgBuffer = readFileSync(
+    join(dirname(toPath(import.meta.url)), '../files/image-1050x700.jpg'),
+  )
   const original = await importOriginal<typeof import('@/lib/nirmalaVidyaApi')>()
   return {
     extractVimeoId: vi.fn(original.extractVimeoId),
@@ -75,7 +78,15 @@ function articleWithLectureLink(lectureId: number) {
           type: 'paragraph',
           version: 1,
           children: [
-            { type: 'text', text: 'Watch this:', format: 0, detail: 0, mode: 'normal', style: '', version: 1 },
+            {
+              type: 'text',
+              text: 'Watch this:',
+              format: 0,
+              detail: 0,
+              mode: 'normal',
+              style: '',
+              version: 1,
+            },
             {
               type: 'relationship',
               version: 1,
@@ -92,30 +103,22 @@ function articleWithLectureLink(lectureId: number) {
 describe('WeMeditateAppStatus Global', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let requiredAppPages: {
-    shriMatajiPage: number
-    sahajaYogaPage: number
-    explorePage: number
-    subtleSystemPage: number
-  }
+  // Every page relationship in the config's "Pages" tab is `required`, so
+  // updateGlobal rejects unless all are present. Build the set from the source
+  // list (one shared placeholder page) so it never drifts as pages are added.
+  let requiredAppPages: Record<string, number>
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
 
-    const [shriMatajiPage, sahajaYogaPage, explorePage, subtleSystemPage] = await Promise.all([
-      testData.createPage(payload, { title: 'Shri Mataji Page' }),
-      testData.createPage(payload, { title: 'Sahaja Yoga Page' }),
-      testData.createPage(payload, { title: 'Explore Page' }),
-      testData.createPage(payload, { title: 'Subtle System Page' }),
-    ])
-    requiredAppPages = {
-      shriMatajiPage: shriMatajiPage.id,
-      sahajaYogaPage: sahajaYogaPage.id,
-      explorePage: explorePage.id,
-      subtleSystemPage: subtleSystemPage.id,
-    }
+    const placeholderPage = await testData.createPage(payload, {
+      title: 'Required Page Placeholder',
+    })
+    requiredAppPages = Object.fromEntries(
+      APP_REQUIRED_PAGE_FIELDS.map((name) => [name, placeholderPage.id]),
+    ) as Record<string, number>
   })
 
   afterAll(async () => {
@@ -386,7 +389,7 @@ describe('WeMeditateAppStatus Global', () => {
   // Section 6 — Translations
   // ---------------------------------------------------------------------------
   describe('Section 6 — Translations', () => {
-    it('emits one aggregate per top-level schema tab + a manual-review group', async () => {
+    it('emits one aggregate per top-level schema tab', async () => {
       const report = await run(translationsSection, payload)
       const aggKeys = report.groups.filter((g) => g.type === 'aggregate').map((g) => g.key)
       expect(aggKeys).toEqual(
@@ -398,42 +401,7 @@ describe('WeMeditateAppStatus Global', () => {
           'translations-meditation',
         ]),
       )
-      const manual = report.groups.find((g) => g.key === 'manual-review')
-      expect(manual?.type).toBe('documents')
-      if (manual?.type !== 'documents') return
-      expect(manual.documents).toHaveLength(1)
-    })
-
-    it('manual-review row flips between "Never reviewed" and ISO timestamp; lastReviewedAt is per-locale', async () => {
-      const before = await run(translationsSection, payload)
-      const manualBefore = before.groups.find((g) => g.key === 'manual-review')
-      expect(manualBefore?.type).toBe('documents')
-      if (manualBefore?.type !== 'documents') return
-      expect(manualBefore.documents[0].label).toBe('Never reviewed')
-      expect(manualBefore.documents[0].checks[0].passed).toBe(false)
-
-      await payload.updateGlobal({
-        slug: 'wm-app-translations',
-        locale: 'cs',
-        data: { markReviewed: true },
-      })
-
-      const enAfter = await run(translationsSection, payload, 'en')
-      const enManual = enAfter.groups.find((g) => g.key === 'manual-review')
-      if (enManual?.type !== 'documents') return
-      // English locale unaffected — still never reviewed
-      expect(enManual.documents[0].label).toBe('Never reviewed')
-
-      const csAfter = await run(translationsSection, payload, 'cs')
-      const csManual = csAfter.groups.find((g) => g.key === 'manual-review')
-      if (csManual?.type !== 'documents') return
-      // Czech locale has a timestamp
-      expect(csManual.documents[0].label).not.toBe('Never reviewed')
-      expect(csManual.documents[0].checks[0].passed).toBe(true)
-
-      // The virtual markReviewed always reads as false
-      const cs = await payload.findGlobal({ slug: 'wm-app-translations', locale: 'cs' })
-      expect((cs as { markReviewed?: boolean }).markReviewed).toBe(false)
+      expect(report.groups.find((g) => g.key === 'manual-review')).toBeUndefined()
     })
   })
 
@@ -496,7 +464,9 @@ describe('WeMeditateAppStatus Global', () => {
       if (other?.type !== 'documents') return
       const otherReport = other.documents.find((d) => d.id === otherCard.id)!
       const failing = otherReport.checks.filter((c) => !c.passed).map((c) => c.key)
-      expect(failing).toEqual(expect.arrayContaining(['published', 'subtitle-set', 'button-label-set']))
+      expect(failing).toEqual(
+        expect.arrayContaining(['published', 'subtitle-set', 'button-label-set']),
+      )
     })
 
     it('summary excludes the optional other-cards group; optionalSummary includes it', async () => {

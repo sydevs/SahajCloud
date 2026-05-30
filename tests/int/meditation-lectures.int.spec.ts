@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type {
   Audience,
+  Client,
   Frame,
   Lecture,
   Meditation,
@@ -40,7 +41,11 @@ async function callEndpoint(
   payload: Payload,
   meditationId: number | string,
   query: Record<string, string | number | boolean> = {},
-  options: { skipDefaultAudiences?: boolean; defaultAudiences?: string } = {},
+  options: {
+    skipDefaultAudiences?: boolean
+    defaultAudiences?: string
+    user?: { id: number | string; collection: string }
+  } = {},
 ): Promise<{ status: number; headers: Headers; body: { docs: LecturePlayerData[] } | unknown }> {
   const finalQuery = options.skipDefaultAudiences
     ? query
@@ -61,6 +66,7 @@ async function callEndpoint(
     // `{ en: '...' }` objects.
     locale: 'en',
     fallbackLocale: 'en',
+    user: options.user,
   } as unknown as PayloadRequest
 
   const response = (await meditationLectures.handler(req)) as Response
@@ -72,6 +78,7 @@ async function callEndpoint(
 describe('meditationLectures endpoint', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
+  let adminUserId: number
 
   let meditation: Meditation
 
@@ -100,6 +107,7 @@ describe('meditationLectures endpoint', () => {
     const env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
+    adminUserId = env.adminUser.id
 
     nodeA = await testData.createSubtleSystemNode(payload, {}, { slug: 'mooladhara' })
     nodeB = await testData.createSubtleSystemNode(payload, {}, { slug: 'anahat' })
@@ -503,6 +511,41 @@ describe('meditationLectures endpoint', () => {
     expect(headers.get('Cache-Control')).toBe('public, max-age=600, s-maxage=600')
   })
 
+  it('threads client req through internal reads and skips query validation', async () => {
+    const client = (await testData.createClient(payload, adminUserId, {
+      name: 'Meditation Lectures Forwarding Test',
+    })) as Client
+
+    const findSpy = vi.spyOn(payload, 'find')
+    try {
+      const { status } = await callEndpoint(
+        payload,
+        meditation.id,
+        { limit: 5 },
+        {
+          defaultAudiences: audienceFilter,
+          user: { id: client.id, collection: 'clients' },
+        },
+      )
+      expect(status).toBe(200)
+
+      const lecturesCall = findSpy.mock.calls.find(
+        ([args]) => (args as { collection?: string }).collection === 'lectures',
+      )
+      expect(lecturesCall).toBeDefined()
+      const forwardedReq = (
+        lecturesCall![0] as {
+          req?: { user?: { id: unknown; collection: string }; context?: Record<string, unknown> }
+        }
+      ).req
+      expect(forwardedReq?.user?.id).toBe(client.id)
+      expect(forwardedReq?.user?.collection).toBe('clients')
+      expect(forwardedReq?.context?.['skipClientQueryValidation']).toBe(true)
+    } finally {
+      findSpy.mockRestore()
+    }
+  })
+
   it('treats unsorted/duplicated audiences as equivalent to the canonical sorted form', async () => {
     const messy = `${audience.id},${audience.id}`
     const a = await callEndpoint(payload, meditation.id, { limit: 10 }, {
@@ -532,11 +575,8 @@ describe('meditationLectures endpoint', () => {
       'subtitles',
       'thumbnailUrl',
       'title',
-      'videoUrl',
     ]
     expect(Object.keys(docs[0]).sort()).toEqual(expectedKeys)
-    // hlsUrl is the canonical name; videoUrl is a deprecated alias (#319)
-    expect(docs[0].hlsUrl).toBe(docs[0].videoUrl)
   })
 
   it('ad-hoc compute when cached weights are null', async () => {

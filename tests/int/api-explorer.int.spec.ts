@@ -417,16 +417,12 @@ describe('OpenAPI Spec Marker Utility', () => {
       for (const [routePath, ops] of Object.entries(result.paths!)) {
         if (!routePath.startsWith('/api/')) continue
         if (ops.delete) {
-          expect(
-            ops.delete['x-internal'],
-            `${routePath} DELETE should be marked internal`,
-          ).toBe(true)
+          expect(ops.delete['x-internal'], `${routePath} DELETE should be marked internal`).toBe(
+            true,
+          )
         }
         if (ops.patch) {
-          expect(
-            ops.patch['x-internal'],
-            `${routePath} PATCH should be marked internal`,
-          ).toBe(true)
+          expect(ops.patch['x-internal'], `${routePath} PATCH should be marked internal`).toBe(true)
         }
       }
     })
@@ -466,6 +462,125 @@ describe('OpenAPI Spec Marker Utility', () => {
       const result = filterSpec(emptySpec)
 
       expect(result).toEqual(emptySpec)
+    })
+  })
+
+  describe('Client read parameter injection (#419)', () => {
+    it('registers select / populate / depth / limit / page under components.parameters', () => {
+      const result = filterSpec(mockSpec)
+      const params = result.components?.parameters ?? {}
+      expect(params).toHaveProperty('select')
+      expect(params).toHaveProperty('populate')
+      expect(params).toHaveProperty('depth')
+      expect(params).toHaveProperty('limit')
+      expect(params).toHaveProperty('page')
+    })
+
+    it('attaches all five params to collection list GET (/api/pages)', () => {
+      const result = filterSpec(mockSpec)
+      const listOp = result.paths!['/api/pages']!.get!
+      const refs = (listOp.parameters ?? []).map((p) => p.$ref).filter(Boolean)
+      expect(refs).toContain('#/components/parameters/select')
+      expect(refs).toContain('#/components/parameters/populate')
+      expect(refs).toContain('#/components/parameters/depth')
+      expect(refs).toContain('#/components/parameters/limit')
+      expect(refs).toContain('#/components/parameters/page')
+    })
+
+    it('attaches select/populate/depth (no pagination) to findByID GET (/api/pages/{id})', () => {
+      const result = filterSpec(mockSpec)
+      const byIdOp = result.paths!['/api/pages/{id}']!.get!
+      const refs = (byIdOp.parameters ?? []).map((p) => p.$ref).filter(Boolean)
+      expect(refs).toContain('#/components/parameters/select')
+      expect(refs).toContain('#/components/parameters/populate')
+      expect(refs).toContain('#/components/parameters/depth')
+      // Pagination is meaningless on findByID — exclude
+      expect(refs).not.toContain('#/components/parameters/limit')
+      expect(refs).not.toContain('#/components/parameters/page')
+    })
+
+    it('skips operations marked x-internal (e.g. managers)', () => {
+      const result = filterSpec(mockSpec)
+      const managersOp = result.paths!['/api/managers']!.get!
+      const refs = (managersOp.parameters ?? []).map((p) => p.$ref).filter(Boolean)
+      expect(refs).not.toContain('#/components/parameters/select')
+      expect(refs).not.toContain('#/components/parameters/populate')
+    })
+
+    it('skips /api/globals/* paths (different param surface)', () => {
+      const result = filterSpec(mockSpec)
+      const globalOp = result.paths!['/api/globals/payload-job-stats']!.get!
+      const refs = (globalOp.parameters ?? []).map((p) => p.$ref).filter(Boolean)
+      expect(refs).not.toContain('#/components/parameters/select')
+      expect(refs).not.toContain('#/components/parameters/populate')
+    })
+
+    it('skips custom subpath endpoints (e.g. /api/lectures/for-audience)', () => {
+      const specWithCustom = {
+        ...mockSpec,
+        paths: {
+          ...mockSpec.paths,
+          '/api/lectures/for-audience': {
+            get: { summary: 'Audience-targeted lectures' },
+          },
+        },
+      }
+      const result = filterSpec(specWithCustom)
+      const customOp = result.paths!['/api/lectures/for-audience']!.get!
+      const refs = (customOp.parameters ?? []).map((p) => p.$ref).filter(Boolean)
+      expect(refs).not.toContain('#/components/parameters/select')
+      expect(refs).not.toContain('#/components/parameters/populate')
+    })
+
+    it('marks select as required (clients must always specify it)', () => {
+      const result = filterSpec(mockSpec)
+      const selectParam = result.components?.parameters?.select
+      expect(selectParam?.required).toBe(true)
+    })
+
+    it('documents deepObject serialization for select and populate', () => {
+      const result = filterSpec(mockSpec)
+      const selectParam = result.components?.parameters?.select
+      const populateParam = result.components?.parameters?.populate
+
+      expect(selectParam?.style).toBe('deepObject')
+      expect(selectParam?.explode).toBe(true)
+      expect(populateParam?.style).toBe('deepObject')
+      expect(populateParam?.explode).toBe(true)
+    })
+
+    it('allows populate values to be boolean or nested field-selection objects', () => {
+      const result = filterSpec(mockSpec)
+      const populateParam = result.components?.parameters?.populate
+      const additionalProperties = populateParam?.schema?.additionalProperties as
+        | { oneOf?: Array<Record<string, unknown>> }
+        | undefined
+
+      expect(additionalProperties?.oneOf).toContainEqual({ type: 'boolean' })
+      expect(additionalProperties?.oneOf).toContainEqual({
+        type: 'object',
+        additionalProperties: true,
+      })
+    })
+
+    it('allows select values to be boolean or nested field-selection objects', () => {
+      const result = filterSpec(mockSpec)
+      const selectParam = result.components?.parameters?.select
+      const additionalProperties = selectParam?.schema?.additionalProperties as
+        | { oneOf?: Array<Record<string, unknown>> }
+        | undefined
+
+      expect(additionalProperties?.oneOf).toContainEqual({ type: 'boolean' })
+      expect(additionalProperties?.oneOf).toContainEqual({
+        type: 'object',
+        additionalProperties: true,
+      })
+    })
+
+    it('documents Payload default depth', () => {
+      const result = filterSpec(mockSpec)
+      const depthParam = result.components?.parameters?.depth
+      expect(depthParam?.schema?.default).toBe(2)
     })
   })
 
@@ -611,8 +726,7 @@ describe('Custom Endpoint Shims', () => {
       expect(narratorParam?.required).toBe(true)
       expect(narratorParam?.schema?.type).toBe('string')
 
-      const successRef =
-        op.responses?.['200']?.content?.['application/json']?.schema?.$ref
+      const successRef = op.responses?.['200']?.content?.['application/json']?.schema?.$ref
       expect(successRef).toBe('#/components/schemas/Frames')
     })
 
@@ -708,7 +822,12 @@ describe('Custom Endpoint Shims', () => {
 
         // Old rule-data params must not be present on data endpoints anymore (moved to /for-user).
         const paramNames = (op.parameters ?? []).map((p) => p.name)
-        for (const ruleName of ['pathProgress', 'meditationsPerWeek', 'totalMeditationsViewed', 'totalLecturesViewed']) {
+        for (const ruleName of [
+          'pathProgress',
+          'meditationsPerWeek',
+          'totalMeditationsViewed',
+          'totalLecturesViewed',
+        ]) {
           expect(
             paramNames,
             `${path} should NOT expose old rule param '${ruleName}'`,
@@ -723,7 +842,11 @@ describe('Custom Endpoint Shims', () => {
       expect(successRef).toBe('#/components/schemas/AudienceIdList')
 
       const listSchema = CUSTOM_ENDPOINT_SCHEMAS.AudienceIdList as
-        | { type?: string; required?: string[]; properties?: { audiences?: { items?: { type?: string } } } }
+        | {
+            type?: string
+            required?: string[]
+            properties?: { audiences?: { items?: { type?: string } } }
+          }
         | undefined
       expect(listSchema?.type).toBe('object')
       expect(listSchema?.required).toContain('audiences')
@@ -732,7 +855,14 @@ describe('Custom Endpoint Shims', () => {
 
     it('meditations/:id/related-lectures returns LecturePlayerData via single $ref', () => {
       const op = CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/related-lectures']!.get!
-      const successSchema = (op.responses?.['200'] as { content?: Record<string, { schema: { properties?: { docs?: { items?: { $ref?: string; oneOf?: unknown } } } } }> })?.content?.['application/json']?.schema
+      const successSchema = (
+        op.responses?.['200'] as {
+          content?: Record<
+            string,
+            { schema: { properties?: { docs?: { items?: { $ref?: string; oneOf?: unknown } } } } }
+          >
+        }
+      )?.content?.['application/json']?.schema
       const items = successSchema?.properties?.docs?.items
       expect(items?.$ref).toBe('#/components/schemas/LecturePlayerData')
       expect(items?.oneOf).toBeUndefined()
@@ -840,10 +970,9 @@ describe('Custom Endpoint Shims', () => {
           const ref = (
             responses[code]!.content?.['application/json']?.schema as { $ref?: string } | undefined
           )?.$ref
-          expect(
-            ref,
-            `${path} ${code} should reference ErrorResponse`,
-          ).toBe('#/components/schemas/ErrorResponse')
+          expect(ref, `${path} ${code} should reference ErrorResponse`).toBe(
+            '#/components/schemas/ErrorResponse',
+          )
         }
       }
     })

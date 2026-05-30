@@ -16,7 +16,7 @@ import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/lib/a
 import { resendAdapter } from '@/lib/email/resendAdapter'
 import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
-import { scalarPlugin } from '@/lib/openapi'
+import { openapiEndpointAuth, scalarPlugin } from '@/lib/openapi'
 import { sentryPlugin } from '@/lib/sentryPlugin'
 import { getServerUrl } from '@/lib/serverUrl'
 import { usagePlugin } from '@/lib/usage'
@@ -89,10 +89,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
             path: '@/components/AdminProvider.tsx',
           },
         ],
-        beforeNavLinks: [
-          '@/components/admin/ProjectSelector',
-          '@/components/admin/AdminNavLinks',
-        ],
+        beforeNavLinks: ['@/components/admin/ProjectSelector', '@/components/admin/AdminNavLinks'],
         beforeDashboard: [
           '@/components/admin/Dashboard/InactiveAccountAlert',
           '@/components/admin/Dashboard/ProjectSelectionPrompt',
@@ -177,6 +174,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           description: `REST API for Sahaj Cloud CMS - We Meditate content management.`,
         },
         enabled: !isE2ETest, // Skip in E2E tests
+      }),
+      openapiEndpointAuth({
+        path: '/openapi-raw.json',
+        enabled: !isE2ETest,
       }),
       // Scalar API documentation UI (disabled in E2E tests)
       scalarPlugin({

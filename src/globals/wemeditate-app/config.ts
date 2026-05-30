@@ -11,26 +11,30 @@ export const VIBE_CHECK_IDENTIFIERS = [
   { label: 'BH Nothing', value: 'BH-NOTHING' },
 ]
 
-const READINESS_PAGE_FIELDS = [
-  { name: 'classesPage', description: 'Page describing live online classes for the app.' },
-  {
-    name: 'liveMeditationsPage',
-    description: 'Page describing the live meditations feature for the app.',
-  },
-  { name: 'techniquesPage', description: 'Page describing meditation techniques for the app.' },
-  { name: 'lecturesPage', description: 'Page describing the lectures feature for the app.' },
-  { name: 'privacyPage', description: 'Privacy policy page surfaced from the app.' },
-  { name: 'termsPage', description: 'Terms of service page surfaced from the app.' },
-] as const
+type AppPageField = {
+  name: string
+  description?: string
+  label?: string
+}
 
-const APP_DESTINATION_PAGE_FIELDS = [
-  { name: 'shriMatajiPage', description: 'Page about Shri Mataji surfaced from the app.' },
-  { name: 'sahajaYogaPage', description: 'Page about Sahaja Yoga surfaced from the app.' },
-  { name: 'explorePage', description: 'Explore section page surfaced from the app.' },
-  { name: 'subtleSystemPage', description: 'Subtle system page surfaced from the app.' },
-] as const
+const APP_PAGE_FIELDS: readonly AppPageField[] = [
+  { name: 'classesPage' },
+  { name: 'liveMeditationsPage' },
+  { name: 'explorePage', description: 'Page for exploring full app content' },
+  { name: 'exploreDeeperPage', description: 'Page for going deeper spiritually' },
+  { name: 'meditateTogetherPage', description: 'Page promoting collective meditation' },
+  { name: 'techniquesPage', description: 'Index page for techniques' },
+  { name: 'lecturesPage', description: "Index page for Shri Mataji's talks" },
+  { name: 'lessonsPage', label: 'Path Page', description: 'Index page for the path' },
+  { name: 'musicPage', description: 'Index page for music' },
+  { name: 'shriMatajiPage', description: 'Learn more about Shri Mataji.' },
+  { name: 'sahajaYogaPage', description: 'Learn more about Sahaja Yoga.' },
+  { name: 'subtleSystemPage', description: 'Learn more about the Subtle System.' },
+  { name: 'privacyPage' },
+  { name: 'termsPage' },
+]
 
-export const APP_REQUIRED_PAGE_FIELDS = READINESS_PAGE_FIELDS.map((p) => p.name)
+export const APP_REQUIRED_PAGE_FIELDS = APP_PAGE_FIELDS.map((p) => p.name)
 
 export const WeMeditateAppConfig: GlobalConfig = {
   slug: 'wm-app-config',
@@ -46,11 +50,13 @@ export const WeMeditateAppConfig: GlobalConfig = {
           label: 'Pages',
           description:
             'App-required pages. The same page is used for every locale; the localized content on each page is sourced at read time.',
-          fields: READINESS_PAGE_FIELDS.map((page) => ({
+          fields: APP_PAGE_FIELDS.map((page) => ({
             name: page.name,
+            ...(page.label ? { label: page.label } : {}),
             type: 'relationship' as const,
             relationTo: 'pages' as const,
-            admin: { description: page.description },
+            required: true,
+            ...(page.description ? { admin: { description: page.description } } : {}),
           })),
         },
         {
@@ -116,17 +122,7 @@ export const WeMeditateAppConfig: GlobalConfig = {
           ],
         },
         {
-          label: 'App Pages',
-          fields: APP_DESTINATION_PAGE_FIELDS.map(({ name, description }) => ({
-            name,
-            type: 'relationship' as const,
-            relationTo: 'pages' as const,
-            required: true,
-            admin: { description },
-          })),
-        },
-        {
-          label: 'General',
+          label: 'Misc',
           fields: [
             {
               name: 'fallbackLecture',
@@ -141,6 +137,7 @@ export const WeMeditateAppConfig: GlobalConfig = {
               fields: [
                 {
                   name: 'iosAppUrl',
+                  label: 'iOS App Url',
                   type: 'text',
                   admin: {
                     description: 'App Store URL for the iOS app.',

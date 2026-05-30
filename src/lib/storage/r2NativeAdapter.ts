@@ -6,7 +6,7 @@
  *
  * Automatically sanitizes filenames to create URL-safe slugs with unique suffixes.
  */
-import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
+import type { Adapter, HandleUpload } from '@payloadcms/plugin-cloud-storage/types'
 
 import { serverEnv } from '@/lib/env'
 
@@ -58,7 +58,7 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
   return ({ prefix }) => ({
     name: 'r2-native',
 
-    handleUpload: async ({ data, file, req }) => {
+    handleUpload: (async ({ data, file, req }) => {
       try {
         const filenamePreassigned = Boolean(req.context?.[R2_PREASSIGNED_FILENAME_CONTEXT_KEY])
         const finalFilename = filenamePreassigned ? file.filename : generateR2Key(file.filename)
@@ -81,6 +81,12 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
           },
         })
 
+        // When the filename was pre-assigned by r2FilenameHook, it's already
+        // saved to the DB by the cloud-storage plugin's beforeChange hook.
+        // Returning null skips the plugin's follow-up payload.update(), which
+        // would otherwise run all field validators on a partial-data update and
+        // fail required-field checks (title, thumbnail, frames) on new docs.
+        if (filenamePreassigned) return
         return { filename: finalFilename }
       } catch (error) {
         const key = prefix ? `${prefix}/${file.filename}` : file.filename
@@ -88,7 +94,7 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
         console.error('[R2] Upload error:', key, error)
         throw error
       }
-    },
+    }) as HandleUpload,
 
     handleDelete: async ({ filename }) => {
       try {

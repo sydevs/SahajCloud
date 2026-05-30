@@ -1,58 +1,53 @@
 #!/usr/bin/env node
 
 /**
- * Payload Types Generation Hook (PostToolUse)
+ * Payload Types Generation Hook (PostToolUse / Edit|Write)
  *
- * Automatically regenerates TypeScript types when collection schemas change.
- * Runs silently and only reports errors.
+ * Regenerates TypeScript types when collection / block / field / global schemas
+ * or payload.config.ts change. Runs silently on success; reports errors only.
  */
 
-import { readFileSync } from 'fs';
-import { execSync } from 'child_process';
+import { execSync } from 'child_process'
+import { readFileSync } from 'fs'
 
-// Read hook input from stdin
-const input = JSON.parse(readFileSync(0, 'utf-8'));
+const input = JSON.parse(readFileSync(0, 'utf-8'))
+const filePath = input?.tool_input?.file_path ?? ''
 
-const files = input.files || [];
+const projectDir = process.env.CLAUDE_PROJECT_DIR || ''
+const rel = filePath.startsWith(projectDir + '/') ? filePath.slice(projectDir.length + 1) : filePath
 
-// Check if any collection files or payload config were modified
-const isCollectionFile = files.some(file =>
-  file.includes('/collections/') ||
-  file.includes('payload.config.ts') ||
-  file.includes('/blocks/')
-);
+const shouldRegenerate =
+  /^src\/collections\//.test(rel) ||
+  /^src\/blocks\//.test(rel) ||
+  /^src\/fields\//.test(rel) ||
+  /^src\/globals\//.test(rel) ||
+  rel === 'src/payload.config.ts'
 
-if (!isCollectionFile) {
-  console.log(JSON.stringify({
-    continue: true,
-    suppressOutput: true
-  }));
-  process.exit(0);
+if (!shouldRegenerate) {
+  console.log(JSON.stringify({ continue: true, suppressOutput: true }))
+  process.exit(0)
 }
 
 try {
-  console.error('🔄 Regenerating Payload types...');
-
   execSync('pnpm generate:types', {
-    cwd: process.env.CLAUDE_PROJECT_DIR,
+    cwd: projectDir,
     encoding: 'utf-8',
-    stdio: 'pipe'
-  });
-
-  console.error('✅ Types regenerated successfully');
-
-  console.log(JSON.stringify({
-    continue: true,
-    suppressOutput: true
-  }));
-  process.exit(0);
-
+    stdio: 'pipe',
+    timeout: 30000,
+  })
+  console.log(JSON.stringify({ continue: true, suppressOutput: true }))
+  process.exit(0)
 } catch (error) {
-  const output = error.stdout || error.stderr || error.message;
-
-  console.log(JSON.stringify({
-    continue: true,
-    additionalContext: `Failed to regenerate Payload types:\n\n${output}\n\nYou may need to run "pnpm generate:types" manually.`
-  }));
-  process.exit(0);
+  const output = (error.stdout || error.stderr || error.message || '')
+    .toString()
+    .split('\n')
+    .slice(-20)
+    .join('\n')
+  console.log(
+    JSON.stringify({
+      continue: true,
+      additionalContext: `Failed to regenerate Payload types:\n\n${output}\n\nRun \`pnpm generate:types\` manually to see full output.`,
+    }),
+  )
+  process.exit(0)
 }

@@ -328,6 +328,7 @@ export interface Page {
   featuredVideo?: (number | null) | Video;
   tags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] | null;
   webUrl?: string | null;
+  appUrl?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -434,10 +435,6 @@ export interface Author {
  */
 export interface Video {
   id: number;
-  /**
-   * DEPRECATED: read `hlsUrl` instead. Will be removed after the mobile-app cutover (#319).
-   */
-  streamUrl?: string | null;
   hlsUrl?: string | null;
   mp4Url?: string | null;
   previewUrl?: string | null;
@@ -447,14 +444,11 @@ export interface Video {
    */
   title: string;
   subtitles?: {
-    captions: {
-      duration: number;
-      content: string;
-      startTime: string;
-      [k: string]: unknown;
-    }[];
-    [k: string]: unknown;
-  };
+    content: string;
+    startTimeMs: number;
+    endTimeMs: number;
+    durationMs?: number;
+  }[];
   tags: 'testimonial' | 'workshop' | 'event' | 'technique';
   /**
    * Auto-populated video metadata (duration, format, etc.)
@@ -470,9 +464,6 @@ export interface Video {
     | null;
   updatedAt: string;
   createdAt: string;
-  /**
-   * DEPRECATED: read `mp4Url` instead. Will be removed after the mobile-app cutover (#319).
-   */
   url?: string | null;
   thumbnailURL?: string | null;
   filename?: string | null;
@@ -726,14 +717,11 @@ export interface Lesson {
      */
     media?: (number | null) | File;
     subtitles?: {
-      captions: {
-        duration: number;
-        content: string;
-        startTime: string;
-        [k: string]: unknown;
-      }[];
-      [k: string]: unknown;
-    };
+      content: string;
+      startTimeMs: number;
+      endTimeMs: number;
+      durationMs?: number;
+    }[];
     id?: string | null;
   }[];
   /**
@@ -745,14 +733,11 @@ export interface Lesson {
    */
   introAudio?: (number | null) | File;
   introSubtitles?: {
-    captions: {
-      duration: number;
-      content: string;
-      startTime: string;
-      [k: string]: unknown;
-    }[];
-    [k: string]: unknown;
-  };
+    content: string;
+    startTimeMs: number;
+    endTimeMs: number;
+    durationMs?: number;
+  }[];
   article?: {
     root: {
       type: string;
@@ -768,7 +753,7 @@ export interface Lesson {
     };
     [k: string]: unknown;
   } | null;
-  unit: 'Unit 1' | 'Unit 2' | 'Unit 3' | 'Unit 4';
+  unit: 'Unit 1' | 'Unit 2' | 'Unit 3' | 'Unit 4' | 'Unit 5' | 'Unit 6' | 'Unit 7';
   /**
    * This will determine the order of the path steps
    */
@@ -787,10 +772,6 @@ export interface Lesson {
 export interface File {
   id: number;
   createdAt: string;
-  /**
-   * DEPRECATED: read `hlsUrl` instead. Will be removed after the mobile-app cutover (#319).
-   */
-  streamUrl?: string | null;
   hlsUrl?: string | null;
   mp4Url?: string | null;
   previewUrl?: string | null;
@@ -1564,10 +1545,6 @@ export interface SubtleSystemNode {
  */
 export interface Frame {
   id: number;
-  /**
-   * DEPRECATED: read `hlsUrl` instead. Will be removed after the mobile-app cutover (#319).
-   */
-  streamUrl?: string | null;
   hlsUrl?: string | null;
   mp4Url?: string | null;
   previewUrl?: string | null;
@@ -2234,6 +2211,7 @@ export interface PagesSelect<T extends boolean = true> {
   featuredVideo?: T;
   tags?: T;
   webUrl?: T;
+  appUrl?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -2322,7 +2300,6 @@ export interface AlbumsSelect<T extends boolean = true> {
  * via the `definition` "videos_select".
  */
 export interface VideosSelect<T extends boolean = true> {
-  streamUrl?: T;
   hlsUrl?: T;
   mp4Url?: T;
   previewUrl?: T;
@@ -2402,7 +2379,6 @@ export interface LecturesSelect<T extends boolean = true> {
  * via the `definition` "frames_select".
  */
 export interface FramesSelect<T extends boolean = true> {
-  streamUrl?: T;
   hlsUrl?: T;
   mp4Url?: T;
   previewUrl?: T;
@@ -2478,7 +2454,6 @@ export interface ImagesSelect<T extends boolean = true> {
  */
 export interface FilesSelect<T extends boolean = true> {
   createdAt?: T;
-  streamUrl?: T;
   hlsUrl?: T;
   mp4Url?: T;
   previewUrl?: T;
@@ -3030,6 +3005,7 @@ export interface WmWebTranslation {
     | number
     | boolean
     | null;
+  _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -3039,30 +3015,50 @@ export interface WmWebTranslation {
  */
 export interface WmAppConfig {
   id: number;
+  classesPage: number | Page;
+  liveMeditationsPage: number | Page;
   /**
-   * Page describing live online classes for the app.
+   * Page for exploring full app content
    */
-  classesPage?: (number | null) | Page;
+  explorePage: number | Page;
   /**
-   * Page describing the live meditations feature for the app.
+   * Page for going deeper spiritually
    */
-  liveMeditationsPage?: (number | null) | Page;
+  exploreDeeperPage: number | Page;
   /**
-   * Page describing meditation techniques for the app.
+   * Page promoting collective meditation
    */
-  techniquesPage?: (number | null) | Page;
+  meditateTogetherPage: number | Page;
   /**
-   * Page describing the lectures feature for the app.
+   * Index page for techniques
    */
-  lecturesPage?: (number | null) | Page;
+  techniquesPage: number | Page;
   /**
-   * Privacy policy page surfaced from the app.
+   * Index page for Shri Mataji's talks
    */
-  privacyPage?: (number | null) | Page;
+  lecturesPage: number | Page;
   /**
-   * Terms of service page surfaced from the app.
+   * Index page for the path
    */
-  termsPage?: (number | null) | Page;
+  lessonsPage: number | Page;
+  /**
+   * Index page for music
+   */
+  musicPage: number | Page;
+  /**
+   * Learn more about Shri Mataji.
+   */
+  shriMatajiPage: number | Page;
+  /**
+   * Learn more about Sahaja Yoga.
+   */
+  sahajaYogaPage: number | Page;
+  /**
+   * Learn more about the Subtle System.
+   */
+  subtleSystemPage: number | Page;
+  privacyPage: number | Page;
+  termsPage: number | Page;
   /**
    * Self-realization meditation for new users.
    */
@@ -3100,22 +3096,6 @@ export interface WmAppConfig {
       }[]
     | null;
   /**
-   * Page about Shri Mataji surfaced from the app.
-   */
-  shriMatajiPage: number | Page;
-  /**
-   * Page about Sahaja Yoga surfaced from the app.
-   */
-  sahajaYogaPage: number | Page;
-  /**
-   * Explore section page surfaced from the app.
-   */
-  explorePage: number | Page;
-  /**
-   * Subtle system page surfaced from the app.
-   */
-  subtleSystemPage: number | Page;
-  /**
    * Lecture shown when no personalized lecture content is available.
    */
   fallbackLecture?: (number | null) | Lecture;
@@ -3136,8 +3116,8 @@ export interface WmAppConfig {
  */
 export interface WmAppTranslation {
   id: number;
-  onboarding_welcome?: {
-    strings?:
+  onboarding?: {
+    welcome?:
       | {
           [k: string]: unknown;
         }
@@ -3149,7 +3129,7 @@ export interface WmAppTranslation {
     /**
      * Inline legal disclaimer below the primary CTAs. Renders two inline links to the in-app Terms and Privacy Policy webviews (URLs use the wemeditate://legal/* scheme — see ticket for full reference). Translators control word order, link placement, and the connector between the two link labels.
      */
-    legal_disclaimer?: {
+    welcome_legal_disclaimer?: {
       root: {
         type: string;
         children: {
@@ -3164,27 +3144,25 @@ export interface WmAppTranslation {
       };
       [k: string]: unknown;
     } | null;
-  };
-  onboarding_name?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  onboarding_greeting?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  onboarding_user_type?: {
-    strings?:
+    name?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    greeting?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    user_type?:
       | {
           [k: string]: unknown;
         }
@@ -3196,7 +3174,7 @@ export interface WmAppTranslation {
     /**
      * Screen title prompt (e.g. 'Have you tried Sahaja Yoga before?'). The brand fragment 'Sahaja Yoga' is rendered as a bold inline span; translators may choose a different word to bold or apply no bold per locale convention.
      */
-    title?: {
+    user_type_title?: {
       root: {
         type: string;
         children: {
@@ -3211,9 +3189,7 @@ export interface WmAppTranslation {
       };
       [k: string]: unknown;
     } | null;
-  };
-  onboarding_carousel?: {
-    strings?:
+    carousel?:
       | {
           [k: string]: unknown;
         }
@@ -3225,7 +3201,7 @@ export interface WmAppTranslation {
     /**
      * Slide 2 title (e.g. 'Get to know your true self'). The 'true self' fragment is rendered as a bold inline span; the Flutter renderer may also apply an accent colour to bolded segments on this slide.
      */
-    page_true_self_title?: {
+    carousel_page_true_self_title?: {
       root: {
         type: string;
         children: {
@@ -3240,9 +3216,7 @@ export interface WmAppTranslation {
       };
       [k: string]: unknown;
     } | null;
-  };
-  onboarding_consent_modal?: {
-    strings?:
+    consent_modal?:
       | {
           [k: string]: unknown;
         }
@@ -3254,7 +3228,7 @@ export interface WmAppTranslation {
     /**
      * Third paragraph listing categories that are never sent for advertising (mood, goals, hand sensations, reflections, class location, spiritual-practice details). Lead phrase 'We'll never share' is rendered as a bold inline span. Must remain consistent with the privacy filter in analytics-simplified/03-marketing-event-taxonomy.md §2.
      */
-    body_never_share?: {
+    consent_modal_body_never_share?: {
       root: {
         type: string;
         children: {
@@ -3272,7 +3246,7 @@ export interface WmAppTranslation {
     /**
      * Fourth paragraph: short statement that the app never sells user data. Phrase 'we never sell' is rendered as a bold inline span.
      */
-    body_never_sell?: {
+    consent_modal_body_never_sell?: {
       root: {
         type: string;
         children: {
@@ -3290,7 +3264,7 @@ export interface WmAppTranslation {
     /**
      * First paragraph of the consent modal. Contains an inline link (e.g. 'what we share') opening the privacy-detail sheet that lists the exact fields sent to Meta, Apple Search Ads and Google Ads. Link URL uses the wemeditate://legal/what-we-share scheme.
      */
-    body_intro?: {
+    consent_modal_body_intro?: {
       root: {
         type: string;
         children: {
@@ -3306,179 +3280,185 @@ export interface WmAppTranslation {
       [k: string]: unknown;
     } | null;
   };
-  daily_main?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  daily_common?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  daily_load_info?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  path_overview?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  path_info?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  path_step_1?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  path_step_2?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  path_step_3?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  path_step_4?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  path_step_complete?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  explore_overview?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  explore_subtle_system?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  explore_talks_intro?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  explore_talks_list?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  explore_talks_player?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  profile_main?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  profile_favourites?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  profile_history?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  profile_account?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  profile_privacy_advertising?: {
-    strings?:
+  daily?: {
+    main?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    common?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    load_info?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  path?: {
+    overview?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    info?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    step_1?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    step_2?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    step_3?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    step_4?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    step_complete?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  explore?: {
+    overview?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    subtle_system?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    talks_intro?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    talks_list?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    talks_player?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  profile?: {
+    main?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    favourites?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    history?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    account?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    privacy_advertising?:
       | {
           [k: string]: unknown;
         }
@@ -3490,7 +3470,7 @@ export interface WmAppTranslation {
     /**
      * Third paragraph of the advertising section. Covers both the never-shared categories AND the never-sell statement in a single paragraph with two bold spans ('We'll never share' / 'we never sell'). Must remain consistent with analytics-simplified/03-marketing-event-taxonomy.md §2.
      */
-    advertising_body_never_share?: {
+    privacy_advertising_advertising_body_never_share?: {
       root: {
         type: string;
         children: {
@@ -3508,7 +3488,7 @@ export interface WmAppTranslation {
     /**
      * First paragraph of the advertising section. Contains an inline link (e.g. 'what we share') that opens the Privacy Policy page (CMS page id 73, scrolled to the 'what we share' heading) — same link target as onboarding_consent_modal.body_intro.
      */
-    advertising_body_intro?: {
+    privacy_advertising_advertising_body_intro?: {
       root: {
         type: string;
         children: {
@@ -3523,36 +3503,36 @@ export interface WmAppTranslation {
       };
       [k: string]: unknown;
     } | null;
+    contact?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
   };
-  profile_contact?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  meditation_intent?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  meditation_reminder?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  meditation_footsoak?: {
-    strings?:
+  meditation?: {
+    intent?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    reminder?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    footsoak?:
       | {
           [k: string]: unknown;
         }
@@ -3564,7 +3544,7 @@ export interface WmAppTranslation {
     /**
      * Body copy of the foot-soak screen. Contains a short emphasised span (typically italic, e.g. 'really') that translators position freely within the sentence.
      */
-    description?: {
+    footsoak_description?: {
       root: {
         type: string;
         children: {
@@ -3579,72 +3559,72 @@ export interface WmAppTranslation {
       };
       [k: string]: unknown;
     } | null;
+    player?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    vibes_check?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    feedback?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
   };
-  meditation_player?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  meditation_vibes_check?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  meditation_feedback?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  auth_common?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  auth_login?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  auth_restore_password?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  auth_restore_password_email_sent?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  auth_create_account?: {
-    strings?:
+  auth?: {
+    common?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    login?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    restore_password?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    restore_password_email_sent?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    create_account?:
       | {
           [k: string]: unknown;
         }
@@ -3656,7 +3636,7 @@ export interface WmAppTranslation {
     /**
      * Consent checkbox label on the account creation screen. Contains two inline links (Terms & Conditions, Privacy Policy) opening the corresponding in-app webviews (wemeditate://legal/terms, wemeditate://legal/privacy). Independent of the ad-measurement consent.
      */
-    consent_label?: {
+    create_account_consent_label?: {
       root: {
         type: string;
         children: {
@@ -3690,14 +3670,7 @@ export interface WmAppTranslation {
     | number
     | boolean
     | null;
-  /**
-   * Save the global with this checked to record that you reviewed this locale’s translations now. The checkbox always reads as off.
-   */
-  markReviewed?: boolean | null;
-  /**
-   * Last time an admin manually marked translations reviewed for this locale.
-   */
-  lastReviewedAt?: string | null;
+  _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -4099,6 +4072,7 @@ export interface SyAtlasTranslation {
     | number
     | boolean
     | null;
+  _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -4141,6 +4115,7 @@ export interface WmWebConfigSelect<T extends boolean = true> {
 export interface WmWebTranslationsSelect<T extends boolean = true> {
   common?: T;
   navigation?: T;
+  _status?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -4152,8 +4127,16 @@ export interface WmWebTranslationsSelect<T extends boolean = true> {
 export interface WmAppConfigSelect<T extends boolean = true> {
   classesPage?: T;
   liveMeditationsPage?: T;
+  explorePage?: T;
+  exploreDeeperPage?: T;
+  meditateTogetherPage?: T;
   techniquesPage?: T;
   lecturesPage?: T;
+  lessonsPage?: T;
+  musicPage?: T;
+  shriMatajiPage?: T;
+  sahajaYogaPage?: T;
+  subtleSystemPage?: T;
   privacyPage?: T;
   termsPage?: T;
   selfRealizationMeditation?: T;
@@ -4166,10 +4149,6 @@ export interface WmAppConfigSelect<T extends boolean = true> {
         subtitles?: T;
         id?: T;
       };
-  shriMatajiPage?: T;
-  sahajaYogaPage?: T;
-  explorePage?: T;
-  subtleSystemPage?: T;
   fallbackLecture?: T;
   iosAppUrl?: T;
   androidAppUrl?: T;
@@ -4182,86 +4161,85 @@ export interface WmAppConfigSelect<T extends boolean = true> {
  * via the `definition` "wm-app-translations_select".
  */
 export interface WmAppTranslationsSelect<T extends boolean = true> {
-  onboarding_welcome?:
+  onboarding?:
     | T
     | {
-        strings?: T;
-        legal_disclaimer?: T;
+        welcome?: T;
+        welcome_legal_disclaimer?: T;
+        name?: T;
+        greeting?: T;
+        user_type?: T;
+        user_type_title?: T;
+        carousel?: T;
+        carousel_page_true_self_title?: T;
+        consent_modal?: T;
+        consent_modal_body_never_share?: T;
+        consent_modal_body_never_sell?: T;
+        consent_modal_body_intro?: T;
       };
-  onboarding_name?: T;
-  onboarding_greeting?: T;
-  onboarding_user_type?:
+  daily?:
     | T
     | {
-        strings?: T;
-        title?: T;
+        main?: T;
+        common?: T;
+        load_info?: T;
       };
-  onboarding_carousel?:
+  path?:
     | T
     | {
-        strings?: T;
-        page_true_self_title?: T;
+        overview?: T;
+        info?: T;
+        step_1?: T;
+        step_2?: T;
+        step_3?: T;
+        step_4?: T;
+        step_complete?: T;
       };
-  onboarding_consent_modal?:
+  explore?:
     | T
     | {
-        strings?: T;
-        body_never_share?: T;
-        body_never_sell?: T;
-        body_intro?: T;
+        overview?: T;
+        subtle_system?: T;
+        talks_intro?: T;
+        talks_list?: T;
+        talks_player?: T;
       };
-  daily_main?: T;
-  daily_common?: T;
-  daily_load_info?: T;
-  path_overview?: T;
-  path_info?: T;
-  path_step_1?: T;
-  path_step_2?: T;
-  path_step_3?: T;
-  path_step_4?: T;
-  path_step_complete?: T;
-  explore_overview?: T;
-  explore_subtle_system?: T;
-  explore_talks_intro?: T;
-  explore_talks_list?: T;
-  explore_talks_player?: T;
-  profile_main?: T;
-  profile_favourites?: T;
-  profile_history?: T;
-  profile_account?: T;
-  profile_privacy_advertising?:
+  profile?:
     | T
     | {
-        strings?: T;
-        advertising_body_never_share?: T;
-        advertising_body_intro?: T;
+        main?: T;
+        favourites?: T;
+        history?: T;
+        account?: T;
+        privacy_advertising?: T;
+        privacy_advertising_advertising_body_never_share?: T;
+        privacy_advertising_advertising_body_intro?: T;
+        contact?: T;
       };
-  profile_contact?: T;
-  meditation_intent?: T;
-  meditation_reminder?: T;
-  meditation_footsoak?:
+  meditation?:
     | T
     | {
-        strings?: T;
-        description?: T;
+        intent?: T;
+        reminder?: T;
+        footsoak?: T;
+        footsoak_description?: T;
+        player?: T;
+        vibes_check?: T;
+        feedback?: T;
       };
-  meditation_player?: T;
-  meditation_vibes_check?: T;
-  meditation_feedback?: T;
-  auth_common?: T;
-  auth_login?: T;
-  auth_restore_password?: T;
-  auth_restore_password_email_sent?: T;
-  auth_create_account?:
+  auth?:
     | T
     | {
-        strings?: T;
-        consent_label?: T;
+        common?: T;
+        login?: T;
+        restore_password?: T;
+        restore_password_email_sent?: T;
+        create_account?: T;
+        create_account_consent_label?: T;
       };
   navigation?: T;
   general?: T;
-  markReviewed?: T;
-  lastReviewedAt?: T;
+  _status?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -4308,6 +4286,7 @@ export interface SyAtlasTranslationsSelect<T extends boolean = true> {
   common?: T;
   map?: T;
   location?: T;
+  _status?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

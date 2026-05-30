@@ -117,8 +117,12 @@ This runs two commands in order:
 
 2. **deploy:app** - Deploys the Worker application:
    ```bash
-   wrangler deploy
+   pnpm exec wrangler deploy --experimental-autoconfig=false --env=""
    ```
+
+   The explicit `--env=""` targets Wrangler's top-level production configuration.
+   `--experimental-autoconfig=false` keeps Wrangler on the configured Worker path so the
+   `[build]` command in `wrangler.toml` runs `opennextjs-cloudflare build` before upload.
 
 ### How Migrations Work
 
@@ -712,6 +716,7 @@ The application uses **Wrangler Environments** to manage different configuration
 
 - **Production** (`NODE_ENV=production`):
   - Uses default (top-level) configuration from `wrangler.toml`
+  - Deploy commands pass `--env=""` to force the top-level configuration
   - Connects to remote D1 database when `remote = true`
   - Production environment variables
 

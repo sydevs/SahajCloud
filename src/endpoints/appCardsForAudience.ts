@@ -3,6 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
+import { asTrustedReq } from '@/lib/usage/hooks'
 import { weightedSample } from '@/lib/weightedSample'
 import type { AppCard } from '@/payload-types'
 
@@ -41,7 +42,6 @@ export const appCardsForAudience: Endpoint = {
     }
 
     const { audiences: audienceIds, targetSection, limit } = parsed.data
-
     const { docs } = await req.payload.find({
       collection: 'app-cards',
       where: {
@@ -54,7 +54,7 @@ export const appCardsForAudience: Endpoint = {
       limit: 200,
       depth: 1,
       pagination: false,
-      req,
+      req: asTrustedReq(req),
     })
 
     const eligible = (docs as AppCard[]).filter((card) => {

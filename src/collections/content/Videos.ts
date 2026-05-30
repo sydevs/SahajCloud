@@ -1,14 +1,8 @@
 import type { CollectionConfig } from 'payload'
 
-import {
-  hlsUrlField,
-  mp4UrlField,
-  previewUrlField,
-  streamUrlField,
-  virtualUrlField,
-} from '@/lib/storage/urlFields'
-import { subtitlesJsonSchema, validateSubtitles } from '@/lib/subtitles'
 import { mediaField } from '@/fields'
+import { hlsUrlField, mp4UrlField, previewUrlField } from '@/lib/storage/urlFields'
+import { subtitlesJsonSchema, validateSubtitles } from '@/lib/subtitles'
 
 export const Videos: CollectionConfig = {
   slug: 'videos',
@@ -27,11 +21,6 @@ export const Videos: CollectionConfig = {
     defaultColumns: ['title', 'tags', 'previewUrl'],
   },
   fields: [
-    // Virtual URL fields for Cloudflare Stream
-    // mp4Url: MP4 download URL, hlsUrl: HLS streaming URL, previewUrl: thumbnail
-    // url + streamUrl are deprecated aliases pending mobile-app cutover (#319)
-    virtualUrlField({ collection: 'videos', adapter: 'cloudflare-stream' }),
-    streamUrlField({ collection: 'videos' }),
     hlsUrlField({ collection: 'videos' }),
     mp4UrlField({ collection: 'videos' }),
     previewUrlField({ collection: 'videos' }),
@@ -49,7 +38,7 @@ export const Videos: CollectionConfig = {
       name: 'subtitles',
       type: 'json',
       admin: {
-        description: 'Subtitle captions: { captions: [{ duration, content, startTime }] }',
+        description: 'Subtitle cues: [{ startTimeMs, endTimeMs, durationMs?, content }]',
       },
       validate: validateSubtitles,
       typescriptSchema: [() => subtitlesJsonSchema],

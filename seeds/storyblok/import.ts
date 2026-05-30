@@ -398,7 +398,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     }
 
     // Parse subtitles if available
-    let introSubtitles: Record<string, unknown> | undefined
+    let introSubtitles: Subtitles | undefined
     if (content.Audio_intro?.[0]?.Subtitles?.filename) {
       try {
         introSubtitles = await this.parseSubtitles(content.Audio_intro[0].Subtitles.filename)
@@ -808,20 +808,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       return undefined
     }
 
-    // Strip legacy startOfParagraph field from captions before validation
-    if (
-      typeof parsed === 'object' &&
-      parsed !== null &&
-      'captions' in parsed &&
-      Array.isArray((parsed as Record<string, unknown>).captions)
-    ) {
-      ;(parsed as { captions: Record<string, unknown>[] }).captions = (
-        parsed as { captions: Record<string, unknown>[] }
-      ).captions.map((caption) => {
-        const { startOfParagraph, ...rest } = caption
-        return rest
-      })
-    }
+    parsed = this.normalizeSubtitles(parsed)
 
     // Validate against schema
     const result = subtitlesZodSchema.safeParse(parsed)
@@ -835,6 +822,59 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     }
 
     return result.data
+  }
+
+  private normalizeSubtitles(value: unknown): unknown {
+    if (!this.isRecord(value) || !Array.isArray(value.captions)) {
+      return value
+    }
+
+    const captions = value.captions
+    const startTimes = captions.map((caption) =>
+      this.isRecord(caption) ? this.parseSubtitleTimeMs(caption.startTime) : null,
+    )
+
+    return captions.map((caption, index) => {
+      const captionRecord = this.isRecord(caption) ? caption : {}
+      const startTimeMs = startTimes[index] ?? Number.NaN
+      const sourceDuration = captionRecord.duration
+      const sourceDurationMs =
+        typeof sourceDuration === 'number' && Number.isFinite(sourceDuration) && sourceDuration > 0
+          ? Math.round(sourceDuration * 1000)
+          : undefined
+      const nextStartTimeMs = startTimes[index + 1]
+      const inferredDurationMs =
+        typeof nextStartTimeMs === 'number' && nextStartTimeMs >= startTimeMs
+          ? nextStartTimeMs - startTimeMs
+          : undefined
+      const durationMs = sourceDurationMs ?? inferredDurationMs
+
+      return {
+        content: captionRecord.content,
+        startTimeMs,
+        endTimeMs: startTimeMs + (durationMs ?? 0),
+        ...(durationMs !== undefined ? { durationMs } : {}),
+      }
+    })
+  }
+
+  private parseSubtitleTimeMs(value: unknown): number | null {
+    if (typeof value !== 'string') return null
+
+    const match = value.trim().match(/^(\d+):([0-5]\d):([0-5]\d)(?:\.(\d{1,3}))?$/)
+    if (!match) return null
+
+    const [, hours, minutes, seconds, milliseconds = '0'] = match
+    return (
+      Number.parseInt(hours, 10) * 60 * 60 * 1000 +
+      Number.parseInt(minutes, 10) * 60 * 1000 +
+      Number.parseInt(seconds, 10) * 1000 +
+      Number.parseInt(milliseconds.padEnd(3, '0'), 10)
+    )
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
   }
 
   // ============================================================================

@@ -66,7 +66,7 @@
     },
     "core-pages": {
       "label": "Core app pages",
-      "description": "All six required app pages are published with localized content."
+      "description": "All ten required app pages are published with localized content."
     },
     "duration": {
       "label": "Duration user choices",
@@ -83,10 +83,6 @@
     "lesson-referenced-subtitles": {
       "label": "Lesson-referenced lecture subtitles",
       "description": "Every lecture linked from an in-scope lesson has subtitles available for this locale."
-    },
-    "manual-review": {
-      "label": "Manual review",
-      "description": "An admin has marked translations reviewed for this locale at least once."
     },
     "non-featured-afternoon": {
       "label": "Non-featured afternoon meditations",
@@ -115,6 +111,10 @@
     "priority-with-userchoice": {
       "label": "Prioritized lectures with user-choice tags",
       "description": "At least ten lectures have a priority above zero and at least one user-choice tag."
+    },
+    "publish-status": {
+      "label": "Publish status",
+      "description": "Translations have been published for this locale."
     },
     "self-realization-meditation": {
       "label": "Self-realization meditation",
@@ -218,6 +218,10 @@
       "label": "Intro audio set",
       "description": "The lesson has an intro-audio file assigned."
     },
+    "is-published": {
+      "label": "Translations published",
+      "description": "The translations global is published for this locale."
+    },
     "meditation-afternoon-published": {
       "label": "Afternoon meditation published",
       "description": "The user choice has a published afternoon meditation assigned for this locale."
@@ -257,10 +261,6 @@
     "relationship-set": {
       "label": "Relationship set",
       "description": "A relationship value is assigned."
-    },
-    "reviewed-this-cycle": {
-      "label": "Reviewed at least once",
-      "description": "An admin has manually marked translations reviewed for this locale."
     },
     "subtitle-set": {
       "label": "Subtitle set",
