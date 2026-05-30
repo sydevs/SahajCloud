@@ -34,6 +34,8 @@ test('create, update, and delete a Meditation against preview', async ({ request
     type: 'quick',
   }
 
+  // Payload REST upload convention: `_payload` carries the JSON doc, `file` carries the binary.
+  // https://payloadcms.com/docs/rest-api/overview#uploads
   const createRes = await request.post('/api/meditations', {
     headers,
     multipart: {

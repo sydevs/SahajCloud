@@ -22,6 +22,8 @@ test('create, update, and delete a Song against preview', async ({ request }) =>
   const title = `smoke-${runId()}-song`
   const payload = { title, album: albums[0].id }
 
+  // Payload REST upload convention: `_payload` carries the JSON doc, `file` carries the binary.
+  // https://payloadcms.com/docs/rest-api/overview#uploads
   const createRes = await request.post('/api/songs', {
     headers,
     multipart: {

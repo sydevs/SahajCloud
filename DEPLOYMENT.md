@@ -790,6 +790,16 @@ CDN:    assets.sydevelopers  CDN:    pub-<hash>.r2.dev   (default R2 dev URL)
 
 **Account-scoped caveat.** Cloudflare Images and Stream are billed per-account, not per-env. Preview shares those namespaces with prod for now. Issue [#432](https://github.com/sahaja-yoga-developers/sy-devs-cms/issues/432) tracks the per-env isolation work. Until it lands, smoke tests are scoped to R2-backed collections (Meditations, Songs, Lectures).
 
+### Threat model
+
+The preview Worker is reachable at `*.workers.dev` with the documented admin credentials (the same ones in [CLAUDE.md](CLAUDE.md)). Anyone who guesses the URL can log in and browse cloned content. This is acceptable because:
+
+- PII is stripped by [scripts/sanitize-preview-dump.ts](scripts/sanitize-preview-dump.ts) before the clone lands in preview D1.
+- The file-protection invariant means a delete in preview admin can never remove a prod R2 object.
+- The remaining cloned content (meditations, songs, lectures, pages) is broadly equivalent to what the public CMS surfaces anyway.
+
+**If a future collection ever holds business-sensitive but non-PII data, this assumption has to be revisited** — either add the table to `PII_TABLES` in `scripts/sanitize-preview-dump.ts`, or gate preview admin behind a stronger auth mechanism.
+
 ### One-time operator runbook
 
 After this PR merges, complete these steps once:
@@ -814,6 +824,8 @@ After this PR merges, complete these steps once:
    wrangler secret put SENTRY_DSN --env=preview
    wrangler secret put SAHAJCLOUD_PREVIEW_SECRET --env=preview
    ```
+
+   **Important**: use a **sandbox Resend API key** (or leave empty) and a **separate Sentry project / DSN** (or leave empty) for the preview env. Pasting prod values here would cause preview to send real emails and pollute the prod Sentry error stream.
 
 5. **Configure Workers Builds** in the CF dashboard (Workers & Pages → `sahajcloud` → Settings → Builds):
    - Production branch: `main` (existing behavior unchanged)
@@ -840,6 +852,8 @@ The `preview-reclone` workflow (`.github/workflows/preview-reclone.yml`) runs **
 5. POSTs to `${PREVIEW_BASE_URL}/api/managers/first-register` to seed the preview admin (credentials match the documented dev creds in `CLAUDE.md`).
 
 Schema drift between reclones is tolerated: PR migrations land in preview via Workers Builds' pre-deploy migration step, smoke writes accumulate during the week, and the weekly reclone wipes everything clean. If a destructive PR migration lands and is later reverted, preview self-heals on the next reclone.
+
+**Reclone-vs-smoke race.** The reclone drops and re-imports every table. If a `smoke-preview` job is in flight when the Sunday-04:00-UTC reclone fires, the smoke job's records will be wiped mid-test and the test fails at its delete step. The failure mode is a transient CI red, not data corruption — re-running the PR's CI passes. Practical risk is near-zero given the timing, but if it ever becomes an issue, gate the reclone behind a check that no `smoke-preview` runs are active.
 
 ### Smoke specs
 

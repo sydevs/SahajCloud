@@ -4,7 +4,7 @@
 # finish publishing the per-PR preview before running smoke specs against it.
 #
 # Usage: wait-for-200.sh <url> [timeout-seconds]
-# Default timeout: 180s (matches CF Workers Builds median p95 deploy time).
+# Default timeout: 180s (matches CF Workers Builds p95 deploy time).
 set -euo pipefail
 
 URL="${1:?Usage: wait-for-200.sh <url> [timeout-seconds]}"
