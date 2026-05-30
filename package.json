@@ -12,7 +12,7 @@
     "lint": "cross-env NODE_OPTIONS=--no-deprecation eslint . --max-warnings 0",
     "postinstall": "node scripts/postinstall.cjs",
     "test": "pnpm run test:unit && pnpm run test:int",
-    "test:e2e": "bash -c 'if compgen -G \"tests/e2e/*.e2e.spec.ts\" > /dev/null; then cross-env NODE_OPTIONS=--no-deprecation pnpm exec playwright test; else echo \"No E2E tests present — skipping.\"; fi'",
+    "test:smoke": "cross-env NODE_OPTIONS=--no-deprecation pnpm exec playwright test",
     "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --project int --config ./vitest.config.mts",
     "test:unit": "cross-env NODE_OPTIONS=--no-deprecation vitest run --project unit --config ./vitest.config.mts",
     "seed": "cross-env NODE_OPTIONS=--no-deprecation tsx seeds/run.ts",

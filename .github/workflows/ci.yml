@@ -29,17 +29,13 @@ jobs:
       - run: pnpm lint
       - run: pnpm test # test:unit && test:int — vitest injects its own env
 
-  build:
-    name: Cloudflare Build
+  smoke-preview:
+    name: Smoke preview
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
-      NODE_OPTIONS: '--no-deprecation --max-old-space-size=8000'
-      CLOUDFLARE_ENV: ''
-      # Non-sensitive DUMMY values — only present so serverEnv (zod) validates at build/import time.
-      PAYLOAD_SECRET: ci-build-dummy-secret-with-32plus-characters
-      SAHAJCLOUD_PREVIEW_SECRET: ci-build-preview-secret-16plus
-      WEMEDITATE_WEB_URL: http://localhost:5173
-      SAHAJATLAS_URL: http://localhost:5174
+      CF_WORKER_SUBDOMAIN: ${{ vars.CF_WORKER_SUBDOMAIN }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -50,13 +46,16 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Cache Next.js build
-        uses: actions/cache@v4
-        with:
-          path: .next/cache
-          key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**') }}
-          restore-keys: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
-      - name: Generate Cloudflare worker types
-        run: pnpm exec wrangler types # worker-configuration.d.ts is gitignored; next build typechecks against it
-      - name: Package Worker (dry run)
-        run: WRANGLER_BUILD_CONDITIONS="" WRANGLER_BUILD_PLATFORM="node" pnpm exec wrangler deploy src/worker.ts --experimental-autoconfig=false --dry-run --env="" --outdir /tmp/sahajcloud-worker-dry-run
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Compute preview URL
+        run: |
+          PREVIEW_URL=$(node scripts/compute-preview-url.mjs)
+          echo "PREVIEW_URL=$PREVIEW_URL" >> "$GITHUB_ENV"
+          echo "Computed preview URL: $PREVIEW_URL"
+      - name: Wait for Cloudflare Workers Builds to publish preview
+        run: ./scripts/wait-for-200.sh "$PREVIEW_URL" 180
+      - name: Run smoke specs
+        env:
+          PREVIEW_URL: ${{ env.PREVIEW_URL }}
+          SMOKE_RUN_ID: pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
+        run: pnpm test:smoke
