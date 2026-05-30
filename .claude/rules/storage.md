@@ -11,11 +11,11 @@ local-file fallback in development.
 
 ## Routing matrix
 
-| Storage | Collections | URL format |
-|---|---|---|
-| **Cloudflare Images** | `images` (uploads); also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks | `https://imagedelivery.net/<hash>/<imageId>/public` |
-| **Cloudflare Stream** | `videos`, `frames` (video MIME types) | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>MP4: `.../downloads/default.mp4` (`mp4Url`)<br>HLS: `.../manifest/video.m3u8` (`hlsUrl`) |
-| **R2 native binding** | `meditations`, `songs`, `lessons`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames` and `files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>` |
+| Storage               | Collections                                                                                                                   | URL format                                                                                                                                                                                |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cloudflare Images** | `images` (uploads); also referenced from albums, app-cards, meditations, lectures, authors, lessons, page blocks              | `https://imagedelivery.net/<hash>/<imageId>/public`                                                                                                                                       |
+| **Cloudflare Stream** | `videos`, `frames` (video MIME types)                                                                                         | thumbnails: `https://customer-<code>.cloudflarestream.com/<videoId>/thumbnails/thumbnail.jpg`<br>MP4: `.../downloads/default.mp4` (`mp4Url`)<br>HLS: `.../manifest/video.m3u8` (`hlsUrl`) |
+| **R2 native binding** | `meditations`, `songs`, `lessons`, `files`, `user-choices`, `song-tags`, plus mixed-media fallthrough on `frames` and `files` | `<CLOUDFLARE_R2_DELIVERY_URL>/<collection>/<filename>`                                                                                                                                    |
 
 R2 is configured via `wrangler.toml` bindings (no S3-compatible API).
 Filenames are sanitized to URL-safe slugs with random 6-char suffixes.
@@ -25,18 +25,18 @@ are unset — no setup required.
 
 ## Module layout (`src/lib/storage/`)
 
-| File | Purpose |
-|---|---|
-| `storagePlugin.ts` | Plugin orchestration, adapter routing, R2 hook injection |
-| `cloudflareImagesAdapter.ts` | Image uploads to Cloudflare Images |
-| `cloudflareStreamAdapter.ts` | Video uploads to Cloudflare Stream (does NOT enable downloads — webhook does) |
-| `cloudflareStreamWebhook.ts` | Pure helpers for the webhook handler (signature verify + downloads call) |
-| `cloudflareSchemas.ts` | Zod schemas for all Cloudflare API responses (Images, Stream, webhook payload) |
-| `r2NativeAdapter.ts` | Custom R2 adapter with filename sanitization |
-| `r2FilenameHook.ts` | `beforeOperation` hook that pre-assigns the final R2 key |
-| `mixedMediaAdapter.ts` | Routes by MIME type → Images/Stream/R2 |
-| `mimeUtils.ts` | Shared `getMimeCategory()` used by adapter and URL field |
-| `urlFields.ts` | Virtual URL field factories |
+| File                         | Purpose                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| `storagePlugin.ts`           | Plugin orchestration, adapter routing, R2 hook injection                       |
+| `cloudflareImagesAdapter.ts` | Image uploads to Cloudflare Images                                             |
+| `cloudflareStreamAdapter.ts` | Video uploads to Cloudflare Stream (does NOT enable downloads — webhook does)  |
+| `cloudflareStreamWebhook.ts` | Pure helpers for the webhook handler (signature verify + downloads call)       |
+| `cloudflareSchemas.ts`       | Zod schemas for all Cloudflare API responses (Images, Stream, webhook payload) |
+| `r2NativeAdapter.ts`         | Custom R2 adapter with filename sanitization                                   |
+| `r2FilenameHook.ts`          | `beforeOperation` hook that pre-assigns the final R2 key                       |
+| `mixedMediaAdapter.ts`       | Routes by MIME type → Images/Stream/R2                                         |
+| `mimeUtils.ts`               | Shared `getMimeCategory()` used by adapter and URL field                       |
+| `urlFields.ts`               | Virtual URL field factories                                                    |
 
 ## URL field factories (`urlFields.ts`)
 
@@ -48,13 +48,13 @@ fields: [
 ]
 ```
 
-| Factory | Purpose |
-|---|---|
-| `virtualUrlField({ collection, adapter })` | Base URL for any single-storage collection (adapter: `cloudflare-images` or `r2`) |
-| `previewUrlField({ collection, width?, height? })` | Preview/thumbnail URL for images/videos |
-| `mixedMediaUrlField({ collection })` | Full-resolution URL for mixed media (images → Images, videos → Stream MP4, other → R2) |
-| `hlsUrlField({ collection })` | HLS manifest (`hlsUrl`); `null` for non-video. Mount on every collection that exposes a video URL. |
-| `mp4UrlField({ collection })` | MP4 download (`mp4Url`); `null` for non-video. Mount alongside `hlsUrlField`. |
+| Factory                                            | Purpose                                                                                            |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `virtualUrlField({ collection, adapter })`         | Base URL for any single-storage collection (adapter: `cloudflare-images` or `r2`)                  |
+| `previewUrlField({ collection, width?, height? })` | Preview/thumbnail URL for images/videos                                                            |
+| `mixedMediaUrlField({ collection })`               | Full-resolution URL for mixed media (images → Images, videos → Stream MP4, other → R2)             |
+| `hlsUrlField({ collection })`                      | HLS manifest (`hlsUrl`); `null` for non-video. Mount on every collection that exposes a video URL. |
+| `mp4UrlField({ collection })`                      | MP4 download (`mp4Url`); `null` for non-video. Mount alongside `hlsUrlField`.                      |
 
 ## R2 native adapter (`r2NativeAdapter.ts`)
 
@@ -65,7 +65,10 @@ r2NativeAdapter({
 })
 ```
 
+**`CLOUDFLARE_R2_DELIVERY_URL` is per-env.** It's set in each `wrangler.toml` env block — prod uses the custom domain `https://assets.sydevelopers.com`, preview uses the default R2 dev URL `https://pub-<hash>.r2.dev`, and dev/E2E leave it empty. Cloned preview rows still reference the prod CDN URL (preview's Worker has no binding to the prod bucket, so it never writes there) — see [DEPLOYMENT.md → Preview Environment](../../DEPLOYMENT.md#preview-environment) for the file-protection invariant.
+
 **Filename sanitization** (every upload):
+
 1. Extract base name + extension.
 2. Slugify base (lowercase, URL-safe, strict mode).
 3. Append a 6-char random suffix for uniqueness.
@@ -105,7 +108,7 @@ returns.
 ## `handleUpload` return-value contract (critical)
 
 `@payloadcms/plugin-cloud-storage` v3 calls `adapter.handleUpload` in an
-**afterChange** hook — *after* the document has already been written to
+**afterChange** hook — _after_ the document has already been written to
 the DB. The plugin persists filename/metadata changes only via the
 adapter's **return value**, which it merges and passes to
 `payload.update()`:
@@ -222,7 +225,7 @@ Video has MP4 URL
 - **5-minute freshness window** on the timestamp — past or future stale
   values are rejected (replay protection).
 - **Constant-time comparison** on the hex signature (timing-attack safe).
-- Raw body read via `request.text()` *before* any JSON parse, so the
+- Raw body read via `request.text()` _before_ any JSON parse, so the
   bytes used for HMAC verification are byte-identical to what Cloudflare
   signed.
 - Web Crypto (`crypto.subtle`) — same code path runs in Workers and in
@@ -329,21 +332,27 @@ import { z } from 'zod'
 
 export const ApiResponseSchema = z.object({
   success: z.boolean(),
-  errors: z.array(z.object({
-    code: z.number().optional(),
-    message: z.string(),
-  })).default([]),
-  result: z.object({
-    id: z.string().min(1),
-    name: z.string().optional(),
-    created: z.string().optional(),
-  }).optional(),  // optional when success: false
+  errors: z
+    .array(
+      z.object({
+        code: z.number().optional(),
+        message: z.string(),
+      }),
+    )
+    .default([]),
+  result: z
+    .object({
+      id: z.string().min(1),
+      name: z.string().optional(),
+      created: z.string().optional(),
+    })
+    .optional(), // optional when success: false
 })
 
 try {
   const result = ApiResponseSchema.parse(await response.json())
   if (!result.success) {
-    const errors = result.errors.map(e => e.message).join(', ')
+    const errors = result.errors.map((e) => e.message).join(', ')
     throw new Error(`API failed: ${errors}`)
   }
   return result.result.id
@@ -357,6 +366,7 @@ try {
 ```
 
 Schema design tips:
+
 - Mark top-level `result` optional (absent on `success: false`).
 - Use `.default([])` on arrays to drop optional chaining at use sites.
 - Require critical fields inside `result` (e.g. `id: z.string().min(1)`).
