@@ -17,10 +17,12 @@ Draft a well-formed GitHub issue for the sy-devs-cms repo. Matches the repo's co
 4. **Choose a template** from `templates/` (feature, bug, enhancement) and adapt.
 5. **Write the title** using conventional commit format. See `conventions.md` for the scopes in use.
 6. **Write the body.** Be specific. Use file:line refs. Avoid vague language ("improve X", "make Y better").
-7. **Preview to user.** Show the full title + body. Ask for sign-off explicitly. **Do NOT call `gh issue create` until the user approves.**
-8. **Create the issue.** Write the body to `/tmp/gh-issue-body.md`, then:
+7. **Plan-mode approval is the sign-off.** The draft-ticket skill runs in plan mode; the user reviews the title + body in the plan file and approves it via `ExitPlanMode`. No separate "ready to create?" prompt after that — plan approval authorizes the `gh issue create` call.
+8. **Create the issue.** Stage the body to a **session-unique** temp file — never a fixed path like `/tmp/gh-issue-body.md`, which collides between parallel Claude instances and has caused data loss before. Use `mktemp` or embed a random suffix:
    ```bash
-   gh issue create --title "<title>" --body-file /tmp/gh-issue-body.md
+   BODY_FILE=$(mktemp -t gh-issue-body.XXXXXX).md
+   # write the body to "$BODY_FILE" (Write tool), then:
+   gh issue create --title "<title>" --body-file "$BODY_FILE"
    ```
    (File-based approach preserves markdown fidelity — `--body` mangles backticks and indentation.)
 9. **Return the issue URL** to the user.
