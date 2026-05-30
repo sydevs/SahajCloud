@@ -6,11 +6,12 @@
  * - Common authentication helpers
  * - File buffer utilities
  */
+import type { Page } from '@playwright/test'
+
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-import type { Page } from '@playwright/test'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

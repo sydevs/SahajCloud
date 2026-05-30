@@ -1,15 +1,16 @@
+import type { Payload } from 'payload'
+
 import fs from 'fs'
 import path from 'path'
 
 import { sql } from '@payloadcms/db-sqlite'
 import { parseBuffer } from 'music-metadata'
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
-import type { Payload } from 'payload'
 
 import { extractAudioDuration } from '@/hooks/meditationHooks'
 
-import { createTestEnvironment } from '../utils/testHelpers'
 import { testData } from '../utils/testData'
+import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Meditation Duration Extraction', () => {
   let payload: Payload

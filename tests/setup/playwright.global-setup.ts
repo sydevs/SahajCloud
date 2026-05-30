@@ -9,13 +9,14 @@
  * The database is file-based SQLite, shared between this setup process
  * and the dev server that Playwright starts.
  */
-/* eslint-disable no-console */
+ 
 import type { FullConfig } from '@playwright/test'
 
 import path from 'path'
 
 import { getPayload } from 'payload'
 
+import { removeSqliteFiles } from './sqliteCleanup'
 import { e2ePayloadConfig, E2E_DATABASE_PATH } from '../config/e2e-payload.config'
 import {
   E2E_CREDENTIALS,
@@ -24,7 +25,6 @@ import {
   createSeedStatus,
   type SeedStatus,
 } from '../utils/e2e-helpers'
-import { removeSqliteFiles } from './sqliteCleanup'
 
 /**
  * Seed the default manager user for authentication

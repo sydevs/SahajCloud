@@ -14,30 +14,28 @@ import { fileURLToPath } from 'url'
 
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import { buildConfig, getPayload, Payload } from 'payload'
 import { openapi } from 'payload-oapi'
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
 import { collections, Managers } from '../../src/collections'
 import { globals } from '../../src/globals'
-import {
-  CUSTOM_ENDPOINT_PATHS,
-  CUSTOM_ENDPOINT_SCHEMAS,
-} from '../../src/lib/openapi/customEndpoints'
-import {
-  filterSpec,
-  ALWAYS_HIDDEN_COLLECTIONS,
-  CUSTOM_ENDPOINTS_ONLY_COLLECTIONS,
-  EXCLUDED_OPERATIONS,
-  ALLOW_POST_FOR,
-} from '../../src/lib/openapi/specFilter'
 import {
   getProjectCollections,
   getProjectOptions,
   isValidProject,
   getRoleProject,
 } from '../../src/lib/access'
+import {
+  CUSTOM_ENDPOINT_PATHS,
+  CUSTOM_ENDPOINT_SCHEMAS,
+} from '../../src/lib/openapi/customEndpoints'
 import { scalarPlugin } from '../../src/lib/openapi/scalarPlugin'
+import {
+  filterSpec,
+  ALWAYS_HIDDEN_COLLECTIONS,
+  CUSTOM_ENDPOINTS_ONLY_COLLECTIONS,
+} from '../../src/lib/openapi/specFilter'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

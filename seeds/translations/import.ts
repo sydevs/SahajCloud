@@ -16,6 +16,9 @@
 
 import * as path from 'path'
 
+import atlasSchema from '../../src/globals/sahaj-atlas/translationsSchema.json' with { type: 'json' }
+import appSchema from '../../src/globals/wemeditate-app/translationsSchema.json' with { type: 'json' }
+import wmWebSchema from '../../src/globals/wemeditate-web/translationsSchema.json' with { type: 'json' }
 import { BaseImporter, type BaseImportOptions } from '../lib'
 import {
   buildWmAppGlobalData,
@@ -24,9 +27,6 @@ import {
   type TranslationsSchemaRoot,
 } from '../wm-app-translations/lexicalConverter'
 
-import appSchema from '../../src/globals/wemeditate-app/translationsSchema.json' with { type: 'json' }
-import atlasSchema from '../../src/globals/sahaj-atlas/translationsSchema.json' with { type: 'json' }
-import wmWebSchema from '../../src/globals/wemeditate-web/translationsSchema.json' with { type: 'json' }
 
 // ============================================================================
 // Example-data generator (for wm-web and sy-atlas)

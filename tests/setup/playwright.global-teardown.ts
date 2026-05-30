@@ -10,8 +10,8 @@
  */
 import type { FullConfig } from '@playwright/test'
 
-import { E2E_DATABASE_PATH } from '../config/e2e-payload.config'
 import { removeSqliteFiles } from './sqliteCleanup'
+import { E2E_DATABASE_PATH } from '../config/e2e-payload.config'
 
 async function globalTeardown(_config: FullConfig) {
   console.log('\n🧹 E2E Test Teardown...')
