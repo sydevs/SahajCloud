@@ -2,13 +2,13 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { Audience } from '@/payload-types'
-
 import {
   buildProgressWhereClause,
   countLecturesForAudiences,
   resolveAudienceIds,
 } from '@/lib/audiences/resolve'
+import type { Audience } from '@/payload-types'
+
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'

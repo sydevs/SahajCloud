@@ -1,5 +1,5 @@
 #!/usr/bin/env tsx
-/* eslint-disable no-console */
+
 /**
  * Database and Asset Storage Reset Script
  *
@@ -24,6 +24,7 @@ import { existsSync, rmSync, unlinkSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import * as readline from 'readline'
 
+import { seedEnv } from './env'
 import {
   deleteAllCloudflareImages,
   deleteAllCloudflareVideos,
@@ -31,7 +32,6 @@ import {
   countCloudflareVideos,
 } from './lib/cloudflare-api'
 import { createR2Client, deleteAllR2Objects, countR2Objects } from './lib/r2-client'
-import { seedEnv } from './env'
 
 // Configuration
 const LOCAL_DB_PATH = 'local.db'
@@ -387,7 +387,7 @@ async function resetDevR2(): Promise<void> {
 
     console.log('')
     log(`  Deleted ${deleted} objects from ${DEV_R2_BUCKET}`, GREEN)
-  } catch (error) {
+  } catch (_error) {
     // Dev bucket might not exist
     log(`  Bucket ${DEV_R2_BUCKET} not accessible (may not exist)`, YELLOW)
   }

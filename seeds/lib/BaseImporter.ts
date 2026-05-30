@@ -8,19 +8,16 @@
  * - Summary printing and cleanup lifecycle
  */
 
-/* eslint-disable no-console */
+import { promises as fs } from 'fs'
+import * as path from 'path'
 
 import dotenv from 'dotenv'
+import { getPayload, Payload, CollectionSlug, Where, TypedLocale } from 'payload'
 
 // Load env files in order (later files override earlier)
 // Following Next.js convention: .env.local takes precedence over .env
 dotenv.config({ path: '.env' })
 dotenv.config({ path: '.env.local', override: true })
-
-import { promises as fs } from 'fs'
-import * as path from 'path'
-
-import { getPayload, Payload, CollectionSlug, Where, TypedLocale } from 'payload'
 
 import { parseArgs, CLIArgs } from './cliParser'
 import { isRetryableError } from './delays'
@@ -206,12 +203,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     const { offset, limit } = pagination
     const slice = items.slice(offset, offset + limit)
 
-    this.paginationState = calculatePaginationState(
-      items.length,
-      offset,
-      limit,
-      slice.length,
-    )
+    this.paginationState = calculatePaginationState(items.length, offset, limit, slice.length)
 
     return slice
   }
@@ -673,13 +665,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
     // Console output (CLI mode)
     if (!this.isWorker) {
       const icon =
-        action === 'created'
-          ? '✓'
-          : action === 'updated'
-            ? '↻'
-            : action === 'skipped'
-              ? '○'
-              : '✗'
+        action === 'created' ? '✓' : action === 'updated' ? '↻' : action === 'skipped' ? '○' : '✗'
       const status = action === 'error' ? `error: ${options?.error}` : action
       console.log(`  ${identifier} ${icon} ${status}`)
 
@@ -764,7 +750,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       const preloadedDoc = keyValue ? this.getPreloaded(collection, keyValue) : undefined
       const isPreloaded = this.preloadCache.has(collection)
 
-      if (DEBUG) console.log(`[UPSERT] ${collection}:${identifier} - preloaded: ${isPreloaded}, exists: ${!!preloadedDoc}`)
+      if (DEBUG)
+        console.log(
+          `[UPSERT] ${collection}:${identifier} - preloaded: ${isPreloaded}, exists: ${!!preloadedDoc}`,
+        )
 
       // SKIP MODE (default): If doc exists in preload cache, skip entirely (no DB ops)
       if (!this.options.updateMode && preloadedDoc) {
@@ -796,14 +785,20 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             publishSpecificLocale: options?.publishSpecificLocale,
           }),
         )
-        if (DEBUG) console.log(`[UPSERT] Updated ${collection}:${identifier} (${Date.now() - updateStart}ms)`)
+        if (DEBUG)
+          console.log(
+            `[UPSERT] Updated ${collection}:${identifier} (${Date.now() - updateStart}ms)`,
+          )
 
         this.report.incrementUpdated()
         await this.reportDocument(collection, identifier, 'updated', {
           current: options?.current,
           total: options?.total,
         })
-        if (DEBUG) console.log(`[UPSERT] Complete ${collection}:${identifier} - total: ${Date.now() - startTime}ms`)
+        if (DEBUG)
+          console.log(
+            `[UPSERT] Complete ${collection}:${identifier} - total: ${Date.now() - startTime}ms`,
+          )
         return { doc: updated as unknown as T, action: 'updated' }
       }
 
@@ -823,14 +818,20 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             file: options?.file,
           }),
         )
-        if (DEBUG) console.log(`[UPSERT] Created ${collection}:${identifier} (${Date.now() - createStart}ms)`)
+        if (DEBUG)
+          console.log(
+            `[UPSERT] Created ${collection}:${identifier} (${Date.now() - createStart}ms)`,
+          )
 
         this.report.incrementCreated()
         await this.reportDocument(collection, identifier, 'created', {
           current: options?.current,
           total: options?.total,
         })
-        if (DEBUG) console.log(`[UPSERT] Complete ${collection}:${identifier} - total: ${Date.now() - startTime}ms`)
+        if (DEBUG)
+          console.log(
+            `[UPSERT] Complete ${collection}:${identifier} - total: ${Date.now() - startTime}ms`,
+          )
         return { doc: created as unknown as T, action: 'created' }
       }
 
@@ -845,7 +846,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           locale: options?.locale,
         }),
       )
-      if (DEBUG) console.log(`[UPSERT] Found ${existing.docs.length} existing for ${collection}:${identifier} (${Date.now() - findStart}ms)`)
+      if (DEBUG)
+        console.log(
+          `[UPSERT] Found ${existing.docs.length} existing for ${collection}:${identifier} (${Date.now() - findStart}ms)`,
+        )
 
       if (existing.docs.length > 0) {
         // SKIP MODE: Skip existing documents (same as preloaded cache behavior)
@@ -855,7 +859,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             current: options?.current,
             total: options?.total,
           })
-          if (DEBUG) console.log(`[UPSERT] Skipped ${collection}:${identifier} (exists in fallback find)`)
+          if (DEBUG)
+            console.log(`[UPSERT] Skipped ${collection}:${identifier} (exists in fallback find)`)
           return { doc: existing.docs[0] as unknown as T, action: 'skipped' }
         }
 
@@ -879,7 +884,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             publishSpecificLocale: options?.publishSpecificLocale,
           }),
         )
-        if (DEBUG) console.log(`[UPSERT] Updated ${collection}:${identifier} (${Date.now() - updateStart}ms)`)
+        if (DEBUG)
+          console.log(
+            `[UPSERT] Updated ${collection}:${identifier} (${Date.now() - updateStart}ms)`,
+          )
 
         this.report.incrementUpdated()
         const reportStart = DEBUG ? Date.now() : 0
@@ -887,7 +895,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           current: options?.current,
           total: options?.total,
         })
-        if (DEBUG) console.log(`[UPSERT] Complete ${collection}:${identifier} - total: ${Date.now() - startTime}ms (report: ${Date.now() - reportStart}ms)`)
+        if (DEBUG)
+          console.log(
+            `[UPSERT] Complete ${collection}:${identifier} - total: ${Date.now() - startTime}ms (report: ${Date.now() - reportStart}ms)`,
+          )
         return { doc: updated as unknown as T, action: 'updated' }
       }
 
@@ -908,7 +919,8 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           file: options?.file,
         }),
       )
-      if (DEBUG) console.log(`[UPSERT] Created ${collection}:${identifier} (${Date.now() - createStart}ms)`)
+      if (DEBUG)
+        console.log(`[UPSERT] Created ${collection}:${identifier} (${Date.now() - createStart}ms)`)
 
       this.report.incrementCreated()
       const reportStart = DEBUG ? Date.now() : 0
@@ -916,7 +928,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         current: options?.current,
         total: options?.total,
       })
-      if (DEBUG) console.log(`[UPSERT] Complete ${collection}:${identifier} - total: ${Date.now() - startTime}ms (report: ${Date.now() - reportStart}ms)`)
+      if (DEBUG)
+        console.log(
+          `[UPSERT] Complete ${collection}:${identifier} - total: ${Date.now() - startTime}ms (report: ${Date.now() - reportStart}ms)`,
+        )
       return { doc: created as unknown as T, action: 'created' }
     } catch (error) {
       // Handle slug collision - fetch existing document and return as updated
@@ -950,7 +965,10 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
           // If not found, try matching without hyphens (more fuzzy)
           if (existingBySlug.docs.length === 0 && slugWithoutHyphens.length > 3) {
             // Get all docs with similar starting characters and filter by removing hyphens
-            const searchPrefix = slugWithoutHyphens.substring(0, Math.min(8, slugWithoutHyphens.length))
+            const searchPrefix = slugWithoutHyphens.substring(
+              0,
+              Math.min(8, slugWithoutHyphens.length),
+            )
             existingBySlug = await this.executeWithRetry(() =>
               this.payload.find({
                 collection,
@@ -971,7 +989,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             const foundDoc = existingBySlug.docs[0]
             this.report.incrementUpdated()
             await this.reportDocument(collection, identifier, 'updated', {
-              warnings: [`Slug collision resolved: found existing document with slug "${(foundDoc as unknown as Record<string, unknown>).slug || slug}"`],
+              warnings: [
+                `Slug collision resolved: found existing document with slug "${(foundDoc as unknown as Record<string, unknown>).slug || slug}"`,
+              ],
               current: options?.current,
               total: options?.total,
             })
@@ -980,7 +1000,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         } catch (lookupError) {
           // Failed to look up existing - fall through to skip
           const lookupMsg = lookupError instanceof Error ? lookupError.message : String(lookupError)
-          this.report.addWarning(`Failed to lookup existing document for slug collision: ${lookupMsg}`)
+          this.report.addWarning(
+            `Failed to lookup existing document for slug collision: ${lookupMsg}`,
+          )
         }
 
         // Fallback: skip if we couldn't find existing
@@ -1094,9 +1116,7 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       if (!data) continue
 
       // Check if extracted data has any non-empty values
-      const hasContent = Object.values(data).some(
-        (v) => v !== null && v !== undefined && v !== '',
-      )
+      const hasContent = Object.values(data).some((v) => v !== null && v !== undefined && v !== '')
       if (!hasContent) continue
 
       // Update the document with locale-specific data
@@ -1116,12 +1136,17 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
             : undefined,
         }),
       )
-      if (DEBUG) console.log(`[LOCALE] Updated ${collection}:${id} locale=${translation.locale} (${Date.now() - localeStart}ms)`)
+      if (DEBUG)
+        console.log(
+          `[LOCALE] Updated ${collection}:${id} locale=${translation.locale} (${Date.now() - localeStart}ms)`,
+        )
       updatedCount++
     }
 
     if (DEBUG && updatedCount > 0) {
-      console.log(`[LOCALE] Complete ${collection}:${id} - ${updatedCount} locales in ${Date.now() - startTime}ms (avg: ${Math.round((Date.now() - startTime) / updatedCount)}ms/locale)`)
+      console.log(
+        `[LOCALE] Complete ${collection}:${id} - ${updatedCount} locales in ${Date.now() - startTime}ms (avg: ${Math.round((Date.now() - startTime) / updatedCount)}ms/locale)`,
+      )
     }
 
     return updatedCount
@@ -1160,7 +1185,11 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
       // Handle simple { slug: { equals: value } } pattern
       if ('slug' in key) {
         const slugCondition = (key as Record<string, unknown>).slug
-        if (typeof slugCondition === 'object' && slugCondition !== null && 'equals' in slugCondition) {
+        if (
+          typeof slugCondition === 'object' &&
+          slugCondition !== null &&
+          'equals' in slugCondition
+        ) {
           const value = (slugCondition as { equals: unknown }).equals
           if (typeof value === 'string') {
             return value
@@ -1254,7 +1283,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
         const DEBUG = process.env.DEBUG_IMPORT === 'true'
         if (DEBUG) {
           const errorMsg = error instanceof Error ? error.message.slice(0, 50) : 'Unknown'
-          console.log(`[RETRY] Retryable error (${errorMsg}...), retrying in ${Math.round(delay)}ms (attempt ${attempt}/${maxRetries})`)
+          console.log(
+            `[RETRY] Retryable error (${errorMsg}...), retrying in ${Math.round(delay)}ms (attempt ${attempt}/${maxRetries})`,
+          )
         }
         await new Promise((r) => setTimeout(r, delay))
       }
@@ -1278,7 +1309,9 @@ export abstract class BaseImporter<TOptions extends BaseImportOptions = BaseImpo
 
     const collisionsPath = path.join(this.cacheDir, 'collisions.json')
     await fs.writeFile(collisionsPath, JSON.stringify(this.collisions, null, 2), 'utf-8')
-    await this.logger.warn(`${this.collisions.length} slug collisions written to: ${collisionsPath}`)
+    await this.logger.warn(
+      `${this.collisions.length} slug collisions written to: ${collisionsPath}`,
+    )
   }
 
   // ============================================================================

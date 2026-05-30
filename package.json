@@ -9,7 +9,7 @@
     "dev": "cross-env NODE_OPTIONS=--no-deprecation next dev",
     "devsafe": "rm -rf .next && cross-env NODE_OPTIONS=--no-deprecation next dev",
     "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
-    "lint": "cross-env NODE_OPTIONS=--no-deprecation eslint .",
+    "lint": "cross-env NODE_OPTIONS=--no-deprecation eslint . --max-warnings 0",
     "postinstall": "node scripts/postinstall.cjs",
     "test": "pnpm run test:unit && pnpm run test:int",
     "test:e2e": "bash -c 'if compgen -G \"tests/e2e/*.e2e.spec.ts\" > /dev/null; then cross-env NODE_OPTIONS=--no-deprecation pnpm exec playwright test; else echo \"No E2E tests present — skipping.\"; fi'",

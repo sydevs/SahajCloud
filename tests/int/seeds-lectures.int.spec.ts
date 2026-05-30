@@ -48,24 +48,24 @@ async function buildTestImporter(payload: Payload) {
    */
   class TestImporter extends WeMeditateImporter {
     async injectAndImportLectures(data: unknown): Promise<void> {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       ;(this as any).data = data
       // Mirror the live preloads from setup() so skip-mode re-runs work.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const self = this as any
       await self.preloadCollection('lectures', 'nirmalVidyaVimeoUrl', ['metadata', 'title'])
       await self.importLectures()
     }
 
     getLectureMap(): Map<string, number | string> {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       return (this as any).idMaps.lectures
     }
 
     resetPreloadCache(): void {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       ;(this as any).preloadCache = new Map()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       ;(this as any).idMaps.lectures = new Map()
     }
   }
@@ -79,7 +79,7 @@ async function buildTestImporter(payload: Payload) {
   // Manually wire the runtime fields that BaseImporter.run() would have set.
   // We're intentionally bypassing run() since it would also kick off the
   // unrelated import phases (authors / albums / pages / etc.).
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const importerAny = importer as any
   importerAny.logger = new Logger()
   importerAny.fileUtils = new FileUtils(importerAny.logger)
@@ -177,7 +177,7 @@ describe('Seed: importLectures', () => {
     })
     expect(lectures.docs.length).toBe(1)
     const lecture = lectures.docs[0]
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     expect((lecture.metadata as any)?.duration).toBe(1234)
 
     // The map the converter consumes should hold the *lecture* id.

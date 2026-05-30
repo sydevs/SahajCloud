@@ -111,7 +111,7 @@ export async function deleteAllCloudflareImages(
   let page = 1
   const perPage = 100
 
-  // eslint-disable-next-line no-constant-condition
+   
   while (true) {
     const images = await listImages(accountId, apiToken, page, perPage)
 
