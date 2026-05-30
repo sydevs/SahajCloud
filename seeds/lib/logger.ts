@@ -5,7 +5,7 @@
  * Simplified for document-centric progress reporting.
  */
 
-/* eslint-disable no-console */
+ 
 
 // ANSI color codes
 const colors = {

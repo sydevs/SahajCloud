@@ -2,6 +2,10 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+
+import { meditationLectures } from '@/endpoints/meditationLectures'
+import { recomputeWeightsForMeditation } from '@/hooks/meditationHooks'
+import type { LecturePlayerData } from '@/lib/lectureShape'
 import type {
   Audience,
   Client,
@@ -11,10 +15,6 @@ import type {
   SubtleSystemNode,
   UserChoice,
 } from '@/payload-types'
-
-import { meditationLectures } from '@/endpoints/meditationLectures'
-import { recomputeWeightsForMeditation } from '@/hooks/meditationHooks'
-import type { LecturePlayerData } from '@/lib/lectureShape'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'

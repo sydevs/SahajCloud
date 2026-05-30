@@ -35,7 +35,7 @@ const runEslint = (extraArgs = '') => {
 
 try {
   const beforeIssues = JSON.parse(runEslint())
-  runEslint('--fix --quiet')
+  runEslint('--fix')
   const afterIssues = JSON.parse(runEslint())
 
   const beforeCount = beforeIssues.reduce((sum, f) => sum + f.errorCount + f.warningCount, 0)

@@ -4,7 +4,7 @@
  * Simple utility for parsing command line arguments for import scripts.
  */
 
-/* eslint-disable no-console */
+ 
 
 export interface CLIArgs {
   dryRun: boolean

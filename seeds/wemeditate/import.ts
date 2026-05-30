@@ -29,9 +29,6 @@ import type { Payload, TypedLocale } from 'payload'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
 import {
   BaseImporter,
   BaseImportOptions,
@@ -42,6 +39,20 @@ import {
   safeBufferCopy,
   safeBufferFromUint8Array,
 } from '../lib'
+import {
+  convertEditorJSToLexical,
+  createUploadNode,
+  type ConversionContext,
+} from '../lib/lexicalConverter'
+import {
+  MediaDownloader,
+  extractMediaUrls,
+  extractAuthorImageUrl,
+  getOriginalImageUrl,
+} from '../lib/mediaDownloader'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // ============================================================================
 // WEMEDITATE DATA TYPES (matching extraction script output)
@@ -141,17 +152,6 @@ interface WeMeditateData {
     treatment_name?: string
   }>
 }
-import {
-  convertEditorJSToLexical,
-  createUploadNode,
-  type ConversionContext,
-} from '../lib/lexicalConverter'
-import {
-  MediaDownloader,
-  extractMediaUrls,
-  extractAuthorImageUrl,
-  getOriginalImageUrl,
-} from '../lib/mediaDownloader'
 
 // ============================================================================
 // CONFIGURATION
@@ -1715,13 +1715,13 @@ export class WeMeditateImporter extends BaseImporter<BaseImportOptions> {
           // Batch pause after BATCH_SIZE actual uploads
           if (actualUploadsInBatch >= BATCH_SIZE) {
             this.setCurrentOperation(`Rate limit pause (${actualUploadsInBatch} uploads)`)
-            // eslint-disable-next-line no-console
+
             console.log(
               `\n    ⏸️  BATCH PAUSE: ${actualUploadsInBatch} uploads. Pausing ${BATCH_PAUSE_MS / 1000}s (under 30s Worker timeout)...\n`,
             )
             await rateLimitDelay(BATCH_PAUSE_MS)
             actualUploadsInBatch = 0
-            // eslint-disable-next-line no-console
+
             console.log(`    ⏸️  Resuming after pause...\n`)
           } else if (i < total - 1) {
             // Small delay between actual uploads only

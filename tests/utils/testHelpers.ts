@@ -12,11 +12,11 @@ import { getPayload, Payload } from 'payload'
 import { buildConfig } from 'payload'
 
 // Project imports
-import type { Manager, Client } from '@/payload-types'
 
 import { accessPlugin, bypassPermissions } from '@/lib/access'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { usagePlugin } from '@/lib/usage'
+import type { Manager, Client } from '@/payload-types'
 
 import { EmailTestAdapter } from './emailTestAdapter'
 import { testData } from './testData'
@@ -68,7 +68,7 @@ function getTestCollections(): CollectionConfig[] {
  * @param emailConfig Optional email configuration
  * @returns Payload configuration object
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function createBaseTestConfig(emailConfig?: any) {
   // Build config with usagePlugin to get tasks auto-registered
   const baseConfig = buildConfig({
@@ -114,7 +114,7 @@ function createBaseTestConfig(emailConfig?: any) {
           // Use streamTransport to avoid Ethereal email logging
           streamTransport: true,
           newline: 'unix',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
         } as any,
       }),
   })

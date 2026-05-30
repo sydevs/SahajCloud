@@ -84,14 +84,32 @@ const eslintConfig = [
     },
   },
 
-  // Downgrade new react-hooks strict rules to warn (patterns were passing before Next.js 16)
+  // Seeds: relax rules — external API data scripts; dev-only, not production code
+  {
+    files: ['seeds/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-console': 'off',
+    },
+  },
+
+  // Tests: allow console output and `any` — test/debug patterns that don't affect production
+  {
+    files: ['tests/**/*.{ts,tsx}'],
+    rules: {
+      'no-console': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+
+  // React hooks: patterns that were valid before Next.js 16 strict rules; turn off to avoid noise
   {
     plugins: {
       'react-hooks': (await import('eslint-plugin-react-hooks')).default,
     },
     rules: {
-      'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/refs': 'warn',
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/refs': 'off',
     },
   },
 
@@ -108,7 +126,7 @@ const eslintConfig = [
       'coverage/',
       'src/migrations/',
       'scripts/',
-      // Auto-generated payload files
+      // Auto-generated files
       'src/payload-types.ts',
       'src/payload-generated-schema.ts',
       'src/app/(payload)/admin/importMap.js',
@@ -118,6 +136,7 @@ const eslintConfig = [
       'src/app/(payload)/admin/\\[\\[...segments\\]\\]/page.tsx',
       'src/app/(payload)/api/\\[...slug\\]/route.ts',
       'src/app/(payload)/api/graphql/route.ts',
+      'worker-configuration.d.ts',
     ],
   },
 ]

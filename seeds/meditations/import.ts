@@ -1,5 +1,4 @@
 #!/usr/bin/env tsx
- 
 
 /**
  * Meditations Import Script
@@ -34,7 +33,9 @@ import type { CollectionSlug, Payload } from 'payload'
 
 import * as path from 'path'
 
-import type { SongTag, SubtleSystemNode, UserChoice } from '@/payload-types'
+import type { SongTag, UserChoice } from '@/payload-types'
+
+import { seedEnv } from 'seeds/env'
 
 import {
   BaseImporter,
@@ -45,7 +46,6 @@ import {
   safeBufferFrom,
   writeCache,
 } from '../lib'
-import { seedEnv } from 'seeds/env'
 
 // ============================================================================
 // FILE DATA TYPE
@@ -126,27 +126,27 @@ const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/sydevs/SahajCloud/mai
 const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
   // Morning states
   'excited for the day': 'excited-today',
-  'excited': 'excited-today',
+  excited: 'excited-today',
 
   // Stress states
   'stressed and tense': 'stressed-tense',
-  'stressed': 'feel-stressed',
+  stressed: 'feel-stressed',
   'feel stressed': 'feel-stressed',
   "can't let go of the day": 'stressed-tense',
-  'tense': 'stressed-tense',
+  tense: 'stressed-tense',
 
   // Sad/down states
-  'sad': 'emotionally-down',
+  sad: 'emotionally-down',
   'emotionally down': 'emotionally-down',
   'sad, emotionally down': 'emotionally-down',
 
   // Tired/lethargic states
   "can't wake up": 'feeling-lethargic',
-  'lethargic': 'feeling-lethargic',
+  lethargic: 'feeling-lethargic',
   "can't wake up, lethargic": 'feeling-lethargic',
-  'tired': 'tired-overwhelmed',
+  tired: 'tired-overwhelmed',
   'tired and overwhelmed': 'tired-overwhelmed',
-  'exhausted': 'feel-exhausted',
+  exhausted: 'feel-exhausted',
   'feel exhausted': 'feel-exhausted',
 
   // Focus issues
@@ -155,27 +155,27 @@ const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
   'too many thoughts, hard to focus': 'hard-to-focus',
 
   // Guilt/regret
-  'guilty': 'guilty-regretful',
-  'regretful': 'guilty-regretful',
+  guilty: 'guilty-regretful',
+  regretful: 'guilty-regretful',
   'feel guilty': 'guilty-regretful',
   'feel guilty and regretful': 'guilty-regretful',
 
   // Motivation
-  'demotivated': 'demotivated-uninspired',
-  'uninspired': 'demotivated-uninspired',
+  demotivated: 'demotivated-uninspired',
+  uninspired: 'demotivated-uninspired',
   'demotivated, uninspired': 'demotivated-uninspired',
 
   // Relaxation
   'want to unwind': 'want-to-unwind',
-  'unwind': 'want-to-unwind',
+  unwind: 'want-to-unwind',
   'feel fine, just want to unwind': 'want-to-unwind',
 
   // Loneliness
-  'lonely': 'feel-lonely',
+  lonely: 'feel-lonely',
   'feel lonely': 'feel-lonely',
 
   // Restlessness
-  'restless': 'restless-thoughts',
+  restless: 'restless-thoughts',
   'restless, too many thoughts': 'restless-thoughts',
 
   // Mind racing
@@ -184,17 +184,17 @@ const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
   "can't relax": 'mind-racing',
 
   // Reconnection
-  'reconnect': 'want-to-reconnect',
+  reconnect: 'want-to-reconnect',
   'want to reconnect': 'want-to-reconnect',
   'fine, just want to reconnect': 'want-to-reconnect',
 
   // Agitation
-  'wired': 'wired-agitated',
-  'agitated': 'wired-agitated',
+  wired: 'wired-agitated',
+  agitated: 'wired-agitated',
   'wired and agitated': 'wired-agitated',
 
   // Self-esteem
-  'insecure': 'low-self-esteem',
+  insecure: 'low-self-esteem',
   'low self esteem': 'low-self-esteem',
   'feel insecure': 'low-self-esteem',
   'feel insecure, lacking self esteem': 'low-self-esteem',
@@ -206,17 +206,17 @@ const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
   'had a great day, feeling good!': 'feeling-good',
 
   // Anxiety
-  'anxious': 'anxious-overwhelmed',
-  'overwhelmed': 'anxious-overwhelmed',
+  anxious: 'anxious-overwhelmed',
+  overwhelmed: 'anxious-overwhelmed',
   'feel anxious': 'anxious-overwhelmed',
   'feel anxious and overwhelmed': 'anxious-overwhelmed',
 
   // Anger
-  'angry': 'feel-angry',
+  angry: 'feel-angry',
   'feel angry': 'feel-angry',
 
   // Neutral/fine states
-  'fine': 'feeling-fine',
+  fine: 'feeling-fine',
   'feeling fine': 'feeling-fine',
 
   // Energy boost
@@ -230,45 +230,45 @@ const LEGACY_TO_MEDITATION_TAG_SLUG: Record<string, string> = {
   'overwhelmed, need to pause': 'need-to-pause',
 
   // Spiritual
-  'spiritual': 'spiritual-experience',
+  spiritual: 'spiritual-experience',
   'deeper experience': 'spiritual-experience',
   'seeking deeper spiritual experience': 'spiritual-experience',
 
   // Time-based tags - NOTE: These now map to the timings field, not UserChoices
   // See TIMING_SLUGS constant and extractTimingsFromTags() for handling
-  'morning': 'morning',
-  'afternoon': 'afternoon',
-  'evening': 'evening',
+  morning: 'morning',
+  afternoon: 'afternoon',
+  evening: 'evening',
   'morning-general': 'morning',
   'afternoon-general': 'afternoon',
   'evening-general': 'evening',
 
   // Positive states (mapped based on who benefits from the meditation)
-  'calm': 'mind-racing',
-  'peace': 'spiritual-experience',
-  'balanced': 'anxious-overwhelmed',
-  'content': 'feeling-fine',
-  'humble': 'spiritual-experience',
-  'relaxed': 'want-to-unwind',
-  'happy': 'feeling-good',
-  'joy': 'excited-today',
-  'fulfilled': 'want-to-reconnect',
-  'satisfied': 'feeling-fine',
+  calm: 'mind-racing',
+  peace: 'spiritual-experience',
+  balanced: 'anxious-overwhelmed',
+  content: 'feeling-fine',
+  humble: 'spiritual-experience',
+  relaxed: 'want-to-unwind',
+  happy: 'feeling-good',
+  joy: 'excited-today',
+  fulfilled: 'want-to-reconnect',
+  satisfied: 'feeling-fine',
 
   // Mental/activity states
-  'focus': 'hard-to-focus',
-  'overactive': 'restless-thoughts',
-  'bored': 'demotivated-uninspired',
-  'creative': 'demotivated-uninspired',
+  focus: 'hard-to-focus',
+  overactive: 'restless-thoughts',
+  bored: 'demotivated-uninspired',
+  creative: 'demotivated-uninspired',
 
   // Connection/spiritual
-  'realisation': 'spiritual-experience',
-  'harmony': 'want-to-reconnect',
-  'love': 'want-to-reconnect',
+  realisation: 'spiritual-experience',
+  harmony: 'want-to-reconnect',
+  love: 'want-to-reconnect',
 
   // Self-esteem related
-  'confidence': 'low-self-esteem',
-  'esteem': 'low-self-esteem',
+  confidence: 'low-self-esteem',
+  esteem: 'low-self-esteem',
 }
 
 /**
@@ -283,17 +283,17 @@ const TIMING_SLUGS = new Set(['morning', 'afternoon', 'evening'])
 
 const LEGACY_TO_MUSIC_TAG_SLUG: Record<string, string> = {
   // Instrument mappings
-  'nature': 'nature',
-  'flute': 'flute',
-  'strings': 'strings',
-  'sitar': 'strings',
-  'santoor': 'strings',
-  'saxophone': 'flute',
-  'piano': 'piano',
+  nature: 'nature',
+  flute: 'flute',
+  strings: 'strings',
+  sitar: 'strings',
+  santoor: 'strings',
+  saxophone: 'flute',
+  piano: 'piano',
   // Time-of-day mappings
-  'morning': 'morning',
-  'afternoon': 'afternoon',
-  'evening': 'evening',
+  morning: 'morning',
+  afternoon: 'afternoon',
+  evening: 'evening',
 }
 
 // ============================================================================
@@ -471,7 +471,9 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       }
     }
 
-    await this.logger.info(`✓ Rebuilt ${mappedCount} frame mappings from ${existingFrames.size} existing frames`)
+    await this.logger.info(
+      `✓ Rebuilt ${mappedCount} frame mappings from ${existingFrames.size} existing frames`,
+    )
   }
 
   /**
@@ -612,9 +614,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     // On subsequent batches when targeting meditations, just rebuild idMap (no re-import needed)
     const shouldImportFrames = !isPaginated || this.isCollectionTargeted('frames')
     const shouldRebuildFrames =
-      isSkipMode &&
-      this.isCollectionTargeted('meditations') &&
-      !this.isCollectionTargeted('frames')
+      isSkipMode && this.isCollectionTargeted('meditations') && !this.isCollectionTargeted('frames')
 
     if (shouldRebuildFrames || isSubsequentMeditationsBatch) {
       await this.rebuildFramesIdMap(data.frames, data.attachments, data.blobs)
@@ -641,7 +641,9 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
     // Print media upload stats
     const mediaStats = this.mediaUploader.getStats()
-    await this.logger.info(`\n📁 Media: ${mediaStats.uploaded} uploaded, ${mediaStats.reused} reused`)
+    await this.logger.info(
+      `\n📁 Media: ${mediaStats.uploaded} uploaded, ${mediaStats.reused} reused`,
+    )
   }
 
   // ============================================================================
@@ -825,7 +827,9 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     await this.logger.info('\nSetting up image tags...')
     // Image tags are now inline enum values: 'thumbnail', 'meditation', 'placeholder'
     // No collection setup needed - just use the string values directly
-    await this.logger.log(`    ✓ Tags ready (inline enum values): ${this.thumbnailTag}, ${this.meditationImageTag}, ${this.placeholderTag}`)
+    await this.logger.log(
+      `    ✓ Tags ready (inline enum values): ${this.thumbnailTag}, ${this.meditationImageTag}, ${this.placeholderTag}`,
+    )
   }
 
   /**
@@ -992,7 +996,10 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   // TAG MAPPING
   // ============================================================================
 
-  private async importTags(tags: ImportedData['tags'], taggings: ImportedData['taggings']): Promise<void> {
+  private async importTags(
+    tags: ImportedData['tags'],
+    taggings: ImportedData['taggings'],
+  ): Promise<void> {
     await this.logger.info('\n=== Mapping Legacy Tags ===')
 
     // Filter taggings to only those with context = 'tags'
@@ -1121,9 +1128,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     for (const node of result.docs) {
       if (node.slug) this.idMaps.subtleSystemNodes.set(node.slug, node.id)
     }
-    await this.logger.info(
-      `✓ Loaded ${this.idMaps.subtleSystemNodes.size} subtle system nodes`,
-    )
+    await this.logger.info(`✓ Loaded ${this.idMaps.subtleSystemNodes.size} subtle system nodes`)
   }
 
   private async importFrames(
@@ -1133,10 +1138,33 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   ): Promise<void> {
     // ida/pingala/kundalini are now expressed via the subtleSystemNode relationship.
     const validFrameTags = [
-      'anahat', 'back', 'bandhan', 'both hands', 'center', 'channel', 'clearing',
-      'earth', 'ego', 'feel', 'ham ksham', 'hamsa', 'hand', 'hands', 'left',
-      'lefthanded', 'massage', 'meditate', 'namaste', 'raise', 'ready', 'right',
-      'righthanded', 'rising', 'silent', 'superego', 'tapping',
+      'anahat',
+      'back',
+      'bandhan',
+      'both hands',
+      'center',
+      'channel',
+      'clearing',
+      'earth',
+      'ego',
+      'feel',
+      'ham ksham',
+      'hamsa',
+      'hand',
+      'hands',
+      'left',
+      'lefthanded',
+      'massage',
+      'meditate',
+      'namaste',
+      'raise',
+      'ready',
+      'right',
+      'righthanded',
+      'rising',
+      'silent',
+      'superego',
+      'tapping',
     ]
 
     if (this.idMaps.subtleSystemNodes.size === 0) {
@@ -1185,18 +1213,19 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       }
 
       const subtleSystemNodeId = mapping.node
-        ? (this.idMaps.subtleSystemNodes.get(mapping.node) as number | undefined) ?? null
+        ? ((this.idMaps.subtleSystemNodes.get(mapping.node) as number | undefined) ?? null)
         : null
       if (mapping.node && subtleSystemNodeId === null) {
-        this.addWarning(
-          `SubtleSystemNode "${mapping.node}" not found - was the migration applied?`,
-        )
+        this.addWarning(`SubtleSystemNode "${mapping.node}" not found - was the migration applied?`)
       }
 
       // Drop legacy chakra/nadi tag values that are now expressed via the relationship.
       const droppedFromTags = new Set(['ida', 'pingala', 'kundalini'])
       const frameTagNames = frame.tags
-        ? frame.tags.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean)
+        ? frame.tags
+            .split(',')
+            .map((t) => t.trim().toLowerCase())
+            .filter(Boolean)
         : []
       const tagValues = Array.from(
         new Set(
@@ -1570,7 +1599,12 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
           }
         } else {
           // Upload with audio file if available
-          const songAttachments = this.getAttachmentsForRecord('Music', music.id, attachments, blobs)
+          const songAttachments = this.getAttachmentsForRecord(
+            'Music',
+            music.id,
+            attachments,
+            blobs,
+          )
           const audioAttachment = songAttachments.find((att) => att.name === 'audio')
 
           let result
@@ -1790,14 +1824,15 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
     // Get meditation tags
     const meditationTaggings = taggings.filter(
-      (t) => t.taggable_type === 'Meditation' && t.taggable_id === meditation.id && t.context === 'tags',
+      (t) =>
+        t.taggable_type === 'Meditation' && t.taggable_id === meditation.id && t.context === 'tags',
     )
 
     // Extract timings from timing-related tags (morning, afternoon, evening)
     const { timings, timingTagIds } = this.extractTimingsFromTags(meditationTaggings, allTags)
 
     // Get regular tag IDs, excluding timing-related tags
-    const userChoiceTagIds = meditationTaggings
+    const _userChoiceTagIds = meditationTaggings
       .filter((t) => !timingTagIds.has(t.tag_id))
       .map((t) => this.idMaps.userChoices.get(t.tag_id))
       .filter((id): id is number => Boolean(id))
@@ -1913,14 +1948,15 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
     // Get meditation tags
     const meditationTaggings = taggings.filter(
-      (t) => t.taggable_type === 'Meditation' && t.taggable_id === meditation.id && t.context === 'tags',
+      (t) =>
+        t.taggable_type === 'Meditation' && t.taggable_id === meditation.id && t.context === 'tags',
     )
 
     // Extract timings from timing-related tags (morning, afternoon, evening)
     const { timings, timingTagIds } = this.extractTimingsFromTags(meditationTaggings, allTags)
 
     // Get regular tag IDs, excluding timing-related tags
-    const userChoiceTagIds = meditationTaggings
+    const _userChoiceTagIds = meditationTaggings
       .filter((t) => !timingTagIds.has(t.tag_id))
       .map((t) => this.idMaps.userChoices.get(t.tag_id))
       .filter((id): id is number => Boolean(id))
@@ -2067,4 +2103,3 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     return 'daily'
   }
 }
-

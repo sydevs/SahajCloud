@@ -18,14 +18,12 @@
 import * as path from 'path'
 
 import { BaseImporter, type BaseImportOptions } from '../lib'
-
 import {
   buildWmAppGlobalData,
   collectSeedTodos,
   type SeedFile,
   type TranslationsSchemaRoot,
 } from './lexicalConverter'
-
 import appSchema from '../../src/globals/wemeditate-app/translationsSchema.json' with { type: 'json' }
 
 // ============================================================================

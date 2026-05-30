@@ -63,7 +63,7 @@ export const EXPECTED_COUNTS: Record<ScriptName, ExpectedCounts> = {
   // No collection counts apply — verification is intentionally a no-op.
   'wm-app-translations': {},
   // translations updates three PayloadCMS globals, not collections.
-  'translations': {},
+  translations: {},
 }
 
 /**
@@ -113,12 +113,6 @@ export function verifyCountsForScript(
 // ============================================================================
 // COLLECTION METADATA FOR PAGINATION
 // ============================================================================
-
-/**
- * Threshold for when a collection should be paginated
- * Collections larger than this will require multiple requests on Workers
- */
-const PAGINATION_THRESHOLD = 50
 
 /**
  * Collection metadata per script (in dependency order)
@@ -239,7 +233,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   // pagination buckets or dependencies — the importer runs once, in bulk.
   'wm-app-translations': [],
   // translations targets three PayloadCMS globals, not collections.
-  'translations': [],
+  translations: [],
 }
 
 /**

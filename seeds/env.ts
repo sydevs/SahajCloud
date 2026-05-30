@@ -96,11 +96,11 @@ export const seedEnv = (() => {
     return SeedEnvSchema.parse(process.env)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      // eslint-disable-next-line no-console
+       
       console.error('❌ Seed environment validation error:')
-      // eslint-disable-next-line no-console
+       
       console.error(error.issues)
-      // eslint-disable-next-line no-console
+       
       console.error('\nCheck your .env file for seed script variables.')
       throw new Error(
         'Invalid seed environment variables. Check the error details above and verify your .env file.',

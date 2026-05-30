@@ -15,7 +15,6 @@ import {
   deriveScalarTheme,
   getScalarThemeColors,
   type BrandColors,
-  type ScalarThemeColors,
 } from '@/lib/branding'
 
 describe('Brand Colors', () => {

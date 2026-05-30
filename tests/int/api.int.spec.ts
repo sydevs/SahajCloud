@@ -332,9 +332,9 @@ describe('API', () => {
     it('has abuseScore virtual json field in clients collection', async () => {
       // Test the virtual field exists with correct configuration
       const clientsCollection = payload.config.collections.find((c) => c.slug === 'clients')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const usageField = clientsCollection?.fields.find((f: any) => f.name === 'usage') as any
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const abuseScoreField = usageField?.fields?.find((f: any) => f.name === 'abuseScore')
 
       expect(abuseScoreField).toBeDefined()

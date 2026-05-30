@@ -1,6 +1,7 @@
-import nodemailer from 'nodemailer'
 import type { Transporter } from 'nodemailer'
 import type { Address } from 'nodemailer/lib/mailer'
+
+import nodemailer from 'nodemailer'
 
 export interface CapturedEmail {
   to: string | string[]

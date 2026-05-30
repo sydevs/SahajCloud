@@ -2,10 +2,10 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { Audience, Client, Image, Lecture } from '@/payload-types'
 
 import { lecturesForAudience } from '@/endpoints/lecturesForAudience'
 import type { LecturePlayerData } from '@/lib/lectureShape'
+import type { Audience, Client, Image, Lecture } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'

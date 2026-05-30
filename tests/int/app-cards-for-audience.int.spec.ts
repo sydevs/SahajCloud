@@ -2,9 +2,9 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { appCardsForAudience } from '@/endpoints'
 import type { AppCard, Audience, Client, Image } from '@/payload-types'
 
-import { appCardsForAudience } from '@/endpoints'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'

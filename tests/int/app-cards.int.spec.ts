@@ -1,8 +1,9 @@
-import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import type { Payload } from 'payload'
 
-import { createTestEnvironment } from '../utils/testHelpers'
+import { describe, it, beforeAll, afterAll, expect } from 'vitest'
+
 import { testData } from '../utils/testData'
+import { createTestEnvironment } from '../utils/testHelpers'
 
 let payload: Payload
 let cleanup: () => Promise<void>

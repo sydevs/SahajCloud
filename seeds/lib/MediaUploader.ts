@@ -8,10 +8,11 @@
 import type { Logger } from './logger'
 import type { Payload } from 'payload'
 
-import type { ImageTag } from '@/types/tags'
 
 import { promises as fs } from 'fs'
 import * as path from 'path'
+
+import type { ImageTag } from '@/types/tags'
 
 import { isCloudflareWorker, safeBufferCopy } from './runtime'
 

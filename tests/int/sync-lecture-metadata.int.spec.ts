@@ -3,9 +3,9 @@ import type { Payload } from 'payload'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { LectureMetadata } from '@/hooks/lectureHooks'
+import { SyncLectureMetadata } from '@/jobs/tasks/SyncLectureMetadata'
 import type { Lecture } from '@/payload-types'
 
-import { SyncLectureMetadata } from '@/jobs/tasks/SyncLectureMetadata'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
