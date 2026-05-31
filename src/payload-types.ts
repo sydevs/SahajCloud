@@ -1553,6 +1553,10 @@ export interface Frame {
    * Which chakra or nadi this frame depicts. Leave blank for "Other" frames (e.g. bandhan, namaste) — use the tags field for those instead.
    */
   subtleSystemNode?: (number | null) | SubtleSystemNode;
+  /**
+   * Human-readable name for "Other" frames (bandhan, namaste, etc.) that have no chakra/nadi node.
+   */
+  label?: string | null;
   tags?:
     | (
         | 'anahat'
@@ -2384,6 +2388,7 @@ export interface FramesSelect<T extends boolean = true> {
   previewUrl?: T;
   imageSet?: T;
   subtleSystemNode?: T;
+  label?: T;
   tags?: T;
   duration?: T;
   fileMetadata?: T;
