@@ -2,7 +2,6 @@ name: CI
 
 on:
   pull_request:
-  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.head_ref || github.ref }}
@@ -13,30 +12,9 @@ permissions:
 
 jobs:
   test:
-    name: Lint & Test
+    name: Lint, Test & Smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm test # test:unit && test:int — vitest injects its own env
-
-  smoke-preview:
-    name: Smoke preview
-    # Skip cleanly until the operator finishes the Preview Environment runbook
-    # (see DEPLOYMENT.md). Without CF_WORKER_SUBDOMAIN set, the URL can't be
-    # computed and every PR would hard-fail this job until provisioning.
-    if: github.event_name == 'pull_request' && vars.CF_WORKER_SUBDOMAIN != ''
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       CF_WORKER_SUBDOMAIN: ${{ vars.CF_WORKER_SUBDOMAIN }}
     steps:
@@ -49,6 +27,12 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test # test:unit && test:int — vitest injects its own env
+      # Lint + test usually takes 2-3 min, which is roughly the time CF Workers
+      # Builds needs to publish the preview. By the time we reach the wait step
+      # below, the preview is typically already up — no grace period needed.
+      # CF_WORKER_SUBDOMAIN must be set.
       - run: pnpm exec playwright install --with-deps chromium
       - name: Wait for Cloudflare Workers Builds to publish preview
         id: preview
