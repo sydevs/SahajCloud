@@ -169,11 +169,7 @@ export const testData = {
    * Create a File using sample file
    * Note: Files collection accepts audio, video, PDF, and images (jpeg, png, webp)
    */
-  async createFile(
-    payload: Payload,
-    overrides = {},
-    sampleFile = 'audio-42s.mp3',
-  ): Promise<File> {
+  async createFile(payload: Payload, overrides = {}, sampleFile = 'audio-42s.mp3'): Promise<File> {
     const filePath = path.join(SAMPLE_FILES_DIR, sampleFile)
     const fileBuffer = fs.readFileSync(filePath)
     // Convert Buffer to Uint8Array for compatibility with file-type library
@@ -355,10 +351,7 @@ export const testData = {
    * All fields are optional — omit a range to leave it unbounded; omit
    * country to match all countries.
    */
-  async createAudience(
-    payload: Payload,
-    overrides: Partial<Audience> = {},
-  ): Promise<Audience> {
+  async createAudience(payload: Payload, overrides: Partial<Audience> = {}): Promise<Audience> {
     const uniqueId = Math.random().toString(36).substring(7)
     const defaultLabel = overrides.label || `Test Audience ${uniqueId}`
 
@@ -575,6 +568,7 @@ export const testData = {
       collection: 'frames',
       data: {
         imageSet: 'male' as const,
+        label: 'Test Frame',
         ...overrides,
       },
       file: {
@@ -717,7 +711,9 @@ export const testData = {
     // Note: Lessons collection filters meditations by type='lesson'
     let meditation = overrides.meditation
     if (!meditation) {
-      const defaultMeditation = await testData.createMeditation(payload, undefined, { type: 'lesson' })
+      const defaultMeditation = await testData.createMeditation(payload, undefined, {
+        type: 'lesson',
+      })
       meditation = defaultMeditation.id
     }
 
@@ -736,7 +732,6 @@ export const testData = {
       },
     ]
 
-     
     const lessonData: any = {
       title: overrides.title || 'Test Lesson',
       unit: overrides.unit || 'Unit 1',
