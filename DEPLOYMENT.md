@@ -724,6 +724,106 @@ The application uses **Wrangler Environments** to manage different configuration
 
 ---
 
+## Preview Environment
+
+Every non-`main` branch push deploys to a separate **`sahajcloud-preview`** Worker so reviewers can click through changes against real, prod-like data without ever risking a write to prod. The preview env is also where the `smoke-preview` CI job runs Playwright specs on every PR.
+
+### Architecture
+
+```
+PRODUCTION                                PREVIEW
+Worker: sahajcloud           Worker: <branch>-sahajcloud-preview.<account>.workers.dev
+D1:     sahajcloud           D1:     sahajcloud-preview  (cloned + sanitized weekly)
+R2:     sahajcloud           R2:     sahajcloud-preview  (separate bucket; 8-day lifecycle)
+CDN:    assets.sydevelopers  CDN:    pub-<hash>.r2.dev   (default R2 dev URL)
+```
+
+**File-protection invariant.** Preview's Worker has no binding to the prod R2 bucket. Cloned DB rows still reference `assets.sydevelopers.com/...` URLs (so the preview admin renders fine), but any delete in preview admin drops a DB row and calls `R2.delete(key)` against the preview bucket — a no-op for files that live in prod. The next reclone restores the row.
+
+**Account-scoped caveat.** Cloudflare Images and Stream are billed per-account, not per-env. Preview shares those namespaces with prod for now. Issue [#432](https://github.com/sahaja-yoga-developers/sy-devs-cms/issues/432) tracks the per-env isolation work. Until it lands, smoke tests are scoped to R2-backed collections (Meditations, Songs, Lectures).
+
+### Threat model
+
+The preview Worker is reachable at `*.workers.dev` with the documented admin credentials (the same ones in [CLAUDE.md](CLAUDE.md)). Anyone who guesses the URL can log in and browse cloned content. This is acceptable because:
+
+- PII is stripped by [scripts/sanitize-preview-dump.ts](scripts/sanitize-preview-dump.ts) before the clone lands in preview D1.
+- The file-protection invariant means a delete in preview admin can never remove a prod R2 object.
+- The remaining cloned content (meditations, songs, lectures, pages) is broadly equivalent to what the public CMS surfaces anyway.
+
+**If a future collection ever holds business-sensitive but non-PII data, this assumption has to be revisited** — either add the table to `PII_TABLES` in `scripts/sanitize-preview-dump.ts`, or gate preview admin behind a stronger auth mechanism.
+
+### One-time operator runbook
+
+After this PR merges, complete these steps once:
+
+1. **Provision D1 + R2**
+
+   ```bash
+   wrangler d1 create sahajcloud-preview --location=weur
+   # paste the returned UUID into wrangler.toml `[env.preview]` `database_id`
+   wrangler r2 bucket create sahajcloud-preview --jurisdiction=eu
+   ```
+
+2. **Enable the default R2 public URL** in the CF dashboard (R2 → `sahajcloud-preview` → Settings → Public access → enable `r2.dev` URL). Copy the assigned `https://pub-<hash>.r2.dev` into the `CLOUDFLARE_R2_DELIVERY_URL` var in `wrangler.toml` `[env.preview.vars]`.
+
+3. **Configure the 8-day object-lifecycle rule** on the same bucket (R2 → `sahajcloud-preview` → Settings → Object lifecycle rules → add rule: expire all objects after 8 days). This is the sole cleanup mechanism for smoke-test uploads — no manual wipe script needed.
+
+4. **Fill in the preview env "secrets"** — these are inlined in `wrangler.toml` `[env.preview.vars]` rather than set via `wrangler secret put`. The Worker doesn't exist until first deploy, and first deploy needs these values present to pass build-time Zod validation, so the canonical `wrangler secret put` flow hits a chicken-and-egg deadlock. Inlining matches the existing `[env.dev.vars]` pattern and is acceptable for non-prod: preview data is sanitized, and JWTs signed by the preview `PAYLOAD_SECRET` are only valid against preview.
+
+   `PAYLOAD_SECRET` and `SAHAJCLOUD_PREVIEW_SECRET` ship pre-generated. Replace the two `OPERATOR_REPLACE_ME` placeholders:
+   - `SENTRY_DSN` — paste a Sentry DSN, or delete the line to disable Sentry in preview.
+   - `RESEND_API_KEY` — paste a **sandbox** Resend API key (do not reuse prod), or delete the line to disable email.
+
+   Commit the updated `wrangler.toml` to the branch.
+
+5. **Configure Workers Builds** in the CF dashboard (Workers & Pages → `sahajcloud` → Settings → Builds):
+   - Production branch: `main` (existing behavior unchanged)
+   - Non-production branches: all branches except `main`
+   - Non-prod deploy command: `npx wrangler versions upload --env=preview`
+   - Pre-deploy migration step: `pnpm exec wrangler d1 migrations apply sahajcloud-preview --remote --env=preview`
+   - **Build environment variables** (Workers Builds → Settings → Variables and secrets → Build variables): set `PAYLOAD_SECRET` and `SAHAJCLOUD_PREVIEW_SECRET` to the same values you put in `wrangler.toml`. Per [CF docs](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), build variables are scoped to the build process (process.env during `opennextjs-cloudflare build`); they are not the same surface as the runtime bindings in `wrangler.toml [env.preview.vars]`, so both need to be set.
+
+6. **Repo secrets + vars** (Settings → Secrets and variables → Actions):
+   - Secret `CLOUDFLARE_API_TOKEN` — a token with D1 + R2 write scope (used by `preview-reclone.yml`).
+   - Secret `CLOUDFLARE_ACCOUNT_ID` — your account ID.
+   - Variable `CF_WORKER_SUBDOMAIN` — your `<account>` subdomain (the part before `.workers.dev`), used by the smoke job to compute per-PR URLs.
+
+7. **First reclone**: Actions → "Preview D1 Reclone" → "Run workflow" → `main`. Confirm preview D1 row counts roughly match prod (minus stripped Managers/Clients), preview admin can log in at `https://sahajcloud-preview.<account>.workers.dev/admin`.
+
+### Reclone schedule + sanitization
+
+The `preview-reclone` workflow (`.github/workflows/preview-reclone.yml`) runs **weekly on Sundays at 04:00 UTC** and on `workflow_dispatch`. It:
+
+1. Exports prod D1 to a SQL dump via `wrangler d1 export sahajcloud --remote`.
+2. Runs `scripts/sanitize-preview-dump.ts` to strip INSERTs for these PII tables: `managers*`, `clients*`, `payload_preferences*`, `payload_locked_documents*`, `form_submissions*`, `payload_jobs*`. Schema (CREATE TABLE) statements are preserved.
+3. Drops all preview tables (dynamic — queries `sqlite_master` so the schema list never drifts).
+4. Imports the sanitized dump into preview D1.
+5. INSERTs a seeded admin row directly into the preview `managers` table via `wrangler d1 execute` (uses Payload's exact pbkdf2-sha256 hash params; no dependency on a running preview Worker, so the reclone works on the cron even when no PR's preview alias is live). Credentials match the documented dev creds in `CLAUDE.md`.
+
+Schema drift between reclones is tolerated: PR migrations land in preview via Workers Builds' pre-deploy migration step, smoke writes accumulate during the week, and the weekly reclone wipes everything clean. If a destructive PR migration lands and is later reverted, preview self-heals on the next reclone.
+
+**Reclone-vs-smoke race.** The reclone drops and re-imports every table. If a `smoke-preview` job is in flight when the Sunday-04:00-UTC reclone fires, the smoke job's records will be wiped mid-test and the test fails at its delete step. The failure mode is a transient CI red, not data corruption — re-running the PR's CI passes. Practical risk is near-zero given the timing, but if it ever becomes an issue, gate the reclone behind a check that no `smoke-preview` runs are active.
+
+### Smoke specs
+
+`pnpm test:smoke` runs the Playwright specs in `tests/e2e/*.e2e.spec.ts` against `PREVIEW_URL`. CI sets `PREVIEW_URL` to the per-PR alias and `SMOKE_RUN_ID` to `pr-<num>-<run_id>` so concurrent PR runs don't collide on the shared preview DB. Locally, set `PREVIEW_URL=http://localhost:3000` (or your dev port) and run `pnpm test:smoke` against a running dev server.
+
+### Verification checklist
+
+After the first reclone + a throwaway PR:
+
+- [ ] CF auto-posts a preview URL comment on the PR.
+- [ ] Visiting the preview URL → `/admin/login` works with the seeded credentials.
+- [ ] **File-protection test**: pick a cloned Meditation with audio. Note its `assets.sydevelopers.com/...` URL. Delete the Meditation in preview admin. Confirm:
+  - Prod admin still shows the Meditation.
+  - The prod CDN URL still serves the file.
+  - `wrangler r2 object get sahajcloud <key>` succeeds.
+  - Triggering a reclone restores the row in preview.
+- [ ] **Upload test**: create a new Meditation with a fresh audio upload in preview admin. Confirm the URL is `pub-<hash>.r2.dev/...` (preview bucket), not `assets.sydevelopers.com`.
+- [ ] **Concurrency test**: open two PRs simultaneously. Both `smoke-preview` runs use distinct `SMOKE_RUN_ID` prefixes and don't trample each other's records.
+
+---
+
 ## Related Documentation
 
 - **Main Project Docs**: [CLAUDE.md](CLAUDE.md)
