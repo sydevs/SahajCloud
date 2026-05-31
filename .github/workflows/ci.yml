@@ -37,9 +37,16 @@ jobs:
       - name: Wait for Cloudflare Workers Builds to publish preview
         id: preview
         env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          PREVIEW_URL="https://${HEAD_SHA:0:8}-sahajcloud.${CF_WORKER_SUBDOMAIN}.workers.dev"
+          # CF Workers Builds publishes two preview URLs per push: a
+          # commit-hash one (e.g. 13a8c161-…) keyed off a CF-internal build
+          # id we can't derive locally, and a branch-slug one (e.g.
+          # feat-cf-preview-deploys-…) keyed off the source branch name.
+          # The branch slug is deterministic — use that. Both point to the
+          # same latest deploy.
+          BRANCH_SLUG=$(echo "$HEAD_REF" | tr '[:upper:]' '[:lower:]' | sed -E 's|[^a-z0-9]+|-|g; s|^-+||; s|-+$||')
+          PREVIEW_URL="https://${BRANCH_SLUG}-sahajcloud.${CF_WORKER_SUBDOMAIN}.workers.dev"
           echo "url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
           ./scripts/wait-for-200.sh "$PREVIEW_URL" 180
       - name: Run smoke specs
