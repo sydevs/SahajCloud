@@ -66,14 +66,29 @@ export const Frames: CollectionConfig = {
     // with non-chakra ritual gestures; splitting non-chakra values into `tags`
     // means the relationship genuinely doesn't apply to every frame.
     {
-      name: 'subtleSystemNode',
-      type: 'relationship',
-      relationTo: 'subtle-system-nodes',
-      hasMany: false,
-      admin: {
-        description:
-          'Which chakra or nadi this frame depicts. Leave blank for "Other" frames (e.g. bandhan, namaste) — use the tags field for those instead.',
-      },
+      type: 'row',
+      fields: [
+        {
+          name: 'subtleSystemNode',
+          type: 'relationship',
+          relationTo: 'subtle-system-nodes',
+          hasMany: false,
+          admin: {
+            description:
+              'Which chakra or nadi this frame depicts. Leave blank for "Other" frames (e.g. bandhan, namaste) — use the tags field for those instead.',
+          },
+        },
+        {
+          name: 'label',
+          type: 'text',
+          required: true,
+          admin: {
+            description:
+              'Human-readable name for "Other" frames (bandhan, namaste, etc.) that have no chakra/nadi node.',
+            condition: (_, siblingData) => !siblingData?.subtleSystemNode,
+          },
+        },
+      ],
     },
     {
       name: 'tags',
