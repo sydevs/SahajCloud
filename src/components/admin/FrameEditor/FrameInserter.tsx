@@ -15,6 +15,7 @@ import { useAvailableFrames, useLivePreviewAuto, usePlaybackTime } from './hooks
 import { baseStyles, inserterStyles } from './styles'
 import {
   formatTime,
+  getFrameDisplayLabel,
   getFrameSubtleSystemNodeSlug,
   getSubtleSystemNodeLabel,
 } from './utils'
@@ -38,18 +39,17 @@ const FrameCard: React.FC<FrameCardProps> = ({
 }) => {
   const nodeSlug = getFrameSubtleSystemNodeSlug(frame)
   const nodeLabel = getSubtleSystemNodeLabel(nodeSlug)
+  const pillLabel = nodeLabel || frame.label
   return (
     <div
       className={`${styles['frame-card']}${isClicked ? ` ${styles['frame-card_clicked']}` : ''}`}
       onClick={() => onInsert(frame)}
-      title={`Insert ${nodeLabel || `Frame ${frame.id}`} at ${formatTime(insertionTimestamp)}`}
+      title={`Insert ${getFrameDisplayLabel(frame)} at ${formatTime(insertionTimestamp)}`}
     >
       {/* Thumbnail with category pill overlay */}
       <div style={inserterStyles.thumbnailContainer}>
         <FrameThumbnail frame={frame} style={inserterStyles.frameThumbnail} />
-        {nodeLabel ? (
-          <div style={inserterStyles.categoryPill}>{nodeLabel}</div>
-        ) : null}
+        {pillLabel ? <div style={inserterStyles.categoryPill}>{pillLabel}</div> : null}
       </div>
 
       {/* Tags below thumbnail */}
