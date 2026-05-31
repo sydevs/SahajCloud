@@ -47,15 +47,16 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
-      - name: Compute preview URL
-        run: |
-          PREVIEW_URL=$(node scripts/compute-preview-url.mjs)
-          echo "PREVIEW_URL=$PREVIEW_URL" >> "$GITHUB_ENV"
-          echo "Computed preview URL: $PREVIEW_URL"
       - name: Wait for Cloudflare Workers Builds to publish preview
-        run: ./scripts/wait-for-200.sh "$PREVIEW_URL" 180
+        id: preview
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          PREVIEW_URL="https://${HEAD_SHA:0:8}-sahajcloud.${CF_WORKER_SUBDOMAIN}.workers.dev"
+          echo "url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+          ./scripts/wait-for-200.sh "$PREVIEW_URL" 180
       - name: Run smoke specs
         env:
-          PREVIEW_URL: ${{ env.PREVIEW_URL }}
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
           SMOKE_RUN_ID: pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
         run: pnpm test:smoke
