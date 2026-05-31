@@ -154,7 +154,7 @@ binding = "CF_VERSION_METADATA"
 [[env.preview.d1_databases]]
 binding = "D1"
 database_name = "sahajcloud-preview"
-database_id = "00000000-0000-0000-0000-000000000000"  # OPERATOR: replace after `wrangler d1 create`
+database_id = "f96f79a6-04c0-462c-830f-670b1643599a"
 remote = true
 
 # R2 Storage Binding
@@ -182,6 +182,19 @@ NEXT_PUBLIC_LOG_LEVEL = "debug"
 SAHAJCLOUD_URL = "https://sahajcloud-preview.workers.dev"  # OPERATOR: update once CF assigns the real subdomain
 WEMEDITATE_WEB_URL = "https://wemeditate-web.contact-c66.workers.dev"
 SAHAJATLAS_URL = "https://atlas.sydevelopers.com"
+
+# Preview "secrets" — inlined here (not via `wrangler secret put`) because the
+# preview Worker doesn't exist until first deploy, and first deploy needs these
+# present to pass build-time Zod validation. Acceptable for non-prod: preview
+# data is sanitized and JWTs signed by PAYLOAD_SECRET only validate against
+# preview. Matches the dev-env precedent (SAHAJCLOUD_PREVIEW_SECRET inlined
+# in [env.dev.vars] above).
+PAYLOAD_SECRET = "mqUN-M-eZURTsx-zKw2_7dKCgEbBBX93"
+SAHAJCLOUD_PREVIEW_SECRET = "c2_eo0v3PbJU2WMyikeggQ"
+# OPERATOR: paste your Sentry DSN here (or remove this line to disable Sentry in preview)
+SENTRY_DSN = "https://OPERATOR_REPLACE_ME@sentry.io/0"
+# OPERATOR: paste your Resend API key here (or remove this line to disable email in preview)
+RESEND_API_KEY = "re_OPERATOR_REPLACE_ME"
 
 # Cloudflare Services
 # Account-scoped resources (Images, Stream) are shared with prod —

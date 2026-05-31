@@ -816,22 +816,20 @@ After this PR merges, complete these steps once:
 
 3. **Configure the 8-day object-lifecycle rule** on the same bucket (R2 → `sahajcloud-preview` → Settings → Object lifecycle rules → add rule: expire all objects after 8 days). This is the sole cleanup mechanism for smoke-test uploads — no manual wipe script needed.
 
-4. **Set preview-env secrets**
+4. **Fill in the preview env "secrets"** — these are inlined in `wrangler.toml` `[env.preview.vars]` rather than set via `wrangler secret put`. The Worker doesn't exist until first deploy, and first deploy needs these values present to pass build-time Zod validation, so the canonical `wrangler secret put` flow hits a chicken-and-egg deadlock. Inlining matches the existing `[env.dev.vars]` pattern and is acceptable for non-prod: preview data is sanitized, and JWTs signed by the preview `PAYLOAD_SECRET` are only valid against preview.
 
-   ```bash
-   wrangler secret put PAYLOAD_SECRET --env=preview
-   wrangler secret put RESEND_API_KEY --env=preview
-   wrangler secret put SENTRY_DSN --env=preview
-   wrangler secret put SAHAJCLOUD_PREVIEW_SECRET --env=preview
-   ```
+   `PAYLOAD_SECRET` and `SAHAJCLOUD_PREVIEW_SECRET` ship pre-generated. Replace the two `OPERATOR_REPLACE_ME` placeholders:
+   - `SENTRY_DSN` — paste a Sentry DSN, or delete the line to disable Sentry in preview.
+   - `RESEND_API_KEY` — paste a **sandbox** Resend API key (do not reuse prod), or delete the line to disable email.
 
-   **Important**: use a **sandbox Resend API key** (or leave empty) and a **separate Sentry project / DSN** (or leave empty) for the preview env. Pasting prod values here would cause preview to send real emails and pollute the prod Sentry error stream.
+   Commit the updated `wrangler.toml` to the branch.
 
 5. **Configure Workers Builds** in the CF dashboard (Workers & Pages → `sahajcloud` → Settings → Builds):
    - Production branch: `main` (existing behavior unchanged)
    - Non-production branches: all branches except `main`
    - Non-prod deploy command: `npx wrangler versions upload --env=preview`
    - Pre-deploy migration step: `pnpm exec wrangler d1 migrations apply sahajcloud-preview --remote --env=preview`
+   - **Build environment variables** (Workers Builds → Settings → Variables and secrets → Build variables): set `PAYLOAD_SECRET` and `SAHAJCLOUD_PREVIEW_SECRET` to the same values you put in `wrangler.toml`. Per [CF docs](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), build variables are scoped to the build process (process.env during `opennextjs-cloudflare build`); they are not the same surface as the runtime bindings in `wrangler.toml [env.preview.vars]`, so both need to be set.
 
 6. **Repo secrets + vars** (Settings → Secrets and variables → Actions):
    - Secret `CLOUDFLARE_API_TOKEN` — a token with D1 + R2 write scope (used by `preview-reclone.yml`).
