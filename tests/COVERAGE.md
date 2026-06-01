@@ -81,6 +81,19 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 
 - **`seeds-lectures.int.spec.ts`** — covers the WeMeditate seed importer (`importLectures` upsert, NV API error isolation, re-run idempotency). Not a collection hook, but real custom code with real bugs to catch. Kept rather than moved to a new lane (which would expand scope and provide no win, since CI still wants to run it).
 
+## Smoke specs (`tests/e2e/`) and dedup analysis
+
+Tier 3 smoke specs run against a Cloudflare PR preview environment with cloned production data. They cover REST API + auth + deployment as one cohesive flow.
+
+| Spec                      | REST paths exercised                                          |
+| ------------------------- | ------------------------------------------------------------- |
+| `auth.e2e.spec.ts`        | `POST /api/managers/login`, `GET /api/managers/me`            |
+| `meditations.e2e.spec.ts` | `POST/PATCH/DELETE /api/meditations`, plus `GET` of resources |
+| `songs.e2e.spec.ts`       | `POST/PATCH/DELETE /api/songs`                                |
+| `lectures.e2e.spec.ts`    | `POST/PATCH/DELETE /api/lectures` (clip variant)              |
+
+**Dedup pass (P5 of #434).** Searched `tests/int/` for files hitting the same REST paths. Three matches: `content-index-block` (builds `/api/meditations` URLs via `computeApiEndpoint` virtual), `meditation-lectures` (hits the custom `/api/meditations/lectures` endpoint, not `/api/meditations`), and `storage-utils` (URL field factory references `/api/songs/...`). None duplicates smoke's CRUD coverage — each exercises a hook, virtual field, or custom endpoint. No integration test was removed by P5.
+
 ## Removed by the #434 audit
 
 These files were dropped because they only covered Payload-CMS built-ins; reachability is already covered by `collections-smoke.int.spec.ts`.
