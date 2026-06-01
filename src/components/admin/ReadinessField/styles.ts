@@ -25,7 +25,8 @@ export const headerRowStyle: CSSProperties = {
 
 export const headerTitleStyle: CSSProperties = {
   fontWeight: 600,
-  fontSize: 'calc(var(--base-body-size) * 1.5px)',
+  fontSize: '1.5em',
+  lineHeight: 1.3,
 }
 
 export const headerIndexStyle: CSSProperties = {
