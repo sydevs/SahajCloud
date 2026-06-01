@@ -46,7 +46,7 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   label: 'User Choices',
   description:
     'Mood, goal, and duration user choices have their meditation assignments configured for this locale.',
-  tutorialLink: null,
+  tutorialLink: 'https://example.com/tutorials/user-choices',
   checks: {
     'meditation-morning-published': {
       label: 'Morning meditation published',

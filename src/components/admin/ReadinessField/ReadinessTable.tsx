@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 
+import { ExternalLinkIcon } from '../ExternalLinkIcon'
 import { StatusIcon } from './StatusIcon'
 import {
   emptyGroupStyle,
@@ -58,7 +59,7 @@ export const ReadinessTable: React.FC<ReadinessTableProps> = ({
       <table style={tableStyle}>
         <thead>
           <tr>
-            <th style={tableHeaderCellStyle}>Item</th>
+            <th style={tableHeaderCellStyle}>Title</th>
             {checkColumns.map((col) => (
               <th
                 key={col.key}
@@ -86,8 +87,19 @@ export const ReadinessTable: React.FC<ReadinessTableProps> = ({
               <tr key={String(row.id)} style={{ background: bg }}>
                 <td style={tableRowCellStyle}>
                   {row.link ? (
-                    <a href={row.link} style={linkRowStyle}>
+                    <a
+                      href={row.link}
+                      rel="noopener noreferrer"
+                      style={{
+                        ...linkRowStyle,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                      }}
+                      target="_blank"
+                    >
                       {row.label}
+                      <ExternalLinkIcon size={11} style={{ opacity: 0.5, flexShrink: 0 }} />
                     </a>
                   ) : (
                     <span>{row.label}</span>

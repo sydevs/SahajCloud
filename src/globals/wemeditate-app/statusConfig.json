@@ -1,27 +1,4 @@
 {
-  "collections": {
-    "appCards": {
-      "tutorialLink": null
-    },
-    "appConfig": {
-      "tutorialLink": null
-    },
-    "lectures": {
-      "tutorialLink": null
-    },
-    "lessons": {
-      "tutorialLink": null
-    },
-    "pages": {
-      "tutorialLink": null
-    },
-    "translations": {
-      "tutorialLink": null
-    },
-    "userChoices": {
-      "tutorialLink": null
-    }
-  },
   "sections": {
     "appCards": {
       "label": "App Cards",
@@ -36,7 +13,7 @@
     "lectures": {
       "label": "Lectures",
       "description": "Lecture content has subtitles, coverage, and prioritization for this locale.",
-      "tutorialLink": null
+      "tutorialLink": "https://example.com/tutorials/lectures"
     },
     "lessons": {
       "label": "Path Lessons",
@@ -46,17 +23,17 @@
     "pages": {
       "label": "Pages",
       "description": "All required core and subtle-system pages are published and localized.",
-      "tutorialLink": null
+      "tutorialLink": "https://example.com/tutorials/pages"
     },
     "translations": {
       "label": "Translations",
       "description": "Every translations tab has values for this locale and an admin has signed off.",
-      "tutorialLink": null
+      "tutorialLink": "https://example.com/tutorials/translations"
     },
     "userChoices": {
       "label": "User Choices",
       "description": "Mood, goal, and duration user choices have their meditation assignments configured for this locale.",
-      "tutorialLink": null
+      "tutorialLink": "https://example.com/tutorials/user-choices"
     }
   },
   "groups": {

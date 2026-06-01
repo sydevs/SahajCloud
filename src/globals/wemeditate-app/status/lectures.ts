@@ -18,7 +18,7 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'lectures',
   label: 'Lectures',
   description: 'Lecture content has subtitles, coverage, and prioritization for this locale.',
-  tutorialLink: null,
+  tutorialLink: 'https://example.com/tutorials/lectures',
   checks: {
     'has-lecture': {
       label: 'Has a lecture',

@@ -30,13 +30,11 @@ function sliceMetadata<TConfig>(
  * Wires every section to its `runSection`-backed virtual field and
  * attaches the project's Configuration tab (admin-only by convention).
  */
-export function buildStatusGlobalConfig<TConfig>(
-  spec: StatusGlobalSpec<TConfig>,
-): GlobalConfig {
+export function buildStatusGlobalConfig<TConfig>(spec: StatusGlobalSpec<TConfig>): GlobalConfig {
   const groupCollectionMap = spec.groupCollectionMap ?? {}
   const sectionConfigFallback = spec.sectionConfigFallback ?? {}
 
-  const sectionFields = spec.sections.map((section) => {
+  const sectionFields = spec.sections.map((section, sectionIndex) => {
     const { groupsMetadata, checksMetadata } = sliceMetadata(section)
 
     // The widget's `groupKeyToCollection` only needs entries for this
@@ -49,6 +47,7 @@ export function buildStatusGlobalConfig<TConfig>(
     const adminCustom: ReadinessFieldAdminCustom = {
       sectionMetadata: {
         key: section.key,
+        index: sectionIndex + 1,
         label: section.label,
         description: section.description,
         tutorialLink: section.tutorialLink,
@@ -61,8 +60,7 @@ export function buildStatusGlobalConfig<TConfig>(
 
     return virtualReadinessField(
       section.key,
-      (payload, locale, config, req) =>
-        runSection(section, { payload, locale, config, req }),
+      (payload, locale, config, req) => runSection(section, { payload, locale, config, req }),
       spec.extractConfig,
       adminCustom,
     )

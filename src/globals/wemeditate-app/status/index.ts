@@ -27,15 +27,6 @@ export const WeMeditateAppStatusSpec: StatusGlobalSpec<WeMeditateAppStatusConfig
   slug: 'wm-app-status',
   label: 'Launch Readiness',
   adminGroup: 'WeMeditate App',
-  collections: {
-    userChoices: { tutorialLink: null },
-    lessons: { tutorialLink: null },
-    lectures: { tutorialLink: null },
-    pages: { tutorialLink: null },
-    appCards: { tutorialLink: null },
-    appConfig: { tutorialLink: null },
-    translations: { tutorialLink: null },
-  },
   configTabFields: [
     {
       name: 'launchCriticalAppCards',
@@ -57,8 +48,7 @@ export const WeMeditateAppStatusSpec: StatusGlobalSpec<WeMeditateAppStatusConfig
       defaultValue: DEFAULT_BASELINE_COUNTRY,
       access: { update: adminOnlyFieldAccess },
       admin: {
-        description:
-          'Baseline country used to resolve the new-user audience set for this locale.',
+        description: 'Baseline country used to resolve the new-user audience set for this locale.',
       },
     },
   ],

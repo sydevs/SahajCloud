@@ -4,24 +4,39 @@ export const sectionCardStyle: CSSProperties = {
   marginBottom: 'calc(var(--base) * 0.5)',
 }
 
-export const headerRowStyle: CSSProperties = {
+export const headerWrapStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 'calc(var(--base) * 0.5)',
+  width: '100%',
 }
 
-export const headerBlockStyle: CSSProperties = {
-  width: '100%',
+export const headerContentStyle: CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+}
+
+export const headerRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 'calc(var(--base) * 0.35)',
+  flexWrap: 'wrap',
 }
 
 export const headerTitleStyle: CSSProperties = {
   fontWeight: 600,
+  fontSize: 'calc(var(--base-body-size) * 1.1px)',
 }
 
-export const headerDescriptionStyle: CSSProperties = {
+export const headerIndexStyle: CSSProperties = {
   color: 'var(--theme-elevation-500)',
-  fontSize: 'calc(var(--base-body-size) * 0.92px)',
-  marginTop: 'calc(var(--base) * 0.15)',
+  fontWeight: 400,
+}
+
+export const headerInlineDescStyle: CSSProperties = {
+  color: 'var(--theme-elevation-500)',
+  fontWeight: 400,
+  fontSize: 'calc(var(--base-body-size) * 0.9px)',
 }
 
 export const headerLinkStyle: CSSProperties = {

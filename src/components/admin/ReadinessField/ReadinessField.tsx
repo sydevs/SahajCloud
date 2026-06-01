@@ -12,10 +12,13 @@ import { ProgressBar } from './ProgressBar'
 import { ReadinessGroup } from './ReadinessGroup'
 import { ReadinessPill } from './ReadinessPill'
 import {
-  headerDescriptionStyle,
+  headerContentStyle,
+  headerIndexStyle,
+  headerInlineDescStyle,
   headerLinkStyle,
   headerRowStyle,
   headerTitleStyle,
+  headerWrapStyle,
   sectionCardStyle,
 } from './styles'
 import { summaryTone } from './summary'
@@ -65,49 +68,55 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
     <div style={sectionCardStyle}>
       <Collapsible
         header={
-          <div style={{ width: '100%' }}>
-            {/* Row 1: pill + title + action links */}
-            <div style={headerRowStyle}>
-              <ReadinessPill tone={tone} />
-              <span style={headerTitleStyle}>{sectionMetadata.label}</span>
-              <span
-                style={{
-                  marginLeft: 'auto',
-                  display: 'flex',
-                  gap: 'calc(var(--base) * 0.5)',
-                  position: 'relative',
-                  zIndex: 1,
-                  pointerEvents: 'all',
-                }}
-              >
-                {sectionMetadata.tutorialLink ? (
-                  <a
-                    href={sectionMetadata.tutorialLink}
-                    rel="noopener noreferrer"
-                    style={headerLinkStyle}
-                    target="_blank"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Watch tutorial
-                  </a>
-                ) : null}
-                {configFallbackHref ? (
-                  <a
-                    href={configFallbackHref}
-                    style={headerLinkStyle}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Edit configuration
-                  </a>
-                ) : null}
-              </span>
+          <div style={headerWrapStyle}>
+            <ReadinessPill tone={tone} />
+            <div style={headerContentStyle}>
+              {/* Row 1: index + title + description + links */}
+              <div style={headerRowStyle}>
+                <span style={headerTitleStyle}>
+                  <span style={headerIndexStyle}>{sectionMetadata.index}.</span>{' '}
+                  {sectionMetadata.label}
+                  {sectionMetadata.description ? (
+                    <span style={headerInlineDescStyle}> · {sectionMetadata.description}</span>
+                  ) : null}
+                </span>
+                <span
+                  style={{
+                    marginLeft: 'auto',
+                    display: 'flex',
+                    gap: 'calc(var(--base) * 0.5)',
+                    position: 'relative',
+                    zIndex: 1,
+                    pointerEvents: 'all',
+                  }}
+                >
+                  {sectionMetadata.tutorialLink ? (
+                    <a
+                      href={sectionMetadata.tutorialLink}
+                      rel="noopener noreferrer"
+                      style={headerLinkStyle}
+                      target="_blank"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Watch tutorial
+                    </a>
+                  ) : null}
+                  {configFallbackHref ? (
+                    <a
+                      href={configFallbackHref}
+                      style={headerLinkStyle}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Edit configuration
+                    </a>
+                  ) : null}
+                </span>
+              </div>
+              {/* Row 2: progress bar */}
+              {report !== null ? (
+                <ProgressBar passing={summary.passing} total={summary.total} unit="groups ready" />
+              ) : null}
             </div>
-            {/* Row 2: description */}
-            <div style={headerDescriptionStyle}>{sectionMetadata.description}</div>
-            {/* Row 3: progress bar (only when data is loaded) */}
-            {report !== null ? (
-              <ProgressBar passing={summary.passing} total={summary.total} unit="groups ready" />
-            ) : null}
           </div>
         }
       >
@@ -129,13 +138,14 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
               gap: 'calc(var(--base) * 0.3)',
             }}
           >
-            {report.groups.map((group) => (
+            {report.groups.map((group, groupIndex) => (
               <ReadinessGroup
                 key={group.key}
                 checksMetadata={checksMetadata}
                 collectionSlug={groupKeyToCollection[group.key] ?? null}
                 group={group}
                 groupMetadata={groupsMetadata[group.key]}
+                index={groupIndex + 1}
                 localeCode={localeCode}
               />
             ))}

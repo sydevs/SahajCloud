@@ -117,7 +117,6 @@ export interface StatusGlobalSpec<TConfig> {
   slug: string
   label: string
   adminGroup: string
-  collections: Record<string, { tutorialLink: string | null }>
   configTabFields: Field[]
   extractConfig: (data: unknown) => TConfig
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -29,9 +29,8 @@ function reportForPage(
 export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'pages',
   label: 'Pages',
-  description:
-    'All required core and subtle-system pages are published and localized.',
-  tutorialLink: null,
+  description: 'All required core and subtle-system pages are published and localized.',
+  tutorialLink: 'https://example.com/tutorials/pages',
   checks: {
     published: {
       label: 'Published',
@@ -55,19 +54,11 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       }),
     ])
 
-    const corePageIds = APP_REQUIRED_PAGE_FIELDS.map((fieldName) =>
-      refId(appConfig[fieldName]),
-    )
-    const nodePageIds = nodes.map((n) =>
-      refId((n as unknown as Record<string, unknown>).page),
-    )
+    const corePageIds = APP_REQUIRED_PAGE_FIELDS.map((fieldName) => refId(appConfig[fieldName]))
+    const nodePageIds = nodes.map((n) => refId((n as unknown as Record<string, unknown>).page))
 
     const allIds = Array.from(
-      new Set(
-        [...corePageIds, ...nodePageIds].filter(
-          (id): id is number | string => id !== null,
-        ),
-      ),
+      new Set([...corePageIds, ...nodePageIds].filter((id): id is number | string => id !== null)),
     )
 
     const pages =

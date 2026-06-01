@@ -10,7 +10,15 @@ import { ErroredStatus } from './ErroredStatus'
 import { ProgressBar } from './ProgressBar'
 import { ReadinessPill } from './ReadinessPill'
 import { ReadinessTable } from './ReadinessTable'
-import { groupBodyStyle, groupDescriptionStyle, headerRowStyle, headerTitleStyle } from './styles'
+import {
+  groupBodyStyle,
+  headerContentStyle,
+  headerIndexStyle,
+  headerInlineDescStyle,
+  headerRowStyle,
+  headerTitleStyle,
+  headerWrapStyle,
+} from './styles'
 import { summaryTone, type SummaryTone } from './summary'
 
 interface ReadinessGroupProps {
@@ -19,6 +27,7 @@ interface ReadinessGroupProps {
   checksMetadata: Record<string, { label: string; description: string }>
   collectionSlug: string | null
   localeCode: string
+  index: number
 }
 
 function groupTone(group: Group): SummaryTone {
@@ -32,42 +41,50 @@ function groupTone(group: Group): SummaryTone {
 function GroupHeader({
   group,
   groupMetadata,
+  index,
 }: {
   group: Group
   groupMetadata: { label: string; description: string } | undefined
+  index: number
 }) {
   const label = groupMetadata?.label ?? group.key
   const description = groupMetadata?.description
   const tone = groupTone(group)
 
   return (
-    <div style={{ width: '100%' }}>
-      <div style={headerRowStyle}>
-        <ReadinessPill tone={tone} />
-        <span style={headerTitleStyle}>{label}</span>
-        {group.optional ? (
-          <span
-            style={{
-              fontSize: 'calc(var(--base-body-size) * 0.8px)',
-              color: 'var(--theme-elevation-500)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}
-          >
-            Optional
+    <div style={headerWrapStyle}>
+      <ReadinessPill tone={tone} />
+      <div style={headerContentStyle}>
+        {/* Row 1: index + title + optional tag + description */}
+        <div style={headerRowStyle}>
+          <span style={headerTitleStyle}>
+            <span style={headerIndexStyle}>{index}.</span> {label}
           </span>
+          {group.optional ? (
+            <span
+              style={{
+                fontSize: 'calc(var(--base-body-size) * 0.8px)',
+                color: 'var(--theme-elevation-500)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
+              Optional
+            </span>
+          ) : null}
+          {description ? <span style={headerInlineDescStyle}>· {description}</span> : null}
+        </div>
+        {/* Row 2: progress bar */}
+        {group.type === 'documents' ? (
+          <ProgressBar
+            passing={group.summary.passing}
+            total={group.summary.total}
+            unit="documents ready"
+          />
+        ) : group.type === 'aggregate' ? (
+          <ProgressBar passing={group.actual} total={group.threshold} unit="keys filled" />
         ) : null}
       </div>
-      {description ? <div style={groupDescriptionStyle}>{description}</div> : null}
-      {group.type === 'documents' ? (
-        <ProgressBar
-          passing={group.summary.passing}
-          total={group.summary.total}
-          unit="documents ready"
-        />
-      ) : group.type === 'aggregate' ? (
-        <ProgressBar passing={group.actual} total={group.threshold} unit="keys filled" />
-      ) : null}
     </div>
   )
 }
@@ -78,6 +95,7 @@ export const ReadinessGroup: React.FC<ReadinessGroupProps> = ({
   checksMetadata,
   collectionSlug,
   localeCode,
+  index,
 }) => {
   const checkColumns = useMemo(() => {
     if (group.type !== 'documents') return []
@@ -111,7 +129,7 @@ export const ReadinessGroup: React.FC<ReadinessGroupProps> = ({
   }, [group, collectionSlug, localeCode])
 
   return (
-    <Collapsible header={<GroupHeader group={group} groupMetadata={groupMetadata} />}>
+    <Collapsible header={<GroupHeader group={group} groupMetadata={groupMetadata} index={index} />}>
       <div style={groupBodyStyle}>
         {group.type === 'documents' ? (
           <ReadinessTable checkColumns={checkColumns} rows={tableRows} />

@@ -4,6 +4,7 @@ import type { JSONField } from 'payload'
 export interface ReadinessFieldAdminCustom {
   sectionMetadata: {
     key: string
+    index: number
     label: string
     description: string
     tutorialLink: string | null
@@ -18,8 +19,7 @@ export interface ReadinessFieldAdminCustom {
  * Path that PayloadCMS resolves through the import map; component lives at
  * src/components/admin/ReadinessField/index.ts.
  */
-export const READINESS_FIELD_COMPONENT_PATH =
-  '@/components/admin/ReadinessField'
+export const READINESS_FIELD_COMPONENT_PATH = '@/components/admin/ReadinessField'
 
 /**
  * Build a per-section virtual JSON field that computes a `ReadinessReport`

@@ -156,7 +156,7 @@ export const translationsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = 
   key: 'translations',
   label: 'Translations',
   description: 'Every translations tab has values for this locale and an admin has signed off.',
-  tutorialLink: null,
+  tutorialLink: 'https://example.com/tutorials/translations',
   checks: {
     'is-published': {
       label: 'Translations published',
