@@ -105,4 +105,52 @@ INSERT INTO managerstuff VALUES (1);`
     expect(result).toContain('INSERT INTO clients_external')
     expect(result).toContain('INSERT INTO managerstuff')
   })
+
+  it('strips table-level FOREIGN KEY clauses from CREATE TABLE', () => {
+    const sql = `CREATE TABLE \`pages_tags\` (
+  \`order\` integer NOT NULL,
+  \`parent_id\` integer NOT NULL,
+  \`id\` integer PRIMARY KEY NOT NULL,
+  FOREIGN KEY (\`parent_id\`) REFERENCES \`pages\`(\`id\`) ON UPDATE no action ON DELETE cascade
+);`
+    const result = sanitizeDump(sql)
+    expect(result).not.toMatch(/FOREIGN KEY/)
+    expect(result).not.toMatch(/REFERENCES/)
+    expect(result).toContain('CREATE TABLE `pages_tags`')
+    expect(result).toContain('`id` integer PRIMARY KEY NOT NULL')
+    // No dangling comma before the closing paren
+    expect(result).toMatch(/PRIMARY KEY NOT NULL\s*\)/)
+  })
+
+  it('strips multiple FOREIGN KEY clauses in a single CREATE TABLE', () => {
+    const sql = `CREATE TABLE rels (
+  id integer PRIMARY KEY,
+  a integer,
+  b integer,
+  FOREIGN KEY (a) REFERENCES "tbl_a"(id) ON UPDATE no action ON DELETE cascade,
+  FOREIGN KEY (b) REFERENCES "tbl_b"(id) ON DELETE set null
+);`
+    const result = sanitizeDump(sql)
+    expect(result).not.toContain('FOREIGN KEY')
+    expect(result).not.toContain('REFERENCES')
+    expect(result).toContain('CREATE TABLE rels')
+  })
+
+  it('strips inline column-level REFERENCES clauses', () => {
+    const sql = `CREATE TABLE pages (
+  id integer PRIMARY KEY NOT NULL,
+  featured_video_id integer REFERENCES videos(id)
+);`
+    const result = sanitizeDump(sql)
+    expect(result).not.toContain('REFERENCES')
+    expect(result).toContain('featured_video_id integer')
+  })
+
+  it('leaves CREATE INDEX / CREATE TRIGGER untouched', () => {
+    const sql = `CREATE INDEX idx_pages_slug ON pages (slug);
+CREATE TRIGGER t AFTER INSERT ON pages BEGIN UPDATE pages SET id = NEW.id; END;`
+    const result = sanitizeDump(sql)
+    expect(result).toContain('CREATE INDEX idx_pages_slug ON pages (slug)')
+    expect(result).toContain('CREATE TRIGGER t AFTER INSERT ON pages')
+  })
 })
