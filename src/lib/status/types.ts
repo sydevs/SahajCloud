@@ -50,6 +50,7 @@ export type ReadinessGroup =
       passed: boolean
       actual: number
       threshold: number
+      items?: Array<{ key: string; label: string; passed: boolean }>
     }
   | {
       type: 'errored'

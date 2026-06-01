@@ -17,8 +17,7 @@ interface Ctx {
 export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'lectures',
   label: 'Lectures',
-  description:
-    'Lecture content has subtitles, coverage, and prioritization for this locale.',
+  description: 'Lecture content has subtitles, coverage, and prioritization for this locale.',
   tutorialLink: null,
   checks: {
     'has-lecture': {
@@ -150,7 +149,7 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         'At least ten lectures have a priority above zero and at least one user-choice tag.',
       type: 'aggregate',
       threshold: PRIORITY_USERCHOICE_THRESHOLD,
-      evaluate: async (ctx) => ctx.priorityCount,
+      evaluate: async (ctx) => ({ actual: ctx.priorityCount }),
     },
     {
       key: 'baseline-audience',
@@ -159,7 +158,7 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         "At least twenty lectures are visible to the most-restrictive new-user audience for this locale's baseline country.",
       type: 'aggregate',
       threshold: BASELINE_AUDIENCE_THRESHOLD,
-      evaluate: async (ctx) => ctx.baselineLectureCount,
+      evaluate: async (ctx) => ({ actual: ctx.baselineLectureCount }),
     },
     {
       key: 'user-choice-coverage',

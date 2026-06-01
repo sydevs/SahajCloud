@@ -28,6 +28,7 @@ export function aggregateGroup(
   actual: number,
   threshold: number,
   optional = false,
+  items?: Array<{ key: string; label: string; passed: boolean }>,
 ): ReadinessGroup {
   return {
     type: 'aggregate',
@@ -36,6 +37,7 @@ export function aggregateGroup(
     passed: actual >= threshold,
     actual,
     threshold,
+    ...(items ? { items } : {}),
   }
 }
 

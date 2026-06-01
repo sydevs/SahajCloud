@@ -43,11 +43,18 @@ export interface DocumentsGroupSpec<TSectionCtx, TConfig> extends BaseGroupSpec 
   ) => Promise<DocumentReport[]>
 }
 
+export interface AggregateEvaluateResult {
+  actual: number
+  items?: Array<{ key: string; label: string; passed: boolean }>
+}
+
 export interface AggregateGroupSpec<TSectionCtx, TConfig> extends BaseGroupSpec {
   type: 'aggregate'
   threshold: number
-  /** Returns `actual`. The runner compares against `threshold`. */
-  evaluate: (sectionCtx: TSectionCtx, req: ProjectRequestContext<TConfig>) => Promise<number>
+  evaluate: (
+    sectionCtx: TSectionCtx,
+    req: ProjectRequestContext<TConfig>,
+  ) => Promise<AggregateEvaluateResult>
 }
 
 export type GroupSpec<TSectionCtx, TConfig> =

@@ -8,7 +8,10 @@ export const headerRowStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 'calc(var(--base) * 0.5)',
-  flexWrap: 'wrap',
+}
+
+export const headerBlockStyle: CSSProperties = {
+  width: '100%',
 }
 
 export const headerTitleStyle: CSSProperties = {

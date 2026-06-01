@@ -50,18 +50,15 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   checks: {
     'meditation-morning-published': {
       label: 'Morning meditation published',
-      description:
-        'The user choice has a published morning meditation assigned for this locale.',
+      description: 'The user choice has a published morning meditation assigned for this locale.',
     },
     'meditation-afternoon-published': {
       label: 'Afternoon meditation published',
-      description:
-        'The user choice has a published afternoon meditation assigned for this locale.',
+      description: 'The user choice has a published afternoon meditation assigned for this locale.',
     },
     'meditation-evening-published': {
       label: 'Evening meditation published',
-      description:
-        'The user choice has a published evening meditation assigned for this locale.',
+      description: 'The user choice has a published evening meditation assigned for this locale.',
     },
     'meditation-night-published': {
       label: 'Night meditation published',
@@ -111,8 +108,9 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         'At least four non-featured mood/goal user choices have a published morning meditation assigned.',
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
-      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) =>
-        countForTiming(nonFeaturedMoodOrGoal, 'morning', locale),
+      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
+        actual: countForTiming(nonFeaturedMoodOrGoal, 'morning', locale),
+      }),
     },
     {
       key: 'non-featured-afternoon',
@@ -121,8 +119,9 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         'At least four non-featured mood/goal user choices have a published afternoon meditation assigned.',
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
-      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) =>
-        countForTiming(nonFeaturedMoodOrGoal, 'afternoon', locale),
+      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
+        actual: countForTiming(nonFeaturedMoodOrGoal, 'afternoon', locale),
+      }),
     },
     {
       key: 'non-featured-evening',
@@ -131,8 +130,9 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         'At least four non-featured mood/goal user choices have a published evening meditation assigned.',
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
-      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) =>
-        countForTiming(nonFeaturedMoodOrGoal, 'evening', locale),
+      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
+        actual: countForTiming(nonFeaturedMoodOrGoal, 'evening', locale),
+      }),
     },
     {
       key: 'non-featured-night',
@@ -141,8 +141,9 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         'At least four non-featured mood/goal user choices have a published night meditation assigned.',
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
-      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) =>
-        countForTiming(nonFeaturedMoodOrGoal, 'night', locale),
+      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
+        actual: countForTiming(nonFeaturedMoodOrGoal, 'night', locale),
+      }),
     },
   ],
 }

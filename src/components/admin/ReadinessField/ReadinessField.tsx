@@ -8,7 +8,9 @@ import React from 'react'
 import type { ReadinessReport } from '@/lib/status'
 import type { ReadinessFieldAdminCustom } from '@/lib/status/virtualReadinessField'
 
+import { ProgressBar } from './ProgressBar'
 import { ReadinessGroup } from './ReadinessGroup'
+import { ReadinessPill } from './ReadinessPill'
 import {
   headerDescriptionStyle,
   headerLinkStyle,
@@ -16,7 +18,7 @@ import {
   headerTitleStyle,
   sectionCardStyle,
 } from './styles'
-import { SummaryBadge } from './SummaryBadge'
+import { summaryTone } from './summary'
 
 export type ReadinessFieldCustom = ReadinessFieldAdminCustom
 
@@ -36,9 +38,7 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
   const { value } = useField<ReadinessReport | null>()
   const locale = useLocale()
 
-  const custom = isReadinessFieldCustom(field.admin?.custom)
-    ? field.admin.custom
-    : null
+  const custom = isReadinessFieldCustom(field.admin?.custom) ? field.admin.custom : null
 
   if (!custom) {
     return (
@@ -48,19 +48,14 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
     )
   }
 
-  const {
-    sectionMetadata,
-    groupsMetadata,
-    checksMetadata,
-    groupKeyToCollection,
-    configFallback,
-  } = custom
+  const { sectionMetadata, groupsMetadata, checksMetadata, groupKeyToCollection, configFallback } =
+    custom
 
   const report = value ?? null
   const localeCode = locale?.code ?? 'en'
 
   const summary = report?.summary ?? { passing: 0, total: 0 }
-  const optionalSummary = report?.optionalSummary
+  const tone = report ? summaryTone(summary.passing, summary.total) : 'neutral'
 
   const configFallbackHref = configFallback
     ? `/admin/globals/${configFallback.slug}?locale=${encodeURIComponent(localeCode)}`
@@ -70,43 +65,52 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
     <div style={sectionCardStyle}>
       <Collapsible
         header={
-          <div style={headerRowStyle}>
-            <span style={headerTitleStyle}>{sectionMetadata.label}</span>
-            <SummaryBadge passing={summary.passing} total={summary.total} />
-            {optionalSummary ? (
-              <SummaryBadge
-                passing={optionalSummary.passing}
-                total={optionalSummary.total}
-                prefix="optional"
-                subtle
-              />
+          <div style={{ width: '100%' }}>
+            {/* Row 1: pill + title + action links */}
+            <div style={headerRowStyle}>
+              <ReadinessPill tone={tone} />
+              <span style={headerTitleStyle}>{sectionMetadata.label}</span>
+              <span
+                style={{
+                  marginLeft: 'auto',
+                  display: 'flex',
+                  gap: 'calc(var(--base) * 0.5)',
+                  position: 'relative',
+                  zIndex: 1,
+                  pointerEvents: 'all',
+                }}
+              >
+                {sectionMetadata.tutorialLink ? (
+                  <a
+                    href={sectionMetadata.tutorialLink}
+                    rel="noopener noreferrer"
+                    style={headerLinkStyle}
+                    target="_blank"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Watch tutorial
+                  </a>
+                ) : null}
+                {configFallbackHref ? (
+                  <a
+                    href={configFallbackHref}
+                    style={headerLinkStyle}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Edit configuration
+                  </a>
+                ) : null}
+              </span>
+            </div>
+            {/* Row 2: description */}
+            <div style={headerDescriptionStyle}>{sectionMetadata.description}</div>
+            {/* Row 3: progress bar (only when data is loaded) */}
+            {report !== null ? (
+              <ProgressBar passing={summary.passing} total={summary.total} unit="groups ready" />
             ) : null}
-            <span style={{ marginLeft: 'auto', display: 'flex', gap: 'calc(var(--base) * 0.5)' }}>
-              {sectionMetadata.tutorialLink ? (
-                <a
-                  href={sectionMetadata.tutorialLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={headerLinkStyle}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Watch tutorial
-                </a>
-              ) : null}
-              {configFallbackHref ? (
-                <a
-                  href={configFallbackHref}
-                  style={headerLinkStyle}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Edit configuration
-                </a>
-              ) : null}
-            </span>
           </div>
         }
       >
-        <div style={headerDescriptionStyle}>{sectionMetadata.description}</div>
         {report === null ? (
           <div
             style={{
@@ -128,10 +132,10 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
             {report.groups.map((group) => (
               <ReadinessGroup
                 key={group.key}
-                group={group}
-                groupMetadata={groupsMetadata[group.key]}
                 checksMetadata={checksMetadata}
                 collectionSlug={groupKeyToCollection[group.key] ?? null}
+                group={group}
+                groupMetadata={groupsMetadata[group.key]}
                 localeCode={localeCode}
               />
             ))}

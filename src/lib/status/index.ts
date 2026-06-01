@@ -13,6 +13,7 @@ export { buildStatusGlobalConfig } from './buildStatusGlobalConfig'
 export { extractStatusConfig } from './extractMetadata'
 export type { StatusConfigJson } from './extractMetadata'
 export type {
+  AggregateEvaluateResult,
   AggregateGroupSpec,
   CheckMetadata,
   DocumentsGroupSpec,

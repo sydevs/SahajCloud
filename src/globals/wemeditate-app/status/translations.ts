@@ -96,6 +96,38 @@ function isPopulated(translations: Record<string, unknown>, lookup: LeafLookup):
   return typeof value === 'string' && value.trim().length > 0
 }
 
+/**
+ * Returns a human-readable label for a translation key suitable for display
+ * in the missing-keys table.
+ *
+ * For string fields: returns dot-notation within the tab, e.g. "settings.logout"
+ * or just "loading" for simple (non-nested) tabs.
+ *
+ * For richText fields: extracts the key name by stripping the enclosing slug
+ * prefix from fieldName (e.g. "daily_welcome" → "welcome",
+ * "settings_title" under groupField "profile" → "settings.title").
+ */
+function getLookupLabel(lookup: LeafLookup): string {
+  if (lookup.innerKey !== null) {
+    return lookup.groupField ? `${lookup.fieldName}.${lookup.innerKey}` : lookup.innerKey
+  }
+  // RichText: fieldName is "<slug>_<key>" — strip the leading slug prefix.
+  if (lookup.groupField !== null) {
+    // Nested tab: fieldName is "<subSlug>_<key>", groupField is the tab slug.
+    const idx = lookup.fieldName.indexOf('_')
+    if (idx > 0) {
+      const subSlug = lookup.fieldName.slice(0, idx)
+      const key = lookup.fieldName.slice(idx + 1)
+      return `${subSlug}.${key}`
+    }
+  } else {
+    // Simple tab: fieldName is "<tabSlug>_<key>".
+    const idx = lookup.fieldName.indexOf('_')
+    if (idx > 0) return lookup.fieldName.slice(idx + 1)
+  }
+  return lookup.fieldName
+}
+
 interface Ctx {
   translations: Record<string, unknown>
 }
@@ -109,8 +141,13 @@ const tabAggregateGroups: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = tabEntri
       description: `Every key under the ${tabSlug.charAt(0).toUpperCase()}${tabSlug.slice(1)} translations tab has a non-empty value for this locale.`,
       type: 'aggregate',
       threshold: lookups.length,
-      evaluate: async ({ translations }) =>
-        lookups.filter((lookup) => isPopulated(translations, lookup)).length,
+      evaluate: async ({ translations }) => {
+        const items = lookups.map((lookup) => {
+          const label = getLookupLabel(lookup)
+          return { key: label, label, passed: isPopulated(translations, lookup) }
+        })
+        return { actual: items.filter((i) => i.passed).length, items }
+      },
     }
   },
 )
@@ -118,8 +155,7 @@ const tabAggregateGroups: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = tabEntri
 export const translationsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'translations',
   label: 'Translations',
-  description:
-    'Every translations tab has values for this locale and an admin has signed off.',
+  description: 'Every translations tab has values for this locale and an admin has signed off.',
   tutorialLink: null,
   checks: {
     'is-published': {
