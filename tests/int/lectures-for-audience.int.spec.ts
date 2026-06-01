@@ -2,7 +2,6 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-
 import { lecturesForAudience } from '@/endpoints/lecturesForAudience'
 import type { LecturePlayerData } from '@/lib/lectureShape'
 import type { Audience, Client, Image, Lecture } from '@/payload-types'
@@ -29,6 +28,8 @@ vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
   }
 })
 
+const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', active: true }
+
 // `audiences` is required by the endpoint's Zod schema. Tests that don't
 // exercise a specific eligibility scenario still need to pass a non-empty
 // list; pass `{ skipDefaultAudiences: true }` on the 400-validation cases
@@ -36,7 +37,7 @@ vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
 async function callEndpoint(
   payload: Payload,
   query: Record<string, string | number | boolean>,
-  user?: { id: number | string; collection: string },
+  user?: { id: number | string; collection: string; active?: boolean } | null,
   options: { skipDefaultAudiences?: boolean; defaultAudiences?: string } = {},
 ): Promise<{ status: number; headers: Headers; body: { docs: LecturePlayerData[] } | unknown }> {
   const finalQuery = options.skipDefaultAudiences
@@ -47,7 +48,7 @@ async function callEndpoint(
     query: finalQuery,
     headers: new Headers(),
     routeParams: {},
-    user,
+    user: user === undefined ? DEFAULT_CLIENT_USER : user,
   } as unknown as PayloadRequest
 
   const response = (await lecturesForAudience.handler(req)) as Response
@@ -202,20 +203,19 @@ describe('lecturesForAudience endpoint', () => {
 
     it('returns 400 when limit is out of range', async () => {
       expect(
-        (await callEndpoint(payload, { limit: 0 }, undefined, { defaultAudiences: beginnerOnly })).status,
+        (await callEndpoint(payload, { limit: 0 }, undefined, { defaultAudiences: beginnerOnly }))
+          .status,
       ).toBe(400)
       expect(
-        (await callEndpoint(payload, { limit: 101 }, undefined, { defaultAudiences: beginnerOnly })).status,
+        (await callEndpoint(payload, { limit: 101 }, undefined, { defaultAudiences: beginnerOnly }))
+          .status,
       ).toBe(400)
     })
 
     it('returns 400 when audiences is missing', async () => {
-      const { status } = await callEndpoint(
-        payload,
-        { limit: 10 },
-        undefined,
-        { skipDefaultAudiences: true },
-      )
+      const { status } = await callEndpoint(payload, { limit: 10 }, undefined, {
+        skipDefaultAudiences: true,
+      })
       expect(status).toBe(400)
     })
 
@@ -230,14 +230,43 @@ describe('lecturesForAudience endpoint', () => {
     })
   })
 
-  describe('Cache headers', () => {
-    it('sets Cache-Control: public, max-age=600, s-maxage=600', async () => {
-      const { headers, status } = await callEndpoint(
+  describe('auth gate', () => {
+    it('rejects unauthenticated callers with 403', async () => {
+      const { status, body } = await callEndpoint(payload, { limit: 10 }, null, {
+        defaultAudiences: beginnerOnly,
+      })
+      expect(status).toBe(403)
+      expect(body).toEqual({
+        errors: [{ message: 'You are not allowed to perform this action.' }],
+      })
+    })
+
+    it('rejects non-client users (managers) with 403', async () => {
+      const { status } = await callEndpoint(
         payload,
         { limit: 10 },
-        undefined,
+        { id: adminUserId, collection: 'managers', active: true },
         { defaultAudiences: beginnerOnly },
       )
+      expect(status).toBe(403)
+    })
+
+    it('rejects inactive clients with 403', async () => {
+      const { status } = await callEndpoint(
+        payload,
+        { limit: 10 },
+        { id: 999, collection: 'clients', active: false },
+        { defaultAudiences: beginnerOnly },
+      )
+      expect(status).toBe(403)
+    })
+  })
+
+  describe('Cache headers', () => {
+    it('sets Cache-Control: public, max-age=600, s-maxage=600', async () => {
+      const { headers, status } = await callEndpoint(payload, { limit: 10 }, undefined, {
+        defaultAudiences: beginnerOnly,
+      })
       expect(status).toBe(200)
       expect(headers.get('Cache-Control')).toBe('public, max-age=600, s-maxage=600')
     })
@@ -253,8 +282,12 @@ describe('lecturesForAudience endpoint', () => {
       expect(a.status).toBe(200)
       expect(b.status).toBe(200)
 
-      const idsA = (a.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id).sort((x, y) => x - y)
-      const idsB = (b.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id).sort((x, y) => x - y)
+      const idsA = (a.body as { docs: LecturePlayerData[] }).docs
+        .map((d) => d.id)
+        .sort((x, y) => x - y)
+      const idsB = (b.body as { docs: LecturePlayerData[] }).docs
+        .map((d) => d.id)
+        .sort((x, y) => x - y)
       // Same eligible pool — random order but identical set.
       expect(idsA).toEqual(idsB)
     })
@@ -541,7 +574,7 @@ describe('lecturesForAudience endpoint', () => {
       expect(clip!.hlsUrl).toBe('https://example.com/stream.m3u8')
     })
 
-    it("falls back to parent.metadata.thumbnailUrl when clip has no own thumbnail", async () => {
+    it('falls back to parent.metadata.thumbnailUrl when clip has no own thumbnail', async () => {
       // Set up: a full parent (no editor thumbnail) + a clip with no thumbnail.
       const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
@@ -594,7 +627,7 @@ describe('lecturesForAudience endpoint', () => {
       expect(item!.thumbnailUrl).toBeTruthy()
     })
 
-    it("clip subtitle overrides merge with parent.metadata.subtitles", async () => {
+    it('clip subtitle overrides merge with parent.metadata.subtitles', async () => {
       const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'Parent for subtitle merge',
@@ -694,34 +727,100 @@ describe('lecturesForAudience endpoint', () => {
       audienceD = await testData.createAudience(payload)
       audienceE = await testData.createAudience(payload)
 
-      lectureAPinned = await testData.createLecture(payload, {}, { audiences: [audienceA.id], priority: 5 })
-      lectureANormal1 = await testData.createLecture(payload, {}, { audiences: [audienceA.id], priority: 0 })
-      lectureANormal2 = await testData.createLecture(payload, {}, { audiences: [audienceA.id], priority: 0 })
-      lectureANormal3 = await testData.createLecture(payload, {}, { audiences: [audienceA.id], priority: 0 })
+      lectureAPinned = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceA.id], priority: 5 },
+      )
+      lectureANormal1 = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceA.id], priority: 0 },
+      )
+      lectureANormal2 = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceA.id], priority: 0 },
+      )
+      lectureANormal3 = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceA.id], priority: 0 },
+      )
       // Priority field omitted — defaultValue:0 applies, testing the "unset" path
       lectureAUnset = await testData.createLecture(payload, {}, { audiences: [audienceA.id] })
 
-      lectureBHigh = await testData.createLecture(payload, {}, { audiences: [audienceB.id], priority: 10 })
-      lectureBMid = await testData.createLecture(payload, {}, { audiences: [audienceB.id], priority: 5 })
-      lectureBLow = await testData.createLecture(payload, {}, { audiences: [audienceB.id], priority: 1 })
+      lectureBHigh = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceB.id], priority: 10 },
+      )
+      lectureBMid = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceB.id], priority: 5 },
+      )
+      lectureBLow = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceB.id], priority: 1 },
+      )
 
-      lectureCTie1 = await testData.createLecture(payload, {}, { audiences: [audienceC.id], priority: 5 })
-      lectureCTie2 = await testData.createLecture(payload, {}, { audiences: [audienceC.id], priority: 5 })
+      lectureCTie1 = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceC.id], priority: 5 },
+      )
+      lectureCTie2 = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceC.id], priority: 5 },
+      )
 
-      lectureDPinned1 = await testData.createLecture(payload, {}, { audiences: [audienceD.id], priority: 10 })
-      lectureDPinned2 = await testData.createLecture(payload, {}, { audiences: [audienceD.id], priority: 8 })
-      lectureDPinned3 = await testData.createLecture(payload, {}, { audiences: [audienceD.id], priority: 6 })
-      lectureDPinned4 = await testData.createLecture(payload, {}, { audiences: [audienceD.id], priority: 4 })
+      lectureDPinned1 = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceD.id], priority: 10 },
+      )
+      lectureDPinned2 = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceD.id], priority: 8 },
+      )
+      lectureDPinned3 = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceD.id], priority: 6 },
+      )
+      lectureDPinned4 = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceD.id], priority: 4 },
+      )
 
-      lectureENormal1 = await testData.createLecture(payload, {}, { audiences: [audienceE.id], priority: 0 })
-      lectureENormal2 = await testData.createLecture(payload, {}, { audiences: [audienceE.id], priority: 0 })
-      lectureENormal3 = await testData.createLecture(payload, {}, { audiences: [audienceE.id], priority: 0 })
+      lectureENormal1 = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceE.id], priority: 0 },
+      )
+      lectureENormal2 = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceE.id], priority: 0 },
+      )
+      lectureENormal3 = await testData.createLecture(
+        payload,
+        {},
+        { audiences: [audienceE.id], priority: 0 },
+      )
     })
 
     it('pinned lecture (priority > 0) always appears before all un-pinned lectures', async () => {
       const param = String(audienceA.id)
       for (let i = 0; i < 5; i++) {
-        const { body } = await callEndpoint(payload, { limit: 100 }, undefined, { defaultAudiences: param })
+        const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+          defaultAudiences: param,
+        })
         const docs = (body as { docs: LecturePlayerData[] }).docs
         const pinnedIdx = docs.findIndex((d) => d.id === lectureAPinned.id)
         expect(pinnedIdx).toBe(0)
@@ -734,7 +833,9 @@ describe('lecturesForAudience endpoint', () => {
     it('lecture with higher priority always appears before lower-priority lecture', async () => {
       const param = String(audienceB.id)
       for (let i = 0; i < 5; i++) {
-        const { body } = await callEndpoint(payload, { limit: 100 }, undefined, { defaultAudiences: param })
+        const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+          defaultAudiences: param,
+        })
         const docs = (body as { docs: LecturePlayerData[] }).docs
         const highIdx = docs.findIndex((d) => d.id === lectureBHigh.id)
         const midIdx = docs.findIndex((d) => d.id === lectureBMid.id)
@@ -749,7 +850,9 @@ describe('lecturesForAudience endpoint', () => {
       const orderings = new Set<string>()
 
       for (let i = 0; i < 20; i++) {
-        const { body } = await callEndpoint(payload, { limit: 100 }, undefined, { defaultAudiences: param })
+        const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+          defaultAudiences: param,
+        })
         const docs = (body as { docs: LecturePlayerData[] }).docs
         const tie1Idx = docs.findIndex((d) => d.id === lectureCTie1.id)
         const tie2Idx = docs.findIndex((d) => d.id === lectureCTie2.id)
@@ -761,7 +864,9 @@ describe('lecturesForAudience endpoint', () => {
 
     it('lecture with default priority (unset → 0) participates in the normal pool, after pinned', async () => {
       const param = String(audienceA.id)
-      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, { defaultAudiences: param })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: param,
+      })
       const docs = (body as { docs: LecturePlayerData[] }).docs
       const pinnedIdx = docs.findIndex((d) => d.id === lectureAPinned.id)
       const unsetIdx = docs.findIndex((d) => d.id === lectureAUnset.id)
@@ -770,7 +875,9 @@ describe('lecturesForAudience endpoint', () => {
 
     it('all-pinned pool is sorted by priority descending with no normal items appended', async () => {
       const param = String(audienceB.id)
-      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, { defaultAudiences: param })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: param,
+      })
       const docs = (body as { docs: LecturePlayerData[] }).docs
       expect(docs).toHaveLength(3)
       expect(docs[0].id).toBe(lectureBHigh.id)
@@ -780,7 +887,9 @@ describe('lecturesForAudience endpoint', () => {
 
     it('when limit is smaller than the pinned pool, only the highest-priority lectures are returned', async () => {
       const param = String(audienceD.id)
-      const { body } = await callEndpoint(payload, { limit: 2 }, undefined, { defaultAudiences: param })
+      const { body } = await callEndpoint(payload, { limit: 2 }, undefined, {
+        defaultAudiences: param,
+      })
       const docs = (body as { docs: LecturePlayerData[] }).docs
       expect(docs).toHaveLength(2)
       const returnedIds = docs.map((d) => d.id)
@@ -792,7 +901,9 @@ describe('lecturesForAudience endpoint', () => {
 
     it('all-normal pool (no pinned lectures) returns all lectures', async () => {
       const param = String(audienceE.id)
-      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, { defaultAudiences: param })
+      const { body } = await callEndpoint(payload, { limit: 100 }, undefined, {
+        defaultAudiences: param,
+      })
       const docs = (body as { docs: LecturePlayerData[] }).docs
       const returnedIds = docs.map((d) => d.id)
       expect(returnedIds).toContain(lectureENormal1.id)
@@ -815,7 +926,7 @@ describe('lecturesForAudience endpoint', () => {
         const { status } = await callEndpoint(
           payload,
           { limit: 5 },
-          { id: client.id, collection: 'clients' },
+          { id: client.id, collection: 'clients', active: true },
           { defaultAudiences: beginnerOnly },
         )
         expect(status).toBe(200)

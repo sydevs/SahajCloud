@@ -5,9 +5,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { appCardsForAudience } from '@/endpoints'
 import type { AppCard, Audience, Client, Image } from '@/payload-types'
 
-
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
+
+const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', active: true }
 
 // `audiences` is a required, non-empty comma-separated list of IDs.
 // Tests that don't exercise a specific eligibility scenario still need to
@@ -16,7 +17,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
 async function callEndpoint(
   payload: Payload,
   query: Record<string, string | number | boolean>,
-  user?: { id: number | string; collection: string },
+  user?: { id: number | string; collection: string; active?: boolean } | null,
   options: { skipDefaultAudiences?: boolean; defaultAudiences?: string } = {},
 ): Promise<{ status: number; headers: Headers; body: unknown }> {
   const finalQuery = options.skipDefaultAudiences
@@ -27,7 +28,7 @@ async function callEndpoint(
     query: finalQuery,
     headers: new Headers(),
     routeParams: {},
-    user,
+    user: user === undefined ? DEFAULT_CLIENT_USER : user,
   } as unknown as PayloadRequest
 
   const response = (await appCardsForAudience.handler(req)) as Response
@@ -223,8 +224,9 @@ describe('appCardsForAudience endpoint', () => {
       _status: 'published',
     })
     // Store conditionAudienceB id on the card for assertions below
-    ;(cardWithMultipleConditions as AppCard & { _conditionAudienceBId: number })._conditionAudienceBId =
-      conditionAudienceB.id
+    ;(
+      cardWithMultipleConditions as AppCard & { _conditionAudienceBId: number }
+    )._conditionAudienceBId = conditionAudienceB.id
   })
 
   afterAll(async () => {
@@ -250,12 +252,9 @@ describe('appCardsForAudience endpoint', () => {
     })
 
     it('returns 400 when limit is missing', async () => {
-      const { status } = await callEndpoint(
-        payload,
-        { targetSection: 'hero' },
-        undefined,
-        { defaultAudiences: allEligible },
-      )
+      const { status } = await callEndpoint(payload, { targetSection: 'hero' }, undefined, {
+        defaultAudiences: allEligible,
+      })
       expect(status).toBe(400)
     })
 
@@ -296,6 +295,41 @@ describe('appCardsForAudience endpoint', () => {
         limit: 5,
       })
       expect(status).toBe(400)
+    })
+  })
+
+  describe('auth gate', () => {
+    it('rejects unauthenticated callers with 403', async () => {
+      const { status, body } = await callEndpoint(
+        payload,
+        { targetSection: 'hero', limit: 5 },
+        null,
+        { defaultAudiences: allEligible },
+      )
+      expect(status).toBe(403)
+      expect(body).toEqual({
+        errors: [{ message: 'You are not allowed to perform this action.' }],
+      })
+    })
+
+    it('rejects non-client users (managers) with 403', async () => {
+      const { status } = await callEndpoint(
+        payload,
+        { targetSection: 'hero', limit: 5 },
+        { id: adminUserId, collection: 'managers', active: true },
+        { defaultAudiences: allEligible },
+      )
+      expect(status).toBe(403)
+    })
+
+    it('rejects inactive clients with 403', async () => {
+      const { status } = await callEndpoint(
+        payload,
+        { targetSection: 'hero', limit: 5 },
+        { id: 999, collection: 'clients', active: false },
+        { defaultAudiences: allEligible },
+      )
+      expect(status).toBe(403)
     })
   })
 
@@ -380,46 +414,34 @@ describe('appCardsForAudience endpoint', () => {
   })
 
   it('excludes cards with empty audiences', async () => {
-    const { body } = await callEndpoint(
-      payload,
-      { targetSection: 'hero', limit: 20 },
-      undefined,
-      { defaultAudiences: allEligible },
-    )
+    const { body } = await callEndpoint(payload, { targetSection: 'hero', limit: 20 }, undefined, {
+      defaultAudiences: allEligible,
+    })
     const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
     expect(ids).not.toContain(emptyAudiencesCard.id)
   })
 
   it('excludes cards whose audiences are not in the requested list', async () => {
     // Caller's resolved audiences don't include pathStartedAudience.
-    const { body } = await callEndpoint(
-      payload,
-      { targetSection: 'hero', limit: 20 },
-      undefined,
-      { defaultAudiences: openOnly },
-    )
+    const { body } = await callEndpoint(payload, { targetSection: 'hero', limit: 20 }, undefined, {
+      defaultAudiences: openOnly,
+    })
     const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
     expect(ids).not.toContain(heroCardPathStarted.id)
   })
 
   it('includes cards whose audiences are in the requested list', async () => {
-    const { body } = await callEndpoint(
-      payload,
-      { targetSection: 'hero', limit: 20 },
-      undefined,
-      { defaultAudiences: allEligible },
-    )
+    const { body } = await callEndpoint(payload, { targetSection: 'hero', limit: 20 }, undefined, {
+      defaultAudiences: allEligible,
+    })
     const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
     expect(ids).toContain(heroCardPathStarted.id)
   })
 
   it('includes cards attached to a null-rules audience when that ID is in the request', async () => {
-    const { body } = await callEndpoint(
-      payload,
-      { targetSection: 'hero', limit: 20 },
-      undefined,
-      { defaultAudiences: openOnly },
-    )
+    const { body } = await callEndpoint(payload, { targetSection: 'hero', limit: 20 }, undefined, {
+      defaultAudiences: openOnly,
+    })
     const ids = (body as { docs: AppCard[] }).docs.map((c) => c.id)
     expect(ids).toContain(nullRulesAudienceCard.id)
   })
@@ -524,12 +546,9 @@ describe('appCardsForAudience endpoint', () => {
   })
 
   it('respects the limit parameter', async () => {
-    const { body } = await callEndpoint(
-      payload,
-      { targetSection: 'hero', limit: 1 },
-      undefined,
-      { defaultAudiences: allEligible },
-    )
+    const { body } = await callEndpoint(payload, { targetSection: 'hero', limit: 1 }, undefined, {
+      defaultAudiences: allEligible,
+    })
     const docs = (body as { docs: AppCard[] }).docs
     expect(docs).toHaveLength(1)
   })
@@ -547,7 +566,7 @@ describe('appCardsForAudience endpoint', () => {
       const { status } = await callEndpoint(
         payload,
         { targetSection: 'hero', limit: 5 },
-        { id: client.id, collection: 'clients' },
+        { id: client.id, collection: 'clients', active: true },
         { defaultAudiences: allEligible },
       )
       expect(status).toBe(200)
@@ -570,12 +589,9 @@ describe('appCardsForAudience endpoint', () => {
   })
 
   it('populates relationships at depth 1', async () => {
-    const { body } = await callEndpoint(
-      payload,
-      { targetSection: 'hero', limit: 20 },
-      undefined,
-      { defaultAudiences: allEligible },
-    )
+    const { body } = await callEndpoint(payload, { targetSection: 'hero', limit: 20 }, undefined, {
+      defaultAudiences: allEligible,
+    })
     const docs = (body as { docs: AppCard[] }).docs
     const card = docs.find((c) => c.id === contentCard.id)
     expect(card).toBeDefined()
