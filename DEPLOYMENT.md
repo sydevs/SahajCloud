@@ -16,6 +16,7 @@ This document provides comprehensive deployment procedures, troubleshooting, and
 6. [Verifying Deployments](#verifying-deployments)
 7. [Troubleshooting](#troubleshooting)
 8. [Cost Monitoring](#cost-monitoring)
+9. [Preview Environment](#preview-environment)
 
 ---
 
@@ -26,12 +27,14 @@ This document provides comprehensive deployment procedures, troubleshooting, and
 The application is deployed to **Cloudflare Workers** using **@opennextjs/cloudflare** adapter for serverless edge deployment.
 
 **Components**:
+
 - **Platform**: Cloudflare Workers (paid plan required for 10MB limit)
 - **Database**: Cloudflare D1 (serverless SQLite)
 - **Storage**: Cloudflare R2 (S3-compatible object storage)
 - **CDN**: Cloudflare Assets binding for static files
 
 **Bundle Size**:
+
 - Compressed: 4.15 MB (well under 10 MB paid plan limit)
 - Uncompressed: 19.5 MB
 - Worker Startup Time: ~26 ms
@@ -39,10 +42,12 @@ The application is deployed to **Cloudflare Workers** using **@opennextjs/cloudf
 ### Configuration Files
 
 **next.config.mjs**:
+
 - Must include `output: 'standalone'` for OpenNext compatibility
 
 **wrangler.toml**:
-- `workers_dev = false` - Disable *.workers.dev subdomain (use custom domains)
+
+- `workers_dev = false` - Disable \*.workers.dev subdomain (use custom domains)
 - `preview_urls = false` - Disable preview URLs for production
 - D1 database binding
 - R2 storage binding
@@ -95,6 +100,7 @@ remote = true  # REQUIRED for production migrations
 ```
 
 **Why This Matters**:
+
 - Without `remote = true`, PayloadCMS migrations create a local `.wrangler` database instead of connecting to production D1
 - This will cause your production database to remain empty even after running migrations
 - The `remote = true` flag enables Wrangler's remote bindings feature
@@ -110,12 +116,14 @@ pnpm run deploy:prod
 This runs two commands in order:
 
 1. **deploy:database** - Runs migrations against remote D1 database:
+
    ```bash
    cross-env NODE_ENV=production PAYLOAD_SECRET=ignore payload migrate && \
    wrangler d1 execute sahajcloud --command 'PRAGMA optimize' --remote
    ```
 
 2. **deploy:app** - Deploys the Worker application:
+
    ```bash
    pnpm exec wrangler deploy --experimental-autoconfig=false --env=""
    ```
@@ -185,16 +193,19 @@ Use this when you need to consolidate migrations into a single initial migration
 **Manual Steps** (if script fails):
 
 1. **Delete existing migration files**:
+
    ```bash
    rm src/migrations/*.ts src/migrations/*.json
    ```
 
 2. **Reset migrations index** (`src/migrations/index.ts`):
+
    ```typescript
    export const migrations = []
    ```
 
 3. **Generate SQL to drop all tables** - Create `drop_all_tables.sql`:
+
    ```bash
    # First, list all tables
    wrangler d1 execute sahajcloud --remote --command \
@@ -207,22 +218,26 @@ Use this when you need to consolidate migrations into a single initial migration
    ```
 
 4. **Drop all tables in production**:
+
    ```bash
    wrangler d1 execute sahajcloud --remote --file=drop_all_tables.sql
    ```
 
 5. **Verify database is empty**:
+
    ```bash
    wrangler d1 execute sahajcloud --remote --command \
      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';"
    ```
 
 6. **Generate fresh initial migration**:
+
    ```bash
    pnpm payload migrate:create
    ```
 
 7. **Rename migration file** (optional, for clarity):
+
    ```bash
    mv src/migrations/[timestamp].ts src/migrations/[timestamp]_initial_schema.ts
    mv src/migrations/[timestamp].json src/migrations/[timestamp]_initial_schema.json
@@ -230,6 +245,7 @@ Use this when you need to consolidate migrations into a single initial migration
    ```
 
 8. **Apply to production**:
+
    ```bash
    pnpm run deploy:database
    ```
@@ -275,13 +291,13 @@ The script is operator-interactive: at Step 4 it pauses and asks you to run `pnp
 
 The script sorts both sides before diffing, so ordering-only differences collapse. What's left should be empty. Common signals and how to act:
 
-| Diff content | Meaning | Action |
-|---|---|---|
-| Empty file | Baseline matches prod exactly | Proceed |
-| New `CREATE INDEX` lines on one side only | Prod has indexes the baseline doesn't emit, or vice versa | Investigate — likely a hand-created prod index or a generator regression; do NOT proceed until resolved |
-| `CREATE TABLE` lines differ in column order | Drizzle regenerated a table with a new column layout | Safe as long as column names + types match; SQLite doesn't expose column order to queries |
-| `CREATE TABLE` lines differ in column **definitions** (type, NOT NULL, defaults) | Real schema drift | Stop. Either prod has been hand-edited or an un-migrated local change made it into the generator. Root-cause before squashing |
-| `_rels` table rebuilds with missing columns | The Drizzle polymorphic-FK bug documented in [AGENTS.md](AGENTS.md) has re-surfaced | Hand-patch the generated `.ts` per the pattern in AGENTS.md, re-run the script |
+| Diff content                                                                     | Meaning                                                                             | Action                                                                                                                        |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Empty file                                                                       | Baseline matches prod exactly                                                       | Proceed                                                                                                                       |
+| New `CREATE INDEX` lines on one side only                                        | Prod has indexes the baseline doesn't emit, or vice versa                           | Investigate — likely a hand-created prod index or a generator regression; do NOT proceed until resolved                       |
+| `CREATE TABLE` lines differ in column order                                      | Drizzle regenerated a table with a new column layout                                | Safe as long as column names + types match; SQLite doesn't expose column order to queries                                     |
+| `CREATE TABLE` lines differ in column **definitions** (type, NOT NULL, defaults) | Real schema drift                                                                   | Stop. Either prod has been hand-edited or an un-migrated local change made it into the generator. Root-cause before squashing |
+| `_rels` table rebuilds with missing columns                                      | The Drizzle polymorphic-FK bug documented in [AGENTS.md](AGENTS.md) has re-surfaced | Hand-patch the generated `.ts` per the pattern in AGENTS.md, re-run the script                                                |
 
 **Rollback**:
 
@@ -374,9 +390,11 @@ wrangler secret list
 ### Required Variables
 
 **Core Configuration**:
+
 - `PAYLOAD_SECRET` - Payload authentication secret
 
 **Error Monitoring (Sentry)**:
+
 - `NEXT_PUBLIC_SENTRY_DSN` - Sentry DSN for error tracking (set in `wrangler.toml`)
   - **Public variable** - visible to both client and server
   - Only active in production (`NODE_ENV=production`)
@@ -388,9 +406,11 @@ wrangler secret list
     ```
 
 **Email (Resend)**:
+
 - `RESEND_API_KEY` - Resend API key for transactional emails
 
 **Storage (Cloudflare R2)**:
+
 - `S3_ENDPOINT` - Cloudflare R2 endpoint
 - `S3_ACCESS_KEY_ID` - R2 access key
 - `S3_SECRET_ACCESS_KEY` - R2 secret key
@@ -398,6 +418,7 @@ wrangler secret list
 - `S3_REGION` - Set to `auto` for Cloudflare R2
 
 **Frontend URLs**:
+
 - `WEMEDITATE_WEB_URL` - We Meditate Web frontend URL
 - `SAHAJATLAS_URL` - Sahaj Atlas frontend URL
 
@@ -408,6 +429,7 @@ wrangler secret list
 ### Step-by-Step Production Deployment
 
 1. **Verify Local Changes**:
+
    ```bash
    # Run tests
    pnpm test
@@ -423,22 +445,26 @@ wrangler secret list
    ```
 
 2. **Create Migration** (if schema changed):
+
    ```bash
    pnpm payload migrate:create
    ```
 
 3. **Deploy to Production**:
+
    ```bash
    pnpm run deploy:prod
    ```
 
 4. **Monitor Deployment**:
+
    ```bash
    # Watch logs in real-time
    wrangler tail sahajcloud --format pretty
    ```
 
 5. **Verify Deployment**:
+
    ```bash
    # Health check
    curl https://cloud.sydevelopers.com/api/health
@@ -511,6 +537,7 @@ curl https://cloud.sydevelopers.com/api/test-sentry?type=message
 ```
 
 **Verification**:
+
 1. Visit Sentry dashboard: https://sentry.io/organizations/your-org/issues/
 2. Check for test events with tags:
    - `test: true`
@@ -538,6 +565,7 @@ curl https://cloud.sydevelopers.com/api/test-sentry?type=message
 ### Production Site Shows "no such table" Errors
 
 **Diagnosis**:
+
 ```bash
 # Check if database has tables
 wrangler d1 execute sahajcloud --remote --command \
@@ -545,6 +573,7 @@ wrangler d1 execute sahajcloud --remote --command \
 ```
 
 **Solution**:
+
 1. Verify `remote = true` is set in wrangler.toml D1 binding
 2. Run migrations: `pnpm run deploy:database`
 3. Verify migrations completed: Check for `payload_migrations` table
@@ -552,10 +581,12 @@ wrangler d1 execute sahajcloud --remote --command \
 ### Migrations Create Local Database Instead of Remote
 
 **Diagnosis**:
+
 - `.wrangler` directory contains database files after running migrations
 - Remote database remains empty
 
 **Solution**:
+
 1. Add `remote = true` to D1 binding in wrangler.toml
 2. Delete `.wrangler` directory: `rm -rf .wrangler`
 3. Re-run migrations: `NODE_ENV=production pnpm payload migrate`
@@ -564,12 +595,15 @@ wrangler d1 execute sahajcloud --remote --command \
 ### Bundle Size Exceeds Limit
 
 **Symptoms**:
+
 ```
 Error: Bundle size exceeds 3MB limit
 ```
 
 **Solutions**:
+
 1. Check bundle size:
+
    ```bash
    pnpm build
    ls -lh .next/standalone
@@ -587,11 +621,14 @@ Error: Bundle size exceeds 3MB limit
 ### D1 Database Connection Fails
 
 **Symptoms**:
+
 - Cannot connect to D1
 - `binding.D1 is undefined`
 
 **Solutions**:
+
 1. Verify `wrangler.toml` configuration:
+
    ```toml
    [[d1_databases]]
    binding = "D1"
@@ -601,6 +638,7 @@ Error: Bundle size exceeds 3MB limit
    ```
 
 2. Check database exists:
+
    ```bash
    wrangler d1 list
    ```
@@ -613,16 +651,20 @@ Error: Bundle size exceeds 3MB limit
 ### Email Not Sending
 
 **Symptoms**:
+
 - Password reset emails not received
 - No errors in Resend dashboard
 
 **Solutions**:
+
 1. Verify API key is set:
+
    ```bash
    wrangler secret list
    ```
 
 2. Test Resend API directly:
+
    ```bash
    curl https://api.resend.com/emails \
      -H "Authorization: Bearer $RESEND_API_KEY" \
@@ -643,6 +685,7 @@ Error: Bundle size exceeds 3MB limit
 ### High Error Rate
 
 **Diagnosis**:
+
 ```bash
 # Check Sentry for patterns
 # Visit Sentry dashboard
@@ -655,6 +698,7 @@ wrangler tail sahajcloud --format pretty
 ```
 
 **Solutions**:
+
 1. Review error messages in Sentry
 2. Check for recent code changes
 3. Verify environment variables are set correctly
@@ -667,17 +711,18 @@ wrangler tail sahajcloud --format pretty
 
 ### Expected Monthly Costs
 
-| Service | Free Tier | Paid Plans | Expected Cost |
-|---------|-----------|------------|---------------|
-| **Workers** | 100k requests/day | $5/month + $0.30/M requests | $5/month |
-| **D1** | 100k reads, 1k writes/day | $5/month + usage | $5-10/month |
-| **R2** | 10GB storage, 1M ops/month | $0.015/GB storage | $1-5/month |
-| **Resend** | 3k emails/month | $20/50k emails | $0/month |
-| **Total** | N/A | N/A | **$11-20/month** |
+| Service     | Free Tier                  | Paid Plans                  | Expected Cost    |
+| ----------- | -------------------------- | --------------------------- | ---------------- |
+| **Workers** | 100k requests/day          | $5/month + $0.30/M requests | $5/month         |
+| **D1**      | 100k reads, 1k writes/day  | $5/month + usage            | $5-10/month      |
+| **R2**      | 10GB storage, 1M ops/month | $0.015/GB storage           | $1-5/month       |
+| **Resend**  | 3k emails/month            | $20/50k emails              | $0/month         |
+| **Total**   | N/A                        | N/A                         | **$11-20/month** |
 
 ### Monitoring Usage
 
 **Cloudflare Dashboard**:
+
 1. Visit Cloudflare Dashboard → Workers → Analytics
 2. Check:
    - Workers requests
@@ -685,10 +730,12 @@ wrangler tail sahajcloud --format pretty
    - R2 storage/operations
 
 **Set Billing Alerts**:
+
 1. Cloudflare Dashboard → Billing → Alerts
 2. Set thresholds at $20, $50
 
 **Optimization Tips**:
+
 - Cache frequently accessed data
 - Use Cloudflare Cache API
 - Reduce D1 queries where possible
@@ -703,6 +750,7 @@ The application uses **Wrangler Environments** to manage different configuration
 ### Configuration Pattern
 
 `wrangler.toml` contains both production and development environments:
+
 - **Default (top-level)**: Production configuration
 - **`[env.dev]`**: Development environment configuration
 

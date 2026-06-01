@@ -79,7 +79,7 @@ export const getSubtleSystemNodeLabel = (slug: string | null | undefined): strin
 }
 
 export const getFrameDisplayLabel = (
-  frame: Pick<Frame, 'id' | 'label' | 'subtleSystemNode'> | null | undefined,
+  frame: (Pick<Frame, 'label' | 'subtleSystemNode'> & { id: number | string }) | null | undefined,
   fallbackIndex?: number,
 ): string => {
   if (!frame) return ''

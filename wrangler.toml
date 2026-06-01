@@ -129,3 +129,80 @@ CLOUDFLARE_ACCOUNT_ID = ""
 CLOUDFLARE_IMAGES_DELIVERY_URL = ""
 CLOUDFLARE_STREAM_DELIVERY_URL = ""
 CLOUDFLARE_R2_DELIVERY_URL = ""
+
+# ========================================
+# Preview Environment (per-PR deploys via Cloudflare Workers Builds)
+# ========================================
+# Deployed automatically on every non-main branch push. Hits a separate D1 +
+# R2 from prod so an accidental delete in preview admin can never touch
+# production data. Seeded with sanitized prod data by the weekly reclone
+# workflow (.github/workflows/preview-reclone.yml). See DEPLOYMENT.md →
+# "Preview Environment" for the one-time operator runbook.
+
+[env.preview]
+name = "sahajcloud-preview"
+workers_dev = true
+preview_urls = true
+
+# Sentry version tracking
+[env.preview.version_metadata]
+binding = "CF_VERSION_METADATA"
+
+# D1 Database Binding
+# OPERATOR: run `wrangler d1 create sahajcloud-preview --location=weur`,
+# then paste the returned UUID into database_id below.
+[[env.preview.d1_databases]]
+binding = "D1"
+database_name = "sahajcloud-preview"
+database_id = "f96f79a6-04c0-462c-830f-670b1643599a"
+remote = true
+
+# R2 Storage Binding
+# OPERATOR: run `wrangler r2 bucket create sahajcloud-preview --jurisdiction=eu`
+# and configure an 8-day object-lifecycle expiry rule in the CF dashboard.
+[[env.preview.r2_buckets]]
+binding = "R2"
+bucket_name = "sahajcloud-preview"
+jurisdiction = "eu"
+remote = true
+
+# Rate Limiting Binding (mirror prod)
+[[env.preview.ratelimits]]
+name = "API_RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 500, period = 60 }
+
+# Environment Variables
+[env.preview.vars]
+NODE_ENV = "production"  # mirror prod runtime behavior for realistic smoke testing
+NEXT_PUBLIC_LOG_LEVEL = "debug"
+# Stable alias URL — branch-prefixed previews share this for email/redirect
+# absolute-URL construction. Smoke tests hit the branch-specific URL directly,
+# so a few wrong absolute URLs in preview don't break smoke coverage.
+SAHAJCLOUD_URL = "https://sahajcloud-preview.workers.dev"  # OPERATOR: update once CF assigns the real subdomain
+WEMEDITATE_WEB_URL = "https://wemeditate-web.contact-c66.workers.dev"
+SAHAJATLAS_URL = "https://atlas.sydevelopers.com"
+
+# Preview "secrets" — inlined here (not via `wrangler secret put`) because the
+# preview Worker doesn't exist until first deploy, and first deploy needs these
+# present to pass build-time Zod validation. Acceptable for non-prod: preview
+# data is sanitized and JWTs signed by PAYLOAD_SECRET only validate against
+# preview. Matches the dev-env precedent (SAHAJCLOUD_PREVIEW_SECRET inlined
+# in [env.dev.vars] above).
+PAYLOAD_SECRET = "mqUN-M-eZURTsx-zKw2_7dKCgEbBBX93"
+SAHAJCLOUD_PREVIEW_SECRET = "c2_eo0v3PbJU2WMyikeggQ"
+# OPERATOR: paste your Sentry DSN here (or remove this line to disable Sentry in preview)
+SENTRY_DSN = "https://OPERATOR_REPLACE_ME@sentry.io/0"
+# OPERATOR: paste your Resend API key here (or remove this line to disable email in preview)
+RESEND_API_KEY = "re_OPERATOR_REPLACE_ME"
+
+# Cloudflare Services
+# Account-scoped resources (Images, Stream) are shared with prod —
+# see issue #432 for the planned isolation work. Smoke tests focus on
+# R2-backed collections to avoid uploading into the shared namespace.
+CLOUDFLARE_ACCOUNT_ID = "c66c53a69689eb030b228c450515fff2"
+CLOUDFLARE_IMAGES_DELIVERY_URL = "https://imagedelivery.net/dOm4imjweFFL1Pto29l-4Q"
+CLOUDFLARE_STREAM_DELIVERY_URL = "https://customer-aorobtik2fce41s5.cloudflarestream.com"
+# OPERATOR: after enabling the default public URL on the sahajcloud-preview
+# R2 bucket, paste the assigned `https://pub-<hash>.r2.dev` value here.
+CLOUDFLARE_R2_DELIVERY_URL = "https://pub-00000000000000000000000000000000.r2.dev"
