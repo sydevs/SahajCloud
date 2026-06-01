@@ -496,7 +496,6 @@ Visit the production site:
 - [ ] Login with credentials
 - [ ] Create test record in each collection
 - [ ] Upload test file (verify R2 integration)
-- [ ] Test GraphQL: https://cloud.sydevelopers.com/api/graphql
 - [ ] Trigger password reset (verify email via Resend)
 - [ ] Check Sentry for errors
 - [ ] Check Cloudflare Analytics
@@ -509,11 +508,6 @@ curl https://cloud.sydevelopers.com/api/health
 
 # Test REST API
 curl https://cloud.sydevelopers.com/api/meditations
-
-# Test GraphQL
-curl -X POST https://cloud.sydevelopers.com/api/graphql \
-  -H "Content-Type: application/json" \
-  -d '{"query":"{ Meditations { docs { id title } } }"}'
 ```
 
 ### Sentry Error Tracking Tests

@@ -113,6 +113,12 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     collections,
     globals,
     editor: lexicalEditor(),
+    // GraphQL is disabled — this project exposes a REST-only API (see
+    // src/app/(payload)/api/[[...slug]]/route.ts for the REST handler).
+    // Disabling here keeps the GraphQL schema-building cost out of Payload's
+    // bootstrap and lets us avoid bundling @payloadcms/graphql / graphql
+    // into the Cloudflare Worker.
+    graphQL: { disable: true },
     secret: serverEnv.PAYLOAD_SECRET,
     typescript: {
       outputFile: path.resolve(dirname, 'payload-types.ts'),
