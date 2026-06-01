@@ -121,16 +121,27 @@ Schema migrations live in `src/migrations/` — see `.claude/rules/migrations.md
 
 ## PR Requirements
 
-Every PR is gated by CI (see [Continuous Integration](#continuous-integration)): it runs lint, the full `pnpm test` suite, and the Cloudflare build. Before marking a PR ready, validate **locally** with the lean gate — lint + `pnpm test:unit` + the targeted integration spec(s) for what you changed. Use the `/pr-prep` skill (`.claude/skills/pr-prep/`) for that workflow (its `--full` flag reproduces the CI checks locally when you need to debug a red run, and it documents handling pre-existing failures). Don't block on a local full-suite/build run — that's CI's job.
+The test suite runs in three tiers (see `.claude/rules/testing-reqs.md` for the full table):
+
+| Tier           | Command                                     | Fires when                                               |
+| -------------- | ------------------------------------------- | -------------------------------------------------------- |
+| **1 — Hook**   | `pnpm test:unit`                            | Claude PostToolUse on `src/**` / `tests/unit/**` (< 5 s) |
+| **2 — Pre-PR** | `pnpm lint && pnpm test:unit`               | Local pr-prep lean gate (< 15 s)                         |
+| **3 — CI**     | `pnpm lint && pnpm test && pnpm test:smoke` | GitHub Actions on every PR (≤ 20 min)                    |
+
+Before marking a PR ready, run the **Tier 2** lean gate plus the targeted integration spec(s) for what you changed. Use the `/pr-prep` skill (`.claude/skills/pr-prep/`) — its `--full` flag reproduces the Tier 3 checks locally when you need to debug a red run, and it documents handling pre-existing failures. Don't block on a local full-suite/build run — that's CI's job.
 
 ## Continuous Integration
 
-GitHub Actions runs on every pull request (`.github/workflows/ci.yml`), in two parallel jobs:
+GitHub Actions runs on every pull request (`.github/workflows/ci.yml`) as one job, **Lint, Test & Smoke**:
 
-- **Lint & Test** — `pnpm lint`, then `pnpm test` (unit + integration). Vitest injects its own env, so no secrets are needed.
-- **Cloudflare Build** — `wrangler types`, then `wrangler deploy --dry-run --env=""` (runs the OpenNext build and final Wrangler packaging without publishing). Uses non-sensitive dummy env values — no GitHub Secrets.
+1. `pnpm lint`
+2. `pnpm test` — unit + integration (Vitest injects its own env, so no secrets needed)
+3. `pnpm test:smoke` — Playwright specs against a Cloudflare PR preview environment seeded from cloned prod data
 
-PR-only triggers; `concurrency: cancel-in-progress` cancels superseded runs on the same branch. CI **reports** status but does not block merges unless a branch-protection rule on `main` requires the `Lint & Test` and `Cloudflare Build` checks to pass.
+The preview deploy is published by Cloudflare Workers Builds independently of GitHub Actions; the CI job waits for the preview URL to return 200, then runs the smoke specs against it. Preview data is re-cloned weekly by `.github/workflows/preview-reclone.yml`.
+
+PR-only triggers; `concurrency: cancel-in-progress` cancels superseded runs on the same branch. CI **reports** status but does not block merges unless a branch-protection rule on `main` requires the `Lint, Test & Smoke` check to pass.
 
 ## Deployment
 

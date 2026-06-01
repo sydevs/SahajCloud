@@ -2,17 +2,24 @@
 #
 # Pre-PR validation.
 #
-# Default (lean local gate): lint + the fast unit suite. Run the targeted
-# integration spec(s) for what you changed separately, e.g.
-#   pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts
-# CI (.github/workflows/ci.yml) runs the full suite + Cloudflare build on the PR.
+# Implements Tier 2 (lean local gate) by default and Tier 3 (local CI parity,
+# minus smoke) under --full. See .claude/rules/testing-reqs.md for the full
+# three-tier contract.
 #
-# --full: reproduce the CI checks locally (full `pnpm test` + the Cloudflare
-# build). Use this to debug a red CI run. See .claude/rules/testing-reqs.md.
+# Default — Tier 2: lint + the fast unit suite. Run the targeted integration
+# spec(s) for what you changed separately, e.g.
+#   pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts
+#
+# --full — Tier 3 locally: lint + full `pnpm test` + Cloudflare build. Skips
+# `pnpm test:smoke` because the smoke specs target a deployed Cloudflare PR
+# preview (built by Cloudflare Workers Builds, not by `pnpm build`). For full
+# Tier 3 coverage, push and let CI run smoke against the preview.
+#
+# CI (.github/workflows/ci.yml) is the source of truth for Tier 3 on every PR.
 #
 # Usage:
-#   .claude/skills/pr-prep/check.sh            # lean: lint + test:unit
-#   .claude/skills/pr-prep/check.sh --full     # lint + full test + Cloudflare build (mirrors CI)
+#   .claude/skills/pr-prep/check.sh            # Tier 2: lint + test:unit
+#   .claude/skills/pr-prep/check.sh --full     # Tier 3 locally (no smoke): lint + full test + Cloudflare build
 
 set -u
 
@@ -33,7 +40,7 @@ echo "✓ Lint passed"
 echo
 
 if [[ "$MODE" == "--full" ]]; then
-  echo "=== Full test suite (CI parity) ==="
+  echo "=== Tier 3 (local): Full test suite ==="
   if ! pnpm test; then
     echo
     echo "❌ Tests failed. Fix failing tests before opening the PR."
@@ -42,7 +49,7 @@ if [[ "$MODE" == "--full" ]]; then
   echo "✓ Tests passed"
   echo
 
-  echo "=== Cloudflare build (CI parity) ==="
+  echo "=== Tier 3 (local): Cloudflare build ==="
   if ! NODE_OPTIONS="--no-deprecation --max-old-space-size=8000" CLOUDFLARE_ENV= pnpm exec wrangler types; then
     echo
     echo "❌ wrangler types failed."
@@ -57,8 +64,11 @@ if [[ "$MODE" == "--full" ]]; then
   fi
   echo "✓ Cloudflare build passed"
   echo
+  echo "ℹ Tier 3 smoke specs (pnpm test:smoke) target a deployed Cloudflare PR"
+  echo "  preview and run in CI only. Push to trigger them on the PR."
+  echo
 else
-  echo "=== Unit tests ==="
+  echo "=== Tier 2 (lean gate): Unit tests ==="
   if ! pnpm test:unit; then
     echo
     echo "❌ Unit tests failed. Fix them before continuing."
@@ -66,9 +76,9 @@ else
   fi
   echo "✓ Unit tests passed"
   echo
-  echo "ℹ Lean gate only. Run the targeted integration spec(s) for what you changed:"
+  echo "ℹ Tier 2 only. Run the targeted integration spec(s) for what you changed:"
   echo "    pnpm exec vitest run tests/int/<file>.int.spec.ts --config ./vitest.config.mts"
-  echo "  CI runs the full suite + Cloudflare build on the PR. Use --full to mirror CI locally."
+  echo "  CI runs Tier 3 (full suite + smoke) on the PR. Use --full to mirror it locally (no smoke)."
   echo
 fi
 
