@@ -25,12 +25,13 @@ export const headerRowStyle: CSSProperties = {
 
 export const headerTitleStyle: CSSProperties = {
   fontWeight: 600,
-  fontSize: 'calc(var(--base-body-size) * 1.1px)',
+  fontSize: 'calc(var(--base-body-size) * 1.5px)',
 }
 
 export const headerIndexStyle: CSSProperties = {
   color: 'var(--theme-elevation-500)',
-  fontWeight: 400,
+  fontWeight: 700,
+  marginRight: 'calc(var(--base) * 0.35)',
 }
 
 export const headerInlineDescStyle: CSSProperties = {

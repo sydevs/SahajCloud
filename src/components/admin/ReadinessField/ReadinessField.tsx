@@ -67,6 +67,7 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
   return (
     <div style={sectionCardStyle}>
       <Collapsible
+        initCollapsed
         header={
           <div style={headerWrapStyle}>
             <ReadinessPill tone={tone} />
