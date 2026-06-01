@@ -41,13 +41,13 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 
 ## Custom endpoints
 
-| Path                                  | Subject                                                                                    | Covered by               |
-| ------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------ |
-| `/api/app-cards/for-audience`         | Audience OR-match, AND-gate semantics, cache headers, usage-tracking integration           | `app-cards-for-audience` |
-| `/api/audiences/for-user`             | Progress-rule matching, country/location gating, condition audiences, range semantics      | `audiences-for-user`     |
-| `/api/frames/by-narrator/:narratorId` | Param validation, narrator lookup (404), gender-based filtering, mimeType sort             | **gap — see below**      |
-| `/api/lectures/for-audience`          | Priority sampling, audience filter, subtitle/thumbnail fallback, clip metadata inheritance | `lectures-for-audience`  |
-| `/api/meditations/lectures`           | Weight-based ranking, audience validation, frame cascade, auth gate                        | `meditation-lectures`    |
+| Path                                  | Subject                                                                                                            | Covered by               |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------ |
+| `/api/app-cards/for-audience`         | Audience OR-match, AND-gate semantics, cache headers, usage-tracking integration                                   | `app-cards-for-audience` |
+| `/api/audiences/for-user`             | Progress-rule matching, country/location gating, condition audiences, range semantics                              | `audiences-for-user`     |
+| `/api/frames/by-narrator/:narratorId` | Param validation, narrator lookup (404), gender-based filtering, mimeType sort, depth:1 subtleSystemNode hydration | `frames-by-narrator`     |
+| `/api/lectures/for-audience`          | Priority sampling, audience filter, subtitle/thumbnail fallback, clip metadata inheritance                         | `lectures-for-audience`  |
+| `/api/meditations/lectures`           | Weight-based ranking, audience validation, frame cascade, auth gate                                                | `meditation-lectures`    |
 
 ## Scheduled jobs
 
@@ -69,17 +69,10 @@ Per `.claude/rules/tests.md`, only **custom logic** belongs in the integration l
 | Content-Index block API endpoint generation (`computeApiEndpoint` virtual)                                     | `content-index-block`       |
 | Project-based admin visibility (`createHidden` from accessPlugin)                                              | `project-visibility`        |
 | RBAC (`hasPermission`, `hasAnyPermission`, `customResourceAccess`, locale roles, translator scopes)            | `role-based-access`         |
-| Seed importer phase (`importLectures` upsert, NV API error isolation, idempotency)                             | `seeds-lectures`            |
 
 ## Gaps
 
-- **`/api/frames/by-narrator/:narratorId`** — no integration test. The endpoint validates params (zod), looks up the narrator (404 on missing), filters frames by `imageSet === narrator.gender`, and sorts by mimeType. Small surface; one new `tests/int/frames-by-narrator.int.spec.ts` would close it. **Recommended**: follow-up ticket.
-
-- **`access-performance.int.spec.ts`** — see P4 of #434; handled in a separate commit.
-
-## Borderline keeps (documented intentionally)
-
-- **`seeds-lectures.int.spec.ts`** — covers the WeMeditate seed importer (`importLectures` upsert, NV API error isolation, re-run idempotency). Not a collection hook, but real custom code with real bugs to catch. Kept rather than moved to a new lane (which would expand scope and provide no win, since CI still wants to run it).
+None known. The previous gap on `/api/frames/by-narrator/:narratorId` was closed by `tests/int/frames-by-narrator.int.spec.ts` (param validation, 404, gender filter, mimeType sort, subtleSystemNode depth-1 hydration). The previous gap on `access-performance.int.spec.ts` was resolved by removal (see P4 of #434).
 
 ## Smoke specs (`tests/e2e/`) and dedup analysis
 
@@ -103,3 +96,5 @@ These files were dropped because they only covered Payload-CMS built-ins; reacha
 - `frameFiltering.int.spec.ts` — built-in where-clause filtering and depth populate.
 - `subtle-system-nodes.int.spec.ts` — built-in unique-slug + reverse-join exposure.
 - `tableOfContents.int.spec.ts` — Lexical block round-trip storage.
+- `access-performance.int.spec.ts` — mis-located (no `createTestEnvironment()`); flaky wall-clock thresholds; functional coverage in `role-based-access`.
+- `seeds-lectures.int.spec.ts` — covered a seed importer, not a collection hook; out of scope for the integration lane.
