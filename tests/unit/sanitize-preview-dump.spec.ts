@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { sanitizeDump } from '../../scripts/sanitize-preview-dump'
 
@@ -152,5 +152,17 @@ CREATE TRIGGER t AFTER INSERT ON pages BEGIN UPDATE pages SET id = NEW.id; END;`
     const result = sanitizeDump(sql)
     expect(result).toContain('CREATE INDEX idx_pages_slug ON pages (slug)')
     expect(result).toContain('CREATE TRIGGER t AFTER INSERT ON pages')
+  })
+
+  it("skips statements larger than D1's 100KB per-statement limit", () => {
+    const huge = 'x'.repeat(101_000)
+    const sql = `INSERT INTO pages_locales VALUES (1, '${huge}');
+INSERT INTO pages_locales VALUES (2, 'small');`
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const result = sanitizeDump(sql)
+    expect(result).not.toContain(huge)
+    expect(result).toContain("INSERT INTO pages_locales VALUES (2, 'small')")
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/Skipped oversized statement/))
+    warn.mockRestore()
   })
 })

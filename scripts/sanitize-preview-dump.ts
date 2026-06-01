@@ -10,6 +10,16 @@ import { readFile, writeFile } from 'node:fs/promises'
  * through unchanged. The preview admin is re-seeded by `seed-preview-admin.sql`
  * after the import.
  */
+/**
+ * D1's per-statement SQL string limit is 100 KB. A small number of rows in
+ * prod (rich-text / Lexical payloads on localized page-version snapshots)
+ * blow past it when serialized as a single inline `INSERT … VALUES (…)`.
+ * Skipping those rows trades exact content fidelity in preview for an
+ * import that actually completes — the rest of the page row still lands,
+ * just with that one over-budget locale value missing.
+ */
+const MAX_STATEMENT_BYTES = 99_500
+
 const PII_TABLES = new Set([
   'managers',
   'managers_rels',
@@ -90,6 +100,15 @@ export function sanitizeDump(sql: string): string {
     const insertMatch = trimmed.match(/^INSERT\s+INTO\s+["`]?([a-zA-Z0-9_]+)["`]?/i)
 
     if (insertMatch && PII_TABLES.has(insertMatch[1])) {
+      continue
+    }
+
+    // Use UTF-8 byte length, not string.length (UTF-16 code units): non-ASCII
+    // content (e.g. Greek translations) under-counts via .length and would
+    // slip past D1's 100 KB-bytes limit.
+    const byteLength = Buffer.byteLength(stmt, 'utf8')
+    if (byteLength > MAX_STATEMENT_BYTES) {
+      console.warn(`Skipped oversized statement (${byteLength} bytes): ${trimmed.slice(0, 80)}…`)
       continue
     }
 
