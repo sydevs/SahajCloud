@@ -73,6 +73,13 @@ export const meditationLectures: Endpoint = {
   path: '/:id/related-lectures',
   method: 'get',
   handler: async (req) => {
+    if (req.user?.collection !== 'clients' || !req.user.active) {
+      return Response.json(
+        { errors: [{ message: 'You are not allowed to perform this action.' }] },
+        { status: 403 },
+      )
+    }
+
     const idParam = req.routeParams?.id as string | number | undefined
     if (idParam === undefined || idParam === null || idParam === '') {
       return Response.json({ errors: [{ message: 'Meditation ID required' }] }, { status: 400 })
@@ -112,7 +119,8 @@ export const meditationLectures: Endpoint = {
       | null
       | undefined
     const weights =
-      cachedWeights ?? (await recomputeWeightsForMeditation(req.payload, meditation, asTrustedReq(req)))
+      cachedWeights ??
+      (await recomputeWeightsForMeditation(req.payload, meditation, asTrustedReq(req)))
 
     const lectureWhere: Where = {
       audiences: { in: audienceIds },
