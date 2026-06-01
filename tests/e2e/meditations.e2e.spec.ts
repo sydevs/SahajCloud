@@ -10,7 +10,7 @@ type ListResponse<T> = { docs: T[] }
 
 const audio = readFileSync('tests/files/audio-42s.mp3')
 
-test('create, update, and delete a Meditation against preview', async ({ request }) => {
+test('create, update, and delete a Meditation against preview', async ({ request }, testInfo) => {
   const token = await loginAsAdmin(request)
   const headers = authHeaders(token)
 
@@ -24,7 +24,17 @@ test('create, update, and delete a Meditation against preview', async ({ request
   const { docs: images } = (await imagesRes.json()) as ListResponse<Doc>
   expect(images[0]?.id, 'preview DB should contain at least one cloned image').toBeTruthy()
 
-  const label = `smoke-${runId()}-meditation`
+  // Meditations require at least one frame on UPDATE (collection-level
+  // validation in .claude/rules/collections.md); fetch any frame to include.
+  const framesRes = await request.get('/api/frames?limit=1', { headers })
+  expect(framesRes.ok()).toBe(true)
+  const { docs: frames } = (await framesRes.json()) as ListResponse<Doc>
+  expect(frames[0]?.id, 'preview DB should contain at least one cloned frame').toBeTruthy()
+
+  // Retry-aware identifier so Playwright's automatic retries don't trip on
+  // meditations_slug_idx / meditations_filename_idx (both UNIQUE) — a
+  // failed first attempt would otherwise leave a row that blocks every retry.
+  const label = `smoke-${runId()}-meditation-r${testInfo.retry}`
   const payload = {
     label,
     title: label,
@@ -32,6 +42,7 @@ test('create, update, and delete a Meditation against preview', async ({ request
     thumbnail: images[0].id,
     locale: 'en',
     type: 'quick',
+    frames: [{ id: frames[0].id, timestamp: 0 }],
   }
 
   // Payload REST upload convention: `_payload` carries the JSON doc, `file` carries the binary.

@@ -6,7 +6,7 @@ import { runId } from './_helpers/runId'
 type LectureDoc = { id: number | string; type: 'full' | 'clip' }
 type ListResponse<T> = { docs: T[] }
 
-test('create, update, and delete a Lecture clip against preview', async ({ request }) => {
+test('create, update, and delete a Lecture clip against preview', async ({ request }, testInfo) => {
   const token = await loginAsAdmin(request)
   const headers = authHeaders(token)
   const jsonHeaders = { ...headers, 'content-type': 'application/json' }
@@ -21,7 +21,7 @@ test('create, update, and delete a Lecture clip against preview', async ({ reque
   const { docs: lectures } = (await lecturesRes.json()) as ListResponse<LectureDoc>
   expect(lectures[0]?.id, 'preview DB should contain at least one cloned full lecture').toBeTruthy()
 
-  const clipTitle = `smoke-${runId()}-lecture-clip`
+  const clipTitle = `smoke-${runId()}-lecture-clip-r${testInfo.retry}`
   const createRes = await request.post('/api/lectures', {
     headers: jsonHeaders,
     data: {

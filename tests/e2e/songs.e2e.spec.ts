@@ -10,7 +10,7 @@ type ListResponse<T> = { docs: T[] }
 
 const audio = readFileSync('tests/files/audio-42s.mp3')
 
-test('create, update, and delete a Song against preview', async ({ request }) => {
+test('create, update, and delete a Song against preview', async ({ request }, testInfo) => {
   const token = await loginAsAdmin(request)
   const headers = authHeaders(token)
 
@@ -19,7 +19,7 @@ test('create, update, and delete a Song against preview', async ({ request }) =>
   const { docs: albums } = (await albumsRes.json()) as ListResponse<Doc>
   expect(albums[0]?.id, 'preview DB should contain at least one cloned album').toBeTruthy()
 
-  const title = `smoke-${runId()}-song`
+  const title = `smoke-${runId()}-song-r${testInfo.retry}`
   const payload = { title, album: albums[0].id }
 
   // Payload REST upload convention: `_payload` carries the JSON doc, `file` carries the binary.
