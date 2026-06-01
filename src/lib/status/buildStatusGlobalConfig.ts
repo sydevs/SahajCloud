@@ -78,7 +78,18 @@ export function buildStatusGlobalConfig<TConfig>(spec: StatusGlobalSpec<TConfig>
             label: 'Status',
             description:
               'Per-locale launch-readiness report. Each section is recomputed when the global is read.',
-            fields: sectionFields,
+            fields: [
+              {
+                name: '_readiness_banner',
+                type: 'ui',
+                admin: {
+                  components: {
+                    Field: '@/components/admin/ReadinessField/ReadinessBanner',
+                  },
+                },
+              },
+              ...sectionFields,
+            ],
           },
           {
             label: 'Configuration',

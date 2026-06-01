@@ -23,14 +23,14 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ passing, total, unit =
         display: 'flex',
         alignItems: 'center',
         gap: 'calc(var(--base) * 0.5)',
-        marginTop: 'calc(var(--base) * 0.25)',
+        marginTop: 'calc(var(--base) * 0.15)',
       }}
     >
       <div
         style={{
           flex: 1,
-          height: '3px',
-          borderRadius: '2px',
+          height: '6px',
+          borderRadius: '3px',
           background: 'var(--theme-elevation-100)',
           overflow: 'hidden',
         }}
@@ -39,7 +39,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ passing, total, unit =
           style={{
             width: `${percent}%`,
             height: '100%',
-            borderRadius: '2px',
+            borderRadius: '3px',
             background: fillColor,
             transition: 'width 0.2s ease',
           }}
@@ -48,7 +48,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ passing, total, unit =
       <span
         style={{
           flexShrink: 0,
-          fontSize: 'calc(var(--base-body-size) * 0.85px)',
+          fontSize: '1.25em',
           color: 'var(--theme-elevation-600)',
           whiteSpace: 'nowrap',
         }}

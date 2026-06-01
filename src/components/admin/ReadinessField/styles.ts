@@ -20,12 +20,34 @@ export const headerRowStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 'calc(var(--base) * 0.35)',
-  flexWrap: 'wrap',
+  flexWrap: 'nowrap',
+}
+
+export const tooltipStyle: CSSProperties = {
+  position: 'absolute',
+  top: 'calc(100% + 4px)',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  padding: 'calc(var(--base) * 0.3) calc(var(--base) * 0.45)',
+  background: 'var(--theme-elevation-900)',
+  color: 'var(--theme-elevation-0)',
+  fontSize: 'calc(var(--base-body-size) * 0.85px)',
+  borderRadius: 'var(--style-radius-s)',
+  whiteSpace: 'nowrap',
+  zIndex: 20,
+  pointerEvents: 'none',
+  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
 }
 
 export const headerTitleStyle: CSSProperties = {
   fontWeight: 600,
-  fontSize: '1.5em',
+  fontSize: '1.25em',
+  lineHeight: 1.3,
+}
+
+export const groupTitleStyle: CSSProperties = {
+  fontWeight: 600,
+  fontSize: '1em',
   lineHeight: 1.3,
 }
 
@@ -45,10 +67,6 @@ export const headerLinkStyle: CSSProperties = {
   fontSize: 'calc(var(--base-body-size) * 0.9px)',
   textDecoration: 'underline',
   color: 'var(--theme-elevation-700)',
-}
-
-export const groupBodyStyle: CSSProperties = {
-  padding: 'calc(var(--base) * 0.4) 0',
 }
 
 export const groupDescriptionStyle: CSSProperties = {
@@ -91,24 +109,9 @@ export const tableCheckCellStyle: CSSProperties = {
 }
 
 export const linkRowStyle: CSSProperties = {
-  color: 'var(--theme-elevation-800)',
-  textDecoration: 'none',
-}
-
-export const tooltipStyle: CSSProperties = {
-  position: 'absolute',
-  top: 'calc(100% + 4px)',
-  left: '50%',
-  transform: 'translateX(-50%)',
-  padding: 'calc(var(--base) * 0.35)',
-  background: 'var(--theme-elevation-900)',
-  color: 'var(--theme-elevation-100)',
-  fontSize: 'calc(var(--base-body-size) * 0.85px)',
-  borderRadius: 'var(--style-radius-s)',
-  whiteSpace: 'nowrap',
-  zIndex: 20,
-  pointerEvents: 'none',
-  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+  color: 'var(--theme-elevation-900)',
+  textDecoration: 'underline',
+  textUnderlineOffset: '2px',
 }
 
 export const aggregateBodyStyle: CSSProperties = {

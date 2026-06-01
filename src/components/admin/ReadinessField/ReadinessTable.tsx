@@ -39,7 +39,9 @@ interface ReadinessTableProps {
 
 function rowBackground(row: ReadinessTableRow, index: number): string {
   if (row.isSummary) return 'var(--theme-elevation-50)'
-  if (row.checks.some((c) => !c.passed)) return 'var(--theme-error-50, rgba(220,38,38,0.04))'
+  if (row.checks.some((c) => !c.passed)) {
+    return index % 2 === 0 ? 'var(--theme-error-50)' : 'var(--theme-error-100)'
+  }
   return index % 2 === 0 ? 'var(--theme-elevation-0)' : 'var(--theme-elevation-50)'
 }
 
@@ -55,7 +57,12 @@ export const ReadinessTable: React.FC<ReadinessTableProps> = ({
   }
 
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div
+      style={{
+        border: '1px solid var(--theme-elevation-100)',
+        borderRadius: 'var(--style-radius-s)',
+      }}
+    >
       <table style={tableStyle}>
         <thead>
           <tr>
@@ -65,13 +72,40 @@ export const ReadinessTable: React.FC<ReadinessTableProps> = ({
                 key={col.key}
                 aria-label={col.description ? `${col.label}: ${col.description}` : col.label}
                 style={tableCheckHeaderCellStyle}
-                tabIndex={0}
-                onBlur={() => setHoveredColumn(null)}
-                onFocus={() => setHoveredColumn(col.key)}
-                onMouseEnter={() => setHoveredColumn(col.key)}
-                onMouseLeave={() => setHoveredColumn(null)}
+                tabIndex={col.description ? 0 : undefined}
+                onBlur={col.description ? () => setHoveredColumn(null) : undefined}
+                onFocus={col.description ? () => setHoveredColumn(col.key) : undefined}
+                onMouseEnter={col.description ? () => setHoveredColumn(col.key) : undefined}
+                onMouseLeave={col.description ? () => setHoveredColumn(null) : undefined}
               >
-                <span>{col.label}</span>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '3px',
+                  }}
+                >
+                  <span>{col.label}</span>
+                  {col.description ? (
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '14px',
+                        height: '14px',
+                        borderRadius: '50%',
+                        border: '1px solid var(--theme-elevation-300)',
+                        color: 'var(--theme-elevation-500)',
+                        fontSize: '10px',
+                        lineHeight: 1,
+                      }}
+                    >
+                      ?
+                    </span>
+                  ) : null}
+                </div>
                 {hoveredColumn === col.key && col.description ? (
                   <span style={tooltipStyle}>{col.description}</span>
                 ) : null}

@@ -1,22 +1,18 @@
 'use client'
 
-import { Collapsible } from '@payloadcms/ui'
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 
 import type { ReadinessGroup as Group } from '@/lib/status'
 
 import { AggregateStatus } from './AggregateStatus'
 import { ErroredStatus } from './ErroredStatus'
-import { ProgressBar } from './ProgressBar'
 import { ReadinessPill } from './ReadinessPill'
 import { ReadinessTable } from './ReadinessTable'
 import {
-  groupBodyStyle,
+  groupTitleStyle,
   headerContentStyle,
-  headerIndexStyle,
   headerInlineDescStyle,
   headerRowStyle,
-  headerTitleStyle,
   headerWrapStyle,
 } from './styles'
 import { summaryTone, type SummaryTone } from './summary'
@@ -27,7 +23,6 @@ interface ReadinessGroupProps {
   checksMetadata: Record<string, { label: string; description: string }>
   collectionSlug: string | null
   localeCode: string
-  index: number
 }
 
 function groupTone(group: Group): SummaryTone {
@@ -41,49 +36,93 @@ function groupTone(group: Group): SummaryTone {
 function GroupHeader({
   group,
   groupMetadata,
-  index,
+  tone,
+  showDetails,
+  onToggle,
 }: {
   group: Group
   groupMetadata: { label: string; description: string } | undefined
-  index: number
+  tone: SummaryTone
+  showDetails: boolean
+  onToggle: () => void
 }) {
   const label = groupMetadata?.label ?? group.key
   const description = groupMetadata?.description
-  const tone = groupTone(group)
+
+  let counter: string | null = null
+  if (group.type === 'documents') {
+    counter = `${group.summary.passing} of ${group.summary.total}`
+  } else if (group.type === 'aggregate') {
+    counter = `${group.actual} of ${group.threshold}`
+  }
 
   return (
-    <div style={headerWrapStyle}>
+    <div
+      style={{
+        ...headerWrapStyle,
+        paddingTop: 'calc(var(--base) * 0.5)',
+        paddingBottom: 'calc(var(--base) * 0.5)',
+        borderBottom: '1px dashed var(--theme-elevation-200)',
+      }}
+    >
       <ReadinessPill tone={tone} />
       <div style={headerContentStyle}>
-        {/* Row 1: index + title + optional tag + description */}
         <div style={headerRowStyle}>
-          <span style={headerTitleStyle}>
-            <span style={headerIndexStyle}>{index}.</span> {label}
+          <span
+            style={{
+              ...groupTitleStyle,
+              flex: 1,
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              display: 'block',
+            }}
+          >
+            {label}
+            {group.optional ? (
+              <span
+                style={{
+                  fontSize: 'calc(var(--base-body-size) * 0.8px)',
+                  color: 'var(--theme-elevation-500)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                {' '}
+                Optional
+              </span>
+            ) : null}
+            {description ? <span style={headerInlineDescStyle}> · {description}</span> : null}
           </span>
-          {group.optional ? (
-            <span
+          <div
+            style={{
+              flexShrink: 0,
+              marginLeft: 'calc(var(--base) * 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'calc(var(--base) * 0.5)',
+            }}
+          >
+            {counter !== null ? <span style={groupTitleStyle}>{counter}</span> : null}
+            <button
+              type="button"
+              onClick={onToggle}
               style={{
-                fontSize: 'calc(var(--base-body-size) * 0.8px)',
-                color: 'var(--theme-elevation-500)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
+                padding: 0,
+                border: 'none',
+                background: 'none',
+                color: 'var(--theme-elevation-600)',
+                cursor: 'pointer',
+                fontSize: 'calc(var(--base-body-size) * 0.9px)',
+                textDecoration: 'underline',
+                textUnderlineOffset: '2px',
               }}
             >
-              Optional
-            </span>
-          ) : null}
-          {description ? <span style={headerInlineDescStyle}>· {description}</span> : null}
+              {showDetails ? 'Hide details' : 'Show details'}
+            </button>
+          </div>
         </div>
-        {/* Row 2: progress bar */}
-        {group.type === 'documents' ? (
-          <ProgressBar
-            passing={group.summary.passing}
-            total={group.summary.total}
-            unit="documents ready"
-          />
-        ) : group.type === 'aggregate' ? (
-          <ProgressBar passing={group.actual} total={group.threshold} unit="keys filled" />
-        ) : null}
       </div>
     </div>
   )
@@ -95,8 +134,10 @@ export const ReadinessGroup: React.FC<ReadinessGroupProps> = ({
   checksMetadata,
   collectionSlug,
   localeCode,
-  index,
 }) => {
+  const tone = groupTone(group)
+  const [showDetails, setShowDetails] = useState(tone !== 'success')
+
   const checkColumns = useMemo(() => {
     if (group.type !== 'documents') return []
     const seen = new Set<string>()
@@ -129,21 +170,30 @@ export const ReadinessGroup: React.FC<ReadinessGroupProps> = ({
   }, [group, collectionSlug, localeCode])
 
   return (
-    <Collapsible header={<GroupHeader group={group} groupMetadata={groupMetadata} index={index} />}>
-      <div style={groupBodyStyle}>
-        {group.type === 'documents' ? (
-          <ReadinessTable checkColumns={checkColumns} rows={tableRows} />
-        ) : group.type === 'aggregate' ? (
-          <AggregateStatus
-            actual={group.actual}
-            items={group.items}
-            passed={group.passed}
-            threshold={group.threshold}
-          />
-        ) : (
-          <ErroredStatus error={group.error} />
-        )}
-      </div>
-    </Collapsible>
+    <div style={{ marginBottom: 'calc(var(--base) * 0.5)' }}>
+      <GroupHeader
+        group={group}
+        groupMetadata={groupMetadata}
+        showDetails={showDetails}
+        tone={tone}
+        onToggle={() => setShowDetails((v) => !v)}
+      />
+      {showDetails ? (
+        <div style={{ paddingTop: 'calc(var(--base) * 0.3)' }}>
+          {group.type === 'documents' ? (
+            <ReadinessTable checkColumns={checkColumns} rows={tableRows} />
+          ) : group.type === 'aggregate' ? (
+            <AggregateStatus
+              actual={group.actual}
+              items={group.items}
+              passed={group.passed}
+              threshold={group.threshold}
+            />
+          ) : (
+            <ErroredStatus error={group.error} />
+          )}
+        </div>
+      ) : null}
+    </div>
   )
 }

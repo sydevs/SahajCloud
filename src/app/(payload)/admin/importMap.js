@@ -55,6 +55,7 @@ import { UnderlineFeatureClient as UnderlineFeatureClient_e70f5e05f09f93e00b997e
 import { default as default_4e22aa57842837eff3a83b422834aab2 } from '@/components/admin/TranslationsRow'
 import { default as default_cbd7ea31609971bfa7093afb69bf75ad } from '@/components/admin/TabScreenshot'
 import { TranslationsRichTextField as TranslationsRichTextField_4e22aa57842837eff3a83b422834aab2 } from '@/components/admin/TranslationsRow'
+import { default as default_ffac54d067109368ad5684d6ea4e1327 } from '@/components/admin/ReadinessField/ReadinessBanner'
 import { default as default_8dcebb2ea41c850ff8532af16196e52b } from '@/components/admin/ReadinessField'
 import { default as default_7b4ba381140135af5cae014b3533be0b } from '@/components/branding/Icon'
 import { default as default_742835b254059f88bfb2f781ea75df90 } from '@/components/branding/Logo'
@@ -125,6 +126,7 @@ export const importMap = {
   "@/components/admin/TranslationsRow#default": default_4e22aa57842837eff3a83b422834aab2,
   "@/components/admin/TabScreenshot#default": default_cbd7ea31609971bfa7093afb69bf75ad,
   "@/components/admin/TranslationsRow#TranslationsRichTextField": TranslationsRichTextField_4e22aa57842837eff3a83b422834aab2,
+  "@/components/admin/ReadinessField/ReadinessBanner#default": default_ffac54d067109368ad5684d6ea4e1327,
   "@/components/admin/ReadinessField#default": default_8dcebb2ea41c850ff8532af16196e52b,
   "@/components/branding/Icon#default": default_7b4ba381140135af5cae014b3533be0b,
   "@/components/branding/Logo#default": default_742835b254059f88bfb2f781ea75df90,

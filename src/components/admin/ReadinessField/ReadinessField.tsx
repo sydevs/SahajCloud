@@ -70,11 +70,21 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
         initCollapsed
         header={
           <div style={headerWrapStyle}>
-            <ReadinessPill tone={tone} />
+            <ReadinessPill size="large" tone={tone} />
             <div style={headerContentStyle}>
               {/* Row 1: index + title + description + links */}
               <div style={headerRowStyle}>
-                <span style={headerTitleStyle}>
+                <span
+                  style={{
+                    ...headerTitleStyle,
+                    flex: 1,
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    display: 'block',
+                  }}
+                >
                   <span style={headerIndexStyle}>{sectionMetadata.index}.</span>{' '}
                   {sectionMetadata.label}
                   {sectionMetadata.description ? (
@@ -83,7 +93,8 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
                 </span>
                 <span
                   style={{
-                    marginLeft: 'auto',
+                    flexShrink: 0,
+                    marginLeft: 'calc(var(--base) * 0.35)',
                     display: 'flex',
                     gap: 'calc(var(--base) * 0.5)',
                     position: 'relative',
@@ -139,14 +150,13 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
               gap: 'calc(var(--base) * 0.3)',
             }}
           >
-            {report.groups.map((group, groupIndex) => (
+            {report.groups.map((group) => (
               <ReadinessGroup
                 key={group.key}
                 checksMetadata={checksMetadata}
                 collectionSlug={groupKeyToCollection[group.key] ?? null}
                 group={group}
                 groupMetadata={groupsMetadata[group.key]}
-                index={groupIndex + 1}
                 localeCode={localeCode}
               />
             ))}
