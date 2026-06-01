@@ -834,7 +834,6 @@ After this PR merges, complete these steps once:
 6. **Repo secrets + vars** (Settings → Secrets and variables → Actions):
    - Secret `CLOUDFLARE_API_TOKEN` — a token with D1 + R2 write scope (used by `preview-reclone.yml`).
    - Secret `CLOUDFLARE_ACCOUNT_ID` — your account ID.
-   - Secret `PREVIEW_BASE_URL` — `https://sahajcloud-preview.<account>.workers.dev` (the non-branch alias; the reclone workflow posts the seed admin here).
    - Variable `CF_WORKER_SUBDOMAIN` — your `<account>` subdomain (the part before `.workers.dev`), used by the smoke job to compute per-PR URLs.
 
 7. **First reclone**: Actions → "Preview D1 Reclone" → "Run workflow" → `main`. Confirm preview D1 row counts roughly match prod (minus stripped Managers/Clients), preview admin can log in at `https://sahajcloud-preview.<account>.workers.dev/admin`.
@@ -847,7 +846,7 @@ The `preview-reclone` workflow (`.github/workflows/preview-reclone.yml`) runs **
 2. Runs `scripts/sanitize-preview-dump.ts` to strip INSERTs for these PII tables: `managers*`, `clients*`, `payload_preferences*`, `payload_locked_documents*`, `form_submissions*`, `payload_jobs*`. Schema (CREATE TABLE) statements are preserved.
 3. Drops all preview tables (dynamic — queries `sqlite_master` so the schema list never drifts).
 4. Imports the sanitized dump into preview D1.
-5. POSTs to `${PREVIEW_BASE_URL}/api/managers/first-register` to seed the preview admin (credentials match the documented dev creds in `CLAUDE.md`).
+5. INSERTs a seeded admin row directly into the preview `managers` table via `wrangler d1 execute` (uses Payload's exact pbkdf2-sha256 hash params; no dependency on a running preview Worker, so the reclone works on the cron even when no PR's preview alias is live). Credentials match the documented dev creds in `CLAUDE.md`.
 
 Schema drift between reclones is tolerated: PR migrations land in preview via Workers Builds' pre-deploy migration step, smoke writes accumulate during the week, and the weekly reclone wipes everything clean. If a destructive PR migration lands and is later reverted, preview self-heals on the next reclone.
 
