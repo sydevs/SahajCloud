@@ -2,7 +2,7 @@ import type { JSONField, TabsField } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
-import { WeMeditateAppStatusSpec } from '@/globals/wemeditate-app/status'
+import { WeMeditateAppStatusSpec } from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
 import { buildStatusGlobalConfig } from '@/lib/status'
 import { READINESS_FIELD_COMPONENT_PATH } from '@/lib/status/virtualReadinessField'
 

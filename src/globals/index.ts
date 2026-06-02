@@ -1,10 +1,10 @@
-import { SahajAtlasConfig } from './sahaj-atlas/config'
-import { SahajAtlasTranslations } from './sahaj-atlas/translations'
-import { WeMeditateAppConfig } from './wemeditate-app/config'
-import { WeMeditateAppStatus } from './wemeditate-app/status'
-import { WeMeditateAppTranslations } from './wemeditate-app/translations'
-import { WeMeditateWebConfig } from './wemeditate-web/config'
-import { WeMeditateWebTranslations } from './wemeditate-web/translations'
+import { SahajAtlasConfig } from './SahajAtlasConfig/SahajAtlasConfig'
+import { SahajAtlasTranslations } from './SahajAtlasTranslations/SahajAtlasTranslations'
+import { WeMeditateAppConfig } from './WeMeditateAppConfig/WeMeditateAppConfig'
+import { WeMeditateAppStatus } from './WeMeditateAppStatus/WeMeditateAppStatus'
+import { WeMeditateAppTranslations } from './WeMeditateAppTranslations/WeMeditateAppTranslations'
+import { WeMeditateWebConfig } from './WeMeditateWebConfig/WeMeditateWebConfig'
+import { WeMeditateWebTranslations } from './WeMeditateWebTranslations/WeMeditateWebTranslations'
 
 export const globals = [
   WeMeditateWebConfig,

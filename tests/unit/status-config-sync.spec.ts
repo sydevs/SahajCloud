@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { WeMeditateAppStatusSpec } from '@/globals/wemeditate-app/status'
-import committedConfig from '@/globals/wemeditate-app/statusConfig.json' with { type: 'json' }
+import committedConfig from '@/globals/WeMeditateAppStatus/statusConfig.json' with { type: 'json' }
+import { WeMeditateAppStatusSpec } from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
 import { extractStatusConfig } from '@/lib/status'
 
 describe('statusConfig.json drift guard', () => {

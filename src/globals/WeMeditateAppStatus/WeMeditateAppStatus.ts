@@ -4,18 +4,18 @@ import enLocale from 'i18n-iso-countries/langs/en.json'
 import { adminOnlyFieldAccess } from '@/lib/access'
 import { buildStatusGlobalConfig, type StatusGlobalSpec } from '@/lib/status'
 
-import { appCardsSection } from './appCards'
-import { appConfigSection } from './appConfig'
-import { lecturesSection } from './lectures'
-import { lessonsSection } from './lessons'
-import { pagesSection } from './pages'
+import { appCardsSection } from './sections/appCards'
+import { appConfigSection } from './sections/appConfig'
+import { lecturesSection } from './sections/lectures'
+import { lessonsSection } from './sections/lessons'
+import { pagesSection } from './sections/pages'
 import {
   DEFAULT_BASELINE_COUNTRY,
   extractWeMeditateAppStatusConfig,
   type WeMeditateAppStatusConfig,
-} from './shared'
-import { translationsSection } from './translations'
-import { userChoicesSection } from './userChoices'
+} from './sections/shared'
+import { translationsSection } from './sections/translations'
+import { userChoicesSection } from './sections/userChoices'
 
 countries.registerLocale(enLocale)
 

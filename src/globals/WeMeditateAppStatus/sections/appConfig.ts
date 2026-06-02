@@ -1,3 +1,4 @@
+import { VIBE_CHECK_IDENTIFIERS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import {
   isUploadAssigned,
   labelOf,
@@ -6,12 +7,7 @@ import {
   type SectionSpec,
 } from '@/lib/status'
 
-import { VIBE_CHECK_IDENTIFIERS } from '../config'
-import {
-  getWmAppConfig,
-  meditationMatchesLocale,
-  type WeMeditateAppStatusConfig,
-} from './shared'
+import { getWmAppConfig, meditationMatchesLocale, type WeMeditateAppStatusConfig } from './shared'
 
 interface WmAppConfigSlice {
   selfRealizationMeditation?: unknown
