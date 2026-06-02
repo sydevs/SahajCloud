@@ -3,7 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { resolveAudienceIds } from '@/lib/audiences/resolve'
-import { asTrustedReq } from '@/lib/usage/hooks'
+import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const querySchema = z.object({
   // Progress params (all required; pass 0 as a neutral sentinel)

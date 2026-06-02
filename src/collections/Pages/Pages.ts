@@ -1,11 +1,11 @@
 import type { CollectionConfig } from 'payload'
 
-import { pageBlocks } from '@/blocks'
+import { PAGE_TAGS } from '@/collections/Pages/pageTags'
 import { slugField } from '@/fields'
 import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import { removeDanglingLexicalReferencesAfterRead } from '@/hooks/lexicalHooks'
-import { PAGE_TAGS } from '@/lib/constants'
 import { fullRichTextEditor } from '@/lib/richEditor'
+import { pageBlocks } from '@/lib/richEditor/blocks'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',

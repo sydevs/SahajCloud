@@ -543,7 +543,7 @@ component at `/admin/analytics`; typed as `AdminViewServerProps` (from
 **`ProjectSelectionPrompt`** — client component; self-guards via
 `useAuth()` and returns `null` unless user is a regular manager with no
 `currentProject`. Computes allowed projects via `getProjectsFromRoles()`
-from `@/lib/access`.
+from `@/plugins/access`.
 
 **`AnalyticsNavLink`** (`src/components/admin/AnalyticsNavLink.tsx`) —
 client component rendered in `beforeNavLinks`; link to `/admin/analytics`;
@@ -575,7 +575,7 @@ manager's `currentProject` and adapt:
 - `PROJECT_BRAND_COLORS` — primary / dark / light per project.
 - Color utilities: `lighten`, `darken`, `tint`, `shade`.
 - `deriveScalarTheme()` / `getScalarThemeColors()` for the Scalar API docs
-  theme (consumed by `src/lib/openapi/scalarPlugin.ts`).
+  theme (consumed by `src/plugins/openapi/scalarPlugin.ts`).
 
 | Project | Primary | Dark | Light |
 |---|---|---|---|
@@ -613,7 +613,7 @@ hidden: ({ user }) => {
 
 ### Project assignments
 
-Defined in `src/lib/access/config/projects.ts` as an internal `PROJECTS`
+Defined in `src/plugins/access/config/projects.ts` as an internal `PROJECTS`
 constant (not exported). Lookup tables (`PROJECT_TO_COLLECTIONS`,
 `COLLECTION_TO_PROJECTS`) compute at module load.
 

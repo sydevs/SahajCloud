@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { virtualUrlField } from '@/lib/storage/urlFields'
+import { virtualUrlField } from '@/plugins/storage/urlFields'
 
 import { detectOrientationHook } from './hooks/detectOrientationHook'
 

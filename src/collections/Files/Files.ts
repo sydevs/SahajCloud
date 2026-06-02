@@ -5,7 +5,7 @@ import {
   mixedMediaUrlField,
   mp4UrlField,
   previewUrlField,
-} from '@/lib/storage/urlFields'
+} from '@/plugins/storage/urlFields'
 
 export const Files: CollectionConfig = {
   slug: 'files',

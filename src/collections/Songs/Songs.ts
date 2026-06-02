@@ -1,6 +1,6 @@
 import type { CollectionConfig, CollectionBeforeChangeHook } from 'payload'
 
-import { virtualUrlField } from '@/lib/storage/urlFields'
+import { virtualUrlField } from '@/plugins/storage/urlFields'
 
 /** Module-level cache for the vocals tag ID (looked up once per process). */
 let vocalsTagId: number | undefined

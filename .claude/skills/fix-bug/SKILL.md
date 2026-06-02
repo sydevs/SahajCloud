@@ -39,5 +39,5 @@ End-to-end bug troubleshooting for the sy-devs-cms PayloadCMS + Next.js + Cloudf
 
 - Logs: `.claude/skills/dev-server/state/server.log`
 - Sentry MCP: `mcp__sentry__*` (production errors)
-- Custom logger: `src/lib/workerSafeLogger.ts`
+- Custom logger: `src/lib/logger/workerSafeLogger.ts`
 - Env validation: `src/lib/env.ts`

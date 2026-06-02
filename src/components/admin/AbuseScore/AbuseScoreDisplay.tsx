@@ -2,7 +2,7 @@
 
 import { Pill } from '@payloadcms/ui'
 
-import type { AbuseLevel, AbuseScore } from '@/lib/usage/abuse'
+import type { AbuseLevel, AbuseScore } from '@/plugins/usage/abuse'
 
 /**
  * Get Pill style for abuse level.

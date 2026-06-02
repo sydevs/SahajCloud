@@ -11,7 +11,7 @@
  * is not set. See `.claude/rules/storage.md`.
  *
  * The actual verification and processing logic lives in
- * `src/lib/storage/cloudflareStreamWebhook.ts` (pure, testable). This file is
+ * `src/plugins/storage/cloudflareStreamWebhook.ts` (pure, testable). This file is
  * just a Next.js route handler wrapper.
  *
  * @see https://developers.cloudflare.com/stream/manage-video-library/using-webhooks/
@@ -21,9 +21,9 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
 import { serverEnv } from '@/lib/env'
-import type { WebhookLogger } from '@/lib/storage/cloudflareStreamWebhook'
-import { handleStreamWebhook } from '@/lib/storage/cloudflareStreamWebhook'
-import { createWorkerSafeLogger } from '@/lib/workerSafeLogger'
+import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
+import type { WebhookLogger } from '@/plugins/storage/cloudflareStreamWebhook'
+import { handleStreamWebhook } from '@/plugins/storage/cloudflareStreamWebhook'
 
 // The webhook handler is pure and doesn't touch Payload, so we skip getPayload()
 // and use the worker-safe logger directly. This keeps cold-start latency low on

@@ -1,8 +1,8 @@
 import countries from 'i18n-iso-countries'
 import enLocale from 'i18n-iso-countries/langs/en.json'
 
-import { adminOnlyFieldAccess } from '@/lib/access'
 import { buildStatusGlobalConfig, type StatusGlobalSpec } from '@/lib/status'
+import { adminOnlyFieldAccess } from '@/plugins/access'
 
 import { appCardsSection } from './sections/appCards'
 import { appConfigSection } from './sections/appConfig'

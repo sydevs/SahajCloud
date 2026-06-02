@@ -23,7 +23,7 @@ What to test, by change type. Reference `.claude/rules/tests.md` for the actual 
 - Custom cell: E2E test verifying it renders in the list view
 - Conditional `admin.condition`: E2E test toggling the condition and confirming visibility
 
-## Storage adapter changes (`src/lib/storage/`)
+## Storage adapter changes (`src/plugins/storage/`)
 
 - New MIME-type route: integration test uploading a file of that type and verifying URL shape
 - Filename hook: integration test confirming filename matches expected pattern
@@ -34,7 +34,7 @@ What to test, by change type. Reference `.claude/rules/tests.md` for the actual 
 - Run the down migration: confirm it reverses cleanly
 - Cross-reference [feedback_d1_pragma_foreign_keys] memory — if you're rebuilding child tables, the parent must be rebuilt first
 
-## RBAC / access (`src/lib/access/`)
+## RBAC / access (`src/plugins/access/`)
 
 - Integration test for each role × resource combination that changed
 - Edge cases: missing role, multiple roles, locale-scoped permissions

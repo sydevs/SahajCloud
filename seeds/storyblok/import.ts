@@ -21,7 +21,7 @@ import type { Payload } from 'payload'
 
 import * as path from 'path'
 
-import { type Subtitles, subtitlesZodSchema } from '@/lib/subtitles'
+import { type Subtitles, subtitlesZodSchema } from '@/lib/utilities/subtitles'
 
 import { seedEnv } from '../env'
 import {

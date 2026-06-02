@@ -1,6 +1,6 @@
 import type { PayloadLogger } from 'payload'
 
-import type { LectureMetadata } from '@/lib/nirmalaVidya'
+import type { LectureMetadata } from '@/lib/lectures/nirmalaVidya'
 import type { Image, Lecture } from '@/payload-types'
 
 /**

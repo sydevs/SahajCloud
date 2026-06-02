@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { GENDER_OPTIONS } from '@/lib/data'
+import { GENDER_OPTIONS } from '@/lib/utilities/gender'
 
 export const Narrators: CollectionConfig = {
   slug: 'narrators',

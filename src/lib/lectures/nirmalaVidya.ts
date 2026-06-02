@@ -1,6 +1,6 @@
+import type { NirmalaVidyaVideoData } from '@/lib/lectures/nirmalaVidyaApi'
 import type { LocaleCode } from '@/lib/locales'
 import { isValidLocale } from '@/lib/locales'
-import type { NirmalaVidyaVideoData } from '@/lib/nirmalaVidyaApi'
 
 // =============================================================================
 // Language Code Mapping

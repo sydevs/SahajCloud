@@ -101,7 +101,7 @@ EOF
 
 ### 6. Schema changes (if any)
 
-If you edited `src/collections/`, `src/fields/`, `src/blocks/`, `src/globals/`, or `src/payload.config.ts`:
+If you edited `src/collections/`, `src/fields/`, `src/lib/richEditor/blocks/`, `src/globals/`, or `src/payload.config.ts`:
 
 - The `payload-types-gen` PostToolUse hook should regenerate `src/payload-types.ts` automatically.
 - **Migration required**: do NOT run `pnpm db:migrations:create` yourself — it's interactive and hangs when piped. **Ask the user to run it.**

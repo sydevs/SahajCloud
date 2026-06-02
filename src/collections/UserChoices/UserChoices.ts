@@ -3,8 +3,8 @@ import type { CollectionBeforeChangeHook, CollectionConfig } from 'payload'
 import { APIError } from 'payload'
 
 import { colorField, slugField } from '@/fields'
-import { adminOnlyCondition, adminOnlyFieldAccess, isAdminManager } from '@/lib/access'
-import { virtualUrlField } from '@/lib/storage/urlFields'
+import { adminOnlyCondition, adminOnlyFieldAccess, isAdminManager } from '@/plugins/access'
+import { virtualUrlField } from '@/plugins/storage/urlFields'
 
 import { clearIsParentOnDelete } from './hooks/clearIsParentOnDelete'
 import { maintainIsParent } from './hooks/maintainIsParent'

@@ -237,7 +237,7 @@ describe('Client query parameter validation', () => {
 
   // Live-preview reads carry the SAHAJCLOUD_PREVIEW_SECRET header. They render
   // the whole document, so the select/populate gate is skipped (see
-  // hasValidPreviewSecret in src/lib/previewSecret.ts). Without this bypass the
+  // hasValidPreviewSecret in src/lib/utilities/previewSecret.ts). Without this bypass the
   // admin live preview 400s because it does not enumerate select — the breakage
   // introduced by #294.
   describe('live preview bypass', () => {

@@ -3,7 +3,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { lecturesForAudience } from '@/collections/Lectures/endpoints/forAudience'
-import type { LecturePlayerData } from '@/lib/lectureShape'
+import type { LecturePlayerData } from '@/lib/lectures/lectureShape'
 import type { Audience, Client, Image, Lecture } from '@/payload-types'
 
 import { testData } from '../utils/testData'
@@ -11,8 +11,8 @@ import { createTestEnvironment } from '../utils/testHelpers'
 
 // Prevent live Nirmala Vidya API calls from the populateFromNirmalaVidya hook
 // fired by testData.createLecture. Each test can override the mock response.
-vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/nirmalaVidyaApi')>()
+vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/lectures/nirmalaVidyaApi')>()
   return {
     extractVimeoId: vi.fn(original.extractVimeoId),
     fetchNirmalaVidyaVideo: vi.fn().mockResolvedValue({
@@ -367,7 +367,7 @@ describe('lecturesForAudience endpoint', () => {
     })
 
     it('lectures with metadata.duration but no explicit stopTime fall through to metadata.duration', async () => {
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'Lecture With Duration',
         thumbnailUrl: 'https://example.com/metadata-thumb.jpg',
@@ -576,7 +576,7 @@ describe('lecturesForAudience endpoint', () => {
 
     it('falls back to parent.metadata.thumbnailUrl when clip has no own thumbnail', async () => {
       // Set up: a full parent (no editor thumbnail) + a clip with no thumbnail.
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'Parent for thumb fallback',
         thumbnailUrl: 'https://example.com/parent-thumb.jpg',
@@ -600,7 +600,7 @@ describe('lecturesForAudience endpoint', () => {
     })
 
     it('clip thumbnail override wins over parent.metadata.thumbnailUrl', async () => {
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'Parent for clip override',
         thumbnailUrl: 'https://example.com/parent-thumb-2.jpg',
@@ -628,7 +628,7 @@ describe('lecturesForAudience endpoint', () => {
     })
 
     it('clip subtitle overrides merge with parent.metadata.subtitles', async () => {
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'Parent for subtitle merge',
         thumbnailUrl: null,
@@ -661,7 +661,7 @@ describe('lecturesForAudience endpoint', () => {
     })
 
     it('clip falls through to parent.metadata.duration for stopTime when stopTime is unset', async () => {
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'Parent with duration',
         thumbnailUrl: null,

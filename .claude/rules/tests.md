@@ -12,7 +12,7 @@ Rules for writing and running tests in this codebase.
 ### DO test
 
 - Custom hooks (`src/hooks/`) — `validateClientData`, `checkHighUsageAlert`, etc.
-- Storage utilities (`src/lib/storage/`) — URL field factories, R2 filename sanitization
+- Storage utilities (`src/plugins/storage/`) — URL field factories, R2 filename sanitization
 - Access control (`hasPermission`, `roleBasedAccess`, `customResourceAccess`)
 - Custom field logic — virtual fields, computed values, custom validators
 - Document-level permissions

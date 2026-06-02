@@ -2,8 +2,8 @@
 
 import { useAuth } from '@payloadcms/ui'
 
-import { getProjectLabel, getProjectsFromRoles } from '@/lib/access'
 import type { ProjectSlug } from '@/payload-types'
+import { getProjectLabel, getProjectsFromRoles } from '@/plugins/access'
 
 import ProjectSelector from '../ProjectSelector'
 

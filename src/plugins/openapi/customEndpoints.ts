@@ -151,7 +151,7 @@ const jsonDocsResponse = (itemSchemaRef: string): OpenAPIResponse => ({
 
 /**
  * Lecture player-data subtitle map: `{ [localeCode]: subtitleFileUrl }`.
- * Distinct from the inline caption-data shape in `src/lib/subtitles.ts`
+ * Distinct from the inline caption-data shape in `src/lib/utilities/subtitles.ts`
  * (which is what Videos / Lessons / Lecture authoring fields store).
  * Keys are constrained to the known `LOCALES` codes via
  * `propertyNames: { enum: ... }` (JSON Schema 2020-12 / OpenAPI 3.1 —
@@ -192,7 +192,7 @@ const errorResponse = (description: string): OpenAPIResponse => ({
  * Custom endpoint path definitions merged into the generated spec before
  * `filterSpec` runs. Keys include the `/api/` prefix because `filterSpec`'s
  * `getCollectionFromPath` extracts the collection slug from that position
- * (see `src/lib/openapi/specFilter.ts`). Keeping the prefix lets the
+ * (see `src/plugins/openapi/specFilter.ts`). Keeping the prefix lets the
  * existing project-based visibility rules apply automatically:
  *
  *   - `/api/frames/...`      → visible wherever `frames` is in the project
@@ -408,7 +408,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
  * slug).
  *
  * Keep `LecturePlayerData` in lockstep with the matching type in
- * `src/lib/lectureShape.ts` and the shapers in
+ * `src/lib/lectures/lectureShape.ts` and the shapers in
  * `src/endpoints/lecturesForAudience.ts` /
  * `src/endpoints/meditationLectures.ts` — the `api-explorer.int.spec.ts`
  * shape test is the tripwire. `additionalProperties: false` keeps the

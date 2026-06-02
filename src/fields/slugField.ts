@@ -2,7 +2,7 @@ import type { CollectionSlug, RowField, TextField } from 'payload'
 
 import { slugField as payloadSlugField } from 'payload'
 
-import { adminOnlyCondition, adminOnlyFieldAccess } from '@/lib/access/adminOnly'
+import { adminOnlyCondition, adminOnlyFieldAccess } from '@/plugins/access/adminOnly'
 
 /**
  * Options for creating a slug field.

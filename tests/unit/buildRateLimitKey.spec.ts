@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { buildRateLimitKey } from '@/lib/usage'
+import { buildRateLimitKey } from '@/plugins/usage'
 
 describe('buildRateLimitKey', () => {
   it('builds composite key with all components', () => {

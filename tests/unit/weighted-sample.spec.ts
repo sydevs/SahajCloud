@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { weightedSample } from '@/lib/weightedSample'
+import { weightedSample } from '@/lib/utilities/weightedSample'
 
 describe('weightedSample', () => {
   const weightOf = (x: { w: number }) => x.w

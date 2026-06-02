@@ -1,7 +1,7 @@
 import type { TaskConfig, Where } from 'payload'
 
-import { buildLectureMetadata } from '@/lib/nirmalaVidya'
-import { extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/nirmalaVidyaApi'
+import { buildLectureMetadata } from '@/lib/lectures/nirmalaVidya'
+import { extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/lectures/nirmalaVidyaApi'
 
 type SyncResult = {
   totalProcessed: number

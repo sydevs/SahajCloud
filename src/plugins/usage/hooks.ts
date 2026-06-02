@@ -16,7 +16,7 @@ import { APIError } from 'payload'
 import { z } from 'zod'
 
 import { serverEnv } from '@/lib/env'
-import { hasValidPreviewSecret } from '@/lib/previewSecret'
+import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 
 import { RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_SECONDS } from './constants'
 

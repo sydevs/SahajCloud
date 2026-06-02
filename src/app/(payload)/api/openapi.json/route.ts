@@ -19,11 +19,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import { generateV31Spec } from 'payload-oapi/dist/openapi/generators.js'
 
-import { isValidProject } from '@/lib/access'
-import { checkBasicAuth } from '@/lib/openapi/basicAuth'
-import { CUSTOM_ENDPOINT_PATHS, CUSTOM_ENDPOINT_SCHEMAS } from '@/lib/openapi/customEndpoints'
-import { filterSpec, type OpenAPISpec } from '@/lib/openapi/specFilter'
 import type { ProjectSlug } from '@/payload-types'
+import { isValidProject } from '@/plugins/access'
+import { checkBasicAuth } from '@/plugins/openapi/basicAuth'
+import { CUSTOM_ENDPOINT_PATHS, CUSTOM_ENDPOINT_SCHEMAS } from '@/plugins/openapi/customEndpoints'
+import { filterSpec, type OpenAPISpec } from '@/plugins/openapi/specFilter'
 
 import config from '@payload-config'
 
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
 
     // Inject custom endpoint paths + schemas before filtering so project-based
     // visibility in filterSpec applies them automatically by collection slug.
-    // See src/lib/openapi/customEndpoints.ts for the shape rationale.
+    // See src/plugins/openapi/customEndpoints.ts for the shape rationale.
     rawSpec.paths = { ...(rawSpec.paths ?? {}), ...CUSTOM_ENDPOINT_PATHS }
     rawSpec.components ??= {}
     rawSpec.components.schemas = {

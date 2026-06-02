@@ -63,7 +63,7 @@ export interface SentryPluginOptions {
  *
  * @example
  * ```ts
- * import { sentryPlugin } from '@/lib/sentryPlugin'
+ * import { sentryPlugin } from '@/plugins/sentry'
  *
  * export default buildConfig({
  *   plugins: [

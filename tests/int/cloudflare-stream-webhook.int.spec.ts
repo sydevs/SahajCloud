@@ -10,9 +10,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Dynamic-import these after env is prepared so any module-level validation
 // (none today, but cheap insurance) sees the expected env values.
-let parseSignatureHeader: typeof import('@/lib/storage/cloudflareStreamWebhook').parseSignatureHeader
-let verifySignature: typeof import('@/lib/storage/cloudflareStreamWebhook').verifySignature
-let handleStreamWebhook: typeof import('@/lib/storage/cloudflareStreamWebhook').handleStreamWebhook
+let parseSignatureHeader: typeof import('@/plugins/storage/cloudflareStreamWebhook').parseSignatureHeader
+let verifySignature: typeof import('@/plugins/storage/cloudflareStreamWebhook').verifySignature
+let handleStreamWebhook: typeof import('@/plugins/storage/cloudflareStreamWebhook').handleStreamWebhook
 
 const FAKE_NOW_SECONDS = 1_750_000_000
 const SECRET = 'test-webhook-signing-secret-with-32-plus-chars'
@@ -75,7 +75,7 @@ describe('Cloudflare Stream webhook handler', () => {
       CLOUDFLARE_API_KEY: 'test-cloudflare-api-key-20chars',
     }
 
-    const mod = await import('@/lib/storage/cloudflareStreamWebhook')
+    const mod = await import('@/plugins/storage/cloudflareStreamWebhook')
     parseSignatureHeader = mod.parseSignatureHeader
     verifySignature = mod.verifySignature
     handleStreamWebhook = mod.handleStreamWebhook

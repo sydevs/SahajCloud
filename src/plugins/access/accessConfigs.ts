@@ -12,7 +12,7 @@
 import type { BypassPermissionFunction, ContentSlug, FieldAccessConfig } from './types'
 import type { AccessArgs, CollectionConfig, CollectionSlug, PayloadRequest } from 'payload'
 
-import { hasValidPreviewSecret } from '@/lib/previewSecret'
+import { hasValidPreviewSecret } from '@/lib/utilities/previewSecret'
 
 import { hasPermission } from './permissions'
 

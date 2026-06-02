@@ -72,7 +72,7 @@ This is the #1 way migrations break this project.
 ### 6. Type / generated code sync
 
 - Does the migration align with `src/payload-types.ts`? (run `pnpm generate:types` if uncertain)
-- Are there matching changes in `src/collections/`, `src/fields/`, `src/blocks/`, `src/globals/`?
+- Are there matching changes in `src/collections/`, `src/fields/`, `src/lib/richEditor/blocks/`, `src/globals/`?
 - Mismatch means the type system thinks one shape exists, but the DB has another.
 
 ### 7. Cross-migration ordering

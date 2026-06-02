@@ -1,7 +1,7 @@
 /**
  * Cloudflare Stream webhook helpers (pure, no Payload / Next.js dependency).
  *
- * Kept in `src/lib/storage` rather than co-located with the route handler
+ * Kept in `src/plugins/storage` rather than co-located with the route handler
  * because Next.js App Router routes may only export specific named exports
  * (GET, POST, etc.) — arbitrary helper exports cause a build error.
  *

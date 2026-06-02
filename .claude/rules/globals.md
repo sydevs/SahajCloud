@@ -134,7 +134,7 @@ within SQL constraints.
 
 ## Project visibility
 
-Globals are assigned to projects in `src/lib/access/config/projects.ts` and
+Globals are assigned to projects in `src/plugins/access/config/projects.ts` and
 automatically shown/hidden by the `accessPlugin` based on the manager's
 `currentProject`. Don't write `admin.hidden` by hand on a global — let the
 plugin do it.

@@ -6,15 +6,15 @@ import { Pill, useDocumentInfo, useField } from '@payloadcms/ui'
 import { PillProps } from '@payloadcms/ui/elements/Pill'
 import React, { useMemo } from 'react'
 
-import type { PermissionLevel } from '@/lib/access'
+import type { ProjectSlug, RoleSlug } from '@/payload-types'
+import type { PermissionLevel } from '@/plugins/access'
 import {
   getPermissionsForRole,
   getProjectIcon,
   getProjectLabel,
   getReadableCollections,
   getRoleProject,
-} from '@/lib/access'
-import type { ProjectSlug, RoleSlug } from '@/payload-types'
+} from '@/plugins/access'
 
 /**
  * PermissionsTable Component

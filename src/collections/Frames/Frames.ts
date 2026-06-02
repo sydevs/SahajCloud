@@ -1,12 +1,12 @@
 import type { CollectionConfig } from 'payload'
 
-import { GENDER_OPTIONS } from '@/lib/data'
+import { GENDER_OPTIONS } from '@/lib/utilities/gender'
 import {
   hlsUrlField,
   mixedMediaUrlField,
   mp4UrlField,
   previewUrlField,
-} from '@/lib/storage/urlFields'
+} from '@/plugins/storage/urlFields'
 
 import { framesByNarrator } from './endpoints/byNarrator'
 import { cascadeFrameNodeChange } from './hooks/cascadeFrameNodeChange'

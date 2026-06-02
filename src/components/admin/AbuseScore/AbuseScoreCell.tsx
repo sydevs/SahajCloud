@@ -2,7 +2,7 @@
 
 import type { DefaultCellComponentProps } from 'payload'
 
-import type { AbuseScore } from '@/lib/usage/abuse'
+import type { AbuseScore } from '@/plugins/usage/abuse'
 
 import { AbuseScoreDisplay } from './AbuseScoreDisplay'
 

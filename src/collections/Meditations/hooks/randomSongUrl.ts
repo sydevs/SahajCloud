@@ -1,6 +1,6 @@
 import type { FieldHook, Where } from 'payload'
 
-import { getR2Url } from '@/lib/storage/r2NativeAdapter'
+import { getR2Url } from '@/plugins/storage/r2NativeAdapter'
 
 /**
  * afterRead hook for the randomSongUrl virtual field.

@@ -1,6 +1,6 @@
 ---
 paths:
-  - src/lib/access/**/*.ts
+  - src/plugins/access/**/*.ts
   - src/collections/Clients/**/*.ts
   - src/collections/Managers/**/*.ts
 ---
@@ -16,20 +16,20 @@ project visibility and field-level access for localized fields.
 
 - **Static permission checking** (no factory pattern)
 - **O(1) lookup tables** built once at module load
-- **Bypass logic** in `src/lib/access/bypassPermissions.ts`
+- **Bypass logic** in `src/plugins/access/bypassPermissions.ts`
 
 ### Configuration files (single source of truth)
 
 | File                                  | Purpose                                  |
 | ------------------------------------- | ---------------------------------------- |
-| `src/lib/access/config/projects.ts`   | Project config + lookup tables + helpers |
-| `src/lib/access/config/roles.ts`      | Role config + lookup tables + helpers    |
-| `src/lib/access/config/index.ts`      | Barrel export                            |
-| `src/lib/access/bypassPermissions.ts` | Shared bypass function                   |
+| `src/plugins/access/config/projects.ts`   | Project config + lookup tables + helpers |
+| `src/plugins/access/config/roles.ts`      | Role config + lookup tables + helpers    |
+| `src/plugins/access/config/index.ts`      | Barrel export                            |
+| `src/plugins/access/bypassPermissions.ts` | Shared bypass function                   |
 | `src/payload.config.ts`               | Plugin registration                      |
 
 ```typescript
-import { accessPlugin, bypassPermissions } from '@/lib/access'
+import { accessPlugin, bypassPermissions } from '@/plugins/access'
 
 plugins: [accessPlugin({ enabled: true, bypassPermissions })]
 ```
@@ -87,7 +87,7 @@ draft-enabled collections.
 ## Permission checking
 
 ```typescript
-import { hasPermission, hasAnyPermission } from '@/lib/access'
+import { hasPermission, hasAnyPermission } from '@/plugins/access'
 
 // Single operation
 hasPermission({ user, collection: 'pages', operation: 'read' })
@@ -163,7 +163,7 @@ restrictions needed.
 
 ## Adding a new role
 
-1. Add to `src/lib/access/config/roles.ts` in the `ROLES` constant:
+1. Add to `src/plugins/access/config/roles.ts` in the `ROLES` constant:
 
 ```typescript
 const ROLES = {

@@ -11,12 +11,12 @@ import type { Field, FieldHook } from 'payload'
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-import { generateCloudflareImageId, generateR2Key } from '@/lib/storage/filenameUtils'
-import { getMimeCategory } from '@/lib/storage/mimeUtils'
+import { generateCloudflareImageId, generateR2Key } from '@/plugins/storage/filenameUtils'
+import { getMimeCategory } from '@/plugins/storage/mimeUtils'
 import {
   createR2FilenameBeforeOperationHook,
   R2_PREASSIGNED_FILENAME_CONTEXT_KEY,
-} from '@/lib/storage/r2FilenameHook'
+} from '@/plugins/storage/r2FilenameHook'
 
 // Helper to extract the afterRead hook from a field
 const getAfterReadHook = (field: Field): FieldHook | undefined => {
@@ -53,7 +53,7 @@ describe('URL Field Factories', () => {
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
       // Dynamic import AFTER setting env vars
-      const { virtualUrlField } = await import('@/lib/storage/urlFields')
+      const { virtualUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = virtualUrlField({
         collection: 'images',
@@ -71,7 +71,7 @@ describe('URL Field Factories', () => {
       delete process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { virtualUrlField } = await import('@/lib/storage/urlFields')
+      const { virtualUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = virtualUrlField({
         collection: 'images',
@@ -87,7 +87,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_R2_DELIVERY_URL = 'https://assets.example.com'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { virtualUrlField } = await import('@/lib/storage/urlFields')
+      const { virtualUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = virtualUrlField({
         collection: 'meditations',
@@ -103,7 +103,7 @@ describe('URL Field Factories', () => {
       delete process.env.CLOUDFLARE_R2_DELIVERY_URL
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { virtualUrlField } = await import('@/lib/storage/urlFields')
+      const { virtualUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = virtualUrlField({
         collection: 'meditations',
@@ -122,7 +122,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_IMAGES_DELIVERY_URL = 'https://imagedelivery.net/abc123'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { virtualUrlField } = await import('@/lib/storage/urlFields')
+      const { virtualUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = virtualUrlField({
         collection: 'pages',
@@ -138,7 +138,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_IMAGES_DELIVERY_URL = 'https://imagedelivery.net/abc123'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { virtualUrlField } = await import('@/lib/storage/urlFields')
+      const { virtualUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = virtualUrlField({
         collection: 'images',
@@ -154,7 +154,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_IMAGES_DELIVERY_URL = 'https://imagedelivery.net/abc123'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { virtualUrlField } = await import('@/lib/storage/urlFields')
+      const { virtualUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = virtualUrlField({
         collection: 'images',
@@ -172,7 +172,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { previewUrlField } = await import('@/lib/storage/urlFields')
+      const { previewUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = previewUrlField({ collection: 'frames', width: 320, height: 320 })
 
@@ -187,7 +187,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_IMAGES_DELIVERY_URL = 'https://imagedelivery.net/abc123'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { previewUrlField } = await import('@/lib/storage/urlFields')
+      const { previewUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = previewUrlField({ collection: 'frames', width: 320, height: 320 })
 
@@ -202,7 +202,7 @@ describe('URL Field Factories', () => {
       delete process.env.CLOUDFLARE_STREAM_DELIVERY_URL
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { previewUrlField } = await import('@/lib/storage/urlFields')
+      const { previewUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = previewUrlField({ collection: 'frames', width: 320, height: 320 })
 
@@ -215,7 +215,7 @@ describe('URL Field Factories', () => {
       delete process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { previewUrlField } = await import('@/lib/storage/urlFields')
+      const { previewUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = previewUrlField({ collection: 'frames', width: 320, height: 320 })
 
@@ -228,7 +228,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { previewUrlField } = await import('@/lib/storage/urlFields')
+      const { previewUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = previewUrlField({ collection: 'frames' })
 
@@ -243,7 +243,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_R2_DELIVERY_URL = 'https://assets.example.com'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { previewUrlField } = await import('@/lib/storage/urlFields')
+      const { previewUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = previewUrlField({ collection: 'files', width: 320, height: 320 })
 
@@ -256,7 +256,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_IMAGES_DELIVERY_URL = 'https://imagedelivery.net/abc123'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { previewUrlField } = await import('@/lib/storage/urlFields')
+      const { previewUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = previewUrlField({ collection: 'frames', width: 320, height: 320 })
 
@@ -269,7 +269,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_IMAGES_DELIVERY_URL = 'https://imagedelivery.net/abc123'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { previewUrlField } = await import('@/lib/storage/urlFields')
+      const { previewUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = previewUrlField({ collection: 'frames', width: 320, height: 320 })
 
@@ -284,7 +284,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_IMAGES_DELIVERY_URL = 'https://imagedelivery.net/abc123'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { mixedMediaUrlField } = await import('@/lib/storage/urlFields')
+      const { mixedMediaUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = mixedMediaUrlField({ collection: 'files' })
 
@@ -297,7 +297,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { mixedMediaUrlField } = await import('@/lib/storage/urlFields')
+      const { mixedMediaUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = mixedMediaUrlField({ collection: 'files' })
 
@@ -311,7 +311,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_R2_DELIVERY_URL = 'https://assets.example.com'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { mixedMediaUrlField } = await import('@/lib/storage/urlFields')
+      const { mixedMediaUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = mixedMediaUrlField({ collection: 'files' })
 
@@ -324,7 +324,7 @@ describe('URL Field Factories', () => {
       delete process.env.CLOUDFLARE_IMAGES_DELIVERY_URL
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { mixedMediaUrlField } = await import('@/lib/storage/urlFields')
+      const { mixedMediaUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = mixedMediaUrlField({ collection: 'files' })
 
@@ -337,7 +337,7 @@ describe('URL Field Factories', () => {
       delete process.env.CLOUDFLARE_STREAM_DELIVERY_URL
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { mixedMediaUrlField } = await import('@/lib/storage/urlFields')
+      const { mixedMediaUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = mixedMediaUrlField({ collection: 'files' })
 
@@ -350,7 +350,7 @@ describe('URL Field Factories', () => {
       delete process.env.CLOUDFLARE_R2_DELIVERY_URL
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { mixedMediaUrlField } = await import('@/lib/storage/urlFields')
+      const { mixedMediaUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = mixedMediaUrlField({ collection: 'files' })
 
@@ -363,7 +363,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_R2_DELIVERY_URL = 'https://assets.example.com'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { mixedMediaUrlField } = await import('@/lib/storage/urlFields')
+      const { mixedMediaUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = mixedMediaUrlField({ collection: 'files' })
 
@@ -376,7 +376,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_R2_DELIVERY_URL = 'https://assets.example.com'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { mixedMediaUrlField } = await import('@/lib/storage/urlFields')
+      const { mixedMediaUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = mixedMediaUrlField({ collection: 'files' })
 
@@ -389,7 +389,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_R2_DELIVERY_URL = 'https://assets.example.com'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { mixedMediaUrlField } = await import('@/lib/storage/urlFields')
+      const { mixedMediaUrlField } = await import('@/plugins/storage/urlFields')
 
       const field = mixedMediaUrlField({ collection: 'files' })
 
@@ -404,7 +404,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { hlsUrlField } = await import('@/lib/storage/urlFields')
+      const { hlsUrlField } = await import('@/plugins/storage/urlFields')
       const field = hlsUrlField({ collection: 'videos' })
       expect((field as { name: string }).name).toBe('hlsUrl')
 
@@ -417,7 +417,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { hlsUrlField } = await import('@/lib/storage/urlFields')
+      const { hlsUrlField } = await import('@/plugins/storage/urlFields')
       const field = hlsUrlField({ collection: 'frames' })
 
       const hook = getAfterReadHook(field)
@@ -429,7 +429,7 @@ describe('URL Field Factories', () => {
       delete process.env.CLOUDFLARE_STREAM_DELIVERY_URL
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { hlsUrlField } = await import('@/lib/storage/urlFields')
+      const { hlsUrlField } = await import('@/plugins/storage/urlFields')
       const field = hlsUrlField({ collection: 'frames' })
 
       const hook = getAfterReadHook(field)
@@ -443,7 +443,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_STREAM_DELIVERY_URL = 'https://customer-test.cloudflarestream.com'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { mp4UrlField } = await import('@/lib/storage/urlFields')
+      const { mp4UrlField } = await import('@/plugins/storage/urlFields')
       const field = mp4UrlField({ collection: 'videos' })
       expect((field as { name: string }).name).toBe('mp4Url')
 
@@ -457,7 +457,7 @@ describe('URL Field Factories', () => {
       process.env.CLOUDFLARE_R2_DELIVERY_URL = 'https://assets.example.com'
       process.env.PAYLOAD_SECRET = 'test-secret-key-with-32-chars-minimum'
 
-      const { mp4UrlField } = await import('@/lib/storage/urlFields')
+      const { mp4UrlField } = await import('@/plugins/storage/urlFields')
       const field = mp4UrlField({ collection: 'frames' })
 
       const hook = getAfterReadHook(field)
@@ -680,7 +680,7 @@ describe('Storage Adapter handleUpload', () => {
 
   describe('cloudflareImagesAdapter.handleUpload', () => {
     it('sends a custom id and returns filename + fileMetadata from the response', async () => {
-      const { cloudflareImagesAdapter } = await import('@/lib/storage/cloudflareImagesAdapter')
+      const { cloudflareImagesAdapter } = await import('@/plugins/storage/cloudflareImagesAdapter')
       let sentFormData: FormData | undefined
 
       const fetchMock = vi.fn(async (_url, init) => {
@@ -732,7 +732,7 @@ describe('Storage Adapter handleUpload', () => {
     })
 
     it('throws when Cloudflare returns success:false', async () => {
-      const { cloudflareImagesAdapter } = await import('@/lib/storage/cloudflareImagesAdapter')
+      const { cloudflareImagesAdapter } = await import('@/plugins/storage/cloudflareImagesAdapter')
       vi.stubGlobal(
         'fetch',
         vi.fn(
@@ -767,7 +767,7 @@ describe('Storage Adapter handleUpload', () => {
 
   describe('cloudflareStreamAdapter.handleUpload', () => {
     it('returns the CF-generated videoId as filename and does not send a custom id', async () => {
-      const { cloudflareStreamAdapter } = await import('@/lib/storage/cloudflareStreamAdapter')
+      const { cloudflareStreamAdapter } = await import('@/plugins/storage/cloudflareStreamAdapter')
       let sentFormData: FormData | undefined
 
       const fetchMock = vi.fn(async (_url, init) => {
@@ -814,7 +814,7 @@ describe('Storage Adapter handleUpload', () => {
 
   describe('r2NativeAdapter.handleUpload', () => {
     it('writes a sanitized R2 key and returns it as the filename', async () => {
-      const { r2NativeAdapter } = await import('@/lib/storage/r2NativeAdapter')
+      const { r2NativeAdapter } = await import('@/plugins/storage/r2NativeAdapter')
 
       const put = vi.fn().mockResolvedValue(null)
       const bucket = { put } as unknown as R2Bucket
@@ -850,7 +850,7 @@ describe('Storage Adapter handleUpload', () => {
     })
 
     it('reuses a preassigned R2 key instead of appending a second suffix', async () => {
-      const { r2NativeAdapter } = await import('@/lib/storage/r2NativeAdapter')
+      const { r2NativeAdapter } = await import('@/plugins/storage/r2NativeAdapter')
 
       const put = vi.fn().mockResolvedValue(null)
       const bucket = { put } as unknown as R2Bucket
@@ -890,7 +890,7 @@ describe('Storage Adapter handleUpload', () => {
 
   describe('mixedMediaAdapter.handleUpload', () => {
     it('forwards the inner adapter return value (filename + fileMetadata)', async () => {
-      const { mixedMediaAdapter } = await import('@/lib/storage/mixedMediaAdapter')
+      const { mixedMediaAdapter } = await import('@/plugins/storage/mixedMediaAdapter')
 
       // Inner adapter mock that returns a known payload — proves the mixed
       // adapter doesn't accidentally swallow the return.
@@ -974,7 +974,7 @@ describe('storagePlugin R2 filename hook wiring', () => {
   })
 
   const runStoragePlugin = async (slugs: string[], r2Bucket: R2Bucket) => {
-    const { storagePlugin } = await import('@/lib/storage/storagePlugin')
+    const { storagePlugin } = await import('@/plugins/storage/storagePlugin')
     const inputConfig = buildSyntheticConfig(slugs)
     return await storagePlugin({ env: { R2: r2Bucket }, enabled: true })(inputConfig as never)
   }
@@ -1041,7 +1041,7 @@ describe('storagePlugin R2 filename hook wiring', () => {
     // Stage 2 — Payload's `afterChange` phase: storage adapter uploads. The
     // `file.filename` Payload passes here mirrors what was written to the DB
     // (= req.file.name post-hook). The adapter must NOT regenerate the key.
-    const { r2NativeAdapter } = await import('@/lib/storage/r2NativeAdapter')
+    const { r2NativeAdapter } = await import('@/plugins/storage/r2NativeAdapter')
     const adapter = r2NativeAdapter({ bucket: r2Bucket, publicUrl: 'https://assets.test' })({
       collection: { slug: 'meditations' } as never,
       prefix: 'meditations',

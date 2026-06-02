@@ -22,7 +22,7 @@ local-file fallback in development.
 Adapter routing, the R2 filename preassignment hook, the
 Cloudflare Stream webhook, and Zod-validated Cloudflare API responses
 are all documented in `.claude/rules/storage.md` (auto-loads when
-editing `src/lib/storage/`).
+editing `src/plugins/storage/`).
 
 ## Route Structure
 
@@ -59,7 +59,7 @@ Two places to add HTTP endpoints, chosen by scope:
 REST API documentation built on `payload-oapi` + a custom Scalar plugin
 with We Meditate branding. Endpoints, project filtering, custom-endpoint
 shim, and the known-limitations list are in `.claude/rules/openapi.md`
-(auto-loads when editing `src/lib/openapi/` or the OpenAPI route handlers).
+(auto-loads when editing `src/plugins/openapi/` or the OpenAPI route handlers).
 
 ## Collections
 
@@ -118,7 +118,7 @@ and the audio-synchronized frame editor are documented in
 ## Logging & Error Tracking
 
 Server-side logging uses a **custom console-backed Payload logger**
-(`src/lib/workerSafeLogger.ts`); error tracking uses **Sentry** via
+(`src/lib/logger/workerSafeLogger.ts`); error tracking uses **Sentry** via
 `@sentry/cloudflare`.
 
 ### Why not Payload's default logger?
@@ -150,7 +150,7 @@ payload.logger.info({ msg: 'Adapter initialized' })
 
 ```typescript
 // Client-side (React)
-import { clientLogger } from '@/lib/clientLogger'
+import { clientLogger } from '@/lib/logger/clientLogger'
 clientLogger.error('Failed to load data', error, { componentId: '123' })
 clientLogger.warn('Unexpected state', { details: 'info' })
 ```
@@ -164,7 +164,7 @@ console.error('[Route Name] Error message:', { error: error.message })
 ### Sentry integration
 
 - `src/worker.ts` — Cloudflare Worker entry. Wraps the OpenNext-generated handler with `Sentry.withSentry()` so `captureException` actually reaches Sentry (without it, the SDK is a silent no-op in Workers).
-- `src/lib/sentryPlugin.ts` — Cloudflare Workers-compatible Sentry plugin (`@sentry/cloudflare`).
+- `src/plugins/sentry/sentryPlugin.ts` — Cloudflare Workers-compatible Sentry plugin (`@sentry/cloudflare`).
 - `src/instrumentation-client.ts` — browser-side Sentry via `@sentry/react` (Next.js instrumentation hook).
 - `src/app/global-error.tsx` — React error boundary with Sentry reporting.
 
@@ -175,14 +175,14 @@ depends on `@sentry/nextjs`, which is incompatible with Cloudflare Workers.
 
 PayloadCMS's built-in jobs system handles background task processing.
 
-### `CleanupOrphanedMedia` (`src/jobs/CleanupOrphanedMedia.ts`)
+### `CleanupOrphanedMedia` (`src/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia.ts`)
 
 Monthly task that cleans up orphaned files and images. Two-phase:
 
 1. **Permanent deletion** — purges items already in trash (`deletedAt` set) past the grace period (30+ days).
 2. **Orphan detection** — identifies unreferenced media and moves them to trash.
 
-Uses **schema introspection** (`src/lib/schemaUtils.ts`) to auto-discover
+Uses **schema introspection** (`src/jobs/CleanupOrphanedMedia/schemaUtils.ts`) to auto-discover
 all `files` / `images` references across collections instead of
 hardcoding the list. Scans Lexical rich-text content for embedded block
 references. Tag-based preservation: images with non-orientation tags
@@ -190,12 +190,12 @@ references. Tag-based preservation: images with non-orientation tags
 
 | File | Purpose |
 |---|---|
-| `src/jobs/CleanupOrphanedMedia.ts` | Implementation |
-| `src/lib/schemaUtils.ts` | Schema introspection utilities |
+| `src/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia.ts` | Implementation |
+| `src/jobs/CleanupOrphanedMedia/schemaUtils.ts` | Schema introspection utilities |
 | `tests/int/cleanup-orphaned-media.int.spec.ts` | Integration tests |
 | `tests/int/schema-utils.int.spec.ts` | Schema-utils tests |
 
-### Usage tracking (`src/lib/usage/tasks.ts`)
+### Usage tracking (`src/plugins/usage/tasks.ts`)
 
 The usage plugin auto-registers two tasks:
 
@@ -206,7 +206,7 @@ The usage plugin auto-registers two tasks:
   to 0.
 
 Configuration and rate-limiting details are in
-`.claude/rules/api-clients.md` (auto-loads when editing `src/lib/usage/`
+`.claude/rules/api-clients.md` (auto-loads when editing `src/plugins/usage/`
 or `src/collections/Clients/Clients.ts`).
 
 ## Key Configuration Files
@@ -219,4 +219,4 @@ or `src/collections/Clients/Clients.ts`).
 - `vitest.config.mts` — Vitest (integration test) configuration
 - `playwright.config.ts` — Playwright (E2E) configuration
 - `wrangler.toml` — Cloudflare Workers + bindings (D1, R2, Rate Limiter)
-- `src/lib/richEditor.ts` — Lexical editor presets
+- `src/lib/richEditor/index.ts` — Lexical editor presets

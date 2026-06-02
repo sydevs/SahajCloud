@@ -1,6 +1,6 @@
 ---
 paths:
-  - src/lib/storage/**/*.ts
+  - src/plugins/storage/**/*.ts
   - src/app/(payload)/api/webhooks/**/*.ts
 ---
 
@@ -23,7 +23,7 @@ Filenames are sanitized to URL-safe slugs with random 6-char suffixes.
 Development falls back to local file storage when Cloudflare credentials
 are unset — no setup required.
 
-## Module layout (`src/lib/storage/`)
+## Module layout (`src/plugins/storage/`)
 
 | File                         | Purpose                                                                        |
 | ---------------------------- | ------------------------------------------------------------------------------ |
@@ -312,9 +312,9 @@ The video's `filename` field in Payload is the Stream UID.
 
 - `src/app/(payload)/api/webhooks/cloudflare-stream/route.ts` — Next.js
   POST handler (thin wrapper, see `routes.md`)
-- `src/lib/storage/cloudflareStreamWebhook.ts` — pure helpers
+- `src/plugins/storage/cloudflareStreamWebhook.ts` — pure helpers
   (`parseSignatureHeader`, `verifySignature`, `handleStreamWebhook`)
-- `src/lib/storage/cloudflareSchemas.ts` —
+- `src/plugins/storage/cloudflareSchemas.ts` —
   `CloudflareStreamWebhookPayloadSchema`
 - `scripts/setup-stream-webhook.ts` — setup / teardown script
 - `tests/int/cloudflare-stream-webhook.int.spec.ts` — handler unit tests
@@ -324,7 +324,7 @@ The video's `filename` field in Payload is the Stream UID.
 Use Zod schemas for runtime validation of Cloudflare API responses
 (catches API contract changes at the boundary; type-only assertions
 silently miss those). Centralize schemas in
-`src/lib/storage/cloudflareSchemas.ts` and parse with `.parse()` rather
+`src/plugins/storage/cloudflareSchemas.ts` and parse with `.parse()` rather
 than asserting types.
 
 ```typescript

@@ -15,14 +15,14 @@ import { createTestEnvironment } from '../utils/testHelpers'
 
 // Mock the Nirmala Vidya API client — prevents real network calls when seeding
 // lectures in the `countLecturesForAudiences` describe block.
-vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
+vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
   const { readFileSync } = await import('fs')
   const { dirname, join } = await import('path')
   const { fileURLToPath: toPath } = await import('url')
   const imgBuffer = readFileSync(
     join(dirname(toPath(import.meta.url)), '../files/image-1050x700.jpg'),
   )
-  const original = await importOriginal<typeof import('@/lib/nirmalaVidyaApi')>()
+  const original = await importOriginal<typeof import('@/lib/lectures/nirmalaVidyaApi')>()
   return {
     extractVimeoId: vi.fn(original.extractVimeoId),
     fetchNirmalaVidyaVideo: vi.fn().mockResolvedValue({

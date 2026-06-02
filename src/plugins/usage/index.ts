@@ -5,7 +5,7 @@
  *
  * @example
  * ```typescript
- * import { usagePlugin } from '@/lib/usage'
+ * import { usagePlugin } from '@/plugins/usage'
  *
  * plugins: [
  *   usagePlugin({ enabled: true }),

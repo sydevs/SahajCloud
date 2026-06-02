@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseSubtitles } from '@/lib/subtitles'
+import { parseSubtitles } from '@/lib/utilities/subtitles'
 
 describe('parseSubtitles', () => {
   const validSubtitles = [

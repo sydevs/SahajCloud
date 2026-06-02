@@ -2,7 +2,7 @@
 
 import { useField } from '@payloadcms/ui'
 
-import type { AbuseScore } from '@/lib/usage/abuse'
+import type { AbuseScore } from '@/plugins/usage/abuse'
 
 import { AbuseScoreDisplay } from './AbuseScoreDisplay'
 

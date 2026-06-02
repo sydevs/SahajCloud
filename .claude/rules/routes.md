@@ -32,7 +32,7 @@ side-effect orchestration), extract the logic to a sibling file under
 logic trivially unit-testable without booting Payload.
 
 ```
-src/lib/storage/cloudflareStreamWebhook.ts    ← pure helpers (exported freely)
+src/plugins/storage/cloudflareStreamWebhook.ts    ← pure helpers (exported freely)
 src/app/(payload)/api/webhooks/cloudflare-stream/route.ts    ← thin POST wrapper
 tests/int/cloudflare-stream-webhook.int.spec.ts    ← imports helpers from @/lib/
 ```
@@ -46,7 +46,7 @@ import { NextResponse } from 'next/server'
 
 import { serverEnv } from '@/lib/env'
 import { handleMyThing } from '@/lib/<domain>/myThingHandler'
-import { createWorkerSafeLogger } from '@/lib/workerSafeLogger'
+import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
 
 // Module-level logger so cold starts don't re-init it on every request.
 const logger = createWorkerSafeLogger(serverEnv.NEXT_PUBLIC_LOG_LEVEL ?? 'info')

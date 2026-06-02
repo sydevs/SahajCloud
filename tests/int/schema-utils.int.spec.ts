@@ -9,7 +9,7 @@ import {
   extractIdsFromLexicalContent,
   groupByCollection,
   type FieldReference,
-} from '@/lib/schemaUtils'
+} from '@/jobs/CleanupOrphanedMedia/schemaUtils'
 
 import {
   createLexicalWithGalleryBlock,

@@ -5,7 +5,7 @@
  * All theme color derivations should use these values as their base.
  *
  * Consumers:
- * - src/lib/openapi/scalarPlugin.ts - Derives Scalar API docs theme
+ * - src/plugins/openapi/scalarPlugin.ts - Derives Scalar API docs theme
  * - src/components/branding/ProjectTheme.tsx - Uses for PayloadCMS admin elevation scales
  */
 

@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
-import { getRoleOptions } from '@/lib/access'
-import { calculateAbuseScore } from '@/lib/usage'
+import { getRoleOptions } from '@/plugins/access'
+import { calculateAbuseScore } from '@/plugins/usage'
 
 import { validateClientData } from './hooks/validateClientData'
 

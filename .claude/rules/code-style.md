@@ -13,7 +13,7 @@ Global code style guidelines for this codebase.
 | `src/lib/` | camelCase | `accessControl.ts`, `serverUrl.ts` |
 | `src/components/` | PascalCase | `Dashboard.tsx`, `ProjectSelector.tsx` |
 | `src/types/` | camelCase | `roles.ts`, `users.ts` |
-| `src/blocks/` | PascalCase | `TextBoxBlock.ts`, `GalleryBlock.ts` |
+| `src/lib/richEditor/blocks/` | PascalCase | `TextBoxBlock.ts`, `GalleryBlock.ts` |
 
 ## Import Order
 

@@ -13,10 +13,10 @@ import { buildConfig } from 'payload'
 
 // Project imports
 
-import { accessPlugin, bypassPermissions } from '@/lib/access'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
-import { usagePlugin } from '@/lib/usage'
 import type { Manager, Client } from '@/payload-types'
+import { accessPlugin, bypassPermissions } from '@/plugins/access'
+import { usagePlugin } from '@/plugins/usage'
 
 import { EmailTestAdapter } from './emailTestAdapter'
 import { testData } from './testData'

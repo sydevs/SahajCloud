@@ -5,15 +5,15 @@ import path from 'path'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import { bypassPermissions, hasAnyPermission, hasPermission } from '@/lib/access'
+import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
 
 import { createTestLexicalContent, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 
-vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/nirmalaVidyaApi')>()
+vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/lectures/nirmalaVidyaApi')>()
   return {
     extractVimeoId: vi.fn(original.extractVimeoId),
     fetchNirmalaVidyaVideo: vi.fn().mockResolvedValue({
