@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { QuoteBlock } from '@/blocks/pages'
+import { QuoteBlock } from '@/blocks'
 import { mediaField } from '@/fields'
 import { removeDanglingLexicalReferencesAfterRead } from '@/hooks/lexicalHooks'
 import { fullRichTextEditor } from '@/lib/richEditor'

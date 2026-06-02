@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { pageBlocks } from '@/blocks/pages'
+import { pageBlocks } from '@/blocks'
 import { slugField } from '@/fields'
 import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/wemeditate-app/config'
 import { removeDanglingLexicalReferencesAfterRead } from '@/hooks/lexicalHooks'
