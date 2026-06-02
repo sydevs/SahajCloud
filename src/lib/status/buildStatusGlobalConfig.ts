@@ -1,27 +1,84 @@
-import type { StatusGlobalSpec } from './spec'
+import type { SectionSpec, StatusGlobalSpec } from './spec'
 import type { GlobalConfig } from 'payload'
 
 import { adminOnlyCondition } from '@/lib/access'
 
 import { runSection } from './runSection'
-import { virtualReadinessField } from './virtualReadinessField'
+import { virtualReadinessField, type ReadinessFieldAdminCustom } from './virtualReadinessField'
+
+/**
+ * Slice the section spec's group + check metadata down to the JSON-serializable
+ * shape the admin widget consumes via `field.admin.custom`.
+ */
+function sliceMetadata<TConfig>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  section: SectionSpec<TConfig, any>,
+): Pick<ReadinessFieldAdminCustom, 'groupsMetadata' | 'checksMetadata'> {
+  const groupsMetadata: Record<
+    string,
+    {
+      label: string
+      description: string
+      rowDisplay?: 'all' | 'summarize-excess' | 'collapse-passing'
+    }
+  > = {}
+  for (const group of section.groups) {
+    groupsMetadata[group.key] = {
+      label: group.label,
+      description: group.description,
+      ...(group.type === 'aggregate' && group.rowDisplay ? { rowDisplay: group.rowDisplay } : {}),
+    }
+  }
+  const checksMetadata: Record<string, { label: string; description: string }> = {}
+  for (const [key, meta] of Object.entries(section.checks)) {
+    checksMetadata[key] = { label: meta.label, description: meta.description }
+  }
+  return { groupsMetadata, checksMetadata }
+}
 
 /**
  * Build the Payload `GlobalConfig` for a status global from its spec.
  * Wires every section to its `runSection`-backed virtual field and
  * attaches the project's Configuration tab (admin-only by convention).
  */
-export function buildStatusGlobalConfig<TConfig>(
-  spec: StatusGlobalSpec<TConfig>,
-): GlobalConfig {
-  const sectionFields = spec.sections.map((section) =>
-    virtualReadinessField(
+export function buildStatusGlobalConfig<TConfig>(spec: StatusGlobalSpec<TConfig>): GlobalConfig {
+  const groupCollectionMap = spec.groupCollectionMap ?? {}
+  const groupGlobalMap = spec.groupGlobalMap ?? {}
+  const sectionConfigFallback = spec.sectionConfigFallback ?? {}
+
+  const sectionFields = spec.sections.map((section, sectionIndex) => {
+    const { groupsMetadata, checksMetadata } = sliceMetadata(section)
+
+    // Slice both maps down to only this section's groups.
+    const groupKeyToCollection: Record<string, string | null> = {}
+    const groupKeyToGlobal: Record<string, string | null> = {}
+    for (const group of section.groups) {
+      groupKeyToCollection[group.key] = groupCollectionMap[group.key] ?? null
+      groupKeyToGlobal[group.key] = groupGlobalMap[group.key] ?? null
+    }
+
+    const adminCustom: ReadinessFieldAdminCustom = {
+      sectionMetadata: {
+        key: section.key,
+        index: sectionIndex + 1,
+        label: section.label,
+        description: section.description,
+        tutorialLink: section.tutorialLink,
+      },
+      groupsMetadata,
+      checksMetadata,
+      groupKeyToCollection,
+      groupKeyToGlobal,
+      configFallback: sectionConfigFallback[section.key] ?? null,
+    }
+
+    return virtualReadinessField(
       section.key,
-      (payload, locale, config, req) =>
-        runSection(section, { payload, locale, config, req }),
+      (payload, locale, config, req) => runSection(section, { payload, locale, config, req }),
       spec.extractConfig,
-    ),
-  )
+      adminCustom,
+    )
+  })
 
   return {
     slug: spec.slug,
@@ -35,7 +92,18 @@ export function buildStatusGlobalConfig<TConfig>(
             label: 'Status',
             description:
               'Per-locale launch-readiness report. Each section is recomputed when the global is read.',
-            fields: sectionFields,
+            fields: [
+              {
+                name: '_readiness_banner',
+                type: 'ui',
+                admin: {
+                  components: {
+                    Field: '@/components/admin/ReadinessField/ReadinessBanner',
+                  },
+                },
+              },
+              ...sectionFields,
+            ],
           },
           {
             label: 'Configuration',

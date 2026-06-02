@@ -1,3 +1,5 @@
+import type { Where } from 'payload'
+
 import { labelOf, type DocumentReport, type SectionSpec } from '@/lib/status'
 
 import { appCardChecks, type WeMeditateAppStatusConfig } from './shared'
@@ -9,6 +11,8 @@ interface Ctx {
 
 export const appCardsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'appCards',
+  label: 'App Cards',
+  description: 'Launch-critical app cards are published and configured for this locale.',
   tutorialLink: null,
   checks: {
     published: {
@@ -54,26 +58,44 @@ export const appCardsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       checks: appCardChecks(card),
     }))
 
-    const otherCardsQuery =
-      launchCriticalIds.length > 0 ? { id: { not_in: launchCriticalIds } } : undefined
-    const { docs: otherCardDocs } = await payload.find({
+    // "Other" cards are post-launch extras — only surface ones that are
+    // actually live (published) in English. Drafts and cards that only exist
+    // in other locales are excluded from this group entirely.
+    const otherPublishedWhere: Where = {
+      _status: { equals: 'published' },
+      ...(launchCriticalIds.length > 0 ? { id: { not_in: launchCriticalIds } } : {}),
+    }
+    const { docs: enPublishedOther } = await payload.find({
       collection: 'app-cards',
-      where: otherCardsQuery,
-      locale,
-      // Include drafts (see comment above) — keeps coverage of every card.
-      draft: true,
+      where: otherPublishedWhere,
+      locale: 'en',
+      // No `draft` override → published versions only ("published in English").
       limit: 0,
       pagination: false,
       depth: 0,
       req,
     })
-    const otherDocs: DocumentReport[] = (
-      otherCardDocs as unknown as Record<string, unknown>[]
-    ).map((card) => ({
-      id: card.id as number,
-      label: labelOf(card as { id: number | string; title?: unknown; name?: unknown }),
-      checks: appCardChecks(card),
-    }))
+    const otherCardIds = enPublishedOther.map((card) => card.id)
+
+    let otherDocs: DocumentReport[] = []
+    if (otherCardIds.length > 0) {
+      const { docs: otherCardDocs } = await payload.find({
+        collection: 'app-cards',
+        where: { id: { in: otherCardIds } },
+        locale,
+        // Per-locale checks still evaluate the latest content for this locale.
+        draft: true,
+        limit: 0,
+        pagination: false,
+        depth: 0,
+        req,
+      })
+      otherDocs = (otherCardDocs as unknown as Record<string, unknown>[]).map((card) => ({
+        id: card.id as number,
+        label: labelOf(card as { id: number | string; title?: unknown; name?: unknown }),
+        checks: appCardChecks(card),
+      }))
+    }
 
     return { launchCriticalDocs, otherDocs }
   },

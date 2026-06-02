@@ -40,17 +40,32 @@ export async function runSection<TConfig, TSectionCtx>(
   spec: SectionSpec<TConfig, TSectionCtx>,
   req: ProjectRequestContext<TConfig>,
 ): Promise<ReadinessReport> {
-  const sectionCtx = spec.prepare
-    ? await spec.prepare(req)
-    : (undefined as unknown as TSectionCtx)
+  const sectionCtx = spec.prepare ? await spec.prepare(req) : (undefined as unknown as TSectionCtx)
 
   const declaredCheckKeys = new Set(Object.keys(spec.checks))
 
   const settled = await Promise.allSettled(
     spec.groups.map(async (group) => {
       if (group.type === 'aggregate') {
-        const actual = await group.evaluate(sectionCtx, req)
-        return aggregateGroup(group.key, actual, group.threshold, group.optional ?? false)
+        const result = await group.evaluate(sectionCtx, req)
+        let actual = result.actual ?? 0
+        if (result.items) {
+          for (const item of result.items) {
+            for (const check of item.checks) {
+              if (!declaredCheckKeys.has(check.key)) {
+                throw new UndeclaredCheckKeyError(spec.key, group.key, check.key)
+              }
+            }
+          }
+          actual = result.items.filter((i) => i.checks.every((c) => c.passed)).length
+        }
+        return aggregateGroup(
+          group.key,
+          actual,
+          group.threshold,
+          group.optional ?? false,
+          result.items,
+        )
       }
       const documents = await group.evaluate(sectionCtx, req)
       for (const doc of documents) {

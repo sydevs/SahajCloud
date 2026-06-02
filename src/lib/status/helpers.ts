@@ -28,9 +28,11 @@ export function labelOf(doc: {
   id: number | string | null | undefined
   title?: unknown
   name?: unknown
+  label?: unknown
 }): string {
   if (typeof doc.title === 'string' && doc.title.trim().length > 0) return doc.title
   if (typeof doc.name === 'string' && doc.name.trim().length > 0) return doc.name
+  if (typeof doc.label === 'string' && doc.label.trim().length > 0) return doc.label
   if (doc.id == null) return '#unknown'
   return `#${doc.id}`
 }
