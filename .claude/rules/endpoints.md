@@ -1,6 +1,6 @@
 ---
 paths:
-  - src/endpoints/**/*.ts
+  - src/collections/*/endpoints/**/*.ts
 ---
 
 # Custom Endpoint Rules
@@ -9,10 +9,13 @@ Rules for writing custom PayloadCMS collection endpoint handlers.
 
 ## File Structure
 
+Endpoints are colocated with their collection, one handler per file:
+
 ```
-src/endpoints/
-├── index.ts                      # Barrel export (re-export all handlers)
-└── framesByNarrator.ts           # Frames collection endpoint
+src/collections/Frames/
+├── Frames.ts                     # Collection definition
+└── endpoints/
+    └── byNarrator.ts             # Frames endpoint (exports framesByNarrator)
 ```
 
 ## Handler Pattern
@@ -42,10 +45,11 @@ export const myEndpoint: Endpoint = {
 
 ## Registration
 
-Import from barrel export and register on the collection:
+Import the handler relatively from the collection's `endpoints/` folder and
+register it on the collection:
 
 ```typescript
-import { myEndpoint } from '@/endpoints'
+import { myEndpoint } from './endpoints/myEndpoint'
 
 export const MyCollection: CollectionConfig = {
   slug: 'my-collection',
@@ -56,8 +60,10 @@ export const MyCollection: CollectionConfig = {
 
 ## Key Points
 
-- One handler per file, named after its function (e.g., `framesByNarrator`)
-- Always export from `src/endpoints/index.ts`
+- One handler per file, inside the owning collection's `endpoints/` folder
+  (e.g. `Frames/endpoints/byNarrator.ts` exporting `framesByNarrator`)
+- Import it relatively in the collection definition — there is no shared
+  endpoints barrel
 - Use `req.routeParams` for URL parameters, `req.query` for query strings
 - Return `Response.json()` for all responses
 - Handle errors with appropriate HTTP status codes (400, 404, etc.)
@@ -65,9 +71,9 @@ export const MyCollection: CollectionConfig = {
 
 ## When to use a Payload endpoint vs a Next.js route
 
-| Use case | Where |
-|---|---|
-| URL belongs under a collection (e.g. `/api/frames/by-narrator/:narratorId`); operates on a single collection's docs; want automatic Payload auth/access integration | `src/endpoints/*.ts` (this file) |
+| Use case                                                                                                                                                                                                  | Where                                                               |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| URL belongs under a collection (e.g. `/api/frames/by-narrator/:narratorId`); operates on a single collection's docs; want automatic Payload auth/access integration                                       | `src/collections/<Name>/endpoints/*.ts` (this file)                                    |
 | Webhooks, health checks, OpenAPI spec generation, seed triggers, or operations spanning multiple collections; need raw request body (HMAC verification); need Next.js streaming / `NextResponse.redirect` | `src/app/(payload)/api/**/route.ts` (see `.claude/rules/routes.md`) |
 
 ## Eliminating client-side race conditions
@@ -92,6 +98,7 @@ const [{ data, isLoading, isError }] = usePayloadAPI(
 ```
 
 Use a custom endpoint when you find yourself:
+
 - Joining data from multiple collections in a client component
 - Filtering on a related document's fields
 - Avoiding N+1 queries on the client

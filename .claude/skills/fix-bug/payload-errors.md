@@ -32,7 +32,7 @@ Stack-specific debugging patterns for PayloadCMS hooks, access control, types, a
 **Where to look:**
 
 - `src/lib/access/*.ts` — composed access helpers
-- `src/collections/access/Managers.ts` — RBAC roles, locale-based permissions
+- `src/collections/Managers/Managers.ts` — RBAC roles, locale-based permissions
 - `.claude/rules/access.md` — full access-control patterns
 
 **Common causes:**

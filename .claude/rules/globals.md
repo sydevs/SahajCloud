@@ -5,30 +5,42 @@ paths:
 
 # Globals
 
-PayloadCMS Global Configs hold centralized configuration per project.
-Globals live under `src/globals/<project>/{config,translations}.ts`.
+PayloadCMS Global Configs hold centralized configuration per project. Each
+global lives in its own PascalCase folder under `src/globals/`, named after
+its TypeScript export — no per-project group folders. The master barrel
+(`src/globals/index.ts`) is the only file that imports from these folders.
 
 ```
 src/globals/
-├── wemeditate-web/
-│   ├── config.ts         (slug: wm-web-config)
-│   └── translations.ts   (slug: wm-web-translations)
-├── wemeditate-app/
-│   ├── config.ts         (slug: wm-app-config)
-│   └── translations.ts   (slug: wm-app-translations)
-├── sahaj-atlas/
-│   ├── config.ts         (slug: sy-atlas-config)
-│   └── translations.ts   (slug: sy-atlas-translations)
-└── index.ts
+├── WeMeditateWebConfig/
+│   └── WeMeditateWebConfig.ts        (slug: wm-web-config)
+├── WeMeditateWebTranslations/
+│   ├── WeMeditateWebTranslations.ts  (slug: wm-web-translations)
+│   └── translationsSchema.json
+├── WeMeditateAppConfig/
+│   └── WeMeditateAppConfig.ts        (slug: wm-app-config)
+├── WeMeditateAppTranslations/
+│   ├── WeMeditateAppTranslations.ts  (slug: wm-app-translations)
+│   └── translationsSchema.json
+├── WeMeditateAppStatus/              (slug: wm-app-status)
+│   ├── WeMeditateAppStatus.ts
+│   ├── sections/                     (per-section builders, not re-exported)
+│   └── statusConfig.json
+├── SahajAtlasConfig/
+│   └── SahajAtlasConfig.ts           (slug: sy-atlas-config)
+├── SahajAtlasTranslations/
+│   ├── SahajAtlasTranslations.ts     (slug: sy-atlas-translations)
+│   └── translationsSchema.json
+└── index.ts                          (master barrel)
 ```
 
 ## Naming convention
 
-| Project | Config Export / Slug | Translations Export / Slug |
-|---|---|---|
+| Project        | Config Export / Slug                    | Translations Export / Slug                          |
+| -------------- | --------------------------------------- | --------------------------------------------------- |
 | WeMeditate Web | `WeMeditateWebConfig` / `wm-web-config` | `WeMeditateWebTranslations` / `wm-web-translations` |
 | WeMeditate App | `WeMeditateAppConfig` / `wm-app-config` | `WeMeditateAppTranslations` / `wm-app-translations` |
-| Sahaj Atlas | `SahajAtlasConfig` / `sy-atlas-config` | `SahajAtlasTranslations` / `sy-atlas-translations` |
+| Sahaj Atlas    | `SahajAtlasConfig` / `sy-atlas-config`  | `SahajAtlasTranslations` / `sy-atlas-translations`  |
 
 ## Config globals (per project)
 

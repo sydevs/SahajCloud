@@ -216,7 +216,7 @@ a single-locale document:
 
 - `locale` select field with all 16 options, default `en`.
 - `filterMeditationsByLocale` (beforeOperation hook in
-  `src/hooks/meditationHooks.ts`) adds `{ locale: { equals: req.locale } }`
+  `src/collections/Meditations/hooks/`) adds `{ locale: { equals: req.locale } }`
   to `find`/`count` operations.
 - `findByID` returns the specific doc regardless of locale.
 - `locale=all` bypasses filtering.
@@ -229,7 +229,7 @@ GET /api/songs?locale=cs
 
 ## Pages collection
 
-`src/collections/content/Pages.ts`. Lexical rich text with embedded
+`src/collections/Pages/Pages.ts`. Lexical rich text with embedded
 blocks, drafts (60 s autosave), version history (3 / doc), scheduled
 publishing.
 
@@ -248,7 +248,7 @@ Per-locale publishing via `publishSpecificLocale` API option (tracks
 Live preview integrates with the We Meditate Web frontend
 (`WEMEDITATE_WEB_URL` env var).
 
-### Page blocks (`src/blocks/pages/`)
+### Page blocks (`src/blocks/`)
 
 | Block | Notes |
 |---|---|
@@ -271,7 +271,7 @@ Custom block icons → see `.claude/rules/blocks.md`.
 
 ## Lessons collection ("Path Steps")
 
-`src/collections/content/Lessons.ts`. Slug `lessons`, admin labels
+`src/collections/Lessons/Lessons.ts`. Slug `lessons`, admin labels
 "Path Step" / "Path Steps".
 
 ### Fields

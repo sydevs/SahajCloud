@@ -1,7 +1,8 @@
 ---
 paths:
   - src/lib/access/**/*.ts
-  - src/collections/access/**/*.ts
+  - src/collections/Clients/**/*.ts
+  - src/collections/Managers/**/*.ts
 ---
 
 # Role-Based Access Control
@@ -19,49 +20,48 @@ project visibility and field-level access for localized fields.
 
 ### Configuration files (single source of truth)
 
-| File | Purpose |
-|---|---|
-| `src/lib/access/config/projects.ts` | Project config + lookup tables + helpers |
-| `src/lib/access/config/roles.ts` | Role config + lookup tables + helpers |
-| `src/lib/access/config/index.ts` | Barrel export |
-| `src/lib/access/bypassPermissions.ts` | Shared bypass function |
-| `src/payload.config.ts` | Plugin registration |
+| File                                  | Purpose                                  |
+| ------------------------------------- | ---------------------------------------- |
+| `src/lib/access/config/projects.ts`   | Project config + lookup tables + helpers |
+| `src/lib/access/config/roles.ts`      | Role config + lookup tables + helpers    |
+| `src/lib/access/config/index.ts`      | Barrel export                            |
+| `src/lib/access/bypassPermissions.ts` | Shared bypass function                   |
+| `src/payload.config.ts`               | Plugin registration                      |
 
 ```typescript
 import { accessPlugin, bypassPermissions } from '@/lib/access'
 
-plugins: [
-  accessPlugin({ enabled: true, bypassPermissions }),
-]
+plugins: [accessPlugin({ enabled: true, bypassPermissions })]
 ```
 
 ### Plugin implementation
 
-| File | Purpose |
-|---|---|
-| `accessPlugin.ts` | Main orchestration |
-| `permissions.ts` | `hasPermission`, `hasAnyPermission` |
-| `accessConfigs.ts` | Access configuration factories |
-| `fieldAccess.ts` | Field-level access for translatable collections |
-| `visibility.ts` | Admin UI visibility (`createHidden`) |
-| `filterAvailableLocales.ts` | Admin locale-selector filtering |
-| `types.ts` | Plugin type definitions |
-| `index.ts` | Public API barrel export |
+| File                        | Purpose                                         |
+| --------------------------- | ----------------------------------------------- |
+| `accessPlugin.ts`           | Main orchestration                              |
+| `permissions.ts`            | `hasPermission`, `hasAnyPermission`             |
+| `accessConfigs.ts`          | Access configuration factories                  |
+| `fieldAccess.ts`            | Field-level access for translatable collections |
+| `visibility.ts`             | Admin UI visibility (`createHidden`)            |
+| `filterAvailableLocales.ts` | Admin locale-selector filtering                 |
+| `types.ts`                  | Plugin type definitions                         |
+| `index.ts`                  | Public API barrel export                        |
 
 ## Manager roles
 
 Manager `type` field controls top-level access:
+
 - `inactive` — denied
 - `manager` — uses `roles` + `customResourceAccess`
 - `admin` — full bypass; `roles` and `customResourceAccess` hidden in admin UI
 
 ### Available manager roles
 
-| Role | Description |
-|---|---|
-| `meditations-editor` | Create/edit meditations + upload media |
-| `path-editor` | Edit lessons, lectures, lecture clips + upload media |
-| `web-translator` | Edit localized fields in pages, songs, albums (read-only otherwise) |
+| Role                 | Description                                                         |
+| -------------------- | ------------------------------------------------------------------- |
+| `meditations-editor` | Create/edit meditations + upload media                              |
+| `path-editor`        | Edit lessons, lectures, lecture clips + upload media                |
+| `web-translator`     | Edit localized fields in pages, songs, albums (read-only otherwise) |
 
 Manager roles are **per-locale** — different roles can be assigned for
 different languages. Access checks use `req.locale` only. A manager with
@@ -71,11 +71,11 @@ in Czech.
 
 ## API client roles
 
-| Role | Application |
-|---|---|
+| Role                    | Application              |
+| ----------------------- | ------------------------ |
 | `wemeditate-web-client` | We Meditate web frontend |
-| `wemeditate-app-client` | We Meditate mobile app |
-| `sahaj-atlas-client` | Sahaj Atlas application |
+| `wemeditate-app-client` | We Meditate mobile app   |
+| `sahaj-atlas-client`    | Sahaj Atlas application  |
 
 The `-client` suffix is intentional — it disambiguates from project slugs.
 Client roles are **not localized** — they apply uniformly across all locales.
