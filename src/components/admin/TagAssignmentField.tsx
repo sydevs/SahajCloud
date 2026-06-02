@@ -11,27 +11,12 @@ import { FieldLabel, useDocumentDrawer, useField } from '@payloadcms/ui'
 import Link from 'next/link'
 import { useCallback } from 'react'
 
+import { ExternalLinkIcon } from './ExternalLinkIcon'
+
 interface TagAssignment {
   id: number
   title: string
 }
-
-const ExternalLinkIcon: React.FC = () => (
-  <svg
-    width="12"
-    height="12"
-    viewBox="0 0 12 12"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    style={{ marginLeft: '4px', opacity: 0.5 }}
-  >
-    <path d="M4 1h7v7" />
-    <path d="M11 1L4.5 7.5" />
-  </svg>
-)
 
 /**
  * Individual tag pill that opens a document drawer on click.
@@ -70,7 +55,7 @@ const TagPill: React.FC<{ tag: TagAssignment }> = ({ tag }) => {
         }}
       >
         {tag.title}
-        <ExternalLinkIcon />
+        <ExternalLinkIcon style={{ marginLeft: '4px', opacity: 0.5 }} />
       </button>
       <DocumentDrawer />
     </>

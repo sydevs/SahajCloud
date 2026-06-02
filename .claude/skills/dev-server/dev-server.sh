@@ -31,7 +31,7 @@ mkdir -p "$STATE_DIR"
 
 is_process_running() {
     local pid=$1
-    kill -9 "$pid" 2>/dev/null
+    kill -0 "$pid" 2>/dev/null
 }
 
 is_port_in_use() {

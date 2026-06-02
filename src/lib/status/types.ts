@@ -23,6 +23,13 @@ export type DocumentReport = {
 }
 
 /**
+ * Threshold-capped "X of Y" header counter for a group. `documents`
+ * groups count documents (passing / total); `aggregate` groups count
+ * passing items capped at the threshold (`min(actual, threshold)` / threshold).
+ */
+export type GroupCounter = { current: number; total: number }
+
+/**
  * A group of checks of a single shape. Either:
  * - `documents`: a per-document list, each with its own checks; passes
  *   when every contained document passes every contained check.
@@ -42,6 +49,10 @@ export type ReadinessGroup =
       optional?: boolean
       documents: DocumentReport[]
       summary: { total: number; passing: number }
+      /** Baked fact: every document passes every check (and there is ≥1 doc). */
+      passing: boolean
+      /** Baked header counter: documents passing / total. */
+      counter: GroupCounter
     }
   | {
       type: 'aggregate'
@@ -50,12 +61,21 @@ export type ReadinessGroup =
       passed: boolean
       actual: number
       threshold: number
+      items?: Array<{ id: string | number; label: string; checks: CheckResult[] }>
+      /** Baked fact: `actual >= threshold`. */
+      passing: boolean
+      /** Baked header counter: min(actual, threshold) / threshold. */
+      counter: GroupCounter
     }
   | {
       type: 'errored'
       key: string
       optional?: boolean
       error: string
+      /** Baked fact: errored groups never pass. */
+      passing: false
+      /** Errored groups have no counter. */
+      counter: null
     }
 
 /**
@@ -67,7 +87,42 @@ export type ReadinessReport = {
   groups: ReadinessGroup[]
   summary: { total: number; passing: number }
   optionalSummary?: { total: number; passing: number }
+  /** Baked fact: all required groups pass (`summary.total>0 && summary.passing===summary.total`). */
+  passing: boolean
+  /**
+   * Baked document-level progress for the section progress bar — the sum of
+   * every group's `counter` across ALL groups (including optional). Distinct
+   * from `summary`, which counts required groups only.
+   */
+  progress: { passing: number; total: number }
 }
+
+/** How an aggregate group's item rows are summarized in the table view. */
+export type RowDisplay = 'all' | 'summarize-excess' | 'collapse-passing'
+
+/** Kind of a row produced by `buildGroupView`, driving its styling. */
+export type GroupRowKind = 'item' | 'missing' | 'summary'
+
+/**
+ * Link destination intent for a row — resolved to an admin URL by the view
+ * layer (which holds the collection/global slugs + locale):
+ * - `document`: the individual document editor.
+ * - `list`: the collection list (a create destination); falls back to global.
+ * - `global`: the backing global; falls back to the collection list.
+ */
+export type GroupRowLinkTarget = 'document' | 'list' | 'global'
+
+/** A single pre-summarized table row, without any resolved URL or styling. */
+export type GroupRow = {
+  id: string | number
+  label: string
+  checks: CheckResult[]
+  kind: GroupRowKind
+  linkTarget: GroupRowLinkTarget
+}
+
+/** Pure view-model for a group's table: ordered check-key columns + rows. */
+export type GroupView = { columns: string[]; rows: GroupRow[] }
 
 /**
  * The signature every section's compute function exposes. Generic on the

@@ -1,31 +1,45 @@
 {
-  "collections": {
+  "sections": {
     "appCards": {
+      "label": "App Cards",
+      "description": "Launch-critical app cards are published and configured for this locale.",
       "tutorialLink": null
     },
     "appConfig": {
+      "label": "App Configuration",
+      "description": "Self-realization meditation, post-realization lecture, and vibe-check tracks are configured for this locale.",
       "tutorialLink": null
     },
     "lectures": {
-      "tutorialLink": null
+      "label": "Lectures",
+      "description": "Lecture content has subtitles, coverage, and prioritization for this locale.",
+      "tutorialLink": "https://example.com/tutorials/lectures"
     },
     "lessons": {
+      "label": "Path Lessons",
+      "description": "Every lesson in units 1–3 is fully configured for this locale (unit 4 is optional).",
       "tutorialLink": null
     },
     "pages": {
-      "tutorialLink": null
+      "label": "Pages",
+      "description": "All required core and subtle-system pages are published and localized.",
+      "tutorialLink": "https://example.com/tutorials/pages"
     },
     "translations": {
-      "tutorialLink": null
+      "label": "Translations",
+      "description": "Every translations tab has values for this locale and an admin has signed off.",
+      "tutorialLink": "https://example.com/tutorials/translations"
     },
     "userChoices": {
-      "tutorialLink": null
+      "label": "User Choices",
+      "description": "Mood, goal, and duration user choices have their meditation assignments configured for this locale.",
+      "tutorialLink": "https://example.com/tutorials/user-choices"
     }
   },
   "groups": {
     "baseline-audience": {
       "label": "Baseline-audience lectures",
-      "description": "At least twenty lectures are visible to the most-restrictive new-user audience for this locale's baseline country."
+      "description": "At least twenty lectures are visible to new users for this locale's baseline country and have subtitles."
     },
     "core-pages": {
       "label": "Core app pages",
@@ -42,10 +56,6 @@
     "launch-critical-cards": {
       "label": "Launch-critical app cards",
       "description": "Every app card flagged as launch-critical is fully configured for this locale."
-    },
-    "lesson-referenced-subtitles": {
-      "label": "Lesson-referenced lecture subtitles",
-      "description": "Every lecture linked from an in-scope lesson has subtitles available for this locale."
     },
     "non-featured-afternoon": {
       "label": "Non-featured afternoon meditations",
@@ -173,13 +183,29 @@
       "label": "Has a lecture",
       "description": "At least one lecture is tagged with this user choice."
     },
+    "has-priority": {
+      "label": "Prioritized",
+      "description": "Lecture has a priority value above zero."
+    },
+    "has-userchoice-tag": {
+      "label": "User-choice tagged",
+      "description": "Lecture is tagged with at least one user-choice."
+    },
     "icon-set": {
       "label": "Icon assigned",
       "description": "The lesson has an icon image assigned."
     },
+    "in-baseline-audience": {
+      "label": "In baseline audience",
+      "description": "Lecture is visible to new users for this locale's baseline country."
+    },
     "intro-audio-set": {
       "label": "Intro audio set",
       "description": "The lesson has an intro-audio file assigned."
+    },
+    "is-populated": {
+      "label": "Populated",
+      "description": "This translation key has a non-empty value for the selected locale."
     },
     "is-published": {
       "label": "Translations published",
@@ -217,13 +243,13 @@
       "label": "Published",
       "description": "The document is published for this locale."
     },
-    "set-and-exists": {
-      "label": "Set and exists",
-      "description": "A relationship is assigned and the referenced document exists."
+    "relationship-published": {
+      "label": "Relationship published",
+      "description": "The referenced document is published for this locale."
     },
-    "set-and-published": {
-      "label": "Set and published",
-      "description": "A relationship is assigned and the referenced document is published for this locale."
+    "relationship-set": {
+      "label": "Relationship set",
+      "description": "A relationship value is assigned."
     },
     "subtitle-set": {
       "label": "Subtitle set",

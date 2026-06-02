@@ -33,32 +33,41 @@ function toDocReport(choice: UserChoiceRow, locale: string): DocumentReport {
   }
 }
 
-function countForTiming(rows: UserChoiceRow[], timing: Timing, locale: string): number {
-  return rows.filter((c) => {
-    const timings = Array.isArray(c.timings) ? (c.timings as string[]) : []
-    if (!timings.includes(timing)) return false
-    return meditationMatchesLocale(c[PER_TIMING_FIELDS[timing]], locale)
-  }).length
+function itemsForTiming(
+  rows: UserChoiceRow[],
+  timing: Timing,
+  locale: string,
+): Array<{ id: string | number; label: string; checks: Array<{ key: string; passed: boolean }> }> {
+  const checkKey = `meditation-${timing}-published` as const
+  return rows
+    .filter((c) => (Array.isArray(c.timings) ? (c.timings as string[]) : []).includes(timing))
+    .map((c) => ({
+      id: c.id as number | string,
+      label: labelOf(c as { id: number | string; title?: unknown }),
+      checks: [
+        { key: checkKey, passed: meditationMatchesLocale(c[PER_TIMING_FIELDS[timing]], locale) },
+      ],
+    }))
 }
 
 export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'userChoices',
-  tutorialLink: null,
+  label: 'User Choices',
+  description:
+    'Mood, goal, and duration user choices have their meditation assignments configured for this locale.',
+  tutorialLink: 'https://example.com/tutorials/user-choices',
   checks: {
     'meditation-morning-published': {
       label: 'Morning meditation published',
-      description:
-        'The user choice has a published morning meditation assigned for this locale.',
+      description: 'The user choice has a published morning meditation assigned for this locale.',
     },
     'meditation-afternoon-published': {
       label: 'Afternoon meditation published',
-      description:
-        'The user choice has a published afternoon meditation assigned for this locale.',
+      description: 'The user choice has a published afternoon meditation assigned for this locale.',
     },
     'meditation-evening-published': {
       label: 'Evening meditation published',
-      description:
-        'The user choice has a published evening meditation assigned for this locale.',
+      description: 'The user choice has a published evening meditation assigned for this locale.',
     },
     'meditation-night-published': {
       label: 'Night meditation published',
@@ -108,8 +117,10 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         'At least four non-featured mood/goal user choices have a published morning meditation assigned.',
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
-      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) =>
-        countForTiming(nonFeaturedMoodOrGoal, 'morning', locale),
+      rowDisplay: 'summarize-excess',
+      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
+        items: itemsForTiming(nonFeaturedMoodOrGoal, 'morning', locale),
+      }),
     },
     {
       key: 'non-featured-afternoon',
@@ -118,8 +129,10 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         'At least four non-featured mood/goal user choices have a published afternoon meditation assigned.',
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
-      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) =>
-        countForTiming(nonFeaturedMoodOrGoal, 'afternoon', locale),
+      rowDisplay: 'summarize-excess',
+      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
+        items: itemsForTiming(nonFeaturedMoodOrGoal, 'afternoon', locale),
+      }),
     },
     {
       key: 'non-featured-evening',
@@ -128,8 +141,10 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         'At least four non-featured mood/goal user choices have a published evening meditation assigned.',
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
-      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) =>
-        countForTiming(nonFeaturedMoodOrGoal, 'evening', locale),
+      rowDisplay: 'summarize-excess',
+      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
+        items: itemsForTiming(nonFeaturedMoodOrGoal, 'evening', locale),
+      }),
     },
     {
       key: 'non-featured-night',
@@ -138,8 +153,10 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         'At least four non-featured mood/goal user choices have a published night meditation assigned.',
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
-      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) =>
-        countForTiming(nonFeaturedMoodOrGoal, 'night', locale),
+      rowDisplay: 'summarize-excess',
+      evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
+        items: itemsForTiming(nonFeaturedMoodOrGoal, 'night', locale),
+      }),
     },
   ],
 }

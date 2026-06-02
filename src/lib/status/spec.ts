@@ -1,4 +1,4 @@
-import type { DocumentReport } from './types'
+import type { CheckResult, DocumentReport } from './types'
 import type { BasePayload, Field, PayloadRequest, TypedLocale } from 'payload'
 
 /**
@@ -43,11 +43,35 @@ export interface DocumentsGroupSpec<TSectionCtx, TConfig> extends BaseGroupSpec 
   ) => Promise<DocumentReport[]>
 }
 
+export interface AggregateEvaluateResult {
+  /**
+   * The passing count, compared against `threshold`. Required when `items` is
+   * absent; omit it when `items` is present (the runner recomputes `actual`
+   * from the items that pass every check).
+   */
+  actual?: number
+  items?: Array<{ id: string | number; label: string; checks: CheckResult[] }>
+}
+
 export interface AggregateGroupSpec<TSectionCtx, TConfig> extends BaseGroupSpec {
   type: 'aggregate'
   threshold: number
-  /** Returns `actual`. The runner compares against `threshold`. */
-  evaluate: (sectionCtx: TSectionCtx, req: ProjectRequestContext<TConfig>) => Promise<number>
+  /**
+   * Controls how item rows are displayed when items exceed the threshold or
+   * most items pass.
+   *
+   * - `'all'` (default): show all rows.
+   * - `'summarize-excess'`: show failing rows + enough passing rows to fill
+   *   the threshold, then collapse remaining passing rows into one summary row.
+   * - `'collapse-passing'`: show only failing rows; collapse all passing rows
+   *   into a single summary row (ideal for large all-or-nothing checks like
+   *   translations where individual passing keys add no value).
+   */
+  rowDisplay?: 'all' | 'summarize-excess' | 'collapse-passing'
+  evaluate: (
+    sectionCtx: TSectionCtx,
+    req: ProjectRequestContext<TConfig>,
+  ) => Promise<AggregateEvaluateResult>
 }
 
 export type GroupSpec<TSectionCtx, TConfig> =
@@ -62,6 +86,10 @@ export type GroupSpec<TSectionCtx, TConfig> =
 export interface SectionSpec<TConfig, TSectionCtx = void> {
   /** Top-level key — matches the virtual field name on the status global. */
   key: string
+  /** Human-readable section title rendered in the widget's card header. */
+  label: string
+  /** One-line section subtitle shown under the card header. */
+  description: string
   /** Optional external tutorial URL for the section, rendered by the widget. */
   tutorialLink: string | null
   /**
@@ -88,13 +116,32 @@ export interface SectionSpec<TConfig, TSectionCtx = void> {
  * carries section-level tutorial links that the generator script writes
  * into the JSON.
  */
+/**
+ * Static "where does this group's documents live?" map.
+ * `null` (or missing entry) marks the group as non-linkable in the widget —
+ * rows render as plain text instead of deep-link anchors.
+ */
+export type GroupCollectionMap = Record<string, string | null>
+
+/**
+ * Optional per-section global slug for the "Edit configuration" header link
+ * — used when the section's rows aren't themselves backed by a collection
+ * (e.g. translations rows, vibe-check identifier rows).
+ */
+export type SectionConfigFallback = Record<string, { type: 'global'; slug: string }>
+
 export interface StatusGlobalSpec<TConfig> {
   slug: string
   label: string
   adminGroup: string
-  collections: Record<string, { tutorialLink: string | null }>
   configTabFields: Field[]
   extractConfig: (data: unknown) => TConfig
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sections: SectionSpec<TConfig, any>[]
+  /** Group key → collection slug for deep-link construction in the admin widget. */
+  groupCollectionMap?: GroupCollectionMap
+  /** Group key → global slug for groups whose rows link to a global instead of a collection. */
+  groupGlobalMap?: Record<string, string>
+  /** Section key → global slug for the section card's "Edit configuration" link. */
+  sectionConfigFallback?: SectionConfigFallback
 }

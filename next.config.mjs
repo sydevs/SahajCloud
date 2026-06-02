@@ -7,6 +7,21 @@ import { withPayload } from '@payloadcms/next/withPayload'
 const nextConfig = {
   // Required for Cloudflare Workers deployment via OpenNext
   output: 'standalone',
+  experimental: {
+    // Serialize "Collecting page data" / static generation to a single worker.
+    //
+    // With the default (cpus - 1) workers, each static-worker imports the
+    // route graph → @payload-config → the Cloudflare binding layer, which
+    // boots a miniflare/workerd runtime. @sentry/cloudflare registers a
+    // SQLite-backed `SENTRY_DO` Durable Object, so N concurrent workerd
+    // instances open the same local .wrangler SQLite state and collide with
+    // `SQLITE_BUSY` ("The Workers runtime failed to start"), failing the
+    // build non-deterministically (e.g. on /api/openapi.json).
+    //
+    // One worker = one SQLite handle at a time = no contention. Costs some
+    // build wall-clock; this app is mostly dynamic routes so the hit is small.
+    cpus: 1,
+  },
   // Your Next.js config here
   webpack: (webpackConfig) => {
     webpackConfig.resolve.extensionAlias = {
