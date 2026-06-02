@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { getServerUrl } from '@/lib/serverUrl'
+import { getServerUrl } from '@/lib/utilities/serverUrl'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
 
 export const Managers: CollectionConfig = {
