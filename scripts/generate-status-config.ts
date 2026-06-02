@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url'
 
 import { extractStatusConfig, type StatusGlobalSpec } from '../src/lib/status'
 
-import { WeMeditateAppStatusSpec } from '../src/globals/wemeditate-app/status'
+import { WeMeditateAppStatusSpec } from '../src/globals/WeMeditateAppStatus/WeMeditateAppStatus'
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -27,7 +27,7 @@ type Target = {
 const TARGETS: Target[] = [
   {
     spec: WeMeditateAppStatusSpec,
-    outputPath: 'src/globals/wemeditate-app/statusConfig.json',
+    outputPath: 'src/globals/WeMeditateAppStatus/statusConfig.json',
   },
 ]
 

@@ -1,7 +1,7 @@
+import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import { labelOf, refId, type DocumentReport, type SectionSpec } from '@/lib/status'
 import { richTextHasContent } from '@/lib/status/helpers'
 
-import { APP_REQUIRED_PAGE_FIELDS } from '../config'
 import { getWmAppConfig, type WeMeditateAppStatusConfig } from './shared'
 
 interface Ctx {
