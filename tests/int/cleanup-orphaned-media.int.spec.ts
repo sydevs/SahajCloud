@@ -17,7 +17,9 @@ vi.mock('@/lib/nirmalaVidyaApi', async () => {
   const { readFileSync } = await import('fs')
   const { dirname, join } = await import('path')
   const { fileURLToPath } = await import('url')
-  const imgBuffer = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../files/image-1050x700.jpg'))
+  const imgBuffer = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '../files/image-1050x700.jpg'),
+  )
   return {
     extractVimeoId: vi.fn((url: string) => {
       const match = url.match(/\/(\d+)(?:[/?#]|$)/)
@@ -82,7 +84,7 @@ async function backdateCreatedAt(
  * created "now" (respecting the 24h grace period).
  */
 async function runCleanupJob(payload: Payload): Promise<CleanupResult> {
-  const { CleanupOrphanedMedia } = await import('@/jobs/tasks/CleanupOrphanedMedia')
+  const { CleanupOrphanedMedia } = await import('@/jobs/CleanupOrphanedMedia')
 
   const mockReq = {
     payload,
@@ -119,7 +121,7 @@ async function runCleanupJob(payload: Payload): Promise<CleanupResult> {
  * Used for tests that verify the date range rotation logic works correctly.
  */
 async function runCleanupJobWithDefaultRange(payload: Payload): Promise<CleanupResult> {
-  const { CleanupOrphanedMedia } = await import('@/jobs/tasks/CleanupOrphanedMedia')
+  const { CleanupOrphanedMedia } = await import('@/jobs/CleanupOrphanedMedia')
 
   const mockReq = {
     payload,

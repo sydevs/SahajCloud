@@ -2,7 +2,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { lecturesForAudience } from '@/endpoints/lecturesForAudience'
+import { lecturesForAudience } from '@/collections/Lectures/endpoints/forAudience'
 import type { LecturePlayerData } from '@/lib/lectureShape'
 import type { Audience, Client, Image, Lecture } from '@/payload-types'
 

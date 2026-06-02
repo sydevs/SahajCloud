@@ -1,6 +1,6 @@
 import type { PayloadLogger } from 'payload'
 
-import type { LectureMetadata } from '@/hooks/lectureHooks'
+import type { LectureMetadata } from '@/lib/nirmalaVidya'
 import type { Image, Lecture } from '@/payload-types'
 
 /**
@@ -83,8 +83,8 @@ function resolveFullLectureId(
 ): number | null {
   if (!parent) return null
   if (eligibleAudienceIds === null) return parent.id
-  const parentAudienceIds = ((parent.audiences ?? []) as Array<number | { id: number }>).map(
-    (a) => (typeof a === 'number' ? a : a.id),
+  const parentAudienceIds = ((parent.audiences ?? []) as Array<number | { id: number }>).map((a) =>
+    typeof a === 'number' ? a : a.id,
   )
   return eligibleAudienceIds.some((id) => parentAudienceIds.includes(id)) ? parent.id : null
 }

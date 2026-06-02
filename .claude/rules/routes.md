@@ -85,7 +85,7 @@ See `.claude/rules/endpoints.md` ("When to use a Payload endpoint vs a
 Next.js route") and `.claude/docs/architecture.md` → "Custom Endpoints"
 for the full decision matrix. Short version:
 
-- **`src/endpoints/*.ts` (Payload endpoint)**: operations tied to a specific
+- **`src/collections/<Name>/endpoints/*.ts` (Payload endpoint)**: operations tied to a specific
   collection (e.g., `/api/frames/by-narrator/:id`). Registered via the
   collection's `endpoints` array. Has `req.payload` automatically.
 - **`src/app/(payload)/api/**/route.ts` (Next.js route)**: webhooks, health

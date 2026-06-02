@@ -36,7 +36,7 @@ Two places to add HTTP endpoints, chosen by scope:
 
 | Use case | Where |
 |---|---|
-| URL belongs under a collection (e.g. `/api/frames/by-narrator/:narratorId`); single-collection ops; want automatic Payload auth/access integration | `src/endpoints/*.ts` — see `.claude/rules/endpoints.md` |
+| URL belongs under a collection (e.g. `/api/frames/by-narrator/:narratorId`); single-collection ops; want automatic Payload auth/access integration | `src/collections/<Name>/endpoints/*.ts` — see `.claude/rules/endpoints.md` |
 | Webhooks, health checks, OpenAPI spec generation, seed triggers, multi-collection operations; need raw request body or Next.js features (streaming, redirects) | `src/app/(payload)/api/**/route.ts` — see `.claude/rules/routes.md` |
 
 | Custom Payload endpoints | Path | Purpose |
@@ -64,8 +64,8 @@ shim, and the known-limitations list are in `.claude/rules/openapi.md`
 ## Collections
 
 ### Access & user management
-- **Managers** (`src/collections/access/Managers.ts`) — auth-enabled admin users with email/password, admin toggle, granular collection/locale-based permissions.
-- **Clients** (`src/collections/access/Clients.ts`) — API client management with API keys, usage tracking, granular permissions, high-usage alerts.
+- **Managers** (`src/collections/Managers/Managers.ts`) — auth-enabled admin users with email/password, admin toggle, granular collection/locale-based permissions.
+- **Clients** (`src/collections/Clients/Clients.ts`) — API client management with API keys, usage tracking, granular permissions, high-usage alerts.
 
 ### Content
 - **Pages** — Lexical rich text with embedded blocks; drafts (60 s autosave), version history, scheduled publishing, per-locale publishing.
@@ -175,7 +175,7 @@ depends on `@sentry/nextjs`, which is incompatible with Cloudflare Workers.
 
 PayloadCMS's built-in jobs system handles background task processing.
 
-### `CleanupOrphanedMedia` (`src/jobs/tasks/CleanupOrphanedMedia.ts`)
+### `CleanupOrphanedMedia` (`src/jobs/CleanupOrphanedMedia.ts`)
 
 Monthly task that cleans up orphaned files and images. Two-phase:
 
@@ -190,7 +190,7 @@ references. Tag-based preservation: images with non-orientation tags
 
 | File | Purpose |
 |---|---|
-| `src/jobs/tasks/CleanupOrphanedMedia.ts` | Implementation |
+| `src/jobs/CleanupOrphanedMedia.ts` | Implementation |
 | `src/lib/schemaUtils.ts` | Schema introspection utilities |
 | `tests/int/cleanup-orphaned-media.int.spec.ts` | Integration tests |
 | `tests/int/schema-utils.int.spec.ts` | Schema-utils tests |
@@ -207,7 +207,7 @@ The usage plugin auto-registers two tasks:
 
 Configuration and rate-limiting details are in
 `.claude/rules/api-clients.md` (auto-loads when editing `src/lib/usage/`
-or `src/collections/access/Clients.ts`).
+or `src/collections/Clients/Clients.ts`).
 
 ## Key Configuration Files
 

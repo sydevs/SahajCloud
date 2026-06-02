@@ -2,8 +2,7 @@ import type { BasePayload, Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-
-import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/wemeditate-app/config'
+import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import {
   appCardsSection,
   appConfigSection,
@@ -13,7 +12,7 @@ import {
   translationsSection,
   userChoicesSection,
   type WeMeditateAppStatusConfig,
-} from '@/globals/wemeditate-app/status'
+} from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
 import { runSection, type ReadinessReport, type SectionSpec } from '@/lib/status'
 import type { AppCard, Lesson, Manager, Page, UserChoice, WmAppStatus } from '@/payload-types'
 
@@ -555,12 +554,11 @@ describe('WeMeditateAppStatus Global', () => {
       const launchField = configTab.fields.find(
         (f) => 'name' in f && f.name === 'launchCriticalAppCards',
       )!
-       
+
       const updateAccess = (launchField as { access?: { update?: (...args: any[]) => any } }).access
         ?.update
       expect(typeof updateAccess).toBe('function')
 
-       
       const result = await (updateAccess as any)({ req: regularManagerReq })
       expect(result).toBe(false)
     })

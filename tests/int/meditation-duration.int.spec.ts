@@ -7,7 +7,7 @@ import { sql } from '@payloadcms/db-sqlite'
 import { parseBuffer } from 'music-metadata'
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { extractAudioDuration } from '@/hooks/meditationHooks'
+import { extractAudioDuration } from '@/collections/Meditations/hooks/extractAudioDuration'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -36,10 +36,10 @@ describe('Meditation Duration Extraction', () => {
 
   describe('duration field extraction', () => {
     it('extracts duration from uploaded MP3 file', async () => {
-      const meditation = await testData.createMeditation(
-        payload,
-        { narrator: narratorId, thumbnail: thumbnailId },
-      )
+      const meditation = await testData.createMeditation(payload, {
+        narrator: narratorId,
+        thumbnail: thumbnailId,
+      })
 
       // audio-42s.mp3 is approximately 42 seconds
       expect(meditation.duration).toBeDefined()
@@ -48,10 +48,10 @@ describe('Meditation Duration Extraction', () => {
     })
 
     it('stores duration as rounded integer seconds', async () => {
-      const meditation = await testData.createMeditation(
-        payload,
-        { narrator: narratorId, thumbnail: thumbnailId },
-      )
+      const meditation = await testData.createMeditation(payload, {
+        narrator: narratorId,
+        thumbnail: thumbnailId,
+      })
 
       expect(Number.isInteger(meditation.duration)).toBe(true)
     })
@@ -59,20 +59,20 @@ describe('Meditation Duration Extraction', () => {
 
   describe('durationMinutes virtual field', () => {
     it('computes durationMinutes from duration', async () => {
-      const meditation = await testData.createMeditation(
-        payload,
-        { narrator: narratorId, thumbnail: thumbnailId },
-      )
+      const meditation = await testData.createMeditation(payload, {
+        narrator: narratorId,
+        thumbnail: thumbnailId,
+      })
 
       // 42 seconds → Math.ceil(42/60) = 1 minute
       expect(meditation.durationMinutes).toBe(1)
     })
 
     it('returns durationMinutes in find results', async () => {
-      const created = await testData.createMeditation(
-        payload,
-        { narrator: narratorId, thumbnail: thumbnailId },
-      )
+      const created = await testData.createMeditation(payload, {
+        narrator: narratorId,
+        thumbnail: thumbnailId,
+      })
 
       const found = await payload.findByID({
         collection: 'meditations',
@@ -85,10 +85,10 @@ describe('Meditation Duration Extraction', () => {
 
   describe('duration preservation on update', () => {
     it('preserves duration when updating without re-uploading', async () => {
-      const meditation = await testData.createMeditation(
-        payload,
-        { narrator: narratorId, thumbnail: thumbnailId },
-      )
+      const meditation = await testData.createMeditation(payload, {
+        narrator: narratorId,
+        thumbnail: thumbnailId,
+      })
 
       const originalDuration = meditation.duration
 
@@ -106,10 +106,10 @@ describe('Meditation Duration Extraction', () => {
   describe('backfill migration logic', () => {
     it('can re-extract duration from a local audio file after nulling it out', async () => {
       // 1. Create a meditation (hook auto-extracts duration)
-      const meditation = await testData.createMeditation(
-        payload,
-        { narrator: narratorId, thumbnail: thumbnailId },
-      )
+      const meditation = await testData.createMeditation(payload, {
+        narrator: narratorId,
+        thumbnail: thumbnailId,
+      })
       const originalDuration = meditation.duration
       expect(originalDuration).toBeGreaterThan(0)
 
