@@ -75,13 +75,20 @@ export const appCardsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       depth: 0,
       req,
     })
-    const otherCardIds = enPublishedOther.map((card) => card.id)
+    const enPublishedIds = new Set<number | string>(enPublishedOther.map((card) => card.id))
 
     let otherDocs: DocumentReport[] = []
-    if (otherCardIds.length > 0) {
+    if (enPublishedIds.size > 0) {
+      // Fetch the latest per-locale content for the non-launch-critical cards
+      // using a small `not_in` filter, then keep only those published in
+      // English. We deliberately avoid an `id: { in: [...] }` list here: with
+      // many cards that IN-list exceeds D1's 100-bound-variable cap
+      // ("too many SQL variables"), which 404s the whole status global.
+      const otherLocaleWhere: Where | undefined =
+        launchCriticalIds.length > 0 ? { id: { not_in: launchCriticalIds } } : undefined
       const { docs: otherCardDocs } = await payload.find({
         collection: 'app-cards',
-        where: { id: { in: otherCardIds } },
+        where: otherLocaleWhere,
         locale,
         // Per-locale checks still evaluate the latest content for this locale.
         draft: true,
@@ -90,11 +97,13 @@ export const appCardsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         depth: 0,
         req,
       })
-      otherDocs = (otherCardDocs as unknown as Record<string, unknown>[]).map((card) => ({
-        id: card.id as number,
-        label: labelOf(card as { id: number | string; title?: unknown; name?: unknown }),
-        checks: appCardChecks(card),
-      }))
+      otherDocs = (otherCardDocs as unknown as Record<string, unknown>[])
+        .filter((card) => enPublishedIds.has(card.id as number | string))
+        .map((card) => ({
+          id: card.id as number,
+          label: labelOf(card as { id: number | string; title?: unknown; name?: unknown }),
+          checks: appCardChecks(card),
+        }))
     }
 
     return { launchCriticalDocs, otherDocs }
