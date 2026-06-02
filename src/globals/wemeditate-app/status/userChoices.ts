@@ -33,12 +33,21 @@ function toDocReport(choice: UserChoiceRow, locale: string): DocumentReport {
   }
 }
 
-function countForTiming(rows: UserChoiceRow[], timing: Timing, locale: string): number {
-  return rows.filter((c) => {
-    const timings = Array.isArray(c.timings) ? (c.timings as string[]) : []
-    if (!timings.includes(timing)) return false
-    return meditationMatchesLocale(c[PER_TIMING_FIELDS[timing]], locale)
-  }).length
+function itemsForTiming(
+  rows: UserChoiceRow[],
+  timing: Timing,
+  locale: string,
+): Array<{ id: string | number; label: string; checks: Array<{ key: string; passed: boolean }> }> {
+  const checkKey = `meditation-${timing}-published` as const
+  return rows
+    .filter((c) => (Array.isArray(c.timings) ? (c.timings as string[]) : []).includes(timing))
+    .map((c) => ({
+      id: c.id as number | string,
+      label: labelOf(c as { id: number | string; title?: unknown }),
+      checks: [
+        { key: checkKey, passed: meditationMatchesLocale(c[PER_TIMING_FIELDS[timing]], locale) },
+      ],
+    }))
 }
 
 export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
@@ -109,7 +118,8 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
       evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
-        actual: countForTiming(nonFeaturedMoodOrGoal, 'morning', locale),
+        actual: 0,
+        items: itemsForTiming(nonFeaturedMoodOrGoal, 'morning', locale),
       }),
     },
     {
@@ -120,7 +130,8 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
       evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
-        actual: countForTiming(nonFeaturedMoodOrGoal, 'afternoon', locale),
+        actual: 0,
+        items: itemsForTiming(nonFeaturedMoodOrGoal, 'afternoon', locale),
       }),
     },
     {
@@ -131,7 +142,8 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
       evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
-        actual: countForTiming(nonFeaturedMoodOrGoal, 'evening', locale),
+        actual: 0,
+        items: itemsForTiming(nonFeaturedMoodOrGoal, 'evening', locale),
       }),
     },
     {
@@ -142,7 +154,8 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       type: 'aggregate',
       threshold: NON_FEATURED_THRESHOLD,
       evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
-        actual: countForTiming(nonFeaturedMoodOrGoal, 'night', locale),
+        actual: 0,
+        items: itemsForTiming(nonFeaturedMoodOrGoal, 'night', locale),
       }),
     },
   ],

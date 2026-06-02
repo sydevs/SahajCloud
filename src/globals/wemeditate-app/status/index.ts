@@ -69,6 +69,10 @@ export const WeMeditateAppStatusSpec: StatusGlobalSpec<WeMeditateAppStatusConfig
     // userChoices section
     featured: 'user-choices',
     duration: 'user-choices',
+    'non-featured-morning': 'user-choices',
+    'non-featured-afternoon': 'user-choices',
+    'non-featured-evening': 'user-choices',
+    'non-featured-night': 'user-choices',
     // lessons section
     'unit-1': 'lessons',
     'unit-2': 'lessons',
@@ -84,6 +88,10 @@ export const WeMeditateAppStatusSpec: StatusGlobalSpec<WeMeditateAppStatusConfig
     'launch-critical-cards': 'app-cards',
     'other-cards': 'app-cards',
   },
+  // Group key → global slug for groups whose rows link to a global instead of a collection.
+  groupGlobalMap: Object.fromEntries(
+    translationsSection.groups.map((g) => [g.key, 'wm-app-translations']),
+  ),
   // Section key → global slug for the section card's "Edit configuration"
   // link. Used when the section's rows aren't backed by a collection
   // (config-slot rows for appConfig, virtual rows for translations) so

@@ -22,6 +22,7 @@ interface ReadinessGroupProps {
   groupMetadata: { label: string; description: string } | undefined
   checksMetadata: Record<string, { label: string; description: string }>
   collectionSlug: string | null
+  groupGlobalSlug: string | null
   localeCode: string
 }
 
@@ -49,11 +50,11 @@ function GroupHeader({
   const label = groupMetadata?.label ?? group.key
   const description = groupMetadata?.description
 
-  let counter: string | null = null
+  let counterValues: { current: number; total: number } | null = null
   if (group.type === 'documents') {
-    counter = `${group.summary.passing} of ${group.summary.total}`
+    counterValues = { current: group.summary.passing, total: group.summary.total }
   } else if (group.type === 'aggregate') {
-    counter = `${group.actual} of ${group.threshold}`
+    counterValues = { current: Math.min(group.actual, group.threshold), total: group.threshold }
   }
 
   return (
@@ -104,7 +105,27 @@ function GroupHeader({
               gap: 'calc(var(--base) * 0.5)',
             }}
           >
-            {counter !== null ? <span style={groupTitleStyle}>{counter}</span> : null}
+            {counterValues !== null ? (
+              <span
+                style={{
+                  fontSize: '1.25em',
+                  color: 'var(--theme-elevation-600)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {counterValues.current === counterValues.total ? (
+                  `${counterValues.current} of ${counterValues.total}`
+                ) : (
+                  <>
+                    <strong style={{ color: 'var(--theme-elevation-800)' }}>
+                      {counterValues.current}
+                    </strong>
+                    {' of '}
+                    {counterValues.total}
+                  </>
+                )}
+              </span>
+            ) : null}
             <button
               type="button"
               onClick={onToggle}
@@ -133,17 +154,25 @@ export const ReadinessGroup: React.FC<ReadinessGroupProps> = ({
   groupMetadata,
   checksMetadata,
   collectionSlug,
+  groupGlobalSlug,
   localeCode,
 }) => {
   const tone = groupTone(group)
   const [showDetails, setShowDetails] = useState(tone !== 'success')
 
   const checkColumns = useMemo(() => {
-    if (group.type !== 'documents') return []
     const seen = new Set<string>()
     const cols: Array<{ key: string; label: string; description?: string }> = []
-    for (const doc of group.documents) {
-      for (const check of doc.checks) {
+
+    let checkSources: Array<{ key: string }[]> = []
+    if (group.type === 'documents') {
+      checkSources = group.documents.map((d) => d.checks)
+    } else if (group.type === 'aggregate' && group.items) {
+      checkSources = group.items.map((i) => i.checks)
+    }
+
+    for (const checks of checkSources) {
+      for (const check of checks) {
         if (seen.has(check.key)) continue
         seen.add(check.key)
         const meta = checksMetadata[check.key]
@@ -158,16 +187,63 @@ export const ReadinessGroup: React.FC<ReadinessGroupProps> = ({
   }, [group, checksMetadata])
 
   const tableRows = useMemo(() => {
-    if (group.type !== 'documents') return []
-    return group.documents.map((doc) => {
-      const idIsSentinel = typeof doc.id === 'string'
-      const link =
-        collectionSlug !== null && !idIsSentinel
-          ? `/admin/collections/${collectionSlug}/${doc.id}?locale=${encodeURIComponent(localeCode)}`
+    const missingLink =
+      collectionSlug !== null
+        ? `/admin/collections/${collectionSlug}?locale=${encodeURIComponent(localeCode)}`
+        : groupGlobalSlug !== null
+          ? `/admin/globals/${groupGlobalSlug}?locale=${encodeURIComponent(localeCode)}`
           : undefined
-      return { id: doc.id, label: doc.label, link, checks: doc.checks }
-    })
-  }, [group, collectionSlug, localeCode])
+
+    if (group.type === 'documents') {
+      if (group.documents.length === 0) {
+        return [
+          {
+            id: '__missing_0',
+            label: 'Missing',
+            link: missingLink,
+            checks: [],
+            isMissing: true as const,
+          },
+        ]
+      }
+      return group.documents.map((doc) => {
+        const idIsSentinel = typeof doc.id === 'string'
+        const link =
+          collectionSlug !== null && !idIsSentinel
+            ? `/admin/collections/${collectionSlug}/${doc.id}?locale=${encodeURIComponent(localeCode)}`
+            : groupGlobalSlug !== null
+              ? `/admin/globals/${groupGlobalSlug}?locale=${encodeURIComponent(localeCode)}`
+              : undefined
+        return { id: doc.id, label: doc.label, link, checks: doc.checks }
+      })
+    }
+
+    if (group.type === 'aggregate' && group.items) {
+      const itemRows = group.items.map((item) => {
+        const link =
+          collectionSlug !== null && typeof item.id === 'number'
+            ? `/admin/collections/${collectionSlug}/${item.id}?locale=${encodeURIComponent(localeCode)}`
+            : groupGlobalSlug !== null
+              ? `/admin/globals/${groupGlobalSlug}?locale=${encodeURIComponent(localeCode)}`
+              : undefined
+        return { id: item.id, label: item.label, link, checks: item.checks }
+      })
+      // Missing rows represent uncreated items needed to reach the threshold.
+      // Base off items.length (not passingCount) so existing-but-failing items
+      // don't get double-counted as missing slots.
+      const missingCount = Math.max(0, group.threshold - group.items.length)
+      const missingRows = Array.from({ length: missingCount }, (_, i) => ({
+        id: `__missing_${i}`,
+        label: 'Missing',
+        link: missingLink,
+        checks: checkColumns.map((col) => ({ key: col.key, passed: false })),
+        isMissing: true as const,
+      }))
+      return [...itemRows, ...missingRows]
+    }
+
+    return []
+  }, [group, checkColumns, collectionSlug, groupGlobalSlug, localeCode])
 
   return (
     <div style={{ marginBottom: 'calc(var(--base) * 0.5)' }}>
@@ -183,12 +259,15 @@ export const ReadinessGroup: React.FC<ReadinessGroupProps> = ({
           {group.type === 'documents' ? (
             <ReadinessTable checkColumns={checkColumns} rows={tableRows} />
           ) : group.type === 'aggregate' ? (
-            <AggregateStatus
-              actual={group.actual}
-              items={group.items}
-              passed={group.passed}
-              threshold={group.threshold}
-            />
+            group.items ? (
+              <ReadinessTable checkColumns={checkColumns} rows={tableRows} />
+            ) : (
+              <AggregateStatus
+                actual={group.actual}
+                passed={group.passed}
+                threshold={group.threshold}
+              />
+            )
           ) : (
             <ErroredStatus error={group.error} />
           )}

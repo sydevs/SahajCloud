@@ -39,11 +39,11 @@ const ReadinessBanner: React.FC = () => {
   return (
     <Banner type={bannerType}>
       {hasData ? (
-        <div>
+        <div style={{ padding: 'calc(var(--base) * 0.5) calc(var(--base) * 0.75)' }}>
           <div
             style={{
               fontWeight: 600,
-              fontSize: '2em',
+              fontSize: '1.5em',
               marginBottom: 'calc(var(--base) * 0.25)',
             }}
           >

@@ -33,6 +33,7 @@ function isReadinessFieldCustom(value: unknown): value is ReadinessFieldCustom {
     'groupsMetadata' in value &&
     'checksMetadata' in value &&
     'groupKeyToCollection' in value &&
+    'groupKeyToGlobal' in value &&
     'configFallback' in value
   )
 }
@@ -51,14 +52,37 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
     )
   }
 
-  const { sectionMetadata, groupsMetadata, checksMetadata, groupKeyToCollection, configFallback } =
-    custom
+  const {
+    sectionMetadata,
+    groupsMetadata,
+    checksMetadata,
+    groupKeyToCollection,
+    groupKeyToGlobal,
+    configFallback,
+  } = custom
 
   const report = value ?? null
   const localeCode = locale?.code ?? 'en'
 
   const summary = report?.summary ?? { passing: 0, total: 0 }
   const tone = report ? summaryTone(summary.passing, summary.total) : 'neutral'
+
+  // Sum individual document/check counts across all non-optional groups for
+  // a more granular progress bar than the group-level summary.
+  let indivPassing = 0
+  let indivTotal = 0
+  if (report) {
+    for (const g of report.groups) {
+      if (g.optional) continue
+      if (g.type === 'documents') {
+        indivPassing += g.summary.passing
+        indivTotal += g.summary.total
+      } else if (g.type === 'aggregate') {
+        indivPassing += g.passed ? 1 : 0
+        indivTotal += 1
+      }
+    }
+  }
 
   const configFallbackHref = configFallback
     ? `/admin/globals/${configFallback.slug}?locale=${encodeURIComponent(localeCode)}`
@@ -69,7 +93,7 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
       <Collapsible
         initCollapsed
         header={
-          <div style={headerWrapStyle}>
+          <div style={{ ...headerWrapStyle, paddingRight: 'calc(var(--base) * 0.5)' }}>
             <ReadinessPill size="large" tone={tone} />
             <div style={headerContentStyle}>
               {/* Row 1: index + title + description + links */}
@@ -124,9 +148,9 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
                   ) : null}
                 </span>
               </div>
-              {/* Row 2: progress bar */}
+              {/* Row 2: progress bar (individual check counts) */}
               {report !== null ? (
-                <ProgressBar passing={summary.passing} total={summary.total} unit="groups ready" />
+                <ProgressBar passing={indivPassing} total={indivTotal} unit="ready" />
               ) : null}
             </div>
           </div>
@@ -155,6 +179,7 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
                 key={group.key}
                 checksMetadata={checksMetadata}
                 collectionSlug={groupKeyToCollection[group.key] ?? null}
+                groupGlobalSlug={groupKeyToGlobal[group.key] ?? null}
                 group={group}
                 groupMetadata={groupsMetadata[group.key]}
                 localeCode={localeCode}

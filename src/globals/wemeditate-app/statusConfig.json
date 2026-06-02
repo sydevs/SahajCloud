@@ -195,6 +195,10 @@
       "label": "Intro audio set",
       "description": "The lesson has an intro-audio file assigned."
     },
+    "is-populated": {
+      "label": "Populated",
+      "description": "This translation key has a non-empty value for the selected locale."
+    },
     "is-published": {
       "label": "Translations published",
       "description": "The translations global is published for this locale."

@@ -23,6 +23,8 @@ export interface ReadinessTableRow {
   checks: Array<{ key: string; passed: boolean }>
   /** Marks the "X items passing" summary row — gets a neutral background. */
   isSummary?: boolean
+  /** Forces failing-row background even when checks is empty (placeholder Missing row). */
+  isMissing?: boolean
 }
 
 export interface CheckColumn {
@@ -39,8 +41,8 @@ interface ReadinessTableProps {
 
 function rowBackground(row: ReadinessTableRow, index: number): string {
   if (row.isSummary) return 'var(--theme-elevation-50)'
-  if (row.checks.some((c) => !c.passed)) {
-    return index % 2 === 0 ? 'var(--theme-error-50)' : 'var(--theme-error-100)'
+  if (row.isMissing || row.checks.some((c) => !c.passed)) {
+    return index % 2 === 0 ? 'rgba(220, 38, 38, 0.16)' : 'rgba(220, 38, 38, 0.09)'
   }
   return index % 2 === 0 ? 'var(--theme-elevation-0)' : 'var(--theme-elevation-50)'
 }

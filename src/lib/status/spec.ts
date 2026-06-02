@@ -1,4 +1,4 @@
-import type { DocumentReport } from './types'
+import type { CheckResult, DocumentReport } from './types'
 import type { BasePayload, Field, PayloadRequest, TypedLocale } from 'payload'
 
 /**
@@ -44,8 +44,9 @@ export interface DocumentsGroupSpec<TSectionCtx, TConfig> extends BaseGroupSpec 
 }
 
 export interface AggregateEvaluateResult {
+  /** Used when `items` is absent. Ignored (recomputed) when `items` is present. */
   actual: number
-  items?: Array<{ key: string; label: string; passed: boolean }>
+  items?: Array<{ id: string | number; label: string; checks: CheckResult[] }>
 }
 
 export interface AggregateGroupSpec<TSectionCtx, TConfig> extends BaseGroupSpec {
@@ -123,6 +124,8 @@ export interface StatusGlobalSpec<TConfig> {
   sections: SectionSpec<TConfig, any>[]
   /** Group key → collection slug for deep-link construction in the admin widget. */
   groupCollectionMap?: GroupCollectionMap
+  /** Group key → global slug for groups whose rows link to a global instead of a collection. */
+  groupGlobalMap?: Record<string, string>
   /** Section key → global slug for the section card's "Edit configuration" link. */
   sectionConfigFallback?: SectionConfigFallback
 }

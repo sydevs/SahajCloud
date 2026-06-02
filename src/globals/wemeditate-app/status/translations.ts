@@ -144,9 +144,13 @@ const tabAggregateGroups: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = tabEntri
       evaluate: async ({ translations }) => {
         const items = lookups.map((lookup) => {
           const label = getLookupLabel(lookup)
-          return { key: label, label, passed: isPopulated(translations, lookup) }
+          return {
+            id: label,
+            label,
+            checks: [{ key: 'is-populated', passed: isPopulated(translations, lookup) }],
+          }
         })
-        return { actual: items.filter((i) => i.passed).length, items }
+        return { actual: 0, items }
       },
     }
   },
@@ -161,6 +165,10 @@ export const translationsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = 
     'is-published': {
       label: 'Translations published',
       description: 'The translations global is published for this locale.',
+    },
+    'is-populated': {
+      label: 'Populated',
+      description: 'This translation key has a non-empty value for the selected locale.',
     },
   },
   prepare: async ({ payload, locale, req }) => {

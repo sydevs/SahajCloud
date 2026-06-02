@@ -32,16 +32,18 @@ function sliceMetadata<TConfig>(
  */
 export function buildStatusGlobalConfig<TConfig>(spec: StatusGlobalSpec<TConfig>): GlobalConfig {
   const groupCollectionMap = spec.groupCollectionMap ?? {}
+  const groupGlobalMap = spec.groupGlobalMap ?? {}
   const sectionConfigFallback = spec.sectionConfigFallback ?? {}
 
   const sectionFields = spec.sections.map((section, sectionIndex) => {
     const { groupsMetadata, checksMetadata } = sliceMetadata(section)
 
-    // The widget's `groupKeyToCollection` only needs entries for this
-    // section's groups — slice the global map down.
+    // Slice both maps down to only this section's groups.
     const groupKeyToCollection: Record<string, string | null> = {}
+    const groupKeyToGlobal: Record<string, string | null> = {}
     for (const group of section.groups) {
       groupKeyToCollection[group.key] = groupCollectionMap[group.key] ?? null
+      groupKeyToGlobal[group.key] = groupGlobalMap[group.key] ?? null
     }
 
     const adminCustom: ReadinessFieldAdminCustom = {
@@ -55,6 +57,7 @@ export function buildStatusGlobalConfig<TConfig>(spec: StatusGlobalSpec<TConfig>
       groupsMetadata,
       checksMetadata,
       groupKeyToCollection,
+      groupKeyToGlobal,
       configFallback: sectionConfigFallback[section.key] ?? null,
     }
 

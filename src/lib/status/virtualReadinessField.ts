@@ -12,6 +12,7 @@ export interface ReadinessFieldAdminCustom {
   groupsMetadata: Record<string, { label: string; description: string }>
   checksMetadata: Record<string, { label: string; description: string }>
   groupKeyToCollection: Record<string, string | null>
+  groupKeyToGlobal: Record<string, string | null>
   configFallback: { type: 'global'; slug: string } | null
 }
 

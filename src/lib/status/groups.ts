@@ -1,4 +1,4 @@
-import type { DocumentReport, ReadinessGroup, ReadinessReport } from './types'
+import type { CheckResult, DocumentReport, ReadinessGroup, ReadinessReport } from './types'
 
 export function isGroupPassing(group: ReadinessGroup): boolean {
   if (group.type === 'aggregate') return group.passed
@@ -28,7 +28,7 @@ export function aggregateGroup(
   actual: number,
   threshold: number,
   optional = false,
-  items?: Array<{ key: string; label: string; passed: boolean }>,
+  items?: Array<{ id: string | number; label: string; checks: CheckResult[] }>,
 ): ReadinessGroup {
   return {
     type: 'aggregate',
