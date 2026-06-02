@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SyncLectureMetadata } from '@/jobs/SyncLectureMetadata'
+import { SyncLectureMetadata } from '@/jobs/SyncLectureMetadata/SyncLectureMetadata'
 import type { LectureMetadata } from '@/lib/nirmalaVidya'
 import type { Lecture } from '@/payload-types'
 

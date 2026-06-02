@@ -1,13 +1,14 @@
 import type { CollectionSlug, TaskConfig, Payload, PayloadRequest } from 'payload'
 
+import type { ImageTag } from '@/types/tags'
+
 import {
   discoverReferencesForCollection,
   extractIdsFromDocument,
   extractIdsFromLexicalContent,
   groupByCollection,
   type FieldReference,
-} from '@/lib/schemaUtils'
-import type { ImageTag } from '@/types/tags'
+} from './schemaUtils'
 
 /** Maximum documents to fetch per page when scanning for references */
 const PAGINATION_LIMIT = 1000

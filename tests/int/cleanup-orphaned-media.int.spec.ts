@@ -84,7 +84,7 @@ async function backdateCreatedAt(
  * created "now" (respecting the 24h grace period).
  */
 async function runCleanupJob(payload: Payload): Promise<CleanupResult> {
-  const { CleanupOrphanedMedia } = await import('@/jobs/CleanupOrphanedMedia')
+  const { CleanupOrphanedMedia } = await import('@/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia')
 
   const mockReq = {
     payload,
@@ -121,7 +121,7 @@ async function runCleanupJob(payload: Payload): Promise<CleanupResult> {
  * Used for tests that verify the date range rotation logic works correctly.
  */
 async function runCleanupJobWithDefaultRange(payload: Payload): Promise<CleanupResult> {
-  const { CleanupOrphanedMedia } = await import('@/jobs/CleanupOrphanedMedia')
+  const { CleanupOrphanedMedia } = await import('@/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia')
 
   const mockReq = {
     payload,
