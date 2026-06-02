@@ -35,6 +35,13 @@ export const appCardsForAudience: Endpoint = {
   path: '/for-audience',
   method: 'get',
   handler: async (req) => {
+    if (req.user?.collection !== 'clients' || !req.user.active) {
+      return Response.json(
+        { errors: [{ message: 'You are not allowed to perform this action.' }] },
+        { status: 403 },
+      )
+    }
+
     const parsed = querySchema.safeParse(req.query)
 
     if (!parsed.success) {

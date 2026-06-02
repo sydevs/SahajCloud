@@ -643,7 +643,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error))
         // Log the error to help with debugging
-        // eslint-disable-next-line no-console
+         
         console.error(
           `[Storyblok] Upload attempt ${attempt}/${maxRetries} failed for ${filename}:`,
           lastError.message,

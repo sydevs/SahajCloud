@@ -16,6 +16,7 @@ This document provides comprehensive deployment procedures, troubleshooting, and
 6. [Verifying Deployments](#verifying-deployments)
 7. [Troubleshooting](#troubleshooting)
 8. [Cost Monitoring](#cost-monitoring)
+9. [Preview Environment](#preview-environment)
 
 ---
 
@@ -26,12 +27,14 @@ This document provides comprehensive deployment procedures, troubleshooting, and
 The application is deployed to **Cloudflare Workers** using **@opennextjs/cloudflare** adapter for serverless edge deployment.
 
 **Components**:
+
 - **Platform**: Cloudflare Workers (paid plan required for 10MB limit)
 - **Database**: Cloudflare D1 (serverless SQLite)
 - **Storage**: Cloudflare R2 (S3-compatible object storage)
 - **CDN**: Cloudflare Assets binding for static files
 
 **Bundle Size**:
+
 - Compressed: 4.15 MB (well under 10 MB paid plan limit)
 - Uncompressed: 19.5 MB
 - Worker Startup Time: ~26 ms
@@ -39,10 +42,12 @@ The application is deployed to **Cloudflare Workers** using **@opennextjs/cloudf
 ### Configuration Files
 
 **next.config.mjs**:
+
 - Must include `output: 'standalone'` for OpenNext compatibility
 
 **wrangler.toml**:
-- `workers_dev = false` - Disable *.workers.dev subdomain (use custom domains)
+
+- `workers_dev = false` - Disable \*.workers.dev subdomain (use custom domains)
 - `preview_urls = false` - Disable preview URLs for production
 - D1 database binding
 - R2 storage binding
@@ -95,6 +100,7 @@ remote = true  # REQUIRED for production migrations
 ```
 
 **Why This Matters**:
+
 - Without `remote = true`, PayloadCMS migrations create a local `.wrangler` database instead of connecting to production D1
 - This will cause your production database to remain empty even after running migrations
 - The `remote = true` flag enables Wrangler's remote bindings feature
@@ -110,12 +116,14 @@ pnpm run deploy:prod
 This runs two commands in order:
 
 1. **deploy:database** - Runs migrations against remote D1 database:
+
    ```bash
    cross-env NODE_ENV=production PAYLOAD_SECRET=ignore payload migrate && \
    wrangler d1 execute sahajcloud --command 'PRAGMA optimize' --remote
    ```
 
 2. **deploy:app** - Deploys the Worker application:
+
    ```bash
    pnpm exec wrangler deploy --experimental-autoconfig=false --env=""
    ```
@@ -185,16 +193,19 @@ Use this when you need to consolidate migrations into a single initial migration
 **Manual Steps** (if script fails):
 
 1. **Delete existing migration files**:
+
    ```bash
    rm src/migrations/*.ts src/migrations/*.json
    ```
 
 2. **Reset migrations index** (`src/migrations/index.ts`):
+
    ```typescript
    export const migrations = []
    ```
 
 3. **Generate SQL to drop all tables** - Create `drop_all_tables.sql`:
+
    ```bash
    # First, list all tables
    wrangler d1 execute sahajcloud --remote --command \
@@ -207,22 +218,26 @@ Use this when you need to consolidate migrations into a single initial migration
    ```
 
 4. **Drop all tables in production**:
+
    ```bash
    wrangler d1 execute sahajcloud --remote --file=drop_all_tables.sql
    ```
 
 5. **Verify database is empty**:
+
    ```bash
    wrangler d1 execute sahajcloud --remote --command \
      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';"
    ```
 
 6. **Generate fresh initial migration**:
+
    ```bash
    pnpm payload migrate:create
    ```
 
 7. **Rename migration file** (optional, for clarity):
+
    ```bash
    mv src/migrations/[timestamp].ts src/migrations/[timestamp]_initial_schema.ts
    mv src/migrations/[timestamp].json src/migrations/[timestamp]_initial_schema.json
@@ -230,6 +245,7 @@ Use this when you need to consolidate migrations into a single initial migration
    ```
 
 8. **Apply to production**:
+
    ```bash
    pnpm run deploy:database
    ```
@@ -275,13 +291,13 @@ The script is operator-interactive: at Step 4 it pauses and asks you to run `pnp
 
 The script sorts both sides before diffing, so ordering-only differences collapse. What's left should be empty. Common signals and how to act:
 
-| Diff content | Meaning | Action |
-|---|---|---|
-| Empty file | Baseline matches prod exactly | Proceed |
-| New `CREATE INDEX` lines on one side only | Prod has indexes the baseline doesn't emit, or vice versa | Investigate — likely a hand-created prod index or a generator regression; do NOT proceed until resolved |
-| `CREATE TABLE` lines differ in column order | Drizzle regenerated a table with a new column layout | Safe as long as column names + types match; SQLite doesn't expose column order to queries |
-| `CREATE TABLE` lines differ in column **definitions** (type, NOT NULL, defaults) | Real schema drift | Stop. Either prod has been hand-edited or an un-migrated local change made it into the generator. Root-cause before squashing |
-| `_rels` table rebuilds with missing columns | The Drizzle polymorphic-FK bug documented in [AGENTS.md](AGENTS.md) has re-surfaced | Hand-patch the generated `.ts` per the pattern in AGENTS.md, re-run the script |
+| Diff content                                                                     | Meaning                                                                             | Action                                                                                                                        |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Empty file                                                                       | Baseline matches prod exactly                                                       | Proceed                                                                                                                       |
+| New `CREATE INDEX` lines on one side only                                        | Prod has indexes the baseline doesn't emit, or vice versa                           | Investigate — likely a hand-created prod index or a generator regression; do NOT proceed until resolved                       |
+| `CREATE TABLE` lines differ in column order                                      | Drizzle regenerated a table with a new column layout                                | Safe as long as column names + types match; SQLite doesn't expose column order to queries                                     |
+| `CREATE TABLE` lines differ in column **definitions** (type, NOT NULL, defaults) | Real schema drift                                                                   | Stop. Either prod has been hand-edited or an un-migrated local change made it into the generator. Root-cause before squashing |
+| `_rels` table rebuilds with missing columns                                      | The Drizzle polymorphic-FK bug documented in [AGENTS.md](AGENTS.md) has re-surfaced | Hand-patch the generated `.ts` per the pattern in AGENTS.md, re-run the script                                                |
 
 **Rollback**:
 
@@ -374,9 +390,11 @@ wrangler secret list
 ### Required Variables
 
 **Core Configuration**:
+
 - `PAYLOAD_SECRET` - Payload authentication secret
 
 **Error Monitoring (Sentry)**:
+
 - `NEXT_PUBLIC_SENTRY_DSN` - Sentry DSN for error tracking (set in `wrangler.toml`)
   - **Public variable** - visible to both client and server
   - Only active in production (`NODE_ENV=production`)
@@ -388,9 +406,11 @@ wrangler secret list
     ```
 
 **Email (Resend)**:
+
 - `RESEND_API_KEY` - Resend API key for transactional emails
 
 **Storage (Cloudflare R2)**:
+
 - `S3_ENDPOINT` - Cloudflare R2 endpoint
 - `S3_ACCESS_KEY_ID` - R2 access key
 - `S3_SECRET_ACCESS_KEY` - R2 secret key
@@ -398,6 +418,7 @@ wrangler secret list
 - `S3_REGION` - Set to `auto` for Cloudflare R2
 
 **Frontend URLs**:
+
 - `WEMEDITATE_WEB_URL` - We Meditate Web frontend URL
 - `SAHAJATLAS_URL` - Sahaj Atlas frontend URL
 
@@ -408,6 +429,7 @@ wrangler secret list
 ### Step-by-Step Production Deployment
 
 1. **Verify Local Changes**:
+
    ```bash
    # Run tests
    pnpm test
@@ -423,22 +445,26 @@ wrangler secret list
    ```
 
 2. **Create Migration** (if schema changed):
+
    ```bash
    pnpm payload migrate:create
    ```
 
 3. **Deploy to Production**:
+
    ```bash
    pnpm run deploy:prod
    ```
 
 4. **Monitor Deployment**:
+
    ```bash
    # Watch logs in real-time
    wrangler tail sahajcloud --format pretty
    ```
 
 5. **Verify Deployment**:
+
    ```bash
    # Health check
    curl https://cloud.sydevelopers.com/api/health
@@ -511,6 +537,7 @@ curl https://cloud.sydevelopers.com/api/test-sentry?type=message
 ```
 
 **Verification**:
+
 1. Visit Sentry dashboard: https://sentry.io/organizations/your-org/issues/
 2. Check for test events with tags:
    - `test: true`
@@ -538,6 +565,7 @@ curl https://cloud.sydevelopers.com/api/test-sentry?type=message
 ### Production Site Shows "no such table" Errors
 
 **Diagnosis**:
+
 ```bash
 # Check if database has tables
 wrangler d1 execute sahajcloud --remote --command \
@@ -545,6 +573,7 @@ wrangler d1 execute sahajcloud --remote --command \
 ```
 
 **Solution**:
+
 1. Verify `remote = true` is set in wrangler.toml D1 binding
 2. Run migrations: `pnpm run deploy:database`
 3. Verify migrations completed: Check for `payload_migrations` table
@@ -552,10 +581,12 @@ wrangler d1 execute sahajcloud --remote --command \
 ### Migrations Create Local Database Instead of Remote
 
 **Diagnosis**:
+
 - `.wrangler` directory contains database files after running migrations
 - Remote database remains empty
 
 **Solution**:
+
 1. Add `remote = true` to D1 binding in wrangler.toml
 2. Delete `.wrangler` directory: `rm -rf .wrangler`
 3. Re-run migrations: `NODE_ENV=production pnpm payload migrate`
@@ -564,12 +595,15 @@ wrangler d1 execute sahajcloud --remote --command \
 ### Bundle Size Exceeds Limit
 
 **Symptoms**:
+
 ```
 Error: Bundle size exceeds 3MB limit
 ```
 
 **Solutions**:
+
 1. Check bundle size:
+
    ```bash
    pnpm build
    ls -lh .next/standalone
@@ -587,11 +621,14 @@ Error: Bundle size exceeds 3MB limit
 ### D1 Database Connection Fails
 
 **Symptoms**:
+
 - Cannot connect to D1
 - `binding.D1 is undefined`
 
 **Solutions**:
+
 1. Verify `wrangler.toml` configuration:
+
    ```toml
    [[d1_databases]]
    binding = "D1"
@@ -601,6 +638,7 @@ Error: Bundle size exceeds 3MB limit
    ```
 
 2. Check database exists:
+
    ```bash
    wrangler d1 list
    ```
@@ -613,16 +651,20 @@ Error: Bundle size exceeds 3MB limit
 ### Email Not Sending
 
 **Symptoms**:
+
 - Password reset emails not received
 - No errors in Resend dashboard
 
 **Solutions**:
+
 1. Verify API key is set:
+
    ```bash
    wrangler secret list
    ```
 
 2. Test Resend API directly:
+
    ```bash
    curl https://api.resend.com/emails \
      -H "Authorization: Bearer $RESEND_API_KEY" \
@@ -643,6 +685,7 @@ Error: Bundle size exceeds 3MB limit
 ### High Error Rate
 
 **Diagnosis**:
+
 ```bash
 # Check Sentry for patterns
 # Visit Sentry dashboard
@@ -655,6 +698,7 @@ wrangler tail sahajcloud --format pretty
 ```
 
 **Solutions**:
+
 1. Review error messages in Sentry
 2. Check for recent code changes
 3. Verify environment variables are set correctly
@@ -667,17 +711,18 @@ wrangler tail sahajcloud --format pretty
 
 ### Expected Monthly Costs
 
-| Service | Free Tier | Paid Plans | Expected Cost |
-|---------|-----------|------------|---------------|
-| **Workers** | 100k requests/day | $5/month + $0.30/M requests | $5/month |
-| **D1** | 100k reads, 1k writes/day | $5/month + usage | $5-10/month |
-| **R2** | 10GB storage, 1M ops/month | $0.015/GB storage | $1-5/month |
-| **Resend** | 3k emails/month | $20/50k emails | $0/month |
-| **Total** | N/A | N/A | **$11-20/month** |
+| Service     | Free Tier                  | Paid Plans                  | Expected Cost    |
+| ----------- | -------------------------- | --------------------------- | ---------------- |
+| **Workers** | 100k requests/day          | $5/month + $0.30/M requests | $5/month         |
+| **D1**      | 100k reads, 1k writes/day  | $5/month + usage            | $5-10/month      |
+| **R2**      | 10GB storage, 1M ops/month | $0.015/GB storage           | $1-5/month       |
+| **Resend**  | 3k emails/month            | $20/50k emails              | $0/month         |
+| **Total**   | N/A                        | N/A                         | **$11-20/month** |
 
 ### Monitoring Usage
 
 **Cloudflare Dashboard**:
+
 1. Visit Cloudflare Dashboard → Workers → Analytics
 2. Check:
    - Workers requests
@@ -685,10 +730,12 @@ wrangler tail sahajcloud --format pretty
    - R2 storage/operations
 
 **Set Billing Alerts**:
+
 1. Cloudflare Dashboard → Billing → Alerts
 2. Set thresholds at $20, $50
 
 **Optimization Tips**:
+
 - Cache frequently accessed data
 - Use Cloudflare Cache API
 - Reduce D1 queries where possible
@@ -703,6 +750,7 @@ The application uses **Wrangler Environments** to manage different configuration
 ### Configuration Pattern
 
 `wrangler.toml` contains both production and development environments:
+
 - **Default (top-level)**: Production configuration
 - **`[env.dev]`**: Development environment configuration
 
@@ -721,6 +769,106 @@ The application uses **Wrangler Environments** to manage different configuration
   - Production environment variables
 
 - **Migrations**: Always use production mode (`NODE_ENV=production`) to ensure remote connection
+
+---
+
+## Preview Environment
+
+Every non-`main` branch push deploys to a separate **`sahajcloud-preview`** Worker so reviewers can click through changes against real, prod-like data without ever risking a write to prod. The preview env is also where the `smoke-preview` CI job runs Playwright specs on every PR.
+
+### Architecture
+
+```
+PRODUCTION                                PREVIEW
+Worker: sahajcloud           Worker: <branch>-sahajcloud-preview.<account>.workers.dev
+D1:     sahajcloud           D1:     sahajcloud-preview  (cloned + sanitized weekly)
+R2:     sahajcloud           R2:     sahajcloud-preview  (separate bucket; 8-day lifecycle)
+CDN:    assets.sydevelopers  CDN:    pub-<hash>.r2.dev   (default R2 dev URL)
+```
+
+**File-protection invariant.** Preview's Worker has no binding to the prod R2 bucket. Cloned DB rows still reference `assets.sydevelopers.com/...` URLs (so the preview admin renders fine), but any delete in preview admin drops a DB row and calls `R2.delete(key)` against the preview bucket — a no-op for files that live in prod. The next reclone restores the row.
+
+**Account-scoped caveat.** Cloudflare Images and Stream are billed per-account, not per-env. Preview shares those namespaces with prod for now. Issue [#432](https://github.com/sahaja-yoga-developers/sy-devs-cms/issues/432) tracks the per-env isolation work. Until it lands, smoke tests are scoped to R2-backed collections (Meditations, Songs, Lectures).
+
+### Threat model
+
+The preview Worker is reachable at `*.workers.dev` with the documented admin credentials (the same ones in [CLAUDE.md](CLAUDE.md)). Anyone who guesses the URL can log in and browse cloned content. This is acceptable because:
+
+- PII is stripped by [scripts/sanitize-preview-dump.ts](scripts/sanitize-preview-dump.ts) before the clone lands in preview D1.
+- The file-protection invariant means a delete in preview admin can never remove a prod R2 object.
+- The remaining cloned content (meditations, songs, lectures, pages) is broadly equivalent to what the public CMS surfaces anyway.
+
+**If a future collection ever holds business-sensitive but non-PII data, this assumption has to be revisited** — either add the table to `PII_TABLES` in `scripts/sanitize-preview-dump.ts`, or gate preview admin behind a stronger auth mechanism.
+
+### One-time operator runbook
+
+After this PR merges, complete these steps once:
+
+1. **Provision D1 + R2**
+
+   ```bash
+   wrangler d1 create sahajcloud-preview --location=weur
+   # paste the returned UUID into wrangler.toml `[env.preview]` `database_id`
+   wrangler r2 bucket create sahajcloud-preview --jurisdiction=eu
+   ```
+
+2. **Enable the default R2 public URL** in the CF dashboard (R2 → `sahajcloud-preview` → Settings → Public access → enable `r2.dev` URL). Copy the assigned `https://pub-<hash>.r2.dev` into the `CLOUDFLARE_R2_DELIVERY_URL` var in `wrangler.toml` `[env.preview.vars]`.
+
+3. **Configure the 8-day object-lifecycle rule** on the same bucket (R2 → `sahajcloud-preview` → Settings → Object lifecycle rules → add rule: expire all objects after 8 days). This is the sole cleanup mechanism for smoke-test uploads — no manual wipe script needed.
+
+4. **Fill in the preview env "secrets"** — these are inlined in `wrangler.toml` `[env.preview.vars]` rather than set via `wrangler secret put`. The Worker doesn't exist until first deploy, and first deploy needs these values present to pass build-time Zod validation, so the canonical `wrangler secret put` flow hits a chicken-and-egg deadlock. Inlining matches the existing `[env.dev.vars]` pattern and is acceptable for non-prod: preview data is sanitized, and JWTs signed by the preview `PAYLOAD_SECRET` are only valid against preview.
+
+   `PAYLOAD_SECRET` and `SAHAJCLOUD_PREVIEW_SECRET` ship pre-generated. Replace the two `OPERATOR_REPLACE_ME` placeholders:
+   - `SENTRY_DSN` — paste a Sentry DSN, or delete the line to disable Sentry in preview.
+   - `RESEND_API_KEY` — paste a **sandbox** Resend API key (do not reuse prod), or delete the line to disable email.
+
+   Commit the updated `wrangler.toml` to the branch.
+
+5. **Configure Workers Builds** in the CF dashboard (Workers & Pages → `sahajcloud` → Settings → Builds):
+   - Production branch: `main` (existing behavior unchanged)
+   - Non-production branches: all branches except `main`
+   - Non-prod deploy command: `npx wrangler versions upload --env=preview`
+   - Pre-deploy migration step: `pnpm exec wrangler d1 migrations apply sahajcloud-preview --remote --env=preview`
+   - **Build environment variables** (Workers Builds → Settings → Variables and secrets → Build variables): set `PAYLOAD_SECRET` and `SAHAJCLOUD_PREVIEW_SECRET` to the same values you put in `wrangler.toml`. Per [CF docs](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), build variables are scoped to the build process (process.env during `opennextjs-cloudflare build`); they are not the same surface as the runtime bindings in `wrangler.toml [env.preview.vars]`, so both need to be set.
+
+6. **Repo secrets + vars** (Settings → Secrets and variables → Actions):
+   - Secret `CLOUDFLARE_API_TOKEN` — a token with D1 + R2 write scope (used by `preview-reclone.yml`).
+   - Secret `CLOUDFLARE_ACCOUNT_ID` — your account ID.
+   - Variable `CF_WORKER_SUBDOMAIN` — your `<account>` subdomain (the part before `.workers.dev`), used by the smoke job to compute per-PR URLs.
+
+7. **First reclone**: Actions → "Preview D1 Reclone" → "Run workflow" → `main`. Confirm preview D1 row counts roughly match prod (minus stripped Managers/Clients), preview admin can log in at `https://sahajcloud-preview.<account>.workers.dev/admin`.
+
+### Reclone schedule + sanitization
+
+The `preview-reclone` workflow (`.github/workflows/preview-reclone.yml`) runs **weekly on Sundays at 04:00 UTC** and on `workflow_dispatch`. It:
+
+1. Exports prod D1 to a SQL dump via `wrangler d1 export sahajcloud --remote`.
+2. Runs `scripts/sanitize-preview-dump.ts` to strip INSERTs for these PII tables: `managers*`, `clients*`, `payload_preferences*`, `payload_locked_documents*`, `form_submissions*`, `payload_jobs*`. Schema (CREATE TABLE) statements are preserved.
+3. Drops all preview tables (dynamic — queries `sqlite_master` so the schema list never drifts).
+4. Imports the sanitized dump into preview D1.
+5. INSERTs a seeded admin row directly into the preview `managers` table via `wrangler d1 execute` (uses Payload's exact pbkdf2-sha256 hash params; no dependency on a running preview Worker, so the reclone works on the cron even when no PR's preview alias is live). Credentials match the documented dev creds in `CLAUDE.md`.
+
+Schema drift between reclones is tolerated: PR migrations land in preview via Workers Builds' pre-deploy migration step, smoke writes accumulate during the week, and the weekly reclone wipes everything clean. If a destructive PR migration lands and is later reverted, preview self-heals on the next reclone.
+
+**Reclone-vs-smoke race.** The reclone drops and re-imports every table. If a `smoke-preview` job is in flight when the Sunday-04:00-UTC reclone fires, the smoke job's records will be wiped mid-test and the test fails at its delete step. The failure mode is a transient CI red, not data corruption — re-running the PR's CI passes. Practical risk is near-zero given the timing, but if it ever becomes an issue, gate the reclone behind a check that no `smoke-preview` runs are active.
+
+### Smoke specs
+
+`pnpm test:smoke` runs the Playwright specs in `tests/e2e/*.e2e.spec.ts` against `PREVIEW_URL`. CI sets `PREVIEW_URL` to the per-PR alias and `SMOKE_RUN_ID` to `pr-<num>-<run_id>` so concurrent PR runs don't collide on the shared preview DB. Locally, set `PREVIEW_URL=http://localhost:3000` (or your dev port) and run `pnpm test:smoke` against a running dev server.
+
+### Verification checklist
+
+After the first reclone + a throwaway PR:
+
+- [ ] CF auto-posts a preview URL comment on the PR.
+- [ ] Visiting the preview URL → `/admin/login` works with the seeded credentials.
+- [ ] **File-protection test**: pick a cloned Meditation with audio. Note its `assets.sydevelopers.com/...` URL. Delete the Meditation in preview admin. Confirm:
+  - Prod admin still shows the Meditation.
+  - The prod CDN URL still serves the file.
+  - `wrangler r2 object get sahajcloud <key>` succeeds.
+  - Triggering a reclone restores the row in preview.
+- [ ] **Upload test**: create a new Meditation with a fresh audio upload in preview admin. Confirm the URL is `pub-<hash>.r2.dev/...` (preview bucket), not `assets.sydevelopers.com`.
+- [ ] **Concurrency test**: open two PRs simultaneously. Both `smoke-preview` runs use distinct `SMOKE_RUN_ID` prefixes and don't trample each other's records.
 
 ---
 

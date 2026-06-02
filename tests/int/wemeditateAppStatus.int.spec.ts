@@ -2,7 +2,6 @@ import type { BasePayload, Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { AppCard, Lesson, Manager, Page, UserChoice, WmAppStatus } from '@/payload-types'
 
 import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/wemeditate-app/config'
 import {
@@ -16,6 +15,7 @@ import {
   type WeMeditateAppStatusConfig,
 } from '@/globals/wemeditate-app/status'
 import { runSection, type ReadinessReport, type SectionSpec } from '@/lib/status'
+import type { AppCard, Lesson, Manager, Page, UserChoice, WmAppStatus } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -555,12 +555,12 @@ describe('WeMeditateAppStatus Global', () => {
       const launchField = configTab.fields.find(
         (f) => 'name' in f && f.name === 'launchCriticalAppCards',
       )!
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const updateAccess = (launchField as { access?: { update?: (...args: any[]) => any } }).access
         ?.update
       expect(typeof updateAccess).toBe('function')
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const result = await (updateAccess as any)({ req: regularManagerReq })
       expect(result).toBe(false)
     })

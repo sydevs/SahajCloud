@@ -78,6 +78,17 @@ export const getSubtleSystemNodeLabel = (slug: string | null | undefined): strin
   return option?.label || slug
 }
 
+export const getFrameDisplayLabel = (
+  frame: (Pick<Frame, 'label' | 'subtleSystemNode'> & { id: number | string }) | null | undefined,
+  fallbackIndex?: number,
+): string => {
+  if (!frame) return ''
+  if (frame.label) return frame.label
+  const slug = getFrameSubtleSystemNodeSlug(frame)
+  if (slug) return getSubtleSystemNodeLabel(slug)
+  return fallbackIndex !== undefined ? `Frame ${fallbackIndex + 1}` : `Frame ${frame.id}`
+}
+
 /**
  * Check if a frame is a video based on its mimeType
  */

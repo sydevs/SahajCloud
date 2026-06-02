@@ -15,8 +15,8 @@ export const SUBTLE_SYSTEM_NODE_OPTIONS = [
   { label: 'Agnya', value: 'agnya' },
   { label: 'Sahasrara', value: 'sahasrara' },
   { label: 'Kundalini', value: 'kundalini' },
-  { label: 'Left Channel', value: 'pingala' },
-  { label: 'Right Channel', value: 'ida' },
+  { label: 'Right Channel', value: 'pingala' },
+  { label: 'Left Channel', value: 'ida' },
   { label: 'Center Channel', value: 'sushumna' },
 ] as const
 

@@ -1,0 +1,64 @@
+name: Preview D1 Reclone
+
+on:
+  schedule:
+    # Sundays at 04:00 UTC — overnight in EU, well before Monday workday.
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+
+concurrency:
+  group: preview-reclone
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  reclone:
+    name: Reclone prod → preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Export prod D1
+        run: pnpm exec wrangler d1 export sahajcloud --remote --output=/tmp/prod-dump.sql
+
+      - name: Sanitize prod dump
+        run: pnpm tsx scripts/sanitize-preview-dump.ts /tmp/prod-dump.sql /tmp/preview-import.sql
+
+      - name: Drop preview tables (dynamic — no static schema file to drift)
+        run: |
+          set -euo pipefail
+          TABLES=$(pnpm exec wrangler d1 execute sahajcloud-preview --remote --env=preview --json \
+            --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'd1_%' AND name NOT LIKE '_cf_%';" \
+            | jq -r '.[0].results[]?.name // empty')
+          if [ -z "$TABLES" ]; then
+            echo "No tables to drop"
+            exit 0
+          fi
+          {
+            echo "PRAGMA foreign_keys = OFF;"
+            for t in $TABLES; do
+              echo "DROP TABLE IF EXISTS \"$t\";"
+            done
+            echo "PRAGMA foreign_keys = ON;"
+          } > /tmp/drop-tables.sql
+          pnpm exec wrangler d1 execute sahajcloud-preview --remote --env=preview --file=/tmp/drop-tables.sql
+
+      - name: Import sanitized dump into preview
+        run: pnpm exec wrangler d1 execute sahajcloud-preview --remote --env=preview --file=/tmp/preview-import.sql
+
+      - name: Seed preview admin directly via D1 API
+        run: node scripts/seed-preview-admin.mjs

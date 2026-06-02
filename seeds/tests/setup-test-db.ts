@@ -1,5 +1,5 @@
 #!/usr/bin/env tsx
-/* eslint-disable no-console */
+ 
 
 /**
  * Setup Test Database for Migration Scripts

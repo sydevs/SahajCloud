@@ -54,7 +54,7 @@ describe('Lectures Collection', () => {
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/123456789',
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
       } as any)
 
       expect(lecture.title).toBe('Auto-populated Title')
@@ -85,7 +85,7 @@ describe('Lectures Collection', () => {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/111111111',
           title: 'User Provided Title',
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
       } as any)
 
       // User-provided title takes precedence over the API title in the editor-
@@ -108,7 +108,7 @@ describe('Lectures Collection', () => {
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/222222222',
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
       } as any)
 
       // `thumbnail` stays null — the endpoint falls back to metadata.thumbnailUrl.
@@ -136,7 +136,7 @@ describe('Lectures Collection', () => {
         data: {
           nirmalVidyaVimeoUrl: 'https://vimeo.com/777777777',
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
       } as any)
 
       const metadata = lecture.metadata as LectureMetadata
@@ -158,7 +158,7 @@ describe('Lectures Collection', () => {
       const lecture = await payload.create({
         collection: 'lectures',
         data: { nirmalVidyaVimeoUrl: 'https://vimeo.com/333333333' },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
       } as any)
 
       expect((lecture.metadata as LectureMetadata).subtitles['pt-br']).toBe(
@@ -173,7 +173,7 @@ describe('Lectures Collection', () => {
           data: {
             nirmalVidyaVimeoUrl: 'https://youtube.com/watch?v=abc123',
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
         } as any),
       ).rejects.toThrow()
     })
@@ -192,7 +192,7 @@ describe('Lectures Collection', () => {
           data: {
             nirmalVidyaVimeoUrl: 'https://vimeo.com/404',
           },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
         } as any),
       ).rejects.toThrow()
     })
@@ -232,7 +232,7 @@ describe('Lectures Collection', () => {
       const lecture = await payload.create({
         collection: 'lectures',
         data: { nirmalVidyaVimeoUrl: 'https://vimeo.com/444444444' },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
       } as any)
 
       const en = await payload.findByID({
@@ -425,7 +425,7 @@ describe('Lectures Collection', () => {
       const uniqueId = `${Date.now()}${Math.floor(Math.random() * 1000)}`
       const lecture = await payload.create({
         collection: 'lectures',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         data: { nirmalVidyaVimeoUrl: `https://vimeo.com/${uniqueId}` } as any,
       })
       expect(lecture.type).toBe('full')
@@ -438,7 +438,7 @@ describe('Lectures Collection', () => {
       try {
         await payload.create({
           collection: 'lectures',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           data: { type: 'full', nirmalVidyaVimeoUrl: dupUrl } as any,
         })
         throw new Error('expected create to throw — duplicate URL should be rejected')
@@ -458,7 +458,7 @@ describe('Lectures Collection', () => {
       await expect(
         payload.create({
           collection: 'lectures',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           data: { type: 'clip' } as any,
         }),
       ).rejects.toThrow()
@@ -473,7 +473,7 @@ describe('Lectures Collection', () => {
 
       const clip = await payload.create({
         collection: 'lectures',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         data: { type: 'clip', nirmalVidyaVimeoUrl: parentUrl } as any,
       })
 
@@ -502,7 +502,7 @@ describe('Lectures Collection', () => {
       const newUrl = `https://vimeo.com/${Date.now()}999`
       const clip = await payload.create({
         collection: 'lectures',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         data: { type: 'clip', nirmalVidyaVimeoUrl: newUrl } as any,
       })
 
@@ -528,7 +528,7 @@ describe('Lectures Collection', () => {
       const parent = await testData.createLecture(payload)
       const clip = await payload.create({
         collection: 'lectures',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         data: { type: 'clip', fullLecture: parent.id } as any,
       })
       const parentId =
@@ -547,7 +547,7 @@ describe('Lectures Collection', () => {
 
       await payload.create({
         collection: 'lectures',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         data: { type: 'clip', fullLecture: parent.id } as any,
       })
 

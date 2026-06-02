@@ -2,6 +2,9 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { meditationLectures } from '@/endpoints/meditationLectures'
+import { recomputeWeightsForMeditation } from '@/hooks/meditationHooks'
+import type { LecturePlayerData } from '@/lib/lectureShape'
 import type {
   Audience,
   Client,
@@ -11,10 +14,6 @@ import type {
   SubtleSystemNode,
   UserChoice,
 } from '@/payload-types'
-
-import { meditationLectures } from '@/endpoints/meditationLectures'
-import { recomputeWeightsForMeditation } from '@/hooks/meditationHooks'
-import type { LecturePlayerData } from '@/lib/lectureShape'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -33,6 +32,8 @@ vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
   }
 })
 
+const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', active: true }
+
 // `audiences` is a required, non-empty comma-separated list of IDs. Tests
 // that don't exercise validation pass the resolved-audience ID through
 // `defaultAudiences`. Cases that want to omit it entirely set
@@ -44,7 +45,7 @@ async function callEndpoint(
   options: {
     skipDefaultAudiences?: boolean
     defaultAudiences?: string
-    user?: { id: number | string; collection: string }
+    user?: { id: number | string; collection: string; active?: boolean } | null
   } = {},
 ): Promise<{ status: number; headers: Headers; body: { docs: LecturePlayerData[] } | unknown }> {
   const finalQuery = options.skipDefaultAudiences
@@ -66,7 +67,7 @@ async function callEndpoint(
     // `{ en: '...' }` objects.
     locale: 'en',
     fallbackLocale: 'en',
-    user: options.user,
+    user: 'user' in options ? options.user : DEFAULT_CLIENT_USER,
   } as unknown as PayloadRequest
 
   const response = (await meditationLectures.handler(req)) as Response
@@ -264,9 +265,14 @@ describe('meditationLectures endpoint', () => {
   })
 
   it('returns lectures sorted by descending overlap weight', async () => {
-    const { status, body } = await callEndpoint(payload, meditation.id, { limit: 10 }, {
-      defaultAudiences: audienceFilter,
-    })
+    const { status, body } = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 10 },
+      {
+        defaultAudiences: audienceFilter,
+      },
+    )
     expect(status).toBe(200)
     const docs = (body as { docs: LecturePlayerData[] }).docs
 
@@ -287,12 +293,22 @@ describe('meditationLectures endpoint', () => {
   })
 
   it('is deterministic across repeated calls', async () => {
-    const a = await callEndpoint(payload, meditation.id, { limit: 10 }, {
-      defaultAudiences: audienceFilter,
-    })
-    const b = await callEndpoint(payload, meditation.id, { limit: 10 }, {
-      defaultAudiences: audienceFilter,
-    })
+    const a = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 10 },
+      {
+        defaultAudiences: audienceFilter,
+      },
+    )
+    const b = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 10 },
+      {
+        defaultAudiences: audienceFilter,
+      },
+    )
     expect((a.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)).toEqual(
       (b.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id),
     )
@@ -456,9 +472,14 @@ describe('meditationLectures endpoint', () => {
   })
 
   it('returns 404 for unknown meditation', async () => {
-    const { status, body } = await callEndpoint(payload, 999999, { limit: 10 }, {
-      defaultAudiences: audienceFilter,
-    })
+    const { status, body } = await callEndpoint(
+      payload,
+      999999,
+      { limit: 10 },
+      {
+        defaultAudiences: audienceFilter,
+      },
+    )
     expect(status).toBe(404)
     expect((body as { errors: Array<{ message: string }> }).errors[0].message).toContain(
       'Meditation not found',
@@ -500,6 +521,47 @@ describe('meditationLectures endpoint', () => {
     expect(status).toBe(400)
   })
 
+  describe('auth gate', () => {
+    it('rejects unauthenticated callers with 403', async () => {
+      const { status, body } = await callEndpoint(
+        payload,
+        meditation.id,
+        { limit: 10 },
+        { defaultAudiences: audienceFilter, user: null },
+      )
+      expect(status).toBe(403)
+      expect(body).toEqual({
+        errors: [{ message: 'You are not allowed to perform this action.' }],
+      })
+    })
+
+    it('rejects non-client users (managers) with 403', async () => {
+      const { status } = await callEndpoint(
+        payload,
+        meditation.id,
+        { limit: 10 },
+        {
+          defaultAudiences: audienceFilter,
+          user: { id: adminUserId, collection: 'managers', active: true },
+        },
+      )
+      expect(status).toBe(403)
+    })
+
+    it('rejects inactive clients with 403', async () => {
+      const { status } = await callEndpoint(
+        payload,
+        meditation.id,
+        { limit: 10 },
+        {
+          defaultAudiences: audienceFilter,
+          user: { id: 999, collection: 'clients', active: false },
+        },
+      )
+      expect(status).toBe(403)
+    })
+  })
+
   it('sets Cache-Control: public, max-age=600, s-maxage=600 on success', async () => {
     const { status, headers } = await callEndpoint(
       payload,
@@ -524,7 +586,7 @@ describe('meditationLectures endpoint', () => {
         { limit: 5 },
         {
           defaultAudiences: audienceFilter,
-          user: { id: client.id, collection: 'clients' },
+          user: { id: client.id, collection: 'clients', active: true },
         },
       )
       expect(status).toBe(200)
@@ -548,9 +610,14 @@ describe('meditationLectures endpoint', () => {
 
   it('treats unsorted/duplicated audiences as equivalent to the canonical sorted form', async () => {
     const messy = `${audience.id},${audience.id}`
-    const a = await callEndpoint(payload, meditation.id, { limit: 10 }, {
-      defaultAudiences: audienceFilter,
-    })
+    const a = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 10 },
+      {
+        defaultAudiences: audienceFilter,
+      },
+    )
     const b = await callEndpoint(payload, meditation.id, { audiences: messy, limit: 10 })
     expect(a.status).toBe(200)
     expect(b.status).toBe(200)
@@ -560,9 +627,14 @@ describe('meditationLectures endpoint', () => {
   })
 
   it('emits the flat LecturePlayerData shape', async () => {
-    const { body } = await callEndpoint(payload, meditation.id, { limit: 1 }, {
-      defaultAudiences: audienceFilter,
-    })
+    const { body } = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 1 },
+      {
+        defaultAudiences: audienceFilter,
+      },
+    )
     const docs = (body as { docs: LecturePlayerData[] }).docs
     expect(docs.length).toBe(1)
     const expectedKeys = [
@@ -598,9 +670,14 @@ describe('meditationLectures endpoint', () => {
     })) as Meditation
     expect(cleared.subtleSystemNodeWeights).toBeFalsy()
 
-    const { status, body } = await callEndpoint(payload, meditation.id, { limit: 5 }, {
-      defaultAudiences: audienceFilter,
-    })
+    const { status, body } = await callEndpoint(
+      payload,
+      meditation.id,
+      { limit: 5 },
+      {
+        defaultAudiences: audienceFilter,
+      },
+    )
     expect(status).toBe(200)
     const docs = (body as { docs: LecturePlayerData[] }).docs
     expect(docs.length).toBeGreaterThan(0)
@@ -635,11 +712,7 @@ describe('meditationLectures endpoint', () => {
 
     // Repoint frameA from mooladhara → kundalini. Cascade hook should
     // recompute weights on every meditation referencing frameA.
-    const nodeKundalini = await testData.createSubtleSystemNode(
-      payload,
-      {},
-      { slug: 'kundalini' },
-    )
+    const nodeKundalini = await testData.createSubtleSystemNode(payload, {}, { slug: 'kundalini' })
     await payload.update({
       collection: 'frames',
       id: frameA.id,
@@ -677,7 +750,11 @@ describe('meditationLectures endpoint', () => {
       parentForGating = await testData.createLecture(
         payload,
         {},
-        { title: 'Parent (gating eligible)', audiences: [audience.id], subtleSystemNodes: [nodeA.id] },
+        {
+          title: 'Parent (gating eligible)',
+          audiences: [audience.id],
+          subtleSystemNodes: [nodeA.id],
+        },
       )
       // Clip referencing eligible parent. Tagged with userChoice so the endpoint
       // includes it even at weight=0 (clips don't always inherit nodeA weight).
@@ -748,7 +825,11 @@ describe('meditationLectures endpoint', () => {
       const { body } = await callEndpoint(
         payload,
         meditation.id,
-        { audiences: `${audienceFilter},${separateAudienceId}`, limit: 100, userChoice: userChoice.id },
+        {
+          audiences: `${audienceFilter},${separateAudienceId}`,
+          limit: 100,
+          userChoice: userChoice.id,
+        },
         { skipDefaultAudiences: true },
       )
       const clip = (body as { docs: LecturePlayerData[] }).docs.find(

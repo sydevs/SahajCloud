@@ -2,9 +2,8 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { Audience, Client } from '@/payload-types'
-
 import { audiencesForUser } from '@/endpoints'
+import type { Audience, Client } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -17,12 +16,14 @@ const AUDIENCE_DEFAULTS = {
   country: 'US',
 }
 
+const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', active: true }
+
 async function callEndpoint(
   payload: Payload,
   query: Record<string, string | number | boolean>,
   options: {
     skipAudienceDefaults?: boolean
-    user?: { id: number | string; collection: string }
+    user?: { id: number | string; collection: string; active?: boolean } | null
   } = {},
 ): Promise<{ status: number; headers: Headers; body: { audiences?: number[]; errors?: unknown } }> {
   const finalQuery = options.skipAudienceDefaults ? query : { ...AUDIENCE_DEFAULTS, ...query }
@@ -31,7 +32,7 @@ async function callEndpoint(
     query: finalQuery,
     headers: new Headers(),
     routeParams: {},
-    user: options.user,
+    user: 'user' in options ? options.user : DEFAULT_CLIENT_USER,
   } as unknown as PayloadRequest
 
   const response = (await audiencesForUser.handler(req)) as Response
@@ -88,6 +89,34 @@ describe('audiencesForUser endpoint', () => {
     expect(body).toHaveProperty('errors')
   })
 
+  describe('auth gate', () => {
+    it('rejects unauthenticated callers with 403', async () => {
+      const { status, body } = await callEndpoint(payload, {}, { user: null })
+      expect(status).toBe(403)
+      expect(body).toEqual({
+        errors: [{ message: 'You are not allowed to perform this action.' }],
+      })
+    })
+
+    it('rejects non-client users (managers) with 403', async () => {
+      const { status } = await callEndpoint(
+        payload,
+        {},
+        { user: { id: adminUserId, collection: 'managers', active: true } },
+      )
+      expect(status).toBe(403)
+    })
+
+    it('rejects inactive clients with 403', async () => {
+      const { status } = await callEndpoint(
+        payload,
+        {},
+        { user: { id: 999, collection: 'clients', active: false } },
+      )
+      expect(status).toBe(403)
+    })
+  })
+
   it('returns progress audience IDs matching the supplied data', async () => {
     const { status, body } = await callEndpoint(payload, { pathProgress: 3 })
     expect(status).toBe(200)
@@ -127,9 +156,13 @@ describe('audiencesForUser endpoint', () => {
 
     const findSpy = vi.spyOn(payload, 'find')
     try {
-      const { status } = await callEndpoint(payload, { pathProgress: 0 }, {
-        user: { id: client.id, collection: 'clients' },
-      })
+      const { status } = await callEndpoint(
+        payload,
+        { pathProgress: 0 },
+        {
+          user: { id: client.id, collection: 'clients', active: true },
+        },
+      )
       expect(status).toBe(200)
 
       const audienceCall = findSpy.mock.calls.find(
