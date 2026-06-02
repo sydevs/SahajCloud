@@ -42,7 +42,7 @@ Use the dev-server skill for a shared dev server across Claude sessions:
 - `.claude/skills/dev-server/dev-server.sh` — start + tail logs (default)
 - `.claude/skills/dev-server/dev-server.sh status|restart|stop`
 
-The skill ensures a single shared instance, preventing port conflicts. Default port 3000; override with `PORT=4000 .claude/skills/dev-server/dev-server.sh`. `SAHAJCLOUD_URL` is derived from `PORT` via `src/lib/serverUrl.ts`.
+The skill ensures a single shared instance, preventing port conflicts. Default port 3000; override with `PORT=4000 .claude/skills/dev-server/dev-server.sh`. `SAHAJCLOUD_URL` is derived from `PORT` via `src/lib/utilities/serverUrl.ts`.
 
 Manual fallback: `pnpm dev` (start), `pnpm devsafe` (clean dev — removes `.next`), `pnpm build`, `pnpm start`.
 
@@ -72,14 +72,14 @@ After changes: lint and fix all TypeScript errors. Run `pnpm generate:types` aft
 
 macOS is case-insensitive but TypeScript/Webpack builds are case-sensitive. Always verify exact file casing when importing.
 
-| Directory          | Convention | Examples                               |
-| ------------------ | ---------- | -------------------------------------- |
-| `src/collections/` | PascalCase | `Managers.ts`, `Pages.ts`              |
-| `src/fields/`      | camelCase  | `permissionsField.ts`, `slugField.ts`  |
-| `src/lib/`         | camelCase  | `accessControl.ts`, `serverUrl.ts`     |
-| `src/components/`  | PascalCase | `Dashboard.tsx`, `ProjectSelector.tsx` |
-| `src/types/`       | camelCase  | `roles.ts`, `users.ts`                 |
-| `src/blocks/`      | PascalCase | `TextBoxBlock.ts`, `GalleryBlock.ts`   |
+| Directory                    | Convention | Examples                               |
+| ---------------------------- | ---------- | -------------------------------------- |
+| `src/collections/`           | PascalCase | `Managers.ts`, `Pages.ts`              |
+| `src/fields/`                | camelCase  | `permissionsField.ts`, `slugField.ts`  |
+| `src/lib/`                   | camelCase  | `accessControl.ts`, `serverUrl.ts`     |
+| `src/components/`            | PascalCase | `Dashboard.tsx`, `ProjectSelector.tsx` |
+| `src/types/`                 | camelCase  | `roles.ts`, `users.ts`                 |
+| `src/lib/richEditor/blocks/` | PascalCase | `TextBoxBlock.ts`, `GalleryBlock.ts`   |
 
 Type organization: see `.claude/rules/types.md` (auto-loaded for TypeScript files).
 
@@ -90,7 +90,7 @@ Type organization: see `.claude/rules/types.md` (auto-loaded for TypeScript file
 - **Basic** (`basicRichTextEditor`): Bold, Italic, Link, InlineToolbar
 - **Full** (`fullRichTextEditor`): Basic + Lists, Blockquote, Headings, Relationships, Blocks
 
-Configuration: `src/lib/richEditor.ts`.
+Configuration: `src/lib/richEditor/index.ts`.
 
 ### Key Configuration Files
 
@@ -155,4 +155,4 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive documentation.
 
 ## Project Structure
 
-Standard Next.js + Payload layout under `src/` (collections, components, globals, lib, types, blocks, fields, app routes, migrations). Tests live under `tests/{int,e2e,utils}/`. Path-scoped rules in `.claude/rules/` document the subsystems Claude is editing.
+Standard Next.js + Payload layout under `src/` (plugins, collections, components, globals, jobs, lib, types, fields, app routes, migrations). Tests live under `tests/{int,e2e,utils}/`. Path-scoped rules in `.claude/rules/` document the subsystems Claude is editing — see **`.claude/rules/project-structure.md`** for the `src/` layout and the rules governing where new code belongs (`plugins/` vs `jobs/` vs `lib/` vs an owner's folder).

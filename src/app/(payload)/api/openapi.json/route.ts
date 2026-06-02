@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
 
     // Inject custom endpoint paths + schemas before filtering so project-based
     // visibility in filterSpec applies them automatically by collection slug.
-    // See src/lib/openapi/customEndpoints.ts for the shape rationale.
+    // See src/plugins/openapi/customEndpoints.ts for the shape rationale.
     rawSpec.paths = { ...(rawSpec.paths ?? {}), ...CUSTOM_ENDPOINT_PATHS }
     rawSpec.components ??= {}
     rawSpec.components.schemas = {

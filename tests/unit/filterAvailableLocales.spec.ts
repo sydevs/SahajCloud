@@ -9,8 +9,8 @@ import type { PayloadRequest } from 'payload'
 
 import { describe, it, expect } from 'vitest'
 
-import { filterAvailableLocales } from '../../src/plugins/access'
 import { buildPayloadLocales } from '../../src/lib/locales'
+import { filterAvailableLocales } from '../../src/plugins/access'
 import { testData } from '../utils/testData'
 
 // Build locales once for all tests

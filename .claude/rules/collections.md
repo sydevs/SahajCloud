@@ -16,7 +16,7 @@ access automatically. Collections **do not** need manual `access` config.
 
 ```typescript
 // src/payload.config.ts (already wired up)
-import { accessPlugin, bypassPermissions } from '@/lib/access'
+import { accessPlugin, bypassPermissions } from '@/plugins/access'
 
 plugins: [accessPlugin({ enabled: true, bypassPermissions })]
 ```
@@ -24,7 +24,7 @@ plugins: [accessPlugin({ enabled: true, bypassPermissions })]
 For custom logic outside collections, use `hasPermission`:
 
 ```typescript
-import { hasPermission } from '@/lib/access'
+import { hasPermission } from '@/plugins/access'
 
 const canUpdate = hasPermission({
   user,
@@ -47,7 +47,7 @@ Behaviors worth knowing:
 - **Client roles apply uniformly across all locales.**
 
 Full RBAC details: see `.claude/rules/access.md` (loads when editing
-`src/lib/access/`).
+`src/plugins/access/`).
 
 ## Field factory naming
 
@@ -177,7 +177,7 @@ slugField({
 ## Localization (16 locales)
 
 Configured in `src/payload.config.ts` via `buildPayloadLocales()` from
-`src/lib/locales.ts`. Default locale: `en`. Fallback enabled — non-English
+`src/lib/locales/index.ts`. Default locale: `en`. Fallback enabled — non-English
 locales fall back to English. Farsi (`fa`) has `rtl: true`. Locale labels
 come from the `iso-639-1` package with overrides for `pt-br` (Brazilian
 Portuguese) and `fa` (Farsi/Persian).
@@ -187,7 +187,7 @@ Supported: `en`, `es`, `de`, `it`, `fr`, `ru`, `ro`, `cs`, `uk`, `el`,
 
 ### Admin locale filtering (`filterAvailableLocales`)
 
-`src/lib/access/filterAvailableLocales.ts` controls which locales appear
+`src/plugins/access/filterAvailableLocales.ts` controls which locales appear
 in the admin locale selector:
 
 | User | Locales shown |
@@ -248,7 +248,7 @@ Per-locale publishing via `publishSpecificLocale` API option (tracks
 Live preview integrates with the We Meditate Web frontend
 (`WEMEDITATE_WEB_URL` env var).
 
-### Page blocks (`src/blocks/`)
+### Page blocks (`src/lib/richEditor/blocks/`)
 
 | Block | Notes |
 |---|---|
@@ -342,7 +342,7 @@ For text files use `Buffer.from(content, 'utf-8')`. For binary files,
 
 To find every field that references a particular collection (e.g. all
 fields pointing at `files` or `images`), use the helpers in
-`src/lib/schemaUtils.ts` instead of hardcoding collection/field knowledge.
+`src/jobs/CleanupOrphanedMedia/schemaUtils.ts` instead of hardcoding collection/field knowledge.
 
 ```typescript
 import {
@@ -350,7 +350,7 @@ import {
   extractIdsFromDocument,
   extractIdsFromLexicalContent,
   groupByCollection,
-} from '@/lib/schemaUtils'
+} from '@/jobs/CleanupOrphanedMedia/schemaUtils'
 
 const fileRefs = discoverReferencesForCollection(payload, 'files')
 // [{ collection: 'lessons', fieldPath: 'introAudio', fieldType: 'upload', ... },

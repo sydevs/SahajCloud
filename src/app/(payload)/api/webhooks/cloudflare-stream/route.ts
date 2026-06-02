@@ -11,7 +11,7 @@
  * is not set. See `.claude/rules/storage.md`.
  *
  * The actual verification and processing logic lives in
- * `src/lib/storage/cloudflareStreamWebhook.ts` (pure, testable). This file is
+ * `src/plugins/storage/cloudflareStreamWebhook.ts` (pure, testable). This file is
  * just a Next.js route handler wrapper.
  *
  * @see https://developers.cloudflare.com/stream/manage-video-library/using-webhooks/
