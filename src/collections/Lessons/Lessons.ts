@@ -1,10 +1,10 @@
 import type { CollectionConfig } from 'payload'
 
-import { QuoteBlock } from '@/blocks'
 import { mediaField } from '@/fields'
 import { removeDanglingLexicalReferencesAfterRead } from '@/hooks/lexicalHooks'
 import { fullRichTextEditor } from '@/lib/richEditor'
-import { subtitlesJsonSchema, validateSubtitles } from '@/lib/subtitles'
+import { QuoteBlock } from '@/lib/richEditor/blocks'
+import { subtitlesJsonSchema, validateSubtitles } from '@/lib/utilities/subtitles'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',

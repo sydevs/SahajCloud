@@ -9,7 +9,7 @@
  * @example
  * ```tsx
  * 'use client'
- * import { clientLogger } from '@/lib/clientLogger'
+ * import { clientLogger } from '@/lib/logger/clientLogger'
  *
  * clientLogger.error('Upload failed', error, { component: 'FileUploader' })
  * ```

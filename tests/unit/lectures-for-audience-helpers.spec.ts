@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { mergeSubtitles, resolveThumbnailUrl } from '@/lib/lectureShape'
+import { mergeSubtitles, resolveThumbnailUrl } from '@/lib/lectures/lectureShape'
 
 describe('mergeSubtitles', () => {
   it('returns the base map unchanged when there are no overrides', () => {

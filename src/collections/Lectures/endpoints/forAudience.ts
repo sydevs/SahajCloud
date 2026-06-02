@@ -3,7 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
-import { shapeLecture, type LecturePlayerData } from '@/lib/lectureShape'
+import { shapeLecture, type LecturePlayerData } from '@/lib/lectures/lectureShape'
 import type { Lecture } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 

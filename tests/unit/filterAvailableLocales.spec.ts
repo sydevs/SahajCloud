@@ -9,7 +9,7 @@ import type { PayloadRequest } from 'payload'
 
 import { describe, it, expect } from 'vitest'
 
-import { filterAvailableLocales } from '../../src/lib/access'
+import { filterAvailableLocales } from '../../src/plugins/access'
 import { buildPayloadLocales } from '../../src/lib/locales'
 import { testData } from '../utils/testData'
 

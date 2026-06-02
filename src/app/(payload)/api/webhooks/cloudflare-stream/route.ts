@@ -21,7 +21,7 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
 import { serverEnv } from '@/lib/env'
-import { createWorkerSafeLogger } from '@/lib/workerSafeLogger'
+import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
 import type { WebhookLogger } from '@/plugins/storage/cloudflareStreamWebhook'
 import { handleStreamWebhook } from '@/plugins/storage/cloudflareStreamWebhook'
 

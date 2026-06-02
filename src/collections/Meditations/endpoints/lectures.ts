@@ -3,7 +3,7 @@ import type { Endpoint, Where } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
-import { shapeLecture, type LecturePlayerData } from '@/lib/lectureShape'
+import { shapeLecture, type LecturePlayerData } from '@/lib/lectures/lectureShape'
 import { recomputeWeightsForMeditation } from '@/lib/meditations/nodeWeights'
 import type { Lecture, Meditation, SubtleSystemNode, UserChoice } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'

@@ -2,7 +2,7 @@ import type { Config, Endpoint, PayloadRequest } from 'payload'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { openapiEndpointAuth } from '../../src/lib/openapi/endpointAuthPlugin'
+import { openapiEndpointAuth } from '../../src/plugins/openapi/endpointAuthPlugin'
 
 const PASSWORD = 'correcthorsebatterystaple'
 const originalDocsPassword = process.env.DOCS_PASSWORD

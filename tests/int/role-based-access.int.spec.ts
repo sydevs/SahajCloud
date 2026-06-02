@@ -12,8 +12,8 @@ import { createTestEnvironment } from '../utils/testHelpers'
 
 const SAMPLE_FILES_DIR = path.join(__dirname, '../files')
 
-vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/nirmalaVidyaApi')>()
+vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/lectures/nirmalaVidyaApi')>()
   return {
     extractVimeoId: vi.fn(original.extractVimeoId),
     fetchNirmalaVidyaVideo: vi.fn().mockResolvedValue({

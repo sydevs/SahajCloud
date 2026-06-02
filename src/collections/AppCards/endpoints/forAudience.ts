@@ -3,7 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
-import { weightedSample } from '@/lib/weightedSample'
+import { weightedSample } from '@/lib/utilities/weightedSample'
 import type { AppCard } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
