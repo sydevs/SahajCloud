@@ -2,8 +2,8 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { LectureMetadata } from '@/hooks/lectureHooks'
 import { SyncLectureMetadata } from '@/jobs/SyncLectureMetadata'
+import type { LectureMetadata } from '@/lib/nirmalaVidya'
 import type { Lecture } from '@/payload-types'
 
 import { testData } from '../utils/testData'

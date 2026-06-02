@@ -2,9 +2,9 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { meditationLectures } from '@/endpoints/meditationLectures'
-import { recomputeWeightsForMeditation } from '@/hooks/meditationHooks'
+import { meditationLectures } from '@/collections/Meditations/endpoints/lectures'
 import type { LecturePlayerData } from '@/lib/lectureShape'
+import { recomputeWeightsForMeditation } from '@/lib/meditations/nodeWeights'
 import type {
   Audience,
   Client,
