@@ -44,7 +44,7 @@ Walk through the changed files. Identify:
 - **Schema changes** — anything in `src/collections/`, `src/fields/`, `src/blocks/`, `src/globals/`, `src/payload.config.ts`
 - **New migrations** — files in `src/migrations/`
 - **New tests** — files in `tests/`
-- **Auth / access changes** — files in `src/lib/access/`, `src/collections/access/`, `src/lib/usage/`
+- **Auth / access changes** — files in `src/lib/access/`, `src/collections/{Clients,Managers}/`, `src/lib/usage/`
 
 This survey determines which checks to apply and whether to dispatch to specialized subagents.
 
