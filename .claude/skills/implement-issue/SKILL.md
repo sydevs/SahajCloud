@@ -9,7 +9,7 @@ allowed-tools: Bash(*), Read, Edit, Write, Grep, Glob
 
 # Implement Issue
 
-End-to-end implementation of a GitHub issue: read → plan → branch → implement → test → PR.
+End-to-end implementation of a GitHub issue: read → plan → branch → implement → test → simplify → PR → verify CI.
 
 ## Invocation
 
@@ -148,13 +148,26 @@ If anything fails (locally or in CI):
 - Re-run validation
 - Do NOT mark the PR ready while CI is red
 
-### 9. Push the branch
+### 9. Simplify the diff
+
+Before pushing, run the `/simplify` slash command against the **entire diff of the branch** (every commit since it diverged from `main`, not just the last commit). This is a quality pass for reuse, simplification, efficiency, and altitude cleanups — it does not hunt for bugs (that's the validation gate's job).
+
+- Invoke `/simplify` and let it review and apply fixes to the working tree.
+- Review the applied changes. If any are undesirable, revert them.
+- If `/simplify` changed anything, **re-run the lean validation gate** (step 8) to confirm nothing broke, then commit the cleanups:
+  ```bash
+  git add <files>
+  git commit -m "refactor: simplify per /simplify pass"
+  ```
+- If `/simplify` made no changes, proceed straight to push.
+
+### 10. Push the branch
 
 ```bash
 git push -u origin <branch>
 ```
 
-### 10. Open the PR
+### 11. Open the PR
 
 Write the body to `/tmp/pr-body.md` (preserves markdown), then:
 
@@ -167,9 +180,55 @@ gh pr create \
 
 See `pr-template.md` for the body format.
 
-### 11. Report
+### 12. Wait for CI and verify the checks pass
 
-Output the PR URL to the user. Note any unchecked acceptance criteria the user should verify manually (e.g., UI screenshots, manual repro of edge cases).
+After the PR is open, **wait for the CI checks to resolve** — do not report the PR as ready while they're still pending or red. CI runs the two jobs in `.github/workflows/ci.yml` (**Lint & Test** and **Cloudflare Build**).
+
+Watch the run to completion:
+
+```bash
+gh pr checks <pr-number-or-branch> --watch
+```
+
+Then confirm the final state:
+
+```bash
+gh pr checks <pr-number-or-branch>
+```
+
+- **All checks green** → proceed to report.
+- **A check is red** → fetch the failing job's logs, diagnose, and fix:
+
+  ```bash
+  gh run view <run-id> --log-failed
+  ```
+
+  - Fix the failure locally, re-running the relevant part of the lean gate (step 8) to confirm.
+  - Commit the fix as a separate commit and push.
+  - Re-run `gh pr checks <…> --watch` and repeat until green.
+
+- If a failure is **pre-existing on `main`** (not caused by your change), follow the pre-existing-failure handling in `.claude/skills/pr-prep/SKILL.md` — fix it in this PR and note it in the report.
+
+Do NOT mark the PR ready while CI is red.
+
+#### If the `Cloudflare Build` job fails
+
+The CI has two jobs (`.github/workflows/ci.yml`): **Lint & Test** and **Cloudflare Build**. The Cloudflare Build job runs the OpenNext + Wrangler dry-run deploy (`wrangler types` → `wrangler deploy src/worker.ts … --dry-run`), so its failures are usually build/bundling or env-validation errors rather than test failures. Don't waste tokens hunting for the right log path — go straight to that job by name:
+
+```bash
+# Failed steps of just the Cloudflare Build job for a run:
+gh run view <run-id> --log-failed --job "Cloudflare Build"
+
+# Or resolve the job id first, then view its full log:
+gh run view <run-id> --json jobs --jq '.jobs[] | select(.name=="Cloudflare Build") | {id, conclusion, url}'
+gh run view --job <job-id> --log
+```
+
+To reproduce locally, run the same dry-run build CI uses (the job's `Package Worker` step): `validate.sh --full` includes it, or run the Cloudflare build directly per `.claude/skills/pr-prep/SKILL.md`. The job sets dummy env values (`PAYLOAD_SECRET`, `WEMEDITATE_WEB_URL`, etc.) so `serverEnv` zod validation passes at build time — a local repro needs those too.
+
+### 13. Report
+
+Output the PR URL to the user and confirm CI is green. Note any unchecked acceptance criteria the user should verify manually (e.g., UI screenshots, manual repro of edge cases).
 
 ## Hard rules
 
@@ -178,9 +237,12 @@ Output the PR URL to the user. Note any unchecked acceptance criteria the user s
 - **Never** auto-run `pnpm db:migrations:create` — ask the user
 - **Never** commit secrets / `.env` / credentials
 - **Never** mark a PR ready while CI is red
+- **Never** report the PR as ready before CI checks have resolved green
 - **Always** create commits incrementally; never one monolithic commit at the end
 - **Always** use `--body-file` for PR creation (preserves markdown)
 - **Always** run the lean local gate before opening the PR; CI runs the full suite + Cloudflare build
+- **Always** run `/simplify` over the full branch diff before pushing
+- **Always** wait for CI to finish and verify it passed after pushing — resolve any failures before reporting
 
 ## Edge cases
 

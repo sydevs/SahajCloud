@@ -152,7 +152,7 @@ const tabAggregateGroups: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = tabEntri
             checks: [{ key: 'is-populated', passed: isPopulated(translations, lookup) }],
           }
         })
-        return { actual: 0, items }
+        return { items }
       },
     }
   },

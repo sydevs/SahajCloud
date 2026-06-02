@@ -119,7 +119,6 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       threshold: NON_FEATURED_THRESHOLD,
       rowDisplay: 'summarize-excess',
       evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
-        actual: 0,
         items: itemsForTiming(nonFeaturedMoodOrGoal, 'morning', locale),
       }),
     },
@@ -132,7 +131,6 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       threshold: NON_FEATURED_THRESHOLD,
       rowDisplay: 'summarize-excess',
       evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
-        actual: 0,
         items: itemsForTiming(nonFeaturedMoodOrGoal, 'afternoon', locale),
       }),
     },
@@ -145,7 +143,6 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       threshold: NON_FEATURED_THRESHOLD,
       rowDisplay: 'summarize-excess',
       evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
-        actual: 0,
         items: itemsForTiming(nonFeaturedMoodOrGoal, 'evening', locale),
       }),
     },
@@ -158,7 +155,6 @@ export const userChoicesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       threshold: NON_FEATURED_THRESHOLD,
       rowDisplay: 'summarize-excess',
       evaluate: async ({ nonFeaturedMoodOrGoal }, { locale }) => ({
-        actual: 0,
         items: itemsForTiming(nonFeaturedMoodOrGoal, 'night', locale),
       }),
     },

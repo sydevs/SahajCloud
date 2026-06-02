@@ -61,6 +61,7 @@ function GroupHeader({
   return (
     <div
       role="button"
+      aria-expanded={showDetails}
       tabIndex={0}
       style={{
         ...headerWrapStyle,
@@ -138,25 +139,19 @@ function GroupHeader({
                 )}
               </span>
             ) : null}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onToggle()
-              }}
+            {/* The whole header is the toggle (role="button" + aria-expanded);
+                this is a visual affordance only, hidden from assistive tech. */}
+            <span
+              aria-hidden="true"
               style={{
-                padding: 0,
-                border: 'none',
-                background: 'none',
                 color: 'var(--theme-elevation-600)',
-                cursor: 'pointer',
                 fontSize: 'calc(var(--base-body-size) * 0.9px)',
                 textDecoration: 'underline',
                 textUnderlineOffset: '2px',
               }}
             >
               {showDetails ? 'Hide details' : 'Show details'}
-            </button>
+            </span>
           </div>
         </div>
       </div>

@@ -48,7 +48,7 @@ export async function runSection<TConfig, TSectionCtx>(
     spec.groups.map(async (group) => {
       if (group.type === 'aggregate') {
         const result = await group.evaluate(sectionCtx, req)
-        let actual = result.actual
+        let actual = result.actual ?? 0
         if (result.items) {
           for (const item of result.items) {
             for (const check of item.checks) {

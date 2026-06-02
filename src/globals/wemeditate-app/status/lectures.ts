@@ -160,7 +160,7 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
             },
           ],
         }))
-        return { actual: 0, items }
+        return { items }
       },
     },
     {
@@ -183,7 +183,7 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
             },
           ],
         }))
-        return { actual: 0, items }
+        return { items }
       },
     },
     {

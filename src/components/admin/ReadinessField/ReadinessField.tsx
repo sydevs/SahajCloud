@@ -21,7 +21,15 @@ import {
   headerTitleStyle,
   headerWrapStyle,
   sectionCardStyle,
+  tutorialButtonStyle,
 } from './styles'
+
+/** Filled play triangle for the "Watch tutorial" button. */
+const PlayIcon: React.FC = () => (
+  <svg aria-hidden="true" height="10" viewBox="0 0 10 10" width="10">
+    <path d="M2 1.5L8.5 5L2 8.5Z" fill="currentColor" />
+  </svg>
+)
 
 export type ReadinessFieldCustom = ReadinessFieldAdminCustom
 
@@ -123,10 +131,11 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
                     <a
                       href={sectionMetadata.tutorialLink}
                       rel="noopener noreferrer"
-                      style={headerLinkStyle}
+                      style={tutorialButtonStyle}
                       target="_blank"
                       onClick={(e) => e.stopPropagation()}
                     >
+                      <PlayIcon />
                       Watch tutorial
                     </a>
                   ) : null}

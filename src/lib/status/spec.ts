@@ -44,8 +44,12 @@ export interface DocumentsGroupSpec<TSectionCtx, TConfig> extends BaseGroupSpec 
 }
 
 export interface AggregateEvaluateResult {
-  /** Used when `items` is absent. Ignored (recomputed) when `items` is present. */
-  actual: number
+  /**
+   * The passing count, compared against `threshold`. Required when `items` is
+   * absent; omit it when `items` is present (the runner recomputes `actual`
+   * from the items that pass every check).
+   */
+  actual?: number
   items?: Array<{ id: string | number; label: string; checks: CheckResult[] }>
 }
 

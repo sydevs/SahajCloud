@@ -69,6 +69,28 @@ export const headerLinkStyle: CSSProperties = {
   color: 'var(--theme-elevation-700)',
 }
 
+/**
+ * Prominent pill-button for the section's "Watch tutorial" action — filled
+ * with the high-elevation color so it reads as the primary affordance in the
+ * header, distinct from the subtle underlined "Edit configuration" link.
+ */
+export const tutorialButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 'calc(var(--base) * 0.25)',
+  padding: 'calc(var(--base) * 0.2) calc(var(--base) * 0.5)',
+  fontSize: 'calc(var(--base-body-size) * 0.9px)',
+  fontWeight: 600,
+  lineHeight: 1.4,
+  color: 'var(--theme-elevation-0)',
+  background: 'var(--theme-elevation-800)',
+  border: '1px solid var(--theme-elevation-800)',
+  borderRadius: 'var(--style-radius-s)',
+  textDecoration: 'none',
+  whiteSpace: 'nowrap',
+  cursor: 'pointer',
+}
+
 export const groupDescriptionStyle: CSSProperties = {
   color: 'var(--theme-elevation-500)',
   fontSize: 'calc(var(--base-body-size) * 0.9px)',
