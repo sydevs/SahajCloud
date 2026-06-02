@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
 import { useProject } from '@/contexts/ProjectContext'
-import { getProjectOptions, getProjectsFromRoles } from '@/lib/access'
-import { clientLogger } from '@/lib/clientLogger'
+import { clientLogger } from '@/lib/logger/clientLogger'
 import type { ProjectSlug } from '@/payload-types'
+import { getProjectOptions, getProjectsFromRoles } from '@/plugins/access'
 
 // Define Option type for ReactSelect
 interface SelectOption {

@@ -1,6 +1,6 @@
 ---
 paths:
-  - src/lib/openapi/**/*.ts
+  - src/plugins/openapi/**/*.ts
   - src/app/(payload)/api/openapi.json/**/*.ts
 ---
 
@@ -12,7 +12,7 @@ for spec generation with a custom Scalar plugin for the UI.
 ## Module layout
 
 ```
-src/lib/openapi/
+src/plugins/openapi/
 ├── index.ts                       # barrel export
 ├── scalarPlugin.ts                # custom Scalar plugin with branding + project selector
 ├── specFilter.ts                  # filtering + post-merge parameter injection
@@ -35,7 +35,7 @@ src/lib/openapi/
 
 ```typescript
 import { openapi } from 'payload-oapi'
-import { scalarPlugin } from '@/lib/openapi'
+import { scalarPlugin } from '@/plugins/openapi'
 
 plugins: [
   openapi({
@@ -74,7 +74,7 @@ import {
   ALLOW_POST_FOR,
   type FilterOptions,
   type OpenAPISpec,
-} from '@/lib/openapi/specFilter'
+} from '@/plugins/openapi/specFilter'
 
 filterSpec(rawSpec) // union of all client collections
 filterSpec(rawSpec, { project: 'wemeditate-web' }) // single project
@@ -98,12 +98,12 @@ filterSpec(rawSpec, { project: 'wemeditate-web' }) // single project
 **Project-based filtering** — when a project is specified, only its
 collections are shown; otherwise the union of all client-role collections
 is shown. Uses `getProjectCollections()` and `getRoleOptions()` from
-`@/lib/access` (not duplicate helpers).
+`@/plugins/access` (not duplicate helpers).
 
 ## Route handler (`src/app/(payload)/api/openapi.json/route.ts`)
 
 1. Parse `?project=` query param.
-2. Validate project via `isValidProject()` from `@/lib/access`.
+2. Validate project via `isValidProject()` from `@/plugins/access`.
 3. Generate spec via `payload-oapi` internals (avoids self-referential fetch).
 4. Merge in `customEndpoints.ts` entries.
 5. Apply `filterSpec()` with project filtering.

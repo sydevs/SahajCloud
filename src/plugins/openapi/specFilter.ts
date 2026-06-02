@@ -14,9 +14,9 @@
 
 import type { CollectionSlug } from 'payload'
 
-import { getAllProjectCollections, getProjectCollections } from '@/lib/access'
-import type { ContentSlug } from '@/lib/access/types'
 import type { ProjectSlug } from '@/payload-types'
+import { getAllProjectCollections, getProjectCollections } from '@/plugins/access'
+import type { ContentSlug } from '@/plugins/access/types'
 
 import {
   CLIENT_READ_PARAMETERS,

@@ -2,9 +2,9 @@ import type { CollectionBeforeChangeHook } from 'payload'
 
 import { ValidationError } from 'payload'
 
-import { buildLectureMetadata } from '@/lib/nirmalaVidya'
-import type { NirmalaVidyaVideoData } from '@/lib/nirmalaVidyaApi'
-import { extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/nirmalaVidyaApi'
+import { buildLectureMetadata } from '@/lib/lectures/nirmalaVidya'
+import type { NirmalaVidyaVideoData } from '@/lib/lectures/nirmalaVidyaApi'
+import { extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/lectures/nirmalaVidyaApi'
 
 /**
  * beforeChange hook — create-only, runs only for `type === 'full'`. Fetches

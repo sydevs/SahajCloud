@@ -52,7 +52,7 @@ See [feedback_d1_pragma_foreign_keys](file:///Users/devindra/.claude/projects/-U
 
 **Where to look:**
 
-- `src/lib/storage/` — adapter routing logic
+- `src/plugins/storage/` — adapter routing logic
 - `src/collections/Files.ts`, `src/collections/Frames.ts` — mixed-media collections
 
 **Common causes:**
@@ -69,7 +69,7 @@ See [feedback_d1_pragma_foreign_keys](file:///Users/devindra/.claude/projects/-U
 **Where to look:**
 
 - `src/app/(payload)/api/webhooks/cloudflare-stream/route.ts` — webhook handler
-- `src/lib/storage/cloudflareStreamAdapter.ts` (or similar)
+- `src/plugins/storage/cloudflareStreamAdapter.ts` (or similar)
 
 **Common causes:**
 

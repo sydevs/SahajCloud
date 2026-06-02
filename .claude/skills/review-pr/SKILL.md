@@ -41,10 +41,10 @@ The issue defines what "done" looks like — read it before judging the PR.
 Walk through the changed files. Identify:
 
 - **Touched subsystems** — collections / access / API / admin UI / migrations / storage / etc.
-- **Schema changes** — anything in `src/collections/`, `src/fields/`, `src/blocks/`, `src/globals/`, `src/payload.config.ts`
+- **Schema changes** — anything in `src/collections/`, `src/fields/`, `src/lib/richEditor/blocks/`, `src/globals/`, `src/payload.config.ts`
 - **New migrations** — files in `src/migrations/`
 - **New tests** — files in `tests/`
-- **Auth / access changes** — files in `src/lib/access/`, `src/collections/{Clients,Managers}/`, `src/lib/usage/`
+- **Auth / access changes** — files in `src/plugins/access/`, `src/collections/{Clients,Managers}/`, `src/plugins/usage/`
 
 This survey determines which checks to apply and whether to dispatch to specialized subagents.
 
@@ -86,7 +86,7 @@ For each file, check:
 | `payload-types.ts` | Schema changed but types not regenerated → TS drift                                                        |
 | `importMap.js`     | New admin component added but not in import map                                                            |
 | Locale handling    | New field added but not wired up in all required locales                                                   |
-| API clients        | Missing `select` / `populate` in REST queries (see `src/lib/usage/hooks.ts:validateClientQueryParamsHook`) |
+| API clients        | Missing `select` / `populate` in REST queries (see `src/plugins/usage/hooks.ts:validateClientQueryParamsHook`) |
 | Cloudflare Workers | Binding referenced but not declared in `wrangler.toml`                                                     |
 | Tests              | Mocking the database in integration tests (see [feedback_no_core_payload_tests])                           |
 

@@ -2,7 +2,7 @@
  * Cloudflare Worker entry — wraps the OpenNext-generated handler with
  * Sentry's `withSentry` so every uncaught error in the Worker fetch
  * lifecycle (including the global `afterError` Payload hook wired in
- * `src/lib/sentryPlugin.ts`) actually reaches Sentry.
+ * `src/plugins/sentry/sentryPlugin.ts`) actually reaches Sentry.
  *
  * Without this wrapper, `@sentry/cloudflare`'s `Sentry.captureException`
  * is a silent no-op because no SDK client is attached to the request

@@ -2,15 +2,15 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SyncLectureMetadata } from '@/jobs/SyncLectureMetadata'
-import type { LectureMetadata } from '@/lib/nirmalaVidya'
+import { SyncLectureMetadata } from '@/jobs/SyncLectureMetadata/SyncLectureMetadata'
+import type { LectureMetadata } from '@/lib/lectures/nirmalaVidya'
 import type { Lecture } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/nirmalaVidyaApi')>()
+vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/lectures/nirmalaVidyaApi')>()
   return {
     extractVimeoId: vi.fn(original.extractVimeoId),
     fetchNirmalaVidyaVideo: vi.fn().mockResolvedValue({
@@ -64,7 +64,7 @@ describe('SyncLectureMetadata task', () => {
   beforeEach(async () => {
     // Reset the shared mock between tests so per-test `mockResolvedValueOnce`
     // calls are not consumed by the previous test's lectures.
-    const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+    const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
     vi.mocked(fetchNirmalaVidyaVideo).mockReset()
     vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValue({
       title: 'Default Fresh Title',
@@ -76,7 +76,7 @@ describe('SyncLectureMetadata task', () => {
   })
 
   it('refreshes metadata for the targeted lectures and bumps lastSyncedAt', async () => {
-    const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+    const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
     vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
       title: 'Original',
       thumbnailUrl: 'https://example.com/orig.jpg',
@@ -129,7 +129,7 @@ describe('SyncLectureMetadata task', () => {
   })
 
   it('continues the batch when a single lecture fails at the API', async () => {
-    const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+    const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
 
     const lectureOk1 = await testData.createLecture(payload, undefined, {
       nirmalVidyaVimeoUrl: 'https://vimeo.com/10000001',

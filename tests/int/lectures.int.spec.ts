@@ -2,15 +2,15 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { LectureMetadata } from '@/lib/nirmalaVidya'
+import type { LectureMetadata } from '@/lib/lectures/nirmalaVidya'
 import type { Image } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 // Mock the Nirmala Vidya API client — prevents real network calls in tests.
-vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/nirmalaVidyaApi')>()
+vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/lectures/nirmalaVidyaApi')>()
   return {
     extractVimeoId: vi.fn(original.extractVimeoId),
     fetchNirmalaVidyaVideo: vi.fn().mockResolvedValue({
@@ -38,7 +38,7 @@ describe('Lectures Collection', () => {
 
   describe('populateFromNirmalaVidya hook', () => {
     it('writes the full API response into metadata JSON on create', async () => {
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'Auto-populated Title',
         thumbnailUrl: 'https://example.com/thumb.jpg',
@@ -70,7 +70,7 @@ describe('Lectures Collection', () => {
     })
 
     it('preserves user-provided title when one is supplied on create', async () => {
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'API Title',
         thumbnailUrl: 'https://example.com/thumb.jpg',
@@ -93,7 +93,7 @@ describe('Lectures Collection', () => {
     })
 
     it('does not auto-upload a thumbnail (editor override only)', async () => {
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'No Auto-Thumbnail',
         thumbnailUrl: 'https://example.com/thumb.jpg',
@@ -116,7 +116,7 @@ describe('Lectures Collection', () => {
     })
 
     it('maps unrecognized language codes to null and skips them silently', async () => {
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'Lecture with Unknown Langs',
         thumbnailUrl: 'https://example.com/thumb.jpg',
@@ -143,7 +143,7 @@ describe('Lectures Collection', () => {
     })
 
     it('normalizes "pt" to "pt-br"', async () => {
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'Brazilian Portuguese Lecture',
         thumbnailUrl: null,
@@ -173,7 +173,7 @@ describe('Lectures Collection', () => {
     })
 
     it('throws a validation error when the Nirmala Vidya API call fails', async () => {
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockRejectedValueOnce(
         new Error(
           'Video not found on Nirmala Vidya (Vimeo ID: 404). Check that the URL is correct.',
@@ -191,7 +191,7 @@ describe('Lectures Collection', () => {
     })
 
     it('skips population on update operations', async () => {
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
 
       const lecture = await testData.createLecture(payload)
       const callCountAfterCreate = vi.mocked(fetchNirmalaVidyaVideo).mock.calls.length
@@ -211,7 +211,7 @@ describe('Lectures Collection', () => {
 
   describe('metadata non-localization', () => {
     it('returns the same metadata object regardless of request locale', async () => {
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'Non-localized Metadata',
         thumbnailUrl: 'https://example.com/thumb.jpg',
@@ -405,7 +405,7 @@ describe('Lectures Collection', () => {
 
   describe('type field (#338)', () => {
     it('defaults to "full" when not specified', async () => {
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'Default Type Test',
         thumbnailUrl: null,
@@ -457,7 +457,7 @@ describe('Lectures Collection', () => {
       const parent = await testData.createLecture(payload)
       const parentUrl = parent.nirmalVidyaVimeoUrl as string
 
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       const callCountBefore = vi.mocked(fetchNirmalaVidyaVideo).mock.calls.length
 
       const clip = await payload.create({
@@ -480,7 +480,7 @@ describe('Lectures Collection', () => {
     })
 
     it('auto-creates a parent full lecture when supplied URL has no match', async () => {
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
         title: 'Brand New Parent',
         thumbnailUrl: 'https://example.com/parent.jpg',
@@ -531,7 +531,7 @@ describe('Lectures Collection', () => {
 
     it('does not call the Nirmala Vidya API when a clip is created with fullLecture', async () => {
       const parent = await testData.createLecture(payload)
-      const { fetchNirmalaVidyaVideo } = await import('@/lib/nirmalaVidyaApi')
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
       const callCountBefore = vi.mocked(fetchNirmalaVidyaVideo).mock.calls.length
 
       await payload.create({
@@ -547,7 +547,7 @@ describe('Lectures Collection', () => {
   describe('NirmalaVidyaResponseSchema', () => {
     it('coerces subtitles: null to an empty array', async () => {
       const { NirmalaVidyaResponseSchema } =
-        await vi.importActual<typeof import('@/lib/nirmalaVidyaApi')>('@/lib/nirmalaVidyaApi')
+        await vi.importActual<typeof import('@/lib/lectures/nirmalaVidyaApi')>('@/lib/lectures/nirmalaVidyaApi')
 
       const parsed = NirmalaVidyaResponseSchema.parse({
         name: 'Older Lecture',
@@ -561,7 +561,7 @@ describe('Lectures Collection', () => {
 
     it('still accepts an omitted subtitles field', async () => {
       const { NirmalaVidyaResponseSchema } =
-        await vi.importActual<typeof import('@/lib/nirmalaVidyaApi')>('@/lib/nirmalaVidyaApi')
+        await vi.importActual<typeof import('@/lib/lectures/nirmalaVidyaApi')>('@/lib/lectures/nirmalaVidyaApi')
 
       const parsed = NirmalaVidyaResponseSchema.parse({
         name: 'Lecture',
@@ -574,22 +574,22 @@ describe('Lectures Collection', () => {
 
   describe('extractVimeoId', () => {
     it('parses https://vimeo.com/123456789', async () => {
-      const { extractVimeoId } = await import('@/lib/nirmalaVidyaApi')
+      const { extractVimeoId } = await import('@/lib/lectures/nirmalaVidyaApi')
       expect(extractVimeoId('https://vimeo.com/123456789')).toBe('123456789')
     })
 
     it('parses https://player.vimeo.com/video/123456789', async () => {
-      const { extractVimeoId } = await import('@/lib/nirmalaVidyaApi')
+      const { extractVimeoId } = await import('@/lib/lectures/nirmalaVidyaApi')
       expect(extractVimeoId('https://player.vimeo.com/video/123456789')).toBe('123456789')
     })
 
     it('parses https://vimeo.com/channels/name/123456789', async () => {
-      const { extractVimeoId } = await import('@/lib/nirmalaVidyaApi')
+      const { extractVimeoId } = await import('@/lib/lectures/nirmalaVidyaApi')
       expect(extractVimeoId('https://vimeo.com/channels/name/123456789')).toBe('123456789')
     })
 
     it('returns null for non-Vimeo URLs', async () => {
-      const { extractVimeoId } = await import('@/lib/nirmalaVidyaApi')
+      const { extractVimeoId } = await import('@/lib/lectures/nirmalaVidyaApi')
       expect(extractVimeoId('https://youtube.com/watch?v=abc123')).toBeNull()
       expect(extractVimeoId('https://example.com/123456')).toBeNull()
       expect(extractVimeoId('not-a-url')).toBeNull()

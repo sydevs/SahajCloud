@@ -13,7 +13,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
 
 // Mock the Nirmala Vidya API client — testData.createLecture() triggers the
 // beforeChange hook which calls fetchNirmalaVidyaVideo
-vi.mock('@/lib/nirmalaVidyaApi', async () => {
+vi.mock('@/lib/lectures/nirmalaVidyaApi', async () => {
   const { readFileSync } = await import('fs')
   const { dirname, join } = await import('path')
   const { fileURLToPath } = await import('url')
@@ -84,7 +84,7 @@ async function backdateCreatedAt(
  * created "now" (respecting the 24h grace period).
  */
 async function runCleanupJob(payload: Payload): Promise<CleanupResult> {
-  const { CleanupOrphanedMedia } = await import('@/jobs/CleanupOrphanedMedia')
+  const { CleanupOrphanedMedia } = await import('@/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia')
 
   const mockReq = {
     payload,
@@ -121,7 +121,7 @@ async function runCleanupJob(payload: Payload): Promise<CleanupResult> {
  * Used for tests that verify the date range rotation logic works correctly.
  */
 async function runCleanupJobWithDefaultRange(payload: Payload): Promise<CleanupResult> {
-  const { CleanupOrphanedMedia } = await import('@/jobs/CleanupOrphanedMedia')
+  const { CleanupOrphanedMedia } = await import('@/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia')
 
   const mockReq = {
     payload,

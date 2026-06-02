@@ -31,7 +31,7 @@ Stack-specific debugging patterns for PayloadCMS hooks, access control, types, a
 
 **Where to look:**
 
-- `src/lib/access/*.ts` — composed access helpers
+- `src/plugins/access/*.ts` — composed access helpers
 - `src/collections/Managers/Managers.ts` — RBAC roles, locale-based permissions
 - `.claude/rules/access.md` — full access-control patterns
 
@@ -49,7 +49,7 @@ Stack-specific debugging patterns for PayloadCMS hooks, access control, types, a
 **Where to look:**
 
 - `src/payload-types.ts` (auto-generated — do NOT edit)
-- `src/collections/<Name>.ts`, `src/fields/`, `src/blocks/`, `src/globals/`
+- `src/collections/<Name>.ts`, `src/fields/`, `src/lib/richEditor/blocks/`, `src/globals/`
 
 **Fix:**
 

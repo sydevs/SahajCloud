@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { computeApiEndpoint } from '@/blocks/ContentIndexBlock'
+import { computeApiEndpoint } from '@/lib/richEditor/blocks/ContentIndexBlock'
 
 import { uniqueId } from '../utils/lexicalTestHelpers'
 import { testData } from '../utils/testData'

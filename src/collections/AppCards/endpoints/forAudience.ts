@@ -3,9 +3,9 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
-import { asTrustedReq } from '@/lib/usage/hooks'
-import { weightedSample } from '@/lib/weightedSample'
+import { weightedSample } from '@/lib/utilities/weightedSample'
 import type { AppCard } from '@/payload-types'
+import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const querySchema = z.object({
   audiences: audiencesQueryParamSchema,

@@ -770,11 +770,11 @@ export const testData = {
    * Create a lecture (bypasses the populateFromNirmalaVidya hook by providing all
    * fields directly). The `nirmalVidyaVimeoUrl` is required on the collection,
    * so it is always included — but in test environments the API client is mocked
-   * via vi.mock('@/lib/nirmalaVidyaApi') in lectures.int.spec.ts.
+   * via vi.mock('@/lib/lectures/nirmalaVidyaApi') in lectures.int.spec.ts.
    *
    * For tests in other spec files that call this factory without a mock, the hook
    * will still try to call `fetchNirmalaVidyaVideo`. Those tests should add
-   * vi.mock('@/lib/nirmalaVidyaApi', ...) at the top of the file to prevent
+   * vi.mock('@/lib/lectures/nirmalaVidyaApi', ...) at the top of the file to prevent
    * real network calls.
    */
   async createLecture(
@@ -806,7 +806,7 @@ export const testData = {
    *
    * Pass `deps.fullLecture` to reuse an existing parent. If omitted, a new
    * parent is created via `createLecture` — requires the Nirmala Vidya API
-   * mock (`vi.mock('@/lib/nirmalaVidyaApi', ...)`) to be in place.
+   * mock (`vi.mock('@/lib/lectures/nirmalaVidyaApi', ...)`) to be in place.
    *
    * The clip's own `nirmalVidyaVimeoUrl` is intentionally not set: clips
    * source NV metadata from their parent (#338).

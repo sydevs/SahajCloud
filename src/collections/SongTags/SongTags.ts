@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { slugField } from '@/fields'
-import { virtualUrlField } from '@/lib/storage/urlFields'
+import { virtualUrlField } from '@/plugins/storage/urlFields'
 
 export const SongTags: CollectionConfig = {
   slug: 'song-tags',

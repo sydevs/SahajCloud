@@ -3,7 +3,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { meditationLectures } from '@/collections/Meditations/endpoints/lectures'
-import type { LecturePlayerData } from '@/lib/lectureShape'
+import type { LecturePlayerData } from '@/lib/lectures/lectureShape'
 import { recomputeWeightsForMeditation } from '@/lib/meditations/nodeWeights'
 import type {
   Audience,
@@ -18,8 +18,8 @@ import type {
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-vi.mock('@/lib/nirmalaVidyaApi', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/lib/nirmalaVidyaApi')>()
+vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/lectures/nirmalaVidyaApi')>()
   return {
     extractVimeoId: vi.fn(original.extractVimeoId),
     fetchNirmalaVidyaVideo: vi.fn().mockResolvedValue({
