@@ -1,6 +1,6 @@
 import type { TaskConfig, Where } from 'payload'
 
-import { buildLectureMetadata } from '@/hooks/lectureHooks'
+import { buildLectureMetadata } from '@/lib/nirmalaVidya'
 import { extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/nirmalaVidyaApi'
 
 type SyncResult = {

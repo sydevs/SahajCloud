@@ -1,6 +1,6 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-d1-sqlite'
 
-import { recomputeWeightsForMeditation } from '@/hooks/meditationHooks'
+import { recomputeWeightsForMeditation } from '@/lib/meditations/nodeWeights'
 import type { Meditation } from '@/payload-types'
 
 type MigrationDb = MigrateUpArgs['db']

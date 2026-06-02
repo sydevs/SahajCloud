@@ -1,5 +1,0 @@
-export { appCardsForAudience } from './appCardsForAudience'
-export { audiencesForUser } from './audiencesForUser'
-export { framesByNarrator } from './framesByNarrator'
-export { lecturesForAudience } from './lecturesForAudience'
-export { meditationLectures } from './meditationLectures'
