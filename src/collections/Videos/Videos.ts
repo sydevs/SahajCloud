@@ -1,8 +1,8 @@
 import type { CollectionConfig } from 'payload'
 
 import { mediaField } from '@/fields'
-import { hlsUrlField, mp4UrlField, previewUrlField } from '@/lib/storage/urlFields'
 import { subtitlesJsonSchema, validateSubtitles } from '@/lib/subtitles'
+import { hlsUrlField, mp4UrlField, previewUrlField } from '@/plugins/storage/urlFields'
 
 export const Videos: CollectionConfig = {
   slug: 'videos',

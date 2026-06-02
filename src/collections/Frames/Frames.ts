@@ -6,7 +6,7 @@ import {
   mixedMediaUrlField,
   mp4UrlField,
   previewUrlField,
-} from '@/lib/storage/urlFields'
+} from '@/plugins/storage/urlFields'
 
 import { framesByNarrator } from './endpoints/byNarrator'
 import { cascadeFrameNodeChange } from './hooks/cascadeFrameNodeChange'

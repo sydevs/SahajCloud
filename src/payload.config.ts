@@ -12,20 +12,20 @@ import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 import { GetPlatformProxyOptions } from 'wrangler'
 
-import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/lib/access'
-import { resendAdapter } from '@/lib/email/resendAdapter'
 import { serverEnv } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
-import { openapiEndpointAuth, scalarPlugin } from '@/lib/openapi'
-import { sentryPlugin } from '@/lib/sentryPlugin'
 import { getServerUrl } from '@/lib/serverUrl'
-import { usagePlugin } from '@/lib/usage'
 import { createWorkerSafeLogger } from '@/lib/workerSafeLogger'
+import { accessPlugin, bypassPermissions, filterAvailableLocales } from '@/plugins/access'
+import { resendAdapter } from '@/plugins/email/resendAdapter'
+import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
+import { sentryPlugin } from '@/plugins/sentry'
+import { storagePlugin } from '@/plugins/storage'
+import { usagePlugin } from '@/plugins/usage'
 
 import { collections, Managers } from './collections'
 import { globals } from './globals'
 import { tasks } from './jobs'
-import { storagePlugin } from './lib/storage'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)

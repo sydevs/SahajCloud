@@ -5,7 +5,7 @@ import path from 'path'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import { bypassPermissions, hasAnyPermission, hasPermission } from '@/lib/access'
+import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
 
 import { createTestLexicalContent, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'

@@ -19,11 +19,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import { generateV31Spec } from 'payload-oapi/dist/openapi/generators.js'
 
-import { isValidProject } from '@/lib/access'
-import { checkBasicAuth } from '@/lib/openapi/basicAuth'
-import { CUSTOM_ENDPOINT_PATHS, CUSTOM_ENDPOINT_SCHEMAS } from '@/lib/openapi/customEndpoints'
-import { filterSpec, type OpenAPISpec } from '@/lib/openapi/specFilter'
 import type { ProjectSlug } from '@/payload-types'
+import { isValidProject } from '@/plugins/access'
+import { checkBasicAuth } from '@/plugins/openapi/basicAuth'
+import { CUSTOM_ENDPOINT_PATHS, CUSTOM_ENDPOINT_SCHEMAS } from '@/plugins/openapi/customEndpoints'
+import { filterSpec, type OpenAPISpec } from '@/plugins/openapi/specFilter'
 
 import config from '@payload-config'
 

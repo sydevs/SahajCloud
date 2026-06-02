@@ -8,7 +8,7 @@ import {
   normalizeMeditationFrames,
   normalizeMeditationFramesForStorage,
 } from '@/lib/meditations/frames'
-import { virtualUrlField } from '@/lib/storage/urlFields'
+import { virtualUrlField } from '@/plugins/storage/urlFields'
 import { KeyframeData } from '@/types/frames'
 
 import { meditationLectures } from './endpoints/lectures'

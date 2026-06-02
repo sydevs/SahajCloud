@@ -5,8 +5,8 @@ import { z } from 'zod'
 import { audiencesQueryParamSchema } from '@/lib/audiences/audiencesQueryParam'
 import { shapeLecture, type LecturePlayerData } from '@/lib/lectureShape'
 import { recomputeWeightsForMeditation } from '@/lib/meditations/nodeWeights'
-import { asTrustedReq } from '@/lib/usage/hooks'
 import type { Lecture, Meditation, SubtleSystemNode, UserChoice } from '@/payload-types'
+import { asTrustedReq } from '@/plugins/usage/hooks'
 
 const querySchema = z.object({
   audiences: audiencesQueryParamSchema,

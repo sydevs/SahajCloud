@@ -21,9 +21,9 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
 import { serverEnv } from '@/lib/env'
-import type { WebhookLogger } from '@/lib/storage/cloudflareStreamWebhook'
-import { handleStreamWebhook } from '@/lib/storage/cloudflareStreamWebhook'
 import { createWorkerSafeLogger } from '@/lib/workerSafeLogger'
+import type { WebhookLogger } from '@/plugins/storage/cloudflareStreamWebhook'
+import { handleStreamWebhook } from '@/plugins/storage/cloudflareStreamWebhook'
 
 // The webhook handler is pure and doesn't touch Payload, so we skip getPayload()
 // and use the worker-safe logger directly. This keeps cold-start latency low on
