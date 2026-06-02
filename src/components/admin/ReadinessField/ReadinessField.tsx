@@ -1,5 +1,6 @@
 'use client'
 
+import type { SummaryTone } from './summary'
 import type { JSONFieldClientComponent } from 'payload'
 
 import { Collapsible, useField, useLocale } from '@payloadcms/ui'
@@ -21,7 +22,6 @@ import {
   headerWrapStyle,
   sectionCardStyle,
 } from './styles'
-import type { SummaryTone } from './summary'
 
 export type ReadinessFieldCustom = ReadinessFieldAdminCustom
 
