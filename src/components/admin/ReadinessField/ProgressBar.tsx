@@ -1,21 +1,49 @@
 'use client'
 
+import type { SummaryTone } from './summary'
+
 import React from 'react'
 
 interface ProgressBarProps {
   passing: number
   total: number
   unit?: string
+  /**
+   * When provided, the fill color follows this tone (so the bar matches its
+   * section's status icon). Otherwise the color is derived from the ratio.
+   */
+  tone?: SummaryTone
 }
 
-export const ProgressBar: React.FC<ProgressBarProps> = ({ passing, total, unit = 'ready' }) => {
+function toneToFill(tone: SummaryTone): string {
+  switch (tone) {
+    case 'success':
+      return 'var(--theme-success-500, #10b981)'
+    case 'danger':
+      return 'var(--theme-error-500, #ef4444)'
+    case 'warning':
+      return 'var(--theme-warning-500, #f59e0b)'
+    case 'neutral':
+    default:
+      return 'var(--theme-elevation-400)'
+  }
+}
+
+export const ProgressBar: React.FC<ProgressBarProps> = ({
+  passing,
+  total,
+  unit = 'ready',
+  tone,
+}) => {
   const percent = total === 0 ? 0 : Math.round((passing / total) * 100)
   const allPassing = total > 0 && passing === total
-  const fillColor = allPassing
-    ? 'var(--theme-success-500, #10b981)'
-    : passing === 0
-      ? 'var(--theme-error-500, #ef4444)'
-      : 'var(--theme-warning-500, #f59e0b)'
+  const fillColor = tone
+    ? toneToFill(tone)
+    : allPassing
+      ? 'var(--theme-success-500, #10b981)'
+      : passing === 0
+        ? 'var(--theme-error-500, #ef4444)'
+        : 'var(--theme-warning-500, #f59e0b)'
 
   return (
     <div
@@ -31,7 +59,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ passing, total, unit =
           flex: 1,
           height: '6px',
           borderRadius: '3px',
-          background: 'var(--theme-elevation-100)',
+          background: 'var(--theme-elevation-200)',
           overflow: 'hidden',
         }}
       >

@@ -19,15 +19,15 @@ describe('wm-app-status — ReadinessField registration contract', () => {
   if (!statusTab) {
     throw new Error('Expected a Status tab on wm-app-status')
   }
-  const sectionFields = statusTab.fields as JSONField[]
+  // The Status tab leads with a `_readiness_banner` UI field; the section
+  // virtual fields are the JSON ones.
+  const sectionFields = (statusTab.fields as JSONField[]).filter((f) => f.type === 'json')
 
   const expectedSectionKeys = WeMeditateAppStatusSpec.sections.map((s) => s.key)
 
   it('exposes one virtual JSON field per spec section', () => {
     expect(sectionFields).toHaveLength(expectedSectionKeys.length)
-    expect(sectionFields.map((f) => f.name).sort()).toEqual(
-      [...expectedSectionKeys].sort(),
-    )
+    expect(sectionFields.map((f) => f.name).sort()).toEqual([...expectedSectionKeys].sort())
     for (const field of sectionFields) {
       expect(field.type).toBe('json')
       expect(field.virtual).toBe(true)
@@ -65,8 +65,7 @@ describe('wm-app-status — ReadinessField registration contract', () => {
       expect(typeof sectionMetadata?.description).toBe('string')
       expect(sectionMetadata?.description.length).toBeGreaterThan(0)
       expect(
-        sectionMetadata?.tutorialLink === null ||
-          typeof sectionMetadata?.tutorialLink === 'string',
+        sectionMetadata?.tutorialLink === null || typeof sectionMetadata?.tutorialLink === 'string',
       ).toBe(true)
 
       // groupsMetadata — every declared group key has metadata
@@ -83,9 +82,7 @@ describe('wm-app-status — ReadinessField registration contract', () => {
       const checksMetadata = custom?.checksMetadata as
         | Record<string, { label: string; description: string }>
         | undefined
-      expect(Object.keys(checksMetadata ?? {}).sort()).toEqual(
-        Object.keys(section.checks).sort(),
-      )
+      expect(Object.keys(checksMetadata ?? {}).sort()).toEqual(Object.keys(section.checks).sort())
 
       // groupKeyToCollection — one entry per group, value either a non-empty
       // string slug or null
@@ -113,13 +110,7 @@ describe('wm-app-status — ReadinessField registration contract', () => {
   )
 
   it('deep-links collection-backed groups to known collection slugs', () => {
-    const knownCollections = new Set([
-      'user-choices',
-      'lessons',
-      'lectures',
-      'pages',
-      'app-cards',
-    ])
+    const knownCollections = new Set(['user-choices', 'lessons', 'lectures', 'pages', 'app-cards'])
     for (const field of sectionFields) {
       const map = (field.admin?.custom as { groupKeyToCollection?: Record<string, string | null> })
         ?.groupKeyToCollection

@@ -21,9 +21,20 @@ import {
   headerWrapStyle,
   sectionCardStyle,
 } from './styles'
-import { summaryTone } from './summary'
+import type { SummaryTone } from './summary'
 
 export type ReadinessFieldCustom = ReadinessFieldAdminCustom
+
+/**
+ * Tone for the section's status icon (and progress bar — they always match):
+ * green when every required group passes, amber when there's some document-level
+ * progress, red when there's none, neutral when there are no required groups.
+ */
+function sectionTone(report: ReadinessReport | null): SummaryTone {
+  if (!report || report.summary.total === 0) return 'neutral'
+  if (report.passing) return 'success'
+  return report.progress.passing > 0 ? 'warning' : 'danger'
+}
 
 function isReadinessFieldCustom(value: unknown): value is ReadinessFieldCustom {
   return (
@@ -64,23 +75,7 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
   const report = value ?? null
   const localeCode = locale?.code ?? 'en'
 
-  // Sum individual document/check counts across all non-optional groups.
-  // The section status icon and progress bar both use this metric so they stay in sync.
-  let indivPassing = 0
-  let indivTotal = 0
-  if (report) {
-    for (const g of report.groups) {
-      if (g.optional) continue
-      if (g.type === 'documents') {
-        indivPassing += g.summary.passing
-        indivTotal += g.summary.total
-      } else if (g.type === 'aggregate') {
-        indivPassing += g.passed ? 1 : 0
-        indivTotal += 1
-      }
-    }
-  }
-  const tone = summaryTone(indivPassing, indivTotal)
+  const tone = sectionTone(report)
 
   const configFallbackHref = configFallback
     ? `/admin/globals/${configFallback.slug}?locale=${encodeURIComponent(localeCode)}`
@@ -146,9 +141,15 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
                   ) : null}
                 </span>
               </div>
-              {/* Row 2: progress bar (individual check counts) */}
+              {/* Row 2: progress bar (document-level counts, incl. optional groups).
+                  Colored by the section tone so it matches the status icon. */}
               {report !== null ? (
-                <ProgressBar passing={indivPassing} total={indivTotal} unit="ready" />
+                <ProgressBar
+                  passing={report.progress.passing}
+                  total={report.progress.total}
+                  tone={tone}
+                  unit="ready"
+                />
               ) : null}
             </div>
           </div>
@@ -166,7 +167,6 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
         ) : (
           <div
             style={{
-              marginTop: 'calc(var(--base) * 0.5)',
               display: 'flex',
               flexDirection: 'column',
               gap: 'calc(var(--base) * 0.3)',

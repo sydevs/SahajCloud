@@ -39,7 +39,7 @@
   "groups": {
     "baseline-audience": {
       "label": "Baseline-audience lectures",
-      "description": "At least twenty lectures are visible to the most-restrictive new-user audience for this locale's baseline country."
+      "description": "At least twenty lectures are visible to new users for this locale's baseline country and have subtitles."
     },
     "core-pages": {
       "label": "Core app pages",
@@ -56,10 +56,6 @@
     "launch-critical-cards": {
       "label": "Launch-critical app cards",
       "description": "Every app card flagged as launch-critical is fully configured for this locale."
-    },
-    "lesson-referenced-subtitles": {
-      "label": "Lesson-referenced lecture subtitles",
-      "description": "Every lecture linked from an in-scope lesson has subtitles available for this locale."
     },
     "non-featured-afternoon": {
       "label": "Non-featured afternoon meditations",
@@ -187,9 +183,21 @@
       "label": "Has a lecture",
       "description": "At least one lecture is tagged with this user choice."
     },
+    "has-priority": {
+      "label": "Prioritized",
+      "description": "Lecture has a priority value above zero."
+    },
+    "has-userchoice-tag": {
+      "label": "User-choice tagged",
+      "description": "Lecture is tagged with at least one user-choice."
+    },
     "icon-set": {
       "label": "Icon assigned",
       "description": "The lesson has an icon image assigned."
+    },
+    "in-baseline-audience": {
+      "label": "In baseline audience",
+      "description": "Lecture is visible to new users for this locale's baseline country."
     },
     "intro-audio-set": {
       "label": "Intro audio set",

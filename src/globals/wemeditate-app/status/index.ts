@@ -82,7 +82,6 @@ export const WeMeditateAppStatusSpec: StatusGlobalSpec<WeMeditateAppStatusConfig
     'priority-with-userchoice': 'lectures',
     'baseline-audience': 'lectures',
     'user-choice-coverage': 'user-choices',
-    'lesson-referenced-subtitles': 'lectures',
     // pages section
     'core-pages': 'pages',
     'subtle-system-pages': 'pages',

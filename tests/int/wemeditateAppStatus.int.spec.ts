@@ -313,7 +313,7 @@ describe('WeMeditateAppStatus Global', () => {
   // Section 3 — Lectures
   // ---------------------------------------------------------------------------
   describe('Section 3 — Lectures', () => {
-    it('emits the four expected group keys', async () => {
+    it('emits the three expected group keys', async () => {
       const report = await run(lecturesSection, payload)
       const keys = report.groups.map((g) => g.key)
       expect(keys).toEqual(
@@ -321,7 +321,6 @@ describe('WeMeditateAppStatus Global', () => {
           'priority-with-userchoice',
           'baseline-audience',
           'user-choice-coverage',
-          'lesson-referenced-subtitles',
         ]),
       )
     })
@@ -411,6 +410,7 @@ describe('WeMeditateAppStatus Global', () => {
   describe('Section 7 — App Cards', () => {
     let launchCard: AppCard
     let otherCard: AppCard
+    let draftOtherCard: AppCard
     let launchConfig: WeMeditateAppStatusConfig
 
     beforeAll(async () => {
@@ -424,8 +424,15 @@ describe('WeMeditateAppStatus Global', () => {
         },
       } as unknown as Partial<AppCard>)
 
+      // Published in English (with missing subtitle/button) — appears in other-cards.
       otherCard = await testData.createAppCard(payload, {
         label: 'Other card',
+        _status: 'published',
+      } as unknown as Partial<AppCard>)
+
+      // Draft only — must be excluded from other-cards entirely.
+      draftOtherCard = await testData.createAppCard(payload, {
+        label: 'Draft other card',
       })
 
       await payload.updateGlobal({
@@ -450,6 +457,14 @@ describe('WeMeditateAppStatus Global', () => {
       expect(otherIds).toContain(otherCard.id)
     })
 
+    it('other-cards excludes cards not published in English (drafts)', async () => {
+      const report = await run(appCardsSection, payload, 'en', launchConfig)
+      const other = report.groups.find((g) => g.key === 'other-cards')
+      if (other?.type !== 'documents') return
+      const otherIds = other.documents.map((d) => d.id)
+      expect(otherIds).not.toContain(draftOtherCard.id)
+    })
+
     it('launch-critical card with all fields set passes; missing fields fail', async () => {
       const report = await run(appCardsSection, payload, 'en', launchConfig)
       const launch = report.groups.find((g) => g.key === 'launch-critical-cards')
@@ -460,13 +475,13 @@ describe('WeMeditateAppStatus Global', () => {
         expect.arrayContaining(['published', 'title-set', 'subtitle-set', 'button-label-set']),
       )
 
+      // otherCard is published in English but missing subtitle/button text.
       const other = report.groups.find((g) => g.key === 'other-cards')
       if (other?.type !== 'documents') return
       const otherReport = other.documents.find((d) => d.id === otherCard.id)!
+      expect(otherReport.checks.find((c) => c.key === 'published')?.passed).toBe(true)
       const failing = otherReport.checks.filter((c) => !c.passed).map((c) => c.key)
-      expect(failing).toEqual(
-        expect.arrayContaining(['published', 'subtitle-set', 'button-label-set']),
-      )
+      expect(failing).toEqual(expect.arrayContaining(['subtitle-set', 'button-label-set']))
     })
 
     it('summary excludes the optional other-cards group; optionalSummary includes it', async () => {

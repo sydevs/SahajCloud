@@ -2,10 +2,17 @@ export type {
   CheckResult,
   ComputeFn,
   DocumentReport,
+  GroupCounter,
+  GroupRow,
+  GroupRowKind,
+  GroupRowLinkTarget,
+  GroupView,
   ReadinessGroup,
   ReadinessReport,
+  RowDisplay,
 } from './types'
 export { aggregateGroup, documentsGroup, erroredGroup, isGroupPassing, summarize } from './groups'
+export { buildGroupView } from './groupView'
 export { isUploadAssigned, labelOf, refId } from './helpers'
 export { virtualReadinessField } from './virtualReadinessField'
 export { runSection, UndeclaredCheckKeyError } from './runSection'

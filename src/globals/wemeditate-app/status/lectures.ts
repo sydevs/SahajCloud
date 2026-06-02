@@ -1,6 +1,5 @@
 import { resolveAudienceIds } from '@/lib/audiences/resolve'
 import { labelOf, refId, type DocumentReport, type SectionSpec } from '@/lib/status'
-import { collectRelationshipIds } from '@/lib/status/helpers'
 
 import { lectureHasSubtitlesForLocale, type WeMeditateAppStatusConfig } from './shared'
 
@@ -18,7 +17,6 @@ interface Ctx {
   priorityCandidateDocs: PriorityCandidate[]
   baselineLectureDocs: Record<string, unknown>[]
   userChoiceCoverage: DocumentReport[]
-  subtitleDocs: DocumentReport[]
 }
 
 export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
@@ -51,12 +49,13 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   },
   prepare: async ({ payload, locale, config, req }) => {
     // Fetch priority candidates and resolve baseline audience IDs in parallel.
+    // depth: 1 is needed so lectureHasSubtitlesForLocale can inspect populated metadata.
     const [{ docs: rawPriorityCandidates }, baselineAudienceIds] = await Promise.all([
       payload.find({
         collection: 'lectures',
         where: { or: [{ priority: { greater_than: 0 } }, { userChoices: { exists: true } }] },
         locale,
-        depth: 0,
+        depth: 1,
         limit: 0,
         pagination: false,
         req,
@@ -128,42 +127,7 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       checks: [{ key: 'has-lecture', passed: coveredUserChoiceIds.has(choice.id) }],
     }))
 
-    const { docs: lessons } = await payload.find({
-      collection: 'lessons',
-      locale,
-      limit: 0,
-      pagination: false,
-      depth: 0,
-      req,
-    })
-    const referencedLectureIds = Array.from(
-      new Set(lessons.flatMap((l) => collectRelationshipIds(l.article, 'lectures'))),
-    )
-    let referencedLectures: Record<string, unknown>[] = []
-    if (referencedLectureIds.length > 0) {
-      const { docs } = await payload.find({
-        collection: 'lectures',
-        where: { id: { in: referencedLectureIds } },
-        locale,
-        limit: 0,
-        pagination: false,
-        depth: 1,
-        req,
-      })
-      referencedLectures = docs as unknown as Record<string, unknown>[]
-    }
-    const subtitleDocs: DocumentReport[] = referencedLectures.map((lecture) => ({
-      id: lecture.id as number,
-      label: labelOf(lecture as { id: number | string; title?: unknown }),
-      checks: [
-        {
-          key: 'subtitles-available',
-          passed: lectureHasSubtitlesForLocale(lecture, locale),
-        },
-      ],
-    }))
-
-    return { priorityCandidateDocs, baselineLectureDocs, userChoiceCoverage, subtitleDocs }
+    return { priorityCandidateDocs, baselineLectureDocs, userChoiceCoverage }
   },
   groups: [
     {
@@ -174,7 +138,7 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       type: 'aggregate',
       threshold: PRIORITY_USERCHOICE_THRESHOLD,
       rowDisplay: 'summarize-excess',
-      evaluate: async ({ priorityCandidateDocs }) => {
+      evaluate: async ({ priorityCandidateDocs }, { locale }) => {
         const items = priorityCandidateDocs.map((lec) => ({
           id: lec.id,
           label: labelOf(lec as { id: number | string; title?: unknown }),
@@ -186,6 +150,13 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
             {
               key: 'has-userchoice-tag',
               passed: Array.isArray(lec.userChoices) && (lec.userChoices as unknown[]).length > 0,
+            },
+            {
+              key: 'subtitles-available',
+              passed: lectureHasSubtitlesForLocale(
+                lec as unknown as Record<string, unknown>,
+                locale,
+              ),
             },
           ],
         }))
@@ -221,14 +192,6 @@ export const lecturesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       description: 'Every user choice has at least one lecture tagged with it.',
       type: 'documents',
       evaluate: async (ctx) => ctx.userChoiceCoverage,
-    },
-    {
-      key: 'lesson-referenced-subtitles',
-      label: 'Lesson-referenced lecture subtitles',
-      description:
-        'Every lecture linked from an in-scope lesson has subtitles available for this locale.',
-      type: 'documents',
-      evaluate: async (ctx) => ctx.subtitleDocs,
     },
   ],
 }

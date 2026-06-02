@@ -1,3 +1,4 @@
+import { getLocaleLabel, isValidLocale } from '@/lib/locales'
 import { type GroupSpec, type SectionSpec } from '@/lib/status'
 
 import translationsSchema from '../translationsSchema.json' with { type: 'json' }
@@ -190,10 +191,11 @@ export const translationsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = 
       type: 'documents',
       evaluate: async ({ translations }, { locale }) => {
         const isPublished = translations._status === 'published'
+        const localeLabel = isValidLocale(locale) ? getLocaleLabel(locale) : locale
         return [
           {
             id: locale,
-            label: isPublished ? 'Published' : 'Not published',
+            label: `Translations in ${localeLabel}`,
             checks: [{ key: 'is-published', passed: isPublished }],
           },
         ]

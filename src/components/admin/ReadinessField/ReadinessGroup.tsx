@@ -2,11 +2,11 @@
 
 import React, { useMemo, useState } from 'react'
 
-import type { ReadinessGroup as Group } from '@/lib/status'
+import { buildGroupView, type ReadinessGroup as Group } from '@/lib/status'
 
 import { ErroredStatus } from './ErroredStatus'
 import { ReadinessPill } from './ReadinessPill'
-import { ReadinessTable } from './ReadinessTable'
+import { ReadinessTable, type CheckColumn, type ReadinessTableRow } from './ReadinessTable'
 import {
   groupTitleStyle,
   headerContentStyle,
@@ -31,16 +31,13 @@ interface ReadinessGroupProps {
   localeCode: string
 }
 
+// Tone is presentation derived from the baked `counter` fact: optional groups
+// read neutral; an absent counter (errored) or an empty/unmet total reads danger;
+// otherwise the success/warning/danger gradient follows the ratio.
 function groupTone(group: Group): SummaryTone {
   if (group.optional) return 'neutral'
-  if (group.type === 'documents') {
-    // Zero documents is a failure, not neutral — there's nothing to pass.
-    if (group.summary.total === 0) return 'danger'
-    return summaryTone(group.summary.passing, group.summary.total)
-  }
-  if (group.type === 'aggregate')
-    return group.passed ? 'success' : group.actual > 0 ? 'warning' : 'danger'
-  return 'danger'
+  if (!group.counter || group.counter.total === 0) return 'danger'
+  return summaryTone(group.counter.current, group.counter.total)
 }
 
 function GroupHeader({
@@ -59,12 +56,7 @@ function GroupHeader({
   const label = groupMetadata?.label ?? group.key
   const description = groupMetadata?.description
 
-  let counterValues: { current: number; total: number } | null = null
-  if (group.type === 'documents') {
-    counterValues = { current: group.summary.passing, total: group.summary.total }
-  } else if (group.type === 'aggregate') {
-    counterValues = { current: Math.min(group.actual, group.threshold), total: group.threshold }
-  }
+  const counterValues = group.counter
 
   return (
     <div
@@ -183,33 +175,20 @@ export const ReadinessGroup: React.FC<ReadinessGroupProps> = ({
   const tone = groupTone(group)
   const [showDetails, setShowDetails] = useState(tone !== 'success')
 
-  const checkColumns = useMemo(() => {
-    const seen = new Set<string>()
-    const cols: Array<{ key: string; label: string; description?: string }> = []
+  // All row/column summarization lives in the data layer (`buildGroupView`).
+  // The component only joins column labels (from metadata) and resolves each
+  // row's link-target to an admin URL — both genuine view-layer concerns.
+  const { checkColumns, tableRows } = useMemo(() => {
+    const view = buildGroupView(group, {
+      rowDisplay: groupMetadata?.rowDisplay,
+      groupLabel: groupMetadata?.label ?? 'items',
+    })
 
-    let checkSources: Array<{ key: string }[]> = []
-    if (group.type === 'documents') {
-      checkSources = group.documents.map((d) => d.checks)
-    } else if (group.type === 'aggregate' && group.items) {
-      checkSources = group.items.map((i) => i.checks)
-    }
+    const checkColumns: CheckColumn[] = view.columns.map((key) => {
+      const meta = checksMetadata[key]
+      return { key, label: meta?.label ?? key, description: meta?.description }
+    })
 
-    for (const checks of checkSources) {
-      for (const check of checks) {
-        if (seen.has(check.key)) continue
-        seen.add(check.key)
-        const meta = checksMetadata[check.key]
-        cols.push({
-          key: check.key,
-          label: meta?.label ?? check.key,
-          description: meta?.description,
-        })
-      }
-    }
-    return cols
-  }, [group, checksMetadata])
-
-  const tableRows = useMemo(() => {
     const collectionListLink =
       collectionSlug !== null
         ? `/admin/collections/${collectionSlug}?locale=${encodeURIComponent(localeCode)}`
@@ -218,96 +197,34 @@ export const ReadinessGroup: React.FC<ReadinessGroupProps> = ({
       groupGlobalSlug !== null
         ? `/admin/globals/${groupGlobalSlug}?locale=${encodeURIComponent(localeCode)}`
         : undefined
-    // Link used for "Missing" placeholder rows — prefer collection list (create destination).
-    const missingLink = collectionListLink ?? globalLink
 
-    if (group.type === 'documents') {
-      if (group.documents.length === 0) {
-        return [
-          {
-            id: '__missing_0',
-            label: 'Missing',
-            link: missingLink,
-            checks: [],
-            isMissing: true as const,
-          },
-        ]
-      }
-      return group.documents.map((doc) => {
-        // String IDs are sentinels (globals, config slots) — link to global, not a per-doc page.
-        const isDocId = typeof doc.id === 'number'
-        const link =
-          collectionSlug !== null && isDocId
-            ? `/admin/collections/${collectionSlug}/${doc.id}?locale=${encodeURIComponent(localeCode)}`
+    const resolveLink = (
+      target: (typeof view.rows)[number]['linkTarget'],
+      id: string | number,
+    ): string | undefined => {
+      switch (target) {
+        case 'document':
+          return collectionSlug !== null && typeof id === 'number'
+            ? `/admin/collections/${collectionSlug}/${id}?locale=${encodeURIComponent(localeCode)}`
             : (globalLink ?? collectionListLink)
-        return { id: doc.id, label: doc.label, link, checks: doc.checks }
-      })
+        case 'list':
+          return collectionListLink ?? globalLink
+        case 'global':
+          return globalLink ?? collectionListLink
+      }
     }
 
-    if (group.type === 'aggregate' && group.items) {
-      const buildItemRow = (item: (typeof group.items)[number]) => {
-        // Numeric IDs link to the individual document; string IDs (like translation
-        // keys) link to the global where they can be edited.
-        const link =
-          collectionSlug !== null && typeof item.id === 'number'
-            ? `/admin/collections/${collectionSlug}/${item.id}?locale=${encodeURIComponent(localeCode)}`
-            : (globalLink ?? collectionListLink)
-        return { id: item.id, label: item.label, link, checks: item.checks }
-      }
+    const tableRows: ReadinessTableRow[] = view.rows.map((row) => ({
+      id: row.id,
+      label: row.label,
+      link: resolveLink(row.linkTarget, row.id),
+      checks: row.checks,
+      ...(row.kind === 'summary' ? { isSummary: true as const } : {}),
+      ...(row.kind === 'missing' ? { isMissing: true as const } : {}),
+    }))
 
-      // Missing rows represent uncreated items needed to reach the threshold.
-      const missingCount = Math.max(0, group.threshold - group.items.length)
-      const missingRows = Array.from({ length: missingCount }, (_, i) => ({
-        id: `__missing_${i}`,
-        label: 'Missing',
-        link: missingLink,
-        checks: checkColumns.map((col) => ({ key: col.key, passed: false })),
-        isMissing: true as const,
-      }))
-
-      const rowDisplay = groupMetadata?.rowDisplay ?? 'all'
-      const failingItems = group.items.filter((item) => !item.checks.every((c) => c.passed))
-      const passingItems = group.items.filter((item) => item.checks.every((c) => c.passed))
-      const groupLabel = (groupMetadata?.label ?? 'items').toLowerCase()
-
-      if (rowDisplay === 'summarize-excess') {
-        // Show all failing rows + up to `threshold` passing rows. Summarize excess.
-        const excessPassingCount = Math.max(0, passingItems.length - group.threshold)
-        const shownPassingItems = passingItems.slice(0, group.threshold)
-        const rows = [...failingItems.map(buildItemRow), ...shownPassingItems.map(buildItemRow)]
-        if (excessPassingCount > 0) {
-          rows.push({
-            id: '__excess_summary',
-            label: `${excessPassingCount} additional ${groupLabel} satisfy this requirement`,
-            link: collectionListLink ?? globalLink,
-            checks: checkColumns.map((col) => ({ key: col.key, passed: true })),
-            isSummary: true as const,
-          })
-        }
-        return [...rows, ...missingRows]
-      }
-
-      if (rowDisplay === 'collapse-passing') {
-        // Show only failing rows; collapse all passing rows into one summary row.
-        const rows = failingItems.map(buildItemRow)
-        if (passingItems.length > 0) {
-          rows.push({
-            id: '__passing_summary',
-            label: `${passingItems.length} of ${group.items.length} ${groupLabel} passing`,
-            link: globalLink ?? collectionListLink,
-            checks: checkColumns.map((col) => ({ key: col.key, passed: true })),
-            isSummary: true as const,
-          })
-        }
-        return [...rows, ...missingRows]
-      }
-
-      // 'all': show every item row followed by missing placeholder rows.
-      return [...group.items.map(buildItemRow), ...missingRows]
-    }
-
-    return []
-  }, [group, checkColumns, collectionSlug, groupGlobalSlug, groupMetadata, localeCode])
+    return { checkColumns, tableRows }
+  }, [group, checksMetadata, collectionSlug, groupGlobalSlug, groupMetadata, localeCode])
 
   return (
     <div style={{ marginBottom: 'calc(var(--base) * 0.5)' }}>
