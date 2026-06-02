@@ -36,7 +36,6 @@ export interface CheckColumn {
 interface ReadinessTableProps {
   rows: ReadinessTableRow[]
   checkColumns: CheckColumn[]
-  emptyMessage?: string
 }
 
 function rowBackground(row: ReadinessTableRow, index: number): string {
@@ -47,15 +46,11 @@ function rowBackground(row: ReadinessTableRow, index: number): string {
   return index % 2 === 0 ? 'var(--theme-elevation-0)' : 'var(--theme-elevation-50)'
 }
 
-export const ReadinessTable: React.FC<ReadinessTableProps> = ({
-  rows,
-  checkColumns,
-  emptyMessage = 'No documents in scope for this locale.',
-}) => {
+export const ReadinessTable: React.FC<ReadinessTableProps> = ({ rows, checkColumns }) => {
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null)
 
   if (rows.length === 0) {
-    return <div style={emptyGroupStyle}>{emptyMessage}</div>
+    return <div style={emptyGroupStyle}>No documents in scope for this locale.</div>
   }
 
   return (

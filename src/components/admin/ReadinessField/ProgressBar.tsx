@@ -4,6 +4,8 @@ import type { SummaryTone } from './summary'
 
 import React from 'react'
 
+import { summaryTone } from './summary'
+
 interface ProgressBarProps {
   passing: number
   total: number
@@ -37,13 +39,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
 }) => {
   const percent = total === 0 ? 0 : Math.round((passing / total) * 100)
   const allPassing = total > 0 && passing === total
-  const fillColor = tone
-    ? toneToFill(tone)
-    : allPassing
-      ? 'var(--theme-success-500, #10b981)'
-      : passing === 0
-        ? 'var(--theme-error-500, #ef4444)'
-        : 'var(--theme-warning-500, #f59e0b)'
+  const fillColor = toneToFill(tone ?? summaryTone(passing, total))
 
   return (
     <div
