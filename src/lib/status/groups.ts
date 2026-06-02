@@ -3,7 +3,8 @@ import type { CheckResult, DocumentReport, ReadinessGroup, ReadinessReport } fro
 export function isGroupPassing(group: ReadinessGroup): boolean {
   if (group.type === 'aggregate') return group.passed
   if (group.type === 'errored') return false
-  return group.documents.every((d) => d.checks.every((c) => c.passed))
+  // A documents group with zero documents has nothing to pass — treat as failing.
+  return group.documents.length > 0 && group.documents.every((d) => d.checks.every((c) => c.passed))
 }
 
 export function documentsGroup(

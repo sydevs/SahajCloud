@@ -19,7 +19,13 @@ import { summaryTone, type SummaryTone } from './summary'
 
 interface ReadinessGroupProps {
   group: Group
-  groupMetadata: { label: string; description: string } | undefined
+  groupMetadata:
+    | {
+        label: string
+        description: string
+        rowDisplay?: 'all' | 'summarize-excess' | 'collapse-passing'
+      }
+    | undefined
   checksMetadata: Record<string, { label: string; description: string }>
   collectionSlug: string | null
   groupGlobalSlug: string | null
@@ -28,7 +34,11 @@ interface ReadinessGroupProps {
 
 function groupTone(group: Group): SummaryTone {
   if (group.optional) return 'neutral'
-  if (group.type === 'documents') return summaryTone(group.summary.passing, group.summary.total)
+  if (group.type === 'documents') {
+    // Zero documents is a failure, not neutral — there's nothing to pass.
+    if (group.summary.total === 0) return 'danger'
+    return summaryTone(group.summary.passing, group.summary.total)
+  }
   if (group.type === 'aggregate')
     return group.passed ? 'success' : group.actual > 0 ? 'warning' : 'danger'
   return 'danger'
@@ -187,12 +197,16 @@ export const ReadinessGroup: React.FC<ReadinessGroupProps> = ({
   }, [group, checksMetadata])
 
   const tableRows = useMemo(() => {
-    const missingLink =
+    const collectionListLink =
       collectionSlug !== null
         ? `/admin/collections/${collectionSlug}?locale=${encodeURIComponent(localeCode)}`
-        : groupGlobalSlug !== null
-          ? `/admin/globals/${groupGlobalSlug}?locale=${encodeURIComponent(localeCode)}`
-          : undefined
+        : undefined
+    const globalLink =
+      groupGlobalSlug !== null
+        ? `/admin/globals/${groupGlobalSlug}?locale=${encodeURIComponent(localeCode)}`
+        : undefined
+    // Link used for "Missing" placeholder rows — prefer collection list (create destination).
+    const missingLink = collectionListLink ?? globalLink
 
     if (group.type === 'documents') {
       if (group.documents.length === 0) {
@@ -207,30 +221,28 @@ export const ReadinessGroup: React.FC<ReadinessGroupProps> = ({
         ]
       }
       return group.documents.map((doc) => {
-        const idIsSentinel = typeof doc.id === 'string'
+        // String IDs are sentinels (globals, config slots) — link to global, not a per-doc page.
+        const isDocId = typeof doc.id === 'number'
         const link =
-          collectionSlug !== null && !idIsSentinel
+          collectionSlug !== null && isDocId
             ? `/admin/collections/${collectionSlug}/${doc.id}?locale=${encodeURIComponent(localeCode)}`
-            : groupGlobalSlug !== null
-              ? `/admin/globals/${groupGlobalSlug}?locale=${encodeURIComponent(localeCode)}`
-              : undefined
+            : (globalLink ?? collectionListLink)
         return { id: doc.id, label: doc.label, link, checks: doc.checks }
       })
     }
 
     if (group.type === 'aggregate' && group.items) {
-      const itemRows = group.items.map((item) => {
+      const buildItemRow = (item: (typeof group.items)[number]) => {
+        // Numeric IDs link to the individual document; string IDs (like translation
+        // keys) link to the global where they can be edited.
         const link =
           collectionSlug !== null && typeof item.id === 'number'
             ? `/admin/collections/${collectionSlug}/${item.id}?locale=${encodeURIComponent(localeCode)}`
-            : groupGlobalSlug !== null
-              ? `/admin/globals/${groupGlobalSlug}?locale=${encodeURIComponent(localeCode)}`
-              : undefined
+            : (globalLink ?? collectionListLink)
         return { id: item.id, label: item.label, link, checks: item.checks }
-      })
+      }
+
       // Missing rows represent uncreated items needed to reach the threshold.
-      // Base off items.length (not passingCount) so existing-but-failing items
-      // don't get double-counted as missing slots.
       const missingCount = Math.max(0, group.threshold - group.items.length)
       const missingRows = Array.from({ length: missingCount }, (_, i) => ({
         id: `__missing_${i}`,
@@ -239,11 +251,50 @@ export const ReadinessGroup: React.FC<ReadinessGroupProps> = ({
         checks: checkColumns.map((col) => ({ key: col.key, passed: false })),
         isMissing: true as const,
       }))
-      return [...itemRows, ...missingRows]
+
+      const rowDisplay = groupMetadata?.rowDisplay ?? 'all'
+      const failingItems = group.items.filter((item) => !item.checks.every((c) => c.passed))
+      const passingItems = group.items.filter((item) => item.checks.every((c) => c.passed))
+      const groupLabel = (groupMetadata?.label ?? 'items').toLowerCase()
+
+      if (rowDisplay === 'summarize-excess') {
+        // Show all failing rows + up to `threshold` passing rows. Summarize excess.
+        const excessPassingCount = Math.max(0, passingItems.length - group.threshold)
+        const shownPassingItems = passingItems.slice(0, group.threshold)
+        const rows = [...failingItems.map(buildItemRow), ...shownPassingItems.map(buildItemRow)]
+        if (excessPassingCount > 0) {
+          rows.push({
+            id: '__excess_summary',
+            label: `${excessPassingCount} additional ${groupLabel} satisfy this requirement`,
+            link: collectionListLink ?? globalLink,
+            checks: [],
+            isSummary: true as const,
+          })
+        }
+        return [...rows, ...missingRows]
+      }
+
+      if (rowDisplay === 'collapse-passing') {
+        // Show only failing rows; collapse all passing rows into one summary row.
+        const rows = failingItems.map(buildItemRow)
+        if (passingItems.length > 0) {
+          rows.push({
+            id: '__passing_summary',
+            label: `${passingItems.length} of ${group.items.length} ${groupLabel} passing`,
+            link: globalLink ?? collectionListLink,
+            checks: [],
+            isSummary: true as const,
+          })
+        }
+        return [...rows, ...missingRows]
+      }
+
+      // 'all': show every item row followed by missing placeholder rows.
+      return [...group.items.map(buildItemRow), ...missingRows]
     }
 
     return []
-  }, [group, checkColumns, collectionSlug, groupGlobalSlug, localeCode])
+  }, [group, checkColumns, collectionSlug, groupGlobalSlug, groupMetadata, localeCode])
 
   return (
     <div style={{ marginBottom: 'calc(var(--base) * 0.5)' }}>

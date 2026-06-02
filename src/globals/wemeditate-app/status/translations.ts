@@ -141,6 +141,7 @@ const tabAggregateGroups: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = tabEntri
       description: `Every key under the ${tabSlug.charAt(0).toUpperCase()}${tabSlug.slice(1)} translations tab has a non-empty value for this locale.`,
       type: 'aggregate',
       threshold: lookups.length,
+      rowDisplay: 'collapse-passing',
       evaluate: async ({ translations }) => {
         const items = lookups.map((lookup) => {
           const label = getLookupLabel(lookup)

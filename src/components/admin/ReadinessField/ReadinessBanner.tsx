@@ -27,7 +27,10 @@ const ReadinessBanner: React.FC = () => {
     if (isReadinessReport(field.value)) {
       hasData = true
       totalSections++
-      if (field.value.summary.passing === field.value.summary.total) {
+      if (
+        field.value.summary.total > 0 &&
+        field.value.summary.passing === field.value.summary.total
+      ) {
         passingSections++
       }
     }

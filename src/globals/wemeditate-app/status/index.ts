@@ -89,9 +89,14 @@ export const WeMeditateAppStatusSpec: StatusGlobalSpec<WeMeditateAppStatusConfig
     'other-cards': 'app-cards',
   },
   // Group key → global slug for groups whose rows link to a global instead of a collection.
-  groupGlobalMap: Object.fromEntries(
-    translationsSection.groups.map((g) => [g.key, 'wm-app-translations']),
-  ),
+  groupGlobalMap: {
+    // translations section — each tab group links to the translations global
+    ...Object.fromEntries(translationsSection.groups.map((g) => [g.key, 'wm-app-translations'])),
+    // appConfig section — relationships/config rows all live in the app config global
+    'self-realization-meditation': 'wm-app-config',
+    'post-realization-lecture': 'wm-app-config',
+    'vibe-check-tracks': 'wm-app-config',
+  },
   // Section key → global slug for the section card's "Edit configuration"
   // link. Used when the section's rows aren't backed by a collection
   // (config-slot rows for appConfig, virtual rows for translations) so

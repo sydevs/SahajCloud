@@ -14,9 +14,20 @@ function sliceMetadata<TConfig>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   section: SectionSpec<TConfig, any>,
 ): Pick<ReadinessFieldAdminCustom, 'groupsMetadata' | 'checksMetadata'> {
-  const groupsMetadata: Record<string, { label: string; description: string }> = {}
+  const groupsMetadata: Record<
+    string,
+    {
+      label: string
+      description: string
+      rowDisplay?: 'all' | 'summarize-excess' | 'collapse-passing'
+    }
+  > = {}
   for (const group of section.groups) {
-    groupsMetadata[group.key] = { label: group.label, description: group.description }
+    groupsMetadata[group.key] = {
+      label: group.label,
+      description: group.description,
+      ...(group.type === 'aggregate' && group.rowDisplay ? { rowDisplay: group.rowDisplay } : {}),
+    }
   }
   const checksMetadata: Record<string, { label: string; description: string }> = {}
   for (const [key, meta] of Object.entries(section.checks)) {

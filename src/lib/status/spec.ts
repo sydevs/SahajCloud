@@ -52,6 +52,18 @@ export interface AggregateEvaluateResult {
 export interface AggregateGroupSpec<TSectionCtx, TConfig> extends BaseGroupSpec {
   type: 'aggregate'
   threshold: number
+  /**
+   * Controls how item rows are displayed when items exceed the threshold or
+   * most items pass.
+   *
+   * - `'all'` (default): show all rows.
+   * - `'summarize-excess'`: show failing rows + enough passing rows to fill
+   *   the threshold, then collapse remaining passing rows into one summary row.
+   * - `'collapse-passing'`: show only failing rows; collapse all passing rows
+   *   into a single summary row (ideal for large all-or-nothing checks like
+   *   translations where individual passing keys add no value).
+   */
+  rowDisplay?: 'all' | 'summarize-excess' | 'collapse-passing'
   evaluate: (
     sectionCtx: TSectionCtx,
     req: ProjectRequestContext<TConfig>,

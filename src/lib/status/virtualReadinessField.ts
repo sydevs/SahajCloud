@@ -9,7 +9,14 @@ export interface ReadinessFieldAdminCustom {
     description: string
     tutorialLink: string | null
   }
-  groupsMetadata: Record<string, { label: string; description: string }>
+  groupsMetadata: Record<
+    string,
+    {
+      label: string
+      description: string
+      rowDisplay?: 'all' | 'summarize-excess' | 'collapse-passing'
+    }
+  >
   checksMetadata: Record<string, { label: string; description: string }>
   groupKeyToCollection: Record<string, string | null>
   groupKeyToGlobal: Record<string, string | null>
