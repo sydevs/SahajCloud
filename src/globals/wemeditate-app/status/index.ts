@@ -79,6 +79,8 @@ export const WeMeditateAppStatusSpec: StatusGlobalSpec<WeMeditateAppStatusConfig
     'unit-3': 'lessons',
     'unit-4': 'lessons',
     // lectures section
+    'priority-with-userchoice': 'lectures',
+    'baseline-audience': 'lectures',
     'user-choice-coverage': 'user-choices',
     'lesson-referenced-subtitles': 'lectures',
     // pages section

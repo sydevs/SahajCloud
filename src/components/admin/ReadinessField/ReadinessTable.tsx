@@ -118,47 +118,14 @@ export const ReadinessTable: React.FC<ReadinessTableProps> = ({
         <tbody>
           {rows.map((row, index) => {
             const bg = rowBackground(row, index)
-
-            // Summary rows (excess or collapse-passing) span all columns.
-            if (row.isSummary) {
-              return (
-                <tr key={String(row.id)} style={{ background: bg }}>
-                  <td
-                    colSpan={checkColumns.length + 1}
-                    style={{
-                      ...tableRowCellStyle,
-                      color: 'var(--theme-elevation-500)',
-                      fontStyle: 'italic',
-                    }}
-                  >
-                    {row.link ? (
-                      <a
-                        href={row.link}
-                        rel="noopener noreferrer"
-                        style={{
-                          ...linkRowStyle,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '3px',
-                          color: 'var(--theme-elevation-500)',
-                        }}
-                        target="_blank"
-                      >
-                        {row.label}
-                        <ExternalLinkIcon size={11} style={{ opacity: 0.5, flexShrink: 0 }} />
-                      </a>
-                    ) : (
-                      <span>{row.label}</span>
-                    )}
-                  </td>
-                </tr>
-              )
-            }
-
             const checkByKey = new Map(row.checks.map((c) => [c.key, c]))
+            // Summary rows use a muted italic label; check cells render normally (all ✓).
+            const labelCellStyle = row.isSummary
+              ? { ...tableRowCellStyle, color: 'var(--theme-elevation-500)', fontStyle: 'italic' }
+              : tableRowCellStyle
             return (
               <tr key={String(row.id)} style={{ background: bg }}>
-                <td style={tableRowCellStyle}>
+                <td style={labelCellStyle}>
                   {row.link ? (
                     <a
                       href={row.link}
@@ -168,6 +135,7 @@ export const ReadinessTable: React.FC<ReadinessTableProps> = ({
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '3px',
+                        ...(row.isSummary ? { color: 'var(--theme-elevation-500)' } : {}),
                       }}
                       target="_blank"
                     >

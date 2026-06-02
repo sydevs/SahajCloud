@@ -4,7 +4,6 @@ import React, { useMemo, useState } from 'react'
 
 import type { ReadinessGroup as Group } from '@/lib/status'
 
-import { AggregateStatus } from './AggregateStatus'
 import { ErroredStatus } from './ErroredStatus'
 import { ReadinessPill } from './ReadinessPill'
 import { ReadinessTable } from './ReadinessTable'
@@ -69,11 +68,22 @@ function GroupHeader({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       style={{
         ...headerWrapStyle,
         paddingTop: 'calc(var(--base) * 0.5)',
         paddingBottom: 'calc(var(--base) * 0.5)',
         borderBottom: '1px dashed var(--theme-elevation-200)',
+        cursor: 'pointer',
+        userSelect: 'none',
+      }}
+      onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onToggle()
+        }
       }}
     >
       <ReadinessPill tone={tone} />
@@ -138,7 +148,10 @@ function GroupHeader({
             ) : null}
             <button
               type="button"
-              onClick={onToggle}
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggle()
+              }}
               style={{
                 padding: 0,
                 border: 'none',
@@ -267,7 +280,7 @@ export const ReadinessGroup: React.FC<ReadinessGroupProps> = ({
             id: '__excess_summary',
             label: `${excessPassingCount} additional ${groupLabel} satisfy this requirement`,
             link: collectionListLink ?? globalLink,
-            checks: [],
+            checks: checkColumns.map((col) => ({ key: col.key, passed: true })),
             isSummary: true as const,
           })
         }
@@ -282,7 +295,7 @@ export const ReadinessGroup: React.FC<ReadinessGroupProps> = ({
             id: '__passing_summary',
             label: `${passingItems.length} of ${group.items.length} ${groupLabel} passing`,
             link: globalLink ?? collectionListLink,
-            checks: [],
+            checks: checkColumns.map((col) => ({ key: col.key, passed: true })),
             isSummary: true as const,
           })
         }
@@ -307,18 +320,8 @@ export const ReadinessGroup: React.FC<ReadinessGroupProps> = ({
       />
       {showDetails ? (
         <div style={{ paddingTop: 'calc(var(--base) * 0.3)' }}>
-          {group.type === 'documents' ? (
+          {group.type === 'documents' || group.type === 'aggregate' ? (
             <ReadinessTable checkColumns={checkColumns} rows={tableRows} />
-          ) : group.type === 'aggregate' ? (
-            group.items ? (
-              <ReadinessTable checkColumns={checkColumns} rows={tableRows} />
-            ) : (
-              <AggregateStatus
-                actual={group.actual}
-                passed={group.passed}
-                threshold={group.threshold}
-              />
-            )
           ) : (
             <ErroredStatus error={group.error} />
           )}

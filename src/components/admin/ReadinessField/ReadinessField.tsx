@@ -64,11 +64,8 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
   const report = value ?? null
   const localeCode = locale?.code ?? 'en'
 
-  const summary = report?.summary ?? { passing: 0, total: 0 }
-  const tone = report ? summaryTone(summary.passing, summary.total) : 'neutral'
-
-  // Sum individual document/check counts across all non-optional groups for
-  // a more granular progress bar than the group-level summary.
+  // Sum individual document/check counts across all non-optional groups.
+  // The section status icon and progress bar both use this metric so they stay in sync.
   let indivPassing = 0
   let indivTotal = 0
   if (report) {
@@ -83,6 +80,7 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
       }
     }
   }
+  const tone = summaryTone(indivPassing, indivTotal)
 
   const configFallbackHref = configFallback
     ? `/admin/globals/${configFallback.slug}?locale=${encodeURIComponent(localeCode)}`
