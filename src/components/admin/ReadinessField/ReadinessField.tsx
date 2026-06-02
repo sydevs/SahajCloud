@@ -3,7 +3,7 @@
 import type { SummaryTone } from './summary'
 import type { JSONFieldClientComponent } from 'payload'
 
-import { Collapsible, useField, useLocale } from '@payloadcms/ui'
+import { Button, Collapsible, useField, useLocale } from '@payloadcms/ui'
 import React from 'react'
 
 import type { ReadinessReport } from '@/lib/status'
@@ -16,20 +16,11 @@ import {
   headerContentStyle,
   headerIndexStyle,
   headerInlineDescStyle,
-  headerLinkStyle,
   headerRowStyle,
   headerTitleStyle,
   headerWrapStyle,
   sectionCardStyle,
-  tutorialButtonStyle,
 } from './styles'
-
-/** Filled play triangle for the "Watch tutorial" button. */
-const PlayIcon: React.FC = () => (
-  <svg aria-hidden="true" height="10" viewBox="0 0 10 10" width="10">
-    <path d="M2 1.5L8.5 5L2 8.5Z" fill="currentColor" />
-  </svg>
-)
 
 export type ReadinessFieldCustom = ReadinessFieldAdminCustom
 
@@ -127,26 +118,29 @@ const ReadinessField: JSONFieldClientComponent = ({ field }) => {
                     pointerEvents: 'all',
                   }}
                 >
-                  {sectionMetadata.tutorialLink ? (
-                    <a
-                      href={sectionMetadata.tutorialLink}
-                      rel="noopener noreferrer"
-                      style={tutorialButtonStyle}
-                      target="_blank"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <PlayIcon />
-                      Watch tutorial
-                    </a>
-                  ) : null}
                   {configFallbackHref ? (
-                    <a
-                      href={configFallbackHref}
-                      style={headerLinkStyle}
-                      onClick={(e) => e.stopPropagation()}
+                    <Button
+                      el="anchor"
+                      url={configFallbackHref}
+                      size="xsmall"
+                      buttonStyle="subtle"
+                      margin={false}
+                      newTab
                     >
                       Edit configuration
-                    </a>
+                    </Button>
+                  ) : null}
+                  {sectionMetadata.tutorialLink ? (
+                    <Button
+                      el="anchor"
+                      url={sectionMetadata.tutorialLink}
+                      size="xsmall"
+                      buttonStyle="primary"
+                      margin={false}
+                      newTab
+                    >
+                      Watch tutorial
+                    </Button>
                   ) : null}
                 </span>
               </div>
