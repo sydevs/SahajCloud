@@ -113,18 +113,18 @@ is shown. Uses `getProjectCollections()` and `getRoleOptions()` from
 
 `payload-oapi` v0.2.5 doesn't auto-generate paths for Payload collection
 endpoints (those wired via a collection's `endpoints` array under
-`src/endpoints/`). We hand-author entries here and merge them into the
+`src/collections/<Name>/endpoints/`). We hand-author entries here and merge them into the
 raw spec inside the route handler **between** `generateV31Spec` and
 `filterSpec`, so project-based visibility applies automatically by
 collection slug.
 
 | Custom path                                  | Handler                                | Response schema                                          |
 | -------------------------------------------- | -------------------------------------- | -------------------------------------------------------- |
-| `GET /api/frames/by-narrator/{narratorId}`   | `src/endpoints/framesByNarrator.ts`    | `#/components/schemas/Frames`                            |
-| `GET /api/audiences/for-user`                | `src/endpoints/audiencesForUser.ts`    | `#/components/schemas/AudienceIdList`                    |
-| `GET /api/lectures/for-audience`             | `src/endpoints/lecturesForAudience.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
-| `GET /api/app-cards/for-audience`            | `src/endpoints/appCardsForAudience.ts` | `#/components/schemas/AppCards`                          |
-| `GET /api/meditations/{id}/related-lectures` | `src/endpoints/meditationLectures.ts`  | `#/components/schemas/LecturePlayerData` (hand-authored) |
+| `GET /api/frames/by-narrator/{narratorId}`   | `src/collections/Frames/endpoints/byNarrator.ts`    | `#/components/schemas/Frames`                            |
+| `GET /api/audiences/for-user`                | `src/collections/Audiences/endpoints/forUser.ts`    | `#/components/schemas/AudienceIdList`                    |
+| `GET /api/lectures/for-audience`             | `src/collections/Lectures/endpoints/forAudience.ts` | `#/components/schemas/LecturePlayerData` (hand-authored) |
+| `GET /api/app-cards/for-audience`            | `src/collections/AppCards/endpoints/forAudience.ts` | `#/components/schemas/AppCards`                          |
+| `GET /api/meditations/{id}/related-lectures` | `src/collections/Meditations/endpoints/lectures.ts`  | `#/components/schemas/LecturePlayerData` (hand-authored) |
 
 The audience query params on `/api/audiences/for-user` are hand-authored
 in `customEndpoints.ts` as `audienceQueryParameters` — six required

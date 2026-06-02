@@ -5,7 +5,7 @@ paths:
 
 # Custom Block Icons (Lexical Editor)
 
-Page blocks live in `src/blocks/pages/`. Icons appear in the Lexical
+Page blocks live in `src/blocks/`. Icons appear in the Lexical
 editor's slash menu (typing `/`) and the block-inserter toolbar button.
 Icons are configured via the `imageURL` property on the Block config as
 inline base64 data URLs.
@@ -72,9 +72,9 @@ edits know what the icon depicts without decoding the base64.
 
 ## Reference examples
 
-- `src/blocks/pages/ButtonBlock.ts` — stroked rounded rectangle with text line
-- `src/blocks/pages/QuoteBlock.ts` — filled quotation marks
-- `src/blocks/pages/ShowcaseBlock.ts` — filled star with stroked lines
+- `src/blocks/ButtonBlock.ts` — stroked rounded rectangle with text line
+- `src/blocks/QuoteBlock.ts` — filled quotation marks
+- `src/blocks/ShowcaseBlock.ts` — filled star with stroked lines
 
 ## Testing
 
@@ -85,6 +85,6 @@ edits know what the icon depicts without decoding the base64.
 
 ## Key files
 
-- `src/blocks/pages/index.ts` — barrel export and `pageBlocks` array
+- `src/blocks/index.ts` — barrel export and `pageBlocks` array
 - `src/lib/richEditor.ts` — Lexical editor configuration presets
-- `src/collections/content/Pages.ts` — collection consuming the blocks
+- `src/collections/Pages/Pages.ts` — collection consuming the blocks

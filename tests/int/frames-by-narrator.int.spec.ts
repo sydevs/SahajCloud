@@ -2,7 +2,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { framesByNarrator } from '@/endpoints'
+import { framesByNarrator } from '@/collections/Frames/endpoints/byNarrator'
 import type { Frame, Narrator } from '@/payload-types'
 
 import { testData } from '../utils/testData'

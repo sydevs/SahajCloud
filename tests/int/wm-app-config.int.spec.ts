@@ -2,9 +2,8 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/wemeditate-app/config'
+import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import type { File, Lecture, Meditation, WmAppConfig } from '@/payload-types'
-
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'

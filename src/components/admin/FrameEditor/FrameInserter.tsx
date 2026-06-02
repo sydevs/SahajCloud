@@ -5,7 +5,7 @@ import type { UIFieldClientComponent } from 'payload'
 import { Pill, toast, useField } from '@payloadcms/ui'
 import React, { useCallback, useMemo, useState } from 'react'
 
-import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/collections/tags/SubtleSystemNodes'
+import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/collections/SubtleSystemNodes/SubtleSystemNodes'
 import type { Frame } from '@/payload-types'
 import type { KeyframeData } from '@/types/frames'
 

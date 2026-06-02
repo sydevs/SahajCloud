@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { computeApiEndpoint } from '@/blocks/pages/ContentIndexBlock'
+import { computeApiEndpoint } from '@/blocks/ContentIndexBlock'
 
 import { uniqueId } from '../utils/lexicalTestHelpers'
 import { testData } from '../utils/testData'
@@ -37,7 +37,10 @@ describe('computeApiEndpoint hook (pure)', () => {
       const result = callHook({
         type: 'meditations',
         limit: 10,
-        userChoiceFilters: [{ id: 10, title: 'Tag A' }, { id: 20, title: 'Tag B' }],
+        userChoiceFilters: [
+          { id: 10, title: 'Tag A' },
+          { id: 20, title: 'Tag B' },
+        ],
       })
       expect(result).toBe('/api/user-choices?where[id][in]=10,20&depth=1&limit=10')
     })

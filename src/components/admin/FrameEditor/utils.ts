@@ -1,4 +1,4 @@
-import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/collections/tags/SubtleSystemNodes'
+import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/collections/SubtleSystemNodes/SubtleSystemNodes'
 import type { Frame, SubtleSystemNode } from '@/payload-types'
 
 /**

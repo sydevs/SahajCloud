@@ -1,7 +1,7 @@
 ---
 paths:
   - src/lib/usage/**/*.ts
-  - src/collections/access/Clients.ts
+  - src/collections/Clients/Clients.ts
 ---
 
 # API Client Authentication, Rate Limiting, Usage Tracking
@@ -11,13 +11,13 @@ collection plus the consolidated `usagePlugin`. The plugin auto-applies
 hooks and registers two scheduled tasks. GraphQL is disabled — all client
 access is REST-only.
 
-## Clients collection (`src/collections/access/Clients.ts`)
+## Clients collection (`src/collections/Clients/Clients.ts`)
 
 - `useAPIKey: true` — Payload generates an API key per client.
 - Managers can regenerate keys and manage settings.
 - Virtual `highUsageAlert` field surfaces when daily limits are exceeded.
 - `usage` group: `dailyRequests`, `peakDailyRequests`, `lastRequestAt`.
-- Custom hook in `src/hooks/clientHooks.ts`:
+- Custom hook in `src/collections/Clients/hooks/validateClientData.ts`:
   - `validateClientData` — ensures `primaryContact` is in the managers list.
 
 ## Usage plugin (`src/lib/usage/`)

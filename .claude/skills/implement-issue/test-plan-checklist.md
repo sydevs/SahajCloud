@@ -10,7 +10,7 @@ What to test, by change type. Reference `.claude/rules/tests.md` for the actual 
 - Locale change: integration test across multiple locales
 - Required field added to existing collection: integration test that existing docs without the field can still be read (backfill path)
 
-## Endpoint changes (`src/endpoints/`, `src/app/(payload)/api/**/route.ts`)
+## Endpoint changes (`src/collections/<Name>/endpoints/`, `src/app/(payload)/api/**/route.ts`)
 
 - New endpoint: integration test for success + at least one failure case
 - Auth-gated endpoint: integration test with valid auth + invalid/missing auth

@@ -24,7 +24,7 @@ import {
   type SeedFile,
   type TranslationsSchemaRoot,
 } from './lexicalConverter'
-import appSchema from '../../src/globals/wemeditate-app/translationsSchema.json' with { type: 'json' }
+import appSchema from '../../src/globals/WeMeditateAppTranslations/translationsSchema.json' with { type: 'json' }
 
 // ============================================================================
 // Constants
