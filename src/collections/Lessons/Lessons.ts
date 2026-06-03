@@ -91,6 +91,30 @@ export const Lessons: CollectionConfig = {
           label: 'Meditation',
           fields: [
             {
+              name: 'meditationKind',
+              type: 'select',
+              required: true,
+              defaultValue: 'audio',
+              options: [
+                { label: 'Audio meditation', value: 'audio' },
+                { label: 'Video meditation', value: 'video' },
+              ],
+              admin: {
+                custom: {
+                  descriptions: {
+                    audio:
+                      'Plays a guided audio meditation from the Meditations collection.',
+                    video:
+                      'Plays a video (from the Videos collection) in place of the meditation, preceded by a custom pre-screen.',
+                  },
+                },
+                components: {
+                  Field: '@/components/admin/ToggleGroupField',
+                  Description: '@/components/admin/SelectDescription',
+                },
+              },
+            },
+            {
               name: 'meditation',
               type: 'relationship',
               relationTo: 'meditations',
@@ -100,9 +124,45 @@ export const Lessons: CollectionConfig = {
                 type: { equals: 'lesson' },
               },
               admin: {
+                condition: (_, siblingData) =>
+                  siblingData?.meditationKind !== 'video',
                 description:
                   'Link to a related guided meditation that complements this lesson content.',
               },
+            },
+            {
+              name: 'video',
+              type: 'relationship',
+              relationTo: 'videos',
+              localized: true,
+              required: false,
+              admin: {
+                condition: (_, siblingData) =>
+                  siblingData?.meditationKind === 'video',
+                description:
+                  'Video that plays in place of the meditation. Plays full-screen like technique videos; when it finishes the seeker continues to the Deep Dive.',
+              },
+            },
+            {
+              name: 'prescreenLines',
+              type: 'array',
+              localized: true,
+              maxRows: 5,
+              label: 'Pre-screen lines',
+              labels: { singular: 'Line', plural: 'Lines' },
+              admin: {
+                condition: (_, siblingData) =>
+                  siblingData?.meditationKind === 'video',
+                description:
+                  'Up to 5 short lines shown one-by-one on the calm pre-video screen (like the meditation start overlay). Keep each line short — it must fit on a single line.',
+              },
+              fields: [
+                {
+                  name: 'line',
+                  type: 'text',
+                  required: true,
+                },
+              ],
             },
             {
               name: 'introAudio',

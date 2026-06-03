@@ -707,10 +707,12 @@ export const testData = {
    * Create a lesson with panels
    */
   async createLesson(payload: Payload, overrides: Partial<Lesson> = {}): Promise<Lesson> {
-    // Create a default meditation if not provided
+    const isVideoKind = overrides.meditationKind === 'video'
+
+    // Create a default meditation for audio-kind lessons if not provided
     // Note: Lessons collection filters meditations by type='lesson'
     let meditation = overrides.meditation
-    if (!meditation) {
+    if (!meditation && !isVideoKind) {
       const defaultMeditation = await testData.createMeditation(payload, undefined, {
         type: 'lesson',
       })
@@ -737,7 +739,14 @@ export const testData = {
       unit: overrides.unit || 'Unit 1',
       step: overrides.step || 1,
       panels: panelsData,
-      meditation: typeof meditation === 'number' ? meditation : meditation?.id,
+      meditationKind: overrides.meditationKind || 'audio',
+      meditation: isVideoKind
+        ? undefined
+        : typeof meditation === 'number'
+          ? meditation
+          : meditation?.id,
+      video: typeof overrides.video === 'object' ? overrides.video?.id : overrides.video,
+      prescreenLines: overrides.prescreenLines || undefined,
       introAudio: overrides.introAudio || undefined,
       introSubtitles: overrides.introSubtitles || undefined,
       article: overrides.article || undefined,

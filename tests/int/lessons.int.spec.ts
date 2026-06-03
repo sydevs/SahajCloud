@@ -5,8 +5,9 @@
  * this file holds tests for behavior that's project-specific.
  *
  * Currently: subtitle JSON behavior, article rich-text cleanup for stale
- * Lexical relationship nodes, and meditation field locale isolation
- * (per-locale meditation assignments are independent).
+ * Lexical relationship nodes, meditation field locale isolation
+ * (per-locale meditation assignments are independent), and video-meditation
+ * fields (kind toggle, localized video + prescreen lines, per-locale isolation).
  */
 import type { Payload } from 'payload'
 
@@ -154,6 +155,69 @@ describe('Lessons Collection — custom behavior', () => {
 
       const articleRoot = fetched.article?.root as { children: unknown[] }
       expect(articleRoot.children).toEqual([])
+    })
+  })
+
+  describe('video meditation — fields + locale isolation', () => {
+    it('persists meditationKind=video with a video and prescreen lines', async () => {
+      const video = await testData.createVideo(payload, { title: 'Lesson Video', tags: 'technique' })
+
+      const lesson = await testData.createLesson(payload, {
+        title: 'Video Meditation Lesson',
+        meditationKind: 'video',
+        video: video.id,
+        prescreenLines: [{ line: 'Take a breath' }, { line: 'Settle in' }],
+      })
+
+      const fetched = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        depth: 0,
+      })
+
+      expect(fetched.meditationKind).toBe('video')
+      expect(fetched.meditation).toBeFalsy() // a video meditation replaces the audio meditation
+      expect(fetched.video).toBe(video.id)
+      expect(fetched.prescreenLines).toHaveLength(2)
+      expect(fetched.prescreenLines?.[0]?.line).toBe('Take a breath')
+    })
+
+    it('assigns a different video and prescreen lines per locale without overwriting', async () => {
+      const enVideo = await testData.createVideo(payload, { title: 'EN Lesson Video' })
+      const esVideo = await testData.createVideo(payload, { title: 'ES Lesson Video' })
+
+      const lesson = await testData.createLesson(payload, {
+        meditationKind: 'video',
+        video: enVideo.id,
+        prescreenLines: [{ line: 'EN line' }],
+      })
+
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'es',
+        data: { video: esVideo.id, prescreenLines: [{ line: 'ES line' }] },
+      })
+
+      // English locale retains its original video + lines
+      const enFetched = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'en',
+        depth: 0,
+      })
+      expect(enFetched.video).toBe(enVideo.id)
+      expect(enFetched.prescreenLines?.[0]?.line).toBe('EN line')
+
+      // Spanish locale has the Spanish video + lines
+      const esFetched = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'es',
+        depth: 0,
+      })
+      expect(esFetched.video).toBe(esVideo.id)
+      expect(esFetched.prescreenLines?.[0]?.line).toBe('ES line')
     })
   })
 })

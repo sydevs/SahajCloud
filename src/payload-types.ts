@@ -724,10 +724,24 @@ export interface Lesson {
     }[];
     id?: string | null;
   }[];
+  meditationKind: 'audio' | 'video';
   /**
    * Link to a related guided meditation that complements this lesson content.
    */
   meditation?: (number | null) | Meditation;
+  /**
+   * Video that plays in place of the meditation. Plays full-screen like technique videos; when it finishes the seeker continues to the Deep Dive.
+   */
+  video?: (number | null) | Video;
+  /**
+   * Up to 5 short lines shown one-by-one on the calm pre-video screen (like the meditation start overlay). Keep each line short — it must fit on a single line.
+   */
+  prescreenLines?:
+    | {
+        line: string;
+        id?: string | null;
+      }[]
+    | null;
   /**
    * Audio introduction to this lesson.
    */
@@ -2339,7 +2353,15 @@ export interface LessonsSelect<T extends boolean = true> {
         subtitles?: T;
         id?: T;
       };
+  meditationKind?: T;
   meditation?: T;
+  video?: T;
+  prescreenLines?:
+    | T
+    | {
+        line?: T;
+        id?: T;
+      };
   introAudio?: T;
   introSubtitles?: T;
   article?: T;
