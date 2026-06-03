@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
+import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
 
 import { detectOrientationHook } from './hooks/detectOrientationHook'
@@ -19,7 +20,6 @@ export const Images: CollectionConfig = {
   disableDuplicate: true,
   upload: {
     staticDir: 'media/images',
-    hideRemoveFile: true,
     focalPoint: true,
     mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml'],
     // imageSizes removed - using Cloudflare Images flexible variants instead
@@ -74,6 +74,6 @@ export const Images: CollectionConfig = {
   hooks: {
     // Removed: sanitizeFilename (not needed - Cloudflare provides unique IDs)
     // Removed: processFile and convertFile (Sharp processing no longer needed)
-    beforeChange: [detectOrientationHook],
+    beforeChange: [restrictUploadToAdmin({ label: 'image' }), detectOrientationHook],
   },
 }

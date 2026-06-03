@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { slugField } from '@/fields'
+import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
 
 export const SongTags: CollectionConfig = {
@@ -14,9 +15,11 @@ export const SongTags: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'filename', 'songs'],
   },
+  hooks: {
+    beforeChange: [restrictUploadToAdmin({ label: 'icon on a song tag' })],
+  },
   upload: {
     staticDir: 'media/song-tags',
-    hideRemoveFile: true,
     mimeTypes: ['image/svg+xml'],
   },
   fields: [

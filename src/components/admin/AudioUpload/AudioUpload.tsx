@@ -1,26 +1,39 @@
 'use client'
 
 import {
-  CopyToClipboard,
-  fieldBaseClass,
+  Banner,
   Upload,
   useConfig,
   useDocumentInfo,
+  useFormFields,
   useLivePreviewContext,
 } from '@payloadcms/ui'
-import { formatFilesize } from 'payload/shared'
 
-const baseClass = 'file-field'
-const detailsClass = 'file-details'
-const metaClass = 'file-meta'
+import { countFramesBeyondDuration } from '@/lib/meditations/framesBeyondDuration'
+
+/** Format a whole-second count as M:SS for the drift banner. */
+function formatSeconds(totalSeconds: number): string {
+  const mins = Math.floor(totalSeconds / 60)
+  const secs = Math.round(totalSeconds % 60)
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
 
 /**
- * Custom Upload component for the Meditations collection.
+ * Custom Upload component for audio upload collections (Meditations, Songs).
  *
- * Features:
- * - Recreates FileDetails wrapper using PayloadCMS CSS classes
- * - Composes FileMeta content + audio player INSIDE the wrapper
- * - Auto-hides when live preview is open to maximize space for frame editing
+ * Delegates replacement to PayloadCMS's native <Upload>, which renders the
+ * dropzone when empty and FileDetails (meta + remove) when a file exists.
+ * Replacing audio means removing it first (to reveal the dropzone) then adding a
+ * new file, so the remove button must stay visible. Removal-without-replacement
+ * and non-admin replacement are blocked server-side by the restrictUploadToAdmin
+ * beforeChange hook.
+ *
+ * On top of native <Upload> it adds an <audio> player for the saved file.
+ *
+ * Meditations-only extras, inert for collections without these fields:
+ * - a drift Banner when frame timestamps fall beyond the audio length (needs
+ *   `frames` + `duration`), and
+ * - auto-hiding while live preview is open, to free space for frame editing.
  */
 export default function AudioUpload() {
   const { data, collectionSlug } = useDocumentInfo()
@@ -29,57 +42,49 @@ export default function AudioUpload() {
     config: { serverURL },
     getEntityConfig,
   } = useConfig()
+  // Subscribe to just `frames` (not all fields) so unrelated keystrokes don't
+  // re-render this always-mounted Upload slot.
+  const liveFrames = useFormFields(([fields]) => fields?.frames?.value)
 
   // Hide when live preview is open to maximize space for frame editing
   if (isLivePreviewing) {
     return null
   }
 
-  // Extract file data
+  if (!collectionSlug) return null
+  const uploadConfig = getEntityConfig({ collectionSlug })?.upload
+  if (!uploadConfig) return null
+
   const filename = data?.filename as string | undefined
-  const filesize = data?.filesize as number | undefined
-  const mimeType = (data?.mimeType as string | undefined) || 'audio/*'
   const virtualUrl = data?.url as string | undefined
   const audioUrl =
     virtualUrl || (filename ? `${serverURL}/api/${collectionSlug}/file/${filename}` : null)
 
-  // No file uploaded yet - render default upload component
-  if (!filename || !audioUrl) {
-    if (!collectionSlug) return null
-
-    const collectionConfig = getEntityConfig({ collectionSlug })
-    const uploadConfig = collectionConfig?.upload
-
-    if (!uploadConfig) return null
-
-    return <Upload collectionSlug={collectionSlug} uploadConfig={uploadConfig} />
-  }
+  // Drift detection: `duration` is derived on save (read from the saved doc);
+  // `frames` are editable live (read from form state, falling back to the doc).
+  const duration = data?.duration
+  const framesValue = liveFrames ?? data?.frames
+  const framesBeyond = countFramesBeyondDuration(framesValue, duration)
 
   return (
-    <div className={[fieldBaseClass, baseClass].filter(Boolean).join(' ')}>
-      <div className={detailsClass}>
-        <header>
-          <div className={`${detailsClass}__main-detail`}>
-            {/* FileMeta-style content */}
-            <div className={metaClass}>
-              <div className={`${metaClass}__url`}>
-                <a href={audioUrl} rel="noopener noreferrer" target="_blank">
-                  {filename}
-                </a>
-                <CopyToClipboard defaultMessage="Copy URL" value={audioUrl} />
-              </div>
-              <div className={`${metaClass}__size-type`}>
-                {filesize ? formatFilesize(filesize) : ''} - {mimeType}
-              </div>
-            </div>
-
-            {/* Audio player inside file-details - key prevents re-render resets */}
-            <audio key={audioUrl} controls src={audioUrl} style={{ width: '100%', height: '40px' }}>
-              Your browser does not support the audio element.
-            </audio>
-          </div>
-        </header>
-      </div>
-    </div>
+    <>
+      <Upload collectionSlug={collectionSlug} uploadConfig={uploadConfig} />
+      {audioUrl && (
+        <audio
+          key={audioUrl}
+          controls
+          src={audioUrl}
+          style={{ width: '100%', height: '40px', marginTop: 'calc(var(--base) * -0.5)' }}
+        >
+          Your browser does not support the audio element.
+        </audio>
+      )}
+      {framesBeyond > 0 && typeof duration === 'number' && (
+        <Banner type="error">
+          {framesBeyond} frame{framesBeyond === 1 ? '' : 's'} fall beyond the audio length (
+          {formatSeconds(duration)}). Review the timestamps in the Video tab.
+        </Banner>
+      )}
+    </>
   )
 }

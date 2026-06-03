@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { GENDER_OPTIONS } from '@/lib/utilities/gender'
+import { restrictUploadToAdmin } from '@/plugins/access'
 import {
   hlsUrlField,
   mixedMediaUrlField,
@@ -24,11 +25,11 @@ export const Frames: CollectionConfig = {
   ],
   endpoints: [framesByNarrator],
   hooks: {
+    beforeChange: [restrictUploadToAdmin({ label: 'frame file' })],
     afterChange: [cascadeFrameNodeChange],
   },
   upload: {
     staticDir: 'media/frames',
-    hideRemoveFile: true,
     mimeTypes: [
       // Images
       'image/jpeg',
