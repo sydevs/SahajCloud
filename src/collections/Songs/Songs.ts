@@ -1,5 +1,6 @@
 import type { CollectionConfig, CollectionBeforeChangeHook } from 'payload'
 
+import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
 
 /** Module-level cache for the vocals tag ID (looked up once per process). */
@@ -45,11 +46,13 @@ export const Songs: CollectionConfig = {
   slug: 'songs',
   trash: true,
   hooks: {
-    beforeChange: [autoSetIncludeForMeditationsOnCreate],
+    beforeChange: [
+      restrictUploadToAdmin({ label: 'audio file on a song' }),
+      autoSetIncludeForMeditationsOnCreate,
+    ],
   },
   upload: {
     staticDir: 'media/songs',
-    hideRemoveFile: true,
     mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
   },
   admin: {
