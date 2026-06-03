@@ -60,6 +60,13 @@ export const Songs: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'album', 'tags'],
     hidden: true, // Always hidden - managed through Albums
+    components: {
+      edit: {
+        // Adds an <audio> player beneath the native upload field (the
+        // Meditations-only drift banner is inert here — songs have no frames).
+        Upload: '@/components/admin/AudioUpload',
+      },
+    },
   },
   fields: [
     virtualUrlField({ collection: 'songs', adapter: 'r2' }),

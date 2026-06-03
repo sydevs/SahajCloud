@@ -19,7 +19,7 @@ function formatSeconds(totalSeconds: number): string {
 }
 
 /**
- * Custom Upload component for the Meditations collection.
+ * Custom Upload component for audio upload collections (Meditations, Songs).
  *
  * Delegates replacement to PayloadCMS's native <Upload>, which renders the
  * dropzone when empty and FileDetails (meta + remove) when a file exists.
@@ -28,12 +28,12 @@ function formatSeconds(totalSeconds: number): string {
  * and non-admin replacement are blocked server-side by the restrictUploadToAdmin
  * beforeChange hook.
  *
- * On top of native <Upload> it adds two things Payload can't:
- * - an <audio> player for the saved file, and
- * - a drift Banner when frame timestamps fall beyond the audio length (e.g.
- *   after replacing the audio with a shorter file).
+ * On top of native <Upload> it adds an <audio> player for the saved file.
  *
- * Auto-hides when live preview is open to maximize space for frame editing.
+ * Meditations-only extras, inert for collections without these fields:
+ * - a drift Banner when frame timestamps fall beyond the audio length (needs
+ *   `frames` + `duration`), and
+ * - auto-hiding while live preview is open, to free space for frame editing.
  */
 export default function AudioUpload() {
   const { data, collectionSlug } = useDocumentInfo()
