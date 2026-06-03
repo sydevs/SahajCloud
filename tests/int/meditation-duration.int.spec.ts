@@ -179,11 +179,13 @@ describe('Meditation Duration Extraction', () => {
 
   describe('admin-only audio replacement (restrictUploadToAdmin)', () => {
     let frameId: number
-    const audioFixture = path.join(process.cwd(), 'tests', 'files', 'audio-42s.mp3')
-    const audioFilePayload = () => {
-      const buffer = fs.readFileSync(audioFixture)
-      return { data: buffer, mimetype: 'audio/mpeg', name: 'audio-42s.mp3', size: buffer.length }
-    }
+    const audioBuffer = fs.readFileSync(path.join(process.cwd(), 'tests', 'files', 'audio-42s.mp3'))
+    const audioFilePayload = () => ({
+      data: audioBuffer,
+      mimetype: 'audio/mpeg',
+      name: 'audio-42s.mp3',
+      size: audioBuffer.length,
+    })
 
     // Updating a meditation requires at least one frame. Replacing the audio is
     // an update, so seed a frame to attach in the allow-path updates below.

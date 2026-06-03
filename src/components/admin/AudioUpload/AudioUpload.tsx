@@ -3,10 +3,10 @@
 import {
   Banner,
   Upload,
-  useAllFormFields,
   useAuth,
   useConfig,
   useDocumentInfo,
+  useFormFields,
   useLivePreviewContext,
 } from '@payloadcms/ui'
 
@@ -42,7 +42,9 @@ export default function AudioUpload() {
     config: { serverURL },
     getEntityConfig,
   } = useConfig()
-  const [fields] = useAllFormFields()
+  // Subscribe to just `frames` (not all fields) so unrelated keystrokes don't
+  // re-render this always-mounted Upload slot.
+  const liveFrames = useFormFields(([fields]) => fields?.frames?.value)
 
   // Hide when live preview is open to maximize space for frame editing
   if (isLivePreviewing) {
@@ -66,7 +68,7 @@ export default function AudioUpload() {
   // Drift detection: `duration` is derived on save (read from the saved doc);
   // `frames` are editable live (read from form state, falling back to the doc).
   const duration = data?.duration
-  const framesValue = fields?.frames?.value ?? data?.frames
+  const framesValue = liveFrames ?? data?.frames
   const framesBeyond = countFramesBeyondDuration(framesValue, duration)
 
   return (

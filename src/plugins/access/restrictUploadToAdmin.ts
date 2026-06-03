@@ -33,9 +33,8 @@ export const restrictUploadToAdmin =
   ({ blockRemoval = false, label }: RestrictUploadToAdminOptions): CollectionBeforeChangeHook =>
   ({ data, operation, originalDoc, req }) => {
     if (operation !== 'update') return data
-    // Only gate non-admin managers; system/seed (null user) and clients pass through.
-    if (req.user?.collection !== 'managers') return data
-    if (isAdminManager(req.user)) return data
+    // Only gate non-admin managers; system/seed (null user), clients, and admins pass through.
+    if (req.user?.collection !== 'managers' || isAdminManager(req.user)) return data
 
     const hadFile = Boolean(originalDoc?.filename)
     const isReplacing = hadFile && Boolean(req.file)
