@@ -176,4 +176,94 @@ describe('Meditation Duration Extraction', () => {
       expect(result).toEqual({ label: 'test', duration: 100 })
     })
   })
+
+  describe('admin-only audio replacement (restrictUploadToAdmin)', () => {
+    let frameId: number
+    const audioFixture = path.join(process.cwd(), 'tests', 'files', 'audio-42s.mp3')
+    const audioFilePayload = () => {
+      const buffer = fs.readFileSync(audioFixture)
+      return { data: buffer, mimetype: 'audio/mpeg', name: 'audio-42s.mp3', size: buffer.length }
+    }
+
+    // Updating a meditation requires at least one frame. Replacing the audio is
+    // an update, so seed a frame to attach in the allow-path updates below.
+    beforeAll(async () => {
+      const frame = await testData.createFrame(payload, { imageSet: 'male' })
+      frameId = frame.id
+    })
+
+    it('lets an admin manager replace the audio and re-extracts duration', async () => {
+      const meditation = await testData.createMeditation(payload, {
+        narrator: narratorId,
+        thumbnail: thumbnailId,
+      })
+      const admin = await testData.createManager(payload, { type: 'admin' })
+
+      const updated = await payload.update({
+        collection: 'meditations',
+        id: meditation.id,
+        data: { frames: [{ id: frameId, timestamp: 5 }] },
+        file: audioFilePayload(),
+        user: admin,
+        overrideAccess: true,
+      })
+
+      expect(updated.duration).toBeGreaterThan(40)
+      expect(updated.duration).toBeLessThan(44)
+    })
+
+    it('blocks a non-admin manager from replacing the audio (403)', async () => {
+      const meditation = await testData.createMeditation(payload, {
+        narrator: narratorId,
+        thumbnail: thumbnailId,
+      })
+      const manager = await testData.createManager(payload, { type: 'manager' })
+
+      await expect(
+        payload.update({
+          collection: 'meditations',
+          id: meditation.id,
+          data: {},
+          file: audioFilePayload(),
+          user: manager,
+          overrideAccess: true,
+        }),
+      ).rejects.toThrow(/Only admins can replace the audio file on a meditation/)
+    })
+
+    it('blocks a non-admin manager from removing the audio (403)', async () => {
+      const meditation = await testData.createMeditation(payload, {
+        narrator: narratorId,
+        thumbnail: thumbnailId,
+      })
+      const manager = await testData.createManager(payload, { type: 'manager' })
+
+      await expect(
+        payload.update({
+          collection: 'meditations',
+          id: meditation.id,
+          data: { filename: null },
+          user: manager,
+          overrideAccess: true,
+        }),
+      ).rejects.toThrow(/Only admins can remove the audio file on a meditation/)
+    })
+
+    it('lets a trusted system call (no user) replace the audio', async () => {
+      const meditation = await testData.createMeditation(payload, {
+        narrator: narratorId,
+        thumbnail: thumbnailId,
+      })
+
+      const updated = await payload.update({
+        collection: 'meditations',
+        id: meditation.id,
+        data: { frames: [{ id: frameId, timestamp: 5 }] },
+        file: audioFilePayload(),
+        overrideAccess: true,
+      })
+
+      expect(updated.duration).toBeGreaterThan(40)
+    })
+  })
 })
