@@ -3,7 +3,6 @@
 import {
   Banner,
   Upload,
-  useAuth,
   useConfig,
   useDocumentInfo,
   useFormFields,
@@ -22,10 +21,12 @@ function formatSeconds(totalSeconds: number): string {
 /**
  * Custom Upload component for the Meditations collection.
  *
- * Delegates replace/remove to PayloadCMS's native <Upload>, which renders the
- * dropzone when empty and FileDetails (meta + replace + remove) when a file
- * exists. The remove button is shown to admins only via `hideRemoveFile`;
- * the real boundary is the server-side restrictUploadToAdmin beforeChange hook.
+ * Delegates replacement to PayloadCMS's native <Upload>, which renders the
+ * dropzone when empty and FileDetails (meta + remove) when a file exists.
+ * Replacing audio means removing it first (to reveal the dropzone) then adding a
+ * new file, so the remove button must stay visible. Removal-without-replacement
+ * and non-admin replacement are blocked server-side by the restrictUploadToAdmin
+ * beforeChange hook.
  *
  * On top of native <Upload> it adds two things Payload can't:
  * - an <audio> player for the saved file, and
@@ -37,7 +38,6 @@ function formatSeconds(totalSeconds: number): string {
 export default function AudioUpload() {
   const { data, collectionSlug } = useDocumentInfo()
   const { isLivePreviewing } = useLivePreviewContext()
-  const { user } = useAuth()
   const {
     config: { serverURL },
     getEntityConfig,
@@ -55,11 +55,6 @@ export default function AudioUpload() {
   const uploadConfig = getEntityConfig({ collectionSlug })?.upload
   if (!uploadConfig) return null
 
-  // `useAuth()` returns the client ClientUser shape (not the server Manager
-  // union), so isAdminManager() doesn't typecheck here. This gates the remove
-  // button visually only — server enforcement is the real boundary.
-  const isAdmin = !!user && 'type' in user && user.type === 'admin'
-
   const filename = data?.filename as string | undefined
   const virtualUrl = data?.url as string | undefined
   const audioUrl =
@@ -73,16 +68,13 @@ export default function AudioUpload() {
 
   return (
     <>
-      <Upload
-        collectionSlug={collectionSlug}
-        uploadConfig={{ ...uploadConfig, hideRemoveFile: !isAdmin }}
-      />
+      <Upload collectionSlug={collectionSlug} uploadConfig={uploadConfig} />
       {audioUrl && (
         <audio
           key={audioUrl}
           controls
           src={audioUrl}
-          style={{ width: '100%', height: '40px', marginTop: 'calc(var(--base) * 0.5)' }}
+          style={{ width: '100%', height: '40px', marginTop: 'calc(var(--base) * -0.5)' }}
         >
           Your browser does not support the audio element.
         </audio>

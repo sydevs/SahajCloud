@@ -76,7 +76,7 @@ export const Meditations: CollectionConfig = {
   hooks: {
     beforeOperation: [filterMeditationsByLocale],
     beforeChange: [
-      restrictUploadToAdmin({ label: 'audio file on a meditation', blockRemoval: true }),
+      restrictUploadToAdmin({ label: 'audio file on a meditation' }),
       extractAudioDuration,
       invalidateMeditationNodeWeights,
     ],
@@ -95,9 +95,9 @@ export const Meditations: CollectionConfig = {
   upload: {
     staticDir: 'media/meditations',
     bulkUpload: false,
-    // `hideRemoveFile` is set per-user by the AudioUpload wrapper
-    // (`hideRemoveFile: !isAdmin`); the server-side restrictUploadToAdmin hook
-    // is the real boundary. See src/components/admin/AudioUpload/AudioUpload.tsx.
+    // No `hideRemoveFile`: replacing audio requires the native remove button to
+    // reveal the dropzone. Removal-without-replacement and non-admin replacement
+    // are both blocked server-side by restrictUploadToAdmin.
     mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
   },
   admin: {

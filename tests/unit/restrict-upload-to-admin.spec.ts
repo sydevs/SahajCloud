@@ -42,99 +42,109 @@ function captureThrow(fn: () => unknown): Error & { status?: number } {
 }
 
 describe('restrictUploadToAdmin', () => {
-  const audioHook = restrictUploadToAdmin({
-    label: 'audio file on a meditation',
-    blockRemoval: true,
-  })
-  const iconHook = restrictUploadToAdmin({ label: 'icon on a user choice' })
+  const hook = restrictUploadToAdmin({ label: 'audio file on a meditation' })
 
-  describe('replacement', () => {
+  describe('replacement (admin managers only)', () => {
     it('allows an admin manager to replace an existing file', () => {
       expect(() =>
-        callHook(audioHook, { user: adminManager, file: {}, originalDoc: { filename: 'a.mp3' } }),
+        callHook(hook, { user: adminManager, file: {}, originalDoc: { filename: 'a.mp3' } }),
       ).not.toThrow()
     })
 
     it('blocks a non-admin manager from replacing an existing file (403)', () => {
       const err = captureThrow(() =>
-        callHook(audioHook, { user: editorManager, file: {}, originalDoc: { filename: 'a.mp3' } }),
+        callHook(hook, { user: editorManager, file: {}, originalDoc: { filename: 'a.mp3' } }),
       )
       expect(err.status).toBe(403)
       expect(err.message).toMatch(/Only admins can replace the audio file on a meditation/)
     })
 
+    it('allows trusted system/seed calls (no user) to replace', () => {
+      expect(() =>
+        callHook(hook, { user: null, file: {}, originalDoc: { filename: 'a.mp3' } }),
+      ).not.toThrow()
+    })
+
+    it('allows API clients to replace', () => {
+      expect(() =>
+        callHook(hook, { user: apiClient, file: {}, originalDoc: { filename: 'a.mp3' } }),
+      ).not.toThrow()
+    })
+
     it('allows a non-admin manager to upload when there was no prior file', () => {
       // Not a "replace" — nothing to overwrite, so the guard stays out of the way.
       expect(() =>
-        callHook(audioHook, {
-          user: editorManager,
-          file: {},
-          originalDoc: { filename: undefined },
-        }),
+        callHook(hook, { user: editorManager, file: {}, originalDoc: { filename: undefined } }),
       ).not.toThrow()
     })
-  })
 
-  describe('removal', () => {
-    it('blocks a non-admin manager from removing the file when blockRemoval is set (403)', () => {
+    it('treats remove-then-add (a new file is present) as a replacement, not a removal', () => {
+      // The native Upload replace flow clears `filename` to null and stages a new
+      // file. Because `req.file` is present it is a replacement (admin-gated), not
+      // a removal.
+      expect(() =>
+        callHook(hook, {
+          user: adminManager,
+          file: {},
+          data: { filename: null },
+          originalDoc: { filename: 'a.mp3' },
+        }),
+      ).not.toThrow()
+
       const err = captureThrow(() =>
-        callHook(audioHook, {
+        callHook(hook, {
           user: editorManager,
+          file: {},
           data: { filename: null },
           originalDoc: { filename: 'a.mp3' },
         }),
       )
-      expect(err.status).toBe(403)
-      expect(err.message).toMatch(/Only admins can remove the audio file on a meditation/)
-    })
-
-    it('allows a non-admin manager to remove the file when blockRemoval is not set', () => {
-      expect(() =>
-        callHook(iconHook, {
-          user: editorManager,
-          data: { filename: null },
-          originalDoc: { filename: 'a.svg' },
-        }),
-      ).not.toThrow()
-    })
-
-    it('does not treat an omitted filename as a removal', () => {
-      // A partial update that leaves `filename` undefined (not null) is not a
-      // removal — only a strict null signals an intentional clear.
-      expect(() =>
-        callHook(audioHook, {
-          user: editorManager,
-          data: { title: 'new title' },
-          originalDoc: { filename: 'a.mp3' },
-        }),
-      ).not.toThrow()
+      expect(err.message).toMatch(/Only admins can replace/)
     })
   })
 
-  describe('out-of-scope callers and operations', () => {
+  describe('removal without replacement (blocked for everyone)', () => {
+    // A removal is a strict `filename: null` with no staged replacement file.
+    const removal = { data: { filename: null }, originalDoc: { filename: 'a.mp3' } }
+
+    it('blocks a non-admin manager (403)', () => {
+      const err = captureThrow(() => callHook(hook, { ...removal, user: editorManager }))
+      expect(err.status).toBe(403)
+      expect(err.message).toMatch(/The audio file on a meditation cannot be removed/)
+    })
+
+    it('blocks an admin manager too', () => {
+      const err = captureThrow(() => callHook(hook, { ...removal, user: adminManager }))
+      expect(err.message).toMatch(/cannot be removed/)
+    })
+
+    it('blocks a system/seed call (no user)', () => {
+      const err = captureThrow(() => callHook(hook, { ...removal, user: null }))
+      expect(err.message).toMatch(/cannot be removed/)
+    })
+
+    it('blocks an API client', () => {
+      const err = captureThrow(() => callHook(hook, { ...removal, user: apiClient }))
+      expect(err.message).toMatch(/cannot be removed/)
+    })
+  })
+
+  describe('out-of-scope operations and partial updates', () => {
     it('ignores create operations', () => {
       expect(() =>
-        callHook(audioHook, { operation: 'create', user: editorManager, file: {} }),
+        callHook(hook, { operation: 'create', user: editorManager, file: {} }),
       ).not.toThrow()
     })
 
-    it('allows trusted system/seed calls (no user)', () => {
-      expect(() =>
-        callHook(audioHook, { user: null, file: {}, originalDoc: { filename: 'a.mp3' } }),
-      ).not.toThrow()
+    it('allows a filename:null update on a doc that never had a file', () => {
+      expect(() => callHook(hook, { user: editorManager, data: { filename: null } })).not.toThrow()
     })
 
-    it('allows API clients', () => {
+    it('does not treat a partial update that omits filename as a removal', () => {
       expect(() =>
-        callHook(audioHook, { user: apiClient, file: {}, originalDoc: { filename: 'a.mp3' } }),
-      ).not.toThrow()
-    })
-
-    it('allows a non-admin manager scalar update that does not touch the file', () => {
-      expect(() =>
-        callHook(audioHook, {
+        callHook(hook, {
           user: editorManager,
-          data: { title: 'x' },
+          data: { title: 'new title' },
           originalDoc: { filename: 'a.mp3' },
         }),
       ).not.toThrow()

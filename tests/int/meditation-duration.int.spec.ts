@@ -233,7 +233,7 @@ describe('Meditation Duration Extraction', () => {
       ).rejects.toThrow(/Only admins can replace the audio file on a meditation/)
     })
 
-    it('blocks a non-admin manager from removing the audio (403)', async () => {
+    it('blocks removing the audio without a replacement — non-admin manager (403)', async () => {
       const meditation = await testData.createMeditation(payload, {
         narrator: narratorId,
         thumbnail: thumbnailId,
@@ -248,7 +248,25 @@ describe('Meditation Duration Extraction', () => {
           user: manager,
           overrideAccess: true,
         }),
-      ).rejects.toThrow(/Only admins can remove the audio file on a meditation/)
+      ).rejects.toThrow(/The audio file on a meditation cannot be removed/)
+    })
+
+    it('blocks removing the audio without a replacement — even for an admin (403)', async () => {
+      const meditation = await testData.createMeditation(payload, {
+        narrator: narratorId,
+        thumbnail: thumbnailId,
+      })
+      const admin = await testData.createManager(payload, { type: 'admin' })
+
+      await expect(
+        payload.update({
+          collection: 'meditations',
+          id: meditation.id,
+          data: { filename: null },
+          user: admin,
+          overrideAccess: true,
+        }),
+      ).rejects.toThrow(/The audio file on a meditation cannot be removed/)
     })
 
     it('lets a trusted system call (no user) replace the audio', async () => {
