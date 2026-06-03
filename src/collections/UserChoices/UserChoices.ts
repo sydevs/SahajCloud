@@ -1,36 +1,17 @@
-import type { CollectionBeforeChangeHook, CollectionConfig } from 'payload'
-
-import { APIError } from 'payload'
+import type { CollectionConfig } from 'payload'
 
 import { colorField, slugField } from '@/fields'
-import { adminOnlyCondition, adminOnlyFieldAccess, isAdminManager } from '@/plugins/access'
+import {
+  adminOnlyCondition,
+  adminOnlyFieldAccess,
+  isAdminManager,
+  restrictUploadToAdmin,
+} from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
 
 import { clearIsParentOnDelete } from './hooks/clearIsParentOnDelete'
 import { maintainIsParent } from './hooks/maintainIsParent'
 import { validateNesting } from './hooks/validateNesting'
-
-/**
- * Block non-admin managers from replacing the uploaded icon.
- *
- * Field-level `access.update` covers scalar fields, but the upload's file
- * payload isn't a field — it arrives via `req.file`. Reject the request
- * before the storage adapter touches it.
- *
- * Scope note: we only gate the binary replacement. The implicit upload
- * metadata columns (`filename`, `mimeType`, `filesize`) cannot take
- * per-field `access.update` because they aren't in the `fields` array; a
- * non-admin editor could PATCH them via REST. That would desync the URL
- * from the stored object but not exfiltrate data or replace the icon
- * binary, so it's accepted as low-risk.
- */
-const restrictIconUploadToAdmin: CollectionBeforeChangeHook = ({ req, operation }) => {
-  if (operation !== 'update') return
-  if (isAdminManager(req.user)) return
-  if (req.file) {
-    throw new APIError('Only admins can replace the icon on a user choice.', 403)
-  }
-}
 
 const isMoodChoice = (data: { type?: string } | undefined): boolean => !data || data.type !== 'goal'
 
@@ -58,7 +39,7 @@ export const UserChoices: CollectionConfig = {
   },
   hooks: {
     beforeValidate: [validateNesting],
-    beforeChange: [restrictIconUploadToAdmin],
+    beforeChange: [restrictUploadToAdmin({ label: 'icon on a user choice' })],
     afterChange: [maintainIsParent],
     afterDelete: [clearIsParentOnDelete],
   },

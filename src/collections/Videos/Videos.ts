@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { mediaField } from '@/fields'
 import { subtitlesJsonSchema, validateSubtitles } from '@/lib/utilities/subtitles'
+import { restrictUploadToAdmin } from '@/plugins/access'
 import { hlsUrlField, mp4UrlField, previewUrlField } from '@/plugins/storage/urlFields'
 
 export const Videos: CollectionConfig = {
@@ -10,9 +11,11 @@ export const Videos: CollectionConfig = {
     singular: 'Video',
     plural: 'Videos',
   },
+  hooks: {
+    beforeChange: [restrictUploadToAdmin({ label: 'video file' })],
+  },
   upload: {
     staticDir: 'media/videos',
-    hideRemoveFile: true,
     mimeTypes: ['video/mp4', 'video/webm', 'video/quicktime'],
   },
   admin: {

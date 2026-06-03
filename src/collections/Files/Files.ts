@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
+import { restrictUploadToAdmin } from '@/plugins/access'
 import {
   hlsUrlField,
   mixedMediaUrlField,
@@ -15,6 +16,9 @@ export const Files: CollectionConfig = {
   },
   trash: true,
   disableDuplicate: true,
+  hooks: {
+    beforeChange: [restrictUploadToAdmin({ label: 'file' })],
+  },
   admin: {
     group: 'Media',
     useAsTitle: 'filename',
@@ -23,7 +27,6 @@ export const Files: CollectionConfig = {
     defaultColumns: ['previewUrl', 'mimeType', 'createdAt'],
   },
   upload: {
-    hideRemoveFile: true,
     staticDir: 'media/files',
     mimeTypes: [
       'application/pdf',

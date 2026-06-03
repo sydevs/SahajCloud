@@ -34,6 +34,7 @@ export { bypassPermissions } from './bypassPermissions'
 
 export { filterAvailableLocales } from './filterAvailableLocales'
 export { adminOnlyCondition, adminOnlyFieldAccess, isAdminManager } from './adminOnly'
+export { restrictUploadToAdmin } from './restrictUploadToAdmin'
 
 // ============================================================================
 // HELPER FUNCTIONS (public API - consolidated from projects.ts and data.ts)
