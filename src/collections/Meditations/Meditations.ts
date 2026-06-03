@@ -8,6 +8,7 @@ import {
   normalizeMeditationFrames,
   normalizeMeditationFramesForStorage,
 } from '@/lib/meditations/frames'
+import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
 import { KeyframeData } from '@/types/frames'
 
@@ -74,7 +75,11 @@ export const Meditations: CollectionConfig = {
   endpoints: [meditationLectures],
   hooks: {
     beforeOperation: [filterMeditationsByLocale],
-    beforeChange: [extractAudioDuration, invalidateMeditationNodeWeights],
+    beforeChange: [
+      restrictUploadToAdmin({ label: 'audio file on a meditation', blockRemoval: true }),
+      extractAudioDuration,
+      invalidateMeditationNodeWeights,
+    ],
     afterChange: [recomputeMeditationNodeWeights],
   },
   defaultPopulate: {
@@ -90,7 +95,9 @@ export const Meditations: CollectionConfig = {
   upload: {
     staticDir: 'media/meditations',
     bulkUpload: false,
-    hideRemoveFile: true,
+    // `hideRemoveFile` is set per-user by the AudioUpload wrapper
+    // (`hideRemoveFile: !isAdmin`); the server-side restrictUploadToAdmin hook
+    // is the real boundary. See src/components/admin/AudioUpload/AudioUpload.tsx.
     mimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'],
   },
   admin: {
