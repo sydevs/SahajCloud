@@ -4,12 +4,16 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 
 /**
  * Extract a relationship id from any of the shapes Payload returns for
- * relationship/upload fields: a raw scalar (`number` / `string`) or a
- * populated `{ id }` object. Returns `null` for unset / unknown values.
+ * relationship/upload fields: a raw scalar (`number` / `string`), a
+ * populated `{ id }` object, or a polymorphic `{ relationTo, value }`
+ * wrapper (whose `value` is itself a scalar id or a populated doc).
+ * Returns `null` for unset / unknown values.
  */
 export function refId(value: unknown): number | string | null {
   if (typeof value === 'number' || typeof value === 'string') return value
   if (isRecord(value)) {
+    // Polymorphic relationship: unwrap { relationTo, value } and recurse.
+    if ('relationTo' in value && 'value' in value) return refId(value.value)
     const v = value.id
     if (typeof v === 'number' || typeof v === 'string') return v
   }
