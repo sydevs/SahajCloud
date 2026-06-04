@@ -17,7 +17,7 @@ This file provides guidance to AI coding agents when working with this repositor
 
 ## Overall Instructions
 
-- Always ask before editing, creating, or closing a GitHub issue or PR.
+- Always ask before editing or closing a GitHub PR, and before creating, editing, or closing a GitHub issue. Opening a new PR does not require prior approval.
 - When continuing from a previous session: explicitly state what was previously decided/approved, confirm the continuation context, and proceed with implementation only if intent is clear.
 - Prefer specialized MCP tools when researching: `mcp__cloudflare-docs__*` for Cloudflare, `mcp__sentry__*` for Sentry, `mcp__github__*` for GitHub. Use WebFetch only for sites without MCP coverage.
 - **Payload docs**: use the `payload` skill first (local quick-reference + `.claude/skills/payload/reference/*.md` covers ~80% of common Q&A). For anything not in the skill — newer features, edge cases, exact API signatures — call `mcp__payloadcms-docs__list_doc_sources` → `mcp__payloadcms-docs__fetch_docs` (live docs via the `llms.txt` sitemap). Don't WebFetch `payloadcms.com` directly; the MCP returns cleaner markdown. **Context guard**: MCP responses land in the main thread (5–20KB per page). For single targeted lookups, call the MCP directly. For multi-page research (3+ pages, or unsure which page) — dispatch an `Explore` subagent and let _it_ call the MCP, so the main thread only receives the synthesized answer.
