@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "1.0",
+  "generatedAt": "YYYY-MM-DDTHH:mm:ssZ",
+  "programs": [
+    {
+      "confidence": {
+        "score": null,
+        "level": "unknown",
+        "factors": {
+          "multipleSources": false,
+          "recentListing": false,
+          "recentComments": false,
+          "detailedListing": false,
+          "hasContactInfo": false,
+          "hasAddress": false,
+          "hasCoordinates": false,
+          "hasOfficialWebsite": false
+        },
+        "notes": ""
+      },
+      "event": {
+        "name": "",
+        "type": "in_person",
+        "description": "",
+        "website": "",
+        "images": []
+      },
+      "location": {
+        "buildingName": "",
+        "roomName": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "region": "",
+          "postalCode": "",
+          "country": ""
+        },
+        "coordinates": {
+          "lat": null,
+          "lng": null
+        },
+        "timezone": ""
+      },
+      "online": {
+        "platform": "",
+        "url": "",
+        "passcode": ""
+      },
+      "schedule": {
+        "startTime": "",
+        "endTime": "",
+        "startDate": null,
+        "endDate": null,
+        "recurrenceRule": ""
+      },
+      "contacts": [
+        {
+          "name": "",
+          "role": "event_manager",
+          "email": "",
+          "phone": "",
+          "whatsapp": ""
+        }
+      ],
+      "sources": [
+        {
+          "url": "",
+          "title": "",
+          "sourceType": "website",
+          "retrievedAt": "YYYY-MM-DDTHH:mm:ssZ",
+          "publishedAt": null,
+          "lastUpdatedAt": null,
+          "evidenceSummary": ""
+        }
+      ]
+    }
+  ]
+}
