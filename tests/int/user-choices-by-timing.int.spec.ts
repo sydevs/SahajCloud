@@ -23,8 +23,8 @@ describe('UserChoices per-timing assignments', () => {
   let eveningTag: UserChoice
   let parentTag: UserChoice
   // Test meditations
-  let quickMorning: Meditation
-  let quickEvening: Meditation
+  let dailyMorning: Meditation
+  let dailyEvening: Meditation
   let czechMorning: Meditation
 
   // Shared test dependencies
@@ -42,23 +42,23 @@ describe('UserChoices per-timing assignments', () => {
     const thumbnail = await testData.createMediaImage(payload)
     sharedThumbnail = thumbnail.id
 
-    // Create published quick meditations
-    quickMorning = await testData.createMeditation(
+    // Create published daily meditations
+    dailyMorning = await testData.createMeditation(
       payload,
       { narrator: sharedNarrator, thumbnail: sharedThumbnail },
       {
-        title: 'Morning Quick Meditation',
-        type: 'quick',
+        label: 'Morning Meditation',
+        type: 'daily',
         _status: 'published',
       },
     )
 
-    quickEvening = await testData.createMeditation(
+    dailyEvening = await testData.createMeditation(
       payload,
       { narrator: sharedNarrator, thumbnail: sharedThumbnail },
       {
-        title: 'Evening Quick Meditation',
-        type: 'quick',
+        label: 'Evening Meditation',
+        type: 'daily',
         _status: 'published',
       },
     )
@@ -68,8 +68,8 @@ describe('UserChoices per-timing assignments', () => {
       payload,
       { narrator: sharedNarrator, thumbnail: sharedThumbnail },
       {
-        title: 'Czech Morning Meditation',
-        type: 'quick',
+        label: 'Czech Morning Meditation',
+        type: 'daily',
         _status: 'published',
         locale: 'cs',
       },
@@ -87,7 +87,7 @@ describe('UserChoices per-timing assignments', () => {
       collection: 'user-choices',
       id: morningTag.id,
       locale: 'en',
-      data: { morningMeditation: quickMorning.id },
+      data: { morningMeditation: dailyMorning.id },
     })
 
     // Assign Czech morning meditation (title required for localized update)
@@ -109,7 +109,7 @@ describe('UserChoices per-timing assignments', () => {
       collection: 'user-choices',
       id: eveningTag.id,
       locale: 'en',
-      data: { eveningMeditation: quickEvening.id },
+      data: { eveningMeditation: dailyEvening.id },
     })
 
     await testData.createUserChoice(payload, {
@@ -195,8 +195,8 @@ describe('UserChoices per-timing assignments', () => {
 
       const meditation = result.morningMeditation as Meditation | null
       expect(meditation).toBeDefined()
-      expect(meditation!.id).toBe(quickMorning.id)
-      expect(meditation!.title).toBe('Morning Quick Meditation')
+      expect(meditation!.id).toBe(dailyMorning.id)
+      expect(meditation!.label).toBe('Morning Meditation')
     })
 
     it('returns Czech meditation for Czech locale', async () => {

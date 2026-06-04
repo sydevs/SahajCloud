@@ -449,9 +449,11 @@ export const testData = {
       narrator = defaultNarrator.id
     }
 
-    // Generate unique title to avoid slug collisions
+    // Unique label keeps the upload filename / internal name collision-free.
+    // `title` is now a virtual field, so a `title` override is mapped onto
+    // `label` (the stored, queryable identifier) rather than written directly.
     const uniqueId = Math.random().toString(36).substring(7)
-    const defaultTitle = `Test Meditation ${uniqueId}`
+    const defaultLabel = `Test Meditation ${uniqueId}`
 
     return (await payload.create({
       collection: 'meditations',
@@ -459,12 +461,11 @@ export const testData = {
       // that reference localized fields on other collections (e.g., user-choices)
       locale: overrides.locale || 'en',
       data: {
-        label: overrides.label || overrides.title || defaultTitle,
-        title: overrides.title || defaultTitle,
+        label: overrides.label || overrides.title || defaultLabel,
         thumbnail: thumbnail,
         narrator: narrator,
         locale: overrides.locale || 'en',
-        type: overrides.type || 'quick', // Default to 'quick' type
+        type: overrides.type || 'daily', // Default to 'daily' type
         ...overrides,
       },
       file: {

@@ -359,7 +359,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
       // Preload collections for efficient skip/update mode
       // This dramatically reduces D1 queries by caching existence checks
-      // Note: meditations preloaded by title (more reliable than generated slug which may differ from stored)
+      // Note: meditations preloaded by label (the unique natural key after duplicate-title suffixing)
       await Promise.all([
         this.preloadCollection('frames', 'filename'),
         this.preloadCollection('meditations', 'label'),
@@ -1705,15 +1705,6 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
       const uniqueLabel = this.generateUniqueLabel(meditation, titleCounts)
       const identifier = uniqueLabel
 
-      // Generate unique slug with duration
-      const baseSlug = uniqueLabel
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-      const uniqueSlug = meditation.duration
-        ? `${baseSlug}-${meditation.duration}`
-        : `${baseSlug}-${meditation.id}`
-
       // Check for existing meditation using preload cache (by unique label)
       // Label is unique after duration suffix is added for duplicates
       const existingFromCache = this.getPreloaded('meditations', uniqueLabel)
@@ -1759,7 +1750,6 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
         await this.createMeditation(
           meditation,
           uniqueLabel,
-          uniqueSlug,
           keyframes,
           taggings,
           attachments,
@@ -1782,7 +1772,6 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
   private async createMeditation(
     meditation: ImportedData['meditations'][0],
     label: string,
-    slug: string,
     keyframes: ImportedData['keyframes'],
     taggings: ImportedData['taggings'],
     attachments: any[],
@@ -1847,13 +1836,11 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     }
 
     const meditationData: any = {
-      title: meditation.title,
       label,
       locale: 'en',
-      slug,
       duration: meditation.duration,
       narrator: narratorId,
-      type: this.getMeditationType(meditation.title, hasPathTag, timings.length > 0),
+      type: this.getMeditationType(meditation.title, hasPathTag),
       timings: timings.length > 0 ? timings : undefined,
       _status: meditation.published ? 'published' : 'draft',
     }
@@ -1972,11 +1959,10 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
 
     // Build update data (metadata only, no audio file)
     const updateData: any = {
-      title: meditation.title,
       label,
       duration: meditation.duration,
       narrator: narratorId,
-      type: this.getMeditationType(meditation.title, hasPathTag, timings.length > 0),
+      type: this.getMeditationType(meditation.title, hasPathTag),
       timings: timings.length > 0 ? timings : undefined,
       _status: meditation.published ? 'published' : 'draft',
     }
@@ -2084,11 +2070,7 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     return { timings: [...new Set(timings)], timingTagIds }
   }
 
-  private getMeditationType(
-    title: string,
-    hasPathTag: boolean,
-    hasTimings: boolean,
-  ): 'quick' | 'daily' | 'lesson' {
+  private getMeditationType(title: string, hasPathTag: boolean): 'daily' | 'lesson' {
     // 'path' tag takes priority - sets type to 'lesson' (displays as "Path" in UI)
     if (hasPathTag) {
       return 'lesson'
@@ -2096,10 +2078,8 @@ export class MeditationsImporter extends BaseImporter<BaseImportOptions> {
     if (title.startsWith('Step')) {
       return 'lesson'
     }
-    // Timing tags indicate 'quick' type
-    if (hasTimings) {
-      return 'quick'
-    }
+    // Everything else is 'daily'. The legacy 'quick' type (timing-tagged
+    // meditations) was retired in #445 and folded into 'daily'.
     return 'daily'
   }
 }
