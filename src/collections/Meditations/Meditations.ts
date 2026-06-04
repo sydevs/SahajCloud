@@ -1,6 +1,6 @@
 import type { CollectionConfig, JSONField, Validate } from 'payload'
 
-import { mediaField, slugField } from '@/fields'
+import { mediaField } from '@/fields'
 import { LOCALES } from '@/lib/locales'
 import {
   getFrameDiagnosticsLogContext,
@@ -14,6 +14,7 @@ import { KeyframeData } from '@/types/frames'
 
 import { meditationLectures } from './endpoints/lectures'
 import { extractAudioDuration } from './hooks/extractAudioDuration'
+import { fallbackTitleAfterRead } from './hooks/fallbackTitle'
 import { filterMeditationsByLocale } from './hooks/filterMeditationsByLocale'
 import { invalidateMeditationNodeWeights } from './hooks/invalidateMeditationNodeWeights'
 import { randomSongUrlAfterRead } from './hooks/randomSongUrl'
@@ -257,16 +258,19 @@ export const Meditations: CollectionConfig = {
               name: 'title',
               type: 'text',
               label: 'Public Title',
-              validate: ((value, options) => {
-                // Only required during update
-                const isUpdate = options.operation === 'update' || !!options.id
-                if (isUpdate && !value) {
-                  return 'Public Title is required'
-                }
-                return true
-              }) as Validate,
+              // Optional auto-generated fallback derived from the dominant
+              // subtle-system node (see ./hooks/fallbackTitle). Virtual: no DB
+              // column, computed on read, so it can't be set or queried.
+              virtual: true,
+              admin: {
+                readOnly: true,
+                description:
+                  "Optional auto-generated fallback title (e.g. Meditation for Anahat), derived from this meditation's dominant subtle-system node. Front-end clients use it only when they have no composed label of their own.",
+              },
+              hooks: {
+                afterRead: [fallbackTitleAfterRead],
+              },
             },
-            slugField({ useAsSlug: 'title', collectionSlug: 'meditations' }),
             {
               ...mediaField({
                 name: 'thumbnail',
@@ -286,17 +290,14 @@ export const Meditations: CollectionConfig = {
               name: 'type',
               type: 'select',
               required: true,
-              defaultValue: 'quick',
+              defaultValue: 'daily',
               options: [
-                { label: 'Quick', value: 'quick' },
                 { label: 'Daily', value: 'daily' },
                 { label: 'Path', value: 'lesson' },
               ],
               admin: {
                 custom: {
                   descriptions: {
-                    quick:
-                      'Time-based meditations without personalization. Offered based on time of day.',
                     daily:
                       'Personalized meditations with interactive features. Offered based on seeker mood/state.',
                     lesson:

@@ -130,11 +130,11 @@ describe('WeMeditateAppStatus Global', () => {
   describe('Section 1 — UserChoices', () => {
     it('featured choice with all timing meditations passes; missing one fails', async () => {
       const morningMed = await testData.createMeditation(payload, undefined, {
-        type: 'quick',
+        type: 'daily',
         _status: 'published',
       })
       const eveningMed = await testData.createMeditation(payload, undefined, {
-        type: 'quick',
+        type: 'daily',
         _status: 'published',
       })
 
@@ -362,7 +362,7 @@ describe('WeMeditateAppStatus Global', () => {
 
     it('self-realization-meditation passes when assigned to a published meditation for the locale', async () => {
       const med = await testData.createMeditation(payload, undefined, {
-        type: 'quick',
+        type: 'daily',
         _status: 'published',
         locale: 'en',
       })

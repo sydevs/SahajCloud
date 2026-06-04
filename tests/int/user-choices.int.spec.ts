@@ -317,12 +317,12 @@ describe('UserChoices Collection - Metadata Fields', () => {
 
   describe('per-timing meditation assignments', () => {
     let tag: UserChoice
-    let quickMeditation: { id: number }
+    let dailyMeditation: { id: number }
 
     beforeAll(async () => {
-      quickMeditation = await testData.createMeditation(payload, undefined, {
-        type: 'quick',
-        title: 'Quick Timing Test',
+      dailyMeditation = await testData.createMeditation(payload, undefined, {
+        type: 'daily',
+        label: 'Quick Timing Test',
       })
       tag = await testData.createUserChoice(payload, {
         title: 'Timing Assignment Tag',
@@ -335,20 +335,20 @@ describe('UserChoices Collection - Metadata Fields', () => {
         collection: 'user-choices',
         id: tag.id,
         locale: 'en',
-        data: { morningMeditation: quickMeditation.id },
+        data: { morningMeditation: dailyMeditation.id },
       })
 
       const morningId =
         typeof updated.morningMeditation === 'object' && updated.morningMeditation !== null
           ? updated.morningMeditation.id
           : updated.morningMeditation
-      expect(morningId).toBe(quickMeditation.id)
+      expect(morningId).toBe(dailyMeditation.id)
     })
 
     it('supports different meditations per locale', async () => {
       const czechMeditation = await testData.createMeditation(payload, undefined, {
-        type: 'quick',
-        title: 'Czech Quick',
+        type: 'daily',
+        label: 'Czech Quick',
         locale: 'cs',
       })
 
@@ -366,7 +366,7 @@ describe('UserChoices Collection - Metadata Fields', () => {
         locale: 'en',
         depth: 0,
       })
-      expect(enResult.morningMeditation).toBe(quickMeditation.id)
+      expect(enResult.morningMeditation).toBe(dailyMeditation.id)
 
       // Verify Czech assignment
       const csResult = await payload.findByID({
@@ -387,9 +387,9 @@ describe('UserChoices Collection - Metadata Fields', () => {
       })
 
       expect(result.morningMeditation).toBeDefined()
-      const meditation = result.morningMeditation as { id: number; title: string | null }
-      expect(meditation.id).toBe(quickMeditation.id)
-      expect(meditation.title).toBe('Quick Timing Test')
+      const meditation = result.morningMeditation as { id: number; label: string | null }
+      expect(meditation.id).toBe(dailyMeditation.id)
+      expect(meditation.label).toBe('Quick Timing Test')
     })
   })
 

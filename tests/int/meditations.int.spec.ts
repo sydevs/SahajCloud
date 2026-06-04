@@ -45,10 +45,9 @@ describe('Meditations Collection', () => {
     await cleanup()
   })
 
-  it('creates a meditation with auto-generated slug', async () => {
+  it('creates a meditation with audio upload and relationships', async () => {
     expect(testMeditation).toBeDefined()
-    expect(testMeditation.title).toBe('Morning Meditation')
-    expect(testMeditation.slug).toBe('morning-meditation')
+    expect(testMeditation.label).toBe('Morning Meditation')
     expect(testMeditation.filename).toBeDefined() // Now has direct audio upload
     expect(
       typeof testMeditation.narrator === 'object'
@@ -373,26 +372,27 @@ describe('Meditations Collection', () => {
     let deMeditation: Meditation
 
     beforeAll(async () => {
-      // Create meditations in different locales
+      // Create meditations in different locales. `title` is virtual now, so
+      // these use `label` (the stored, queryable identifier).
       enMeditation1 = await testData.createMeditation(
         payload,
         { narrator: testNarrator.id, thumbnail: testImageMedia.id },
-        { title: 'English Meditation 1', locale: 'en' },
+        { label: 'English Meditation 1', locale: 'en' },
       )
       enMeditation2 = await testData.createMeditation(
         payload,
         { narrator: testNarrator.id, thumbnail: testImageMedia.id },
-        { title: 'English Meditation 2', locale: 'en' },
+        { label: 'English Meditation 2', locale: 'en' },
       )
       csMeditation = await testData.createMeditation(
         payload,
         { narrator: testNarrator.id, thumbnail: testImageMedia.id },
-        { title: 'Czech Meditation', locale: 'cs' },
+        { label: 'Czech Meditation', locale: 'cs' },
       )
       deMeditation = await testData.createMeditation(
         payload,
         { narrator: testNarrator.id, thumbnail: testImageMedia.id },
-        { title: 'German Meditation', locale: 'de' },
+        { label: 'German Meditation', locale: 'de' },
       )
     })
 
@@ -482,7 +482,7 @@ describe('Meditations Collection', () => {
         draft: true,
         depth: 0,
         where: {
-          title: { equals: 'English Meditation 1' },
+          label: { equals: 'English Meditation 1' },
         },
       })
 
@@ -506,27 +506,68 @@ describe('Meditations Collection', () => {
   })
 
   describe('Type field', () => {
-    it('creates meditation with quick type by default', async () => {
-      const meditation = await testData.createMeditation(
-        payload,
-        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
-        { title: 'Quick Default Test' },
-      )
+    it('creates meditation with daily type by default', async () => {
+      const meditation = await testData.createMeditation(payload, {
+        narrator: testNarrator.id,
+        thumbnail: testImageMedia.id,
+      })
 
-      expect(meditation.type).toBe('quick')
+      expect(meditation.type).toBe('daily')
     })
 
     it('creates meditation with lesson type', async () => {
       const meditation = await testData.createMeditation(
         payload,
         { narrator: testNarrator.id, thumbnail: testImageMedia.id },
-        {
-          title: 'Lesson Meditation',
-          type: 'lesson',
-        },
+        { type: 'lesson' },
       )
 
       expect(meditation.type).toBe('lesson')
+    })
+  })
+
+  describe('Public title (virtual fallback)', () => {
+    it('returns null when the meditation has no node weights', async () => {
+      // testMeditation has no frames, so subtleSystemNodeWeights is empty.
+      const med = await payload.findByID({
+        collection: 'meditations',
+        id: testMeditation.id,
+        locale: 'en',
+      })
+
+      expect(med.title).toBeNull()
+    })
+
+    it('returns "Meditation for <dominant node>" from cached node weights', async () => {
+      // A single pingala frame makes pingala the dominant (only) node; pingala
+      // maps to the "Right Channel" label via SUBTLE_SYSTEM_NODE_OPTIONS.
+      const node = await testData.createSubtleSystemNode(payload, {}, { slug: 'pingala' })
+      const frame = await testData.createFrame(payload, { subtleSystemNode: node.id })
+
+      const created = await testData.createMeditation(payload, {
+        narrator: testNarrator.id,
+        thumbnail: testImageMedia.id,
+      })
+
+      // Updating frames fires recomputeMeditationNodeWeights, which writes the
+      // { pingala → seconds } weights cache to the main meditations row (via
+      // db.updateOne). The title hook reads that cache on the next read.
+      await payload.update({
+        collection: 'meditations',
+        id: created.id,
+        data: {
+          frames: [{ id: frame.id, timestamp: 0 }] as unknown as Meditation['frames'],
+        },
+        locale: 'en',
+      })
+
+      const med = await payload.findByID({
+        collection: 'meditations',
+        id: created.id,
+        locale: 'en',
+      })
+
+      expect(med.title).toBe('Meditation for Right Channel')
     })
   })
 })
