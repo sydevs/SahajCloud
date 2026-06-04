@@ -714,7 +714,7 @@ export const testData = {
   async createLesson(
     payload: Payload,
     overrides: Omit<Partial<Lesson>, 'meditation'> & {
-      meditation?: number | NonNullable<Lesson['meditation']> | null
+      meditation?: number | Lesson['meditation']
     } = {},
   ): Promise<Lesson> {
     // Create a default meditation if not provided
