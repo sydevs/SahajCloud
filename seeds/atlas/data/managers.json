@@ -1,0 +1,7962 @@
+[
+  {
+    "legacyId": 1,
+    "name": "Devindra Payment",
+    "email": "devindra.payment@gmail.com",
+    "type": "admin",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-10-12T12:29:35.095Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 2,
+    "name": "Elliott Agate",
+    "email": "elliott.agate@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2022-02-02T08:40:16.284Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 1
+      }
+    ]
+  },
+  {
+    "legacyId": 3,
+    "name": "Devindra Payment",
+    "email": "arden.ived@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2022-01-28T04:03:48.041Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 4,
+    "name": "Devindra Payment",
+    "email": "arden.ived+test@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 5,
+    "name": "Danilo Scuderoni",
+    "email": "daniloscuderoni@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 6,
+    "name": "Julie Marshall",
+    "email": "julesmarshall108@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 7,
+    "name": "Maria Ross",
+    "email": "maria.ross.108@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-04-12T12:04:30.332Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 8,
+    "name": "Chris Marshall",
+    "email": "chrismarshall33@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 9,
+    "name": "Sobik Sharma",
+    "email": "sobiks@hotmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 10,
+    "name": "Deepti Bhargava",
+    "email": "deeptibhargav@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 11,
+    "name": "Savi Vadakkan",
+    "email": "savi.vadakkan@nz.ey.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 12,
+    "name": "Dennis",
+    "email": "nirmalitedennis1008@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 13,
+    "name": "Gordon Clark",
+    "email": "gordon.clark@yahoo.com.au",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 14,
+    "name": "Moolchand Taparia",
+    "email": "nirmalmool@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 15,
+    "name": "Anton Tcymbal",
+    "email": "anton.tcymbal@gmail.com",
+    "type": "admin",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-08-27T06:16:36.611Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 17,
+    "name": "Janaki van Os",
+    "email": "janakivanos@live.nl",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2022-04-30T11:22:33.215Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 3
+      }
+    ]
+  },
+  {
+    "legacyId": 18,
+    "name": "Ebru",
+    "email": "ecorches@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T08:32:30.878Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 3
+      }
+    ]
+  },
+  {
+    "legacyId": 19,
+    "name": "Mohan Gulati",
+    "email": "mohan.gulati@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-10-08T07:05:39.640Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 2
+      }
+    ]
+  },
+  {
+    "legacyId": 20,
+    "name": "Геннадий Румянцев",
+    "email": "gennadiimail@gmail.com",
+    "type": "manager",
+    "languageCode": "RU",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-01-16T04:30:57.087Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 4
+      },
+      {
+        "level": "region",
+        "legacyId": 80
+      }
+    ]
+  },
+  {
+    "legacyId": 21,
+    "name": "Zuzka Pajdova",
+    "email": "z.pajdova@seznam.cz",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-10-01T21:52:03.702Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 5
+      }
+    ]
+  },
+  {
+    "legacyId": 22,
+    "name": "Renata",
+    "email": "souckovarenata@atlas.cz",
+    "type": "manager",
+    "languageCode": "CS",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-31T13:35:22.652Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 8
+      }
+    ]
+  },
+  {
+    "legacyId": 23,
+    "name": "Tomáš Dlabaja",
+    "email": "dlabaja@tom-stolarstvi.cz",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 9
+      }
+    ]
+  },
+  {
+    "legacyId": 24,
+    "name": "Václav Kozel",
+    "email": "vac.lav@seznam.cz",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 25,
+    "name": "Геннадий Севкабель",
+    "email": "gennadiimail+mansevcab@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 26,
+    "name": "Gennadii SPb manager",
+    "email": "gennadiimail+spbman@gmail.ru",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 27,
+    "name": "Gennadii GorMan",
+    "email": "gennadiimail+gorman@gmail.ru",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 28,
+    "name": "Gennadii Gork manager",
+    "email": "gennadiimail+gorkman@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 29,
+    "name": "Gennadii Port manager",
+    "email": "gennadiimail+portman@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2022-01-20T01:50:41.397Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 30,
+    "name": "Gennadii SPb manager",
+    "email": "gennadiimail+spbman@gmail.com",
+    "type": "manager",
+    "languageCode": "RU",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "place_summary"
+    ],
+    "lastLoginAt": "2022-08-15T07:59:08.779Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 6
+      }
+    ]
+  },
+  {
+    "legacyId": 31,
+    "name": "Евгений Филипов",
+    "email": "daksha.ef@gamil.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 32,
+    "name": "Евгений Филипов",
+    "email": "daksha.ef@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2022-02-04T05:42:05.829Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 12
+      }
+    ]
+  },
+  {
+    "legacyId": 33,
+    "name": "Martin Ježek",
+    "email": "jezek108@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T13:04:39.028Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 13
+      }
+    ]
+  },
+  {
+    "legacyId": 34,
+    "name": "Геннадий Эфир",
+    "email": "gennadiimail+live@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2022-01-20T01:59:27.569Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 35,
+    "name": "Анна Маракасова",
+    "email": "anya.tiva@gmail.com",
+    "type": "manager",
+    "languageCode": "RU",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "country_summary"
+    ],
+    "lastLoginAt": "2024-04-11T02:38:10.519Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 4
+      },
+      {
+        "level": "country",
+        "legacyId": 22
+      },
+      {
+        "level": "country",
+        "legacyId": 24
+      },
+      {
+        "level": "country",
+        "legacyId": 23
+      }
+    ]
+  },
+  {
+    "legacyId": 36,
+    "name": "Генналий Район",
+    "email": "gennadiimail+local@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 37,
+    "name": "Геннадий Деревня",
+    "email": "gennadiimail+village@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 38,
+    "name": "Евгения Миловидова",
+    "email": "genwow@icloud.com",
+    "type": "manager",
+    "languageCode": "RU",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-09T11:08:55.918Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 16
+      }
+    ]
+  },
+  {
+    "legacyId": 39,
+    "name": "Дарья Беляйкина",
+    "email": "daria.laflor@gmail.com",
+    "type": "manager",
+    "languageCode": "RU",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-08-22T07:14:12.635Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 17
+      },
+      {
+        "level": "country",
+        "legacyId": 4
+      },
+      {
+        "level": "country",
+        "legacyId": 31
+      }
+    ]
+  },
+  {
+    "legacyId": 40,
+    "name": "Анна Галперина",
+    "email": "geo.anna.galperina@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2022-03-24T01:36:47.632Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 17
+      }
+    ]
+  },
+  {
+    "legacyId": 41,
+    "name": "Евгений ",
+    "email": "daksha1080@gmail.com",
+    "type": "manager",
+    "languageCode": "RU",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2022-01-31T02:28:07.477Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 42,
+    "name": "Savi Vadakkan",
+    "email": "savi.vadakkan@nz.ey.co.nz",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 43,
+    "name": "Marco Bellotto",
+    "email": "marcoogle@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "country_summary"
+    ],
+    "lastLoginAt": "2023-04-20T05:29:13.714Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 6
+      }
+    ]
+  },
+  {
+    "legacyId": 44,
+    "name": "Анастасия Эйрих",
+    "email": "siberiaiscool@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-08-03T02:16:40.449Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 18
+      }
+    ]
+  },
+  {
+    "legacyId": 45,
+    "name": "Contact",
+    "email": "contact@sydevelopers.com",
+    "type": "manager",
+    "languageCode": "de",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 46,
+    "name": "Ambika Gollakishta",
+    "email": "ambika108@live.nl",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-09-29T01:55:51.862Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 2
+      },
+      {
+        "level": "country",
+        "legacyId": 3
+      }
+    ]
+  },
+  {
+    "legacyId": 47,
+    "name": "Norbert Baran",
+    "email": "norbertbaran@hotmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 48,
+    "name": "Shakti",
+    "email": "shakti.rob@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "event_verification"
+    ],
+    "lastLoginAt": "2022-04-11T11:14:12.965Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 51
+      }
+    ]
+  },
+  {
+    "legacyId": 49,
+    "name": "Norbert Baran",
+    "email": "denhaag@sahajayoga.nl",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2022-05-10T09:14:09.458Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 50,
+    "name": "Sanjeev",
+    "email": "sanj108@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-03-27T01:40:52.159Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 7
+      }
+    ]
+  },
+  {
+    "legacyId": 51,
+    "name": "Евгения Камендо",
+    "email": "zhenyakamendo@gmail.com",
+    "type": "manager",
+    "languageCode": "RU",
+    "phone": "+7 921 927-76-37",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "telegram",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-15T05:33:20.465Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 52,
+    "name": "Qasim Rashid",
+    "email": "qasim_rashid90@hotmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-10-10T03:20:01.586Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 7
+      },
+      {
+        "level": "country",
+        "legacyId": 10
+      }
+    ]
+  },
+  {
+    "legacyId": 53,
+    "name": "Madhu Ronniger",
+    "email": "madhu1008@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+43 660 7367226",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification"
+    ],
+    "lastLoginAt": "2024-07-07T05:09:15.630Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 9
+      }
+    ]
+  },
+  {
+    "legacyId": 54,
+    "name": "Norbert Baran",
+    "email": "sydenhaag@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-07T12:57:43.156Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 55,
+    "name": "Genrih Lanevskij",
+    "email": "genrih.lanevsky@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-08-12T02:06:58.891Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 54
+      },
+      {
+        "level": "region",
+        "legacyId": 5
+      }
+    ]
+  },
+  {
+    "legacyId": 57,
+    "name": "Ziya Dikbas",
+    "email": "ziya108@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+07792921164",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "place_summary"
+    ],
+    "lastLoginAt": "2024-01-21T06:21:39.473Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 58
+      },
+      {
+        "level": "region",
+        "legacyId": 7
+      },
+      {
+        "level": "country",
+        "legacyId": 7
+      }
+    ]
+  },
+  {
+    "legacyId": 58,
+    "name": "Alan Henderson",
+    "email": "alanhend@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-10-09T07:21:37.097Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 6
+      }
+    ]
+  },
+  {
+    "legacyId": 59,
+    "name": "Dara Emerson",
+    "email": "dara@dimensions.at",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-08T00:03:44.335Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 9
+      }
+    ]
+  },
+  {
+    "legacyId": 60,
+    "name": "Nicholas Granby",
+    "email": "peaceawakens@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+07799176901",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-09T10:17:41.355Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 62,
+    "name": "Madhu Ronniger - German",
+    "email": "madhu1008+german@gmail.com",
+    "type": "manager",
+    "languageCode": "DE",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "country_summary"
+    ],
+    "lastLoginAt": "2024-07-07T05:08:45.321Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 9
+      }
+    ]
+  },
+  {
+    "legacyId": 63,
+    "name": "Herbert Schlager",
+    "email": "herbert.schlager@gmx.at",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-26T09:55:21.738Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 9
+      }
+    ]
+  },
+  {
+    "legacyId": 64,
+    "name": "Seamus Harten",
+    "email": "seamus.harten@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2022-12-20T23:35:53.855Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 10
+      },
+      {
+        "level": "country",
+        "legacyId": 10
+      }
+    ]
+  },
+  {
+    "legacyId": 65,
+    "name": "Jayant Roy",
+    "email": "jay1roy@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+353 87 927 3468",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "place_summary",
+      "country_summary"
+    ],
+    "lastLoginAt": "2024-07-08T03:31:57.335Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 10
+      },
+      {
+        "level": "country",
+        "legacyId": 10
+      }
+    ]
+  },
+  {
+    "legacyId": 66,
+    "name": "Anjani Mchugh",
+    "email": "anjani.mchugh@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2022-10-11T06:10:04.285Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 7
+      }
+    ]
+  },
+  {
+    "legacyId": 67,
+    "name": "Ivan Koreček",
+    "email": "ivan.korecek@seznam.cz",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 68,
+    "name": "Petr Kominek",
+    "email": "petr.kominek@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-02-17T01:19:58.505Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 75,
+    "name": "Test Manager",
+    "email": "devindra.payment+test@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-01-12T17:14:42.781Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 27
+      }
+    ]
+  },
+  {
+    "legacyId": 76,
+    "name": "Priya Roy",
+    "email": "priya1roy@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 64
+      }
+    ]
+  },
+  {
+    "legacyId": 77,
+    "name": "Naval Kharat",
+    "email": "navalkharat777@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+353 86 029 9228",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations"
+    ],
+    "lastLoginAt": "2023-07-05T05:48:29.075Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 65
+      }
+    ]
+  },
+  {
+    "legacyId": 78,
+    "name": "Vivek Bhushan",
+    "email": "vivek.bhushan@live.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+353 87 992 0045",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T08:03:31.697Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 66
+      }
+    ]
+  },
+  {
+    "legacyId": 79,
+    "name": "Nivranshu Pasricha",
+    "email": "nivranshu@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+353 89 420 8528",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-07T15:23:06.134Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 67
+      }
+    ]
+  },
+  {
+    "legacyId": 80,
+    "name": "Martin Hába",
+    "email": "ma.haba@seznam.cz",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-12T11:09:55.244Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 9
+      }
+    ]
+  },
+  {
+    "legacyId": 83,
+    "name": "Nigel Hughes",
+    "email": "syleicester@hotmail.co.uk",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+07870550885",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-08T02:25:34.861Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 84,
+    "name": "Brian Virgo",
+    "email": "brian.virgo@yahoo.co.uk",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+44 7717 454307",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-11T04:19:17.215Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 85,
+    "name": "Heimo Lassnig",
+    "email": "hlassnig7@hotmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-04-17T03:19:46.116Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 11
+      }
+    ]
+  },
+  {
+    "legacyId": 86,
+    "name": "Jennie Bego",
+    "email": "jenniewildman@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2022-12-03T23:24:15.396Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 75
+      }
+    ]
+  },
+  {
+    "legacyId": 87,
+    "name": "Sunil Khatri",
+    "email": "sunil@meshroad.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary"
+    ],
+    "lastLoginAt": "2024-07-05T10:57:22.616Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 1
+      }
+    ]
+  },
+  {
+    "legacyId": 88,
+    "name": "Dragos Ionel",
+    "email": "dragosionel@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+1 647 501 3737",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations"
+    ],
+    "lastLoginAt": "2024-10-11T18:23:35.415Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 2
+      },
+      {
+        "level": "country",
+        "legacyId": 2
+      }
+    ]
+  },
+  {
+    "legacyId": 89,
+    "name": "Анастасия Эйрих",
+    "email": "nandini_ma@mail.ru",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 90,
+    "name": "Peter Yeboah",
+    "email": "peter.yeboah@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+44 7765 002249",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-07T05:43:15.659Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 91,
+    "name": "Tim Bruce",
+    "email": "tim.bruce@ntlworld.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+44 7946 524518",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-10T00:55:13.765Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 92,
+    "name": "Cristina Bruce",
+    "email": "cristinabruce@hotmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+07931851954",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-06T11:41:40.322Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 93,
+    "name": "Pasquale Scialo",
+    "email": "pscialo@yahoo.co.uk",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+07973319433",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-20T22:53:44.623Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 94,
+    "name": "Priya Sharma",
+    "email": "priya2676@icloud.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+44 7758 004140",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-08T12:12:58.972Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 95,
+    "name": "Manitu Szerman",
+    "email": "m.szerman@universallanguagesolutions.co.uk",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+44 7903 127423",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "event_verification"
+    ],
+    "lastLoginAt": "2024-07-07T16:32:54.931Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 96,
+    "name": "Mayank Kumar",
+    "email": "mayankyogi@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2022-12-12T14:41:41.320Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 97,
+    "name": "Jaye ",
+    "email": "4etrn8ty@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+9053992591",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "place_summary"
+    ],
+    "lastLoginAt": "2024-09-22T07:47:56.861Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 2
+      }
+    ]
+  },
+  {
+    "legacyId": 98,
+    "name": "Jim Ward",
+    "email": "jimcabbie@hotmail.co.uk",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+44 7956 222098",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-05T07:20:10.962Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 99,
+    "name": "Nadia O'Neill",
+    "email": "balhamlibrarymeditation@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-01-04T06:21:02.668Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 100,
+    "name": "Shambhu Acharya",
+    "email": "shambhu.sahaji108@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-05-09T07:14:01.666Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 101,
+    "name": "David Jesus Vignolli",
+    "email": "david@jesusvignolli.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+44 7926 958265",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-07T23:00:48.823Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 102,
+    "name": "Riccardo Caiazza",
+    "email": "r.caiazza82@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+353 83 459 8229",
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2022-12-20T07:58:55.610Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 68
+      }
+    ]
+  },
+  {
+    "legacyId": 103,
+    "name": "Magda Udrea",
+    "email": "magdaudrea108@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-29T08:06:19.485Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 104,
+    "name": "Kathleen Downey",
+    "email": "kathleenanndowney@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-08-22T20:46:02.868Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 105,
+    "name": "Luca Giuriato",
+    "email": "luca.giuriato.108@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-06-13T23:23:41.128Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 15
+      }
+    ]
+  },
+  {
+    "legacyId": 106,
+    "name": "Stefano Landucci",
+    "email": "stefano.landucci@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-11-08T17:40:35.318Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 16
+      }
+    ]
+  },
+  {
+    "legacyId": 107,
+    "name": "Stefano Landucci Outlook",
+    "email": "stefano.landucci@outlook.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+3201507226",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-01-18T07:42:40.960Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 108,
+    "name": "Alessandro Gori",
+    "email": "axgori@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+335276227",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary"
+    ],
+    "lastLoginAt": "2024-07-09T00:47:37.971Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 23
+      }
+    ]
+  },
+  {
+    "legacyId": 109,
+    "name": "Stuart Weatherby",
+    "email": "weatherby1@sky.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+07415212384",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-05-31T03:22:55.465Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 110,
+    "name": "Serenella Avoscan",
+    "email": "dharmadara108@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+3471707858",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary"
+    ],
+    "lastLoginAt": "2024-07-05T12:57:10.154Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 110
+      }
+    ]
+  },
+  {
+    "legacyId": 111,
+    "name": "Maria Servidio",
+    "email": "mirasvedi56@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+39 392 899 5044",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-05T05:07:12.299Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 112,
+    "name": "Barbara Serracini",
+    "email": "bserracini@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+3296361109",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-05T05:09:18.600Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 113,
+    "name": "Armando Severini",
+    "email": "severini233@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+3486979674",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-07T07:55:07.244Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 114,
+    "name": "Laura Re",
+    "email": "laurare187@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+39 331 682 2296",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-05T06:21:04.063Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 115,
+    "name": "Luca Marchese",
+    "email": "luca108@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-05T23:08:49.303Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 116,
+    "name": "Betti Di Poce",
+    "email": "bettidipoce@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+39 333 454 0753",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T09:10:03.361Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 117,
+    "name": "Andrea De Bellis",
+    "email": "andreadebellis77@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+39 346 680 4770",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-01-29T03:29:05.506Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 118,
+    "name": "Guido Di Laurenzi",
+    "email": "guidodilaurenzi@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+39 347 762 6403",
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "whatsapp",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-07T04:44:05.338Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 119,
+    "name": "Massimo Cesetti",
+    "email": "m.cesetti@tin.it",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+39 331 602 2832",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-02-06T00:22:16.657Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 120,
+    "name": "Hakim Gabriele Thurner",
+    "email": "kim.thurner@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+39 333 945 3839",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-01-30T02:13:20.094Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 121,
+    "name": "Paola Cavallini",
+    "email": "paola18@libero.it",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+39 339 149 8755",
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 122,
+    "name": "Gioia Giannini",
+    "email": "ananda1963@yahoo.it",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+39 338 319 4498",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-08T00:43:22.775Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 123,
+    "name": "Nadia Messedaglia",
+    "email": "nadis3@libero.it",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+39 335 733 8216",
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "whatsapp",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 126,
+    "name": "Paola Cavallini",
+    "email": "paola108@libero.it",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-05-01T13:05:39.872Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 114
+      }
+    ]
+  },
+  {
+    "legacyId": 127,
+    "name": "Luisa Dominedò",
+    "email": "domineluisa@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+39 320 043 4382",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-25T21:24:28.282Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 120
+      },
+      {
+        "level": "area",
+        "legacyId": 118
+      }
+    ]
+  },
+  {
+    "legacyId": 128,
+    "name": "Roberta Giovagnoli",
+    "email": "giovagnoliroberta@libero.it",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+39 366 585 1925",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-02-03T07:15:06.208Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 129,
+    "name": "Jaroslav Burian",
+    "email": "jaroslavburi@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-02-06T10:49:09.273Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 69
+      }
+    ]
+  },
+  {
+    "legacyId": 130,
+    "name": "Anshul Mahajan",
+    "email": "anshulmahajan10@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T11:24:36.228Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 131,
+    "name": "Romana Buaiscia",
+    "email": "romanae@yahoo.com",
+    "type": "manager",
+    "languageCode": "CS",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-05-16T11:27:13.637Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 132,
+    "name": "Lenka Procházková",
+    "email": "lanka40@email.cz",
+    "type": "manager",
+    "languageCode": "CS",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T13:18:48.968Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 133,
+    "name": "Markéta Nováková",
+    "email": "kaaminii@seznam.cz",
+    "type": "manager",
+    "languageCode": "CS",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-09T07:17:33.844Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 134,
+    "name": "Radek Michalák",
+    "email": "fm@nirmala.cz",
+    "type": "manager",
+    "languageCode": "CS",
+    "phone": "+732914474",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations"
+    ],
+    "lastLoginAt": "2023-09-11T05:36:13.022Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 135,
+    "name": "Ganesh Jakob",
+    "email": "ganeshjakob@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 11
+      }
+    ]
+  },
+  {
+    "legacyId": 136,
+    "name": "Kestutis Zakarauskas",
+    "email": "zakarauskas.kestutis@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-05-31T12:36:54.971Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 11
+      }
+    ]
+  },
+  {
+    "legacyId": 137,
+    "name": "Elke Wirth",
+    "email": "elke@wirth-music.org",
+    "type": "manager",
+    "languageCode": "DE",
+    "phone": "+43 664 9147611",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-09T07:43:05.813Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 134
+      }
+    ]
+  },
+  {
+    "legacyId": 138,
+    "name": "Peter Altmann",
+    "email": "ap@borg2700.at",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-06T22:46:27.783Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 135
+      }
+    ]
+  },
+  {
+    "legacyId": 139,
+    "name": "Christian Reiter",
+    "email": "christianreiter777@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-07T11:13:21.497Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 144
+      }
+    ]
+  },
+  {
+    "legacyId": 140,
+    "name": "Yon Lassnig, Gabriele Monnier ",
+    "email": "sahaja.yoga.graz@gmx.net",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 11
+      }
+    ]
+  },
+  {
+    "legacyId": 141,
+    "name": "Stefan Pöder",
+    "email": "stefan.poeder@gmx.net",
+    "type": "manager",
+    "languageCode": "DE",
+    "phone": "+43 650 8110670",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-20T08:31:02.245Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 150
+      },
+      {
+        "level": "region",
+        "legacyId": 38
+      }
+    ]
+  },
+  {
+    "legacyId": 142,
+    "name": "Suzzanne Perauer",
+    "email": "s.perauer@aon.at",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-03T01:54:17.616Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 56
+      }
+    ]
+  },
+  {
+    "legacyId": 175,
+    "name": "Elfriede Tropper",
+    "email": "elfi.tropper@aon.at",
+    "type": "manager",
+    "languageCode": "DE",
+    "phone": "+43 2842 51542",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-07T16:14:04.675Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 138
+      }
+    ]
+  },
+  {
+    "legacyId": 176,
+    "name": "Albena Naydenova",
+    "email": "albawladi@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T12:56:05.410Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 56
+      }
+    ]
+  },
+  {
+    "legacyId": 177,
+    "name": "Christine Haage",
+    "email": "haage.christine@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-09-03T11:11:58.791Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 56
+      }
+    ]
+  },
+  {
+    "legacyId": 178,
+    "name": "Sigrid Jones",
+    "email": "sigrid.jones@bikum.at",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 139
+      }
+    ]
+  },
+  {
+    "legacyId": 179,
+    "name": "Beenu",
+    "email": "parmarbeenu@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 180,
+    "name": "Vikram Binning",
+    "email": "binningv@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+1 604 367 8016",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-08-15T15:23:16.281Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 1
+      }
+    ]
+  },
+  {
+    "legacyId": 181,
+    "name": "Anshul",
+    "email": "anshul@ualberta.ca",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-19T08:57:26.265Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 182,
+    "name": "Adel Morandian",
+    "email": "adel.moradian@hotmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-05T05:52:49.579Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 56
+      }
+    ]
+  },
+  {
+    "legacyId": 183,
+    "name": "Diana Nirarte",
+    "email": "diana.nirarte@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-08-02T02:22:55.488Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 12
+      }
+    ]
+  },
+  {
+    "legacyId": 184,
+    "name": "Gerti Pape",
+    "email": "gerti.pape@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-02-28T20:20:33.180Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 148
+      }
+    ]
+  },
+  {
+    "legacyId": 185,
+    "name": "Agnieszka Überbacher",
+    "email": "agni.ueb@gmx.at",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 148
+      }
+    ]
+  },
+  {
+    "legacyId": 186,
+    "name": "Sahaja Yoga Meditation Klagenfurt",
+    "email": "meditationklagenfurt@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-13T09:50:57.203Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 148
+      }
+    ]
+  },
+  {
+    "legacyId": 187,
+    "name": "Sonia Gomez",
+    "email": "soniagomezz@hotmail.com",
+    "type": "manager",
+    "languageCode": "ES",
+    "phone": "+34 629 83 61 08",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-01T04:23:53.773Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 188,
+    "name": "Stefan Zöchling",
+    "email": "stefan.zoechling@gmx.at",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-05-21T07:29:16.403Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 56
+      }
+    ]
+  },
+  {
+    "legacyId": 189,
+    "name": "Wolfgang Hackl",
+    "email": "wolfgang.hackl@icloud.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+43 676 7774441",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "whatsapp",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary"
+    ],
+    "lastLoginAt": "2023-09-18T13:04:27.320Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 56
+      }
+    ]
+  },
+  {
+    "legacyId": 190,
+    "name": "Samiera Leben",
+    "email": "samiera56@ymail.com",
+    "type": "manager",
+    "languageCode": "SL",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "event_verification"
+    ],
+    "lastLoginAt": "2023-07-24T02:14:24.774Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 149
+      }
+    ]
+  },
+  {
+    "legacyId": 191,
+    "name": "Elena Schmelz ",
+    "email": "work_remiz@mail.ru",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 8
+      }
+    ]
+  },
+  {
+    "legacyId": 192,
+    "name": "Yon Lassnig",
+    "email": "yon.lassnig@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+43 650 2156800",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "whatsapp",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-04-15T05:28:49.384Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 74
+      }
+    ]
+  },
+  {
+    "legacyId": 193,
+    "name": "Helga Kremsmayr",
+    "email": "helga.kremsmayr@gmx.at",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-06T02:49:36.484Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 143
+      }
+    ]
+  },
+  {
+    "legacyId": 194,
+    "name": "Roswitha Maier",
+    "email": "roswithamaier@aon.at",
+    "type": "manager",
+    "languageCode": "DE",
+    "phone": "+43 681 10291949",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-05-05T21:13:02.193Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 143
+      }
+    ]
+  },
+  {
+    "legacyId": 195,
+    "name": "Devika Stahl",
+    "email": "dstahl57@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-19T13:04:53.975Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 134
+      }
+    ]
+  },
+  {
+    "legacyId": 196,
+    "name": "Franz Mekyna",
+    "email": "f.mekyna@icloud.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary"
+    ],
+    "lastLoginAt": "2024-07-05T20:55:07.008Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 136
+      }
+    ]
+  },
+  {
+    "legacyId": 197,
+    "name": "Gabriele Monnier",
+    "email": "gabriela.monnier@gmx.at",
+    "type": "manager",
+    "languageCode": "DE",
+    "phone": "+43 664 4021261",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary"
+    ],
+    "lastLoginAt": "2024-07-07T09:16:26.627Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 74
+      }
+    ]
+  },
+  {
+    "legacyId": 198,
+    "name": "Carlos Domínguez",
+    "email": "cde75sy@yahoo.es",
+    "type": "manager",
+    "languageCode": "ES",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "country_summary"
+    ],
+    "lastLoginAt": "2024-03-26T10:09:40.012Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 12
+      }
+    ]
+  },
+  {
+    "legacyId": 199,
+    "name": "VOVA Vladimir",
+    "email": "yogavena@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-06-09T12:34:41.318Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 56
+      }
+    ]
+  },
+  {
+    "legacyId": 200,
+    "name": "Saskia Jaeger",
+    "email": "s_jaeger@gmx.de",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+43 680 3055174",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "whatsapp",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-19T08:00:38.142Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 40
+      }
+    ]
+  },
+  {
+    "legacyId": 201,
+    "name": "Hana Svobodová",
+    "email": "sahadzavsetin@seznam.cz",
+    "type": "manager",
+    "languageCode": "CS",
+    "phone": "+703134579",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-09T10:45:44.616Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 202,
+    "name": "Jitka",
+    "email": "jitkaglizova@seznam.cz",
+    "type": "manager",
+    "languageCode": "CS",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-09T21:24:34.870Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 203,
+    "name": "Doris Dörner",
+    "email": "dorisdoerner@gmx.at",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-06-26T06:27:59.733Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 142
+      }
+    ]
+  },
+  {
+    "legacyId": 204,
+    "name": "Judith Gattermayer",
+    "email": "judith.gattermayer@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-09T02:03:39.908Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 139
+      }
+    ]
+  },
+  {
+    "legacyId": 205,
+    "name": "Ondřej Haváč",
+    "email": "ondrej.havac@gmail.com",
+    "type": "manager",
+    "languageCode": "CS",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-06T03:36:31.249Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 206,
+    "name": "Vladimír Hradil",
+    "email": "vladahr@gmail.com",
+    "type": "manager",
+    "languageCode": "CS",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-17T02:17:01.469Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 207,
+    "name": "Luigi Grasso",
+    "email": "info.lgrasso@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-06T01:13:20.995Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 208,
+    "name": "Gabi Trondl",
+    "email": "gabi-trondl@gmx.at",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-15T22:03:29.593Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 192
+      },
+      {
+        "level": "area",
+        "legacyId": 137
+      }
+    ]
+  },
+  {
+    "legacyId": 209,
+    "name": "Zentrum Yoga",
+    "email": "yogazentrum@proton.me",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-29T23:30:33.570Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 140
+      }
+    ]
+  },
+  {
+    "legacyId": 210,
+    "name": "Paul Anant",
+    "email": "paulanant501@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+44 7595 362943",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-06-28T08:07:53.990Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 211,
+    "name": "Nadya Bodnar",
+    "email": "danusik2001@yahoo.co.uk",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+44 7856 939873",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations"
+    ],
+    "lastLoginAt": "2023-07-02T08:51:47.767Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 212,
+    "name": "Anton Tcymbal",
+    "email": "anton.tcymbal+1@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 213,
+    "name": "Anton Tcymbal",
+    "email": "anton.tcymbal+2@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-26T08:32:04.787Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 214,
+    "name": "Joseph Mat ",
+    "email": "josem_sy@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-08T08:35:03.067Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 7
+      }
+    ]
+  },
+  {
+    "legacyId": 215,
+    "name": "pat",
+    "email": "p.leydon3@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-29T06:08:37.391Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 216,
+    "name": "Elena Pallotta",
+    "email": "elenapallotta1966@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+39 328 798 0706",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "whatsapp",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-03-30T12:21:25.819Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 217,
+    "name": "Nikolinka Yordanova",
+    "email": "djubox_33@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+44 7763 717126",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-05T05:04:25.323Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 219,
+    "name": "Инна Мусина",
+    "email": "parure8@gmail.com",
+    "type": "manager",
+    "languageCode": "RU",
+    "phone": "+7 905 459-49-52",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "telegram",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "place_summary"
+    ],
+    "lastLoginAt": "2024-07-10T08:39:49.313Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 220
+      }
+    ]
+  },
+  {
+    "legacyId": 220,
+    "name": "Алексей Кондратьев ",
+    "email": "kondratyev.18al@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+7 981 950-09-25",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "telegram",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary"
+    ],
+    "lastLoginAt": "2023-07-05T05:26:29.244Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 222,
+    "name": "Елена Медведева ",
+    "email": "el.v.medvedeva@bk.ru",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-01-30T04:57:05.141Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 223,
+    "name": "Елена Бурцева",
+    "email": "alenajan@mail.ru",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-05-11T07:25:22.069Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 224,
+    "name": "Andrew Tyas",
+    "email": "andytyas@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+4165718737",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T11:15:21.773Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 225,
+    "name": "Ania Kokas",
+    "email": "ania.kokas@protonmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T10:11:15.268Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 226,
+    "name": "Ann Barker",
+    "email": "ann2525@hotmail.co.uk",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-07T11:36:04.883Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 44
+      }
+    ]
+  },
+  {
+    "legacyId": 227,
+    "name": "Miriam Evans",
+    "email": "mirievans@yahoo.co.uk",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T08:59:26.783Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 44
+      }
+    ]
+  },
+  {
+    "legacyId": 228,
+    "name": "Elvina Rakhimova",
+    "email": "elvina.rakhimova87@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-09-23T10:20:11.807Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 20
+      }
+    ]
+  },
+  {
+    "legacyId": 229,
+    "name": "Nea Alanen",
+    "email": "nea.alanen@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+358 50 5114541",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "country_summary"
+    ],
+    "lastLoginAt": "2024-08-31T06:40:46.703Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 18
+      }
+    ]
+  },
+  {
+    "legacyId": 230,
+    "name": "Mary Heaton",
+    "email": "maryheaton99@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T21:50:46.637Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 231,
+    "name": "Heather Nicholas",
+    "email": "heathergrantnicholas@icloud.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-09-19T10:32:58.458Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 209
+      }
+    ]
+  },
+  {
+    "legacyId": 232,
+    "name": "Nanki Godfrey",
+    "email": "nankigodfrey@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-09-21T01:30:13.898Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 214
+      }
+    ]
+  },
+  {
+    "legacyId": 233,
+    "name": "Nelly Sanchez",
+    "email": "sahajayogasalisbury@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+44 7855 112669",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-11-07T14:28:49.248Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 234,
+    "name": "Philippa Benson",
+    "email": "philippa@speechclinic.co.uk",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T08:11:45.204Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 235,
+    "name": "Fabio",
+    "email": "fabioventuradp@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": "+3476463734",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-04-29T13:08:08.921Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 236,
+    "name": "Mirko",
+    "email": "mirkogov108@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-05-01T11:00:10.046Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 237,
+    "name": "Enzo",
+    "email": "ezanich311@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T08:51:46.996Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 238,
+    "name": "Zoello",
+    "email": "z.marastoni@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-06T01:54:23.072Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 239,
+    "name": "Maura",
+    "email": "mau108@alice.it",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-05-01T14:29:32.569Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 240,
+    "name": "Valeria",
+    "email": "valsal.vs@libero.it",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 241,
+    "name": "Yoggita",
+    "email": "yoggitasingh@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-22T13:11:38.954Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 242,
+    "name": "Fabio",
+    "email": "sahajayogabo@gmail.com",
+    "type": "manager",
+    "languageCode": "IT",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 243,
+    "name": "Надежда Тимофеева",
+    "email": "timofeeva_nady@mail.ru",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-05-09T21:12:24.969Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 221
+      }
+    ]
+  },
+  {
+    "legacyId": 244,
+    "name": "Oksana Mikhaidarova",
+    "email": "sandra12@yandex.ru",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-05-07T07:55:46.601Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 245,
+    "name": "Оксана Михайдарова",
+    "email": "sandraprim1@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 246,
+    "name": "Elizabeth Brewster",
+    "email": "elizabethbrewster@btinternet.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-07T22:24:55.264Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 247,
+    "name": "Антон",
+    "email": "anton.promdetal@mail.ru",
+    "type": "manager",
+    "languageCode": "RU",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-10T00:50:52.930Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 235
+      }
+    ]
+  },
+  {
+    "legacyId": 248,
+    "name": "Deera Ali",
+    "email": "info@birdprofessionals.nl",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+31 6 21281439",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-03-23T12:07:53.607Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 249,
+    "name": "Dhirendra Singh",
+    "email": "dhiru759@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-05-22T07:02:00.237Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 250,
+    "name": "Peter Burns",
+    "email": "peter.burns3@googlemail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-08T04:38:53.111Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 251,
+    "name": "Daher Jalil",
+    "email": "dahernv@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T10:22:48.759Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 20
+      }
+    ]
+  },
+  {
+    "legacyId": 252,
+    "name": "Yamil",
+    "email": "yamiljm@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-05-30T06:01:19.233Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 253,
+    "name": "Edwin Subramoney",
+    "email": "edsubzee@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-07T02:27:23.348Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 21
+      }
+    ]
+  },
+  {
+    "legacyId": 254,
+    "name": "Charles  Tiralongo",
+    "email": "charles@tira.com.au",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+61 425 237 062",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "country_summary"
+    ],
+    "lastLoginAt": "2024-01-21T22:32:35.530Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 21
+      }
+    ]
+  },
+  {
+    "legacyId": 255,
+    "name": "Cyro Ribeiro",
+    "email": "cyrocr@gmail.com",
+    "type": "manager",
+    "languageCode": "PT",
+    "phone": "+55 61 98403-7619",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "whatsapp",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "country_summary"
+    ],
+    "lastLoginAt": "2024-10-01T14:08:46.064Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 19
+      }
+    ]
+  },
+  {
+    "legacyId": 256,
+    "name": "Himaauni Jain",
+    "email": "himaauni@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-06T06:05:39.632Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 257,
+    "name": "Aditya Dua",
+    "email": "adityadua@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-12T18:29:21.083Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 258,
+    "name": "Gustavo Filardi",
+    "email": "gfilardi@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-01-16T04:26:24.606Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 58
+      }
+    ]
+  },
+  {
+    "legacyId": 259,
+    "name": "Yvonne Sternenfeld",
+    "email": "y.sternenfeld@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-05T11:16:20.740Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 260,
+    "name": "Sari Kaismala",
+    "email": "sari.kaismala@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-08-13T09:36:04.683Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 18
+      }
+    ]
+  },
+  {
+    "legacyId": 261,
+    "name": "John Firth",
+    "email": "johnfirthuk@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+07703069881",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-07-21T00:55:43.272Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 262,
+    "name": "Sid Lethbridge",
+    "email": "sglethbridge@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-08T01:20:29.344Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 263,
+    "name": "Michalina Neelam",
+    "email": "freemeditation.leeds@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+44 7397 503188",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-08-25T06:15:18.270Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 264,
+    "name": "Sergei Mouro Hofmann",
+    "email": "smouro7@gmail.com",
+    "type": "manager",
+    "languageCode": "PT",
+    "phone": "+55 61 98426-7323",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "country_summary"
+    ],
+    "lastLoginAt": "2024-10-07T03:21:37.994Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 19
+      }
+    ]
+  },
+  {
+    "legacyId": 265,
+    "name": "Leandro Teixeira",
+    "email": "leandro.txr23@yahoo.com.br",
+    "type": "manager",
+    "languageCode": "PT",
+    "phone": "+55 61 99984-5559",
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "whatsapp",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-08-13T04:27:04.266Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 266,
+    "name": "Mark Taylor",
+    "email": "markyogi108@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-09-30T12:06:56.314Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 25
+      }
+    ]
+  },
+  {
+    "legacyId": 267,
+    "name": "Cyro de Castilho",
+    "email": "cyrobr@yahoo.com.br",
+    "type": "manager",
+    "languageCode": "PT",
+    "phone": "+61984037619",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "place_summary"
+    ],
+    "lastLoginAt": "2023-08-16T04:39:23.609Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 57
+      }
+    ]
+  },
+  {
+    "legacyId": 268,
+    "name": "José Luiz Alves Brito",
+    "email": "jluiz.abrito@gmail.com",
+    "type": "manager",
+    "languageCode": "PT",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "place_summary"
+    ],
+    "lastLoginAt": "2024-10-04T08:08:07.023Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 77
+      }
+    ]
+  },
+  {
+    "legacyId": 269,
+    "name": "Anderly Ginane",
+    "email": "ginane.anderly@gmail.com",
+    "type": "manager",
+    "languageCode": "PT",
+    "phone": "+55 11 96916-0468",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "whatsapp",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "place_summary"
+    ],
+    "lastLoginAt": "2024-07-05T04:27:30.130Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 73
+      }
+    ]
+  },
+  {
+    "legacyId": 270,
+    "name": "Jackson Dias da Silva",
+    "email": "parcours.international@gmail.com",
+    "type": "manager",
+    "languageCode": "PT",
+    "phone": "+55 34 98406-8454",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "place_summary"
+    ],
+    "lastLoginAt": "2023-11-30T05:55:08.524Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 71
+      },
+      {
+        "level": "region",
+        "legacyId": 74
+      }
+    ]
+  },
+  {
+    "legacyId": 271,
+    "name": "Martha Lícia Ferreira",
+    "email": "marthalicia555@gmail.com",
+    "type": "manager",
+    "languageCode": "PT",
+    "phone": "+82988527746",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "place_summary"
+    ],
+    "lastLoginAt": "2024-10-04T06:59:07.680Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 68
+      }
+    ]
+  },
+  {
+    "legacyId": 272,
+    "name": "Leticia Morais",
+    "email": "sy.vitoria.es@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+55 27 99798-4321",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-01-16T09:13:46.475Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 76
+      }
+    ]
+  },
+  {
+    "legacyId": 273,
+    "name": "Maria Meiliane Pereira da Silva",
+    "email": "mariameiliane15@gmail.com",
+    "type": "manager",
+    "languageCode": "PT",
+    "phone": "+558586484143",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "place_summary"
+    ],
+    "lastLoginAt": "2024-04-15T10:49:32.750Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 70
+      }
+    ]
+  },
+  {
+    "legacyId": 274,
+    "name": "Yara Andrade",
+    "email": "yara.andrade.520@gmail.com",
+    "type": "manager",
+    "languageCode": "PT",
+    "phone": "+55 71 99208-4235",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "place_summary"
+    ],
+    "lastLoginAt": "2024-01-05T10:21:22.148Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 59
+      }
+    ]
+  },
+  {
+    "legacyId": 275,
+    "name": "Daphne Mukhi",
+    "email": "daphnepolisel@gmail.com",
+    "type": "manager",
+    "languageCode": "PT",
+    "phone": "+55 65 98112-2160",
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 322
+      },
+      {
+        "level": "region",
+        "legacyId": 66
+      }
+    ]
+  },
+  {
+    "legacyId": 276,
+    "name": "Evaldo Barbosa",
+    "email": "bevaldo81@gmail.com",
+    "type": "manager",
+    "languageCode": "PT",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-10-10T06:16:32.778Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 67
+      }
+    ]
+  },
+  {
+    "legacyId": 277,
+    "name": "Viktoria Hristova",
+    "email": "vhristovasy@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-05-19T08:06:38.277Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 278,
+    "name": "Rosângela Soares ",
+    "email": "rosangelarsoares@gmail.com",
+    "type": "manager",
+    "languageCode": "PT",
+    "phone": "+555184172081",
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 61
+      }
+    ]
+  },
+  {
+    "legacyId": 279,
+    "name": "Adeoli Carriel",
+    "email": "adeolitc7@yahoo.com.br",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 337
+      }
+    ]
+  },
+  {
+    "legacyId": 280,
+    "name": "José Di Munno",
+    "email": "jose.dimunno@dcinet.ch",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-09-23T00:54:20.341Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 26
+      }
+    ]
+  },
+  {
+    "legacyId": 281,
+    "name": "Gilles Rode",
+    "email": "gilles.rode@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "country_summary"
+    ],
+    "lastLoginAt": "2024-09-15T05:24:52.162Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 26
+      }
+    ]
+  },
+  {
+    "legacyId": 282,
+    "name": "Alexandra Silva dos Santos",
+    "email": "silvasantosale@gmail.com",
+    "type": "manager",
+    "languageCode": "PT",
+    "phone": "+55 11 99136-5691",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "place_summary"
+    ],
+    "lastLoginAt": "2024-05-15T12:41:43.033Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 78
+      }
+    ]
+  },
+  {
+    "legacyId": 283,
+    "name": "Gilles Rode",
+    "email": "themessenger@sahajayoga.ch",
+    "type": "manager",
+    "languageCode": "FR",
+    "phone": "+33 6 12 62 95 91",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations"
+    ],
+    "lastLoginAt": "2023-08-27T02:32:05.032Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 284,
+    "name": "Emmanuel Ametowanou ",
+    "email": "emmanuel.ametowanou@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-08T13:39:15.369Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 53
+      }
+    ]
+  },
+  {
+    "legacyId": 285,
+    "name": "Prasad Desai",
+    "email": "prassad@hotmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary"
+    ],
+    "lastLoginAt": "2023-11-29T21:42:30.581Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 50
+      }
+    ]
+  },
+  {
+    "legacyId": 286,
+    "name": "Abhijeet Naikare",
+    "email": "abhijeet.naikare@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-09-08T01:50:42.566Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 48
+      }
+    ]
+  },
+  {
+    "legacyId": 287,
+    "name": "Karthik Chandrasekharan",
+    "email": "karthik.chandrasekharan@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-10-31T02:14:00.262Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 48
+      }
+    ]
+  },
+  {
+    "legacyId": 288,
+    "name": "Graham Pottinger",
+    "email": "grahamp663@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-08-29T10:59:31.337Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 289,
+    "name": "Maxine",
+    "email": "maxinefw@hotmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+0487915789",
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 290,
+    "name": "Jeanette Braithwaite",
+    "email": "jeanettekb@icloud.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-08-12T03:28:34.689Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 291,
+    "name": "Celia Silvestre Granel",
+    "email": "celiasilvestre@telefonica.net",
+    "type": "manager",
+    "languageCode": "ES",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 292,
+    "name": "Denise Suassuna",
+    "email": "denise.suassuna@hotmail.com",
+    "type": "manager",
+    "languageCode": "PT",
+    "phone": "+81 99-962-6303",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "place_summary"
+    ],
+    "lastLoginAt": "2023-09-20T12:44:56.767Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 72
+      }
+    ]
+  },
+  {
+    "legacyId": 293,
+    "name": "Aurélien Vazeux",
+    "email": "aurelien108@gmail.com",
+    "type": "manager",
+    "languageCode": "FR",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "country_summary"
+    ],
+    "lastLoginAt": "2024-07-28T04:03:05.167Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 27
+      }
+    ]
+  },
+  {
+    "legacyId": 294,
+    "name": "Janaka Touitou",
+    "email": "jm.touitou@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 27
+      }
+    ]
+  },
+  {
+    "legacyId": 295,
+    "name": "Yash Pakala",
+    "email": "yasaswi.pakala@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-09-25T11:49:15.993Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 27
+      }
+    ]
+  },
+  {
+    "legacyId": 296,
+    "name": "Paul Clarke",
+    "email": "pjclarkenow@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-11-14T22:31:15.472Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 49
+      }
+    ]
+  },
+  {
+    "legacyId": 297,
+    "name": "Riccardo",
+    "email": "riccfioravanti108@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+3358457922",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-09-25T03:03:00.303Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 298,
+    "name": "Tony O'Rourke",
+    "email": "sonicwrx@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-10-07T18:23:54.653Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 25
+      }
+    ]
+  },
+  {
+    "legacyId": 299,
+    "name": "Michelle Simons",
+    "email": "michelle.simons24@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary"
+    ],
+    "lastLoginAt": "2023-11-19T13:56:56.673Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 103
+      }
+    ]
+  },
+  {
+    "legacyId": 300,
+    "name": "Bianca Doczi",
+    "email": "biank8@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 103
+      }
+    ]
+  },
+  {
+    "legacyId": 301,
+    "name": "Peter Hewitson",
+    "email": "peter.hewitson1@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T18:52:59.663Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 47
+      }
+    ]
+  },
+  {
+    "legacyId": 302,
+    "name": "Jaimé J West",
+    "email": "jaijaijaimej@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+44 7928 582205",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-08-16T16:05:39.826Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 303,
+    "name": "Fifi ",
+    "email": "fifirama@hotmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+44 7984 639394",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-12-13T05:08:11.167Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 304,
+    "name": "Ciaran McLaughlin",
+    "email": "ciaran_mc44@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-11-08T05:17:37.885Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 305,
+    "name": "Rachit ",
+    "email": "rachit1947@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-11-12T13:40:29.753Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 10
+      }
+    ]
+  },
+  {
+    "legacyId": 306,
+    "name": "Mahima Morgan",
+    "email": "morganmahima@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+0425261119",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-11-09T13:15:37.089Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 307,
+    "name": "Himanshu Diwakar",
+    "email": "drhimanshudiwakar@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+0426818671",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-11-10T19:14:10.891Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 308,
+    "name": "Phillip Frankcombe",
+    "email": "phillipfrankcombe@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+0262572057",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T12:06:09.983Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 309,
+    "name": "Lyn Vasudeva",
+    "email": "lynvasudeva7@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+0410177822",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-06T11:59:39.227Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 310,
+    "name": "Patrick Sleeman",
+    "email": "patrick.sleeman@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+0425774430",
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-11-11T16:40:22.830Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 311,
+    "name": "Clare",
+    "email": "cavoledo@hotmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+0422798498",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-11-13T18:05:11.008Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 312,
+    "name": "Shivali Goel",
+    "email": "shivali.goel79@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+0423292953",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations"
+    ],
+    "lastLoginAt": "2023-11-12T11:46:17.482Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 313,
+    "name": "Iulian Ursu",
+    "email": "ursu.iulian@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-12-19T14:25:21.687Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 314,
+    "name": "Rahul Shinde",
+    "email": "rahulrajashinde@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+0481903024",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-12-07T00:16:13.223Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 315,
+    "name": "Roza Sakwa",
+    "email": "rozamimoza@hotmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-11-16T01:45:57.559Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 316,
+    "name": "Sudhanshu Diwakar",
+    "email": "sudhanshu.diwakar@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+0438967304",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-11-27T21:18:16.405Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 317,
+    "name": "Sotiris Sousanis",
+    "email": "ssousanis@yahoo.gr",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+30 697 756 1533",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "country_summary"
+    ],
+    "lastLoginAt": "2024-07-07T23:26:58.234Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 28
+      }
+    ]
+  },
+  {
+    "legacyId": 318,
+    "name": "Angela Page",
+    "email": "mitala108@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+0413854683",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-12-02T16:12:52.174Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 319,
+    "name": "Margaret",
+    "email": "margaretgerada108@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+0412072280",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-12-02T20:01:16.457Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 320,
+    "name": "Sharon",
+    "email": "ianl777@tpg.com.au",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+0409361855",
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 322,
+    "name": "Pandazis Vastardis",
+    "email": "pantazisvastardis@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-12-07T07:24:37.153Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 324,
+    "name": "Mrs Rita Skipper",
+    "email": "skipper.rita@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2023-12-11T16:12:35.672Z",
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 51
+      }
+    ]
+  },
+  {
+    "legacyId": 325,
+    "name": "Susie Lumsden",
+    "email": "sahajalba@outlook.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-02-01T09:14:57.488Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 326,
+    "name": "Prakash Brinicombe",
+    "email": "brinicombe.p@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-08-14T01:49:02.489Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 327,
+    "name": "Alekos Koutselinis",
+    "email": "akoutsel@uth.gr",
+    "type": "manager",
+    "languageCode": "EL",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-01-12T11:04:27.510Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 439
+      }
+    ]
+  },
+  {
+    "legacyId": 328,
+    "name": "Preeti Tiptaft",
+    "email": "preetitiptaft@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-14T10:04:29.054Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 329,
+    "name": "Volodymyr Bazhenov",
+    "email": "vvbazhenov@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-05-07T19:19:49.489Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 29
+      }
+    ]
+  },
+  {
+    "legacyId": 330,
+    "name": "Tina Cesbron",
+    "email": "cesbron7@yahoo.co.uk",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-05T11:11:17.058Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 331,
+    "name": "Gabrielle Marlow",
+    "email": "gabrielle.marlow@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+0408228547",
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "whatsapp",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 332,
+    "name": "Bernard Rackham",
+    "email": "bernardrackham@hotmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-02-15T09:23:22.406Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 333,
+    "name": "Janne Valkeapää",
+    "email": "janne.valkeapaa@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-08-24T08:52:26.536Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 18
+      }
+    ]
+  },
+  {
+    "legacyId": 334,
+    "name": "Nitin",
+    "email": "contaktnitin@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "region",
+        "legacyId": 48
+      }
+    ]
+  },
+  {
+    "legacyId": 335,
+    "name": "Aaron Bumberger",
+    "email": "bumberger@gmx.net",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-07T09:21:55.698Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 9
+      },
+      {
+        "level": "area",
+        "legacyId": 74
+      },
+      {
+        "level": "region",
+        "legacyId": 11
+      }
+    ]
+  },
+  {
+    "legacyId": 336,
+    "name": "Алексей Сергеевич",
+    "email": "alexcel@list.ru",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 452
+      }
+    ]
+  },
+  {
+    "legacyId": 337,
+    "name": "Альбина Сафина",
+    "email": "safinaalya83@mail.ru",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-06-23T21:03:21.229Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 453
+      }
+    ]
+  },
+  {
+    "legacyId": 338,
+    "name": "Wolfgang Hollerweger",
+    "email": "woho108@gmail.com",
+    "type": "manager",
+    "languageCode": "DE",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-04-20T23:47:30.413Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 143
+      }
+    ]
+  },
+  {
+    "legacyId": 339,
+    "name": "Yura Vavilov",
+    "email": "vavilovyuri@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-05-22T04:12:26.834Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 442
+      }
+    ]
+  },
+  {
+    "legacyId": 340,
+    "name": "Umberto Englmann",
+    "email": "uenglmann10@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+49 1523 3531038",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "country_summary"
+    ],
+    "lastLoginAt": "2024-08-04T02:30:54.932Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 11
+      }
+    ]
+  },
+  {
+    "legacyId": 341,
+    "name": "Peter Jakob",
+    "email": "premjakob@yahoo.de",
+    "type": "manager",
+    "languageCode": "DE",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-08-11T11:22:50.327Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 457
+      }
+    ]
+  },
+  {
+    "legacyId": 342,
+    "name": "Herbert Angermann",
+    "email": "herbert.angermann@gmail.com",
+    "type": "manager",
+    "languageCode": "DE",
+    "phone": "+49 178 3434474",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-08-20T08:57:56.000Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 458
+      }
+    ]
+  },
+  {
+    "legacyId": 343,
+    "name": "Pascal VINCENT",
+    "email": "vincentpascal3206@neuf.fr",
+    "type": "manager",
+    "languageCode": "FR",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 344,
+    "name": "Radoslaw Oska",
+    "email": "radoslaw.oska@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+48 797 005 051",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "country_summary"
+    ],
+    "lastLoginAt": "2024-07-07T15:30:18.955Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 30
+      }
+    ]
+  },
+  {
+    "legacyId": 345,
+    "name": "Дмитрий Коробко",
+    "email": "steklo.i.vata@yandex.ru",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-09-05T03:56:50.140Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 6
+      }
+    ]
+  },
+  {
+    "legacyId": 346,
+    "name": "Gohar Pepoyan",
+    "email": "gpepoyan@yahoo.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 32
+      }
+    ]
+  },
+  {
+    "legacyId": 347,
+    "name": "Гульназ Крутянская ",
+    "email": "rada137@yandex.ru",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-09T10:43:29.976Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 452
+      }
+    ]
+  },
+  {
+    "legacyId": 348,
+    "name": "Елена Медведева ",
+    "email": "a.lenushka@inbox.ru",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-09T12:11:41.108Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 12
+      }
+    ]
+  },
+  {
+    "legacyId": 349,
+    "name": "Елена Чащина ",
+    "email": "elena1975chaschina@gmail.com",
+    "type": "manager",
+    "languageCode": "RU",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-09-03T09:20:04.208Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 235
+      }
+    ]
+  },
+  {
+    "legacyId": 350,
+    "name": "Vincent Vulcanescu",
+    "email": "vincent.vulcanescu@gmail.com",
+    "type": "manager",
+    "languageCode": "FR",
+    "phone": "+33 6 49 42 50 42",
+    "phoneVerified": false,
+    "emailVerified": false,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-07-28T11:46:15.944Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 27
+      }
+    ]
+  },
+  {
+    "legacyId": 351,
+    "name": "Tim Bruce",
+    "email": "timbruce108@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-08-12T03:55:42.845Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 352,
+    "name": "Mitesh Gandhi",
+    "email": "miteshgandhi_uk@yahoo.co.uk",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+07782423713",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations"
+    ],
+    "lastLoginAt": "2024-08-14T05:56:08.171Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 353,
+    "name": "Philippa Newman",
+    "email": "gloucestershire.sahajayoga@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+44 7769 653403",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations"
+    ],
+    "lastLoginAt": "2024-08-15T04:58:15.902Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 354,
+    "name": "Adrian Pascut",
+    "email": "pascutn_pnairda@yahoo.fr",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations"
+    ],
+    "lastLoginAt": "2024-08-18T03:10:54.514Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 355,
+    "name": "Mark Rathbone",
+    "email": "markrathbone@me.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-09-16T12:26:36.496Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 356,
+    "name": "Lenka Rodová",
+    "email": "rod.lenka@gmail.com",
+    "type": "manager",
+    "languageCode": "CS",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-10-01T22:16:00.996Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 370,
+    "name": "Victoria Zbylut",
+    "email": "viczbylut@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 492
+      }
+    ]
+  },
+  {
+    "legacyId": 371,
+    "name": "Marleen Verlinden",
+    "email": "marleen.verlinden1@telenet.be",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+32 477 27 56 60",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "country_summary"
+    ],
+    "lastLoginAt": "2024-10-13T05:14:48.511Z",
+    "customResourceAccess": [
+      {
+        "level": "country",
+        "legacyId": 33
+      },
+      {
+        "level": "country",
+        "legacyId": 34
+      },
+      {
+        "level": "area",
+        "legacyId": 493
+      }
+    ]
+  },
+  {
+    "legacyId": 372,
+    "name": "Raphael Pottinger",
+    "email": "raphaelpottinger@live.co.uk",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": null,
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-10-09T12:37:14.839Z",
+    "customResourceAccess": []
+  },
+  {
+    "legacyId": 373,
+    "name": "Katrien Benoit",
+    "email": "katrienbenoit.shanti@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+0497169651",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-10-12T11:23:22.458Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 494
+      }
+    ]
+  },
+  {
+    "legacyId": 374,
+    "name": "Pavani Vyncke",
+    "email": "pavanipriti@hotmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+32 476 25 39 95",
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 527
+      }
+    ]
+  },
+  {
+    "legacyId": 375,
+    "name": "Piet Vyncke",
+    "email": "pratap_108@hotmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+32 476 01 11 03",
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-10-13T00:03:25.423Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 527
+      }
+    ]
+  },
+  {
+    "legacyId": 376,
+    "name": "Tania Masschelein",
+    "email": "tania_masschelein@yahoo.fr",
+    "type": "manager",
+    "languageCode": "FR",
+    "phone": "+32 474 83 84 91",
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-10-13T05:39:10.085Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 528
+      }
+    ]
+  },
+  {
+    "legacyId": 377,
+    "name": "An Vanbroeckhoven",
+    "email": "ikmediteer.lommel@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+32 484 43 69 24",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-10-12T12:41:15.252Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 529
+      }
+    ]
+  },
+  {
+    "legacyId": 378,
+    "name": "Matias Maris",
+    "email": "sy.kempen@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+32 488 00 76 69",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations"
+    ],
+    "lastLoginAt": "2024-10-12T10:42:34.764Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 533
+      },
+      {
+        "level": "area",
+        "legacyId": 531
+      },
+      {
+        "level": "area",
+        "legacyId": 532
+      }
+    ]
+  },
+  {
+    "legacyId": 379,
+    "name": "Christel Raats",
+    "email": "christel_raats@hotmail.com",
+    "type": "manager",
+    "languageCode": "NL",
+    "phone": "+32 478 44 31 63",
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 540
+      }
+    ]
+  },
+  {
+    "legacyId": 380,
+    "name": "Marie-Luc Adam",
+    "email": "marielucadam@gmail.com",
+    "type": "manager",
+    "languageCode": "FR",
+    "phone": "+32 486 69 84 18",
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 539
+      }
+    ]
+  },
+  {
+    "legacyId": 381,
+    "name": "Bénédicte Zweerts",
+    "email": "benedicte.zweerts@gmail.com",
+    "type": "manager",
+    "languageCode": "FR",
+    "phone": "+0478813722",
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 539
+      }
+    ]
+  },
+  {
+    "legacyId": 382,
+    "name": "Anna Alongi",
+    "email": "alongi.anna@yahoo.it",
+    "type": "manager",
+    "languageCode": "FR",
+    "phone": "+32 495 12 00 67",
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 538
+      }
+    ]
+  },
+  {
+    "legacyId": 383,
+    "name": "Céline Knapen",
+    "email": "info@sahajayoga.be",
+    "type": "manager",
+    "languageCode": "FR",
+    "phone": "+32 484 64 91 49",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "whatsapp",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-10-13T06:18:52.714Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 537
+      }
+    ]
+  },
+  {
+    "legacyId": 384,
+    "name": "Christina Engonopoulou",
+    "email": "christina.engonopoulou@gmail.com",
+    "type": "manager",
+    "languageCode": "EN",
+    "phone": "+32 468 32 09 40",
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "whatsapp",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-10-13T04:24:31.061Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 537
+      }
+    ]
+  },
+  {
+    "legacyId": 385,
+    "name": "Mia Devos",
+    "email": "mamamiadevos@gmail.com",
+    "type": "manager",
+    "languageCode": "NL",
+    "phone": "+32 488 63 63 06",
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 536
+      }
+    ]
+  },
+  {
+    "legacyId": 386,
+    "name": "Lucien Schockert",
+    "email": "lucien_schockert@yahoo.fr",
+    "type": "manager",
+    "languageCode": "FR",
+    "phone": "+32 63 22 22 82",
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 535
+      }
+    ]
+  },
+  {
+    "legacyId": 387,
+    "name": "Nasso Zervas",
+    "email": "nassoz1@yahoo.com",
+    "type": "manager",
+    "languageCode": "NL",
+    "phone": "+32 478 34 55 21",
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-10-13T04:11:32.302Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 534
+      }
+    ]
+  },
+  {
+    "legacyId": 388,
+    "name": "Manou Meuwes",
+    "email": "mmeuwes@gmail.com",
+    "type": "manager",
+    "languageCode": "NL",
+    "phone": "+32 479 43 87 17",
+    "phoneVerified": false,
+    "emailVerified": null,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": null,
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 533
+      }
+    ]
+  },
+  {
+    "legacyId": 389,
+    "name": "Tania Tiebout",
+    "email": "taniatiebout@gmail.com",
+    "type": "manager",
+    "languageCode": "NL",
+    "phone": "+32 477 77 57 07",
+    "phoneVerified": false,
+    "emailVerified": true,
+    "contactMethod": "email",
+    "notifications": [
+      "new_managed_record",
+      "event_verification",
+      "event_registrations",
+      "place_summary",
+      "country_summary",
+      "application_summary",
+      "client_summary"
+    ],
+    "lastLoginAt": "2024-10-13T08:04:44.907Z",
+    "customResourceAccess": [
+      {
+        "level": "area",
+        "legacyId": 493
+      }
+    ]
+  }
+]

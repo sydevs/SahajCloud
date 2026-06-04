@@ -1,0 +1,446 @@
+[
+  {
+    "legacyId": 1,
+    "label": "Sahaja Yoga Canada",
+    "config": {
+      "domain": "www.sahajayoga.ca",
+      "embed_type": "iframe",
+      "default_view": "list",
+      "routing_type": "query"
+    },
+    "managerId": 19,
+    "clientId": "e234423e-0a4c-4b62-a0cb-51ae5b5a5ee4",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 2
+    },
+    "createdAt": "2021-07-07T18:06:00.537Z"
+  },
+  {
+    "legacyId": 2,
+    "label": "Sahaja Yoga New Zealand",
+    "config": {
+      "domain": "www.freemeditationnz.com",
+      "embed_type": "iframe",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 2,
+    "clientId": "25517489-ba19-4728-a91a-88629e1c60f5",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 1
+    },
+    "createdAt": "2021-07-09T16:49:39.226Z"
+  },
+  {
+    "legacyId": 3,
+    "label": "Meditate Now",
+    "config": {
+      "domain": "meditatenow.online",
+      "embed_type": "iframe",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 5,
+    "clientId": "4409217d-53fb-481c-ad86-e69a3b51b5d0",
+    "enabled": true,
+    "location": null,
+    "createdAt": "2021-07-10T11:38:42.559Z"
+  },
+  {
+    "legacyId": 4,
+    "label": "eMeditate App",
+    "config": {
+      "domain": ""
+    },
+    "managerId": 14,
+    "clientId": "e725b7b8-e6ca-45aa-8ed3-9f5737ad13b8",
+    "enabled": true,
+    "location": null,
+    "createdAt": "2021-09-08T07:40:20.784Z"
+  },
+  {
+    "legacyId": 5,
+    "label": "Sahaja Yoga Netherlands",
+    "config": {
+      "domain": "sahajayoga.nl",
+      "embed_type": "iframe",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 17,
+    "clientId": "f655b7d2-aeb0-47cd-b702-c1bfac206124",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 3
+    },
+    "createdAt": "2021-09-18T01:22:33.261Z"
+  },
+  {
+    "legacyId": 6,
+    "label": "We Meditate",
+    "config": {
+      "domain": "wemeditate.com",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "path"
+    },
+    "managerId": 1,
+    "clientId": "0b1e22f9-3bfd-4a8c-8384-08db6a7e912e",
+    "enabled": true,
+    "location": null,
+    "createdAt": "2021-11-04T11:59:16.580Z"
+  },
+  {
+    "legacyId": 12,
+    "label": "Sahaja Yoga UK",
+    "config": {
+      "domain": "www.sahajayoga.org.uk",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 50,
+    "clientId": "30965b09-2438-4680-bae0-c79197a923f0",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 7
+    },
+    "createdAt": "2022-05-29T09:13:00.324Z"
+  },
+  {
+    "legacyId": 13,
+    "label": "Sahaja Yoga London",
+    "config": {
+      "domain": "www.sahajayogalondon.co.uk",
+      "embed_type": "iframe",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 50,
+    "clientId": "2429dba2-dc0f-40ce-aacf-a0c134758ee0",
+    "enabled": true,
+    "location": {
+      "level": "area",
+      "legacyId": 63
+    },
+    "createdAt": "2022-05-29T09:14:17.023Z"
+  },
+  {
+    "legacyId": 14,
+    "label": "Sahaja Yoga Austria",
+    "config": {
+      "domain": "sahajayoga.at",
+      "locale": "de",
+      "embed_type": "script",
+      "default_view": "list",
+      "routing_type": "query"
+    },
+    "managerId": 53,
+    "clientId": "dc94e9a2-a409-4b23-9cb3-d43ade3e0595",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 9
+    },
+    "createdAt": "2022-06-05T08:33:55.394Z"
+  },
+  {
+    "legacyId": 15,
+    "label": "Sahaja Yoga Italy",
+    "config": {
+      "domain": "sahajayoga.it",
+      "embed_type": "iframe",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 43,
+    "clientId": "4c633166-8e87-4d8c-8b86-4186a8a636aa",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 6
+    },
+    "createdAt": "2022-09-09T03:33:35.070Z"
+  },
+  {
+    "legacyId": 16,
+    "label": "Ireland SY",
+    "config": {
+      "domain": "www.sahajayoga.ie",
+      "embed_type": "iframe",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 65,
+    "clientId": "6f6e7b31-b440-4486-b3ea-d37f96bc4d69",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 10
+    },
+    "createdAt": "2022-10-12T03:10:09.450Z"
+  },
+  {
+    "legacyId": 17,
+    "label": "Prague, Czech SY",
+    "config": {
+      "domain": "mcpraha.org",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 67,
+    "clientId": "992dd214-8da0-49c4-aef5-1c92ed7da75f",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 5
+    },
+    "createdAt": "2022-10-14T08:46:32.498Z"
+  },
+  {
+    "legacyId": 18,
+    "label": "Nirmala CZ (Czechia)",
+    "config": {
+      "domain": "nirmala.cz",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 68,
+    "clientId": "6611f609-0107-43d0-b897-f37349f2b1a2",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 5
+    },
+    "createdAt": "2022-10-14T09:28:54.384Z"
+  },
+  {
+    "legacyId": 19,
+    "label": "British Columbia, SY Canada",
+    "config": {
+      "domain": "sahajayogabc.ca",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 87,
+    "clientId": "7c7822df-3765-40ba-a1d4-4405c84fde2f",
+    "enabled": true,
+    "location": {
+      "level": "region",
+      "legacyId": 1
+    },
+    "createdAt": "2022-11-12T10:20:29.702Z"
+  },
+  {
+    "legacyId": 20,
+    "label": "ShriMataji.org",
+    "config": {
+      "domain": "shrimataji.org",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 96,
+    "clientId": "425e97e3-a86d-48f5-8b15-2f9d79fb1a22",
+    "enabled": true,
+    "location": null,
+    "createdAt": "2022-12-12T14:16:12.805Z"
+  },
+  {
+    "legacyId": 21,
+    "label": "Meditace Online CZ",
+    "config": {
+      "domain": "www.meditaceonline.cz",
+      "locale": "cs",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 68,
+    "clientId": "ce417a60-fa88-4bcb-90fd-e8158e54fd98",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 5
+    },
+    "createdAt": "2023-02-15T08:35:44.940Z"
+  },
+  {
+    "legacyId": 22,
+    "label": "Sahaja Yoga ES",
+    "config": {
+      "domain": "sahajayoga.es",
+      "locale": "es",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 198,
+    "clientId": "784c4193-231e-4989-8c5f-91c76ccd625a",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 12
+    },
+    "createdAt": "2023-03-05T12:06:04.078Z"
+  },
+  {
+    "legacyId": 23,
+    "label": "Sahaja Yoga Argentina",
+    "config": {
+      "domain": "www.meditaciononline.sahajayoga.com.ar",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 252,
+    "clientId": "ea8e2214-1667-474a-bfdd-d6342ef29084",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 20
+    },
+    "createdAt": "2023-05-28T04:20:51.674Z"
+  },
+  {
+    "legacyId": 24,
+    "label": "Sahaja Yoga Brazil",
+    "config": {
+      "domain": "www.sahajayoga.org.br",
+      "locale": "pt-BR",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 258,
+    "clientId": "a5ad49a8-7f17-430f-ab74-c288f2f405cd",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 19
+    },
+    "createdAt": "2023-06-28T11:26:07.850Z"
+  },
+  {
+    "legacyId": 25,
+    "label": "Sahaja Yoga Germany",
+    "config": {
+      "domain": "www.sahajayoga.de",
+      "locale": "de",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 259,
+    "clientId": "92dc0e2a-4d54-4f01-8b58-5a3de2ac5cfa",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 11
+    },
+    "createdAt": "2023-06-29T01:07:11.350Z"
+  },
+  {
+    "legacyId": 26,
+    "label": "Free Meditation AU",
+    "config": {
+      "domain": "www.freemeditation.com.au",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 254,
+    "clientId": "67088308-7b03-41ea-8210-8a9636ef0f73",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 21
+    },
+    "createdAt": "2023-07-23T12:08:40.183Z"
+  },
+  {
+    "legacyId": 27,
+    "label": "Sahaja Yoga Switzerland",
+    "config": {
+      "domain": "www.sahajayoga.ch",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query",
+      "primary_color": "#f16f23"
+    },
+    "managerId": 281,
+    "clientId": "2392ee69-514f-4513-9530-74eed50c8e56",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 26
+    },
+    "createdAt": "2023-08-25T04:29:44.149Z"
+  },
+  {
+    "legacyId": 29,
+    "label": "Sahaja Yoga Greece",
+    "config": {
+      "domain": "www.sahajayoga.gr",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query",
+      "primary_color": "rgb(102, 53, 81)"
+    },
+    "managerId": 322,
+    "clientId": "12387641-a19e-40c3-a722-757d577f00fb",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 28
+    },
+    "createdAt": "2023-12-06T01:55:47.217Z"
+  },
+  {
+    "legacyId": 30,
+    "label": "Sahaja Yoga Finland",
+    "config": {
+      "domain": "www.meditoi.fi",
+      "locale": "fi",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 333,
+    "clientId": "626a17e2-2314-4274-9f99-535079d78fbb",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 18
+    },
+    "createdAt": "2024-07-11T11:25:14.168Z"
+  },
+  {
+    "legacyId": 31,
+    "label": "Jooga.org",
+    "config": {
+      "domain": "www.jooga.org",
+      "locale": "fi",
+      "embed_type": "script",
+      "default_view": "map",
+      "routing_type": "query"
+    },
+    "managerId": 333,
+    "clientId": "2821b798-001f-4cea-9d7b-4ff03cf5d488",
+    "enabled": true,
+    "location": {
+      "level": "country",
+      "legacyId": 18
+    },
+    "createdAt": "2024-07-11T11:25:50.781Z"
+  }
+]
