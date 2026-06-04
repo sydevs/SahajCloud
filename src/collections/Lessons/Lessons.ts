@@ -93,7 +93,7 @@ export const Lessons: CollectionConfig = {
             {
               name: 'meditation',
               type: 'relationship',
-              relationTo: ['meditations', 'videos'],
+              relationTo: ['meditations', 'videos', 'lectures'],
               localized: true,
               required: false,
               // Scope the type='lesson' filter to meditations only; videos are
