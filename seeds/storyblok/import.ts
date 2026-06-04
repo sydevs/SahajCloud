@@ -430,7 +430,8 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     }
 
     if (meditationId) {
-      lessonData.meditation = meditationId
+      // meditation is a polymorphic relationship (meditations | videos)
+      lessonData.meditation = { relationTo: 'meditations', value: meditationId }
     }
     if (introSubtitles) {
       lessonData.introSubtitles = introSubtitles
@@ -643,7 +644,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error))
         // Log the error to help with debugging
-         
+
         console.error(
           `[Storyblok] Upload attempt ${attempt}/${maxRetries} failed for ${filename}:`,
           lastError.message,
@@ -817,7 +818,9 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       // Log validation errors with actual data for debugging
       const preview = JSON.stringify(parsed).slice(0, 300)
       const errors = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
-      this.addWarning(`Subtitle file validation failed: ${filename}. Errors: ${errors}. Preview: ${preview}`)
+      this.addWarning(
+        `Subtitle file validation failed: ${filename}. Errors: ${errors}. Preview: ${preview}`,
+      )
       return undefined
     }
 

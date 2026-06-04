@@ -84,8 +84,14 @@ describe('Lessons Collection — custom behavior', () => {
     let esMeditation: Meditation
 
     beforeAll(async () => {
-      enMeditation = await testData.createMeditation(payload, undefined, { type: 'lesson', locale: 'en' })
-      esMeditation = await testData.createMeditation(payload, undefined, { type: 'lesson', locale: 'es' })
+      enMeditation = await testData.createMeditation(payload, undefined, {
+        type: 'lesson',
+        locale: 'en',
+      })
+      esMeditation = await testData.createMeditation(payload, undefined, {
+        type: 'lesson',
+        locale: 'es',
+      })
     })
 
     it('en meditation does not appear in es locale when fallbackLocale is false', async () => {
@@ -110,7 +116,7 @@ describe('Lessons Collection — custom behavior', () => {
         collection: 'lessons',
         id: lesson.id,
         locale: 'es',
-        data: { meditation: esMeditation.id },
+        data: { meditation: { relationTo: 'meditations', value: esMeditation.id } },
       })
 
       // English locale retains the original assignment
@@ -120,7 +126,7 @@ describe('Lessons Collection — custom behavior', () => {
         locale: 'en',
         depth: 0,
       })
-      expect(enFetched.meditation).toBe(enMeditation.id)
+      expect(enFetched.meditation).toEqual({ relationTo: 'meditations', value: enMeditation.id })
 
       // Spanish locale has the Spanish assignment
       const esFetched = await payload.findByID({
@@ -129,7 +135,26 @@ describe('Lessons Collection — custom behavior', () => {
         locale: 'es',
         depth: 0,
       })
-      expect(esFetched.meditation).toBe(esMeditation.id)
+      expect(esFetched.meditation).toEqual({ relationTo: 'meditations', value: esMeditation.id })
+    })
+  })
+
+  describe('meditation field — video link', () => {
+    it('links a video instead of a meditation via the polymorphic shape', async () => {
+      const video = await testData.createVideo(payload)
+
+      const lesson = await testData.createLesson(payload, {
+        title: 'Lesson with a video meditation',
+        meditation: { relationTo: 'videos', value: video.id },
+      })
+
+      const fetched = await payload.findByID({
+        collection: 'lessons',
+        id: lesson.id,
+        depth: 0,
+      })
+
+      expect(fetched.meditation).toEqual({ relationTo: 'videos', value: video.id })
     })
   })
 

@@ -195,7 +195,7 @@ describe('WeMeditateAppStatus Global', () => {
         title: 'Fully populated lesson',
         unit: 'Unit 1',
         step: 1,
-        meditation: meditation.id,
+        meditation: { relationTo: 'meditations', value: meditation.id },
         introAudio: introAudio.id,
         article: articleWithLectureLink(lectureForArticle.id),
         panels: [{ title: 'p1' }, { title: 'p2' }],

@@ -704,18 +704,32 @@ export const testData = {
   },
 
   /**
-   * Create a lesson with panels
+   * Create a lesson with panels.
+   *
+   * `meditation` accepts either a bare id (shorthand for a meditation link) or
+   * an explicit polymorphic `{ relationTo, value }` wrapper — pass
+   * `{ relationTo: 'videos', value: id }` to link a video instead. Both are
+   * normalized to the polymorphic shape the field now stores.
    */
-  async createLesson(payload: Payload, overrides: Partial<Lesson> = {}): Promise<Lesson> {
+  async createLesson(
+    payload: Payload,
+    overrides: Omit<Partial<Lesson>, 'meditation'> & {
+      meditation?: number | Lesson['meditation']
+    } = {},
+  ): Promise<Lesson> {
     // Create a default meditation if not provided
     // Note: Lessons collection filters meditations by type='lesson'
     let meditation = overrides.meditation
-    if (!meditation) {
+    if (meditation == null) {
       const defaultMeditation = await testData.createMeditation(payload, undefined, {
         type: 'lesson',
       })
       meditation = defaultMeditation.id
     }
+    const meditationRel =
+      typeof meditation === 'number'
+        ? { relationTo: 'meditations' as const, value: meditation }
+        : meditation
 
     // Icon is required - create a default image if not provided
     let icon = overrides.icon
@@ -737,7 +751,7 @@ export const testData = {
       unit: overrides.unit || 'Unit 1',
       step: overrides.step || 1,
       panels: panelsData,
-      meditation: typeof meditation === 'number' ? meditation : meditation?.id,
+      meditation: meditationRel,
       introAudio: overrides.introAudio || undefined,
       introSubtitles: overrides.introSubtitles || undefined,
       article: overrides.article || undefined,

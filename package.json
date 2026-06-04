@@ -25,6 +25,7 @@
     "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",
     "deploy:prod": "pnpm run deploy:database && pnpm run deploy:app",
     "deploy:database": "cross-env NODE_ENV=production CLOUDFLARE_ENV= PAYLOAD_SECRET=migration-only-dummy-secret-32chars payload migrate && wrangler d1 execute sahajcloud --command 'PRAGMA optimize' --remote",
+    "deploy:database:preview": "cross-env NODE_ENV=production CLOUDFLARE_ENV=preview PAYLOAD_SECRET=migration-only-dummy-secret-32chars payload migrate && wrangler d1 execute sahajcloud-preview --env=preview --command 'PRAGMA optimize' --remote",
     "deploy:app": "wrangler deploy src/worker.ts --experimental-autoconfig=false --env=\"\"",
     "db:create": "wrangler d1 create",
     "db:migrations:create": "cross-env NODE_OPTIONS=--no-deprecation payload migrate:create",

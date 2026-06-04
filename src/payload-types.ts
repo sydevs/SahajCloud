@@ -725,9 +725,21 @@ export interface Lesson {
     id?: string | null;
   }[];
   /**
-   * Link to a related guided meditation that complements this lesson content.
+   * Link to a related guided meditation or video that complements this lesson content.
    */
-  meditation?: (number | null) | Meditation;
+  meditation?:
+    | ({
+        relationTo: 'meditations';
+        value: number | Meditation;
+      } | null)
+    | ({
+        relationTo: 'videos';
+        value: number | Video;
+      } | null);
+  /**
+   * Overrides the default pre-meditation lines for this step. Leave blank to use the translation default.
+   */
+  preMeditationLines?: string | null;
   /**
    * Audio introduction to this lesson.
    */
@@ -2340,6 +2352,7 @@ export interface LessonsSelect<T extends boolean = true> {
         id?: T;
       };
   meditation?: T;
+  preMeditationLines?: T;
   introAudio?: T;
   introSubtitles?: T;
   article?: T;

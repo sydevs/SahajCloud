@@ -347,7 +347,8 @@ describe('Meditations Collection', () => {
         depth: 1, // Populate relationships
       })
 
-      const populatedMeditation = lessonResult.meditation as Meditation
+      // meditation is polymorphic — unwrap the { relationTo, value } wrapper
+      const populatedMeditation = (lessonResult.meditation as { value: Meditation }).value
       expect(populatedMeditation).toBeDefined()
       expect(populatedMeditation.id).toBe(meditation.id)
       // randomSongUrl should be excluded from relationship population due to defaultPopulate
