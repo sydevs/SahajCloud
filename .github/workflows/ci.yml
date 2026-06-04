@@ -49,24 +49,6 @@ jobs:
           PREVIEW_URL="https://${BRANCH_SLUG}-sahajcloud.${CF_WORKER_SUBDOMAIN}.workers.dev"
           echo "url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
           ./scripts/wait-for-200.sh "$PREVIEW_URL" 180
-      # CF Workers Builds publishes the preview Worker but does NOT run schema
-      # migrations. The shared sahajcloud-preview D1 is only reshaped by the
-      # weekly reclone, so without this step the preview runs new code against an
-      # old schema. Apply pending Payload migrations to the preview D1 before the
-      # smoke specs exercise it. Idempotent — already-applied migrations are
-      # skipped (tracked in payload_migrations).
-      - name: Apply Payload migrations to preview D1
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # `payload migrate` loads the full Payload config, so these serverEnv
-          # values must pass Zod validation. They are throwaway placeholders —
-          # migrate only alters the preview D1 schema and never uses these
-          # URLs/secrets at runtime.
-          SAHAJCLOUD_PREVIEW_SECRET: ci-preview-migrate-placeholder
-          WEMEDITATE_WEB_URL: https://wemeditate-web.contact-c66.workers.dev
-          SAHAJATLAS_URL: https://atlas.sydevelopers.com
-        run: pnpm run deploy:database:preview
       - name: Run smoke specs
         env:
           PREVIEW_URL: ${{ steps.preview.outputs.url }}
