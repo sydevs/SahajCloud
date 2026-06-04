@@ -93,15 +93,28 @@ export const Lessons: CollectionConfig = {
             {
               name: 'meditation',
               type: 'relationship',
-              relationTo: 'meditations',
+              relationTo: ['meditations', 'videos'],
               localized: true,
               required: false,
-              filterOptions: {
-                type: { equals: 'lesson' },
-              },
+              // Scope the type='lesson' filter to meditations only; videos are
+              // unfiltered. Function form returns `true` (not `{}`) for the
+              // unfiltered branch — see .claude/rules/collections.md.
+              filterOptions: ({ relationTo }) =>
+                relationTo === 'meditations' ? { type: { equals: 'lesson' } } : true,
               admin: {
                 description:
-                  'Link to a related guided meditation that complements this lesson content.',
+                  'Link to a related guided meditation or video that complements this lesson content.',
+              },
+            },
+            {
+              name: 'preMeditationLines',
+              type: 'textarea',
+              localized: true,
+              defaultValue: null,
+              admin: {
+                placeholder: 'find a quiet place\ntake a breath',
+                description:
+                  'Overrides the default pre-meditation lines for this step. Leave blank to use the translation default.',
               },
             },
             {

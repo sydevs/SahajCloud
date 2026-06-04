@@ -614,6 +614,10 @@
               "type": "string",
               "description": "Eyebrow above the step 3 meditation intro (typically uppercase)."
             },
+            "pre_meditation_lines": {
+              "type": "string",
+              "description": "Default calm copy shown before a Path step's meditation or video starts (e.g. 'find a quiet place\\ntake a breath'). Used when a step does not override it via the lesson's preMeditationLines field. Preserve the embedded line breaks (\\n) — they are intentional and control where each line wraps."
+            },
             "skip_intro": {
               "type": "string",
               "description": "Inline action that opens the skip-intro confirmation."
