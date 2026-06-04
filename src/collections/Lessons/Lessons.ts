@@ -110,7 +110,11 @@ export const Lessons: CollectionConfig = {
               name: 'preMeditationLines',
               type: 'textarea',
               localized: true,
-              defaultValue: null,
+              // Nullable by default — an unset value is null ("not overridden",
+              // so the app falls back to the pre_meditation_lines translation).
+              // We intentionally omit `defaultValue: null`: Payload renders it as
+              // a SQL `DEFAULT 'null'` (the literal string), which would taint
+              // existing rows on backfill rather than leaving them SQL NULL.
               admin: {
                 placeholder: 'find a quiet place\ntake a breath',
                 description:
