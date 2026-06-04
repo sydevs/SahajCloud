@@ -1184,7 +1184,7 @@ describe('Role-Based Access Control', () => {
       const meditation = await testData.createMeditation(payload, undefined, {
         label: 'Seed Morning Meditation',
         locale: 'en',
-        type: 'quick',
+        type: 'daily',
       })
 
       const editor = await testData.createManager(payload, {

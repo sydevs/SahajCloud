@@ -32,16 +32,15 @@ test('create, update, and delete a Meditation against preview', async ({ request
   expect(frames[0]?.id, 'preview DB should contain at least one cloned frame').toBeTruthy()
 
   // Retry-aware identifier so Playwright's automatic retries don't trip on
-  // meditations_slug_idx / meditations_filename_idx (both UNIQUE) — a
-  // failed first attempt would otherwise leave a row that blocks every retry.
+  // meditations_filename_idx (UNIQUE) — a failed first attempt would
+  // otherwise leave a row that blocks every retry.
   const label = `smoke-${runId()}-meditation-r${testInfo.retry}`
   const payload = {
     label,
-    title: label,
     narrator: narrators[0].id,
     thumbnail: images[0].id,
     locale: 'en',
-    type: 'quick',
+    type: 'daily',
     frames: [{ id: frames[0].id, timestamp: 0 }],
   }
 
@@ -61,14 +60,14 @@ test('create, update, and delete a Meditation against preview', async ({ request
   expect(created.doc.label).toBe(label)
   const id = created.doc.id
 
-  const newTitle = `${label}-updated`
+  const newLabel = `${label}-updated`
   const updateRes = await request.patch(`/api/meditations/${id}`, {
     headers: { ...headers, 'content-type': 'application/json' },
-    data: { title: newTitle },
+    data: { label: newLabel },
   })
   expect(updateRes.ok()).toBe(true)
-  const updated = (await updateRes.json()) as { doc: { title: string } }
-  expect(updated.doc.title).toBe(newTitle)
+  const updated = (await updateRes.json()) as { doc: { label: string } }
+  expect(updated.doc.label).toBe(newLabel)
 
   const deleteRes = await request.delete(`/api/meditations/${id}`, { headers })
   expect(deleteRes.ok()).toBe(true)
