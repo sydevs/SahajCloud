@@ -27,10 +27,10 @@ export const Videos: CollectionConfig = {
     // Without this, `thumbnailURL` is null and the admin edit view falls back
     // to the `url` field's Payload file route (`/api/videos/file/<id>`), which
     // 500s in production — the Stream adapter serves no bytes from Workers.
-    adminThumbnail: ({ doc }) => {
-      const filename = typeof doc.filename === 'string' ? doc.filename : null
-      return filename ? (getCloudflareStreamThumbnailUrl(filename, 320) ?? null) : null
-    },
+    adminThumbnail: ({ doc }) =>
+      typeof doc.filename === 'string'
+        ? (getCloudflareStreamThumbnailUrl(doc.filename, 320) ?? null)
+        : null,
   },
   admin: {
     group: 'Media',

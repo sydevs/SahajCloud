@@ -96,7 +96,7 @@ describe('Videos Collection — custom behavior', () => {
       // A doc without a Stream UID must yield null — never a file-route URL that
       // would 500. The populated-UID path builds the Stream thumbnail URL via
       // getCloudflareStreamThumbnailUrl (covered in storage-utils.int.spec.ts).
-      const fn = adminThumbnail as (args: { doc: Record<string, unknown> }) => false | null | string
+      const fn = adminThumbnail as (args: { doc: Record<string, unknown> }) => string | null
       expect(fn({ doc: {} })).toBeNull()
       expect(fn({ doc: { filename: 123 } })).toBeNull()
     })
