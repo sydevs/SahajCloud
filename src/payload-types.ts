@@ -733,6 +733,10 @@ export interface Lesson {
     | ({
         relationTo: 'videos';
         value: number | Video;
+      } | null)
+    | ({
+        relationTo: 'lectures';
+        value: number | Lecture;
       } | null);
   /**
    * Overrides the default pre-meditation lines for this step. Leave blank to use the translation default.
