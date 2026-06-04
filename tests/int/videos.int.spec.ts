@@ -68,4 +68,37 @@ describe('Videos Collection — custom behavior', () => {
       ).rejects.toThrow(/subtitles|startTimeMs/i)
     })
   })
+
+  describe('admin media URL wiring (#455)', () => {
+    // Videos live in Cloudflare Stream, not on the Worker filesystem. The admin
+    // edit view renders `thumbnailURL || url` as an <img>; if either resolves to
+    // Payload's default `/api/videos/file/<id>` route, that request 500s in
+    // production. Both must resolve to Cloudflare instead.
+
+    it('overrides `url` with a virtual field (Stream MP4, not the file route)', () => {
+      const urlField = payload.collections['videos'].config.fields.find(
+        (f) => 'name' in f && f.name === 'url',
+      )
+
+      expect(urlField).toBeDefined()
+      // Payload's base `url` field is not virtual; mixedMediaUrlField's is. A
+      // non-virtual `url` here means the override was dropped and the file-route
+      // 500 has returned.
+      expect(urlField).toHaveProperty('virtual', true)
+    })
+
+    it('wires `adminThumbnail` to the Stream poster and guards a missing UID', () => {
+      const { upload } = payload.collections['videos'].config
+      const adminThumbnail = typeof upload === 'object' ? upload.adminThumbnail : undefined
+
+      expect(typeof adminThumbnail).toBe('function')
+
+      // A doc without a Stream UID must yield null — never a file-route URL that
+      // would 500. The populated-UID path builds the Stream thumbnail URL via
+      // getCloudflareStreamThumbnailUrl (covered in storage-utils.int.spec.ts).
+      const fn = adminThumbnail as (args: { doc: Record<string, unknown> }) => string | null
+      expect(fn({ doc: {} })).toBeNull()
+      expect(fn({ doc: { filename: 123 } })).toBeNull()
+    })
+  })
 })
