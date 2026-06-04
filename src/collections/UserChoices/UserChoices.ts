@@ -186,7 +186,7 @@ export const UserChoices: CollectionConfig = {
       type: 'relationship',
       relationTo: 'meditations',
       localized: true,
-      filterOptions: { type: { in: ['quick', 'daily'] } },
+      filterOptions: { type: { equals: 'daily' } },
       admin: {
         condition: (data) =>
           isMoodChoice(data) &&
@@ -201,7 +201,7 @@ export const UserChoices: CollectionConfig = {
       type: 'relationship',
       relationTo: 'meditations',
       localized: true,
-      filterOptions: { type: { in: ['quick', 'daily'] } },
+      filterOptions: { type: { equals: 'daily' } },
       admin: {
         condition: (data) =>
           isMoodChoice(data) &&
@@ -216,7 +216,7 @@ export const UserChoices: CollectionConfig = {
       type: 'relationship',
       relationTo: 'meditations',
       localized: true,
-      filterOptions: { type: { in: ['quick', 'daily'] } },
+      filterOptions: { type: { equals: 'daily' } },
       admin: {
         condition: (data) =>
           isMoodChoice(data) &&
@@ -231,7 +231,7 @@ export const UserChoices: CollectionConfig = {
       type: 'relationship',
       relationTo: 'meditations',
       localized: true,
-      filterOptions: { type: { in: ['quick', 'daily'] } },
+      filterOptions: { type: { equals: 'daily' } },
       admin: {
         condition: (data) =>
           isMoodChoice(data) &&

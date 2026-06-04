@@ -518,14 +518,12 @@ export interface Meditation {
     | boolean
     | null;
   durationMinutes?: number | null;
-  title?: string | null;
   /**
-   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   * Optional auto-generated fallback title (e.g. Meditation for Anahat), derived from this meditation's dominant subtle-system node. Front-end clients use it only when they have no composed label of their own.
    */
-  generateSlug?: boolean | null;
-  slug: string;
+  title?: string | null;
   thumbnail?: (number | null) | Image;
-  type: 'quick' | 'daily' | 'lesson';
+  type: 'daily' | 'lesson';
   /**
    * Shows which categories use this meditation for each time of day. Managed from the Categories collection.
    */
@@ -2247,8 +2245,6 @@ export interface MeditationsSelect<T extends boolean = true> {
   subtleSystemNodeWeights?: T;
   durationMinutes?: T;
   title?: T;
-  generateSlug?: T;
-  slug?: T;
   thumbnail?: T;
   type?: T;
   tagAssignments?:
