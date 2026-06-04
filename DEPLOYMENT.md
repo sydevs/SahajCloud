@@ -822,7 +822,7 @@ After this PR merges, complete these steps once:
    - Production branch: `main` (existing behavior unchanged)
    - Non-production branches: all branches except `main`
    - Non-prod deploy command: `npx wrangler versions upload --env=preview`
-   - Pre-deploy migration step: `pnpm exec wrangler d1 migrations apply sahajcloud-preview --remote --env=preview`
+   - **Schema migrations are NOT run by Workers Builds.** This project uses Payload migrations (`src/migrations/*.ts` via `payload migrate`, tracked in `payload_migrations`), not Cloudflare's native `wrangler d1 migrations apply` (which expects `.sql` files in a `migrations_dir` and a `d1_migrations` table — neither of which exist here). The CI workflow (`.github/workflows/ci.yml`) applies pending Payload migrations to `sahajcloud-preview` via `pnpm run deploy:database:preview` (which runs `CLOUDFLARE_ENV=preview payload migrate`) before the smoke specs run, so the preview D1 always matches the deployed code. This requires the `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` repo secrets from step 6.
    - **Build environment variables** (Workers Builds → Settings → Variables and secrets → Build variables): set `PAYLOAD_SECRET` and `SAHAJCLOUD_PREVIEW_SECRET` to the same values you put in `wrangler.toml`. Per [CF docs](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), build variables are scoped to the build process (process.env during `opennextjs-cloudflare build`); they are not the same surface as the runtime bindings in `wrangler.toml [env.preview.vars]`, so both need to be set.
 
 6. **Repo secrets + vars** (Settings → Secrets and variables → Actions):
